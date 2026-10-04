@@ -292,6 +292,7 @@ async function pagePlanner() {
     if (!st.path) { $("#wins").innerHTML = '<div class="empty">No optimized builds yet — pick a class and press Optimize.</div>'; return; }
     $("#wins").innerHTML = '<div class="empty"><span class="spinner"></span> loading</div>';
     const v = await api("/api/build?path=" + encodeURIComponent(st.path));
+    $("#cls").value = v.class;
     renderWindows(v, st, $("#wins"));
   };
   $("#res").onchange = load;
