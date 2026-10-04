@@ -64,11 +64,11 @@ def render_build_card(path: str, *, title: str, subtitle: str, skills: list[dict
         ax.text(0.075, y - 0.02, f"Lv {s['eff']}  =  {s['sp']} SP + {s['daev']} Daev + {s['gear']} gear",
                 transform=ax.transAxes, color=CYAN if s['eff'] >= 12 else MUTED, fontsize=9, va="center")
         x = 0.36
-        for sp in s["specs"]:
-            _place(ax, _icon(SPEC_ICON_URL.format(sp["id"]), 48), x, y, zoom=0.42)
-            ax.text(x + 0.025, y, sp["text"], transform=ax.transAxes, color=TEXT, fontsize=8.2, va="center",
-                    wrap=True)
-            x += 0.215
+        n = len(s["specs"])
+        for i, sp in enumerate(s["specs"]):          # one spec per line, stacked inside the row
+            yy = y + (n - 1) * 0.0165 - i * 0.033
+            _place(ax, _icon(SPEC_ICON_URL.format(sp["id"]), 48), x, yy, zoom=0.32)
+            ax.text(x + 0.022, yy, sp["text"], transform=ax.transAxes, color=TEXT, fontsize=8.2, va="center")
         if not s["specs"]:
             ax.text(x, y, "—", transform=ax.transAxes, color=MUTED, fontsize=9, va="center")
         y -= dy

@@ -102,6 +102,72 @@ def _board_images(cd, build, comm, out: Path, daev_budget: int) -> None:
                   summary_lines=["## Note", "Aggregate of the most-picked nodes", "(not one player's board)"])
 
 
+def _build_card(cd, summary: dict, build, policy, out: Path) -> None:
+    """Planner-style build card from a summary (also used by ``render``)."""
+    try:
+        from .model.character import load_loadout, loadout_stats
+        from .render.buildcard import render_build_card
+        cls, scen_name = summary["class"], summary["scenario"]
+        loadout = summary.get("loadout") or f"{cls}_l45_global_median"
+        _, bg, kit, _ = prepare(build, SCENARIOS[scen_name](loadout))
+        eff = bg.effective_levels(cd)
+        dv = cd.daevanion_levels(build.daevanion)
+        gear = loadout_stats(load_loadout(loadout)).skill_bonus
+
+        def skill_rows(kind):
+            rows = []
+            for sid, sk in cd.skills.items():
+                if sk["kind"] != kind:
+                    continue
+                rows.append({"id": sid, "name": sk["name"], "sp": build.sp.get(sid, 1), "daev": dv.get(sid, 0),
+                             "gear": gear.get(sid, 0) + build.bonus.get(sid, 0), "eff": eff.get(sid, 1),
+                             "specs": [{"id": x, "text": _spec_text(cd, sid, x)} for x in build.specs.get(sid, ())]})
+            return sorted(rows, key=lambda r: (-r["eff"], r["name"]))
+
+        stig_rows = [{"id": sid, "name": cd.skills[sid]["name"], "level": lv,
+                      "specs": [x["text"] for x in cd.skills[sid]["specs"] if x["unlock"] <= lv]}
+                     for sid, lv in build.stigmas.items()]
+        notes = {"sync_de": "wait for Delayed Explosion", "in_ee": "inside Element Enhancement",
+                 "mp_hi": "only at MP >= 60%"}
+        pr = []
+        for e in policy:
+            k = e[0] if isinstance(e, tuple) else e
+            if k not in kit.actions:
+                continue
+            a = kit.actions[k]
+            note = notes.get(e[1], "") if isinstance(e, tuple) else ("filler" if a.is_filler else "")
+            pr.append({"id": a.skill_id, "label": a.name, "note": note})
+        names = {k: a.name for k, a in kit.actions.items()}
+        st, dps, base, m = summary["stats"], summary["dps"], summary["baseline"], summary["macro"]
+        other = next(k for k in dps if k != scen_name)
+        stat_lines = [f"Attack (avg / max roll): {st['attack_avg']:.0f} / {st['attack_max']:.0f}",
+                      f"Critical Hit: {st['crit_stat']:.0f}  ->  {100 * st['crit_chance_vs_target']:.1f}% crit",
+                      f"Double (Smite): {100 * st['double']:.1f}%   Perfect: {100 * st['perfect']:.1f}%",
+                      f"Multi-hit: {100 * st['multihit']:.1f}%   Weapon Dmg Boost: {100 * st['weapon_amp']:.0f}%",
+                      f"Damage Boost bucket: {100 * st['boost_bucket']:.1f}%",
+                      f"Combat Speed: {100 * st['combat_speed']:.1f}%   Cooldown Red.: {100 * st['cdr']:.1f}%",
+                      f"DPS  {scen_name}: {dps[scen_name]:,.0f}   {other}: {dps[other]:,.0f}",
+                      f"vs typical top build: {100 * (dps[scen_name] / base['community_optimized_rotation'] - 1):+.1f}%"
+                      " (same rotation optimizer)",
+                      f"macro execution: {100 * m['dps_macro'] / m['dps_priority']:.1f}% of ideal priority"]
+        links = summary["links"]
+        render_build_card(
+            str(out / "images" / "build_card.png"),
+            title=f"{cls.capitalize()} · Level 45 · Global client data",
+            subtitle=f"Optimized for: {scen_name} · Daevanion {build.daevanion_cost(cd)}/{summary['daevanion_budget']}"
+                     f" · SP {build.sp_spent()}/203 · Stigma {build.stigma_spent()}/30"
+                     f" · Gear: {load_loadout(loadout).get('name', loadout).split(' - ')[-1]}",
+            skills=skill_rows("active"), passives=skill_rows("passive"), stigmas=stig_rows, priority=pr,
+            macro={"steps": [names.get(x, x) for x in m["steps"]],
+                   "manual": [names.get(x.split(" [")[0], x) for x in m["manual"]],
+                   "note": "Hold the macro key; press the manual skills when they come off cooldown."},
+            stat_lines=stat_lines, weights=summary["weights"],
+            shares=list(summary["shares"].items()), gear=_gear_lines(loadout),
+            links=[f"{k}: {v[:118]}{'…' if len(v) > 118 else ''}" for k, v in links.items()])
+    except Exception as err:  # images are a bonus; never fail the report on them
+        print("build card failed:", err)
+
+
 def build_from_summary(summary: dict):
     """Rebuild ``(Build, policy)`` from a ``build.json`` summary."""
     from .kit.base import Build
@@ -128,9 +194,10 @@ def rerender(out_dir: str) -> str:
     cls = summary["class"]
     loadout = summary.get("loadout") or f"{cls}_l45_global_median"
     summary["loadout"] = loadout
-    build, _ = build_from_summary(summary)
+    build, policy = build_from_summary(summary)
     (Path(out_dir) / "images").mkdir(parents=True, exist_ok=True)
     _board_images(ClassData(cls), build, typical_build(cls), Path(out_dir), summary["daevanion_budget"])
+    _build_card(ClassData(cls), summary, build, policy, Path(out_dir))
     if "kr_fidelity" not in summary or "arcana_skill_values" not in summary:
         build, policy = build_from_summary(summary)
         dummy = SCENARIOS["dummy"](loadout)
@@ -203,25 +270,6 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     sens = sensitivity(build, scen, policy, samples=8)
 
     eff = opt._with_gear(build).effective_levels(cd)
-    dv = cd.daevanion_levels(build.daevanion)
-    gear_bonus = opt._gear_bonus()
-
-    def skill_rows(kind):
-        rows = []
-        for sid, s in cd.skills.items():
-            if s["kind"] != kind:
-                continue
-            rows.append({"id": sid, "name": s["name"], "sp": build.sp.get(sid, 1), "daev": dv.get(sid, 0),
-                         "gear": gear_bonus.get(sid, 0) + build.bonus.get(sid, 0), "eff": eff.get(sid, 1),
-                         "specs": [{"id": x, "text": _spec_text(cd, sid, x)} for x in build.specs.get(sid, ())]})
-        return sorted(rows, key=lambda r: (-r["eff"], r["name"]))
-
-    actives, passives = skill_rows("active"), skill_rows("passive")
-    stig_rows = []
-    for sid, lv in build.stigmas.items():
-        s = cd.skills[sid]
-        stig_rows.append({"id": sid, "name": s["name"], "level": lv,
-                          "specs": [x["text"] for x in s["specs"] if x["unlock"] <= lv]})
 
     timeline = [(round(t, 2), k) for t, k in final.timeline if t < 30]
     links = {
@@ -270,43 +318,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
 
     # ---- images
     _board_images(cd, build, comm, out, daev_budget)
-    try:
-        from .render.buildcard import render_build_card
-        pr = []
-        for e in policy:
-            k = e[0] if isinstance(e, tuple) else e
-            a = kit.actions[k]
-            note = {"sync_de": "wait for Delayed Explosion", "in_ee": "inside Element Enhancement",
-                    "mp_hi": "only at MP >= 60%"}.get(
-                e[1] if isinstance(e, tuple) else None, "")
-            if a.is_filler and not isinstance(e, tuple):
-                note = "filler"
-            pr.append({"id": a.skill_id, "label": a.name, "note": note})
-        names = {k: a.name for k, a in kit.actions.items()}
-        stat_lines = [f"Attack (avg / max roll): {d.attack():.0f} / {d.attack(perfect=True):.0f}",
-                      f"Critical Hit: {d.crit_stat:.0f}  ->  {100 * stat_summary['crit_chance_vs_target']:.1f}% crit",
-                      f"Double (Smite): {100 * d.double:.1f}%   Perfect: {100 * d.perfect:.1f}%",
-                      f"Multi-hit: {100 * d.multihit:.1f}%   Weapon Dmg Boost: {100 * d.weapon_amp:.0f}%",
-                      f"Damage Boost bucket: {100 * d.amp:.1f}% (+20% Grace at >=25% MP)",
-                      f"Combat Speed: {100 * d.combat_speed:.1f}%   Cooldown Red.: {100 * d.cdr:.1f}%",
-                      f"DPS  boss: {final.dps:,.0f}   dummy: {final_other.dps:,.0f}" if scenario_name == "boss"
-                      else f"DPS  dummy: {final.dps:,.0f}   boss: {final_other.dps:,.0f}",
-                      f"vs community build: +{100 * (final.dps / comm_rot.dps - 1):.1f}% (same rotation optimizer)",
-                      f"macro execution: {100 * macro.dps_macro / macro.dps_priority:.1f}% of ideal priority"]
-        render_build_card(
-            str(out / "images" / "build_card.png"),
-            title=f"{cls.capitalize()} · Level 45 · Global client data",
-            subtitle=f"Optimized for: {scenario_name} · Daevanion {build.daevanion_cost(cd)}/{daev_budget} · "
-                     f"Skill points {build.sp_spent()}/203 · Stigma points {build.stigma_spent()}/30",
-            skills=actives, passives=passives, stigmas=stig_rows, priority=pr,
-            macro={"steps": [names[s] for s in macro.macro_steps],
-                   "manual": [names[e[0] if isinstance(e, tuple) else e] for e in macro.manual],
-                   "note": "Hold the macro key; press the manual skills when they come off cooldown."},
-            stat_lines=stat_lines, weights=res.weights,
-            shares=list(final.shares().items()), gear=_gear_lines(loadout),
-            links=[f"{k}: {v[:118]}{'…' if len(v) > 118 else ''}" for k, v in links.items()])
-    except Exception as err:  # images are a bonus; never fail the report on them
-        print("build card failed:", err)
+    _build_card(cd, summary, build, policy, out)
     from .report_md import write_markdown
     from .model.character import load_loadout
     write_markdown(summary, str(out), extra={"gear_lines": _gear_lines(loadout), "weapon_compare": wc,
