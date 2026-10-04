@@ -1,0 +1,995 @@
+{
+ "class": "sorcerer",
+ "level": 45,
+ "scenario": "boss",
+ "daevanion_budget": 360,
+ "dps": {
+  "boss": 17961.661542782724,
+  "dummy": 21345.147553310402
+ },
+ "baseline": {
+  "community_naive": 14049.724880958027,
+  "community_optimized_rotation": 16511.99661745501,
+  "community_other_scenario": 20120.925578414237
+ },
+ "build": {
+  "sp": {
+   "Flame Scattershot": 4,
+   "Firestorm": 10,
+   "Blaze": 10,
+   "Hellfire": 10,
+   "Winter's Shackles": 4,
+   "Flame Arrow": 10,
+   "Bittercold Wind": 10,
+   "Wish of Concentration": 7,
+   "Fire Mark": 9,
+   "Robe of Earth": 10,
+   "Robe of Flame": 10,
+   "Grace of Enhancement": 4,
+   "Vitality Evaporation": 10
+  },
+  "sp_spent": 203,
+  "stigma_spent": 30,
+  "stigmas": {
+   "Cold Storm": 6,
+   "Element Enhancement": 10,
+   "Fire Wall": 6,
+   "Delayed Explosion": 1
+  },
+  "specs": {
+   "Flame Arrow": [
+    "+50% Multi-Hit on hit",
+    "+5% Fire Damage Boost for 10s on activating [Pyroclasm]"
+   ],
+   "Firestorm": [
+    "+20% Skill Speed",
+    "-2s [Hellfire] cooldown per fireball"
+   ],
+   "Bittercold Wind": [
+    "+1s [Bittercold Wind] summon duration",
+    "Ignores Block and Evasion and lands as a Critical Hit"
+   ],
+   "Blaze": [
+    "Delayed Damage after 3s",
+    "Multi-Hit on hit"
+   ],
+   "Wish of Concentration": [
+    "+10% additional Attack"
+   ],
+   "Hellfire": [
+    "Fire Damage over Time for 10s on hit",
+    "Ignores Block and Evasion and lands as Multi-Hit"
+   ],
+   "Winter's Shackles": [
+    "+20% PvE Damage Boost and +10% PvP Damage Boost for 5s on landing [Winter's Shackles]"
+   ]
+  },
+  "daevanion_nodes": [
+   610033,
+   610034,
+   610035,
+   610037,
+   610038,
+   610039,
+   610042,
+   610043,
+   610048,
+   610050,
+   610051,
+   610052,
+   610054,
+   610055,
+   610056,
+   610058,
+   610063,
+   610067,
+   610068,
+   610071,
+   610072,
+   610073,
+   610082,
+   610084,
+   610086,
+   610088,
+   610096,
+   610097,
+   610098,
+   610099,
+   610100,
+   610102,
+   610103,
+   610111,
+   610115,
+   610118,
+   610123,
+   610124,
+   610125,
+   610126,
+   610127,
+   610138,
+   610142,
+   610144,
+   610153,
+   610157,
+   610158,
+   610159,
+   610161,
+   610162,
+   610163,
+   610168,
+   610170,
+   610171,
+   610172,
+   610174,
+   610175,
+   610176,
+   610183,
+   610187,
+   610188,
+   610189,
+   610191,
+   610192,
+   610193,
+   620034,
+   620035,
+   620036,
+   620040,
+   620041,
+   620042,
+   620043,
+   620048,
+   620050,
+   620055,
+   620058,
+   620063,
+   620064,
+   620065,
+   620067,
+   620069,
+   620070,
+   620071,
+   620073,
+   620078,
+   620082,
+   620084,
+   620086,
+   620093,
+   620094,
+   620097,
+   620101,
+   620102,
+   620109,
+   620112,
+   620114,
+   620117,
+   620123,
+   620124,
+   620125,
+   620126,
+   620127,
+   620129,
+   620131,
+   620132,
+   620133,
+   620138,
+   620144,
+   620145,
+   620146,
+   620153,
+   620159,
+   620161,
+   620168,
+   620174,
+   620183,
+   620184,
+   620185,
+   620188,
+   620189,
+   620190,
+   630033,
+   630034,
+   630035,
+   630039,
+   630048,
+   630050,
+   630051,
+   630052,
+   630054,
+   630064,
+   630065,
+   630067,
+   630068,
+   630069,
+   630070,
+   630071,
+   630072,
+   630079,
+   630082,
+   630093,
+   630094,
+   630096,
+   630097,
+   630098,
+   630103,
+   630118,
+   630124,
+   630125,
+   630126,
+   630127,
+   630128,
+   630129,
+   630130,
+   630131,
+   630132,
+   630133,
+   630139,
+   630142,
+   630144,
+   630147,
+   630154,
+   630155,
+   630159,
+   630170,
+   630174,
+   630175,
+   630176,
+   630185,
+   630186,
+   630189,
+   630191,
+   630192,
+   630193,
+   640018,
+   640019,
+   640022,
+   640034,
+   640035,
+   640036,
+   640037,
+   640040,
+   640041,
+   640042,
+   640044,
+   640049,
+   640052,
+   640053,
+   640054,
+   640057,
+   640059,
+   640064,
+   640065,
+   640067,
+   640069,
+   640070,
+   640071,
+   640072,
+   640073,
+   640074,
+   640081,
+   640085,
+   640092,
+   640093,
+   640094,
+   640095,
+   640096,
+   640097,
+   640098,
+   640099,
+   640100,
+   640101,
+   640102,
+   640107,
+   640115,
+   640117,
+   640119,
+   640122,
+   640123,
+   640127,
+   640128,
+   640130,
+   640132,
+   640133,
+   640134,
+   640138,
+   640147,
+   640152,
+   640153,
+   640154,
+   640157,
+   640159,
+   640160,
+   640161,
+   640162,
+   640163,
+   640167,
+   640169,
+   640172,
+   640173,
+   640174,
+   640177,
+   640184,
+   640186,
+   640187,
+   640192,
+   640198,
+   640199,
+   640202
+  ],
+  "daevanion_cost": 360,
+  "effective_levels": {
+   "Flame Arrow": 13,
+   "Ice Chain": 3,
+   "Firestorm": 14,
+   "Bittercold Wind": 13,
+   "Blaze": 13,
+   "Flame Scattershot": 5,
+   "Frost": 2,
+   "Winter's Shackles": 8,
+   "Frost Burst": 2,
+   "Wish of Concentration": 11,
+   "Hellfire": 14,
+   "Defiance": 2,
+   "Fire Mark": 13,
+   "Robe of Earth": 14,
+   "Cold Snap": 2,
+   "Robe of Flame": 14,
+   "Absorb Essence": 3,
+   "Grace of Resistance": 2,
+   "Robe of Cold": 2,
+   "Grace of Enhancement": 6,
+   "Revitalization Contract": 3,
+   "Vitality Evaporation": 14,
+   "Cold Storm": 6,
+   "Element Enhancement": 10,
+   "Fire Wall": 6
+  }
+ },
+ "policy": [
+  "wish",
+  "element_enhancement",
+  "fire_wall",
+  "cold_storm",
+  "winters_shackles",
+  "blaze",
+  "firestorm",
+  "hellfire_c3",
+  "bittercold_wind [in_ee]",
+  "frost_burst",
+  "flame_scattershot",
+  "delayed_explosion",
+  "flame_arrow"
+ ],
+ "macro": {
+  "steps": [
+   "wish",
+   "element_enhancement",
+   "fire_wall",
+   "winters_shackles",
+   "cold_storm",
+   "blaze",
+   "firestorm",
+   "bittercold_wind",
+   "hellfire_c3",
+   "frost_burst",
+   "flame_scattershot",
+   "delayed_explosion",
+   "flame_arrow"
+  ],
+  "manual": [],
+  "dps_macro": 17088.865145807908,
+  "dps_priority": 17961.661542782724,
+  "alt_steps": [
+   "firestorm",
+   "blaze",
+   "frost_burst",
+   "flame_arrow"
+  ],
+  "alt_manual": [
+   "wish",
+   "element_enhancement",
+   "fire_wall",
+   "cold_storm",
+   "winters_shackles",
+   "hellfire_c3",
+   "bittercold_wind [in_ee]",
+   "flame_scattershot",
+   "delayed_explosion"
+  ],
+  "dps_alt": 16933.53821959117
+ },
+ "shares": {
+  "Hellfire": 0.18218475719819696,
+  "Blaze": 0.09107400946608904,
+  "Firestorm": 0.08954173995442888,
+  "Fire Wall": 0.08721220669827608,
+  "Bittercold Wind": 0.07632630797895404,
+  "Fire Wall (Embers)": 0.06984201918399742,
+  "Cold Storm": 0.06973625424881932,
+  "Cold Storm (Frostbite)": 0.057991747913871385,
+  "Fire Mark": 0.04866173077978951,
+  "Hellfire (DoT)": 0.0367412389189142,
+  "Vitality Evaporation": 0.0356486896570697,
+  "Grace of Enhancement": 0.027639038144540204,
+  "Flame Arrow": 0.025104295772777823,
+  "Blaze (delayed)": 0.02460410395617946,
+  "Flame Arrow (Burst)": 0.02414728679712954,
+  "Flame Arrow (Pyroclasm)": 0.019123151282444024,
+  "Delayed Explosion": 0.012861570067493177,
+  "Flame Scattershot": 0.009197906272898059,
+  "Winter's Shackles": 0.007786200633079165,
+  "Cold Snap": 0.004575745075052443
+ },
+ "casts": {
+  "wish": 4,
+  "element_enhancement": 4,
+  "fire_wall": 4,
+  "cold_storm": 4,
+  "winters_shackles": 5,
+  "blaze": 34,
+  "firestorm": 34,
+  "hellfire_c3": 12,
+  "bittercold_wind": 11,
+  "delayed_explosion": 6,
+  "flame_arrow": 74,
+  "flame_scattershot": 10
+ },
+ "uptime": {
+  "wish": 0.3113587779965817,
+  "element_enhancement": 0.29977720886157816,
+  "shackles": 0.1388888888888889,
+  "pyroclasm": 0.7240171284160907
+ },
+ "opener": [
+  [
+   0.0,
+   "wish"
+  ],
+  [
+   0.58,
+   "element_enhancement"
+  ],
+  [
+   1.17,
+   "fire_wall"
+  ],
+  [
+   2.12,
+   "cold_storm"
+  ],
+  [
+   3.08,
+   "winters_shackles"
+  ],
+  [
+   4.03,
+   "blaze"
+  ],
+  [
+   4.76,
+   "firestorm"
+  ],
+  [
+   5.76,
+   "hellfire_c3"
+  ],
+  [
+   7.73,
+   "bittercold_wind"
+  ],
+  [
+   8.69,
+   "delayed_explosion"
+  ],
+  [
+   9.55,
+   "blaze"
+  ],
+  [
+   10.27,
+   "firestorm"
+  ],
+  [
+   11.28,
+   "flame_arrow"
+  ],
+  [
+   12.05,
+   "flame_arrow"
+  ],
+  [
+   12.82,
+   "flame_arrow"
+  ],
+  [
+   13.59,
+   "flame_arrow"
+  ],
+  [
+   14.36,
+   "blaze"
+  ],
+  [
+   15.08,
+   "firestorm"
+  ],
+  [
+   16.08,
+   "flame_arrow"
+  ],
+  [
+   16.85,
+   "flame_arrow"
+  ],
+  [
+   17.62,
+   "flame_arrow"
+  ],
+  [
+   18.39,
+   "flame_arrow"
+  ],
+  [
+   19.16,
+   "blaze"
+  ],
+  [
+   19.89,
+   "firestorm"
+  ],
+  [
+   20.89,
+   "hellfire_c3"
+  ],
+  [
+   22.86,
+   "bittercold_wind"
+  ],
+  [
+   23.82,
+   "flame_arrow"
+  ],
+  [
+   24.59,
+   "blaze"
+  ],
+  [
+   25.31,
+   "firestorm"
+  ],
+  [
+   26.32,
+   "flame_arrow"
+  ],
+  [
+   27.09,
+   "flame_arrow"
+  ],
+  [
+   27.85,
+   "flame_arrow"
+  ],
+  [
+   28.62,
+   "flame_arrow"
+  ],
+  [
+   29.39,
+   "blaze"
+  ]
+ ],
+ "weights": [
+  {
+   "stat": "cdr",
+   "step": 0.03,
+   "label": "Cooldown Reduction +3%",
+   "dps_gain": 615.9591728210689,
+   "pct": 3.4292995186103536,
+   "per_unit": 20531.972427368964,
+   "attack_equiv": 85.04572291806672
+  },
+  {
+   "stat": "amp_pve",
+   "step": 0.03,
+   "label": "PvE / Damage Boost +3%",
+   "dps_gain": 450.2941089533815,
+   "pct": 2.5069735774768382,
+   "per_unit": 15009.803631779385,
+   "attack_equiv": 62.17228302047152
+  },
+  {
+   "stat": "pen",
+   "step": 300,
+   "label": "Penetration +300",
+   "dps_gain": 288.56747140036896,
+   "pct": 1.606574484843914,
+   "per_unit": 0.9618915713345632,
+   "attack_equiv": 39.84262317822808
+  },
+  {
+   "stat": "pve_atk",
+   "step": 30,
+   "label": "PvE Attack +30",
+   "dps_gain": 288.56747140036896,
+   "pct": 1.606574484843914,
+   "per_unit": 9.618915713345633,
+   "attack_equiv": 39.84262317822808
+  },
+  {
+   "stat": "double",
+   "step": 0.02,
+   "label": "Double (Smite) chance +2%",
+   "dps_gain": 288.30767449093037,
+   "pct": 1.6051280879790149,
+   "per_unit": 14415.383724546518,
+   "attack_equiv": 39.80675291774654
+  },
+  {
+   "stat": "weapon_amp",
+   "step": 0.03,
+   "label": "Weapon Damage Boost +3%",
+   "dps_gain": 278.71603708147813,
+   "pct": 1.551727474752861,
+   "per_unit": 9290.534569382606,
+   "attack_equiv": 38.4824318045162
+  },
+  {
+   "stat": "crit",
+   "step": 50,
+   "label": "Critical Hit +50",
+   "dps_gain": 267.04577590222107,
+   "pct": 1.4867543031369737,
+   "per_unit": 5.340915518044421,
+   "attack_equiv": 36.87111429772931
+  },
+  {
+   "stat": "attack",
+   "step": 30,
+   "label": "Attack +30",
+   "dps_gain": 217.2804763201857,
+   "pct": 1.2096902939777996,
+   "per_unit": 7.24268254400619,
+   "attack_equiv": 30.0
+  },
+  {
+   "stat": "weapon_max",
+   "step": 30,
+   "label": "Weapon max attack +30 (min too)",
+   "dps_gain": 217.2804763201857,
+   "pct": 1.2096902939777996,
+   "per_unit": 7.24268254400619,
+   "attack_equiv": 30.0
+  },
+  {
+   "stat": "illusion",
+   "step": 10,
+   "label": "Illusion +10 (Cooldown -1%)",
+   "dps_gain": 205.31972427368967,
+   "pct": 1.1430998395367846,
+   "per_unit": 20.531972427368967,
+   "attack_equiv": 28.348574306022243
+  },
+  {
+   "stat": "combat_speed",
+   "step": 0.03,
+   "label": "Combat Speed +3%",
+   "dps_gain": 192.2383455065874,
+   "pct": 1.0702703925730732,
+   "per_unit": 6407.94485021958,
+   "attack_equiv": 26.54242324422705
+  },
+  {
+   "stat": "wisdom",
+   "step": 10,
+   "label": "Wisdom +10 (Double +1%)",
+   "dps_gain": 144.1538372453506,
+   "pct": 0.8025640439888695,
+   "per_unit": 14.415383724535058,
+   "attack_equiv": 19.90337645885745
+  },
+  {
+   "stat": "crit_atk",
+   "step": 50,
+   "label": "Critical Attack +50",
+   "dps_gain": 123.4172316121876,
+   "pct": 0.6871147823280224,
+   "per_unit": 2.468344632243752,
+   "attack_equiv": 17.040265241823104
+  },
+  {
+   "stat": "might",
+   "step": 10,
+   "label": "Might +10 (Attack +1%)",
+   "dps_gain": 87.55710856881706,
+   "pct": 0.4874666431068504,
+   "per_unit": 8.755710856881706,
+   "attack_equiv": 12.089044085091993
+  },
+  {
+   "stat": "destruction",
+   "step": 10,
+   "label": "Destruction +10 (Attack +1%)",
+   "dps_gain": 87.55710856881706,
+   "pct": 0.4874666431068504,
+   "per_unit": 8.755710856881706,
+   "attack_equiv": 12.089044085091993
+  },
+  {
+   "stat": "crit_dmg",
+   "step": 0.03,
+   "label": "Critical Damage Boost +3%",
+   "dps_gain": 76.36412055165056,
+   "pct": 0.42515064861766566,
+   "per_unit": 2545.4706850550187,
+   "attack_equiv": 10.543623869701019
+  },
+  {
+   "stat": "time",
+   "step": 10,
+   "label": "Time +10 (Combat Speed +1%)",
+   "dps_gain": 64.0794485021958,
+   "pct": 0.3567567975243578,
+   "per_unit": 6.407944850219581,
+   "attack_equiv": 8.84747441474235
+  },
+  {
+   "stat": "multihit",
+   "step": 0.03,
+   "label": "Multi-hit chance +3%",
+   "dps_gain": 37.54787198200211,
+   "pct": 0.20904453573277262,
+   "per_unit": 1251.5957327334036,
+   "attack_equiv": 5.184249310095127
+  },
+  {
+   "stat": "death",
+   "step": 10,
+   "label": "Death +10 (Crit +1%)",
+   "dps_gain": 23.716344756023318,
+   "pct": 0.13203870198496706,
+   "per_unit": 2.371634475602332,
+   "attack_equiv": 3.2745249583871656
+  },
+  {
+   "stat": "perfect",
+   "step": 0.03,
+   "label": "Perfect chance +3%",
+   "dps_gain": 1.9205503048178798,
+   "pct": 0.010692498019981825,
+   "per_unit": 64.01834349392934,
+   "attack_equiv": 0.26517112867348647
+  },
+  {
+   "stat": "justice",
+   "step": 10,
+   "label": "Justice +10 (Perfect +1%)",
+   "dps_gain": 0.6401834349380806,
+   "pct": 0.0035641660066538573,
+   "per_unit": 0.06401834349380806,
+   "attack_equiv": 0.08839037622432806
+  },
+  {
+   "stat": "mp_max",
+   "step": 300,
+   "label": "MP +300",
+   "dps_gain": 0.0,
+   "pct": 0.0,
+   "per_unit": 0.0,
+   "attack_equiv": 0.0
+  }
+ ],
+ "stats": {
+  "attack_avg": 1403.8754999999999,
+  "attack_max": 1415.6814,
+  "crit_stat": 528.003,
+  "crit_chance_vs_target": 0.05060922426947957,
+  "double": 0.0332,
+  "perfect": 0.08860000000000001,
+  "multihit": 0.01,
+  "boost_bucket": 0.20500000000000002,
+  "weapon_amp": 0.1,
+  "combat_speed": 0.08170000000000001,
+  "cdr": 0.0653,
+  "accuracy": 477.2306,
+  "mp_max": 5262.81
+ },
+ "sensitivity": [
+  {
+   "fixed": 18026.304476304595,
+   "reoptimized": 18390.26206137738,
+   "loss_pct": 1.9790777524435477
+  },
+  {
+   "fixed": 16590.82847151558,
+   "reoptimized": 17277.734804221953,
+   "loss_pct": 3.9756735503228335
+  },
+  {
+   "fixed": 17262.356372254788,
+   "reoptimized": 17663.094451982277,
+   "loss_pct": 2.2687875038935545
+  },
+  {
+   "fixed": 16824.588922535524,
+   "reoptimized": 17474.47497765483,
+   "loss_pct": 3.719059118802348
+  },
+  {
+   "fixed": 17935.357120719986,
+   "reoptimized": 18654.604410077853,
+   "loss_pct": 3.855601939054276
+  },
+  {
+   "fixed": 16984.422584823336,
+   "reoptimized": 17530.784659022742,
+   "loss_pct": 3.1165865352079547
+  },
+  {
+   "fixed": 17614.616197867745,
+   "reoptimized": 17765.386866276185,
+   "loss_pct": 0.8486765278083896
+  },
+  {
+   "fixed": 16927.930466159367,
+   "reoptimized": 17469.631836420423,
+   "loss_pct": 3.1008173230744673
+  }
+ ],
+ "links": {
+  "metabot_build": "https://metabot.gg/en/aion-2/classes/sorcerer/build#v1~l19~s8xpsg.4.0_8ycxs.a.a_8yknk.a.c_8ysdc.a.a_8zuy8.4.4_91se8.6.0_92040.a.c_93i4g.a.9_9459s.7.2_95v00.6.0_962ps.a.0_9cpww.9.0_9cxmo.a.0_9dd28.a.0_9e7xc.4.0_9encw.a.0~g91se8_962ps_95v00_94czk~d61-0.1.2.3.4.5.7.8.9.a.b.c.d.e.f.g.h.k.l.n.o.p.r.s.t.u.y.z.10.11.12.14.15.17.19.1a.1b.1c.1d.1e.1f.1m.1o.1p.1r.1u.1v.1w.1x.1y.1z.20.21.22.23.24.25.26.28.2b.2c.2d.2e.2f.2g_62-1.2.3.7.8.9.a.b.c.e.f.g.h.i.j.l.m.n.p.q.t.u.v.x.y.10.13.14.16.17.19.1a.1b.1c.1d.1e.1f.1g.1h.1i.1j.1k.1n.1o.1p.1r.1x.1y.21.23.26.27.28.2b.2c.2d_63-0.1.2.5.a.b.c.d.e.i.j.k.l.m.n.o.p.r.s.v.w.y.z.10.15.1a.1c.1d.1e.1f.1g.1h.1i.1j.1k.1l.1m.1n.1o.1p.1r.1s.1w.21.23.24.25.29.2a.2d.2e.2f.2g_64-1.2.3.a.b.c.d.f.g.h.i.k.l.m.n.o.p.s.t.v.w.x.y.z.10.11.13.14.16.17.18.19.1a.1b.1c.1d.1e.1f.1g.1j.1n.1o.1p.1q.1r.1v.1w.1y.20.21.22.23.26.27.28.29.2c.2d.2e.2f.2g.2h.2j.2k.2l.2m.2n.2o.2r.2t.2u.2y.31.32.33",
+  "metabot_daevanion": "https://metabot.gg/en/aion-2/daevanion/sorcerer#61-0.1.2.3.4.5.7.8.9.a.b.c.d.e.f.g.h.k.l.n.o.p.r.s.t.u.y.z.10.11.12.14.15.17.19.1a.1b.1c.1d.1e.1f.1m.1o.1p.1r.1u.1v.1w.1x.1y.1z.20.21.22.23.24.25.26.28.2b.2c.2d.2e.2f.2g_62-1.2.3.7.8.9.a.b.c.e.f.g.h.i.j.l.m.n.p.q.t.u.v.x.y.10.13.14.16.17.19.1a.1b.1c.1d.1e.1f.1g.1h.1i.1j.1k.1n.1o.1p.1r.1x.1y.21.23.26.27.28.2b.2c.2d_63-0.1.2.5.a.b.c.d.e.i.j.k.l.m.n.o.p.r.s.v.w.y.z.10.15.1a.1c.1d.1e.1f.1g.1h.1i.1j.1k.1l.1m.1n.1o.1p.1r.1s.1w.21.23.24.25.29.2a.2d.2e.2f.2g_64-1.2.3.a.b.c.d.f.g.h.i.k.l.m.n.o.p.s.t.v.w.x.y.z.10.11.13.14.16.17.18.19.1a.1b.1c.1d.1e.1f.1g.1j.1n.1o.1p.1q.1r.1v.1w.1y.20.21.22.23.26.27.28.29.2c.2d.2e.2f.2g.2h.2j.2k.2l.2m.2n.2o.2r.2t.2u.2y.31.32.33",
+  "gamers4life_daevanion": "https://gamers4.life/aion-2/database/en/daevanion-planner/?b=eyJjIjoic29yY2VyZXIiLCJkIjpbNjEwMDMzLDYxMDAzNCw2MTAwMzUsNjEwMDM3LDYxMDAzOCw2MTAwMzksNjEwMDQyLDYxMDA0Myw2MTAwNDgsNjEwMDUwLDYxMDA1MSw2MTAwNTIsNjEwMDU0LDYxMDA1NSw2MTAwNTYsNjEwMDU4LDYxMDA2Myw2MTAwNjcsNjEwMDY4LDYxMDA3MSw2MTAwNzIsNjEwMDczLDYxMDA4Miw2MTAwODQsNjEwMDg2LDYxMDA4OCw2MTAwOTYsNjEwMDk3LDYxMDA5OCw2MTAwOTksNjEwMTAwLDYxMDEwMiw2MTAxMDMsNjEwMTExLDYxMDExNSw2MTAxMTgsNjEwMTIzLDYxMDEyNCw2MTAxMjUsNjEwMTI2LDYxMDEyNyw2MTAxMzgsNjEwMTQyLDYxMDE0NCw2MTAxNTMsNjEwMTU3LDYxMDE1OCw2MTAxNTksNjEwMTYxLDYxMDE2Miw2MTAxNjMsNjEwMTY4LDYxMDE3MCw2MTAxNzEsNjEwMTcyLDYxMDE3NCw2MTAxNzUsNjEwMTc2LDYxMDE4Myw2MTAxODcsNjEwMTg4LDYxMDE4OSw2MTAxOTEsNjEwMTkyLDYxMDE5Myw2MjAwMzQsNjIwMDM1LDYyMDAzNiw2MjAwNDAsNjIwMDQxLDYyMDA0Miw2MjAwNDMsNjIwMDQ4LDYyMDA1MCw2MjAwNTUsNjIwMDU4LDYyMDA2Myw2MjAwNjQsNjIwMDY1LDYyMDA2Nyw2MjAwNjksNjIwMDcwLDYyMDA3MSw2MjAwNzMsNjIwMDc4LDYyMDA4Miw2MjAwODQsNjIwMDg2LDYyMDA5Myw2MjAwOTQsNjIwMDk3LDYyMDEwMSw2MjAxMDIsNjIwMTA5LDYyMDExMiw2MjAxMTQsNjIwMTE3LDYyMDEyMyw2MjAxMjQsNjIwMTI1LDYyMDEyNiw2MjAxMjcsNjIwMTI5LDYyMDEzMSw2MjAxMzIsNjIwMTMzLDYyMDEzOCw2MjAxNDQsNjIwMTQ1LDYyMDE0Niw2MjAxNTMsNjIwMTU5LDYyMDE2MSw2MjAxNjgsNjIwMTc0LDYyMDE4Myw2MjAxODQsNjIwMTg1LDYyMDE4OCw2MjAxODksNjIwMTkwLDYzMDAzMyw2MzAwMzQsNjMwMDM1LDYzMDAzOSw2MzAwNDgsNjMwMDUwLDYzMDA1MSw2MzAwNTIsNjMwMDU0LDYzMDA2NCw2MzAwNjUsNjMwMDY3LDYzMDA2OCw2MzAwNjksNjMwMDcwLDYzMDA3MSw2MzAwNzIsNjMwMDc5LDYzMDA4Miw2MzAwOTMsNjMwMDk0LDYzMDA5Niw2MzAwOTcsNjMwMDk4LDYzMDEwMyw2MzAxMTgsNjMwMTI0LDYzMDEyNSw2MzAxMjYsNjMwMTI3LDYzMDEyOCw2MzAxMjksNjMwMTMwLDYzMDEzMSw2MzAxMzIsNjMwMTMzLDYzMDEzOSw2MzAxNDIsNjMwMTQ0LDYzMDE0Nyw2MzAxNTQsNjMwMTU1LDYzMDE1OSw2MzAxNzAsNjMwMTc0LDYzMDE3NSw2MzAxNzYsNjMwMTg1LDYzMDE4Niw2MzAxODksNjMwMTkxLDYzMDE5Miw2MzAxOTMsNjQwMDE4LDY0MDAxOSw2NDAwMjIsNjQwMDM0LDY0MDAzNSw2NDAwMzYsNjQwMDM3LDY0MDA0MCw2NDAwNDEsNjQwMDQyLDY0MDA0NCw2NDAwNDksNjQwMDUyLDY0MDA1Myw2NDAwNTQsNjQwMDU3LDY0MDA1OSw2NDAwNjQsNjQwMDY1LDY0MDA2Nyw2NDAwNjksNjQwMDcwLDY0MDA3MSw2NDAwNzIsNjQwMDczLDY0MDA3NCw2NDAwODEsNjQwMDg1LDY0MDA5Miw2NDAwOTMsNjQwMDk0LDY0MDA5NSw2NDAwOTYsNjQwMDk3LDY0MDA5OCw2NDAwOTksNjQwMTAwLDY0MDEwMSw2NDAxMDIsNjQwMTA3LDY0MDExNSw2NDAxMTcsNjQwMTE5LDY0MDEyMiw2NDAxMjMsNjQwMTI3LDY0MDEyOCw2NDAxMzAsNjQwMTMyLDY0MDEzMyw2NDAxMzQsNjQwMTM4LDY0MDE0Nyw2NDAxNTIsNjQwMTUzLDY0MDE1NCw2NDAxNTcsNjQwMTU5LDY0MDE2MCw2NDAxNjEsNjQwMTYyLDY0MDE2Myw2NDAxNjcsNjQwMTY5LDY0MDE3Miw2NDAxNzMsNjQwMTc0LDY0MDE3Nyw2NDAxODQsNjQwMTg2LDY0MDE4Nyw2NDAxOTIsNjQwMTk4LDY0MDE5OSw2NDAyMDJdfQ",
+  "gamers4life_build": "https://gamers4.life/aion-2/database/en/build-calculator/?b=eyJjIjoic29yY2VyZXIiLCJzIjpbIjE1MjAwMDAwIiwiMTU0MDAwMDAiLCIxNTM5MDAwMCIsIjE1MzIwMDAwIl0sImwiOnsiMTUyMDAwMDAiOjYsIjE1NDAwMDAwIjoxMCwiMTUzOTAwMDAiOjYsIjE1MzIwMDAwIjoxfSwiZCI6WzYxMDAzMyw2MTAwMzQsNjEwMDM1LDYxMDAzNyw2MTAwMzgsNjEwMDM5LDYxMDA0Miw2MTAwNDMsNjEwMDQ4LDYxMDA1MCw2MTAwNTEsNjEwMDUyLDYxMDA1NCw2MTAwNTUsNjEwMDU2LDYxMDA1OCw2MTAwNjMsNjEwMDY3LDYxMDA2OCw2MTAwNzEsNjEwMDcyLDYxMDA3Myw2MTAwODIsNjEwMDg0LDYxMDA4Niw2MTAwODgsNjEwMDk2LDYxMDA5Nyw2MTAwOTgsNjEwMDk5LDYxMDEwMCw2MTAxMDIsNjEwMTAzLDYxMDExMSw2MTAxMTUsNjEwMTE4LDYxMDEyMyw2MTAxMjQsNjEwMTI1LDYxMDEyNiw2MTAxMjcsNjEwMTM4LDYxMDE0Miw2MTAxNDQsNjEwMTUzLDYxMDE1Nyw2MTAxNTgsNjEwMTU5LDYxMDE2MSw2MTAxNjIsNjEwMTYzLDYxMDE2OCw2MTAxNzAsNjEwMTcxLDYxMDE3Miw2MTAxNzQsNjEwMTc1LDYxMDE3Niw2MTAxODMsNjEwMTg3LDYxMDE4OCw2MTAxODksNjEwMTkxLDYxMDE5Miw2MTAxOTMsNjIwMDM0LDYyMDAzNSw2MjAwMzYsNjIwMDQwLDYyMDA0MSw2MjAwNDIsNjIwMDQzLDYyMDA0OCw2MjAwNTAsNjIwMDU1LDYyMDA1OCw2MjAwNjMsNjIwMDY0LDYyMDA2NSw2MjAwNjcsNjIwMDY5LDYyMDA3MCw2MjAwNzEsNjIwMDczLDYyMDA3OCw2MjAwODIsNjIwMDg0LDYyMDA4Niw2MjAwOTMsNjIwMDk0LDYyMDA5Nyw2MjAxMDEsNjIwMTAyLDYyMDEwOSw2MjAxMTIsNjIwMTE0LDYyMDExNyw2MjAxMjMsNjIwMTI0LDYyMDEyNSw2MjAxMjYsNjIwMTI3LDYyMDEyOSw2MjAxMzEsNjIwMTMyLDYyMDEzMyw2MjAxMzgsNjIwMTQ0LDYyMDE0NSw2MjAxNDYsNjIwMTUzLDYyMDE1OSw2MjAxNjEsNjIwMTY4LDYyMDE3NCw2MjAxODMsNjIwMTg0LDYyMDE4NSw2MjAxODgsNjIwMTg5LDYyMDE5MCw2MzAwMzMsNjMwMDM0LDYzMDAzNSw2MzAwMzksNjMwMDQ4LDYzMDA1MCw2MzAwNTEsNjMwMDUyLDYzMDA1NCw2MzAwNjQsNjMwMDY1LDYzMDA2Nyw2MzAwNjgsNjMwMDY5LDYzMDA3MCw2MzAwNzEsNjMwMDcyLDYzMDA3OSw2MzAwODIsNjMwMDkzLDYzMDA5NCw2MzAwOTYsNjMwMDk3LDYzMDA5OCw2MzAxMDMsNjMwMTE4LDYzMDEyNCw2MzAxMjUsNjMwMTI2LDYzMDEyNyw2MzAxMjgsNjMwMTI5LDYzMDEzMCw2MzAxMzEsNjMwMTMyLDYzMDEzMyw2MzAxMzksNjMwMTQyLDYzMDE0NCw2MzAxNDcsNjMwMTU0LDYzMDE1NSw2MzAxNTksNjMwMTcwLDYzMDE3NCw2MzAxNzUsNjMwMTc2LDYzMDE4NSw2MzAxODYsNjMwMTg5LDYzMDE5MSw2MzAxOTIsNjMwMTkzLDY0MDAxOCw2NDAwMTksNjQwMDIyLDY0MDAzNCw2NDAwMzUsNjQwMDM2LDY0MDAzNyw2NDAwNDAsNjQwMDQxLDY0MDA0Miw2NDAwNDQsNjQwMDQ5LDY0MDA1Miw2NDAwNTMsNjQwMDU0LDY0MDA1Nyw2NDAwNTksNjQwMDY0LDY0MDA2NSw2NDAwNjcsNjQwMDY5LDY0MDA3MCw2NDAwNzEsNjQwMDcyLDY0MDA3Myw2NDAwNzQsNjQwMDgxLDY0MDA4NSw2NDAwOTIsNjQwMDkzLDY0MDA5NCw2NDAwOTUsNjQwMDk2LDY0MDA5Nyw2NDAwOTgsNjQwMDk5LDY0MDEwMCw2NDAxMDEsNjQwMTAyLDY0MDEwNyw2NDAxMTUsNjQwMTE3LDY0MDExOSw2NDAxMjIsNjQwMTIzLDY0MDEyNyw2NDAxMjgsNjQwMTMwLDY0MDEzMiw2NDAxMzMsNjQwMTM0LDY0MDEzOCw2NDAxNDcsNjQwMTUyLDY0MDE1Myw2NDAxNTQsNjQwMTU3LDY0MDE1OSw2NDAxNjAsNjQwMTYxLDY0MDE2Miw2NDAxNjMsNjQwMTY3LDY0MDE2OSw2NDAxNzIsNjQwMTczLDY0MDE3NCw2NDAxNzcsNjQwMTg0LDY0MDE4Niw2NDAxODcsNjQwMTkyLDY0MDE5OCw2NDAxOTksNjQwMjAyXX0&tab=skills"
+ },
+ "history": [
+  {
+   "iter": 0,
+   "dps": 17538.99424992585
+  },
+  {
+   "iter": 1,
+   "dps": 17866.920362536268
+  },
+  {
+   "iter": 2,
+   "dps": 17961.661542782724
+  }
+ ],
+ "runtime_s": 855.9982142448425,
+ "weapon_compare": [
+  {
+   "name": "Spiritforged Spellbook +10 (this loadout)",
+   "dps": 17961.661542782724,
+   "gain": 0.0,
+   "stats": null
+  },
+  {
+   "name": "Rupture Tome +10, average rolls",
+   "dps": 18216.338779499587,
+   "gain": 0.0141789352900481,
+   "stats": {
+    "weapon_min": 308,
+    "weapon_max": 336,
+    "crit": 18.320987654320984,
+    "accuracy": 27.654320987654316,
+    "crit_atk": 29.037037037037027,
+    "mp_max": 60.44444444444442,
+    "precision": 7.604938271604936,
+    "attack": 12.444444444444443,
+    "back_atk": 25.4074074074074,
+    "front_atk": 25.4074074074074,
+    "multihit": 0.02088888888888888,
+    "might": 6.5185185185185155,
+    "combat_speed": 0.018765432098765425,
+    "weapon_amp": 0.01392592592592592,
+    "amp_all": 0.005234567901234567
+   }
+  },
+  {
+   "name": "Rupture Tome +10, 3 best rolls",
+   "dps": 20424.064978775907,
+   "gain": 0.13709218549341928,
+   "stats": {
+    "weapon_min": 308,
+    "weapon_max": 336,
+    "crit": 100,
+    "accuracy": 100,
+    "amp_all": 0.053000000000000005,
+    "front_atk": 73.5,
+    "weapon_amp": 0.0705
+   }
+  },
+  {
+   "name": "Ludra's Grimoire +10, average rolls",
+   "dps": 20204.236001253266,
+   "gain": 0.12485339694932862,
+   "stats": {
+    "weapon_min": 583,
+    "weapon_max": 635,
+    "crit": 17.370370370370367,
+    "accuracy": 26.222222222222214,
+    "crit_atk": 27.407407407407398,
+    "mp_max": 57.48148148148147,
+    "precision": 6.999999999999998,
+    "attack": 11.537037037037035,
+    "back_atk": 23.981481481481474,
+    "front_atk": 23.981481481481474,
+    "multihit": 0.019888888888888876,
+    "might": 5.999999999999997,
+    "combat_speed": 0.017925925925925918,
+    "weapon_amp": 0.013259259259259252,
+    "amp_all": 0.005037037037037036
+   }
+  },
+  {
+   "name": "Ludra's Grimoire +10, 3 best rolls",
+   "dps": 23329.69439573626,
+   "gain": 0.2988605948379255,
+   "stats": {
+    "weapon_min": 583,
+    "weapon_max": 635,
+    "crit": 100,
+    "accuracy": 100,
+    "amp_all": 0.068,
+    "front_atk": 92.5,
+    "weapon_amp": 0.0895
+   }
+  }
+ ],
+ "loadout": "sorcerer_l45_global_median",
+ "arcana_skill_values": [
+  {
+   "skill": "Robe of Flame",
+   "id": 15740000,
+   "gain_pct": [
+    1.2597200018525045,
+    2.5237427317692296,
+    3.7920681897473774,
+    5.064696375788125
+   ]
+  },
+  {
+   "skill": "Robe of Earth",
+   "id": 15720000,
+   "gain_pct": [
+    0.12942053508959717,
+    0.26177124859543266,
+    0.3970911962697832,
+    0.5354184738328494
+   ]
+  },
+  {
+   "skill": "Vitality Evaporation",
+   "id": 15800000,
+   "gain_pct": [
+    0.09797571190932608,
+    0.24938831389915705,
+    0.3507871617189906,
+    0.45355526390307155
+   ]
+  },
+  {
+   "skill": "Grace of Enhancement",
+   "id": 15780000,
+   "gain_pct": [
+    0.03702777061520557,
+    0.08331248388429024,
+    0.13422566848020345,
+    0.18051038174955458
+   ]
+  },
+  {
+   "skill": "Absorb Essence",
+   "id": 15760000,
+   "gain_pct": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  }
+ ],
+ "kr_fidelity": {
+  "overlap": 0.7903731852989633,
+  "kr_share_not_in_global_data": 0.0497224013552499
+ }
+}

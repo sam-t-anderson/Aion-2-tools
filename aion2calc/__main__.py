@@ -91,7 +91,8 @@ def main(argv: list[str] | None = None) -> int:
                          (summ.get("kr_fidelity") or {}).get("overlap")))
         rows.sort(key=lambda r: -r[1])
         print(f"{'class':14s} {'optimized':>12s} {'community':>12s} {'gain':>7s}")
-        md = [f"# Class comparison ({args.scenario}, same settings)\n",
+        md = [f"# Class comparison ({args.scenario}, same settings, {args.iterations} optimizer "
+              f"iteration{'s' if args.iterations != 1 else ''} per class)\n",
               "Each class is optimized with the same budgets (203 SP, 30 stigma points, 360 Daevanion) on its own "
               "median global loadout. **Gain** (optimized vs the typical top global build of that class, same "
               "rotation optimizer) is the reliable number. Absolute DPS across classes is only as good as each class "
