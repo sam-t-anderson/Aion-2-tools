@@ -64,7 +64,7 @@ def community_build(cls: str) -> Build:
 _DEFENSIVE = {"Steel Barrier", "Arctic Armor", "Hibernation", "Curse: Tree"}
 
 
-def typical_build(cls: str) -> Build:
+def typical_build(cls: str, sp_budget: int | None = None, stigma_points: int | None = None) -> Build:
     """What a typical top tracked global L45 player runs (metabot live statistics).
 
     * Daevanion: the most-picked nodes (metabot preset, crystal boards only)
@@ -93,7 +93,7 @@ def typical_build(cls: str) -> Build:
             continue
         want[s["id"]] = max(1, min(s.get("buyMax", 10), round(row["avg_level"] - dv.get(s["id"], 0))))
     order = sorted(want, key=lambda sid: -avg[cd.skills[sid]["name"]]["avg_level"])
-    bud = cd.budget(b.level)["skill"]
+    bud = sp_budget or cd.budget(b.level)["skill"]
     while sum(sp_to_reach(v) for v in want.values()) > bud:      # trim the least-levelled skills
         sid = next(x for x in reversed(order) if want[x] > 1)
         want[sid] -= 1
@@ -106,7 +106,7 @@ def typical_build(cls: str) -> Build:
     stig = [(n, r) for n, r in tp.get("stigmas", {}).items() if n not in _DEFENSIVE and n in cd.by_name]
     stig = sorted(stig, key=lambda nr: -nr[1]["pick"])[: cd.budget(b.level)["slots"]]
     lv = {cd.by_name[n]["id"]: max(1, round(r.get("avg_level") or 1)) for n, r in stig}
-    points = cd.budget(b.level)["stigma"] + 1
+    points = stigma_points or cd.budget(b.level)["stigma"] + 1
     for sid in reversed(list(lv)):                               # least-picked gives way first
         while sum(stigma_points_to_reach(v) for v in lv.values()) > points and lv[sid] > 1:
             lv[sid] -= 1

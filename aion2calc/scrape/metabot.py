@@ -17,12 +17,13 @@ CLASSES = ["gladiator", "templar", "assassin", "ranger",
            "sorcerer", "spiritmaster", "cleric", "chanter"]
 
 
-def class_data(cls: str) -> dict:
-    """Skills, budgets, Daevanion boards and base stats for one class."""
-    build_data = flight(fetch(f"{BASE}/classes/{cls}/build"))
+def class_data(cls: str, fresh: bool = False) -> dict:
+    """Skills, budgets, Daevanion boards and base stats for one class (``fresh`` skips the page cache)."""
+    age = 0 if fresh else 7 * 86400
+    build_data = flight(fetch(f"{BASE}/classes/{cls}/build", max_age=age))
     build = find_object(build_data, '{"skills":[{"id":')
-    daev = find_object(flight(fetch(f"{BASE}/daevanion/{cls}")), '{"boards":[')
-    class_page = flight(fetch(f"{BASE}/classes/{cls}"))
+    daev = find_object(flight(fetch(f"{BASE}/daevanion/{cls}", max_age=age)), '{"boards":[')
+    class_page = flight(fetch(f"{BASE}/classes/{cls}", max_age=age))
     base_stats = _base_stats(class_page)
     return {
         "class": cls,
@@ -186,9 +187,66 @@ def parse_top_players(lines: list[str], cls: str) -> dict:
     return out
 
 
-def item(slug: str) -> dict:
+def item(slug: str, cache: bool = True) -> dict:
     """Fixed stats, random stat pool and enchant table of a global item."""
-    lines = text_lines(flight(fetch(f"{BASE}/items/{slug}")))
+    lines = text_lines(flight(fetch(f"{BASE}/items/{slug}", cache=cache)))
+    return _parse_item(lines, slug)
+
+
+def item_full(slug: str, cache: bool = False) -> dict:
+    """Everything the planner database stores about one item page."""
+    html = fetch(f"{BASE}/items/{slug}", cache=cache)
+    lines = text_lines(flight(html))
+    out = _parse_item(lines, slug)
+    out["skill_pools"] = _skill_pools(lines)
+    sb = next((k for k, x in enumerate(lines) if x.endswith(" set bonus")), None)
+    if sb is not None:
+        bonuses = {}
+        for k in range(sb, min(sb + 40, len(lines) - 1)):
+            m = re.fullmatch(r"(\d+) pieces?", lines[k])
+            if m:
+                bonuses[int(m.group(1))] = lines[k + 1]
+        out["set"] = {"name": lines[sb][: -len(" set bonus")], "bonuses": bonuses}
+    ld = next((x for x in lines if x.startswith('{"@context"') and '"Thing"' in x), None)
+    if ld:
+        import json as _json
+        try:
+            j = _json.loads(ld)
+            out["name"] = j.get("name")
+            out["icon"] = j.get("image")
+            out["description"] = j.get("description")
+        except ValueError:
+            pass
+    name = out.get("name")
+    if name and name in lines:
+        i = lines.index(name)
+        head = lines[i:i + 8]
+        grades = {"Common", "Rare", "Legend", "Unique", "Epic", "Mythic", "Special"}
+        out["grade"] = next((x for x in head if x in grades), None)
+        lvl = next((x for x in head if x.startswith("Item Level ")), None)
+        out["item_level"] = int(lvl.split()[-1]) if lvl and lvl.split()[-1].isdigit() else None
+        if out["grade"]:
+            gi = head.index(out["grade"])
+            out["category"] = head[gi + 1] if gi + 1 < len(head) and not head[gi + 1].startswith("Item Level") \
+                else out["meta"].get("Category")
+    out.setdefault("category", out["meta"].get("Category"))
+    return out
+
+
+def category_slugs(category: str) -> list[str]:
+    """Item slugs listed on a metabot category page (weapons, armor, accessories, arcana, godstones)."""
+    h = fetch(f"{BASE}/{category}", max_age=86400)
+    return sorted(set(re.findall(r'/en/aion-2/items/([a-z0-9-]+)', h)))
+
+
+def sitemap(name: str) -> dict[str, str]:
+    """{english url: lastmod} from one metabot sitemap."""
+    sm = fetch(f"https://metabot.gg/sitemaps/{name}.xml", max_age=3600)
+    return {u: m for u, m in re.findall(r"<url>\s*<loc>([^<]+)</loc>(?:\s*<lastmod>([^<]+)</lastmod>)?", sm)
+            if "/en/" in u}
+
+
+def _parse_item(lines: list[str], slug: str) -> dict:
     out: dict = {"slug": slug, "fixed": {}, "random": [], "enchant": [], "meta": {}}
     try:
         i = next(k for k, s in enumerate(lines) if s.startswith("Fixed stats come with every copy"))
@@ -201,9 +259,10 @@ def item(slug: str) -> dict:
         if key in meta:
             out["meta"][key] = meta[meta.index(key) + 1]
     k = i + 1
-    while k + 1 < len(lines) and not lines[k].startswith("Attack range") \
-            and not lines[k].startswith("Sockets") and not lines[k].startswith("Random stats") \
-            and not lines[k].endswith("used by top players"):
+    stops = ("Attack range", "Sockets", "Random stats", "Enhancement levels", "Random skill options",
+             "Similar items", "Pieces")
+    while k + 1 < len(lines) and not lines[k].startswith(stops) \
+            and not lines[k].endswith("used by top players") and not lines[k].endswith("set bonus"):
         name, val = lines[k], lines[k + 1]
         if re.match(r"^[+\-]?[\d,.]+(%|–[\d,.]+)?$", val) or re.match(r"^[\d,]+–[\d,]+$", val):
             out["fixed"][name] = val
@@ -228,8 +287,8 @@ def item(slug: str) -> dict:
     return out
 
 
-def titles() -> list[dict]:
-    lines = text_lines(flight(fetch(f"{BASE}/titles")))
+def titles(fresh: bool = False) -> list[dict]:
+    lines = text_lines(flight(fetch(f"{BASE}/titles", max_age=0 if fresh else 7 * 86400)))
     grades = {"Common", "Rare", "Epic", "Unique", "Legend", "Legendary", "Mythic", "Special"}
     facs = {"Both factions", "Elyos", "Asmodian"}
     out, seen = [], set()

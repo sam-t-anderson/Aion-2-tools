@@ -1,7 +1,6 @@
 """Assemble a character :class:`Stats` block from gear, titles, deity stats, Daevanion..."""
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 
@@ -71,7 +70,8 @@ def daevanion_to_stats(raw: dict) -> dict:
 
 
 def load_loadout(name: str) -> dict:
-    return json.loads((DATA / "global" / "loadouts" / f"{name}.json").read_text(encoding="utf-8"))
+    from ..paths import read_json
+    return read_json("global", "loadouts", f"{name}.json")
 
 
 def loadout_stats(loadout: dict) -> Stats:

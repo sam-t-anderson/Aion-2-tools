@@ -41,8 +41,10 @@ def _weapon_stats(slug: str, enchant: float) -> dict:
     return {"weapon_min": lo + per * e, "weapon_max": hi + per * e, "crit": crit, "accuracy": acc}
 
 
-def make_loadout(cls: str, write: bool = True) -> dict:
-    tmpl = json.loads((LOADOUTS / f"{TEMPLATE}.json").read_text(encoding="utf-8"))
+def make_loadout(cls: str, write: bool = True, user: bool = False) -> dict:
+    """``user=True`` writes into the user data overlay (launch-time sync) instead of the package."""
+    from .paths import read_json, write_user_json
+    tmpl = read_json("global", "loadouts", f"{TEMPLATE}.json")
     lo = copy.deepcopy(tmpl)
     lo["name"] = f"Global L45 {cls.capitalize()} - median of top tracked characters (metabot)"
     tp = load_class(cls).get("top_players", {})
@@ -67,14 +69,17 @@ def make_loadout(cls: str, write: bool = True) -> dict:
         for comp in lo["components"]:
             if comp["slot"] == "Primary/deity stats":
                 comp["stats"] = st
-    if write:
+    if write and user:
+        write_user_json(lo, "global", "loadouts", f"{cls}_l45_global_median.json")
+    elif write:
         (LOADOUTS / f"{cls}_l45_global_median.json").write_text(json.dumps(lo, indent=1), encoding="utf-8")
     return lo
 
 
-def make_all():
-    for cls in metabot.CLASSES:
-        if cls == "sorcerer":
+def make_all(classes=None, user: bool = False, verbose: bool = True):
+    for cls in classes or metabot.CLASSES:
+        if cls == "sorcerer":          # hand-built template
             continue
-        lo = make_loadout(cls)
-        print(cls, lo["components"][0]["item"], lo["components"][0]["stats"])
+        lo = make_loadout(cls, user=user)
+        if verbose:
+            print(cls, lo["components"][0]["item"], lo["components"][0]["stats"])

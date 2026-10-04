@@ -70,7 +70,9 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
 
     b = s["build"]
     w("## Skills, specializations and points\n")
-    w(f"Skill points used **{b['sp_spent']} / 203**, stigma points **{b['stigma_spent']} / 30**, "
+    bud = s.get("budgets", {})
+    w(f"Skill points used **{b['sp_spent']} / {bud.get('skill', 203)}**, stigma points "
+      f"**{b['stigma_spent']} / {bud.get('stigma', 30)}**, "
       f"Daevanion **{b['daevanion_cost']} / {s['daevanion_budget']}**.\n")
     w("| Skill | Trained (SP) | Effective level | Specializations |")
     w("|---|---:|---:|---|")

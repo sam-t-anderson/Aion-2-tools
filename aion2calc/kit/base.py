@@ -32,13 +32,21 @@ def spec_slots(level: int) -> int:
 
 @lru_cache(maxsize=None)
 def load_class(cls: str) -> dict:
-    return json.loads((DATA / "global" / "classes" / f"{cls}.json").read_text(encoding="utf-8"))
+    from ..paths import read_json
+    return read_json("global", "classes", f"{cls}.json")
 
 
 @lru_cache(maxsize=None)
 def load_hit_profiles(cls: str) -> dict:
-    p = DATA / "kr" / "hit_profiles" / f"{cls}.json"
+    from ..paths import data_file
+    p = data_file("kr", "hit_profiles", f"{cls}.json")
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+
+
+def clear_caches() -> None:
+    """Forget cached class data (after the database sync wrote newer files)."""
+    load_class.cache_clear()
+    load_hit_profiles.cache_clear()
 
 
 class ClassData:

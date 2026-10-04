@@ -38,7 +38,8 @@ ARCANA_BASE_ROLLS = {"Common": 1, "Rare": 2, "Legend": 3, "Unique": 4}
 def arcana_roll_values(cls, build, scenario, policy, samples: int = 400, seed: int = 11) -> dict:
     """Per arcana slot: DPS value of each skill in its pool at +1..+cap, and the
     expected gain of a Unique arcana at +0 (4 rolls) and +5 (9 rolls)."""
-    path = Path(__file__).resolve().parent / "data" / "global" / "arcana_skill_pools.json"
+    from .paths import data_file
+    path = data_file("global", "arcana_skill_pools.json")
     if not path.exists():
         return {}
     pools = json.loads(path.read_text(encoding="utf-8"))
@@ -87,7 +88,8 @@ def kr_share_overlap(cls: str, shares: dict) -> dict | None:
     KR runs at higher levels with more skills/specializations, so 100% is not
     expected; it is a fidelity indicator for the class kit, not a target.
     """
-    path = Path(__file__).resolve().parent / "data" / "kr" / "a2dil" / f"{cls}.json"
+    from .paths import data_file
+    path = data_file("kr", "a2dil", f"{cls}.json")
     if not path.exists():
         return None
     cd = ClassData(cls)
@@ -182,7 +184,8 @@ def _build_card(cd, summary: dict, build, policy, out: Path) -> None:
             str(out / "images" / "build_card.png"),
             title=f"{cls.capitalize()} · Level 45 · Global client data",
             subtitle=f"Optimized for: {scen_name} · Daevanion {build.daevanion_cost(cd)}/{summary['daevanion_budget']}"
-                     f" · SP {build.sp_spent()}/203 · Stigma {build.stigma_spent()}/30"
+                     f" · SP {build.sp_spent()}/{summary.get('budgets', {}).get('skill', 203)}"
+                     f" · Stigma {build.stigma_spent()}/{summary.get('budgets', {}).get('stigma', 30)}"
                      f" · Gear: {load_loadout(loadout).get('name', loadout).split(' - ')[-1]}",
             skills=skill_rows("active"), passives=skill_rows("passive"), stigmas=stig_rows, priority=pr,
             macro={"steps": [names.get(x, x) for x in m["steps"]],
@@ -296,7 +299,10 @@ def sensitivity(build, scenario, policy, samples: int = 12, spread: float = 0.25
 
 
 def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget: int = 360,
-               iterations: int = 3, loadout: str | None = None, verbose: bool = True) -> dict:
+               iterations: int = 3, loadout: str | None = None, verbose: bool = True,
+               sp_budget: int | None = None, stigma_points: int | None = None,
+               current: object | None = None) -> dict:
+    """``current``: a Build (e.g. an imported character) to evaluate and diff against."""
     t0 = time.time()
     out = Path(out_dir)
     (out / "images").mkdir(parents=True, exist_ok=True)
@@ -305,13 +311,14 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     other = SCENARIOS["dummy" if scenario_name == "boss" else "boss"](loadout)
     cd = ClassData(cls)
 
-    opt = Optimizer(cls, scen, daev_budget=daev_budget, verbose=verbose)
+    opt = Optimizer(cls, scen, daev_budget=daev_budget, verbose=verbose, sp_budget=sp_budget,
+                    stigma_points=stigma_points)
     res = opt.run(iterations=iterations)
     build, policy = res.build, res.policy
 
     # baseline: the typical top global build (live statistics) with the best legal
     # specs for its levels, played with the default priority and with an optimized rotation
-    comm = typical_build(cls)
+    comm = typical_build(cls, sp_budget=opt.sp_budget, stigma_points=opt.stigma_points)
     comm = opt.optimize_specs(comm, list(kit_module(cls).build_kit(opt._with_gear(comm), cd).policy))
     cd_, cb, ckit, cstats = prepare(comm, scen)
     naive = Sim(cstats.derived(), ckit.actions, ckit.policy, scen.target, scen.config,
@@ -344,6 +351,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     }
     summary = {
         "class": cls, "level": 45, "scenario": scenario_name, "daevanion_budget": daev_budget,
+        "budgets": {"skill": opt.sp_budget, "stigma": opt.stigma_points, "daevanion": daev_budget},
         "dps": {scenario_name: final.dps, other.target.hp_model and ("dummy" if scenario_name == "boss" else "boss"): final_other.dps},
         "baseline": {"community_naive": naive.dps, "community_optimized_rotation": comm_rot.dps,
                      "community_other_scenario": comm_other.dps},
@@ -419,7 +427,8 @@ def _roll_expectation(item: dict, n_rolls: int, best: int = 0, pu: dict | None =
 def weapon_compare(build, scenario, policy, pu) -> list[dict]:
     import copy
     from .model.character import load_loadout
-    items = json.loads((Path(__file__).parent / "data" / "global" / "items.json").read_text(encoding="utf-8"))
+    from .paths import read_json
+    items = read_json("global", "items.json")
     base_lo = load_loadout(scenario.loadout) if isinstance(scenario.loadout, str) else scenario.loadout
     main = next((c for c in base_lo["components"] if c["slot"] == "Main hand"), None)
     if build.cls != "sorcerer" or main is None:   # weapon tables below are spellbooks

@@ -1,7 +1,6 @@
 """Gear, title, arcana and enchant recommendations driven by simulated stat weights."""
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 
@@ -43,7 +42,8 @@ def _avg_range(text: str) -> tuple[float, bool]:
 
 
 def roll_priorities(pu: dict, items: dict | None = None) -> dict[str, list[dict]]:
-    items = items or json.loads((DATA / "global" / "items.json").read_text(encoding="utf-8"))
+    from ..paths import read_json
+    items = items or read_json("global", "items.json")
     out = {}
     for slug, it in items.items():
         rows = []
@@ -63,7 +63,8 @@ def roll_priorities(pu: dict, items: dict | None = None) -> dict[str, list[dict]
 
 
 def title_ranking(pu: dict, titles: list | None = None, top: int = 12) -> list[dict]:
-    titles = titles or json.loads((DATA / "global" / "titles.json").read_text(encoding="utf-8"))
+    from ..paths import read_json
+    titles = titles or read_json("global", "titles.json")
     rows = []
     for t in titles:
         st = parse_bonus_text(t["equip"])
