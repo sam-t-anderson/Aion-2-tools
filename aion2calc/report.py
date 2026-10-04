@@ -197,6 +197,9 @@ def rerender(out_dir: str) -> str:
     summary["loadout"] = loadout
     build, policy = build_from_summary(summary)
     (Path(out_dir) / "images").mkdir(parents=True, exist_ok=True)
+    if "crit_sensitivity" not in summary:
+        summary["crit_sensitivity"] = crit_sensitivity(build, SCENARIOS[summary["scenario"]](loadout), policy)
+        path.write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
     if "kr_fidelity" not in summary or "arcana_skill_values" not in summary or "alt_steps" not in summary["macro"]:
         dummy = SCENARIOS["dummy"](loadout)
         scen = SCENARIOS[summary["scenario"]](loadout)
@@ -215,6 +218,24 @@ def rerender(out_dir: str) -> str:
     return write_markdown(summary, out_dir, extra={
         "gear_lines": _gear_lines(loadout), "weapon_compare": summary.get("weapon_compare"),
         "loadout_name": load_loadout(loadout).get("name", loadout)})
+
+
+def crit_sensitivity(build, scenario, policy, midpoint: float = 700.0) -> dict:
+    """How the Crit advice moves if launch crit chance is higher than the fitted curve says."""
+    from .model import stats as st
+    from .opt.statweights import stat_weights
+    _, _, kit, stats = prepare(build, scenario)
+    d = stats.derived()
+    rows = {}
+    old = st.CRIT_X0
+    for name, x0 in (("fit", old), ("alt", midpoint)):
+        st.set_crit_midpoint(x0)
+        w = stat_weights(stats, kit, policy, scenario.target, scenario.config)
+        crit = next(x for x in w if x["stat"] == "crit")
+        rows[name] = {"midpoint": x0, "crit_chance": st.crit_chance(d.crit_stat, scenario.target.crit_resist),
+                      "crit_gain_pct": crit["pct"], "crit_rank": [x["stat"] for x in w].index("crit") + 1}
+    st.set_crit_midpoint(old)
+    return rows
 
 
 def _spec_text(cd, sid, spid):
@@ -321,6 +342,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     summary["weapon_compare"] = wc
     summary["loadout"] = loadout
     summary["arcana_skill_values"] = arcana_skill_values(cls, build, scen, policy)
+    summary["crit_sensitivity"] = crit_sensitivity(build, scen, policy)
     summary["kr_fidelity"] = kr_share_overlap(cls, final_other.shares() if scenario_name == "boss"
                                               else final.shares())
     (out / "build.json").write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")

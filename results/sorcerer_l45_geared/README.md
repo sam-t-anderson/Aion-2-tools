@@ -77,13 +77,13 @@ Skill points used **203 / 203**, stigma points **30 / 30**, Daevanion **360 / 36
 | Robe of Flame | 10 | 18 | — |
 | Robe of Earth | 10 | 17 | — |
 | Vitality Evaporation | 8 | 15 | — |
+| Wish of Concentration | 10 | 14 | +10% additional Attack; +10% Combat Speed |
 | Firestorm | 10 | 14 | -50% MP Cost; -2s [Hellfire] cooldown per fireball |
 | Hellfire | 10 | 14 | +30% Skill Speed; Fire Damage over Time for 10s on hit |
-| Wish of Concentration | 10 | 14 | +10% additional Attack; +10% Combat Speed |
 | Flame Arrow | 9 | 13 | +50% Multi-Hit on hit; +5% Fire Damage Boost for 10s on activating [Pyroclasm] |
 | Blaze | 10 | 13 | Delayed Damage after 3s; Multi-Hit on hit |
-| Frost Burst | 8 | 12 | Absorbs 700, 700% HP; Ignores Block and Evasion and lands as a Critical Hit |
 | Bittercold Wind | 9 | 12 | +1s [Bittercold Wind] summon duration; Ignores Block and Evasion and lands as a Critical Hit |
+| Frost Burst | 8 | 12 | Absorbs 700, 700% HP; Ignores Block and Evasion and lands as a Critical Hit |
 | Fire Mark | 7 | 10 | — |
 | Grace of Enhancement | 5 | 9 | — |
 | Winter's Shackles | 4 | 8 | +20% PvE Damage Boost and +10% PvP Damage Boost for 5s on landing [Winter's Shackles] |
@@ -91,8 +91,8 @@ Skill points used **203 / 203**, stigma points **30 / 30**, Daevanion **360 / 36
 | Grace of Resistance | 1 | 3 | — |
 | Cold Snap | 1 | 3 | — |
 | Revitalization Contract | 1 | 3 | — |
-| Ice Chain | 1 | 2 | — |
 | Robe of Cold | 1 | 2 | — |
+| Ice Chain | 1 | 2 | — |
 | Flame Scattershot | 1 | 2 | — |
 
 **Stigmas**: Cold Storm Lv 6, Element Enhancement Lv 10, Fire Wall Lv 6, Delayed Explosion Lv 1
@@ -234,6 +234,8 @@ The pool holds passives only, so at level 45 an active skill still stops at Lv 1
 ## Robustness
 
 Every animation time was randomly perturbed by up to ±25% (8 samples) and the rotation re-optimized each time. Playing the recommended priority instead of the re-optimized one lost on average **1.86%** (worst 4.21%).
+
+**Crit curve.** The crit-chance curve is fitted to tests at Crit 1048–1326 and extrapolated down to launch values: this build sits at **11.9%** crit, and Crit +50 ranks #1 (+2.51%). If launch testing shows more crit — e.g. the curve shifted to a midpoint of 700, giving 50% — Crit +50 becomes #12 (+1.01%). Re-run with `--crit-midpoint` once real numbers exist.
 
 ## Validation against Korean logs
 

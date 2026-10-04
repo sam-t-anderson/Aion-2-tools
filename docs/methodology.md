@@ -74,9 +74,11 @@ efficiency, multi-hit 12.5 %, crit curve capped at 80 %).
   all hits (`SkillUIMinDmgsum`); the simulator splits it evenly.  This is the
   only reading that reproduces the KR log ratios between Firestorm fireballs,
   Hellfire and Blaze.
-* **Crit chance** `= 1.0461 / (1 + e^(−0.006 (Crit − 1024.5)))`, capped at 80 %
-  (TW dummy tests: 1048 → 56 %, 1220 → 80 %, 1326 → 90 %).  At global-launch crit
-  values (~400–700) this gives low single-digit percentages — see §6.
+* **Crit chance** `= 1.0461 / (1 + e^(−0.006 (Crit − 1024.5)))`, capped at 80 % in
+  the model (fit to dummy tests: 1048 → 56 %, 1220 → 80 %, 1326 → 90 %;
+  [Inven](https://www.inven.co.kr/board/aion2/6444/909)).  The cap never binds at
+  launch.  At global-launch crit values (~400–700) the fit is an extrapolation and
+  gives 3–15 % — the largest single uncertainty for crit-related advice (§6).
 * **Primary and deity stats**: +0.1 % per point to each of their effects in the
   global client (metabot "Stats explained"; KR later raised deity stats to
   0.2 %).  Might/Destruction → Attack %, Precision/Death → Crit %, Wisdom →

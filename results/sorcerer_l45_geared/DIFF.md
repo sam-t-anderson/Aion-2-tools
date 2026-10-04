@@ -91,8 +91,8 @@ B:
 | Critical Attack +50 | +0.69% | +0.88% |
 | Wisdom +10 (Double +1%) | +0.80% | +0.80% |
 | Critical Damage Boost +3% | +0.43% | +0.75% |
-| Destruction +10 (Attack +1%) | +0.49% | +0.54% |
 | Might +10 (Attack +1%) | +0.49% | +0.54% |
+| Destruction +10 (Attack +1%) | +0.49% | +0.54% |
 | Time +10 (Combat Speed +1%) | +0.36% | +0.52% |
 | Death +10 (Crit +1%) | +0.13% | +0.28% |
 | Multi-hit chance +3% | +0.21% | +0.28% |

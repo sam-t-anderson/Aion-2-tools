@@ -167,6 +167,14 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         w(f"Every animation time was randomly perturbed by up to ±25% ({len(sens)} samples) and the rotation "
           f"re-optimized each time. Playing the recommended priority instead of the re-optimized one lost on "
           f"average **{sum(loss) / len(loss):.2f}%** (worst {max(loss):.2f}%).\n")
+    cs = s.get("crit_sensitivity")
+    if cs:
+        a, b = cs["fit"], cs["alt"]
+        w("**Crit curve.** The crit-chance curve is fitted to tests at Crit 1048–1326 and extrapolated down to "
+          f"launch values: this build sits at **{100 * a['crit_chance']:.1f}%** crit, and Crit +50 ranks "
+          f"#{a['crit_rank']} ({a['crit_gain_pct']:+.2f}%). If launch testing shows more crit — e.g. the curve "
+          f"shifted to a midpoint of {b['midpoint']:.0f}, giving {100 * b['crit_chance']:.0f}% — Crit +50 becomes "
+          f"#{b['crit_rank']} ({b['crit_gain_pct']:+.2f}%). Re-run with `--crit-midpoint` once real numbers exist.\n")
     fid = s.get("kr_fidelity")
     if fid:
         w("## Validation against Korean logs\n")

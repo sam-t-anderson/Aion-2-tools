@@ -159,3 +159,14 @@ def test_arcana_pools_are_passives():
     sorc = ClassData("sorcerer")
     assert pools["sorcerer"]["max_level"] == 4
     assert all(sorc.by_name[n]["kind"] == "passive" for n in pools["sorcerer"]["skills"])
+
+
+def test_crit_midpoint_option():
+    from aion2calc.model import stats as st
+    base = st.crit_chance(512)
+    st.set_crit_midpoint(700)
+    try:
+        assert st.crit_chance(512) > 4 * base
+    finally:
+        st.set_crit_midpoint(1024.52)
+    assert abs(st.crit_chance(512) - base) < 1e-12

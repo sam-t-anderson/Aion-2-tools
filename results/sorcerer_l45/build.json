@@ -991,5 +991,19 @@
  "kr_fidelity": {
   "overlap": 0.7903731852989633,
   "kr_share_not_in_global_data": 0.0497224013552499
+ },
+ "crit_sensitivity": {
+  "fit": {
+   "midpoint": 1024.52,
+   "crit_chance": 0.05060922426947957,
+   "crit_gain_pct": 1.4867543031369737,
+   "crit_rank": 7
+  },
+  "alt": {
+   "midpoint": 700.0,
+   "crit_chance": 0.27481050410140323,
+   "crit_gain_pct": 2.6473552995189356,
+   "crit_rank": 2
+  }
  }
 }

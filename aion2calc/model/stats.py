@@ -169,6 +169,12 @@ class Derived:
         return (self.atk_flat + w) * (1 + self.atk_pct + extra_pct)
 
 
+def set_crit_midpoint(x0: float) -> None:
+    """Shift the crit curve (Crit value with ~52% chance); 1024.52 is the measured fit."""
+    global CRIT_X0
+    CRIT_X0 = float(x0)
+
+
 def crit_chance(crit_stat: float, target_crit_resist: float = 0.0) -> float:
     eff = max(0.0, crit_stat - target_crit_resist)
     p = CRIT_A / (1 + math.exp(-CRIT_K * (eff - CRIT_X0)))

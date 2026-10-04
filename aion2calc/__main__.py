@@ -32,18 +32,23 @@ def main(argv: list[str] | None = None) -> int:
     o.add_argument("--daevanion", type=int, default=360, help="Daevanion Crystal points (global launch: 360)")
     o.add_argument("--iterations", type=int, default=3)
     o.add_argument("--loadout", help="loadout file name in data/global/loadouts")
+    o.add_argument("--crit-midpoint", type=float,
+                   help="Crit value with ~52%% crit chance (default 1024.5, the measured fit); lower it if "
+                        "launch testing shows more crit at your Crit value")
 
     s = sub.add_parser("simulate", help="simulate a build")
     s.add_argument("cls")
     s.add_argument("--build", help="build.json written by optimize (default: community build)")
     s.add_argument("--scenario", default="boss", choices=["boss", "dummy"])
     s.add_argument("--loadout")
+    s.add_argument("--crit-midpoint", type=float)
 
     c = sub.add_parser("compare", help="optimize several classes and rank DPS")
     c.add_argument("classes", nargs="+")
     c.add_argument("--scenario", default="boss", choices=["boss", "dummy"])
     c.add_argument("--iterations", type=int, default=2)
     c.add_argument("--out", default="results/compare")
+    c.add_argument("--crit-midpoint", type=float)
 
     df = sub.add_parser("diff", help="compare two optimize result folders")
     df.add_argument("a", help="result folder A (contains build.json)")
@@ -54,6 +59,9 @@ def main(argv: list[str] | None = None) -> int:
     rr.add_argument("dir")
 
     args = p.parse_args(argv)
+    if getattr(args, "crit_midpoint", None):
+        from .model.stats import set_crit_midpoint
+        set_crit_midpoint(args.crit_midpoint)
     if args.cmd == "refresh":
         from .scrape.refresh import refresh
         refresh(only=args.only, skip_kr=args.skip_kr, items_only=args.items_only)
