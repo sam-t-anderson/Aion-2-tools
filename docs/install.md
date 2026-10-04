@@ -3,8 +3,7 @@
 ## For players: the desktop app
 
 Download the file for your computer from the
-[Releases page](https://github.com/sam-t-anderson/Aion-calc/releases/latest), or from the
-**Download the app** page of a log server (`https://<log server>/download`):
+[Releases page](https://github.com/sam-t-anderson/Aion-2-tools/releases/latest):
 
 | Your computer | File | Then |
 |---|---|---|
@@ -20,7 +19,8 @@ can also pick a theme with the ◐ button in the top bar or on the **Settings** 
 ![Dark theme](screenshots/app_dark.png)
 ![Light theme](screenshots/app_light.png)
 
-**Unsigned builds.** The builds are not code-signed, so the first launch may need one extra click:
+**Unsigned builds.** The builds are not code-signed yet ([plan](code-signing.md)), so the first
+launch may need one extra click:
 
 * Windows SmartScreen ("Windows protected your PC"): **More info → Run anyway**.
 * macOS ("cannot be opened" or "Apple could not verify"): open **System Settings → Privacy &
@@ -33,9 +33,9 @@ app (in a browser tab, it stops a few minutes after the last tab closes); **Quit
 stops it at once. Starting it again while it runs brings the window back instead of starting a
 second copy.
 
-**Updating.** When the app's log server offers a newer version, a gold **Version … available** chip
-appears in the top bar and links to the download page. Install the new version over the old one. Your data
-is kept.
+**Updating.** When a newer release is out, a gold **Version … available** chip appears in the top
+bar and links to its download page (the app checks the Releases page every few hours). Install the
+new version over the old one. Your data is kept.
 
 **Your data** stays on your computer, in `%LOCALAPPDATA%\aion2calc` on Windows and
 `~/.aion2calc` on macOS and Linux (details in [app.md](app.md#where-your-data-is-saved)). If the
@@ -48,7 +48,7 @@ delete it too to remove everything.
 ## From source (developers)
 
 ```bash
-git clone https://github.com/sam-t-anderson/Aion-calc && cd Aion-calc
+git clone https://github.com/sam-t-anderson/Aion-2-tools && cd Aion-2-tools
 python -m pip install -e ".[dev]"
 python -m aion2calc app          # the same app in your browser; the CLI is in the README
 python -m pytest -q
@@ -76,34 +76,14 @@ python -m pytest -q
 2. Merge to `main`. CI builds, tests and publishes release `v<version>`. A merge that keeps the
    version builds and tests but publishes nothing.
 
-To publish without changing `main`, push a tag instead: `git tag v0.2.1 && git push origin v0.2.1`.
-
-### Getting the app to players
-
-GitHub shows a **private** repository's releases only to people with access to the repository.
-Two ways to reach everyone else:
-
-* **Serve the files from your log server.** Copy the release files into its `downloads` folder.
-  They are listed on `https://<log server>/download`, and the newest version is offered to app
-  users in the top bar:
-
-  ```bash
-  sudo install -d -o a2logs -g a2logs /var/lib/aion2calc-logs/downloads
-  sudo cp aion2calc-setup-0.2.0.exe aion2calc-0.2.0-*.zip aion2calc-0.2.0-linux.tar.gz \
-    /var/lib/aion2calc-logs/downloads/
-  ```
-
-  File names must keep the version (`0.2.0`); the page reads the platform and version from them.
-  Remove old versions when you no longer want to offer them.
-* **Make the repository public** (**Settings → General → Danger Zone**). The Releases page then
-  works for anyone.
+To publish without changing `main`, push a tag instead: `git tag v0.2.2 && git push origin v0.2.2`.
 
 ### Presetting the log server
 
 Set the repository variable `A2LOGS_PUBLIC_URL` (**Settings → Secrets and variables → Actions →
-Variables**) to your log server's address, for example `https://logs.example.com`. Every build
-then ships a `client.json`, and new users start with that server selected for sharing fights and
-update checks. A `client.json` placed next to `aion2calc.exe` does the same for one copy:
+Variables**) to the address of the log server your players share fights to, for example
+`https://logs.example.com`. Every build then ships a `client.json`, and new users start with that
+server selected. A `client.json` placed next to `aion2calc.exe` does the same for one copy:
 
 ```json
 {"logserver_url": "https://logs.example.com", "visibility": "unlisted"}
@@ -111,6 +91,11 @@ update checks. A `client.json` placed next to `aion2calc.exe` does the same for 
 
 `"key": "a2l_..."` may be added for people you trust to upload. The preset is used only when the
 user has not chosen a server yet.
+
+### Code signing
+
+Windows warns about unsigned downloads (SmartScreen). How the builds get signed, and the signing
+step that is ready in the workflow: [code-signing.md](code-signing.md).
 
 ### Building locally
 
@@ -123,7 +108,7 @@ dist/aion2calc/aion2calc --smoke-test                # prints each check, exit c
 The Windows installer needs [Inno Setup 6](https://jrsoftware.org/isdl.php):
 
 ```bat
-"%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" /DAppVersion=0.2.0 packaging\windows\aion2calc.iss
+"%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" /DAppVersion=0.2.1 packaging\windows\aion2calc.iss
 ```
 
 The installed app also takes `--port` (default 8765), `--no-browser` and `--no-sync` (skip the

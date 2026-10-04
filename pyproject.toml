@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aion2calc"
-version = "0.2.0"
+version = "0.2.1"
 description = "Aion 2 build/rotation simulator and optimizer (global L45 data, KR fallback)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -22,7 +22,7 @@ aion2calc = "aion2calc.__main__:main"
 include = ["aion2calc*"]
 
 [tool.setuptools.package-data]
-aion2calc = ["data/**/*.json", "data/seed/*.gz", "app/static/*", "app/static/fonts/*", "logserver/static/*"]
+aion2calc = ["data/**/*.json", "data/seed/*.gz", "app/static/*", "app/static/fonts/*"]
 
 [tool.pytest.ini_options]
 filterwarnings = ["ignore::DeprecationWarning:pulp.*"]

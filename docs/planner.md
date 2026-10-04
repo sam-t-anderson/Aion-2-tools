@@ -110,8 +110,8 @@ further. The calibration turns on once 2 fights are matched. It is used by the p
 advice, never by the published class reports. The model is refit after every import, and
 `python -m aion2calc learn` refits it from scratch.
 
-With a log server set (see [logserver.md](logserver.md#learning-from-everyones-uploads)), the app also pulls
-that server's **community calibration**, learned from everyone's uploads. It is the starting point,
+With a log server set for sharing, the app also pulls that server's **community calibration**
+(when it publishes one), learned from everyone's uploads. It is the starting point,
 and your own fights override it where they exist. So the model is calibrated from day one, before
 you have saved any fights of your own.
 

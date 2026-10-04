@@ -1,4 +1,4 @@
-"""Upload a saved fight to a log server (yours, or any server that speaks a2log).
+"""Upload a saved fight to a log server that accepts the a2log format.
 
 The server address and upload key are kept in the user folder
 (``data/logserver.json``); set them in the app (Combat Logs page) or with
@@ -12,7 +12,7 @@ import urllib.error
 import urllib.request
 
 from ..db import store
-from ..logserver.format import from_encounter, validate
+from .a2log import from_encounter, validate
 from ..paths import data_file, read_json, write_user_json
 
 _FILE = ("logserver.json",)

@@ -1,8 +1,8 @@
 """The a2log format: an open JSON format for AION 2 combat logs.
 
-Any tool can upload a fight to an aion2calc log server by POSTing one a2log
-document. The JSON Schema is served at ``/schema/a2log-v1.json`` and the
-upload endpoint is advertised at ``/.well-known/a2log.json``.
+aion2calc shares fights in this format (``share``) and reads it back for
+analysis. ``SCHEMA`` is its JSON Schema; a server that accepts uploads
+advertises its upload endpoint at ``/.well-known/a2log.json``.
 
 A document is one fight (a boss pull, a dungeon run, a dummy parse) with any
 number of players and segments::
@@ -233,10 +233,10 @@ def from_encounter(enc: dict, source: str = "aion2calc", stats: dict | None = No
 
 def to_encounter(doc: dict, player_id: str, segment: int = 0) -> dict:
     """One player's side of one segment -> an aion2calc encounter (for the analyzer)."""
-    from ..combat.adapters import normalize
+    from .adapters import normalize
     seg = doc["segments"][segment]
     p = next(x for x in doc["players"] if x["id"] == player_id)
-    from ..combat.abysslogs import chain_parent, skill_base
+    from .abysslogs import chain_parent, skill_base
     cd = None
     if p.get("class"):
         try:
