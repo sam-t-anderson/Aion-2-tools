@@ -124,33 +124,40 @@ def render_boards(cd, selected: set, path: str, title: str, boards=("Nezekan", "
     total = sum(cd.node_index[n][1]["cost"] for n in selected if n in cd.node_index)
     lines = [f"Points used: {total}" + (f" / {budget}" if budget else "")]
     lines += summary_lines or []
+    abbr = sorted((short, full) for full, short in _ABBR.items() if short != full)
+    abbr_rows = (len(abbr) + 1) // 2
+    heads = sum(1 for ln in lines if ln.startswith("## "))
+    need = 0.026 * len(lines) + 0.012 * heads + 0.17 + (0.035 + 0.022 * abbr_rows if abbr else 0)
+    k = min(1.0, 0.96 / need)          # shrink spacing (and a little the fonts) to fit the panel
+    f = max(0.78, k)
     y = 0.98
     for ln in lines:
-        style = {"fontsize": 9.5, "color": TEXT}
+        style = {"fontsize": 9.5 * f, "color": TEXT}
         if ln.startswith("## "):
             ln = ln[3:]
-            style = {"fontsize": 11, "color": "#f3c04f", "fontweight": "bold"}
-            y -= 0.012
+            style = {"fontsize": 11 * f, "color": "#f3c04f", "fontweight": "bold"}
+            y -= 0.012 * k
         ax.text(0.04, y, ln, transform=ax.transAxes, va="top", family="DejaVu Sans", **style)
-        y -= 0.026
+        y -= 0.026 * k
     # legend
-    y -= 0.02
+    y -= 0.02 * k
     for g in ["Common", "Rare", "Legend", "Unique"]:
-        ax.add_patch(FancyBboxPatch((0.05, y - 0.012), 0.04, 0.02, transform=ax.transAxes,
+        ax.add_patch(FancyBboxPatch((0.05, y - 0.012 * k), 0.04, 0.02 * k, transform=ax.transAxes,
                                     boxstyle="round,pad=0.002", facecolor=GRADE_COLORS[g], edgecolor="none"))
         cost = {"Common": 1, "Rare": 2, "Legend": 3, "Unique": 4}[g]
         ax.text(0.12, y, f"{g if g != 'Legend' else 'Epic'} node · {cost} pt", transform=ax.transAxes,
-                va="center", color=TEXT, fontsize=8.5)
-        y -= 0.03
-    ax.text(0.05, y, "squares = stats, circles = +1 skill level", transform=ax.transAxes, color=MUTED, fontsize=8)
-    abbr = sorted((short, full) for full, short in _ABBR.items() if short != full)
+                va="center", color=TEXT, fontsize=8.5 * f)
+        y -= 0.03 * k
+    ax.text(0.05, y, "squares = stats, circles = +1 skill level", transform=ax.transAxes, color=MUTED,
+            fontsize=8 * f)
     if abbr:
-        y -= 0.035
-        ax.text(0.05, y, "Skill abbreviations", transform=ax.transAxes, color=MUTED, fontsize=8.5,
+        y -= 0.035 * k
+        ax.text(0.05, y, "Skill abbreviations", transform=ax.transAxes, color=MUTED, fontsize=8.5 * f,
                 fontweight="bold")
-        for short, full in abbr:
-            y -= 0.022
-            ax.text(0.05, y, f"{short} = {full}", transform=ax.transAxes, color=MUTED, fontsize=8)
+        for i, (short, full) in enumerate(abbr):
+            col, row = divmod(i, abbr_rows)
+            ax.text(0.05 + 0.48 * col, y - 0.022 * k * (row + 1), f"{short} = {full}", transform=ax.transAxes,
+                    color=MUTED, fontsize=7.4 * f)
     fig.savefig(path, facecolor=BG)
     plt.close(fig)
     return path

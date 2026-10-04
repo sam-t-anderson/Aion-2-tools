@@ -160,7 +160,8 @@ def _build_card(cd, summary: dict, build, policy, out: Path) -> None:
             skills=skill_rows("active"), passives=skill_rows("passive"), stigmas=stig_rows, priority=pr,
             macro={"steps": [names.get(x, x) for x in m["steps"]],
                    "manual": [names.get(x.split(" [")[0], x) for x in m["manual"]],
-                   "note": "Hold the macro key; press the manual skills when they come off cooldown."},
+                   "note": ("Hold the macro key; press the manual skills when they come off cooldown."
+                            if m["manual"] else "Hold the macro key all fight; steps on cooldown are skipped.")},
             stat_lines=stat_lines, weights=summary["weights"],
             shares=list(summary["shares"].items()), gear=_gear_lines(loadout),
             links=[f"{k}: {v[:118]}{'…' if len(v) > 118 else ''}" for k, v in links.items()])
@@ -196,15 +197,21 @@ def rerender(out_dir: str) -> str:
     summary["loadout"] = loadout
     build, policy = build_from_summary(summary)
     (Path(out_dir) / "images").mkdir(parents=True, exist_ok=True)
+    if "kr_fidelity" not in summary or "arcana_skill_values" not in summary or "alt_steps" not in summary["macro"]:
+        dummy = SCENARIOS["dummy"](loadout)
+        scen = SCENARIOS[summary["scenario"]](loadout)
+        summary.setdefault("kr_fidelity", kr_share_overlap(cls, _sim(build, dummy, policy)[0].shares()))
+        summary.setdefault("arcana_skill_values", arcana_skill_values(cls, build, SCENARIOS["boss"](loadout), policy))
+        if "alt_steps" not in summary["macro"]:
+            _, _, kit, stats = prepare(build, scen)
+            mp = plan_macro(stats.derived(), kit, policy, scen.target, scen.config)
+            summary["macro"] = {"steps": mp.macro_steps, "manual": describe(mp.manual),
+                                "dps_macro": mp.dps_macro, "dps_priority": mp.dps_priority,
+                                "alt_steps": mp.alt_steps, "alt_manual": describe(mp.alt_manual or []),
+                                "dps_alt": mp.dps_alt}
+        path.write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
     _board_images(ClassData(cls), build, typical_build(cls), Path(out_dir), summary["daevanion_budget"])
     _build_card(ClassData(cls), summary, build, policy, Path(out_dir))
-    if "kr_fidelity" not in summary or "arcana_skill_values" not in summary:
-        build, policy = build_from_summary(summary)
-        dummy = SCENARIOS["dummy"](loadout)
-        boss = SCENARIOS["boss"](loadout)
-        summary.setdefault("kr_fidelity", kr_share_overlap(cls, _sim(build, dummy, policy)[0].shares()))
-        summary.setdefault("arcana_skill_values", arcana_skill_values(cls, build, boss, policy))
-        path.write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
     return write_markdown(summary, out_dir, extra={
         "gear_lines": _gear_lines(loadout), "weapon_compare": summary.get("weapon_compare"),
         "loadout_name": load_loadout(loadout).get("name", loadout)})
@@ -301,7 +308,9 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
                   "effective_levels": {cd.skills[k]["name"]: v for k, v in eff.items() if v > 1}},
         "policy": describe(policy),
         "macro": {"steps": macro.macro_steps, "manual": describe(macro.manual),
-                  "dps_macro": macro.dps_macro, "dps_priority": macro.dps_priority},
+                  "dps_macro": macro.dps_macro, "dps_priority": macro.dps_priority,
+                  "alt_steps": macro.alt_steps, "alt_manual": describe(macro.alt_manual or []),
+                  "dps_alt": macro.dps_alt},
         "shares": final.shares(), "casts": final.casts, "uptime": final.uptime,
         "opener": timeline, "weights": res.weights, "stats": stat_summary,
         "sensitivity": sens, "links": links, "history": res.history,

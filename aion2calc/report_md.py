@@ -55,8 +55,14 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
     w("|---:|---|")
     for i, st in enumerate(m["steps"], 1):
         w(f"| {i} | {st} |")
-    w(f"\nManual keys (press on cooldown, in this priority): {', '.join(m['manual'])}\n")
-    w(f"Simulated: the macro + manual keys reach **{100 * m['dps_macro'] / m['dps_priority']:.1f}%** of the ideal priority list.\n")
+    w("\nManual keys (press on cooldown, in this priority): " + (", ".join(m["manual"]) or
+      "none — hold the macro key for the whole fight") + "\n")
+    w(f"Simulated: this layout reaches **{100 * m['dps_macro'] / m['dps_priority']:.1f}%** of the ideal priority list.\n")
+    if m.get("alt_steps"):
+        kind = "macro with manual keys" if m.get("alt_manual") else "one-button macro (no manual keys)"
+        w(f"**Alternative — {kind}**: macro {' → '.join(m['alt_steps'])}"
+          + (f"; manual: {', '.join(m['alt_manual'])}" if m.get("alt_manual") else "")
+          + f". Simulated: **{100 * m['dps_alt'] / m['dps_priority']:.1f}%** of the ideal priority list.\n")
     w("### Opener (first 30 s of the simulated fight)\n")
     w("```")
     w(" → ".join(f"{k}@{t:.1f}s" for t, k in s["opener"][:28]))

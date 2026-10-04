@@ -20,6 +20,9 @@ class MacroPlan:
     manual: list
     dps_macro: float
     dps_priority: float
+    alt_steps: list | None = None       # the other layout (one-button or macro + manual keys)
+    alt_manual: list | None = None
+    dps_alt: float = 0.0
 
 
 class MacroPolicy:
@@ -72,4 +75,19 @@ def plan_macro(derived, kit, policy: list, target, config, macro_cd_limit: float
             v = run(MacroPolicy(manual, cand))
             if v > best:
                 best, best_steps = v, cand
-    return MacroPlan(best_steps, manual, best, dps_pri)
+    # one-button alternative: everything in the macro; adjacent-swap search on the order
+    order = [keyf(e) for e in policy if not kit.actions[keyf(e)].is_filler] + \
+        [keyf(e) for e in policy if kit.actions[keyf(e)].is_filler]
+    one, one_v = order, run(MacroPolicy([], order))
+    improved = True
+    while improved:
+        improved = False
+        for i in range(len(one) - 1):
+            cand = one[:i] + [one[i + 1], one[i]] + one[i + 2:]
+            v = run(MacroPolicy([], cand))
+            if v > one_v * (1 + 1e-6):
+                one, one_v, improved = cand, v, True
+    split = (best_steps, manual, best)
+    single = (one, [], one_v)
+    first, second = (single, split) if one_v >= best else (split, single)
+    return MacroPlan(first[0], first[1], first[2], dps_pri, second[0], second[1], second[2])
