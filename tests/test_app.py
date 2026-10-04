@@ -173,6 +173,8 @@ def test_app_server_endpoints(home):
             time.sleep(0.2)
         assert j["status"] == "done", j
         assert j["result"]["summary"]["casts"] >= 2
+        assert j["result"]["file"].startswith(str(home / "logs"))          # written to the logs folder
+        assert get("/api/logs")["files"] == 1
     finally:
         srv.shutdown()
 
@@ -191,3 +193,108 @@ def test_new_skill_from_a_patch_is_simulated():
     kit = sorcerer.build_kit(Build("sorcerer", sp={15999000: 5}), cd)
     assert any(a.skill_id == 15999000 for a in kit.actions.values())
     assert "test_patch_skill" in kit.policy
+
+
+def test_windows_data_folder_is_appdata(tmp_path, monkeypatch):
+    """On Windows everything goes to %LOCALAPPDATA%\\aion2calc; an old ~/.aion2calc is moved there."""
+    from aion2calc import paths
+    monkeypatch.delenv("AION2CALC_HOME", raising=False)
+    monkeypatch.setattr(paths, "_is_windows", lambda: True)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData" / "Local"))
+    monkeypatch.setenv("HOME", str(tmp_path / "me"))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path / "me"))
+    legacy = tmp_path / "me" / ".aion2calc"
+    legacy.mkdir(parents=True)
+    (legacy / "aion2.db").write_text("x")
+    h = paths.home()
+    assert h == tmp_path / "AppData" / "Local" / "aion2calc"
+    assert (h / "aion2.db").read_text() == "x" and not legacy.exists()
+    assert paths.logs_dir() == h / "logs" and paths.results_dir() == h / "results"
+    monkeypatch.setenv("AION2CALC_HOME", str(tmp_path / "custom"))            # explicit folder still wins
+    assert paths.home() == tmp_path / "custom"
+
+
+def test_logs_folder_files(home):
+    from aion2calc.combat import logs
+    from aion2calc.combat.adapters import from_csv
+    from aion2calc.db import store
+    assert logs._safe('Boss: "X" / <Y>?') == "Boss-X-Y"                     # valid Windows file name
+    enc = from_csv("t,skill,damage\n0,Hellfire,100\n5,Hellfire,100", {"ref": "a.csv", "player": "Me",
+                                                                     "target": "Training Scarecrow"})
+    eid, path = logs.save(enc)
+    assert path.parent == home / "logs" and path.name.endswith(f"_csv-{eid}.json") and "_Me_" in path.name
+    assert json.loads(path.read_text(encoding="utf-8"))["meta"]["total"] == 200
+    eid2, path2 = logs.save(enc)                                            # re-import replaces the old file
+    assert eid2 != eid and not path.exists() and len(list((home / "logs").glob("*.json"))) == 1
+    conn = store.connect()
+    enc3 = from_csv("t,skill,damage\n0,Blaze,50", {"ref": "b.csv"})
+    store.put_encounter(conn, enc3)                                         # stored before the folder existed
+    assert logs.backfill(conn) == 1 and len(list((home / "logs").glob("*.json"))) == 2
+
+
+def _segment():
+    """A small AbyssLogs segment: a Sorcerer and a Templar on a boss."""
+    me, mate, boss = 101, 102, 900
+    ev = lambda t, pid, code, dmg, **kw: {"timeMs": t, "playerId": pid, "targetId": boss, "skillCode": code,
+                                          "damage": dmg, "hitCount": kw.pop("hits", 1), **kw}
+    return {
+        "id": "seg-1", "label": "Gatekeeper", "startTime": "2026-10-04T19:00:00.000Z",
+        "endTime": "2026-10-04T19:00:20.000Z", "region": "na", "recorderName": "Mate",
+        "players": {
+            str(me): {"entityId": me, "name": "Sorc", "classHint": "Sorcerer", "combatPower": 70000,
+                      "totalDamage": 6000, "targets": {str(boss): {"skills": {
+                          "15060130": {"skillName": "Hellfire", "specialities": [{"slot": 4}, {"slot": 1}]},
+                          "15090230": {"skillName": "Ice Chain", "specialities": [{"slot": 2}]}}}}},
+            str(mate): {"entityId": mate, "name": "Mate", "classHint": "Templar", "totalDamage": 500,
+                        "targets": {}}},
+        "targets": {str(boss): {"entityId": boss, "name": "Gatekeeper", "isBoss": True, "isDead": True}},
+        "bossTimeline": {
+            "events": [ev(0, me, 15060130, 3000, isCrit=True, hits=3), ev(2000, me, 15090230, 500),
+                       ev(2600, me, 15100230, 600, isDouble=True), ev(4000, me, 15210230, 400),
+                       ev(4700, me, 15030230, 450), ev(6000, me, 1539001012, 50, isDot=True),
+                       ev(7000, me, 3000024, 1000), ev(8000, mate, 12010000, 500)],
+            "skills": {"15100230": {"skillName": "Cold Wave"}, "15030230": {"skillName": "Burst"},
+                       "3000024": {"skillName": "Theostone: Rathman's Greed"}, "15400000": {"skillName": "x"}},
+            "buffSpans": [{"startMs": 0, "endMs": 5000, "skillCode": 15400000, "targetId": me, "sourceId": me},
+                          {"startMs": 4000, "endMs": 10000, "skillCode": 15400000, "targetId": me, "sourceId": me},
+                          {"startMs": 0, "endMs": 20000, "skillCode": 15400000, "targetId": mate, "sourceId": mate}]},
+    }
+
+
+def test_abysslogs_segment_to_encounter():
+    from aion2calc.combat import abysslogs
+    from aion2calc.combat.adapters import from_text
+    from aion2calc.combat.analyze import analyze
+    assert abysslogs.parse_ref("https://abysslogs.com/e/zpzMbLAE?g=0&seg=7d2b") == ("zpzMbLAE", "7d2b")
+    assert abysslogs.parse_ref("abysslogs.com/e/P6CE2bER") == ("P6CE2bER", None)
+    seg = _segment()
+    with pytest.raises(ValueError):
+        abysslogs.from_segment(seg, player="Nobody")
+    enc = from_text(json.dumps(seg), player="sorc")                      # detected as an AbyssLogs segment
+    m = enc["meta"]
+    assert (m["source"], m["class"], m["player"], m["target"], m["duration"]) == \
+        ("abysslogs", "sorcerer", "Sorc", "Gatekeeper", 20.0)
+    assert [p["name"] for p in m["party"]] == ["Sorc", "Mate"] and m["boss_killed"]
+    cd = ClassData("sorcerer")
+    by = {h["skill"]: h for h in enc["hits"]}
+    assert by["Hellfire"]["skill_id"] == cd.by_name["Hellfire"]["id"] and by["Hellfire"]["multi"] == 2
+    assert by["Ice Chain (Cold Wave)"]["skill_id"] == cd.by_name["Ice Chain"]["id"]     # named in the tooltip
+    assert by["Flame Arrow (Burst)"]["skill_id"] == cd.by_name["Flame Arrow"]["id"]     # listed chain step
+    assert by["Fire Wall"]["dot"] and by["Ice Chain (Cold Wave)"]["double"]           # 10-digit DoT code
+    assert "Theostone: Rathman's Greed" in by and len(enc["hits"]) == 7                # the Templar's hit is left out
+    assert enc["specs"] == {"Hellfire": "1, 4", "Ice Chain": "2"}
+    buff = enc["buffs"][0]
+    assert buff["windows"] == [[0.0, 10.0]] and abs(buff["uptime"] - 0.5) < 1e-9
+    assert from_text(json.dumps(seg))["meta"]["player"] == "Mate"                  # default: the recorder
+    rows = {r["skill"]: r for r in analyze(enc)["skills"]}
+    assert rows["Ice Chain"]["casts"] == 1 and rows["Ice Chain (Cold Wave)"]["casts"] == 1
+
+
+def test_spec_diff_against_build():
+    from aion2calc.combat.analyze import spec_diff
+    from aion2calc.kit.base import Build
+    cd = ClassData("sorcerer")
+    hf = cd.by_name["Hellfire"]
+    build = Build("sorcerer", specs={hf["id"]: (hf["specs"][1]["id"], hf["specs"][3]["id"])})
+    d = spec_diff({"specs": {"Hellfire": "1, 4", "Unknown": "1"}}, build)
+    assert d == [{"skill": "Hellfire", "yours": "1, 4", "optimal": "2, 4", "differs": True}]

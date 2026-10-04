@@ -219,20 +219,32 @@ def build_view(summary: dict) -> dict:
     }
 
 
-def list_results(root: str | Path = "results") -> list[dict]:
-    """Optimized builds, main class reports first (results/<class>_l45*), then comparisons."""
+def result_roots() -> list[Path]:
+    """Where optimized builds live: the user folder (runs from the app) and the bundled ``results``."""
+    from ..paths import results_dir
+    return [results_dir(), Path("results")]
+
+
+def list_results(roots: list[Path] | None = None) -> list[dict]:
+    """Optimized builds, main class reports first (<class>_l45*), then comparisons."""
     out = []
-    for p in sorted(Path(root).glob("**/build.json")):
-        try:
-            s = json.loads(p.read_text(encoding="utf-8"))
-        except ValueError:
-            continue
-        if "class" not in s or s.get("kind") == "current":
-            continue
-        out.append({"path": str(p.parent), "class": s["class"], "loadout": s.get("loadout"),
-                    "dps": s.get("dps"), "scenario": s.get("scenario"), "budgets": s.get("budgets")})
-    out.sort(key=lambda r: (len(Path(r["path"]).parts), "compare" in r["path"], "characters" in r["path"],
-                            r["class"] != "sorcerer", r["path"]))
+    for root in roots or result_roots():
+        mine = root != Path("results")
+        for p in sorted(Path(root).glob("**/build.json")):
+            try:
+                s = json.loads(p.read_text(encoding="utf-8"))
+            except ValueError:
+                continue
+            if "class" not in s or s.get("kind") == "current":
+                continue
+            rel = p.parent.relative_to(root)
+            out.append({"path": str(p.parent), "class": s["class"], "loadout": s.get("loadout"),
+                        "dps": s.get("dps"), "scenario": s.get("scenario"), "budgets": s.get("budgets"),
+                        "mine": mine, "_rel": rel})
+    out.sort(key=lambda r: (len(r["_rel"].parts), "compare" in r["_rel"].parts, "characters" in r["_rel"].parts,
+                            r["class"] != "sorcerer", not r["mine"], str(r["_rel"])))
+    for r in out:
+        del r["_rel"]
     return out
 
 

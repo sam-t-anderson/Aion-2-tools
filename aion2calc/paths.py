@@ -1,24 +1,69 @@
 """Where data lives.
 
 Bundled data ships in ``aion2calc/data`` (works offline from a fresh clone).
-The launch-time sync writes newer copies into the user's data directory
-(``~/.aion2calc/data`` or ``$AION2CALC_HOME/data``); every reader goes through
-:func:`data_file`, which prefers the user copy when one exists.
+Everything the program writes goes into one user folder, :func:`home`:
+
+    Windows        %LOCALAPPDATA%\\aion2calc    (C:\\Users\\<you>\\AppData\\Local\\aion2calc)
+    Linux / macOS  ~/.aion2calc
+    any system     $AION2CALC_HOME when it is set
+
+Inside it: ``data`` (synced game data), ``aion2.db`` (catalog, characters,
+encounters), ``logs`` (one file per combat log), ``results`` (optimizations run
+from the app), ``cache`` and ``icons``.
+
+The launch-time sync writes newer copies of the bundled data into ``data``;
+every reader goes through :func:`data_file`, which prefers the user copy when
+one exists.
 """
 from __future__ import annotations
 
 import json
 import os
+import shutil
+import sys
 import tempfile
 from pathlib import Path
 
 PKG_DATA = Path(__file__).resolve().parent / "data"
 
 
+def _is_windows() -> bool:
+    return sys.platform == "win32"
+
+
+def default_home() -> Path:
+    if os.environ.get("AION2CALC_HOME"):
+        return Path(os.environ["AION2CALC_HOME"])
+    if _is_windows():
+        base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        return Path(base) / "aion2calc" if base else Path.home() / "AppData" / "Local" / "aion2calc"
+    return Path.home() / ".aion2calc"
+
+
 def home() -> Path:
-    h = Path(os.environ.get("AION2CALC_HOME") or Path.home() / ".aion2calc")
+    h = default_home()
+    legacy = Path.home() / ".aion2calc"
+    if not h.exists() and legacy != h and legacy.is_dir() and not os.environ.get("AION2CALC_HOME"):
+        # earlier versions used ~/.aion2calc on Windows too: move it to AppData once
+        try:
+            h.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(legacy), str(h))
+        except OSError:
+            h = legacy          # still in use (another copy running): keep using it this time
     h.mkdir(parents=True, exist_ok=True)
     return h
+
+
+def logs_dir() -> Path:
+    d = home() / "logs"
+    d.mkdir(exist_ok=True)
+    return d
+
+
+def results_dir() -> Path:
+    d = home() / "results"
+    d.mkdir(exist_ok=True)
+    return d
 
 
 def user_data() -> Path:

@@ -1,6 +1,7 @@
 """Tiny cached HTTP fetcher used by every scraper.
 
-Pages are cached on disk (default ``.cache/aion2calc``) so a full refresh can be
+Pages are cached on disk (``cache`` in the user folder, see
+:func:`aion2calc.paths.home`, or ``$AION2CALC_CACHE``) so a full refresh can be
 re-run offline and so the sites are not hammered.  Proxies and CA bundles are
 taken from the usual environment variables by ``urllib``.
 """
@@ -19,7 +20,14 @@ from pathlib import Path
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
 
-CACHE_DIR = Path(os.environ.get("AION2CALC_CACHE", ".cache/aion2calc"))
+
+
+def cache_dir() -> Path:
+    if os.environ.get("AION2CALC_CACHE"):
+        return Path(os.environ["AION2CALC_CACHE"])
+    from ..paths import home
+    return home() / "cache"
+
 _last_request = 0.0
 _lock = threading.Lock()
 
@@ -61,7 +69,7 @@ def fetch(url: str, *, max_age: float = 7 * 86400, delay: float = 0.4,
     ``cache=False`` skips writing the page to disk (bulk syncs parse and drop).
     """
     key = hashlib.sha1(url.encode()).hexdigest()
-    path = CACHE_DIR / f"{key}.html"
+    path = cache_dir() / f"{key}.html"
     if cache and path.exists() and time.time() - path.stat().st_mtime < max_age:
         return path.read_text(encoding="utf-8", errors="replace")
     _throttle(delay)
@@ -70,7 +78,7 @@ def fetch(url: str, *, max_age: float = 7 * 86400, delay: float = 0.4,
         headers["Referer"] = referer
     body = _get(url, headers).decode("utf-8", errors="replace")
     if cache:
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(body, encoding="utf-8")
     return body
 
@@ -90,9 +98,9 @@ def fetch_json(url: str, params: dict | None = None, *, referer: str | None = No
 
 def fetch_bytes(url: str, *, max_age: float = 30 * 86400) -> bytes | None:
     """Binary variant of :func:`fetch` (icons); returns None on failure."""
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     key = hashlib.sha1(url.encode()).hexdigest()
-    path = CACHE_DIR / f"{key}.bin"
+    path = cache_dir() / f"{key}.bin"
+    path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and time.time() - path.stat().st_mtime < max_age:
         return path.read_bytes()
     req = urllib.request.Request(url, headers={"User-Agent": UA})

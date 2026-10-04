@@ -373,26 +373,44 @@ function lineChart(per, roll) {
 async function pageCombat() {
   const st = S.combat;
   app().innerHTML = `<section class="win"><div class="wh"><h2>Combat logs</h2><span class="sub">per-skill breakdown, timeline, rates, idle time — compared with your optimal rotation</span></div>
-    <div class="wb"><div class="row"><input id="ref" type="text" placeholder="A2DIL record link or id" style="width:380px"><button class="btn primary" id="imp">Analyze</button>
-      <span class="muted small">or</span><input id="file" type="file" accept=".json,.csv"><span id="lmsg" class="small muted"></span></div>
-      <p class="small faint">Log format: JSON (see docs) or CSV with columns t, skill, damage, crit, double, perfect, multi, dot. Live capture plugs in through <code>aion2calc/combat/live.py</code>.</p>
+    <div class="wb"><div class="row"><input id="ref" type="text" placeholder="AbyssLogs link (abysslogs.com/e/…) or A2DIL link" style="width:400px">
+      <input id="player" type="text" placeholder="player (party logs)" style="width:150px"><button class="btn primary" id="imp">Analyze</button>
+      <span class="muted small">or</span><input id="file" type="file" accept=".json,.gz,.csv"><span id="lmsg" class="small muted"></span></div>
+      <p class="small faint">Record a fight with the free <a href="https://abysslogs.com" target="_blank" rel="noopener">AbyssLogs meter</a>, press Share, and paste the link here. A party log shows the recorder's damage unless you name a player.
+        Files: AbyssLogs segment (.json / .json.gz), aion2calc JSON (see docs), or CSV with columns t, skill, damage, crit, double, perfect, multi, dot.</p>
+      <div class="row small" id="logsdir"></div>
       <div id="hist"></div></div></section><div id="enc"></div>`;
+  api("/api/logs").then((l) => {
+    $("#logsdir").innerHTML = `<span class="muted">Every analyzed log is saved as a file in</span> <code>${esc(l.folder)}</code> <span class="faint">(${l.files} files)</span>
+      <button class="btn small" id="openlogs">Open folder</button>`;
+    $("#openlogs").onclick = () => api("/api/logs/open", {}).catch((e) => ($("#lmsg").textContent = e.message));
+  }).catch(() => {});
   const hist = await api("/api/encounters").catch(() => []);
-  $("#hist").innerHTML = hist.length ? `<table class="t"><tr><th>#</th><th>Class</th><th>Target</th><th>Source</th><th class="r">Duration</th><th class="r">DPS</th><th></th></tr>${hist.map((e) =>
-    `<tr><td>${e.id}</td><td>${esc(cap(e.class_name))}</td><td>${esc(e.boss || "")}</td><td>${esc(e.source)}</td><td class="r">${(e.duration || 0).toFixed(0)}s</td><td class="r num">${n0(e.dps)}</td>
+  $("#hist").innerHTML = hist.length ? `<table class="t"><tr><th>#</th><th>Player</th><th>Class</th><th>Target</th><th>Source</th><th class="r">Duration</th><th class="r">DPS</th><th></th></tr>${hist.map((e) =>
+    `<tr><td>${e.id}</td><td>${esc(e.player || "")}</td><td>${esc(cap(e.class_name))}</td><td>${esc(e.boss || "")}</td><td>${esc(e.source)}</td><td class="r">${(e.duration || 0).toFixed(0)}s</td><td class="r num">${n0(e.dps)}</td>
      <td class="r"><button class="btn small" data-enc="${e.id}">Open</button></td></tr>`).join("")}</table>` : '<div class="faint small">No encounters yet.</div>';
   $$("[data-enc]").forEach((b) => (b.onclick = () => openEnc(+b.dataset.enc)));
-  const show = (a) => { st.a = a; $("#enc").innerHTML = renderEncounter(a); };
+  const progress = (l) => ($("#lmsg").textContent = l[l.length - 1] || "");
+  const show = (a) => {
+    st.a = a; $("#enc").innerHTML = renderEncounter(a);
+    $$("[data-player]").forEach((b) => (b.onclick = async () => {        // another player of the same party log
+      try { show(await runJob("/api/encounters/import", { ref: a.meta.url, player: b.dataset.player }, progress)); pageCombatHistory(); }
+      catch (e) { $("#lmsg").textContent = e.message; }
+    }));
+  };
   const openEnc = async (id) => { $("#enc").innerHTML = '<div class="empty"><span class="spinner"></span></div>'; show(await api("/api/encounters/" + id)); };
   $("#imp").onclick = async () => {
-    try { show(await runJob("/api/encounters/import", { ref: $("#ref").value }, (l) => ($("#lmsg").textContent = l[l.length - 1] || ""))); pageCombatHistory(); }
+    try { show(await runJob("/api/encounters/import", { ref: $("#ref").value, player: $("#player").value }, progress)); pageCombatHistory(); }
     catch (e) { $("#lmsg").textContent = e.message; }
   };
   $("#file").onchange = async () => {
     const f = $("#file").files[0]; if (!f) return;
-    const text = await f.text();
-    try { show(await runJob("/api/encounters/import", { text, name: f.name }, (l) => ($("#lmsg").textContent = l[l.length - 1] || ""))); }
-    catch (e) { $("#lmsg").textContent = e.message; }
+    try {
+      const gz = new Uint8Array(await f.slice(0, 2).arrayBuffer());
+      const text = gz[0] === 0x1f && gz[1] === 0x8b                      // AbyssLogs segment files are gzip
+        ? await new Response(f.stream().pipeThrough(new DecompressionStream("gzip"))).text() : await f.text();
+      show(await runJob("/api/encounters/import", { text, name: f.name, player: $("#player").value }, progress)); pageCombatHistory();
+    } catch (e) { $("#lmsg").textContent = e.message; }
   };
   if (st.a) show(st.a);
 }
@@ -418,15 +436,21 @@ function renderEncounter(a) {
     <table class="t"><tr><th>Skill</th><th>Your share</th><th>Optimal share</th><th class="r">Your casts</th><th class="r">Optimal casts</th></tr>${(o.skills || []).slice(0, 16).map((r) =>
       `<tr><td>${esc(r.skill)}</td><td style="width:22%"><div class="bar"><i style="width:${100 * r.share}%"></i><span>${pct(r.share)}</span></div></td>
        <td style="width:22%"><div class="bar"><i class="alt" style="width:${100 * r.sim_share}%"></i><span>${pct(r.sim_share)}</span></div></td><td class="r">${r.casts}</td><td class="r">${r.sim_casts}</td></tr>`).join("")}</table>`;
+  const specs = (o.specs || []).length ? `<h4 class="gold small" style="margin-top:14px">SPECIALIZATIONS (from the log)</h4>
+    <table class="t"><tr><th>Skill</th><th>In this log</th><th>Optimized build</th></tr>${o.specs.map((d) =>
+      `<tr><td>${esc(d.skill)}</td><td class="${d.differs ? "bad" : ""}">${esc(d.yours || "none")}</td><td class="gold">${esc(d.optimal)}</td></tr>`).join("")}</table>` : "";
   const t = a.vs_top || {};
   const top = t.rows ? `<p>Share overlap with the top Korean logs for this class: <b class="gold">${pct(t.overlap, 0)}</b></p><table class="t"><tr><th>Skill</th><th>You</th><th>Top logs</th><th class="r">Hits/min</th><th class="r">Top hits/min</th></tr>${t.rows.map((r) =>
       `<tr><td>${esc(r.skill)}</td><td>${pct(r.share)}</td><td>${pct(r.top_share)}</td><td class="r">${r.hpm.toFixed(0)}</td><td class="r">${r.top_hpm.toFixed(0)}</td></tr>`).join("")}</table>` : "";
-  return win("Encounter", `${esc(cap(m.class))} · ${esc(m.target || "")} · ${esc(m.source)}${m.combat_power ? " · CP " + n0(m.combat_power) : ""}`,
-      `<div class="kpis">${kp.map(([k, v]) => `<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("")}</div>
+  const party = (m.party || []).length > 1 ? `<div class="row small" style="margin-top:10px"><span class="muted">Party:</span>${m.party.map((p) =>
+      `<button class="btn small ${p.name === m.player ? "primary" : ""}" data-player="${esc(p.name)}" title="${esc(p.class)} · ${n0(p.damage)} damage">${esc(p.name)} <span class="faint">${esc(p.class || "")}</span></button>`).join("")}</div>` : "";
+  const info = `<div class="small muted" style="margin-top:8px">${(m.notes || []).map(esc).join(" · ")}${m.url ? ` · <a href="${esc(m.url)}" target="_blank" rel="noopener">open on AbyssLogs</a>` : ""}${a.file ? ` · saved as <code>${esc(a.file)}</code>` : ""}</div>`;
+  return win("Encounter", `${esc(m.player || "")} · ${esc(cap(m.class || m.class_name || ""))} · ${esc(m.target || "")} · ${esc(m.source)}${m.combat_power ? " · CP " + n0(m.combat_power) : ""}`,
+      `${party}${info}<div class="kpis">${kp.map(([k, v]) => `<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("")}</div>
        <div style="margin-top:14px">${lineChart(a.timeline.per_second, a.timeline.rolling10)}</div>`) +
     win("Damage by skill", "", table) +
     `<div class="grid2">${win("Rotation (first casts)", "", rot)}${win("Buff uptime", "", `<table class="t">${buffs}</table>` + (a.gaps.length ? `<p class="small muted">Idle gaps: ${a.gaps.map((g) => `${g.start.toFixed(1)}–${g.end.toFixed(1)}s`).join(", ")}</p>` : ""))}</div>` +
-    win("Compared with your optimal rotation", "same fight length, simulated", opt) + (top ? win("Compared with top players", "A2DIL top-10 dummy logs", top) : "");
+    win("Compared with your optimal rotation", "same fight length, simulated", opt + specs) + (top ? win("Compared with top players", "A2DIL top-10 dummy logs", top) : "");
 }
 
 async function pageDatabase() {

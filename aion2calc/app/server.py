@@ -20,7 +20,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from ..paths import home, list_names
+from ..paths import home, list_names, logs_dir, results_dir
 from . import views
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -64,7 +64,7 @@ def start_sync(force: bool = False, budget_s: float | None = 900) -> None:
 # -------------------------------------------------------------------- actions
 def _summary_at(path: str) -> dict:
     p = Path(path) / "build.json"
-    if not p.resolve().is_relative_to(Path("results").resolve()) or not p.exists():
+    if not any(p.resolve().is_relative_to(r.resolve()) for r in views.result_roots()) or not p.exists():
         raise FileNotFoundError(path)
     return json.loads(p.read_text(encoding="utf-8"))
 
@@ -83,7 +83,7 @@ def act_character_optimize(body: dict, log) -> dict:
     from ..charopt import import_character, optimize_character
     imp = import_character(body["character_id"], int(body["server_id"]), body.get("region", "nae"),
                            progress=log, use_cache=3600)
-    out = Path("results") / "characters" / imp.loadout_name()[5:]
+    out = results_dir() / "characters" / imp.loadout_name()[5:]
     log(f"optimizing under the same resources (writes {out})")
     summ = optimize_character(imp, str(out), iterations=int(body.get("iterations", 2)))
     best = json.loads((out / "build.json").read_text(encoding="utf-8"))
@@ -95,7 +95,9 @@ def act_character_optimize(body: dict, log) -> dict:
 def act_optimize_class(body: dict, log) -> dict:
     from ..report import run_report
     cls = body["class"]
-    out = Path("results") / f"{cls}_l45" if not body.get("out") else Path("results") / body["out"]
+    out = results_dir() / (body.get("out") or f"{cls}_l45")
+    if not out.resolve().is_relative_to(results_dir().resolve()):
+        raise ValueError("out must stay inside the results folder")
     log(f"optimizing {cls} (this takes several minutes)")
     run_report(cls, str(out), iterations=int(body.get("iterations", 2)), loadout=body.get("loadout"),
                sp_budget=body.get("skill_points"), stigma_points=body.get("stigma_points"),
@@ -119,21 +121,24 @@ def encounter_view(enc_id: int) -> dict:
     except Exception as err:
         a["vs_top"] = {"error": str(err)}
     a["id"] = enc_id
+    from ..combat.logs import path_of
+    f = path_of(enc_id)
+    a["file"] = str(f) if f else None
     return a
 
 
 def act_encounter_import(body: dict, log) -> dict:
-    from ..combat import adapters
-    from ..db import store
+    from ..combat import adapters, logs
+    player = body.get("player") or None
     if body.get("ref"):
         log("reading the log")
-        enc = adapters.load(body["ref"])
+        enc = adapters.load(body["ref"].strip(), player=player)
     elif body.get("text"):
-        t = body["text"]
-        enc = adapters.from_json(t) if t.lstrip().startswith("{") else adapters.from_csv(t, {"ref": body.get("name")})
+        enc = adapters.from_text(body["text"], name=body.get("name"), player=player)
     else:
         raise ValueError("send a log link (ref) or file contents (text)")
-    eid = store.put_encounter(store.connect(), enc)
+    eid, path = logs.save(enc)
+    log(f"saved to {path}")
     log("analyzing")
     return encounter_view(eid)
 
@@ -203,6 +208,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/encounters":
             from ..db import store
             return self._json(store.encounters(store.connect(), q.get("class")))
+        if path == "/api/logs":
+            return self._json({"folder": str(logs_dir()), "files": len(list(logs_dir().glob("*.json")))})
         if path.startswith("/api/encounters/"):
             return self._json(encounter_view(int(path.rsplit("/", 1)[1])))
         if path == "/api/items":
@@ -234,6 +241,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"job": start_job("optimize-class", act_optimize_class, body)})
         if path == "/api/encounters/import":
             return self._json({"job": start_job("encounter", act_encounter_import, body)})
+        if path == "/api/logs/open":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("the logs folder opens only on the computer running the app")
+            from ..combat.logs import open_folder
+            return self._json({"folder": str(open_folder())})
         raise FileNotFoundError(path)
 
     # -------------------------------------------------------------- files
@@ -266,7 +278,13 @@ def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: 
         start_sync()
     httpd = ThreadingHTTPServer((host, port), Handler)
     url = f"http://{host}:{port}/"
+    try:
+        from ..combat.logs import backfill
+        backfill()
+    except Exception as err:                  # the app still works without the files
+        print("could not write the logs folder:", err)
     print(f"aion2calc app on {url}  (Ctrl+C to stop)")
+    print(f"data folder: {home()}   combat logs: {logs_dir()}")
     if open_browser:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     try:
