@@ -30,28 +30,55 @@ def _sim(build, scenario, policy):
     return sim.run(), kit, stats
 
 
-def arcana_skill_values(cls, build, scenario, policy) -> list[dict]:
-    """Simulated DPS gain of each random skill option Unique arcana can roll for ``cls``."""
+#: Skill rolls per arcana = base (by grade) + enhancement level; a skill rolled
+#: again gains another level, up to the pool's cap (official item data).
+ARCANA_BASE_ROLLS = {"Common": 1, "Rare": 2, "Legend": 3, "Unique": 4}
+
+
+def arcana_roll_values(cls, build, scenario, policy, samples: int = 400, seed: int = 11) -> dict:
+    """Per arcana slot: DPS value of each skill in its pool at +1..+cap, and the
+    expected gain of a Unique arcana at +0 (4 rolls) and +5 (9 rolls)."""
     path = Path(__file__).resolve().parent / "data" / "global" / "arcana_skill_pools.json"
     if not path.exists():
-        return []
-    pool = json.loads(path.read_text(encoding="utf-8")).get(cls, {})
+        return {}
+    pools = json.loads(path.read_text(encoding="utf-8"))
     cd = ClassData(cls)
-    base = _sim(build, scenario, policy)[0].dps
-    rows = []
-    for name in pool.get("skills", []):
-        s = cd.by_name.get(name)
-        if not s:
-            continue
-        gains = []
-        for lv in range(1, (pool.get("max_level") or 4) + 1):
-            b = build.copy()
-            b.bonus = dict(b.bonus)
-            b.bonus[s["id"]] = b.bonus.get(s["id"], 0) + lv
-            gains.append(_sim(b, scenario, policy)[0].dps / base - 1)
-        rows.append({"skill": name, "id": s["id"], "gain_pct": [100 * g for g in gains]})
-    rows.sort(key=lambda r: -r["gain_pct"][-1])
-    return rows
+    opt = Optimizer(cls, scenario, verbose=False)
+    base = opt.evaluate(build, policy)
+    gain_cache: dict = {}
+
+    def gains(name, cap):
+        if name not in gain_cache:
+            sk = cd.by_name.get(name)
+            dps = opt.level_gains(build, policy, sk["id"], cap) if sk else [base] * cap
+            gain_cache[name] = [100 * (v / base - 1) for v in dps]
+        return gain_cache[name]
+
+    rng = random.Random(seed)
+    out = {}
+    for slug, by_cls in sorted(pools.items()):
+        slot = slug.split("-of-")[0]
+        if slot in out or cls not in by_cls:
+            continue                      # Vigor/Magic variants share the pool
+        pool = by_cls[cls]
+        cap = pool.get("max_level") or 4
+        names = pool["skills"]
+        weights = [pool["chances"].get(n, 1 / len(names)) for n in names]
+        table = {n: gains(n, cap) for n in names}
+
+        def expected(rolls):
+            tot = 0.0
+            for _ in range(samples):
+                lv: dict = {}
+                for n in rng.choices(names, weights, k=rolls):
+                    lv[n] = min(cap, lv.get(n, 0) + 1)
+                tot += sum(table[n][v - 1] for n, v in lv.items())
+            return tot / samples
+        out[slot] = {"variants": sorted(x for x in pools if x.startswith(slot + "-of-")),
+                     "cap": cap, "skills": table,
+                     "expected_unique_0": expected(ARCANA_BASE_ROLLS["Unique"]),
+                     "expected_unique_5": expected(ARCANA_BASE_ROLLS["Unique"] + 5)}
+    return out
 
 
 def kr_share_overlap(cls: str, shares: dict) -> dict | None:
@@ -200,11 +227,12 @@ def rerender(out_dir: str) -> str:
     if "crit_sensitivity" not in summary:
         summary["crit_sensitivity"] = crit_sensitivity(build, SCENARIOS[summary["scenario"]](loadout), policy)
         path.write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
-    if "kr_fidelity" not in summary or "arcana_skill_values" not in summary or "alt_steps" not in summary["macro"]:
+    if "kr_fidelity" not in summary or "arcana_rolls" not in summary or "alt_steps" not in summary["macro"]:
         dummy = SCENARIOS["dummy"](loadout)
         scen = SCENARIOS[summary["scenario"]](loadout)
         summary.setdefault("kr_fidelity", kr_share_overlap(cls, _sim(build, dummy, policy)[0].shares()))
-        summary.setdefault("arcana_skill_values", arcana_skill_values(cls, build, SCENARIOS["boss"](loadout), policy))
+        summary.setdefault("arcana_rolls", arcana_roll_values(cls, build, SCENARIOS[summary["scenario"]](loadout), policy))
+        summary.pop("arcana_skill_values", None)
         if "alt_steps" not in summary["macro"]:
             _, _, kit, stats = prepare(build, scen)
             mp = plan_macro(stats.derived(), kit, policy, scen.target, scen.config)
@@ -341,7 +369,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     wc = weapon_compare(build, scen, policy, per_unit(res.weights))
     summary["weapon_compare"] = wc
     summary["loadout"] = loadout
-    summary["arcana_skill_values"] = arcana_skill_values(cls, build, scen, policy)
+    summary["arcana_rolls"] = arcana_roll_values(cls, build, scen, policy)
     summary["crit_sensitivity"] = crit_sensitivity(build, scen, policy)
     summary["kr_fidelity"] = kr_share_overlap(cls, final_other.shares() if scenario_name == "boss"
                                               else final.shares())

@@ -28,9 +28,10 @@ may want to tune.
 | Skill points | 203 | metabot (client Exp table) |
 | Skill level price | Lv 2–4: 1, Lv 5–7: 2, Lv 8–10: 4 (21 per skill to Lv 10) | metabot (skill acquire table) |
 | Skill level cap from points | 10; Daevanion +4 max per skill (4 nodes per skill) | metabot / Inven |
-| Arcana skill options | one random option per Unique arcana, up to +4, from a 5-skill **passive** pool per class (Sorcerer: Robe of Earth, Robe of Flame, Absorb Essence, Grace of Enhancement, Vitality Evaporation) | metabot item pages (`data/global/arcana_skill_pools.json`) |
+| Arcana skill rolls | (grade base + enhancement level) random skill levels per arcana — Rare 2, Legend 3, Unique 4 base, +1 per enhancement (Unique +5 = 9); repeats stack up to +4 per skill. Chalice (any skill), Parchment and Compass (two halves of the active skills) roll actives; Bell and Mirror roll passives | official item data (`/api/gameconst/item`, character equipment) + metabot pools (`data/global/arcana_skill_pools.json`) |
+| Accessory skill rolls | Unique accessories (e.g. Aulamus/Gartua) roll up to 4 passive skills at +1 from a 10-skill pool | official item data, metabot pools |
 | Specialization slots | 1 at skill Lv 8, 2 at Lv 12, 3 at Lv 20; options unlock at 8/12/16 | client data |
-| Highest active skill level at 45 | **14** (10 SP + 4 nodes); no launch source raises actives further, so the Lv 16 options (Pyroclasm reset, Wish −10 s, Blaze → Wish, Hellfire −15 s) are unavailable | derived |
+| Highest active skill level at 45 | 10 SP + 4 Daevanion nodes + arcana rolls. A Unique +5 Parchment spreads 9 levels over six core actives, so the Lv 16 options (Pyroclasm reset, Wish −10 s, Blaze → Wish, Hellfire −15 s) are reachable with good rolls; a level-45 profile with only Rare arcana already shows Lv 15 actives | official profiles, derived |
 | Stigma points | 29 (+1 from the 3rd Ascension reward = 30) | metabot |
 | Stigma level price | Lv 1–5: 1, 6–10: 2, 11–15: 4, 16–20: 8 (75 to Lv 20) | metabot |
 | Stigma slots | 4 (Lv 22/27/32/37) | client data |

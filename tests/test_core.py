@@ -152,13 +152,16 @@ def test_every_class_simulates(cls):
     assert sum(res.casts.values()) > 30
 
 
-def test_arcana_pools_are_passives():
+def test_arcana_pools_by_slot():
+    """Chalice/Parchment/Compass roll actives, Bell/Mirror passives (official guide)."""
     from pathlib import Path
     path = Path(__file__).resolve().parents[1] / "aion2calc" / "data" / "global" / "arcana_skill_pools.json"
     pools = json.loads(path.read_text(encoding="utf-8"))
     sorc = ClassData("sorcerer")
-    assert pools["sorcerer"]["max_level"] == 4
-    assert all(sorc.by_name[n]["kind"] == "passive" for n in pools["sorcerer"]["skills"])
+    kinds = lambda slug: {sorc.by_name[n]["kind"] for n in pools[slug]["sorcerer"]["skills"]}
+    assert kinds("mirror-of-magic") == {"passive"} and kinds("bell-of-vigor") == {"passive"}
+    assert kinds("parchment-of-magic") == {"active"} and kinds("compass-of-vigor") == {"active"}
+    assert pools["parchment-of-magic"]["sorcerer"]["max_level"] == 4
 
 
 def test_crit_midpoint_option():

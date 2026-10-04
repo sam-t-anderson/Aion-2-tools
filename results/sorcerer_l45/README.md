@@ -72,28 +72,28 @@ Skill points used **203 / 203**, stigma points **30 / 30**, Daevanion **360 / 36
 
 | Skill | Trained (SP) | Effective level | Specializations |
 |---|---:|---:|---|
-| Firestorm | 10 | 14 | +20% Skill Speed; -2s [Hellfire] cooldown per fireball |
-| Hellfire | 10 | 14 | Fire Damage over Time for 10s on hit; Ignores Block and Evasion and lands as Multi-Hit |
-| Robe of Earth | 10 | 14 | — |
-| Vitality Evaporation | 10 | 14 | — |
 | Robe of Flame | 10 | 14 | — |
-| Fire Mark | 9 | 13 | — |
-| Flame Arrow | 10 | 13 | +50% Multi-Hit on hit; +5% Fire Damage Boost for 10s on activating [Pyroclasm] |
-| Blaze | 10 | 13 | Delayed Damage after 3s; Multi-Hit on hit |
+| Vitality Evaporation | 10 | 14 | — |
+| Robe of Earth | 10 | 14 | — |
+| Hellfire | 10 | 14 | Fire Damage over Time for 10s on hit; Ignores Block and Evasion and lands as Multi-Hit |
+| Firestorm | 10 | 14 | +20% Skill Speed; -2s [Hellfire] cooldown per fireball |
 | Bittercold Wind | 10 | 13 | +1s [Bittercold Wind] summon duration; Ignores Block and Evasion and lands as a Critical Hit |
+| Blaze | 10 | 13 | Delayed Damage after 3s; Multi-Hit on hit |
+| Flame Arrow | 10 | 13 | +50% Multi-Hit on hit; +5% Fire Damage Boost for 10s on activating [Pyroclasm] |
+| Fire Mark | 9 | 13 | — |
 | Wish of Concentration | 7 | 11 | +10% additional Attack |
 | Winter's Shackles | 4 | 8 | +20% PvE Damage Boost and +10% PvP Damage Boost for 5s on landing [Winter's Shackles] |
 | Grace of Enhancement | 4 | 6 | — |
 | Flame Scattershot | 4 | 5 | — |
-| Revitalization Contract | 1 | 3 | — |
 | Ice Chain | 1 | 3 | — |
+| Revitalization Contract | 1 | 3 | — |
 | Absorb Essence | 1 | 3 | — |
-| Defiance | 1 | 2 | — |
-| Frost Burst | 1 | 2 | — |
-| Grace of Resistance | 1 | 2 | — |
 | Frost | 1 | 2 | — |
+| Defiance | 1 | 2 | — |
 | Cold Snap | 1 | 2 | — |
 | Robe of Cold | 1 | 2 | — |
+| Grace of Resistance | 1 | 2 | — |
+| Frost Burst | 1 | 2 | — |
 
 **Stigmas**: Cold Storm Lv 6, Element Enhancement Lv 10, Fire Wall Lv 6, Delayed Explosion Lv 1
 
@@ -212,17 +212,17 @@ Loadout: **Global L45 Sorcerer - median of top tracked characters (metabot, Oct 
 * Bell: **Magic or Purity** (Destruction +20)
 * Mirror: **Vigor or Frenzy** (Illusion +20)
 
-**Arcana random skill option** (Unique arcana roll one option from the class pool when soul-bound, up to +4; simulated DPS gain on this build):
+**Arcana skill rolls.** Each arcana gives (grade base + enhancement level) random skill levels from its slot's pool — Rare 2, Legend 3, Unique 4 base rolls, +1 per enhancement level (so a Unique +5 gives 9); a skill rolled again gains another level, up to the cap. Chalice, Parchment and Compass roll active skills; Bell and Mirror roll passives.
 
-| Skill | +1 | +2 | +3 | +4 |
-|---|---:|---:|---:|---:|
-| Robe of Flame | +1.26% | +2.52% | +3.79% | +5.06% |
-| Robe of Earth | +0.13% | +0.26% | +0.40% | +0.54% |
-| Vitality Evaporation | +0.10% | +0.25% | +0.35% | +0.45% |
-| Grace of Enhancement | +0.04% | +0.08% | +0.13% | +0.18% |
-| Absorb Essence | +0.00% | +0.00% | +0.00% | +0.00% |
+| Arcana slot | Expected DPS, Unique +0 (4 rolls) | Expected DPS, Unique +5 (9 rolls) | Best rolls (+1 / +2) |
+|---|---:|---:|---|
+| Parchment | +1.7% | +5.1% | Hellfire +0.4% / +5.2%, Blaze +0.2% / +0.5%, Firestorm +0.1% / +2.9% |
+| Mirror | +1.2% | +2.9% | Robe of Flame +1.3% / +2.5%, Vitality Evaporation +0.2% / +0.3%, Robe of Earth +0.1% / +0.3% |
+| Chalice | +0.6% | +1.8% | Robe of Flame +1.3% / +2.5%, Hellfire +0.4% / +5.2%, Blaze +0.2% / +0.5% |
+| Compass | +0.1% | +0.4% | Bittercold Wind +0.1% / +0.3%, Flame Scattershot +0.0% / +0.1%, Winter's Shackles +0.0% / +0.1% |
+| Bell | +0.1% | +0.2% | Fire Mark +0.1% / +0.2%, Cold Snap +0.0% / +0.0%, Robe of Cold +0.0% / +0.0% |
 
-The pool holds passives only, so at level 45 an active skill still stops at Lv 14 (10 from skill points + 4 Daevanion nodes); the Lv 16 specialization options are out of reach.
+Biggest single-level jumps (usually a specialization unlocking at Lv 16): Hellfire +4.8%, Firestorm +2.8%, Robe of Flame +1.3%, Wish of Concentration +1.1%.
 
 **Deity (pantheon) stats**, +10 points each (arcana main stats, Abyssal Bracelet rolls, Monolith rewards): Illusion +1.14%, Wisdom +0.80%, Might +0.49%, Destruction +0.49%, Time +0.36%, Death +0.13%, Justice +0.00%.
 

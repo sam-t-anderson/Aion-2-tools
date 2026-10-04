@@ -275,6 +275,24 @@ class Optimizer:
             curve.append(best)
         return curve
 
+    def level_gains(self, build: Build, policy: list, sid: int, extra: int) -> list[float]:
+        """DPS with ``sid`` raised by +1..+extra levels, best legal specs at each level."""
+        mod = kit_module(self.cls)
+        s = self.cd.skills[sid]
+        out = []
+        for k in range(1, extra + 1):
+            b2 = build.copy()
+            b2.bonus = dict(b2.bonus)
+            b2.bonus[sid] = b2.bonus.get(sid, 0) + k
+            best = self.evaluate(b2, policy)
+            if s["kind"] == "active" and s.get("specs"):
+                for combo in mod.spec_options(self.cd, self._with_gear(b2)).get(sid, [()]):
+                    b3 = b2.copy()
+                    b3.specs[sid] = tuple(combo)
+                    best = max(best, self.evaluate(b3, policy))
+            out.append(best)
+        return out
+
     def allocate(self, build: Build, policy: list):
         curves = self.level_curves(build, policy)
         cd, b, kit, stats = prepare(build, self.scenario)

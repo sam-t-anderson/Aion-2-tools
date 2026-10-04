@@ -134,16 +134,23 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
                                                        ARCANA[slot].values()) + ": no damage either way)")
         else:
             w(f"* {slot}: **{a['pick']}** ({a['stat'].capitalize()} +20)")
-    asv = s.get("arcana_skill_values") or []
-    if asv:
-        w("\n**Arcana random skill option** (Unique arcana roll one option from the class pool when soul-bound, "
-          "up to +4; simulated DPS gain on this build):\n")
-        w("| Skill | +1 | +2 | +3 | +4 |")
-        w("|---|---:|---:|---:|---:|")
-        for r in asv:
-            w(f"| {r['skill']} | " + " | ".join(f"{g:+.2f}%" for g in r["gain_pct"]) + " |")
-        w("\nThe pool holds passives only, so at level 45 an active skill still stops at Lv 14 "
-          "(10 from skill points + 4 Daevanion nodes); the Lv 16 specialization options are out of reach.\n")
+    ar = s.get("arcana_rolls") or {}
+    if ar:
+        w("\n**Arcana skill rolls.** Each arcana gives (grade base + enhancement level) random skill levels from "
+          "its slot's pool — Rare 2, Legend 3, Unique 4 base rolls, +1 per enhancement level (so a Unique +5 "
+          "gives 9); a skill rolled again gains another level, up to the cap. Chalice, Parchment and Compass "
+          "roll active skills; Bell and Mirror roll passives.\n")
+        w("| Arcana slot | Expected DPS, Unique +0 (4 rolls) | Expected DPS, Unique +5 (9 rolls) | Best rolls (+1 / +2) |")
+        w("|---|---:|---:|---|")
+        for slot, a in sorted(ar.items(), key=lambda kv: -kv[1]["expected_unique_5"]):
+            best = sorted(a["skills"].items(), key=lambda kv: -kv[1][0])[:3]
+            bt = ", ".join(f"{n} {g[0]:+.1f}% / {g[1]:+.1f}%" for n, g in best if g)
+            w(f"| {slot.capitalize()} | {a['expected_unique_0']:+.1f}% | {a['expected_unique_5']:+.1f}% | {bt} |")
+        lv16 = [(n, g) for a in ar.values() for n, g in a["skills"].items()]
+        jumps = sorted({n: max(g[i] - (g[i - 1] if i else 0) for i in range(len(g))) for n, g in lv16}.items(),
+                       key=lambda kv: -kv[1])[:4]
+        w("\nBiggest single-level jumps (usually a specialization unlocking at Lv 16): "
+          + ", ".join(f"{n} {v:+.1f}%" for n, v in jumps) + ".\n")
     else:
         w("")
     deity = [x for x in s["weights"] if x["stat"] in ("might", "destruction", "death", "wisdom", "justice",

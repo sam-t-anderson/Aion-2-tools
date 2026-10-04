@@ -2,36 +2,179 @@
  "name": "Global L45 Sorcerer - first-month upgrade target",
  "level": 45,
  "notes": [
-  "Upgrade path on top of the median loadout: Rupture Tome +10, Bakarma Guard +10, Aulamus accessories +10, Abyssal Bracelets +10, the best launch titles and five Unique arcana at +5.",
+  "Upgrade path on top of the median loadout: Rupture Tome +10, Bakarma Guard +10, Aulamus accessories +10, Abyssal Bracelets +10, the best launch titles and five Unique arcana at +0.",
   "Fixed item and enchant values come from the global client item tables (metabot.gg). Random rolls are good but realistic picks from each item's roll pool.",
-  "Unique arcana random skill options only roll Sorcerer passives (Robe of Earth, Robe of Flame, Absorb Essence, Grace of Enhancement, Vitality Evaporation, up to +4), so active skills still stop at Lv 14 at level 45.",
-  "Deity stats = median profile averages + arcana main stats at +5 (25 each, best variant per slot) + Abyssal Bracelet deity rolls."
+  "Deity stats = median profile averages + arcana main stats at +0 (20 each, best variant per slot) + Abyssal Bracelet deity rolls.",
+  "Arcana skill rolls: each Unique arcana gives 4 random skill levels at +0 (9 at +5) from its slot's pool; Chalice/Parchment/Compass roll actives, Bell/Mirror passives. This loadout uses one typical roll set."
  ],
  "components": [
-  {"slot": "Main hand", "item": "Rupture Tome +10", "source": "248-276, +6/enchant; rolls: Weapon Damage Boost, Multi-hit, Critical Hit, Attack",
-   "stats": {"weapon_min": 308, "weapon_max": 336, "accuracy": 100, "crit": 153, "weapon_amp": 0.07, "multihit": 0.07, "attack": 36}},
-  {"slot": "Off-hand", "item": "Bakarma Guard +10", "source": "Attack 110 +6/enchant; rolls: Critical Hit, Attack, Multi-hit, Accuracy",
-   "stats": {"attack": 200, "accuracy": 106, "crit": 93, "multihit": 0.056}},
-  {"slot": "Armor x7", "item": "Bakarma / Vakron ~+8", "source": "expected value of 4 random rolls per piece (armor enchant adds defense only)",
-   "stats": {"crit": 42, "accuracy": 56, "attack": 24}},
-  {"slot": "Necklace", "item": "Aulamus Necklace +10", "stats": {"attack": 147}},
-  {"slot": "Earrings x2", "item": "Aulamus Earrings +10", "stats": {"attack": 258}},
-  {"slot": "Rings x2", "item": "Aulamus Ring +10", "stats": {"attack": 222}},
-  {"slot": "Accessory rolls", "item": "expected value of 4 rolls x 5 accessories",
-   "stats": {"attack": 34, "crit": 45, "accuracy": 60, "combat_speed": 0.003}},
-  {"slot": "Bracelets x2", "item": "Abyssal Bracelet +10", "source": "Attack 111, +47 at +10; one deity roll each (+13)",
-   "stats": {"attack": 316}},
-  {"slot": "Amulet", "item": "Revelation Amulet +0", "stats": {"weapon_amp": 0.10, "perfect": 0.05, "pen": 700}},
-  {"slot": "Rune", "item": "Clash Rune +2", "stats": {"amp_pve": 0.005, "pen": 100, "combat_speed": 0.01, "multihit": 0.01}},
-  {"slot": "Attack title", "item": "Unbound by Genus", "stats": {"amp_pve": 0.045, "attack": 34, "crit": 68}},
-  {"slot": "Defense title", "item": "Empty Closet", "stats": {"combat_speed": 0.035, "cdr": 0.035}},
-  {"slot": "Owned titles", "item": "collection bonuses (estimate)", "stats": {"crit": 20, "accuracy": 30, "attack": 4}},
-  {"slot": "Wings", "item": "Ultimate Daeva Wings", "stats": {"accuracy": 40, "pen": 500}},
-  {"slot": "Arcana x5", "item": "Unique arcana +5 (Chalice of Vigor, Parchment, Compass of Magic, Bell of Magic, Mirror of Vigor)",
-   "source": "main stat 20 +1/enchant; one random passive skill option each: Robe of Flame +4, Vitality Evaporation +3, Robe of Earth +3, Grace of Enhancement +2, Absorb Essence +1",
-   "stats": {"skill_bonus": {"15740000": 4, "15800000": 3, "15720000": 3, "15780000": 2, "15760000": 1}}},
-  {"slot": "Primary/deity stats", "item": "profile averages + arcana + Abyssal rolls",
-   "stats": {"might": 21.3, "precision": 1.2, "time": 63.7, "justice": 38.6, "death": 72.1,
-             "freedom": 24.1, "destruction": 30.3, "wisdom": 5.2, "illusion": 43.3}}
+  {
+   "slot": "Main hand",
+   "item": "Rupture Tome +10",
+   "source": "248-276, +6/enchant; rolls: Weapon Damage Boost, Multi-hit, Critical Hit, Attack",
+   "stats": {
+    "weapon_min": 308,
+    "weapon_max": 336,
+    "accuracy": 100,
+    "crit": 153,
+    "weapon_amp": 0.07,
+    "multihit": 0.07,
+    "attack": 36
+   }
+  },
+  {
+   "slot": "Off-hand",
+   "item": "Bakarma Guard +10",
+   "source": "Attack 110 +6/enchant; rolls: Critical Hit, Attack, Multi-hit, Accuracy",
+   "stats": {
+    "attack": 200,
+    "accuracy": 106,
+    "crit": 93,
+    "multihit": 0.056
+   }
+  },
+  {
+   "slot": "Armor x7",
+   "item": "Bakarma / Vakron ~+8",
+   "source": "expected value of 4 random rolls per piece (armor enchant adds defense only)",
+   "stats": {
+    "crit": 42,
+    "accuracy": 56,
+    "attack": 24
+   }
+  },
+  {
+   "slot": "Necklace",
+   "item": "Aulamus Necklace +10",
+   "stats": {
+    "attack": 147
+   }
+  },
+  {
+   "slot": "Earrings x2",
+   "item": "Aulamus Earrings +10",
+   "stats": {
+    "attack": 258
+   }
+  },
+  {
+   "slot": "Rings x2",
+   "item": "Aulamus Ring +10",
+   "stats": {
+    "attack": 222
+   }
+  },
+  {
+   "slot": "Accessory rolls",
+   "item": "expected value of 4 rolls x 5 accessories",
+   "stats": {
+    "attack": 34,
+    "crit": 45,
+    "accuracy": 60,
+    "combat_speed": 0.003
+   }
+  },
+  {
+   "slot": "Bracelets x2",
+   "item": "Abyssal Bracelet +10",
+   "source": "Attack 111, +47 at +10; one deity roll each (+13)",
+   "stats": {
+    "attack": 316
+   }
+  },
+  {
+   "slot": "Amulet",
+   "item": "Revelation Amulet +0",
+   "stats": {
+    "weapon_amp": 0.1,
+    "perfect": 0.05,
+    "pen": 700
+   }
+  },
+  {
+   "slot": "Rune",
+   "item": "Clash Rune +2",
+   "stats": {
+    "amp_pve": 0.005,
+    "pen": 100,
+    "combat_speed": 0.01,
+    "multihit": 0.01
+   }
+  },
+  {
+   "slot": "Attack title",
+   "item": "Unbound by Genus",
+   "stats": {
+    "amp_pve": 0.045,
+    "attack": 34,
+    "crit": 68
+   }
+  },
+  {
+   "slot": "Defense title",
+   "item": "Empty Closet",
+   "stats": {
+    "combat_speed": 0.035,
+    "cdr": 0.035
+   }
+  },
+  {
+   "slot": "Owned titles",
+   "item": "collection bonuses (estimate)",
+   "stats": {
+    "crit": 20,
+    "accuracy": 30,
+    "attack": 4
+   }
+  },
+  {
+   "slot": "Wings",
+   "item": "Ultimate Daeva Wings",
+   "stats": {
+    "accuracy": 40,
+    "pen": 500
+   }
+  },
+  {
+   "slot": "Arcana x5",
+   "item": "Unique arcana +0, 4 skill rolls each (Chalice of Vigor, Parchment of Magic, Compass of Magic, Bell of Magic, Mirror of Vigor)",
+   "source": "a typical roll set from the real pools: Parchment Hellfire/Blaze/Flame Arrow/Wish +1; Compass Bittercold Wind/Winter's Shackles/Ice Chain/Frost +1; Chalice Firestorm/Robe of Flame/Fire Mark/Grace of Enhancement +1; Bell Fire Mark/Cold Snap/Robe of Cold/Revitalization Contract +1; Mirror Robe of Flame/Robe of Earth/Vitality Evaporation/Grace of Enhancement +1",
+   "stats": {
+    "skill_bonus": {
+     "15060000": 1,
+     "15050000": 1,
+     "15210000": 1,
+     "15310000": 1,
+     "15280000": 1,
+     "15110000": 1,
+     "15090000": 1,
+     "15150000": 1,
+     "15040000": 1,
+     "15740000": 2,
+     "15710000": 2,
+     "15780000": 2,
+     "15730000": 1,
+     "15750000": 1,
+     "15790000": 1,
+     "15720000": 1,
+     "15800000": 1
+    }
+   }
+  },
+  {
+   "slot": "Primary/deity stats",
+   "item": "profile averages + arcana main stats (+20 each) + Abyssal rolls",
+   "stats": {
+    "might": 21.3,
+    "precision": 1.2,
+    "time": 58.7,
+    "justice": 38.6,
+    "death": 67.1,
+    "freedom": 24.1,
+    "destruction": 25.3,
+    "wisdom": 5.2,
+    "illusion": 38.3
+   }
+  }
  ]
 }

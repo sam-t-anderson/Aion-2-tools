@@ -1,82 +1,1998 @@
 {
- "cleric": {
-  "max_level": 4,
-  "skills": [
-   "Empyrean Lords' Benediction",
-   "Healing Enhancement",
-   "Heal Block",
-   "Radiant Benediction",
-   "Earth's Grace"
-  ]
+ "bell-of-magic": {
+  "cleric": {
+   "max_level": 4,
+   "chances": {
+    "Warm Benediction": 0.2,
+    "Empyrean Lord's Grace": 0.2,
+    "Immortal Veil": 0.2,
+    "Prayer of Concentration": 0.2,
+    "Survival Willpower": 0.2
+   },
+   "skills": [
+    "Warm Benediction",
+    "Empyrean Lord's Grace",
+    "Immortal Veil",
+    "Prayer of Concentration",
+    "Survival Willpower"
+   ]
+  },
+  "ranger": {
+   "max_level": 4,
+   "chances": {
+    "Vigilant Eye": 0.2,
+    "Wind Vigor": 0.2,
+    "Hunter's Resolve": 0.2,
+    "Rooting Eye": 0.2,
+    "Revitalization Contract": 0.2
+   },
+   "skills": [
+    "Vigilant Eye",
+    "Wind Vigor",
+    "Hunter's Resolve",
+    "Rooting Eye",
+    "Revitalization Contract"
+   ]
+  },
+  "chanter": {
+   "max_level": 4,
+   "chances": {
+    "Blessing of Life": 0.2,
+    "Protection Circle": 0.2,
+    "Attack Preparation": 0.2,
+    "Raging Spell": 0.2,
+    "◆": 0.2,
+    "Survival Willpower": 0.2
+   },
+   "skills": [
+    "Blessing of Life",
+    "Protection Circle",
+    "Attack Preparation",
+    "Raging Spell",
+    "◆",
+    "Survival Willpower"
+   ]
+  },
+  "templar": {
+   "max_level": 4,
+   "chances": {
+    "Enhance Health": 0.2,
+    "Punishing Benediction": 0.2,
+    "Guarding Seal": 0.2,
+    "Insulting Roar": 0.2,
+    "Fury": 0.2
+   },
+   "skills": [
+    "Enhance Health",
+    "Punishing Benediction",
+    "Guarding Seal",
+    "Insulting Roar",
+    "Fury"
+   ]
+  },
+  "assassin": {
+   "max_level": 4,
+   "chances": {
+    "Heightened Sixth Sense": 0.2,
+    "Apply Poison": 0.2,
+    "Assault Stance": 0.2,
+    "Ambush Stance": 0.2,
+    "Revitalization Contract": 0.2
+   },
+   "skills": [
+    "Heightened Sixth Sense",
+    "Apply Poison",
+    "Assault Stance",
+    "Ambush Stance",
+    "Revitalization Contract"
+   ]
+  },
+  "sorcerer": {
+   "max_level": 4,
+   "chances": {
+    "Fire Mark": 0.2,
+    "Cold Snap": 0.2,
+    "Robe of Cold": 0.2,
+    "Grace of Resistance": 0.2,
+    "Revitalization Contract": 0.2
+   },
+   "skills": [
+    "Fire Mark",
+    "Cold Snap",
+    "Robe of Cold",
+    "Grace of Resistance",
+    "Revitalization Contract"
+   ]
+  },
+  "gladiator": {
+   "max_level": 4,
+   "chances": {
+    "Survival Stance": 0.2,
+    "Blood Absorption": 0.2,
+    "Attack Preparation": 0.2,
+    "Destructive Impulse": 0.2,
+    "Survival Willpower": 0.2
+   },
+   "skills": [
+    "Survival Stance",
+    "Blood Absorption",
+    "Attack Preparation",
+    "Destructive Impulse",
+    "Survival Willpower"
+   ]
+  },
+  "spiritmaster": {
+   "max_level": 4,
+   "chances": {
+    "Spirit Strike": 0.2,
+    "Spirit's Descent": 0.2,
+    "Spirit Revitalization": 0.2,
+    "Spirit Communion": 0.2,
+    "Element Unification": 0.2
+   },
+   "skills": [
+    "Spirit Strike",
+    "Spirit's Descent",
+    "Spirit Revitalization",
+    "Spirit Communion",
+    "Element Unification"
+   ]
+  }
  },
- "ranger": {
-  "max_level": 4,
-  "skills": [
-   "Concentrated Fire",
-   "Focused Eye",
-   "Unyielding Resolve",
-   "Melee Fire",
-   "Hunter's Soul"
-  ]
+ "bell-of-vigor": {
+  "cleric": {
+   "max_level": 4,
+   "chances": {
+    "Warm Benediction": 0.2,
+    "Empyrean Lord's Grace": 0.2,
+    "Immortal Veil": 0.2,
+    "Prayer of Concentration": 0.2,
+    "Survival Willpower": 0.2
+   },
+   "skills": [
+    "Warm Benediction",
+    "Empyrean Lord's Grace",
+    "Immortal Veil",
+    "Prayer of Concentration",
+    "Survival Willpower"
+   ]
+  },
+  "ranger": {
+   "max_level": 4,
+   "chances": {
+    "Vigilant Eye": 0.2,
+    "Wind Vigor": 0.2,
+    "Hunter's Resolve": 0.2,
+    "Rooting Eye": 0.2,
+    "Revitalization Contract": 0.2
+   },
+   "skills": [
+    "Vigilant Eye",
+    "Wind Vigor",
+    "Hunter's Resolve",
+    "Rooting Eye",
+    "Revitalization Contract"
+   ]
+  },
+  "chanter": {
+   "max_level": 4,
+   "chances": {
+    "Blessing of Life": 0.2,
+    "Protection Circle": 0.2,
+    "Attack Preparation": 0.2,
+    "Raging Spell": 0.2,
+    "◆": 0.2,
+    "Survival Willpower": 0.2
+   },
+   "skills": [
+    "Blessing of Life",
+    "Protection Circle",
+    "Attack Preparation",
+    "Raging Spell",
+    "◆",
+    "Survival Willpower"
+   ]
+  },
+  "templar": {
+   "max_level": 4,
+   "chances": {
+    "Enhance Health": 0.2,
+    "Punishing Benediction": 0.2,
+    "Guarding Seal": 0.2,
+    "Insulting Roar": 0.2,
+    "Fury": 0.2
+   },
+   "skills": [
+    "Enhance Health",
+    "Punishing Benediction",
+    "Guarding Seal",
+    "Insulting Roar",
+    "Fury"
+   ]
+  },
+  "assassin": {
+   "max_level": 4,
+   "chances": {
+    "Heightened Sixth Sense": 0.2,
+    "Apply Poison": 0.2,
+    "Assault Stance": 0.2,
+    "Ambush Stance": 0.2,
+    "Revitalization Contract": 0.2
+   },
+   "skills": [
+    "Heightened Sixth Sense",
+    "Apply Poison",
+    "Assault Stance",
+    "Ambush Stance",
+    "Revitalization Contract"
+   ]
+  },
+  "sorcerer": {
+   "max_level": 4,
+   "chances": {
+    "Fire Mark": 0.2,
+    "Cold Snap": 0.2,
+    "Robe of Cold": 0.2,
+    "Grace of Resistance": 0.2,
+    "Revitalization Contract": 0.2
+   },
+   "skills": [
+    "Fire Mark",
+    "Cold Snap",
+    "Robe of Cold",
+    "Grace of Resistance",
+    "Revitalization Contract"
+   ]
+  },
+  "gladiator": {
+   "max_level": 4,
+   "chances": {
+    "Survival Stance": 0.2,
+    "Blood Absorption": 0.2,
+    "Attack Preparation": 0.2,
+    "Destructive Impulse": 0.2,
+    "Survival Willpower": 0.2
+   },
+   "skills": [
+    "Survival Stance",
+    "Blood Absorption",
+    "Attack Preparation",
+    "Destructive Impulse",
+    "Survival Willpower"
+   ]
+  },
+  "spiritmaster": {
+   "max_level": 4,
+   "chances": {
+    "Spirit Strike": 0.2,
+    "Spirit's Descent": 0.2,
+    "Spirit Revitalization": 0.2,
+    "Spirit Communion": 0.2,
+    "Element Unification": 0.2
+   },
+   "skills": [
+    "Spirit Strike",
+    "Spirit's Descent",
+    "Spirit Revitalization",
+    "Spirit Communion",
+    "Element Unification"
+   ]
+  }
  },
- "chanter": {
-  "max_level": 4,
-  "skills": [
-   "Crossguard",
-   "Inspiring Spell",
-   "Impact Hit",
-   "Earth's Promise",
-   "Wind's Promise"
-  ]
+ "chalice-of-magic": {
+  "cleric": {
+   "max_level": 4,
+   "chances": {
+    "Earth's Retribution": 0.0454,
+    "Debilitating Mark": 0.0454,
+    "Chain of Torment": 0.0454,
+    "Condemnation": 0.0454,
+    "Radiant Recovery": 0.0454,
+    "Bolt": 0.0454,
+    "Judgment Thunder": 0.0454,
+    "Divine Aura": 0.0454,
+    "Light of Regeneration": 0.0454,
+    "Healing Light": 0.0454,
+    "Lightning Strike Scattershot": 0.0454,
+    "Defiance": 0.0454,
+    "Warm Benediction": 0.0454,
+    "Empyrean Lord's Grace": 0.0454,
+    "Immortal Veil": 0.0454,
+    "Prayer of Concentration": 0.0454,
+    "Survival Willpower": 0.0454,
+    "Empyrean Lords' Benediction": 0.0454,
+    "Healing Enhancement": 0.0454,
+    "Heal Block": 0.0454,
+    "Radiant Benediction": 0.0454,
+    "Earth's Grace": 0.0454
+   },
+   "skills": [
+    "Earth's Retribution",
+    "Debilitating Mark",
+    "Chain of Torment",
+    "Condemnation",
+    "Radiant Recovery",
+    "Bolt",
+    "Judgment Thunder",
+    "Divine Aura",
+    "Light of Regeneration",
+    "Healing Light",
+    "Lightning Strike Scattershot",
+    "Defiance",
+    "Warm Benediction",
+    "Empyrean Lord's Grace",
+    "Immortal Veil",
+    "Prayer of Concentration",
+    "Survival Willpower",
+    "Empyrean Lords' Benediction",
+    "Healing Enhancement",
+    "Heal Block",
+    "Radiant Benediction",
+    "Earth's Grace"
+   ]
+  },
+  "ranger": {
+   "max_level": 4,
+   "chances": {
+    "Snipe": 0.0454,
+    "Snare Shot": 0.0454,
+    "Drill Dart": 0.0454,
+    "Burst Arrow": 0.0454,
+    "Explosion Trap": 0.0454,
+    "Tempest Shot": 0.0454,
+    "Deadshot": 0.0454,
+    "Marking Shot": 0.0454,
+    "Suppressing Arrow": 0.0454,
+    "Gale Arrow": 0.0454,
+    "Arrow Scattershot": 0.0454,
+    "Defiance": 0.0454,
+    "Vigilant Eye": 0.0454,
+    "Wind Vigor": 0.0454,
+    "Hunter's Resolve": 0.0454,
+    "Rooting Eye": 0.0454,
+    "Revitalization Contract": 0.0454,
+    "Concentrated Fire": 0.0454,
+    "Focused Eye": 0.0454,
+    "Unyielding Resolve": 0.0454,
+    "Melee Fire": 0.0454,
+    "Hunter's Soul": 0.0454
+   },
+   "skills": [
+    "Snipe",
+    "Snare Shot",
+    "Drill Dart",
+    "Burst Arrow",
+    "Explosion Trap",
+    "Tempest Shot",
+    "Deadshot",
+    "Marking Shot",
+    "Suppressing Arrow",
+    "Gale Arrow",
+    "Arrow Scattershot",
+    "Defiance",
+    "Vigilant Eye",
+    "Wind Vigor",
+    "Hunter's Resolve",
+    "Rooting Eye",
+    "Revitalization Contract",
+    "Concentrated Fire",
+    "Focused Eye",
+    "Unyielding Resolve",
+    "Melee Fire",
+    "Hunter's Soul"
+   ]
+  },
+  "chanter": {
+   "max_level": 4,
+   "chances": {
+    "Onslaught": 0.0454,
+    "Rushing Smash": 0.0454,
+    "Wave Blow": 0.0454,
+    "Heat Wave Blow": 0.0454,
+    "Dark Crush": 0.0454,
+    "Spinning Strike": 0.0454,
+    "Incandescent Blow": 0.0454,
+    "Impactful Crush": 0.0454,
+    "Tremor Crush": 0.0454,
+    "Recuperation": 0.0454,
+    "Gust Rampage": 0.0454,
+    "Defiance": 0.0454,
+    "Blessing of Life": 0.0454,
+    "Protection Circle": 0.0454,
+    "Attack Preparation": 0.0454,
+    "Raging Spell": 0.0454,
+    "◆": 0.0454,
+    "Survival Willpower": 0.0454,
+    "Crossguard": 0.0454,
+    "Inspiring Spell": 0.0454,
+    "Impact Hit": 0.0454,
+    "Earth's Promise": 0.0454,
+    "Wind's Promise": 0.0454
+   },
+   "skills": [
+    "Onslaught",
+    "Rushing Smash",
+    "Wave Blow",
+    "Heat Wave Blow",
+    "Dark Crush",
+    "Spinning Strike",
+    "Incandescent Blow",
+    "Impactful Crush",
+    "Tremor Crush",
+    "Recuperation",
+    "Gust Rampage",
+    "Defiance",
+    "Blessing of Life",
+    "Protection Circle",
+    "Attack Preparation",
+    "Raging Spell",
+    "◆",
+    "Survival Willpower",
+    "Crossguard",
+    "Inspiring Spell",
+    "Impact Hit",
+    "Earth's Promise",
+    "Wind's Promise"
+   ]
+  },
+  "templar": {
+   "max_level": 4,
+   "chances": {
+    "Vicious Strike": 0.0454,
+    "Poach": 0.0454,
+    "Annihilate": 0.0454,
+    "Judgment": 0.0454,
+    "Debilitating Smash": 0.0454,
+    "Punishment": 0.0454,
+    "Pummel": 0.0454,
+    "Shield Smite": 0.0454,
+    "Shield Rush": 0.0454,
+    "Warding Strike": 0.0454,
+    "Flash Rampage": 0.0454,
+    "Defiance": 0.0454,
+    "Enhance Health": 0.0454,
+    "Punishing Benediction": 0.0454,
+    "Guarding Seal": 0.0454,
+    "Insulting Roar": 0.0454,
+    "Fury": 0.0454,
+    "Warding Shield": 0.0454,
+    "Ironclad Defense": 0.0454,
+    "Impact Hit": 0.0454,
+    "Survival Willpower": 0.0454,
+    "Block Pain": 0.0454
+   },
+   "skills": [
+    "Vicious Strike",
+    "Poach",
+    "Annihilate",
+    "Judgment",
+    "Debilitating Smash",
+    "Punishment",
+    "Pummel",
+    "Shield Smite",
+    "Shield Rush",
+    "Warding Strike",
+    "Flash Rampage",
+    "Defiance",
+    "Enhance Health",
+    "Punishing Benediction",
+    "Guarding Seal",
+    "Insulting Roar",
+    "Fury",
+    "Warding Shield",
+    "Ironclad Defense",
+    "Impact Hit",
+    "Survival Willpower",
+    "Block Pain"
+   ]
+  },
+  "assassin": {
+   "max_level": 4,
+   "chances": {
+    "Quick Slice": 0.0454,
+    "Shadowstrike": 0.0454,
+    "Heart Gore": 0.0454,
+    "Whirlwind Slice": 0.0454,
+    "Shadow Fall": 0.0454,
+    "Insignia Explosion": 0.0454,
+    "Ambush": 0.0454,
+    "Savage Roar": 0.0454,
+    "Infiltrate": 0.0454,
+    "Flash Slice": 0.0454,
+    "Storm Rampage": 0.0454,
+    "Defiance": 0.0454,
+    "Heightened Sixth Sense": 0.0454,
+    "Apply Poison": 0.0454,
+    "Assault Stance": 0.0454,
+    "Ambush Stance": 0.0454,
+    "Revitalization Contract": 0.0454,
+    "Exploit Weakness": 0.0454,
+    "Rear Smite": 0.0454,
+    "Impact Hit": 0.0454,
+    "Defense Break": 0.0454,
+    "Determination": 0.0454
+   },
+   "skills": [
+    "Quick Slice",
+    "Shadowstrike",
+    "Heart Gore",
+    "Whirlwind Slice",
+    "Shadow Fall",
+    "Insignia Explosion",
+    "Ambush",
+    "Savage Roar",
+    "Infiltrate",
+    "Flash Slice",
+    "Storm Rampage",
+    "Defiance",
+    "Heightened Sixth Sense",
+    "Apply Poison",
+    "Assault Stance",
+    "Ambush Stance",
+    "Revitalization Contract",
+    "Exploit Weakness",
+    "Rear Smite",
+    "Impact Hit",
+    "Defense Break",
+    "Determination"
+   ]
+  },
+  "sorcerer": {
+   "max_level": 4,
+   "chances": {
+    "Flame Arrow": 0.0454,
+    "Firestorm": 0.0454,
+    "Blaze": 0.0454,
+    "Frost Burst": 0.0454,
+    "Wish of Concentration": 0.0454,
+    "Hellfire": 0.0454,
+    "Ice Chain": 0.0454,
+    "Bittercold Wind": 0.0454,
+    "Frost": 0.0454,
+    "Winter's Shackles": 0.0454,
+    "Flame Scattershot": 0.0454,
+    "Defiance": 0.0454,
+    "Fire Mark": 0.0454,
+    "Cold Snap": 0.0454,
+    "Robe of Cold": 0.0454,
+    "Grace of Resistance": 0.0454,
+    "Revitalization Contract": 0.0454,
+    "Robe of Earth": 0.0454,
+    "Robe of Flame": 0.0454,
+    "Absorb Essence": 0.0454,
+    "Grace of Enhancement": 0.0454,
+    "Vitality Evaporation": 0.0454
+   },
+   "skills": [
+    "Flame Arrow",
+    "Firestorm",
+    "Blaze",
+    "Frost Burst",
+    "Wish of Concentration",
+    "Hellfire",
+    "Ice Chain",
+    "Bittercold Wind",
+    "Frost",
+    "Winter's Shackles",
+    "Flame Scattershot",
+    "Defiance",
+    "Fire Mark",
+    "Cold Snap",
+    "Robe of Cold",
+    "Grace of Resistance",
+    "Revitalization Contract",
+    "Robe of Earth",
+    "Robe of Flame",
+    "Absorb Essence",
+    "Grace of Enhancement",
+    "Vitality Evaporation"
+   ]
+  },
+  "gladiator": {
+   "max_level": 4,
+   "chances": {
+    "Keen Strike": 0.0454,
+    "Leaping Slam": 0.0454,
+    "Overhead Slam": 0.0454,
+    "Ankle Slice": 0.0454,
+    "Aerial Snare": 0.0454,
+    "Ruinous Blow": 0.0454,
+    "Rending Blow": 0.0454,
+    "Mocking Blade": 0.0454,
+    "Rush Strike": 0.0454,
+    "Crushing Wave": 0.0454,
+    "Sword Aura Rampage": 0.0454,
+    "Defiance": 0.0454,
+    "Survival Stance": 0.0454,
+    "Blood Absorption": 0.0454,
+    "Attack Preparation": 0.0454,
+    "Destructive Impulse": 0.0454,
+    "Survival Willpower": 0.0454,
+    "Protection Armor": 0.0454,
+    "Identify Weakness": 0.0454,
+    "Impact Hit": 0.0454,
+    "Experienced Counterstrike": 0.0454,
+    "Murderous Burst": 0.0454
+   },
+   "skills": [
+    "Keen Strike",
+    "Leaping Slam",
+    "Overhead Slam",
+    "Ankle Slice",
+    "Aerial Snare",
+    "Ruinous Blow",
+    "Rending Blow",
+    "Mocking Blade",
+    "Rush Strike",
+    "Crushing Wave",
+    "Sword Aura Rampage",
+    "Defiance",
+    "Survival Stance",
+    "Blood Absorption",
+    "Attack Preparation",
+    "Destructive Impulse",
+    "Survival Willpower",
+    "Protection Armor",
+    "Identify Weakness",
+    "Impact Hit",
+    "Experienced Counterstrike",
+    "Murderous Burst"
+   ]
+  },
+  "spiritmaster": {
+   "max_level": 4,
+   "chances": {
+    "Cold Shock": 0.0454,
+    "Summon: Fire Spirit": 0.0454,
+    "Jointstrike: Curse": 0.0454,
+    "Summon: Earth Spirit": 0.0454,
+    "Dimensional Control": 0.0454,
+    "Elemental Fusion": 0.0454,
+    "Combustion": 0.0454,
+    "Summon: Water Spirit": 0.0454,
+    "Soul's Cry": 0.0454,
+    "Summon: Wind Spirit": 0.0454,
+    "Rapid Scattershot": 0.0454,
+    "Defiance": 0.0454,
+    "Spirit Strike": 0.0454,
+    "Spirit's Descent": 0.0454,
+    "Spirit Revitalization": 0.0454,
+    "Spirit Communion": 0.0454,
+    "Element Unification": 0.0454,
+    "Spirit Protection": 0.0454,
+    "Corrode": 0.0454,
+    "Mental Focus": 0.0454,
+    "Consecutive Countercurrent": 0.0454,
+    "Revitalization Contract": 0.0454
+   },
+   "skills": [
+    "Cold Shock",
+    "Summon: Fire Spirit",
+    "Jointstrike: Curse",
+    "Summon: Earth Spirit",
+    "Dimensional Control",
+    "Elemental Fusion",
+    "Combustion",
+    "Summon: Water Spirit",
+    "Soul's Cry",
+    "Summon: Wind Spirit",
+    "Rapid Scattershot",
+    "Defiance",
+    "Spirit Strike",
+    "Spirit's Descent",
+    "Spirit Revitalization",
+    "Spirit Communion",
+    "Element Unification",
+    "Spirit Protection",
+    "Corrode",
+    "Mental Focus",
+    "Consecutive Countercurrent",
+    "Revitalization Contract"
+   ]
+  }
  },
- "templar": {
-  "max_level": 4,
-  "skills": [
-   "Warding Shield",
-   "Ironclad Defense",
-   "Impact Hit",
-   "Survival Willpower",
-   "Block Pain"
-  ]
+ "chalice-of-vigor": {
+  "cleric": {
+   "max_level": 4,
+   "chances": {
+    "Earth's Retribution": 0.0454,
+    "Debilitating Mark": 0.0454,
+    "Chain of Torment": 0.0454,
+    "Condemnation": 0.0454,
+    "Radiant Recovery": 0.0454,
+    "Bolt": 0.0454,
+    "Judgment Thunder": 0.0454,
+    "Divine Aura": 0.0454,
+    "Light of Regeneration": 0.0454,
+    "Healing Light": 0.0454,
+    "Lightning Strike Scattershot": 0.0454,
+    "Defiance": 0.0454,
+    "Warm Benediction": 0.0454,
+    "Empyrean Lord's Grace": 0.0454,
+    "Immortal Veil": 0.0454,
+    "Prayer of Concentration": 0.0454,
+    "Survival Willpower": 0.0454,
+    "Empyrean Lords' Benediction": 0.0454,
+    "Healing Enhancement": 0.0454,
+    "Heal Block": 0.0454,
+    "Radiant Benediction": 0.0454,
+    "Earth's Grace": 0.0454
+   },
+   "skills": [
+    "Earth's Retribution",
+    "Debilitating Mark",
+    "Chain of Torment",
+    "Condemnation",
+    "Radiant Recovery",
+    "Bolt",
+    "Judgment Thunder",
+    "Divine Aura",
+    "Light of Regeneration",
+    "Healing Light",
+    "Lightning Strike Scattershot",
+    "Defiance",
+    "Warm Benediction",
+    "Empyrean Lord's Grace",
+    "Immortal Veil",
+    "Prayer of Concentration",
+    "Survival Willpower",
+    "Empyrean Lords' Benediction",
+    "Healing Enhancement",
+    "Heal Block",
+    "Radiant Benediction",
+    "Earth's Grace"
+   ]
+  },
+  "ranger": {
+   "max_level": 4,
+   "chances": {
+    "Snipe": 0.0454,
+    "Snare Shot": 0.0454,
+    "Drill Dart": 0.0454,
+    "Burst Arrow": 0.0454,
+    "Explosion Trap": 0.0454,
+    "Tempest Shot": 0.0454,
+    "Deadshot": 0.0454,
+    "Marking Shot": 0.0454,
+    "Suppressing Arrow": 0.0454,
+    "Gale Arrow": 0.0454,
+    "Arrow Scattershot": 0.0454,
+    "Defiance": 0.0454,
+    "Vigilant Eye": 0.0454,
+    "Wind Vigor": 0.0454,
+    "Hunter's Resolve": 0.0454,
+    "Rooting Eye": 0.0454,
+    "Revitalization Contract": 0.0454,
+    "Concentrated Fire": 0.0454,
+    "Focused Eye": 0.0454,
+    "Unyielding Resolve": 0.0454,
+    "Melee Fire": 0.0454,
+    "Hunter's Soul": 0.0454
+   },
+   "skills": [
+    "Snipe",
+    "Snare Shot",
+    "Drill Dart",
+    "Burst Arrow",
+    "Explosion Trap",
+    "Tempest Shot",
+    "Deadshot",
+    "Marking Shot",
+    "Suppressing Arrow",
+    "Gale Arrow",
+    "Arrow Scattershot",
+    "Defiance",
+    "Vigilant Eye",
+    "Wind Vigor",
+    "Hunter's Resolve",
+    "Rooting Eye",
+    "Revitalization Contract",
+    "Concentrated Fire",
+    "Focused Eye",
+    "Unyielding Resolve",
+    "Melee Fire",
+    "Hunter's Soul"
+   ]
+  },
+  "chanter": {
+   "max_level": 4,
+   "chances": {
+    "Onslaught": 0.0454,
+    "Rushing Smash": 0.0454,
+    "Wave Blow": 0.0454,
+    "Heat Wave Blow": 0.0454,
+    "Dark Crush": 0.0454,
+    "Spinning Strike": 0.0454,
+    "Incandescent Blow": 0.0454,
+    "Impactful Crush": 0.0454,
+    "Tremor Crush": 0.0454,
+    "Recuperation": 0.0454,
+    "Gust Rampage": 0.0454,
+    "Defiance": 0.0454,
+    "Blessing of Life": 0.0454,
+    "Protection Circle": 0.0454,
+    "Attack Preparation": 0.0454,
+    "Raging Spell": 0.0454,
+    "◆": 0.0454,
+    "Survival Willpower": 0.0454,
+    "Crossguard": 0.0454,
+    "Inspiring Spell": 0.0454,
+    "Impact Hit": 0.0454,
+    "Earth's Promise": 0.0454,
+    "Wind's Promise": 0.0454
+   },
+   "skills": [
+    "Onslaught",
+    "Rushing Smash",
+    "Wave Blow",
+    "Heat Wave Blow",
+    "Dark Crush",
+    "Spinning Strike",
+    "Incandescent Blow",
+    "Impactful Crush",
+    "Tremor Crush",
+    "Recuperation",
+    "Gust Rampage",
+    "Defiance",
+    "Blessing of Life",
+    "Protection Circle",
+    "Attack Preparation",
+    "Raging Spell",
+    "◆",
+    "Survival Willpower",
+    "Crossguard",
+    "Inspiring Spell",
+    "Impact Hit",
+    "Earth's Promise",
+    "Wind's Promise"
+   ]
+  },
+  "templar": {
+   "max_level": 4,
+   "chances": {
+    "Vicious Strike": 0.0454,
+    "Poach": 0.0454,
+    "Annihilate": 0.0454,
+    "Judgment": 0.0454,
+    "Debilitating Smash": 0.0454,
+    "Punishment": 0.0454,
+    "Pummel": 0.0454,
+    "Shield Smite": 0.0454,
+    "Shield Rush": 0.0454,
+    "Warding Strike": 0.0454,
+    "Flash Rampage": 0.0454,
+    "Defiance": 0.0454,
+    "Enhance Health": 0.0454,
+    "Punishing Benediction": 0.0454,
+    "Guarding Seal": 0.0454,
+    "Insulting Roar": 0.0454,
+    "Fury": 0.0454,
+    "Warding Shield": 0.0454,
+    "Ironclad Defense": 0.0454,
+    "Impact Hit": 0.0454,
+    "Survival Willpower": 0.0454,
+    "Block Pain": 0.0454
+   },
+   "skills": [
+    "Vicious Strike",
+    "Poach",
+    "Annihilate",
+    "Judgment",
+    "Debilitating Smash",
+    "Punishment",
+    "Pummel",
+    "Shield Smite",
+    "Shield Rush",
+    "Warding Strike",
+    "Flash Rampage",
+    "Defiance",
+    "Enhance Health",
+    "Punishing Benediction",
+    "Guarding Seal",
+    "Insulting Roar",
+    "Fury",
+    "Warding Shield",
+    "Ironclad Defense",
+    "Impact Hit",
+    "Survival Willpower",
+    "Block Pain"
+   ]
+  },
+  "assassin": {
+   "max_level": 4,
+   "chances": {
+    "Quick Slice": 0.0454,
+    "Shadowstrike": 0.0454,
+    "Heart Gore": 0.0454,
+    "Whirlwind Slice": 0.0454,
+    "Shadow Fall": 0.0454,
+    "Insignia Explosion": 0.0454,
+    "Ambush": 0.0454,
+    "Savage Roar": 0.0454,
+    "Infiltrate": 0.0454,
+    "Flash Slice": 0.0454,
+    "Storm Rampage": 0.0454,
+    "Defiance": 0.0454,
+    "Heightened Sixth Sense": 0.0454,
+    "Apply Poison": 0.0454,
+    "Assault Stance": 0.0454,
+    "Ambush Stance": 0.0454,
+    "Revitalization Contract": 0.0454,
+    "Exploit Weakness": 0.0454,
+    "Rear Smite": 0.0454,
+    "Impact Hit": 0.0454,
+    "Defense Break": 0.0454,
+    "Determination": 0.0454
+   },
+   "skills": [
+    "Quick Slice",
+    "Shadowstrike",
+    "Heart Gore",
+    "Whirlwind Slice",
+    "Shadow Fall",
+    "Insignia Explosion",
+    "Ambush",
+    "Savage Roar",
+    "Infiltrate",
+    "Flash Slice",
+    "Storm Rampage",
+    "Defiance",
+    "Heightened Sixth Sense",
+    "Apply Poison",
+    "Assault Stance",
+    "Ambush Stance",
+    "Revitalization Contract",
+    "Exploit Weakness",
+    "Rear Smite",
+    "Impact Hit",
+    "Defense Break",
+    "Determination"
+   ]
+  },
+  "sorcerer": {
+   "max_level": 4,
+   "chances": {
+    "Flame Arrow": 0.0454,
+    "Firestorm": 0.0454,
+    "Blaze": 0.0454,
+    "Frost Burst": 0.0454,
+    "Wish of Concentration": 0.0454,
+    "Hellfire": 0.0454,
+    "Ice Chain": 0.0454,
+    "Bittercold Wind": 0.0454,
+    "Frost": 0.0454,
+    "Winter's Shackles": 0.0454,
+    "Flame Scattershot": 0.0454,
+    "Defiance": 0.0454,
+    "Fire Mark": 0.0454,
+    "Cold Snap": 0.0454,
+    "Robe of Cold": 0.0454,
+    "Grace of Resistance": 0.0454,
+    "Revitalization Contract": 0.0454,
+    "Robe of Earth": 0.0454,
+    "Robe of Flame": 0.0454,
+    "Absorb Essence": 0.0454,
+    "Grace of Enhancement": 0.0454,
+    "Vitality Evaporation": 0.0454
+   },
+   "skills": [
+    "Flame Arrow",
+    "Firestorm",
+    "Blaze",
+    "Frost Burst",
+    "Wish of Concentration",
+    "Hellfire",
+    "Ice Chain",
+    "Bittercold Wind",
+    "Frost",
+    "Winter's Shackles",
+    "Flame Scattershot",
+    "Defiance",
+    "Fire Mark",
+    "Cold Snap",
+    "Robe of Cold",
+    "Grace of Resistance",
+    "Revitalization Contract",
+    "Robe of Earth",
+    "Robe of Flame",
+    "Absorb Essence",
+    "Grace of Enhancement",
+    "Vitality Evaporation"
+   ]
+  },
+  "gladiator": {
+   "max_level": 4,
+   "chances": {
+    "Keen Strike": 0.0454,
+    "Leaping Slam": 0.0454,
+    "Overhead Slam": 0.0454,
+    "Ankle Slice": 0.0454,
+    "Aerial Snare": 0.0454,
+    "Ruinous Blow": 0.0454,
+    "Rending Blow": 0.0454,
+    "Mocking Blade": 0.0454,
+    "Rush Strike": 0.0454,
+    "Crushing Wave": 0.0454,
+    "Sword Aura Rampage": 0.0454,
+    "Defiance": 0.0454,
+    "Survival Stance": 0.0454,
+    "Blood Absorption": 0.0454,
+    "Attack Preparation": 0.0454,
+    "Destructive Impulse": 0.0454,
+    "Survival Willpower": 0.0454,
+    "Protection Armor": 0.0454,
+    "Identify Weakness": 0.0454,
+    "Impact Hit": 0.0454,
+    "Experienced Counterstrike": 0.0454,
+    "Murderous Burst": 0.0454
+   },
+   "skills": [
+    "Keen Strike",
+    "Leaping Slam",
+    "Overhead Slam",
+    "Ankle Slice",
+    "Aerial Snare",
+    "Ruinous Blow",
+    "Rending Blow",
+    "Mocking Blade",
+    "Rush Strike",
+    "Crushing Wave",
+    "Sword Aura Rampage",
+    "Defiance",
+    "Survival Stance",
+    "Blood Absorption",
+    "Attack Preparation",
+    "Destructive Impulse",
+    "Survival Willpower",
+    "Protection Armor",
+    "Identify Weakness",
+    "Impact Hit",
+    "Experienced Counterstrike",
+    "Murderous Burst"
+   ]
+  },
+  "spiritmaster": {
+   "max_level": 4,
+   "chances": {
+    "Cold Shock": 0.0454,
+    "Summon: Fire Spirit": 0.0454,
+    "Jointstrike: Curse": 0.0454,
+    "Summon: Earth Spirit": 0.0454,
+    "Dimensional Control": 0.0454,
+    "Elemental Fusion": 0.0454,
+    "Combustion": 0.0454,
+    "Summon: Water Spirit": 0.0454,
+    "Soul's Cry": 0.0454,
+    "Summon: Wind Spirit": 0.0454,
+    "Rapid Scattershot": 0.0454,
+    "Defiance": 0.0454,
+    "Spirit Strike": 0.0454,
+    "Spirit's Descent": 0.0454,
+    "Spirit Revitalization": 0.0454,
+    "Spirit Communion": 0.0454,
+    "Element Unification": 0.0454,
+    "Spirit Protection": 0.0454,
+    "Corrode": 0.0454,
+    "Mental Focus": 0.0454,
+    "Consecutive Countercurrent": 0.0454,
+    "Revitalization Contract": 0.0454
+   },
+   "skills": [
+    "Cold Shock",
+    "Summon: Fire Spirit",
+    "Jointstrike: Curse",
+    "Summon: Earth Spirit",
+    "Dimensional Control",
+    "Elemental Fusion",
+    "Combustion",
+    "Summon: Water Spirit",
+    "Soul's Cry",
+    "Summon: Wind Spirit",
+    "Rapid Scattershot",
+    "Defiance",
+    "Spirit Strike",
+    "Spirit's Descent",
+    "Spirit Revitalization",
+    "Spirit Communion",
+    "Element Unification",
+    "Spirit Protection",
+    "Corrode",
+    "Mental Focus",
+    "Consecutive Countercurrent",
+    "Revitalization Contract"
+   ]
+  }
  },
- "assassin": {
-  "max_level": 4,
-  "skills": [
-   "Exploit Weakness",
-   "Rear Smite",
-   "Impact Hit",
-   "Defense Break",
-   "Determination"
-  ]
+ "compass-of-magic": {
+  "cleric": {
+   "max_level": 4,
+   "chances": {
+    "Judgment Thunder": 0.16699999999999998,
+    "Divine Aura": 0.16699999999999998,
+    "Light of Regeneration": 0.16699999999999998,
+    "Healing Light": 0.16699999999999998,
+    "Lightning Strike Scattershot": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Judgment Thunder",
+    "Divine Aura",
+    "Light of Regeneration",
+    "Healing Light",
+    "Lightning Strike Scattershot",
+    "Defiance"
+   ]
+  },
+  "ranger": {
+   "max_level": 4,
+   "chances": {
+    "Deadshot": 0.16699999999999998,
+    "Marking Shot": 0.16699999999999998,
+    "Suppressing Arrow": 0.16699999999999998,
+    "Gale Arrow": 0.16699999999999998,
+    "Arrow Scattershot": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Deadshot",
+    "Marking Shot",
+    "Suppressing Arrow",
+    "Gale Arrow",
+    "Arrow Scattershot",
+    "Defiance"
+   ]
+  },
+  "chanter": {
+   "max_level": 4,
+   "chances": {
+    "Incandescent Blow": 0.16699999999999998,
+    "Impactful Crush": 0.16699999999999998,
+    "Tremor Crush": 0.16699999999999998,
+    "Recuperation": 0.16699999999999998,
+    "Gust Rampage": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Incandescent Blow",
+    "Impactful Crush",
+    "Tremor Crush",
+    "Recuperation",
+    "Gust Rampage",
+    "Defiance"
+   ]
+  },
+  "templar": {
+   "max_level": 4,
+   "chances": {
+    "Pummel": 0.16699999999999998,
+    "Shield Smite": 0.16699999999999998,
+    "Shield Rush": 0.16699999999999998,
+    "Warding Strike": 0.16699999999999998,
+    "Flash Rampage": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Pummel",
+    "Shield Smite",
+    "Shield Rush",
+    "Warding Strike",
+    "Flash Rampage",
+    "Defiance"
+   ]
+  },
+  "assassin": {
+   "max_level": 4,
+   "chances": {
+    "Ambush": 0.16699999999999998,
+    "Savage Roar": 0.16699999999999998,
+    "Infiltrate": 0.16699999999999998,
+    "Flash Slice": 0.16699999999999998,
+    "Storm Rampage": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Ambush",
+    "Savage Roar",
+    "Infiltrate",
+    "Flash Slice",
+    "Storm Rampage",
+    "Defiance"
+   ]
+  },
+  "sorcerer": {
+   "max_level": 4,
+   "chances": {
+    "Ice Chain": 0.16699999999999998,
+    "Bittercold Wind": 0.16699999999999998,
+    "Frost": 0.16699999999999998,
+    "Winter's Shackles": 0.16699999999999998,
+    "Flame Scattershot": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Ice Chain",
+    "Bittercold Wind",
+    "Frost",
+    "Winter's Shackles",
+    "Flame Scattershot",
+    "Defiance"
+   ]
+  },
+  "gladiator": {
+   "max_level": 4,
+   "chances": {
+    "Rending Blow": 0.16699999999999998,
+    "Mocking Blade": 0.16699999999999998,
+    "Rush Strike": 0.16699999999999998,
+    "Crushing Wave": 0.16699999999999998,
+    "Sword Aura Rampage": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Rending Blow",
+    "Mocking Blade",
+    "Rush Strike",
+    "Crushing Wave",
+    "Sword Aura Rampage",
+    "Defiance"
+   ]
+  },
+  "spiritmaster": {
+   "max_level": 4,
+   "chances": {
+    "Combustion": 0.16699999999999998,
+    "Summon: Water Spirit": 0.16699999999999998,
+    "Soul's Cry": 0.16699999999999998,
+    "Summon: Wind Spirit": 0.16699999999999998,
+    "Rapid Scattershot": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Combustion",
+    "Summon: Water Spirit",
+    "Soul's Cry",
+    "Summon: Wind Spirit",
+    "Rapid Scattershot",
+    "Defiance"
+   ]
+  }
  },
- "sorcerer": {
-  "max_level": 4,
-  "skills": [
-   "Robe of Earth",
-   "Robe of Flame",
-   "Absorb Essence",
-   "Grace of Enhancement",
-   "Vitality Evaporation"
-  ]
+ "compass-of-vigor": {
+  "cleric": {
+   "max_level": 4,
+   "chances": {
+    "Judgment Thunder": 0.16699999999999998,
+    "Divine Aura": 0.16699999999999998,
+    "Light of Regeneration": 0.16699999999999998,
+    "Healing Light": 0.16699999999999998,
+    "Lightning Strike Scattershot": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Judgment Thunder",
+    "Divine Aura",
+    "Light of Regeneration",
+    "Healing Light",
+    "Lightning Strike Scattershot",
+    "Defiance"
+   ]
+  },
+  "ranger": {
+   "max_level": 4,
+   "chances": {
+    "Deadshot": 0.16699999999999998,
+    "Marking Shot": 0.16699999999999998,
+    "Suppressing Arrow": 0.16699999999999998,
+    "Gale Arrow": 0.16699999999999998,
+    "Arrow Scattershot": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Deadshot",
+    "Marking Shot",
+    "Suppressing Arrow",
+    "Gale Arrow",
+    "Arrow Scattershot",
+    "Defiance"
+   ]
+  },
+  "chanter": {
+   "max_level": 4,
+   "chances": {
+    "Incandescent Blow": 0.16699999999999998,
+    "Impactful Crush": 0.16699999999999998,
+    "Tremor Crush": 0.16699999999999998,
+    "Recuperation": 0.16699999999999998,
+    "Gust Rampage": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Incandescent Blow",
+    "Impactful Crush",
+    "Tremor Crush",
+    "Recuperation",
+    "Gust Rampage",
+    "Defiance"
+   ]
+  },
+  "templar": {
+   "max_level": 4,
+   "chances": {
+    "Pummel": 0.16699999999999998,
+    "Shield Smite": 0.16699999999999998,
+    "Shield Rush": 0.16699999999999998,
+    "Warding Strike": 0.16699999999999998,
+    "Flash Rampage": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Pummel",
+    "Shield Smite",
+    "Shield Rush",
+    "Warding Strike",
+    "Flash Rampage",
+    "Defiance"
+   ]
+  },
+  "assassin": {
+   "max_level": 4,
+   "chances": {
+    "Ambush": 0.16699999999999998,
+    "Savage Roar": 0.16699999999999998,
+    "Infiltrate": 0.16699999999999998,
+    "Flash Slice": 0.16699999999999998,
+    "Storm Rampage": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Ambush",
+    "Savage Roar",
+    "Infiltrate",
+    "Flash Slice",
+    "Storm Rampage",
+    "Defiance"
+   ]
+  },
+  "sorcerer": {
+   "max_level": 4,
+   "chances": {
+    "Ice Chain": 0.16699999999999998,
+    "Bittercold Wind": 0.16699999999999998,
+    "Frost": 0.16699999999999998,
+    "Winter's Shackles": 0.16699999999999998,
+    "Flame Scattershot": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Ice Chain",
+    "Bittercold Wind",
+    "Frost",
+    "Winter's Shackles",
+    "Flame Scattershot",
+    "Defiance"
+   ]
+  },
+  "gladiator": {
+   "max_level": 4,
+   "chances": {
+    "Rending Blow": 0.16699999999999998,
+    "Mocking Blade": 0.16699999999999998,
+    "Rush Strike": 0.16699999999999998,
+    "Crushing Wave": 0.16699999999999998,
+    "Sword Aura Rampage": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Rending Blow",
+    "Mocking Blade",
+    "Rush Strike",
+    "Crushing Wave",
+    "Sword Aura Rampage",
+    "Defiance"
+   ]
+  },
+  "spiritmaster": {
+   "max_level": 4,
+   "chances": {
+    "Combustion": 0.16699999999999998,
+    "Summon: Water Spirit": 0.16699999999999998,
+    "Soul's Cry": 0.16699999999999998,
+    "Summon: Wind Spirit": 0.16699999999999998,
+    "Rapid Scattershot": 0.16699999999999998,
+    "Defiance": 0.16699999999999998
+   },
+   "skills": [
+    "Combustion",
+    "Summon: Water Spirit",
+    "Soul's Cry",
+    "Summon: Wind Spirit",
+    "Rapid Scattershot",
+    "Defiance"
+   ]
+  }
  },
- "gladiator": {
-  "max_level": 4,
-  "skills": [
-   "Protection Armor",
-   "Identify Weakness",
-   "Impact Hit",
-   "Experienced Counterstrike",
-   "Murderous Burst"
-  ]
+ "mirror-of-magic": {
+  "cleric": {
+   "max_level": 4,
+   "chances": {
+    "Empyrean Lords' Benediction": 0.2,
+    "Healing Enhancement": 0.2,
+    "Heal Block": 0.2,
+    "Radiant Benediction": 0.2,
+    "Earth's Grace": 0.2
+   },
+   "skills": [
+    "Empyrean Lords' Benediction",
+    "Healing Enhancement",
+    "Heal Block",
+    "Radiant Benediction",
+    "Earth's Grace"
+   ]
+  },
+  "ranger": {
+   "max_level": 4,
+   "chances": {
+    "Concentrated Fire": 0.2,
+    "Focused Eye": 0.2,
+    "Unyielding Resolve": 0.2,
+    "Melee Fire": 0.2,
+    "Hunter's Soul": 0.2
+   },
+   "skills": [
+    "Concentrated Fire",
+    "Focused Eye",
+    "Unyielding Resolve",
+    "Melee Fire",
+    "Hunter's Soul"
+   ]
+  },
+  "chanter": {
+   "max_level": 4,
+   "chances": {
+    "Crossguard": 0.2,
+    "Inspiring Spell": 0.2,
+    "Impact Hit": 0.2,
+    "Earth's Promise": 0.2,
+    "Wind's Promise": 0.2
+   },
+   "skills": [
+    "Crossguard",
+    "Inspiring Spell",
+    "Impact Hit",
+    "Earth's Promise",
+    "Wind's Promise"
+   ]
+  },
+  "templar": {
+   "max_level": 4,
+   "chances": {
+    "Warding Shield": 0.2,
+    "Ironclad Defense": 0.2,
+    "Impact Hit": 0.2,
+    "Survival Willpower": 0.2,
+    "Block Pain": 0.2
+   },
+   "skills": [
+    "Warding Shield",
+    "Ironclad Defense",
+    "Impact Hit",
+    "Survival Willpower",
+    "Block Pain"
+   ]
+  },
+  "assassin": {
+   "max_level": 4,
+   "chances": {
+    "Exploit Weakness": 0.2,
+    "Rear Smite": 0.2,
+    "Impact Hit": 0.2,
+    "Defense Break": 0.2,
+    "Determination": 0.2
+   },
+   "skills": [
+    "Exploit Weakness",
+    "Rear Smite",
+    "Impact Hit",
+    "Defense Break",
+    "Determination"
+   ]
+  },
+  "sorcerer": {
+   "max_level": 4,
+   "chances": {
+    "Robe of Earth": 0.2,
+    "Robe of Flame": 0.2,
+    "Absorb Essence": 0.2,
+    "Grace of Enhancement": 0.2,
+    "Vitality Evaporation": 0.2
+   },
+   "skills": [
+    "Robe of Earth",
+    "Robe of Flame",
+    "Absorb Essence",
+    "Grace of Enhancement",
+    "Vitality Evaporation"
+   ]
+  },
+  "gladiator": {
+   "max_level": 4,
+   "chances": {
+    "Protection Armor": 0.2,
+    "Identify Weakness": 0.2,
+    "Impact Hit": 0.2,
+    "Experienced Counterstrike": 0.2,
+    "Murderous Burst": 0.2
+   },
+   "skills": [
+    "Protection Armor",
+    "Identify Weakness",
+    "Impact Hit",
+    "Experienced Counterstrike",
+    "Murderous Burst"
+   ]
+  },
+  "spiritmaster": {
+   "max_level": 4,
+   "chances": {
+    "Spirit Protection": 0.2,
+    "Corrode": 0.2,
+    "Mental Focus": 0.2,
+    "Consecutive Countercurrent": 0.2,
+    "Revitalization Contract": 0.2
+   },
+   "skills": [
+    "Spirit Protection",
+    "Corrode",
+    "Mental Focus",
+    "Consecutive Countercurrent",
+    "Revitalization Contract"
+   ]
+  }
  },
- "spiritmaster": {
-  "max_level": 4,
-  "skills": [
-   "Spirit Protection",
-   "Corrode",
-   "Mental Focus",
-   "Consecutive Countercurrent",
-   "Revitalization Contract"
-  ]
+ "mirror-of-vigor": {
+  "cleric": {
+   "max_level": 4,
+   "chances": {
+    "Empyrean Lords' Benediction": 0.2,
+    "Healing Enhancement": 0.2,
+    "Heal Block": 0.2,
+    "Radiant Benediction": 0.2,
+    "Earth's Grace": 0.2
+   },
+   "skills": [
+    "Empyrean Lords' Benediction",
+    "Healing Enhancement",
+    "Heal Block",
+    "Radiant Benediction",
+    "Earth's Grace"
+   ]
+  },
+  "ranger": {
+   "max_level": 4,
+   "chances": {
+    "Concentrated Fire": 0.2,
+    "Focused Eye": 0.2,
+    "Unyielding Resolve": 0.2,
+    "Melee Fire": 0.2,
+    "Hunter's Soul": 0.2
+   },
+   "skills": [
+    "Concentrated Fire",
+    "Focused Eye",
+    "Unyielding Resolve",
+    "Melee Fire",
+    "Hunter's Soul"
+   ]
+  },
+  "chanter": {
+   "max_level": 4,
+   "chances": {
+    "Crossguard": 0.2,
+    "Inspiring Spell": 0.2,
+    "Impact Hit": 0.2,
+    "Earth's Promise": 0.2,
+    "Wind's Promise": 0.2
+   },
+   "skills": [
+    "Crossguard",
+    "Inspiring Spell",
+    "Impact Hit",
+    "Earth's Promise",
+    "Wind's Promise"
+   ]
+  },
+  "templar": {
+   "max_level": 4,
+   "chances": {
+    "Warding Shield": 0.2,
+    "Ironclad Defense": 0.2,
+    "Impact Hit": 0.2,
+    "Survival Willpower": 0.2,
+    "Block Pain": 0.2
+   },
+   "skills": [
+    "Warding Shield",
+    "Ironclad Defense",
+    "Impact Hit",
+    "Survival Willpower",
+    "Block Pain"
+   ]
+  },
+  "assassin": {
+   "max_level": 4,
+   "chances": {
+    "Exploit Weakness": 0.2,
+    "Rear Smite": 0.2,
+    "Impact Hit": 0.2,
+    "Defense Break": 0.2,
+    "Determination": 0.2
+   },
+   "skills": [
+    "Exploit Weakness",
+    "Rear Smite",
+    "Impact Hit",
+    "Defense Break",
+    "Determination"
+   ]
+  },
+  "sorcerer": {
+   "max_level": 4,
+   "chances": {
+    "Robe of Earth": 0.2,
+    "Robe of Flame": 0.2,
+    "Absorb Essence": 0.2,
+    "Grace of Enhancement": 0.2,
+    "Vitality Evaporation": 0.2
+   },
+   "skills": [
+    "Robe of Earth",
+    "Robe of Flame",
+    "Absorb Essence",
+    "Grace of Enhancement",
+    "Vitality Evaporation"
+   ]
+  },
+  "gladiator": {
+   "max_level": 4,
+   "chances": {
+    "Protection Armor": 0.2,
+    "Identify Weakness": 0.2,
+    "Impact Hit": 0.2,
+    "Experienced Counterstrike": 0.2,
+    "Murderous Burst": 0.2
+   },
+   "skills": [
+    "Protection Armor",
+    "Identify Weakness",
+    "Impact Hit",
+    "Experienced Counterstrike",
+    "Murderous Burst"
+   ]
+  },
+  "spiritmaster": {
+   "max_level": 4,
+   "chances": {
+    "Spirit Protection": 0.2,
+    "Corrode": 0.2,
+    "Mental Focus": 0.2,
+    "Consecutive Countercurrent": 0.2,
+    "Revitalization Contract": 0.2
+   },
+   "skills": [
+    "Spirit Protection",
+    "Corrode",
+    "Mental Focus",
+    "Consecutive Countercurrent",
+    "Revitalization Contract"
+   ]
+  }
+ },
+ "parchment-of-magic": {
+  "cleric": {
+   "max_level": 4,
+   "chances": {
+    "Earth's Retribution": 0.16699999999999998,
+    "Debilitating Mark": 0.16699999999999998,
+    "Chain of Torment": 0.16699999999999998,
+    "Condemnation": 0.16699999999999998,
+    "Radiant Recovery": 0.16699999999999998,
+    "Bolt": 0.16699999999999998
+   },
+   "skills": [
+    "Earth's Retribution",
+    "Debilitating Mark",
+    "Chain of Torment",
+    "Condemnation",
+    "Radiant Recovery",
+    "Bolt"
+   ]
+  },
+  "ranger": {
+   "max_level": 4,
+   "chances": {
+    "Snipe": 0.16699999999999998,
+    "Snare Shot": 0.16699999999999998,
+    "Drill Dart": 0.16699999999999998,
+    "Burst Arrow": 0.16699999999999998,
+    "Explosion Trap": 0.16699999999999998,
+    "Tempest Shot": 0.16699999999999998
+   },
+   "skills": [
+    "Snipe",
+    "Snare Shot",
+    "Drill Dart",
+    "Burst Arrow",
+    "Explosion Trap",
+    "Tempest Shot"
+   ]
+  },
+  "chanter": {
+   "max_level": 4,
+   "chances": {
+    "Onslaught": 0.16699999999999998,
+    "Rushing Smash": 0.16699999999999998,
+    "Wave Blow": 0.16699999999999998,
+    "Heat Wave Blow": 0.16699999999999998,
+    "Dark Crush": 0.16699999999999998,
+    "Spinning Strike": 0.16699999999999998
+   },
+   "skills": [
+    "Onslaught",
+    "Rushing Smash",
+    "Wave Blow",
+    "Heat Wave Blow",
+    "Dark Crush",
+    "Spinning Strike"
+   ]
+  },
+  "templar": {
+   "max_level": 4,
+   "chances": {
+    "Vicious Strike": 0.16699999999999998,
+    "Poach": 0.16699999999999998,
+    "Annihilate": 0.16699999999999998,
+    "Judgment": 0.16699999999999998,
+    "Debilitating Smash": 0.16699999999999998,
+    "Punishment": 0.16699999999999998
+   },
+   "skills": [
+    "Vicious Strike",
+    "Poach",
+    "Annihilate",
+    "Judgment",
+    "Debilitating Smash",
+    "Punishment"
+   ]
+  },
+  "assassin": {
+   "max_level": 4,
+   "chances": {
+    "Quick Slice": 0.16699999999999998,
+    "Shadowstrike": 0.16699999999999998,
+    "Heart Gore": 0.16699999999999998,
+    "Whirlwind Slice": 0.16699999999999998,
+    "Shadow Fall": 0.16699999999999998,
+    "Insignia Explosion": 0.16699999999999998
+   },
+   "skills": [
+    "Quick Slice",
+    "Shadowstrike",
+    "Heart Gore",
+    "Whirlwind Slice",
+    "Shadow Fall",
+    "Insignia Explosion"
+   ]
+  },
+  "sorcerer": {
+   "max_level": 4,
+   "chances": {
+    "Flame Arrow": 0.16699999999999998,
+    "Firestorm": 0.16699999999999998,
+    "Blaze": 0.16699999999999998,
+    "Frost Burst": 0.16699999999999998,
+    "Wish of Concentration": 0.16699999999999998,
+    "Hellfire": 0.16699999999999998
+   },
+   "skills": [
+    "Flame Arrow",
+    "Firestorm",
+    "Blaze",
+    "Frost Burst",
+    "Wish of Concentration",
+    "Hellfire"
+   ]
+  },
+  "gladiator": {
+   "max_level": 4,
+   "chances": {
+    "Keen Strike": 0.16699999999999998,
+    "Leaping Slam": 0.16699999999999998,
+    "Overhead Slam": 0.16699999999999998,
+    "Ankle Slice": 0.16699999999999998,
+    "Aerial Snare": 0.16699999999999998,
+    "Ruinous Blow": 0.16699999999999998
+   },
+   "skills": [
+    "Keen Strike",
+    "Leaping Slam",
+    "Overhead Slam",
+    "Ankle Slice",
+    "Aerial Snare",
+    "Ruinous Blow"
+   ]
+  },
+  "spiritmaster": {
+   "max_level": 4,
+   "chances": {
+    "Cold Shock": 0.16699999999999998,
+    "Summon: Fire Spirit": 0.16699999999999998,
+    "Jointstrike: Curse": 0.16699999999999998,
+    "Summon: Earth Spirit": 0.16699999999999998,
+    "Dimensional Control": 0.16699999999999998,
+    "Elemental Fusion": 0.16699999999999998
+   },
+   "skills": [
+    "Cold Shock",
+    "Summon: Fire Spirit",
+    "Jointstrike: Curse",
+    "Summon: Earth Spirit",
+    "Dimensional Control",
+    "Elemental Fusion"
+   ]
+  }
+ },
+ "parchment-of-vigor": {
+  "cleric": {
+   "max_level": 4,
+   "chances": {
+    "Earth's Retribution": 0.16699999999999998,
+    "Debilitating Mark": 0.16699999999999998,
+    "Chain of Torment": 0.16699999999999998,
+    "Condemnation": 0.16699999999999998,
+    "Radiant Recovery": 0.16699999999999998,
+    "Bolt": 0.16699999999999998
+   },
+   "skills": [
+    "Earth's Retribution",
+    "Debilitating Mark",
+    "Chain of Torment",
+    "Condemnation",
+    "Radiant Recovery",
+    "Bolt"
+   ]
+  },
+  "ranger": {
+   "max_level": 4,
+   "chances": {
+    "Snipe": 0.16699999999999998,
+    "Snare Shot": 0.16699999999999998,
+    "Drill Dart": 0.16699999999999998,
+    "Burst Arrow": 0.16699999999999998,
+    "Explosion Trap": 0.16699999999999998,
+    "Tempest Shot": 0.16699999999999998
+   },
+   "skills": [
+    "Snipe",
+    "Snare Shot",
+    "Drill Dart",
+    "Burst Arrow",
+    "Explosion Trap",
+    "Tempest Shot"
+   ]
+  },
+  "chanter": {
+   "max_level": 4,
+   "chances": {
+    "Onslaught": 0.16699999999999998,
+    "Rushing Smash": 0.16699999999999998,
+    "Wave Blow": 0.16699999999999998,
+    "Heat Wave Blow": 0.16699999999999998,
+    "Dark Crush": 0.16699999999999998,
+    "Spinning Strike": 0.16699999999999998
+   },
+   "skills": [
+    "Onslaught",
+    "Rushing Smash",
+    "Wave Blow",
+    "Heat Wave Blow",
+    "Dark Crush",
+    "Spinning Strike"
+   ]
+  },
+  "templar": {
+   "max_level": 4,
+   "chances": {
+    "Vicious Strike": 0.16699999999999998,
+    "Poach": 0.16699999999999998,
+    "Annihilate": 0.16699999999999998,
+    "Judgment": 0.16699999999999998,
+    "Debilitating Smash": 0.16699999999999998,
+    "Punishment": 0.16699999999999998
+   },
+   "skills": [
+    "Vicious Strike",
+    "Poach",
+    "Annihilate",
+    "Judgment",
+    "Debilitating Smash",
+    "Punishment"
+   ]
+  },
+  "assassin": {
+   "max_level": 4,
+   "chances": {
+    "Quick Slice": 0.16699999999999998,
+    "Shadowstrike": 0.16699999999999998,
+    "Heart Gore": 0.16699999999999998,
+    "Whirlwind Slice": 0.16699999999999998,
+    "Shadow Fall": 0.16699999999999998,
+    "Insignia Explosion": 0.16699999999999998
+   },
+   "skills": [
+    "Quick Slice",
+    "Shadowstrike",
+    "Heart Gore",
+    "Whirlwind Slice",
+    "Shadow Fall",
+    "Insignia Explosion"
+   ]
+  },
+  "sorcerer": {
+   "max_level": 4,
+   "chances": {
+    "Flame Arrow": 0.16699999999999998,
+    "Firestorm": 0.16699999999999998,
+    "Blaze": 0.16699999999999998,
+    "Frost Burst": 0.16699999999999998,
+    "Wish of Concentration": 0.16699999999999998,
+    "Hellfire": 0.16699999999999998
+   },
+   "skills": [
+    "Flame Arrow",
+    "Firestorm",
+    "Blaze",
+    "Frost Burst",
+    "Wish of Concentration",
+    "Hellfire"
+   ]
+  },
+  "gladiator": {
+   "max_level": 4,
+   "chances": {
+    "Keen Strike": 0.16699999999999998,
+    "Leaping Slam": 0.16699999999999998,
+    "Overhead Slam": 0.16699999999999998,
+    "Ankle Slice": 0.16699999999999998,
+    "Aerial Snare": 0.16699999999999998,
+    "Ruinous Blow": 0.16699999999999998
+   },
+   "skills": [
+    "Keen Strike",
+    "Leaping Slam",
+    "Overhead Slam",
+    "Ankle Slice",
+    "Aerial Snare",
+    "Ruinous Blow"
+   ]
+  },
+  "spiritmaster": {
+   "max_level": 4,
+   "chances": {
+    "Cold Shock": 0.16699999999999998,
+    "Summon: Fire Spirit": 0.16699999999999998,
+    "Jointstrike: Curse": 0.16699999999999998,
+    "Summon: Earth Spirit": 0.16699999999999998,
+    "Dimensional Control": 0.16699999999999998,
+    "Elemental Fusion": 0.16699999999999998
+   },
+   "skills": [
+    "Cold Shock",
+    "Summon: Fire Spirit",
+    "Jointstrike: Curse",
+    "Summon: Earth Spirit",
+    "Dimensional Control",
+    "Elemental Fusion"
+   ]
+  }
  }
 }

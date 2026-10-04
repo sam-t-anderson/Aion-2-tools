@@ -244,30 +244,56 @@ def titles() -> list[dict]:
     return out
 
 
-def arcana_skill_pools(slug: str = "mirror-of-magic") -> dict:
-    """Random skill option pool of Unique arcana per class (same pool on every card)."""
-    lines = text_lines(flight(fetch(f"{BASE}/items/{slug}")))
+def _skill_pools(lines: list[str]) -> dict:
+    """Parse an item page's "Random skill options" table: {class: {max_level, chance, skills}}."""
     out: dict = {}
     try:
         i = lines.index("Random skill options")
     except ValueError:
         return out
     names = {c.capitalize(): c for c in CLASSES}
+    names["Spiritmaster"] = "spiritmaster"
     k = i + 1
     while k < len(lines) and not lines[k].startswith("Similar items"):
         if lines[k] in names and k + 1 < len(lines) and "skills" in lines[k + 1]:
             cls = names[lines[k]]
-            m = re.search(r"up to Lv\. (\d+)", " ".join(lines[k + 1:k + 4]))
+            head = " ".join(lines[k + 1:k + 4])
+            m = re.search(r"up to Lv\. (\d+)", head)
+            ch = re.search(r"([\d.]+)% each", head)
             j = k + 1
             while j < len(lines) and not lines[j].startswith("up to Lv."):
                 j += 1
-            skills = []
+            skills, chances = [], {}
             j += 1
             while j < len(lines) and lines[j] not in names and not lines[j].startswith("Similar items"):
-                skills.append(lines[j])
+                pc = re.fullmatch(r"([\d.]+)%", lines[j])
+                if pc and skills:                      # per-skill chance follows the skill name
+                    chances[skills[-1]] = float(pc.group(1)) / 100
+                elif lines[j].strip():
+                    skills.append(lines[j])
                 j += 1
-            out[cls] = {"max_level": int(m.group(1)) if m else None, "skills": skills}
+            even = float(ch.group(1)) / 100 if ch else (1 / len(skills) if skills else None)
+            out[cls] = {"max_level": int(m.group(1)) if m else None,
+                        "chances": {sk: chances.get(sk, even) for sk in skills}, "skills": skills}
             k = j
         else:
             k += 1
     return out
+
+
+def item_skill_pools(slug: str) -> dict:
+    """Random skill option pools of one item (arcana, accessories)."""
+    return _skill_pools(text_lines(flight(fetch(f"{BASE}/items/{slug}"))))
+
+
+#: The five arcana slots; Chalice, Parchment and Compass roll active skills,
+#: Bell and Mirror roll passives (official guide; the pools below confirm it).
+ARCANA_SLOTS = ("chalice", "parchment", "compass", "bell", "mirror")
+
+
+def arcana_skill_pools() -> dict:
+    """{arcana slug: {class: pool}} for every Unique arcana found in the sitemap."""
+    sm = fetch("https://metabot.gg/sitemaps/aion-2-items-1.xml", max_age=86400)
+    slugs = re.findall(r"<loc>https://metabot.gg/en/aion-2/items/([^<]+)</loc>", sm)
+    arc = sorted(x for x in slugs if re.fullmatch(r"(%s)-of-[a-z]+" % "|".join(ARCANA_SLOTS), x))
+    return {slug: item_skill_pools(slug) for slug in arc}
