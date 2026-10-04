@@ -179,7 +179,6 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None) -> Kit:
             ma = re.search(r"increases the caster's Attack by \{(\d+)\}%.*?for \{(\d+)\}", tip)
             if ma and int(ma.group(1)) < len(v) and int(ma.group(2)) < len(v):
                 buffs.append(("attack_pct", v[int(ma.group(1))] / 100, _ms(v[int(ma.group(2))])))
-        applies = key
         apply_dur = next((_ms(x) for x in v if isinstance(x, dict) and "ms" in x), 10.0)
         dmg = pairs[0] if pairs else None
 

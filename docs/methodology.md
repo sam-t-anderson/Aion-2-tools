@@ -123,6 +123,16 @@ Fight scenarios (`aion2calc/scenarios.py`):
    with flow-based connectivity per board, the 360-point budget, the 203 SP
    budget with the real price table, and ordered "level ≥ k" indicators so
    specialization breakpoints (non-concave value jumps) are handled exactly.
+6. **Skill-point polish** – after the last iteration, a local search with the
+   full simulator moves 1–2 skill levels between skills (or spends left-over
+   points) while any move gains DPS.  It catches interactions that the
+   separable level curves of step 5 cannot see (one skill's level changing
+   another skill's value, spec slots opening at Lv 8/12).
+
+Every step is scored on the full 180 s fight of the chosen scenario, so the
+numbers in the log are directly comparable.  The stat weights, the curves and
+the program are re-computed each iteration around the current build, and a
+reallocation is accepted only if the full simulation confirms it.
 
 The in-game **Skill Macro** plan (`opt/macro.py`) keeps short-cooldown skills
 and fillers in the hold-to-run macro and leaves long-cooldown burst skills on

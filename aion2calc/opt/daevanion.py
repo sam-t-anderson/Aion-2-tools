@@ -42,7 +42,6 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
     for b in cd.boards:
         if b["name"] not in boards:
             continue
-        root = next(n for n in b["nodes"] if n["type"] == "Start")
         M = len(b["nodes"])
         for n in b["nodes"]:
             if n["type"] == "Start":

@@ -14,8 +14,8 @@ import itertools
 import time
 from dataclasses import dataclass, field, replace
 
-from ..kit.base import Build, ClassData, spec_slots, stigma_points_to_reach
-from ..run import Scenario, character_stats, kit_module, prepare
+from ..kit.base import Build, ClassData, sp_to_reach, spec_slots, stigma_points_to_reach
+from ..run import Scenario, kit_module, prepare
 from ..sim.engine import Sim
 from . import daevanion as daev_opt
 from .rotation import describe, materialize, optimize_rotation
@@ -53,6 +53,22 @@ def _stigma_worker(job):
     return job, opt.evaluate(b2, policy)
 
 
+def _sp_worker(moves):
+    opt, build, policy = _CTX["sp"]
+    cd = opt.cd
+    b2 = build.copy()
+    for sid, d in moves:
+        b2.sp[sid] = b2.sp.get(sid, 1) + d
+        if b2.sp[sid] <= 1:
+            b2.sp.pop(sid)
+    b2 = opt._clean_specs(b2)
+    before = opt._with_gear(build).effective_levels(cd)
+    after = opt._with_gear(b2).effective_levels(cd)
+    if any(spec_slots(after.get(sid, 1)) > spec_slots(before.get(sid, 1)) for sid, _ in moves):
+        b2 = opt.optimize_specs(b2, policy, passes=1)
+    return moves, opt.evaluate(b2, policy), b2
+
+
 #: Stigmas with no damage contribution (never chosen by the DPS optimizer).
 DEFENSIVE_STIGMAS = {"Steel Barrier", "Arctic Armor", "Hibernation", "Curse: Tree"}
 
@@ -71,7 +87,7 @@ class OptResult:
 class Optimizer:
     def __init__(self, cls: str, scenario: Scenario, daev_budget: int = 360,
                  stigma_points: int | None = None, sp_budget: int | None = None,
-                 search_duration: float = 120.0, verbose: bool = True, gear_bonus: dict | None = None):
+                 search_duration: float | None = None, verbose: bool = True, gear_bonus: dict | None = None):
         self.cls = cls
         self.cd = ClassData(cls)
         self.scenario = scenario
@@ -80,10 +96,11 @@ class Optimizer:
         self.sp_budget = sp_budget if sp_budget is not None else bud["skill"]
         self.stigma_points = stigma_points if stigma_points is not None else bud["stigma"] + 1
         self.slots = bud["slots"]
-        self.search_cfg = replace(scenario.config, duration=search_duration)
+        self.search_cfg = replace(scenario.config, duration=search_duration or scenario.config.duration)
         self.verbose = verbose
         self.gear_bonus = gear_bonus or {}
         self.history: list = []
+        self._rotation_keys: set = set()    # kit actions the last rotation search could use
         self.t0 = time.time()
 
     def log(self, msg: str):
@@ -105,7 +122,10 @@ class Optimizer:
         present = {keys(e) for e in pol}
         if any(k.startswith("hellfire_c") for k in present):
             present |= {k for k in kit.actions if k.startswith("hellfire_c")}
-        missing = [k for k in kit.policy if keys(k) not in present]
+        # actions the rotation search already saw and dropped stay dropped;
+        # only actions new since then (another stigma, a newly useful skill) are added
+        seen = self._rotation_keys
+        missing = [k for k in kit.policy if keys(k) not in present and keys(k) not in seen]
         is_last_filler = lambda e: kit.actions[keys(e)].is_filler and not isinstance(e, tuple)
         filler_idx = next((i for i, e in enumerate(pol) if is_last_filler(e)), len(pol))
         for k in missing:
@@ -189,6 +209,7 @@ class Optimizer:
         r = optimize_rotation(stats.derived(), kit, self.scenario.target, self.scenario.config,
                               start=start, restarts=restarts,
                               search_duration=self.search_cfg.duration)
+        self._rotation_keys = set(kit.actions)
         return r.policy, r.dps, r.result
 
     def optimize_stigmas(self, build: Build, policy: list) -> Build:
@@ -272,6 +293,46 @@ class Optimizer:
         # skills without a value curve keep level 1 (no points)
         return b2, sol, curves, weights
 
+    def polish_sp(self, build: Build, policy: list, rounds: int = 6) -> Build:
+        """Full-simulation local search on skill points after the integer program.
+
+        Moves: raise one skill by 1-2 levels from free points, or move 1-2
+        levels from one skill to another.  Catches interactions the separable
+        level curves miss (spec thresholds, buffs that scale other skills).
+        """
+        cd = self.cd
+        trainable = sorted(sid for sid, s in cd.skills.items()
+                           if s["kind"] in ("active", "passive") and s.get("buyMax", 10) > 1)
+        best = self.evaluate(build, policy)
+        for _ in range(rounds):
+            slack = self.sp_budget - build.sp_spent()
+            jobs = []
+            for b in trainable:
+                lb, top = build.sp.get(b, 1), cd.skills[b].get("buyMax", 10)
+                for db in (1, 2):
+                    if lb + db > top:
+                        continue
+                    cost = sp_to_reach(lb + db) - sp_to_reach(lb)
+                    if cost <= slack:
+                        jobs.append(((b, db),))
+                        continue
+                    for a in trainable:
+                        la = build.sp.get(a, 1)
+                        for da in (1, 2):
+                            if a == b or la - da < 1:
+                                continue
+                            if cost <= slack + sp_to_reach(la) - sp_to_reach(la - da):
+                                jobs.append(((a, -da), (b, db)))
+                                break       # taking a further level from ``a`` only wastes points
+            _CTX["sp"] = (self, build, policy)
+            moves, v, b2 = max(_pmap(_sp_worker, jobs), key=lambda r: r[1], default=(None, 0, None))
+            if not moves or v <= best * (1 + 1e-6):
+                break
+            self.log("polish SP: " + ", ".join(f"{cd.skills[s]['name']} {d:+d}" for s, d in moves)
+                     + f" -> {v:.0f} (was {best:.0f})")
+            build, best = b2, v
+        return build
+
     def _gear_bonus(self) -> dict:
         from ..model.character import load_loadout, loadout_stats
         lo = load_loadout(self.scenario.loadout) if isinstance(self.scenario.loadout, str) else self.scenario.loadout
@@ -312,6 +373,7 @@ class Optimizer:
             if v_new >= v_old:
                 build = build2
             self.history.append({"iter": it, "dps": max(v_old, v_new)})
+        build = self.polish_sp(build, policy)
         build = self.optimize_specs(build, policy, passes=3)
         policy, dps, res = self.optimize_rotation(build, policy, restarts=4)
         cd, b, kit, stats = prepare(build, self.scenario)

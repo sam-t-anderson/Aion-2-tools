@@ -180,7 +180,6 @@ def build_kit(build: Build, cd: ClassData, filler: str = "flame_arrow") -> Kit:
 
     # Ice Chain (cooldown-free heavy attack, costs MP)
     ic_f, ic_c = dmg("IC")
-    frost_acc = {"v": 0.0}
 
     def ic_cast(sim, a):
         sim.hit("Ice Chain", ic_f, ic_c, element="water", mult=1.12 if has("IC", 3) else 1.0)
@@ -452,7 +451,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "flame_arrow") -> Kit:
 def default_policy(actions: dict, filler: str) -> list:
     """A sensible starting priority (the optimizer improves on it)."""
     order = ["element_enhancement", "wish", "delayed_explosion", "fire_wall", "cold_storm",
-             f"hellfire_c1", "winters_shackles", "blaze", "firestorm", "bittercold_wind",
+             "hellfire_c1", "winters_shackles", "blaze", "firestorm", "bittercold_wind",
              "frost_burst", "frost", "glacial_smite", "divine_burst", "assault_bombardment",
              "lumiels_space", "soul_freeze", "flame_scattershot"]
     pol = [k for k in order if k in actions]

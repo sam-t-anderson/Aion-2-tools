@@ -6,6 +6,7 @@ Commands
   simulate   simulate the community (most common) build or a saved build.json
   compare    optimize several classes with the same settings and rank them
   diff       compare two result folders (e.g. median vs geared loadout)
+  render     rewrite a result folder's README.md from its build.json
 """
 from __future__ import annotations
 
@@ -49,6 +50,9 @@ def main(argv: list[str] | None = None) -> int:
     df.add_argument("b", help="result folder B")
     df.add_argument("--out", help="output Markdown file (default <b>/DIFF.md)")
 
+    rr = sub.add_parser("render", help="rewrite README.md of a result folder from build.json")
+    rr.add_argument("dir")
+
     args = p.parse_args(argv)
     if args.cmd == "refresh":
         from .scrape.refresh import refresh
@@ -58,30 +62,22 @@ def main(argv: list[str] | None = None) -> int:
         run_report(args.cls, args.out or f"results/{args.cls}_l45", scenario_name=args.scenario,
                    daev_budget=args.daevanion, iterations=args.iterations, loadout=args.loadout)
     elif args.cmd == "simulate":
-        from .kit.base import Build
         from .run import simulate
         from .scenarios import SCENARIOS, community_build
         scen = SCENARIOS[args.scenario](args.loadout or f"{args.cls}_l45_global_median")
         if args.build:
-            data = json.load(open(args.build))
-            from .kit.base import ClassData
-            cd = ClassData(args.cls)
-            b = Build(args.cls)
-            byname = cd.by_name
-            b.sp = {byname[k]["id"]: v for k, v in data["build"]["sp"].items()}
-            b.stigmas = {byname[k]["id"]: v for k, v in data["build"]["stigmas"].items()}
-            b.specs = {byname[k]["id"]: tuple(x["id"] for x in byname[k]["specs"] if x["text"] in v)
-                       for k, v in data["build"]["specs"].items()}
-            b.daevanion = set(data["build"]["daevanion_nodes"])
-            policy = [e.split(" [")[0] if " [" not in e else (e.split(" [")[0], e.split(" [")[1][:-1])
-                      for e in data["policy"]]
             from .opt.rotation import materialize
+            from .report import build_from_summary
+            b, policy = build_from_summary(json.load(open(args.build)))
             res = simulate(b, scen, policy=materialize(policy))
         else:
             res = simulate(community_build(args.cls), scen)
         print(f"DPS {res.dps:,.0f}")
         for k, v in res.shares().items():
             print(f"  {k:32s} {100 * v:5.1f}%")
+    elif args.cmd == "render":
+        from .report import rerender
+        print(rerender(args.dir))
     elif args.cmd == "diff":
         from .diff import write_diff
         print(write_diff(args.a, args.b, args.out))
@@ -91,14 +87,22 @@ def main(argv: list[str] | None = None) -> int:
         for cls in args.classes:
             summ = run_report(cls, f"{args.out}/{cls}", scenario_name=args.scenario,
                               iterations=args.iterations)
-            rows.append((cls, summ["dps"][args.scenario], summ["baseline"]["community_optimized_rotation"]))
+            rows.append((cls, summ["dps"][args.scenario], summ["baseline"]["community_optimized_rotation"],
+                         (summ.get("kr_fidelity") or {}).get("overlap")))
         rows.sort(key=lambda r: -r[1])
         print(f"{'class':14s} {'optimized':>12s} {'community':>12s} {'gain':>7s}")
         md = [f"# Class comparison ({args.scenario}, same settings)\n",
-              "| Class | Optimized DPS | Most-common build DPS | Gain | Report |", "|---|---:|---:|---:|---|"]
-        for cls, dps, comm in rows:
+              "Each class is optimized with the same budgets (203 SP, 30 stigma points, 360 Daevanion) on its own "
+              "median global loadout. **Gain** (optimized vs the most common global build of that class, same "
+              "rotation optimizer) is the reliable number. Absolute DPS across classes is only as good as each class "
+              "kit: Sorcerer has a hand-written kit; the others use the generic tooltip-driven kit, whose fidelity "
+              "is shown as the share overlap with Korean A2DIL dummy logs.\n",
+              "| Class | Optimized DPS | Most-common build DPS | Gain | KR share overlap | Report |",
+              "|---|---:|---:|---:|---:|---|"]
+        for cls, dps, comm, fid in rows:
             print(f"{cls:14s} {dps:12,.0f} {comm:12,.0f} {100 * (dps / comm - 1):6.1f}%")
-            md.append(f"| {cls} | {dps:,.0f} | {comm:,.0f} | {100 * (dps / comm - 1):+.1f}% | [{cls}]({cls}/README.md) |")
+            md.append(f"| {cls} | {dps:,.0f} | {comm:,.0f} | {100 * (dps / comm - 1):+.1f}% | "
+                      f"{'—' if fid is None else f'{100 * fid:.0f}%'} | [{cls}]({cls}/README.md) |")
         from pathlib import Path
         Path(args.out, "README.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     return 0

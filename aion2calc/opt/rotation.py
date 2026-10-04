@@ -83,7 +83,7 @@ def candidate_keys(kit) -> tuple[list, list, list]:
 
 def optimize_rotation(derived, kit, target, config, start: list | None = None, restarts: int = 3,
                       seed: int = 7, max_passes: int = 6, allow_conditions: bool = True,
-                      search_duration: float | None = 120.0) -> RotationResult:
+                      search_duration: float | None = None) -> RotationResult:
     from dataclasses import replace
     rng = random.Random(seed)
     scfg = replace(config, duration=search_duration) if search_duration else config

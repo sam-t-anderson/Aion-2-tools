@@ -1,7 +1,6 @@
 """Human-readable Markdown report from a ``build.json`` summary."""
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from .opt.gear import arcana_choice, enchant_value, per_unit, roll_priorities, title_ranking
@@ -44,7 +43,8 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
     for i, p in enumerate(s["policy"], 1):
         w(f"{i}. `{p}`")
     w("\n`[sync_de]` = wait for the Delayed Explosion vulnerability window when it is about to be ready; "
-      "`[in_ee]` = prefer using it inside Element Enhancement.\n")
+      "`[in_ee]` = prefer using it inside Element Enhancement; "
+      "`[mp_hi]` = only while MP is at least 60% (weave it in, keep MP for Grace of Enhancement).\n")
     m = s["macro"]
     w("### In-game Skill Macro\n")
     w("Settings → Key Settings → General → Skill Macro. Skill Queue (스킬 예약) **ON**, 10 ms delay on every step, hold the macro key; "
@@ -145,6 +145,14 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         w(f"Every animation time was randomly perturbed by up to ±25% ({len(sens)} samples) and the rotation "
           f"re-optimized each time. Playing the recommended priority instead of the re-optimized one lost on "
           f"average **{sum(loss) / len(loss):.2f}%** (worst {max(loss):.2f}%).\n")
+    fid = s.get("kr_fidelity")
+    if fid:
+        w("## Validation against Korean logs\n")
+        w(f"Simulated damage shares (training dummy) overlap **{100 * fid['overlap']:.0f}%** with the mean of the "
+          f"top-10 A2DIL Korean dummy logs; {100 * fid['kr_share_not_in_global_data']:.0f}% of the Korean damage "
+          "comes from skills that are not in the global level-45 client. Korea plays above level 45 with Lv 16-20 "
+          "specializations, so a perfect match is not expected; low values mean the class kit needs hand-tuning "
+          "(see `kit/sorcerer.py` for a hand-written kit).\n")
     w("## Sources\n")
     w("* metabot.gg (global client): class skills, Daevanion boards, items, titles, top-player statistics")
     w("* gamers4.life (KR database): skill hit counts, build/Daevanion planners")

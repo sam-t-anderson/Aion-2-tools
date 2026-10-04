@@ -10,7 +10,7 @@ import time
 from dataclasses import replace
 from pathlib import Path
 
-from .kit.base import ClassData, spec_slots
+from .kit.base import ClassData
 from .opt.macro import plan_macro
 from .opt.pipeline import Optimizer
 from .opt.rotation import describe, materialize, optimize_rotation
@@ -52,6 +52,95 @@ def arcana_skill_values(cls, build, scenario, policy) -> list[dict]:
         rows.append({"skill": name, "id": s["id"], "gain_pct": [100 * g for g in gains]})
     rows.sort(key=lambda r: -r["gain_pct"][-1])
     return rows
+
+
+def kr_share_overlap(cls: str, shares: dict) -> dict | None:
+    """Overlap (0-1) between simulated damage shares and KR A2DIL top dummy logs.
+
+    KR runs at higher levels with more skills/specializations, so 100% is not
+    expected; it is a fidelity indicator for the class kit, not a target.
+    """
+    path = Path(__file__).resolve().parent / "data" / "kr" / "a2dil" / f"{cls}.json"
+    if not path.exists():
+        return None
+    cd = ClassData(cls)
+    kr: dict = {}
+    for v in json.loads(path.read_text(encoding="utf-8"))["skills"].values():
+        if v["code"]:
+            kr[v["code"]] = kr.get(v["code"], 0.0) + v["mean_share"]
+    tot = sum(kr.values()) or 1.0
+    kr = {k: v / tot for k, v in kr.items()}
+    sim: dict = {}
+    for name, v in shares.items():
+        base = name.split(" (")[0]
+        s = cd.by_name.get(base) or next((x for n, x in cd.by_name.items() if base.startswith(n)), None)
+        if s:
+            sim[s["id"]] = sim.get(s["id"], 0.0) + v
+    missing = sum(v for k, v in kr.items() if k not in cd.skills)
+    return {"overlap": sum(min(sim.get(k, 0.0), kr.get(k, 0.0)) for k in set(sim) | set(kr)),
+            "kr_share_not_in_global_data": missing}
+
+
+def _board_images(cd, build, comm, out: Path, daev_budget: int) -> None:
+    cls = cd.cls
+    dv = cd.daevanion_levels(build.daevanion)
+    board_lines = ["## Skill levels from nodes"]
+    board_lines += [f"{cd.skills[k]['name']}: +{v}" for k, v in sorted(dv.items(), key=lambda kv: -kv[1])]
+    board_lines += ["", "## Stats from nodes"]
+    raw = cd.daevanion_stats(build.daevanion)
+    labels = cd.raw.get("stat_labels", {})
+    for k, v in sorted(raw.items(), key=lambda kv: -kv[1]):
+        rule_pct = k in ("CombatSpeed", "CoolTimeDecrease", "AmplifyAllDamage", "AmplifyCriticalDamage",
+                         "AdditionalHitRate", "DecreaseDamage", "DecreaseCriticalDamage", "AdditionalHitResistRate")
+        board_lines.append(f"{labels.get(k, k)}: +{v / 100:.1f}%" if rule_pct else f"{labels.get(k, k)}: +{v:g}")
+    render_boards(cd, build.daevanion, str(out / "images" / "daevanion_optimized.png"),
+                  f"{cls.capitalize()} L45 (global) — optimized Daevanion ({build.daevanion_cost(cd)}/{daev_budget} pts)",
+                  summary_lines=board_lines, budget=daev_budget)
+    comm_crystal = {n for n in comm.daevanion if cd.node_index[n][0]["name"] != "Azphel"}
+    render_boards(cd, comm_crystal, str(out / "images" / "daevanion_community.png"),
+                  f"{cls.capitalize()} L45 — most common global top-player Daevanion (metabot, aggregate)",
+                  summary_lines=["## Note", "Aggregate of the most-picked nodes", "(not one player's board)"])
+
+
+def build_from_summary(summary: dict):
+    """Rebuild ``(Build, policy)`` from a ``build.json`` summary."""
+    from .kit.base import Build
+    cls = summary["class"]
+    cd = ClassData(cls)
+    byname = cd.by_name
+    data = summary["build"]
+    b = Build(cls)
+    b.sp = {byname[k]["id"]: v for k, v in data["sp"].items()}
+    b.stigmas = {byname[k]["id"]: v for k, v in data["stigmas"].items()}
+    b.specs = {byname[k]["id"]: tuple(x["id"] for x in byname[k]["specs"] if x["text"] in v)
+               for k, v in data["specs"].items()}
+    b.daevanion = set(data["daevanion_nodes"])
+    policy = [e if " [" not in e else (e.split(" [")[0], e.split(" [")[1][:-1]) for e in summary["policy"]]
+    return b, policy
+
+
+def rerender(out_dir: str) -> str:
+    """Rewrite README.md from build.json (fills fields added after the run)."""
+    from .model.character import load_loadout
+    from .report_md import write_markdown
+    path = Path(out_dir) / "build.json"
+    summary = json.loads(path.read_text(encoding="utf-8"))
+    cls = summary["class"]
+    loadout = summary.get("loadout") or f"{cls}_l45_global_median"
+    summary["loadout"] = loadout
+    build, _ = build_from_summary(summary)
+    (Path(out_dir) / "images").mkdir(parents=True, exist_ok=True)
+    _board_images(ClassData(cls), build, community_build(cls), Path(out_dir), summary["daevanion_budget"])
+    if "kr_fidelity" not in summary or "arcana_skill_values" not in summary:
+        build, policy = build_from_summary(summary)
+        dummy = SCENARIOS["dummy"](loadout)
+        boss = SCENARIOS["boss"](loadout)
+        summary.setdefault("kr_fidelity", kr_share_overlap(cls, _sim(build, dummy, policy)[0].shares()))
+        summary.setdefault("arcana_skill_values", arcana_skill_values(cls, build, boss, policy))
+        path.write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
+    return write_markdown(summary, out_dir, extra={
+        "gear_lines": _gear_lines(loadout), "weapon_compare": summary.get("weapon_compare"),
+        "loadout_name": load_loadout(loadout).get("name", loadout)})
 
 
 def _spec_text(cd, sid, spid):
@@ -173,34 +262,22 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     summary["weapon_compare"] = wc
     summary["loadout"] = loadout
     summary["arcana_skill_values"] = arcana_skill_values(cls, build, scen, policy)
+    summary["kr_fidelity"] = kr_share_overlap(cls, final_other.shares() if scenario_name == "boss"
+                                              else final.shares())
     (out / "build.json").write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
 
     # ---- images
-    board_lines = ["## Skill levels from nodes"]
-    board_lines += [f"{cd.skills[k]['name']}: +{v}" for k, v in sorted(dv.items(), key=lambda kv: -kv[1])]
-    board_lines += ["", "## Stats from nodes"]
-    raw = cd.daevanion_stats(build.daevanion)
-    labels = cd.raw.get("stat_labels", {})
-    for k, v in sorted(raw.items(), key=lambda kv: -kv[1]):
-        rule_pct = k in ("CombatSpeed", "CoolTimeDecrease", "AmplifyAllDamage", "AmplifyCriticalDamage",
-                         "AdditionalHitRate", "DecreaseDamage", "DecreaseCriticalDamage", "AdditionalHitResistRate")
-        board_lines.append(f"{labels.get(k, k)}: +{v / 100:.1f}%" if rule_pct else f"{labels.get(k, k)}: +{v:g}")
-    render_boards(cd, build.daevanion, str(out / "images" / "daevanion_optimized.png"),
-                  f"{cls.capitalize()} L45 (global) — optimized Daevanion ({build.daevanion_cost(cd)}/{daev_budget} pts)",
-                  summary_lines=board_lines, budget=daev_budget)
-    comm_crystal = {n for n in comm.daevanion if cd.node_index[n][0]["name"] != "Azphel"}
-    render_boards(cd, comm_crystal, str(out / "images" / "daevanion_community.png"),
-                  f"{cls.capitalize()} L45 — most common global top-player Daevanion (metabot, aggregate)",
-                  summary_lines=["## Note", "Aggregate of the most-picked nodes", "(not one player's board)"])
+    _board_images(cd, build, comm, out, daev_budget)
     try:
         from .render.buildcard import render_build_card
         pr = []
         for e in policy:
             k = e[0] if isinstance(e, tuple) else e
             a = kit.actions[k]
-            note = {"sync_de": "wait for Delayed Explosion", "in_ee": "inside Element Enhancement"}.get(
+            note = {"sync_de": "wait for Delayed Explosion", "in_ee": "inside Element Enhancement",
+                    "mp_hi": "only at MP >= 60%"}.get(
                 e[1] if isinstance(e, tuple) else None, "")
-            if a.is_filler:
+            if a.is_filler and not isinstance(e, tuple):
                 note = "filler"
             pr.append({"id": a.skill_id, "label": a.name, "note": note})
         names = {k: a.name for k, a in kit.actions.items()}

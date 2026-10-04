@@ -20,12 +20,39 @@ SHORT = {"Critical Hit": "Crit", "Critical Hit Resist": "CritRes", "Attack Bonus
          "Critical Damage Tolerance": "CDTol", "Multi-hit Chance": "Multi", "Multi-hit Resist": "MultiR"}
 
 
+_ABBR: dict[str, str] = {}
+
+
+def _short_skill(name: str) -> str:
+    if name in _ABBR:
+        return _ABBR[name]
+    words = name.replace("of ", "").split()
+    return "".join(w[0] for w in words) if len(name) > 11 else name
+
+
+def _set_abbreviations(boards) -> dict[str, str]:
+    """Unique short names for long skill names; clashes spell out two letters of
+    the first word that differs (Revitalization Contract / Robe of Cold -> ReC / RoC)."""
+    _ABBR.clear()
+    names = sorted({n.get("skillName") or "" for b in boards for n in b["nodes"] if n["type"] == "SkillLevel"})
+    base = {nm: _short_skill(nm) for nm in names}
+    out = dict(base)
+    for short in set(base.values()):
+        group = [nm for nm in names if base[nm] == short and nm != short]
+        if len(group) < 2:
+            continue
+        words = {nm: nm.replace("of ", "").split() for nm in group}
+        pos = next((i for i in range(len(short)) if len({words[nm][i][:2] for nm in group}) > 1), None)
+        for nm in group:
+            if pos is not None:
+                out[nm] = "".join(w[:2] if i == pos else w[0] for i, w in enumerate(words[nm]))
+    _ABBR.update(out)
+    return out
+
+
 def _label(node) -> str:
     if node["type"] == "SkillLevel":
-        name = node.get("skillName") or ""
-        words = name.replace("of ", "").split()
-        short = "".join(w[0] for w in words) if len(name) > 11 else name
-        return f"{short}\n+1"
+        return f"{_short_skill(node.get('skillName') or '')}\n+1"
     lab = node.get("label", "")
     for k, v in SHORT.items():
         if lab.startswith(k + " "):
@@ -83,6 +110,7 @@ def render_board(ax, board, selected: set, title_extra: str = ""):
 def render_boards(cd, selected: set, path: str, title: str, boards=("Nezekan", "Zikel", "Vaizel", "Triniel"),
                   summary_lines: list[str] | None = None, budget: int | None = None):
     bl = [b for b in cd.boards if b["name"] in boards]
+    _set_abbreviations(bl)
     fig = plt.figure(figsize=(16, 13.5), dpi=170, facecolor=BG)
     fig.suptitle(title, color=TEXT, fontsize=15, fontweight="bold", y=0.985)
     gs = fig.add_gridspec(2, 3, width_ratios=[1, 1, 0.62], hspace=0.08, wspace=0.04,
@@ -115,6 +143,14 @@ def render_boards(cd, selected: set, path: str, title: str, boards=("Nezekan", "
                 va="center", color=TEXT, fontsize=8.5)
         y -= 0.03
     ax.text(0.05, y, "squares = stats, circles = +1 skill level", transform=ax.transAxes, color=MUTED, fontsize=8)
+    abbr = sorted((short, full) for full, short in _ABBR.items() if short != full)
+    if abbr:
+        y -= 0.035
+        ax.text(0.05, y, "Skill abbreviations", transform=ax.transAxes, color=MUTED, fontsize=8.5,
+                fontweight="bold")
+        for short, full in abbr:
+            y -= 0.022
+            ax.text(0.05, y, f"{short} = {full}", transform=ax.transAxes, color=MUTED, fontsize=8)
     fig.savefig(path, facecolor=BG)
     plt.close(fig)
     return path
