@@ -1,0 +1,3565 @@
+[
+ {
+  "name": "Shaper of Heavens",
+  "grade": "Special",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Saint of Altgard",
+  "grade": "Unique",
+  "faction": "Asmodian",
+  "equip": "Defense Bonus +300, Damage Tolerance +3%, Block +100",
+  "owned": "MP +20"
+ },
+ {
+  "name": "Saint of Ereshkigal",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "PvP Damage Boost +4%, Endurance Penetration +2.5%, Critical Hit +60",
+  "owned": "PvP Accuracy +20"
+ },
+ {
+  "name": "Saint of Verteron",
+  "grade": "Unique",
+  "faction": "Elyos",
+  "equip": "Defense Bonus +300, Damage Tolerance +3%, Block +100",
+  "owned": "MP +20"
+ },
+ {
+  "name": "Through Hell and Back",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "Cooldown Reduction +3%, HP +900, Stamina +225",
+  "owned": "Block +10"
+ },
+ {
+  "name": "A Whale in a Shrimp Fight",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Cooldown Reduction +2%, Out-of-Combat Natural MP Regen +62",
+  "owned": "Attack Bonus +2"
+ },
+ {
+  "name": "Activated the Trap Card",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Critical Hit +42, Accuracy Bonus +42",
+  "owned": "Accuracy Bonus +10"
+ },
+ {
+  "name": "Alien",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Combat Natural MP Regen +39, Combat Natural Stamina Regen +29",
+  "owned": "PvE Attack +4"
+ },
+ {
+  "name": "Banality of Evil",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Evasion Bonus +32, Back Defense +315",
+  "owned": "Back Defense +30"
+ },
+ {
+  "name": "Broken Window",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Stamina +180, Combat Natural Stamina Regen +21",
+  "owned": "PvE Accuracy +15"
+ },
+ {
+  "name": "Drana Destroyer",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Attack Bonus +21, Penetration +210",
+  "owned": "HP Potion Recovery +4"
+ },
+ {
+  "name": "Either-or",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Penetration +210, Power Shard Damage Bonus +26",
+  "owned": "Critical Hit Resist +10"
+ },
+ {
+  "name": "Fierce But Cool",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Power Shard Damage Bonus +26, Critical Attack +32",
+  "owned": "Critical Hit Resist +10"
+ },
+ {
+  "name": "Friendly Fire!",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Block +60, Evasion Bonus +32",
+  "owned": "Evasion Bonus +10"
+ },
+ {
+  "name": "Guardian of Altgard",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "PvE Damage Boost +3%, Penetration +210",
+  "owned": "PvE Attack +4"
+ },
+ {
+  "name": "Guardian of Ereshkigal",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "HP Potion Recovery increase +7%, HP Potion Recovery +220",
+  "owned": "PvP Attack +4"
+ },
+ {
+  "name": "Guardian of Verteron",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "PvE Damage Boost +3%, Penetration +210",
+  "owned": "PvE Attack +4"
+ },
+ {
+  "name": "Here I Am",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Critical Hit +42, Accuracy Bonus +42",
+  "owned": "Accuracy Bonus +10"
+ },
+ {
+  "name": "Hot Potato",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Penetration +210, Power Shard Damage Bonus +26",
+  "owned": "Critical Hit Resist +10"
+ },
+ {
+  "name": "I Am Treely Sorry",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Back Defense +315, Evasion Bonus +32",
+  "owned": "Attack Bonus +2"
+ },
+ {
+  "name": "It's Okay to Be Imperfect",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "PvE Attack +37, Critical Attack +44",
+  "owned": "PvE Damage Boost +1%"
+ },
+ {
+  "name": "Krarak",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "HP +630, HP Potion Recovery +220",
+  "owned": "Back Defense +30"
+ },
+ {
+  "name": "No-Fly Zone",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "HP +630, HP Potion Recovery +220",
+  "owned": "Back Defense +30"
+ },
+ {
+  "name": "Obedient Revenge",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Power Shard Damage Bonus +26, Critical Attack +32",
+  "owned": "Critical Hit Resist +10"
+ },
+ {
+  "name": "Open Up",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Cooldown Reduction +2%, Out-of-Combat Natural MP Regen +62",
+  "owned": "Attack Bonus +2"
+ },
+ {
+  "name": "Over Here!",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Attack Bonus +21, Penetration +210",
+  "owned": "HP Potion Recovery +4"
+ },
+ {
+  "name": "Run! Now!",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Critical Hit Resist +42, Critical Damage Tolerance +2%",
+  "owned": "Attack Bonus +2"
+ },
+ {
+  "name": "Safety First",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Block +60, Evasion Bonus +32",
+  "owned": "Evasion Bonus +10"
+ },
+ {
+  "name": "Seductive Gaze",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Critical Hit Resist +42, Critical Damage Tolerance +2%",
+  "owned": "Attack Bonus +2"
+ },
+ {
+  "name": "Self-Flagellating",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Back Defense +315, Evasion Bonus +32",
+  "owned": "Attack Bonus +2"
+ },
+ {
+  "name": "Shugo Festival Expert",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Combat Natural HP Regen +78, Combat Natural Stamina Regen +29",
+  "owned": "Critical Hit Resist +10"
+ },
+ {
+  "name": "Swift or Sure",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Stamina +180, Combat Natural Stamina Regen +21",
+  "owned": "PvE Accuracy +15"
+ },
+ {
+  "name": "Teleportation Specialist",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "PvE Accuracy +58, PvE Damage Boost +3.1%",
+  "owned": "Critical Hit +10"
+ },
+ {
+  "name": "Throwing Eggs at a Rock",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Defense Bonus +210, Back Attack Critical Hit Resist +53",
+  "owned": "Front Defense +30"
+ },
+ {
+  "name": "Where Dusk Settles",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Defense Bonus +210, Back Attack Critical Hit Resist +53",
+  "owned": "Front Defense +30"
+ },
+ {
+  "name": "Where We Going?",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Evasion Bonus +32, Back Defense +315",
+  "owned": "Back Defense +30"
+ },
+ {
+  "name": "A Coward's Repentance",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Defense Bonus +120",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Altgard Cartographer",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "HP increase +1.8%",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Altgard Inquirer",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Move Speed +1.6%",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Altgard Seal Breaker",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Combat Natural MP Regen +27",
+  "owned": "Power Shard Damage Bonus +1"
+ },
+ {
+  "name": "Anti-Doping Task Force",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "HP increase +1.6%",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "Archaeologist",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Damage Defense +195",
+  "owned": "Power Shard Damage Bonus +1"
+ },
+ {
+  "name": "Archivist",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Multi-hit Chance +1.1%",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Arr! Where's Me Treasure?",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Stamina +160",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "Be Brave!",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Attack Critical Hit +33",
+  "owned": "Natural HP Regen +5"
+ },
+ {
+  "name": "Bewitched",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Hit Resist +26",
+  "owned": "Critical Attack +2"
+ },
+ {
+  "name": "BLEEP BLOOP BLEEP BLOOP",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "PvE Evasion +29",
+  "owned": "PvE Defense +10"
+ },
+ {
+  "name": "Can I Go to the Bathroom?",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Defense Bonus +120",
+  "owned": "Power Shard Damage Bonus +1"
+ },
+ {
+  "name": "Can't Hear You",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Block +44",
+  "owned": "Back Attack +2"
+ },
+ {
+  "name": "Catch Me If You Can",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "PvE Attack +22",
+  "owned": "MP +10"
+ },
+ {
+  "name": "Dead Man's Chest",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Hit +26",
+  "owned": "HP +60"
+ },
+ {
+  "name": "Deadly Flower",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Evasion Bonus +20",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Deer Hunter",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Natural HP Regen +22",
+  "owned": "Back Attack +2"
+ },
+ {
+  "name": "Do Not Disturb",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Evasion Bonus +20",
+  "owned": "Natural HP Regen +5"
+ },
+ {
+  "name": "Don't Be Blinded by Greed",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Multi-hit Chance +1.1%",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Dragon's Tail",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Block Penetration +26",
+  "owned": "Back Attack +2"
+ },
+ {
+  "name": "Dragonslayer",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Hit +24",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "Escape Artist",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Hit +24",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Eternal Fortress Wall",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "HP Potion Recovery +260",
+  "owned": "Back Attack +2"
+ },
+ {
+  "name": "Everyone Has a Plan",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "MP +215",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "First, We Feast",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Hit Resist +26",
+  "owned": "Critical Attack +2"
+ },
+ {
+  "name": "Get in Line!",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Evasion Bonus +20",
+  "owned": "MP +10"
+ },
+ {
+  "name": "Get Out!",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Move Speed +1.6%",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Hazy Apparition",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Back Attack Damage Boost +1.6%",
+  "owned": "Penetration +10"
+ },
+ {
+  "name": "Hazy Depth",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "HP Potion Recovery +260",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Headless Chicken",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "HP Potion Recovery +340",
+  "owned": "PvE Attack +2"
+ },
+ {
+  "name": "Heir of Eternity",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Block Penetration +26",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Hibernating",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Hit +24",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "Holding My Breath Now",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "HP Potion Recovery +260",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Housekeeping Open Up",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "HP increase +1.8%",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "I Finally Have Your Attention",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Block +44",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "I Take Care of My Own",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Move Speed +1.6%",
+  "owned": "HP +60"
+ },
+ {
+  "name": "I'll Finish This",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Damage Defense +180",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "I'm Watching You",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Accuracy Bonus +26",
+  "owned": "HP Potion Recovery increase +1.5%"
+ },
+ {
+  "name": "In the Heart of Enemy Territory",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Attack +20",
+  "owned": "HP +60"
+ },
+ {
+  "name": "Irretrievable",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Move Speed +1.6%",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Jackpot!",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Accuracy Bonus +24",
+  "owned": "Penetration +10"
+ },
+ {
+  "name": "Just Small Fry",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Attack Bonus +12",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "Keeper of Promises",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Attack Bonus +12",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "Knock Knock Who's There",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Boss Damage Tolerance +2.7%",
+  "owned": "PvE Attack +2"
+ },
+ {
+  "name": "Lady of the Lake",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "PvE Defense +255",
+  "owned": "Critical Hit Resist +5"
+ },
+ {
+  "name": "Let Them Fight",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "MP Cost Reduction +1.6%",
+  "owned": "Natural HP Regen +5"
+ },
+ {
+  "name": "Living Bomb",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Defense +180",
+  "owned": "Natural HP Regen +5"
+ },
+ {
+  "name": "Mission Impossible",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "MP Cost Reduction +1.6%",
+  "owned": "Critical Hit Resist +5"
+ },
+ {
+  "name": "My Dog Bites",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Multi-hit Chance +1.1%",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "My Enemy's Enemy Is Still My Enemy",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Block Penetration +26",
+  "owned": "Back Attack +2"
+ },
+ {
+  "name": "Mysterious Racer",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Flight Speed +1.8%",
+  "owned": "PvE Attack +2"
+ },
+ {
+  "name": "Neatly Gathered",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Defense Bonus +130",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Nice to Meet You",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "PvE Damage Boost +2.9%",
+  "owned": "PvE Defense +10"
+ },
+ {
+  "name": "Odyle Drops Keep Fallin' on My Head",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Move Speed +1.8%",
+  "owned": "PvE Attack +2"
+ },
+ {
+  "name": "Of a Convoluted Interior",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Damage Tolerance +1.6%",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "Panacea",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Accuracy Bonus +26",
+  "owned": "HP Potion Recovery increase +1.5%"
+ },
+ {
+  "name": "Philosopher's Stone",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Defense Bonus +130",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Photographic Memory",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Critical Damage Tolerance +1.6%",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "Pilgrim to the Holy Land",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Evasion Bonus +18",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "Playing Dead",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Stamina +140",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Please Stop Resurrecting Me",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Hit +26",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Prison Break",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Accuracy Bonus +24",
+  "owned": "Penetration +10"
+ },
+ {
+  "name": "Professional Actor",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Attack Damage Boost +1.6%",
+  "owned": "Penetration +10"
+ },
+ {
+  "name": "Proliferative",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Block +44",
+  "owned": "Back Attack +2"
+ },
+ {
+  "name": "Pruning Expert",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Attack Critical Hit Resist +30",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Queen's Gambit",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Defense Bonus +120",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Quiet, Please",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Attack +20",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Removing Stubborn Stains",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Hit +26",
+  "owned": "HP +60"
+ },
+ {
+  "name": "Ring Around the Rosie",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Block +44",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Robbed in Broad Daylight",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Stamina +140",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Rose from a Coffin",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Hit +24",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Round and Round",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Block Penetration +26",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Rule of Three",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Back Attack Critical Hit +30",
+  "owned": "HP +60"
+ },
+ {
+  "name": "Run for It!",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "HP increase +1.6%",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "Ruuuuun!!",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "PvE Evasion +26",
+  "owned": "PvE Defense +10"
+ },
+ {
+  "name": "Shugo Festival Rookie",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Combat Natural Stamina Regen +19",
+  "owned": "MP +10"
+ },
+ {
+  "name": "Shutting Down",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Damage Defense +180",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "Sit Still",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Back Attack Critical Hit Resist +30",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Smashing!",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "MP +215",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "Social Distancing",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Evasion Bonus +20",
+  "owned": "Natural HP Regen +5"
+ },
+ {
+  "name": "Standing on My Own Two Feet",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "HP +510",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "The Beacons Are Lit!",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "PvE Damage Boost +2.3%",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "The Only Way Out Is Through",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Hit +26",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "This Is Not a Drill",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "HP Potion Recovery +260",
+  "owned": "Back Attack +2"
+ },
+ {
+  "name": "This Is Really Starting to Dragon",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Defense Bonus +120",
+  "owned": "Power Shard Damage Bonus +1"
+ },
+ {
+  "name": "Tile Discerner",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "MP +235",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "Time Walker",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Attack Critical Hit +30",
+  "owned": "HP +60"
+ },
+ {
+  "name": "To Hide a Tree, Go To the Forest",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Evasion Bonus +20",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Uncomfortable Gaze",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Attack Critical Hit Resist +33",
+  "owned": "Critical Hit Resist +5"
+ },
+ {
+  "name": "Unsealed",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Damage Defense +195",
+  "owned": "Power Shard Damage Bonus +1"
+ },
+ {
+  "name": "Untangling the Thread",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Attack Damage Tolerance +1.6%",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "Up, Up, and Up Again!",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "HP Potion Recovery +340",
+  "owned": "PvE Attack +2"
+ },
+ {
+  "name": "Verteron Cartographer",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Stamina +155",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Verteron Inquirer",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Move Speed +1.6%",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Verteron Seal Breaker",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Boss Damage Boost +2.7%",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "Wasting Hard Work",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "PvE Damage Boost +2.3%",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "Waterfall Training",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "MP Cost Reduction +1.6%",
+  "owned": "Natural HP Regen +5"
+ },
+ {
+  "name": "Weight of Trust",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Move Speed +1.6%",
+  "owned": "HP +60"
+ },
+ {
+  "name": "Welcome",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Combat Natural HP Regen +58",
+  "owned": "PvE Defense +10"
+ },
+ {
+  "name": "Whack-a-Mole",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Attack +20",
+  "owned": "Penetration +10"
+ },
+ {
+  "name": "Yoink",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Attack +20",
+  "owned": "Penetration +10"
+ },
+ {
+  "name": "You Have the Wrong Person",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Evasion Bonus +18",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "A Floor Beneath the Floor",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Evasion Bonus +11",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "A House Divided",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Back Attack +10",
+  "owned": "MP +10"
+ },
+ {
+  "name": "Bigger Than It Looks",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "MP +170",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Breathtaking Knowledge",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Block Penetration +32",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Digging My Own Grave",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "HP +210",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Engraved in Stone",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "MP +170",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Fallen into the Abyss",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Accuracy Bonus +26",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Final Harvest",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "PvE Accuracy +32",
+  "owned": "HP +30"
+ },
+ {
+  "name": "Gone with the Wind",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "PvE Defense +135",
+  "owned": "PvE Defense +10"
+ },
+ {
+  "name": "Hatching Eggs",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Combat Speed +1.2%",
+  "owned": "Penetration +10"
+ },
+ {
+  "name": "Hello There",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "PvE Damage Tolerance +1.9%",
+  "owned": "Critical Hit Resist +5"
+ },
+ {
+  "name": "House on the Cliff",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "PvE Accuracy +32",
+  "owned": "HP +30"
+ },
+ {
+  "name": "I'll Take You All On",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Back Defense +105",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "I'll Teach You a Lesson Kru",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Block +28",
+  "owned": "Back Attack +2"
+ },
+ {
+  "name": "Illegal Herbalist",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Power Shard Damage Bonus +9",
+  "owned": "Front Attack +2"
+ },
+ {
+  "name": "Mirror Reflecting the Past",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Flight Speed +1.2%",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "No Witness, No Murder",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "HP +210",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Only One Sacrifice Was Required",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "HP Potion Recovery +170",
+  "owned": "Block +5"
+ },
+ {
+  "name": "Outlier",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Back Defense +105",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "Recluse",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "HP Potion Recovery +170",
+  "owned": "Block +5"
+ },
+ {
+  "name": "Rules on the Ledger",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Attack Bonus +7",
+  "owned": "HP +30"
+ },
+ {
+  "name": "Second From Last",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Accuracy Bonus +26",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Serpent's Head",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Critical Hit +19",
+  "owned": "Power Shard Damage Bonus +1"
+ },
+ {
+  "name": "Sharing is Caring",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Critical Hit Resist +14",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Shattered into Teeny, Tiny Pieces",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "PvE Accuracy +36",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Silver Tongue",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Evasion Bonus +11",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "Sit!",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Flight Speed +1.2%",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Soaked in Tears",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Block +28",
+  "owned": "Back Attack +2"
+ },
+ {
+  "name": "Tackle!",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Attack Bonus +7",
+  "owned": "HP +30"
+ },
+ {
+  "name": "The Forsaken",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Back Attack Critical Hit Resist +18",
+  "owned": "Natural HP Regen +5"
+ },
+ {
+  "name": "The High Walls of Elysium",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Critical Damage Boost +1.2%",
+  "owned": "Block +5"
+ },
+ {
+  "name": "The High Walls of Pandemonium",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Block Penetration +32",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "The Keep, the Cave, and the Wardrobe",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Back Attack +10",
+  "owned": "MP +10"
+ },
+ {
+  "name": "Unauthorized Business Shutdown",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Critical Hit Resist +14",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Uncrushable",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Back Attack Critical Hit Resist +18",
+  "owned": "Natural HP Regen +5"
+ },
+ {
+  "name": "Uprooted",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Power Shard Damage Bonus +9",
+  "owned": "Front Attack +2"
+ },
+ {
+  "name": "War Diary",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Combat Speed +1.2%",
+  "owned": "Penetration +10"
+ },
+ {
+  "name": "Action over Words",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Boss Damage Tolerance +3%, Critical Damage Tolerance +2%",
+  "owned": "Out-of-Combat Natural Stamina Regen +5"
+ },
+ {
+  "name": "Angel Investor",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Boss Damage Tolerance +3%, Critical Damage Tolerance +2%",
+  "owned": "Out-of-Combat Natural Stamina Regen +5"
+ },
+ {
+  "name": "At Wandering's End",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "MP increase +2%, HP Potion Recovery +200",
+  "owned": "Defense Bonus +20"
+ },
+ {
+  "name": "Balance Restored",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Combat Speed +2%, Stamina +175",
+  "owned": "Front Defense +30"
+ },
+ {
+  "name": "Beasts Leave Behind a Stench",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "MP increase +2%, HP +600",
+  "owned": "Natural HP Regen +10"
+ },
+ {
+  "name": "Celebrity",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Critical Attack +30, Block Penetration +40",
+  "owned": "Penetration +20"
+ },
+ {
+  "name": "Courage to Face Flaws",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Move Speed +2%, HP Potion Recovery +200",
+  "owned": "HP Potion Recovery +4"
+ },
+ {
+  "name": "Daditude",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "HP +600, MP +250",
+  "owned": "Natural HP Regen +10"
+ },
+ {
+  "name": "Didn't Read the Fine Print",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "HP +600, Stamina +175",
+  "owned": "Natural HP Regen +10"
+ },
+ {
+  "name": "Drifting Swan",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Natural MP Regen +16, HP +600",
+  "owned": "Combat Natural HP Regen +10"
+ },
+ {
+  "name": "Dutiful",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Damage Tolerance +2%, Back Defense +300",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "Endless Hunt",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "HP +600, Stamina +175",
+  "owned": "Natural HP Regen +10"
+ },
+ {
+  "name": "Even Better",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Attack Bonus +20, Back Attack Critical Hit +50",
+  "owned": "HP Potion Recovery increase +2%"
+ },
+ {
+  "name": "Everybody Has to Start Somewhere",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "PvE Attack +25, PvE Accuracy +50",
+  "owned": "Back Defense +30"
+ },
+ {
+  "name": "Failed Entrepreneur",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "PvE Attack +25, Attack Bonus +20",
+  "owned": "Accuracy Bonus +10"
+ },
+ {
+  "name": "Food, Please",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Back Attack +30, Back Attack Damage Boost +2%",
+  "owned": "Out-of-Combat Natural MP Regen +5"
+ },
+ {
+  "name": "Forever in Our Hearts",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Combat Speed +2%, MP +250",
+  "owned": "Critical Hit +10"
+ },
+ {
+  "name": "Full of Soul",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Defense Bonus +200, Evasion Bonus +30",
+  "owned": "Attack Bonus +2"
+ },
+ {
+  "name": "Godforsaken",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "PvE Attack +25, PvE Accuracy +50",
+  "owned": "Back Defense +30"
+ },
+ {
+  "name": "Going Beyond Time",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "MP increase +2%, HP Potion Recovery +200",
+  "owned": "Defense Bonus +20"
+ },
+ {
+  "name": "Good Chemistry",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Combat Natural MP Regen +30, Natural HP Regen +30",
+  "owned": "Out-of-Combat Natural HP Regen +10"
+ },
+ {
+  "name": "Grasper of the Core",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "HP +750, HP Potion Recovery +300",
+  "owned": "Attack Bonus +2"
+ },
+ {
+  "name": "Headswap",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Move Speed +2%, HP +600",
+  "owned": "Accuracy Bonus +10"
+ },
+ {
+  "name": "How Have You Been?",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Back Attack Damage Tolerance +2%, Critical Hit Resist +40",
+  "owned": "HP +90"
+ },
+ {
+  "name": "Human Vitamin",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Block +60, Back Attack Critical Hit Resist +50",
+  "owned": "HP Potion Recovery increase +2%"
+ },
+ {
+  "name": "I Believe What I See",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Combat Speed +2%, Stamina +175",
+  "owned": "Front Defense +30"
+ },
+ {
+  "name": "Illusion Illuminator",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Defense Bonus +200, Regeneration +1.5%",
+  "owned": "Defense Bonus +20"
+ },
+ {
+  "name": "Leaves a Sour Taste",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "HP +600, MP +250",
+  "owned": "Natural HP Regen +10"
+ },
+ {
+  "name": "Lifeguard",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "PvE Attack +25, Attack Bonus +20",
+  "owned": "Accuracy Bonus +10"
+ },
+ {
+  "name": "Living Fossil",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Back Attack Damage Tolerance +2%, Critical Hit Resist +40",
+  "owned": "HP +90"
+ },
+ {
+  "name": "Mad Scientist",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Critical Attack +30, Block Penetration +40",
+  "owned": "Penetration +20"
+ },
+ {
+  "name": "Mushroom Hunter",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Defense Bonus +200, Critical Hit Resist +40",
+  "owned": "Combat Natural MP Regen +5"
+ },
+ {
+  "name": "My Instructor",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Natural MP Regen +16, HP +600",
+  "owned": "Combat Natural HP Regen +10"
+ },
+ {
+  "name": "Names Lost in the Wind",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "MP increase +2%, HP +600",
+  "owned": "Natural HP Regen +10"
+ },
+ {
+  "name": "Needs Intensive Care",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Defense Bonus +200, Evasion Bonus +30",
+  "owned": "Attack Bonus +2"
+ },
+ {
+  "name": "Not to Be Missed",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Combat Speed +2%, MP +250",
+  "owned": "Critical Hit +10"
+ },
+ {
+  "name": "People Leave Memories",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Block +60, Back Attack Critical Hit Resist +50",
+  "owned": "HP Potion Recovery increase +2%"
+ },
+ {
+  "name": "Ritualist",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Move Speed +2%, HP Potion Recovery +200",
+  "owned": "HP Potion Recovery +4"
+ },
+ {
+  "name": "Scorching Wind",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Back Attack +30, Back Attack Damage Boost +2%",
+  "owned": "Out-of-Combat Natural MP Regen +5"
+ },
+ {
+  "name": "Sculptor",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Defense Bonus +200, Critical Hit Resist +40",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "Severer of Cursed Bonds",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Defense Bonus +200, Regeneration +1.5%",
+  "owned": "Defense Bonus +20"
+ },
+ {
+  "name": "Solo Player",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Block +60, Defense Bonus +200",
+  "owned": "Natural HP Regen +10"
+ },
+ {
+  "name": "Soulmate",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Combat Natural MP Regen +30, Natural HP Regen +30",
+  "owned": "Out-of-Combat Natural HP Regen +10"
+ },
+ {
+  "name": "Stomach Filling",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Defense Bonus +200, Critical Hit Resist +40",
+  "owned": "Combat Natural MP Regen +5"
+ },
+ {
+  "name": "Take Care of Yourself",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Damage Boost +2%, Back Attack Critical Hit +50",
+  "owned": "Critical Hit Resist +10"
+ },
+ {
+  "name": "Team Player",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Move Speed +2%, HP +600",
+  "owned": "Accuracy Bonus +10"
+ },
+ {
+  "name": "Transcender of Time",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Block +60, Defense Bonus +200",
+  "owned": "Natural HP Regen +10"
+ },
+ {
+  "name": "Volunteer",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Attack Bonus +20, Back Attack Critical Hit +50",
+  "owned": "HP Potion Recovery increase +2%"
+ },
+ {
+  "name": "Weekend Farmer",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Attack Bonus +20, Accuracy Bonus +40",
+  "owned": "HP +90"
+ },
+ {
+  "name": "Worst of the Worst",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Damage Tolerance +2%, Back Defense +300",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "A Greater Calling",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Evasion Bonus +17",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Air Filter",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Natural MP Regen +11",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "Always It",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Attack Bonus +10",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "Calm After the Storm",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Move Speed +1.5%",
+  "owned": "Natural HP Regen +5"
+ },
+ {
+  "name": "Decay Is a Kind of Growth",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "HP +330",
+  "owned": "Combat Natural HP Regen +5"
+ },
+ {
+  "name": "Deja Vu",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Evasion Bonus +15",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Discerner of Illusions",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "HP +300",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Driving the Highway to Hell",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Back Defense +165",
+  "owned": "Combat Natural HP Regen +5"
+ },
+ {
+  "name": "Fight Poison with Poison",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Evasion Bonus +15",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Get to Work!",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Block +40",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Guerilla Fighter",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Back Attack +15",
+  "owned": "Out-of-Combat Natural HP Regen +10"
+ },
+ {
+  "name": "Heartbreaker",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Natural MP Regen +11",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "Heir of Sparks",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Move Speed +1.5%",
+  "owned": "Natural HP Regen +5"
+ },
+ {
+  "name": "Humane",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "MP +200",
+  "owned": "Out-of-Combat Natural Stamina Regen +5"
+ },
+ {
+  "name": "I Leave the Rest to You",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Damage Tolerance +1.5%",
+  "owned": "Critical Attack +2"
+ },
+ {
+  "name": "I'll Put You to Rest",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "HP Potion Recovery +200",
+  "owned": "Front Attack +2"
+ },
+ {
+  "name": "Immovable Mask",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Defense +150",
+  "owned": "Out-of-Combat Natural HP Regen +10"
+ },
+ {
+  "name": "Keeper of Faith",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "HP +300",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Last Hurrah",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Block +40",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Let's Live Together!",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Combat Natural MP Regen +21",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "Little Brat",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "HP Potion Recovery +200",
+  "owned": "Front Attack +2"
+ },
+ {
+  "name": "Misaligned Fengshui",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Attack Bonus +10",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "Pandora's Box",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Defense +165",
+  "owned": "Combat Natural HP Regen +5"
+ },
+ {
+  "name": "Patient Like Stone",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Damage Boost +1.5%",
+  "owned": "HP Potion Recovery increase +1.5%"
+ },
+ {
+  "name": "Secret Stash",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Combat Natural MP Regen +21",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "See Ya Later",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Attack +17",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "Stay Clear",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Back Attack +15",
+  "owned": "Out-of-Combat Natural HP Regen +10"
+ },
+ {
+  "name": "Stuntman",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "HP +330",
+  "owned": "Combat Natural HP Regen +5"
+ },
+ {
+  "name": "Surprise Cameo",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Attack +17",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "The Greater Threat Lies Within",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Damage Tolerance +1.5%",
+  "owned": "Critical Attack +2"
+ },
+ {
+  "name": "The Road Goes Ever On",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Critical Hit +22",
+  "owned": "HP Potion Recovery increase +1.5%"
+ },
+ {
+  "name": "Watch My Back",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "MP +200",
+  "owned": "Out-of-Combat Natural Stamina Regen +5"
+ },
+ {
+  "name": "All Warfare Is Based on Deception",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Back Defense +75",
+  "owned": "Power Shard Damage Bonus +1"
+ },
+ {
+  "name": "Altgard Traveler",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Block Penetration +30",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Answer in Mind",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Critical Damage Defense +90",
+  "owned": "Out-of-Combat Natural HP Regen +10"
+ },
+ {
+  "name": "Burdened with Responsibility",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "HP Potion Recovery +160",
+  "owned": "Power Shard Damage Bonus +1"
+ },
+ {
+  "name": "Dawn Shines Through the Mirage",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Critical Hit Resist +10",
+  "owned": "Combat Natural MP Regen +5"
+ },
+ {
+  "name": "Draped in Sky",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Attack Bonus +5",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Early Adopter",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Critical Damage Defense +90",
+  "owned": "Out-of-Combat Natural HP Regen +10"
+ },
+ {
+  "name": "Even If I Must Give My All",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "HP Potion Recovery +150",
+  "owned": "HP Potion Recovery +2"
+ },
+ {
+  "name": "Everything Has Its Use",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Critical Hit +15",
+  "owned": "HP Potion Recovery increase +1%"
+ },
+ {
+  "name": "Give and Take",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Attack Bonus +6",
+  "owned": "Out-of-Combat Natural Stamina Regen +5"
+ },
+ {
+  "name": "Gullible",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Critical Hit Resist +10",
+  "owned": "Combat Natural MP Regen +5"
+ },
+ {
+  "name": "I Tried So Hard...",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Back Attack Critical Hit +20",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "IDIOT",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Accuracy Bonus +22",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Infinite Labor",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Accuracy Bonus +22",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Lie Detector",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Combat Natural MP Regen +16",
+  "owned": "Stamina +100"
+ },
+ {
+  "name": "Light Fades but the Glass Remains",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "HP Potion Recovery +150",
+  "owned": "HP Potion Recovery +2"
+ },
+ {
+  "name": "Lingering Warmth",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "MP +150",
+  "owned": "Out-of-Combat Natural HP Regen +10"
+ },
+ {
+  "name": "Moving Forward, Even Without Paradise",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Back Defense +75",
+  "owned": "Power Shard Damage Bonus +1"
+ },
+ {
+  "name": "Nausea! Heartburn! Indigestion!",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Natural HP Regen +15",
+  "owned": "Combat Natural HP Regen +5"
+ },
+ {
+  "name": "New Perspective",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Combat Natural MP Regen +16",
+  "owned": "Stamina +100"
+ },
+ {
+  "name": "No Fighting During Cutscenes",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "HP Potion Recovery +160",
+  "owned": "Power Shard Damage Bonus +1"
+ },
+ {
+  "name": "Safe and Sound",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Natural HP Regen +15",
+  "owned": "Combat Natural HP Regen +5"
+ },
+ {
+  "name": "Sapling Planter",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Block Penetration +30",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "The Truth Left Unspoken",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Back Attack Critical Hit +20",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "Training Instructor",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "MP +150",
+  "owned": "Out-of-Combat Natural HP Regen +10"
+ },
+ {
+  "name": "Verteron Traveler",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Critical Attack +9",
+  "owned": "Combat Natural HP Regen +5"
+ },
+ {
+  "name": "Violence Solves Everything",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Critical Hit Resist +12",
+  "owned": "Out-of-Combat Natural Stamina Regen +5"
+ },
+ {
+  "name": "Why Isn't This Working?",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Critical Attack +9",
+  "owned": "Combat Natural HP Regen +5"
+ },
+ {
+  "name": "Wind-Adorned",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Attack Bonus +5",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Witness of the Hidden Truth",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Combat Natural HP Regen +32",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Abyss [Season 1] 1-Star Officer",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Abyss [Season 1] 2-Star Officer",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Abyss [Season 1] 3-Star Officer",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Abyss [Season 1] 4-Star Officer",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Abyss [Season 1] 5-Star Officer",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Arena of Cooperation [Season 1] Grand Master",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Arena of Cooperation [Season 1] Master",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Arena of Solitude [Season 1] Grand Master",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Arena of Solitude [Season 1] Master",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Treading on Black Wings",
+  "grade": "Unique",
+  "faction": "Elyos",
+  "equip": "PvP Damage Boost +4%, PvP Attack +40, PvP Accuracy +80",
+  "owned": "PvP Critical Hit +10"
+ },
+ {
+  "name": "Treading on White Wings",
+  "grade": "Unique",
+  "faction": "Asmodian",
+  "equip": "PvP Damage Boost +4%, PvP Attack +40, PvP Accuracy +80",
+  "owned": "PvP Critical Hit +10"
+ },
+ {
+  "name": "Abyss [Season 1] First-Class Soldier",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Abyss [Season 1] Second-Class Soldier",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Abyss [Season 1] Third-Class Soldier",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Arena of Cooperation [Season 1] Diamond",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Arena of Cooperation [Season 1] Platinum",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Arena of Solitude [Season 1] Diamond",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Arena of Solitude [Season 1] Platinum",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Executioner of Eternal Gartua",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Block Penetration +58, Penetration +290",
+  "owned": "Attack Bonus +2"
+ },
+ {
+  "name": "Executioner of High Commander Lagta",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Combat Speed +2.5%, Move Speed +2.5%",
+  "owned": "Critical Hit +10"
+ },
+ {
+  "name": "Executioner of Immortal Gartua",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Block Penetration +58, Penetration +290",
+  "owned": "Attack Bonus +2"
+ },
+ {
+  "name": "Executioner of Soul Ruler Kashapa",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Defense Bonus +290, Regeneration +1.9%",
+  "owned": "Critical Attack +3"
+ },
+ {
+  "name": "Overtaking Black Wings",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "PvP Attack +37, PvP Critical Hit +73",
+  "owned": "PvP Accuracy +15"
+ },
+ {
+  "name": "Overtaking White Wings",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "PvP Attack +37, PvP Critical Hit +73",
+  "owned": "PvP Accuracy +15"
+ },
+ {
+  "name": "Abyss [Season 1] Fifth-Class Soldier",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Abyss [Season 1] Fourth-Class Soldier",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Abyss [Season 1] Sixth-Class Soldier",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Arena of Cooperation [Season 1] Gold",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Arena of Cooperation [Season 1] Silver",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Arena of Solitude [Season 1] Gold",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Arena of Solitude [Season 1] Silver",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Deathbringer",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "PvP Critical Hit +48",
+  "owned": "PvP Evasion +10"
+ },
+ {
+  "name": "Evading the Grim Reaper",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "PvE Evasion +29",
+  "owned": "PvP Defense +10"
+ },
+ {
+  "name": "Executioner of Addicted Hardirun",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Natural MP Regen +16",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "Executioner of Advisor Resana",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Back Attack +29",
+  "owned": "HP +60"
+ },
+ {
+  "name": "Executioner of Berserker Vargor",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Attack Bonus +19",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Executioner of Black Tentacle Lawa",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Natural MP Regen +16",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "Executioner of Black Warrior Aed",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Hit +38",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Executioner of Blood Warrior Lannar",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Block +56",
+  "owned": "MP +10"
+ },
+ {
+  "name": "Executioner of Bloodfang Pnyn",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Flight Speed +1.9%",
+  "owned": "Flight Speed +0.5%"
+ },
+ {
+  "name": "Executioner of Blooming Korin",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Attack Bonus +19",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Executioner of Blue Wave Kelpina",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Flight Speed +1.9%",
+  "owned": "Flight Speed +0.5%"
+ },
+ {
+  "name": "Executioner of Bodyguard Teegant",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Block +56",
+  "owned": "MP +10"
+ },
+ {
+  "name": "Executioner of Centurion Demiros",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "HP +570",
+  "owned": "Power Shard Damage Bonus +1"
+ },
+ {
+  "name": "Executioner of Chaser Taulo",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "PvE Defense +285",
+  "owned": "PvE Defense +10"
+ },
+ {
+  "name": "Executioner of Dark Shadow Vishwada",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Damage Boost +1.9%",
+  "owned": "PvE Attack +2"
+ },
+ {
+  "name": "Executioner of Deceiver Trid",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Block Penetration +38",
+  "owned": "Front Attack Critical Hit +5"
+ },
+ {
+  "name": "Executioner of Desecrator Newbold",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Defense Bonus +190",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "Executioner of Divine Ansas",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Combat Natural HP Regen +58",
+  "owned": "PvE Attack +2"
+ },
+ {
+  "name": "Executioner of Drakan Battalion Weapon Guruta",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Combat Natural HP Regen +58",
+  "owned": "PvE Attack +2"
+ },
+ {
+  "name": "Executioner of Executioner Barthien",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "HP +570",
+  "owned": "Power Shard Damage Bonus +1"
+ },
+ {
+  "name": "Executioner of Faithful Rajit",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Back Attack Critical Hit +48",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "Executioner of Forest Warrior Aullamu",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Defense Bonus +190",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "Executioner of Furious Saursus",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Attack +29",
+  "owned": "HP +60"
+ },
+ {
+  "name": "Executioner of Harvest Manager Moshav",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Out-of-Combat Natural Stamina Regen +24",
+  "owned": "MP +10"
+ },
+ {
+  "name": "Executioner of Heretic Layla",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "PvE Damage Tolerance +2.9%",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "Executioner of High Overseer Nutah",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Back Defense +285",
+  "owned": "Critical Hit Resist +5"
+ },
+ {
+  "name": "Executioner of Kernon of the West",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Penetration +190",
+  "owned": "Critical Attack +2"
+ },
+ {
+  "name": "Executioner of Kusan the Mad Gladiator",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Attack +29",
+  "owned": "Front Attack +2"
+ },
+ {
+  "name": "Executioner of Melted Danar",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Penetration +190",
+  "owned": "Critical Attack +2"
+ },
+ {
+  "name": "Executioner of Neikel of the East",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Hit +38",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Executioner of Phantasm Kasia",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Attack Critical Hit +48",
+  "owned": "PvE Defense +10"
+ },
+ {
+  "name": "Executioner of Predator Garsan",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Attack +29",
+  "owned": "Front Attack +2"
+ },
+ {
+  "name": "Executioner of Researcher Setram",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Damage Boost +1.9%",
+  "owned": "PvE Attack +2"
+ },
+ {
+  "name": "Executioner of Ritualist Garshim",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Block Penetration +38",
+  "owned": "Front Attack Critical Hit +5"
+ },
+ {
+  "name": "Executioner of Rotten Kutar",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Attack Critical Hit +48",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "Executioner of Scholar Aulla",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Back Defense +285",
+  "owned": "Critical Hit Resist +5"
+ },
+ {
+  "name": "Executioner of Sentinel K'nash",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "PvE Attack +24",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "Executioner of Sharp Shylak",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Back Attack Critical Hit +48",
+  "owned": "PvE Defense +10"
+ },
+ {
+  "name": "Executioner of Silent Dartan",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Power Shard Damage Bonus +24",
+  "owned": "Block Penetration +5"
+ },
+ {
+  "name": "Executioner of Special Operations Leader Linx",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "PvE Defense +285",
+  "owned": "PvE Defense +10"
+ },
+ {
+  "name": "Executioner of Specter Archon Axios",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "PvE Damage Tolerance +2.9%",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "Executioner of Veteran Shujakan",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Out-of-Combat Natural Stamina Regen +24",
+  "owned": "MP +10"
+ },
+ {
+  "name": "Executioner of Visionary Karuka",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "PvE Attack +24",
+  "owned": "PvE Accuracy +10"
+ },
+ {
+  "name": "Veteran Asmodian Hunter",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "PvP Accuracy +48",
+  "owned": "PvP Critical Hit Resist +5"
+ },
+ {
+  "name": "Veteran Elyos Hunter",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "PvP Accuracy +48",
+  "owned": "PvP Critical Hit Resist +5"
+ },
+ {
+  "name": "Abyss [Season 1] Eighth-Class Soldier",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Abyss [Season 1] Ninth-Class Soldier",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Abyss [Season 1] Seventh-Class Soldier",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Arena of Cooperation [Season 1] Bronze",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Arena of Solitude [Season 1] Bronze",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Cogni Executioner",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Flight Speed +1.2%",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Ecosystem Eradicator",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "MP Cost Reduction +1.2%",
+  "owned": "Front Attack +2"
+ },
+ {
+  "name": "Eternal Isle Wanderer",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Block Penetration +36",
+  "owned": "Block Penetration +5"
+ },
+ {
+  "name": "Fera Executioner",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Cooldown Reduction +1.2%",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "Holding on by a Thread",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Move Speed +1.2%",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Immortal Isle Wanderer",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Block Penetration +36",
+  "owned": "Block Penetration +5"
+ },
+ {
+  "name": "Intermediate Asmodian Hunter",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "PvP Attack +10",
+  "owned": "PvP Accuracy +5"
+ },
+ {
+  "name": "Intermediate Elyos Hunter",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "PvP Attack +10",
+  "owned": "PvP Accuracy +5"
+ },
+ {
+  "name": "Just Getting Started",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "PvP Defense +105",
+  "owned": "PvP Evasion +5"
+ },
+ {
+  "name": "Natura Executioner",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Defense Bonus +70",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Novice Asmodian Hunter",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Block Penetration +32",
+  "owned": "PvP Evasion +5"
+ },
+ {
+  "name": "Novice Elyos Hunter",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Block Penetration +32",
+  "owned": "PvP Evasion +5"
+ },
+ {
+  "name": "Reckless Challenge",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Boss Damage Tolerance +1.7%",
+  "owned": "Natural HP Regen +5"
+ },
+ {
+  "name": "Special Executioner",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Critical Damage Tolerance +1.2%",
+  "owned": "MP +10"
+ },
+ {
+  "name": "Varian Executioner",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Move Speed +1.2%",
+  "owned": "HP +30"
+ },
+ {
+  "name": "Ascension Trial [Season 1] Grand Master",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Ascension Trial [Season 1] Master",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Nightmare [Season 1] Grand Master",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Nightmare [Season 1] Master",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Transcendence [Season 1] Grand Master",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Transcendence [Season 1] Master",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Ascension Trial [Season 1] Diamond",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Ascension Trial [Season 1] Platinum",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Nightmare [Season 1] Diamond",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Nightmare [Season 1] Platinum",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Transcendence [Season 1] Diamond",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Transcendence [Season 1] Platinum",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Ascension Trial [Season 1] Gold",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Ascension Trial [Season 1] Silver",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Draupnir Sightseer",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Natural HP Regen +26",
+  "owned": "Critical Attack +2"
+ },
+ {
+  "name": "Draupnir Tour Guide",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Back Attack Damage Boost +1.9%",
+  "owned": "PvE Defense +10"
+ },
+ {
+  "name": "Ferocious Horn Den Sightseer",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "PvE Damage Tolerance +2.6%",
+  "owned": "HP +60"
+ },
+ {
+  "name": "Ferocious Horn Den Tour Guide",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Multi-hit Resist +1.4%",
+  "owned": "Natural HP Regen +5"
+ },
+ {
+  "name": "Fire Temple Sightseer",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Block +52",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Fire Temple Tour Guide",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Critical Damage Tolerance +1.9%",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Krao Cave Sightseer",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Critical Attack +24",
+  "owned": "Power Shard Damage Bonus +1"
+ },
+ {
+  "name": "Krao Cave Tour Guide",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Evasion Bonus +27",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Nightmare [Season 1] Gold",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Nightmare [Season 1] Silver",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Transcendence [Season 1] Gold",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Transcendence [Season 1] Silver",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Urugugu Canyon Sightseer",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "PvE Attack +20",
+  "owned": "Back Attack Critical Hit +5"
+ },
+ {
+  "name": "Urugugu Canyon Tour Guide",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Natural HP Regen +28",
+  "owned": "PvE Defense +10"
+ },
+ {
+  "name": "Vakron Sky Island Sightseer",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Back Attack Damage Boost +1.8%",
+  "owned": "HP +60"
+ },
+ {
+  "name": "Vakron Sky Island Tour Guide",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Accuracy Bonus +36",
+  "owned": "Penetration +10"
+ },
+ {
+  "name": "Ascension Trial [Season 1] Bronze",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Good-for-Nothing",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Accuracy Bonus +30",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Hey! I'm Walkin' Here!",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Critical Attack +12",
+  "owned": "PvE Accuracy +5"
+ },
+ {
+  "name": "Kromede Will Remember That",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Critical Damage Boost +1.2%",
+  "owned": "PvE Attack +2"
+ },
+ {
+  "name": "Nightmare [Season 1] Bronze",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "One Step Ahead",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Attack Bonus +9",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "Pathfinder",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Accuracy Bonus +30",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Totem Destroyer",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Move Speed +1.4%",
+  "owned": "PvE Attack +2"
+ },
+ {
+  "name": "Transcendence [Season 1] Bronze",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Click",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "Damage Tolerance +3.5%, HP +1,000, Critical Damage Defense +510",
+  "owned": "PvE Damage Tolerance +1%"
+ },
+ {
+  "name": "Dominator of Dimensions",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "Defense Bonus +340, HP +1,000, PvE Damage Tolerance +4.5%",
+  "owned": "PvE Damage Tolerance +1%"
+ },
+ {
+  "name": "Empty Closet",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "Combat Speed +3.5%, Natural HP Regen +42, Cooldown Reduction +3.5%",
+  "owned": "HP +120"
+ },
+ {
+  "name": "Genuine Masterpiece",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "Critical Damage Boost +3%, Perfect Chance +2.5%, Critical Attack +48",
+  "owned": "PvE Damage Boost +1%"
+ },
+ {
+  "name": "Golden Glow",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "Critical Attack +45, Critical Damage Boost +3%, Accuracy Bonus +60",
+  "owned": "Critical Attack +3"
+ },
+ {
+  "name": "Steps on the Journey",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "Combat Speed +3%, Natural Stamina Regen +28, HP +900",
+  "owned": "Accuracy Bonus +10"
+ },
+ {
+  "name": "★★★ Chef",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "HP +780, Flight Speed +2.3%",
+  "owned": "HP +90"
+ },
+ {
+  "name": "At Your Own Pace",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Regeneration +1.7%, PvE Defense +375",
+  "owned": "Critical Hit Resist +10"
+ },
+ {
+  "name": "Azure Glow",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Back Attack +35, PvE Accuracy +58",
+  "owned": "HP +90"
+ },
+ {
+  "name": "Blacksmithing Is Life",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "PvE Damage Tolerance +3.3%, Endurance +1.8%",
+  "owned": "PvE Damage Tolerance +1%"
+ },
+ {
+  "name": "Fashion Forward",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Evasion Bonus +42, PvE Evasion +42",
+  "owned": "Natural HP Regen +10"
+ },
+ {
+  "name": "Keen Eye",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Move Speed +2.5%, Flight Speed +2.5%",
+  "owned": "Block +10"
+ },
+ {
+  "name": "Scenery Collector",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "PvE Damage Boost +3.3%, Block Penetration +54",
+  "owned": "Critical Hit +10"
+ },
+ {
+  "name": "Shaking Off the World's Shackles",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Accuracy Bonus +50, Critical Hit +50",
+  "owned": "Penetration +20"
+ },
+ {
+  "name": "Something from Nothing",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Stamina +205, Natural Stamina Regen +24",
+  "owned": "Front Attack +3"
+ },
+ {
+  "name": "The World Is My Resource",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Combat Speed +2.3%, Natural HP Regen +36",
+  "owned": "Critical Attack +3"
+ },
+ {
+  "name": "Transformation Whizz",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Critical Hit Resist +50, Back Attack Critical Hit Resist +63",
+  "owned": "Defense Bonus +20"
+ },
+ {
+  "name": "Twinkling Eyes",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Accuracy Bonus +58, Critical Attack +44",
+  "owned": "Attack Bonus +2"
+ },
+ {
+  "name": "Warriors' Idol",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Natural HP Regen +36, Natural MP Regen +19",
+  "owned": "HP Potion Recovery increase +2%"
+ },
+ {
+  "name": "You're My Gem",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Critical Hit +52, Critical Attack +39",
+  "owned": "Natural MP Regen +5"
+ },
+ {
+  "name": "Artisan Crafter",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Out-of-Combat Natural HP Regen +116",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Extracting in My Sleep",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "PvE Evasion +29",
+  "owned": "HP +60"
+ },
+ {
+  "name": "Extreme Detailing",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Multi-hit Resist +1.4%",
+  "owned": "Block +5"
+ },
+ {
+  "name": "Fashionista",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Combat Speed +1.9%",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Ferocious Statue",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Combat Speed +1.9%",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "Flavors and Flair",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Out-of-Combat Natural MP Regen +58",
+  "owned": "HP Potion Recovery increase +1.5%"
+ },
+ {
+  "name": "Going Around in Circles",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Natural MP Regen +16",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Green Glow",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Combat Natural Stamina Regen +16",
+  "owned": "Critical Attack +2"
+ },
+ {
+  "name": "High Roller",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Cooldown Reduction +1.7%",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Iron Arm",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "HP increase +1.9%",
+  "owned": "Defense Bonus +10"
+ },
+ {
+  "name": "Perfectionist",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Damage Boost +1.9%",
+  "owned": "PvE Damage Boost +0.5%"
+ },
+ {
+  "name": "Pouring Water into a Sieve",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Back Attack Damage Boost +1.8%",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Reliable Ally",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "PvE Defense +285",
+  "owned": "PvE Damage Tolerance +0.5%"
+ },
+ {
+  "name": "Seeker of Truths",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "HP Potion Recovery +380",
+  "owned": "PvE Damage Tolerance +0.5%"
+ },
+ {
+  "name": "Artisan Alchemist",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Stamina +120",
+  "owned": "Critical Attack +2"
+ },
+ {
+  "name": "Artisan Armorsmith",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Back Attack Damage Tolerance +1.4%",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Artisan Blacksmith",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Back Attack Damage Tolerance +1.4%",
+  "owned": "Natural HP Regen +5"
+ },
+ {
+  "name": "Artisan Chef",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Block +36",
+  "owned": "Critical Attack +2"
+ },
+ {
+  "name": "Artisan Handicrafter",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Back Attack Critical Hit Resist +23",
+  "owned": "HP +30"
+ },
+ {
+  "name": "Big Spender",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Defense Bonus +70",
+  "owned": "HP Potion Recovery increase +1%"
+ },
+ {
+  "name": "Extractor",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Critical Damage Boost +1.4%",
+  "owned": "PvE Accuracy +5"
+ },
+ {
+  "name": "No Heavy Lifting!",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "MP Cost Reduction +1.2%",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Professional Extractor",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Flight Speed +1.4%",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Splendent Glow",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Critical Hit +19",
+  "owned": "Critical Hit Resist +5"
+ },
+ {
+  "name": "Banner of the Vanguard",
+  "grade": "Special",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Content Creator",
+  "grade": "Special",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Dedicated Supporter",
+  "grade": "Special",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Divine Skill",
+  "grade": "Special",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Great Leader",
+  "grade": "Special",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Guiding Light",
+  "grade": "Special",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Has Exceptional Skill",
+  "grade": "Special",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Helpful Mentor",
+  "grade": "Special",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Reliable Guardian",
+  "grade": "Special",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Unyielding Bulwark",
+  "grade": "Special",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Whisper of Unity",
+  "grade": "Special",
+  "faction": "Both factions",
+  "equip": "—",
+  "owned": "—"
+ },
+ {
+  "name": "Encountering Kaisinel's Core",
+  "grade": "Unique",
+  "faction": "Elyos",
+  "equip": "HP Potion Recovery +400, Move Speed +3%, HP +900",
+  "owned": "HP +120"
+ },
+ {
+  "name": "Encountering Zikel's Core",
+  "grade": "Unique",
+  "faction": "Asmodian",
+  "equip": "HP Potion Recovery +400, Move Speed +3%, HP +900",
+  "owned": "HP +120"
+ },
+ {
+  "name": "Rule All Creation",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "Defense Bonus +320, Back Attack Damage Tolerance +3%, Boss Damage Tolerance +4%",
+  "owned": "Move Speed +1%"
+ },
+ {
+  "name": "Unbound by Genus",
+  "grade": "Unique",
+  "faction": "Both factions",
+  "equip": "PvE Damage Boost +4.5%, Attack Bonus +34, Critical Hit +68",
+  "owned": "PvE Damage Boost +1%"
+ },
+ {
+  "name": "Bond with All Creation",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "Evasion Bonus +36, Critical Damage Tolerance +2.2%",
+  "owned": "Move Speed +0.7%"
+ },
+ {
+  "name": "Cogni to the Bone",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "PvE Damage Tolerance +3.1%, Regeneration +1.6%",
+  "owned": "Front Attack +3"
+ },
+ {
+  "name": "Fera to the Bone",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "PvE Damage Tolerance +3.1%, Perfect Resist +1.6%",
+  "owned": "Back Attack +3"
+ },
+ {
+  "name": "I Only Wanted You",
+  "grade": "Epic",
+  "faction": "Asmodian",
+  "equip": "Critical Damage Defense +315, Evasion Bonus +32",
+  "owned": "Front Defense +30"
+ },
+ {
+  "name": "Natura to the Bone",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "PvE Damage Tolerance +3.1%, Double Resist +1.6%",
+  "owned": "Front Attack Critical Hit +10"
+ },
+ {
+  "name": "Special to the Bone",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "PvE Damage Tolerance +3.1%, Evasion Bonus +33",
+  "owned": "PvE Attack +4"
+ },
+ {
+  "name": "Two-Faced",
+  "grade": "Epic",
+  "faction": "Elyos",
+  "equip": "Critical Damage Defense +315, Evasion Bonus +32",
+  "owned": "Front Defense +30"
+ },
+ {
+  "name": "Varian to the Bone",
+  "grade": "Epic",
+  "faction": "Both factions",
+  "equip": "MP +260, Natural MP Regen +17",
+  "owned": "Back Attack Critical Hit +10"
+ },
+ {
+  "name": "Altgard Troubleshooter",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "MP Cost Reduction +1.7%",
+  "owned": "Critical Hit Resist +5"
+ },
+ {
+  "name": "Co-op Society",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "PvE Damage Tolerance +2.5%",
+  "owned": "PvE Attack +2"
+ },
+ {
+  "name": "Designer Drip",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Natural Stamina Regen +13",
+  "owned": "HP +60"
+ },
+ {
+  "name": "Ill-Fated Encounter",
+  "grade": "Rare",
+  "faction": "Asmodian",
+  "equip": "Critical Attack +17",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Ride All Creation",
+  "grade": "Rare",
+  "faction": "Both factions",
+  "equip": "Critical Attack +21",
+  "owned": "Move Speed +0.5%"
+ },
+ {
+  "name": "The Past Behind the Sealed Barrier",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "Critical Attack +17",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Verteron Troubleshooter",
+  "grade": "Rare",
+  "faction": "Elyos",
+  "equip": "MP Cost Reduction +1.7%",
+  "owned": "Critical Hit Resist +5"
+ },
+ {
+  "name": "Altgard Expert",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Back Attack +11",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Betrayer and Survivor",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Defense Bonus +60",
+  "owned": "Critical Hit Resist +5"
+ },
+ {
+  "name": "Dreaming of Paradise",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Accuracy Bonus +24",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Island of Death, Poeta",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Defense Bonus +60",
+  "owned": "Critical Hit Resist +5"
+ },
+ {
+  "name": "Messenger of Atreia",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Block +32",
+  "owned": "Evasion Bonus +5"
+ },
+ {
+  "name": "One Step at a Time",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "HP +210",
+  "owned": "Penetration +10"
+ },
+ {
+  "name": "Protector of Atreia",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Damage Boost +1.3%",
+  "owned": "Accuracy Bonus +5"
+ },
+ {
+  "name": "Searching for High Priestess Reda",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Evasion Bonus +9",
+  "owned": "Critical Hit +5"
+ },
+ {
+  "name": "Stranger in a Strange Land",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Accuracy Bonus +24",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "Tamed",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "Evasion Bonus +14",
+  "owned": "Move Speed +0.3%"
+ },
+ {
+  "name": "There's No \"I\" in Team",
+  "grade": "Common",
+  "faction": "Both factions",
+  "equip": "HP +270",
+  "owned": "PvE Attack +2"
+ },
+ {
+  "name": "Verteron Expert",
+  "grade": "Common",
+  "faction": "Elyos",
+  "equip": "Back Attack +11",
+  "owned": "Attack Bonus +1"
+ },
+ {
+  "name": "You're in the Palm of Our Hands",
+  "grade": "Common",
+  "faction": "Asmodian",
+  "equip": "Evasion Bonus +9",
+  "owned": "Critical Hit +5"
+ }
+]

@@ -1,0 +1,306 @@
+{
+ "15760000": {
+  "name": "Absorb Essence",
+  "hits": {
+   "1576000711": {
+    "flat_l1": 11.0,
+    "coef": 0.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "15230000": {
+  "name": "Arctic Armor",
+  "hits": {}
+ },
+ "15700000": {
+  "name": "Assault Bombardment",
+  "hits": {
+   "1570000021": {
+    "flat_l1": 886.0,
+    "coef": 150.0,
+    "hits": 1,
+    "pvp_coef": 122.0
+   }
+  }
+ },
+ "15280000": {
+  "name": "Bittercold Wind",
+  "hits": {
+   "1528000211": {
+    "flat_l1": 222.0,
+    "coef": 217.0,
+    "hits": 7,
+    "pvp_coef": 145.5
+   }
+  }
+ },
+ "15050000": {
+  "name": "Blaze",
+  "hits": {
+   "1505000011": {
+    "flat_l1": 161.0,
+    "coef": 157.0,
+    "hits": 1,
+    "pvp_coef": 116.6
+   }
+  }
+ },
+ "15730000": {
+  "name": "Cold Snap",
+  "hits": {
+   "1573000711": {
+    "flat_l1": 43.0,
+    "coef": 23.0,
+    "hits": 1,
+    "pvp_coef": 27.9
+   }
+  }
+ },
+ "15200000": {
+  "name": "Cold Storm",
+  "hits": {
+   "1520000211:dot": {
+    "interval_ms": 1000.0,
+    "flat_l1": 472.0,
+    "coef": 80.0
+   },
+   "1520000311": {
+    "flat_l1": 945.0,
+    "coef": 160.0,
+    "hits": 1,
+    "pvp_coef": 126.0
+   }
+  }
+ },
+ "15140000": {
+  "name": "Curse: Tree",
+  "hits": {}
+ },
+ "15240000": {
+  "name": "Defiance",
+  "hits": {}
+ },
+ "15320000": {
+  "name": "Delayed Explosion",
+  "hits": {
+   "1532000711": {
+    "flat_l1": 1116.0,
+    "coef": 189.0,
+    "hits": 1,
+    "pvp_coef": 137.1
+   }
+  }
+ },
+ "15360000": {
+  "name": "Divine Burst",
+  "hits": {
+   "1536000011": {
+    "flat_l1": 1140.0,
+    "coef": 193.05,
+    "hits": 1,
+    "pvp_coef": 138.6
+   }
+  }
+ },
+ "15400000": {
+  "name": "Element Enhancement",
+  "hits": {}
+ },
+ "15710000": {
+  "name": "Fire Mark",
+  "hits": {
+   "1571000811": {
+    "flat_l1": 32.0,
+    "coef": 55.0,
+    "hits": 1,
+    "pvp_coef": 59.3
+   }
+  }
+ },
+ "15390000": {
+  "name": "Fire Wall",
+  "hits": {
+   "1539000011:dot": {
+    "interval_ms": 1000.0,
+    "flat_l1": 650.0,
+    "coef": 110.0
+   },
+   "1539000211": {
+    "flat_l1": 1300.0,
+    "coef": 220.0,
+    "hits": 5,
+    "pvp_coef": 148.3
+   }
+  }
+ },
+ "15040000": {
+  "name": "Firestorm",
+  "hits": {
+   "1504000011": {
+    "flat_l1": 106.0,
+    "coef": 180.0,
+    "hits": 5,
+    "pvp_coef": 120.4
+   }
+  }
+ },
+ "15210000": {
+  "name": "Flame Arrow",
+  "hits": {
+   "1521000011": {
+    "flat_l1": 60.0,
+    "coef": 60.0,
+    "hits": 1,
+    "pvp_coef": 51.2
+   }
+  }
+ },
+ "15010000": {
+  "name": "Flame Scattershot",
+  "hits": {
+   "1501000011": {
+    "flat_l1": 120.0,
+    "coef": 82.5,
+    "hits": 4,
+    "pvp_coef": 84.5
+   }
+  }
+ },
+ "15150000": {
+  "name": "Frost",
+  "hits": {
+   "1515000011": {
+    "flat_l1": 178.0,
+    "coef": 94.0,
+    "hits": 1,
+    "pvp_coef": 94.7
+   }
+  }
+ },
+ "15220000": {
+  "name": "Frost Burst",
+  "hits": {
+   "1522000011": {
+    "flat_l1": 395.0,
+    "coef": 155.0,
+    "hits": 1,
+    "pvp_coef": 124.0
+   }
+  }
+ },
+ "15120000": {
+  "name": "Glacial Smite",
+  "hits": {
+   "1512000011": {
+    "flat_l1": 1477.0,
+    "coef": 250.0,
+    "hits": 1,
+    "pvp_coef": 190.0
+   }
+  }
+ },
+ "15780000": {
+  "name": "Grace of Enhancement",
+  "hits": {
+   "1578000711": {
+    "flat_l1": 106.0,
+    "coef": 18.0,
+    "hits": 1,
+    "pvp_coef": 22.6
+   }
+  }
+ },
+ "15770000": {
+  "name": "Grace of Resistance",
+  "hits": {}
+ },
+ "15060000": {
+  "name": "Hellfire",
+  "hits": {}
+ },
+ "15410000": {
+  "name": "Hibernation",
+  "hits": {}
+ },
+ "15090000": {
+  "name": "Ice Chain",
+  "hits": {
+   "1509000011": {
+    "flat_l1": 77.0,
+    "coef": 88.0,
+    "hits": 1,
+    "pvp_coef": 71.52
+   }
+  }
+ },
+ "15300000": {
+  "name": "Lumiel's Space",
+  "hits": {
+   "1530000011": {
+    "flat_l1": 998.0,
+    "coef": 169.0,
+    "hits": 1,
+    "pvp_coef": 129.6
+   }
+  }
+ },
+ "15790000": {
+  "name": "Revitalization Contract",
+  "hits": {}
+ },
+ "15750000": {
+  "name": "Robe of Cold",
+  "hits": {}
+ },
+ "15720000": {
+  "name": "Robe of Earth",
+  "hits": {}
+ },
+ "15740000": {
+  "name": "Robe of Flame",
+  "hits": {}
+ },
+ "15130000": {
+  "name": "Soul Freeze",
+  "hits": {
+   "1513000011": {
+    "flat_l1": 1037.0,
+    "coef": 175.5,
+    "hits": 1,
+    "pvp_coef": 132.1
+   }
+  }
+ },
+ "15160000": {
+  "name": "Steel Barrier",
+  "hits": {}
+ },
+ "15800000": {
+  "name": "Vitality Evaporation",
+  "hits": {
+   "1580000711": {
+    "flat_l1": 261.0,
+    "coef": 39.0,
+    "hits": 1,
+    "pvp_coef": 44.0
+   }
+  }
+ },
+ "15110000": {
+  "name": "Winter's Shackles",
+  "hits": {
+   "1511000011": {
+    "flat_l1": 275.0,
+    "coef": 145.0,
+    "hits": 1,
+    "pvp_coef": 120.0
+   }
+  }
+ },
+ "15310000": {
+  "name": "Wish of Concentration",
+  "hits": {}
+ }
+}

@@ -1,0 +1,147 @@
+{
+ "name": "Global L45 Spiritmaster - median of top tracked characters (metabot)",
+ "level": 45,
+ "notes": [
+  "Item choices and enchant levels are the most common ones among the 1,559 top tracked L45 Sorcerers (metabot.gg, global client, Oct 2026).",
+  "Fixed item stats come from the global client item tables; random rolls use the expected value of each roll pool.",
+  "Primary/deity stat points are the averages those characters' official profiles report (they already include gear rolls)."
+ ],
+ "components": [
+  {
+   "slot": "Main hand",
+   "item": "Spiritforged Orb +10",
+   "source": "metabot global item table, class's most used main hand",
+   "stats": {
+    "weapon_min": 187.0,
+    "weapon_max": 325.0,
+    "crit": 150.0,
+    "accuracy": 50.0
+   }
+  },
+  {
+   "slot": "Off-hand",
+   "item": "Spiritforged Guard +9",
+   "source": "Attack 92 +5/enchant",
+   "stats": {
+    "attack": 137,
+    "accuracy": 80,
+    "crit": 50
+   }
+  },
+  {
+   "slot": "Armor x7",
+   "item": "Vakron / Bakarma / Divine Canyon ~+5",
+   "source": "expected value of 4 random rolls per piece",
+   "stats": {
+    "crit": 42,
+    "accuracy": 56,
+    "attack": 24
+   }
+  },
+  {
+   "slot": "Necklace",
+   "item": "Aulamus Necklace +8",
+   "stats": {
+    "attack": 139
+   }
+  },
+  {
+   "slot": "Earrings x2",
+   "item": "Aulamus / Liberator Earrings ~+6",
+   "stats": {
+    "attack": 220
+   }
+  },
+  {
+   "slot": "Rings x2",
+   "item": "Aulamus Ring ~+7",
+   "stats": {
+    "attack": 198
+   }
+  },
+  {
+   "slot": "Accessory rolls",
+   "item": "expected value of 4 rolls x 5 accessories",
+   "stats": {
+    "attack": 34,
+    "crit": 45,
+    "accuracy": 60,
+    "combat_speed": 0.003
+   }
+  },
+  {
+   "slot": "Bracelets x2",
+   "item": "Ascension +9 / Liberator +6",
+   "stats": {
+    "attack": 157,
+    "crit": 17
+   }
+  },
+  {
+   "slot": "Amulet",
+   "item": "Revelation Amulet +0",
+   "stats": {
+    "weapon_amp": 0.1,
+    "perfect": 0.05,
+    "pen": 700
+   }
+  },
+  {
+   "slot": "Rune",
+   "item": "Clash Rune +2",
+   "stats": {
+    "amp_pve": 0.005,
+    "pen": 100,
+    "combat_speed": 0.01,
+    "multihit": 0.01
+   }
+  },
+  {
+   "slot": "Attack title",
+   "item": "Guardian of Altgard / Verteron",
+   "stats": {
+    "amp_pve": 0.03,
+    "pen": 210
+   }
+  },
+  {
+   "slot": "Other title",
+   "item": "Through Hell and Back",
+   "stats": {
+    "cdr": 0.03
+   }
+  },
+  {
+   "slot": "Owned titles",
+   "item": "collection bonuses (estimate)",
+   "stats": {
+    "crit": 20,
+    "accuracy": 30,
+    "attack": 4
+   }
+  },
+  {
+   "slot": "Wings",
+   "item": "Ultimate Daeva Wings",
+   "stats": {
+    "accuracy": 40,
+    "pen": 500
+   }
+  },
+  {
+   "slot": "Primary/deity stats",
+   "item": "profile averages",
+   "stats": {
+    "might": 22.1,
+    "precision": 1.4,
+    "justice": 39.4,
+    "time": 39.4,
+    "death": 34.9,
+    "freedom": 24.5,
+    "illusion": 5.4,
+    "destruction": 5.2,
+    "wisdom": 5.0
+   }
+  }
+ ]
+}

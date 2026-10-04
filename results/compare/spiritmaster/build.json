@@ -1,0 +1,855 @@
+{
+ "class": "spiritmaster",
+ "level": 45,
+ "scenario": "boss",
+ "daevanion_budget": 360,
+ "dps": {
+  "boss": 14154.851782818498,
+  "dummy": 16993.653316025524
+ },
+ "baseline": {
+  "community_naive": 2543.256875112386,
+  "community_optimized_rotation": 12500.487400258009,
+  "community_other_scenario": 15006.59756257482
+ },
+ "build": {
+  "sp": {
+   "Summon: Water Spirit": 10,
+   "Summon: Wind Spirit": 10,
+   "Summon: Earth Spirit": 10,
+   "Elemental Fusion": 10,
+   "Spirit Strike": 10,
+   "Corrode": 10,
+   "Mental Focus": 10
+  },
+  "sp_spent": 147,
+  "stigma_spent": 30,
+  "stigmas": {
+   "Jointstrike: Destructive Attack": 11,
+   "Enhance: Spirit's Benediction": 1,
+   "Flame Blessing": 1,
+   "Seize Magic": 7
+  },
+  "specs": {
+   "Elemental Fusion": [
+    "Changes to AoE Skill",
+    "Extra damage after 3s on hit"
+   ],
+   "Summon: Water Spirit": [
+    "+10% Water Spirit Attack"
+   ],
+   "Summon: Earth Spirit": [
+    "+20% PvE Damage Tolerance and +10 PvP Damage Tolerance to Earth Spirit",
+    "10% chance to activate skill when Earth Spirit lands attack"
+   ],
+   "Summon: Wind Spirit": [
+    "+20% Wind Spirit Critical Hit",
+    "10% chance to activate skill when Wind Spirit lands attack"
+   ]
+  },
+  "daevanion_nodes": [
+   510033,
+   510034,
+   510041,
+   510042,
+   510048,
+   510056,
+   510063,
+   510064,
+   510067,
+   510068,
+   510069,
+   510071,
+   510072,
+   510073,
+   510079,
+   510084,
+   510086,
+   510094,
+   510095,
+   510096,
+   510098,
+   510099,
+   510100,
+   510101,
+   510102,
+   510103,
+   510111,
+   510115,
+   510118,
+   510123,
+   510124,
+   510126,
+   510127,
+   510128,
+   510129,
+   510132,
+   510133,
+   510138,
+   510142,
+   510144,
+   510153,
+   510159,
+   510162,
+   510163,
+   510168,
+   510170,
+   510171,
+   510172,
+   510174,
+   510175,
+   510176,
+   510178,
+   510183,
+   510184,
+   510185,
+   510187,
+   510188,
+   510189,
+   510191,
+   510192,
+   510193,
+   520036,
+   520037,
+   520038,
+   520039,
+   520040,
+   520041,
+   520042,
+   520043,
+   520048,
+   520052,
+   520058,
+   520063,
+   520067,
+   520073,
+   520078,
+   520082,
+   520086,
+   520088,
+   520093,
+   520094,
+   520097,
+   520101,
+   520102,
+   520103,
+   520109,
+   520112,
+   520114,
+   520123,
+   520124,
+   520127,
+   520133,
+   520138,
+   520142,
+   520145,
+   520146,
+   520148,
+   520153,
+   520154,
+   520155,
+   520156,
+   520157,
+   520161,
+   520163,
+   520168,
+   520176,
+   520178,
+   520183,
+   520184,
+   520185,
+   520186,
+   520187,
+   520188,
+   520189,
+   520190,
+   520191,
+   520192,
+   520193,
+   530035,
+   530037,
+   530038,
+   530039,
+   530048,
+   530050,
+   530051,
+   530052,
+   530054,
+   530063,
+   530064,
+   530065,
+   530067,
+   530072,
+   530079,
+   530082,
+   530087,
+   530093,
+   530094,
+   530097,
+   530098,
+   530102,
+   530103,
+   530108,
+   530118,
+   530125,
+   530126,
+   530127,
+   530128,
+   530131,
+   530132,
+   530133,
+   530142,
+   530147,
+   530157,
+   530162,
+   530163,
+   530170,
+   530172,
+   530174,
+   530175,
+   530176,
+   530178,
+   530185,
+   530186,
+   530187,
+   530188,
+   530189,
+   530191,
+   530192,
+   530193,
+   540018,
+   540019,
+   540022,
+   540023,
+   540024,
+   540032,
+   540034,
+   540039,
+   540044,
+   540047,
+   540049,
+   540054,
+   540057,
+   540059,
+   540062,
+   540063,
+   540064,
+   540069,
+   540070,
+   540071,
+   540072,
+   540073,
+   540074,
+   540079,
+   540088,
+   540093,
+   540094,
+   540095,
+   540101,
+   540102,
+   540103,
+   540109,
+   540115,
+   540117,
+   540119,
+   540123,
+   540124,
+   540125,
+   540126,
+   540127,
+   540128,
+   540129,
+   540130,
+   540132,
+   540133,
+   540134,
+   540138,
+   540145,
+   540147,
+   540152,
+   540153,
+   540156,
+   540157,
+   540159,
+   540160,
+   540161,
+   540162,
+   540163,
+   540164,
+   540167,
+   540172,
+   540173,
+   540174,
+   540179,
+   540182,
+   540184,
+   540185,
+   540186,
+   540187,
+   540194,
+   540197,
+   540199,
+   540202,
+   540209
+  ],
+  "daevanion_cost": 360,
+  "effective_levels": {
+   "Cold Shock": 3,
+   "Combustion": 3,
+   "Summon: Fire Spirit": 4,
+   "Summon: Water Spirit": 11,
+   "Jointstrike: Curse": 3,
+   "Rapid Scattershot": 5,
+   "Summon: Earth Spirit": 14,
+   "Dimensional Control": 3,
+   "Summon: Wind Spirit": 13,
+   "Soul's Cry": 2,
+   "Elemental Fusion": 14,
+   "Defiance": 4,
+   "Spirit Strike": 14,
+   "Spirit Protection": 3,
+   "Spirit's Descent": 4,
+   "Corrode": 14,
+   "Spirit Revitalization": 4,
+   "Mental Focus": 14,
+   "Consecutive Countercurrent": 3,
+   "Spirit Communion": 4,
+   "Jointstrike: Destructive Attack": 11,
+   "Seize Magic": 7
+  }
+ },
+ "policy": [
+  "enhance_spirit_s_benediction",
+  "elemental_fusion"
+ ],
+ "macro": {
+  "steps": [
+   "enhance_spirit_s_benediction",
+   "elemental_fusion"
+  ],
+  "manual": [],
+  "dps_macro": 14154.851782818498,
+  "dps_priority": 14154.851782818498,
+  "alt_steps": [
+   "elemental_fusion"
+  ],
+  "alt_manual": [
+   "enhance_spirit_s_benediction"
+  ],
+  "dps_alt": 14154.851782818498
+ },
+ "shares": {
+  "Elemental Fusion": 1.0
+ },
+ "casts": {
+  "enhance_spirit_s_benediction": 4,
+  "elemental_fusion": 232
+ },
+ "uptime": {
+  "enhance_spirit_s_benediction": 0.20837336782458604
+ },
+ "opener": [
+  [
+   0.0,
+   "enhance_spirit_s_benediction"
+  ],
+  [
+   0.58,
+   "elemental_fusion"
+  ],
+  [
+   1.35,
+   "elemental_fusion"
+  ],
+  [
+   2.12,
+   "elemental_fusion"
+  ],
+  [
+   2.89,
+   "elemental_fusion"
+  ],
+  [
+   3.66,
+   "elemental_fusion"
+  ],
+  [
+   4.43,
+   "elemental_fusion"
+  ],
+  [
+   5.2,
+   "elemental_fusion"
+  ],
+  [
+   5.97,
+   "elemental_fusion"
+  ],
+  [
+   6.74,
+   "elemental_fusion"
+  ],
+  [
+   7.51,
+   "elemental_fusion"
+  ],
+  [
+   8.28,
+   "elemental_fusion"
+  ],
+  [
+   9.04,
+   "elemental_fusion"
+  ],
+  [
+   9.81,
+   "elemental_fusion"
+  ],
+  [
+   10.58,
+   "elemental_fusion"
+  ],
+  [
+   11.35,
+   "elemental_fusion"
+  ],
+  [
+   12.12,
+   "elemental_fusion"
+  ],
+  [
+   12.89,
+   "elemental_fusion"
+  ],
+  [
+   13.66,
+   "elemental_fusion"
+  ],
+  [
+   14.43,
+   "elemental_fusion"
+  ],
+  [
+   15.2,
+   "elemental_fusion"
+  ],
+  [
+   15.97,
+   "elemental_fusion"
+  ],
+  [
+   16.74,
+   "elemental_fusion"
+  ],
+  [
+   17.5,
+   "elemental_fusion"
+  ],
+  [
+   18.27,
+   "elemental_fusion"
+  ],
+  [
+   19.04,
+   "elemental_fusion"
+  ],
+  [
+   19.81,
+   "elemental_fusion"
+  ],
+  [
+   20.58,
+   "elemental_fusion"
+  ],
+  [
+   21.35,
+   "elemental_fusion"
+  ],
+  [
+   22.12,
+   "elemental_fusion"
+  ],
+  [
+   22.89,
+   "elemental_fusion"
+  ],
+  [
+   23.66,
+   "elemental_fusion"
+  ],
+  [
+   24.43,
+   "elemental_fusion"
+  ],
+  [
+   25.2,
+   "elemental_fusion"
+  ],
+  [
+   25.96,
+   "elemental_fusion"
+  ],
+  [
+   26.73,
+   "elemental_fusion"
+  ],
+  [
+   27.5,
+   "elemental_fusion"
+  ],
+  [
+   28.27,
+   "elemental_fusion"
+  ],
+  [
+   29.04,
+   "elemental_fusion"
+  ],
+  [
+   29.81,
+   "elemental_fusion"
+  ]
+ ],
+ "weights": [
+  {
+   "stat": "amp_pve",
+   "step": 0.03,
+   "label": "PvE / Damage Boost +3%",
+   "dps_gain": 425.8202299810746,
+   "pct": 3.0082987551868645,
+   "per_unit": 14194.00766603582,
+   "attack_equiv": 78.50968820612653
+  },
+  {
+   "stat": "combat_speed",
+   "step": 0.03,
+   "label": "Combat Speed +3%",
+   "dps_gain": 377.41071030109106,
+   "pct": 2.666299273858885,
+   "per_unit": 12580.357010036369,
+   "attack_equiv": 69.58428723010252
+  },
+  {
+   "stat": "crit",
+   "step": 50,
+   "label": "Critical Hit +50",
+   "dps_gain": 361.4638563907065,
+   "pct": 2.5536392887522856,
+   "per_unit": 7.22927712781413,
+   "attack_equiv": 66.64412037041953
+  },
+  {
+   "stat": "double",
+   "step": 0.02,
+   "label": "Double (Smite) chance +2%",
+   "dps_gain": 268.4032030847702,
+   "pct": 1.8961922540973868,
+   "per_unit": 13420.16015423851,
+   "attack_equiv": 49.486262756110754
+  },
+  {
+   "stat": "weapon_amp",
+   "step": 0.03,
+   "label": "Weapon Damage Boost +3%",
+   "dps_gain": 262.9137573168937,
+   "pct": 1.8574108818011417,
+   "per_unit": 8763.791910563123,
+   "attack_equiv": 48.47415801021932
+  },
+  {
+   "stat": "attack",
+   "step": 30,
+   "label": "Attack +30",
+   "dps_gain": 162.71376426680763,
+   "pct": 1.1495264433945789,
+   "per_unit": 5.423792142226921,
+   "attack_equiv": 30.000000000000004
+  },
+  {
+   "stat": "weapon_max",
+   "step": 30,
+   "label": "Weapon max attack +30 (min too)",
+   "dps_gain": 162.71376426680763,
+   "pct": 1.1495264433945789,
+   "per_unit": 5.423792142226921,
+   "attack_equiv": 30.000000000000004
+  },
+  {
+   "stat": "wisdom",
+   "step": 10,
+   "label": "Wisdom +10 (Double +1%)",
+   "dps_gain": 134.20160154239602,
+   "pct": 0.9480961270487706,
+   "per_unit": 13.420160154239602,
+   "attack_equiv": 24.743131378057388
+  },
+  {
+   "stat": "time",
+   "step": 10,
+   "label": "Time +10 (Combat Speed +1%)",
+   "dps_gain": 125.80357010036369,
+   "pct": 0.8887664246196284,
+   "per_unit": 12.58035701003637,
+   "attack_equiv": 23.19476241003417
+  },
+  {
+   "stat": "crit_dmg",
+   "step": 0.03,
+   "label": "Critical Damage Boost +3%",
+   "dps_gain": 76.06585794978855,
+   "pct": 0.5373836414318314,
+   "per_unit": 2535.528598326285,
+   "attack_equiv": 14.02447880654902
+  },
+  {
+   "stat": "might",
+   "step": 10,
+   "label": "Might +10 (Attack +1%)",
+   "dps_gain": 72.39106650440954,
+   "pct": 0.5114222855535624,
+   "per_unit": 7.239106650440954,
+   "attack_equiv": 13.346947044819263
+  },
+  {
+   "stat": "destruction",
+   "step": 10,
+   "label": "Destruction +10 (Attack +1%)",
+   "dps_gain": 72.39106650440954,
+   "pct": 0.5114222855535624,
+   "per_unit": 7.239106650440954,
+   "attack_equiv": 13.346947044819263
+  },
+  {
+   "stat": "multihit",
+   "step": 0.03,
+   "label": "Multi-hit chance +3%",
+   "dps_gain": 52.71825617435752,
+   "pct": 0.37243947858463783,
+   "per_unit": 1757.2752058119174,
+   "attack_equiv": 9.71981499141895
+  },
+  {
+   "stat": "death",
+   "step": 10,
+   "label": "Death +10 (Crit +1%)",
+   "dps_gain": 48.60714047089641,
+   "pct": 0.34339561598163065,
+   "per_unit": 4.860714047089641,
+   "attack_equiv": 8.961836883914787
+  },
+  {
+   "stat": "pen",
+   "step": 300,
+   "label": "Penetration +300",
+   "dps_gain": 47.73650535867637,
+   "pct": 0.33724482665809397,
+   "per_unit": 0.15912168452892123,
+   "attack_equiv": 8.801315409383763
+  },
+  {
+   "stat": "pve_atk",
+   "step": 30,
+   "label": "PvE Attack +30",
+   "dps_gain": 47.73650535867637,
+   "pct": 0.33724482665809397,
+   "per_unit": 1.5912168452892124,
+   "attack_equiv": 8.801315409383763
+  },
+  {
+   "stat": "cdr",
+   "step": 0.03,
+   "label": "Cooldown Reduction +3%",
+   "dps_gain": 39.76769389191122,
+   "pct": 0.28094744121716775,
+   "per_unit": 1325.5897963970408,
+   "attack_equiv": 7.3320829502849
+  },
+  {
+   "stat": "crit_atk",
+   "step": 50,
+   "label": "Critical Attack +50",
+   "dps_gain": 20.62189211218356,
+   "pct": 0.1456877996929287,
+   "per_unit": 0.4124378422436712,
+   "attack_equiv": 3.8021169638179657
+  },
+  {
+   "stat": "illusion",
+   "step": 10,
+   "label": "Illusion +10 (Cooldown -1%)",
+   "dps_gain": 13.255897963970408,
+   "pct": 0.09364914707238926,
+   "per_unit": 1.3255897963970409,
+   "attack_equiv": 2.444027650094967
+  },
+  {
+   "stat": "perfect",
+   "step": 0.03,
+   "label": "Perfect chance +3%",
+   "dps_gain": 10.219263607366884,
+   "pct": 0.07219618943499835,
+   "per_unit": 340.6421202455628,
+   "attack_equiv": 1.8841547277973343
+  },
+  {
+   "stat": "justice",
+   "step": 10,
+   "label": "Justice +10 (Perfect +1%)",
+   "dps_gain": 3.40642120240409,
+   "pct": 0.02406539647796868,
+   "per_unit": 0.34064212024040896,
+   "attack_equiv": 0.6280515759229425
+  },
+  {
+   "stat": "mp_max",
+   "step": 300,
+   "label": "MP +300",
+   "dps_gain": 0.0,
+   "pct": 0.0,
+   "per_unit": 0.0,
+   "attack_equiv": 0.0
+  }
+ ],
+ "stats": {
+  "attack_avg": 1399.1826,
+  "attack_max": 1470.0663000000002,
+  "crit_stat": 781.3702,
+  "crit_chance_vs_target": 0.1973319194448282,
+  "double": 0.047,
+  "perfect": 0.1454,
+  "multihit": 0.05500000000000001,
+  "boost_bucket": 0.255,
+  "weapon_amp": 0.1,
+  "combat_speed": 0.0824,
+  "cdr": 0.0504,
+  "accuracy": 426.192,
+  "mp_max": 2900.0
+ },
+ "sensitivity": [
+  {
+   "fixed": 14154.851782818498,
+   "reoptimized": 14154.851782818498,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 14154.851782818498,
+   "reoptimized": 14154.851782818498,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 14154.851782818498,
+   "reoptimized": 14154.851782818498,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 14154.851782818498,
+   "reoptimized": 14154.851782818498,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 14154.851782818498,
+   "reoptimized": 14154.851782818498,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 14154.851782818498,
+   "reoptimized": 14154.851782818498,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 14154.851782818498,
+   "reoptimized": 14154.851782818498,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 14154.851782818498,
+   "reoptimized": 14154.851782818498,
+   "loss_pct": 0.0
+  }
+ ],
+ "links": {
+  "metabot_build": "https://metabot.gg/en/aion-2/classes/spiritmaster/build#v1~l19~s9lak0.a.2_9li9s.a.6_9lpzk.a.6_9nv5c.7.0_9o2v4.b.0_9pd5s.a.3_9y5io.a.0_9yso0.a.0_9z83k.a.0~g9o2v4_9n0a8_9qv68_9nv5c~d51-0.1.6.7.9.f.h.i.k.l.m.n.o.p.q.s.t.w.x.y.10.11.12.13.14.15.17.19.1a.1b.1c.1e.1f.1g.1h.1k.1l.1m.1o.1p.1r.1w.1y.1z.20.21.22.23.24.25.26.27.28.29.2a.2b.2c.2d.2e.2f.2g_52-3.4.5.6.7.8.9.a.b.d.f.g.j.p.q.t.v.w.x.y.10.13.14.15.16.17.19.1b.1c.1f.1j.1k.1m.1o.1p.1q.1r.1s.1t.1u.1v.1y.20.21.24.25.26.27.28.29.2a.2b.2c.2d.2e.2f.2g_53-2.3.4.5.a.b.c.d.e.h.i.j.k.p.r.s.u.v.w.z.10.14.15.16.1a.1d.1e.1f.1g.1j.1k.1l.1n.1p.1u.1y.1z.21.22.23.24.25.26.29.2a.2b.2c.2d.2e.2f.2g_54-1.2.3.4.5.9.a.e.i.j.k.n.o.p.q.r.s.w.x.y.z.10.11.12.15.17.18.19.1f.1g.1h.1k.1n.1o.1p.1r.1s.1t.1u.1v.1w.1x.1y.20.21.22.23.25.26.27.28.2b.2c.2d.2e.2f.2g.2h.2i.2j.2l.2m.2n.2p.2q.2r.2s.2t.2u.2z.30.32.33.38",
+  "metabot_daevanion": "https://metabot.gg/en/aion-2/daevanion/spiritmaster#51-0.1.6.7.9.f.h.i.k.l.m.n.o.p.q.s.t.w.x.y.10.11.12.13.14.15.17.19.1a.1b.1c.1e.1f.1g.1h.1k.1l.1m.1o.1p.1r.1w.1y.1z.20.21.22.23.24.25.26.27.28.29.2a.2b.2c.2d.2e.2f.2g_52-3.4.5.6.7.8.9.a.b.d.f.g.j.p.q.t.v.w.x.y.10.13.14.15.16.17.19.1b.1c.1f.1j.1k.1m.1o.1p.1q.1r.1s.1t.1u.1v.1y.20.21.24.25.26.27.28.29.2a.2b.2c.2d.2e.2f.2g_53-2.3.4.5.a.b.c.d.e.h.i.j.k.p.r.s.u.v.w.z.10.14.15.16.1a.1d.1e.1f.1g.1j.1k.1l.1n.1p.1u.1y.1z.21.22.23.24.25.26.29.2a.2b.2c.2d.2e.2f.2g_54-1.2.3.4.5.9.a.e.i.j.k.n.o.p.q.r.s.w.x.y.z.10.11.12.15.17.18.19.1f.1g.1h.1k.1n.1o.1p.1r.1s.1t.1u.1v.1w.1x.1y.20.21.22.23.25.26.27.28.2b.2c.2d.2e.2f.2g.2h.2i.2j.2l.2m.2n.2p.2q.2r.2s.2t.2u.2z.30.32.33.38",
+  "gamers4life_daevanion": "https://gamers4.life/aion-2/database/en/daevanion-planner/?b=eyJjIjoiZWxlbWVudGFsaXN0IiwiZCI6WzUxMDAzMyw1MTAwMzQsNTEwMDQxLDUxMDA0Miw1MTAwNDgsNTEwMDU2LDUxMDA2Myw1MTAwNjQsNTEwMDY3LDUxMDA2OCw1MTAwNjksNTEwMDcxLDUxMDA3Miw1MTAwNzMsNTEwMDc5LDUxMDA4NCw1MTAwODYsNTEwMDk0LDUxMDA5NSw1MTAwOTYsNTEwMDk4LDUxMDA5OSw1MTAxMDAsNTEwMTAxLDUxMDEwMiw1MTAxMDMsNTEwMTExLDUxMDExNSw1MTAxMTgsNTEwMTIzLDUxMDEyNCw1MTAxMjYsNTEwMTI3LDUxMDEyOCw1MTAxMjksNTEwMTMyLDUxMDEzMyw1MTAxMzgsNTEwMTQyLDUxMDE0NCw1MTAxNTMsNTEwMTU5LDUxMDE2Miw1MTAxNjMsNTEwMTY4LDUxMDE3MCw1MTAxNzEsNTEwMTcyLDUxMDE3NCw1MTAxNzUsNTEwMTc2LDUxMDE3OCw1MTAxODMsNTEwMTg0LDUxMDE4NSw1MTAxODcsNTEwMTg4LDUxMDE4OSw1MTAxOTEsNTEwMTkyLDUxMDE5Myw1MjAwMzYsNTIwMDM3LDUyMDAzOCw1MjAwMzksNTIwMDQwLDUyMDA0MSw1MjAwNDIsNTIwMDQzLDUyMDA0OCw1MjAwNTIsNTIwMDU4LDUyMDA2Myw1MjAwNjcsNTIwMDczLDUyMDA3OCw1MjAwODIsNTIwMDg2LDUyMDA4OCw1MjAwOTMsNTIwMDk0LDUyMDA5Nyw1MjAxMDEsNTIwMTAyLDUyMDEwMyw1MjAxMDksNTIwMTEyLDUyMDExNCw1MjAxMjMsNTIwMTI0LDUyMDEyNyw1MjAxMzMsNTIwMTM4LDUyMDE0Miw1MjAxNDUsNTIwMTQ2LDUyMDE0OCw1MjAxNTMsNTIwMTU0LDUyMDE1NSw1MjAxNTYsNTIwMTU3LDUyMDE2MSw1MjAxNjMsNTIwMTY4LDUyMDE3Niw1MjAxNzgsNTIwMTgzLDUyMDE4NCw1MjAxODUsNTIwMTg2LDUyMDE4Nyw1MjAxODgsNTIwMTg5LDUyMDE5MCw1MjAxOTEsNTIwMTkyLDUyMDE5Myw1MzAwMzUsNTMwMDM3LDUzMDAzOCw1MzAwMzksNTMwMDQ4LDUzMDA1MCw1MzAwNTEsNTMwMDUyLDUzMDA1NCw1MzAwNjMsNTMwMDY0LDUzMDA2NSw1MzAwNjcsNTMwMDcyLDUzMDA3OSw1MzAwODIsNTMwMDg3LDUzMDA5Myw1MzAwOTQsNTMwMDk3LDUzMDA5OCw1MzAxMDIsNTMwMTAzLDUzMDEwOCw1MzAxMTgsNTMwMTI1LDUzMDEyNiw1MzAxMjcsNTMwMTI4LDUzMDEzMSw1MzAxMzIsNTMwMTMzLDUzMDE0Miw1MzAxNDcsNTMwMTU3LDUzMDE2Miw1MzAxNjMsNTMwMTcwLDUzMDE3Miw1MzAxNzQsNTMwMTc1LDUzMDE3Niw1MzAxNzgsNTMwMTg1LDUzMDE4Niw1MzAxODcsNTMwMTg4LDUzMDE4OSw1MzAxOTEsNTMwMTkyLDUzMDE5Myw1NDAwMTgsNTQwMDE5LDU0MDAyMiw1NDAwMjMsNTQwMDI0LDU0MDAzMiw1NDAwMzQsNTQwMDM5LDU0MDA0NCw1NDAwNDcsNTQwMDQ5LDU0MDA1NCw1NDAwNTcsNTQwMDU5LDU0MDA2Miw1NDAwNjMsNTQwMDY0LDU0MDA2OSw1NDAwNzAsNTQwMDcxLDU0MDA3Miw1NDAwNzMsNTQwMDc0LDU0MDA3OSw1NDAwODgsNTQwMDkzLDU0MDA5NCw1NDAwOTUsNTQwMTAxLDU0MDEwMiw1NDAxMDMsNTQwMTA5LDU0MDExNSw1NDAxMTcsNTQwMTE5LDU0MDEyMyw1NDAxMjQsNTQwMTI1LDU0MDEyNiw1NDAxMjcsNTQwMTI4LDU0MDEyOSw1NDAxMzAsNTQwMTMyLDU0MDEzMyw1NDAxMzQsNTQwMTM4LDU0MDE0NSw1NDAxNDcsNTQwMTUyLDU0MDE1Myw1NDAxNTYsNTQwMTU3LDU0MDE1OSw1NDAxNjAsNTQwMTYxLDU0MDE2Miw1NDAxNjMsNTQwMTY0LDU0MDE2Nyw1NDAxNzIsNTQwMTczLDU0MDE3NCw1NDAxNzksNTQwMTgyLDU0MDE4NCw1NDAxODUsNTQwMTg2LDU0MDE4Nyw1NDAxOTQsNTQwMTk3LDU0MDE5OSw1NDAyMDIsNTQwMjA5XX0",
+  "gamers4life_build": "https://gamers4.life/aion-2/database/en/build-calculator/?b=eyJjIjoiZWxlbWVudGFsaXN0IiwicyI6WyIxNjI0MDAwMCIsIjE2MTkwMDAwIiwiMTYzNzAwMDAiLCIxNjIzMDAwMCJdLCJsIjp7IjE2MjQwMDAwIjoxMSwiMTYxOTAwMDAiOjEsIjE2MzcwMDAwIjoxLCIxNjIzMDAwMCI6N30sImQiOls1MTAwMzMsNTEwMDM0LDUxMDA0MSw1MTAwNDIsNTEwMDQ4LDUxMDA1Niw1MTAwNjMsNTEwMDY0LDUxMDA2Nyw1MTAwNjgsNTEwMDY5LDUxMDA3MSw1MTAwNzIsNTEwMDczLDUxMDA3OSw1MTAwODQsNTEwMDg2LDUxMDA5NCw1MTAwOTUsNTEwMDk2LDUxMDA5OCw1MTAwOTksNTEwMTAwLDUxMDEwMSw1MTAxMDIsNTEwMTAzLDUxMDExMSw1MTAxMTUsNTEwMTE4LDUxMDEyMyw1MTAxMjQsNTEwMTI2LDUxMDEyNyw1MTAxMjgsNTEwMTI5LDUxMDEzMiw1MTAxMzMsNTEwMTM4LDUxMDE0Miw1MTAxNDQsNTEwMTUzLDUxMDE1OSw1MTAxNjIsNTEwMTYzLDUxMDE2OCw1MTAxNzAsNTEwMTcxLDUxMDE3Miw1MTAxNzQsNTEwMTc1LDUxMDE3Niw1MTAxNzgsNTEwMTgzLDUxMDE4NCw1MTAxODUsNTEwMTg3LDUxMDE4OCw1MTAxODksNTEwMTkxLDUxMDE5Miw1MTAxOTMsNTIwMDM2LDUyMDAzNyw1MjAwMzgsNTIwMDM5LDUyMDA0MCw1MjAwNDEsNTIwMDQyLDUyMDA0Myw1MjAwNDgsNTIwMDUyLDUyMDA1OCw1MjAwNjMsNTIwMDY3LDUyMDA3Myw1MjAwNzgsNTIwMDgyLDUyMDA4Niw1MjAwODgsNTIwMDkzLDUyMDA5NCw1MjAwOTcsNTIwMTAxLDUyMDEwMiw1MjAxMDMsNTIwMTA5LDUyMDExMiw1MjAxMTQsNTIwMTIzLDUyMDEyNCw1MjAxMjcsNTIwMTMzLDUyMDEzOCw1MjAxNDIsNTIwMTQ1LDUyMDE0Niw1MjAxNDgsNTIwMTUzLDUyMDE1NCw1MjAxNTUsNTIwMTU2LDUyMDE1Nyw1MjAxNjEsNTIwMTYzLDUyMDE2OCw1MjAxNzYsNTIwMTc4LDUyMDE4Myw1MjAxODQsNTIwMTg1LDUyMDE4Niw1MjAxODcsNTIwMTg4LDUyMDE4OSw1MjAxOTAsNTIwMTkxLDUyMDE5Miw1MjAxOTMsNTMwMDM1LDUzMDAzNyw1MzAwMzgsNTMwMDM5LDUzMDA0OCw1MzAwNTAsNTMwMDUxLDUzMDA1Miw1MzAwNTQsNTMwMDYzLDUzMDA2NCw1MzAwNjUsNTMwMDY3LDUzMDA3Miw1MzAwNzksNTMwMDgyLDUzMDA4Nyw1MzAwOTMsNTMwMDk0LDUzMDA5Nyw1MzAwOTgsNTMwMTAyLDUzMDEwMyw1MzAxMDgsNTMwMTE4LDUzMDEyNSw1MzAxMjYsNTMwMTI3LDUzMDEyOCw1MzAxMzEsNTMwMTMyLDUzMDEzMyw1MzAxNDIsNTMwMTQ3LDUzMDE1Nyw1MzAxNjIsNTMwMTYzLDUzMDE3MCw1MzAxNzIsNTMwMTc0LDUzMDE3NSw1MzAxNzYsNTMwMTc4LDUzMDE4NSw1MzAxODYsNTMwMTg3LDUzMDE4OCw1MzAxODksNTMwMTkxLDUzMDE5Miw1MzAxOTMsNTQwMDE4LDU0MDAxOSw1NDAwMjIsNTQwMDIzLDU0MDAyNCw1NDAwMzIsNTQwMDM0LDU0MDAzOSw1NDAwNDQsNTQwMDQ3LDU0MDA0OSw1NDAwNTQsNTQwMDU3LDU0MDA1OSw1NDAwNjIsNTQwMDYzLDU0MDA2NCw1NDAwNjksNTQwMDcwLDU0MDA3MSw1NDAwNzIsNTQwMDczLDU0MDA3NCw1NDAwNzksNTQwMDg4LDU0MDA5Myw1NDAwOTQsNTQwMDk1LDU0MDEwMSw1NDAxMDIsNTQwMTAzLDU0MDEwOSw1NDAxMTUsNTQwMTE3LDU0MDExOSw1NDAxMjMsNTQwMTI0LDU0MDEyNSw1NDAxMjYsNTQwMTI3LDU0MDEyOCw1NDAxMjksNTQwMTMwLDU0MDEzMiw1NDAxMzMsNTQwMTM0LDU0MDEzOCw1NDAxNDUsNTQwMTQ3LDU0MDE1Miw1NDAxNTMsNTQwMTU2LDU0MDE1Nyw1NDAxNTksNTQwMTYwLDU0MDE2MSw1NDAxNjIsNTQwMTYzLDU0MDE2NCw1NDAxNjcsNTQwMTcyLDU0MDE3Myw1NDAxNzQsNTQwMTc5LDU0MDE4Miw1NDAxODQsNTQwMTg1LDU0MDE4Niw1NDAxODcsNTQwMTk0LDU0MDE5Nyw1NDAxOTksNTQwMjAyLDU0MDIwOV19&tab=skills"
+ },
+ "history": [
+  {
+   "iter": 0,
+   "dps": 12859.156008544931
+  }
+ ],
+ "runtime_s": 176.25615453720093,
+ "weapon_compare": [],
+ "loadout": "spiritmaster_l45_global_median",
+ "arcana_skill_values": [
+  {
+   "skill": "Corrode",
+   "id": 16740000,
+   "gain_pct": [
+    0.47442847789300746,
+    0.9669887315418624,
+    1.477733600446629,
+    2.006647067056333
+   ]
+  },
+  {
+   "skill": "Mental Focus",
+   "id": 16760000,
+   "gain_pct": [
+    0.2844288381147253,
+    0.568857676229384,
+    0.8532865143435764,
+    1.1377153524581685
+   ]
+  },
+  {
+   "skill": "Spirit Protection",
+   "id": 16720000,
+   "gain_pct": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "skill": "Consecutive Countercurrent",
+   "id": 16800000,
+   "gain_pct": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "skill": "Revitalization Contract",
+   "id": 16790000,
+   "gain_pct": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  }
+ ],
+ "crit_sensitivity": {
+  "fit": {
+   "midpoint": 1024.52,
+   "crit_chance": 0.1973319194448282,
+   "crit_gain_pct": 2.5536392887522856,
+   "crit_rank": 3
+  },
+  "alt": {
+   "midpoint": 700.0,
+   "crit_chance": 0.6482548877582588,
+   "crit_gain_pct": 2.8312133631236875,
+   "crit_rank": 2
+  }
+ },
+ "kr_fidelity": {
+  "overlap": 0.1850940232220232,
+  "kr_share_not_in_global_data": 0.3694087280682405
+ }
+}

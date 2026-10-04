@@ -1,0 +1,288 @@
+{
+ "12300000": {
+  "name": "Annihilate",
+  "hits": {
+   "1230000011": {
+    "flat_l1": 553.0,
+    "coef": 225.0,
+    "hits": 1,
+    "pvp_coef": 139.3
+   }
+  }
+ },
+ "12200000": {
+  "name": "Armor of Balance",
+  "hits": {}
+ },
+ "12700000": {
+  "name": "Assault Fury",
+  "hits": {
+   "1270000021": {
+    "flat_l1": 951.0,
+    "coef": 166.0,
+    "hits": 1,
+    "pvp_coef": 122.5
+   }
+  }
+ },
+ "12450000": {
+  "name": "Battlefield Banner",
+  "hits": {}
+ },
+ "12800000": {
+  "name": "Block Pain",
+  "hits": {}
+ },
+ "12250000": {
+  "name": "Comrade in Arms",
+  "hits": {}
+ },
+ "12270000": {
+  "name": "Debilitating Smash",
+  "hits": {
+   "1227000011": {
+    "flat_l1": 336.0,
+    "coef": 184.0,
+    "hits": 1,
+    "pvp_coef": 127.9
+   }
+  }
+ },
+ "12260000": {
+  "name": "Defiance",
+  "hits": {}
+ },
+ "12070000": {
+  "name": "Doom Shield",
+  "hits": {
+   "1207000021": {
+    "flat_l1": 1254.0,
+    "coef": 219.0,
+    "hits": 1,
+    "pvp_coef": 137.7
+   }
+  }
+ },
+ "12310000": {
+  "name": "Empyrean Lord's Punishment",
+  "hits": {
+   "1231000011": {
+    "flat_l1": 939.0,
+    "coef": 164.0,
+    "hits": 3,
+    "pvp_coef": 121.9
+   }
+  }
+ },
+ "12710000": {
+  "name": "Enhance Health",
+  "hits": {}
+ },
+ "12410000": {
+  "name": "Executing Blade",
+  "hits": {
+   "1241000011": {
+    "flat_l1": 1335.0,
+    "coef": 233.0,
+    "hits": 1,
+    "pvp_coef": 141.4
+   }
+  }
+ },
+ "12340000": {
+  "name": "Flash Rampage",
+  "hits": {
+   "1234000011": {
+    "flat_l1": 152.0,
+    "coef": 108.0,
+    "hits": 4,
+    "pvp_coef": 103.0
+   }
+  }
+ },
+ "12780000": {
+  "name": "Fury",
+  "hits": {}
+ },
+ "12220000": {
+  "name": "Grapple",
+  "hits": {
+   "1222000011": {
+    "flat_l1": 1045.0,
+    "coef": 182.5,
+    "hits": 1,
+    "pvp_coef": 127.5
+   }
+  }
+ },
+ "12750000": {
+  "name": "Guarding Seal",
+  "hits": {}
+ },
+ "12760000": {
+  "name": "Impact Hit",
+  "hits": {}
+ },
+ "12770000": {
+  "name": "Insulting Roar",
+  "hits": {
+   "1277000111": {
+    "flat_l1": 166.0,
+    "coef": 40.0,
+    "hits": 1,
+    "pvp_coef": 43.4
+   }
+  }
+ },
+ "12740000": {
+  "name": "Ironclad Defense",
+  "hits": {}
+ },
+ "12240000": {
+  "name": "Judgment",
+  "hits": {
+   "1224000011": {
+    "flat_l1": 207.0,
+    "coef": 210.0,
+    "hits": 1,
+    "pvp_coef": 121.75
+   }
+  }
+ },
+ "12320000": {
+  "name": "Nezekan's Shield",
+  "hits": {}
+ },
+ "12230000": {
+  "name": "Noble Armor",
+  "hits": {
+   "1223000021": {
+    "flat_l1": 1313.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "12130000": {
+  "name": "Poach",
+  "hits": {
+   "1213000011": {
+    "flat_l1": 49.0,
+    "coef": 87.5,
+    "hits": 1,
+    "pvp_coef": 88.5
+   }
+  }
+ },
+ "12040000": {
+  "name": "Pummel",
+  "hits": {
+   "1204000011": {
+    "flat_l1": 86.0,
+    "coef": 108.0,
+    "hits": 3,
+    "pvp_coef": 100.4
+   }
+  }
+ },
+ "12730000": {
+  "name": "Punishing Benediction",
+  "hits": {
+   "1273000111": {
+    "flat_l1": 69.0,
+    "coef": 38.0,
+    "hits": 1,
+    "pvp_coef": 35.4
+   }
+  }
+ },
+ "12090000": {
+  "name": "Punishment",
+  "hits": {}
+ },
+ "12190000": {
+  "name": "Second Skin",
+  "hits": {}
+ },
+ "12110000": {
+  "name": "Shield of Protection",
+  "hits": {}
+ },
+ "12430000": {
+  "name": "Shield Rush",
+  "hits": {
+   "1243000021": {
+    "flat_l1": 258.0,
+    "coef": 105.0,
+    "hits": 1,
+    "pvp_coef": 101.9
+   }
+  }
+ },
+ "12100000": {
+  "name": "Shield Smite",
+  "hits": {
+   "1210000011": {
+    "flat_l1": 145.0,
+    "coef": 146.5,
+    "hits": 1,
+    "pvp_coef": 116.4
+   }
+  }
+ },
+ "12790000": {
+  "name": "Survival Willpower",
+  "hits": {}
+ },
+ "12120000": {
+  "name": "Taunt",
+  "hits": {
+   "1212000011": {
+    "flat_l1": 888.0,
+    "coef": 155.0,
+    "hits": 1,
+    "pvp_coef": 119.1
+   }
+  }
+ },
+ "12010000": {
+  "name": "Vicious Strike",
+  "hits": {
+   "1201000011": {
+    "flat_l1": 51.0,
+    "coef": 47.0,
+    "hits": 1,
+    "pvp_coef": 50.2
+   }
+  }
+ },
+ "12720000": {
+  "name": "Warding Shield",
+  "hits": {
+   "1272000111": {
+    "flat_l1": 53.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "12350000": {
+  "name": "Warding Strike",
+  "hits": {
+   "1235000011": {
+    "flat_l1": 247.0,
+    "coef": 135.0,
+    "hits": 1,
+    "pvp_coef": 112.6
+   },
+   "1235000021": {
+    "flat_l1": 180.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ }
+}

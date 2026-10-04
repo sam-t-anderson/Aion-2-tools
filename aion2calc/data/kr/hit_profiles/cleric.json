@@ -1,0 +1,302 @@
+{
+ "17290000": {
+  "name": "Absolution",
+  "hits": {
+   "1729000012": {
+    "flat_l1": 2003.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "17700000": {
+  "name": "Assault Mark",
+  "hits": {
+   "1770000021": {
+    "flat_l1": 891.0,
+    "coef": 166.0,
+    "hits": 1,
+    "pvp_coef": 119.7
+   }
+  }
+ },
+ "17160000": {
+  "name": "Benevolence",
+  "hits": {
+   "1716000711": {
+    "flat_l1": 113.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "17060000": {
+  "name": "Bolt",
+  "hits": {}
+ },
+ "17070000": {
+  "name": "Chain of Torment",
+  "hits": {
+   "1707000011:dot": {
+    "interval_ms": 1000.0,
+    "flat_l1": 157.0,
+    "coef": 172.5
+   },
+   "1707000011": {
+    "flat_l1": 126.0,
+    "coef": 138.0,
+    "hits": 1,
+    "pvp_coef": 111.9
+   }
+  }
+ },
+ "17350000": {
+  "name": "Condemnation",
+  "hits": {
+   "1735000011": {
+    "flat_l1": 296.0,
+    "coef": 175.0,
+    "hits": 1,
+    "pvp_coef": 122.1
+   }
+  }
+ },
+ "17080000": {
+  "name": "Debilitating Mark",
+  "hits": {
+   "1708000011:dot": {
+    "interval_ms": 1000.0,
+    "flat_l1": 67.0,
+    "coef": 129.0
+   },
+   "1708000011": {
+    "flat_l1": 54.0,
+    "coef": 103.0,
+    "hits": 1,
+    "pvp_coef": 101.0
+   }
+  }
+ },
+ "17240000": {
+  "name": "Defiance",
+  "hits": {}
+ },
+ "17150000": {
+  "name": "Divine Aura",
+  "hits": {
+   "1715000211": {
+    "flat_l1": 311.0,
+    "coef": 340.0,
+    "hits": 5,
+    "pvp_coef": 158.2
+   }
+  }
+ },
+ "17400000": {
+  "name": "Earth Punishment",
+  "hits": {
+   "1740000011:dot": {
+    "interval_ms": 1000.0,
+    "flat_l1": 1186.0,
+    "coef": 221.0
+   },
+   "1740000011": {
+    "flat_l1": 1186.0,
+    "coef": 221.0,
+    "hits": 1,
+    "pvp_coef": 133.4
+   }
+  }
+ },
+ "17780000": {
+  "name": "Earth's Grace",
+  "hits": {}
+ },
+ "17010000": {
+  "name": "Earth's Retribution",
+  "hits": {
+   "1701000011": {
+    "flat_l1": 49.0,
+    "coef": 46.0,
+    "hits": 1,
+    "pvp_coef": 38.8
+   }
+  }
+ },
+ "17730000": {
+  "name": "Empyrean Lord's Grace",
+  "hits": {
+   "1773000111": {
+    "flat_l1": 64.0,
+    "coef": 38.0,
+    "hits": 1,
+    "pvp_coef": 40.6
+   }
+  }
+ },
+ "17720000": {
+  "name": "Empyrean Lords' Benediction",
+  "hits": {
+   "1772000111": {
+    "flat_l1": 53.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "17760000": {
+  "name": "Heal Block",
+  "hits": {}
+ },
+ "17740000": {
+  "name": "Healing Enhancement",
+  "hits": {}
+ },
+ "17100000": {
+  "name": "Healing Light",
+  "hits": {
+   "1710000011": {
+    "flat_l1": 240.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "17750000": {
+  "name": "Immortal Veil",
+  "hits": {}
+ },
+ "17040000": {
+  "name": "Judgment Thunder",
+  "hits": {
+   "1704000011": {
+    "flat_l1": 72.0,
+    "coef": 89.75,
+    "hits": 1,
+    "pvp_coef": 72.32
+   }
+  }
+ },
+ "17410000": {
+  "name": "Light of Protection",
+  "hits": {}
+ },
+ "17090000": {
+  "name": "Light of Regeneration",
+  "hits": {}
+ },
+ "17370000": {
+  "name": "Lightning Strike Scattershot",
+  "hits": {
+   "1737000011": {
+    "flat_l1": 147.0,
+    "coef": 113.0,
+    "hits": 4,
+    "pvp_coef": 104.3
+   }
+  }
+ },
+ "17440000": {
+  "name": "Noble Aura",
+  "hits": {
+   "1744000711": {
+    "flat_l1": 408.0,
+    "coef": 76.0,
+    "hits": 1,
+    "pvp_coef": 60.8
+   }
+  }
+ },
+ "17280000": {
+  "name": "Power Burst",
+  "hits": {
+   "1728000011": {
+    "flat_l1": 1154.0,
+    "coef": 215.0,
+    "hits": 1,
+    "pvp_coef": 131.9
+   }
+  }
+ },
+ "17430000": {
+  "name": "Prayer of Amplification",
+  "hits": {}
+ },
+ "17770000": {
+  "name": "Prayer of Concentration",
+  "hits": {}
+ },
+ "17800000": {
+  "name": "Radiant Benediction",
+  "hits": {
+   "1780000111": {
+    "flat_l1": 480.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "17120000": {
+  "name": "Radiant Recovery",
+  "hits": {
+   "1712000011": {
+    "flat_l1": 315.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "17190000": {
+  "name": "Root",
+  "hits": {
+   "1719000011": {
+    "flat_l1": 939.0,
+    "coef": 175.0,
+    "hits": 1,
+    "pvp_coef": 122.1
+   }
+  }
+ },
+ "17270000": {
+  "name": "Salvation",
+  "hits": {}
+ },
+ "17390000": {
+  "name": "Summon Resurrection",
+  "hits": {}
+ },
+ "17790000": {
+  "name": "Survival Willpower",
+  "hits": {}
+ },
+ "17300000": {
+  "name": "Voice of Doom",
+  "hits": {
+   "1730000012:dot": {
+    "interval_ms": 1000.0,
+    "flat_l1": 2862.0,
+    "coef": 533.0
+   },
+   "1730000011": {
+    "flat_l1": 1100.0,
+    "coef": 205.0,
+    "hits": 1,
+    "pvp_coef": 129.6
+   }
+  }
+ },
+ "17710000": {
+  "name": "Warm Benediction",
+  "hits": {}
+ },
+ "17420000": {
+  "name": "Yustiel's Power",
+  "hits": {}
+ }
+}

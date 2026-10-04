@@ -1,0 +1,296 @@
+{
+ "11300000": {
+  "name": "Aerial Snare",
+  "hits": {
+   "1130000011": {
+    "flat_l1": 435.0,
+    "coef": 165.0,
+    "hits": 1,
+    "pvp_coef": 131.0
+   }
+  }
+ },
+ "11200000": {
+  "name": "Ankle Slice",
+  "hits": {
+   "1120000011": {
+    "flat_l1": 294.0,
+    "coef": 150.0,
+    "hits": 2,
+    "pvp_coef": 124.3
+   }
+  }
+ },
+ "11130000": {
+  "name": "Armor of Balance",
+  "hits": {}
+ },
+ "11700000": {
+  "name": "Assault Strike",
+  "hits": {
+   "1170000021": {
+    "flat_l1": 998.0,
+    "coef": 164.0,
+    "hits": 1,
+    "pvp_coef": 130.5
+   }
+  }
+ },
+ "11750000": {
+  "name": "Attack Preparation",
+  "hits": {}
+ },
+ "11080000": {
+  "name": "Blade Toss",
+  "hits": {
+   "1108000011": {
+    "flat_l1": 534.0,
+    "coef": 87.75,
+    "hits": 1,
+    "pvp_coef": 89.4
+   }
+  }
+ },
+ "11730000": {
+  "name": "Blood Absorption",
+  "hits": {
+   "1173000711": {
+    "flat_l1": 20.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "11050000": {
+  "name": "Crushing Wave",
+  "hits": {
+   "1105000011": {
+    "flat_l1": 206.0,
+    "coef": 105.0,
+    "hits": 2,
+    "pvp_coef": 102.6
+   }
+  }
+ },
+ "11260000": {
+  "name": "Defiance",
+  "hits": {}
+ },
+ "11770000": {
+  "name": "Destructive Impulse",
+  "hits": {
+   "1177000711": {
+    "flat_l1": 146.0,
+    "coef": 33.0,
+    "hits": 1,
+    "pvp_coef": 38.9
+   }
+  }
+ },
+ "11780000": {
+  "name": "Experienced Counterstrike",
+  "hits": {}
+ },
+ "11110000": {
+  "name": "Focused Block",
+  "hits": {}
+ },
+ "11430000": {
+  "name": "Forced Restraint",
+  "hits": {
+   "1143000011": {
+    "flat_l1": 1059.0,
+    "coef": 174.0,
+    "hits": 1,
+    "pvp_coef": 134.9
+   }
+  }
+ },
+ "11450000": {
+  "name": "Fracturing Rush",
+  "hits": {
+   "1145000011": {
+    "flat_l1": 974.0,
+    "coef": 160.0,
+    "hits": 1,
+    "pvp_coef": 128.8
+   }
+  }
+ },
+ "11740000": {
+  "name": "Identify Weakness",
+  "hits": {}
+ },
+ "11760000": {
+  "name": "Impact Hit",
+  "hits": {}
+ },
+ "11020000": {
+  "name": "Keen Strike",
+  "hits": {
+   "1102000011": {
+    "flat_l1": 45.0,
+    "coef": 33.0,
+    "hits": 1,
+    "pvp_coef": 38.9
+   }
+  }
+ },
+ "11190000": {
+  "name": "Leaping Slam",
+  "hits": {
+   "1119000011": {
+    "flat_l1": 70.0,
+    "coef": 115.0,
+    "hits": 2,
+    "pvp_coef": 107.7
+   }
+  }
+ },
+ "11340000": {
+  "name": "Lifestealing Blade",
+  "hits": {
+   "1134000011": {
+    "flat_l1": 1522.0,
+    "coef": 250.0,
+    "hits": 4,
+    "pvp_coef": 165.1
+   }
+  }
+ },
+ "11400000": {
+  "name": "Lunge Stance",
+  "hits": {}
+ },
+ "11290000": {
+  "name": "Mocking Blade",
+  "hits": {
+   "1129000021": {
+    "flat_l1": 172.0,
+    "coef": 162.0,
+    "hits": 3,
+    "pvp_coef": 129.7
+   }
+  }
+ },
+ "11800000": {
+  "name": "Murderous Burst",
+  "hits": {
+   "1180000811": {
+    "flat_l1": 414.0,
+    "coef": 60.0,
+    "hits": 1,
+    "pvp_coef": 64.6
+   }
+  }
+ },
+ "11170000": {
+  "name": "Overhead Slam",
+  "hits": {
+   "1117000011": {
+    "flat_l1": 188.0,
+    "coef": 177.0,
+    "hits": 1,
+    "pvp_coef": 149.5
+   }
+  }
+ },
+ "11720000": {
+  "name": "Protection Armor",
+  "hits": {
+   "1172000711": {
+    "flat_l1": 53.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "11390000": {
+  "name": "Rage Burst",
+  "hits": {
+   "1139000011": {
+    "flat_l1": 1327.0,
+    "coef": 218.0,
+    "hits": 5,
+    "pvp_coef": 152.9
+   }
+  }
+ },
+ "11010000": {
+  "name": "Rending Blow",
+  "hits": {
+   "1101000011": {
+    "flat_l1": 71.0,
+    "coef": 75.0,
+    "hits": 2,
+    "pvp_coef": 72.8
+   }
+  }
+ },
+ "11100000": {
+  "name": "Ruinous Blow",
+  "hits": {}
+ },
+ "11360000": {
+  "name": "Rush Strike",
+  "hits": {
+   "1136000021": {
+    "flat_l1": 330.0,
+    "coef": 125.0,
+    "hits": 2,
+    "pvp_coef": 112.6
+   }
+  }
+ },
+ "11710000": {
+  "name": "Survival Stance",
+  "hits": {}
+ },
+ "11790000": {
+  "name": "Survival Willpower",
+  "hits": {}
+ },
+ "11280000": {
+  "name": "Sword Aura Rampage",
+  "hits": {
+   "1128000011": {
+    "flat_l1": 124.0,
+    "coef": 82.5,
+    "hits": 4,
+    "pvp_coef": 84.8
+   }
+  }
+ },
+ "11380000": {
+  "name": "Tenaciousness",
+  "hits": {}
+ },
+ "11410000": {
+  "name": "Wave Armor",
+  "hits": {
+   "1141000711": {
+    "flat_l1": 207.0,
+    "coef": 34.0,
+    "hits": 1,
+    "pvp_coef": 31.9
+   }
+  }
+ },
+ "11240000": {
+  "name": "Wrath Wave",
+  "hits": {
+   "1124000011": {
+    "flat_l1": 1068.0,
+    "coef": 175.5,
+    "hits": 1,
+    "pvp_coef": 135.5
+   }
+  }
+ },
+ "11250000": {
+  "name": "Zikel's Blessing",
+  "hits": {}
+ }
+}

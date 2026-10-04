@@ -1,0 +1,296 @@
+{
+ "18700000": {
+  "name": "Assault Shock",
+  "hits": {
+   "1870000021": {
+    "flat_l1": 986.0,
+    "coef": 167.0,
+    "hits": 1,
+    "pvp_coef": 122.8
+   }
+  }
+ },
+ "18750000": {
+  "name": "Attack Preparation",
+  "hits": {}
+ },
+ "18440000": {
+  "name": "Barrier Spell",
+  "hits": {}
+ },
+ "18710000": {
+  "name": "Blessing of Life",
+  "hits": {}
+ },
+ "18720000": {
+  "name": "Crossguard",
+  "hits": {
+   "1872000111": {
+    "flat_l1": 53.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "18100000": {
+  "name": "Dark Crush",
+  "hits": {
+   "1810000011": {
+    "flat_l1": 161.0,
+    "coef": 157.25,
+    "hits": 1,
+    "pvp_coef": 131.75
+   }
+  }
+ },
+ "18200000": {
+  "name": "Defiance",
+  "hits": {}
+ },
+ "18780000": {
+  "name": "Earth's Promise",
+  "hits": {}
+ },
+ "18230000": {
+  "name": "Ensnaring Mark",
+  "hits": {
+   "1823000011": {
+    "flat_l1": 1034.0,
+    "coef": 175.0,
+    "hits": 1,
+    "pvp_coef": 125.2
+   }
+  }
+ },
+ "18140000": {
+  "name": "Focused Defense",
+  "hits": {}
+ },
+ "18130000": {
+  "name": "Fracturing Blow",
+  "hits": {
+   "1813000021": {
+    "flat_l1": 1288.0,
+    "coef": 218.0,
+    "hits": 1,
+    "pvp_coef": 137.4
+   }
+  }
+ },
+ "18420000": {
+  "name": "Guardian Blessing",
+  "hits": {
+   "1842000021": {
+    "flat_l1": 1840.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "18300000": {
+  "name": "Gust Rampage",
+  "hits": {
+   "1830000011": {
+    "flat_l1": 120.0,
+    "coef": 82.5,
+    "hits": 4,
+    "pvp_coef": 83.9
+   }
+  }
+ },
+ "18170000": {
+  "name": "Healing Touch",
+  "hits": {
+   "1817000011": {
+    "flat_l1": 1171.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "18150000": {
+  "name": "Heat Wave Blow",
+  "hits": {
+   "1815000011": {
+    "flat_l1": 345.0,
+    "coef": 182.0,
+    "hits": 1,
+    "pvp_coef": 127.3
+   }
+  }
+ },
+ "18760000": {
+  "name": "Impact Hit",
+  "hits": {}
+ },
+ "18060000": {
+  "name": "Impactful Crush",
+  "hits": {
+   "1806000011": {
+    "flat_l1": 143.0,
+    "coef": 140.0,
+    "hits": 1,
+    "pvp_coef": 114.3
+   }
+  }
+ },
+ "18240000": {
+  "name": "Impeding Authority",
+  "hits": {}
+ },
+ "18040000": {
+  "name": "Incandescent Blow",
+  "hits": {
+   "1804000011": {
+    "flat_l1": 86.0,
+    "coef": 103.75,
+    "hits": 2,
+    "pvp_coef": 104.0
+   }
+  }
+ },
+ "18740000": {
+  "name": "Inspiring Spell",
+  "hits": {}
+ },
+ "18330000": {
+  "name": "Marchutan's Wrath",
+  "hits": {
+   "1833000011": {
+    "flat_l1": 1258.0,
+    "coef": 213.0,
+    "hits": 1,
+    "pvp_coef": 136.1
+   }
+  }
+ },
+ "18220000": {
+  "name": "Obliterate",
+  "hits": {
+   "1822000011": {
+    "flat_l1": 1078.0,
+    "coef": 182.5,
+    "hits": 3,
+    "pvp_coef": 127.5
+   }
+  }
+ },
+ "18010000": {
+  "name": "Onslaught",
+  "hits": {
+   "1801000011": {
+    "flat_l1": 59.0,
+    "coef": 58.75,
+    "hits": 2,
+    "pvp_coef": 62.0
+   }
+  }
+ },
+ "18250000": {
+  "name": "Power of the Storm",
+  "hits": {}
+ },
+ "18730000": {
+  "name": "Protection Circle",
+  "hits": {}
+ },
+ "18770000": {
+  "name": "Raging Spell",
+  "hits": {
+   "1877000111": {
+    "flat_l1": 146.0,
+    "coef": 34.0,
+    "hits": 1,
+    "pvp_coef": 37.4
+   }
+  }
+ },
+ "18120000": {
+  "name": "Recuperation",
+  "hits": {
+   "1812000011": {
+    "flat_l1": 193.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "18090000": {
+  "name": "Rushing Smash",
+  "hits": {
+   "1809000021": {
+    "flat_l1": 112.0,
+    "coef": 189.75,
+    "hits": 1,
+    "pvp_coef": 129.4
+   }
+  }
+ },
+ "18290000": {
+  "name": "Spinning Strike",
+  "hits": {
+   "1829000011": {
+    "flat_l1": 1185.0,
+    "coef": 353.6,
+    "hits": 4,
+    "pvp_coef": 151.3
+   }
+  }
+ },
+ "18160000": {
+  "name": "Sprint Mantra",
+  "hits": {
+   "1816000211": {
+    "flat_l1": 134.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "18790000": {
+  "name": "Survival Willpower",
+  "hits": {}
+ },
+ "18210000": {
+  "name": "Tremor Crush",
+  "hits": {
+   "1821001021": {
+    "flat_l1": 260.0,
+    "coef": 102.0,
+    "hits": 1,
+    "pvp_coef": 100.8
+   }
+  }
+ },
+ "18190000": {
+  "name": "Undefeated Mantra",
+  "hits": {}
+ },
+ "18080000": {
+  "name": "Wave Blow",
+  "hits": {
+   "1808000021": {
+    "flat_l1": 448.0,
+    "coef": 176.0,
+    "hits": 2,
+    "pvp_coef": 125.5
+   }
+  }
+ },
+ "18800000": {
+  "name": "Wind's Promise",
+  "hits": {
+   "1880000111": {
+    "flat_l1": 352.0,
+    "coef": 52.5,
+    "hits": 1,
+    "pvp_coef": 55.5
+   }
+  }
+ }
+}
