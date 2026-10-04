@@ -9,7 +9,8 @@ Commands
   render     rewrite a result folder's README.md from its build.json
   sync       update the local game database (new items, skills, classes)
   character  import a character from the official site, score it, optimize it
-  analyze    break down a combat log (A2DIL link, JSON or CSV) and compare it with the optimum
+  analyze    break down a combat log (AbyssLogs or A2DIL link, JSON or CSV) and compare it with the optimum
+  logs       show (or open) the folder where every analyzed combat log is saved
   app        start the local planner / analyzer app in the browser
 """
 from __future__ import annotations
@@ -17,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -73,11 +75,16 @@ def main(argv: list[str] | None = None) -> int:
     chp.add_argument("--server", help="server name or id when several characters share the name")
     chp.add_argument("--optimize", action="store_true", help="also optimize it under the same resources")
     chp.add_argument("--iterations", type=int, default=2)
-    chp.add_argument("--out", help="output folder (default results/characters/<name>_<server>)")
+    chp.add_argument("--out", help="output folder (default <user folder>/results/characters/<name>_<server>)")
 
     an = sub.add_parser("analyze", help="analyze a combat log and keep it in the encounter history")
-    an.add_argument("log", help="A2DIL record URL/id, or a .json/.csv log file")
+    an.add_argument("log", help="AbyssLogs link (abysslogs.com/e/<id>), A2DIL record URL/id, "
+                                "or a .json / .json.gz / .csv log file")
+    an.add_argument("--player", help="whose damage to analyze in a party log (default: who recorded it)")
     an.add_argument("--no-save", action="store_true", help="do not store it in the encounter history")
+
+    lg = sub.add_parser("logs", help="show the combat logs folder (one file per analyzed log)")
+    lg.add_argument("--open", action="store_true", help="open the folder in Explorer / Finder")
 
     rr = sub.add_parser("render", help="rewrite README.md of a result folder from build.json")
     rr.add_argument("dir")
@@ -138,10 +145,11 @@ def main(argv: list[str] | None = None) -> int:
         for w in imp.warnings:
             print("  note:", w)
         if args.optimize:
-            out = args.out or f"results/characters/{imp.loadout_name()[5:]}"
+            from .paths import results_dir
+            out = args.out or str(results_dir() / "characters" / imp.loadout_name()[5:])
             summ = optimize_character(imp, out, iterations=args.iterations)
             print(json.dumps(summ, indent=1))
-            print("report:", out + "/README.md", "· diff:", out + "/DIFF.md")
+            print("report:", Path(out) / "README.md", "· diff:", Path(out) / "DIFF.md")
         else:
             cur = evaluate_current(imp)
             print(json.dumps({"dps": cur["dps"], "budgets": cur["budgets"], "build": cur["build"]["sp"]},
@@ -149,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "analyze":
         from .combat.adapters import load
         from .combat.analyze import analyze, vs_optimal
-        enc = load(args.log)
+        enc = load(args.log, player=args.player)
         a = analyze(enc)
         sm = a["summary"]
         print(f"{enc['meta'].get('class')}  {sm['duration']:.0f}s  DPS {sm['dps']:,.0f}  casts/min {sm['cpm']:.0f}  "
@@ -165,8 +173,18 @@ def main(argv: list[str] | None = None) -> int:
             for t in o["tips"]:
                 print("  tip:", t)
         if not args.no_save:
-            from .db import store
-            print("saved as encounter", store.put_encounter(store.connect(), enc))
+            from .combat.logs import save
+            eid, path = save(enc)
+            print(f"saved as encounter {eid}: {path}")
+    elif args.cmd == "logs":
+        from .combat.logs import backfill, open_folder
+        from .paths import home, logs_dir
+        n = backfill()
+        print(f"data folder:  {home()}")
+        print(f"combat logs:  {logs_dir()}  ({len(list(logs_dir().glob('*.json')))} files"
+              + (f", {n} written now" if n else "") + ")")
+        if args.open:
+            open_folder()
     elif args.cmd == "render":
         from .report import rerender
         print(rerender(args.dir))

@@ -30,7 +30,7 @@ def casts_of(hits: list[dict], cd: ClassData | None = None, level: int = 14, gap
         sk = cd.skills.get(sid) if cd and sid else None
         if sk and sk.get("kind") == "passive":
             continue
-        key = sid or h["skill"]
+        key = (sid, h.get("step")) if sid else h["skill"]      # chain steps are presses of their own
         cool = cd.cd(sid, level) if sk else 0.0
         need = max(gap, 0.7 * cool) if cool else gap
         new = key not in last_cast or (h["t"] - last_hit[key] > gap and h["t"] - last_cast[key] >= need)
@@ -132,10 +132,10 @@ def vs_optimal(enc: dict, build=None, loadout: str | None = None, policy=None) -
 
     cls = enc["meta"]["class"]
     if build is None:
-        rep = Path("results") / f"{cls}_l45" / "build.json"
-        if not rep.exists():
-            rep = Path("results") / "compare" / cls / "build.json"
-        if not rep.exists():
+        from ..paths import results_dir
+        rep = next((r for r in (results_dir() / f"{cls}_l45" / "build.json", Path("results") / f"{cls}_l45" / "build.json",
+                                Path("results") / "compare" / cls / "build.json") if r.exists()), None)
+        if rep is None:
             return {"error": f"no optimized build for {cls}; run `python -m aion2calc optimize {cls}` first"}
         summ = json.loads(rep.read_text(encoding="utf-8"))
         build, policy = build_from_summary(summ)
@@ -155,9 +155,13 @@ def vs_optimal(enc: dict, build=None, loadout: str | None = None, policy=None) -
     for k, a in kit.actions.items():          # Hellfire charge levels etc. are one skill
         casts_by_sid[a.skill_id] = casts_by_sid.get(a.skill_id, 0) + res.casts.get(k, 0)
     act = analyze(enc)
-    rows = []
+    grouped: dict = {}                         # chain steps ("Ice Chain (Cold Wave)") count with their skill
     for r in act["skills"]:
-        base = r["skill"]
+        g = grouped.setdefault(r["skill"].split(" (")[0], {"share": 0.0, "casts": 0, "skill_id": r.get("skill_id")})
+        g["share"] += r["share"]
+        g["casts"] += r["casts"]
+    rows = []
+    for base, r in grouped.items():
         s_share = sum(v for k, v in sim_share.items() if k.split(" (")[0] == base)
         key = names.get(base)
         s_casts = casts_by_sid.get(r.get("skill_id")) if r.get("skill_id") in casts_by_sid else \
@@ -174,20 +178,45 @@ def vs_optimal(enc: dict, build=None, loadout: str | None = None, policy=None) -
     overlap = sum(min(r["share"], r["sim_share"]) for r in rows)
     rows.sort(key=lambda r: -max(r["share"], r["sim_share"]))
     tips = []
-    kinds = {r["skill"]: r.get("kind") for r in act["skills"]}
+    kinds = {r["skill"].split(" (")[0]: r.get("kind") for r in act["skills"]}
     for r in rows:
-        if kinds.get(r["skill"]) == "passive":
-            continue
+        if kinds.get(r["skill"], "active") not in ("active", "stigma"):
+            continue                          # passives, item procs (theostones) and pets are not presses
         if r["sim_casts"] >= 3 and r["casts"] < 0.8 * r["sim_casts"]:
             tips.append(f"{r['skill']}: cast {r['casts']}x, the optimal rotation casts it {r['sim_casts']}x "
                         f"in {enc['meta']['duration']:.0f}s — use it on cooldown")
         elif r["sim_casts"] == 0 and r["casts"] >= 3 and r["share"] < 0.02:
             tips.append(f"{r['skill']}: {r['casts']} casts for {100 * r['share']:.1f}% of damage — the optimal "
                         "rotation skips it")
+    specs = spec_diff(enc, build)
+    note = None
+    if enc["meta"].get("source") == "a2dil":
+        note = "Korean logs are on higher-level gear than the global simulation: compare shares and casts, not DPS."
+    elif "scarecrow" not in str(enc["meta"].get("target", "")).lower() and enc["meta"].get("source") == "abysslogs":
+        note = ("A boss fight has movement, mechanics and party buffs that a training-dummy simulation does not: "
+                "compare shares and casts more than DPS.")
+    tips += [f"{d['skill']}: specs {d['yours'] or 'none'} in this log, the optimized build uses {d['optimal']}"
+             for d in specs if d["differs"]][:4]
     return {"sim_dps": res.dps, "actual_dps": enc["meta"]["dps"], "share_overlap": overlap, "skills": rows,
-            "tips": tips[:8], "comparable_dps": enc["meta"].get("source") not in ("a2dil",),
-            "note": None if enc["meta"].get("source") not in ("a2dil",) else
-            "Korean logs are on higher-level gear than the global simulation: compare shares and casts, not DPS."}
+            "specs": specs, "tips": tips[:10], "comparable_dps": note is None, "note": note}
+
+
+def spec_diff(enc: dict, build) -> list[dict]:
+    """Specializations in the log (AbyssLogs and A2DIL record them) against ``build``'s."""
+    if not enc.get("specs") or build is None:
+        return []
+    cd = ClassData(build.cls)
+    out = []
+    for name, text in enc["specs"].items():
+        sk = cd.by_name.get(name)
+        if not sk or sk["id"] not in build.specs:
+            continue
+        ids = [x["id"] for x in sk.get("specs", [])]
+        best = sorted(ids.index(x) + 1 for x in build.specs[sk["id"]] if x in ids)
+        yours = sorted(int(x) for x in str(text).replace(" ", "").split(",") if x.isdigit())
+        out.append({"skill": name, "yours": ", ".join(map(str, yours)), "optimal": ", ".join(map(str, best)),
+                    "differs": yours != best})
+    return sorted(out, key=lambda d: (not d["differs"], d["skill"]))
 
 
 def vs_top(enc: dict) -> dict:
@@ -207,7 +236,11 @@ def vs_top(enc: dict) -> dict:
             a = agg.setdefault(name, {"share": 0.0, "hpm": 0.0})
             a["share"] += v["mean_share"]
             a["hpm"] += v["mean_hits_per_min"]
-    act = {r["skill"]: r for r in analyze(enc)["skills"]}
+    act: dict = {}                             # chain steps count with their skill, as in the top logs
+    for r in analyze(enc)["skills"]:
+        a = act.setdefault(r["skill"].split(" (")[0], {"share": 0.0, "hits": 0})
+        a["share"] += r["share"]
+        a["hits"] += r["hits"]
     rows = []
     for name in sorted(set(agg) | set(act), key=lambda n: -max(agg.get(n, {}).get("share", 0),
                                                                 act.get(n, {}).get("share", 0))):

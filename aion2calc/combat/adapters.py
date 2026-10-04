@@ -5,11 +5,13 @@ Canonical encounter (plain JSON, stored in the local DB)::
     {"meta":  {"source", "ref", "class", "player", "target", "duration", "total", "dps",
                "started_at", "combat_power", "notes"},
      "hits":  [{"t": seconds, "skill_id", "skill", "damage", "crit", "double", "perfect",
-                "multi", "dot", "front", "back"}],
+                "multi", "dot", "front", "back", "step"}],    # step: chain follow-up name
      "buffs": [{"name", "skill_id", "uptime", "windows": [[start, end], ...]}],
      "specs": {"<skill name>": "1, 4, 5"}}
 
 Sources
+    * AbyssLogs fights (abysslogs.com share links, or a segment file saved from
+      the site): :mod:`aion2calc.combat.abysslogs`
     * A2DIL training-dummy logs (Korean service, public): ``from_a2dil``
     * any tool that can export JSON in the format above, or CSV with the columns
       ``t, skill, damage, crit, double, perfect, multi, dot`` (``from_json``/``from_csv``)
@@ -64,6 +66,8 @@ def normalize(enc: dict) -> dict:
         meta["class"] = _class_of([h.get("skill_id") for h in hits if h.get("skill_id")])
     for h in hits:
         h["skill"] = _english(meta.get("class"), h.get("skill_id"), h.get("skill") or str(h.get("skill_id")))
+        if h.get("step") and not h["skill"].endswith(f"({h['step']})"):
+            h["skill"] = f"{h['skill']} ({h['step']})"
         for k in ("crit", "double", "perfect", "dot", "front", "back"):
             h[k] = bool(h.get(k))
         h["multi"] = int(h.get("multi") or 0)
@@ -123,8 +127,19 @@ def from_a2dil(ref: str) -> dict:
     return enc
 
 
-def from_json(text: str) -> dict:
-    return normalize(json.loads(text))
+def from_json(text: str, player: str | None = None) -> dict:
+    d = json.loads(text)
+    from . import abysslogs
+    if abysslogs.is_segment(d):
+        return abysslogs.from_segment(d, player=player)
+    return normalize(d)
+
+
+def from_text(text: str, name: str | None = None, player: str | None = None) -> dict:
+    """File contents: canonical JSON, an AbyssLogs segment, or CSV."""
+    if text.lstrip().startswith("{"):
+        return from_json(text, player=player)
+    return from_csv(text, {"ref": name})
 
 
 def from_csv(text: str, meta: dict | None = None) -> dict:
@@ -143,10 +158,25 @@ def from_csv(text: str, meta: dict | None = None) -> dict:
     return normalize({"meta": {"source": "csv", **(meta or {})}, "hits": hits})
 
 
-def load(path_or_ref: str) -> dict:
-    """A2DIL URL/id, a .json file or a .csv file."""
+def load(path_or_ref: str, player: str | None = None) -> dict:
+    """AbyssLogs link, A2DIL URL/id, or a .json / .json.gz / .csv file."""
+    from pathlib import Path
+
+    from . import abysslogs
+    if abysslogs.is_ref(path_or_ref):
+        return abysslogs.from_ref(path_or_ref, player=player)
     if "a2dil" in path_or_ref or re.fullmatch(r"[0-9a-f-]{36}", path_or_ref):
         return from_a2dil(path_or_ref)
-    with open(path_or_ref, encoding="utf-8") as f:
-        text = f.read()
-    return from_csv(text, {"ref": path_or_ref}) if path_or_ref.lower().endswith(".csv") else from_json(text)
+    path = Path(path_or_ref)
+    if not path.exists() and re.fullmatch(r"[A-Za-z0-9]{6,12}", path_or_ref):
+        return abysslogs.from_ref(path_or_ref, player=player)     # bare AbyssLogs id
+    raw = path.read_bytes()
+    if raw[:2] == b"\x1f\x8b":                                    # gzip (AbyssLogs segment files)
+        import gzip
+        raw = gzip.decompress(raw)
+    text = raw.decode("utf-8-sig")
+    if path.suffix.lower() == ".csv":
+        return from_csv(text, {"ref": path_or_ref})
+    enc = from_json(text, player=player)
+    enc["meta"].setdefault("ref", path_or_ref)
+    return enc

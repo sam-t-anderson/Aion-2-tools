@@ -51,11 +51,17 @@ python -m aion2calc app        # opens http://127.0.0.1:8765
 * **My Character**: import any character from the official AION 2 site. You get its gear, rolls,
   manastones, arcana skill rolls, Daevanion and skill levels, a DPS score as it is, and one click to
   optimize it with the same gear and points.
-* **Combat Logs**: an AionFlex-style breakdown (per-skill share, casts, crit/double/perfect rates,
-  cooldown use, timeline, buffs, idle time). It compares the log with the optimal rotation for that
-  build and with top-player logs, and keeps an encounter history.
+* **Combat Logs**: paste an [AbyssLogs](https://abysslogs.com) share link (or an A2DIL link, or a
+  JSON/CSV file) for an AionFlex-style breakdown: per-skill share, casts, crit/double/perfect
+  rates, cooldown use, timeline, buffs, idle time. It compares the log with the optimal rotation and
+  specializations for that build and with top-player logs. Every log is also saved as a file in the
+  logs folder.
 * **Database**: updates itself on every launch from the live sources. New items, skills or classes
   need no code changes.
+
+Everything the app saves (game database, synced data, combat logs, your optimizations) goes in one
+folder: `%LOCALAPPDATA%\aion2calc` on Windows (`C:\Users\<you>\AppData\Local\aion2calc`), or
+`~/.aion2calc` on Linux and macOS. Combat logs are in its `logs` subfolder.
 
 Details: [`docs/app.md`](docs/app.md).
 
@@ -82,8 +88,12 @@ python -m aion2calc compare sorcerer ranger assassin gladiator
 # import and optimize a real character (official AION 2 site, global regions)
 python -m aion2calc character "Name" --server Zikel --optimize
 
-# analyze a combat log (A2DIL link, JSON or CSV) against the optimal rotation
-python -m aion2calc analyze https://a2dil.com/training-rankings/<id>
+# analyze a combat log against the optimal rotation: AbyssLogs link, A2DIL link, JSON or CSV
+python -m aion2calc analyze https://abysslogs.com/e/<id>
+python -m aion2calc analyze https://abysslogs.com/e/<id> --player "Name"   # one player of a party log
+
+# show or open the folder where every analyzed log is saved
+python -m aion2calc logs --open
 
 # update the local game database (also runs automatically when the app starts)
 python -m aion2calc sync
@@ -106,7 +116,7 @@ Classes: `gladiator templar assassin ranger sorcerer spiritmaster cleric chanter
 | Output | `report.py`, `report_md.py`, `diff.py`, `render/*` | build.json, Markdown report, board images, build card, planner links, result diffs |
 | Database | `db/store.py`, `db/sync.py`, `paths.py` | SQLite catalog + history, launch-time sync from sitemaps, user data overlay |
 | Characters | `sources/official.py`, `sources/character.py`, `charopt.py` | official profile import → build + loadout → score as-is → optimize → diff |
-| Combat logs | `combat/adapters.py`, `combat/analyze.py`, `combat/live.py` | log formats, breakdown, comparison with the optimum and top logs, live-source interface |
+| Combat logs | `combat/adapters.py`, `combat/abysslogs.py`, `combat/analyze.py`, `combat/logs.py`, `combat/live.py` | log formats and AbyssLogs import, breakdown, comparison with the optimum and top logs, the logs folder, live-source interface |
 | App | `app/server.py`, `app/views.py`, `app/static/*` | local server (stdlib) and the game-styled UI |
 
 Formulas, sources, and every assumption: [`docs/methodology.md`](docs/methodology.md).
