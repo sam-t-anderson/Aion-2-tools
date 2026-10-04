@@ -15,6 +15,14 @@ Everything runs on your machine. The app talks to three public sites:
 
 ## Pages
 
+| Planner: skills | Planner: Daevanion |
+|---|---|
+| ![Skills](screenshots/planner_skills.png) | ![Daevanion](screenshots/planner_daevanion.png) |
+| **Planner: equipment** | **Planner: arcana** |
+| ![Equipment](screenshots/planner_equipment.png) | ![Arcana](screenshots/planner_arcana.png) |
+| **Combat logs** | **Database** |
+| ![Combat logs](screenshots/combat_logs.png) | ![Database](screenshots/database.png) |
+
 ### Planner
 
 Every optimized build is shown as a set of windows laid out like the in-game
