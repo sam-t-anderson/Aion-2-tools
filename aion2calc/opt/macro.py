@@ -51,6 +51,7 @@ class MacroPolicy:
 
 def plan_macro(derived, kit, policy: list, target, config, macro_cd_limit: float = 20.0) -> MacroPlan:
     keyf = lambda e: e[0] if isinstance(e, tuple) else e
+    policy = [e for e in policy if keyf(e) in kit.actions]
     manual, steps = [], []
     for e in policy:
         a = kit.actions[keyf(e)]
