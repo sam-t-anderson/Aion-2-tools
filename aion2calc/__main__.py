@@ -11,6 +11,10 @@ Commands
   character  import a character from the official site, score it, optimize it
   analyze    break down a combat log (AbyssLogs or A2DIL link, JSON or CSV) and compare it with the optimum
   logs       show (or open) the folder where every analyzed combat log is saved
+  advise     gear / arcana / pantheon / genus / rotation advice for a character, ranked by DPS gain
+  inventory  list or edit the items the gear planner may equip
+  learn      refit the model calibration from your saved fights
+  share      upload a saved fight to a log server (open a2log format) and print its link
   app        start the local planner / analyzer app in the browser
 """
 from __future__ import annotations
@@ -82,6 +86,32 @@ def main(argv: list[str] | None = None) -> int:
                                 "or a .json / .json.gz / .csv log file")
     an.add_argument("--player", help="whose damage to analyze in a party log (default: who recorded it)")
     an.add_argument("--no-save", action="store_true", help="do not store it in the encounter history")
+
+    ad = sub.add_parser("advise", help="gear, arcana, pantheon, genus and rotation advice for a character")
+    ad.add_argument("name")
+    ad.add_argument("--region", default="nae", choices=["nae", "eu", "as", "la"])
+    ad.add_argument("--server", help="server name or id when several characters match")
+    ad.add_argument("--out", help="output folder (default <user folder>/results/characters/<name>_<server>)")
+
+    iv = sub.add_parser("inventory", help="list or edit the items the gear planner may equip")
+    iv.add_argument("name")
+    iv.add_argument("--region", default="nae", choices=["nae", "eu", "as", "la"])
+    iv.add_argument("--server")
+    iv.add_argument("--add", metavar="ITEM", help="catalog item id (slug), e.g. aulamus-ring")
+    iv.add_argument("--enchant", type=int, default=0)
+    iv.add_argument("--skill", action="append", default=[], metavar="NAME=LEVELS",
+                    help="skill option on the item (repeatable), e.g. Hellfire=2")
+    iv.add_argument("--remove", metavar="ID")
+
+    sh = sub.add_parser("share", help="upload a saved fight to a log server (a2log) and print its link")
+    sh.add_argument("encounter", nargs="?", type=int, help="encounter id (see the Combat Logs page or `logs`)")
+    sh.add_argument("--server", help="log server URL; saved for next time")
+    sh.add_argument("--key", help="upload key; saved for next time")
+    sh.add_argument("--visibility", choices=["public", "unlisted", "private"])
+    sh.add_argument("--export", metavar="FILE", help="write the a2log JSON to FILE instead of uploading")
+
+    le = sub.add_parser("learn", help="refit the model calibration from your saved fights")
+    le.add_argument("cls", nargs="?", help="class (default: every class with fights)")
 
     lg = sub.add_parser("logs", help="show the combat logs folder (one file per analyzed log)")
     lg.add_argument("--open", action="store_true", help="open the folder in Explorer / Finder")
@@ -173,9 +203,74 @@ def main(argv: list[str] | None = None) -> int:
             for t in o["tips"]:
                 print("  tip:", t)
         if not args.no_save:
+            from . import learn
             from .combat.logs import save
             eid, path = save(enc)
             print(f"saved as encounter {eid}: {path}")
+            try:
+                cal = learn.update(eid)
+                if cal:
+                    print("calibration:", "; ".join(learn.summary(cal)))
+            except Exception as err:
+                print("not used for calibration:", err)
+    elif args.cmd in ("advise", "inventory"):
+        from .charopt import find, import_character
+        from .plan import inventory as INV
+        hits = find(args.name, args.region, args.server)
+        if not hits:
+            print("no character found")
+            return 1
+        h = hits[0]
+        imp = import_character(h["character_id"], h["server_id"], h["region"], use_cache=3600,
+                               progress=lambda m: print("  ..", m))
+        inv = INV.from_character(imp)
+        if args.cmd == "inventory":
+            if args.add:
+                skills = [[x.split("=")[0], int(x.split("=")[1]) if "=" in x else 1] for x in args.skill]
+                e = INV.add(inv, args.add, args.enchant, skills=skills)
+                print("added", e["id"], e["name"], f"+{e['enchant']}")
+            if args.remove:
+                print("removed" if INV.remove(inv, args.remove) else "no such entry", args.remove)
+            print("inventory file:", INV.save(inv))
+            for e in inv["items"]:
+                print(f"  {e['id']:12s} {e.get('slot') or e.get('category') or '':18s} {e['name']} +{e.get('enchant', 0)}"
+                      + (f"  skills {e['skills']}" if e.get("skills") else "") + f"  [{e['source']}]")
+        else:
+            from .paths import results_dir
+            from .plan.advisor import advise, write_markdown
+            adv = advise(imp, inv, progress=lambda m: print("  ..", m))
+            out = Path(args.out) if args.out else results_dir() / "characters" / imp.loadout_name()[5:]
+            p = write_markdown(adv, out)
+            for r in adv["top"][:12]:
+                g = "" if r["gain"] is None else f"{100 * r['gain']:+.1f}%"
+                print(f"  {r['area']:18s} {g:>7s}  {r['text']}")
+            print("advice:", p)
+    elif args.cmd == "share":
+        from .combat import share
+        if args.server or args.key or (args.visibility and args.encounter is None):
+            share.save_settings(args.server, args.key, args.visibility)
+            print("log server settings saved")
+        if args.encounter is not None:
+            if args.export:
+                from .db import store
+                from .logserver.format import from_encounter
+                enc = store.encounter(store.connect(), args.encounter)
+                Path(args.export).write_text(json.dumps(from_encounter(enc), indent=1), encoding="utf-8")
+                print("wrote", args.export)
+            else:
+                r = share.share_encounter(args.encounter, visibility=args.visibility)
+                print(r["url"])
+                print("delete link:", r.get("delete_url"))
+    elif args.cmd == "learn":
+        from . import learn
+        from .db import store
+        conn = store.connect()
+        classes = [args.cls] if args.cls else sorted({e["class_name"] for e in store.encounters(conn) if e["class_name"]})
+        for e in store.encounters(conn):
+            if e["class_name"] in classes:
+                learn.observe(e["id"], conn)
+        for c in classes:
+            print(c + ":", "; ".join(learn.summary(learn.fit(c, conn))))
     elif args.cmd == "logs":
         from .combat.logs import backfill, open_folder
         from .paths import home, logs_dir

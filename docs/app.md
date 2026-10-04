@@ -28,7 +28,8 @@ Everything the app writes goes in one folder:
 |---|---|
 | `logs\` | one JSON file per analyzed combat log |
 | `results\` | optimizations run from the app, and your character optimizations |
-| `data\` | game data the launch-time sync downloaded |
+| `data\` | game data the launch-time sync downloaded, model calibration (`calibration\`), log server settings |
+| `inventory\` | one inventory per character for the gear planner |
 | `aion2.db` | item catalog, imported characters, encounter history |
 | `cache\`, `icons\` | downloaded pages and icons |
 
@@ -90,6 +91,18 @@ What the profile does not show, and how it is handled:
 | bonus from owned (unequipped) titles | estimated (+4 Attack, +20 Crit, +30 Accuracy) |
 | stats of uncommon wings | counted only for wings in a small table (Ultimate Daeva Wings) |
 
+### Gear & Advice
+
+Pick an imported character to see its inventory: the equipped items come from the official page,
+and you add the rest from the catalog, with enchant level and skill options. You also enter its
+Genus Insight lines and the titles you own here. **Run advice** then plans gear (best set from
+the inventory, goal gear, upgrade path), arcana, titles, pantheon, genus insight and your fights,
+ranked by simulated DPS gain. The results are shown as game-style windows with the game's icons:
+an equipment paper doll, the upgrade path as item cards, arcana cards, title plates, the
+pantheon deities and the genus insight grids. The
+model is calibrated from the character's fights when there are enough. Details:
+[planner.md](planner.md).
+
 ### Combat Logs
 
 Import a log in any of these ways:
@@ -140,6 +153,15 @@ Compare shares and casts more than DPS when:
 * the log is Korean (A2DIL): those players have higher-level gear than the global simulation;
 * the log is a boss fight: movement, mechanics and party buffs are not in a training-dummy
   simulation.
+
+#### Sharing a fight
+
+Set your log server once (**Share to a log server**: URL, upload key, default visibility). After
+that, **Share link** on any fight uploads it in the open a2log format and shows a link anyone can
+open. See [logserver.md](logserver.md) to host the server on Ubuntu.
+
+Every saved fight is also matched to the gear its player wore and used to calibrate the model (see
+[planner.md](planner.md#learning-from-your-fights)).
 
 #### Uploading to AbyssLogs
 
@@ -220,11 +242,13 @@ To sync by hand: `python -m aion2calc sync` (`--force` re-reads everything,
 
 `GET /api/status`, `/api/classes`, `/api/results`, `/api/build?path=`,
 `/api/character/search?name=&region=`, `/api/characters`, `/api/encounters`,
-`/api/encounters/<id>`, `/api/logs`, `/api/items?search=&category=`,
+`/api/encounters/<id>`, `/api/logs`, `/api/logserver`, `/api/inventory?character=`,
+`/api/calibration?class=`, `/api/items?search=&category=`,
 `/api/items/<slug>`, `/api/jobs/<id>`, `/api/icon?u=`
 
 `POST /api/sync`, `/api/optimize`, `/api/character/import`,
 `/api/character/optimize`, `/api/encounters/import` (`{"ref": link, "player": name}`
-or `{"text": file contents, "name": file name, "player": name}`), `/api/logs/open`
+or `{"text": file contents, "name": file name, "player": name}`), `/api/encounters/<id>/share`,
+`/api/logserver`, `/api/inventory/add|remove|genus`, `/api/advice` (job), `/api/logs/open`
 
 Long requests return a job id; poll `/api/jobs/<id>` until its status is `done`.

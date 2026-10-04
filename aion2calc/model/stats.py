@@ -36,6 +36,9 @@ PEN_FLAT = 0.1
 #: Combat Speed / Cooldown Reduction caps.
 CDR_CAP = 0.60
 
+#: Factors learned from your own fights (``aion2calc.learn``); 1.0 = the community model.
+CALIBRATION = {"double": 1.0, "perfect": 1.0, "multihit": 1.0}
+
 
 @dataclass
 class Stats:
@@ -121,9 +124,9 @@ class Stats:
             atk_flat=self.attack, atk_pct=atk_pct,
             weapon_min=self.weapon_min, weapon_max=self.weapon_max,
             crit_stat=crit_stat, crit_dmg=self.crit_dmg, crit_atk=self.crit_atk,
-            double=self.double + p * self.wisdom,
-            perfect=self.perfect + p * self.justice,
-            multihit=self.multihit,
+            double=(self.double + p * self.wisdom) * CALIBRATION["double"],
+            perfect=(self.perfect + p * self.justice) * CALIBRATION["perfect"],
+            multihit=self.multihit * CALIBRATION["multihit"],
             amp=self.amp_all + self.amp_pve + self.amp_boss,
             weapon_amp=self.weapon_amp, front_amp=self.front_amp,
             fire_amp=self.fire_amp, water_amp=self.water_amp,

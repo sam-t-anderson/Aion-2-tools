@@ -1,0 +1,608 @@
+{
+ "source": "wikily.gg/aion-2/genus-insight (global client data), read 2026-10-04",
+ "slots": 9,
+ "max_level": 10,
+ "genera": {
+  "Cogni": {
+   "pets": 41,
+   "analysis_cost": "4 Soul Crystals + 1,000 Kina per analysis",
+   "levels": [
+    {
+     "level": 1,
+     "slot_opened": 1,
+     "grades": {
+      "Common": 0.9,
+      "Rare": 0.1
+     }
+    },
+    {
+     "level": 2,
+     "slot_opened": 2,
+     "grades": {
+      "Common": 0.7,
+      "Rare": 0.3
+     }
+    },
+    {
+     "level": 3,
+     "slot_opened": 3,
+     "grades": {
+      "Common": 0.55,
+      "Rare": 0.45
+     }
+    },
+    {
+     "level": 4,
+     "slot_opened": 4,
+     "grades": {
+      "Common": 0.5,
+      "Rare": 0.45,
+      "Epic": 0.05
+     }
+    },
+    {
+     "level": 5,
+     "slot_opened": 5,
+     "grades": {
+      "Common": 0.45,
+      "Rare": 0.45,
+      "Epic": 0.1
+     }
+    },
+    {
+     "level": 6,
+     "slot_opened": 6,
+     "grades": {
+      "Common": 0.4,
+      "Rare": 0.4,
+      "Epic": 0.2
+     }
+    },
+    {
+     "level": 7,
+     "slot_opened": 7,
+     "grades": {
+      "Common": 0.35,
+      "Rare": 0.34,
+      "Epic": 0.3,
+      "Unique": 0.01
+     }
+    },
+    {
+     "level": 8,
+     "slot_opened": 8,
+     "grades": {
+      "Common": 0.3,
+      "Rare": 0.3,
+      "Epic": 0.35,
+      "Unique": 0.05
+     }
+    },
+    {
+     "level": 9,
+     "slot_opened": 9,
+     "grades": {
+      "Common": 0.25,
+      "Rare": 0.25,
+      "Epic": 0.39,
+      "Unique": 0.1,
+      "Heroic": 0.01
+     }
+    },
+    {
+     "level": 10,
+     "slot_opened": null,
+     "grades": {
+      "Common": 0.2,
+      "Rare": 0.3,
+      "Epic": 0.3,
+      "Unique": 0.15,
+      "Heroic": 0.05
+     }
+    }
+   ],
+   "owned_effect": [
+    {
+     "pet_insight": 1,
+     "effects": [
+      "HP 10"
+     ]
+    },
+    {
+     "pet_insight": 2,
+     "effects": [
+      "HP 20",
+      "Critical Hit 1"
+     ]
+    },
+    {
+     "pet_insight": 3,
+     "effects": [
+      "HP 30",
+      "Critical Hit 2",
+      "Might 1"
+     ]
+    }
+   ]
+  },
+  "Fera": {
+   "pets": 65,
+   "analysis_cost": "4 Soul Crystals + 1,000 Kina per analysis",
+   "levels": [
+    {
+     "level": 1,
+     "slot_opened": 1,
+     "grades": {
+      "Common": 0.9,
+      "Rare": 0.1
+     }
+    },
+    {
+     "level": 2,
+     "slot_opened": 2,
+     "grades": {
+      "Common": 0.7,
+      "Rare": 0.3
+     }
+    },
+    {
+     "level": 3,
+     "slot_opened": 3,
+     "grades": {
+      "Common": 0.55,
+      "Rare": 0.45
+     }
+    },
+    {
+     "level": 4,
+     "slot_opened": 4,
+     "grades": {
+      "Common": 0.5,
+      "Rare": 0.45,
+      "Epic": 0.05
+     }
+    },
+    {
+     "level": 5,
+     "slot_opened": 5,
+     "grades": {
+      "Common": 0.45,
+      "Rare": 0.45,
+      "Epic": 0.1
+     }
+    },
+    {
+     "level": 6,
+     "slot_opened": 6,
+     "grades": {
+      "Common": 0.4,
+      "Rare": 0.4,
+      "Epic": 0.2
+     }
+    },
+    {
+     "level": 7,
+     "slot_opened": 7,
+     "grades": {
+      "Common": 0.35,
+      "Rare": 0.34,
+      "Epic": 0.3,
+      "Unique": 0.01
+     }
+    },
+    {
+     "level": 8,
+     "slot_opened": 8,
+     "grades": {
+      "Common": 0.3,
+      "Rare": 0.3,
+      "Epic": 0.35,
+      "Unique": 0.05
+     }
+    },
+    {
+     "level": 9,
+     "slot_opened": 9,
+     "grades": {
+      "Common": 0.25,
+      "Rare": 0.25,
+      "Epic": 0.39,
+      "Unique": 0.1,
+      "Heroic": 0.01
+     }
+    },
+    {
+     "level": 10,
+     "slot_opened": null,
+     "grades": {
+      "Common": 0.2,
+      "Rare": 0.3,
+      "Epic": 0.3,
+      "Unique": 0.15,
+      "Heroic": 0.05
+     }
+    }
+   ],
+   "owned_effect": [
+    {
+     "pet_insight": 1,
+     "effects": [
+      "Mount Ground Move Speed 1"
+     ]
+    },
+    {
+     "pet_insight": 2,
+     "effects": [
+      "Mount Ground Move Speed 2",
+      "Accuracy Bonus 1"
+     ]
+    },
+    {
+     "pet_insight": 3,
+     "effects": [
+      "Mount Ground Move Speed 3",
+      "Accuracy Bonus 2",
+      "Dexterity 1"
+     ]
+    }
+   ]
+  },
+  "Natura": {
+   "pets": 48,
+   "analysis_cost": "4 Soul Crystals + 1,000 Kina per analysis",
+   "levels": [
+    {
+     "level": 1,
+     "slot_opened": 1,
+     "grades": {
+      "Common": 0.9,
+      "Rare": 0.1
+     }
+    },
+    {
+     "level": 2,
+     "slot_opened": 2,
+     "grades": {
+      "Common": 0.7,
+      "Rare": 0.3
+     }
+    },
+    {
+     "level": 3,
+     "slot_opened": 3,
+     "grades": {
+      "Common": 0.55,
+      "Rare": 0.45
+     }
+    },
+    {
+     "level": 4,
+     "slot_opened": 4,
+     "grades": {
+      "Common": 0.5,
+      "Rare": 0.45,
+      "Epic": 0.05
+     }
+    },
+    {
+     "level": 5,
+     "slot_opened": 5,
+     "grades": {
+      "Common": 0.45,
+      "Rare": 0.45,
+      "Epic": 0.1
+     }
+    },
+    {
+     "level": 6,
+     "slot_opened": 6,
+     "grades": {
+      "Common": 0.4,
+      "Rare": 0.4,
+      "Epic": 0.2
+     }
+    },
+    {
+     "level": 7,
+     "slot_opened": 7,
+     "grades": {
+      "Common": 0.35,
+      "Rare": 0.34,
+      "Epic": 0.3,
+      "Unique": 0.01
+     }
+    },
+    {
+     "level": 8,
+     "slot_opened": 8,
+     "grades": {
+      "Common": 0.3,
+      "Rare": 0.3,
+      "Epic": 0.35,
+      "Unique": 0.05
+     }
+    },
+    {
+     "level": 9,
+     "slot_opened": 9,
+     "grades": {
+      "Common": 0.25,
+      "Rare": 0.25,
+      "Epic": 0.39,
+      "Unique": 0.1,
+      "Heroic": 0.01
+     }
+    },
+    {
+     "level": 10,
+     "slot_opened": null,
+     "grades": {
+      "Common": 0.2,
+      "Rare": 0.3,
+      "Epic": 0.3,
+      "Unique": 0.15,
+      "Heroic": 0.05
+     }
+    }
+   ],
+   "owned_effect": [
+    {
+     "pet_insight": 1,
+     "effects": [
+      "Stamina 3"
+     ]
+    },
+    {
+     "pet_insight": 2,
+     "effects": [
+      "Stamina 6",
+      "Critical Hit Resist 1"
+     ]
+    },
+    {
+     "pet_insight": 3,
+     "effects": [
+      "Stamina 9",
+      "Critical Hit Resist 2",
+      "Precision 1"
+     ]
+    }
+   ]
+  },
+  "Varian": {
+   "pets": 46,
+   "analysis_cost": "4 Soul Crystals + 1,000 Kina per analysis",
+   "levels": [
+    {
+     "level": 1,
+     "slot_opened": 1,
+     "grades": {
+      "Common": 0.9,
+      "Rare": 0.1
+     }
+    },
+    {
+     "level": 2,
+     "slot_opened": 2,
+     "grades": {
+      "Common": 0.7,
+      "Rare": 0.3
+     }
+    },
+    {
+     "level": 3,
+     "slot_opened": 3,
+     "grades": {
+      "Common": 0.55,
+      "Rare": 0.45
+     }
+    },
+    {
+     "level": 4,
+     "slot_opened": 4,
+     "grades": {
+      "Common": 0.5,
+      "Rare": 0.45,
+      "Epic": 0.05
+     }
+    },
+    {
+     "level": 5,
+     "slot_opened": 5,
+     "grades": {
+      "Common": 0.45,
+      "Rare": 0.45,
+      "Epic": 0.1
+     }
+    },
+    {
+     "level": 6,
+     "slot_opened": 6,
+     "grades": {
+      "Common": 0.4,
+      "Rare": 0.4,
+      "Epic": 0.2
+     }
+    },
+    {
+     "level": 7,
+     "slot_opened": 7,
+     "grades": {
+      "Common": 0.35,
+      "Rare": 0.34,
+      "Epic": 0.3,
+      "Unique": 0.01
+     }
+    },
+    {
+     "level": 8,
+     "slot_opened": 8,
+     "grades": {
+      "Common": 0.3,
+      "Rare": 0.3,
+      "Epic": 0.35,
+      "Unique": 0.05
+     }
+    },
+    {
+     "level": 9,
+     "slot_opened": 9,
+     "grades": {
+      "Common": 0.25,
+      "Rare": 0.25,
+      "Epic": 0.39,
+      "Unique": 0.1,
+      "Heroic": 0.01
+     }
+    },
+    {
+     "level": 10,
+     "slot_opened": null,
+     "grades": {
+      "Common": 0.2,
+      "Rare": 0.3,
+      "Epic": 0.3,
+      "Unique": 0.15,
+      "Heroic": 0.05
+     }
+    }
+   ],
+   "owned_effect": [
+    {
+     "pet_insight": 1,
+     "effects": [
+      "Mount Sprint Stamina Cost Reduction Rate 0.1%"
+     ]
+    },
+    {
+     "pet_insight": 2,
+     "effects": [
+      "Mount Sprint Stamina Cost Reduction Rate 0.2%",
+      "Evasion Bonus 1"
+     ]
+    },
+    {
+     "pet_insight": 3,
+     "effects": [
+      "Mount Sprint Stamina Cost Reduction Rate 0.3%",
+      "Evasion Bonus 2",
+      "Constitution 1"
+     ]
+    }
+   ]
+  },
+  "Special": {
+   "pets": 6,
+   "analysis_cost": "4 Soul Crystals + 1,000 Kina per analysis",
+   "levels": [
+    {
+     "level": 1,
+     "slot_opened": 1,
+     "grades": {
+      "Common": 0.9,
+      "Rare": 0.1
+     }
+    },
+    {
+     "level": 2,
+     "slot_opened": 2,
+     "grades": {
+      "Common": 0.7,
+      "Rare": 0.3
+     }
+    },
+    {
+     "level": 3,
+     "slot_opened": 3,
+     "grades": {
+      "Common": 0.55,
+      "Rare": 0.45
+     }
+    },
+    {
+     "level": 4,
+     "slot_opened": 4,
+     "grades": {
+      "Common": 0.5,
+      "Rare": 0.45,
+      "Epic": 0.05
+     }
+    },
+    {
+     "level": 5,
+     "slot_opened": 5,
+     "grades": {
+      "Common": 0.45,
+      "Rare": 0.45,
+      "Epic": 0.1
+     }
+    },
+    {
+     "level": 6,
+     "slot_opened": 6,
+     "grades": {
+      "Common": 0.4,
+      "Rare": 0.4,
+      "Epic": 0.2
+     }
+    },
+    {
+     "level": 7,
+     "slot_opened": 7,
+     "grades": {
+      "Common": 0.35,
+      "Rare": 0.34,
+      "Epic": 0.3,
+      "Unique": 0.01
+     }
+    },
+    {
+     "level": 8,
+     "slot_opened": 8,
+     "grades": {
+      "Common": 0.3,
+      "Rare": 0.3,
+      "Epic": 0.35,
+      "Unique": 0.05
+     }
+    },
+    {
+     "level": 9,
+     "slot_opened": 9,
+     "grades": {
+      "Common": 0.25,
+      "Rare": 0.25,
+      "Epic": 0.39,
+      "Unique": 0.1,
+      "Heroic": 0.01
+     }
+    },
+    {
+     "level": 10,
+     "slot_opened": null,
+     "grades": {
+      "Common": 0.2,
+      "Rare": 0.3,
+      "Epic": 0.3,
+      "Unique": 0.15,
+      "Heroic": 0.05
+     }
+    }
+   ],
+   "owned_effect": []
+  }
+ },
+ "genus_lines": {
+  "note": "genus-specific analysis lines (slots 4 and 7); other slots roll Attack, Critical Hit, Accuracy, defensive stats and HP/MP, some of them '<genus> ...' (against that genus only)",
+  "damage_boost": {
+   "slots": [
+    4,
+    7
+   ],
+   "range_pct": [
+    2.4,
+    4.8
+   ]
+  }
+ }
+}

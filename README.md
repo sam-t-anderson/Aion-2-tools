@@ -15,27 +15,11 @@ It answers, for any class:
 and produces images of the Daevanion boards and a planner-style build page plus
 share links for the metabot.gg and gamers4.life planners.
 
-## Sorcerer, level 45 global: results at a glance
+## Example: Sorcerer, level 45 global
 
-| | Median launch gear, 203 SP | Median gear, 383 SP (all Empyrean Traces) | First-month upgrade gear |
-|---|---:|---:|---:|
-| Optimized build, boss DPS | **17,962** | **18,342** | **25,890** |
-| Typical top global build, same rotation optimizer | 16,512 | — | 23,809 |
-
-* Full reports: [median gear](results/sorcerer_l45/README.md) ·
-  [383 skill points](results/sorcerer_l45_full_sp/README.md) ([what changes](results/sorcerer_l45_full_sp/DIFF.md)) ·
-  [upgrade gear](results/sorcerer_l45_geared/README.md) ([what changes](results/sorcerer_l45_geared/DIFF.md))
-* Arcana: Parchment is the slot to chase (core fire skills); two extra Hellfire levels (Lv 16) are
-  worth about +5%
-* Stigmas: Element Enhancement 10, Cold Storm 6, Fire Wall 6, Delayed Explosion 1
-* Priority: Wish → Element Enhancement → Fire Wall → Cold Storm → Winter's Shackles → Blaze →
-  Firestorm → Hellfire (full charge) → Bittercold Wind (inside Element Enhancement) → Frost Burst →
-  Flame Scattershot → Delayed Explosion → Flame Arrow (filler)
-* One-button in-game Skill Macro reaches ~95% of that priority list in simulation
-* Stat priority (median gear): Cooldown Reduction > Damage Boost > Penetration ≈ PvE Attack ≈ Double >
-  Weapon Damage Boost > Crit > Attack; on upgrade gear Crit moves to the top
-
-![Sorcerer build card](results/sorcerer_l45/images/build_card.png)
+The optimized Sorcerer build (boss DPS 17,962 on median launch gear, 25,890 on upgrade gear), with its
+arcana, stigmas, priority list, macro, stat priority, build card and Daevanion boards, is in
+[`example/sorcerer_l45_global`](example/sorcerer_l45_global/README.md).
 
 ## The app
 
@@ -56,6 +40,15 @@ python -m aion2calc app        # opens http://127.0.0.1:8765
   rates, cooldown use, timeline, buffs, idle time. It compares the log with the optimal rotation and
   specializations for that build and with top-player logs. Every log is also saved as a file in the
   logs folder.
+* **Gear & Advice**: what to wear from your inventory, goal gear per slot and an upgrade path,
+  arcana (variant, skill options to chase, keep or replace), titles (per slot, and which to collect),
+  pantheon (deity stats by value),
+  genus insight (which lines to reroll, which genus to level) and what your fights show, all ranked
+  by simulated DPS gain, shown as game-style windows with the game's icons. Fights you import are
+  matched to the gear you wore and calibrate the model
+  ([details](docs/planner.md)).
+* **Share**: upload any saved fight to your own log server and get a link anyone can open
+  ([host one on Ubuntu](docs/logserver.md)).
 * **Database**: updates itself on every launch from the live sources. New items, skills or classes
   need no code changes.
 
@@ -95,6 +88,17 @@ python -m aion2calc analyze https://abysslogs.com/e/<id> --player "Name"   # one
 # show or open the folder where every analyzed log is saved
 python -m aion2calc logs --open
 
+# gear / arcana / pantheon / genus / rotation advice for a character, and its inventory
+python -m aion2calc advise "Name" --server Zikel
+python -m aion2calc inventory "Name" --add aulamus-ring --enchant 8
+
+# share a saved fight on your log server (open a2log format) and print the link
+python -m aion2calc share 12 --server https://logs.example.com --key a2l_...
+
+# run the log server itself (see docs/logserver.md for Ubuntu + nginx)
+python -m aion2calc.logserver keys create "my meter"
+python -m aion2calc.logserver serve --public-url https://logs.example.com
+
 # update the local game database (also runs automatically when the app starts)
 python -m aion2calc sync
 
@@ -117,6 +121,9 @@ Classes: `gladiator templar assassin ranger sorcerer spiritmaster cleric chanter
 | Database | `db/store.py`, `db/sync.py`, `paths.py` | SQLite catalog + history, launch-time sync from sitemaps, user data overlay |
 | Characters | `sources/official.py`, `sources/character.py`, `charopt.py` | official profile import → build + loadout → score as-is → optimize → diff |
 | Combat logs | `combat/adapters.py`, `combat/abysslogs.py`, `combat/analyze.py`, `combat/logs.py`, `combat/live.py` | log formats and AbyssLogs import, breakdown, comparison with the optimum and top logs, the logs folder, live-source interface |
+| Planners | `plan/*` | inventory, best set, goal gear, upgrade path, arcana, pantheon, genus insight, advice |
+| Learning | `learn.py` | fights matched to equipped-gear snapshots; calibration of crit curve, rates and skill damage |
+| Log server | `logserver/*` | self-hosted a2log upload API, JSON Schema, share-link viewer |
 | App | `app/server.py`, `app/views.py`, `app/static/*` | local server (stdlib) and the game-styled UI |
 
 Formulas, sources, and every assumption: [`docs/methodology.md`](docs/methodology.md).

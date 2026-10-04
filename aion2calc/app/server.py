@@ -139,8 +139,55 @@ def act_encounter_import(body: dict, log) -> dict:
         raise ValueError("send a log link (ref) or file contents (text)")
     eid, path = logs.save(enc)
     log(f"saved to {path}")
+    try:
+        from .. import learn
+        learn.update(eid)
+    except Exception as err:                  # learning never blocks an import
+        log(f"not used for calibration: {err}")
     log("analyzing")
     return encounter_view(eid)
+
+
+def _imported(key: str):
+    from ..db import store
+    from ..sources.character import from_profile
+    ch = store.character(store.connect(), key)
+    if not ch:
+        raise FileNotFoundError(f"character {key} is not imported")
+    return from_profile(ch)
+
+
+def _inventory(key: str) -> tuple:
+    from ..plan import inventory as INV
+    imp = _imported(key)
+    inv = INV.from_character(imp)
+    INV.save(inv)
+    return imp, inv
+
+
+def act_advice(body: dict, log) -> dict:
+    from ..plan.advisor import advise, write_markdown
+    imp, inv = _inventory(body["character"])
+    adv = advise(imp, inv, progress=log, genus_mix=body.get("genus_mix"))
+    out = results_dir() / "characters" / imp.loadout_name()[5:]
+    adv["file"] = str(write_markdown(adv, out))
+    return json.loads(json.dumps(adv, default=str))
+
+
+def inventory_post(path: str, body: dict) -> dict:
+    from ..plan import inventory as INV
+    imp, inv = _inventory(body["character"])
+    if path.endswith("/add"):
+        INV.add(inv, body["slug"], int(body.get("enchant") or 0), body.get("rolls") or None,
+                body.get("skills") or [], body.get("note"))
+    elif path.endswith("/remove"):
+        INV.remove(inv, body["id"])
+    elif path.endswith("/genus"):
+        inv["genus"] = body.get("genus") or {}
+    elif path.endswith("/titles"):
+        inv["titles_owned"] = [t.strip() for t in body.get("titles") or [] if t and t.strip()]
+    INV.save(inv)
+    return inv
 
 
 # --------------------------------------------------------------------- server
@@ -208,6 +255,16 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/encounters":
             from ..db import store
             return self._json(store.encounters(store.connect(), q.get("class")))
+        if path == "/api/inventory":
+            return self._json(_inventory(q["character"])[1])
+        if path == "/api/logserver":
+            from ..combat import share
+            st = share.settings()
+            return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
+        if path == "/api/calibration":
+            from .. import learn
+            cal = learn.calibration(q.get("class", ""))
+            return self._json({"calibration": cal, "summary": learn.summary(cal)})
         if path == "/api/logs":
             return self._json({"folder": str(logs_dir()), "files": len(list(logs_dir().glob("*.json")))})
         if path.startswith("/api/encounters/"):
@@ -241,6 +298,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"job": start_job("optimize-class", act_optimize_class, body)})
         if path == "/api/encounters/import":
             return self._json({"job": start_job("encounter", act_encounter_import, body)})
+        if path == "/api/logserver":
+            from ..combat import share
+            st = share.save_settings(body.get("url"), body.get("key"), body.get("visibility"))
+            return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
+        if path.startswith("/api/encounters/") and path.endswith("/share"):
+            from ..combat import share
+            return self._json(share.share_encounter(int(path.split("/")[3]), visibility=body.get("visibility")))
+        if path == "/api/advice":
+            return self._json({"job": start_job("advice", act_advice, body)})
+        if path.startswith("/api/inventory/"):
+            return self._json(inventory_post(path, body))
         if path == "/api/logs/open":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("the logs folder opens only on the computer running the app")

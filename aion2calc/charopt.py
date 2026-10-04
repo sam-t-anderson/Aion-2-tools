@@ -36,7 +36,21 @@ def import_character(character_id: str, server_id: int, region: str = "nae", pro
     ch = official.fetch_character(character_id, server_id, region, progress=progress, use_cache=use_cache)
     imp = from_profile(ch)
     write_user_json(imp.loadout, "global", "loadouts", f"{imp.loadout_name()}.json")
+    snapshot(imp)
     return imp
+
+
+def snapshot(imp: ImportedCharacter) -> int:
+    """Keep what the character has equipped now, so later fights can be matched to it."""
+    from .db import store
+    b = imp.build
+    data = {"loadout": imp.loadout, "loadout_name": imp.loadout_name(), "level": imp.level,
+            "combat_power": imp.combat_power, "server": imp.server,
+            "build": {"sp": {str(k): v for k, v in b.sp.items()}, "stigmas": {str(k): v for k, v in b.stigmas.items()},
+                      "daevanion": sorted(b.daevanion)},
+            "equipment": [{"slot": r["slot"], "name": r["name"], "enchant": r.get("enchant")}
+                          for r in imp.systems.get("equipment", []) + imp.systems.get("arcana", [])]}
+    return store.put_snapshot(store.connect(), imp.key, imp.name, imp.cls, data)
 
 
 def crystal_cost(cd: ClassData, nodes) -> int:
@@ -93,6 +107,7 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dic
                   "daevanion_cost": crystal_cost(cd, b.daevanion),
                   "effective_levels": {cd.skills[k]["name"]: v for k, v in eff.items() if v > 1}},
         "policy": describe(policy),
+        "policy_raw": [list(e) if isinstance(e, tuple) else e for e in policy],
         "weights": stat_weights(stats, kit, policy, scen.target, scen.config),
         "shares": res.shares(),
         "systems": imp.systems,
