@@ -153,7 +153,7 @@ Formulas, sources, and every assumption: [`docs/methodology.md`](docs/methodolog
 python -m pytest -q
 ```
 
-Every pull request and push to `main` runs the tests and builds the app on Windows, macOS and Linux
+Every push runs the tests and builds the app on Windows, macOS and Linux
 ([CI](.github/workflows/ci.yml)); raising the version on `main` publishes a release
 ([how](docs/install.md#builds-and-releases-maintainers)).
 

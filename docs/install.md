@@ -58,7 +58,7 @@ python -m pytest -q
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every pull request and every push to `main`:
+`.github/workflows/ci.yml` runs on every push to any branch (and on pull requests from forks):
 
 1. **Tests and lint**: pyflakes, the pytest suite, and a parse check of the app's JavaScript.
 2. **Build** on Windows, macOS and Linux: PyInstaller builds the app, then
