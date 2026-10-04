@@ -17,15 +17,16 @@ share links for the metabot.gg and gamers4.life planners.
 
 ## Sorcerer, level 45 global: results at a glance
 
-| | Median launch gear | First-month upgrade gear |
-|---|---:|---:|
-| Optimized build, boss DPS | **17,962** | **26,801** |
-| Typical top global build, same rotation optimizer | 16,512 (−8.1%) | 23,809 (−11.2%) |
-| Typical top global build, default priority | 14,050 | 20,188 |
+| | Median launch gear, 203 SP | Median gear, 383 SP (all Empyrean Traces) | First-month upgrade gear |
+|---|---:|---:|---:|
+| Optimized build, boss DPS | **17,962** | **18,342** | **25,890** |
+| Typical top global build, same rotation optimizer | 16,512 | — | 23,809 |
 
 * Full reports: [median gear](results/sorcerer_l45/README.md) ·
-  [upgrade gear](results/sorcerer_l45_geared/README.md) ·
-  [what changes between them](results/sorcerer_l45_geared/DIFF.md)
+  [383 skill points](results/sorcerer_l45_full_sp/README.md) ([what changes](results/sorcerer_l45_full_sp/DIFF.md)) ·
+  [upgrade gear](results/sorcerer_l45_geared/README.md) ([what changes](results/sorcerer_l45_geared/DIFF.md))
+* Arcana: Parchment is the slot to chase (core fire skills); two extra Hellfire levels (Lv 16) are
+  worth about +5%
 * Stigmas: Element Enhancement 10, Cold Storm 6, Fire Wall 6, Delayed Explosion 1
 * Priority: Wish → Element Enhancement → Fire Wall → Cold Storm → Winter's Shackles → Blaze →
   Firestorm → Hellfire (full charge) → Bittercold Wind (inside Element Enhancement) → Frost Burst →
