@@ -1,0 +1,310 @@
+{
+ "14120000": {
+  "name": "Ambush Kick",
+  "hits": {
+   "1412000021": {
+    "flat_l1": 857.0,
+    "coef": 152.0,
+    "hits": 1,
+    "pvp_coef": 120.5
+   }
+  }
+ },
+ "14330000": {
+  "name": "Arrow Scattershot",
+  "hits": {
+   "1433000011": {
+    "flat_l1": 96.0,
+    "coef": 70.0,
+    "hits": 4,
+    "pvp_coef": 72.7
+   }
+  }
+ },
+ "14270000": {
+  "name": "Arrow Storm",
+  "hits": {
+   "1427000011": {
+    "flat_l1": 1184.0,
+    "coef": 210.0,
+    "hits": 1,
+    "pvp_coef": 139.9
+   }
+  }
+ },
+ "14700000": {
+  "name": "Assault Smite",
+  "hits": {
+   "1470000021": {
+    "flat_l1": 902.0,
+    "coef": 160.0,
+    "hits": 1,
+    "pvp_coef": 123.3
+   }
+  }
+ },
+ "14220000": {
+  "name": "Bow of Blessing",
+  "hits": {}
+ },
+ "14080000": {
+  "name": "Burst Arrow",
+  "hits": {
+   "1408000011": {
+    "flat_l1": 429.0,
+    "coef": 178.0,
+    "hits": 1,
+    "pvp_coef": 129.5
+   }
+  }
+ },
+ "14720000": {
+  "name": "Concentrated Fire",
+  "hits": {
+   "1472000711": {
+    "flat_l1": 39.0,
+    "coef": 22.0,
+    "hits": 1,
+    "pvp_coef": 26.1
+   }
+  }
+ },
+ "14010000": {
+  "name": "Deadshot",
+  "hits": {}
+ },
+ "14260000": {
+  "name": "Defiance",
+  "hits": {}
+ },
+ "14050000": {
+  "name": "Drill Dart",
+  "hits": {
+   "1405000011": {
+    "flat_l1": 101.0,
+    "coef": 105.0,
+    "hits": 1,
+    "pvp_coef": 112.31
+   }
+  }
+ },
+ "14180000": {
+  "name": "Ensnaring Trap",
+  "hits": {
+   "1418000111": {
+    "flat_l1": 1218.0,
+    "coef": 216.0,
+    "hits": 1,
+    "pvp_coef": 141.8
+   }
+  }
+ },
+ "14170000": {
+  "name": "Explosion Trap",
+  "hits": {
+   "1417000111": {
+    "flat_l1": 344.0,
+    "coef": 192.0,
+    "hits": 1,
+    "pvp_coef": 134.2
+   }
+  }
+ },
+ "14360000": {
+  "name": "Explosive Arrow",
+  "hits": {
+   "1436000011": {
+    "flat_l1": 1240.0,
+    "coef": 220.0,
+    "hits": 1,
+    "pvp_coef": 143.0
+   }
+  }
+ },
+ "14740000": {
+  "name": "Focused Eye",
+  "hits": {}
+ },
+ "14110000": {
+  "name": "Gale Arrow",
+  "hits": {
+   "1411000011": {
+    "flat_l1": 332.0,
+    "coef": 185.0,
+    "hits": 1,
+    "pvp_coef": 131.9
+   }
+  }
+ },
+ "14060000": {
+  "name": "Griffon Arrow",
+  "hits": {
+   "1406000011": {
+    "flat_l1": 964.0,
+    "coef": 171.0,
+    "hits": 1,
+    "pvp_coef": 127.1
+   }
+  }
+ },
+ "14750000": {
+  "name": "Hunter's Resolve",
+  "hits": {}
+ },
+ "14800000": {
+  "name": "Hunter's Soul",
+  "hits": {
+   "1480000711": {
+    "flat_l1": 265.0,
+    "coef": 41.4,
+    "hits": 1,
+    "pvp_coef": 45.6
+   }
+  }
+ },
+ "14150000": {
+  "name": "Illusory Arrow",
+  "hits": {
+   "1415000011": {
+    "flat_l1": 1099.0,
+    "coef": 195.0,
+    "hits": 1,
+    "pvp_coef": 135.1
+   }
+  }
+ },
+ "14090000": {
+  "name": "Marking Shot",
+  "hits": {
+   "1409001021": {
+    "flat_l1": 117.0,
+    "coef": 121.0,
+    "hits": 1,
+    "pvp_coef": 108.7
+   }
+  }
+ },
+ "14780000": {
+  "name": "Melee Fire",
+  "hits": {
+   "1478000811": {
+    "flat_l1": 135.0,
+    "coef": 24.0,
+    "hits": 1,
+    "pvp_coef": 28.1
+   }
+  }
+ },
+ "14350000": {
+  "name": "Mother Nature's Breath",
+  "hits": {}
+ },
+ "14790000": {
+  "name": "Revitalization Contract",
+  "hits": {}
+ },
+ "14770000": {
+  "name": "Rooting Eye",
+  "hits": {
+   "1477000711": {
+    "flat_l1": 143.0,
+    "coef": 35.0,
+    "hits": 1,
+    "pvp_coef": 39.3
+   }
+  }
+ },
+ "14160000": {
+  "name": "Sealing Arrow",
+  "hits": {
+   "1416000011": {
+    "flat_l1": 1043.0,
+    "coef": 185.0,
+    "hits": 1,
+    "pvp_coef": 131.9
+   }
+  }
+ },
+ "14130000": {
+  "name": "Snare Shot",
+  "hits": {
+   "1413000011": {
+    "flat_l1": 55.0,
+    "coef": 99.0,
+    "hits": 1,
+    "pvp_coef": 99.1
+   }
+  }
+ },
+ "14020000": {
+  "name": "Snipe",
+  "hits": {
+   "1402000011": {
+    "flat_l1": 45.0,
+    "coef": 37.0,
+    "hits": 1,
+    "pvp_coef": 32.96
+   }
+  }
+ },
+ "14190000": {
+  "name": "Stealth",
+  "hits": {}
+ },
+ "14380000": {
+  "name": "Supporting Fire",
+  "hits": {
+   "1438000711": {
+    "flat_l1": 191.0,
+    "coef": 34.0,
+    "hits": 1,
+    "pvp_coef": 42.2
+   }
+  }
+ },
+ "14070000": {
+  "name": "Suppressing Arrow",
+  "hits": {
+   "1407000011": {
+    "flat_l1": 362.0,
+    "coef": 150.0,
+    "hits": 1,
+    "pvp_coef": 119.7
+   }
+  }
+ },
+ "14340000": {
+  "name": "Tempest Shot",
+  "hits": {
+   "1434000011": {
+    "flat_l1": 54.0,
+    "coef": 53.0,
+    "hits": 2,
+    "pvp_coef": 45.36
+   }
+  }
+ },
+ "14760000": {
+  "name": "Unyielding Resolve",
+  "hits": {}
+ },
+ "14310000": {
+  "name": "Vaizel's Authority",
+  "hits": {}
+ },
+ "14710000": {
+  "name": "Vigilant Eye",
+  "hits": {
+   "1471000711": {
+    "flat_l1": 85.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "14730000": {
+  "name": "Wind Vigor",
+  "hits": {}
+ }
+}

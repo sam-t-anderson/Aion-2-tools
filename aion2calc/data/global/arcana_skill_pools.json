@@ -1,0 +1,82 @@
+{
+ "cleric": {
+  "max_level": 4,
+  "skills": [
+   "Empyrean Lords' Benediction",
+   "Healing Enhancement",
+   "Heal Block",
+   "Radiant Benediction",
+   "Earth's Grace"
+  ]
+ },
+ "ranger": {
+  "max_level": 4,
+  "skills": [
+   "Concentrated Fire",
+   "Focused Eye",
+   "Unyielding Resolve",
+   "Melee Fire",
+   "Hunter's Soul"
+  ]
+ },
+ "chanter": {
+  "max_level": 4,
+  "skills": [
+   "Crossguard",
+   "Inspiring Spell",
+   "Impact Hit",
+   "Earth's Promise",
+   "Wind's Promise"
+  ]
+ },
+ "templar": {
+  "max_level": 4,
+  "skills": [
+   "Warding Shield",
+   "Ironclad Defense",
+   "Impact Hit",
+   "Survival Willpower",
+   "Block Pain"
+  ]
+ },
+ "assassin": {
+  "max_level": 4,
+  "skills": [
+   "Exploit Weakness",
+   "Rear Smite",
+   "Impact Hit",
+   "Defense Break",
+   "Determination"
+  ]
+ },
+ "sorcerer": {
+  "max_level": 4,
+  "skills": [
+   "Robe of Earth",
+   "Robe of Flame",
+   "Absorb Essence",
+   "Grace of Enhancement",
+   "Vitality Evaporation"
+  ]
+ },
+ "gladiator": {
+  "max_level": 4,
+  "skills": [
+   "Protection Armor",
+   "Identify Weakness",
+   "Impact Hit",
+   "Experienced Counterstrike",
+   "Murderous Burst"
+  ]
+ },
+ "spiritmaster": {
+  "max_level": 4,
+  "skills": [
+   "Spirit Protection",
+   "Corrode",
+   "Mental Focus",
+   "Consecutive Countercurrent",
+   "Revitalization Contract"
+  ]
+ }
+}

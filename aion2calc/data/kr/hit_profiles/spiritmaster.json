@@ -1,0 +1,425 @@
+{
+ "16700000": {
+  "name": "Assault Terror",
+  "hits": {
+   "1670000021": {
+    "flat_l1": 939.0,
+    "coef": 164.0,
+    "hits": 1,
+    "pvp_coef": 127.6
+   }
+  }
+ },
+ "16010000": {
+  "name": "Cold Shock",
+  "hits": {
+   "1601000011": {
+    "flat_l1": 52.0,
+    "coef": 49.0,
+    "hits": 1,
+    "pvp_coef": 42.88
+   }
+  }
+ },
+ "16040000": {
+  "name": "Combustion",
+  "hits": {
+   "1604000011": {
+    "flat_l1": 61.0,
+    "coef": 64.0,
+    "hits": 1,
+    "pvp_coef": 54.16
+   }
+  }
+ },
+ "16170000": {
+  "name": "Command: Proxy",
+  "hits": {}
+ },
+ "16800000": {
+  "name": "Consecutive Countercurrent",
+  "hits": {
+   "1680000111": {
+    "flat_l1": 75.0,
+    "coef": 18.0,
+    "hits": 1,
+    "pvp_coef": 22.6
+   }
+  }
+ },
+ "16740000": {
+  "name": "Corrode",
+  "hits": {
+   "1674000111": {
+    "flat_l1": 95.0,
+    "coef": 39.0,
+    "hits": 1,
+    "pvp_coef": 44.0
+   }
+  }
+ },
+ "16080000": {
+  "name": "Cry of Terror",
+  "hits": {
+   "1608000011": {
+    "flat_l1": 859.0,
+    "coef": 150.0,
+    "hits": 1,
+    "pvp_coef": 122.0
+   }
+  }
+ },
+ "16220000": {
+  "name": "Cursed Cloud",
+  "hits": {
+   "1622000011": {
+    "flat_l1": 601.0,
+    "coef": 105.0,
+    "hits": 1,
+    "pvp_coef": 102.4
+   }
+  }
+ },
+ "16200000": {
+  "name": "Defiance",
+  "hits": {}
+ },
+ "16330000": {
+  "name": "Dimensional Control",
+  "hits": {
+   "1633000011": {
+    "flat_l1": 157.0,
+    "coef": 86.0,
+    "hits": 1,
+    "pvp_coef": 87.6
+   }
+  }
+ },
+ "16780000": {
+  "name": "Element Unification",
+  "hits": {}
+ },
+ "16300000": {
+  "name": "Elemental Fusion",
+  "hits": {
+   "1630000011": {
+    "flat_l1": 761.0,
+    "coef": 235.0,
+    "hits": 1,
+    "pvp_coef": 153.4
+   }
+  }
+ },
+ "16190000": {
+  "name": "Enhance: Spirit's Benediction",
+  "hits": {}
+ },
+ "16370000": {
+  "name": "Flame Blessing",
+  "hits": {
+   "1637000111": {
+    "flat_l1": 156.0,
+    "coef": 27.3,
+    "hits": 1,
+    "pvp_coef": 46.9
+   }
+  }
+ },
+ "16150000": {
+  "name": "Jointstrike: Corrode",
+  "hits": {
+   "1615000011": {
+    "flat_l1": 429.0,
+    "coef": 75.0,
+    "hits": 1,
+    "pvp_coef": 77.7
+   },
+   "1615110011": {
+    "flat_l1": 544.0,
+    "coef": 95.0,
+    "hits": 1,
+    "pvp_coef": 95.6
+   },
+   "1615210011": {
+    "flat_l1": 653.0,
+    "coef": 114.0,
+    "hits": 1,
+    "pvp_coef": 106.5
+   },
+   "1615310011": {
+    "flat_l1": 590.0,
+    "coef": 103.0,
+    "hits": 1,
+    "pvp_coef": 101.4
+   },
+   "1615410011": {
+    "flat_l1": 489.0,
+    "coef": 85.5,
+    "hits": 1,
+    "pvp_coef": 87.2
+   },
+   "1615510011": {
+    "flat_l1": 925.0,
+    "coef": 161.5,
+    "hits": 2,
+    "pvp_coef": 126.6
+   }
+  }
+ },
+ "16140000": {
+  "name": "Jointstrike: Curse",
+  "hits": {
+   "1600110111": {
+    "flat_l1": 99.0,
+    "coef": 101.0,
+    "hits": 1,
+    "pvp_coef": 100.5
+   },
+   "1600110511": {
+    "flat_l1": 119.0,
+    "coef": 121.0,
+    "hits": 5,
+    "pvp_coef": 109.7
+   },
+   "1600110911": {
+    "flat_l1": 29.0,
+    "coef": 30.0,
+    "hits": 5,
+    "pvp_coef": 35.1
+   },
+   "1600111311": {
+    "flat_l1": 92.0,
+    "coef": 93.0,
+    "hits": 2,
+    "pvp_coef": 93.8
+   },
+   "1600111711": {
+    "flat_l1": 170.0,
+    "coef": 172.5,
+    "hits": 1,
+    "pvp_coef": 130.9
+   },
+   "1614000011": {
+    "flat_l1": 74.0,
+    "coef": 75.0,
+    "hits": 1,
+    "pvp_coef": 77.7
+   }
+  }
+ },
+ "16240000": {
+  "name": "Jointstrike: Destructive Attack",
+  "hits": {
+   "1600130111": {
+    "flat_l1": 664.0,
+    "coef": 116.0,
+    "hits": 2,
+    "pvp_coef": 107.5
+   },
+   "1600130511": {
+    "flat_l1": 797.0,
+    "coef": 139.2,
+    "hits": 2,
+    "pvp_coef": 117.6
+   },
+   "1600130911": {
+    "flat_l1": 731.0,
+    "coef": 127.6,
+    "hits": 1,
+    "pvp_coef": 112.6
+   },
+   "1600131311": {
+    "flat_l1": 598.0,
+    "coef": 104.4,
+    "hits": 5,
+    "pvp_coef": 102.1
+   },
+   "1600131711": {
+    "flat_l1": 1063.0,
+    "coef": 185.6,
+    "hits": 5,
+    "pvp_coef": 135.9
+   },
+   "1624000011": {
+    "flat_l1": 573.0,
+    "coef": 100.0,
+    "hits": 5,
+    "pvp_coef": 100.0
+   }
+  }
+ },
+ "16360000": {
+  "name": "Kaisinel's Power",
+  "hits": {}
+ },
+ "16260000": {
+  "name": "Magic Block",
+  "hits": {
+   "1626000011": {
+    "flat_l1": 1071.0,
+    "coef": 187.0,
+    "hits": 1,
+    "pvp_coef": 136.4
+   }
+  }
+ },
+ "16760000": {
+  "name": "Mental Focus",
+  "hits": {}
+ },
+ "16340000": {
+  "name": "Rapid Scattershot",
+  "hits": {
+   "1634000011": {
+    "flat_l1": 116.0,
+    "coef": 82.5,
+    "hits": 4,
+    "pvp_coef": 84.5
+   }
+  }
+ },
+ "16790000": {
+  "name": "Revitalization Contract",
+  "hits": {}
+ },
+ "16230000": {
+  "name": "Seize Magic",
+  "hits": {
+   "1623000013": {
+    "flat_l1": 1031.0,
+    "coef": 180.0,
+    "hits": 1,
+    "pvp_coef": 133.8
+   },
+   "1623000111": {
+    "flat_l1": 371.0,
+    "coef": 64.8,
+    "hits": 1,
+    "pvp_coef": 68.4
+   },
+   "1623000211": {
+    "flat_l1": 495.0,
+    "coef": 86.4,
+    "hits": 1,
+    "pvp_coef": 88.0
+   }
+  }
+ },
+ "16060000": {
+  "name": "Siphon",
+  "hits": {
+   "1606000011": {
+    "flat_l1": 1180.0,
+    "coef": 206.0,
+    "hits": 1,
+    "pvp_coef": 143.3
+   }
+  }
+ },
+ "16070000": {
+  "name": "Soul's Cry",
+  "hits": {
+   "1607000011": {
+    "flat_l1": 246.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": 100.0
+   }
+  }
+ },
+ "16770000": {
+  "name": "Spirit Communion",
+  "hits": {
+   "1677000111": {
+    "flat_l1": 182.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "16720000": {
+  "name": "Spirit Protection",
+  "hits": {}
+ },
+ "16750000": {
+  "name": "Spirit Revitalization",
+  "hits": {}
+ },
+ "16710000": {
+  "name": "Spirit Strike",
+  "hits": {}
+ },
+ "16730000": {
+  "name": "Spirit's Descent",
+  "hits": {
+   "1673000111": {
+    "flat_l1": 36.0,
+    "coef": 20.0,
+    "hits": 1,
+    "pvp_coef": 24.8
+   }
+  }
+ },
+ "16250000": {
+  "name": "Summon: Ancient Spirit",
+  "hits": {
+   "1625000111": {
+    "flat_l1": 1082.0,
+    "coef": 189.0,
+    "hits": 4,
+    "pvp_coef": 137.1
+   }
+  }
+ },
+ "16130000": {
+  "name": "Summon: Earth Spirit",
+  "hits": {
+   "1613000121": {
+    "flat_l1": 247.0,
+    "coef": 135.0,
+    "hits": 1,
+    "pvp_coef": 115.8
+   }
+  }
+ },
+ "16100000": {
+  "name": "Summon: Fire Spirit",
+  "hits": {
+   "1610000121": {
+    "flat_l1": 68.0,
+    "coef": 120.0,
+    "hits": 1,
+    "pvp_coef": 109.3
+   }
+  }
+ },
+ "16110000": {
+  "name": "Summon: Water Spirit",
+  "hits": {
+   "1611000111": {
+    "flat_l1": 143.0,
+    "coef": 145.0,
+    "hits": 1,
+    "pvp_coef": 120.0
+   }
+  }
+ },
+ "16120000": {
+  "name": "Summon: Wind Spirit",
+  "hits": {
+   "1612000025": {
+    "flat_l1": 134.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   },
+   "1612000111": {
+    "flat_l1": 273.0,
+    "coef": 111.0,
+    "hits": 4,
+    "pvp_coef": 105.2
+   }
+  }
+ }
+}

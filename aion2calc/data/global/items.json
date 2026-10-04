@@ -1,0 +1,5748 @@
+{
+ "spiritforged-spellbook": {
+  "slug": "spiritforged-spellbook",
+  "fixed": {
+   "Max Attack": "206–229",
+   "Accuracy": "+100",
+   "Critical Hit": "+100",
+   "Block": "0"
+  },
+  "random": [
+   {
+    "stat": "Might",
+    "range": "+15 – +15",
+    "chance": "0%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+16 – +16",
+    "chance": "0%"
+   },
+   {
+    "stat": "Block",
+    "range": "+23 – +23",
+    "chance": "0%"
+   },
+   {
+    "stat": "MP",
+    "range": "+57 – +57",
+    "chance": "0%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Max Attack 5"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Max Attack 10"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Max Attack 15"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Max Attack 20"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Max Attack 25"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Max Attack 30"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Max Attack 35"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Max Attack 40"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Max Attack 45"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Max Attack 50"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Max Attack 55"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Max Attack 60"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Max Attack 65"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Max Attack 70"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Max Attack 76"
+   }
+  ],
+  "meta": {
+   "Category": "Spellbook",
+   "Item Level": "45",
+   "Required Level": "1",
+   "Max enhance": "+15",
+   "Class": "Sorcerer"
+  }
+ },
+ "rupture-tome": {
+  "slug": "rupture-tome",
+  "fixed": {
+   "Max Attack": "248–276",
+   "Accuracy": "+100",
+   "Critical Hit": "+100",
+   "Block": "0"
+  },
+  "random": [
+   {
+    "stat": "Critical Attack",
+    "range": "+65 – +82",
+    "chance": "8%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+62 – +78",
+    "chance": "8%"
+   },
+   {
+    "stat": "MP",
+    "range": "+139 – +167",
+    "chance": "8%"
+   },
+   {
+    "stat": "HP",
+    "range": "+279 – +328",
+    "chance": "8%"
+   },
+   {
+    "stat": "Precision",
+    "range": "+17 – +27",
+    "chance": "7%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+30 – +42",
+    "chance": "7%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+46 – +60",
+    "chance": "7%"
+   },
+   {
+    "stat": "Back Attack",
+    "range": "+65 – +82",
+    "chance": "7%"
+   },
+   {
+    "stat": "Front Attack",
+    "range": "+65 – +82",
+    "chance": "7%"
+   },
+   {
+    "stat": "Block",
+    "range": "+37 – +50",
+    "chance": "7%"
+   },
+   {
+    "stat": "Multi-hit Chance",
+    "range": "+6.5% – +7.6%",
+    "chance": "6%"
+   },
+   {
+    "stat": "Might",
+    "range": "+17 – +27",
+    "chance": "6%"
+   },
+   {
+    "stat": "Combat Speed",
+    "range": "+8.8% – +10.2%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Weapon Damage Boost",
+    "range": "+6.5% – +7.6%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Status Effect Chance",
+    "range": "+17.4% – +20.1%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Damage Boost",
+    "range": "+4.9% – +5.7%",
+    "chance": "2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Max Attack 6"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Max Attack 12"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Max Attack 18"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Max Attack 24"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Max Attack 30"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Max Attack 36"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Max Attack 42"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Max Attack 48"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Max Attack 54"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Max Attack 60"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Max Attack 66"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Max Attack 72"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Max Attack 78"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Max Attack 85"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Max Attack 92"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Attack +8, Damage Boost +1%"
+   }
+  ],
+  "meta": {
+   "Category": "Spellbook",
+   "Item Level": "54",
+   "Required Level": "45",
+   "Max enhance": "+15 (+16)",
+   "Class": "Sorcerer"
+  }
+ },
+ "ludras-grimoire": {
+  "slug": "ludras-grimoire",
+  "fixed": {
+   "Max Attack": "473–525",
+   "Accuracy": "+100",
+   "Critical Hit": "+100",
+   "Block": "0"
+  },
+  "random": [
+   {
+    "stat": "Critical Attack",
+    "range": "+83 – +102",
+    "chance": "8%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+79 – +98",
+    "chance": "8%"
+   },
+   {
+    "stat": "MP",
+    "range": "+177 – +211",
+    "chance": "8%"
+   },
+   {
+    "stat": "HP",
+    "range": "+357 – +418",
+    "chance": "8%"
+   },
+   {
+    "stat": "Precision",
+    "range": "+22 – +32",
+    "chance": "7%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+38 – +51",
+    "chance": "7%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+59 – +75",
+    "chance": "7%"
+   },
+   {
+    "stat": "Back Attack",
+    "range": "+83 – +102",
+    "chance": "7%"
+   },
+   {
+    "stat": "Front Attack",
+    "range": "+83 – +102",
+    "chance": "7%"
+   },
+   {
+    "stat": "Block",
+    "range": "+48 – +62",
+    "chance": "7%"
+   },
+   {
+    "stat": "Multi-hit Chance",
+    "range": "+8.3% – +9.6%",
+    "chance": "6%"
+   },
+   {
+    "stat": "Might",
+    "range": "+22 – +32",
+    "chance": "6%"
+   },
+   {
+    "stat": "Combat Speed",
+    "range": "+11.2% – +13%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Weapon Damage Boost",
+    "range": "+8.3% – +9.6%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Status Effect Chance",
+    "range": "+22.2% – +25.6%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Damage Boost",
+    "range": "+6.3% – +7.3%",
+    "chance": "2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Max Attack 11"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Max Attack 22"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Max Attack 33"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Max Attack 44"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Max Attack 55"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Max Attack 66"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Max Attack 78"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Max Attack 90"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Max Attack 102"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Max Attack 114"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Max Attack 126"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Max Attack 138"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Max Attack 150"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Max Attack 162"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Max Attack 174"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Attack +14, Damage Boost +1%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Attack +28, Damage Boost +2%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Attack +43, Damage Boost +3%"
+   },
+   {
+    "step": "+18 → +19",
+    "stats": "Attack +58, Damage Boost +4%"
+   },
+   {
+    "step": "+19 → +20",
+    "stats": "Attack +73, Damage Boost +5%"
+   }
+  ],
+  "meta": {
+   "Category": "Spellbook",
+   "Item Level": "102",
+   "Required Level": "45",
+   "Max enhance": "+15 (+20)",
+   "Class": "Sorcerer"
+  }
+ },
+ "splendent-wise-dragon-lord-spellbook": {
+  "slug": "splendent-wise-dragon-lord-spellbook",
+  "fixed": {
+   "Max Attack": "473–525",
+   "Accuracy": "+100",
+   "Critical Hit": "+100",
+   "Block": "0"
+  },
+  "random": [
+   {
+    "stat": "Critical Attack",
+    "range": "+83 – +102",
+    "chance": "8%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+79 – +98",
+    "chance": "8%"
+   },
+   {
+    "stat": "MP",
+    "range": "+177 – +211",
+    "chance": "8%"
+   },
+   {
+    "stat": "HP",
+    "range": "+357 – +418",
+    "chance": "8%"
+   },
+   {
+    "stat": "Precision",
+    "range": "+22 – +32",
+    "chance": "7%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+38 – +51",
+    "chance": "7%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+59 – +75",
+    "chance": "7%"
+   },
+   {
+    "stat": "Back Attack",
+    "range": "+83 – +102",
+    "chance": "7%"
+   },
+   {
+    "stat": "Front Attack",
+    "range": "+83 – +102",
+    "chance": "7%"
+   },
+   {
+    "stat": "Block",
+    "range": "+48 – +62",
+    "chance": "7%"
+   },
+   {
+    "stat": "Multi-hit Chance",
+    "range": "+8.3% – +9.6%",
+    "chance": "6%"
+   },
+   {
+    "stat": "Might",
+    "range": "+22 – +32",
+    "chance": "6%"
+   },
+   {
+    "stat": "Combat Speed",
+    "range": "+11.2% – +13%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Weapon Damage Boost",
+    "range": "+8.3% – +9.6%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Status Effect Chance",
+    "range": "+22.2% – +25.6%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Damage Boost",
+    "range": "+6.3% – +7.3%",
+    "chance": "2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Max Attack 11"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Max Attack 22"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Max Attack 33"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Max Attack 44"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Max Attack 55"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Max Attack 66"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Max Attack 78"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Max Attack 90"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Max Attack 102"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Max Attack 114"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Max Attack 126"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Max Attack 138"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Max Attack 150"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Max Attack 162"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Max Attack 174"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Attack +14, Damage Boost +1%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Attack +28, Damage Boost +2%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Attack +43, Damage Boost +3%"
+   },
+   {
+    "step": "+18 → +19",
+    "stats": "Attack +58, Damage Boost +4%"
+   },
+   {
+    "step": "+19 → +20",
+    "stats": "Attack +73, Damage Boost +5%"
+   }
+  ],
+  "meta": {
+   "Category": "Spellbook",
+   "Item Level": "102",
+   "Required Level": "45",
+   "Max enhance": "+15 (+20)",
+   "Class": "Sorcerer"
+  }
+ },
+ "splendent-ebony-dragon-lord-spellbook": {
+  "slug": "splendent-ebony-dragon-lord-spellbook",
+  "fixed": {
+   "Max Attack": "473–525",
+   "Accuracy": "+100",
+   "Critical Hit": "+100",
+   "Block": "0"
+  },
+  "random": [
+   {
+    "stat": "Critical Attack",
+    "range": "+83 – +102",
+    "chance": "8%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+79 – +98",
+    "chance": "8%"
+   },
+   {
+    "stat": "MP",
+    "range": "+177 – +211",
+    "chance": "8%"
+   },
+   {
+    "stat": "HP",
+    "range": "+357 – +418",
+    "chance": "8%"
+   },
+   {
+    "stat": "Precision",
+    "range": "+22 – +32",
+    "chance": "7%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+38 – +51",
+    "chance": "7%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+59 – +75",
+    "chance": "7%"
+   },
+   {
+    "stat": "Back Attack",
+    "range": "+83 – +102",
+    "chance": "7%"
+   },
+   {
+    "stat": "Front Attack",
+    "range": "+83 – +102",
+    "chance": "7%"
+   },
+   {
+    "stat": "Block",
+    "range": "+48 – +62",
+    "chance": "7%"
+   },
+   {
+    "stat": "Multi-hit Chance",
+    "range": "+8.3% – +9.6%",
+    "chance": "6%"
+   },
+   {
+    "stat": "Might",
+    "range": "+22 – +32",
+    "chance": "6%"
+   },
+   {
+    "stat": "Combat Speed",
+    "range": "+11.2% – +13%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Weapon Damage Boost",
+    "range": "+8.3% – +9.6%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Status Effect Chance",
+    "range": "+22.2% – +25.6%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Damage Boost",
+    "range": "+6.3% – +7.3%",
+    "chance": "2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Max Attack 11"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Max Attack 22"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Max Attack 33"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Max Attack 44"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Max Attack 55"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Max Attack 66"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Max Attack 78"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Max Attack 90"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Max Attack 102"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Max Attack 114"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Max Attack 126"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Max Attack 138"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Max Attack 150"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Max Attack 162"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Max Attack 174"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Attack +14, Damage Boost +1%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Attack +28, Damage Boost +2%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Attack +43, Damage Boost +3%"
+   },
+   {
+    "step": "+18 → +19",
+    "stats": "Attack +58, Damage Boost +4%"
+   },
+   {
+    "step": "+19 → +20",
+    "stats": "Attack +73, Damage Boost +5%"
+   }
+  ],
+  "meta": {
+   "Category": "Spellbook",
+   "Item Level": "102",
+   "Required Level": "45",
+   "Max enhance": "+15 (+20)",
+   "Class": "Sorcerer"
+  }
+ },
+ "abyssal-spellbook": {
+  "slug": "abyssal-spellbook",
+  "fixed": {
+   "Max Attack": "398–442",
+   "Accuracy": "+100",
+   "Critical Hit": "+100",
+   "Block": "0"
+  },
+  "random": [
+   {
+    "stat": "Critical Attack",
+    "range": "+78 – +97",
+    "chance": "8%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+75 – +93",
+    "chance": "8%"
+   },
+   {
+    "stat": "MP",
+    "range": "+168 – +200",
+    "chance": "8%"
+   },
+   {
+    "stat": "HP",
+    "range": "+337 – +395",
+    "chance": "8%"
+   },
+   {
+    "stat": "Precision",
+    "range": "+21 – +31",
+    "chance": "7%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+36 – +48",
+    "chance": "7%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+56 – +71",
+    "chance": "7%"
+   },
+   {
+    "stat": "Back Attack",
+    "range": "+78 – +97",
+    "chance": "7%"
+   },
+   {
+    "stat": "Front Attack",
+    "range": "+78 – +97",
+    "chance": "7%"
+   },
+   {
+    "stat": "Block",
+    "range": "+45 – +59",
+    "chance": "7%"
+   },
+   {
+    "stat": "Multi-hit Chance",
+    "range": "+7.9% – +9.1%",
+    "chance": "6%"
+   },
+   {
+    "stat": "Might",
+    "range": "+21 – +31",
+    "chance": "6%"
+   },
+   {
+    "stat": "Combat Speed",
+    "range": "+10.6% – +12.3%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Weapon Damage Boost",
+    "range": "+7.9% – +9.1%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Status Effect Chance",
+    "range": "+21% – +24.2%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Damage Boost",
+    "range": "+6% – +6.9%",
+    "chance": "2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Max Attack 9"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Max Attack 18"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Max Attack 27"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Max Attack 36"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Max Attack 46"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Max Attack 56"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Max Attack 66"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Max Attack 76"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Max Attack 86"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Max Attack 96"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Max Attack 106"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Max Attack 116"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Max Attack 126"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Max Attack 136"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Max Attack 146"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Attack +12, Damage Boost +1%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Attack +24, Damage Boost +2%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Attack +36, Damage Boost +3%"
+   },
+   {
+    "step": "+18 → +19",
+    "stats": "Attack +48, Damage Boost +4%"
+   },
+   {
+    "step": "+19 → +20",
+    "stats": "Attack +61, Damage Boost +5%"
+   }
+  ],
+  "meta": {
+   "Category": "Spellbook",
+   "Item Level": "86",
+   "Required Level": "45",
+   "Max enhance": "+15 (+20)",
+   "Class": "Sorcerer"
+  }
+ },
+ "aulamus-spellbook": {
+  "slug": "aulamus-spellbook",
+  "fixed": {
+   "Max Attack": "323–359",
+   "Accuracy": "+100",
+   "Critical Hit": "+100",
+   "Block": "0"
+  },
+  "random": [
+   {
+    "stat": "Critical Attack",
+    "range": "+72 – +90",
+    "chance": "8%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+68 – +85",
+    "chance": "8%"
+   },
+   {
+    "stat": "MP",
+    "range": "+153 – +183",
+    "chance": "8%"
+   },
+   {
+    "stat": "HP",
+    "range": "+308 – +361",
+    "chance": "8%"
+   },
+   {
+    "stat": "Precision",
+    "range": "+19 – +29",
+    "chance": "7%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+33 – +45",
+    "chance": "7%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+51 – +66",
+    "chance": "7%"
+   },
+   {
+    "stat": "Back Attack",
+    "range": "+72 – +90",
+    "chance": "7%"
+   },
+   {
+    "stat": "Front Attack",
+    "range": "+72 – +90",
+    "chance": "7%"
+   },
+   {
+    "stat": "Block",
+    "range": "+41 – +54",
+    "chance": "7%"
+   },
+   {
+    "stat": "Multi-hit Chance",
+    "range": "+7.2% – +8.4%",
+    "chance": "6%"
+   },
+   {
+    "stat": "Might",
+    "range": "+19 – +29",
+    "chance": "6%"
+   },
+   {
+    "stat": "Combat Speed",
+    "range": "+9.7% – +11.3%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Weapon Damage Boost",
+    "range": "+7.2% – +8.4%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Status Effect Chance",
+    "range": "+19.2% – +22.2%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Damage Boost",
+    "range": "+5.4% – +6.3%",
+    "chance": "2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Max Attack 7"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Max Attack 15"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Max Attack 23"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Max Attack 31"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Max Attack 39"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Max Attack 47"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Max Attack 55"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Max Attack 63"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Max Attack 71"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Max Attack 79"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Max Attack 87"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Max Attack 95"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Max Attack 103"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Max Attack 111"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Max Attack 119"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Attack +10, Damage Boost +1%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Attack +20, Damage Boost +2%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Attack +30, Damage Boost +3%"
+   }
+  ],
+  "meta": {
+   "Category": "Spellbook",
+   "Item Level": "70",
+   "Required Level": "45",
+   "Max enhance": "+15 (+18)",
+   "Class": "Sorcerer"
+  }
+ },
+ "spiritforged-guard": {
+  "slug": "spiritforged-guard",
+  "fixed": {
+   "Attack": "+92",
+   "Accuracy": "+50",
+   "Critical Hit": "+50"
+  },
+  "random": [
+   {
+    "stat": "Might",
+    "range": "+10 – +10",
+    "chance": "0%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+30 – +30",
+    "chance": "0%"
+   },
+   {
+    "stat": "Block",
+    "range": "+15 – +15",
+    "chance": "0%"
+   },
+   {
+    "stat": "HP",
+    "range": "+120 – +120",
+    "chance": "0%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Attack +5"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Attack +10"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Attack +15"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Attack +20"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Attack +25"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Attack +30"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Attack +35"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Attack +40"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Attack +45"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Attack +50"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Attack +55"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Attack +60"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Attack +65"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Attack +70"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Attack +76"
+   }
+  ],
+  "meta": {
+   "Category": "Guard",
+   "Item Level": "45",
+   "Required Level": "45",
+   "Max enhance": "+15"
+  }
+ },
+ "bakarma-guard": {
+  "slug": "bakarma-guard",
+  "fixed": {
+   "Attack": "+110",
+   "Accuracy": "+50",
+   "Critical Hit": "+50"
+  },
+  "random": [
+   {
+    "stat": "Critical Attack",
+    "range": "+52 – +67",
+    "chance": "8%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+49 – +63",
+    "chance": "8%"
+   },
+   {
+    "stat": "MP",
+    "range": "+111 – +135",
+    "chance": "8%"
+   },
+   {
+    "stat": "HP",
+    "range": "+223 – +263",
+    "chance": "8%"
+   },
+   {
+    "stat": "Precision",
+    "range": "+13 – +22",
+    "chance": "7%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+24 – +35",
+    "chance": "7%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+37 – +50",
+    "chance": "7%"
+   },
+   {
+    "stat": "Back Attack",
+    "range": "+52 – +67",
+    "chance": "7%"
+   },
+   {
+    "stat": "Front Attack",
+    "range": "+52 – +67",
+    "chance": "7%"
+   },
+   {
+    "stat": "Block",
+    "range": "+30 – +42",
+    "chance": "7%"
+   },
+   {
+    "stat": "Multi-hit Chance",
+    "range": "+5.2% – +6.1%",
+    "chance": "6%"
+   },
+   {
+    "stat": "Might",
+    "range": "+13 – +22",
+    "chance": "6%"
+   },
+   {
+    "stat": "Combat Speed",
+    "range": "+6.9% – +8%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Weapon Damage Boost",
+    "range": "+5.2% – +6.1%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Status Effect Chance",
+    "range": "+13.9% – +16.1%",
+    "chance": "4%"
+   },
+   {
+    "stat": "Damage Boost",
+    "range": "+3.9% – +4.6%",
+    "chance": "2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Attack +6"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Attack +12"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Attack +18"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Attack +24"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Attack +30"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Attack +36"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Attack +42"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Attack +48"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Attack +54"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Attack +60"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Attack +66"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Attack +72"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Attack +78"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Attack +85"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Attack +92"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Attack +8, Damage Boost +1%"
+   }
+  ],
+  "meta": {
+   "Category": "Guard",
+   "Item Level": "54",
+   "Required Level": "45",
+   "Max enhance": "+15 (+16)"
+  }
+ },
+ "vakron-helm": {
+  "slug": "vakron-helm",
+  "fixed": {
+   "Defense": "+388",
+   "HP": "+175"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+205 – +243",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+36 – +48",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+20 – +30",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+76 – +94",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+154 – +184",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+18 – +28",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+36 – +48",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+25 – +36",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+34 – +46",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+200 – +237",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+20 – +30",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+205 – +243",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+205 – +243",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+9 – +17",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+15 – +24",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+9 – +17",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+16 – +25",
+    "chance": "4%"
+   },
+   {
+    "stat": "Incoming Heal",
+    "range": "+14.4% – +16.6%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+5.1% – +6%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Double Chance",
+    "range": "+1.6% – +1.9%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance",
+    "range": "+2.4% – +2.8%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Attack increase",
+    "range": "+1.6% – +1.9%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Perfect Resist",
+    "range": "+3% – +3.5%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Weapon Damage Tolerance",
+    "range": "+5.8% – +6.7%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +20, HP +16"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +40, HP +32"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +60, HP +48"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +80, HP +64"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +100, HP +80"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +120, HP +96"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +140, HP +112"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +160, HP +128"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +180, HP +145"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +200, HP +162"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Defense +220, HP +179"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Defense +241, HP +196"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Defense +262, HP +213"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Defense +283, HP +230"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Defense +304, HP +247"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Defense +20, HP +20, Damage Tolerance +0.5%, HP increase +0.5%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Defense +40, HP +40, Damage Tolerance +1%, HP increase +1%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Defense +61, HP +61, Damage Tolerance +1.5%, HP increase +1.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Helm",
+   "Item Level": "70",
+   "Required Level": "45",
+   "Max enhance": "+15 (+18)"
+  }
+ },
+ "vakron-pauldrons": {
+  "slug": "vakron-pauldrons",
+  "fixed": {
+   "Defense": "+388",
+   "HP": "+175"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+164 – +196",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+28 – +39",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+16 – +25",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+61 – +77",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+123 – +148",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+14 – +23",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+28 – +39",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+20 – +30",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+27 – +38",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+160 – +191",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+16 – +25",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+164 – +196",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+164 – +196",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+13 – +22",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+8 – +16",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+17 – +27",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+13 – +22",
+    "chance": "4%"
+   },
+   {
+    "stat": "Critical Damage Boost",
+    "range": "+9.6% – +11.1%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+4.1% – +4.8%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Regeneration",
+    "range": "+1.4% – +1.7%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Double Chance",
+    "range": "+1.3% – +1.5%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Defense increase",
+    "range": "+1.9% – +2.3%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance Penetration",
+    "range": "+1.4% – +1.7%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Perfect Resist",
+    "range": "+2.4% – +2.8%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +20, HP +16"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +40, HP +32"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +60, HP +48"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +80, HP +64"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +100, HP +80"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +120, HP +96"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +140, HP +112"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +160, HP +128"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +180, HP +145"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +200, HP +162"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Defense +220, HP +179"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Defense +241, HP +196"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Defense +262, HP +213"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Defense +283, HP +230"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Defense +304, HP +247"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Defense +20, HP +20, Damage Tolerance +0.5%, HP increase +0.5%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Defense +40, HP +40, Damage Tolerance +1%, HP increase +1%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Defense +61, HP +61, Damage Tolerance +1.5%, HP increase +1.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Pauldrons",
+   "Item Level": "70",
+   "Required Level": "45",
+   "Max enhance": "+15 (+18)"
+  }
+ },
+ "vakron-breastplate": {
+  "slug": "vakron-breastplate",
+  "fixed": {
+   "Defense": "+517",
+   "HP": "+280"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+246 – +290",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+43 – +56",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+24 – +35",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+92 – +113",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+185 – +220",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+22 – +32",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+43 – +56",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+30 – +42",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+41 – +54",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+240 – +283",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+24 – +35",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+246 – +290",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+246 – +290",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+10 – +19",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+17 – +27",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+8 – +16",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+20 – +30",
+    "chance": "4%"
+   },
+   {
+    "stat": "Damage Boost",
+    "range": "+4.9% – +5.7%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+6.2% – +7.2%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Regeneration",
+    "range": "+2.2% – +2.6%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Perfect Chance",
+    "range": "+4.3% – +5%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Defense increase",
+    "range": "+2.9% – +3.4%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Double Resist",
+    "range": "+2.9% – +3.4%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Weapon Damage Tolerance",
+    "range": "+7.2% – +8.4%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +20, HP +16"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +40, HP +32"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +60, HP +48"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +80, HP +64"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +100, HP +80"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +120, HP +96"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +140, HP +112"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +160, HP +128"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +180, HP +145"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +200, HP +162"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Defense +220, HP +179"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Defense +241, HP +196"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Defense +262, HP +213"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Defense +283, HP +230"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Defense +304, HP +247"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Defense +20, HP +20, Damage Tolerance +0.5%, HP increase +0.5%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Defense +40, HP +40, Damage Tolerance +1%, HP increase +1%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Defense +61, HP +61, Damage Tolerance +1.5%, HP increase +1.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Top",
+   "Item Level": "70",
+   "Required Level": "45",
+   "Max enhance": "+15 (+18)"
+  }
+ },
+ "vakron-greaves": {
+  "slug": "vakron-greaves",
+  "fixed": {
+   "Defense": "+431",
+   "HP": "+210"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+226 – +267",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+39 – +52",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+22 – +32",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+84 – +104",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+169 – +201",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+20 – +30",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+39 – +52",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+28 – +39",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+37 – +50",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+220 – +260",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+22 – +32",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+226 – +267",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+226 – +267",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+8 – +16",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+13 – +22",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+10 – +19",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+18 – +28",
+    "chance": "4%"
+   },
+   {
+    "stat": "Damage Tolerance",
+    "range": "+8.6% – +10%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+5.7% – +6.6%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Perfect Chance",
+    "range": "+4% – +4.6%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance",
+    "range": "+2.6% – +3.1%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Attack increase",
+    "range": "+1.8% – +2.1%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Double Resist",
+    "range": "+2.6% – +3.1%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Multi-hit Resist",
+    "range": "+4% – +4.6%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +20, HP +16"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +40, HP +32"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +60, HP +48"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +80, HP +64"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +100, HP +80"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +120, HP +96"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +140, HP +112"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +160, HP +128"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +180, HP +145"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +200, HP +162"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Defense +220, HP +179"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Defense +241, HP +196"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Defense +262, HP +213"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Defense +283, HP +230"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Defense +304, HP +247"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Defense +20, HP +20, Damage Tolerance +0.5%, HP increase +0.5%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Defense +40, HP +40, Damage Tolerance +1%, HP increase +1%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Defense +61, HP +61, Damage Tolerance +1.5%, HP increase +1.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Legs",
+   "Item Level": "70",
+   "Required Level": "45",
+   "Max enhance": "+15 (+18)"
+  }
+ },
+ "vakron-gloves": {
+  "slug": "vakron-gloves",
+  "fixed": {
+   "Defense": "+345",
+   "HP": "+140"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+143 – +171",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+25 – +36",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+14 – +23",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+53 – +68",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+108 – +131",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+12 – +21",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+25 – +36",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+17 – +27",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+24 – +35",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+140 – +168",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+14 – +23",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+143 – +171",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+143 – +171",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+11 – +20",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+11 – +20",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+11 – +20",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+11 – +20",
+    "chance": "4%"
+   },
+   {
+    "stat": "Combat Speed",
+    "range": "+5.4% – +6.3%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+3.6% – +4.2%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Perfect Chance",
+    "range": "+2.5% – +3%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Regeneration",
+    "range": "+1.3% – +1.5%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Defense increase",
+    "range": "+1.7% – +2%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance Penetration",
+    "range": "+1.3% – +1.5%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Multi-hit Resist",
+    "range": "+2.5% – +3%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +20, HP +16"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +40, HP +32"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +60, HP +48"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +80, HP +64"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +100, HP +80"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +120, HP +96"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +140, HP +112"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +160, HP +128"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +180, HP +145"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +200, HP +162"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Defense +220, HP +179"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Defense +241, HP +196"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Defense +262, HP +213"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Defense +283, HP +230"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Defense +304, HP +247"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Defense +20, HP +20, Damage Tolerance +0.5%, HP increase +0.5%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Defense +40, HP +40, Damage Tolerance +1%, HP increase +1%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Defense +61, HP +61, Damage Tolerance +1.5%, HP increase +1.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Gloves",
+   "Item Level": "70",
+   "Required Level": "45",
+   "Max enhance": "+15 (+18)"
+  }
+ },
+ "vakron-boots": {
+  "slug": "vakron-boots",
+  "fixed": {
+   "Defense": "+345",
+   "HP": "+140"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+185 – +220",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+32 – +44",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+18 – +28",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+69 – +86",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+138 – +166",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+16 – +25",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+32 – +44",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+23 – +33",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+30 – +42",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+180 – +214",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+18 – +28",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+185 – +220",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+185 – +220",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+17 – +27",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+10 – +19",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+13 – +22",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+15 – +24",
+    "chance": "4%"
+   },
+   {
+    "stat": "Move Speed",
+    "range": "+7.7% – +8.9%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+4.6% – +5.4%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Perfect Chance",
+    "range": "+3.2% – +3.8%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Regeneration",
+    "range": "+1.6% – +1.9%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Defense increase",
+    "range": "+2.2% – +2.6%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Perfect Resist",
+    "range": "+2.7% – +3.2%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance Penetration",
+    "range": "+1.6% – +1.9%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +20, HP +16"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +40, HP +32"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +60, HP +48"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +80, HP +64"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +100, HP +80"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +120, HP +96"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +140, HP +112"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +160, HP +128"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +180, HP +145"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +200, HP +162"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Defense +220, HP +179"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Defense +241, HP +196"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Defense +262, HP +213"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Defense +283, HP +230"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Defense +304, HP +247"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Defense +20, HP +20, Damage Tolerance +0.5%, HP increase +0.5%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Defense +40, HP +40, Damage Tolerance +1%, HP increase +1%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Defense +61, HP +61, Damage Tolerance +1.5%, HP increase +1.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Shoes",
+   "Item Level": "70",
+   "Required Level": "45",
+   "Max enhance": "+15 (+18)"
+  }
+ },
+ "vakron-cloak": {
+  "slug": "vakron-cloak",
+  "fixed": {
+   "Defense": "+345",
+   "HP": "+140"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+164 – +196",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+28 – +39",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+16 – +25",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+61 – +77",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+123 – +148",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+14 – +23",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+28 – +39",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+20 – +30",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+27 – +38",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+160 – +191",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+16 – +25",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+164 – +196",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+164 – +196",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+15 – +24",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+9 – +17",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+15 – +24",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+13 – +22",
+    "chance": "4%"
+   },
+   {
+    "stat": "Critical Damage Tolerance",
+    "range": "+9.6% – +11.1%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+4.1% – +4.8%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Double Chance",
+    "range": "+1.3% – +1.5%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance",
+    "range": "+1.9% – +2.3%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Attack increase",
+    "range": "+1.3% – +1.5%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Weapon Damage Tolerance",
+    "range": "+7.2% – +8.4%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance Penetration",
+    "range": "+1.4% – +1.7%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +20, HP +16"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +40, HP +32"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +60, HP +48"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +80, HP +64"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +100, HP +80"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +120, HP +96"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +140, HP +112"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +160, HP +128"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +180, HP +145"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +200, HP +162"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Defense +220, HP +179"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Defense +241, HP +196"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Defense +262, HP +213"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Defense +283, HP +230"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Defense +304, HP +247"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Defense +20, HP +20, Damage Tolerance +0.5%, HP increase +0.5%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Defense +40, HP +40, Damage Tolerance +1%, HP increase +1%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Defense +61, HP +61, Damage Tolerance +1.5%, HP increase +1.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Cloak",
+   "Item Level": "70",
+   "Required Level": "45",
+   "Max enhance": "+15 (+18)"
+  }
+ },
+ "bakarma-helm": {
+  "slug": "bakarma-helm",
+  "fixed": {
+   "Defense": "+298",
+   "HP": "+135"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+186 – +221",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+32 – +44",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+18 – +28",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+69 – +86",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+139 – +167",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+16 – +25",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+32 – +44",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+23 – +33",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+31 – +43",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+181 – +215",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+18 – +28",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+186 – +221",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+186 – +221",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+8 – +16",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+13 – +22",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+8 – +16",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+15 – +24",
+    "chance": "4%"
+   },
+   {
+    "stat": "Incoming Heal",
+    "range": "+13.1% – +15.1%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+4.7% – +5.4%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Double Chance",
+    "range": "+1.5% – +1.7%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance",
+    "range": "+2.2% – +2.6%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Attack increase",
+    "range": "+1.5% – +1.7%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Perfect Resist",
+    "range": "+2.7% – +3.2%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Weapon Damage Tolerance",
+    "range": "+5.2% – +6.1%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +15, HP +12"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +30, HP +24"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +45, HP +36"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +60, HP +48"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +75, HP +61"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +90, HP +74"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +106, HP +87"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +122, HP +100"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +138, HP +113"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +154, HP +126"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Defense +170, HP +139"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Defense +186, HP +152"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Defense +202, HP +165"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Defense +218, HP +178"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Defense +234, HP +191"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Defense +16, HP +16, Damage Tolerance +0.5%, HP increase +0.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Helm",
+   "Item Level": "54",
+   "Required Level": "45",
+   "Max enhance": "+15 (+16)"
+  }
+ },
+ "bakarma-pauldrons": {
+  "slug": "bakarma-pauldrons",
+  "fixed": {
+   "Defense": "+298",
+   "HP": "+135"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+149 – +178",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+26 – +37",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+15 – +24",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+55 – +70",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+111 – +135",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+13 – +22",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+26 – +37",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+18 – +28",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+24 – +35",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+145 – +174",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+14 – +23",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+149 – +178",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+149 – +178",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+12 – +21",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+7 – +15",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+15 – +24",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+12 – +21",
+    "chance": "4%"
+   },
+   {
+    "stat": "Critical Damage Boost",
+    "range": "+8.7% – +10.1%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+3.7% – +4.4%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Regeneration",
+    "range": "+1.3% – +1.6%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Double Chance",
+    "range": "+1.2% – +1.4%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Defense increase",
+    "range": "+1.7% – +2.1%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance Penetration",
+    "range": "+1.3% – +1.6%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Perfect Resist",
+    "range": "+2.2% – +2.6%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +15, HP +12"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +30, HP +24"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +45, HP +36"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +60, HP +48"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +75, HP +61"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +90, HP +74"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +106, HP +87"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +122, HP +100"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +138, HP +113"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +154, HP +126"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Defense +170, HP +139"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Defense +186, HP +152"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Defense +202, HP +165"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Defense +218, HP +178"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Defense +234, HP +191"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Defense +16, HP +16, Damage Tolerance +0.5%, HP increase +0.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Pauldrons",
+   "Item Level": "54",
+   "Required Level": "45",
+   "Max enhance": "+15 (+16)"
+  }
+ },
+ "bakarma-breastplate": {
+  "slug": "bakarma-breastplate",
+  "fixed": {
+   "Defense": "+397",
+   "HP": "+216"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+223 – +263",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+39 – +52",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+22 – +32",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+83 – +102",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+167 – +199",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+20 – +30",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+39 – +52",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+27 – +38",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+37 – +50",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+217 – +257",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+21 – +31",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+223 – +263",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+223 – +263",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+9 – +17",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+15 – +24",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+7 – +15",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+18 – +28",
+    "chance": "4%"
+   },
+   {
+    "stat": "Damage Boost",
+    "range": "+4.4% – +5.2%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+5.6% – +6.5%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Regeneration",
+    "range": "+2% – +2.3%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Perfect Chance",
+    "range": "+3.9% – +4.6%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Defense increase",
+    "range": "+2.6% – +3.1%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Double Resist",
+    "range": "+2.6% – +3.1%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Weapon Damage Tolerance",
+    "range": "+6.5% – +7.6%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +15, HP +12"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +30, HP +24"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +45, HP +36"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +60, HP +48"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +75, HP +61"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +90, HP +74"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +106, HP +87"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +122, HP +100"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +138, HP +113"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +154, HP +126"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Defense +170, HP +139"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Defense +186, HP +152"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Defense +202, HP +165"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Defense +218, HP +178"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Defense +234, HP +191"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Defense +16, HP +16, Damage Tolerance +0.5%, HP increase +0.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Top",
+   "Item Level": "54",
+   "Required Level": "45",
+   "Max enhance": "+15 (+16)"
+  }
+ },
+ "bakarma-greaves": {
+  "slug": "bakarma-greaves",
+  "fixed": {
+   "Defense": "+331",
+   "HP": "+162"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+204 – +242",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+35 – +47",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+20 – +30",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+76 – +94",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+153 – +183",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+18 – +28",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+35 – +47",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+25 – +36",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+34 – +46",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+199 – +236",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+19 – +29",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+204 – +242",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+204 – +242",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+7 – +15",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+12 – +21",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+9 – +17",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+16 – +25",
+    "chance": "4%"
+   },
+   {
+    "stat": "Damage Tolerance",
+    "range": "+7.8% – +9.1%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+5.1% – +6%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Perfect Chance",
+    "range": "+3.6% – +4.2%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance",
+    "range": "+2.4% – +2.8%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Attack increase",
+    "range": "+1.6% – +1.9%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Double Resist",
+    "range": "+2.4% – +2.8%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Multi-hit Resist",
+    "range": "+3.6% – +4.2%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +15, HP +12"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +30, HP +24"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +45, HP +36"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +60, HP +48"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +75, HP +61"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +90, HP +74"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +106, HP +87"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +122, HP +100"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +138, HP +113"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +154, HP +126"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Defense +170, HP +139"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Defense +186, HP +152"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Defense +202, HP +165"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Defense +218, HP +178"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Defense +234, HP +191"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Defense +16, HP +16, Damage Tolerance +0.5%, HP increase +0.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Legs",
+   "Item Level": "54",
+   "Required Level": "45",
+   "Max enhance": "+15 (+16)"
+  }
+ },
+ "bakarma-gloves": {
+  "slug": "bakarma-gloves",
+  "fixed": {
+   "Defense": "+265",
+   "HP": "+108"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+130 – +157",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+22 – +32",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+13 – +22",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+48 – +62",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+97 – +119",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+11 – +20",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+22 – +32",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+16 – +25",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+21 – +31",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+126 – +152",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+12 – +21",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+130 – +157",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+130 – +157",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+10 – +19",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+10 – +19",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+10 – +19",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+10 – +19",
+    "chance": "4%"
+   },
+   {
+    "stat": "Combat Speed",
+    "range": "+4.9% – +5.7%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+3.3% – +3.8%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Perfect Chance",
+    "range": "+2.3% – +2.7%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Regeneration",
+    "range": "+1.1% – +1.4%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Defense increase",
+    "range": "+1.5% – +1.8%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance Penetration",
+    "range": "+1.1% – +1.4%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Multi-hit Resist",
+    "range": "+2.3% – +2.7%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +15, HP +12"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +30, HP +24"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +45, HP +36"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +60, HP +48"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +75, HP +61"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +90, HP +74"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +106, HP +87"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +122, HP +100"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +138, HP +113"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +154, HP +126"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Defense +170, HP +139"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Defense +186, HP +152"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Defense +202, HP +165"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Defense +218, HP +178"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Defense +234, HP +191"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Defense +16, HP +16, Damage Tolerance +0.5%, HP increase +0.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Gloves",
+   "Item Level": "54",
+   "Required Level": "45",
+   "Max enhance": "+15 (+16)"
+  }
+ },
+ "bakarma-boots": {
+  "slug": "bakarma-boots",
+  "fixed": {
+   "Defense": "+265",
+   "HP": "+108"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+167 – +199",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+29 – +40",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+16 – +25",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+62 – +78",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+125 – +151",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+15 – +24",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+29 – +40",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+20 – +30",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+28 – +39",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+163 – +194",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+16 – +25",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+167 – +199",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+167 – +199",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+15 – +24",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+9 – +17",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+12 – +21",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+13 – +22",
+    "chance": "4%"
+   },
+   {
+    "stat": "Move Speed",
+    "range": "+7% – +8.1%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+4.2% – +4.9%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Perfect Chance",
+    "range": "+2.9% – +3.4%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Regeneration",
+    "range": "+1.5% – +1.8%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Defense increase",
+    "range": "+2% – +2.3%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Perfect Resist",
+    "range": "+2.4% – +2.9%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance Penetration",
+    "range": "+1.5% – +1.8%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +15, HP +12"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +30, HP +24"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +45, HP +36"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +60, HP +48"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +75, HP +61"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +90, HP +74"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +106, HP +87"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +122, HP +100"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +138, HP +113"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +154, HP +126"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Defense +170, HP +139"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Defense +186, HP +152"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Defense +202, HP +165"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Defense +218, HP +178"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Defense +234, HP +191"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Defense +16, HP +16, Damage Tolerance +0.5%, HP increase +0.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Shoes",
+   "Item Level": "54",
+   "Required Level": "45",
+   "Max enhance": "+15 (+16)"
+  }
+ },
+ "bakarma-cloak": {
+  "slug": "bakarma-cloak",
+  "fixed": {
+   "Defense": "+265",
+   "HP": "+108"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+149 – +178",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+26 – +37",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+15 – +24",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+55 – +70",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+111 – +135",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+13 – +22",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+26 – +37",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+18 – +28",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+24 – +35",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+145 – +174",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+14 – +23",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+149 – +178",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+149 – +178",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+13 – +22",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+8 – +16",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+13 – +22",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+12 – +21",
+    "chance": "4%"
+   },
+   {
+    "stat": "Critical Damage Tolerance",
+    "range": "+8.7% – +10.1%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+3.7% – +4.4%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Double Chance",
+    "range": "+1.2% – +1.4%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance",
+    "range": "+1.7% – +2.1%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Attack increase",
+    "range": "+1.2% – +1.4%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Weapon Damage Tolerance",
+    "range": "+6.5% – +7.6%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance Penetration",
+    "range": "+1.3% – +1.6%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +15, HP +12"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +30, HP +24"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +45, HP +36"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +60, HP +48"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +75, HP +61"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +90, HP +74"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +106, HP +87"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +122, HP +100"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +138, HP +113"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +154, HP +126"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Defense +170, HP +139"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Defense +186, HP +152"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Defense +202, HP +165"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Defense +218, HP +178"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Defense +234, HP +191"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Defense +16, HP +16, Damage Tolerance +0.5%, HP increase +0.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Cloak",
+   "Item Level": "54",
+   "Required Level": "45",
+   "Max enhance": "+15 (+16)"
+  }
+ },
+ "divine-canyon-helm": {
+  "slug": "divine-canyon-helm",
+  "fixed": {
+   "Defense": "+230",
+   "HP": "+105"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+144 – +173",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+25 – +36",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+14 – +23",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+54 – +69",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+108 – +131",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+12 – +21",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+25 – +36",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+18 – +28",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+24 – +35",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+140 – +168",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+14 – +23",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+144 – +173",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+144 – +173",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+6 – +14",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+10 – +19",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+6 – +14",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+12 – +21",
+    "chance": "4%"
+   },
+   {
+    "stat": "Incoming Heal",
+    "range": "+10.1% – +11.7%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+3.6% – +4.2%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Double Chance",
+    "range": "+1.1% – +1.4%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Endurance",
+    "range": "+1.7% – +2%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Attack increase",
+    "range": "+1.1% – +1.4%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Perfect Resist",
+    "range": "+2.1% – +2.5%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Weapon Damage Tolerance",
+    "range": "+4.1% – +4.7%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +12, HP +9"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +24, HP +19"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +36, HP +29"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +48, HP +39"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +60, HP +49"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +72, HP +59"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +84, HP +69"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +96, HP +79"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +108, HP +89"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +121, HP +99"
+   }
+  ],
+  "meta": {
+   "Category": "Helm",
+   "Item Level": "42",
+   "Required Level": "45",
+   "Max enhance": "+10"
+  }
+ },
+ "divine-canyon-breastplate": {
+  "slug": "divine-canyon-breastplate",
+  "fixed": {
+   "Defense": "+307",
+   "HP": "+168"
+  },
+  "random": [
+   {
+    "stat": "Critical Damage Defense",
+    "range": "+173 – +206",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+30 – +42",
+    "chance": "6%"
+   },
+   {
+    "stat": "Block",
+    "range": "+17 – +27",
+    "chance": "6%"
+   },
+   {
+    "stat": "MP",
+    "range": "+64 – +81",
+    "chance": "6%"
+   },
+   {
+    "stat": "HP",
+    "range": "+130 – +157",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+15 – +24",
+    "chance": "6%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+30 – +42",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+21 – +31",
+    "chance": "5%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+29 – +40",
+    "chance": "5%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+168 – +200",
+    "chance": "5%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+17 – +27",
+    "chance": "5%"
+   },
+   {
+    "stat": "Back Defense",
+    "range": "+173 – +206",
+    "chance": "5%"
+   },
+   {
+    "stat": "Front Defense",
+    "range": "+173 – +206",
+    "chance": "5%"
+   },
+   {
+    "stat": "Dexterity",
+    "range": "+7 – +15",
+    "chance": "4%"
+   },
+   {
+    "stat": "Constitution",
+    "range": "+12 – +21",
+    "chance": "4%"
+   },
+   {
+    "stat": "Willpower",
+    "range": "+6 – +14",
+    "chance": "4%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+14 – +23",
+    "chance": "4%"
+   },
+   {
+    "stat": "Damage Boost",
+    "range": "+3.4% – +4%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Status Effect Resist",
+    "range": "+4.3% – +5.1%",
+    "chance": "3%"
+   },
+   {
+    "stat": "Regeneration",
+    "range": "+1.5% – +1.8%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Perfect Chance",
+    "range": "+3% – +3.6%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Defense increase",
+    "range": "+2% – +2.4%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Double Resist",
+    "range": "+2% – +2.4%",
+    "chance": "1.2%"
+   },
+   {
+    "stat": "Weapon Damage Tolerance",
+    "range": "+5.1% – +5.9%",
+    "chance": "1.2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Defense +12, HP +9"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Defense +24, HP +19"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Defense +36, HP +29"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Defense +48, HP +39"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Defense +60, HP +49"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Defense +72, HP +59"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Defense +84, HP +69"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Defense +96, HP +79"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Defense +108, HP +89"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Defense +121, HP +99"
+   }
+  ],
+  "meta": {
+   "Category": "Top",
+   "Item Level": "42",
+   "Required Level": "45",
+   "Max enhance": "+10"
+  }
+ },
+ "aulamus-necklace": {
+  "slug": "aulamus-necklace",
+  "fixed": {
+   "Attack": "+108",
+   "Defense": "+259"
+  },
+  "random": [
+   {
+    "stat": "Natural MP Regen",
+    "range": "+25 – +36",
+    "chance": "10%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+50 – +65",
+    "chance": "10%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+50 – +65",
+    "chance": "9%"
+   },
+   {
+    "stat": "Block",
+    "range": "+29 – +40",
+    "chance": "9%"
+   },
+   {
+    "stat": "MP",
+    "range": "+107 – +130",
+    "chance": "9%"
+   },
+   {
+    "stat": "HP",
+    "range": "+216 – +255",
+    "chance": "9%"
+   },
+   {
+    "stat": "Flight Power",
+    "range": "+268.8 – +309.19",
+    "chance": "6%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+23 – +33",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+35 – +47",
+    "chance": "6%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+48 – +62",
+    "chance": "6%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+280 – +329",
+    "chance": "6%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+28 – +39",
+    "chance": "6%"
+   },
+   {
+    "stat": "Combat Speed",
+    "range": "+3.2% – +3.8%",
+    "chance": "2%"
+   },
+   {
+    "stat": "Might",
+    "range": "+9 – +17",
+    "chance": "2%"
+   },
+   {
+    "stat": "Precision",
+    "range": "+9 – +17",
+    "chance": "2%"
+   },
+   {
+    "stat": "Intelligence",
+    "range": "+13 – +22",
+    "chance": "2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Attack +3, Defense +9"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Attack +7, Defense +19"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Attack +11, Defense +29"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Attack +15, Defense +39"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Attack +19, Defense +49"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Attack +23, Defense +59"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Attack +27, Defense +69"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Attack +31, Defense +79"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Attack +35, Defense +89"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Attack +39, Defense +99"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Attack +43, Defense +109"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Attack +47, Defense +119"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Attack +51, Defense +129"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Attack +55, Defense +139"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Attack +59, Defense +149"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Attack +5, Defense +10, Damage Boost +0.5%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Attack +10, Defense +20, Damage Boost +1%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Attack +15, Defense +30, Damage Boost +1.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Necklace",
+   "Item Level": "70",
+   "Required Level": "45",
+   "Max enhance": "+15 (+18)"
+  }
+ },
+ "aulamus-earrings": {
+  "slug": "aulamus-earrings",
+  "fixed": {
+   "Attack": "+90",
+   "Defense": "+216"
+  },
+  "random": [
+   {
+    "stat": "Natural MP Regen",
+    "range": "+22 – +32",
+    "chance": "10%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+43 – +56",
+    "chance": "10%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+43 – +56",
+    "chance": "9%"
+   },
+   {
+    "stat": "Block",
+    "range": "+24 – +35",
+    "chance": "9%"
+   },
+   {
+    "stat": "MP",
+    "range": "+92 – +113",
+    "chance": "9%"
+   },
+   {
+    "stat": "HP",
+    "range": "+185 – +220",
+    "chance": "9%"
+   },
+   {
+    "stat": "Flight Power",
+    "range": "+230.4 – +265.03",
+    "chance": "6%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+20 – +30",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+30 – +42",
+    "chance": "6%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+41 – +54",
+    "chance": "6%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+240 – +283",
+    "chance": "6%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+24 – +35",
+    "chance": "6%"
+   },
+   {
+    "stat": "Move Speed",
+    "range": "+4.8% – +5.6%",
+    "chance": "2%"
+   },
+   {
+    "stat": "Might",
+    "range": "+7 – +15",
+    "chance": "2%"
+   },
+   {
+    "stat": "Precision",
+    "range": "+7 – +15",
+    "chance": "2%"
+   },
+   {
+    "stat": "Intelligence",
+    "range": "+11 – +20",
+    "chance": "2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Attack +3, Defense +9"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Attack +7, Defense +19"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Attack +11, Defense +29"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Attack +15, Defense +39"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Attack +19, Defense +49"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Attack +23, Defense +59"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Attack +27, Defense +69"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Attack +31, Defense +79"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Attack +35, Defense +89"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Attack +39, Defense +99"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Attack +43, Defense +109"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Attack +47, Defense +119"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Attack +51, Defense +129"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Attack +55, Defense +139"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Attack +59, Defense +149"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Attack +5, Defense +10, Damage Boost +0.5%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Attack +10, Defense +20, Damage Boost +1%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Attack +15, Defense +30, Damage Boost +1.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Earrings",
+   "Item Level": "70",
+   "Required Level": "45",
+   "Max enhance": "+15 (+18)"
+  }
+ },
+ "aulamus-ring": {
+  "slug": "aulamus-ring",
+  "fixed": {
+   "Attack": "+72",
+   "Defense": "+172"
+  },
+  "random": [
+   {
+    "stat": "Natural MP Regen",
+    "range": "+18 – +28",
+    "chance": "10%"
+   },
+   {
+    "stat": "Natural HP Regen",
+    "range": "+36 – +48",
+    "chance": "10%"
+   },
+   {
+    "stat": "Critical Hit Resist",
+    "range": "+36 – +48",
+    "chance": "9.5%"
+   },
+   {
+    "stat": "Block",
+    "range": "+20 – +30",
+    "chance": "9.5%"
+   },
+   {
+    "stat": "MP",
+    "range": "+76 – +94",
+    "chance": "9.5%"
+   },
+   {
+    "stat": "HP",
+    "range": "+154 – +184",
+    "chance": "9.5%"
+   },
+   {
+    "stat": "Flight Power",
+    "range": "+192 – +220.87",
+    "chance": "6%"
+   },
+   {
+    "stat": "Attack",
+    "range": "+16 – +25",
+    "chance": "6%"
+   },
+   {
+    "stat": "Critical Hit",
+    "range": "+25 – +36",
+    "chance": "6%"
+   },
+   {
+    "stat": "Accuracy",
+    "range": "+34 – +46",
+    "chance": "6%"
+   },
+   {
+    "stat": "Defense",
+    "range": "+200 – +237",
+    "chance": "6%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+20 – +30",
+    "chance": "6%"
+   },
+   {
+    "stat": "Might",
+    "range": "+5 – +13",
+    "chance": "2%"
+   },
+   {
+    "stat": "Precision",
+    "range": "+5 – +13",
+    "chance": "2%"
+   },
+   {
+    "stat": "Intelligence",
+    "range": "+9 – +17",
+    "chance": "2%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Attack +3, Defense +9"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Attack +7, Defense +19"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Attack +11, Defense +29"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Attack +15, Defense +39"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Attack +19, Defense +49"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Attack +23, Defense +59"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Attack +27, Defense +69"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Attack +31, Defense +79"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Attack +35, Defense +89"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Attack +39, Defense +99"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Attack +43, Defense +109"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Attack +47, Defense +119"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Attack +51, Defense +129"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Attack +55, Defense +139"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Attack +59, Defense +149"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Attack +5, Defense +10, Damage Boost +0.5%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Attack +10, Defense +20, Damage Boost +1%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Attack +15, Defense +30, Damage Boost +1.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Ring",
+   "Item Level": "70",
+   "Required Level": "45",
+   "Max enhance": "+15 (+18)"
+  }
+ },
+ "liberator-necklace": {
+  "slug": "liberator-necklace",
+  "fixed": {
+   "Attack": "+65",
+   "Defense": "+157"
+  },
+  "random": [
+   {
+    "stat": "Defense",
+    "range": "+47 – +47",
+    "chance": "0%"
+   },
+   {
+    "stat": "MP",
+    "range": "+30 – +30",
+    "chance": "0%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+10 – +10",
+    "chance": "0%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Attack +2, Defense +6"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Attack +4, Defense +12"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Attack +6, Defense +18"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Attack +8, Defense +24"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Attack +10, Defense +30"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Attack +12, Defense +36"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Attack +15, Defense +42"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Attack +18, Defense +48"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Attack +21, Defense +54"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Attack +24, Defense +61"
+   }
+  ],
+  "meta": {
+   "Category": "Necklace",
+   "Item Level": "43",
+   "Required Level": "1",
+   "Max enhance": "+10"
+  }
+ },
+ "liberator-earrings": {
+  "slug": "liberator-earrings",
+  "fixed": {
+   "Attack": "+55",
+   "Defense": "+131"
+  },
+  "random": [
+   {
+    "stat": "Accuracy",
+    "range": "+13 – +13",
+    "chance": "0%"
+   },
+   {
+    "stat": "MP",
+    "range": "+25 – +25",
+    "chance": "0%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+8 – +8",
+    "chance": "0%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Attack +2, Defense +6"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Attack +4, Defense +12"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Attack +6, Defense +18"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Attack +8, Defense +24"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Attack +10, Defense +30"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Attack +12, Defense +36"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Attack +15, Defense +42"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Attack +18, Defense +48"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Attack +21, Defense +54"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Attack +24, Defense +61"
+   }
+  ],
+  "meta": {
+   "Category": "Earrings",
+   "Item Level": "43",
+   "Required Level": "1",
+   "Max enhance": "+10"
+  }
+ },
+ "liberator-ring": {
+  "slug": "liberator-ring",
+  "fixed": {
+   "Attack": "+44",
+   "Defense": "+105"
+  },
+  "random": [
+   {
+    "stat": "Defense",
+    "range": "+31 – +31",
+    "chance": "0%"
+   },
+   {
+    "stat": "MP",
+    "range": "+20 – +20",
+    "chance": "0%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+7 – +7",
+    "chance": "0%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Attack +2, Defense +6"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Attack +4, Defense +12"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Attack +6, Defense +18"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Attack +8, Defense +24"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Attack +10, Defense +30"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Attack +12, Defense +36"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Attack +15, Defense +42"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Attack +18, Defense +48"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Attack +21, Defense +54"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Attack +24, Defense +61"
+   }
+  ],
+  "meta": {
+   "Category": "Ring",
+   "Item Level": "43",
+   "Required Level": "1",
+   "Max enhance": "+10"
+  }
+ },
+ "ascension-bracelet": {
+  "slug": "ascension-bracelet",
+  "fixed": {
+   "Attack": "+65",
+   "Defense": "+156"
+  },
+  "random": [
+   {
+    "stat": "Critical Hit",
+    "range": "+9 – +9",
+    "chance": "0%"
+   },
+   {
+    "stat": "Evasion",
+    "range": "+12 – +12",
+    "chance": "0%"
+   },
+   {
+    "stat": "MP",
+    "range": "+26 – +26",
+    "chance": "0%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+9 – +9",
+    "chance": "0%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Attack +2, Defense +7"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Attack +4, Defense +14"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Attack +7, Defense +21"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Attack +10, Defense +28"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Attack +13, Defense +35"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Attack +16, Defense +42"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Attack +19, Defense +49"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Attack +22, Defense +56"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Attack +25, Defense +63"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Attack +28, Defense +70"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Attack +31, Defense +77"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Attack +34, Defense +84"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Attack +37, Defense +92"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Attack +40, Defense +100"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Attack +43, Defense +108"
+   }
+  ],
+  "meta": {
+   "Category": "Bracelet",
+   "Item Level": "51",
+   "Required Level": "1",
+   "Max enhance": "+15"
+  }
+ },
+ "liberator-bracelet": {
+  "slug": "liberator-bracelet",
+  "fixed": {
+   "Attack": "+55",
+   "Defense": "+131"
+  },
+  "random": [
+   {
+    "stat": "Critical Hit",
+    "range": "+8 – +8",
+    "chance": "0%"
+   },
+   {
+    "stat": "MP",
+    "range": "+22 – +22",
+    "chance": "0%"
+   },
+   {
+    "stat": "Natural MP Regen",
+    "range": "+8 – +8",
+    "chance": "0%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Attack +2, Defense +6"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Attack +4, Defense +12"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Attack +6, Defense +18"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Attack +8, Defense +24"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Attack +10, Defense +30"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Attack +12, Defense +36"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Attack +15, Defense +42"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Attack +18, Defense +48"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Attack +21, Defense +54"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Attack +24, Defense +61"
+   }
+  ],
+  "meta": {
+   "Category": "Bracelet",
+   "Item Level": "43",
+   "Required Level": "1",
+   "Max enhance": "+10"
+  }
+ },
+ "abyssal-bracelet": {
+  "slug": "abyssal-bracelet",
+  "fixed": {
+   "Attack": "+111",
+   "Defense": "+265"
+  },
+  "random": [
+   {
+    "stat": "Justice [Nezekan]",
+    "range": "+9 – +17",
+    "chance": "10%"
+   },
+   {
+    "stat": "Freedom [Vaizel]",
+    "range": "+9 – +17",
+    "chance": "10%"
+   },
+   {
+    "stat": "Illusion [Kaisinel]",
+    "range": "+9 – +17",
+    "chance": "10%"
+   },
+   {
+    "stat": "Life [Yustiel]",
+    "range": "+9 – +17",
+    "chance": "10%"
+   },
+   {
+    "stat": "Time [Siel]",
+    "range": "+9 – +17",
+    "chance": "10%"
+   },
+   {
+    "stat": "Destruction [Zikel]",
+    "range": "+9 – +17",
+    "chance": "10%"
+   },
+   {
+    "stat": "Death [Triniel]",
+    "range": "+9 – +17",
+    "chance": "10%"
+   },
+   {
+    "stat": "Wisdom [Lumiel]",
+    "range": "+9 – +17",
+    "chance": "10%"
+   },
+   {
+    "stat": "Destiny [Marchutan]",
+    "range": "+9 – +17",
+    "chance": "10%"
+   },
+   {
+    "stat": "Space [Israphel]",
+    "range": "+9 – +17",
+    "chance": "10%"
+   }
+  ],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Attack +4, Defense +12"
+   },
+   {
+    "step": "+1 → +2",
+    "stats": "Attack +8, Defense +24"
+   },
+   {
+    "step": "+2 → +3",
+    "stats": "Attack +12, Defense +36"
+   },
+   {
+    "step": "+3 → +4",
+    "stats": "Attack +17, Defense +48"
+   },
+   {
+    "step": "+4 → +5",
+    "stats": "Attack +22, Defense +60"
+   },
+   {
+    "step": "+5 → +6",
+    "stats": "Attack +27, Defense +72"
+   },
+   {
+    "step": "+6 → +7",
+    "stats": "Attack +32, Defense +84"
+   },
+   {
+    "step": "+7 → +8",
+    "stats": "Attack +37, Defense +96"
+   },
+   {
+    "step": "+8 → +9",
+    "stats": "Attack +42, Defense +108"
+   },
+   {
+    "step": "+9 → +10",
+    "stats": "Attack +47, Defense +120"
+   },
+   {
+    "step": "+10 → +11",
+    "stats": "Attack +52, Defense +132"
+   },
+   {
+    "step": "+11 → +12",
+    "stats": "Attack +57, Defense +145"
+   },
+   {
+    "step": "+12 → +13",
+    "stats": "Attack +62, Defense +158"
+   },
+   {
+    "step": "+13 → +14",
+    "stats": "Attack +67, Defense +171"
+   },
+   {
+    "step": "+14 → +15",
+    "stats": "Attack +72, Defense +184"
+   },
+   {
+    "step": "+15 → +16",
+    "stats": "Attack +6, Defense +12, Damage Tolerance +0.5%, HP increase +0.5%"
+   },
+   {
+    "step": "+16 → +17",
+    "stats": "Attack +12, Defense +24, Damage Tolerance +1%, HP increase +1%"
+   },
+   {
+    "step": "+17 → +18",
+    "stats": "Attack +18, Defense +36, Damage Tolerance +1.5%, HP increase +1.5%"
+   },
+   {
+    "step": "+18 → +19",
+    "stats": "Attack +24, Defense +49, Damage Tolerance +2%, HP increase +2%"
+   },
+   {
+    "step": "+19 → +20",
+    "stats": "Attack +30, Defense +62, Damage Tolerance +2.5%, HP increase +2.5%"
+   }
+  ],
+  "meta": {
+   "Category": "Bracelet",
+   "Item Level": "86",
+   "Required Level": "45",
+   "Max enhance": "+15 (+20)"
+  }
+ },
+ "noble-belt": {
+  "slug": "noble-belt",
+  "fixed": {
+   "HP Potion Recovery increase": "+30%",
+   "Regeneration": "+5%",
+   "HP": "+1,100",
+   "Defense": "+500"
+  },
+  "random": [],
+  "enchant": [],
+  "meta": {
+   "Category": "Belt",
+   "Item Level": "65",
+   "Required Level": "1",
+   "Max enhance": "+10"
+  }
+ },
+ "revelation-amulet": {
+  "slug": "revelation-amulet",
+  "fixed": {
+   "Weapon Damage Boost": "+10%",
+   "Perfect Chance": "+5%",
+   "Penetration": "+700",
+   "Power Shard Damage Bonus": "+40"
+  },
+  "random": [],
+  "enchant": [],
+  "meta": {
+   "Category": "Amulet",
+   "Item Level": "65",
+   "Required Level": "1",
+   "Max enhance": "+10"
+  }
+ },
+ "fierce-battle-amulet-rare": {
+  "slug": "fierce-battle-amulet-rare",
+  "fixed": {
+   "PvP Damage Boost": "+10%",
+   "Penetration": "+100"
+  },
+  "random": [],
+  "enchant": [
+   {
+    "step": "+0 → +1",
+    "stats": "Penetration +30"
+   }
+  ],
+  "meta": {
+   "Category": "Amulet",
+   "Item Level": "13",
+   "Required Level": "1",
+   "Max enhance": "+10"
+  }
+ },
+ "clash-rune": {
+  "slug": "clash-rune",
+  "fixed": {
+   "PvE Damage Tolerance": "+0.5%",
+   "PvE Damage Boost": "+0.5%",
+   "Penetration": "+100",
+   "Combat Speed": "+1%",
+   "Multi-hit Chance": "+1%"
+  },
+  "random": [],
+  "enchant": [],
+  "meta": {
+   "Category": "Rune",
+   "Item Level": "40",
+   "Required Level": "10",
+   "Max enhance": "+10"
+  }
+ }
+}

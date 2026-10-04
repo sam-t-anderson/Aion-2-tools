@@ -1,0 +1,203 @@
+{
+ "class": "cleric",
+ "records": 10,
+ "skills": {
+  "단죄": {
+   "code": 17350000,
+   "mean_share": 0.5281147053854924,
+   "mean_hits_per_min": 133.5,
+   "spec_modes": [
+    [
+     "2, 4, 5",
+     10
+    ]
+   ]
+  },
+  "고결한 기운": {
+   "code": 17440000,
+   "mean_share": 0.0816220108301354,
+   "mean_hits_per_min": 50.9,
+   "spec_modes": [
+    [
+     "4",
+     8
+    ],
+    [
+     "5",
+     2
+    ]
+   ]
+  },
+  "방전": {
+   "code": 17030000,
+   "mean_share": 0.07093680886808043,
+   "mean_hits_per_min": 22.9,
+   "spec_modes": [
+    [
+     "2, 3, 4",
+     10
+    ]
+   ]
+  },
+  "신성한 기운": {
+   "code": 17150000,
+   "mean_share": 0.05813012393251943,
+   "mean_hits_per_min": 54.8,
+   "spec_modes": [
+    [
+     "3, 4, 5",
+     9
+    ]
+   ]
+  },
+  "주신의 은총": {
+   "code": 17730000,
+   "mean_share": 0.04275976869073591,
+   "mean_hits_per_min": 52.3,
+   "spec_modes": [
+    [
+     "없음",
+     10
+    ]
+   ]
+  },
+  "대지의 징벌": {
+   "code": 17400000,
+   "mean_share": 0.042931547643798876,
+   "mean_hits_per_min": 98.6,
+   "spec_modes": [
+    [
+     "4, 5",
+     10
+    ]
+   ]
+  },
+  "벽력": {
+   "code": 17060000,
+   "mean_share": 0.08182967924699071,
+   "mean_hits_per_min": 5.1,
+   "spec_modes": [
+    [
+     "3, 4, 5",
+     5
+    ],
+    [
+     "2, 3, 4",
+     3
+    ]
+   ]
+  },
+  "뇌전": {
+   "code": 17020000,
+   "mean_share": 0.039122366389403175,
+   "mean_hits_per_min": 46.8,
+   "spec_modes": [
+    [
+     "2, 3, 4",
+     10
+    ]
+   ]
+  },
+  "대지의 응보": {
+   "code": 17010000,
+   "mean_share": 0.03615007370301346,
+   "mean_hits_per_min": 47.3,
+   "spec_modes": [
+    [
+     "2, 3, 4",
+     10
+    ]
+   ]
+  },
+  "약화의 낙인": {
+   "code": 17080000,
+   "mean_share": 0.003964497881453986,
+   "mean_hits_per_min": 4.4,
+   "spec_modes": [
+    [
+     "2, 4",
+     3
+    ]
+   ]
+  },
+  "고통의 연쇄": {
+   "code": 17070000,
+   "mean_share": 0.011256816523631039,
+   "mean_hits_per_min": 15.6,
+   "spec_modes": [
+    [
+     "2, 4",
+     9
+    ],
+    [
+     "2, 4, 5",
+     1
+    ]
+   ]
+  },
+  "신석: 트라우프니르의 용기": {
+   "code": null,
+   "mean_share": 0.0001875432311902157,
+   "mean_hits_per_min": 0.3,
+   "spec_modes": []
+  },
+  "신석: 메스람타에다의 후회": {
+   "code": null,
+   "mean_share": 0.0002509729876329913,
+   "mean_hits_per_min": 3.8,
+   "spec_modes": []
+  },
+  "신석: 바이젤의 맹세": {
+   "code": null,
+   "mean_share": 0.0002983561603310663,
+   "mean_hits_per_min": 2.0,
+   "spec_modes": []
+  },
+  "신석: 브리트라의 이기심": {
+   "code": null,
+   "mean_share": 5.837323889938024e-05,
+   "mean_hits_per_min": 2.8,
+   "spec_modes": []
+  },
+  "강습 낙인": {
+   "code": 17700000,
+   "mean_share": 0.0005101065250805411,
+   "mean_hits_per_min": 0.2,
+   "spec_modes": [
+    [
+     "4",
+     2
+    ]
+   ]
+  },
+  "신석: 프레기온의 책략": {
+   "code": null,
+   "mean_share": 5.382211319163599e-07,
+   "mean_hits_per_min": 0.1,
+   "spec_modes": []
+  },
+  "파멸의 목소리": {
+   "code": 17300000,
+   "mean_share": 0.0014959527540696802,
+   "mean_hits_per_min": 2.3,
+   "spec_modes": [
+    [
+     "4",
+     2
+    ]
+   ]
+  },
+  "신석: 트리니엘의 이성": {
+   "code": null,
+   "mean_share": 0.00030801264945091186,
+   "mean_hits_per_min": 0.8,
+   "spec_modes": []
+  },
+  "신석: 시프의 지식": {
+   "code": null,
+   "mean_share": 7.174513695843416e-05,
+   "mean_hits_per_min": 0.3,
+   "spec_modes": []
+  }
+ }
+}

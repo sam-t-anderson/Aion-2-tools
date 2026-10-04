@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aion2calc"
+version = "0.1.0"
+description = "Aion 2 build/rotation simulator and optimizer (global L45 data, KR fallback)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "GPL-3.0"}
+dependencies = ["numpy>=1.24", "matplotlib>=3.7", "pulp>=2.7"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+aion2calc = "aion2calc.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["aion2calc*"]
+
+[tool.setuptools.package-data]
+aion2calc = ["data/**/*.json"]
+
+[tool.pytest.ini_options]
+filterwarnings = ["ignore::DeprecationWarning:pulp.*"]

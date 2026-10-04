@@ -1,0 +1,345 @@
+{
+ "13230000": {
+  "name": "Aerial Bind",
+  "hits": {
+   "1323000021": {
+    "flat_l1": 837.0,
+    "coef": 156.0,
+    "hits": 3,
+    "pvp_coef": 129.7
+   }
+  }
+ },
+ "13060000": {
+  "name": "Ambush",
+  "hits": {
+   "1306000011": {
+    "flat_l1": 126.0,
+    "coef": 138.0,
+    "hits": 1,
+    "pvp_coef": 111.1
+   }
+  }
+ },
+ "13770000": {
+  "name": "Ambush Stance",
+  "hits": {
+   "1377000711": {
+    "flat_l1": 152.0,
+    "coef": 39.0,
+    "hits": 1,
+    "pvp_coef": 44.8
+   }
+  }
+ },
+ "13730000": {
+  "name": "Apply Poison",
+  "hits": {}
+ },
+ "13700000": {
+  "name": "Assault Ambush",
+  "hits": {
+   "1370000021": {
+    "flat_l1": 977.0,
+    "coef": 182.0,
+    "hits": 1,
+    "pvp_coef": 142.1
+   }
+  }
+ },
+ "13750000": {
+  "name": "Assault Stance",
+  "hits": {}
+ },
+ "13780000": {
+  "name": "Defense Break",
+  "hits": {}
+ },
+ "13260000": {
+  "name": "Defiance",
+  "hits": {}
+ },
+ "13800000": {
+  "name": "Determination",
+  "hits": {
+   "1380000711": {
+    "flat_l1": 189.0,
+    "coef": 31.0,
+    "hits": 1,
+    "pvp_coef": 37.0
+   }
+  }
+ },
+ "13370000": {
+  "name": "Evasion Contract",
+  "hits": {}
+ },
+ "13080000": {
+  "name": "Evasion Stance",
+  "hits": {}
+ },
+ "13720000": {
+  "name": "Exploit Weakness",
+  "hits": {
+   "1372000711": {
+    "flat_l1": 16.0,
+    "coef": 12.5,
+    "hits": 1,
+    "pvp_coef": 17.3
+   }
+  }
+ },
+ "13050000": {
+  "name": "Flash Slice",
+  "hits": {
+   "1305000021": {
+    "flat_l1": 181.0,
+    "coef": 107.0,
+    "hits": 1,
+    "pvp_coef": 104.0
+   }
+  }
+ },
+ "13350000": {
+  "name": "Heart Gore",
+  "hits": {
+   "1335000011": {
+    "flat_l1": 111.0,
+    "coef": 122.0,
+    "hits": 1,
+    "pvp_coef": 101.1
+   }
+  }
+ },
+ "13710000": {
+  "name": "Heightened Sixth Sense",
+  "hits": {
+   "1371000711": {
+    "flat_l1": 85.0,
+    "coef": 100.0,
+    "hits": 1,
+    "pvp_coef": null
+   }
+  }
+ },
+ "13310000": {
+  "name": "Illusive Clone",
+  "hits": {}
+ },
+ "13760000": {
+  "name": "Impact Hit",
+  "hits": {}
+ },
+ "13360000": {
+  "name": "Infiltrate",
+  "hits": {
+   "1336000021": {
+    "flat_l1": 239.0,
+    "coef": 105.0,
+    "hits": 2,
+    "pvp_coef": 102.9
+   }
+  }
+ },
+ "13130000": {
+  "name": "Insignia Explosion",
+  "hits": {
+   "1313000011": {
+    "flat_l1": 455.0,
+    "coef": 151.0,
+    "hits": 1,
+    "pvp_coef": 119.0
+   },
+   "1313000013": {
+    "flat_l1": 509.0,
+    "coef": 169.12,
+    "hits": 1,
+    "pvp_coef": 128.52
+   },
+   "1313000015": {
+    "flat_l1": 564.0,
+    "coef": 187.24,
+    "hits": 1,
+    "pvp_coef": 136.85
+   },
+   "1313000017": {
+    "flat_l1": 619.0,
+    "coef": 205.36,
+    "hits": 1,
+    "pvp_coef": 143.99
+   },
+   "1313000019": {
+    "flat_l1": 673.0,
+    "coef": 223.48,
+    "hits": 1,
+    "pvp_coef": 149.94
+   },
+   "1313000021": {
+    "flat_l1": 728.0,
+    "coef": 241.6,
+    "hits": 1,
+    "pvp_coef": 154.7
+   }
+  }
+ },
+ "13010000": {
+  "name": "Quick Slice",
+  "hits": {
+   "1301000011": {
+    "flat_l1": 52.0,
+    "coef": 53.0,
+    "hits": 2,
+    "pvp_coef": 53.5
+   }
+  }
+ },
+ "13740000": {
+  "name": "Rear Smite",
+  "hits": {}
+ },
+ "13790000": {
+  "name": "Revitalization Contract",
+  "hits": {}
+ },
+ "13270000": {
+  "name": "Savage Fang",
+  "hits": {
+   "1327000011": {
+    "flat_l1": 1074.0,
+    "coef": 200.0,
+    "hits": 3,
+    "pvp_coef": 150.4
+   }
+  }
+ },
+ "13100000": {
+  "name": "Savage Roar",
+  "hits": {
+   "1310000011": {
+    "flat_l1": 64.0,
+    "coef": 76.0,
+    "hits": 1,
+    "pvp_coef": 67.4
+   }
+  }
+ },
+ "13220000": {
+  "name": "Shadow Fall",
+  "hits": {
+   "1322000041": {
+    "flat_l1": 465.0,
+    "coef": 204.0,
+    "hits": 1,
+    "pvp_coef": 152.2
+   }
+  }
+ },
+ "13180000": {
+  "name": "Shadow Walk",
+  "hits": {}
+ },
+ "13140000": {
+  "name": "Shadowstep",
+  "hits": {
+   "1314000021": {
+    "flat_l1": 832.0,
+    "coef": 155.0,
+    "hits": 1,
+    "pvp_coef": 129.2
+   }
+  }
+ },
+ "13070000": {
+  "name": "Shadowstrike",
+  "hits": {
+   "1307000021": {
+    "flat_l1": 43.0,
+    "coef": 82.5,
+    "hits": 1,
+    "pvp_coef": 84.8
+   }
+  }
+ },
+ "13250000": {
+  "name": "Smoke Bomb",
+  "hits": {
+   "1325000011": {
+    "flat_l1": 966.0,
+    "coef": 180.0,
+    "hits": 1,
+    "pvp_coef": 141.2
+   }
+  }
+ },
+ "13280000": {
+  "name": "Spiral Slice",
+  "hits": {
+   "1328000021": {
+    "flat_l1": 1074.0,
+    "coef": 200.0,
+    "hits": 1,
+    "pvp_coef": 150.4
+   },
+   "1328000711": {
+    "flat_l1": 386.0,
+    "coef": 72.0,
+    "hits": 1,
+    "pvp_coef": 75.5
+   },
+   "1328000811": {
+    "flat_l1": 515.0,
+    "coef": 96.0,
+    "hits": 1,
+    "pvp_coef": 96.6
+   }
+  }
+ },
+ "13340000": {
+  "name": "Storm Rampage",
+  "hits": {
+   "1334000011": {
+    "flat_l1": 107.0,
+    "coef": 82.5,
+    "hits": 4,
+    "pvp_coef": 84.8
+   }
+  }
+ },
+ "13390000": {
+  "name": "Swift Contract",
+  "hits": {}
+ },
+ "13020000": {
+  "name": "Throw Shadowblade",
+  "hits": {
+   "1302000011": {
+    "flat_l1": 778.0,
+    "coef": 145.0,
+    "hits": 1,
+    "pvp_coef": 124.2
+   }
+  }
+ },
+ "13300000": {
+  "name": "Triniel's Dagger",
+  "hits": {
+   "1330000011": {
+    "flat_l1": 1374.0,
+    "coef": 256.0,
+    "hits": 1,
+    "pvp_coef": 167.0
+   }
+  }
+ },
+ "13210000": {
+  "name": "Whirlwind Slice",
+  "hits": {
+   "1321000011": {
+    "flat_l1": 300.0,
+    "coef": 177.0,
+    "hits": 1,
+    "pvp_coef": 139.8
+   }
+  }
+ }
+}
