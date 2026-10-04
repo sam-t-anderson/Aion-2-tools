@@ -1,0 +1,917 @@
+{
+ "class": "gladiator",
+ "level": 45,
+ "scenario": "boss",
+ "daevanion_budget": 360,
+ "dps": {
+  "boss": 5510.0589229598645,
+  "dummy": 6431.56875472106
+ },
+ "baseline": {
+  "community_naive": 4035.2732774440083,
+  "community_optimized_rotation": 4619.026055824011,
+  "community_other_scenario": 5363.585366191157
+ },
+ "build": {
+  "sp": {
+   "Keen Strike": 10,
+   "Ruinous Blow": 10,
+   "Overhead Slam": 10,
+   "Leaping Slam": 7,
+   "Ankle Slice": 10,
+   "Sword Aura Rampage": 2,
+   "Mocking Blade": 7,
+   "Rush Strike": 8,
+   "Identify Weakness": 10,
+   "Attack Preparation": 10,
+   "Impact Hit": 10,
+   "Destructive Impulse": 4,
+   "Experienced Counterstrike": 10
+  },
+  "sp_spent": 203,
+  "stigma_spent": 30,
+  "stigmas": {
+   "Blade Toss": 6,
+   "Assault Strike": 5,
+   "Zikel's Blessing": 3,
+   "Rage Burst": 10
+  },
+  "specs": {
+   "Keen Strike": [
+    "+50% Multi-Hit on hit",
+    "-1s [Ruinous Blow] cooldown on hit"
+   ],
+   "Overhead Slam": [
+    "Absorbs 70, 70% HP",
+    "Critical Hit on hit"
+   ],
+   "Ruinous Blow": [
+    "+20% Skill Speed",
+    "+12.5m Range"
+   ],
+   "Leaping Slam": [
+    "Prepare for Battle effect on the caster for 3s"
+   ],
+   "Mocking Blade": [
+    "Absorbs 400, 400% HP, absorbs 1500, 1500% HP of target with Incapacitated Immunity"
+   ],
+   "Ankle Slice": [
+    "30% chance to inflict Knockdown for 3s on landing [Ankle Slice]",
+    "Ignores Block and Evasion and lands as Multi-Hit"
+   ],
+   "Rush Strike": [
+    "Restores 300 Stamina on hit",
+    "-10s cooldown"
+   ]
+  },
+  "daevanion_nodes": [
+   110033,
+   110034,
+   110035,
+   110041,
+   110042,
+   110043,
+   110048,
+   110050,
+   110051,
+   110052,
+   110054,
+   110055,
+   110056,
+   110058,
+   110067,
+   110068,
+   110069,
+   110073,
+   110082,
+   110086,
+   110097,
+   110098,
+   110100,
+   110101,
+   110102,
+   110115,
+   110123,
+   110126,
+   110127,
+   110128,
+   110129,
+   110130,
+   110131,
+   110132,
+   110133,
+   110138,
+   110142,
+   110144,
+   110147,
+   110153,
+   110154,
+   110155,
+   110157,
+   110158,
+   110159,
+   110161,
+   110162,
+   110168,
+   110170,
+   110171,
+   110172,
+   110174,
+   110176,
+   110183,
+   110187,
+   110188,
+   110191,
+   110192,
+   110193,
+   120039,
+   120040,
+   120041,
+   120043,
+   120048,
+   120055,
+   120058,
+   120063,
+   120067,
+   120069,
+   120070,
+   120071,
+   120072,
+   120073,
+   120078,
+   120080,
+   120081,
+   120082,
+   120084,
+   120086,
+   120093,
+   120094,
+   120095,
+   120097,
+   120099,
+   120100,
+   120101,
+   120102,
+   120109,
+   120112,
+   120114,
+   120117,
+   120127,
+   120132,
+   120133,
+   120142,
+   120145,
+   120146,
+   120148,
+   120156,
+   120157,
+   120161,
+   120162,
+   120163,
+   120171,
+   120176,
+   120183,
+   120184,
+   120185,
+   120186,
+   120187,
+   120188,
+   130033,
+   130034,
+   130035,
+   130037,
+   130038,
+   130039,
+   130048,
+   130050,
+   130051,
+   130052,
+   130063,
+   130064,
+   130072,
+   130073,
+   130079,
+   130082,
+   130084,
+   130087,
+   130093,
+   130094,
+   130095,
+   130096,
+   130097,
+   130098,
+   130099,
+   130100,
+   130101,
+   130102,
+   130103,
+   130108,
+   130118,
+   130124,
+   130125,
+   130126,
+   130127,
+   130128,
+   130129,
+   130130,
+   130131,
+   130132,
+   130139,
+   130142,
+   130147,
+   130157,
+   130158,
+   130159,
+   130162,
+   130163,
+   130170,
+   130172,
+   130178,
+   130185,
+   130186,
+   130187,
+   130188,
+   130189,
+   140018,
+   140019,
+   140022,
+   140023,
+   140034,
+   140036,
+   140037,
+   140039,
+   140040,
+   140041,
+   140047,
+   140049,
+   140052,
+   140054,
+   140057,
+   140062,
+   140063,
+   140064,
+   140065,
+   140066,
+   140067,
+   140069,
+   140070,
+   140071,
+   140072,
+   140073,
+   140074,
+   140081,
+   140088,
+   140095,
+   140096,
+   140097,
+   140098,
+   140101,
+   140102,
+   140103,
+   140115,
+   140117,
+   140119,
+   140123,
+   140124,
+   140126,
+   140127,
+   140128,
+   140129,
+   140130,
+   140131,
+   140132,
+   140133,
+   140134,
+   140138,
+   140141,
+   140145,
+   140147,
+   140153,
+   140154,
+   140155,
+   140156,
+   140157,
+   140159,
+   140160,
+   140162,
+   140163,
+   140167,
+   140169,
+   140172,
+   140174,
+   140177,
+   140182,
+   140184,
+   140187,
+   140191,
+   140192,
+   140197,
+   140198,
+   140199,
+   140202
+  ],
+  "daevanion_cost": 360,
+  "effective_levels": {
+   "Keen Strike": 14,
+   "Leaping Slam": 11,
+   "Mocking Blade": 11,
+   "Overhead Slam": 14,
+   "Sword Aura Rampage": 4,
+   "Ankle Slice": 14,
+   "Crushing Wave": 2,
+   "Rush Strike": 12,
+   "Ruinous Blow": 14,
+   "Defiance": 2,
+   "Survival Stance": 2,
+   "Protection Armor": 2,
+   "Blood Absorption": 2,
+   "Identify Weakness": 14,
+   "Attack Preparation": 14,
+   "Impact Hit": 14,
+   "Destructive Impulse": 6,
+   "Experienced Counterstrike": 14,
+   "Survival Willpower": 3,
+   "Murderous Burst": 3,
+   "Blade Toss": 6,
+   "Assault Strike": 5,
+   "Zikel's Blessing": 3,
+   "Rage Burst": 10
+  }
+ },
+ "policy": [
+  "overhead_slam",
+  "zikel_s_blessing",
+  "rage_burst",
+  "aerial_snare",
+  "mocking_blade",
+  "blade_toss",
+  "ruinous_blow",
+  "leaping_slam",
+  "assault_strike",
+  "sword_aura_rampage [mp_hi]",
+  "ankle_slice",
+  "rush_strike",
+  "keen_strike"
+ ],
+ "macro": {
+  "steps": [
+   "ankle_slice",
+   "overhead_slam",
+   "rush_strike",
+   "blade_toss",
+   "leaping_slam",
+   "mocking_blade",
+   "sword_aura_rampage",
+   "keen_strike"
+  ],
+  "manual": [
+   "zikel_s_blessing",
+   "rage_burst",
+   "aerial_snare",
+   "ruinous_blow",
+   "assault_strike"
+  ],
+  "dps_macro": 5477.28766322302,
+  "dps_priority": 5510.0589229598645,
+  "alt_steps": [
+   "zikel_s_blessing",
+   "overhead_slam",
+   "aerial_snare",
+   "rage_burst",
+   "mocking_blade",
+   "ruinous_blow",
+   "blade_toss",
+   "assault_strike",
+   "leaping_slam",
+   "ankle_slice",
+   "rush_strike",
+   "sword_aura_rampage",
+   "keen_strike"
+  ],
+  "alt_manual": [],
+  "dps_alt": 5338.623027377649
+ },
+ "shares": {
+  "Overhead Slam": 0.2585895459253448,
+  "Ruinous Blow": 0.1785675032522267,
+  "Keen Strike": 0.13450462735114804,
+  "Ankle Slice": 0.10494347007240709,
+  "Rush Strike": 0.07395742990748819,
+  "Mocking Blade": 0.061275659800871435,
+  "Rage Burst": 0.059767284554572746,
+  "Leaping Slam": 0.04149766352148749,
+  "Blade Toss": 0.025877577593248945,
+  "Aerial Snare": 0.02062483598286056,
+  "Destructive Impulse": 0.019099388386478264,
+  "Assault Strike": 0.011647886999377886,
+  "Sword Aura Rampage": 0.009647126652487242
+ },
+ "casts": {
+  "overhead_slam": 36,
+  "zikel_s_blessing": 2,
+  "rage_burst": 7,
+  "aerial_snare": 5,
+  "mocking_blade": 10,
+  "blade_toss": 9,
+  "ruinous_blow": 7,
+  "leaping_slam": 12,
+  "assault_strike": 2,
+  "ankle_slice": 18,
+  "rush_strike": 17,
+  "keen_strike": 85,
+  "sword_aura_rampage": 4
+ },
+ "uptime": {
+  "zikel_s_blessing": 0.12222222222222245,
+  "rage_burst_amp": 0.37489850701866345,
+  "assault_strike_attack_pct": 0.055555555555555476
+ },
+ "opener": [
+  [
+   0.0,
+   "overhead_slam"
+  ],
+  [
+   0.91,
+   "zikel_s_blessing"
+  ],
+  [
+   1.49,
+   "rage_burst"
+  ],
+  [
+   2.4,
+   "aerial_snare"
+  ],
+  [
+   3.31,
+   "mocking_blade"
+  ],
+  [
+   4.22,
+   "blade_toss"
+  ],
+  [
+   5.13,
+   "overhead_slam"
+  ],
+  [
+   6.03,
+   "ruinous_blow"
+  ],
+  [
+   6.81,
+   "leaping_slam"
+  ],
+  [
+   7.71,
+   "assault_strike"
+  ],
+  [
+   8.62,
+   "ankle_slice"
+  ],
+  [
+   9.53,
+   "rush_strike"
+  ],
+  [
+   10.44,
+   "overhead_slam"
+  ],
+  [
+   11.35,
+   "keen_strike"
+  ],
+  [
+   12.12,
+   "keen_strike"
+  ],
+  [
+   12.89,
+   "keen_strike"
+  ],
+  [
+   13.66,
+   "keen_strike"
+  ],
+  [
+   14.42,
+   "keen_strike"
+  ],
+  [
+   15.19,
+   "overhead_slam"
+  ],
+  [
+   16.1,
+   "keen_strike"
+  ],
+  [
+   16.87,
+   "keen_strike"
+  ],
+  [
+   17.64,
+   "keen_strike"
+  ],
+  [
+   18.41,
+   "ankle_slice"
+  ],
+  [
+   19.32,
+   "rush_strike"
+  ],
+  [
+   20.23,
+   "overhead_slam"
+  ],
+  [
+   21.14,
+   "leaping_slam"
+  ],
+  [
+   22.04,
+   "mocking_blade"
+  ],
+  [
+   22.95,
+   "blade_toss"
+  ],
+  [
+   23.86,
+   "keen_strike"
+  ],
+  [
+   24.63,
+   "keen_strike"
+  ],
+  [
+   25.4,
+   "overhead_slam"
+  ],
+  [
+   26.31,
+   "keen_strike"
+  ],
+  [
+   27.08,
+   "keen_strike"
+  ],
+  [
+   27.85,
+   "ankle_slice"
+  ],
+  [
+   28.76,
+   "rush_strike"
+  ],
+  [
+   29.66,
+   "rage_burst"
+  ]
+ ],
+ "weights": [
+  {
+   "stat": "amp_pve",
+   "step": 0.03,
+   "label": "PvE / Damage Boost +3%",
+   "dps_gain": 166.77396584635972,
+   "pct": 3.0267183741253523,
+   "per_unit": 5559.132194878657,
+   "attack_equiv": 77.03841575492021
+  },
+  {
+   "stat": "double",
+   "step": 0.02,
+   "label": "Double (Smite) chance +2%",
+   "dps_gain": 104.81829823929093,
+   "pct": 1.9023081187484867,
+   "per_unit": 5240.914911964546,
+   "attack_equiv": 48.41904189003235
+  },
+  {
+   "stat": "crit",
+   "step": 50,
+   "label": "Critical Hit +50",
+   "dps_gain": 102.43411324258068,
+   "pct": 1.859038436335916,
+   "per_unit": 2.0486822648516134,
+   "attack_equiv": 47.31770791334671
+  },
+  {
+   "stat": "weapon_amp",
+   "step": 0.03,
+   "label": "Weapon Damage Boost +3%",
+   "dps_gain": 102.34443402871057,
+   "pct": 1.8574108818011281,
+   "per_unit": 3411.481134290352,
+   "attack_equiv": 47.27628211569514
+  },
+  {
+   "stat": "combat_speed",
+   "step": 0.03,
+   "label": "Combat Speed +3%",
+   "dps_gain": 95.5781265344408,
+   "pct": 1.7346116960052151,
+   "per_unit": 3185.9375511480266,
+   "attack_equiv": 44.150700690418
+  },
+  {
+   "stat": "cdr",
+   "step": 0.03,
+   "label": "Cooldown Reduction +3%",
+   "dps_gain": 90.06230130028644,
+   "pct": 1.6345070453785138,
+   "per_unit": 3002.076710009548,
+   "attack_equiv": 41.60275841739122
+  },
+  {
+   "stat": "pen",
+   "step": 300,
+   "label": "Penetration +300",
+   "dps_gain": 72.45389963561774,
+   "pct": 1.3149387447330116,
+   "per_unit": 0.24151299878539248,
+   "attack_equiv": 33.46885477518803
+  },
+  {
+   "stat": "pve_atk",
+   "step": 30,
+   "label": "PvE Attack +30",
+   "dps_gain": 72.45389963561774,
+   "pct": 1.3149387447330116,
+   "per_unit": 2.4151299878539247,
+   "attack_equiv": 33.46885477518803
+  },
+  {
+   "stat": "attack",
+   "step": 30,
+   "label": "Attack +30",
+   "dps_gain": 64.94446863117446,
+   "pct": 1.1786528880944875,
+   "per_unit": 2.1648156210391485,
+   "attack_equiv": 30.000000000000004
+  },
+  {
+   "stat": "weapon_max",
+   "step": 30,
+   "label": "Weapon max attack +30 (min too)",
+   "dps_gain": 64.94446863117446,
+   "pct": 1.1786528880944875,
+   "per_unit": 2.1648156210391485,
+   "attack_equiv": 30.000000000000004
+  },
+  {
+   "stat": "wisdom",
+   "step": 10,
+   "label": "Wisdom +10 (Double +1%)",
+   "dps_gain": 52.40914911965865,
+   "pct": 0.9511540593744827,
+   "per_unit": 5.240914911965865,
+   "attack_equiv": 24.209520945022266
+  },
+  {
+   "stat": "crit_dmg",
+   "step": 0.03,
+   "label": "Critical Damage Boost +3%",
+   "dps_gain": 49.611816337482196,
+   "pct": 0.9003863122180912,
+   "per_unit": 1653.7272112494065,
+   "attack_equiv": 22.917340329273713
+  },
+  {
+   "stat": "crit_atk",
+   "step": 50,
+   "label": "Critical Attack +50",
+   "dps_gain": 42.168120260458636,
+   "pct": 0.7652934542087798,
+   "per_unit": 0.8433624052091727,
+   "attack_equiv": 19.47885069316768
+  },
+  {
+   "stat": "time",
+   "step": 10,
+   "label": "Time +10 (Combat Speed +1%)",
+   "dps_gain": 31.859375511480266,
+   "pct": 0.578203898668405,
+   "per_unit": 3.185937551148027,
+   "attack_equiv": 14.716900230139332
+  },
+  {
+   "stat": "illusion",
+   "step": 10,
+   "label": "Illusion +10 (Cooldown -1%)",
+   "dps_gain": 30.020767100095483,
+   "pct": 0.5448356817928379,
+   "per_unit": 3.0020767100095482,
+   "attack_equiv": 13.86758613913041
+  },
+  {
+   "stat": "might",
+   "step": 10,
+   "label": "Might +10 (Attack +1%)",
+   "dps_gain": 27.9484245757003,
+   "pct": 0.507225511858721,
+   "per_unit": 2.79484245757003,
+   "attack_equiv": 12.910302523724667
+  },
+  {
+   "stat": "destruction",
+   "step": 10,
+   "label": "Destruction +10 (Attack +1%)",
+   "dps_gain": 27.9484245757003,
+   "pct": 0.507225511858721,
+   "per_unit": 2.79484245757003,
+   "attack_equiv": 12.910302523724667
+  },
+  {
+   "stat": "multihit",
+   "step": 0.03,
+   "label": "Multi-hit chance +3%",
+   "dps_gain": 18.240382930897795,
+   "pct": 0.33103789244234655,
+   "per_unit": 608.0127643632599,
+   "attack_equiv": 8.425836710353234
+  },
+  {
+   "stat": "death",
+   "step": 10,
+   "label": "Death +10 (Crit +1%)",
+   "dps_gain": 13.672283620418966,
+   "pct": 0.2481331653904449,
+   "per_unit": 1.3672283620418966,
+   "attack_equiv": 6.315680415247575
+  },
+  {
+   "stat": "perfect",
+   "step": 0.03,
+   "label": "Perfect chance +3%",
+   "dps_gain": 2.0094641021905773,
+   "pct": 0.03646901295043037,
+   "per_unit": 66.98213673968591,
+   "attack_equiv": 0.9282379906451341
+  },
+  {
+   "stat": "justice",
+   "step": 10,
+   "label": "Justice +10 (Perfect +1%)",
+   "dps_gain": 0.6698213674026192,
+   "pct": 0.012156337650247996,
+   "per_unit": 0.06698213674026192,
+   "attack_equiv": 0.3094126635510388
+  },
+  {
+   "stat": "mp_max",
+   "step": 300,
+   "label": "MP +300",
+   "dps_gain": 0.0,
+   "pct": 0.0,
+   "per_unit": 0.0,
+   "attack_equiv": 0.0
+  }
+ ],
+ "stats": {
+  "attack_avg": 1417.1219999999998,
+  "attack_max": 1452.0366,
+  "crit_stat": 775.5895,
+  "crit_chance_vs_target": 0.1918385753171314,
+  "double": 0.0471,
+  "perfect": 0.15860000000000002,
+  "multihit": 0.04,
+  "boost_bucket": 0.241,
+  "weapon_amp": 0.1,
+  "combat_speed": 0.08170000000000001,
+  "cdr": 0.0652,
+  "accuracy": 477.2772,
+  "mp_max": 4050.0
+ },
+ "sensitivity": [
+  {
+   "fixed": 5510.0589229598645,
+   "reoptimized": 5514.181994307004,
+   "loss_pct": 0.07477213032497376
+  },
+  {
+   "fixed": 5510.0589229598645,
+   "reoptimized": 5514.181994307004,
+   "loss_pct": 0.07477213032497376
+  },
+  {
+   "fixed": 5510.0589229598645,
+   "reoptimized": 5514.181994307004,
+   "loss_pct": 0.07477213032497376
+  },
+  {
+   "fixed": 5510.0589229598645,
+   "reoptimized": 5514.181994307004,
+   "loss_pct": 0.07477213032497376
+  },
+  {
+   "fixed": 5510.0589229598645,
+   "reoptimized": 5514.181994307004,
+   "loss_pct": 0.07477213032497376
+  },
+  {
+   "fixed": 5510.0589229598645,
+   "reoptimized": 5514.181994307004,
+   "loss_pct": 0.07477213032497376
+  },
+  {
+   "fixed": 5510.0589229598645,
+   "reoptimized": 5514.181994307004,
+   "loss_pct": 0.07477213032497376
+  },
+  {
+   "fixed": 5510.0589229598645,
+   "reoptimized": 5514.181994307004,
+   "loss_pct": 0.07477213032497376
+  }
+ ],
+ "links": {
+  "metabot_build": "https://metabot.gg/en/aion-2/classes/gladiator/build#v1~l19~s6k734.a.c_6lhds.6.0_6lwtc.a.3_6nets.a.9_6nu9c.7.1_6o1z4.a.9_6p4k0.3.0_6prpc.2.0_6pzf4.7.1_6rhfk.8.9_6s4kw.a.0_6yrs0.5.0_6zmn4.a.0_6zucw.a.0_7022o.a.0_709sg.4.0_70hi8.a.0~g6lhds_6yrs0_6p4k0_6s4kw~d11-0.1.2.6.7.8.9.a.b.c.d.e.f.g.k.l.m.p.r.t.z.10.12.13.14.19.1b.1e.1f.1g.1h.1i.1j.1k.1l.1m.1o.1p.1q.1r.1s.1t.1u.1v.1w.1x.1y.20.21.22.23.24.26.28.2b.2c.2e.2f.2g_12-6.7.8.a.b.e.f.g.j.l.m.n.o.p.q.r.s.t.u.v.x.y.z.10.11.12.13.14.16.17.19.1a.1f.1i.1j.1m.1o.1p.1q.1u.1v.1y.1z.20.22.24.26.27.28.29.2a.2b_13-0.1.2.3.4.5.a.b.c.d.h.i.p.q.r.s.t.u.v.w.x.y.z.10.11.12.13.14.15.16.1a.1c.1d.1e.1f.1g.1h.1i.1j.1k.1m.1n.1p.1u.1v.1w.1y.1z.21.22.26.29.2a.2b.2c.2d_14-1.2.3.4.a.c.d.e.f.g.j.k.l.n.o.q.r.s.t.u.v.w.x.y.z.10.11.13.15.19.1a.1b.1c.1f.1g.1h.1n.1o.1p.1r.1s.1u.1v.1w.1x.1y.1z.20.21.22.23.24.25.26.28.29.2a.2b.2c.2d.2e.2g.2h.2j.2k.2l.2n.2o.2q.2r.2u.2x.2y.30.31.32.33",
+  "metabot_daevanion": "https://metabot.gg/en/aion-2/daevanion/gladiator#11-0.1.2.6.7.8.9.a.b.c.d.e.f.g.k.l.m.p.r.t.z.10.12.13.14.19.1b.1e.1f.1g.1h.1i.1j.1k.1l.1m.1o.1p.1q.1r.1s.1t.1u.1v.1w.1x.1y.20.21.22.23.24.26.28.2b.2c.2e.2f.2g_12-6.7.8.a.b.e.f.g.j.l.m.n.o.p.q.r.s.t.u.v.x.y.z.10.11.12.13.14.16.17.19.1a.1f.1i.1j.1m.1o.1p.1q.1u.1v.1y.1z.20.22.24.26.27.28.29.2a.2b_13-0.1.2.3.4.5.a.b.c.d.h.i.p.q.r.s.t.u.v.w.x.y.z.10.11.12.13.14.15.16.1a.1c.1d.1e.1f.1g.1h.1i.1j.1k.1m.1n.1p.1u.1v.1w.1y.1z.21.22.26.29.2a.2b.2c.2d_14-1.2.3.4.a.c.d.e.f.g.j.k.l.n.o.q.r.s.t.u.v.w.x.y.z.10.11.13.15.19.1a.1b.1c.1f.1g.1h.1n.1o.1p.1r.1s.1u.1v.1w.1x.1y.1z.20.21.22.23.24.25.26.28.29.2a.2b.2c.2d.2e.2g.2h.2j.2k.2l.2n.2o.2q.2r.2u.2x.2y.30.31.32.33",
+  "gamers4life_daevanion": "https://gamers4.life/aion-2/database/en/daevanion-planner/?b=eyJjIjoiZ2xhZGlhdG9yIiwiZCI6WzExMDAzMywxMTAwMzQsMTEwMDM1LDExMDA0MSwxMTAwNDIsMTEwMDQzLDExMDA0OCwxMTAwNTAsMTEwMDUxLDExMDA1MiwxMTAwNTQsMTEwMDU1LDExMDA1NiwxMTAwNTgsMTEwMDY3LDExMDA2OCwxMTAwNjksMTEwMDczLDExMDA4MiwxMTAwODYsMTEwMDk3LDExMDA5OCwxMTAxMDAsMTEwMTAxLDExMDEwMiwxMTAxMTUsMTEwMTIzLDExMDEyNiwxMTAxMjcsMTEwMTI4LDExMDEyOSwxMTAxMzAsMTEwMTMxLDExMDEzMiwxMTAxMzMsMTEwMTM4LDExMDE0MiwxMTAxNDQsMTEwMTQ3LDExMDE1MywxMTAxNTQsMTEwMTU1LDExMDE1NywxMTAxNTgsMTEwMTU5LDExMDE2MSwxMTAxNjIsMTEwMTY4LDExMDE3MCwxMTAxNzEsMTEwMTcyLDExMDE3NCwxMTAxNzYsMTEwMTgzLDExMDE4NywxMTAxODgsMTEwMTkxLDExMDE5MiwxMTAxOTMsMTIwMDM5LDEyMDA0MCwxMjAwNDEsMTIwMDQzLDEyMDA0OCwxMjAwNTUsMTIwMDU4LDEyMDA2MywxMjAwNjcsMTIwMDY5LDEyMDA3MCwxMjAwNzEsMTIwMDcyLDEyMDA3MywxMjAwNzgsMTIwMDgwLDEyMDA4MSwxMjAwODIsMTIwMDg0LDEyMDA4NiwxMjAwOTMsMTIwMDk0LDEyMDA5NSwxMjAwOTcsMTIwMDk5LDEyMDEwMCwxMjAxMDEsMTIwMTAyLDEyMDEwOSwxMjAxMTIsMTIwMTE0LDEyMDExNywxMjAxMjcsMTIwMTMyLDEyMDEzMywxMjAxNDIsMTIwMTQ1LDEyMDE0NiwxMjAxNDgsMTIwMTU2LDEyMDE1NywxMjAxNjEsMTIwMTYyLDEyMDE2MywxMjAxNzEsMTIwMTc2LDEyMDE4MywxMjAxODQsMTIwMTg1LDEyMDE4NiwxMjAxODcsMTIwMTg4LDEzMDAzMywxMzAwMzQsMTMwMDM1LDEzMDAzNywxMzAwMzgsMTMwMDM5LDEzMDA0OCwxMzAwNTAsMTMwMDUxLDEzMDA1MiwxMzAwNjMsMTMwMDY0LDEzMDA3MiwxMzAwNzMsMTMwMDc5LDEzMDA4MiwxMzAwODQsMTMwMDg3LDEzMDA5MywxMzAwOTQsMTMwMDk1LDEzMDA5NiwxMzAwOTcsMTMwMDk4LDEzMDA5OSwxMzAxMDAsMTMwMTAxLDEzMDEwMiwxMzAxMDMsMTMwMTA4LDEzMDExOCwxMzAxMjQsMTMwMTI1LDEzMDEyNiwxMzAxMjcsMTMwMTI4LDEzMDEyOSwxMzAxMzAsMTMwMTMxLDEzMDEzMiwxMzAxMzksMTMwMTQyLDEzMDE0NywxMzAxNTcsMTMwMTU4LDEzMDE1OSwxMzAxNjIsMTMwMTYzLDEzMDE3MCwxMzAxNzIsMTMwMTc4LDEzMDE4NSwxMzAxODYsMTMwMTg3LDEzMDE4OCwxMzAxODksMTQwMDE4LDE0MDAxOSwxNDAwMjIsMTQwMDIzLDE0MDAzNCwxNDAwMzYsMTQwMDM3LDE0MDAzOSwxNDAwNDAsMTQwMDQxLDE0MDA0NywxNDAwNDksMTQwMDUyLDE0MDA1NCwxNDAwNTcsMTQwMDYyLDE0MDA2MywxNDAwNjQsMTQwMDY1LDE0MDA2NiwxNDAwNjcsMTQwMDY5LDE0MDA3MCwxNDAwNzEsMTQwMDcyLDE0MDA3MywxNDAwNzQsMTQwMDgxLDE0MDA4OCwxNDAwOTUsMTQwMDk2LDE0MDA5NywxNDAwOTgsMTQwMTAxLDE0MDEwMiwxNDAxMDMsMTQwMTE1LDE0MDExNywxNDAxMTksMTQwMTIzLDE0MDEyNCwxNDAxMjYsMTQwMTI3LDE0MDEyOCwxNDAxMjksMTQwMTMwLDE0MDEzMSwxNDAxMzIsMTQwMTMzLDE0MDEzNCwxNDAxMzgsMTQwMTQxLDE0MDE0NSwxNDAxNDcsMTQwMTUzLDE0MDE1NCwxNDAxNTUsMTQwMTU2LDE0MDE1NywxNDAxNTksMTQwMTYwLDE0MDE2MiwxNDAxNjMsMTQwMTY3LDE0MDE2OSwxNDAxNzIsMTQwMTc0LDE0MDE3NywxNDAxODIsMTQwMTg0LDE0MDE4NywxNDAxOTEsMTQwMTkyLDE0MDE5NywxNDAxOTgsMTQwMTk5LDE0MDIwMl19",
+  "gamers4life_build": "https://gamers4.life/aion-2/database/en/build-calculator/?b=eyJjIjoiZ2xhZGlhdG9yIiwicyI6WyIxMTA4MDAwMCIsIjExNzAwMDAwIiwiMTEyNTAwMDAiLCIxMTM5MDAwMCJdLCJsIjp7IjExMDgwMDAwIjo2LCIxMTcwMDAwMCI6NSwiMTEyNTAwMDAiOjMsIjExMzkwMDAwIjoxMH0sImQiOlsxMTAwMzMsMTEwMDM0LDExMDAzNSwxMTAwNDEsMTEwMDQyLDExMDA0MywxMTAwNDgsMTEwMDUwLDExMDA1MSwxMTAwNTIsMTEwMDU0LDExMDA1NSwxMTAwNTYsMTEwMDU4LDExMDA2NywxMTAwNjgsMTEwMDY5LDExMDA3MywxMTAwODIsMTEwMDg2LDExMDA5NywxMTAwOTgsMTEwMTAwLDExMDEwMSwxMTAxMDIsMTEwMTE1LDExMDEyMywxMTAxMjYsMTEwMTI3LDExMDEyOCwxMTAxMjksMTEwMTMwLDExMDEzMSwxMTAxMzIsMTEwMTMzLDExMDEzOCwxMTAxNDIsMTEwMTQ0LDExMDE0NywxMTAxNTMsMTEwMTU0LDExMDE1NSwxMTAxNTcsMTEwMTU4LDExMDE1OSwxMTAxNjEsMTEwMTYyLDExMDE2OCwxMTAxNzAsMTEwMTcxLDExMDE3MiwxMTAxNzQsMTEwMTc2LDExMDE4MywxMTAxODcsMTEwMTg4LDExMDE5MSwxMTAxOTIsMTEwMTkzLDEyMDAzOSwxMjAwNDAsMTIwMDQxLDEyMDA0MywxMjAwNDgsMTIwMDU1LDEyMDA1OCwxMjAwNjMsMTIwMDY3LDEyMDA2OSwxMjAwNzAsMTIwMDcxLDEyMDA3MiwxMjAwNzMsMTIwMDc4LDEyMDA4MCwxMjAwODEsMTIwMDgyLDEyMDA4NCwxMjAwODYsMTIwMDkzLDEyMDA5NCwxMjAwOTUsMTIwMDk3LDEyMDA5OSwxMjAxMDAsMTIwMTAxLDEyMDEwMiwxMjAxMDksMTIwMTEyLDEyMDExNCwxMjAxMTcsMTIwMTI3LDEyMDEzMiwxMjAxMzMsMTIwMTQyLDEyMDE0NSwxMjAxNDYsMTIwMTQ4LDEyMDE1NiwxMjAxNTcsMTIwMTYxLDEyMDE2MiwxMjAxNjMsMTIwMTcxLDEyMDE3NiwxMjAxODMsMTIwMTg0LDEyMDE4NSwxMjAxODYsMTIwMTg3LDEyMDE4OCwxMzAwMzMsMTMwMDM0LDEzMDAzNSwxMzAwMzcsMTMwMDM4LDEzMDAzOSwxMzAwNDgsMTMwMDUwLDEzMDA1MSwxMzAwNTIsMTMwMDYzLDEzMDA2NCwxMzAwNzIsMTMwMDczLDEzMDA3OSwxMzAwODIsMTMwMDg0LDEzMDA4NywxMzAwOTMsMTMwMDk0LDEzMDA5NSwxMzAwOTYsMTMwMDk3LDEzMDA5OCwxMzAwOTksMTMwMTAwLDEzMDEwMSwxMzAxMDIsMTMwMTAzLDEzMDEwOCwxMzAxMTgsMTMwMTI0LDEzMDEyNSwxMzAxMjYsMTMwMTI3LDEzMDEyOCwxMzAxMjksMTMwMTMwLDEzMDEzMSwxMzAxMzIsMTMwMTM5LDEzMDE0MiwxMzAxNDcsMTMwMTU3LDEzMDE1OCwxMzAxNTksMTMwMTYyLDEzMDE2MywxMzAxNzAsMTMwMTcyLDEzMDE3OCwxMzAxODUsMTMwMTg2LDEzMDE4NywxMzAxODgsMTMwMTg5LDE0MDAxOCwxNDAwMTksMTQwMDIyLDE0MDAyMywxNDAwMzQsMTQwMDM2LDE0MDAzNywxNDAwMzksMTQwMDQwLDE0MDA0MSwxNDAwNDcsMTQwMDQ5LDE0MDA1MiwxNDAwNTQsMTQwMDU3LDE0MDA2MiwxNDAwNjMsMTQwMDY0LDE0MDA2NSwxNDAwNjYsMTQwMDY3LDE0MDA2OSwxNDAwNzAsMTQwMDcxLDE0MDA3MiwxNDAwNzMsMTQwMDc0LDE0MDA4MSwxNDAwODgsMTQwMDk1LDE0MDA5NiwxNDAwOTcsMTQwMDk4LDE0MDEwMSwxNDAxMDIsMTQwMTAzLDE0MDExNSwxNDAxMTcsMTQwMTE5LDE0MDEyMywxNDAxMjQsMTQwMTI2LDE0MDEyNywxNDAxMjgsMTQwMTI5LDE0MDEzMCwxNDAxMzEsMTQwMTMyLDE0MDEzMywxNDAxMzQsMTQwMTM4LDE0MDE0MSwxNDAxNDUsMTQwMTQ3LDE0MDE1MywxNDAxNTQsMTQwMTU1LDE0MDE1NiwxNDAxNTcsMTQwMTU5LDE0MDE2MCwxNDAxNjIsMTQwMTYzLDE0MDE2NywxNDAxNjksMTQwMTcyLDE0MDE3NCwxNDAxNzcsMTQwMTgyLDE0MDE4NCwxNDAxODcsMTQwMTkxLDE0MDE5MiwxNDAxOTcsMTQwMTk4LDE0MDE5OSwxNDAyMDJdfQ&tab=skills"
+ },
+ "history": [
+  {
+   "iter": 0,
+   "dps": 5285.022608743732
+  }
+ ],
+ "runtime_s": 228.89934515953064,
+ "weapon_compare": [],
+ "loadout": "gladiator_l45_global_median",
+ "arcana_skill_values": [
+  {
+   "skill": "Experienced Counterstrike",
+   "id": 11780000,
+   "gain_pct": [
+    0.4035624498835544,
+    0.8071248997665759,
+    1.2106873496501303,
+    1.614249799533729
+   ]
+  },
+  {
+   "skill": "Identify Weakness",
+   "id": 11740000,
+   "gain_pct": [
+    0.35099575339896383,
+    0.715448774689631,
+    1.0934275495483314,
+    1.4849516861413559
+   ]
+  },
+  {
+   "skill": "Impact Hit",
+   "id": 11760000,
+   "gain_pct": [
+    0.28534621781219904,
+    0.5706924356242205,
+    0.8560386534367082,
+    1.1413848712492625
+   ]
+  },
+  {
+   "skill": "Protection Armor",
+   "id": 11720000,
+   "gain_pct": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "skill": "Murderous Burst",
+   "id": 11800000,
+   "gain_pct": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  }
+ ],
+ "crit_sensitivity": {
+  "fit": {
+   "midpoint": 1024.52,
+   "crit_chance": 0.1918385753171314,
+   "crit_gain_pct": 1.859038436335916,
+   "crit_rank": 3
+  },
+  "alt": {
+   "midpoint": 700.0,
+   "crit_chance": 0.639669078985149,
+   "crit_gain_pct": 2.2265442876196233,
+   "crit_rank": 2
+  }
+ },
+ "kr_fidelity": {
+  "overlap": 0.36758710018255664,
+  "kr_share_not_in_global_data": 0.3733178701810777
+ }
+}

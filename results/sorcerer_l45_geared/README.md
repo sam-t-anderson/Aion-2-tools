@@ -80,20 +80,20 @@ Skill points used **203 / 203**, stigma points **30 / 30**, Daevanion **360 / 36
 | Wish of Concentration | 10 | 14 | +10% additional Attack; +10% Combat Speed |
 | Firestorm | 10 | 14 | -50% MP Cost; -2s [Hellfire] cooldown per fireball |
 | Hellfire | 10 | 14 | +30% Skill Speed; Fire Damage over Time for 10s on hit |
-| Flame Arrow | 9 | 13 | +50% Multi-Hit on hit; +5% Fire Damage Boost for 10s on activating [Pyroclasm] |
 | Blaze | 10 | 13 | Delayed Damage after 3s; Multi-Hit on hit |
-| Bittercold Wind | 9 | 12 | +1s [Bittercold Wind] summon duration; Ignores Block and Evasion and lands as a Critical Hit |
+| Flame Arrow | 9 | 13 | +50% Multi-Hit on hit; +5% Fire Damage Boost for 10s on activating [Pyroclasm] |
 | Frost Burst | 8 | 12 | Absorbs 700, 700% HP; Ignores Block and Evasion and lands as a Critical Hit |
+| Bittercold Wind | 9 | 12 | +1s [Bittercold Wind] summon duration; Ignores Block and Evasion and lands as a Critical Hit |
 | Fire Mark | 7 | 10 | — |
 | Grace of Enhancement | 5 | 9 | — |
 | Winter's Shackles | 4 | 8 | +20% PvE Damage Boost and +10% PvP Damage Boost for 5s on landing [Winter's Shackles] |
 | Absorb Essence | 1 | 4 | — |
-| Grace of Resistance | 1 | 3 | — |
 | Cold Snap | 1 | 3 | — |
 | Revitalization Contract | 1 | 3 | — |
-| Robe of Cold | 1 | 2 | — |
-| Ice Chain | 1 | 2 | — |
+| Grace of Resistance | 1 | 3 | — |
 | Flame Scattershot | 1 | 2 | — |
+| Ice Chain | 1 | 2 | — |
+| Robe of Cold | 1 | 2 | — |
 
 **Stigmas**: Cold Storm Lv 6, Element Enhancement Lv 10, Fire Wall Lv 6, Delayed Explosion Lv 1
 

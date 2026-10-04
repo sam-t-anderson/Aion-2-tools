@@ -1,0 +1,894 @@
+{
+ "class": "templar",
+ "level": 45,
+ "scenario": "boss",
+ "daevanion_budget": 360,
+ "dps": {
+  "boss": 5268.568062892175,
+  "dummy": 6580.540133569478
+ },
+ "baseline": {
+  "community_naive": 4357.14375489625,
+  "community_optimized_rotation": 4842.039170509505,
+  "community_other_scenario": 6102.683445754278
+ },
+ "build": {
+  "sp": {
+   "Vicious Strike": 10,
+   "Punishment": 10,
+   "Judgment": 10,
+   "Debilitating Smash": 10,
+   "Flash Rampage": 10,
+   "Warding Strike": 10,
+   "Punishing Benediction": 10,
+   "Impact Hit": 10
+  },
+  "sp_spent": 168,
+  "stigma_spent": 30,
+  "stigmas": {
+   "Assault Fury": 5,
+   "Doom Shield": 5,
+   "Executing Blade": 10,
+   "Taunt": 5
+  },
+  "specs": {
+   "Vicious Strike": [
+    "+50% Multi-Hit on hit",
+    "-2s [Warding Strike] cooldown on hit"
+   ],
+   "Judgment": [
+    "Absorbs 100, 100% HP",
+    "Critical Hit on hit"
+   ],
+   "Warding Strike": [
+    "-5s cooldown",
+    "+100 Block during Warding"
+   ],
+   "Punishment": [
+    "Absorbs 1000, 1000% HP",
+    "+30% Skill Speed"
+   ],
+   "Flash Rampage": [
+    "Absorbs 500, 500% HP",
+    "Multi-Hit on hit"
+   ],
+   "Debilitating Smash": [
+    "30% chance to inflict Stun for 3s",
+    "Ignores Block and Evasion and lands as Multi-Hit"
+   ]
+  },
+  "daevanion_nodes": [
+   210033,
+   210034,
+   210035,
+   210041,
+   210042,
+   210043,
+   210048,
+   210050,
+   210051,
+   210054,
+   210055,
+   210056,
+   210063,
+   210064,
+   210071,
+   210079,
+   210086,
+   210093,
+   210094,
+   210095,
+   210096,
+   210097,
+   210098,
+   210099,
+   210100,
+   210101,
+   210102,
+   210115,
+   210127,
+   210128,
+   210130,
+   210131,
+   210132,
+   210138,
+   210142,
+   210144,
+   210147,
+   210153,
+   210154,
+   210157,
+   210159,
+   210161,
+   210162,
+   210168,
+   210170,
+   210171,
+   210172,
+   210174,
+   210175,
+   210176,
+   210183,
+   210184,
+   210185,
+   210187,
+   210191,
+   210192,
+   210193,
+   220033,
+   220034,
+   220035,
+   220036,
+   220037,
+   220038,
+   220039,
+   220040,
+   220041,
+   220042,
+   220043,
+   220048,
+   220055,
+   220058,
+   220063,
+   220064,
+   220067,
+   220068,
+   220069,
+   220070,
+   220071,
+   220073,
+   220084,
+   220086,
+   220099,
+   220102,
+   220109,
+   220112,
+   220114,
+   220117,
+   220123,
+   220124,
+   220125,
+   220126,
+   220127,
+   220129,
+   220132,
+   220133,
+   220144,
+   220145,
+   220148,
+   220155,
+   220156,
+   220159,
+   220161,
+   220162,
+   220163,
+   220171,
+   220174,
+   220176,
+   220183,
+   220184,
+   220185,
+   220186,
+   220187,
+   220188,
+   220189,
+   220190,
+   220191,
+   230037,
+   230038,
+   230039,
+   230040,
+   230041,
+   230050,
+   230051,
+   230052,
+   230054,
+   230056,
+   230069,
+   230071,
+   230072,
+   230084,
+   230093,
+   230094,
+   230098,
+   230099,
+   230100,
+   230101,
+   230108,
+   230118,
+   230123,
+   230124,
+   230125,
+   230126,
+   230127,
+   230128,
+   230129,
+   230130,
+   230131,
+   230132,
+   230133,
+   230142,
+   230144,
+   230158,
+   230159,
+   230163,
+   230170,
+   230172,
+   230174,
+   230175,
+   230176,
+   230178,
+   230185,
+   230186,
+   230187,
+   230188,
+   230189,
+   230191,
+   230192,
+   230193,
+   240017,
+   240018,
+   240019,
+   240022,
+   240023,
+   240024,
+   240032,
+   240037,
+   240039,
+   240044,
+   240047,
+   240052,
+   240053,
+   240057,
+   240059,
+   240062,
+   240063,
+   240064,
+   240066,
+   240067,
+   240070,
+   240071,
+   240072,
+   240073,
+   240074,
+   240079,
+   240081,
+   240085,
+   240094,
+   240095,
+   240096,
+   240097,
+   240100,
+   240104,
+   240111,
+   240115,
+   240117,
+   240119,
+   240123,
+   240126,
+   240127,
+   240128,
+   240130,
+   240131,
+   240132,
+   240133,
+   240134,
+   240138,
+   240141,
+   240147,
+   240152,
+   240153,
+   240154,
+   240155,
+   240156,
+   240157,
+   240162,
+   240163,
+   240167,
+   240172,
+   240173,
+   240174,
+   240177,
+   240182,
+   240187,
+   240189,
+   240190,
+   240191,
+   240192,
+   240197,
+   240198,
+   240199,
+   240202,
+   240207,
+   240208,
+   240209
+  ],
+  "daevanion_cost": 360,
+  "effective_levels": {
+   "Vicious Strike": 14,
+   "Pummel": 2,
+   "Poach": 2,
+   "Shield Smite": 2,
+   "Judgment": 14,
+   "Flash Rampage": 13,
+   "Debilitating Smash": 14,
+   "Warding Strike": 14,
+   "Shield Rush": 2,
+   "Punishment": 14,
+   "Defiance": 3,
+   "Enhance Health": 2,
+   "Warding Shield": 2,
+   "Punishing Benediction": 14,
+   "Ironclad Defense": 3,
+   "Guarding Seal": 3,
+   "Impact Hit": 14,
+   "Fury": 4,
+   "Survival Willpower": 3,
+   "Block Pain": 4,
+   "Assault Fury": 5,
+   "Doom Shield": 5,
+   "Executing Blade": 10,
+   "Taunt": 5
+  }
+ },
+ "policy": [
+  "debilitating_smash",
+  "judgment",
+  "punishment",
+  "taunt",
+  "warding_strike",
+  "flash_rampage [mp_hi]",
+  "doom_shield",
+  "executing_blade",
+  "assault_fury",
+  "vicious_strike"
+ ],
+ "macro": {
+  "steps": [
+   "debilitating_smash",
+   "punishment",
+   "judgment",
+   "taunt",
+   "assault_fury",
+   "doom_shield",
+   "warding_strike",
+   "executing_blade",
+   "vicious_strike",
+   "flash_rampage"
+  ],
+  "manual": [],
+  "dps_macro": 5209.6750408461585,
+  "dps_priority": 5268.568062892175,
+  "alt_steps": [
+   "judgment",
+   "debilitating_smash",
+   "flash_rampage",
+   "vicious_strike"
+  ],
+  "alt_manual": [
+   "punishment",
+   "taunt",
+   "warding_strike",
+   "doom_shield",
+   "executing_blade",
+   "assault_fury"
+  ],
+  "dps_alt": 5188.285623449003
+ },
+ "shares": {
+  "Judgment": 0.28955075263006924,
+  "Vicious Strike": 0.2553699093715065,
+  "Debilitating Smash": 0.09408940822973023,
+  "Warding Strike": 0.08067099935438728,
+  "Punishing Benediction": 0.07646740784052637,
+  "Punishment": 0.07365668316104727,
+  "Executing Blade": 0.03945761498462499,
+  "Doom Shield": 0.033349947222136536,
+  "Flash Rampage": 0.026210586845864532,
+  "Taunt": 0.023887109101877014,
+  "Assault Fury": 0.007289581258227606
+ },
+ "casts": {
+  "debilitating_smash": 19,
+  "judgment": 37,
+  "punishment": 7,
+  "taunt": 7,
+  "warding_strike": 16,
+  "doom_shield": 7,
+  "executing_blade": 7,
+  "assault_fury": 2,
+  "vicious_strike": 108,
+  "flash_rampage": 8
+ },
+ "uptime": {
+  "assault_fury_attack_pct": 0.05555555555555555
+ },
+ "opener": [
+  [
+   0.0,
+   "debilitating_smash"
+  ],
+  [
+   0.91,
+   "judgment"
+  ],
+  [
+   1.82,
+   "punishment"
+  ],
+  [
+   2.53,
+   "taunt"
+  ],
+  [
+   3.44,
+   "warding_strike"
+  ],
+  [
+   4.35,
+   "doom_shield"
+  ],
+  [
+   5.26,
+   "executing_blade"
+  ],
+  [
+   6.17,
+   "judgment"
+  ],
+  [
+   7.07,
+   "assault_fury"
+  ],
+  [
+   7.98,
+   "vicious_strike"
+  ],
+  [
+   8.75,
+   "vicious_strike"
+  ],
+  [
+   9.52,
+   "debilitating_smash"
+  ],
+  [
+   10.43,
+   "vicious_strike"
+  ],
+  [
+   11.2,
+   "judgment"
+  ],
+  [
+   12.11,
+   "vicious_strike"
+  ],
+  [
+   12.87,
+   "vicious_strike"
+  ],
+  [
+   13.64,
+   "vicious_strike"
+  ],
+  [
+   14.41,
+   "vicious_strike"
+  ],
+  [
+   15.18,
+   "warding_strike"
+  ],
+  [
+   16.09,
+   "judgment"
+  ],
+  [
+   17.0,
+   "vicious_strike"
+  ],
+  [
+   17.77,
+   "vicious_strike"
+  ],
+  [
+   18.54,
+   "vicious_strike"
+  ],
+  [
+   19.31,
+   "debilitating_smash"
+  ],
+  [
+   20.22,
+   "vicious_strike"
+  ],
+  [
+   20.98,
+   "judgment"
+  ],
+  [
+   21.89,
+   "vicious_strike"
+  ],
+  [
+   22.66,
+   "vicious_strike"
+  ],
+  [
+   23.43,
+   "vicious_strike"
+  ],
+  [
+   24.2,
+   "vicious_strike"
+  ],
+  [
+   24.97,
+   "warding_strike"
+  ],
+  [
+   25.88,
+   "judgment"
+  ],
+  [
+   26.79,
+   "vicious_strike"
+  ],
+  [
+   27.56,
+   "vicious_strike"
+  ],
+  [
+   28.32,
+   "vicious_strike"
+  ],
+  [
+   29.09,
+   "debilitating_smash"
+  ]
+ ],
+ "weights": [
+  {
+   "stat": "amp_pve",
+   "step": 0.03,
+   "label": "PvE / Damage Boost +3%",
+   "dps_gain": 206.61051227026383,
+   "pct": 3.9215686274506476,
+   "per_unit": 6887.0170756754615,
+   "attack_equiv": 97.61466001230517
+  },
+  {
+   "stat": "combat_speed",
+   "step": 0.03,
+   "label": "Combat Speed +3%",
+   "dps_gain": 102.12560176655438,
+   "pct": 1.938393896547531,
+   "per_unit": 3404.1867255518127,
+   "attack_equiv": 48.249993601264826
+  },
+  {
+   "stat": "double",
+   "step": 0.02,
+   "label": "Double (Smite) chance +2%",
+   "dps_gain": 100.4737237671925,
+   "pct": 1.9070404437754869,
+   "per_unit": 5023.686188359625,
+   "attack_equiv": 47.46955165996325
+  },
+  {
+   "stat": "weapon_amp",
+   "step": 0.03,
+   "label": "Weapon Damage Boost +3%",
+   "dps_gain": 97.85895651526698,
+   "pct": 1.8574108818012958,
+   "per_unit": 3261.965217175566,
+   "attack_equiv": 46.23418559120222
+  },
+  {
+   "stat": "attack",
+   "step": 30,
+   "label": "Attack +30",
+   "dps_gain": 63.49779190263598,
+   "pct": 1.2052191628664077,
+   "per_unit": 2.1165930634211993,
+   "attack_equiv": 30.0
+  },
+  {
+   "stat": "weapon_max",
+   "step": 30,
+   "label": "Weapon max attack +30 (min too)",
+   "dps_gain": 63.49779190263598,
+   "pct": 1.2052191628664077,
+   "per_unit": 2.1165930634211993,
+   "attack_equiv": 30.0
+  },
+  {
+   "stat": "pen",
+   "step": 300,
+   "label": "Penetration +300",
+   "dps_gain": 50.45525327918949,
+   "pct": 0.9576653974456227,
+   "per_unit": 0.1681841775972983,
+   "attack_equiv": 23.83795645518893
+  },
+  {
+   "stat": "pve_atk",
+   "step": 30,
+   "label": "PvE Attack +30",
+   "dps_gain": 50.45525327918949,
+   "pct": 0.9576653974456227,
+   "per_unit": 1.6818417759729831,
+   "attack_equiv": 23.83795645518893
+  },
+  {
+   "stat": "wisdom",
+   "step": 10,
+   "label": "Wisdom +10 (Double +1%)",
+   "dps_gain": 50.23686188357442,
+   "pct": 0.9535202218873291,
+   "per_unit": 5.023686188357442,
+   "attack_equiv": 23.734775829971312
+  },
+  {
+   "stat": "cdr",
+   "step": 0.03,
+   "label": "Cooldown Reduction +3%",
+   "dps_gain": 40.03700403627363,
+   "pct": 0.7599219286595941,
+   "per_unit": 1334.566801209121,
+   "attack_equiv": 18.915777779011986
+  },
+  {
+   "stat": "time",
+   "step": 10,
+   "label": "Time +10 (Combat Speed +1%)",
+   "dps_gain": 34.04186725551813,
+   "pct": 0.6461312988491769,
+   "per_unit": 3.4041867255518126,
+   "attack_equiv": 16.083331200421608
+  },
+  {
+   "stat": "crit_dmg",
+   "step": 0.03,
+   "label": "Critical Damage Boost +3%",
+   "dps_gain": 32.68684831221435,
+   "pct": 0.6204123762286738,
+   "per_unit": 1089.561610407145,
+   "attack_equiv": 15.44314250911334
+  },
+  {
+   "stat": "might",
+   "step": 10,
+   "label": "Might +10 (Attack +1%)",
+   "dps_gain": 27.939911876471342,
+   "pct": 0.5303131997716617,
+   "per_unit": 2.7939911876471344,
+   "attack_equiv": 13.200417387416966
+  },
+  {
+   "stat": "destruction",
+   "step": 10,
+   "label": "Destruction +10 (Attack +1%)",
+   "dps_gain": 27.939911876471342,
+   "pct": 0.5303131997716617,
+   "per_unit": 2.7939911876471344,
+   "attack_equiv": 13.200417387416966
+  },
+  {
+   "stat": "multihit",
+   "step": 0.03,
+   "label": "Multi-hit chance +3%",
+   "dps_gain": 16.968808192505094,
+   "pct": 0.3220762831559603,
+   "per_unit": 565.6269397501699,
+   "attack_equiv": 8.017038553966158
+  },
+  {
+   "stat": "crit_atk",
+   "step": 50,
+   "label": "Critical Attack +50",
+   "dps_gain": 15.043178142671422,
+   "pct": 0.28552688250578445,
+   "per_unit": 0.30086356285342847,
+   "attack_equiv": 7.107260437845368
+  },
+  {
+   "stat": "crit",
+   "step": 50,
+   "label": "Critical Hit +50",
+   "dps_gain": 15.038065663882662,
+   "pct": 0.28542984515658953,
+   "per_unit": 0.30076131327765326,
+   "attack_equiv": 7.1048450095435784
+  },
+  {
+   "stat": "illusion",
+   "step": 10,
+   "label": "Illusion +10 (Cooldown -1%)",
+   "dps_gain": 13.34566801209121,
+   "pct": 0.253307309553198,
+   "per_unit": 1.334566801209121,
+   "attack_equiv": 6.305259259670662
+  },
+  {
+   "stat": "perfect",
+   "step": 0.03,
+   "label": "Perfect chance +3%",
+   "dps_gain": 1.3290631800073243,
+   "pct": 0.025226269531720476,
+   "per_unit": 44.302106000244144,
+   "attack_equiv": 0.6279256995480582
+  },
+  {
+   "stat": "death",
+   "step": 10,
+   "label": "Death +10 (Crit +1%)",
+   "dps_gain": 0.9445240654295048,
+   "pct": 0.017927528963363328,
+   "per_unit": 0.09445240654295048,
+   "attack_equiv": 0.4462473593780014
+  },
+  {
+   "stat": "justice",
+   "step": 10,
+   "label": "Justice +10 (Perfect +1%)",
+   "dps_gain": 0.44302105996848695,
+   "pct": 0.008408756509929019,
+   "per_unit": 0.044302105996848695,
+   "attack_equiv": 0.2093085664999774
+  },
+  {
+   "stat": "mp_max",
+   "step": 300,
+   "label": "MP +300",
+   "dps_gain": 0.0,
+   "pct": 0.0,
+   "per_unit": 0.0,
+   "attack_equiv": 0.0
+  }
+ ],
+ "stats": {
+  "attack_avg": 1401.4455,
+  "attack_max": 1425.0595999999998,
+  "crit_stat": 386.9404,
+  "crit_chance_vs_target": 0.022326471070005103,
+  "double": 0.0471,
+  "perfect": 0.0889,
+  "multihit": 0.05500000000000001,
+  "boost_bucket": 0.065,
+  "weapon_amp": 0.1,
+  "combat_speed": 0.082,
+  "cdr": 0.06509999999999999,
+  "accuracy": 426.0672,
+  "mp_max": 4450.0
+ },
+ "sensitivity": [
+  {
+   "fixed": 5268.568062892175,
+   "reoptimized": 5268.568062892175,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 5268.568062892175,
+   "reoptimized": 5268.568062892175,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 5268.568062892175,
+   "reoptimized": 5268.568062892175,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 5268.568062892175,
+   "reoptimized": 5268.568062892175,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 5268.568062892175,
+   "reoptimized": 5268.568062892175,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 5268.568062892175,
+   "reoptimized": 5268.568062892175,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 5268.568062892175,
+   "reoptimized": 5268.568062892175,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 5268.568062892175,
+   "reoptimized": 5268.568062892175,
+   "loss_pct": 0.0
+  }
+ ],
+ "links": {
+  "metabot_build": "https://metabot.gg/en/aion-2/classes/templar/build#v1~l19~s75ez4.a.c_76p9s.5.0_774pc.a.5_77ruo.5.0_7acg0.a.9_7azlc.a.9_7chls.a.9_7cpbk.a.3_7dzm8.a.0_7k7ds.5.0_7kuj4.a.0_7lhog.a.0~g7k7ds_76p9s_7dzm8_77ruo~d21-0.1.2.6.7.8.9.a.b.d.e.f.h.i.n.q.t.v.w.x.y.z.10.11.12.13.14.19.1f.1g.1i.1j.1k.1m.1o.1p.1q.1r.1s.1u.1w.1x.1y.20.21.22.23.24.25.26.28.29.2a.2b.2e.2f.2g_22-0.1.2.3.4.5.6.7.8.9.a.b.e.f.g.h.j.k.l.m.n.p.u.v.11.14.16.17.19.1a.1b.1c.1d.1e.1f.1g.1i.1j.1n.1o.1q.1t.1u.1x.1y.1z.20.22.23.24.26.27.28.29.2a.2b.2c.2d.2e_23-3.4.5.6.7.b.c.d.e.f.m.o.p.t.v.w.10.11.12.13.16.1a.1b.1c.1d.1e.1f.1g.1h.1i.1j.1k.1l.1n.1o.1v.1w.1z.21.22.23.24.25.26.29.2a.2b.2c.2d.2e.2f.2g_24-0.1.2.3.4.5.9.d.e.i.j.l.m.o.p.q.r.s.u.v.x.y.z.10.11.12.13.14.18.19.1a.1b.1e.1i.1l.1n.1o.1p.1r.1u.1v.1w.1y.1z.20.21.22.23.24.26.27.28.29.2a.2b.2c.2g.2h.2j.2l.2m.2n.2o.2q.2u.2v.2w.2x.2y.30.31.32.33.36.37.38",
+  "metabot_daevanion": "https://metabot.gg/en/aion-2/daevanion/templar#21-0.1.2.6.7.8.9.a.b.d.e.f.h.i.n.q.t.v.w.x.y.z.10.11.12.13.14.19.1f.1g.1i.1j.1k.1m.1o.1p.1q.1r.1s.1u.1w.1x.1y.20.21.22.23.24.25.26.28.29.2a.2b.2e.2f.2g_22-0.1.2.3.4.5.6.7.8.9.a.b.e.f.g.h.j.k.l.m.n.p.u.v.11.14.16.17.19.1a.1b.1c.1d.1e.1f.1g.1i.1j.1n.1o.1q.1t.1u.1x.1y.1z.20.22.23.24.26.27.28.29.2a.2b.2c.2d.2e_23-3.4.5.6.7.b.c.d.e.f.m.o.p.t.v.w.10.11.12.13.16.1a.1b.1c.1d.1e.1f.1g.1h.1i.1j.1k.1l.1n.1o.1v.1w.1z.21.22.23.24.25.26.29.2a.2b.2c.2d.2e.2f.2g_24-0.1.2.3.4.5.9.d.e.i.j.l.m.o.p.q.r.s.u.v.x.y.z.10.11.12.13.14.18.19.1a.1b.1e.1i.1l.1n.1o.1p.1r.1u.1v.1w.1y.1z.20.21.22.23.24.26.27.28.29.2a.2b.2c.2g.2h.2j.2l.2m.2n.2o.2q.2u.2v.2w.2x.2y.30.31.32.33.36.37.38",
+  "gamers4life_daevanion": "https://gamers4.life/aion-2/database/en/daevanion-planner/?b=eyJjIjoidGVtcGxhciIsImQiOlsyMTAwMzMsMjEwMDM0LDIxMDAzNSwyMTAwNDEsMjEwMDQyLDIxMDA0MywyMTAwNDgsMjEwMDUwLDIxMDA1MSwyMTAwNTQsMjEwMDU1LDIxMDA1NiwyMTAwNjMsMjEwMDY0LDIxMDA3MSwyMTAwNzksMjEwMDg2LDIxMDA5MywyMTAwOTQsMjEwMDk1LDIxMDA5NiwyMTAwOTcsMjEwMDk4LDIxMDA5OSwyMTAxMDAsMjEwMTAxLDIxMDEwMiwyMTAxMTUsMjEwMTI3LDIxMDEyOCwyMTAxMzAsMjEwMTMxLDIxMDEzMiwyMTAxMzgsMjEwMTQyLDIxMDE0NCwyMTAxNDcsMjEwMTUzLDIxMDE1NCwyMTAxNTcsMjEwMTU5LDIxMDE2MSwyMTAxNjIsMjEwMTY4LDIxMDE3MCwyMTAxNzEsMjEwMTcyLDIxMDE3NCwyMTAxNzUsMjEwMTc2LDIxMDE4MywyMTAxODQsMjEwMTg1LDIxMDE4NywyMTAxOTEsMjEwMTkyLDIxMDE5MywyMjAwMzMsMjIwMDM0LDIyMDAzNSwyMjAwMzYsMjIwMDM3LDIyMDAzOCwyMjAwMzksMjIwMDQwLDIyMDA0MSwyMjAwNDIsMjIwMDQzLDIyMDA0OCwyMjAwNTUsMjIwMDU4LDIyMDA2MywyMjAwNjQsMjIwMDY3LDIyMDA2OCwyMjAwNjksMjIwMDcwLDIyMDA3MSwyMjAwNzMsMjIwMDg0LDIyMDA4NiwyMjAwOTksMjIwMTAyLDIyMDEwOSwyMjAxMTIsMjIwMTE0LDIyMDExNywyMjAxMjMsMjIwMTI0LDIyMDEyNSwyMjAxMjYsMjIwMTI3LDIyMDEyOSwyMjAxMzIsMjIwMTMzLDIyMDE0NCwyMjAxNDUsMjIwMTQ4LDIyMDE1NSwyMjAxNTYsMjIwMTU5LDIyMDE2MSwyMjAxNjIsMjIwMTYzLDIyMDE3MSwyMjAxNzQsMjIwMTc2LDIyMDE4MywyMjAxODQsMjIwMTg1LDIyMDE4NiwyMjAxODcsMjIwMTg4LDIyMDE4OSwyMjAxOTAsMjIwMTkxLDIzMDAzNywyMzAwMzgsMjMwMDM5LDIzMDA0MCwyMzAwNDEsMjMwMDUwLDIzMDA1MSwyMzAwNTIsMjMwMDU0LDIzMDA1NiwyMzAwNjksMjMwMDcxLDIzMDA3MiwyMzAwODQsMjMwMDkzLDIzMDA5NCwyMzAwOTgsMjMwMDk5LDIzMDEwMCwyMzAxMDEsMjMwMTA4LDIzMDExOCwyMzAxMjMsMjMwMTI0LDIzMDEyNSwyMzAxMjYsMjMwMTI3LDIzMDEyOCwyMzAxMjksMjMwMTMwLDIzMDEzMSwyMzAxMzIsMjMwMTMzLDIzMDE0MiwyMzAxNDQsMjMwMTU4LDIzMDE1OSwyMzAxNjMsMjMwMTcwLDIzMDE3MiwyMzAxNzQsMjMwMTc1LDIzMDE3NiwyMzAxNzgsMjMwMTg1LDIzMDE4NiwyMzAxODcsMjMwMTg4LDIzMDE4OSwyMzAxOTEsMjMwMTkyLDIzMDE5MywyNDAwMTcsMjQwMDE4LDI0MDAxOSwyNDAwMjIsMjQwMDIzLDI0MDAyNCwyNDAwMzIsMjQwMDM3LDI0MDAzOSwyNDAwNDQsMjQwMDQ3LDI0MDA1MiwyNDAwNTMsMjQwMDU3LDI0MDA1OSwyNDAwNjIsMjQwMDYzLDI0MDA2NCwyNDAwNjYsMjQwMDY3LDI0MDA3MCwyNDAwNzEsMjQwMDcyLDI0MDA3MywyNDAwNzQsMjQwMDc5LDI0MDA4MSwyNDAwODUsMjQwMDk0LDI0MDA5NSwyNDAwOTYsMjQwMDk3LDI0MDEwMCwyNDAxMDQsMjQwMTExLDI0MDExNSwyNDAxMTcsMjQwMTE5LDI0MDEyMywyNDAxMjYsMjQwMTI3LDI0MDEyOCwyNDAxMzAsMjQwMTMxLDI0MDEzMiwyNDAxMzMsMjQwMTM0LDI0MDEzOCwyNDAxNDEsMjQwMTQ3LDI0MDE1MiwyNDAxNTMsMjQwMTU0LDI0MDE1NSwyNDAxNTYsMjQwMTU3LDI0MDE2MiwyNDAxNjMsMjQwMTY3LDI0MDE3MiwyNDAxNzMsMjQwMTc0LDI0MDE3NywyNDAxODIsMjQwMTg3LDI0MDE4OSwyNDAxOTAsMjQwMTkxLDI0MDE5MiwyNDAxOTcsMjQwMTk4LDI0MDE5OSwyNDAyMDIsMjQwMjA3LDI0MDIwOCwyNDAyMDldfQ",
+  "gamers4life_build": "https://gamers4.life/aion-2/database/en/build-calculator/?b=eyJjIjoidGVtcGxhciIsInMiOlsiMTI3MDAwMDAiLCIxMjA3MDAwMCIsIjEyNDEwMDAwIiwiMTIxMjAwMDAiXSwibCI6eyIxMjcwMDAwMCI6NSwiMTIwNzAwMDAiOjUsIjEyNDEwMDAwIjoxMCwiMTIxMjAwMDAiOjV9LCJkIjpbMjEwMDMzLDIxMDAzNCwyMTAwMzUsMjEwMDQxLDIxMDA0MiwyMTAwNDMsMjEwMDQ4LDIxMDA1MCwyMTAwNTEsMjEwMDU0LDIxMDA1NSwyMTAwNTYsMjEwMDYzLDIxMDA2NCwyMTAwNzEsMjEwMDc5LDIxMDA4NiwyMTAwOTMsMjEwMDk0LDIxMDA5NSwyMTAwOTYsMjEwMDk3LDIxMDA5OCwyMTAwOTksMjEwMTAwLDIxMDEwMSwyMTAxMDIsMjEwMTE1LDIxMDEyNywyMTAxMjgsMjEwMTMwLDIxMDEzMSwyMTAxMzIsMjEwMTM4LDIxMDE0MiwyMTAxNDQsMjEwMTQ3LDIxMDE1MywyMTAxNTQsMjEwMTU3LDIxMDE1OSwyMTAxNjEsMjEwMTYyLDIxMDE2OCwyMTAxNzAsMjEwMTcxLDIxMDE3MiwyMTAxNzQsMjEwMTc1LDIxMDE3NiwyMTAxODMsMjEwMTg0LDIxMDE4NSwyMTAxODcsMjEwMTkxLDIxMDE5MiwyMTAxOTMsMjIwMDMzLDIyMDAzNCwyMjAwMzUsMjIwMDM2LDIyMDAzNywyMjAwMzgsMjIwMDM5LDIyMDA0MCwyMjAwNDEsMjIwMDQyLDIyMDA0MywyMjAwNDgsMjIwMDU1LDIyMDA1OCwyMjAwNjMsMjIwMDY0LDIyMDA2NywyMjAwNjgsMjIwMDY5LDIyMDA3MCwyMjAwNzEsMjIwMDczLDIyMDA4NCwyMjAwODYsMjIwMDk5LDIyMDEwMiwyMjAxMDksMjIwMTEyLDIyMDExNCwyMjAxMTcsMjIwMTIzLDIyMDEyNCwyMjAxMjUsMjIwMTI2LDIyMDEyNywyMjAxMjksMjIwMTMyLDIyMDEzMywyMjAxNDQsMjIwMTQ1LDIyMDE0OCwyMjAxNTUsMjIwMTU2LDIyMDE1OSwyMjAxNjEsMjIwMTYyLDIyMDE2MywyMjAxNzEsMjIwMTc0LDIyMDE3NiwyMjAxODMsMjIwMTg0LDIyMDE4NSwyMjAxODYsMjIwMTg3LDIyMDE4OCwyMjAxODksMjIwMTkwLDIyMDE5MSwyMzAwMzcsMjMwMDM4LDIzMDAzOSwyMzAwNDAsMjMwMDQxLDIzMDA1MCwyMzAwNTEsMjMwMDUyLDIzMDA1NCwyMzAwNTYsMjMwMDY5LDIzMDA3MSwyMzAwNzIsMjMwMDg0LDIzMDA5MywyMzAwOTQsMjMwMDk4LDIzMDA5OSwyMzAxMDAsMjMwMTAxLDIzMDEwOCwyMzAxMTgsMjMwMTIzLDIzMDEyNCwyMzAxMjUsMjMwMTI2LDIzMDEyNywyMzAxMjgsMjMwMTI5LDIzMDEzMCwyMzAxMzEsMjMwMTMyLDIzMDEzMywyMzAxNDIsMjMwMTQ0LDIzMDE1OCwyMzAxNTksMjMwMTYzLDIzMDE3MCwyMzAxNzIsMjMwMTc0LDIzMDE3NSwyMzAxNzYsMjMwMTc4LDIzMDE4NSwyMzAxODYsMjMwMTg3LDIzMDE4OCwyMzAxODksMjMwMTkxLDIzMDE5MiwyMzAxOTMsMjQwMDE3LDI0MDAxOCwyNDAwMTksMjQwMDIyLDI0MDAyMywyNDAwMjQsMjQwMDMyLDI0MDAzNywyNDAwMzksMjQwMDQ0LDI0MDA0NywyNDAwNTIsMjQwMDUzLDI0MDA1NywyNDAwNTksMjQwMDYyLDI0MDA2MywyNDAwNjQsMjQwMDY2LDI0MDA2NywyNDAwNzAsMjQwMDcxLDI0MDA3MiwyNDAwNzMsMjQwMDc0LDI0MDA3OSwyNDAwODEsMjQwMDg1LDI0MDA5NCwyNDAwOTUsMjQwMDk2LDI0MDA5NywyNDAxMDAsMjQwMTA0LDI0MDExMSwyNDAxMTUsMjQwMTE3LDI0MDExOSwyNDAxMjMsMjQwMTI2LDI0MDEyNywyNDAxMjgsMjQwMTMwLDI0MDEzMSwyNDAxMzIsMjQwMTMzLDI0MDEzNCwyNDAxMzgsMjQwMTQxLDI0MDE0NywyNDAxNTIsMjQwMTUzLDI0MDE1NCwyNDAxNTUsMjQwMTU2LDI0MDE1NywyNDAxNjIsMjQwMTYzLDI0MDE2NywyNDAxNzIsMjQwMTczLDI0MDE3NCwyNDAxNzcsMjQwMTgyLDI0MDE4NywyNDAxODksMjQwMTkwLDI0MDE5MSwyNDAxOTIsMjQwMTk3LDI0MDE5OCwyNDAxOTksMjQwMjAyLDI0MDIwNywyNDAyMDgsMjQwMjA5XX0&tab=skills"
+ },
+ "history": [
+  {
+   "iter": 0,
+   "dps": 5205.777557177789
+  }
+ ],
+ "runtime_s": 192.02651000022888,
+ "weapon_compare": [],
+ "loadout": "templar_l45_global_median",
+ "arcana_skill_values": [
+  {
+   "skill": "Impact Hit",
+   "id": 12760000,
+   "gain_pct": [
+    0.28605606656588733,
+    0.572112133132352,
+    0.8581681996986612,
+    1.144224266265037
+   ]
+  },
+  {
+   "skill": "Warding Shield",
+   "id": 12720000,
+   "gain_pct": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "skill": "Ironclad Defense",
+   "id": 12740000,
+   "gain_pct": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "skill": "Survival Willpower",
+   "id": 12790000,
+   "gain_pct": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "skill": "Block Pain",
+   "id": 12800000,
+   "gain_pct": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  }
+ ],
+ "crit_sensitivity": {
+  "fit": {
+   "midpoint": 1024.52,
+   "crit_chance": 0.022326471070005103,
+   "crit_gain_pct": 0.28542984515658953,
+   "crit_rank": 17
+  },
+  "alt": {
+   "midpoint": 700.0,
+   "crit_chance": 0.13868946597690485,
+   "crit_gain_pct": 1.4498136330103633,
+   "crit_rank": 5
+  }
+ },
+ "kr_fidelity": {
+  "overlap": 0.4393342817495869,
+  "kr_share_not_in_global_data": 0.283609420603404
+ }
+}

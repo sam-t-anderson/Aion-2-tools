@@ -80,8 +80,8 @@ B:
 | Cooldown Reduction +3% | +3.43% | +2.33% |
 | Critical Hit +50 | +1.49% | +2.51% |
 | PvE / Damage Boost +3% | +2.51% | +2.37% |
-| PvE Attack +30 | +1.61% | +1.34% |
 | Penetration +300 | +1.61% | +1.34% |
+| PvE Attack +30 | +1.61% | +1.34% |
 | Double (Smite) chance +2% | +1.61% | +1.60% |
 | Weapon Damage Boost +3% | +1.55% | +1.50% |
 | Combat Speed +3% | +1.07% | +1.55% |
@@ -91,8 +91,8 @@ B:
 | Critical Attack +50 | +0.69% | +0.88% |
 | Wisdom +10 (Double +1%) | +0.80% | +0.80% |
 | Critical Damage Boost +3% | +0.43% | +0.75% |
-| Might +10 (Attack +1%) | +0.49% | +0.54% |
 | Destruction +10 (Attack +1%) | +0.49% | +0.54% |
+| Might +10 (Attack +1%) | +0.49% | +0.54% |
 | Time +10 (Combat Speed +1%) | +0.36% | +0.52% |
 | Death +10 (Crit +1%) | +0.13% | +0.28% |
 | Multi-hit chance +3% | +0.21% | +0.28% |

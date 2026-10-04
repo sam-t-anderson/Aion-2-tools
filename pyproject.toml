@@ -9,7 +9,7 @@ description = "Aion 2 build/rotation simulator and optimizer (global L45 data, K
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "GPL-3.0"}
-dependencies = ["numpy>=1.24", "matplotlib>=3.7", "pulp>=2.7"]
+dependencies = ["numpy>=1.24", "matplotlib>=3.7", "pulp>=2.7", "pillow>=9.1"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]

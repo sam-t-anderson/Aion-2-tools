@@ -72,28 +72,28 @@ Skill points used **203 / 203**, stigma points **30 / 30**, Daevanion **360 / 36
 
 | Skill | Trained (SP) | Effective level | Specializations |
 |---|---:|---:|---|
-| Hellfire | 10 | 14 | Fire Damage over Time for 10s on hit; Ignores Block and Evasion and lands as Multi-Hit |
 | Firestorm | 10 | 14 | +20% Skill Speed; -2s [Hellfire] cooldown per fireball |
+| Hellfire | 10 | 14 | Fire Damage over Time for 10s on hit; Ignores Block and Evasion and lands as Multi-Hit |
+| Robe of Earth | 10 | 14 | — |
 | Vitality Evaporation | 10 | 14 | — |
 | Robe of Flame | 10 | 14 | — |
-| Robe of Earth | 10 | 14 | — |
-| Blaze | 10 | 13 | Delayed Damage after 3s; Multi-Hit on hit |
-| Bittercold Wind | 10 | 13 | +1s [Bittercold Wind] summon duration; Ignores Block and Evasion and lands as a Critical Hit |
 | Fire Mark | 9 | 13 | — |
 | Flame Arrow | 10 | 13 | +50% Multi-Hit on hit; +5% Fire Damage Boost for 10s on activating [Pyroclasm] |
+| Blaze | 10 | 13 | Delayed Damage after 3s; Multi-Hit on hit |
+| Bittercold Wind | 10 | 13 | +1s [Bittercold Wind] summon duration; Ignores Block and Evasion and lands as a Critical Hit |
 | Wish of Concentration | 7 | 11 | +10% additional Attack |
 | Winter's Shackles | 4 | 8 | +20% PvE Damage Boost and +10% PvP Damage Boost for 5s on landing [Winter's Shackles] |
 | Grace of Enhancement | 4 | 6 | — |
 | Flame Scattershot | 4 | 5 | — |
-| Absorb Essence | 1 | 3 | — |
-| Ice Chain | 1 | 3 | — |
 | Revitalization Contract | 1 | 3 | — |
-| Grace of Resistance | 1 | 2 | — |
+| Ice Chain | 1 | 3 | — |
+| Absorb Essence | 1 | 3 | — |
 | Defiance | 1 | 2 | — |
-| Frost | 1 | 2 | — |
 | Frost Burst | 1 | 2 | — |
-| Robe of Cold | 1 | 2 | — |
+| Grace of Resistance | 1 | 2 | — |
+| Frost | 1 | 2 | — |
 | Cold Snap | 1 | 2 | — |
+| Robe of Cold | 1 | 2 | — |
 
 **Stigmas**: Cold Storm Lv 6, Element Enhancement Lv 10, Fire Wall Lv 6, Delayed Explosion Lv 1
 

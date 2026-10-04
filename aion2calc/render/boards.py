@@ -158,6 +158,7 @@ def render_boards(cd, selected: set, path: str, title: str, boards=("Nezekan", "
             col, row = divmod(i, abbr_rows)
             ax.text(0.05 + 0.48 * col, y - 0.022 * k * (row + 1), f"{short} = {full}", transform=ax.transAxes,
                     color=MUTED, fontsize=7.4 * f)
-    fig.savefig(path, facecolor=BG)
+    from . import save_png
+    save_png(fig, path, BG)
     plt.close(fig)
     return path

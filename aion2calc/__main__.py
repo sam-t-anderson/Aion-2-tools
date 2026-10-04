@@ -105,7 +105,9 @@ def main(argv: list[str] | None = None) -> int:
               "median global loadout. **Gain** (optimized vs the typical top global build of that class, same "
               "rotation optimizer) is the reliable number. Absolute DPS across classes is only as good as each class "
               "kit: Sorcerer has a hand-written kit; the others use the generic tooltip-driven kit, whose fidelity "
-              "is shown as the share overlap with Korean A2DIL dummy logs.\n",
+              "is shown as the share overlap with Korean A2DIL dummy logs. **This is not a class tier "
+              "list**: below ~60% overlap the kit is missing class mechanics, and its absolute DPS can be far off "
+              "in either direction.\n",
               "| Class | Optimized DPS | Typical top build DPS | Gain | KR share overlap | Report |",
               "|---|---:|---:|---:|---:|---|"]
         for cls, dps, comm, fid in rows:

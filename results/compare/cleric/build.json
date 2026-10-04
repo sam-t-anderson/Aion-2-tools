@@ -1,0 +1,888 @@
+{
+ "class": "cleric",
+ "level": 45,
+ "scenario": "boss",
+ "daevanion_budget": 360,
+ "dps": {
+  "boss": 3598.6823857791114,
+  "dummy": 4012.1532393272714
+ },
+ "baseline": {
+  "community_naive": 2566.46002061914,
+  "community_optimized_rotation": 2922.667352122233,
+  "community_other_scenario": 3467.0917176367857
+ },
+ "build": {
+  "sp": {
+   "Earth's Retribution": 10,
+   "Chain of Torment": 10,
+   "Divine Aura": 10,
+   "Condemnation": 10,
+   "Lightning Strike Scattershot": 10,
+   "Empyrean Lord's Grace": 10,
+   "Earth's Grace": 10
+  },
+  "sp_spent": 147,
+  "stigma_spent": 30,
+  "stigmas": {
+   "Earth Punishment": 7,
+   "Power Burst": 10,
+   "Assault Mark": 5,
+   "Prayer of Amplification": 1
+  },
+  "specs": {
+   "Earth's Retribution": [
+    "+20% MP restored",
+    "+50% Multi-Hit on hit"
+   ],
+   "Chain of Torment": [
+    "Slows target for 5s",
+    "+3s Damage over Time"
+   ],
+   "Condemnation": [
+    "Restores 100 MP on hit",
+    "Up to +12% damage when less targets hit"
+   ],
+   "Divine Aura": [
+    "-40% Move Speed for 3s to up to 4 enemies within 4m of the Aura",
+    "Changes to AoE Skill"
+   ],
+   "Lightning Strike Scattershot": [
+    "Absorbs 500, 500% HP",
+    "Multi-Hit on hit"
+   ]
+  },
+  "daevanion_nodes": [
+   710033,
+   710034,
+   710035,
+   710041,
+   710042,
+   710043,
+   710048,
+   710050,
+   710051,
+   710056,
+   710064,
+   710065,
+   710071,
+   710079,
+   710086,
+   710094,
+   710095,
+   710096,
+   710098,
+   710100,
+   710101,
+   710102,
+   710103,
+   710111,
+   710115,
+   710118,
+   710123,
+   710124,
+   710125,
+   710126,
+   710127,
+   710128,
+   710129,
+   710130,
+   710131,
+   710138,
+   710140,
+   710142,
+   710144,
+   710155,
+   710158,
+   710159,
+   710161,
+   710162,
+   710163,
+   710170,
+   710171,
+   710174,
+   710175,
+   710176,
+   710178,
+   710183,
+   710184,
+   710185,
+   710187,
+   710188,
+   710189,
+   710191,
+   710193,
+   720036,
+   720037,
+   720038,
+   720039,
+   720040,
+   720043,
+   720048,
+   720052,
+   720055,
+   720058,
+   720063,
+   720067,
+   720070,
+   720071,
+   720072,
+   720073,
+   720078,
+   720082,
+   720086,
+   720093,
+   720094,
+   720095,
+   720097,
+   720101,
+   720102,
+   720109,
+   720112,
+   720114,
+   720117,
+   720123,
+   720124,
+   720125,
+   720126,
+   720127,
+   720129,
+   720132,
+   720133,
+   720138,
+   720140,
+   720142,
+   720144,
+   720145,
+   720146,
+   720155,
+   720156,
+   720159,
+   720161,
+   720171,
+   720174,
+   720176,
+   720183,
+   720184,
+   720185,
+   720186,
+   720188,
+   720189,
+   730033,
+   730034,
+   730035,
+   730037,
+   730038,
+   730039,
+   730040,
+   730050,
+   730051,
+   730052,
+   730054,
+   730056,
+   730068,
+   730069,
+   730070,
+   730071,
+   730072,
+   730084,
+   730087,
+   730093,
+   730098,
+   730099,
+   730101,
+   730102,
+   730103,
+   730108,
+   730118,
+   730123,
+   730124,
+   730125,
+   730126,
+   730127,
+   730128,
+   730129,
+   730130,
+   730131,
+   730142,
+   730155,
+   730156,
+   730157,
+   730158,
+   730159,
+   730163,
+   730170,
+   730172,
+   730174,
+   730175,
+   730176,
+   730178,
+   730185,
+   730189,
+   730191,
+   730192,
+   730193,
+   740018,
+   740019,
+   740022,
+   740023,
+   740034,
+   740036,
+   740037,
+   740044,
+   740047,
+   740049,
+   740052,
+   740057,
+   740059,
+   740062,
+   740063,
+   740064,
+   740065,
+   740066,
+   740067,
+   740070,
+   740071,
+   740072,
+   740073,
+   740074,
+   740081,
+   740085,
+   740088,
+   740093,
+   740094,
+   740095,
+   740096,
+   740097,
+   740098,
+   740099,
+   740100,
+   740101,
+   740102,
+   740109,
+   740115,
+   740117,
+   740123,
+   740124,
+   740127,
+   740128,
+   740130,
+   740132,
+   740138,
+   740145,
+   740147,
+   740152,
+   740153,
+   740154,
+   740155,
+   740156,
+   740157,
+   740159,
+   740160,
+   740162,
+   740163,
+   740167,
+   740172,
+   740174,
+   740177,
+   740182,
+   740187,
+   740192,
+   740197,
+   740198,
+   740199,
+   740202,
+   740207,
+   740208,
+   740209
+  ],
+  "daevanion_cost": 360,
+  "effective_levels": {
+   "Earth's Retribution": 14,
+   "Judgment Thunder": 3,
+   "Divine Aura": 14,
+   "Chain of Torment": 14,
+   "Lightning Strike Scattershot": 14,
+   "Light of Regeneration": 4,
+   "Condemnation": 14,
+   "Healing Light": 3,
+   "Bolt": 3,
+   "Defiance": 2,
+   "Warm Benediction": 3,
+   "Empyrean Lords' Benediction": 4,
+   "Empyrean Lord's Grace": 14,
+   "Healing Enhancement": 3,
+   "Immortal Veil": 3,
+   "Heal Block": 3,
+   "Prayer of Concentration": 2,
+   "Earth's Grace": 14,
+   "Survival Willpower": 3,
+   "Radiant Benediction": 4,
+   "Earth Punishment": 7,
+   "Power Burst": 10,
+   "Assault Mark": 5
+  }
+ },
+ "policy": [
+  "prayer_of_amplification",
+  "condemnation",
+  "lightning_strike_scattershot [mp_hi]",
+  "chain_of_torment",
+  "assault_mark",
+  "power_burst",
+  "divine_aura",
+  "earth_punishment",
+  "earth_s_retribution"
+ ],
+ "macro": {
+  "steps": [
+   "prayer_of_amplification",
+   "chain_of_torment",
+   "condemnation",
+   "assault_mark",
+   "divine_aura",
+   "earth_punishment",
+   "power_burst",
+   "lightning_strike_scattershot",
+   "earth_s_retribution"
+  ],
+  "manual": [],
+  "dps_macro": 3537.96830056773,
+  "dps_priority": 3598.6823857791114,
+  "alt_steps": [
+   "chain_of_torment",
+   "condemnation",
+   "lightning_strike_scattershot",
+   "earth_s_retribution"
+  ],
+  "alt_manual": [
+   "prayer_of_amplification",
+   "assault_mark",
+   "power_burst",
+   "divine_aura",
+   "earth_punishment"
+  ],
+  "dps_alt": 3533.0776924076013
+ },
+ "shares": {
+  "Earth's Retribution": 0.3793847114445797,
+  "Divine Aura": 0.13784424777141915,
+  "Lightning Strike Scattershot": 0.12931429232900782,
+  "Earth Punishment": 0.10991797778131002,
+  "Condemnation": 0.09520816445605634,
+  "Power Burst": 0.06896831197589393,
+  "Chain of Torment": 0.06497151347516178,
+  "Assault Mark": 0.014390780766570908
+ },
+ "casts": {
+  "prayer_of_amplification": 4,
+  "chain_of_torment": 10,
+  "condemnation": 10,
+  "assault_mark": 2,
+  "power_burst": 4,
+  "divine_aura": 7,
+  "earth_punishment": 7,
+  "earth_s_retribution": 164,
+  "lightning_strike_scattershot": 21
+ },
+ "uptime": {
+  "prayer_of_amplification": 0.22182818743433583,
+  "assault_mark_attack_pct": 0.055555555555555795
+ },
+ "opener": [
+  [
+   0.0,
+   "prayer_of_amplification"
+  ],
+  [
+   0.58,
+   "chain_of_torment"
+  ],
+  [
+   1.49,
+   "condemnation"
+  ],
+  [
+   2.4,
+   "assault_mark"
+  ],
+  [
+   3.31,
+   "power_burst"
+  ],
+  [
+   4.08,
+   "divine_aura"
+  ],
+  [
+   4.99,
+   "earth_punishment"
+  ],
+  [
+   5.9,
+   "earth_s_retribution"
+  ],
+  [
+   6.66,
+   "earth_s_retribution"
+  ],
+  [
+   7.43,
+   "earth_s_retribution"
+  ],
+  [
+   8.2,
+   "earth_s_retribution"
+  ],
+  [
+   8.97,
+   "earth_s_retribution"
+  ],
+  [
+   9.74,
+   "earth_s_retribution"
+  ],
+  [
+   10.51,
+   "earth_s_retribution"
+  ],
+  [
+   11.28,
+   "earth_s_retribution"
+  ],
+  [
+   12.05,
+   "earth_s_retribution"
+  ],
+  [
+   12.82,
+   "earth_s_retribution"
+  ],
+  [
+   13.59,
+   "earth_s_retribution"
+  ],
+  [
+   14.36,
+   "earth_s_retribution"
+  ],
+  [
+   15.13,
+   "earth_s_retribution"
+  ],
+  [
+   15.9,
+   "earth_s_retribution"
+  ],
+  [
+   16.67,
+   "earth_s_retribution"
+  ],
+  [
+   17.44,
+   "earth_s_retribution"
+  ],
+  [
+   18.21,
+   "earth_s_retribution"
+  ],
+  [
+   18.97,
+   "earth_s_retribution"
+  ],
+  [
+   19.74,
+   "chain_of_torment"
+  ],
+  [
+   20.65,
+   "condemnation"
+  ],
+  [
+   21.56,
+   "earth_s_retribution"
+  ],
+  [
+   22.33,
+   "earth_s_retribution"
+  ],
+  [
+   23.1,
+   "earth_s_retribution"
+  ],
+  [
+   23.87,
+   "earth_s_retribution"
+  ],
+  [
+   24.64,
+   "earth_s_retribution"
+  ],
+  [
+   25.41,
+   "earth_s_retribution"
+  ],
+  [
+   26.18,
+   "earth_s_retribution"
+  ],
+  [
+   26.95,
+   "earth_s_retribution"
+  ],
+  [
+   27.72,
+   "earth_s_retribution"
+  ],
+  [
+   28.48,
+   "earth_s_retribution"
+  ],
+  [
+   29.25,
+   "earth_s_retribution"
+  ]
+ ],
+ "weights": [
+  {
+   "stat": "amp_pve",
+   "step": 0.03,
+   "label": "PvE / Damage Boost +3%",
+   "dps_gain": 115.46574499825874,
+   "pct": 3.208556149732578,
+   "per_unit": 3848.8581666086247,
+   "attack_equiv": 77.44422016462241
+  },
+  {
+   "stat": "double",
+   "step": 0.02,
+   "label": "Double (Smite) chance +2%",
+   "dps_gain": 69.56011726357019,
+   "pct": 1.9329329406354512,
+   "per_unit": 3478.0058631785096,
+   "attack_equiv": 46.65478091461775
+  },
+  {
+   "stat": "weapon_amp",
+   "step": 0.03,
+   "label": "Weapon Damage Boost +3%",
+   "dps_gain": 66.84231823491655,
+   "pct": 1.8574108818009858,
+   "per_unit": 2228.0772744972182,
+   "attack_equiv": 44.83192144801643
+  },
+  {
+   "stat": "pen",
+   "step": 300,
+   "label": "Penetration +300",
+   "dps_gain": 62.41915641294918,
+   "pct": 1.7345002898730528,
+   "per_unit": 0.2080638547098306,
+   "attack_equiv": 41.86525529114576
+  },
+  {
+   "stat": "pve_atk",
+   "step": 30,
+   "label": "PvE Attack +30",
+   "dps_gain": 62.41915641294918,
+   "pct": 1.7345002898730528,
+   "per_unit": 2.0806385470983058,
+   "attack_equiv": 41.86525529114576
+  },
+  {
+   "stat": "combat_speed",
+   "step": 0.03,
+   "label": "Combat Speed +3%",
+   "dps_gain": 59.47623021431241,
+   "pct": 1.6527224088834354,
+   "per_unit": 1982.541007143747,
+   "attack_equiv": 39.891400409259376
+  },
+  {
+   "stat": "cdr",
+   "step": 0.03,
+   "label": "Cooldown Reduction +3%",
+   "dps_gain": 54.37115677797988,
+   "pct": 1.5108628922862992,
+   "per_unit": 1812.3718925993294,
+   "attack_equiv": 36.46736818943639
+  },
+  {
+   "stat": "crit",
+   "step": 50,
+   "label": "Critical Hit +50",
+   "dps_gain": 46.64020792182919,
+   "pct": 1.296035685342418,
+   "per_unit": 0.9328041584365837,
+   "attack_equiv": 31.282130738223497
+  },
+  {
+   "stat": "attack",
+   "step": 30,
+   "label": "Attack +30",
+   "dps_gain": 44.72861038027668,
+   "pct": 1.24291631173205,
+   "per_unit": 1.490953679342556,
+   "attack_equiv": 30.0
+  },
+  {
+   "stat": "weapon_max",
+   "step": 30,
+   "label": "Weapon max attack +30 (min too)",
+   "dps_gain": 44.72861038027668,
+   "pct": 1.24291631173205,
+   "per_unit": 1.490953679342556,
+   "attack_equiv": 30.0
+  },
+  {
+   "stat": "wisdom",
+   "step": 10,
+   "label": "Wisdom +10 (Double +1%)",
+   "dps_gain": 34.78005863178669,
+   "pct": 0.9664664703177699,
+   "per_unit": 3.4780058631786686,
+   "attack_equiv": 23.327390457309942
+  },
+  {
+   "stat": "time",
+   "step": 10,
+   "label": "Time +10 (Combat Speed +1%)",
+   "dps_gain": 19.82541007143747,
+   "pct": 0.5509074696278118,
+   "per_unit": 1.982541007143747,
+   "attack_equiv": 13.297133469753126
+  },
+  {
+   "stat": "illusion",
+   "step": 10,
+   "label": "Illusion +10 (Cooldown -1%)",
+   "dps_gain": 18.123718925993295,
+   "pct": 0.5036209640954331,
+   "per_unit": 1.8123718925993295,
+   "attack_equiv": 12.1557893964788
+  },
+  {
+   "stat": "might",
+   "step": 10,
+   "label": "Might +10 (Attack +1%)",
+   "dps_gain": 17.797423717409856,
+   "pct": 0.4945538897164088,
+   "per_unit": 1.7797423717409857,
+   "attack_equiv": 11.936939399256003
+  },
+  {
+   "stat": "destruction",
+   "step": 10,
+   "label": "Destruction +10 (Attack +1%)",
+   "dps_gain": 17.797423717409856,
+   "pct": 0.4945538897164088,
+   "per_unit": 1.7797423717409857,
+   "attack_equiv": 11.936939399256003
+  },
+  {
+   "stat": "crit_dmg",
+   "step": 0.03,
+   "label": "Critical Damage Boost +3%",
+   "dps_gain": 17.39693812060932,
+   "pct": 0.48342521666698574,
+   "per_unit": 579.897937353644,
+   "attack_equiv": 11.668329044454683
+  },
+  {
+   "stat": "crit_atk",
+   "step": 50,
+   "label": "Critical Attack +50",
+   "dps_gain": 16.267815047125623,
+   "pct": 0.45204920310308677,
+   "per_unit": 0.32535630094251244,
+   "attack_equiv": 10.911013046561584
+  },
+  {
+   "stat": "multihit",
+   "step": 0.03,
+   "label": "Multi-hit chance +3%",
+   "dps_gain": 11.372539108273031,
+   "pct": 0.3160195285144867,
+   "per_unit": 379.0846369424344,
+   "attack_equiv": 7.627694452109212
+  },
+  {
+   "stat": "death",
+   "step": 10,
+   "label": "Death +10 (Crit +1%)",
+   "dps_gain": 4.546588222031005,
+   "pct": 0.1263403583488703,
+   "per_unit": 0.4546588222031005,
+   "attack_equiv": 3.0494496811167515
+  },
+  {
+   "stat": "perfect",
+   "step": 0.03,
+   "label": "Perfect chance +3%",
+   "dps_gain": 0.9630290643403896,
+   "pct": 0.026760601828768913,
+   "per_unit": 32.10096881134632,
+   "attack_equiv": 0.6459148112267595
+  },
+  {
+   "stat": "justice",
+   "step": 10,
+   "label": "Justice +10 (Perfect +1%)",
+   "dps_gain": 0.32100968811664643,
+   "pct": 0.008920200609678092,
+   "per_unit": 0.032100968811664646,
+   "attack_equiv": 0.21530493707772155
+  },
+  {
+   "stat": "mp_max",
+   "step": 300,
+   "label": "MP +300",
+   "dps_gain": 0.0,
+   "pct": 0.0,
+   "per_unit": 0.0,
+   "attack_equiv": 0.0
+  }
+ ],
+ "stats": {
+  "attack_avg": 1372.8316,
+  "attack_max": 1396.4479999999999,
+  "crit_stat": 589.1426,
+  "crit_chance_vs_target": 0.07150434866897536,
+  "double": 0.032999999999999995,
+  "perfect": 0.0889,
+  "multihit": 0.05500000000000001,
+  "boost_bucket": 0.23500000000000001,
+  "weapon_amp": 0.1,
+  "combat_speed": 0.082,
+  "cdr": 0.0652,
+  "accuracy": 477.2772,
+  "mp_max": 3650.0
+ },
+ "sensitivity": [
+  {
+   "fixed": 3598.6823857791114,
+   "reoptimized": 3598.6823857791114,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 3598.6823857791114,
+   "reoptimized": 3598.6823857791114,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 3598.6823857791114,
+   "reoptimized": 3598.6823857791114,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 3598.6823857791114,
+   "reoptimized": 3598.6823857791114,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 3598.6823857791114,
+   "reoptimized": 3598.6823857791114,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 3598.6823857791114,
+   "reoptimized": 3598.6823857791114,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 3598.6823857791114,
+   "reoptimized": 3598.6823857791114,
+   "loss_pct": 0.0
+  },
+  {
+   "fixed": 3598.6823857791114,
+   "reoptimized": 3598.6823857791114,
+   "loss_pct": 0.0
+  }
+ ],
+ "links": {
+  "metabot_build": "https://metabot.gg/en/aion-2/classes/cleric/build#v1~l19~sa4l00.a.5_a5vao.a.3_a7l0w.a.3_aadc0.a.0_abvcg.a.3_acas0.a.9_acxxc.7.0_ajdeo.5.0_ak0k0.a.0_al34w.a.0~gacxxc_aadc0_ajdeo_adl2o~d71-0.1.2.6.7.8.9.a.b.f.i.j.n.q.t.w.x.y.10.12.13.14.15.17.19.1a.1b.1c.1d.1e.1f.1g.1h.1i.1j.1m.1n.1o.1p.1t.1v.1w.1x.1y.1z.21.22.24.25.26.27.28.29.2a.2b.2c.2d.2e.2g_72-3.4.5.6.7.a.b.d.e.f.g.j.m.n.o.p.q.t.v.x.y.z.10.13.14.16.17.19.1a.1b.1c.1d.1e.1f.1g.1i.1j.1k.1l.1m.1n.1o.1p.1t.1u.1x.1y.22.23.24.26.27.28.29.2b.2c_73-0.1.2.3.4.5.6.b.c.d.e.f.l.m.n.o.p.t.u.v.10.11.13.14.15.16.1a.1b.1c.1d.1e.1f.1g.1h.1i.1j.1n.1s.1t.1u.1v.1w.1z.21.22.23.24.25.26.29.2d.2e.2f.2g_74-1.2.3.4.a.c.d.i.j.k.l.o.p.q.r.s.t.u.v.x.y.z.10.11.13.14.15.17.18.19.1a.1b.1c.1d.1e.1f.1g.1k.1n.1o.1r.1s.1v.1w.1y.20.23.25.26.27.28.29.2a.2b.2c.2d.2e.2g.2h.2j.2l.2n.2o.2q.2u.2y.30.31.32.33.36.37.38",
+  "metabot_daevanion": "https://metabot.gg/en/aion-2/daevanion/cleric#71-0.1.2.6.7.8.9.a.b.f.i.j.n.q.t.w.x.y.10.12.13.14.15.17.19.1a.1b.1c.1d.1e.1f.1g.1h.1i.1j.1m.1n.1o.1p.1t.1v.1w.1x.1y.1z.21.22.24.25.26.27.28.29.2a.2b.2c.2d.2e.2g_72-3.4.5.6.7.a.b.d.e.f.g.j.m.n.o.p.q.t.v.x.y.z.10.13.14.16.17.19.1a.1b.1c.1d.1e.1f.1g.1i.1j.1k.1l.1m.1n.1o.1p.1t.1u.1x.1y.22.23.24.26.27.28.29.2b.2c_73-0.1.2.3.4.5.6.b.c.d.e.f.l.m.n.o.p.t.u.v.10.11.13.14.15.16.1a.1b.1c.1d.1e.1f.1g.1h.1i.1j.1n.1s.1t.1u.1v.1w.1z.21.22.23.24.25.26.29.2d.2e.2f.2g_74-1.2.3.4.a.c.d.i.j.k.l.o.p.q.r.s.t.u.v.x.y.z.10.11.13.14.15.17.18.19.1a.1b.1c.1d.1e.1f.1g.1k.1n.1o.1r.1s.1v.1w.1y.20.23.25.26.27.28.29.2a.2b.2c.2d.2e.2g.2h.2j.2l.2n.2o.2q.2u.2y.30.31.32.33.36.37.38",
+  "gamers4life_daevanion": "https://gamers4.life/aion-2/database/en/daevanion-planner/?b=eyJjIjoiY2xlcmljIiwiZCI6WzcxMDAzMyw3MTAwMzQsNzEwMDM1LDcxMDA0MSw3MTAwNDIsNzEwMDQzLDcxMDA0OCw3MTAwNTAsNzEwMDUxLDcxMDA1Niw3MTAwNjQsNzEwMDY1LDcxMDA3MSw3MTAwNzksNzEwMDg2LDcxMDA5NCw3MTAwOTUsNzEwMDk2LDcxMDA5OCw3MTAxMDAsNzEwMTAxLDcxMDEwMiw3MTAxMDMsNzEwMTExLDcxMDExNSw3MTAxMTgsNzEwMTIzLDcxMDEyNCw3MTAxMjUsNzEwMTI2LDcxMDEyNyw3MTAxMjgsNzEwMTI5LDcxMDEzMCw3MTAxMzEsNzEwMTM4LDcxMDE0MCw3MTAxNDIsNzEwMTQ0LDcxMDE1NSw3MTAxNTgsNzEwMTU5LDcxMDE2MSw3MTAxNjIsNzEwMTYzLDcxMDE3MCw3MTAxNzEsNzEwMTc0LDcxMDE3NSw3MTAxNzYsNzEwMTc4LDcxMDE4Myw3MTAxODQsNzEwMTg1LDcxMDE4Nyw3MTAxODgsNzEwMTg5LDcxMDE5MSw3MTAxOTMsNzIwMDM2LDcyMDAzNyw3MjAwMzgsNzIwMDM5LDcyMDA0MCw3MjAwNDMsNzIwMDQ4LDcyMDA1Miw3MjAwNTUsNzIwMDU4LDcyMDA2Myw3MjAwNjcsNzIwMDcwLDcyMDA3MSw3MjAwNzIsNzIwMDczLDcyMDA3OCw3MjAwODIsNzIwMDg2LDcyMDA5Myw3MjAwOTQsNzIwMDk1LDcyMDA5Nyw3MjAxMDEsNzIwMTAyLDcyMDEwOSw3MjAxMTIsNzIwMTE0LDcyMDExNyw3MjAxMjMsNzIwMTI0LDcyMDEyNSw3MjAxMjYsNzIwMTI3LDcyMDEyOSw3MjAxMzIsNzIwMTMzLDcyMDEzOCw3MjAxNDAsNzIwMTQyLDcyMDE0NCw3MjAxNDUsNzIwMTQ2LDcyMDE1NSw3MjAxNTYsNzIwMTU5LDcyMDE2MSw3MjAxNzEsNzIwMTc0LDcyMDE3Niw3MjAxODMsNzIwMTg0LDcyMDE4NSw3MjAxODYsNzIwMTg4LDcyMDE4OSw3MzAwMzMsNzMwMDM0LDczMDAzNSw3MzAwMzcsNzMwMDM4LDczMDAzOSw3MzAwNDAsNzMwMDUwLDczMDA1MSw3MzAwNTIsNzMwMDU0LDczMDA1Niw3MzAwNjgsNzMwMDY5LDczMDA3MCw3MzAwNzEsNzMwMDcyLDczMDA4NCw3MzAwODcsNzMwMDkzLDczMDA5OCw3MzAwOTksNzMwMTAxLDczMDEwMiw3MzAxMDMsNzMwMTA4LDczMDExOCw3MzAxMjMsNzMwMTI0LDczMDEyNSw3MzAxMjYsNzMwMTI3LDczMDEyOCw3MzAxMjksNzMwMTMwLDczMDEzMSw3MzAxNDIsNzMwMTU1LDczMDE1Niw3MzAxNTcsNzMwMTU4LDczMDE1OSw3MzAxNjMsNzMwMTcwLDczMDE3Miw3MzAxNzQsNzMwMTc1LDczMDE3Niw3MzAxNzgsNzMwMTg1LDczMDE4OSw3MzAxOTEsNzMwMTkyLDczMDE5Myw3NDAwMTgsNzQwMDE5LDc0MDAyMiw3NDAwMjMsNzQwMDM0LDc0MDAzNiw3NDAwMzcsNzQwMDQ0LDc0MDA0Nyw3NDAwNDksNzQwMDUyLDc0MDA1Nyw3NDAwNTksNzQwMDYyLDc0MDA2Myw3NDAwNjQsNzQwMDY1LDc0MDA2Niw3NDAwNjcsNzQwMDcwLDc0MDA3MSw3NDAwNzIsNzQwMDczLDc0MDA3NCw3NDAwODEsNzQwMDg1LDc0MDA4OCw3NDAwOTMsNzQwMDk0LDc0MDA5NSw3NDAwOTYsNzQwMDk3LDc0MDA5OCw3NDAwOTksNzQwMTAwLDc0MDEwMSw3NDAxMDIsNzQwMTA5LDc0MDExNSw3NDAxMTcsNzQwMTIzLDc0MDEyNCw3NDAxMjcsNzQwMTI4LDc0MDEzMCw3NDAxMzIsNzQwMTM4LDc0MDE0NSw3NDAxNDcsNzQwMTUyLDc0MDE1Myw3NDAxNTQsNzQwMTU1LDc0MDE1Niw3NDAxNTcsNzQwMTU5LDc0MDE2MCw3NDAxNjIsNzQwMTYzLDc0MDE2Nyw3NDAxNzIsNzQwMTc0LDc0MDE3Nyw3NDAxODIsNzQwMTg3LDc0MDE5Miw3NDAxOTcsNzQwMTk4LDc0MDE5OSw3NDAyMDIsNzQwMjA3LDc0MDIwOCw3NDAyMDldfQ",
+  "gamers4life_build": "https://gamers4.life/aion-2/database/en/build-calculator/?b=eyJjIjoiY2xlcmljIiwicyI6WyIxNzQwMDAwMCIsIjE3MjgwMDAwIiwiMTc3MDAwMDAiLCIxNzQzMDAwMCJdLCJsIjp7IjE3NDAwMDAwIjo3LCIxNzI4MDAwMCI6MTAsIjE3NzAwMDAwIjo1LCIxNzQzMDAwMCI6MX0sImQiOls3MTAwMzMsNzEwMDM0LDcxMDAzNSw3MTAwNDEsNzEwMDQyLDcxMDA0Myw3MTAwNDgsNzEwMDUwLDcxMDA1MSw3MTAwNTYsNzEwMDY0LDcxMDA2NSw3MTAwNzEsNzEwMDc5LDcxMDA4Niw3MTAwOTQsNzEwMDk1LDcxMDA5Niw3MTAwOTgsNzEwMTAwLDcxMDEwMSw3MTAxMDIsNzEwMTAzLDcxMDExMSw3MTAxMTUsNzEwMTE4LDcxMDEyMyw3MTAxMjQsNzEwMTI1LDcxMDEyNiw3MTAxMjcsNzEwMTI4LDcxMDEyOSw3MTAxMzAsNzEwMTMxLDcxMDEzOCw3MTAxNDAsNzEwMTQyLDcxMDE0NCw3MTAxNTUsNzEwMTU4LDcxMDE1OSw3MTAxNjEsNzEwMTYyLDcxMDE2Myw3MTAxNzAsNzEwMTcxLDcxMDE3NCw3MTAxNzUsNzEwMTc2LDcxMDE3OCw3MTAxODMsNzEwMTg0LDcxMDE4NSw3MTAxODcsNzEwMTg4LDcxMDE4OSw3MTAxOTEsNzEwMTkzLDcyMDAzNiw3MjAwMzcsNzIwMDM4LDcyMDAzOSw3MjAwNDAsNzIwMDQzLDcyMDA0OCw3MjAwNTIsNzIwMDU1LDcyMDA1OCw3MjAwNjMsNzIwMDY3LDcyMDA3MCw3MjAwNzEsNzIwMDcyLDcyMDA3Myw3MjAwNzgsNzIwMDgyLDcyMDA4Niw3MjAwOTMsNzIwMDk0LDcyMDA5NSw3MjAwOTcsNzIwMTAxLDcyMDEwMiw3MjAxMDksNzIwMTEyLDcyMDExNCw3MjAxMTcsNzIwMTIzLDcyMDEyNCw3MjAxMjUsNzIwMTI2LDcyMDEyNyw3MjAxMjksNzIwMTMyLDcyMDEzMyw3MjAxMzgsNzIwMTQwLDcyMDE0Miw3MjAxNDQsNzIwMTQ1LDcyMDE0Niw3MjAxNTUsNzIwMTU2LDcyMDE1OSw3MjAxNjEsNzIwMTcxLDcyMDE3NCw3MjAxNzYsNzIwMTgzLDcyMDE4NCw3MjAxODUsNzIwMTg2LDcyMDE4OCw3MjAxODksNzMwMDMzLDczMDAzNCw3MzAwMzUsNzMwMDM3LDczMDAzOCw3MzAwMzksNzMwMDQwLDczMDA1MCw3MzAwNTEsNzMwMDUyLDczMDA1NCw3MzAwNTYsNzMwMDY4LDczMDA2OSw3MzAwNzAsNzMwMDcxLDczMDA3Miw3MzAwODQsNzMwMDg3LDczMDA5Myw3MzAwOTgsNzMwMDk5LDczMDEwMSw3MzAxMDIsNzMwMTAzLDczMDEwOCw3MzAxMTgsNzMwMTIzLDczMDEyNCw3MzAxMjUsNzMwMTI2LDczMDEyNyw3MzAxMjgsNzMwMTI5LDczMDEzMCw3MzAxMzEsNzMwMTQyLDczMDE1NSw3MzAxNTYsNzMwMTU3LDczMDE1OCw3MzAxNTksNzMwMTYzLDczMDE3MCw3MzAxNzIsNzMwMTc0LDczMDE3NSw3MzAxNzYsNzMwMTc4LDczMDE4NSw3MzAxODksNzMwMTkxLDczMDE5Miw3MzAxOTMsNzQwMDE4LDc0MDAxOSw3NDAwMjIsNzQwMDIzLDc0MDAzNCw3NDAwMzYsNzQwMDM3LDc0MDA0NCw3NDAwNDcsNzQwMDQ5LDc0MDA1Miw3NDAwNTcsNzQwMDU5LDc0MDA2Miw3NDAwNjMsNzQwMDY0LDc0MDA2NSw3NDAwNjYsNzQwMDY3LDc0MDA3MCw3NDAwNzEsNzQwMDcyLDc0MDA3Myw3NDAwNzQsNzQwMDgxLDc0MDA4NSw3NDAwODgsNzQwMDkzLDc0MDA5NCw3NDAwOTUsNzQwMDk2LDc0MDA5Nyw3NDAwOTgsNzQwMDk5LDc0MDEwMCw3NDAxMDEsNzQwMTAyLDc0MDEwOSw3NDAxMTUsNzQwMTE3LDc0MDEyMyw3NDAxMjQsNzQwMTI3LDc0MDEyOCw3NDAxMzAsNzQwMTMyLDc0MDEzOCw3NDAxNDUsNzQwMTQ3LDc0MDE1Miw3NDAxNTMsNzQwMTU0LDc0MDE1NSw3NDAxNTYsNzQwMTU3LDc0MDE1OSw3NDAxNjAsNzQwMTYyLDc0MDE2Myw3NDAxNjcsNzQwMTcyLDc0MDE3NCw3NDAxNzcsNzQwMTgyLDc0MDE4Nyw3NDAxOTIsNzQwMTk3LDc0MDE5OCw3NDAxOTksNzQwMjAyLDc0MDIwNyw3NDAyMDgsNzQwMjA5XX0&tab=skills"
+ },
+ "history": [
+  {
+   "iter": 0,
+   "dps": 3470.3586207388385
+  }
+ ],
+ "runtime_s": 176.5274679660797,
+ "weapon_compare": [],
+ "loadout": "cleric_l45_global_median",
+ "arcana_skill_values": [
+  {
+   "skill": "Earth's Grace",
+   "id": 17780000,
+   "gain_pct": [
+    0.6157610879977682,
+    1.232383896523892,
+    1.8498684255793263,
+    2.468214675163294
+   ]
+  },
+  {
+   "skill": "Empyrean Lords' Benediction",
+   "id": 17720000,
+   "gain_pct": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "skill": "Healing Enhancement",
+   "id": 17740000,
+   "gain_pct": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "skill": "Heal Block",
+   "id": 17760000,
+   "gain_pct": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "skill": "Radiant Benediction",
+   "id": 17800000,
+   "gain_pct": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ]
+  }
+ ],
+ "crit_sensitivity": {
+  "fit": {
+   "midpoint": 1024.52,
+   "crit_chance": 0.07150434866897536,
+   "crit_gain_pct": 1.296035685342418,
+   "crit_rank": 8
+  },
+  "alt": {
+   "midpoint": 700.0,
+   "crit_chance": 0.35523980784142495,
+   "crit_gain_pct": 3.6033223973029154,
+   "crit_rank": 1
+  }
+ },
+ "kr_fidelity": {
+  "overlap": 0.25281716643457286,
+  "kr_share_not_in_global_data": 0.11018870666884328
+ }
+}

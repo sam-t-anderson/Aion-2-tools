@@ -159,6 +159,7 @@ def render_build_card(path: str, *, title: str, subtitle: str, skills: list[dict
     for ln in links[:6]:
         ax.text(0.52, y2, ln, transform=ax.transAxes, color=CYAN, fontsize=7.4)
         y2 -= 0.13
-    fig.savefig(path, facecolor=BG)
+    from . import save_png
+    save_png(fig, path, BG, dither=True)
     plt.close(fig)
     return path
