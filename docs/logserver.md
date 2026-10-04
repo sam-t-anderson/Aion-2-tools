@@ -54,6 +54,39 @@ Set these in the systemd unit (`sudo systemctl edit aion2calc-logs`) or pass the
 Updating: `cd /opt/aion2calc && sudo git pull && sudo venv/bin/pip install . && sudo systemctl restart aion2calc-logs`.
 Backups: copy `/var/lib/aion2calc-logs` (SQLite index plus one `.json.gz` per log).
 
+## Learning from everyone's uploads
+
+Every public or unlisted upload also teaches the server about its classes. Each player in each
+segment (at least 20 hits and 20 seconds) becomes an anonymous observation: DPS, crit / double /
+perfect / multi-hit rates, casts per minute, idle share, damage and casts per skill,
+specializations, combat power, and the character's stats if the uploader sent them. Names are
+not kept. Private logs are never used, and an uploader can opt out with `"meta": {"contribute": "no"}`.
+Deleting a log removes its observations.
+
+From these, the server publishes:
+
+| Where | What |
+|---|---|
+| `/stats` page, `GET /api/v1/stats/<class>?boss=` | DPS by combat-power bracket, typical rates and tempo, and for the top 25% of players: damage share and casts per minute per skill, and the most picked specializations |
+| `GET /api/v1/calibration/<class>` | a **community calibration** in the same shape as aion2calc's own |
+
+The community calibration has the same kinds of corrections the app learns locally:
+
+* **Skill damage factors.** Each skill's damage per cast relative to the player's own DPS, compared
+  with the same ratio in the simulation of the class's optimized build. Because it is relative, it
+  needs no gear data. The factors are normalized so the overall damage level stays put.
+* **Rate factors and the crit curve.** Fitted from uploads that include `players[].stats` (the
+  character's Critical Hit and Double / Perfect / Multi-hit chances). aion2calc fills these in
+  automatically when it shares a fight that matches an imported character's equipment snapshot.
+
+Every factor is shrunk toward 1 (8 fights of prior weight) and bounded, the same as the local
+calibration. It turns on at 5 observations.
+
+**In aion2calc:** once your log server is set (Combat Logs page or `share --server`), the app pulls
+the community calibration for your class (cached for a day). It uses that as the starting point,
+and your own fights override it where they exist. The advice also points out skills where at least
+half of the server's top players pick different specializations than you.
+
 ## Who can see a log
 
 | Visibility | Listed on the home page | Opens with |
@@ -92,7 +125,8 @@ JSON Schema is at `/schema/a2log-v1.json`, and the definition is in
 ```json
 {"format": "a2log", "version": 1,
  "meta": {"source": "my-meter 1.2", "title": "Gatekeeper Pinopi", "region": "na", "recorded_at": "2026-10-04T19:00:00Z"},
- "players": [{"id": "p1", "name": "Name", "class": "sorcerer", "combat_power": 70000, "specs": {"Hellfire": [2, 4]}}],
+ "players": [{"id": "p1", "name": "Name", "class": "sorcerer", "combat_power": 70000, "specs": {"Hellfire": [2, 4]},
+              "stats": {"critical_hit": 980, "double_pct": 3.1, "perfect_pct": 9.0, "multihit_pct": 8.5}}],
  "segments": [{"label": "Gatekeeper Pinopi", "boss": "Gatekeeper Pinopi", "duration": 93.0, "killed": true,
                "hits": [{"t": 0.0, "player": "p1", "skill": "Hellfire", "skill_id": 15060000, "damage": 12345,
                          "crit": true, "multi": 2}],
@@ -108,6 +142,9 @@ Read endpoints (CORS enabled, so web pages on other sites can use them):
 | `GET /api/v1/logs/<id>` | summary: title, players with DPS, segments |
 | `GET /api/v1/logs/<id>/raw` | the a2log document |
 | `GET /api/v1/logs/<id>/analysis?segment=0&player=p1` | one player's breakdown (skills, rates, timeline, buffs) |
+| `GET /api/v1/stats` | classes with data |
+| `GET /api/v1/stats/<class>?boss=` | class statistics (see above) |
+| `GET /api/v1/calibration/<class>` | community calibration |
 | `DELETE /api/v1/logs/<id>?token=<delete token>` | delete |
 
 ## Uploading from aion2calc

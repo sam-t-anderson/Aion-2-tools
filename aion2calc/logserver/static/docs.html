@@ -3,7 +3,7 @@
 <title>{{TITLE}}</title><meta name="description" content="{{DESC}}">
 <link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/logs.css"></head>
 <body><header class="topbar"><div class="brand"><a href="/">aion2calc logs</a> <small>AION 2 combat logs</small></div>
-<nav class="nav"><a href="/">Logs</a><a href="/docs" class="on">Upload format &amp; API</a></nav></header>
+<nav class="nav"><a href="/">Logs</a><a href="/stats">Class statistics</a><a href="/docs" class="on">Upload format &amp; API</a></nav></header>
 <main id="app" class="doc">
 <section class="win"><div class="wh"><h2>Upload a fight from any tool</h2></div><div class="wb">
 <p>This server accepts AION 2 combat logs in <b>a2log</b>, an open JSON format. Any meter, parser or bot can upload a
@@ -38,6 +38,11 @@ Only <code>t</code>, <code>player</code> and <code>damage</code> are required pe
 <table class="t"><tr><th>Field</th><th>Meaning</th></tr>
 <tr><td><code>players[].class</code></td><td>gladiator, templar, assassin, ranger, sorcerer, spiritmaster (or elementalist), cleric, chanter</td></tr>
 <tr><td><code>players[].specs</code></td><td>skill name → chosen specialization slots 1-5</td></tr>
+<tr><td><code>players[].stats</code></td><td>optional: the character's stats during the fight as the game shows them
+(<code>critical_hit</code>, <code>attack</code>, <code>double_pct</code>, <code>perfect_pct</code>, <code>multihit_pct</code>,
+<code>combat_speed_pct</code>, <code>cooldown_pct</code>, <code>accuracy</code>); lets the server calibrate crit and the other rates</td></tr>
+<tr><td><code>meta.contribute</code></td><td><code>"no"</code> keeps the fight out of the anonymous class statistics
+(private logs are always kept out)</td></tr>
 <tr><td><code>hits[].skill_id</code></td><td>the game's skill id; variant codes are fine (the viewer maps them to the class skill)</td></tr>
 <tr><td><code>hits[].multi</code></td><td>extra hits of a multi-hit (0 = none)</td></tr>
 <tr><td><code>hits[].step</code></td><td>name of a chain follow-up (e.g. <code>"Cold Wave"</code> with Ice Chain's id)</td></tr>
@@ -64,4 +69,7 @@ print(json.load(urllib.request.urlopen(req))["url"])</pre>
 <p>Read: <code>GET /api/v1/logs</code> (public list), <code>GET /api/v1/logs/&lt;id&gt;</code> (summary),
 <code>/raw</code> (the document), <code>/analysis?segment=0&amp;player=p1</code> (breakdown).
 Delete: <code>DELETE /api/v1/logs/&lt;id&gt;?token=&lt;delete_token&gt;</code> or with the uploader's key.</p>
+<p>Learned from all public and unlisted uploads (anonymous): <code>GET /api/v1/stats/&lt;class&gt;</code>
+(class statistics, also on the <a href="/stats">statistics page</a>) and <code>GET /api/v1/calibration/&lt;class&gt;</code>
+(per-skill damage factors, rate factors and crit curve for simulators).</p>
 </div></section></main></body></html>

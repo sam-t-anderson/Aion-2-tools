@@ -199,12 +199,79 @@ def calibration(cls: str) -> dict | None:
 _DEFAULT_X0 = S.CRIT_X0
 
 
+def community(cls: str, max_age: float = 86400, fetch: bool = True) -> dict | None:
+    """The community calibration of your log server (cached for a day), if one is set."""
+    import json as _json
+    import urllib.request
+    name = ("calibration", f"community_{cls}.json")
+    cached = read_json(*name) if data_file(*name).exists() else None
+    if cached and time.time() - cached.get("fetched_at", 0) < max_age:
+        return cached
+    if not fetch:
+        return cached
+    try:
+        from .combat.share import settings
+        url = (settings().get("url") or "").rstrip("/")
+        if not url:
+            return cached
+        with urllib.request.urlopen(f"{url}/api/v1/calibration/{cls}", timeout=10) as r:
+            got = _json.load(r)
+        got["fetched_at"] = time.time()
+        write_user_json(got, *name)
+        return got
+    except Exception:
+        return cached
+
+
+def community_stats(cls: str, max_age: float = 86400) -> dict | None:
+    """Class statistics of your log server (top players' skills and specializations), cached."""
+    import json as _json
+    import urllib.request
+    name = ("calibration", f"community_stats_{cls}.json")
+    cached = read_json(*name) if data_file(*name).exists() else None
+    if cached and time.time() - cached.get("fetched_at", 0) < max_age:
+        return cached
+    try:
+        from .combat.share import settings
+        url = (settings().get("url") or "").rstrip("/")
+        if not url:
+            return cached
+        with urllib.request.urlopen(f"{url}/api/v1/stats/{cls}", timeout=10) as r:
+            got = _json.load(r)
+        got["fetched_at"] = time.time()
+        write_user_json(got, *name)
+        return got
+    except Exception:
+        return cached
+
+
+def merged(cls: str, use_community: bool = True) -> dict | None:
+    """Your calibration on top of the community one: your own fights win where they exist."""
+    local = calibration(cls)
+    local = local if local and local.get("active") else None
+    com = community(cls) if use_community else None
+    com = com if com and com.get("active") else None
+    if not local and not com:
+        return None
+    out = {"class": cls, "active": True, "crit_x0": S.CRIT_X0, "rates": {}, "skills": {}, "sources": []}
+    for c, label in ((com, "community"), (local, "yours")):
+        if not c:
+            continue
+        out["sources"].append(f"{label}: {c.get('fights', 0)} fights")
+        if abs(c.get("crit_x0", S.CRIT_X0) - _DEFAULT_X0) > 1e-6:
+            out["crit_x0"] = c["crit_x0"]
+        out["rates"].update(c.get("rates") or {})
+        out["skills"].update(c.get("skills") or {})
+    return out
+
+
 def apply(cls: str) -> dict | None:
-    """Switch the model to the class's learned calibration (when active)."""
+    """Switch the model to the class's learned calibration: your fights, filled in by the
+    community calibration of your log server."""
     from .sim import engine
     reset()
-    cal = calibration(cls)
-    if not cal or not cal.get("active"):
+    cal = merged(cls)
+    if not cal:
         return None
     S.set_crit_midpoint(cal["crit_x0"])
     S.CALIBRATION.update(cal.get("rates") or {})

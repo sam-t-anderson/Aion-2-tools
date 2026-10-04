@@ -114,11 +114,21 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
     for d in rot["specs"][:3]:
         top.append({"area": "specializations", "text": f"{d['skill']}: specs {d['yours']} in your fights, "
                                                        f"{d['optimal']} in the optimized build", "gain": None})
+    cs = learn.community_stats(imp.cls)
+    mine = {d["skill"]: d["yours"] for d in rot["specs"]}
+    for row in ((cs or {}).get("top_quarter") or {}).get("specs", [])[:40]:
+        pick = row["picks"][0] if row.get("picks") else None
+        if pick and pick["share"] >= 0.5 and row["skill"] in mine and mine[row["skill"]] != pick["specs"]:
+            top.append({"area": "community", "text": f"{row['skill']}: {100 * pick['share']:.0f}% of the top players on "
+                                                     f"your log server pick specs {pick['specs']} (you: {mine[row['skill']]})",
+                        "gain": None})
     top.sort(key=lambda r: -(r["gain"] if r["gain"] is not None else -1))
     return {"character": {"name": imp.name, "server": imp.server, "class": imp.cls, "level": imp.level},
-            "dps": base, "calibration": learn.summary(learn.calibration(imp.cls)), "calibrated": bool(cal),
+            "dps": base, "calibration": learn.summary(learn.calibration(imp.cls)) + [
+                f"community calibration from your log server: {c['fights']} fights" for c in
+                [learn.community(imp.cls, fetch=False)] if c and c.get("active")], "calibrated": bool(cal),
             "top": top, "equip": equip, "goals": goals, "upgrade_path": path, "arcana": arc,
-            "pantheon": pan, "genus": gen, "rotation": rot, "seconds": time.time() - t0}
+            "pantheon": pan, "genus": gen, "rotation": rot, "community": cs, "seconds": time.time() - t0}
 
 
 def _pct(x) -> str:

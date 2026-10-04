@@ -30,6 +30,9 @@ import re
 VERSION = 1
 CLASSES = ("gladiator", "templar", "assassin", "ranger", "sorcerer", "spiritmaster", "cleric", "chanter")
 CLASS_ALIASES = {"elementalist": "spiritmaster", "brawler": "brawler"}
+#: optional players[].stats keys (percent values as numbers)
+PLAYER_STATS = ("critical_hit", "attack", "double_pct", "perfect_pct", "multihit_pct", "combat_speed_pct",
+                "cooldown_pct", "accuracy")
 LIMITS = {"players": 64, "segments": 200, "hits": 400_000, "buffs": 100_000, "hp": 50_000, "text": 200}
 
 HIT = {"type": "object", "required": ["t", "player", "damage"], "additionalProperties": True, "properties": {
@@ -56,14 +59,20 @@ SCHEMA = {
             "title": {"type": "string"}, "region": {"type": "string"}, "server": {"type": "string"},
             "recorded_at": {"type": "string", "format": "date-time"},
             "zone": {"type": "string"}, "difficulty": {"type": "string"},
-            "visibility": {"enum": ["public", "unlisted", "private"]}}},
+            "visibility": {"enum": ["public", "unlisted", "private"]},
+            "contribute": {"enum": ["yes", "no"], "description": "use this fight in the anonymous class "
+                           "statistics (default yes; private logs never are)"}}},
         "players": {"type": "array", "minItems": 1, "maxItems": LIMITS["players"], "items": {
             "type": "object", "required": ["id", "name"], "additionalProperties": True, "properties": {
                 "id": {"type": "string"}, "name": {"type": "string"},
                 "class": {"type": "string"}, "server": {"type": "string"},
                 "combat_power": {"type": "number"}, "gear_score": {"type": "number"},
                 "specs": {"type": "object", "description": "skill name -> chosen specialization slots (1-5)",
-                          "additionalProperties": {"type": "array", "items": {"type": "integer"}}}}}},
+                          "additionalProperties": {"type": "array", "items": {"type": "integer"}}},
+                "stats": {"type": "object", "description": "optional: the character's stats during the fight, as "
+                          "the game shows them (percent values as numbers, 12.5 = 12.5%); lets the server "
+                          "calibrate crit and the other rates",
+                          "properties": {k: {"type": "number"} for k in PLAYER_STATS}}}}},
         "segments": {"type": "array", "minItems": 1, "maxItems": LIMITS["segments"], "items": {
             "type": "object", "required": ["duration", "hits"], "additionalProperties": True, "properties": {
                 "id": {"type": "string"}, "label": {"type": "string"}, "boss": {"type": "string"},
@@ -144,6 +153,9 @@ def validate(doc) -> dict:
         if isinstance(specs, dict):
             q["specs"] = {str(k)[:80]: [int(x) for x in v if isinstance(x, int) and 1 <= x <= 5]
                           for k, v in list(specs.items())[:80] if isinstance(v, list)}
+        stats = p.get("stats") or {}
+        if isinstance(stats, dict):
+            q["stats"] = {k: float(v) for k, v in stats.items() if k in PLAYER_STATS and _num(v) and 0 <= v < 1e7}
         out_players.append(q)
     segs = doc.get("segments")
     if not isinstance(segs, list) or not segs or len(segs) > LIMITS["segments"]:
@@ -196,7 +208,7 @@ def validate(doc) -> dict:
 
 
 # ------------------------------------------------------------- conversions
-def from_encounter(enc: dict, source: str = "aion2calc") -> dict:
+def from_encounter(enc: dict, source: str = "aion2calc", stats: dict | None = None) -> dict:
     """An aion2calc encounter (one player's side of a fight) -> a2log."""
     m = enc.get("meta", {})
     pid = "p1"
@@ -214,7 +226,7 @@ def from_encounter(enc: dict, source: str = "aion2calc") -> dict:
             "meta": {"source": source, "title": m.get("target"), "region": m.get("region"),
                      "recorded_at": m.get("started_at")},
             "players": [{"id": pid, "name": m.get("player") or "player", "class": m.get("class"),
-                         "combat_power": m.get("combat_power"), "specs": specs}],
+                         "combat_power": m.get("combat_power"), "specs": specs, "stats": stats or {}}],
             "segments": [{"label": m.get("target"), "boss": m.get("target"), "duration": m.get("duration") or 1.0,
                           "killed": bool(m.get("boss_killed")), "hits": hits, "buffs": buffs}]}
 

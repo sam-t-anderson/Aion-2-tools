@@ -228,3 +228,89 @@ def test_log_server_upload_view_private_delete(tmp_path):
         assert call(f"/api/v1/logs/{lid}")[0] == 404
     finally:
         srv.shutdown()
+
+
+def _big_doc(i: int, stats: bool = True):
+    hits = []
+    for k in range(120):
+        hits.append({"t": k * 0.5, "player": "a", "skill_id": [15060130, 15050130, 15040240][k % 3],
+                     "skill": ["Hellfire", "Blaze", "Firestorm"][k % 3], "damage": 2000.0 + 50 * i + (k % 3) * 300,
+                     "crit": k % 4 == 0})
+    p = {"id": "a", "name": f"Sorc{i}", "class": "sorcerer", "combat_power": 70000 + 1000 * i,
+         "specs": {"Hellfire": [2, 4]}}
+    if stats:
+        p["stats"] = {"critical_hit": 900.0, "double_pct": 2.0, "perfect_pct": 5.0}
+    return {"format": "a2log", "version": 1, "meta": {"source": "test"}, "players": [p],
+            "segments": [{"boss": "Boss", "duration": 60.0, "hits": hits}]}
+
+
+def test_community_learning_from_uploads(tmp_path):
+    from aion2calc.logserver import learn as L
+    from aion2calc.logserver import server as LS
+    from aion2calc.logserver.format import validate
+    LS.CONFIG = LS.Config(str(tmp_path / "logs"))
+    st = LS.CONFIG.store
+    rows = []
+    for i in range(6):
+        doc = validate(_big_doc(i))
+        obs = L.observe_doc(doc)
+        assert len(obs) == 1 and obs[0]["class"] == "sorcerer" and "Sorc" not in json.dumps(obs)   # no names
+        st.put_observations(f"log{i}", obs)
+        rows += obs
+    agg = L.aggregate(st.observations("sorcerer"))
+    assert agg["observations"] == 6 and agg["top_quarter"]["specs"][0]["picks"][0]["specs"] == "2, 4"
+    assert {r["skill"] for r in agg["top_quarter"]["skills"]} == {"Hellfire", "Blaze", "Firestorm"}
+    cal = L.calibration("sorcerer", rows)
+    assert cal["active"] and cal["with_stats"] == 6
+    lo, hi = L.BOUNDS["skill"]
+    assert cal["skills"] and all(lo <= v <= hi for v in cal["skills"].values())
+    assert cal["rates"]["double"] != 1.0 or cal["rates"]["perfect"] != 1.0
+    st.delete("log0")
+    assert len(st.observations("sorcerer")) == 5                          # deleting a log forgets it
+
+
+def test_upload_feeds_stats_but_private_does_not(tmp_path):
+    from http.server import ThreadingHTTPServer
+
+    from aion2calc.logserver import server as LS
+    LS.CONFIG = LS.Config(str(tmp_path / "logs"))
+    _, key = LS.CONFIG.store.create_key("t")
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), LS.Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+
+    def post(doc, vis):
+        req = urllib.request.Request(f"{base}/api/v1/logs?visibility={vis}", json.dumps(doc).encode(),
+                                     {"Content-Type": "application/json", "Authorization": "Bearer " + key})
+        return json.load(urllib.request.urlopen(req, timeout=30))
+    try:
+        assert post(_big_doc(1), "unlisted")["learned_from"] == 1
+        assert post(_big_doc(2), "private")["learned_from"] == 0
+        d = _big_doc(3)
+        d["meta"]["contribute"] = "no"
+        assert post(d, "public")["learned_from"] == 0
+        s = json.load(urllib.request.urlopen(base + "/api/v1/stats/sorcerer", timeout=30))
+        assert s["observations"] == 1
+        assert json.load(urllib.request.urlopen(base + "/api/v1/calibration/sorcerer", timeout=30))["fights"] == 1
+        assert json.load(urllib.request.urlopen(base + "/.well-known/a2log.json"))["calibration_url"].endswith("{class}")
+    finally:
+        srv.shutdown()
+
+
+def test_local_calibration_merges_community(home):
+    import time as _t
+
+    from aion2calc import learn
+    from aion2calc.paths import write_user_json
+    from aion2calc.sim import engine
+    write_user_json({"class": "sorcerer", "active": True, "fights": 9, "fetched_at": _t.time(), "crit_x0": 1000.0,
+                     "rates": {"double": 1.2}, "skills": {"Blaze": 0.9, "Hellfire": 1.1}},
+                    "calibration", "community_sorcerer.json")
+    write_user_json({"class": "sorcerer", "active": True, "fights": 3, "crit_x0": learn._DEFAULT_X0,
+                     "rates": {}, "skills": {"Hellfire": 1.3}}, "calibration", "sorcerer.json")
+    m = learn.merged("sorcerer")
+    assert m["skills"] == {"Blaze": 0.9, "Hellfire": 1.3}                  # yours wins where it exists
+    assert m["rates"] == {"double": 1.2} and m["crit_x0"] == 1000.0
+    with learn.calibrated("sorcerer"):
+        assert engine.SKILL_MULT["Blaze"] == 0.9
+    assert not engine.SKILL_MULT

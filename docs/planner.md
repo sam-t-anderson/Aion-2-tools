@@ -85,6 +85,11 @@ further. The calibration turns on once 2 fights are matched. It is used by the p
 advice, never by the published class reports. The model is refit after every import, and
 `python -m aion2calc learn` refits it from scratch.
 
+With a log server set (see [logserver.md](logserver.md#learning-from-everyones-uploads)), the app also pulls
+that server's **community calibration**, learned from everyone's uploads. It is the starting point,
+and your own fights override it where they exist. So the model is calibrated from day one, before
+you have saved any fights of your own.
+
 The more fights you import after re-importing your character (so the snapshot matches the gear you
 wore), the closer the simulation gets to your actual damage. The planners then rank changes on that
 calibrated model.

@@ -20,6 +20,10 @@ CREATE TABLE IF NOT EXISTS logs (
   delete_token_hash TEXT, title TEXT, boss TEXT, region TEXT, source TEXT, duration REAL, players TEXT,
   top_dps REAL, segments INTEGER, size INTEGER);
 CREATE INDEX IF NOT EXISTS logs_public ON logs(visibility, created_at);
+CREATE TABLE IF NOT EXISTS observations (
+  log_id TEXT, segment INTEGER, player TEXT, class_name TEXT, boss TEXT, combat_power REAL, dps REAL,
+  created_at REAL, data TEXT, PRIMARY KEY (log_id, segment, player));
+CREATE INDEX IF NOT EXISTS obs_class ON observations(class_name, boss);
 CREATE TABLE IF NOT EXISTS hits_rate (bucket TEXT PRIMARY KEY, n INTEGER, until REAL);
 """
 _ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -140,7 +144,35 @@ class Store:
             out.append(d)
         return out, total
 
+    # ------------------------------------------------------------ observations
+    version = 0
+
+    def put_observations(self, log_id: str, rows: list[dict]) -> None:
+        c = self.conn()
+        c.executemany("INSERT OR REPLACE INTO observations VALUES (?,?,?,?,?,?,?,?,?)",
+                      [(log_id, r["segment"], r["player"], r["class"], r.get("boss"), r.get("combat_power"),
+                        r["dps"], time.time(), json.dumps(r)) for r in rows])
+        c.commit()
+        Store.version += 1
+
+    def observations(self, cls: str | None = None, boss: str | None = None) -> list[dict]:
+        q, args = "SELECT data FROM observations WHERE 1=1", []
+        if cls:
+            q += " AND class_name=?"
+            args.append(cls)
+        if boss:
+            q += " AND boss=?"
+            args.append(boss)
+        return [json.loads(r[0]) for r in self.conn().execute(q, args)]
+
+    def class_counts(self) -> list[dict]:
+        return [dict(r) for r in self.conn().execute(
+            "SELECT class_name AS class, COUNT(*) AS observations, COUNT(DISTINCT log_id) AS logs, "
+            "MAX(dps) AS best_dps FROM observations GROUP BY class_name ORDER BY observations DESC")]
+
     def delete(self, log_id: str) -> bool:
+        self.conn().execute("DELETE FROM observations WHERE log_id=?", (log_id,))
+        Store.version += 1
         cur = self.conn().execute("DELETE FROM logs WHERE id=?", (log_id,))
         self.conn().commit()
         self._path(log_id).unlink(missing_ok=True)

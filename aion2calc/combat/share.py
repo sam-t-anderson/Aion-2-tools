@@ -69,11 +69,38 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
         raise RuntimeError(f"upload refused ({e.code}): {msg}") from None
 
 
+def fight_stats(enc: dict) -> dict:
+    """The player's stats during the fight, from the equipment snapshot nearest before it
+    (lets the log server calibrate crit and the other rates). Empty when unknown."""
+    try:
+        from dataclasses import replace
+
+        from .. import learn
+        from ..run import prepare
+        from ..scenarios import SCENARIOS
+        m = enc["meta"]
+        snap = store.snapshot_for(store.connect(), m.get("player") or "", m.get("class"), learn._ts(enc))
+        if not snap:
+            return {}
+        with learn.uncalibrated():
+            b = learn._build_of(m["class"], snap["data"], enc)
+            scen = SCENARIOS["boss"](snap["data"]["loadout"])
+            scen = replace(scen, config=replace(scen.config, duration=max(10.0, m.get("duration") or 60)))
+            _, _, _, stats = prepare(b, scen)
+            d = stats.derived()
+        return {"critical_hit": round(d.crit_stat, 1), "attack": round(d.attack(), 1),
+                "double_pct": round(100 * d.double, 2), "perfect_pct": round(100 * d.perfect, 2),
+                "multihit_pct": round(100 * d.multihit, 2), "combat_speed_pct": round(100 * d.combat_speed, 2),
+                "cooldown_pct": round(100 * d.cdr, 2), "accuracy": round(d.accuracy, 1)}
+    except Exception:
+        return {}
+
+
 def share_encounter(enc_id: int, **kw) -> dict:
     enc = store.encounter(store.connect(), enc_id)
     if not enc:
         raise FileNotFoundError(f"no encounter {enc_id}")
-    res = upload(from_encounter(enc), **kw)
+    res = upload(from_encounter(enc, stats=fight_stats(enc)), **kw)
     links = settings().get("shared", {})
     links[str(enc_id)] = res.get("url")
     s = settings()

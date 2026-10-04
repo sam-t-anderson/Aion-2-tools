@@ -220,12 +220,21 @@ class Handler(BaseHTTPRequestHandler):
             return self._err(400, "visibility must be public, unlisted or private")
         summary = summarize(doc)
         r = st.put(doc, summary, vis, key and key["id"], self._ip())
+        learned = 0
+        if vis != "private" and doc["meta"].get("contribute") != "no":
+            try:                                       # community statistics never block an upload
+                from .learn import observe_doc
+                rows = observe_doc(doc)
+                st.put_observations(r["id"], rows)
+                learned = len(rows)
+            except Exception:
+                learned = 0
         base = self._base()
         suffix = f"?t={r['view_token']}" if r["view_token"] else ""
         self._json({"id": r["id"], "visibility": vis, "url": f"{base}/l/{r['id']}{suffix}",
                     "json_url": f"{base}/api/v1/logs/{r['id']}/raw{suffix}",
                     "delete_url": f"{base}/api/v1/logs/{r['id']}?token={r['delete_token']}",
-                    "delete_token": r["delete_token"], "summary": summary}, 201)
+                    "delete_token": r["delete_token"], "summary": summary, "learned_from": learned}, 201)
 
     # ------------------------------------------------------------ reads
     def _visible(self, log_id: str, q: dict) -> dict:
@@ -267,7 +276,29 @@ class Handler(BaseHTTPRequestHandler):
                                         "required": not self.cfg.allow_anonymous},
                                "content_types": ["application/json"], "content_encodings": ["gzip"],
                                "max_bytes": self.cfg.max_bytes, "visibility": ["public", "unlisted", "private"],
-                               "view_url": f"{b}/l/{{id}}", "list_url": f"{b}/api/v1/logs"}, cache=300)
+                               "view_url": f"{b}/l/{{id}}", "list_url": f"{b}/api/v1/logs",
+                               "stats_url": f"{b}/api/v1/stats/{{class}}",
+                               "calibration_url": f"{b}/api/v1/calibration/{{class}}"}, cache=300)
+        if path == "/stats":
+            return self._page("stats.html", {"TITLE": f"{self.cfg.name}: class statistics",
+                                             "DESC": "What uploaded AION 2 fights show, per class"})
+        if path == "/api/v1/stats":
+            return self._json({"classes": st.class_counts()}, cache=60)
+        m = re.fullmatch(r"/api/v1/(stats|calibration)/([a-z]+)", path)
+        if m:
+            from . import learn as L
+            cls, boss = m.group(2), q.get("boss") or None
+            key = (m.group(1), cls, boss, st.version)
+            with _LOCK:
+                hit = _ANALYSIS.get(key)
+            if hit is None:
+                rows = st.observations(cls, boss)
+                hit = L.aggregate(rows) if m.group(1) == "stats" else L.calibration(cls, rows, self._base())
+                if m.group(1) == "stats":
+                    hit["class"], hit["boss"] = cls, boss
+                with _LOCK:
+                    _ANALYSIS[key] = hit
+            return self._json(hit, cache=300)
         if path == "/schema/a2log-v1.json":
             return self._json({**F.SCHEMA, "$id": f"{self._base()}/schema/a2log-v1.json"}, cache=3600)
         if path == "/api/v1/logs":
