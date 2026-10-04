@@ -1,4 +1,4 @@
-"""Tests for the installed app: launcher, bundled resources, settings, update check and downloads."""
+"""Tests for the installed app: launcher, bundled resources, settings and the update check."""
 import json
 import sys
 import threading
@@ -93,45 +93,37 @@ def test_solver_choice(monkeypatch):
     assert solver.name() == "HiGHS"
 
 
-def test_client_downloads_newest_version_first(tmp_path):
-    from aion2calc.logserver.server import client_downloads
-    for name in ("aion2calc-0.9.0-linux.tar.gz", "aion2calc-0.10.0-windows-portable.zip",
-                 "aion2calc-setup-0.10.0.exe", "aion2calc-0.10.0-macos.zip", ".hidden"):
-        (tmp_path / name).write_bytes(b"x" * 10)
-    c = client_downloads(tmp_path, "https://logs.test")
-    assert c["version"] == "0.10.0"                                 # numeric, not text, order
-    assert [f["platform"] for f in c["files"]] == ["Windows installer", "Windows (portable)", "macOS", "Linux"]
-    assert c["files"][0]["url"] == "https://logs.test/download/aion2calc-setup-0.10.0.exe"
-    assert client_downloads(tmp_path / "missing", "https://logs.test") == {
-        "version": None, "files": [], "page": "https://logs.test/download"}
+def test_update_check_reads_github_releases(home, monkeypatch):
+    from http.server import BaseHTTPRequestHandler
 
-
-def test_log_server_download_page_and_app_update_check(home, tmp_path):
     from aion2calc import __version__
     from aion2calc.app import server as app
-    from aion2calc.combat import share
-    from aion2calc.logserver import server as LS
-    LS.CONFIG = LS.Config(str(tmp_path / "logs"))
-    srv, base = _serve(LS.Handler)
-    try:
-        code, page = _get(base + "/download")
-        assert code == 200 and b"No downloads yet" in page
-        dl = tmp_path / "logs" / "downloads"
-        dl.mkdir(parents=True)
-        (dl / "aion2calc-setup-99.0.0.exe").write_bytes(b"MZ installer")
-        code, page = _get(base + "/download")
-        assert code == 200 and b"aion2calc-setup-99.0.0.exe" in page and b"99.0.0" in page
-        assert _get(base + "/download/aion2calc-setup-99.0.0.exe") == (200, b"MZ installer")
-        assert _get(base + "/download/missing.exe")[0] == 404
-        assert _get(base + "/download/..%2Fstore.db")[0] == 404
-        assert json.loads(_get(base + "/api/v1/client")[1])["version"] == "99.0.0"
+    latest = {"tag": "v99.0.0"}
 
-        share.save_settings(base)
+    class FakeGitHub(BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = json.dumps({"tag_name": latest["tag"],
+                               "html_url": f"https://github.test/releases/tag/{latest['tag']}"}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+    srv, base = _serve(FakeGitHub)
+    monkeypatch.setattr(app, "RELEASES_API", base + "/repos/x/y/releases/latest")
+    try:
         app._UPDATE.clear()
-        assert app.update_info(wait=True) == {"version": "99.0.0", "url": base + "/download"}
-        (dl / "aion2calc-setup-99.0.0.exe").rename(dl / f"aion2calc-setup-{__version__}.exe")
+        assert app.update_info(wait=True) == {"version": "99.0.0",
+                                              "url": "https://github.test/releases/tag/v99.0.0"}
+        latest["tag"] = f"v{__version__}"
         app._UPDATE.clear()
         assert app.update_info(wait=True) is None                   # same version: nothing to offer
+        monkeypatch.setattr(app, "RELEASES_API", "http://127.0.0.1:9/unreachable")
+        app._UPDATE.clear()
+        assert app.update_info(wait=True) is None                   # offline: no error, no offer
     finally:
         srv.shutdown()
         app._UPDATE.clear()

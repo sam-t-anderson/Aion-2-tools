@@ -16,5 +16,5 @@ The builds are not code-signed, so the first launch may need one extra click. Wi
 ("Windows protected your PC"): choose **More info → Run anyway**. macOS ("cannot be opened"): open
 **System Settings → Privacy & Security** and choose **Open Anyway** next to the aion2calc message.
 
-Installing, updating and hosting the downloads yourself:
-[docs/install.md](https://github.com/sam-t-anderson/Aion-calc/blob/main/docs/install.md).
+[Code signing policy](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/code-signing.md). Installing and updating:
+[docs/install.md](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/install.md).

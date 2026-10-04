@@ -151,14 +151,13 @@ def act_encounter_import(body: dict, log) -> dict:
 
 
 _UPDATE: dict = {}
+#: the latest published release of the app (GitHub's public API, no account needed)
+RELEASES_API = "https://api.github.com/repos/sam-t-anderson/Aion-2-tools/releases/latest"
 
 
 def update_info(wait: bool = False) -> dict | None:
-    """A newer client offered by your log server's download page.
-
-    Checked in the background every 6 hours (and when the log server changes),
-    so a slow or unreachable server never holds up the page.
-    """
+    """A newer release of the app, checked in the background every 6 hours so a slow or
+    unreachable network never holds up the page."""
     if time.time() - _UPDATE.get("at", 0) >= 6 * 3600:
         _UPDATE["at"] = time.time()
         t = threading.Thread(target=_check_update, daemon=True)
@@ -172,13 +171,13 @@ def _check_update() -> None:
     info = None
     try:
         from .. import __version__
-        from ..combat.share import settings
-        url = (settings().get("url") or "").rstrip("/")
-        if url:
-            with urllib.request.urlopen(f"{url}/api/v1/client", timeout=5) as r:
-                c = json.load(r)
-            if c.get("version") and _vt(c["version"]) > _vt(__version__):
-                info = {"version": c["version"], "url": f"{url}/download"}
+        req = urllib.request.Request(RELEASES_API, headers={"Accept": "application/vnd.github+json",
+                                                            "User-Agent": f"aion2calc/{__version__}"})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            rel = json.load(r)
+        version = str(rel.get("tag_name") or "").lstrip("v")
+        if version and _vt(version) > _vt(__version__):
+            info = {"version": version, "url": rel.get("html_url")}
     except Exception:
         info = None
     _UPDATE["info"] = info
@@ -345,7 +344,6 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/logserver":
             from ..combat import share
             st = share.save_settings(body.get("url"), body.get("key"), body.get("visibility"))
-            _UPDATE["at"] = 0                         # check the new server for a newer app
             return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
         if path.startswith("/api/encounters/") and path.endswith("/share"):
             from ..combat import share

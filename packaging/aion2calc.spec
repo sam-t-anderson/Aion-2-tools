@@ -2,6 +2,7 @@
 # PyInstaller build of the aion2calc client:  pyinstaller packaging/aion2calc.spec --noconfirm
 # Output: dist/aion2calc/ (the app folder; aion2calc.exe on Windows), and dist/aion2calc.app on macOS.
 import os
+import re
 import sys
 
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
@@ -19,6 +20,27 @@ datas += [(os.path.join(ROOT, "results"), "results"), (os.path.join(ROOT, "examp
 if os.path.exists(os.path.join(SPECPATH, "client.json")):          # optional log-server preset
     datas.append((os.path.join(SPECPATH, "client.json"), "."))
 
+# Windows file properties (product name and version), which code signing checks
+with open(os.path.join(ROOT, "aion2calc", "__init__.py"), encoding="utf-8") as f:
+    VERSION = re.search(r'__version__ = "([^"]+)"', f.read()).group(1)
+version_info = None
+if sys.platform == "win32":
+    from PyInstaller.utils.win32.versioninfo import (FixedFileInfo, StringFileInfo, StringStruct, StringTable,
+                                                     VarFileInfo, VarStruct, VSVersionInfo)
+    nums = tuple(int(x) for x in VERSION.split(".")[:3]) + (0,)
+    version_info = VSVersionInfo(
+        ffi=FixedFileInfo(filevers=nums, prodvers=nums),
+        kids=[StringFileInfo([StringTable("040904B0", [
+            StringStruct("CompanyName", "aion2calc"),
+            StringStruct("FileDescription", "aion2calc: AION 2 build planner and combat analyzer"),
+            StringStruct("FileVersion", VERSION),
+            StringStruct("InternalName", "aion2calc"),
+            StringStruct("LegalCopyright", "GPL-3.0, https://github.com/sam-t-anderson/Aion-2-tools"),
+            StringStruct("OriginalFilename", "aion2calc.exe"),
+            StringStruct("ProductName", "aion2calc"),
+            StringStruct("ProductVersion", VERSION)])]),
+              VarFileInfo([VarStruct("Translation", [1033, 1200])])])
+
 a = Analysis(
     [os.path.join(SPECPATH, "entry.py")],
     pathex=[ROOT],
@@ -34,6 +56,7 @@ exe = EXE(
     name="aion2calc",
     console=False,                       # no console window; the app has a Quit button
     icon=os.path.join(SPECPATH, "aion2calc.ico"),
+    version=version_info,
     upx=False,
 )
 coll = COLLECT(exe, a.binaries, a.datas, name="aion2calc", upx=False)

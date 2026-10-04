@@ -1,6 +1,6 @@
-# Aion-calc
+# Aion-2-tools
 
-[![CI](https://github.com/sam-t-anderson/Aion-calc/actions/workflows/ci.yml/badge.svg)](https://github.com/sam-t-anderson/Aion-calc/actions/workflows/ci.yml)
+[![CI](https://github.com/sam-t-anderson/Aion-2-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/sam-t-anderson/Aion-2-tools/actions/workflows/ci.yml)
 
 A repeatable **Aion 2 build / rotation simulator and optimizer**, built on the
 **global client data** (level 45 launch, Oct 2026) with Korean live-service data
@@ -26,11 +26,13 @@ arcana, stigmas, priority list, macro, stat priority, build card and Daevanion b
 ## Install
 
 **Players:** download the app from the
-[Releases page](https://github.com/sam-t-anderson/Aion-calc/releases/latest). On Windows, run
+[Releases page](https://github.com/sam-t-anderson/Aion-2-tools/releases/latest). On Windows, run
 `aion2calc-setup-<version>.exe` and start **aion2calc** from the Start menu; portable builds for
 Windows, macOS and Linux are there too. No Python and no command line needed. The app follows your
-computer's light or dark mode. Details, updating, and hosting the downloads on your own log server:
-[`docs/install.md`](docs/install.md).
+computer's light or dark mode. Details and updating: [`docs/install.md`](docs/install.md).
+
+Windows may warn that the download is unrecognized until the builds are code-signed: choose **More info →
+Run anyway**. [Code signing policy](docs/code-signing.md).
 
 | Dark | Light |
 |---|---|
@@ -64,11 +66,12 @@ python -m aion2calc app        # opens http://127.0.0.1:8765
   by simulated DPS gain, shown as game-style windows with the game's icons. Fights you import are
   matched to the gear you wore and calibrate the model
   ([details](docs/planner.md)).
-* **Share**: upload any saved fight to your own log server and get a link anyone can open
-  ([host one on Ubuntu](docs/logserver.md)).
+* **Share**: upload any saved fight to a log server in the open a2log format and get a link anyone
+  can open.
 * **Database**: updates itself on every launch from the live sources. New items, skills or classes
   need no code changes.
-* **Settings**: light, dark or follow-the-computer theme, the data folder, the log server, updates.
+* **Settings**: light, dark or follow-the-computer theme, the data folder, the log server for
+  sharing, updates.
 
 Everything the app saves (game database, synced data, combat logs, your optimizations) goes in one
 folder: `%LOCALAPPDATA%\aion2calc` on Windows (`C:\Users\<you>\AppData\Local\aion2calc`), or
@@ -110,12 +113,8 @@ python -m aion2calc logs --open
 python -m aion2calc advise "Name" --server Zikel
 python -m aion2calc inventory "Name" --add aulamus-ring --enchant 8
 
-# share a saved fight on your log server (open a2log format) and print the link
+# share a saved fight on a log server (open a2log format) and print the link
 python -m aion2calc share 12 --server https://logs.example.com --key a2l_...
-
-# run the log server itself (see docs/logserver.md for Ubuntu + nginx)
-python -m aion2calc.logserver keys create "my meter"
-python -m aion2calc.logserver serve --public-url https://logs.example.com
 
 # update the local game database (also runs automatically when the app starts)
 python -m aion2calc sync
@@ -138,10 +137,9 @@ Classes: `gladiator templar assassin ranger sorcerer spiritmaster cleric chanter
 | Output | `report.py`, `report_md.py`, `diff.py`, `render/*` | build.json, Markdown report, board images, build card, planner links, result diffs |
 | Database | `db/store.py`, `db/sync.py`, `paths.py` | SQLite catalog + history, launch-time sync from sitemaps, user data overlay |
 | Characters | `sources/official.py`, `sources/character.py`, `charopt.py` | official profile import → build + loadout → score as-is → optimize → diff |
-| Combat logs | `combat/adapters.py`, `combat/abysslogs.py`, `combat/analyze.py`, `combat/logs.py`, `combat/live.py` | log formats and AbyssLogs import, breakdown, comparison with the optimum and top logs, the logs folder, live-source interface |
+| Combat logs | `combat/adapters.py`, `combat/abysslogs.py`, `combat/a2log.py`, `combat/analyze.py`, `combat/logs.py`, `combat/live.py` | log formats and AbyssLogs import, breakdown, comparison with the optimum and top logs, the logs folder, live-source interface |
 | Planners | `plan/*` | inventory, best set, goal gear, upgrade path, arcana, pantheon, genus insight, advice |
 | Learning | `learn.py` | fights matched to equipped-gear snapshots; calibration of crit curve, rates and skill damage |
-| Log server | `logserver/*` | self-hosted a2log upload API, JSON Schema, share-link viewer |
 | App | `app/server.py`, `app/views.py`, `app/static/*` | local server (stdlib) and the game-styled UI |
 | Desktop app | `launcher.py`, `packaging/*` | app window, single instance, smoke test; PyInstaller and Inno Setup builds |
 

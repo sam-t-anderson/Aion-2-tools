@@ -1,12 +1,7 @@
-"""Gear / arcana / pantheon / genus planners, learning from fights, and the log server.
+"""Gear / arcana / pantheon / genus planners, learning from fights, and the a2log format.
 
 No network: catalog items are written into a temporary database.
 """
-import json
-import threading
-import urllib.error
-import urllib.request
-
 import pytest
 
 
@@ -151,7 +146,7 @@ def test_learning_fit_is_bounded_and_applies(home):
     assert cal["players"]["Me"]["fights"] == 3
 
 
-# ------------------------------------------------------------------ log server
+# ------------------------------------------------------------------ a2log format
 def _doc():
     return {"format": "a2log", "version": 1, "meta": {"source": "test", "title": "Boss fight"},
             "players": [{"id": "a", "name": "Sorc", "class": "Sorcerer", "specs": {"Hellfire": [2, 4]}},
@@ -165,7 +160,7 @@ def _doc():
 
 def test_a2log_validation_and_conversion():
     from aion2calc.combat.adapters import from_csv
-    from aion2calc.logserver import format as F
+    from aion2calc.combat import a2log as F
     d = F.validate(_doc())
     assert d["players"][0]["class"] == "sorcerer" and d["players"][0]["specs"] == {"Hellfire": [2, 4]}
     for bad, msg in ((dict(_doc(), format="x"), "format"), (dict(_doc(), players=[]), "players"),
@@ -179,122 +174,6 @@ def test_a2log_validation_and_conversion():
     csv = from_csv("t,skill,damage\n0,Hellfire,100\n5,Blaze,50", {"player": "Me", "class": "sorcerer"})
     back = F.validate(F.from_encounter(csv))
     assert back["players"][0]["name"] == "Me" and len(back["segments"][0]["hits"]) == 2
-
-
-def test_log_server_upload_view_private_delete(tmp_path):
-    from http.server import ThreadingHTTPServer
-
-    from aion2calc.logserver import server as LS
-    LS.CONFIG = LS.Config(str(tmp_path / "logs"), public_url="https://logs.test")
-    _, key = LS.CONFIG.store.create_key("test")
-    srv = ThreadingHTTPServer(("127.0.0.1", 0), LS.Handler)
-    threading.Thread(target=srv.serve_forever, daemon=True).start()
-    base = f"http://127.0.0.1:{srv.server_address[1]}"
-
-    def call(path, body=None, method=None, auth=None, raw=False):
-        h = {"Content-Type": "application/json"}
-        if auth:
-            h["Authorization"] = "Bearer " + auth
-        req = urllib.request.Request(base + path, None if body is None else json.dumps(body).encode(), h,
-                                     method=method)
-        try:
-            with urllib.request.urlopen(req, timeout=30) as r:
-                data = r.read()
-                return r.status, (data.decode() if raw else json.loads(data))
-        except urllib.error.HTTPError as e:
-            return e.code, json.loads(e.read())
-    try:
-        assert call("/.well-known/a2log.json")[1]["upload_url"] == "https://logs.test/api/v1/logs"
-        assert call("/schema/a2log-v1.json")[1]["properties"]["format"]["const"] == "a2log"
-        assert call("/api/v1/logs", _doc())[0] == 401                         # a key is required
-        code, bad = call("/api/v1/logs", {"format": "a2log"}, auth=key)
-        assert code == 400 and "version" in bad["error"]
-        code, up = call("/api/v1/logs?visibility=public", _doc(), auth=key)
-        assert code == 201 and up["url"].startswith("https://logs.test/l/")
-        lid = up["id"]
-        s = call(f"/api/v1/logs/{lid}")[1]
-        assert s["title"] == "Boss fight" and [p["name"] for p in s["segments"][0]["players"]] == ["Sorc", "Tank"]
-        a = call(f"/api/v1/logs/{lid}/analysis?segment=0&player=a")[1]
-        assert a["summary"]["hits"] == 10 and a["meta"]["class"] == "sorcerer"
-        code, page = call(f"/l/{lid}", raw=True)
-        assert code == 200 and "Boss fight" in page and "<script>" not in page.split("</head>")[0]
-        assert call("/api/v1/logs")[1]["total"] == 1
-        code, priv = call("/api/v1/logs?visibility=private", _doc(), auth=key)
-        assert call(f"/api/v1/logs/{priv['id']}")[0] == 403
-        assert call(f"/api/v1/logs/{priv['id']}?" + priv["url"].split("?")[1])[0] == 200
-        assert call("/api/v1/logs")[1]["total"] == 1                          # private is not listed
-        assert call(f"/api/v1/logs/{lid}?token=wrong", method="DELETE")[0] == 403
-        assert call(f"/api/v1/logs/{lid}?token={up['delete_token']}", method="DELETE")[0] == 200
-        assert call(f"/api/v1/logs/{lid}")[0] == 404
-    finally:
-        srv.shutdown()
-
-
-def _big_doc(i: int, stats: bool = True):
-    hits = []
-    for k in range(120):
-        hits.append({"t": k * 0.5, "player": "a", "skill_id": [15060130, 15050130, 15040240][k % 3],
-                     "skill": ["Hellfire", "Blaze", "Firestorm"][k % 3], "damage": 2000.0 + 50 * i + (k % 3) * 300,
-                     "crit": k % 4 == 0})
-    p = {"id": "a", "name": f"Sorc{i}", "class": "sorcerer", "combat_power": 70000 + 1000 * i,
-         "specs": {"Hellfire": [2, 4]}}
-    if stats:
-        p["stats"] = {"critical_hit": 900.0, "double_pct": 2.0, "perfect_pct": 5.0}
-    return {"format": "a2log", "version": 1, "meta": {"source": "test"}, "players": [p],
-            "segments": [{"boss": "Boss", "duration": 60.0, "hits": hits}]}
-
-
-def test_community_learning_from_uploads(tmp_path):
-    from aion2calc.logserver import learn as L
-    from aion2calc.logserver import server as LS
-    from aion2calc.logserver.format import validate
-    LS.CONFIG = LS.Config(str(tmp_path / "logs"))
-    st = LS.CONFIG.store
-    rows = []
-    for i in range(6):
-        doc = validate(_big_doc(i))
-        obs = L.observe_doc(doc)
-        assert len(obs) == 1 and obs[0]["class"] == "sorcerer" and "Sorc" not in json.dumps(obs)   # no names
-        st.put_observations(f"log{i}", obs)
-        rows += obs
-    agg = L.aggregate(st.observations("sorcerer"))
-    assert agg["observations"] == 6 and agg["top_quarter"]["specs"][0]["picks"][0]["specs"] == "2, 4"
-    assert {r["skill"] for r in agg["top_quarter"]["skills"]} == {"Hellfire", "Blaze", "Firestorm"}
-    cal = L.calibration("sorcerer", rows)
-    assert cal["active"] and cal["with_stats"] == 6
-    lo, hi = L.BOUNDS["skill"]
-    assert cal["skills"] and all(lo <= v <= hi for v in cal["skills"].values())
-    assert cal["rates"]["double"] != 1.0 or cal["rates"]["perfect"] != 1.0
-    st.delete("log0")
-    assert len(st.observations("sorcerer")) == 5                          # deleting a log forgets it
-
-
-def test_upload_feeds_stats_but_private_does_not(tmp_path):
-    from http.server import ThreadingHTTPServer
-
-    from aion2calc.logserver import server as LS
-    LS.CONFIG = LS.Config(str(tmp_path / "logs"))
-    _, key = LS.CONFIG.store.create_key("t")
-    srv = ThreadingHTTPServer(("127.0.0.1", 0), LS.Handler)
-    threading.Thread(target=srv.serve_forever, daemon=True).start()
-    base = f"http://127.0.0.1:{srv.server_address[1]}"
-
-    def post(doc, vis):
-        req = urllib.request.Request(f"{base}/api/v1/logs?visibility={vis}", json.dumps(doc).encode(),
-                                     {"Content-Type": "application/json", "Authorization": "Bearer " + key})
-        return json.load(urllib.request.urlopen(req, timeout=30))
-    try:
-        assert post(_big_doc(1), "unlisted")["learned_from"] == 1
-        assert post(_big_doc(2), "private")["learned_from"] == 0
-        d = _big_doc(3)
-        d["meta"]["contribute"] = "no"
-        assert post(d, "public")["learned_from"] == 0
-        s = json.load(urllib.request.urlopen(base + "/api/v1/stats/sorcerer", timeout=30))
-        assert s["observations"] == 1
-        assert json.load(urllib.request.urlopen(base + "/api/v1/calibration/sorcerer", timeout=30))["fights"] == 1
-        assert json.load(urllib.request.urlopen(base + "/.well-known/a2log.json"))["calibration_url"].endswith("{class}")
-    finally:
-        srv.shutdown()
 
 
 def test_local_calibration_merges_community(home):

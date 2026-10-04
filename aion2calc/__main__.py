@@ -253,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.encounter is not None:
             if args.export:
                 from .db import store
-                from .logserver.format import from_encounter
+                from .combat.a2log import from_encounter
                 enc = store.encounter(store.connect(), args.encounter)
                 Path(args.export).write_text(json.dumps(from_encounter(enc), indent=1), encoding="utf-8")
                 print("wrote", args.export)

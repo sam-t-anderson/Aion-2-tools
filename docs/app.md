@@ -161,7 +161,7 @@ Compare shares and casts more than DPS when:
 
 Set your log server once (**Share to a log server**: URL, upload key, default visibility). After
 that, **Share link** on any fight uploads it in the open a2log format and shows a link anyone can
-open. See [logserver.md](logserver.md) to host the server on Ubuntu.
+open.
 
 Every saved fight is also matched to the gear its player wore and used to calibrate the model (see
 [planner.md](planner.md#learning-from-your-fights)).
@@ -218,7 +218,7 @@ enchant table, random roll pool and per-class skill-roll pools.
 | Your data | the data folder, with buttons to open it, the combat logs and the results |
 | Log server | where **Share link** uploads fights, an optional upload key, and the default visibility. **Save** checks the server answers |
 | Game database | item count, last update, and **Check now** |
-| Version | the app version, and a link when your log server offers a newer one |
+| Version | the app version, and a link when a newer release is out |
 | Stop the app | the same as **Quit** in the top bar |
 
 ## Auto-update on launch

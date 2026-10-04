@@ -34,7 +34,7 @@ jobs:
       - run: python -m pyflakes aion2calc tests
       - run: python -m pytest -q
       - name: Check the frontend scripts parse
-        run: for f in aion2calc/app/static/*.js aion2calc/logserver/static/*.js; do node --check "$f"; done
+        run: for f in aion2calc/app/static/*.js; do node --check "$f"; done
 
   build:
     name: Build (${{ matrix.name }})
@@ -118,6 +118,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
+    env:
+      # code signing turns on once these exist (docs/code-signing.md); until then releases are unsigned
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - name: Version
@@ -136,7 +140,28 @@ jobs:
         if: steps.exists.outputs.yes != '1'
         with:
           path: assets
+          pattern: aion2calc-*
           merge-multiple: true
+      - name: Find the Windows build to sign
+        id: win
+        if: steps.exists.outputs.yes != '1' && env.SIGNPATH_API_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+            --jq '.artifacts[] | select(.name == "aion2calc-windows") | .id')
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+      - name: Sign the installer and the portable exe (approve the request in SignPath)
+        if: steps.exists.outputs.yes != '1' && env.SIGNPATH_API_TOKEN != ''
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'aion2calc' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
+          github-artifact-id: ${{ steps.win.outputs.id }}
+          wait-for-completion: true
+          output-artifact-directory: assets        # the signed files replace the unsigned ones
       - name: Create the release
         if: steps.exists.outputs.yes != '1'
         env:
