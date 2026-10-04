@@ -146,10 +146,12 @@ Read endpoints (CORS enabled, so web pages on other sites can use them):
 | `GET /api/v1/stats/<class>?boss=` | class statistics (see above) |
 | `GET /api/v1/calibration/<class>` | community calibration |
 | `DELETE /api/v1/logs/<id>?token=<delete token>` | delete |
+| `GET /api/v1/client` | the desktop app downloads on this server and the newest version |
 
 ## Uploading from aion2calc
 
-Set the server once, either on the app's Combat Logs page (**Share to a log server**) or with:
+Set the server once, on the app's **Settings** page or Combat Logs page (**Share to a log server**),
+or with:
 
 ```bash
 python -m aion2calc share --server https://logs.example.com --key a2l_... --visibility unlisted
@@ -157,3 +159,21 @@ python -m aion2calc share --server https://logs.example.com --key a2l_... --visi
 
 After that, **Share link** on any saved fight (or `python -m aion2calc share <encounter id>`)
 uploads it and gives you the link. `--export fight.json` writes the a2log file without uploading.
+
+## Hosting the app download
+
+`https://logs.example.com/download` is a download page for the desktop app. It lists every file in
+the `downloads` folder of the server's data folder, newest version first, with the installer at
+the top. To offer a release, copy its files there:
+
+```bash
+sudo install -d -o a2logs -g a2logs /var/lib/aion2calc-logs/downloads
+sudo cp aion2calc-setup-0.2.0.exe aion2calc-0.2.0-*.zip aion2calc-0.2.0-linux.tar.gz \
+  /var/lib/aion2calc-logs/downloads/
+```
+
+Keep the version in the file names; the page and `GET /api/v1/client` read the platform and the
+version from them. Apps that use this server check `/api/v1/client` every few hours and show
+"Version … available" in their top bar when a newer version is there. Builds made with the
+repository variable `A2LOGS_PUBLIC_URL` start with this server already set
+([install.md](install.md#presetting-the-log-server)).

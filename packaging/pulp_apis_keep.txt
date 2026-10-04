@@ -1,0 +1,1 @@
+Keeps pulp/apis present in the bundle: PuLP finds its CBC solver at pulp/apis/../solverdir.

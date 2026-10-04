@@ -1,5 +1,7 @@
 # Aion-calc
 
+[![CI](https://github.com/sam-t-anderson/Aion-calc/actions/workflows/ci.yml/badge.svg)](https://github.com/sam-t-anderson/Aion-calc/actions/workflows/ci.yml)
+
 A repeatable **Aion 2 build / rotation simulator and optimizer**, built on the
 **global client data** (level 45 launch, Oct 2026) with Korean live-service data
 as a fallback.
@@ -21,12 +23,27 @@ The optimized Sorcerer build (boss DPS 17,962 on median launch gear, 25,890 on u
 arcana, stigmas, priority list, macro, stat priority, build card and Daevanion boards, is in
 [`example/sorcerer_l45_global`](example/sorcerer_l45_global/README.md).
 
-## The app
+## Install
+
+**Players:** download the app from the
+[Releases page](https://github.com/sam-t-anderson/Aion-calc/releases/latest). On Windows, run
+`aion2calc-setup-<version>.exe` and start **aion2calc** from the Start menu; portable builds for
+Windows, macOS and Linux are there too. No Python and no command line needed. The app follows your
+computer's light or dark mode. Details, updating, and hosting the downloads on your own log server:
+[`docs/install.md`](docs/install.md).
+
+| Dark | Light |
+|---|---|
+| ![Dark theme](docs/screenshots/app_dark.png) | ![Light theme](docs/screenshots/app_light.png) |
+
+**From source:**
 
 ```bash
 pip install -e .
 python -m aion2calc app        # opens http://127.0.0.1:8765
 ```
+
+## The app
 
 * **Planner**: each optimized build is laid out like the in-game windows (skills with numbered spec
   chips, stigma, Daevanion boards, equipment, arcana, titles and wings, macro). Below each window is
@@ -51,6 +68,7 @@ python -m aion2calc app        # opens http://127.0.0.1:8765
   ([host one on Ubuntu](docs/logserver.md)).
 * **Database**: updates itself on every launch from the live sources. New items, skills or classes
   need no code changes.
+* **Settings**: light, dark or follow-the-computer theme, the data folder, the log server, updates.
 
 Everything the app saves (game database, synced data, combat logs, your optimizations) goes in one
 folder: `%LOCALAPPDATA%\aion2calc` on Windows (`C:\Users\<you>\AppData\Local\aion2calc`), or
@@ -125,6 +143,7 @@ Classes: `gladiator templar assassin ranger sorcerer spiritmaster cleric chanter
 | Learning | `learn.py` | fights matched to equipped-gear snapshots; calibration of crit curve, rates and skill damage |
 | Log server | `logserver/*` | self-hosted a2log upload API, JSON Schema, share-link viewer |
 | App | `app/server.py`, `app/views.py`, `app/static/*` | local server (stdlib) and the game-styled UI |
+| Desktop app | `launcher.py`, `packaging/*` | app window, single instance, smoke test; PyInstaller and Inno Setup builds |
 
 Formulas, sources, and every assumption: [`docs/methodology.md`](docs/methodology.md).
 
@@ -133,6 +152,10 @@ Formulas, sources, and every assumption: [`docs/methodology.md`](docs/methodolog
 ```bash
 python -m pytest -q
 ```
+
+Every push runs the tests and builds the app on Windows, macOS and Linux
+([CI](.github/workflows/ci.yml)); raising the version on `main` publishes a release
+([how](docs/install.md#builds-and-releases-maintainers)).
 
 ## Adding or refining a class
 

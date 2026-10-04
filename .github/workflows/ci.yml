@@ -1,0 +1,147 @@
+# Tests on every push (any branch) and on pull requests from forks; builds the desktop app on Windows, macOS
+# and Linux and checks each build starts (smoke test). A push to main with a new version
+# (aion2calc/__init__.py) or a v* tag also publishes a GitHub release with the installer and portable builds.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  test:
+    name: Tests and lint
+    # a pull request from this repository is already tested by its branch's push run
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e ".[dev]" pyflakes
+      - run: python -m pyflakes aion2calc tests
+      - run: python -m pytest -q
+      - name: Check the frontend scripts parse
+        run: for f in aion2calc/app/static/*.js aion2calc/logserver/static/*.js; do node --check "$f"; done
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, name: windows }
+          - { os: macos-latest, name: macos }
+          - { os: ubuntu-latest, name: linux }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install . pyinstaller
+      - name: Preset the log server for new users (repository variable A2LOGS_PUBLIC_URL)
+        if: vars.A2LOGS_PUBLIC_URL != ''
+        shell: bash
+        env:
+          URL: ${{ vars.A2LOGS_PUBLIC_URL }}
+        run: |
+          printf '{"logserver_url": "%s", "visibility": "unlisted"}\n' "$URL" > packaging/client.json
+      - run: pyinstaller packaging/aion2calc.spec --noconfirm
+      - name: Version
+        id: v
+        shell: bash
+        run: echo "version=$(python -c 'import aion2calc; print(aion2calc.__version__)')" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist\aion2calc\aion2calc.exe -ArgumentList '--smoke-test','smoke.txt' -Wait -PassThru -NoNewWindow
+          if (Test-Path smoke.txt) { Get-Content smoke.txt }
+          exit $p.ExitCode
+      - name: Smoke test (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          s=0; ./dist/aion2calc.app/Contents/MacOS/aion2calc --smoke-test smoke.txt || s=$?
+          cat smoke.txt; exit $s
+      - name: Smoke test (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          s=0; ./dist/aion2calc/aion2calc --smoke-test smoke.txt || s=$?
+          cat smoke.txt; exit $s
+
+      - name: Windows installer and portable zip
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          & $iscc /DAppVersion=${{ steps.v.outputs.version }} packaging\windows\aion2calc.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Compress-Archive -Path dist\aion2calc -DestinationPath dist\aion2calc-${{ steps.v.outputs.version }}-windows-portable.zip
+      - name: macOS zip
+        if: runner.os == 'macOS'
+        run: cd dist && ditto -c -k --keepParent aion2calc.app aion2calc-${{ steps.v.outputs.version }}-macos.zip
+      - name: Linux archive
+        if: runner.os == 'Linux'
+        run: tar -C dist -czf dist/aion2calc-${{ steps.v.outputs.version }}-linux.tar.gz aion2calc
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aion2calc-${{ matrix.name }}
+          path: |
+            dist/aion2calc-setup-*.exe
+            dist/aion2calc-*-windows-portable.zip
+            dist/aion2calc-*-macos.zip
+            dist/aion2calc-*-linux.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Release
+    needs: build
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version
+        id: v
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then v="${GITHUB_REF_NAME#v}"
+          else v=$(python3 -c 'import aion2calc; print(aion2calc.__version__)'); fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - name: Already released?
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.v.outputs.version }}" >/dev/null 2>&1; then echo "yes=1" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/download-artifact@v4
+        if: steps.exists.outputs.yes != '1'
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Create the release
+        if: steps.exists.outputs.yes != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.v.outputs.version }}" assets/* \
+            --title "aion2calc ${{ steps.v.outputs.version }}" \
+            --notes-file packaging/RELEASE_NOTES.md --target "$GITHUB_SHA"

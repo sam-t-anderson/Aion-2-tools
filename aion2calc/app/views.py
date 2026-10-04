@@ -220,16 +220,25 @@ def build_view(summary: dict) -> dict:
 
 
 def result_roots() -> list[Path]:
-    """Where optimized builds live: the user folder (runs from the app) and the bundled ``results``."""
-    from ..paths import results_dir
-    return [results_dir(), Path("results")]
+    """Where optimized builds live: the user folder (runs from the app), then the bundled
+    ``results`` (next to the package, or in the installed app), then ``./results``."""
+    from ..paths import resource_root, results_dir
+    out, seen = [], set()
+    for r in (results_dir(), resource_root() / "results", Path("results")):
+        key = r.resolve() if r.exists() else r
+        if key not in seen and (r.exists() or not out):
+            seen.add(key)
+            out.append(r)
+    return out
 
 
 def list_results(roots: list[Path] | None = None) -> list[dict]:
     """Optimized builds, main class reports first (<class>_l45*), then comparisons."""
     out = []
+    from ..paths import results_dir
+    mine_root = results_dir().resolve()
     for root in roots or result_roots():
-        mine = root != Path("results")
+        mine = Path(root).resolve() == mine_root
         for p in sorted(Path(root).glob("**/build.json")):
             try:
                 s = json.loads(p.read_text(encoding="utf-8"))

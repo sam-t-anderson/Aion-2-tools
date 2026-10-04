@@ -26,6 +26,7 @@ import io
 import json
 import os
 import re
+import shutil
 import threading
 import urllib.parse
 from collections import OrderedDict
@@ -262,6 +263,9 @@ class Handler(BaseHTTPRequestHandler):
             name = path[len("/static/"):]
             if name == "app.css":
                 return self._send(200, APP_CSS.read_bytes(), "text/css; charset=utf-8", 3600)
+            if name in ("fonts/cinzel-latin.woff2", "logo.png"):
+                ctype = "font/woff2" if name.endswith(".woff2") else "image/png"
+                return self._send(200, (APP_CSS.parent / name).read_bytes(), ctype, 86400)
             p = (STATIC / name).resolve()
             if not p.is_relative_to(STATIC) or not p.is_file() or p.suffix not in (".js", ".css", ".svg"):
                 raise FileNotFoundError(name)
@@ -279,6 +283,13 @@ class Handler(BaseHTTPRequestHandler):
                                "view_url": f"{b}/l/{{id}}", "list_url": f"{b}/api/v1/logs",
                                "stats_url": f"{b}/api/v1/stats/{{class}}",
                                "calibration_url": f"{b}/api/v1/calibration/{{class}}"}, cache=300)
+        if path in ("/download", "/download/"):
+            return self._downloads_page()
+        if path == "/api/v1/client":
+            return self._json(client_downloads(self.cfg.store.root / "downloads", self._base()), cache=300)
+        m = re.fullmatch(r"/download/([A-Za-z0-9._-]+)", path)
+        if m:
+            return self._download(m.group(1))
         if path == "/stats":
             return self._page("stats.html", {"TITLE": f"{self.cfg.name}: class statistics",
                                              "DESC": "What uploaded AION 2 fights show, per class"})
@@ -338,11 +349,62 @@ class Handler(BaseHTTPRequestHandler):
                                             "URL": f"{self._base()}/l/{r['id']}"})
         raise FileNotFoundError(path)
 
-    def _page(self, name: str, values: dict):
+    def _download(self, name: str):
+        folder = (self.cfg.store.root / "downloads").resolve()
+        f = (folder / name).resolve()
+        if not f.is_relative_to(folder) or not f.is_file() or name.startswith("."):
+            raise FileNotFoundError(name)
+        self.send_response(200)
+        self.send_header("Content-Type", "application/octet-stream")
+        self.send_header("Content-Length", str(f.stat().st_size))
+        self.send_header("Content-Disposition", f'attachment; filename="{f.name}"')
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        if self.command != "HEAD":
+            with open(f, "rb") as fh:
+                shutil.copyfileobj(fh, self.wfile, 1024 * 1024)
+
+    def _downloads_page(self):
+        c = client_downloads(self.cfg.store.root / "downloads", self._base())
+        rows = "".join(
+            f'<tr><td><a href="/download/{html.escape(x["name"])}">{html.escape(x["name"])}</a></td>'
+            f'<td>{html.escape(x["platform"])}</td><td class="r">{x["size"] / 1048576:.0f} MB</td></tr>' for x in c["files"])
+        table = (f'<table class="t"><tr><th>File</th><th>For</th><th class="r">Size</th></tr>{rows}</table>' if rows else
+                 '<p class="muted">No downloads yet. The server owner copies the release files into the '
+                 '<code>downloads</code> folder of the server\'s data folder.</p>')
+        self._page("download.html", {"TITLE": f"{self.cfg.name}: download the app", "DESC": "Download aion2calc",
+                                     "VERSION": c.get("version") or "—"}, raw={"TABLE": table})
+
+    def _page(self, name: str, values: dict, raw: dict | None = None):
         t = (STATIC / name).read_text(encoding="utf-8")
         for k, v in values.items():
             t = t.replace("{{" + k + "}}", html.escape(str(v), quote=True))
+        for k, v in (raw or {}).items():                  # pre-escaped HTML built by the server
+            t = t.replace("{{" + k + "}}", v)
         self._send(200, t.encode(), "text/html; charset=utf-8")
+
+
+_VERSION = re.compile(r"(\d+\.\d+\.\d+)")
+
+
+def client_downloads(folder: Path, base: str) -> dict:
+    """The app downloads in ``folder`` and the newest version among them."""
+    files = []
+    if folder.is_dir():
+        for f in sorted(folder.iterdir()):
+            if not f.is_file() or f.name.startswith("."):
+                continue
+            n = f.name.lower()
+            plat = ("Windows installer" if n.endswith(".exe") else "Windows (portable)" if "windows" in n else
+                    "macOS" if "mac" in n else "Linux" if "linux" in n else "")
+            m = _VERSION.search(f.name)
+            files.append({"name": f.name, "size": f.stat().st_size, "platform": plat,
+                          "version": m.group(1) if m else None, "url": f"{base}/download/{f.name}"})
+    versions = [x["version"] for x in files if x["version"]]
+    latest = max(versions, key=lambda v: tuple(int(p) for p in v.split("."))) if versions else None
+    order = ["Windows installer", "Windows (portable)", "macOS", "Linux", ""]
+    files.sort(key=lambda x: (x["version"] != latest, order.index(x["platform"]), x["name"]))
+    return {"version": latest, "files": files, "page": f"{base}/download"}
 
 
 def _seg_players(doc: dict, seg: dict) -> list[dict]:

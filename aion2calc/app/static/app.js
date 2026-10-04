@@ -156,7 +156,7 @@ function slotTile(s) {
   (s.rolls || []).forEach(([k, val]) => extras.push(`<span class="chip">${esc(k)} ${esc(val)}</span>`));
   (s.manastones || []).forEach(([k, val]) => extras.push(`<span class="chip gold" title="Manastone">${esc(k)} ${esc(val)}</span>`));
   (s.theostones || []).forEach((t) => extras.push(`<span class="chip gold">${esc(t)}</span>`));
-  (s.skills || []).forEach(([k, lv]) => extras.push(`<span class="chip" style="color:#e8cf8e">${esc(k)} +${lv}</span>`));
+  (s.skills || []).forEach(([k, lv]) => extras.push(`<span class="chip" style="color:var(--gold)">${esc(k)} +${lv}</span>`));
   const st = (s.stats || []).slice(0, 4).map((x) => `<b>${esc(x.text)}</b> ${esc(x.label)}`).join(" · ");
   return `<div class="slot" data-grade="${esc(s.grade || "")}">
       <div class="icon sm">${s.icon ? `<img src="${icon(s.icon)}" alt="">` : ""}${s.enchant ? `<span class="lv">+${s.enchant}</span>` : ""}</div>
@@ -276,13 +276,31 @@ function renderWindows(v, state, host) {
 // ------------------------------------------------------------------ pages
 const S = { planner: { win: "overview" }, character: { win: "overview" }, combat: {}, database: {}, gear: {} };
 
+function welcomeCard() {
+  let hidden = false;
+  try { hidden = localStorage.getItem("welcome-hidden") === "1"; } catch (e) {}
+  if (hidden) return "";
+  return `<section class="win" id="welcome"><div class="wh"><h2>Welcome</h2><span class="sub">three steps to your best build</span>
+      <div class="tools"><button class="btn small" id="whide">Hide</button></div></div><div class="wb">
+    <div class="hero"><img src="/static/logo.png" alt=""><div><h1>aion2calc</h1><div class="muted">Plan your AION 2 build, check your gear and learn from your fights. Everything runs on this computer; the game database updates itself.</div></div></div>
+    <div class="welcome" style="margin-top:14px">
+      <div class="wstep"><div class="n">I</div><h4>Import your character</h4><div class="small muted">Search your name on the official site: gear, rolls, skills, stigmas and Daevanion come in.</div>
+        <a class="btn primary small" href="#/character" style="margin-top:8px;display:inline-block">My Character</a></div>
+      <div class="wstep"><div class="n">II</div><h4>Get your advice</h4><div class="small muted">Best gear from your inventory, goal gear, arcana, titles, pantheon and genus insight, ranked by DPS gain.</div>
+        <a class="btn primary small" href="#/gear" style="margin-top:8px;display:inline-block">Gear &amp; Advice</a></div>
+      <div class="wstep"><div class="n">III</div><h4>Add your fights</h4><div class="small muted">Paste AbyssLogs links: see your rotation against the optimum, and the model learns from them.</div>
+        <a class="btn primary small" href="#/combat" style="margin-top:8px;display:inline-block">Combat Logs</a></div>
+    </div></div></section>`;
+}
+
 async function pagePlanner() {
   const st = S.planner;
-  app().innerHTML = `<section class="win"><div class="wh"><h2>Build planner</h2><span class="sub">optimized builds — copy each window into the game</span></div>
+  app().innerHTML = welcomeCard() + `<section class="win"><div class="wh"><h2>Build planner</h2><span class="sub">optimized builds — copy each window into the game</span></div>
     <div class="wb"><div class="row"><label class="muted small">Build</label><select id="res"></select>
       <span class="muted small">or optimize:</span><select id="cls"></select>
-      <input id="sp" type="number" placeholder="skill pts (203)" style="width:130px"><input id="stg" type="number" placeholder="stigma pts (30)" style="width:130px">
+      <input id="sp" type="number" placeholder="skill pts (203)" title="skill points (default 203)" style="width:150px"><input id="stg" type="number" placeholder="stigma pts (30)" title="stigma points (default 30)" style="width:150px">
       <button class="btn primary" id="go">Optimize</button><span id="jobmsg" class="small muted"></span></div></div></section><div id="wins"></div>`;
+  if ($("#whide")) $("#whide").onclick = () => { try { localStorage.setItem("welcome-hidden", "1"); } catch (e) {} $("#welcome").remove(); };
   const [results, classes] = await Promise.all([api("/api/results"), api("/api/classes")]);
   $("#res").innerHTML = results.map((r) => `<option value="${esc(r.path)}">${esc(cap(r.class))} · ${esc(r.loadout || "")} · ${n0(r.dps?.[r.scenario])} ${esc(r.scenario || "")} DPS</option>`).join("");
   $("#cls").innerHTML = classes.map((c) => `<option>${esc(c)}</option>`).join("");
@@ -364,10 +382,10 @@ async function pageCharacter() {
 
 function lineChart(per, roll) {
   const W = 1000, H = 190, n = per.length || 1, mx = Math.max(...per, ...roll, 1);
-  const bars = per.map((v, i) => `<rect x="${(i / n) * W}" y="${H - (v / mx) * H}" width="${Math.max(1, W / n - 1)}" height="${(v / mx) * H}" fill="rgba(57,194,224,.28)"/>`).join("");
+  const bars = per.map((v, i) => `<rect x="${(i / n) * W}" y="${H - (v / mx) * H}" width="${Math.max(1, W / n - 1)}" height="${(v / mx) * H}" style="fill:var(--chart-bar)"/>`).join("");
   const pts = roll.map((v, i) => `${((i + 0.5) / n) * W},${H - (v / mx) * H}`).join(" ");
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}<polyline points="${pts}" fill="none" stroke="#e8cf8e" stroke-width="2"/></svg>
-    <div class="row small muted"><span>bars: damage per second</span><span style="color:#e8cf8e">line: 10 s average</span><span>peak 10 s: ${n0(Math.max(...roll))}</span></div>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}<polyline points="${pts}" fill="none" style="stroke:var(--chart-line)" stroke-width="2"/></svg>
+    <div class="row small muted"><span>bars: damage per second</span><span style="color:var(--gold)">line: 10 s average</span><span>peak 10 s: ${n0(Math.max(...roll))}</span></div>`;
 }
 
 async function pageCombat() {
@@ -750,6 +768,45 @@ function bindAdvice(a) {
   $$("[data-gtab]").forEach((b) => (b.onclick = () => { S.gear.genusTab = b.dataset.gtab; $("#gout").innerHTML = renderAdvice(a); bindAdvice(a); }));
 }
 
+// ------------------------------------------------------------- theme & settings
+const THEMES = ["system", "light", "dark"];
+function getTheme() { try { return localStorage.getItem("theme") || "system"; } catch (e) { return "system"; } }
+function setTheme(t) {
+  try { localStorage.setItem("theme", t); } catch (e) {}
+  if (t === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  const b = $("#theme");
+  if (b) { b.textContent = { system: "◐", light: "☀", dark: "☾" }[t]; b.title = `Theme: ${t === "system" ? "follow the computer" : t} (click to change)`; }
+}
+$("#theme").onclick = () => setTheme(THEMES[(THEMES.indexOf(getTheme()) + 1) % THEMES.length]);
+setTheme(getTheme());
+
+async function pageSettings() {
+  const [s, srv, ui] = await Promise.all([api("/api/status"), api("/api/logserver").catch(() => ({})), api("/api/ui").catch(() => ({}))]);
+  const t = getTheme();
+  app().innerHTML = win("Settings", "", `
+    <div class="setrow"><div class="lbl">Theme</div><div><div class="seg">${THEMES.map((x) => `<button data-th="${x}" class="${x === t ? "on" : ""}">${{ system: "Follow computer", light: "Light", dark: "Dark" }[x]}</button>`).join("")}</div></div></div>
+    <div class="setrow"><div class="lbl">Open as its own window</div><div><label><input type="checkbox" id="appwin" ${ui.app_window !== false ? "checked" : ""}> start in a separate app window (Edge or Chrome) instead of a browser tab; closing it stops the app</label></div></div>
+    <div class="setrow"><div class="lbl">Your data</div><div><code>${esc(s.home)}</code> <button class="btn small" data-open="data">Open folder</button> <button class="btn small" data-open="logs">Combat logs</button> <button class="btn small" data-open="results">Advice &amp; results</button></div></div>
+    <div class="setrow"><div class="lbl">Log server</div><div class="row"><input id="surl" type="text" placeholder="https://logs.example.com" value="${esc(srv.url || "")}" style="width:280px">
+      <input id="skey" type="password" placeholder="${srv.has_key ? "key saved" : "upload key (optional)"}" style="width:200px">
+      <select id="svis">${["unlisted", "public", "private"].map((v) => `<option ${v === (srv.visibility || "unlisted") ? "selected" : ""}>${v}</option>`).join("")}</select>
+      <button class="btn small" id="ssave">Save</button><span id="smsg" class="small muted"></span></div></div>
+    <div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button></div></div>
+    <div class="setrow"><div class="lbl">Version</div><div>aion2calc ${esc(s.version)} ${s.update ? `· <a href="${esc(s.update.url)}" target="_blank" rel="noopener">version ${esc(s.update.version)} is available</a>` : '<span class="muted">· up to date</span>'}</div></div>
+    <div class="setrow"><div class="lbl">Stop the app</div><div><button class="btn small" id="quit2">Quit aion2calc</button></div></div>`);
+  $$("[data-th]").forEach((b) => (b.onclick = () => { setTheme(b.dataset.th); pageSettings(); }));
+  $("#appwin").onchange = () => api("/api/ui", { app_window: $("#appwin").checked }).then(() => toast("Saved"));
+  $$("[data-open]").forEach((b) => (b.onclick = () => api("/api/open", { what: b.dataset.open }).catch((e) => toast(e.message))));
+  $("#ssave").onclick = async () => {
+    await api("/api/logserver", { url: $("#surl").value, key: $("#skey").value || null, visibility: $("#svis").value });
+    try { const r = await fetch($("#surl").value.replace(/\/$/, "") + "/.well-known/a2log.json"); $("#smsg").textContent = r.ok ? "saved · server reachable" : "saved · server did not answer"; }
+    catch (e) { $("#smsg").textContent = "saved · server not reachable from this computer"; }
+  };
+  $("#sync").onclick = async () => { await api("/api/sync", {}); toast("Checking for game updates"); };
+  $("#quit2").onclick = () => $("#quit").click();
+}
+setInterval(() => fetch("/api/ping", { method: "POST" }).catch(() => {}), 20000);
+
 // ------------------------------------------------------------- router
 async function route() {
   const page = (location.hash.replace(/^#\//, "") || "planner").split("/")[0];
@@ -757,6 +814,7 @@ async function route() {
   try {
     if (page === "character") await pageCharacter();
     else if (page === "gear") await pageGear();
+    else if (page === "settings") await pageSettings();
     else if (page === "combat") await pageCombat();
     else if (page === "database") await pageDatabase();
     else await pagePlanner();
@@ -771,8 +829,16 @@ async function syncPill() {
     const running = sy && sy.running;
     el.innerHTML = `<span class="dot ${running ? "run" : sy && sy.errors && sy.errors.length ? "err" : "ok"}"></span><span>${
       running ? `updating database · ${esc(sy.phase)} ${sy.total ? `${sy.done}/${sy.total}` : ""}` : `database ${n0(s.db.items)} items`}</span>`;
+    const up = $("#update");
+    if (s.update && up) { up.hidden = false; up.href = s.update.url; up.textContent = `Version ${s.update.version} available`; }
+    $("#quit").title = `Stop the app (version ${s.version || ""})`;
     setTimeout(syncPill, running ? 2500 : 20000);
   } catch (e) { setTimeout(syncPill, 20000); }
 }
+$("#quit").onclick = async () => {
+  if (!confirm("Stop aion2calc? Start it again from the Start menu or desktop shortcut.")) return;
+  await api("/api/quit", {}).catch(() => {});
+  document.body.innerHTML = '<div class="empty" style="margin-top:20vh">aion2calc has stopped. You can close this tab.</div>';
+};
 route();
 syncPill();

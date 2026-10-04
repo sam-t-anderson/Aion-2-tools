@@ -122,7 +122,6 @@ def vs_optimal(enc: dict, build=None, loadout: str | None = None, policy=None) -
     report) and compare shares and casts per skill."""
     import json
     from dataclasses import replace
-    from pathlib import Path
 
     from ..opt.rotation import materialize, optimize_rotation
     from ..report import build_from_summary
@@ -132,9 +131,9 @@ def vs_optimal(enc: dict, build=None, loadout: str | None = None, policy=None) -
 
     cls = enc["meta"]["class"]
     if build is None:
-        from ..paths import results_dir
-        rep = next((r for r in (results_dir() / f"{cls}_l45" / "build.json", Path("results") / f"{cls}_l45" / "build.json",
-                                Path("results") / "compare" / cls / "build.json") if r.exists()), None)
+        from ..app.views import result_roots
+        rep = next((r for root in result_roots() for r in (root / f"{cls}_l45" / "build.json",
+                                                            root / "compare" / cls / "build.json") if r.exists()), None)
         if rep is None:
             return {"error": f"no optimized build for {cls}; run `python -m aion2calc optimize {cls}` first"}
         summ = json.loads(rep.read_text(encoding="utf-8"))
