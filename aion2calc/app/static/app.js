@@ -274,7 +274,7 @@ function renderWindows(v, state, host) {
 }
 
 // ------------------------------------------------------------------ pages
-const S = { planner: { win: "overview" }, character: { win: "overview" }, combat: {}, database: {} };
+const S = { planner: { win: "overview" }, character: { win: "overview" }, combat: {}, database: {}, gear: {} };
 
 async function pagePlanner() {
   const st = S.planner;
@@ -379,12 +379,22 @@ async function pageCombat() {
       <p class="small faint">Record a fight with the free <a href="https://abysslogs.com" target="_blank" rel="noopener">AbyssLogs meter</a>, press Share, and paste the link here. A party log shows the recorder's damage unless you name a player.
         Files: AbyssLogs segment (.json / .json.gz), aion2calc JSON (see docs), or CSV with columns t, skill, damage, crit, double, perfect, multi, dot.</p>
       <div class="row small" id="logsdir"></div>
+      <div class="row small" id="lsrv"></div>
       <div id="hist"></div></div></section><div id="enc"></div>`;
   api("/api/logs").then((l) => {
     $("#logsdir").innerHTML = `<span class="muted">Every analyzed log is saved as a file in</span> <code>${esc(l.folder)}</code> <span class="faint">(${l.files} files)</span>
       <button class="btn small" id="openlogs">Open folder</button>`;
     $("#openlogs").onclick = () => api("/api/logs/open", {}).catch((e) => ($("#lmsg").textContent = e.message));
   }).catch(() => {});
+  const srv = async () => {
+    const c = await api("/api/logserver").catch(() => ({}));
+    $("#lsrv").innerHTML = `<span class="muted">Share to a log server:</span><input id="lsurl" type="text" placeholder="https://logs.example.com" value="${esc(c.url || "")}" style="width:240px">
+      <input id="lskey" type="password" placeholder="${c.has_key ? "key saved" : "upload key"}" style="width:160px">
+      <select id="lsvis">${["unlisted", "public", "private"].map((v) => `<option ${v === (c.visibility || "unlisted") ? "selected" : ""}>${v}</option>`).join("")}</select>
+      <button class="btn small" id="lssave">Save</button>`;
+    $("#lssave").onclick = async () => { await api("/api/logserver", { url: $("#lsurl").value, key: $("#lskey").value || null, visibility: $("#lsvis").value }); toast("Saved"); srv(); };
+  };
+  srv();
   const hist = await api("/api/encounters").catch(() => []);
   $("#hist").innerHTML = hist.length ? `<table class="t"><tr><th>#</th><th>Player</th><th>Class</th><th>Target</th><th>Source</th><th class="r">Duration</th><th class="r">DPS</th><th></th></tr>${hist.map((e) =>
     `<tr><td>${e.id}</td><td>${esc(e.player || "")}</td><td>${esc(cap(e.class_name))}</td><td>${esc(e.boss || "")}</td><td>${esc(e.source)}</td><td class="r">${(e.duration || 0).toFixed(0)}s</td><td class="r num">${n0(e.dps)}</td>
@@ -393,6 +403,13 @@ async function pageCombat() {
   const progress = (l) => ($("#lmsg").textContent = l[l.length - 1] || "");
   const show = (a) => {
     st.a = a; $("#enc").innerHTML = renderEncounter(a);
+    $$("[data-share]").forEach((b) => (b.onclick = async () => {
+      try {
+        const r = await api(`/api/encounters/${a.id}/share`, {});
+        $("#shared").innerHTML = `Shared: <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a> <button class="btn small" id="cpy">Copy link</button>`;
+        $("#cpy").onclick = () => copyText(r.url);
+      } catch (e) { $("#shared").textContent = e.message; }
+    }));
     $$("[data-player]").forEach((b) => (b.onclick = async () => {        // another player of the same party log
       try { show(await runJob("/api/encounters/import", { ref: a.meta.url, player: b.dataset.player }, progress)); pageCombatHistory(); }
       catch (e) { $("#lmsg").textContent = e.message; }
@@ -444,7 +461,8 @@ function renderEncounter(a) {
       `<tr><td>${esc(r.skill)}</td><td>${pct(r.share)}</td><td>${pct(r.top_share)}</td><td class="r">${r.hpm.toFixed(0)}</td><td class="r">${r.top_hpm.toFixed(0)}</td></tr>`).join("")}</table>` : "";
   const party = (m.party || []).length > 1 ? `<div class="row small" style="margin-top:10px"><span class="muted">Party:</span>${m.party.map((p) =>
       `<button class="btn small ${p.name === m.player ? "primary" : ""}" data-player="${esc(p.name)}" title="${esc(p.class)} · ${n0(p.damage)} damage">${esc(p.name)} <span class="faint">${esc(p.class || "")}</span></button>`).join("")}</div>` : "";
-  const info = `<div class="small muted" style="margin-top:8px">${(m.notes || []).map(esc).join(" · ")}${m.url ? ` · <a href="${esc(m.url)}" target="_blank" rel="noopener">open on AbyssLogs</a>` : ""}${a.file ? ` · saved as <code>${esc(a.file)}</code>` : ""}</div>`;
+  const shareRow = a.id ? `<div class="row small" style="margin-top:8px"><button class="btn small primary" data-share="1">Share link</button><span id="shared" class="muted"></span></div>` : "";
+  const info = shareRow + `<div class="small muted" style="margin-top:8px">${(m.notes || []).map(esc).join(" · ")}${m.url ? ` · <a href="${esc(m.url)}" target="_blank" rel="noopener">open on AbyssLogs</a>` : ""}${a.file ? ` · saved as <code>${esc(a.file)}</code>` : ""}</div>`;
   return win("Encounter", `${esc(m.player || "")} · ${esc(cap(m.class || m.class_name || ""))} · ${esc(m.target || "")} · ${esc(m.source)}${m.combat_power ? " · CP " + n0(m.combat_power) : ""}`,
       `${party}${info}<div class="kpis">${kp.map(([k, v]) => `<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("")}</div>
        <div style="margin-top:14px">${lineChart(a.timeline.per_second, a.timeline.rolling10)}</div>`) +
@@ -492,12 +510,106 @@ async function pageDatabase() {
   loop();
 }
 
+// ------------------------------------------------------------- gear & advice
+const sp = (x) => (x == null ? "—" : (x >= 0 ? "+" : "") + (100 * x).toFixed(1) + "%");
+async function pageGear() {
+  const st = S.gear || (S.gear = {});
+  const chars = await api("/api/characters").catch(() => []);
+  app().innerHTML = `<section class="win"><div class="wh"><h2>Gear &amp; advice</h2><span class="sub">what to wear from your inventory, goal gear, upgrade path, arcana, pantheon, genus insight — on simulated DPS</span></div>
+    <div class="wb">${chars.length ? `<div class="row"><select id="gchar">${chars.map((c) => `<option value="${esc(c.key)}" ${c.key === st.key ? "selected" : ""}>${esc(c.name)} · ${esc(c.class_name)} · ${esc(c.region)}</option>`).join("")}</select>
+      <button class="btn primary" id="gadv">Run advice</button><span id="gmsg" class="small muted"></span></div>
+      <p class="small faint">Import the character on My Character first. The official page shows only equipped items: add bag and warehouse items below so the planner can use them. Fights you import on Combat Logs are matched to the gear the character wore and calibrate the model.</p>` :
+      '<div class="note">Import a character on My Character first.</div>'}
+    <div id="ginv"></div></div></section><div id="gout"></div>`;
+  if (!chars.length) return;
+  const key = () => (st.key = $("#gchar").value);
+  const showInv = async () => {
+    const inv = await api("/api/inventory?character=" + encodeURIComponent(key()));
+    st.inv = inv;
+    const rows = inv.items.map((e) => `<tr><td>${esc(e.slot || e.category || "")}</td><td class="gname" data-grade="${esc(e.grade)}">${esc(e.name)} +${e.enchant || 0}</td>
+      <td class="small">${esc((e.skills || []).map(([n, l]) => `${n} +${l}`).join(", "))}</td><td class="small muted">${esc(e.source)}</td>
+      <td class="r">${e.source === "inventory" ? `<button class="btn small" data-rm="${esc(e.id)}">Remove</button>` : ""}</td></tr>`).join("");
+    const genus = inv.genus || {};
+    $("#ginv").innerHTML = `<h4 class="gold small" style="margin-top:12px">INVENTORY</h4>
+      <table class="t"><tr><th>Slot</th><th>Item</th><th>Skill options</th><th>Source</th><th></th></tr>${rows}</table>
+      <div class="row" style="margin-top:8px"><input id="gq" type="text" placeholder="search the catalog to add an item" style="width:280px"><button class="btn small" id="gsrch">Search</button>
+        <input id="gen" type="number" min="0" max="20" value="0" style="width:70px" title="enchant level"><input id="gsk" type="text" placeholder="skill options, e.g. Hellfire=2, Blaze=1" style="width:260px"></div>
+      <div id="gres"></div>
+      <h4 class="gold small" style="margin-top:12px">GENUS INSIGHT</h4>
+      <p class="small faint">One line per analysis slot: <code>Genus | level | slot | stat | value</code>, e.g. <code>Varian | 7 | 4 | Varian Damage Boost | 3.6%</code></p>
+      <textarea id="ggen" rows="5" style="width:100%">${esc(Object.entries(genus).flatMap(([g, x]) => (x.lines || []).map((l) => `${g} | ${x.level || 0} | ${l.slot ?? ""} | ${l.stat} | ${l.value}`)).join("\n"))}</textarea>
+      <button class="btn small" id="ggsave">Save genus lines</button>`;
+    $$("[data-rm]").forEach((b) => (b.onclick = async () => { await api("/api/inventory/remove", { character: key(), id: b.dataset.rm }); showInv(); }));
+    $("#gsrch").onclick = async () => {
+      const items = await api(`/api/items?search=${encodeURIComponent($("#gq").value)}&limit=30`);
+      $("#gres").innerHTML = `<table class="t">${items.map((it) => `<tr><td class="gname" data-grade="${esc(it.grade)}">${esc(it.name)}</td><td>${esc(it.category)}</td><td class="r">${it.item_level ?? ""}</td>
+        <td class="r"><button class="btn small" data-add="${esc(it.slug)}">Add</button></td></tr>`).join("")}</table>`;
+      $$("[data-add]").forEach((b) => (b.onclick = async () => {
+        const skills = $("#gsk").value.split(",").map((x) => x.trim()).filter(Boolean).map((x) => { const [n, l] = x.split("="); return [n.trim(), +(l || 1)]; });
+        await api("/api/inventory/add", { character: key(), slug: b.dataset.add, enchant: +$("#gen").value, skills });
+        toast("Added"); showInv();
+      }));
+    };
+    $("#ggsave").onclick = async () => {
+      const g = {};
+      $("#ggen").value.split("\n").map((l) => l.split("|").map((x) => x.trim())).filter((p) => p.length >= 5 && p[3]).forEach(([gn, lv, slot, stat, value]) => {
+        const x = (g[gn] = g[gn] || { level: +lv || 0, lines: [] });
+        x.level = Math.max(x.level, +lv || 0);
+        x.lines.push({ slot: +slot || null, stat, value });
+      });
+      await api("/api/inventory/genus", { character: key(), genus: g }); toast("Saved");
+    };
+  };
+  $("#gchar").onchange = () => { st.adv = null; $("#gout").innerHTML = ""; showInv(); };
+  $("#gadv").onclick = async () => {
+    $("#gout").innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+    try { st.adv = await runJob("/api/advice", { character: key() }, (l) => ($("#gmsg").textContent = l[l.length - 1] || "")); $("#gout").innerHTML = renderAdvice(st.adv); }
+    catch (e) { $("#gout").innerHTML = `<div class="note">${esc(e.message)}</div>`; }
+  };
+  await showInv();
+  if (st.adv) $("#gout").innerHTML = renderAdvice(st.adv);
+}
+
+function renderAdvice(a) {
+  const top = `<p>Simulated boss DPS as equipped: <b class="gold">${n0(a.dps)}</b>${a.calibrated ? ' <span class="chip gold">calibrated from your fights</span>' : ""}</p>
+    <table class="t"><tr><th>Area</th><th>Change</th><th class="r">DPS</th></tr>${a.top.map((r) => `<tr><td class="muted">${esc(r.area)}</td><td>${esc(r.text)}</td><td class="r num">${sp(r.gain)}</td></tr>`).join("")}</table>
+    <p class="small faint">Saved as <code>${esc(a.file || "")}</code></p>`;
+  const eq = a.equip;
+  const inv = `<p>Best set from your inventory: <b class="gold">${sp(eq.gain)}</b></p>${eq.changes.map((c) => `<div class="tip">${esc(c.slot)}: wear ${esc(c.to)} instead of ${esc(c.from || "nothing")} (${sp(c.gain)})</div>`).join("")}
+    ${eq.empty_slots.length ? `<p class="small muted">No inventory items for ${esc(eq.empty_slots.join(", "))}.</p>` : ""}`;
+  const goals = `<table class="t"><tr><th>Slot</th><th>Next goal</th><th class="r">DPS</th><th>Best in slot</th><th class="r">DPS</th></tr>${Object.entries(a.goals.slots).map(([s, g]) => {
+    const n = g.next, b = g.best[0];
+    return `<tr><td>${esc(s)}</td><td>${n ? `<a href="${esc(n.url)}" target="_blank" rel="noopener" class="gname" data-grade="${esc(n.grade)}">${esc(n.name)}</a> <span class="faint">iLv ${n.item_level}</span>` : "—"}</td><td class="r num">${n ? sp(n.gain) : ""}</td>
+      <td><a href="${esc(b.url)}" target="_blank" rel="noopener" class="gname" data-grade="${esc(b.grade)}">${esc(b.name)}</a> +${b.enchant}</td><td class="r num">${sp(b.gain)}</td></tr>`; }).join("")}</table>`;
+  const path = `<table class="t"><tr><th>#</th><th>Slot</th><th>Step</th><th class="r">Gain</th><th class="r">Total</th></tr>${a.upgrade_path.steps.map((s) => `<tr><td>${s.step}</td><td>${esc(s.slot)}</td><td>${esc(s.action)}</td><td class="r num">${sp(s.gain)}</td><td class="r num">${sp(s.total_gain)}</td></tr>`).join("")}</table>`;
+  const arc = `<table class="t"><tr><th>Slot</th><th>Variant</th><th>Chase</th><th>Ideal Unique +5</th><th class="r">Expected +5</th></tr>${a.arcana.priority.map((s) => { const x = a.arcana.slots[s];
+    return `<tr><td>${esc(s)}</td><td>${esc(x.variant?.name || "")} <span class="faint">${esc(x.variant?.deity || "")}</span></td><td>${esc(x.chase.slice(0, 3).map((c) => c.skill).join(", "))}</td>
+      <td>${esc(Object.entries(x.ideal.skills).map(([k, v]) => `${k} +${v}`).join(", "))} <b>${sp(x.ideal.gain)}</b></td><td class="r num">${sp(x.expected.unique_5)}</td></tr>` +
+      x.owned.map((o) => `<tr><td></td><td class="small">owned: ${esc(o.name)} +${o.enchant}</td><td class="small">${esc(Object.entries(o.skills).map(([k, v]) => `${k} +${v}`).join(", "))}</td><td class="small">${sp(o.gain)}</td><td class="small">${esc(o.verdict)}</td></tr>`).join(""); }).join("")}</table>`;
+  const pan = `<table class="t"><tr><th>Deity stat</th><th class="r">DPS per 10 points</th><th class="r">You have</th></tr>${a.pantheon.per_point.map((r) => `<tr><td>${esc(r.deity)}</td><td class="r num">${sp(10 * r.gain_per_point)}</td><td class="r">${a.pantheon.current[r.deity] ?? 0}</td></tr>`).join("")}</table>
+    ${a.pantheon.choices.map((c) => `<div class="tip">${esc(c.source)}: ${esc(c.pick)}${c.deity ? " (" + esc(c.deity) + ")" : ""} ${sp(c.gain)}</div>`).join("")}`;
+  const g = a.genus;
+  const gen = `<p class="small">Fight time by genus: ${Object.entries(g.mix).map(([k, v]) => `${esc(k)} ${pct(v, 0)}`).join(" · ")}</p>
+    <table class="t"><tr><th>Genus</th><th>Slot</th><th>Line</th><th class="r">DPS</th></tr>${g.lines.map((r) => `<tr><td>${esc(r.genus)}</td><td>${r.slot ?? ""}</td><td>${esc(r.stat)} ${esc(r.value)}</td><td class="r num">${sp(r.gain)}</td></tr>`).join("")}</table>
+    ${g.chase.slice(0, 2).map((c) => `<div class="tip">Chase ${esc(c.line)} in slot ${c.slots.join(" or ")} (${esc(c.value)}): ${sp(c.gain)}</div>`).join("")}
+    <p class="small">Level order: ${g.level_order.slice(0, 4).map((r) => `${esc(r.genus)} (Lv ${r.level})`).join(" → ")}</p>`;
+  const r = a.rotation;
+  const rot = r.fights ? `<p>${r.fights} fight(s), idle ${pct(r.idle_share, 0)} of the time.</p>${r.under_cast.slice(0, 6).map((t) => `<div class="tip">${esc(t.text)}</div>`).join("")}
+    ${r.specs.map((d) => `<div class="tip">${esc(d.skill)}: specs ${esc(d.yours)} in your fights, ${esc(d.optimal)} in the optimized build</div>`).join("")}` : '<p class="muted">No saved fights for this character: import AbyssLogs links on Combat Logs.</p>';
+  return win("Top changes", "ranked by simulated DPS gain", top) + `<div class="grid2">${win("From your inventory", "", inv)}${win("Your fights", "", rot)}</div>` +
+    win("Goal gear", "each item at its max enchant (up to +15) with good rolls; next = nearest item level that gains ≥2%", goals) +
+    win("Upgrade path", "one change at a time, toward the next goals", path) + win("Arcana", "variant, skill options to chase, keep or replace", arc) +
+    `<div class="grid2">${win("Pantheon", "deity stats", pan)}${win("Genus insight", "pet genus lines", gen)}</div>` +
+    win("Model calibration", "learned from fights matched to equipped gear", a.calibration.map((x) => `<div class="small">${esc(x)}</div>`).join(""));
+}
+
 // ------------------------------------------------------------- router
 async function route() {
   const page = (location.hash.replace(/^#\//, "") || "planner").split("/")[0];
   $$(".nav a").forEach((a) => a.classList.toggle("on", a.dataset.page === page));
   try {
     if (page === "character") await pageCharacter();
+    else if (page === "gear") await pageGear();
     else if (page === "combat") await pageCombat();
     else if (page === "database") await pageDatabase();
     else await pagePlanner();

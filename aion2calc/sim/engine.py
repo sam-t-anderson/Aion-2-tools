@@ -45,6 +45,10 @@ class Target:
         return 1.0
 
 
+#: per-skill damage factors learned from your own fights (``aion2calc.learn``); empty = none
+SKILL_MULT: dict[str, float] = {}
+
+
 @dataclass
 class SimConfig:
     duration: float = 180.0
@@ -255,6 +259,8 @@ class Sim:
     # ------------------------------------------------------------- internals
     def _land(self, t: float, source: str, flat: float, coef: float, element, tags, mult,
               extra: dict | None = None):
+        if SKILL_MULT:
+            mult *= SKILL_MULT.get(source.split(" (")[0], 1.0)
         mods = self.stat_mods(t)
         if extra:
             mods = dict(mods)

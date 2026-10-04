@@ -119,6 +119,10 @@ def from_profile(ch: dict) -> ImportedCharacter:
             _add(st, stat_of(s))
             systems["manastones"].append({"slot": slot, "name": s.get("name"), "value": s.get("value"),
                                           "grade": s.get("grade"), "icon": s.get("icon")})
+        deity: dict = {}                    # counted in the profile totals; kept per item for gear swaps
+        for x in (it.get("mainStats") or []) + rolls + stones:
+            if x.get("id") in PROFILE_STATS:
+                _add(deity, {PROFILE_STATS[x["id"]]: _num(x.get("value"))[0] + _num(x.get("extra"))[0]})
         skills = [(x.get("name"), x.get("level", 1), x.get("id")) for x in it.get("subSkills") or []]
         for nm, lv, sid in skills:
             sk = cd.by_name.get(nm)
@@ -129,7 +133,7 @@ def from_profile(ch: dict) -> ImportedCharacter:
                "stats": st, "rolls": [(s.get("name"), s.get("value")) for s in rolls],
                "manastones": [(s.get("name"), s.get("value")) for s in stones],
                "theostones": [g.get("name") for g in it.get("godStoneStat") or []],
-               "skills": [(nm, lv) for nm, lv, _ in skills], "error": it.get("error")}
+               "skills": [(nm, lv) for nm, lv, _ in skills], "deity": deity, "error": it.get("error")}
         (systems["arcana"] if slot.startswith("Arcana") else systems["equipment"]).append(row)
         if it.get("error"):
             warnings.append(f"{slot}: item details unavailable ({it['error'][:60]})")

@@ -33,6 +33,12 @@ CREATE TABLE IF NOT EXISTS encounters (
   id INTEGER PRIMARY KEY AUTOINCREMENT, source TEXT, ref TEXT, class_name TEXT, player TEXT,
   boss TEXT, duration REAL, dps REAL, total REAL, started_at TEXT, imported_at REAL, data TEXT,
   UNIQUE (source, ref));
+CREATE TABLE IF NOT EXISTS snapshots (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT, name TEXT, class_name TEXT, taken_at REAL, data TEXT);
+CREATE INDEX IF NOT EXISTS snapshots_name ON snapshots(name);
+CREATE TABLE IF NOT EXISTS observations (
+  encounter_id INTEGER PRIMARY KEY, snapshot_id INTEGER, class_name TEXT, player TEXT, data TEXT,
+  computed_at REAL);
 """
 
 _local = threading.local()
@@ -160,6 +166,58 @@ def characters(conn) -> list[dict]:
     return [dict(r) for r in conn.execute(
         "SELECT key, region, server_id, name, class_name, level, combat_power, fetched_at FROM characters "
         "ORDER BY fetched_at DESC")]
+
+
+# -------------------------------------------------------------- equipment snapshots
+def put_snapshot(conn, key: str, name: str, cls: str, data: dict, taken_at: float | None = None) -> int:
+    """What a character had equipped at one import (fights are matched to the nearest earlier one)."""
+    cur = conn.execute("INSERT INTO snapshots(key, name, class_name, taken_at, data) VALUES (?,?,?,?,?)",
+                       (key, name, cls, taken_at or time.time(), json.dumps(data, ensure_ascii=False)))
+    conn.commit()
+    return cur.lastrowid
+
+
+def snapshot_for(conn, name: str, cls: str | None, at: float | None = None) -> dict | None:
+    """The snapshot of ``name`` closest before ``at`` (else the earliest after it)."""
+    q = "SELECT id, key, name, class_name, taken_at, data FROM snapshots WHERE lower(name)=lower(?)"
+    args: list = [name]
+    if cls:
+        q += " AND class_name=?"
+        args.append(cls)
+    rows = [dict(r) for r in conn.execute(q + " ORDER BY taken_at", args)]
+    if not rows:
+        return None
+    at = at or time.time()
+    before = [r for r in rows if r["taken_at"] <= at]
+    r = before[-1] if before else rows[0]
+    return {**r, "data": json.loads(r["data"])}
+
+
+def snapshots(conn, name: str | None = None) -> list[dict]:
+    q = "SELECT id, key, name, class_name, taken_at FROM snapshots"
+    args = []
+    if name:
+        q += " WHERE lower(name)=lower(?)"
+        args.append(name)
+    return [dict(r) for r in conn.execute(q + " ORDER BY taken_at DESC", args)]
+
+
+def put_observation(conn, encounter_id: int, snapshot_id: int | None, cls: str, player: str, data: dict) -> None:
+    conn.execute("INSERT OR REPLACE INTO observations(encounter_id, snapshot_id, class_name, player, data, "
+                 "computed_at) VALUES (?,?,?,?,?,?)",
+                 (encounter_id, snapshot_id, cls, player, json.dumps(data), time.time()))
+    conn.commit()
+
+
+def observations(conn, cls: str | None = None, player: str | None = None) -> list[dict]:
+    q, args = "SELECT encounter_id, snapshot_id, class_name, player, data FROM observations WHERE 1=1", []
+    if cls:
+        q += " AND class_name=?"
+        args.append(cls)
+    if player:
+        q += " AND lower(player)=lower(?)"
+        args.append(player)
+    return [{**dict(r), "data": json.loads(r["data"])} for r in conn.execute(q, args)]
 
 
 # -------------------------------------------------------------- encounters

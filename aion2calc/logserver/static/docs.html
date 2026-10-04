@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title><meta name="description" content="{{DESC}}">
+<link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/logs.css"></head>
+<body><header class="topbar"><div class="brand"><a href="/">aion2calc logs</a> <small>AION 2 combat logs</small></div>
+<nav class="nav"><a href="/">Logs</a><a href="/docs" class="on">Upload format &amp; API</a></nav></header>
+<main id="app" class="doc">
+<section class="win"><div class="wh"><h2>Upload a fight from any tool</h2></div><div class="wb">
+<p>This server accepts AION 2 combat logs in <b>a2log</b>, an open JSON format. Any meter, parser or bot can upload a
+fight with one HTTP request and get back a link anyone can open.</p>
+<table class="t">
+<tr><td>Discovery</td><td><a href="/.well-known/a2log.json"><code>{{BASE}}/.well-known/a2log.json</code></a></td></tr>
+<tr><td>JSON Schema</td><td><a href="/schema/a2log-v1.json"><code>{{BASE}}/schema/a2log-v1.json</code></a></td></tr>
+<tr><td>Upload</td><td><code>POST {{BASE}}/api/v1/logs</code></td></tr>
+<tr><td>Auth</td><td><code>Authorization: Bearer &lt;key&gt;</code> (ask the server owner for a key; anonymous uploads are {{ANON}})</td></tr>
+<tr><td>Body</td><td>one a2log document, <code>Content-Type: application/json</code>, optionally <code>Content-Encoding: gzip</code>; at most {{MAXMB}} MB</td></tr>
+<tr><td>Visibility</td><td><code>?visibility=public|unlisted|private</code> or <code>meta.visibility</code>; default <code>unlisted</code>
+(link only). Public logs are listed on the home page; private links carry a secret <code>?t=</code> token.</td></tr>
+</table></div></section>
+
+<section class="win"><div class="wh"><h2>The a2log document</h2></div><div class="wb">
+<p>One document is one fight: players, and one or more segments (pulls). Times are seconds from the segment start.
+Only <code>t</code>, <code>player</code> and <code>damage</code> are required per hit; add what your tool knows.</p>
+<pre>{
+  "format": "a2log", "version": 1,
+  "meta": {"source": "my-meter 1.2", "title": "Gatekeeper Pinopi", "region": "na",
+           "recorded_at": "2026-10-04T19:00:00Z"},
+  "players": [{"id": "p1", "name": "Name", "class": "sorcerer", "combat_power": 70000,
+               "specs": {"Hellfire": [2, 4]}}],
+  "segments": [{
+    "label": "Gatekeeper Pinopi", "boss": "Gatekeeper Pinopi", "duration": 93.0, "killed": true,
+    "hits":  [{"t": 0.0, "player": "p1", "skill": "Hellfire", "skill_id": 15060000, "damage": 12345,
+               "crit": true, "double": false, "perfect": false, "multi": 2, "dot": false, "back": false}],
+    "buffs": [{"player": "p1", "name": "Element Enhancement", "skill_id": 15400000, "start": 1.0, "end": 21.0}],
+    "hp":    [[0.0, 1437663], [1.5, 1400000]]
+  }]
+}</pre>
+<table class="t"><tr><th>Field</th><th>Meaning</th></tr>
+<tr><td><code>players[].class</code></td><td>gladiator, templar, assassin, ranger, sorcerer, spiritmaster (or elementalist), cleric, chanter</td></tr>
+<tr><td><code>players[].specs</code></td><td>skill name → chosen specialization slots 1-5</td></tr>
+<tr><td><code>hits[].skill_id</code></td><td>the game's skill id; variant codes are fine (the viewer maps them to the class skill)</td></tr>
+<tr><td><code>hits[].multi</code></td><td>extra hits of a multi-hit (0 = none)</td></tr>
+<tr><td><code>hits[].step</code></td><td>name of a chain follow-up (e.g. <code>"Cold Wave"</code> with Ice Chain's id)</td></tr>
+<tr><td><code>segments[].hp</code></td><td>boss HP samples <code>[t, hp]</code></td></tr>
+</table></div></section>
+
+<section class="win"><div class="wh"><h2>Examples</h2></div><div class="wb">
+<pre>curl -X POST "{{BASE}}/api/v1/logs?visibility=unlisted" \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  --data-binary @fight.json
+
+# gzip it for big fights
+gzip -c fight.json | curl -X POST "{{BASE}}/api/v1/logs" -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" -H "Content-Encoding: gzip" --data-binary @-</pre>
+<p>Answer (201):</p>
+<pre>{"id": "aB3dE5fG7h", "visibility": "unlisted", "url": "{{BASE}}/l/aB3dE5fG7h",
+ "json_url": "{{BASE}}/api/v1/logs/aB3dE5fG7h/raw", "delete_token": "…", "delete_url": "…"}</pre>
+<pre>import json, urllib.request
+req = urllib.request.Request("{{BASE}}/api/v1/logs", json.dumps(doc).encode(),
+                             {"Content-Type": "application/json", "Authorization": "Bearer " + key})
+print(json.load(urllib.request.urlopen(req))["url"])</pre>
+<p>Errors come back as <code>{"error": "…"}</code> with 400 (the document is invalid; the message names the field),
+401 (no key), 413 (too large) or 429 (too many uploads).</p>
+<p>Read: <code>GET /api/v1/logs</code> (public list), <code>GET /api/v1/logs/&lt;id&gt;</code> (summary),
+<code>/raw</code> (the document), <code>/analysis?segment=0&amp;player=p1</code> (breakdown).
+Delete: <code>DELETE /api/v1/logs/&lt;id&gt;?token=&lt;delete_token&gt;</code> or with the uploader's key.</p>
+</div></section></main></body></html>
