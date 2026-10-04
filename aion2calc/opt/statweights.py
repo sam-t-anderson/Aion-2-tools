@@ -31,11 +31,47 @@ STAT_STEPS = [
 ]
 
 
-def stat_weights(stats, kit, policy, target, config, steps=STAT_STEPS) -> list[dict]:
+#: Stats that move the timeline.  A priority list tuned to exact timings can lose
+#: DPS when they shift by a few percent (an alignment artifact, not a real loss),
+#: so each is measured as one slope with the rotation re-optimized on both sides
+#: of a wide (+-6%) step; deity stats that feed them reuse that slope.
+TIMING_FIELDS = {"combat_speed": 0.06, "cdr": 0.06}
+DEITY_OF = {"time": ("combat_speed", 0.001), "illusion": ("cdr", 0.001)}
+
+_CTX: dict = {}
+
+
+def _reopt_worker(job):
+    from .rotation import optimize_rotation
+    stats, kit, policy, target, config = _CTX["sw"]
+    field, delta = job
+    s2 = stats.copy()
+    s2.add({field: delta})
+    key = lambda e: e[0] if isinstance(e, tuple) else e  # noqa: E731
+    start = [e for e in policy if isinstance(e, tuple) or not kit.actions[key(e)].is_filler]
+    r = optimize_rotation(s2.derived(), kit, target, config, start=start, restarts=0, max_passes=2)
+    return job, r.dps
+
+
+def stat_weights(stats, kit, policy, target, config, steps=STAT_STEPS, reopt_timing: bool = True) -> list[dict]:
     def dps(st):
         sim = Sim(st.derived(), kit.actions, materialize(policy), target, config,
                   hooks=kit.hooks, cond_mods=kit.cond_mods)
         return sim.run().dps
+
+    reopt_gain = {}
+    if reopt_timing:
+        from .pipeline import _pmap
+        _CTX["sw"] = (stats, kit, policy, target, config)
+        jobs = [(f, sgn * h) for f, h in TIMING_FIELDS.items() for sgn in (1, -1)]
+        res = dict(_pmap(_reopt_worker, jobs))
+        slope = {f: (res[(f, h)] - res[(f, -h)]) / (2 * h) for f, h in TIMING_FIELDS.items()}
+        for f, st, _ in steps:
+            if f in slope:
+                reopt_gain[f] = slope[f] * st
+            elif f in DEITY_OF:
+                base_f, scale = DEITY_OF[f]
+                reopt_gain[f] = slope[base_f] * scale * st
 
     base = dps(stats)
     atk = stats.copy()
@@ -48,7 +84,7 @@ def stat_weights(stats, kit, policy, target, config, steps=STAT_STEPS) -> list[d
             s2.add({"weapon_max": step, "weapon_min": step})
         else:
             s2.add({field: step})
-        gain = dps(s2) - base
+        gain = reopt_gain[field] if field in reopt_gain else dps(s2) - base
         out.append({"stat": field, "step": step, "label": label, "dps_gain": gain,
                     "pct": 100 * gain / base, "per_unit": gain / step,
                     "attack_equiv": gain / per_attack if per_attack > 0 else None})

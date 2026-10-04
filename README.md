@@ -28,7 +28,7 @@ pip install -e .            # numpy, matplotlib, pulp (CBC solver bundled)
 python -m aion2calc optimize sorcerer
 python -m aion2calc optimize gladiator --scenario dummy --daevanion 300
 
-# simulate the most common global build, or a saved optimized build
+# simulate the typical top global build, or a saved optimized build
 python -m aion2calc simulate ranger
 python -m aion2calc simulate sorcerer --build results/sorcerer_l45/build.json
 

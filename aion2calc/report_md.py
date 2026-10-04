@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .opt.gear import arcana_choice, enchant_value, per_unit, roll_priorities, title_ranking
+from .opt.gear import ARCANA, arcana_choice, enchant_value, per_unit, roll_priorities, title_ranking
 
 
 def _pct(x: float) -> str:
@@ -31,12 +31,14 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
     w("| Build | " + scen + " DPS | " + other + " DPS |")
     w("|---|---:|---:|")
     w(f"| **Optimized (this report)** | **{s['dps'][scen]:,.0f}** | **{s['dps'][other]:,.0f}** |")
-    w(f"| Global most-common build, optimized rotation | {base['community_optimized_rotation']:,.0f} | {base['community_other_scenario']:,.0f} |")
-    w(f"| Global most-common build, naive priority | {base['community_naive']:,.0f} | — |")
+    w(f"| Typical top global build, optimized rotation | {base['community_optimized_rotation']:,.0f} | {base['community_other_scenario']:,.0f} |")
+    w(f"| Typical top global build, default priority | {base['community_naive']:,.0f} | — |")
     gain = s["dps"][scen] / base["community_optimized_rotation"] - 1
-    w(f"\nThe optimized build is **{100 * gain:+.1f}%** over the most common global top-player build "
-      f"played with the same rotation optimizer, and "
-      f"**{100 * (s['dps'][scen] / base['community_naive'] - 1):+.1f}%** over that build played with a naive priority.\n")
+    w(f"\nThe optimized build is **{100 * gain:+.1f}%** over the typical top global build played with the same "
+      f"rotation optimizer, and **{100 * (s['dps'][scen] / base['community_naive'] - 1):+.1f}%** over that build "
+      "played with the default priority. *Typical top global build* = average skill levels, the four most-picked "
+      "damage stigmas and the most-picked Daevanion nodes of the top tracked global L45 players of this class "
+      "(metabot.gg live data), given the best legal specializations for its levels (specs are not published).\n")
 
     w("## Rotation (priority list)\n")
     w("Use the highest skill that is ready; the last entry is the filler.\n")
@@ -121,7 +123,11 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         w(f"| {t['name']} ({t['faction']}) | {t['grade']} | {t['equip']} | {t['owned']} |")
     w("\n**Arcana variant per slot** (deity stat that is worth more for this build):\n")
     for slot, a in arcana.items():
-        w(f"* {slot}: **{a['pick']}** ({a['stat'].capitalize()} +20)")
+        if a.get("tie"):
+            w(f"* {slot}: either variant (" + " / ".join(f"{st.capitalize()} +20" for st, _ in
+                                                       ARCANA[slot].values()) + ": no damage either way)")
+        else:
+            w(f"* {slot}: **{a['pick']}** ({a['stat'].capitalize()} +20)")
     asv = s.get("arcana_skill_values") or []
     if asv:
         w("\n**Arcana random skill option** (Unique arcana roll one option from the class pool when soul-bound, "
@@ -134,6 +140,16 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
           "(10 from skill points + 4 Daevanion nodes); the Lv 16 specialization options are out of reach.\n")
     else:
         w("")
+    deity = [x for x in s["weights"] if x["stat"] in ("might", "destruction", "death", "wisdom", "justice",
+                                                       "time", "illusion")]
+    if deity:
+        deity.sort(key=lambda x: -x["pct"])
+        w("**Deity (pantheon) stats**, +10 points each (arcana main stats, Abyssal Bracelet rolls, Monolith rewards): "
+          + ", ".join(f"{x['label'].split(' +')[0]} {x['pct']:+.2f}%" for x in deity) + ".\n")
+    w("**Closet / appearance collection**: every unlocked skin and costume set adds permanent Collection Effect "
+      "stats, and wings keep a Retention Effect once owned. The client tables for these are not public, so they "
+      "are not itemised here; they are flat stats, so value them with the stat table above and collect the cheap "
+      "ones first.\n")
     w("**Wings**: Ultimate Daeva Wings (Accuracy +40, Penetration +500) are the most used and the best "
       "launch option for damage among common wings. **Pets**: pet collection bonuses are mostly genus-specific "
       "(damage vs that monster genus) plus Accuracy/Crit; level the genus of the content you farm first.\n")

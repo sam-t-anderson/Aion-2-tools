@@ -58,3 +58,57 @@ def community_build(cls: str) -> Build:
     b.stigmas = {sid: b.stigmas.get(sid, 1) for sid in stig if sid in cd.skills}
     b.daevanion = decode_metabot_daevanion(cd, p.get("daevanion", ""))
     return b
+
+
+#: Stigmas without damage; a typical damage build still lists the top damage picks.
+_DEFENSIVE = {"Steel Barrier", "Arctic Armor", "Hibernation", "Curse: Tree"}
+
+
+def typical_build(cls: str) -> Build:
+    """What a typical top tracked global L45 player runs (metabot live statistics).
+
+    * Daevanion: the most-picked nodes (metabot preset, crystal boards only)
+    * skill points: each skill's average level among top players minus the
+      levels those nodes give, fitted to the 203-point budget (most-levelled
+      skills keep their points first)
+    * stigmas: the four most-picked damage stigmas at their average levels,
+      fitted to 30 points (least-picked gives way first)
+
+    Specializations are not published; callers give this build the best legal
+    specs for its levels (benefit of the doubt).
+    """
+    from .kit.base import sp_to_reach, stigma_points_to_reach
+    cd = ClassData(cls)
+    tp = cd.raw.get("top_players", {})
+    p = cd.raw.get("preset") or {}
+    b = Build(cls, level=p.get("level", 45))
+    b.daevanion = {n for n in decode_metabot_daevanion(cd, p.get("daevanion", ""))
+                   if cd.node_index[n][0]["name"] != "Azphel"}
+    dv = cd.daevanion_levels(b.daevanion)
+    avg = {**tp.get("skills", {}), **tp.get("passives", {})}
+    want = {}
+    for name, row in avg.items():
+        s = cd.by_name.get(name)
+        if not s or s["kind"] == "stigma" or not row.get("avg_level"):
+            continue
+        want[s["id"]] = max(1, min(s.get("buyMax", 10), round(row["avg_level"] - dv.get(s["id"], 0))))
+    order = sorted(want, key=lambda sid: -avg[cd.skills[sid]["name"]]["avg_level"])
+    bud = cd.budget(b.level)["skill"]
+    while sum(sp_to_reach(v) for v in want.values()) > bud:      # trim the least-levelled skills
+        sid = next(x for x in reversed(order) if want[x] > 1)
+        want[sid] -= 1
+    for sid in order:                                            # spend what is left
+        while want[sid] < cd.skills[sid].get("buyMax", 10) and \
+                sum(sp_to_reach(v) for v in want.values()) - sp_to_reach(want[sid]) \
+                + sp_to_reach(want[sid] + 1) <= bud:
+            want[sid] += 1
+    b.sp = {sid: v for sid, v in want.items() if v > 1}
+    stig = [(n, r) for n, r in tp.get("stigmas", {}).items() if n not in _DEFENSIVE and n in cd.by_name]
+    stig = sorted(stig, key=lambda nr: -nr[1]["pick"])[: cd.budget(b.level)["slots"]]
+    lv = {cd.by_name[n]["id"]: max(1, round(r.get("avg_level") or 1)) for n, r in stig}
+    points = cd.budget(b.level)["stigma"] + 1
+    for sid in reversed(list(lv)):                               # least-picked gives way first
+        while sum(stigma_points_to_reach(v) for v in lv.values()) > points and lv[sid] > 1:
+            lv[sid] -= 1
+    b.stigmas = lv
+    return b

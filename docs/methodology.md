@@ -139,6 +139,16 @@ and fillers in the hold-to-run macro and leaves long-cooldown burst skills on
 manual keys, then simulates the macro's round-robin behaviour to check it gets
 close to the ideal priority.
 
+### Baseline ("typical top global build")
+
+Reports compare against what the top tracked global level-45 players of the
+class actually run (metabot.gg live statistics): each skill at its average
+level (minus the levels the most-picked Daevanion nodes give, fitted to 203
+SP), the four most-picked damage stigmas at their average levels (fitted to 30
+points) and the most-picked Daevanion nodes.  Specializations are not
+published, so the baseline gets the best legal specs for its levels.  It is
+shown with the default priority and with the same rotation optimizer.
+
 ## 6. Assumptions you may want to tune
 
 | Item | Value | Where |

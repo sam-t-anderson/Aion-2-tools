@@ -3,7 +3,7 @@
 Commands
   refresh    re-scrape the sources and rebuild aion2calc/data
   optimize   full build + rotation optimization for a class, writes a report folder
-  simulate   simulate the community (most common) build or a saved build.json
+  simulate   simulate the typical top global build or a saved build.json
   compare    optimize several classes with the same settings and rank them
   diff       compare two result folders (e.g. median vs geared loadout)
   render     rewrite a result folder's README.md from its build.json
@@ -63,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
                    daev_budget=args.daevanion, iterations=args.iterations, loadout=args.loadout)
     elif args.cmd == "simulate":
         from .run import simulate
-        from .scenarios import SCENARIOS, community_build
+        from .scenarios import SCENARIOS, typical_build
         scen = SCENARIOS[args.scenario](args.loadout or f"{args.cls}_l45_global_median")
         if args.build:
             from .opt.rotation import materialize
@@ -71,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
             b, policy = build_from_summary(json.load(open(args.build)))
             res = simulate(b, scen, policy=materialize(policy))
         else:
-            res = simulate(community_build(args.cls), scen)
+            res = simulate(typical_build(args.cls), scen)
         print(f"DPS {res.dps:,.0f}")
         for k, v in res.shares().items():
             print(f"  {k:32s} {100 * v:5.1f}%")
@@ -93,11 +93,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{'class':14s} {'optimized':>12s} {'community':>12s} {'gain':>7s}")
         md = [f"# Class comparison ({args.scenario}, same settings)\n",
               "Each class is optimized with the same budgets (203 SP, 30 stigma points, 360 Daevanion) on its own "
-              "median global loadout. **Gain** (optimized vs the most common global build of that class, same "
+              "median global loadout. **Gain** (optimized vs the typical top global build of that class, same "
               "rotation optimizer) is the reliable number. Absolute DPS across classes is only as good as each class "
               "kit: Sorcerer has a hand-written kit; the others use the generic tooltip-driven kit, whose fidelity "
               "is shown as the share overlap with Korean A2DIL dummy logs.\n",
-              "| Class | Optimized DPS | Most-common build DPS | Gain | KR share overlap | Report |",
+              "| Class | Optimized DPS | Typical top build DPS | Gain | KR share overlap | Report |",
               "|---|---:|---:|---:|---:|---|"]
         for cls, dps, comm, fid in rows:
             print(f"{cls:14s} {dps:12,.0f} {comm:12,.0f} {100 * (dps / comm - 1):6.1f}%")

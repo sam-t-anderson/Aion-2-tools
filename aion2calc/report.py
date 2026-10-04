@@ -18,7 +18,7 @@ from .render.boards import render_boards
 from .render.links import (gamers4life_build_url, gamers4life_daevanion_url, metabot_build_url,
                            metabot_daevanion_url)
 from .run import kit_module, prepare
-from .scenarios import SCENARIOS, community_build
+from .scenarios import SCENARIOS, typical_build
 from .sim.engine import Sim
 
 
@@ -130,7 +130,7 @@ def rerender(out_dir: str) -> str:
     summary["loadout"] = loadout
     build, _ = build_from_summary(summary)
     (Path(out_dir) / "images").mkdir(parents=True, exist_ok=True)
-    _board_images(ClassData(cls), build, community_build(cls), Path(out_dir), summary["daevanion_budget"])
+    _board_images(ClassData(cls), build, typical_build(cls), Path(out_dir), summary["daevanion_budget"])
     if "kr_fidelity" not in summary or "arcana_skill_values" not in summary:
         build, policy = build_from_summary(summary)
         dummy = SCENARIOS["dummy"](loadout)
@@ -186,8 +186,10 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     res = opt.run(iterations=iterations)
     build, policy = res.build, res.policy
 
-    # community baseline (most common global build) with a naive and an optimized rotation
-    comm = community_build(cls)
+    # baseline: the typical top global build (live statistics) with the best legal
+    # specs for its levels, played with the default priority and with an optimized rotation
+    comm = typical_build(cls)
+    comm = opt.optimize_specs(comm, list(kit_module(cls).build_kit(opt._with_gear(comm), cd).policy))
     cd_, cb, ckit, cstats = prepare(comm, scen)
     naive = Sim(cstats.derived(), ckit.actions, ckit.policy, scen.target, scen.config,
                 hooks=ckit.hooks, cond_mods=ckit.cond_mods).run()

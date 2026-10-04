@@ -144,8 +144,10 @@ def test_sorcerer_kit_mechanics(sorc):
 def test_every_class_simulates(cls):
     """The same pipeline runs for any class: community build -> kit -> simulation."""
     from aion2calc.run import simulate
-    from aion2calc.scenarios import SCENARIOS, community_build
-    res = simulate(community_build(cls), SCENARIOS["boss"](f"{cls}_l45_global_median"))
+    from aion2calc.scenarios import SCENARIOS, typical_build
+    b = typical_build(cls)
+    assert b.validate(ClassData(cls)) == []
+    res = simulate(b, SCENARIOS["boss"](f"{cls}_l45_global_median"))
     assert res.dps > 1000
     assert sum(res.casts.values()) > 30
 

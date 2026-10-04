@@ -87,7 +87,8 @@ def arcana_choice(pu: dict) -> dict[str, dict]:
     for slot, variants in ARCANA.items():
         scored = {name: pu.get(stat, 0.0) * pts for name, (stat, pts) in variants.items()}
         best = max(scored, key=scored.get)
-        out[slot] = {"pick": best, "stat": variants[best][0], "dps": scored}
+        tie = len(set(round(v, 9) for v in scored.values())) == 1
+        out[slot] = {"pick": best, "stat": variants[best][0], "dps": scored, "tie": tie}
     return out
 
 
