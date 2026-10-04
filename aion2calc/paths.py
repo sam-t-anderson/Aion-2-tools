@@ -54,6 +54,14 @@ def home() -> Path:
     return h
 
 
+def resource_root() -> Path:
+    """Folder with the bundled extras (``results``, ``example``): the installed app's
+    bundle when frozen, else the source checkout."""
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    return Path(__file__).resolve().parent.parent
+
+
 def logs_dir() -> Path:
     d = home() / "logs"
     d.mkdir(exist_ok=True)

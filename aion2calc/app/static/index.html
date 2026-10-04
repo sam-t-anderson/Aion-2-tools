@@ -6,19 +6,25 @@
 <title>aion2calc</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="/static/logo.png">
+<script>try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">aion2calc <small>AION 2 build planner &amp; combat analyzer</small></div>
+  <div class="brand"><img src="/static/logo.png" alt="">aion2calc <small>AION 2 build planner &amp; combat analyzer</small></div>
   <nav class="nav">
     <a href="#/planner" data-page="planner">Planner</a>
     <a href="#/character" data-page="character">My Character</a>
     <a href="#/gear" data-page="gear">Gear &amp; Advice</a>
     <a href="#/combat" data-page="combat">Combat Logs</a>
     <a href="#/database" data-page="database">Database</a>
+    <a href="#/settings" data-page="settings">Settings</a>
   </nav>
   <div class="syncpill" id="syncpill"><span class="dot"></span><span>database</span></div>
+  <a id="update" class="chip gold" target="_blank" rel="noopener" hidden></a>
+  <button class="iconbtn" id="theme" title="Theme: follow the computer">◐</button>
+  <button class="btn small" id="quit" title="Stop the app">Quit</button>
 </header>
 <main id="app"></main>
 <script src="/static/app.js"></script>

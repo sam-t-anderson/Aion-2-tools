@@ -17,6 +17,7 @@ from __future__ import annotations
 import pulp
 
 from ..kit.base import SP_COST, ClassData
+from .solver import solver
 
 CRYSTAL_BOARDS = ("Nezekan", "Zikel", "Vaizel", "Triniel")
 
@@ -98,8 +99,7 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
     prob += pulp.lpSum(sp_terms) <= sp_budget
     prob += pulp.lpSum(obj)
     import os
-    status = prob.solve(pulp.PULP_CBC_CMD(msg=False, timeLimit=time_limit, gapRel=gap,
-                                          threads=min(4, os.cpu_count() or 1)))
+    status = prob.solve(solver(time_limit=time_limit, gap=gap, threads=min(4, os.cpu_count() or 1)))
     nodes = {nid for nid, var in x.items() if var.value() and var.value() > 0.5}
     sp = {}
     for sid, ys in y.items():

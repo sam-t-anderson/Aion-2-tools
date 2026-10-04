@@ -15,6 +15,7 @@ import threading
 import time
 import traceback
 import urllib.parse
+import urllib.request
 import uuid
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -24,6 +25,7 @@ from ..paths import home, list_names, logs_dir, results_dir
 from . import views
 
 STATIC = Path(__file__).resolve().parent / "static"
+mimetypes.add_type("font/woff2", ".woff2")
 ICON_HOSTS = ("metabot.gg", "assets.playnccdn.com", "profileimg.plaync.com", "a2dil.com")
 
 SYNC = {"sync": None, "thread": None}
@@ -148,6 +150,44 @@ def act_encounter_import(body: dict, log) -> dict:
     return encounter_view(eid)
 
 
+_UPDATE: dict = {}
+
+
+def update_info(wait: bool = False) -> dict | None:
+    """A newer client offered by your log server's download page.
+
+    Checked in the background every 6 hours (and when the log server changes),
+    so a slow or unreachable server never holds up the page.
+    """
+    if time.time() - _UPDATE.get("at", 0) >= 6 * 3600:
+        _UPDATE["at"] = time.time()
+        t = threading.Thread(target=_check_update, daemon=True)
+        t.start()
+        if wait:
+            t.join()
+    return _UPDATE.get("info")
+
+
+def _check_update() -> None:
+    info = None
+    try:
+        from .. import __version__
+        from ..combat.share import settings
+        url = (settings().get("url") or "").rstrip("/")
+        if url:
+            with urllib.request.urlopen(f"{url}/api/v1/client", timeout=5) as r:
+                c = json.load(r)
+            if c.get("version") and _vt(c["version"]) > _vt(__version__):
+                info = {"version": c["version"], "url": f"{url}/download"}
+    except Exception:
+        info = None
+    _UPDATE["info"] = info
+
+
+def _vt(v: str) -> tuple:
+    return tuple(int(x) for x in str(v).split(".")[:3] if x.isdigit())
+
+
 def _imported(key: str):
     from ..db import store
     from ..sources.character import from_profile
@@ -239,7 +279,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/status":
             from ..db.sync import status
             s = SYNC.get("sync")
-            return self._json({"sync": s.state.as_dict() if s else None, "db": status(), "home": str(home())})
+            from .. import __version__
+            return self._json({"sync": s.state.as_dict() if s else None, "db": status(), "home": str(home()),
+                               "app": "aion2calc", "version": __version__, "update": update_info()})
         if path == "/api/classes":
             return self._json(list_names("global", "classes"))
         if path == "/api/results":
@@ -257,6 +299,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(store.encounters(store.connect(), q.get("class")))
         if path == "/api/inventory":
             return self._json(_inventory(q["character"])[1])
+        if path == "/api/ui":
+            return self._json(ui_settings())
         if path == "/api/logserver":
             from ..combat import share
             st = share.settings()
@@ -301,6 +345,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/logserver":
             from ..combat import share
             st = share.save_settings(body.get("url"), body.get("key"), body.get("visibility"))
+            _UPDATE["at"] = 0                         # check the new server for a newer app
             return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
         if path.startswith("/api/encounters/") and path.endswith("/share"):
             from ..combat import share
@@ -309,6 +354,28 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"job": start_job("advice", act_advice, body)})
         if path.startswith("/api/inventory/"):
             return self._json(inventory_post(path, body))
+        if path == "/api/ping":
+            PING["at"] = time.time()
+            return self._json({"ok": True})
+        if path == "/api/ui":
+            from ..paths import write_user_json
+            cur = ui_settings()
+            cur.update({k: v for k, v in body.items() if k in ("app_window",)})
+            write_user_json(cur, "ui.json")
+            return self._json(cur)
+        if path == "/api/open":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("folders open only on the computer running the app")
+            from ..combat.logs import open_folder
+            target = {"data": home(), "logs": logs_dir(), "results": results_dir()}.get(body.get("what"), home())
+            return self._json({"folder": str(open_folder(target))})
+        if path == "/api/quit":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("only the computer running the app can stop it")
+            srv = HTTPD.get("server")
+            if srv:
+                threading.Thread(target=srv.shutdown, daemon=True).start()
+            return self._json({"stopping": True})
         if path == "/api/logs/open":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("the logs folder opens only on the computer running the app")
@@ -341,10 +408,27 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, f.read_bytes(), mimetypes.guess_type(f.name)[0] or "image/png", cache=86400 * 7)
 
 
-def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: str = "127.0.0.1"):
+HTTPD: dict = {}
+PING: dict = {"at": time.time()}
+
+
+def ui_settings() -> dict:
+    from ..paths import data_file, read_json
+    return read_json("ui.json") if data_file("ui.json").exists() else {"app_window": True}
+
+
+def make_server(host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServer:
+    httpd = ThreadingHTTPServer((host, port), Handler)
+    HTTPD["server"] = httpd
+    return httpd
+
+
+def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: str = "127.0.0.1",
+          httpd: ThreadingHTTPServer | None = None):
     if sync:
         start_sync()
-    httpd = ThreadingHTTPServer((host, port), Handler)
+    httpd = httpd or make_server(host, port)
+    host, port = httpd.server_address[:2]
     url = f"http://{host}:{port}/"
     try:
         from ..combat.logs import backfill

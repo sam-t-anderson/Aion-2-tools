@@ -1,5 +1,8 @@
 # The aion2calc app
 
+Players install the desktop app (Windows installer, or portable builds for Windows, macOS and
+Linux): see [install.md](install.md). From source:
+
 ```bash
 pip install -e .
 python -m aion2calc app            # http://127.0.0.1:8765 opens in your browser
@@ -205,6 +208,18 @@ third-party capture tools may break the game's terms of service.
 The page shows sync progress, the last sync, item, character and encounter
 counts, and an item catalog with search. Each item lists its fixed stats,
 enchant table, random roll pool and per-class skill-roll pools.
+
+### Settings
+
+| Setting | What it does |
+|---|---|
+| Theme | **Follow computer** (light or dark with your system), **Light** (parchment and gold) or **Dark** (night sky and gold). The ◐ button in the top bar switches between them too. The choice is kept in this browser |
+| Open as its own window | the installed app opens in an Edge or Chrome app window, without tabs or address bar, and stops when you close it. Off: it opens in your default browser |
+| Your data | the data folder, with buttons to open it, the combat logs and the results |
+| Log server | where **Share link** uploads fights, an optional upload key, and the default visibility. **Save** checks the server answers |
+| Game database | item count, last update, and **Check now** |
+| Version | the app version, and a link when your log server offers a newer one |
+| Stop the app | the same as **Quit** in the top bar |
 
 ## Auto-update on launch
 
