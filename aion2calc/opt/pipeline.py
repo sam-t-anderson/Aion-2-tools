@@ -326,7 +326,7 @@ class Optimizer:
                                 break       # taking a further level from ``a`` only wastes points
             _CTX["sp"] = (self, build, policy)
             moves, v, b2 = max(_pmap(_sp_worker, jobs), key=lambda r: r[1], default=(None, 0, None))
-            if not moves or v <= best * (1 + 1e-6):
+            if not moves or v <= best * (1 + 1e-4):     # ignore noise-level moves
                 break
             self.log("polish SP: " + ", ".join(f"{cd.skills[s]['name']} {d:+d}" for s, d in moves)
                      + f" -> {v:.0f} (was {best:.0f})")
