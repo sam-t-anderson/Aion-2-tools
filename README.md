@@ -15,9 +15,26 @@ It answers, for any class:
 and produces images of the Daevanion boards and a planner-style build page plus
 share links for the metabot.gg and gamers4.life planners.
 
-**Sorcerer results:** [`results/sorcerer_l45/README.md`](results/sorcerer_l45/README.md)
-(median launch gear) and [`results/sorcerer_l45_geared/README.md`](results/sorcerer_l45_geared/README.md)
-(first-month upgrade target; what changes: [`DIFF.md`](results/sorcerer_l45_geared/DIFF.md)).
+## Sorcerer, level 45 global: results at a glance
+
+| | Median launch gear | First-month upgrade gear |
+|---|---:|---:|
+| Optimized build, boss DPS | **17,962** | **26,801** |
+| Typical top global build, same rotation optimizer | 16,512 (−8.1%) | 23,809 (−11.2%) |
+| Typical top global build, default priority | 14,050 | 20,188 |
+
+* Full reports: [median gear](results/sorcerer_l45/README.md) ·
+  [upgrade gear](results/sorcerer_l45_geared/README.md) ·
+  [what changes between them](results/sorcerer_l45_geared/DIFF.md)
+* Stigmas: Element Enhancement 10, Cold Storm 6, Fire Wall 6, Delayed Explosion 1
+* Priority: Wish → Element Enhancement → Fire Wall → Cold Storm → Winter's Shackles → Blaze →
+  Firestorm → Hellfire (full charge) → Bittercold Wind (inside Element Enhancement) → Frost Burst →
+  Flame Scattershot → Delayed Explosion → Flame Arrow (filler)
+* One-button in-game Skill Macro reaches ~95% of that priority list in simulation
+* Stat priority (median gear): Cooldown Reduction > Damage Boost > Penetration ≈ PvE Attack ≈ Double >
+  Weapon Damage Boost > Crit > Attack; on upgrade gear Crit moves to the top
+
+![Sorcerer build card](results/sorcerer_l45/images/build_card.png)
 
 ## Quick start
 

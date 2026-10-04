@@ -54,6 +54,7 @@ def _reopt_worker(job):
 
 
 def stat_weights(stats, kit, policy, target, config, steps=STAT_STEPS, reopt_timing: bool = True) -> list[dict]:
+    policy = [e for e in policy if (e[0] if isinstance(e, tuple) else e) in kit.actions]
     def dps(st):
         sim = Sim(st.derived(), kit.actions, materialize(policy), target, config,
                   hooks=kit.hooks, cond_mods=kit.cond_mods)

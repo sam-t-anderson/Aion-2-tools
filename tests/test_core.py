@@ -170,3 +170,15 @@ def test_crit_midpoint_option():
     finally:
         st.set_crit_midpoint(1024.52)
     assert abs(st.crit_chance(512) - base) < 1e-12
+
+
+def test_stat_weights_tolerate_foreign_policy_entries():
+    """A policy can name actions of a stigma the current kit no longer has."""
+    from aion2calc.opt.statweights import stat_weights
+    from aion2calc.run import Scenario, prepare
+    from aion2calc.sim.engine import SimConfig
+    scen = Scenario(config=SimConfig(duration=20.0))
+    _, _, kit, stats = prepare(Build("sorcerer", sp={15210000: 10}), scen)
+    pol = ["not_a_skill", ("also_missing", "mp_hi")] + list(kit.policy)
+    w = stat_weights(stats, kit, pol, scen.target, scen.config)
+    assert any(x["stat"] == "cdr" for x in w)
