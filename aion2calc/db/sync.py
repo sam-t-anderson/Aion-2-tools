@@ -229,12 +229,49 @@ class Sync:
             try:
                 titles = metabot.titles(fresh=True)
                 if len(titles) > 50:
+                    old = {t["name"]: t for t in read_json("global", "titles.json")}
+                    for t in titles:                     # keep the per-title details already known
+                        for k in ("slug", "slot", "role", "category", "how", "earn", "source"):
+                            if k in old.get(t["name"], {}):
+                                t.setdefault(k, old[t["name"]][k])
                     write_user_json(titles, "global", "titles.json")
                     self._mark(conn, url, lastmod)
                     self.state.changed["titles"] = len(titles)
             except Exception as err:
                 self.state.errors.append(f"titles: {err}")
+        self._title_details(conn, pages)
         conn.commit()
+
+    def _title_details(self, conn, pages: dict[str, str]) -> None:
+        """Equip slot and how-to-earn of titles that are new or whose page changed."""
+        import re as _re
+        titles = read_json("global", "titles.json")
+        urls = {u.rsplit("/", 1)[1]: (u, m) for u, m in pages.items() if "/titles/" in u}
+        n = 0
+        for t in titles:
+            if self._out_of_time():
+                break
+            slug = t.get("slug") or _re.sub(r"[^a-z0-9]+", "-", t["name"].lower().replace("'", "")).strip("-")
+            if slug not in urls:
+                continue
+            url, lastmod = urls[slug]
+            seen, _ = self._fetched_lastmod(conn, url)
+            if t.get("slot") and seen == lastmod and not self.force:
+                continue
+            if t.get("slot") and seen is None and not self.force:
+                self._mark(conn, url, lastmod)           # details came with the bundled data
+                continue
+            try:
+                d = metabot.title_detail(slug, cache=False)
+                t.update({k: v for k, v in d.items() if k in ("slug", "slot", "role", "category", "how", "earn",
+                                                              "source")})
+                self._mark(conn, url, lastmod)
+                n += 1
+            except Exception as err:
+                self.state.errors.append(f"title {slug}: {err}")
+        if n:
+            write_user_json(titles, "global", "titles.json")
+            self.state.changed["title_details"] = n
 
 
 def status(db_path=None) -> dict:

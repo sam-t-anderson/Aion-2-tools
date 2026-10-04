@@ -41,9 +41,11 @@ python -m aion2calc app        # opens http://127.0.0.1:8765
   specializations for that build and with top-player logs. Every log is also saved as a file in the
   logs folder.
 * **Gear & Advice**: what to wear from your inventory, goal gear per slot and an upgrade path,
-  arcana (variant, skill options to chase, keep or replace), pantheon (deity stats by value),
+  arcana (variant, skill options to chase, keep or replace), titles (per slot, and which to collect),
+  pantheon (deity stats by value),
   genus insight (which lines to reroll, which genus to level) and what your fights show, all ranked
-  by simulated DPS gain. Fights you import are matched to the gear you wore and calibrate the model
+  by simulated DPS gain, shown as game-style windows with the game's icons. Fights you import are
+  matched to the gear you wore and calibrate the model
   ([details](docs/planner.md)).
 * **Share**: upload any saved fight to your own log server and get a link anyone can open
   ([host one on Ubuntu](docs/logserver.md)).

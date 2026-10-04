@@ -538,7 +538,11 @@ async function pageGear() {
       <h4 class="gold small" style="margin-top:12px">GENUS INSIGHT</h4>
       <p class="small faint">One line per analysis slot: <code>Genus | level | slot | stat | value</code>, e.g. <code>Varian | 7 | 4 | Varian Damage Boost | 3.6%</code></p>
       <textarea id="ggen" rows="5" style="width:100%">${esc(Object.entries(genus).flatMap(([g, x]) => (x.lines || []).map((l) => `${g} | ${x.level || 0} | ${l.slot ?? ""} | ${l.stat} | ${l.value}`)).join("\n"))}</textarea>
-      <button class="btn small" id="ggsave">Save genus lines</button>`;
+      <button class="btn small" id="ggsave">Save genus lines</button>
+      <h4 class="gold small" style="margin-top:12px">TITLES YOU OWN</h4>
+      <p class="small faint">The official page shows only equipped titles. One title name per line (copy them from the in-game Titles window).</p>
+      <textarea id="gtit" rows="4" style="width:100%">${esc((inv.titles_owned || []).join("\n"))}</textarea>
+      <button class="btn small" id="gtsave">Save titles</button>`;
     $$("[data-rm]").forEach((b) => (b.onclick = async () => { await api("/api/inventory/remove", { character: key(), id: b.dataset.rm }); showInv(); }));
     $("#gsrch").onclick = async () => {
       const items = await api(`/api/items?search=${encodeURIComponent($("#gq").value)}&limit=30`);
@@ -550,6 +554,7 @@ async function pageGear() {
         toast("Added"); showInv();
       }));
     };
+    $("#gtsave").onclick = async () => { await api("/api/inventory/titles", { character: key(), titles: $("#gtit").value.split("\n") }); toast("Saved"); showInv(); };
     $("#ggsave").onclick = async () => {
       const g = {};
       $("#ggen").value.split("\n").map((l) => l.split("|").map((x) => x.trim())).filter((p) => p.length >= 5 && p[3]).forEach(([gn, lv, slot, stat, value]) => {
@@ -557,50 +562,192 @@ async function pageGear() {
         x.level = Math.max(x.level, +lv || 0);
         x.lines.push({ slot: +slot || null, stat, value });
       });
-      await api("/api/inventory/genus", { character: key(), genus: g }); toast("Saved");
+      await api("/api/inventory/genus", { character: key(), genus: g }); toast("Saved"); await showInv();
+      if (st.adv) { $("#gout").innerHTML = renderAdvice(st.adv); bindAdvice(st.adv); }
     };
   };
   $("#gchar").onchange = () => { st.adv = null; $("#gout").innerHTML = ""; showInv(); };
   $("#gadv").onclick = async () => {
     $("#gout").innerHTML = '<div class="empty"><span class="spinner"></span></div>';
-    try { st.adv = await runJob("/api/advice", { character: key() }, (l) => ($("#gmsg").textContent = l[l.length - 1] || "")); $("#gout").innerHTML = renderAdvice(st.adv); }
+    try { st.adv = await runJob("/api/advice", { character: key() }, (l) => ($("#gmsg").textContent = l[l.length - 1] || "")); $("#gout").innerHTML = renderAdvice(st.adv); bindAdvice(st.adv); }
     catch (e) { $("#gout").innerHTML = `<div class="note">${esc(e.message)}</div>`; }
   };
   await showInv();
-  if (st.adv) $("#gout").innerHTML = renderAdvice(st.adv);
+  if (st.adv) { $("#gout").innerHTML = renderAdvice(st.adv); bindAdvice(st.adv); }
+}
+
+const SKILL_ICON = (id) => (id ? "https://metabot.gg/web/aion2/skills/" + id + ".webp" : "");
+const DOLL_LEFT = ["MainHand", "SubHand", "Helmet", "Shoulder", "Torso", "Pants", "Gloves", "Boots", "Cape", "Belt"];
+const DOLL_RIGHT = ["Necklace", "Earring1", "Earring2", "Ring1", "Ring2", "Bracelet1", "Bracelet2", "Amulet", "Rune1", "Rune2"];
+const SLOT_NAME = { MainHand: "Main hand", SubHand: "Off-hand", Torso: "Chest", Pants: "Legs", Cape: "Cloak", Earring1: "Earring", Earring2: "Earring",
+  Ring1: "Ring", Ring2: "Ring", Bracelet1: "Bracelet", Bracelet2: "Bracelet", Rune1: "Rune", Rune2: "Rune" };
+const itemIcon = (it, cls = "") => `<div class="icon ${cls}" data-grade="${esc(it?.grade || "")}">${it?.icon ? `<img src="${icon(it.icon)}" alt="">` : ""}${it?.enchant ? `<span class="lv">+${it.enchant}</span>` : ""}</div>`;
+function itemCard(it, label, gain, extra = "") {
+  if (!it) return `<div class="icard empty"><div class="ilabel">${esc(label)}</div><div class="faint small">—</div></div>`;
+  return `<div class="icard" data-grade="${esc(it.grade || "")}"><div class="ilabel">${esc(label)}</div>${itemIcon(it, "lg")}
+    <div class="gname">${it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.name)}</a>` : esc(it.name)}</div>
+    <div class="small muted">${it.item_level ? "iLv " + it.item_level + " · " : ""}+${it.enchant || 0}</div>
+    ${gain != null ? `<div class="gain ${gain >= 0 ? "up" : "down"}">${sp(gain)}</div>` : ""}${extra}</div>`;
+}
+
+function advDoll(a) {
+  const d = a.doll;
+  const tile = (slot) => {
+    const x = d[slot] || {};
+    const it = x.worn || x.wear || null;
+    const up = x.wear ? x.wear_gain : null;
+    const goal = x.next && x.next.gain > 0.02;
+    return `<button class="dslot" data-dslot="${slot}" data-grade="${esc(it?.grade || "")}">${itemIcon(it, "sm")}
+      <div class="dtxt"><div class="sl">${esc(SLOT_NAME[slot] || slot)}</div><div class="gname">${esc(it?.name || "empty")}</div></div>
+      ${up ? `<span class="badge up" title="better item in your inventory">▲ ${sp(up)}</span>` : goal ? `<span class="badge goal" title="next goal">◆ ${sp(x.next.gain)}</span>` : ""}
+      ${x.steps.length ? `<span class="badge step" title="upgrade path step">#${x.steps[0]}</span>` : ""}</button>`;
+  };
+  const arc = ["Arcana Chalice", "Arcana Parchment", "Arcana Compass", "Arcana Bell", "Arcana Mirror"];
+  return win("Equipment", "click a slot: what you wear → better from your inventory → next goal → best in slot",
+    `<div class="pdoll"><div class="dcol">${DOLL_LEFT.map(tile).join("")}</div>
+      <div class="dcenter"><div class="cls">${esc(cap(a.character.class))}</div><div class="small">${esc(a.character.name)} · ${esc(a.character.server)}</div>
+        <div class="dps">${n0(a.dps)}<small>boss DPS</small></div>
+        <div class="legend2"><span class="badge up">▲</span> better item in your inventory<br><span class="badge goal">◆</span> next goal gain<br><span class="badge step">#</span> upgrade path step</div>
+        <div class="arow">${arc.map((s) => { const it = d[s]?.worn; return `<button class="dslot mini" data-dslot="${s}" title="${esc(s)}">${itemIcon(it, "sm")}</button>`; }).join("")}</div></div>
+      <div class="dcol">${DOLL_RIGHT.map(tile).join("")}</div></div><div id="dslotinfo" class="dinfo"></div>`,
+    { key: "adv-equip", copy: Object.entries(d).filter(([, x]) => x.wear || x.next).map(([s, x]) => `${s}: ${x.wear ? "wear " + x.wear.name + " +" + x.wear.enchant + "; " : ""}${x.next ? "next goal " + x.next.name : ""}`).join("\n") });
+}
+function bindDoll(a) {
+  const show = (slot) => {
+    const x = a.doll[slot] || {};
+    $$("[data-dslot]").forEach((b) => b.classList.toggle("on", b.dataset.dslot === slot));
+    const chips = (it) => it ? `${(it.skills || []).map(([k, l]) => `<span class="chip gold">${esc(k)} +${l}</span>`).join("")}${(it.rolls || []).map((r) => `<span class="chip">${esc(Array.isArray(r) ? r.join(" ") : r)}</span>`).join("")}` : "";
+    $("#dslotinfo").innerHTML = `<h4 class="gold small">${esc(SLOT_NAME[slot] || slot).toUpperCase()}</h4><div class="iflow">
+      ${itemCard(x.worn, "Wearing", null, `<div>${chips(x.worn)}</div>`)}<div class="arr">➜</div>
+      ${itemCard(x.wear, "From your inventory", x.wear_gain, `<div>${chips(x.wear)}</div>`)}<div class="arr">➜</div>
+      ${itemCard(x.next, "Next goal", x.next?.gain)}<div class="arr">➜</div>${itemCard(x.best, "Best in slot", x.best?.gain)}</div>
+      ${x.steps.length ? `<p class="small muted">Upgrade path steps for this slot: ${x.steps.map((n) => "#" + n).join(", ")}</p>` : ""}`;
+  };
+  $$("[data-dslot]").forEach((b) => (b.onclick = () => show(b.dataset.dslot)));
+  const first = Object.keys(a.doll).find((s) => a.doll[s].wear) || Object.keys(a.doll).find((s) => a.doll[s].next) || "MainHand";
+  show(first);
+}
+
+function advPath(a) {
+  const steps = a.upgrade_path.steps;
+  const kind = { enchant: "＋1", reroll: "⟳", replace: "⇄" };
+  return win("Upgrade path", "one change at a time, biggest gain first, toward the next goals",
+    `<div class="path">${steps.map((s) => `<div class="pstep" data-grade="${esc(s.item?.grade || "")}"><div class="pn">#${s.step}</div>
+      <div class="sl">${esc(SLOT_NAME[s.slot] || s.slot)}</div>${itemIcon(s.item, "lg")}<span class="kind" title="${esc(s.kind || "")}">${kind[s.kind] || ""}</span>
+      <div class="gname small">${esc(s.item?.name || "")}</div><div class="small faint">${esc(s.action)}</div>
+      <div class="gain up">${sp(s.gain)}</div><div class="cum"><i style="width:${Math.min(100, 100 * s.total_gain / Math.max(0.0001, steps[steps.length - 1].total_gain))}%"></i><span>${sp(s.total_gain)}</span></div></div>`).join("")}</div>`,
+    { key: "adv-path", copy: steps.map((s) => `${s.step}. ${s.slot}: ${s.action} (${sp(s.gain)})`).join("\n") });
+}
+
+function advArcana(a) {
+  const order = ["Arcana Chalice", "Arcana Parchment", "Arcana Compass", "Arcana Bell", "Arcana Mirror"];
+  const cards = order.filter((s) => a.arcana.slots[s]).map((slot) => {
+    const x = a.arcana.slots[slot], v = x.variant || {};
+    const prio = a.arcana.priority.indexOf(slot) + 1;
+    const opts = Object.entries(x.ideal.skills).map(([k, lv]) => `<div class="sk" title="${esc(k)} +${lv}"><div class="icon sm"><img src="${icon(SKILL_ICON(x.skill_ids[k]))}" alt=""><span class="lv">+${lv}</span></div><div class="small">${esc(k)}</div></div>`).join("");
+    const owned = x.owned.map((o) => `<div class="owned ${o.verdict === "keep" ? "ok" : "bad"}">${itemIcon(o, "xs")}<span class="small">${esc(o.name)} +${o.enchant}</span>
+      <span class="small">${sp(o.gain)}</span><span class="chip ${o.verdict === "keep" ? "gold" : ""}">${o.verdict === "keep" ? "keep" : "replace"}</span></div>`).join("");
+    return `<div class="acard" data-grade="${esc(v.grade || "Unique")}"><div class="t">${esc(slot.replace("Arcana ", ""))}<span class="prio">#${prio}</span></div>
+      ${itemIcon({ ...v, enchant: 5 }, "xl")}<div class="gname">${esc(v.name || "")}</div>
+      <div class="deity">${esc(v.deity || "")} +${v.points ?? ""}</div>
+      <div class="sub">TARGET OPTIONS · UNIQUE +5</div><div class="opts">${opts}</div>
+      <div class="vals"><span>ideal <b>${sp(x.ideal.gain)}</b></span><span>average <b>${sp(x.expected.unique_5)}</b></span></div>
+      ${owned ? `<div class="sub">YOURS</div>${owned}` : ""}</div>`;
+  }).join("");
+  return win("Arcana", "variant per slot, the skill options to chase (icons = target levels), and your arcana", `<div class="acards">${cards}</div>`,
+    { key: "adv-arcana", copy: order.filter((s) => a.arcana.slots[s]).map((s) => { const x = a.arcana.slots[s]; return `${s}: ${x.variant?.name} — ${Object.entries(x.ideal.skills).map(([k, l]) => k + " +" + l).join(", ")}`; }).join("\n") });
+}
+
+const LORDS = { "Destruction [Zikel]": ["Zikel", "#d9534f"], "Death [Triniel]": ["Triniel", "#9b59b6"], "Wisdom [Lumiel]": ["Lumiel", "#5bc0de"],
+  "Time [Siel]": ["Siel", "#f0ad4e"], "Illusion [Kaisinel]": ["Kaisinel", "#8e7cc3"], "Justice [Nezekan]": ["Nezekan", "#e8cf8e"],
+  "Freedom [Vaizel]": ["Vaizel", "#5cb85c"], "Life [Yustiel]": ["Yustiel", "#7fd6a8"], "Destiny [Marchutan]": ["Marchutan", "#c0a16b"], "Space [Israphel]": ["Israphel", "#6fa8dc"] };
+const DEITY_FX = { "Destruction [Zikel]": "Attack, Perfect Resist", "Death [Triniel]": "Critical Hit, Regen Penetration", "Wisdom [Lumiel]": "Double chance, MP cost",
+  "Time [Siel]": "Combat Speed, Double Resist", "Illusion [Kaisinel]": "Cooldown, Endurance Penetration", "Justice [Nezekan]": "Perfect chance, Defense",
+  "Freedom [Vaizel]": "Accuracy, Evasion", "Life [Yustiel]": "HP, Regeneration", "Destiny [Marchutan]": "MP, Endurance", "Space [Israphel]": "Move Speed, Block" };
+function advPantheon(a) {
+  const p = a.pantheon;
+  const mx = Math.max(...p.per_point.map((r) => r.gain_per_point), 1e-9);
+  const tiles = Object.keys(LORDS).map((dname) => {
+    const r = p.per_point.find((x) => x.deity === dname) || {};
+    const [lord, col] = LORDS[dname];
+    const best = dname === p.best;
+    return `<div class="dtile ${best ? "best" : ""} ${r.field ? "" : "dim"}"><div class="sigil" style="--dc:${col}">${esc(lord[0])}</div>
+      <div class="dn">${esc(dname.split(" [")[0])}</div><div class="lord">${esc(lord)}</div><div class="pts">${p.current[dname] ?? 0}</div>
+      <div class="fx">${esc(DEITY_FX[dname])}</div><div class="bar"><i style="width:${Math.max(0, 100 * (r.gain_per_point || 0) / mx)}%"></i><span>${sp(10 * (r.gain_per_point || 0))} / 10</span></div>
+      ${best ? '<span class="chip gold">best for damage</span>' : ""}</div>`;
+  }).join("");
+  const choices = p.choices.map((c) => `<div class="pchoice"><span class="muted small">${esc(c.source)}</span> <b>${esc(c.pick)}</b>${c.deity ? ` <span class="small">(${esc(c.deity)})</span>` : ""} <span class="gain up">${sp(c.gain)}</span></div>`).join("");
+  return win("Pantheon", "deity stats: points you have, and what 10 more points are worth", `<div class="dtiles">${tiles}</div><div class="pchoices">${choices}</div>`,
+    { key: "adv-pantheon", copy: p.per_point.map((r) => `${r.deity}: ${sp(10 * r.gain_per_point)} per 10`).join("\n") });
+}
+
+function advGenus(a, inv) {
+  const g = a.genus, state = (inv && inv.genus) || {};
+  const genera = ["Cogni", "Fera", "Natura", "Varian", "Special"];
+  const S2 = S.gear;
+  const cur = S2.genusTab || (g.level_order[0] && g.level_order[0].genus) || "Cogni";
+  const st = state[cur] || { level: 0, lines: [] };
+  const val = {};
+  g.lines.filter((l) => l.genus === cur).forEach((l) => (val[l.slot] = l));
+  const chase = g.chase.find((c) => c.genus === cur);
+  const cells = Array.from({ length: 9 }, (_, i) => {
+    const n = i + 1, line = (st.lines || []).find((l) => +l.slot === n), v = val[n];
+    const locked = n > (st.level || 0);
+    const special = n === 4 || n === 7;
+    if (locked) return `<div class="gslot locked ${special ? "sp" : ""}"><div class="gn">${n}</div><div class="small faint">opens at Lv ${n}</div></div>`;
+    if (!line) return `<div class="gslot ${special ? "sp" : ""}"><div class="gn">${n}</div><div class="small faint">${special && chase ? "chase: " + esc(chase.line) : "empty"}</div></div>`;
+    const dead = v && v.gain <= 1e-6;
+    return `<div class="gslot filled ${special ? "sp" : ""} ${dead ? "dead" : ""}"><div class="gn">${n}</div><div class="gst">${esc(line.stat)}</div><div class="gv">${esc(line.value)}</div>
+      ${v ? `<div class="gain ${dead ? "down" : "up"}">${dead ? "no damage: reroll" : (v.gain < 0.001 ? "+" + (100 * v.gain).toFixed(2) + "%" : sp(v.gain))}</div>` : ""}</div>`;
+  }).join("");
+  const mix = Object.entries(g.mix).map(([k, v]) => `<span class="mixseg" style="flex:${v}" title="${esc(k)} ${pct(v, 0)}">${esc(k)} ${pct(v, 0)}</span>`).join("");
+  return win("Genus Insight", "pet genus lines: slots 4 and 7 hold the genus damage line; lines are weighted by your fight time per genus",
+    `<div class="tabs">${genera.map((x) => `<button data-gtab="${x}" class="${x === cur ? "on" : ""}">${x} <span class="faint">Lv ${(state[x] || {}).level || 0}</span></button>`).join("")}</div>
+     <div class="gwrap"><div class="ggrid">${cells}</div><div class="gside"><h4 class="gold small">YOUR FIGHT TIME</h4><div class="mix">${mix}</div>
+       ${chase ? `<h4 class="gold small">CHASE</h4><div>${esc(chase.line)} <span class="small muted">${esc(chase.value)}</span> <span class="gain up">${sp(chase.gain)}</span></div>` : ""}
+       <h4 class="gold small">LEVEL ORDER</h4>${g.level_order.slice(0, 5).map((r, i) => `<div class="small">${i + 1}. ${esc(r.genus)} <span class="faint">Lv ${r.level} · ${pct(r.share, 0)} of fights${r.next ? ` · next opens slot ${r.next.opens_slot}` : ""}</span></div>`).join("")}</div></div>`,
+    { key: "adv-genus", copy: g.lines.map((l) => `${l.genus} slot ${l.slot}: ${l.stat} ${l.value} (${sp(l.gain)})`).join("\n") });
+}
+
+function titlePlate(t, label, extra = "") {
+  if (!t) return `<div class="tplate empty"><div class="ilabel">${esc(label)}</div><div class="faint small">—</div></div>`;
+  return `<div class="tplate" data-grade="${esc(t.grade || "")}"><div class="ilabel">${esc(label)}</div>
+    <div class="tname gname">❖ ${esc(t.name)} ❖</div><div class="small">${esc(t.equip || "")}</div>
+    ${t.owned_bonus && t.owned_bonus !== "—" ? `<div class="small muted">owned: ${esc(t.owned_bonus)}</div>` : ""}
+    ${t.gain != null && label !== "Equipped" ? `<div class="gain ${t.gain >= 0 ? "up" : "down"}">${sp(t.gain)}</div>` : ""}
+    ${t.how ? `<div class="small faint" title="${esc(t.how)}">${esc(t.how.replace(/^You earn it by /, "").split(/\. How to get it/)[0].slice(0, 110))}</div>` : ""}${extra}</div>`;
+}
+function advTitles(a) {
+  const t = a.titles;
+  if (!t) return "";
+  const cols = ["Attack", "Defense", "Etc"].map((slot) => { const x = t.slots[slot] || {};
+    return `<div class="tcol"><div class="t">${slot === "Etc" ? "Other" : slot} title</div>${titlePlate(x.equipped, "Equipped")}
+      ${t.owned_known ? titlePlate(x.best_owned, "Best you own") : ""}
+      <div class="sub">BEST IN SLOT</div>${(x.best || []).length ? "" : '<div class="small faint">No title for this slot adds damage.</div>'}${(x.best || []).slice(0, 3).map((r, i) => titlePlate(r, i ? "" : "Best", r.owned ? '<span class="chip gold">owned</span>' : "")).join("")}</div>`; }).join("");
+  const coll = t.collect.map((c) => titlePlate({ ...c, equip: "" }, "Collect", "")).join("");
+  return win("Titles", "equip bonus per slot, and titles worth collecting for their owned bonus",
+    `<div class="tcols">${cols}</div>${t.note ? `<p class="small faint">${esc(t.note)}</p>` : ""}
+     ${coll ? `<h4 class="gold small" style="margin-top:12px">WORTH COLLECTING (owned bonus)</h4><div class="tcollect">${coll}</div>` : ""}`,
+    { key: "adv-titles", copy: ["Attack", "Defense", "Etc"].map((s) => `${s}: ${(t.slots[s]?.best_owned || t.slots[s]?.best?.[0] || {}).name || "-"}`).join("\n") });
+}
+
+function advTop(a) {
+  const ic = { titles: "❖", "gear (inventory)": "▲", "gear (upgrade)": "⇧", arcana: "✦", pantheon: "☉", "genus insight": "❖", rotation: "↻", specializations: "◎", community: "☷" };
+  return win("Top changes", a.calibrated ? "ranked by simulated DPS gain · model calibrated from fights" : "ranked by simulated DPS gain",
+    `<div class="tops">${a.top.map((r) => `<div class="top"><span class="ti">${ic[r.area] || "•"}</span><div><div class="small muted">${esc(r.area)}</div><div>${esc(r.text)}</div></div><div class="gain ${r.gain == null ? "" : "up"}">${r.gain == null ? "" : sp(r.gain)}</div></div>`).join("")}</div>
+     <p class="small faint">Saved as <code>${esc(a.file || "")}</code></p>`, { key: "adv-top", copy: a.top.map((r) => `${r.area}: ${r.text} ${r.gain == null ? "" : sp(r.gain)}`).join("\n") });
 }
 
 function renderAdvice(a) {
-  const top = `<p>Simulated boss DPS as equipped: <b class="gold">${n0(a.dps)}</b>${a.calibrated ? ' <span class="chip gold">calibrated from your fights</span>' : ""}</p>
-    <table class="t"><tr><th>Area</th><th>Change</th><th class="r">DPS</th></tr>${a.top.map((r) => `<tr><td class="muted">${esc(r.area)}</td><td>${esc(r.text)}</td><td class="r num">${sp(r.gain)}</td></tr>`).join("")}</table>
-    <p class="small faint">Saved as <code>${esc(a.file || "")}</code></p>`;
-  const eq = a.equip;
-  const inv = `<p>Best set from your inventory: <b class="gold">${sp(eq.gain)}</b></p>${eq.changes.map((c) => `<div class="tip">${esc(c.slot)}: wear ${esc(c.to)} instead of ${esc(c.from || "nothing")} (${sp(c.gain)})</div>`).join("")}
-    ${eq.empty_slots.length ? `<p class="small muted">No inventory items for ${esc(eq.empty_slots.join(", "))}.</p>` : ""}`;
-  const goals = `<table class="t"><tr><th>Slot</th><th>Next goal</th><th class="r">DPS</th><th>Best in slot</th><th class="r">DPS</th></tr>${Object.entries(a.goals.slots).map(([s, g]) => {
-    const n = g.next, b = g.best[0];
-    return `<tr><td>${esc(s)}</td><td>${n ? `<a href="${esc(n.url)}" target="_blank" rel="noopener" class="gname" data-grade="${esc(n.grade)}">${esc(n.name)}</a> <span class="faint">iLv ${n.item_level}</span>` : "—"}</td><td class="r num">${n ? sp(n.gain) : ""}</td>
-      <td><a href="${esc(b.url)}" target="_blank" rel="noopener" class="gname" data-grade="${esc(b.grade)}">${esc(b.name)}</a> +${b.enchant}</td><td class="r num">${sp(b.gain)}</td></tr>`; }).join("")}</table>`;
-  const path = `<table class="t"><tr><th>#</th><th>Slot</th><th>Step</th><th class="r">Gain</th><th class="r">Total</th></tr>${a.upgrade_path.steps.map((s) => `<tr><td>${s.step}</td><td>${esc(s.slot)}</td><td>${esc(s.action)}</td><td class="r num">${sp(s.gain)}</td><td class="r num">${sp(s.total_gain)}</td></tr>`).join("")}</table>`;
-  const arc = `<table class="t"><tr><th>Slot</th><th>Variant</th><th>Chase</th><th>Ideal Unique +5</th><th class="r">Expected +5</th></tr>${a.arcana.priority.map((s) => { const x = a.arcana.slots[s];
-    return `<tr><td>${esc(s)}</td><td>${esc(x.variant?.name || "")} <span class="faint">${esc(x.variant?.deity || "")}</span></td><td>${esc(x.chase.slice(0, 3).map((c) => c.skill).join(", "))}</td>
-      <td>${esc(Object.entries(x.ideal.skills).map(([k, v]) => `${k} +${v}`).join(", "))} <b>${sp(x.ideal.gain)}</b></td><td class="r num">${sp(x.expected.unique_5)}</td></tr>` +
-      x.owned.map((o) => `<tr><td></td><td class="small">owned: ${esc(o.name)} +${o.enchant}</td><td class="small">${esc(Object.entries(o.skills).map(([k, v]) => `${k} +${v}`).join(", "))}</td><td class="small">${sp(o.gain)}</td><td class="small">${esc(o.verdict)}</td></tr>`).join(""); }).join("")}</table>`;
-  const pan = `<table class="t"><tr><th>Deity stat</th><th class="r">DPS per 10 points</th><th class="r">You have</th></tr>${a.pantheon.per_point.map((r) => `<tr><td>${esc(r.deity)}</td><td class="r num">${sp(10 * r.gain_per_point)}</td><td class="r">${a.pantheon.current[r.deity] ?? 0}</td></tr>`).join("")}</table>
-    ${a.pantheon.choices.map((c) => `<div class="tip">${esc(c.source)}: ${esc(c.pick)}${c.deity ? " (" + esc(c.deity) + ")" : ""} ${sp(c.gain)}</div>`).join("")}`;
-  const g = a.genus;
-  const gen = `<p class="small">Fight time by genus: ${Object.entries(g.mix).map(([k, v]) => `${esc(k)} ${pct(v, 0)}`).join(" · ")}</p>
-    <table class="t"><tr><th>Genus</th><th>Slot</th><th>Line</th><th class="r">DPS</th></tr>${g.lines.map((r) => `<tr><td>${esc(r.genus)}</td><td>${r.slot ?? ""}</td><td>${esc(r.stat)} ${esc(r.value)}</td><td class="r num">${sp(r.gain)}</td></tr>`).join("")}</table>
-    ${g.chase.slice(0, 2).map((c) => `<div class="tip">Chase ${esc(c.line)} in slot ${c.slots.join(" or ")} (${esc(c.value)}): ${sp(c.gain)}</div>`).join("")}
-    <p class="small">Level order: ${g.level_order.slice(0, 4).map((r) => `${esc(r.genus)} (Lv ${r.level})`).join(" → ")}</p>`;
   const r = a.rotation;
   const rot = r.fights ? `<p>${r.fights} fight(s), idle ${pct(r.idle_share, 0)} of the time.</p>${r.under_cast.slice(0, 6).map((t) => `<div class="tip">${esc(t.text)}</div>`).join("")}
     ${r.specs.map((d) => `<div class="tip">${esc(d.skill)}: specs ${esc(d.yours)} in your fights, ${esc(d.optimal)} in the optimized build</div>`).join("")}` : '<p class="muted">No saved fights for this character: import AbyssLogs links on Combat Logs.</p>';
-  return win("Top changes", "ranked by simulated DPS gain", top) + `<div class="grid2">${win("From your inventory", "", inv)}${win("Your fights", "", rot)}</div>` +
-    win("Goal gear", "each item at its max enchant (up to +15) with good rolls; next = nearest item level that gains ≥2%", goals) +
-    win("Upgrade path", "one change at a time, toward the next goals", path) + win("Arcana", "variant, skill options to chase, keep or replace", arc) +
-    `<div class="grid2">${win("Pantheon", "deity stats", pan)}${win("Genus insight", "pet genus lines", gen)}</div>` +
-    win("Model calibration", "learned from fights matched to equipped gear", a.calibration.map((x) => `<div class="small">${esc(x)}</div>`).join(""));
+  return advTop(a) + advDoll(a) + advPath(a) + advArcana(a) + advTitles(a) + advPantheon(a) + advGenus(a, S.gear.inv) +
+    `<div class="grid2">${win("Your fights", "", rot)}${win("Model calibration", "learned from fights matched to equipped gear", a.calibration.map((x) => `<div class="small">${esc(x)}</div>`).join(""))}</div>`;
+}
+function bindAdvice(a) {
+  bindDoll(a);
+  $$("[data-gtab]").forEach((b) => (b.onclick = () => { S.gear.genusTab = b.dataset.gtab; $("#gout").innerHTML = renderAdvice(a); bindAdvice(a); }));
 }
 
 // ------------------------------------------------------------- router

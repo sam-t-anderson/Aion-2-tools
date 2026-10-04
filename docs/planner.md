@@ -40,8 +40,33 @@ sub-stats (for example the Spiritforged weapons) always count them.
 | Upgrade path | one change at a time, always the biggest simulated gain: an enchant level, a reroll toward good rolls, or the slot's next goal |
 | Arcana | per slot: the variant whose deity stat is worth more, the skill options to chase, the ideal Unique +5 (9 options, at most 4 per skill), the expected value of random options, and whether each owned arcana is above the average for its grade and level |
 | Pantheon | the ten deity stats by DPS per point (Life, Destiny and Space do nothing for damage), your current split, the arcana variant choices and the best bracelet deity roll |
+| Titles | per title slot (Attack, Defense, Other): the equipped title, the best one you own, the best in the game with how to earn it, and the titles worth collecting for their owned bonus |
 | Genus insight | the value of each analysis line you enter, the lines to reroll first, the genus damage line to chase (slots 4 and 7, 2.4-4.8%), and which genus to level |
 | Your fights | skills you cast less than the optimal rotation does, idle time, and specializations that differ from the optimized build, across all of the character's saved fights |
+
+### How it looks
+
+The results are laid out like the game's own windows, using the game's item, arcana and skill icons
+(served from the official CDN and metabot, and cached locally):
+
+| Window | Layout |
+|---|---|
+| Equipment | a paper doll: armor down the left, accessories down the right, arcana under the character. Each slot shows the item icon in its grade color with its enchant level. ▲ marks a better item in your inventory, ◆ the next goal's gain, # its upgrade-path step. Click a slot to see *Wearing → From your inventory → Next goal → Best in slot* as item cards, with rolls, skill options and links to the item pages |
+| Upgrade path | a row of item cards in order, each with its action (＋1 enchant, ⟳ reroll, ⇄ replace), the step's gain and the running total |
+| Arcana | the five arcana cards (Chalice, Parchment, Compass, Bell, Mirror) with the variant to use, its deity stat, the target skill options as skill icons with their levels, the ideal and average gain, and your own arcana marked keep or replace |
+| Titles | the three title slots as title plates (equipped, best owned, best in slot), and the titles worth collecting |
+| Pantheon | the ten deities with their Lord, your points, what the stat does, and the DPS of 10 more points; the best one is highlighted |
+| Genus Insight | one tab per genus, with its 3×3 analysis grid: locked slots, slots 4 and 7 framed as the genus-damage slots, each line with its DPS value (or *no damage: reroll*), plus your fight time per genus and the level order |
+
+Every window has **Copy as text**, and **My screenshot** to pin your own in-game screenshot next to
+it for side-by-side checking.
+
+### Titles
+
+Each title's slot comes from its metabot page ("Role: Offensive" → Attack, "Defensive" → Defense,
+"Utility" → Other). Titles whose page gives no role are placed by their stats. The sync reads the
+pages of new or changed titles. The official page shows only equipped titles, so list the ones you
+own on the Gear & Advice page (one name per line) to get "best you own".
 
 ### Genus insight
 

@@ -76,7 +76,7 @@ def add(inv: dict, slug: str, enchant: int = 0, rolls: list | None = None, skill
         raise ValueError(f"unknown item {slug!r}; search the catalog (Database page) for its id")
     e = {"id": uuid.uuid4().hex[:10], "source": "inventory", "slug": it["slug"], "name": it["name"],
          "category": it.get("category"), "grade": it.get("grade"), "item_level": it.get("item_level"),
-         "enchant": int(enchant), "rolls": rolls, "skills": skills or [], "note": note}
+         "icon": it.get("icon"), "enchant": int(enchant), "rolls": rolls, "skills": skills or [], "note": note}
     inv["items"].append(e)
     return e
 
@@ -105,6 +105,7 @@ def from_character(imp, keep: dict | None = None) -> dict:
             "id": f"eq-{row['slot']}", "source": "equipped", "slot": slot, "base_slot": row["slot"],
             "slug": (it or {}).get("slug"), "name": row.get("name"), "category": cat, "grade": row.get("grade"),
             "item_level": (it or {}).get("item_level"), "enchant": row.get("enchant") or 0,
+            "icon": row.get("icon") or (it or {}).get("icon"),
             "stats": row.get("stats") or {}, "deity": row.get("deity") or {},
             "skills": [list(x) for x in row.get("skills") or []],
             "rolls_text": row.get("rolls"), "manastones": row.get("manastones")})

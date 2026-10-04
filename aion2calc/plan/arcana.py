@@ -114,7 +114,7 @@ def _variants(category: str) -> list[dict]:
         for label, v in (it.get("fixed") or {}).items():
             if label in I.DEITY_LABELS:
                 deity = {"label": label, "field": I.DEITY_LABELS[label], "points": I._numbers(v)[0]}
-        out.append({"slug": slug, "name": it["name"], "grade": it.get("grade"), "deity": deity})
+        out.append({"slug": slug, "name": it["name"], "grade": it.get("grade"), "deity": deity, "icon": it.get("icon")})
     return out
 
 
@@ -132,6 +132,7 @@ def plan_arcana(ctx: PlanContext, inv: dict | None = None, enhance: int = 5) -> 
             slots[slot] = pool
             want |= set(pool.get("skills", []))
     values = skill_level_values(ctx, want)
+    cd_ = ClassData(cls)
     owned = [e for e in (inv or {}).get("items", []) if e.get("category") in I.ARCANA_CATEGORIES]
     out = {}
     for slot, pool in slots.items():
@@ -156,12 +157,15 @@ def plan_arcana(ctx: PlanContext, inv: dict | None = None, enhance: int = 5) -> 
                 lv[nm] = lv.get(nm, 0) + int(n)
             r = BASE_ROLLS.get(e.get("grade") or "", 4) + int(e.get("enchant") or 0)
             have = _value(lv, values)
-            mine.append({"name": e.get("name"), "grade": e.get("grade"), "enchant": e.get("enchant"),
+            mine.append({"name": e.get("name"), "grade": e.get("grade"), "enchant": e.get("enchant"), "icon": e.get("icon"),
                          "equipped": e.get("source") == "equipped", "skills": lv, "gain": have,
                          "expected_same_grade": _expected(chances, values, r, cap),
                          "verdict": "keep" if have >= _expected(chances, values, r, cap) else
                          "below average for its grade and level: replace when a better roll comes"})
-        out[slot] = {"variant": variant and {"name": variant["name"], "deity": variant["deity"].get("label"),
+        sid = {nm: (cd_.by_name.get(nm) or {}).get("id") for nm in chances}
+        out[slot] = {"skill_ids": sid,
+                     "variant": variant and {"name": variant["name"], "deity": variant["deity"].get("label"),
+                                             "icon": variant.get("icon"), "grade": variant.get("grade"),
                                              "points": variant["deity"].get("points"), "gain": variant["dps"],
                                              "other": [{"name": v["name"], "deity": v["deity"].get("label"),
                                                         "gain": v["dps"]} for v in uniques if v is not variant]},

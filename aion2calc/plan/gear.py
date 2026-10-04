@@ -109,7 +109,7 @@ def goal_gear(ctx: PlanContext, enchant: int | None = None, top: int = 3, prefil
             gear, deity, sb = entry_stats(e, cls, reroll=True, value=val)
             d = ctx.dps({**ctx.equipped, slot: e}, overrides={slot: (gear, deity, sb)})
             scored.append({"slot": slot, "slug": it["slug"], "name": it["name"], "grade": it.get("grade"),
-                           "item_level": it.get("item_level"), "enchant": lv, "gain": d / base - 1,
+                           "icon": it.get("icon"), "item_level": it.get("item_level"), "enchant": lv, "gain": d / base - 1,
                            "url": f"https://metabot.gg/en/aion-2/items/{it['slug']}", "entry": e,
                            "stats": gear, "deity": deity})
         scored.sort(key=lambda r: -r["gain"])
@@ -157,15 +157,17 @@ def upgrade_path(ctx: PlanContext, goals: dict | None = None, steps: int = 12, e
             if x:
                 it = catalog_item(x["entry"].get("slug"))
                 if it and x["enchant"] < min(I.max_enchant(it), enchant_cap):
-                    options.append((slot, {**x, "enchant": x["enchant"] + 1},
+                    options.append((slot, {**x, "enchant": x["enchant"] + 1, "kind": "enchant"},
                                     f"enchant {x['entry']['name']} to +{x['enchant'] + 1}"))
                 if it and not x["reroll"] and I.roll_count(it) > 0 and x["entry"].get("source") != "goal":
-                    options.append((slot, {**x, "reroll": True}, f"reroll {x['entry']['name']} toward good rolls"))
+                    options.append((slot, {**x, "reroll": True, "kind": "reroll"},
+                                    f"reroll {x['entry']['name']} toward good rolls"))
             g = (goals.get(slot) or goals.get(next((k for k, v in PAIRS.items() if v == slot), ""), []) or [None])[0]
             if g and (not x or x["entry"].get("slug") != g["slug"]):
                 e = dict(g["entry"])
                 start_lv = min(x["enchant"] if x else 0, g["enchant"])
-                options.append((slot, {"entry": e, "enchant": start_lv, "reroll": True},
+                options.append((slot, {"entry": {**e, "icon": g.get("icon")}, "enchant": start_lv, "reroll": True,
+                                       "kind": "replace"},
                                 f"replace with {g['name']} (+{start_lv}, good rolls)"))
         best = None
         for slot, nx, label in options:
@@ -178,7 +180,10 @@ def upgrade_path(ctx: PlanContext, goals: dict | None = None, steps: int = 12, e
             break
         d, slot, nx, label = best
         state[slot] = nx
+        ent = nx["entry"]
         path.append({"step": len(path) + 1, "slot": slot, "action": label, "gain": d / cur - 1,
-                     "total_gain": d / start - 1, "dps": d})
+                     "total_gain": d / start - 1, "dps": d, "kind": nx.get("kind"),
+                     "item": {"name": ent.get("name"), "grade": ent.get("grade"), "icon": ent.get("icon"),
+                              "enchant": nx["enchant"], "slug": ent.get("slug")}})
         cur = d
     return {"start_dps": start, "end_dps": cur, "steps": path}

@@ -314,3 +314,38 @@ def test_local_calibration_merges_community(home):
     with learn.calibrated("sorcerer"):
         assert engine.SKILL_MULT["Blaze"] == 0.9
     assert not engine.SKILL_MULT
+
+
+def test_titles_plan_per_slot_and_collection(home):
+    from aion2calc.paths import write_user_json
+    from aion2calc.plan.context import PlanContext
+    from aion2calc.plan.titles import plan_titles
+    write_user_json([
+        {"name": "Strong", "grade": "Unique", "faction": "Both factions", "slot": "Attack",
+         "equip": "PvE Damage Boost +4.5%, Attack Bonus +34", "owned": "PvE Damage Boost +1%", "earn": "do a thing"},
+        {"name": "Weak", "grade": "Common", "faction": "Both factions", "slot": "Attack",
+         "equip": "Attack Bonus +5", "owned": "Accuracy Bonus +5"},
+        {"name": "Fast", "grade": "Epic", "faction": "Both factions", "slot": "Etc",
+         "equip": "Cooldown Reduction +3%", "owned": "—"},
+        {"name": "Tough", "grade": "Rare", "faction": "Both factions", "slot": "Defense",
+         "equip": "Critical Hit +20", "owned": "Critical Hit +5"}], "global", "titles.json")
+    ctx = PlanContext.for_class("sorcerer")
+    t = plan_titles(ctx, owned=["Weak"])
+    a = t["slots"]["Attack"]
+    assert a["best"][0]["name"] == "Strong" and a["best"][0]["gain"] > a["best"][1]["gain"]
+    assert a["best_owned"]["name"] == "Weak"
+    assert t["slots"]["Etc"]["best"][0]["name"] == "Fast" and t["slots"]["Defense"]["best"][0]["name"] == "Tough"
+    assert [c["name"] for c in t["collect"]][0] == "Strong"               # +1% PvE owned bonus beats +5 crit
+    assert "Weak" not in [c["name"] for c in t["collect"]]                # already owned
+
+
+def test_title_page_parse(monkeypatch):
+    from aion2calc.scrape import metabot
+    page = "x"
+    monkeypatch.setattr(metabot, "fetch", lambda url, **kw: page)
+    monkeypatch.setattr(metabot, "flight", lambda h: h)
+    monkeypatch.setattr(metabot, "text_lines", lambda h: ["Unbound by Genus", "Category", "Growth", "Role", "Offensive",
+                                                          "How to earn", "Achievement"])
+    d = metabot.title_detail("unbound-by-genus")
+    assert d == {"slug": "unbound-by-genus", "category": "Growth", "role": "Offensive", "how": "Achievement",
+                 "slot": "Attack"}

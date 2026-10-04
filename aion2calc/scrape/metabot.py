@@ -303,6 +303,27 @@ def titles(fresh: bool = False) -> list[dict]:
     return out
 
 
+TITLE_ROLES = {"Offensive": "Attack", "Defensive": "Defense"}
+
+
+def title_detail(slug: str, cache: bool = True) -> dict:
+    """One title page: its equip slot (Attack / Defense / Etc), category and how to earn it."""
+    lines = text_lines(flight(fetch(f"{BASE}/titles/{slug}", max_age=30 * 86400 if cache else 0, cache=cache)))
+    out = {"slug": slug}
+    for key, field in (("Category", "category"), ("Role", "role"), ("How to earn", "how"), ("Source", "source")):
+        idx = [i for i, x in enumerate(lines[:-1]) if x == key]
+        if idx:                                  # the title's own field is the last one (menus come first)
+            out[field] = lines[idx[-1] + 1]
+    if out.get("role") not in ("Offensive", "Defensive", "Utility"):
+        out.pop("role", None)                    # no role on the page: the planner infers the slot from the stats
+    else:
+        out["slot"] = TITLE_ROLES.get(out["role"], "Etc")
+    m = next((x for x in lines if x.startswith("You earn it by") or "You earn it by" in x), None)
+    if m:
+        out["earn"] = m[m.find("You earn it by"):][:300]
+    return out
+
+
 def _skill_pools(lines: list[str]) -> dict:
     """Parse an item page's "Random skill options" table: {class: {max_level, chance, skills}}."""
     out: dict = {}

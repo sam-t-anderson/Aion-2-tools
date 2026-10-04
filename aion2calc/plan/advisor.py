@@ -24,6 +24,7 @@ from .context import PlanContext
 from .gear import best_equip, goal_gear, upgrade_path
 from .genus import plan_genus
 from .pantheon import plan_pantheon
+from .titles import plan_titles
 
 
 def fights_of(name: str, cls: str) -> list[dict]:
@@ -65,6 +66,40 @@ def rotation_findings(name: str, cls: str, build=None, limit: int = 8) -> dict:
             "specs": list(specs.values())}
 
 
+def _card(e: dict | None) -> dict | None:
+    if not e:
+        return None
+    ic = e.get("icon")
+    if not ic and e.get("slug"):
+        ic = (INV.catalog_item(e["slug"]) or {}).get("icon")
+    return {"name": e.get("name"), "grade": e.get("grade"), "icon": ic, "enchant": e.get("enchant") or 0,
+            "skills": e.get("skills") or [], "rolls": e.get("rolls_text") or e.get("rolls"),
+            "manastones": e.get("manastones"), "source": e.get("source")}
+
+
+def doll_view(inv: dict, equip: dict, goals: dict, path: dict) -> dict:
+    """Per slot: what is worn, what to wear from the inventory, the next goal, the best item, the path steps."""
+    from .gear import PAIRS
+    from .items import SLOTS
+    by_id = {e["id"]: e for e in inv["items"]}
+    worn = {e["slot"]: e for e in inv["items"] if e.get("source") == "equipped"}
+    gains = {c["slot"]: c["gain"] for c in equip["changes"]}
+    first = {v: k for k, v in PAIRS.items()}
+    out = {}
+    for slot in SLOTS:
+        rec = by_id.get(equip["choice"].get(slot)) if equip["choice"].get(slot) else None
+        g = goals["slots"].get(slot) or goals["slots"].get(first.get(slot, ""), {})
+        out[slot] = {"worn": _card(worn.get(slot)),
+                     "wear": _card(rec) if rec is not None and rec is not worn.get(slot) else None,
+                     "wear_gain": gains.get(slot),
+                     "next": g.get("next") and {k: g["next"][k] for k in ("name", "grade", "icon", "enchant",
+                                                                           "item_level", "gain", "url")},
+                     "best": g.get("best") and {k: g["best"][0][k] for k in ("name", "grade", "icon", "enchant",
+                                                                              "item_level", "gain", "url")},
+                     "steps": [s["step"] for s in path["steps"] if s["slot"] == slot]}
+    return out
+
+
 def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: int = 10,
            genus_mix: dict | None = None, progress=None) -> dict:
     say = progress or (lambda m: None)
@@ -87,8 +122,11 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
         say("genus insight")
         fights = fights_of(imp.name, imp.cls)
         gen = plan_genus(ctx, inv.get("genus"), fights, genus_mix)
+        say("titles")
+        tit = plan_titles(ctx, imp.systems, inv.get("titles_owned"))
         say("your fights")
         rot = rotation_findings(imp.name, imp.cls, ctx.build)
+    doll = doll_view(inv, equip, goals, path)
     top = []
     for c in equip["changes"]:
         top.append({"area": "gear (inventory)", "text": f"{c['slot']}: wear {c['to']} instead of {c['from'] or 'nothing'}",
@@ -104,6 +142,14 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
         if ch["source"].startswith("Bracelet"):
             top.append({"area": "pantheon", "text": f"bracelet deity roll: {ch['pick']} ({ch['points']})",
                         "gain": ch["gain"]})
+    for slot, t in tit["slots"].items():
+        pick = t.get("best_owned") or (t["best"][0] if t["best"] else None)
+        if pick and pick["gain"] > 0.002 and (not t["equipped"] or pick["name"] != t["equipped"]["name"]):
+            where = "you own it" if pick.get("owned") else (pick.get("how") or "to earn")
+            top.append({"area": "titles", "text": f"{slot} title: {pick['name']} ({where})", "gain": pick["gain"]})
+    for c in tit["collect"][:2]:
+        top.append({"area": "titles", "text": f"collect {c['name']} for its owned bonus ({c['owned_bonus']})",
+                    "gain": c["gain"]})
     for c in gen["chase"][:1]:
         top.append({"area": "genus insight", "text": f"{c['line']} in slot 4 or 7 ({c['value']})", "gain": c["gain"]})
     for r in gen["reroll_first"][:2]:
@@ -127,8 +173,8 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
             "dps": base, "calibration": learn.summary(learn.calibration(imp.cls)) + [
                 f"community calibration from your log server: {c['fights']} fights" for c in
                 [learn.community(imp.cls, fetch=False)] if c and c.get("active")], "calibrated": bool(cal),
-            "top": top, "equip": equip, "goals": goals, "upgrade_path": path, "arcana": arc,
-            "pantheon": pan, "genus": gen, "rotation": rot, "community": cs, "seconds": time.time() - t0}
+            "top": top, "doll": doll, "equip": equip, "goals": goals, "upgrade_path": path, "arcana": arc,
+            "pantheon": pan, "titles": tit, "genus": gen, "rotation": rot, "community": cs, "seconds": time.time() - t0}
 
 
 def _pct(x) -> str:

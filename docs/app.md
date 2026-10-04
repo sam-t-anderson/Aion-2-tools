@@ -95,8 +95,11 @@ What the profile does not show, and how it is handled:
 
 Pick an imported character to see its inventory: the equipped items come from the official page,
 and you add the rest from the catalog, with enchant level and skill options. You also enter its
-Genus Insight lines here. **Run advice** then plans gear (best set from the inventory, goal gear,
-upgrade path), arcana, pantheon, genus insight and your fights, ranked by simulated DPS gain. The
+Genus Insight lines and the titles you own here. **Run advice** then plans gear (best set from
+the inventory, goal gear, upgrade path), arcana, titles, pantheon, genus insight and your fights,
+ranked by simulated DPS gain. The results are shown as game-style windows with the game's icons:
+an equipment paper doll, the upgrade path as item cards, arcana cards, title plates, the
+pantheon deities and the genus insight grids. The
 model is calibrated from the character's fights when there are enough. Details:
 [planner.md](planner.md).
 

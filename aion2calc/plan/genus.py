@@ -124,7 +124,7 @@ def plan_genus(ctx: PlanContext, genus_state: dict | None, encounters: list[dict
                        "next": nxt and {"level": nxt["level"], "opens_slot": nxt.get("slot_opened"),
                                         "grades": nxt.get("grades")}})
     return {"mix": mix, "dps_with_lines": with_all, "lines": lines,
-            "reroll_first": [r for r in lines if r["gain"] <= 0.001][:6],
+            "reroll_first": [r for r in lines if r["gain"] <= 1e-6][:6],
             "chase": chase, "level_order": levels,
             "note": "Genus lines that only count against one genus are weighted by that genus's share of "
                     "your fight time."}

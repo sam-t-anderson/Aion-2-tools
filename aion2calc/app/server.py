@@ -184,6 +184,8 @@ def inventory_post(path: str, body: dict) -> dict:
         INV.remove(inv, body["id"])
     elif path.endswith("/genus"):
         inv["genus"] = body.get("genus") or {}
+    elif path.endswith("/titles"):
+        inv["titles_owned"] = [t.strip() for t in body.get("titles") or [] if t and t.strip()]
     INV.save(inv)
     return inv
 
