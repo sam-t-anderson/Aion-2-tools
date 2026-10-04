@@ -444,6 +444,18 @@ def build_kit(build: Build, cd: ClassData, filler: str = "flame_arrow") -> Kit:
                          skill_speed=sspeed, on_cast=nuke, element=elem)
 
     policy = default_policy(A, filler)
+    # skills this hand-written kit does not know (added by a patch) fall back to the
+    # generic tooltip-driven model, so new content is simulated without code changes
+    known = {a.skill_id for a in A.values()} | set(SID.values())
+    unknown = {sid for sid, s in cd.skills.items() if sid not in known and s["kind"] in ("active", "stigma")}
+    if unknown:
+        from . import generic
+        g = generic.build_kit(build, cd)
+        for k, a in g.actions.items():
+            if a.skill_id in unknown and k not in A and not a.is_filler:
+                A[k] = a
+                policy.insert(max(0, len(policy) - 1), k)
+                notes.append(f"{a.name}: not in the hand-written kit, simulated from its tooltip")
     return Kit(actions=A, hooks=[hook], cond_mods=[cond], static=static, policy=policy,
                filler=filler, notes=notes, levels=L)
 

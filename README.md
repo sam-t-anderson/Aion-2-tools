@@ -36,6 +36,28 @@ share links for the metabot.gg and gamers4.life planners.
 
 ![Sorcerer build card](results/sorcerer_l45/images/build_card.png)
 
+## The app
+
+```bash
+pip install -e .
+python -m aion2calc app        # opens http://127.0.0.1:8765
+```
+
+* **Planner**: each optimized build is laid out like the in-game windows (skills with numbered spec
+  chips, stigma, Daevanion boards, equipment, arcana, titles and wings, macro). Below each window is
+  a "stats from this system" summary, a copy-as-text button, and a slot to pin your own in-game
+  screenshot next to it.
+* **My Character**: import any character from the official AION 2 site. You get its gear, rolls,
+  manastones, arcana skill rolls, Daevanion and skill levels, a DPS score as it is, and one click to
+  optimize it with the same gear and points.
+* **Combat Logs**: an AionFlex-style breakdown (per-skill share, casts, crit/double/perfect rates,
+  cooldown use, timeline, buffs, idle time). It compares the log with the optimal rotation for that
+  build and with top-player logs, and keeps an encounter history.
+* **Database**: updates itself on every launch from the live sources. New items, skills or classes
+  need no code changes.
+
+Details: [`docs/app.md`](docs/app.md).
+
 ## Quick start
 
 ```bash
@@ -56,7 +78,16 @@ python -m aion2calc diff results/sorcerer_l45 results/sorcerer_l45_geared
 # optimize several classes with identical settings and rank them (writes results/compare/README.md)
 python -m aion2calc compare sorcerer ranger assassin gladiator
 
-# re-scrape everything (global client via metabot.gg, KR via gamers4.life / A2DIL)
+# import and optimize a real character (official AION 2 site, global regions)
+python -m aion2calc character "Name" --server Zikel --optimize
+
+# analyze a combat log (A2DIL link, JSON or CSV) against the optimal rotation
+python -m aion2calc analyze https://a2dil.com/training-rankings/<id>
+
+# update the local game database (also runs automatically when the app starts)
+python -m aion2calc sync
+
+# re-scrape the bundled data (developers; global client via metabot.gg, KR via gamers4.life / A2DIL)
 python -m aion2calc refresh
 ```
 
@@ -72,6 +103,10 @@ Classes: `gladiator templar assassin ranger sorcerer spiritmaster cleric chanter
 | Simulator | `sim/engine.py` | deterministic expected-value event simulation (buffs, debuffs, DoTs, chains, resets, MP, procs with internal cooldowns, combat speed) |
 | Optimizers | `opt/rotation.py`, `opt/pipeline.py`, `opt/daevanion.py`, `opt/statweights.py`, `opt/macro.py`, `opt/gear.py` | rotation search, specs, stigmas, per-skill level curves, joint Daevanion + skill-point integer program, stat weights, macro plan, gear advice |
 | Output | `report.py`, `report_md.py`, `diff.py`, `render/*` | build.json, Markdown report, board images, build card, planner links, result diffs |
+| Database | `db/store.py`, `db/sync.py`, `paths.py` | SQLite catalog + history, launch-time sync from sitemaps, user data overlay |
+| Characters | `sources/official.py`, `sources/character.py`, `charopt.py` | official profile import → build + loadout → score as-is → optimize → diff |
+| Combat logs | `combat/adapters.py`, `combat/analyze.py`, `combat/live.py` | log formats, breakdown, comparison with the optimum and top logs, live-source interface |
+| App | `app/server.py`, `app/views.py`, `app/static/*` | local server (stdlib) and the game-styled UI |
 
 Formulas, sources, and every assumption: [`docs/methodology.md`](docs/methodology.md).
 

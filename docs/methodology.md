@@ -25,14 +25,14 @@ may want to tune.
 
 | Resource | Value | Source |
 |---|---|---|
-| Skill points | 203 | metabot (client Exp table) |
+| Skill points | 203 from levels **+ 1 per Wisdom Stone** (Empyrean Traces → monolith exchange); top global level-45 profiles show 382–383 spent. Configurable (`--skill-points`); imported characters use their own total | metabot (client Exp table), official profiles |
 | Skill level price | Lv 2–4: 1, Lv 5–7: 2, Lv 8–10: 4 (21 per skill to Lv 10) | metabot (skill acquire table) |
 | Skill level cap from points | 10; Daevanion +4 max per skill (4 nodes per skill) | metabot / Inven |
 | Arcana skill rolls | (grade base + enhancement level) random skill levels per arcana — Rare 2, Legend 3, Unique 4 base, +1 per enhancement (Unique +5 = 9); repeats stack up to +4 per skill. Chalice (any skill), Parchment and Compass (two halves of the active skills) roll actives; Bell and Mirror roll passives | official item data (`/api/gameconst/item`, character equipment) + metabot pools (`data/global/arcana_skill_pools.json`) |
 | Accessory skill rolls | Unique accessories (e.g. Aulamus/Gartua) roll up to 4 passive skills at +1 from a 10-skill pool | official item data, metabot pools |
 | Specialization slots | 1 at skill Lv 8, 2 at Lv 12, 3 at Lv 20; options unlock at 8/12/16 | client data |
 | Highest active skill level at 45 | 10 SP + 4 Daevanion nodes + arcana rolls. A Unique +5 Parchment spreads 9 levels over six core actives, so the Lv 16 options (Pyroclasm reset, Wish −10 s, Blaze → Wish, Hellfire −15 s) are reachable with good rolls; a level-45 profile with only Rare arcana already shows Lv 15 actives | official profiles, derived |
-| Stigma points | 29 (+1 from the 3rd Ascension reward = 30) | metabot |
+| Stigma points | 29 (+1 from the 3rd Ascension reward = 30) from levels; some profiles show more (up to ~70), so it is configurable (`--stigma-points`) | metabot, official profiles |
 | Stigma level price | Lv 1–5: 1, 6–10: 2, 11–15: 4, 16–20: 8 (75 to Lv 20) | metabot |
 | Stigma slots | 4 (Lv 22/27/32/37) | client data |
 | Daevanion Crystal points | **360** (136 from levels + 122 from 61 sealed dungeons + 58 regional quests + shop/fragment crystals) | metabot board guide; the global top-player "most common" board spends 351 |
