@@ -153,3 +153,16 @@ def test_app_settings_routes(home):
     finally:
         srv.shutdown()
         app._UPDATE.clear()
+
+
+def test_default_server_used_until_user_chooses(home, monkeypatch):
+    from aion2calc.combat import share
+    monkeypatch.setattr(share, "_remote_default", lambda *a, **k: {})      # no network in tests
+    monkeypatch.setattr(share, "_bundled_default",
+                        lambda: {"url": "https://default.test", "visibility": "unlisted"})
+    eff = share.effective()
+    assert eff["url"] == "https://default.test" and eff["is_default"] is True
+    assert share.settings() == {}                                         # the default is not persisted
+    share.save_settings("https://mine.test/", visibility="public")
+    eff = share.effective()
+    assert eff["url"] == "https://mine.test" and eff["is_default"] is False and eff["visibility"] == "public"

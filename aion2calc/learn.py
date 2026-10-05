@@ -210,8 +210,8 @@ def community(cls: str, max_age: float = 86400, fetch: bool = True) -> dict | No
     if not fetch:
         return cached
     try:
-        from .combat.share import settings
-        url = (settings().get("url") or "").rstrip("/")
+        from .combat.share import effective
+        url = (effective().get("url") or "").rstrip("/")
         if not url:
             return cached
         with urllib.request.urlopen(f"{url}/api/v1/calibration/{cls}", timeout=10) as r:
@@ -232,8 +232,8 @@ def community_stats(cls: str, max_age: float = 86400) -> dict | None:
     if cached and time.time() - cached.get("fetched_at", 0) < max_age:
         return cached
     try:
-        from .combat.share import settings
-        url = (settings().get("url") or "").rstrip("/")
+        from .combat.share import effective
+        url = (effective().get("url") or "").rstrip("/")
         if not url:
             return cached
         with urllib.request.urlopen(f"{url}/api/v1/stats/{cls}", timeout=10) as r:

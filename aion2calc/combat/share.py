@@ -18,8 +18,78 @@ from ..paths import data_file, read_json, write_user_json
 _FILE = ("logserver.json",)
 
 
+#: the project's default log server for new users, updatable without a rebuild (clients read the
+#: committed file at runtime). A user's own choice in Settings always overrides it.
+DEFAULT_SERVER_RAW = ("https://raw.githubusercontent.com/sam-t-anderson/Aion-2-tools/"
+                      "main/aion2calc/data/global/default_server.json")
+_DEFAULT_CACHE = ("cache", "default_server.json")
+
+
 def settings() -> dict:
+    """The user's own saved log-server settings (empty until they save any)."""
     return read_json(*_FILE) if data_file(*_FILE).exists() else {}
+
+
+def _remote_default(max_age: float = 21600) -> dict:
+    """The repo's default_server.json, fetched and cached ~6h, so a changed (e.g. quick-tunnel)
+    URL reaches clients without a new build. Falls back to the last cache, then nothing."""
+    import time
+    p = data_file(*_DEFAULT_CACHE)
+    if p.exists() and time.time() - p.stat().st_mtime < max_age:
+        try:
+            return read_json(*_DEFAULT_CACHE)
+        except ValueError:
+            pass
+    try:
+        with urllib.request.urlopen(DEFAULT_SERVER_RAW, timeout=5) as r:
+            d = json.load(r)
+        write_user_json(d, *_DEFAULT_CACHE)
+        return d
+    except Exception:
+        try:
+            return read_json(*_DEFAULT_CACHE) if p.exists() else {}
+        except ValueError:
+            return {}
+
+
+def default_server() -> dict:
+    """Where new users share by default: the remote default, else the bundled one, else a
+    ``client.json`` baked in by a build (A2LOGS_PUBLIC_URL). ``{}`` if none is configured."""
+    for src in (_remote_default(), _bundled_default(), _client_json()):
+        if src.get("url"):
+            return {"url": src["url"].rstrip("/"), "visibility": src.get("visibility") or "unlisted"}
+    return {}
+
+
+def _bundled_default() -> dict:
+    try:
+        return read_json("global", "default_server.json")
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
+def _client_json() -> dict:
+    from ..paths import resource_root
+    p = resource_root() / "client.json"
+    if p.exists():
+        try:
+            c = json.loads(p.read_text(encoding="utf-8"))
+            return {"url": c.get("logserver_url"), "visibility": c.get("visibility")}
+        except ValueError:
+            return {}
+    return {}
+
+
+def effective() -> dict:
+    """The server actually used: the user's saved settings, or the project default when they have
+    not chosen one. ``is_default`` marks which it is (so the UI can show it)."""
+    s = settings()
+    if s.get("url"):
+        return {**s, "is_default": False}
+    d = default_server()
+    if d.get("url"):
+        return {**d, "key": s.get("key"), "is_default": True}
+    return {"is_default": False}
 
 
 def save_settings(url: str | None = None, key: str | None = None, visibility: str | None = None) -> dict:
@@ -41,7 +111,7 @@ def discover(url: str) -> dict:
 
 
 def upload(doc: dict, url: str | None = None, key: str | None = None, visibility: str | None = None) -> dict:
-    s = settings()
+    s = effective()
     url = (url or s.get("url") or "").rstrip("/")
     key = key or s.get("key")
     vis = visibility or s.get("visibility") or "unlisted"
