@@ -1,0 +1,19 @@
+/* Transparent, compact overlay for a frameless always-on-top window (or a browser tab). The body is
+   transparent so a native transparent window shows only the card over the game. */
+html, body { margin: 0; background: transparent; color: #eceae3;
+  font: 12px/1.35 "Segoe UI", "Noto Sans", system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
+.ovcard { background: rgba(10, 14, 22, .72); border: 1px solid rgba(233, 203, 128, .40); border-radius: 8px;
+  padding: 8px 10px; margin: 6px; min-width: 230px; backdrop-filter: blur(4px); box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+.ovhd { display: flex; justify-content: space-between; align-items: center; color: #e8cf8e; font-weight: 700; margin-bottom: 5px; }
+.ovtabs button { background: transparent; border: 0; color: #9aa3b5; cursor: pointer; font-weight: 700; padding: 0 4px; font-size: 11px; }
+.ovtabs button.on { color: #e8cf8e; }
+.ovsub { color: #9aa3b5; font-weight: 400; font-size: 11px; }
+.ovrow { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: center; padding: 2px 0; }
+.ovname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ovbar { position: relative; height: 16px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
+.ovbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, #ecd79f, #b9984f); }
+.ovbar span { position: relative; padding: 0 6px; line-height: 16px; font-weight: 700; color: #0b0f18; font-variant-numeric: tabular-nums; }
+.muted { color: #9aa3b5; }
+.ovarena { position: relative; width: 200px; height: 200px; margin: 2px auto; border: 1px solid rgba(233,203,128,.3);
+  border-radius: 6px; background: rgba(6,9,15,.5); }
+.ovarena svg { position: absolute; inset: 0; width: 100%; height: 100%; }

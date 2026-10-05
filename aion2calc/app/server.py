@@ -273,6 +273,8 @@ class Handler(BaseHTTPRequestHandler):
     def route_get(self, path: str, q: dict):
         if path in ("/", "/index.html"):
             return self._static("index.html")
+        if path == "/overlay":
+            return self._static("overlay.html")
         if path.startswith("/static/"):
             return self._static(path[len("/static/"):])
         if path == "/api/status":
@@ -460,6 +462,10 @@ def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: 
     httpd = httpd or make_server(host, port)
     host, port = httpd.server_address[:2]
     url = f"http://{host}:{port}/"
+    try:                                      # record the live URL so `python -m aion2calc.overlay` can find the app
+        (home() / "app_url.txt").write_text(url, encoding="utf-8")
+    except Exception:
+        pass
     try:
         from ..combat.logs import backfill
         backfill()

@@ -547,7 +547,8 @@ async function pageMeter() {
     <div class="wb"><div class="row"><label class="muted small">Source</label>
         <select id="msrc"><option value="replay">Demo replay</option><option value="live">Live capture (your decoder)</option></select>
         <button class="btn primary" id="mstart">Start</button><button class="btn" id="mstop">Stop</button>
-        <button class="btn small" id="msave">Save as combat log</button><span id="mmsg" class="small muted"></span></div>
+        <button class="btn small" id="msave">Save as combat log</button>
+        <button class="btn small" id="movl" title="Open the compact overlay in a separate window">Open overlay</button><span id="mmsg" class="small muted"></span></div>
       <div class="row" id="mlive" style="display:none;margin-top:6px">
         <input id="mdec" type="text" placeholder="decoder module (e.g. my_decoder or my_pkg:Factory)" style="width:280px">
         <input id="miface" type="text" placeholder="interface (optional)" style="width:120px">
@@ -563,6 +564,7 @@ async function pageMeter() {
     try { renderMeter(await api("/api/meter", body)); } catch (e) { $("#mmsg").textContent = e.message; }
   };
   $("#mstop").onclick = async () => { try { renderMeter(await api("/api/meter", { action: "stop" })); } catch (e) { $("#mmsg").textContent = e.message; } };
+  $("#movl").onclick = () => window.open("/overlay", "a2overlay", "width=300,height=430");
   $("#msave").onclick = async () => {
     $("#mmsg").textContent = "saving…";
     try { const r = await api("/api/meter", { action: "save" }); $("#mmsg").innerHTML = `saved as encounter #${r.id} — <a href="#/combat">open in Combat Logs</a>`; }
