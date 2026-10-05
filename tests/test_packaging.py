@@ -142,9 +142,10 @@ def test_app_settings_routes(home):
     try:
         st = json.loads(_get(base + "/api/status")[1])
         assert st["app"] == "aion2calc" and st["version"] == __version__ and st["update"] is None
-        assert json.loads(_get(base + "/api/ui")[1]) == {"app_window": True}
+        assert json.loads(_get(base + "/api/ui")[1])["app_window"] is True
         post("/api/ui", {"app_window": False, "ignored": 1})
-        assert json.loads(_get(base + "/api/ui")[1]) == {"app_window": False}
+        ui = json.loads(_get(base + "/api/ui")[1])
+        assert ui["app_window"] is False and "ignored" not in ui
         assert post("/api/ping", {})["ok"]
         code, css = _get(base + "/static/fonts/cinzel-latin.woff2")
         assert code == 200 and css[:4] == b"wOF2"
@@ -166,3 +167,62 @@ def test_default_server_used_until_user_chooses(home, monkeypatch):
     share.save_settings("https://mine.test/", visibility="public")
     eff = share.effective()
     assert eff["url"] == "https://mine.test" and eff["is_default"] is False and eff["visibility"] == "public"
+
+
+def test_update_install_kind(monkeypatch):
+    from aion2calc import update
+    monkeypatch.setattr(update, "frozen", lambda: False)
+    assert update.install_kind() == "source"
+    monkeypatch.setattr(update, "frozen", lambda: True)
+    monkeypatch.setattr(update.sys, "platform", "darwin")
+    assert update.install_kind() == "macapp"
+    monkeypatch.setattr(update.sys, "platform", "linux")
+    assert update.install_kind() == "linux"
+    monkeypatch.setattr(update.sys, "platform", "win32")
+    monkeypatch.setenv("LOCALAPPDATA", r"C:\Users\me\AppData\Local")
+    monkeypatch.setattr(update.sys, "executable", r"C:\Users\me\AppData\Local\Programs\aion2calc\aion2calc.exe")
+    assert update.install_kind() == "installer"
+    monkeypatch.setattr(update.sys, "executable", r"D:\Games\aion2calc\aion2calc.exe")
+    assert update.install_kind() == "portable"
+
+
+def test_update_pick_asset_and_available(monkeypatch):
+    from aion2calc import __version__, update
+    rel = {"tag_name": "v99.0.0", "html_url": "https://gh/rel", "assets": [
+        {"name": "aion2calc-setup-99.0.0.exe", "browser_download_url": "u/exe"},
+        {"name": "aion2calc-99.0.0-windows-portable.zip", "browser_download_url": "u/zip"},
+        {"name": "aion2calc-99.0.0-macos.zip", "browser_download_url": "u/mac"},
+        {"name": "aion2calc-99.0.0-linux.tar.gz", "browser_download_url": "u/lin"}]}
+    assert update.pick_asset(rel, "installer")["name"].endswith(".exe")
+    assert update.pick_asset(rel, "linux")["name"].endswith("-linux.tar.gz")
+    monkeypatch.setattr(update, "install_kind", lambda: "installer")
+    info = update.available(rel)
+    assert info["version"] == "99.0.0" and info["silent"] is True
+    monkeypatch.setattr(update, "install_kind", lambda: "linux")
+    assert update.available(rel)["silent"] is False
+    old = {"tag_name": f"v{__version__}", "assets": []}
+    assert update.available(old) is None                      # not newer
+
+
+def test_auto_update_applies_installer(home, monkeypatch):
+    from aion2calc import update
+    monkeypatch.setattr(update, "available", lambda release=None: {
+        "version": "99.0.0", "url": "x", "asset": {"name": "s.exe", "browser_download_url": "u"},
+        "kind": "installer", "silent": True})
+    monkeypatch.setattr(update, "fetch", lambda info: __import__("pathlib").Path(str(home / "s.exe")))
+    applied, quit_called = {}, {}
+    monkeypatch.setattr(update, "apply_installer", lambda p: applied.setdefault("p", p) or True)
+    assert update.auto_update(lambda: quit_called.setdefault("q", True)) == "applying"
+    assert quit_called.get("q") and applied.get("p")
+    assert update.auto_update(lambda: None) == "pending"       # version already tried: no loop
+
+
+def test_auto_update_portable_stages_only(home, monkeypatch):
+    from aion2calc import update
+    monkeypatch.setattr(update, "available", lambda release=None: {
+        "version": "99.1.0", "url": "x", "asset": {"name": "p.zip", "browser_download_url": "u"},
+        "kind": "portable", "silent": False})
+    staged = {}
+    monkeypatch.setattr(update, "fetch", lambda info: staged.setdefault("f", True))
+    monkeypatch.setattr(update, "apply_installer", lambda p: (_ for _ in ()).throw(AssertionError("should not run")))
+    assert update.auto_update(lambda: None) == "downloaded" and staged.get("f")

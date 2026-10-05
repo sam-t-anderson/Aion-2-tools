@@ -300,6 +300,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(_inventory(q["character"])[1])
         if path == "/api/ui":
             return self._json(ui_settings())
+        if path == "/api/update":
+            from .. import update
+            return self._json({"current": __version__, "info": update.available(), "kind": update.install_kind()})
         if path == "/api/logserver":
             from ..combat import share
             st = share.effective()
@@ -358,9 +361,18 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/ui":
             from ..paths import write_user_json
             cur = ui_settings()
-            cur.update({k: v for k, v in body.items() if k in ("app_window",)})
+            cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update")})
             write_user_json(cur, "ui.json")
             return self._json(cur)
+        if path == "/api/update":                 # manual "Install update now" (localhost only)
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("updates run only on the computer running the app")
+            from .. import update
+            status = update.install_now()
+            if status == "applying":
+                threading.Thread(target=lambda: (time.sleep(1.0), HTTPD.get("server")
+                                                 and HTTPD["server"].shutdown()), daemon=True).start()
+            return self._json({"status": status})
         if path == "/api/open":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("folders open only on the computer running the app")
@@ -412,7 +424,8 @@ PING: dict = {"at": time.time()}
 
 def ui_settings() -> dict:
     from ..paths import data_file, read_json
-    return read_json("ui.json") if data_file("ui.json").exists() else {"app_window": True}
+    defaults = {"app_window": True, "auto_update": True}
+    return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}
 
 
 def make_server(host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServer:

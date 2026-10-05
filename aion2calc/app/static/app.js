@@ -795,11 +795,20 @@ async function pageSettings() {
       <button class="btn small" id="ssave">Save</button><span id="smsg" class="small muted"></span></div>
       ${srv.is_default && srv.url ? '<div class="small muted" style="margin-top:4px">Using the community default server. Enter your own above to override it.</div>' : ""}</div></div>
     <div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button></div></div>
-    <div class="setrow"><div class="lbl">Version</div><div>aion2calc ${esc(s.version)} ${s.update ? `· <a href="${esc(s.update.url)}" target="_blank" rel="noopener">version ${esc(s.update.version)} is available</a>` : '<span class="muted">· up to date</span>'}</div></div>
+    <div class="setrow"><div class="lbl">Updates</div><div><label><input type="checkbox" id="autoupd" ${ui.auto_update !== false ? "checked" : ""}> install new versions automatically on launch</label></div></div>
+    <div class="setrow"><div class="lbl">Version</div><div>aion2calc ${esc(s.version)} ${s.update ? `· version ${esc(s.update.version)} available <button class="btn small" id="instupd">Install now</button> <a href="${esc(s.update.url)}" target="_blank" rel="noopener">release notes</a>` : '<span class="muted">· up to date</span>'} <span id="updmsg" class="small muted"></span></div></div>
     <div class="setrow"><div class="lbl">Community</div><div><a href="${DISCORD}" target="_blank" rel="noopener">Join the aion2calc Discord</a> — questions, builds and help</div></div>
     <div class="setrow"><div class="lbl">Stop the app</div><div><button class="btn small" id="quit2">Quit aion2calc</button></div></div>`);
   $$("[data-th]").forEach((b) => (b.onclick = () => { setTheme(b.dataset.th); pageSettings(); }));
   $("#appwin").onchange = () => api("/api/ui", { app_window: $("#appwin").checked }).then(() => toast("Saved"));
+  $("#autoupd").onchange = () => api("/api/ui", { auto_update: $("#autoupd").checked }).then(() => toast("Saved"));
+  if ($("#instupd")) $("#instupd").onclick = async () => {
+    $("#updmsg").textContent = "downloading…";
+    try {
+      const r = await api("/api/update", {});
+      $("#updmsg").textContent = { applying: "installing — the app will restart", downloaded: "downloaded — open your data folder's 'updates' to apply", "download-failed": "download failed", "up-to-date": "already up to date" }[r.status] || r.status;
+    } catch (e) { $("#updmsg").textContent = e.message; }
+  };
   $$("[data-open]").forEach((b) => (b.onclick = () => api("/api/open", { what: b.dataset.open }).catch((e) => toast(e.message))));
   $("#ssave").onclick = async () => {
     await api("/api/logserver", { url: $("#surl").value, key: $("#skey").value || null, visibility: $("#svis").value });
