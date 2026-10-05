@@ -112,16 +112,29 @@ def _save_state(d: dict) -> None:
 
 
 def apply_installer(path: Path, silent: bool = True) -> bool:
-    """Run the Windows installer. ``silent`` (background) replaces the files with no UI; interactive
-    (manual "Install now") shows the installer so a Windows SmartScreen / install prompt on the unsigned
-    build can be approved. Either way it closes this app, updates and relaunches it, and ``!desktopicon``
-    keeps it from re-creating the desktop shortcut each time."""
+    """Launch the installer after this process exits.
+
+    Inno Setup cannot replace the running executable.  A detached PowerShell
+    helper waits for our PID, then opens the staged installer.  The caller is
+    responsible for shutting down the local app immediately after this returns.
+    """
     args = [str(path)]
     if silent:
         args += ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
     args += ["/MERGETASKS=!desktopicon"]
+    helper = home() / "updates" / "apply-update.ps1"
+    helper.parent.mkdir(parents=True, exist_ok=True)
+    quoted_path = str(path).replace("'", "''")
+    quoted_args = ", ".join("'" + arg.replace("'", "''") + "'" for arg in args[1:])
+    script = ("$ErrorActionPreference = 'Stop'\n"
+              f"Wait-Process -Id {os.getpid()}\n"
+              f"Start-Process -FilePath '{quoted_path}' -ArgumentList @({quoted_args})\n"
+              "Remove-Item -LiteralPath $PSCommandPath -Force\n")
     try:
-        subprocess.Popen(args)
+        helper.write_text(script, encoding="utf-8")
+        flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        subprocess.Popen(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
+                          "-File", str(helper)], creationflags=flags, close_fds=True)
         return True
     except OSError:
         return False

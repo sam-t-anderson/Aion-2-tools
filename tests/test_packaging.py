@@ -84,11 +84,12 @@ def test_smoke_test_and_running_app(home, tmp_path):
 
 def test_solver_choice(monkeypatch):
     from aion2calc.opt import solver
-    # HiGHS (in-process) is preferred on every platform; CBC is only the fallback when highspy is absent.
+    # HiGHS is the required in-process solver. CBC's subprocess implementation
+    # can hang in the Windows desktop build, so it must never become a fallback.
     monkeypatch.setattr(solver, "highs_available", lambda: True)
     assert solver.name() == "HiGHS"
     monkeypatch.setattr(solver, "highs_available", lambda: False)
-    assert solver.name() == "CBC"
+    assert solver.name() == "HiGHS unavailable"
 
 
 def test_update_check_reads_github_releases(home, monkeypatch):

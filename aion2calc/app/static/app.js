@@ -401,7 +401,7 @@ function renderOptState() {
     const last = log.length ? log[log.length - 1] : "starting…";
     box.innerHTML = `<p><span class="spinner"></span> Optimizing your build — <b>${esc(last)}</b></p>
       <pre class="diff small" style="max-height:150px;overflow:auto;margin-top:6px">${esc(log.slice(-8).join("\n"))}</pre>
-      <p class="small faint">Runs the rotation, stigma, Daevanion and skill-point search; a couple of minutes is normal.</p>`;
+      <p class="small faint">Runs the rotation, stigma, Daevanion and skill-point search. Progress stays visible during the stigma and skill-level searches; the full optimization may take a few minutes.</p>`;
   }
   else if (o.status === "error") box.innerHTML = `<div class="note">${esc(o.error || "optimization failed")}</div>`;
   else if (o.status === "done" && o.result) renderOptResult(o.result);
@@ -665,24 +665,71 @@ async function pageRaid() {
 // ------------------------------------------------------------- live meter
 async function pageMeter() {
   const st = S.meter;
-  app().innerHTML = `<section class="win"><div class="wh"><h2>Live damage meter</h2><span class="sub">a pluggable capture → decoder → meter pipeline, AionFlex-style</span></div>
+  app().innerHTML = `<section class="win"><div class="wh"><h2>Live damage meter</h2><span class="sub">built-in A2Tools packet capture, live analysis and a2log sharing</span></div>
     <div class="wb"><div class="row"><label class="muted small">Source</label>
-        <select id="msrc"><option value="replay">Demo replay</option><option value="live">Live capture (your decoder)</option></select>
+        <select id="msrc"><option value="a2tools" selected>Live Capture</option><option value="replay">Demo replay</option><option value="live">Custom decoder</option></select>
         <button class="btn primary" id="mstart">Start</button><button class="btn" id="mstop">Stop</button>
-        <button class="btn small" id="msave">Save as combat log</button>
+        <button class="btn small" id="msave">Save to Combat Logs</button><button class="btn small" id="mexport">Export a2log</button>
+        <button class="btn small" id="mupload">Upload</button><button class="btn small" id="mshot">Screenshot</button>
         <button class="btn small" id="movl" title="Open the compact overlay in a separate window">Open overlay</button><span id="mmsg" class="small muted"></span></div>
       <div class="row" id="mlive" style="display:none;margin-top:6px">
-        <input id="mdec" type="text" placeholder="decoder module (e.g. my_decoder or my_pkg:Factory)" style="width:280px">
-        <input id="miface" type="text" placeholder="interface (optional)" style="width:120px">
-        <input id="mhost" type="text" placeholder="game host (optional)" style="width:150px">
-        <input id="mport" type="number" placeholder="port" style="width:90px"></div>
-      <p class="small faint">The demo replay plays a recorded session so you can see the meter work. Live capture needs your own protocol decoder — the game's encrypted traffic is not decoded here. Ask on <a href="${DISCORD}" target="_blank" rel="noopener">Discord</a> for the decoder plugin format.</p>
+        <label class="small muted">Encoder <input id="mdec" type="text" value="Built-in A2Tools decoder" readonly aria-label="Encoder module" style="width:180px"></label>
+        <label class="small muted">Interface <input id="miface" type="text" list="mifaces" value="auto" aria-label="Capture interface" style="width:100px" title="Npcap interface; use auto to choose"></label><datalist id="mifaces"></datalist><button class="btn small" id="mifacesrefresh">Interfaces</button>
+        <label class="small muted">Game host <input id="mhost" type="text" value="any" aria-label="Game host" style="width:100px" title="Use an address to limit the capture; any accepts game traffic on the port"></label>
+        <label class="small muted">Port <input id="mport" type="number" value="50349" aria-label="Game server port" style="width:80px"></label>
+        <label class="small muted">Target <select id="mtarget" aria-label="Target selection"><option value="bossTargets" selected>Boss target</option><option value="mostDamage">Most damage</option><option value="mostRecent">Most recent</option><option value="lastHitByMe">Last hit by me</option><option value="allTargets">All targets</option><option value="trainTargets">Training target</option></select></label>
+        <label class="small muted">Character <input id="mchar" type="text" placeholder="optional" style="width:120px"></label></div>
+      <div class="row" id="mcustom" style="display:none;margin-top:6px"><input id="mcustomdec" type="text" placeholder="decoder module (e.g. my_decoder or my_pkg:Factory)" style="width:300px"></div>
+      <div id="npcap" class="small faint" style="margin-top:8px"></div>
+      <p class="small faint">Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, and capture permission. Export writes an open a2log file; Upload uses the log server configured in Settings.</p>
     </div></section><div id="mview"></div>`;
-  const live = () => { $("#mlive").style.display = $("#msrc").value === "live" ? "flex" : "none"; };
+  const live = () => {
+    $("#mlive").style.display = $("#msrc").value === "a2tools" ? "flex" : "none";
+    $("#mcustom").style.display = $("#msrc").value === "live" ? "flex" : "none";
+  };
   $("#msrc").onchange = live; live();
+  const refreshInterfaces = async () => {
+    try {
+      const r = await api("/api/meter/interfaces");
+      $("#mifaces").innerHTML = (r.interfaces || []).map((name) => `<option value="${esc(name)}"></option>`).join("");
+    } catch (e) { $("#mmsg").textContent = "Could not list capture interfaces: " + e.message; }
+  };
+  $("#mifacesrefresh").onclick = refreshInterfaces;
+  refreshInterfaces();
+  const refreshNpcap = async () => {
+    const node = $("#npcap"); if (!node) return;
+    try {
+      const r = await api("/api/npcap");
+      if (!r.supported) { node.textContent = "Npcap setup is only needed on Windows."; return; }
+      if (r.installed) { node.textContent = "Npcap is installed and ready for Live Capture."; return; }
+      if (["finding", "downloading", "opening"].includes(r.status)) {
+        node.textContent = { finding: "Finding the current official Npcap installer…", downloading: `Downloading Npcap ${r.version || ""}…`, opening: "Opening the Npcap installer…" }[r.status];
+        setTimeout(refreshNpcap, 1200); return;
+      }
+      if (r.status === "installer-opened") {
+        node.innerHTML = `Npcap ${esc(r.version || "")} installer is open. Finish its setup, then <button class="btn small" id="npcapcheck">Check again</button>.`;
+        $("#npcapcheck").onclick = refreshNpcap;
+        return;
+      }
+      const detail = r.error ? ` ${r.error}` : "";
+      node.innerHTML = `Npcap is required for Live Capture. <button class="btn small" id="npcapinstall">Install Npcap</button>${esc(detail)}`;
+      $("#npcapinstall").onclick = async () => {
+        if (!window.confirm("Download the current Npcap installer from npcap.com and open it now? Npcap is installed separately and may ask for administrator approval.")) return;
+        node.textContent = "Starting Npcap setup…";
+        try { await api("/api/npcap", { action: "install" }); refreshNpcap(); }
+        catch (e) { node.textContent = e.message; }
+      };
+    } catch (e) { node.textContent = "Could not check Npcap: " + e.message; }
+  };
+  refreshNpcap();
   $("#mstart").onclick = async () => {
-    const body = { action: "start", source: $("#msrc").value, decoder: $("#mdec").value || null,
-      iface: $("#miface").value || null, host: $("#mhost").value || null, port: +$("#mport").value || null };
+    const source = $("#msrc").value;
+    const body = { action: "start", source, decoder: source === "live" ? ($("#mcustomdec").value || null) : null,
+      iface: source === "a2tools" && $("#miface").value !== "auto" ? $("#miface").value : null,
+      host: source === "a2tools" && $("#mhost").value !== "any" ? $("#mhost").value : null,
+      port: source === "a2tools" ? (+$("#mport").value || 50349) : null,
+      target_mode: source === "a2tools" ? $("#mtarget").value : "bossTargets",
+      character_name: source === "a2tools" ? ($("#mchar").value || null) : null };
     try { renderMeter(await api("/api/meter", body)); } catch (e) { $("#mmsg").textContent = e.message; }
   };
   $("#mstop").onclick = async () => { try { renderMeter(await api("/api/meter", { action: "stop" })); } catch (e) { $("#mmsg").textContent = e.message; } };
@@ -698,6 +745,21 @@ async function pageMeter() {
   $("#msave").onclick = async () => {
     $("#mmsg").textContent = "saving…";
     try { const r = await api("/api/meter", { action: "save" }); $("#mmsg").innerHTML = `saved as encounter #${r.id} — <a href="#/combat">open in Combat Logs</a>`; }
+    catch (e) { $("#mmsg").textContent = e.message; }
+  };
+  $("#mexport").onclick = async () => {
+    $("#mmsg").textContent = "exporting…";
+    try { const r = await api("/api/meter", { action: "export" }); $("#mmsg").textContent = `exported ${r.file}`; }
+    catch (e) { $("#mmsg").textContent = e.message; }
+  };
+  $("#mupload").onclick = async () => {
+    $("#mmsg").textContent = "uploading…";
+    try { const r = await api("/api/meter", { action: "upload" }); $("#mmsg").innerHTML = r.url ? `uploaded — <a href="${esc(r.url)}" target="_blank" rel="noopener">open shared log</a>` : "uploaded"; }
+    catch (e) { $("#mmsg").textContent = e.message; }
+  };
+  $("#mshot").onclick = async () => {
+    $("#mmsg").textContent = "capturing screenshot…";
+    try { const r = await api("/api/meter", { action: "screenshot" }); $("#mmsg").textContent = `screenshot saved to ${r.file}`; }
     catch (e) { $("#mmsg").textContent = e.message; }
   };
   const poll = async () => {
@@ -1008,7 +1070,7 @@ async function pageSettings() {
     $("#updmsg").textContent = "downloading…";
     try {
       const r = await api("/api/update", {});
-      $("#updmsg").textContent = { applying: "installing — the app will restart", launching: "opening the installer — follow the prompts (choose “More info → Run anyway” if Windows warns)", downloaded: "downloaded — open your data folder’s “updates” to run it", "download-failed": "download failed", "up-to-date": "already up to date" }[r.status] || r.status;
+      $("#updmsg").textContent = { applying: "installing — the app will restart", launching: "closing the app, then opening the installer — follow the prompts (choose “More info → Run anyway” if Windows warns)", downloaded: "downloaded — open your data folder’s “updates” to run it", "download-failed": "download failed", "up-to-date": "already up to date" }[r.status] || r.status;
     } catch (e) { $("#updmsg").textContent = e.message; }
   };
   $$("[data-open]").forEach((b) => (b.onclick = () => api("/api/open", { what: b.dataset.open }).catch((e) => toast(e.message))));

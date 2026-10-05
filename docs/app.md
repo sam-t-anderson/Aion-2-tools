@@ -188,15 +188,33 @@ CSV needs these columns: `t, skill, damage`, plus optionally `skill_id, crit, do
 
 #### Live capture
 
-AbyssLogs, AionFlex, A2DIL's recorder and every other AION 2 meter capture the
-game's network traffic and decode an undocumented binary protocol that changes
-with patches. That decoder is not public, so aion2calc does not capture
-anything itself. The simplest way to get your own fights in is the AbyssLogs
-meter and a share link (above).
+The **Live Meter** tab includes the migrated A2Tools packet engine. Choose
+**Live Capture** (the default), then press **Start**. Its built-in encoder,
+automatic interface and game-host selection, and port `50349` are filled in
+for the standard connection. Set a specific interface or game-host address
+only when automatic selection cannot see the game traffic; the **Interfaces**
+button lists the identifiers Npcap exposes on this computer. Choose the target
+mode and optionally name your character to improve local-player detection.
 
-`aion2calc/combat/live.py` defines the interface a live source implements. Any
-tool that yields hits plugs straight into the analyzer and the history. Using
-third-party capture tools may break the game's terms of service.
+The Windows desktop build includes Scapy. When Npcap is missing, the Live
+Meter offers **Install Npcap**. After you confirm, it finds the current
+installer on [npcap.com](https://npcap.com/), downloads it to the app's
+`drivers` folder, and opens its normal installer. This keeps Npcap separate
+from aion2calc, as required by its license. Select WinPcap-compatible mode in
+the installer and grant capture permission.
+The meter keeps decoded combat events, not raw packet captures. **Save to
+Combat Logs** sends the active fight into the existing analyzer; **Export
+a2log** writes an open JSON file to the app's logs folder; **Upload** sends it
+to the log server set in Settings; and **Screenshot** saves a desktop image to
+the app's screenshots folder. The GitHub Pages site is a viewer, so uploads go
+through the configured log-server API that backs it.
+
+#### Desktop updates
+
+**Install update** stages the new installer first. When you choose it, the app
+closes its local server, then a detached helper waits for the desktop process
+to exit before opening the installer. This prevents a running `aion2calc.exe`
+from locking the files the installer needs to replace.
 
 #### Overlay
 

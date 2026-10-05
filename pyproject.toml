@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aion2calc"
-version = "0.2.8"
+version = "0.2.9"
 description = "Aion 2 build/rotation simulator and optimizer (global L45 data, KR fallback)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "GPL-3.0"}
 dependencies = ["numpy>=1.24", "matplotlib>=3.7", "pulp>=2.8,<4", "pillow>=9.1",
-                "highspy>=1.7"]          # in-process MILP solver; avoids CBC's subprocess hang in the packaged app
+                "highspy>=1.7", "lz4>=4.3", "scapy>=2.5"]          # in-process MILP solver; avoids CBC's subprocess hang in the packaged app
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
@@ -22,7 +22,7 @@ aion2calc = "aion2calc.__main__:main"
 include = ["aion2calc*"]
 
 [tool.setuptools.package-data]
-aion2calc = ["data/**/*.json", "data/seed/*.gz", "app/static/*", "app/static/fonts/*", "meter/*.jsonl"]
+aion2calc = ["data/**/*.json", "data/seed/*.gz", "app/static/*", "app/static/fonts/*", "meter/*.jsonl", "meter/a2parser/data/**/*.json"]
 
 [tool.pytest.ini_options]
 filterwarnings = ["ignore::DeprecationWarning:pulp.*"]

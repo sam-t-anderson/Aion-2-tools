@@ -19,9 +19,11 @@ from ..run import Scenario, kit_module, prepare
 from ..sim.engine import Sim
 from . import daevanion as daev_opt
 from .rotation import describe, materialize, optimize_rotation
+from .solver import name as solver_name
 from .statweights import node_values, stat_weights
 
 _CTX: dict = {}
+DAEV_SOLVER_TIME_LIMIT = 120
 
 
 def _pool_init(ctx: dict) -> None:
@@ -30,7 +32,8 @@ def _pool_init(ctx: dict) -> None:
     _CTX.update(ctx)
 
 
-def _pmap(fn, items, workers: int | None = None, ctx: dict | None = None):
+def _pmap(fn, items, workers: int | None = None, ctx: dict | None = None, progress=None,
+          fallback=None):
     """Parallel map over a module-level worker.
 
     Uses ``fork`` where available (Linux, macOS) and ``spawn`` otherwise
@@ -45,25 +48,43 @@ def _pmap(fn, items, workers: int | None = None, ctx: dict | None = None):
     import sys
     items = list(items)
     workers = workers or min(4, os.cpu_count() or 1)
+    def serial():
+        results = []
+        report_every = max(1, len(items) // 20)
+        for index, item in enumerate(items, 1):
+            results.append(fn(item))
+            if progress and (index % report_every == 0 or index == len(items)):
+                progress(index, len(items))
+        return results
+
     if workers <= 1 or len(items) < 4:
-        return [fn(x) for x in items]
+        return serial()
     if getattr(sys, "frozen", False):
         # The packaged (windowed) app has no console, so spawn-based worker pools re-launch the bundle
         # with no stdio and deadlock ("Optimize my build" hangs). Run serial there: slower, but it finishes.
-        return [fn(x) for x in items]
+        return serial()
     methods = mp.get_all_start_methods()
     method = "fork" if "fork" in methods else "spawn" if "spawn" in methods else None
     if method is None:
-        return [fn(x) for x in items]
+        return serial()
     init, initargs = (None, ())
     if method == "spawn" and ctx is not None:          # fork inherits _CTX; spawn must be given it
         init, initargs = _pool_init, (ctx,)
     try:
         mpctx = mp.get_context(method)
         with mpctx.Pool(workers, initializer=init, initargs=initargs) as pool:
-            return pool.map(fn, items, chunksize=max(1, len(items) // (workers * 4)))
-    except Exception:                                   # a pickling or start-up problem: stay correct, run serial
-        return [fn(x) for x in items]
+            results = []
+            report_every = max(1, len(items) // 20)
+            for index, result in enumerate(
+                    pool.imap(fn, items, chunksize=max(1, len(items) // (workers * 4))), 1):
+                results.append(result)
+                if progress and (index % report_every == 0 or index == len(items)):
+                    progress(index, len(items))
+            return results
+    except Exception as exc:                            # a pickling or start-up problem: stay correct, run serial
+        if fallback:
+            fallback(f"parallel workers unavailable ({type(exc).__name__}); continuing serially")
+        return serial()
 
 
 def _curve_worker(sid):
@@ -260,34 +281,52 @@ class Optimizer:
             return all(spent - stigma_points_to_reach(l) + stigma_points_to_reach(l + 1) > self.stigma_points
                        for l in p)
         patterns = sorted({tuple(sorted(p, reverse=True)) for p in patterns if maximal(p)})
+        if not cands or not patterns or self.slots > len(cands):
+            self.log("stigma search skipped: no legal candidate sets for this budget")
+            return build
         best_b, best = build, self.evaluate(build, policy)
         # stage 1: which set (uniform-ish pattern), stage 2: level assignment for top sets
         base_pat = max(patterns, key=lambda p: (p.count(10), -p.count(1)))
         _CTX["stigma"] = (self, build, policy)
         jobs = [(combo, base_pat) for combo in itertools.combinations(cands, self.slots)]
-        scored = sorted(((v, job[0]) for job, v in _pmap(_stigma_worker, jobs, ctx={"stigma": _CTX["stigma"]})),
+        self.log(f"stigma search: scoring {len(jobs)} stigma combinations")
+        scored = sorted(((v, job[0]) for job, v in _pmap(
+                            _stigma_worker, jobs, ctx={"stigma": _CTX["stigma"]},
+                            progress=lambda done, total: self.log(
+                                f"stigma combinations: {done}/{total}"),
+                            fallback=self.log)),
                         reverse=True)
         jobs = []
         for _, combo in scored[:6]:
             for pat in patterns:
                 for perm in set(itertools.permutations(pat)):
                     jobs.append((combo, perm))
-        for (combo, perm), v in _pmap(_stigma_worker, jobs, ctx={"stigma": _CTX["stigma"]}):
+        self.log(f"stigma search: comparing {len(jobs)} level assignments across the top {min(6, len(scored))} combinations")
+        for (combo, perm), v in _pmap(
+                _stigma_worker, jobs, ctx={"stigma": _CTX["stigma"]},
+                progress=lambda done, total: self.log(f"stigma levels: {done}/{total}"),
+                fallback=self.log):
             if v > best * (1 + 1e-7):
                 best = v
                 best_b = build.copy()
                 best_b.stigmas = dict(zip(combo, perm))
+        self.log("stigma search complete")
         return best_b
 
     def level_curves(self, build: Build, policy: list, max_level: int = 20) -> dict[int, list[float]]:
         """DPS as a function of each skill's effective level (best specs at each level)."""
         sids = [sid for sid, s in self.cd.skills.items() if s["kind"] != "stigma"]
         _CTX["curve"] = (self, build, policy, max_level)
+        self.log(f"skill curves: evaluating {len(sids)} skills through level {max_level}")
         curves = {}
-        for sid, curve in _pmap(_curve_worker, sids, ctx={"curve": _CTX["curve"]}):
+        for sid, curve in _pmap(
+                _curve_worker, sids, ctx={"curve": _CTX["curve"]},
+                progress=lambda done, total: self.log(f"skill curves: {done}/{total} skills"),
+                fallback=self.log):
             # flat curves (no DPS effect) are dropped to keep the program small
             if max(curve[1:]) - min(curve[1:]) > 1e-6:
                 curves[sid] = curve
+        self.log(f"skill curves: retained {len(curves)} skills with measurable gains")
         return curves
 
     def _curve_for(self, build: Build, policy: list, sid: int, max_level: int) -> list[float]:
@@ -330,15 +369,26 @@ class Optimizer:
     def allocate(self, build: Build, policy: list):
         curves = self.level_curves(build, policy)
         cd, b, kit, stats = prepare(build, self.scenario)
-        weights = stat_weights(stats, kit, policy, self.scenario.target, self.search_cfg)
+        self.log("skill allocation: calculating stat weights")
+        weights = stat_weights(stats, kit, policy, self.scenario.target, self.search_cfg,
+                               progress=self.log)
         nv = node_values(self.cd, weights)
         # bonus from gear stays outside the program; Daevanion/SP replace the build's
         gear = self._gear_bonus()
         bonus = dict(gear)
         for k, v in build.bonus.items():
             bonus[k] = bonus.get(k, 0) + v
+        # This is a mixed integer program and can be the longest single step.
+        # Keep the UI's phase indicator current while the in-process HiGHS
+        # solver works.
+        self.log(f"skill allocation: solving Daevanion/SP with {solver_name()} (up to {DAEV_SOLVER_TIME_LIMIT} s)")
+        solver_started = time.monotonic()
         sol = daev_opt.solve(self.cd, curves, nv, daev_budget=self.daev_budget,
-                             sp_budget=self.sp_budget, bonus=bonus)
+                             sp_budget=self.sp_budget, bonus=bonus,
+                             time_limit=DAEV_SOLVER_TIME_LIMIT)
+        self.log(f"skill allocation: solver finished ({sol['status']}, "
+                 f"{time.monotonic() - solver_started:.1f} s)")
+        self.log("skill allocation: applying the optimized points")
         b2 = build.copy()
         b2.daevanion = sol["nodes"]
         b2.sp = {sid: lv for sid, lv in sol["sp"].items() if lv > 1}
@@ -356,7 +406,7 @@ class Optimizer:
         trainable = sorted(sid for sid, s in cd.skills.items()
                            if s["kind"] in ("active", "passive") and s.get("buyMax", 10) > 1)
         best = self.evaluate(build, policy)
-        for _ in range(rounds):
+        for round_no in range(1, rounds + 1):
             slack = self.sp_budget - build.sp_spent()
             jobs = []
             for b in trainable:
@@ -377,8 +427,11 @@ class Optimizer:
                                 jobs.append(((a, -da), (b, db)))
                                 break       # taking a further level from ``a`` only wastes points
             _CTX["sp"] = (self, build, policy)
-            moves, v, b2 = max(_pmap(_sp_worker, jobs, ctx={"sp": _CTX["sp"]}), key=lambda r: r[1],
-                               default=(None, 0, None))
+            self.log(f"polish SP: round {round_no}/{rounds}, evaluating {len(jobs)} moves")
+            moves, v, b2 = max(_pmap(
+                _sp_worker, jobs, ctx={"sp": _CTX["sp"]},
+                progress=lambda done, total: self.log(f"polish SP: {done}/{total} moves"),
+                fallback=self.log), key=lambda r: r[1], default=(None, 0, None))
             if not moves or v <= best * (1 + 1e-4):     # ignore noise-level moves
                 break
             self.log("polish SP: " + ", ".join(f"{cd.skills[s]['name']} {d:+d}" for s, d in moves)

@@ -5,6 +5,7 @@ import pytest
 
 from aion2calc.kit.base import (Build, ClassData, sp_to_reach, spec_slots,
                                 stigma_points_to_reach)
+from aion2calc.opt.pipeline import _pmap
 from aion2calc.model.damage import HitContext, expected_hit
 from aion2calc.model.stats import Stats, crit_chance
 from aion2calc.sim.engine import Action, Sim, SimConfig, Target
@@ -16,6 +17,14 @@ def test_point_costs_match_client_tables():
     assert stigma_points_to_reach(20) == 75
     assert stigma_points_to_reach(10) == 15
     assert [spec_slots(l) for l in (7, 8, 11, 12, 19, 20)] == [0, 1, 1, 2, 2, 3]
+
+
+def test_optimizer_map_reports_incremental_serial_progress():
+    updates = []
+    result = _pmap(lambda value: value * value, range(5), workers=1,
+                   progress=lambda done, total: updates.append((done, total)))
+    assert result == [0, 1, 4, 9, 16]
+    assert updates == [(1, 5), (2, 5), (3, 5), (4, 5), (5, 5)]
 
 
 def test_crit_curve_matches_community_points():
