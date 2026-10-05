@@ -275,7 +275,7 @@ function renderWindows(v, state, host) {
 }
 
 // ------------------------------------------------------------------ pages
-const S = { planner: { win: "overview" }, character: { win: "overview" }, combat: {}, database: {}, gear: {}, raid: {} };
+const S = { planner: { win: "overview" }, character: { win: "overview" }, combat: {}, database: {}, gear: {}, raid: {}, meter: {} };
 
 function welcomeCard() {
   let hidden = false;
@@ -538,6 +538,56 @@ async function pageRaid() {
     encounters: () => api("/api/encounters"),
     encounter: (id) => api("/api/encounters/" + id),
   });
+}
+
+// ------------------------------------------------------------- live meter
+async function pageMeter() {
+  const st = S.meter;
+  app().innerHTML = `<section class="win"><div class="wh"><h2>Live damage meter</h2><span class="sub">a pluggable capture → decoder → meter pipeline, AionFlex-style</span></div>
+    <div class="wb"><div class="row"><label class="muted small">Source</label>
+        <select id="msrc"><option value="replay">Demo replay</option><option value="live">Live capture (your decoder)</option></select>
+        <button class="btn primary" id="mstart">Start</button><button class="btn" id="mstop">Stop</button>
+        <button class="btn small" id="msave">Save as combat log</button><span id="mmsg" class="small muted"></span></div>
+      <div class="row" id="mlive" style="display:none;margin-top:6px">
+        <input id="mdec" type="text" placeholder="decoder module (e.g. my_decoder or my_pkg:Factory)" style="width:280px">
+        <input id="miface" type="text" placeholder="interface (optional)" style="width:120px">
+        <input id="mhost" type="text" placeholder="game host (optional)" style="width:150px">
+        <input id="mport" type="number" placeholder="port" style="width:90px"></div>
+      <p class="small faint">The demo replay plays a recorded session so you can see the meter work. Live capture needs your own protocol decoder — the game's encrypted traffic is not decoded here. Ask on <a href="${DISCORD}" target="_blank" rel="noopener">Discord</a> for the decoder plugin format.</p>
+    </div></section><div id="mview"></div>`;
+  const live = () => { $("#mlive").style.display = $("#msrc").value === "live" ? "flex" : "none"; };
+  $("#msrc").onchange = live; live();
+  $("#mstart").onclick = async () => {
+    const body = { action: "start", source: $("#msrc").value, decoder: $("#mdec").value || null,
+      iface: $("#miface").value || null, host: $("#mhost").value || null, port: +$("#mport").value || null };
+    try { renderMeter(await api("/api/meter", body)); } catch (e) { $("#mmsg").textContent = e.message; }
+  };
+  $("#mstop").onclick = async () => { try { renderMeter(await api("/api/meter", { action: "stop" })); } catch (e) { $("#mmsg").textContent = e.message; } };
+  $("#msave").onclick = async () => {
+    $("#mmsg").textContent = "saving…";
+    try { const r = await api("/api/meter", { action: "save" }); $("#mmsg").innerHTML = `saved as encounter #${r.id} — <a href="#/combat">open in Combat Logs</a>`; }
+    catch (e) { $("#mmsg").textContent = e.message; }
+  };
+  const poll = async () => {
+    if (!location.hash.startsWith("#/meter")) return;
+    try { renderMeter(await api("/api/meter")); } catch (e) {}
+    setTimeout(poll, st.running ? 700 : 2500);
+  };
+  renderMeter(await api("/api/meter").catch(() => ({ snapshot: { players: [] } })));
+  poll();
+}
+function renderMeter(s) {
+  const st = S.meter; st.running = !!s.running;
+  const snap = s.snapshot || { players: [] }, msg = $("#mmsg");
+  if (msg) { if (s.error) msg.textContent = s.error; else if (s.running) msg.textContent = `recording${s.source ? " (" + esc(s.source) + ")" : ""}…`; }
+  const view = $("#mview"); if (!view) return;
+  const mx = Math.max(...snap.players.map((p) => p.dps), 1);
+  const rows = snap.players.map((p) => `<tr><td class="gname">${esc(p.name)}</td><td>${esc(cap(p.class || ""))}</td>
+      <td style="width:42%"><div class="bar"><i style="width:${100 * p.dps / mx}%"></i><span>${n0(p.dps)} DPS</span></div></td>
+      <td class="r">${pct(p.share, 0)}</td><td class="r num">${n0(p.damage)}</td><td class="r">${pct(p.crit, 0)}</td></tr>`).join("");
+  view.innerHTML = win("Meter", `${esc(snap.boss || "")}${snap.boss ? " · " : ""}${(snap.duration || 0).toFixed(0)}s · ${n0(snap.dps || 0)} raid DPS`,
+    snap.players.length ? `<table class="t"><tr><th>Player</th><th>Class</th><th>DPS</th><th class="r">Share</th><th class="r">Damage</th><th class="r">Crit</th></tr>${rows}</table>`
+      : '<div class="empty">No data yet — choose a source and press Start.</div>');
 }
 
 // ------------------------------------------------------------- gear & advice
@@ -841,6 +891,7 @@ async function route() {
     else if (page === "settings") await pageSettings();
     else if (page === "combat") await pageCombat();
     else if (page === "raid") await pageRaid();
+    else if (page === "meter") await pageMeter();
     else if (page === "database") await pageDatabase();
     else await pagePlanner();
   } catch (e) { app().innerHTML = `<div class="note">${esc(e.message)}</div>`; }

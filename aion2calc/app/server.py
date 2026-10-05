@@ -327,6 +327,9 @@ class Handler(BaseHTTPRequestHandler):
             if not job:
                 raise FileNotFoundError
             return self._json({k: v for k, v in job.items() if k != "log"} | {"log": job["log"][-12:]})
+        if path == "/api/meter":
+            from .meter_runner import runner
+            return self._json(runner().status())
         if path == "/api/icon":
             return self._icon(q.get("u", ""))
         raise FileNotFoundError(path)
@@ -355,6 +358,22 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"job": start_job("advice", act_advice, body)})
         if path.startswith("/api/inventory/"):
             return self._json(inventory_post(path, body))
+        if path == "/api/meter":
+            from .meter_runner import runner
+            r = runner()
+            action = body.get("action")
+            if action == "start":
+                return self._json(r.start(body.get("source", "replay"), path=body.get("path"), speed=body.get("speed", 1.0),
+                                          decoder=body.get("decoder"), iface=body.get("iface"), host=body.get("host"), port=body.get("port")))
+            if action == "stop":
+                r.stop()
+                return self._json(r.status())
+            if action == "save":
+                if not r.meter.players:
+                    raise ValueError("nothing to save yet")
+                return self._json(act_encounter_import({"text": json.dumps(r.to_a2log(title=body.get("title"))),
+                                                        "name": body.get("title") or "Live meter session"}, log=lambda *a: None))
+            raise ValueError("action must be start, stop or save")
         if path == "/api/ping":
             PING["at"] = time.time()
             return self._json({"ok": True})
