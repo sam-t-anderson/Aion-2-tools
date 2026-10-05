@@ -1,5 +1,5 @@
 {
-  "url": "",
+  "url": "https://island-1.tailbe3340.ts.net",
   "visibility": "unlisted",
-  "note": "Default log server for new users AND the public GitHub Pages site; a user's own choice in Settings overrides it. Put your server's PUBLIC https address here (one line): both the desktop app and the website read this file at runtime, so a changed address reaches them within a few hours with no rebuild. For a stable address use a named Cloudflare tunnel (deploy/cloudflare-tunnel.sh <hostname>). A quick tunnel (trycloudflare.com) gets a NEW url every restart, so it is for testing only. Leave empty for no default."
+  "note": "Default log server for new users AND the public GitHub Pages site; a user's own choice in Settings overrides it. Put your server's PUBLIC https address here (one line): both the desktop app and the website read this file at runtime, so a changed address reaches them within a few hours with no rebuild. This is a Tailscale Funnel address; swap it if the server moves. Leave empty for no default."
 }
