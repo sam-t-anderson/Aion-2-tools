@@ -39,6 +39,20 @@ jobs:
           # the stylesheet's font URL is absolute (/static/...) for the app; make it relative for the Pages subpath
           sed 's#url("/static/fonts/#url("fonts/#g' aion2calc/app/static/app.css > _site/static/app.css
           cp docs/screenshots/app_dark.png docs/screenshots/app_light.png _site/screenshots/ 2>/dev/null || true
+      - name: Default share server (repo variables)
+        # The planner defaults Publish/Browse to this server; the visitor can still override it in
+        # their browser. The upload key is served in a public file by design (a community upload key),
+        # so set A2LOGS_UPLOAD_KEY only if you intend uploads without a visitor-supplied key.
+        env:
+          SERVER: ${{ vars.A2LOGS_PUBLIC_URL }}
+          KEY: ${{ secrets.A2LOGS_UPLOAD_KEY }}
+          KEY_VAR: ${{ vars.A2LOGS_UPLOAD_KEY }}
+        run: |
+          python3 - "$SERVER" "${KEY:-$KEY_VAR}" > _site/config.js <<'PY'
+          import json, sys
+          print("window.A2CONFIG = %s;" % json.dumps({"server": sys.argv[1], "key": sys.argv[2]}))
+          PY
+          echo "config.js: $(sed 's/"key": "[^"]*"/"key": "<hidden>"/' _site/config.js)"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

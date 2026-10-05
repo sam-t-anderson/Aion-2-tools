@@ -5,7 +5,15 @@
   "use strict";
   const $ = (s) => document.querySelector(s);
   const LS = "a2server";
-  const cfg = () => { try { return JSON.parse(localStorage.getItem(LS) || "{}"); } catch (e) { return {}; } }
+  // A default server (and optional upload key) can be baked in at Pages build from repo variables
+  // (config.js -> window.A2CONFIG). The visitor's own entry, if any, overrides it.
+  const DEFAULT = (window.A2CONFIG || {});
+  const cfg = () => {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(LS) || "null"); } catch (e) { saved = null; }
+    if (saved && (saved.url || saved.key)) return saved;
+    return { url: DEFAULT.server || "", key: DEFAULT.key || "" };
+  };
   const base = () => (cfg().url || "").replace(/\/+$/, "");
 
   async function apiGET(path) {
@@ -46,9 +54,13 @@
 
   // server config
   const c = cfg();
+  let usingDefault = true;
+  try { const s = JSON.parse(localStorage.getItem(LS) || "null"); usingDefault = !(s && (s.url || s.key)); } catch (e) { usingDefault = true; }
   if ($("#srvurl")) $("#srvurl").value = c.url || "";
   if ($("#srvkey") && c.key) $("#srvkey").placeholder = "key saved";
-  if ($("#srvmsg")) $("#srvmsg").textContent = base() ? "publishing to " + base() : "publish/browse disabled until you set a server";
+  if ($("#srvmsg")) $("#srvmsg").textContent = base()
+    ? `publishing to ${base()}${usingDefault ? " (community default)" : ""}`
+    : "publish/browse disabled until you set a server";
   if ($("#srvsave")) $("#srvsave").onclick = async () => {
     const url = $("#srvurl").value.trim().replace(/\/+$/, "");
     const key = $("#srvkey").value || cfg().key || "";
