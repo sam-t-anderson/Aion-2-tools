@@ -48,4 +48,5 @@ Name: "{autoprograms}\aion2calc"; Filename: "{app}\aion2calc.exe"
 Name: "{autodesktop}\aion2calc"; Filename: "{app}\aion2calc.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\aion2calc.exe"; Description: "Start aion2calc now"; Flags: nowait postinstall skipifsilent
+; runs after a normal install (the checkbox) and after a silent auto-update, so the app relaunches
+Filename: "{app}\aion2calc.exe"; Description: "Start aion2calc now"; Flags: nowait postinstall

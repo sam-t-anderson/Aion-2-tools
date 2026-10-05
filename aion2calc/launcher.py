@@ -209,6 +209,12 @@ def main(argv=None) -> int:
         port = free_port(args.port)
         print(time.strftime("%Y-%m-%d %H:%M:%S"), "starting on port", port)
         httpd = server.make_server("127.0.0.1", port)
+        if _frozen() and server.ui_settings().get("auto_update", True):
+            def updater():
+                from . import update
+                status = update.auto_update(httpd.shutdown)
+                print("update:", status)
+            threading.Thread(target=updater, daemon=True).start()
         if not args.no_browser:
             def show():
                 time.sleep(0.8)
