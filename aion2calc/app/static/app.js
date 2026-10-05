@@ -2,6 +2,7 @@
 "use strict";
 
 // ------------------------------------------------------------------ helpers
+const DISCORD = "https://discord.gg/9y6zkUyvBv";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -282,7 +283,8 @@ function welcomeCard() {
   if (hidden) return "";
   return `<section class="win" id="welcome"><div class="wh"><h2>Welcome</h2><span class="sub">three steps to your best build</span>
       <div class="tools"><button class="btn small" id="whide">Hide</button></div></div><div class="wb">
-    <div class="hero"><img src="/static/logo.png" alt=""><div><h1>aion2calc</h1><div class="muted">Plan your AION 2 build, check your gear and learn from your fights. Everything runs on this computer; the game database updates itself.</div></div></div>
+    <div class="hero"><img src="/static/logo.png" alt=""><div><h1>aion2calc</h1><div class="muted">Plan your AION 2 build, check your gear and learn from your fights. Everything runs on this computer; the game database updates itself.</div>
+      <div class="small" style="margin-top:6px">Questions or builds to share? <a href="${DISCORD}" target="_blank" rel="noopener">Join the Discord</a>.</div></div></div>
     <div class="welcome" style="margin-top:14px">
       <div class="wstep"><div class="n">I</div><h4>Import your character</h4><div class="small muted">Search your name on the official site: gear, rolls, skills, stigmas and Daevanion come in.</div>
         <a class="btn primary small" href="#/character" style="margin-top:8px;display:inline-block">My Character</a></div>
@@ -793,6 +795,7 @@ async function pageSettings() {
       <button class="btn small" id="ssave">Save</button><span id="smsg" class="small muted"></span></div></div>
     <div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button></div></div>
     <div class="setrow"><div class="lbl">Version</div><div>aion2calc ${esc(s.version)} ${s.update ? `· <a href="${esc(s.update.url)}" target="_blank" rel="noopener">version ${esc(s.update.version)} is available</a>` : '<span class="muted">· up to date</span>'}</div></div>
+    <div class="setrow"><div class="lbl">Community</div><div><a href="${DISCORD}" target="_blank" rel="noopener">Join the aion2calc Discord</a> — questions, builds and help</div></div>
     <div class="setrow"><div class="lbl">Stop the app</div><div><button class="btn small" id="quit2">Quit aion2calc</button></div></div>`);
   $$("[data-th]").forEach((b) => (b.onclick = () => { setTheme(b.dataset.th); pageSettings(); }));
   $("#appwin").onchange = () => api("/api/ui", { app_window: $("#appwin").checked }).then(() => toast("Saved"));

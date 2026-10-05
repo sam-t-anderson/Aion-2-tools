@@ -1,6 +1,9 @@
 # Aion-2-tools
 
 [![CI](https://github.com/sam-t-anderson/Aion-2-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/sam-t-anderson/Aion-2-tools/actions/workflows/ci.yml)
+[![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/9y6zkUyvBv)
+
+**Community: [discord.gg/9y6zkUyvBv](https://discord.gg/9y6zkUyvBv)**
 
 A repeatable **Aion 2 build / rotation simulator and optimizer**, built on the
 **global client data** (level 45 launch, Oct 2026) with Korean live-service data
