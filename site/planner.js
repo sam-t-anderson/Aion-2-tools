@@ -73,5 +73,21 @@
     catch (e) { if (msg) msg.textContent = "saved · server not reachable from this browser"; }
   };
 
-  window.A2Raid.mount(document.getElementById("app"), io);
+  // plans.html links here as planner.html?plan=<id>; fetch that published plan and make it current
+  async function maybeLoadShared() {
+    const id = new URLSearchParams(location.search).get("plan");
+    if (!id || !base()) return;
+    try {
+      const doc = await apiGET(`/api/v1/plans/${encodeURIComponent(id)}/raw`);
+      if (doc && doc.format === "a2plan") {
+        let all = {};
+        try { all = JSON.parse(localStorage.getItem("a2plans") || "{}"); } catch (e) { all = {}; }
+        doc.meta = doc.meta || {}; doc.meta.updated = Date.now();
+        all["shared-" + id] = doc;
+        localStorage.setItem("a2plans", JSON.stringify(all));
+      }
+    } catch (e) { /* open the planner normally if the fetch fails */ }
+  }
+
+  (async () => { await maybeLoadShared(); window.A2Raid.mount(document.getElementById("app"), io); })();
 })();

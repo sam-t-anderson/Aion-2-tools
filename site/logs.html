@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logs — aion2calc</title>
+<meta name="description" content="Public AION 2 combat logs: per-skill breakdowns, DPS and rates, shared from the aion2calc app.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="static/logo.png">
+<script>try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="stylesheet" href="static/app.css">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><a href="index.html"><img src="static/logo.png" alt="">aion2calc</a> <small>Logs</small></div>
+  <nav class="nav">
+    <a href="index.html">Home</a>
+    <a class="on" href="logs.html">Logs</a>
+    <a href="leaderboard.html">Leaderboard</a>
+    <a href="plans.html">Plans</a>
+    <a href="planner.html">Raid Planner</a>
+    <a href="docs.html">Docs</a>
+    <a href="https://github.com/sam-t-anderson/Aion-2-tools" target="_blank" rel="noopener">GitHub</a>
+  </nav>
+</header>
+<main class="site"><h1 class="pagetitle">Combat logs</h1>
+  <div class="row"><input id="boss" type="text" placeholder="filter by boss"><button class="btn" id="go">Search</button><span id="msg" class="small muted"></span></div>
+  <div id="list" style="margin-top:14px"><div class="empty">Loading…</div></div>
+</main>
+<script src="config.js"></script>
+<script src="server.js"></script>
+<script src="logs.js"></script>
+</body>
+</html>

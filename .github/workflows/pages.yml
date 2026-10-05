@@ -32,7 +32,8 @@ jobs:
       - name: Assemble the site
         run: |
           mkdir -p _site/static/fonts _site/screenshots
-          cp site/index.html site/planner.html site/docs.html site/site.css site/site.js site/planner.js _site/
+          cp site/index.html site/planner.html site/docs.html site/logs.html site/leaderboard.html site/plans.html _site/
+          cp site/site.css site/site.js site/planner.js site/server.js site/logs.js site/leaderboard.js site/plans.js _site/
           cp aion2calc/app/static/raid.js _site/static/
           cp aion2calc/app/static/logo.png _site/static/ 2>/dev/null || true
           cp aion2calc/app/static/fonts/cinzel-latin.woff2 _site/static/fonts/ 2>/dev/null || true
