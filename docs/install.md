@@ -45,74 +45,7 @@ app fails to start, the reason is in `aion2calc.log` in that folder.
 delete the portable folder). Other systems: delete the app. Uninstalling keeps your data folder;
 delete it too to remove everything.
 
-## From source (developers)
+## Developers and maintainers
 
-```bash
-git clone https://github.com/sam-t-anderson/Aion-2-tools && cd Aion-2-tools
-python -m pip install -e ".[dev]"
-python -m aion2calc app          # the same app in your browser; the CLI is in the README
-python -m pytest -q
-```
-
-## Builds and releases (maintainers)
-
-### Continuous integration
-
-`.github/workflows/ci.yml` runs on every push to any branch (and on pull requests from forks):
-
-1. **Tests and lint**: pyflakes, the pytest suite, and a parse check of the app's JavaScript.
-2. **Build** on Windows, macOS and Linux: PyInstaller builds the app, then
-   `aion2calc --smoke-test` starts it, checks that the pages and API answer and the bundled
-   optimizations are found, and solves a small integer program with the bundled solver. On
-   Windows, Inno Setup then builds the installer and the portable zip. The files are attached to
-   the run as artifacts (open the run in the **Actions** tab → **Artifacts**).
-3. **Release**: on a push to `main` whose version has no release yet, or on a `v*` tag, the
-   artifacts are published as GitHub release `v<version>` with
-   [`packaging/RELEASE_NOTES.md`](../packaging/RELEASE_NOTES.md) as its notes.
-
-### Publishing a new version
-
-1. Raise the version in **both** `aion2calc/__init__.py` (`__version__`) and `pyproject.toml`.
-2. Merge to `main`. CI builds, tests and publishes release `v<version>`. A merge that keeps the
-   version builds and tests but publishes nothing.
-
-To publish without changing `main`, push a tag instead: `git tag v0.2.2 && git push origin v0.2.2`.
-
-### Presetting the log server
-
-Set the repository variable `A2LOGS_PUBLIC_URL` (**Settings → Secrets and variables → Actions →
-Variables**) to the address of the log server your players share fights to, for example
-`https://logs.example.com`. Every build then ships a `client.json`, and new users start with that
-server selected. A `client.json` placed next to `aion2calc.exe` does the same for one copy:
-
-```json
-{"logserver_url": "https://logs.example.com", "visibility": "unlisted"}
-```
-
-`"key": "a2l_..."` may be added for people you trust to upload. The preset is used only when the
-user has not chosen a server yet.
-
-### Code signing
-
-Windows warns about unsigned downloads (SmartScreen). How the builds get signed, and the signing
-step that is ready in the workflow: [code-signing.md](code-signing.md).
-
-### Building locally
-
-```bash
-python -m pip install . pyinstaller
-pyinstaller packaging/aion2calc.spec --noconfirm     # -> dist/aion2calc/ (and dist/aion2calc.app on macOS)
-dist/aion2calc/aion2calc --smoke-test                # prints each check, exit code 0 when all pass
-```
-
-The Windows installer needs [Inno Setup 6](https://jrsoftware.org/isdl.php):
-
-```bat
-"%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" /DAppVersion=0.2.1 packaging\windows\aion2calc.iss
-```
-
-The installed app also takes `--port` (default 8765), `--no-browser` and `--no-sync` (skip the
-launch-time database update).
-
-PuLP's bundled CBC solver runs on Windows and Linux. On macOS, PuLP ships only an Intel CBC, so the
-app uses HiGHS instead (the `highspy` package, installed automatically on macOS).
+Running from source, the command-line interface, building the installer, CI, releasing, code
+signing and presetting the log server are in [`cli.md`](cli.md).
