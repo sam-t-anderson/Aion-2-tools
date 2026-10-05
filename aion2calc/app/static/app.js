@@ -364,22 +364,53 @@ async function pageCharacter() {
         <div class="kpi"><div class="k">Daevanion</div><div class="v">${v.points.daevanion}</div></div></div>
       ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<div id="optres"></div></div></section><div id="cwins"></div>`;
     renderWindows(v, st, $("#cwins"));
+    st.optMeta = { name: v.name, server: v.server, combat_power: v.combat_power };
     $("#opt").onclick = async () => {
-      $("#opt").disabled = true;
-      $("#optres").innerHTML = '<p><span class="spinner"></span> optimizing with your gear and points (several minutes)… <span id="olog" class="small muted"></span></p>';
+      S.character.opt = { status: "running", log: [], jobid: null };
+      renderOptState();
       try {
-        const r = await runJob("/api/character/optimize", st.hit, (log) => { const el = $("#olog"); if (el) el.textContent = log[log.length - 1] || ""; });
-        const g = r.summary.gain;
-        $("#optres").innerHTML = `<div class="kpis" style="margin-top:12px"><div class="kpi"><div class="k">Optimized boss DPS</div><div class="v">${n0(r.optimized.dps.boss)}</div></div>
-          <div class="kpi"><div class="k">Gain</div><div class="v ${g > 0 ? "good" : ""}">${g >= 0 ? "+" : ""}${pct(g)}</div></div></div>
-          <p class="small muted">The windows below now show the optimized build. What changes:</p><pre class="diff">${esc(r.diff)}</pre>`;
-        st.v = Object.assign({}, r.optimized, { name: v.name, server: v.server, combat_power: v.combat_power });
-        renderWindows(st.v, st, $("#cwins"));
-      } catch (e) { $("#optres").innerHTML = `<div class="note">${esc(e.message)}</div>`; }
-      $("#opt").disabled = false;
+        const { job } = await api("/api/character/optimize", st.hit);
+        S.character.opt.jobid = job;
+        pollOpt();
+      } catch (e) { S.character.opt = { status: "error", error: e.message }; renderOptState(); }
     };
+    renderOptState();                 // show a job that is still running (or finished) after returning to this tab
   };
   if (st.v) showChar();
+}
+
+// The character optimize runs for minutes on the server; keep its state in S.character so it survives
+// switching tabs, and poll it with a background loop that repaints when the character page is shown.
+function renderOptResult(r) {
+  const st = S.character, box = $("#optres");
+  if (!box) return;
+  const g = r.summary.gain;
+  box.innerHTML = `<div class="kpis" style="margin-top:12px"><div class="kpi"><div class="k">Optimized boss DPS</div><div class="v">${n0(r.optimized.dps.boss)}</div></div>
+      <div class="kpi"><div class="k">Gain</div><div class="v ${g > 0 ? "good" : ""}">${g >= 0 ? "+" : ""}${pct(g)}</div></div></div>
+      <p class="small muted">The windows below now show the optimized build. What changes:</p><pre class="diff">${esc(r.diff)}</pre>`;
+  st.v = Object.assign({}, r.optimized, st.optMeta || {});
+  if ($("#cwins")) renderWindows(st.v, st, $("#cwins"));
+}
+function renderOptState() {
+  if (!location.hash.startsWith("#/character")) return;
+  const o = S.character.opt, box = $("#optres"), opt = $("#opt");
+  if (!o || !box) return;
+  if (opt) opt.disabled = o.status === "running";
+  if (o.status === "running") box.innerHTML = `<p><span class="spinner"></span> optimizing with your gear and points (several minutes)… <span class="small muted">${esc((o.log && o.log[o.log.length - 1]) || "")}</span></p>`;
+  else if (o.status === "error") box.innerHTML = `<div class="note">${esc(o.error || "optimization failed")}</div>`;
+  else if (o.status === "done" && o.result) renderOptResult(o.result);
+}
+function pollOpt() {
+  const o = S.character.opt;
+  if (!o || o.status !== "running" || !o.jobid) return;
+  api("/api/jobs/" + o.jobid).then((j) => {
+    if (S.character.opt !== o) return;                 // a newer run superseded this one
+    o.log = j.log || o.log;
+    if (j.status === "done") { o.status = "done"; o.result = j.result; }
+    else if (j.status === "error") { o.status = "error"; o.error = j.error; }
+    renderOptState();
+    if (o.status === "running") setTimeout(pollOpt, 1200);
+  }).catch(() => setTimeout(pollOpt, 2500));            // keep polling through transient fetch errors
 }
 
 function lineChart(per, roll) {
