@@ -114,7 +114,9 @@ def _save_state(d: dict) -> None:
 def apply_installer(path: Path) -> bool:
     """Run the Windows installer silently; it closes this app, updates and relaunches."""
     try:
-        subprocess.Popen([str(path), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"])
+        # "!desktopicon" keeps a silent update from re-creating the desktop shortcut every time (the task
+        # is otherwise re-selected by default on each run); the first install still offers the checkbox.
+        subprocess.Popen([str(path), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/MERGETASKS=!desktopicon"])
         return True
     except OSError:
         return False

@@ -42,9 +42,14 @@ def _pmap(fn, items, workers: int | None = None, ctx: dict | None = None):
     """
     import multiprocessing as mp
     import os
+    import sys
     items = list(items)
     workers = workers or min(4, os.cpu_count() or 1)
     if workers <= 1 or len(items) < 4:
+        return [fn(x) for x in items]
+    if getattr(sys, "frozen", False):
+        # The packaged (windowed) app has no console, so spawn-based worker pools re-launch the bundle
+        # with no stdio and deadlock ("Optimize my build" hangs). Run serial there: slower, but it finishes.
         return [fn(x) for x in items]
     methods = mp.get_all_start_methods()
     method = "fork" if "fork" in methods else "spawn" if "spawn" in methods else None
