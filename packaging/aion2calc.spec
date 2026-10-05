@@ -33,8 +33,27 @@ try:
     datas += d
     binaries += b
     hiddenimports += h
+    # The Windows wheel keeps its private Visual C++ runtime in the sibling
+    # ``highspy.libs`` directory.  PyInstaller sees the extension module but
+    # does not discover this wheel-specific dependency automatically.
+    if sys.platform == "win32":
+        import highspy
+        highs_libs = os.path.join(os.path.dirname(highspy.__file__), "..", "highspy.libs")
+        if os.path.isdir(highs_libs):
+            binaries += [(os.path.join(highs_libs, name), ".")
+                         for name in os.listdir(highs_libs) if name.lower().endswith(".dll")]
 except Exception as err:
     print(f"aion2calc.spec: skipping highspy ({err})")
+# The live meter imports its capture and decompression backends on demand.  Collecting them
+# explicitly keeps the feature available in the desktop bundle as well as in source installs.
+for pkg in ("scapy", "lz4"):
+    try:
+        d, b, h = collect_all(pkg)
+        datas += d
+        binaries += b
+        hiddenimports += h
+    except Exception as err:
+        print(f"aion2calc.spec: skipping {pkg} ({err})")
 # PuLP ships CBC solver binaries for every platform; keep this platform's only
 datas += [d for d in collect_data_files("pulp") if "solverdir" not in d[0] or os.sep + PLAT + os.sep in d[0]
           or "/" + PLAT + "/" in d[0]]

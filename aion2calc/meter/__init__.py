@@ -1,10 +1,8 @@
-"""Live damage meter: a capture source feeds a pluggable decoder, whose combat events a streaming
-:class:`~aion2calc.meter.meter.Meter` aggregates into a live DPS table.
+"""Live damage meter and the embedded A2Tools packet decoder.
 
-The decoder for the live game's network protocol is intentionally NOT shipped: it cannot be derived
-without live captures, and this project will not circumvent the game's encryption. Point
-``--decoder your_module`` at your own decoder for live play, or use ``--replay`` to drive the meter
-from a recorded session of decoded events (JSON lines) for development and demos.
+The browser UI uses :mod:`aion2calc.meter.a2parser` for its default live
+capture source.  The generic decoder and replay interfaces remain available
+for recorded or custom event feeds.
 """
 from .decoder import Decoder, JsonLinesDecoder, load_decoder, register_decoder
 from .events import CombatEvent

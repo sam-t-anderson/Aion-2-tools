@@ -53,7 +53,8 @@ def _reopt_worker(job):
     return job, r.dps
 
 
-def stat_weights(stats, kit, policy, target, config, steps=STAT_STEPS, reopt_timing: bool = True) -> list[dict]:
+def stat_weights(stats, kit, policy, target, config, steps=STAT_STEPS, reopt_timing: bool = True,
+                 progress=None) -> list[dict]:
     policy = [e for e in policy if (e[0] if isinstance(e, tuple) else e) in kit.actions]
     def dps(st):
         sim = Sim(st.derived(), kit.actions, materialize(policy), target, config,
@@ -65,7 +66,12 @@ def stat_weights(stats, kit, policy, target, config, steps=STAT_STEPS, reopt_tim
         from .pipeline import _pmap
         _CTX["sw"] = (stats, kit, policy, target, config)
         jobs = [(f, sgn * h) for f, h in TIMING_FIELDS.items() for sgn in (1, -1)]
-        res = dict(_pmap(_reopt_worker, jobs))
+        res = dict(_pmap(
+            _reopt_worker, jobs, ctx={"sw": _CTX["sw"]},
+            progress=(lambda done, total: progress(f"stat weights: timing simulations {done}/{total}")
+                      if progress else None),
+            fallback=progress,
+        ))
         slope = {f: (res[(f, h)] - res[(f, -h)]) / (2 * h) for f, h in TIMING_FIELDS.items()}
         for f, st, _ in steps:
             if f in slope:
@@ -79,7 +85,10 @@ def stat_weights(stats, kit, policy, target, config, steps=STAT_STEPS, reopt_tim
     atk.add({"attack": 30})
     per_attack = (dps(atk) - base) / 30
     out = []
-    for field, step, label in steps:
+    if progress:
+        progress("stat weights: evaluating finite differences")
+    report_every = max(1, len(steps) // 10)
+    for index, (field, step, label) in enumerate(steps, 1):
         s2 = stats.copy()
         if field == "weapon_max":
             s2.add({"weapon_max": step, "weapon_min": step})
@@ -89,6 +98,8 @@ def stat_weights(stats, kit, policy, target, config, steps=STAT_STEPS, reopt_tim
         out.append({"stat": field, "step": step, "label": label, "dps_gain": gain,
                     "pct": 100 * gain / base, "per_unit": gain / step,
                     "attack_equiv": gain / per_attack if per_attack > 0 else None})
+        if progress and (index % report_every == 0 or index == len(steps)):
+            progress(f"stat weights: {index}/{len(steps)} stats")
     out.sort(key=lambda r: -r["dps_gain"])
     return out
 

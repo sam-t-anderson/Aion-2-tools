@@ -307,6 +307,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/update":
             from .. import update
             return self._json({"current": __version__, "info": update.available(), "kind": update.install_kind()})
+        if path == "/api/npcap":
+            from . import npcap
+            return self._json(npcap.status())
+        if path == "/api/meter/interfaces":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("capture interfaces are available only on this computer")
+            from ..meter.a2parser.capture import available_interfaces
+            return self._json({"interfaces": available_interfaces()})
         if path == "/api/logserver":
             from ..combat import share
             st = share.effective()
@@ -384,17 +392,43 @@ class Handler(BaseHTTPRequestHandler):
             r = runner()
             action = body.get("action")
             if action == "start":
-                return self._json(r.start(body.get("source", "replay"), path=body.get("path"), speed=body.get("speed", 1.0),
-                                          decoder=body.get("decoder"), iface=body.get("iface"), host=body.get("host"), port=body.get("port")))
+                return self._json(r.start(body.get("source", "a2tools"), path=body.get("path"),
+                                          speed=body.get("speed", 1.0), decoder=body.get("decoder"),
+                                          iface=body.get("iface"), host=body.get("host"), port=body.get("port"),
+                                          character_name=body.get("character_name"),
+                                          target_mode=body.get("target_mode", "bossTargets")))
             if action == "stop":
                 r.stop()
                 return self._json(r.status())
             if action == "save":
-                if not r.meter.players:
+                if not r.has_data():
                     raise ValueError("nothing to save yet")
                 return self._json(act_encounter_import({"text": json.dumps(r.to_a2log(title=body.get("title"))),
                                                         "name": body.get("title") or "Live meter session"}, log=lambda *a: None))
-            raise ValueError("action must be start, stop or save")
+            if action == "export":
+                if not r.has_data():
+                    raise ValueError("nothing to export yet")
+                stamp = time.strftime("%Y%m%d-%H%M%S")
+                path = logs_dir() / f"live-meter-{stamp}.a2log.json"
+                path.write_text(json.dumps(r.to_a2log(title=body.get("title")), ensure_ascii=False, indent=2) + "\n",
+                                encoding="utf-8")
+                return self._json({"file": str(path)})
+            if action == "upload":
+                if not r.has_data():
+                    raise ValueError("nothing to upload yet")
+                from ..combat import share
+                return self._json(share.upload(r.to_a2log(title=body.get("title")),
+                                               visibility=body.get("visibility")))
+            if action == "screenshot":
+                if self.client_address[0] not in ("127.0.0.1", "::1"):
+                    raise PermissionError("screenshots run only on this computer")
+                from PIL import ImageGrab
+                folder = home() / "screenshots"
+                folder.mkdir(exist_ok=True)
+                path = folder / f"live-meter-{time.strftime('%Y%m%d-%H%M%S')}.png"
+                ImageGrab.grab(all_screens=True).save(path, "PNG")
+                return self._json({"file": str(path)})
+            raise ValueError("action must be start, stop, save, export, upload or screenshot")
         if path == "/api/ping":
             PING["at"] = time.time()
             return self._json({"ok": True})
@@ -409,10 +443,17 @@ class Handler(BaseHTTPRequestHandler):
                 raise PermissionError("updates run only on the computer running the app")
             from .. import update
             status = update.install_now()
-            if status == "applying":
+            if status == "launching":
                 threading.Thread(target=lambda: (time.sleep(1.0), HTTPD.get("server")
                                                  and HTTPD["server"].shutdown()), daemon=True).start()
             return self._json({"status": status})
+        if path == "/api/npcap":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("Npcap setup runs only on the computer running the app")
+            if body.get("action") != "install":
+                raise ValueError('Npcap action must be "install"')
+            from . import npcap
+            return self._json(npcap.begin_install())
         if path == "/api/open":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("folders open only on the computer running the app")

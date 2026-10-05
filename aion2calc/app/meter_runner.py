@@ -1,11 +1,14 @@
-"""Background runner behind the app's /api/meter endpoints: it pulls combat events from a source
-(the demo replay, or a live capture through the user's decoder) into a :class:`Meter` the UI polls."""
+"""Background runner for the live meter and its embedded A2Tools capture engine."""
 from __future__ import annotations
 
 import threading
+import queue
 from pathlib import Path
 
 from ..meter import Meter, capture_source, live_frames, load_decoder, replay_source
+from ..meter.a2parser.engine import MeterEngine as PacketMeterEngine
+from ..meter.a2parser.capture import capture_packets
+from ..meter import a2tools
 
 DEMO = Path(__file__).resolve().parent.parent / "meter" / "demo_session.jsonl"
 
@@ -17,6 +20,11 @@ class Runner:
         self.running = False
         self.error: str | None = None
         self.source_name: str | None = None
+        self.packet_engine: PacketMeterEngine | None = None
+        self.packet_stop: threading.Event | None = None
+        self.packet_queue: queue.Queue | None = None
+        self.packet_capture_thread: threading.Thread | None = None
+        self.target_mode = "bossTargets"
         self._stop = False
         self.lock = threading.Lock()
 
@@ -24,10 +32,13 @@ class Runner:
         self.stop()
         with self.lock:
             self.meter = Meter()
+            self.packet_engine = None
         self.error = None
         self._stop = False
         self.source_name = source
         try:
+            if source == "a2tools":
+                return self._start_a2tools(**opts)
             if source == "replay":
                 path = opts.get("path") or str(DEMO)
                 it = replay_source(path, speed=float(opts.get("speed", 1.0)), realtime=opts.get("realtime", True))
@@ -48,6 +59,54 @@ class Runner:
         self.thread.start()
         return self.status()
 
+    def _start_a2tools(self, **opts) -> dict:
+        """Start the bundled A2Tools protocol engine on an Npcap/Scapy stream."""
+        try:
+            port = int(opts.get("port") or 50349)
+        except (TypeError, ValueError):
+            self.error = "game server port must be between 1 and 65535"
+            return self.status()
+        if not 1 <= port <= 65_535:
+            self.error = "game server port must be between 1 and 65535"
+            return self.status()
+        self.packet_engine = PacketMeterEngine()
+        self.packet_engine.set_server_port(port)
+        if opts.get("character_name"):
+            self.packet_engine.set_local_character_name(str(opts["character_name"]))
+        self.target_mode = str(opts.get("target_mode") or "bossTargets")
+        self.packet_stop = threading.Event()
+        self.packet_queue = queue.Queue()
+        self.running = True
+        self.thread = threading.Thread(target=self._run_a2tools, args=(opts.get("iface"), port, opts.get("host")),
+                                       daemon=True, name="a2tools-meter")
+        self.thread.start()
+        return self.status()
+
+    def _run_a2tools(self, iface: str | None, port: int, host: str | None) -> None:
+        assert self.packet_stop is not None and self.packet_queue is not None and self.packet_engine is not None
+        self.packet_capture_thread = threading.Thread(
+            target=capture_packets, args=(self.packet_stop, self.packet_queue, iface, port, None, host),
+            daemon=True, name="a2tools-capture")
+        self.packet_capture_thread.start()
+        try:
+            while not self._stop:
+                try:
+                    item = self.packet_queue.get(timeout=0.5)
+                except queue.Empty:
+                    continue
+                kind, *data = item
+                if kind == "packet":
+                    stream, payload, timestamp_ms = data
+                    with self.lock:
+                        self.packet_engine.consume(payload, timestamp_ms, stream)
+                elif kind == "error":
+                    self.error = str(data[0])
+                    break
+                elif kind == "capture_stopped":
+                    break
+        finally:
+            self.running = False
+
     def _run(self, it) -> None:
         try:
             for ev in it:
@@ -62,6 +121,8 @@ class Runner:
 
     def stop(self) -> None:
         self._stop = True
+        if self.packet_stop:
+            self.packet_stop.set()
         t = self.thread
         if t and t.is_alive():
             t.join(timeout=2.0)
@@ -69,12 +130,19 @@ class Runner:
 
     def status(self) -> dict:
         with self.lock:
-            snap = self.meter.snapshot()
+            snap = (a2tools.snapshot(self.packet_engine, self.target_mode)
+                    if self.packet_engine is not None else self.meter.snapshot())
         return {"running": self.running, "source": self.source_name, "error": self.error, "snapshot": snap}
 
     def to_a2log(self, title: str | None = None) -> dict:
         with self.lock:
+            if self.packet_engine is not None:
+                return a2tools.to_a2log(self.packet_engine, self.target_mode, title)
             return self.meter.to_a2log(title=title)
+
+    def has_data(self) -> bool:
+        with self.lock:
+            return bool(self.packet_engine and self.packet_engine.event_log) or bool(self.meter.players)
 
 
 _RUNNER: Runner | None = None
