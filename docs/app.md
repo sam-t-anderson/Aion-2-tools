@@ -1,12 +1,7 @@
 # The aion2calc app
 
 Players install the desktop app (Windows installer, or portable builds for Windows, macOS and
-Linux): see [install.md](install.md). From source:
-
-```bash
-pip install -e .
-python -m aion2calc app            # http://127.0.0.1:8765 opens in your browser
-```
+Linux): see [install.md](install.md). Running from source and the CLI are in [cli.md](cli.md).
 
 Everything runs on your machine. The app talks to four public sites:
 
@@ -37,8 +32,8 @@ Everything the app writes goes in one folder:
 | `cache\`, `icons\` | downloaded pages and icons |
 
 Earlier versions kept this folder in `C:\Users\<you>\.aion2calc` on Windows too. The first launch
-moves it to AppData. `python -m aion2calc logs` prints the data folder and the logs folder, and
-`--open` opens the logs folder in Explorer.
+moves it to AppData. **Settings → Your data** has buttons that open the data, logs and results
+folders.
 
 ## Pages
 
@@ -148,7 +143,7 @@ the `logs` folder (see [Where your data is saved](#where-your-data-is-saved)),
 for example
 `2026-10-04_190338_sorcerer_Name_Guardian-Captain-Raur_abysslogs-12.json`.
 The file uses the canonical JSON format below, so it can be kept, shared or
-analyzed again (`python -m aion2calc analyze <file>`). **Open folder** on the
+analyzed again (drop it back on the Combat Logs page). **Open folder** on the
 Combat Logs page opens the folder.
 
 Compare shares and casts more than DPS when:
@@ -242,8 +237,8 @@ code changes are needed when the game adds content:
 * **New skills.** A skill that appears in a patch is simulated from its tooltip
   by the generic kit, even for classes with a hand-written kit.
 
-To sync by hand: `python -m aion2calc sync` (`--force` re-reads everything,
-`--budget SECONDS` caps the run).
+To sync by hand, use **Settings → Game database → Check now** (or **Full re-sync**
+on the Database page).
 
 ## Point budgets
 

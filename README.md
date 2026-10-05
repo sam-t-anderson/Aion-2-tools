@@ -41,13 +41,6 @@ Run anyway**. [Code signing policy](docs/code-signing.md).
 |---|---|
 | ![Dark theme](docs/screenshots/app_dark.png) | ![Light theme](docs/screenshots/app_light.png) |
 
-**From source:**
-
-```bash
-pip install -e .
-python -m aion2calc app        # opens http://127.0.0.1:8765
-```
-
 ## The app
 
 * **Planner**: each optimized build is laid out like the in-game windows (skills with numbered spec
@@ -82,90 +75,11 @@ folder: `%LOCALAPPDATA%\aion2calc` on Windows (`C:\Users\<you>\AppData\Local\aio
 
 Details: [`docs/app.md`](docs/app.md).
 
-## Quick start
+## For developers
 
-```bash
-pip install -e .            # numpy, matplotlib, pulp (CBC solver bundled)
-
-# optimize a class and write results/<class>_l45/ (report, build.json, images)
-python -m aion2calc optimize sorcerer
-python -m aion2calc optimize gladiator --scenario dummy --daevanion 300
-
-# simulate the typical top global build, or a saved optimized build
-python -m aion2calc simulate ranger
-python -m aion2calc simulate sorcerer --build results/sorcerer_l45/build.json
-
-# optimize with another loadout and diff the two results
-python -m aion2calc optimize sorcerer --loadout sorcerer_l45_geared --out results/sorcerer_l45_geared
-python -m aion2calc diff results/sorcerer_l45 results/sorcerer_l45_geared
-
-# optimize several classes with identical settings and rank them (writes results/compare/README.md)
-python -m aion2calc compare sorcerer ranger assassin gladiator
-
-# import and optimize a real character (official AION 2 site, global regions)
-python -m aion2calc character "Name" --server Zikel --optimize
-
-# analyze a combat log against the optimal rotation: AbyssLogs link, A2DIL link, JSON or CSV
-python -m aion2calc analyze https://abysslogs.com/e/<id>
-python -m aion2calc analyze https://abysslogs.com/e/<id> --player "Name"   # one player of a party log
-
-# show or open the folder where every analyzed log is saved
-python -m aion2calc logs --open
-
-# gear / arcana / pantheon / genus / rotation advice for a character, and its inventory
-python -m aion2calc advise "Name" --server Zikel
-python -m aion2calc inventory "Name" --add aulamus-ring --enchant 8
-
-# share a saved fight on a log server (open a2log format) and print the link
-python -m aion2calc share 12 --server https://logs.example.com --key a2l_...
-
-# update the local game database (also runs automatically when the app starts)
-python -m aion2calc sync
-
-# re-scrape the bundled data (developers; global client via metabot.gg, KR via gamers4.life / A2DIL)
-python -m aion2calc refresh
-```
-
-Classes: `gladiator templar assassin ranger sorcerer spiritmaster cleric chanter`.
-
-## How it works
-
-| Layer | Module | What it does |
-|---|---|---|
-| Data | `aion2calc/scrape/*`, `aion2calc/data/` | metabot.gg (global client: skills per level, specs, budgets, Daevanion boards, items, titles, live top-player stats), gamers4.life (KR hit counts), A2DIL (KR dummy logs) |
-| Model | `model/stats.py`, `model/damage.py` | stat aggregation, crit/double/perfect/multi-hit, damage-boost buckets, elemental and vulnerability multipliers |
-| Kits | `kit/sorcerer.py`, `kit/generic.py` | skills as simulator actions; the Sorcerer kit encodes every interaction by hand, the generic kit parses tooltips and spec texts for any class |
-| Simulator | `sim/engine.py` | deterministic expected-value event simulation (buffs, debuffs, DoTs, chains, resets, MP, procs with internal cooldowns, combat speed) |
-| Optimizers | `opt/rotation.py`, `opt/pipeline.py`, `opt/daevanion.py`, `opt/statweights.py`, `opt/macro.py`, `opt/gear.py` | rotation search, specs, stigmas, per-skill level curves, joint Daevanion + skill-point integer program, stat weights, macro plan, gear advice |
-| Output | `report.py`, `report_md.py`, `diff.py`, `render/*` | build.json, Markdown report, board images, build card, planner links, result diffs |
-| Database | `db/store.py`, `db/sync.py`, `paths.py` | SQLite catalog + history, launch-time sync from sitemaps, user data overlay |
-| Characters | `sources/official.py`, `sources/character.py`, `charopt.py` | official profile import → build + loadout → score as-is → optimize → diff |
-| Combat logs | `combat/adapters.py`, `combat/abysslogs.py`, `combat/a2log.py`, `combat/analyze.py`, `combat/logs.py`, `combat/live.py` | log formats and AbyssLogs import, breakdown, comparison with the optimum and top logs, the logs folder, live-source interface |
-| Planners | `plan/*` | inventory, best set, goal gear, upgrade path, arcana, pantheon, genus insight, advice |
-| Learning | `learn.py` | fights matched to equipped-gear snapshots; calibration of crit curve, rates and skill damage |
-| App | `app/server.py`, `app/views.py`, `app/static/*` | local server (stdlib) and the game-styled UI |
-| Desktop app | `launcher.py`, `packaging/*` | app window, single instance, smoke test; PyInstaller and Inno Setup builds |
-
-Formulas, sources, and every assumption: [`docs/methodology.md`](docs/methodology.md).
-
-## Testing
-
-```bash
-python -m pytest -q
-```
-
-Every push runs the tests and builds the app on Windows, macOS and Linux
-([CI](.github/workflows/ci.yml)); raising the version on `main` publishes a release
-([how](docs/install.md#builds-and-releases-maintainers)).
-
-## Adding or refining a class
-
-Each class needs a loadout in `aion2calc/data/global/loadouts/<class>_l45_global_median.json`
-(`python -c "from aion2calc.loadouts import make_all; make_all()"` regenerates all eight
-from the live top-player data).  `kit/generic.py` works for every class straight from the data.  For best
-fidelity, copy `kit/sorcerer.py` to `kit/<class>.py` and encode the class's
-special interactions (chains, resets, conditional skills); `run.kit_module`
-picks it up automatically.
+The command-line interface, running from source, the architecture overview, building the desktop
+app, testing, releasing and adding a class are in **[`docs/cli.md`](docs/cli.md)**. Formulas,
+sources and every assumption are in [`docs/methodology.md`](docs/methodology.md).
 
 ## License
 
