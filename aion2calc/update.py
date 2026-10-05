@@ -111,12 +111,17 @@ def _save_state(d: dict) -> None:
         pass
 
 
-def apply_installer(path: Path) -> bool:
-    """Run the Windows installer silently; it closes this app, updates and relaunches."""
+def apply_installer(path: Path, silent: bool = True) -> bool:
+    """Run the Windows installer. ``silent`` (background) replaces the files with no UI; interactive
+    (manual "Install now") shows the installer so a Windows SmartScreen / install prompt on the unsigned
+    build can be approved. Either way it closes this app, updates and relaunches it, and ``!desktopicon``
+    keeps it from re-creating the desktop shortcut each time."""
+    args = [str(path)]
+    if silent:
+        args += ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
+    args += ["/MERGETASKS=!desktopicon"]
     try:
-        # "!desktopicon" keeps a silent update from re-creating the desktop shortcut every time (the task
-        # is otherwise re-selected by default on each run); the first install still offers the checkbox.
-        subprocess.Popen([str(path), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/MERGETASKS=!desktopicon"])
+        subprocess.Popen(args)
         return True
     except OSError:
         return False
@@ -128,6 +133,8 @@ def fetch(info: dict) -> Path | None:
     if not asset or not asset.get("browser_download_url"):
         return None
     dest = home() / "updates" / asset["name"]
+    if dest.exists() and dest.stat().st_size > 0:
+        return dest                   # already staged this version: don't re-download on every launch
     dest.parent.mkdir(parents=True, exist_ok=True)
     try:
         return download(asset["browser_download_url"], dest)
@@ -136,37 +143,30 @@ def fetch(info: dict) -> Path | None:
 
 
 def install_now() -> str:
-    """Manual "Install update": download and apply. Ignores the once-per-version guard."""
+    """Manual "Install update": download and apply. Ignores the once-per-version guard. The Windows
+    installer is launched interactively so a SmartScreen / install prompt on the unsigned build can be
+    approved; portable, macOS and Linux builds are staged for the user to copy."""
     info = available()
     if not info:
         return "up-to-date"
     path = fetch(info)
     if not path:
         return "download-failed"
-    if info["silent"] and apply_installer(path):
-        return "applying"
+    if info["kind"] == "installer" and apply_installer(path, silent=False):
+        return "launching"            # the installer window opens; it closes and relaunches the app
     return "downloaded"               # the UI reveals the file for the user to run/copy
 
 
-def auto_update(quit_cb) -> str:
-    """On launch (frozen builds): silently apply an installer update; otherwise pre-download so
-    the UI can offer a one-click apply. Never raises."""
+def auto_update(quit_cb=None) -> str:
+    """On launch (frozen builds): download a newer release in the background so the app can offer a
+    one-click install via the header chip / Settings. We no longer apply it silently and quit: a fully
+    silent apply of an *unsigned* installer can be blocked by Windows with no prompt, which looked like
+    the app closing and nothing happening. The interactive "Install now" is the reliable path. Never
+    raises. ``quit_cb`` is accepted for backwards compatibility and no longer used."""
     try:
         info = available()
         if not info:
             return "up-to-date"
-        if _state().get("tried") == info["version"]:      # a previous apply did not take: don't loop
-            return "pending"
-        if info["silent"]:
-            path = fetch(info)
-            if not path:
-                return "download-failed"
-            _save_state({"tried": info["version"]})
-            if apply_installer(path):
-                quit_cb()
-                return "applying"
-            return "downloaded"
-        fetch(info)                                        # stage it; the chip/Settings offer apply
-        return "downloaded"
+        return "downloaded" if fetch(info) else "download-failed"
     except Exception:
         return "error"

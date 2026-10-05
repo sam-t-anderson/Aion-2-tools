@@ -1002,7 +1002,7 @@ async function pageSettings() {
     $("#updmsg").textContent = "downloading…";
     try {
       const r = await api("/api/update", {});
-      $("#updmsg").textContent = { applying: "installing — the app will restart", downloaded: "downloaded — open your data folder's 'updates' to apply", "download-failed": "download failed", "up-to-date": "already up to date" }[r.status] || r.status;
+      $("#updmsg").textContent = { applying: "installing — the app will restart", launching: "opening the installer — follow the prompts (choose “More info → Run anyway” if Windows warns)", downloaded: "downloaded — open your data folder’s “updates” to run it", "download-failed": "download failed", "up-to-date": "already up to date" }[r.status] || r.status;
     } catch (e) { $("#updmsg").textContent = e.message; }
   };
   $$("[data-open]").forEach((b) => (b.onclick = () => api("/api/open", { what: b.dataset.open }).catch((e) => toast(e.message))));
