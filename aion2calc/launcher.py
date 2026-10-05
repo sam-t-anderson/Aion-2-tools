@@ -185,6 +185,9 @@ def smoke_test(out: str | None = None) -> int:
 
 
 def main(argv=None) -> int:
+    if os.environ.get("AION2CALC_OVERLAY"):       # the app re-ran the bundle to open the native overlay
+        from . import overlay
+        return overlay.main([])
     p = argparse.ArgumentParser(prog="aion2calc", description="AION 2 build planner and combat analyzer")
     p.add_argument("--port", type=int, default=8765)
     p.add_argument("--no-browser", action="store_true")

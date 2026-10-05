@@ -55,6 +55,9 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - run: pip install . pyinstaller
+      - name: Bundle pywebview for the transparent overlay (Windows)
+        if: runner.os == 'Windows'
+        run: pip install pywebview
       - name: Preset the log server for new users (repository variable A2LOGS_PUBLIC_URL)
         if: vars.A2LOGS_PUBLIC_URL != ''
         shell: bash

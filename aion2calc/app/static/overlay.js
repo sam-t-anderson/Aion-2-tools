@@ -7,9 +7,17 @@
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const n0 = (x) => (x == null || isNaN(x) ? "—" : Math.round(x).toLocaleString("en-US"));
-  const SVGNS = "http://www.w3.org/2000/svg";
+  const kfmt = (x) => { if (x == null || isNaN(x)) return "—"; const a = Math.abs(x); return a >= 1e6 ? (x / 1e6).toFixed(2) + "M" : a >= 1e3 ? (x / 1e3).toFixed(2) + "K" : Math.round(x).toString(); };
   let tab = "meter";
   let t = 0;
+  let op = 0.72;
+  try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* ignore */ }
+  function applyOpacity() { document.documentElement.style.setProperty("--ovbg", op); }
+  const foot = () => `<div class="ovfoot"><span>Opacity</span><input type="range" id="ovop" min="20" max="100" value="${Math.round(op * 100)}"><span class="ovbrand">aion2calc</span></div>`;
+  function bindFoot() {
+    const r = $("#ovop");
+    if (r) r.oninput = () => { op = Math.max(0.2, Math.min(1, r.value / 100)); applyOpacity(); try { localStorage.setItem("ovopacity", op); } catch (e) { /* ignore */ } };
+  }
 
   function tokenPos(tk, time) {
     const k = tk.keyframes || [];
@@ -36,14 +44,15 @@
     const snap = (s && s.snapshot) || { players: [] };
     const mx = Math.max(...snap.players.map((p) => p.dps), 1);
     const rows = snap.players.slice(0, 8).map((p) => `<div class="ovrow"><span class="ovname" title="${esc(p.name)}">${esc(p.name)}</span>
-        <div class="ovbar"><i style="width:${100 * p.dps / mx}%"></i><span>${n0(p.dps)} · ${Math.round(100 * p.share)}%</span></div></div>`).join("");
-    const right = s && s.running ? `${(snap.duration || 0).toFixed(0)}s · ${n0(snap.dps || 0)} DPS` : "idle";
-    $("#ov").innerHTML = `<div class="ovcard">${head(right)}${rows || '<div class="muted">No fight yet. Start the meter in the app.</div>'}</div>`;
-    bindTabs();
+        <div class="ovbar"><i style="width:${100 * p.dps / mx}%"></i><span>${kfmt(p.dps)}/s <span class="sub">${kfmt(p.damage)} · ${Math.round(100 * p.share)}%</span></span></div></div>`).join("");
+    const right = snap.boss ? esc(snap.boss) : (s && s.running ? "recording" : "idle");
+    const sub = `${(snap.duration || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)}/s`;
+    $("#ov").innerHTML = `<div class="ovcard">${head(right + " · " + sub)}${rows || '<div class="muted">No fight yet. Start the meter in the app.</div>'}${foot()}</div>`;
+    bindTabs(); bindFoot();
   }
   function renderPlan() {
     const p = latestPlan();
-    if (!p) { $("#ov").innerHTML = `<div class="ovcard">${head("")}<div class="muted">No saved plan yet.</div></div>`; return bindTabs(); }
+    if (!p) { $("#ov").innerHTML = `<div class="ovcard">${head("")}<div class="muted">No saved plan yet.</div>${foot()}</div>`; bindTabs(); return bindFoot(); }
     const dur = p.duration || 1;
     const svg = [`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">`];
     svg.push(`<rect x="1" y="1" width="98" height="98" rx="2" fill="none" stroke="#8886" stroke-width="0.6"/>`);
@@ -55,8 +64,8 @@
       else svg.push(`<circle cx="${pos.x * 100}" cy="${pos.y * 100}" r="${tk.kind === "enemy" ? 3.4 : 2.6}" fill="${col}" stroke="#0008" stroke-width="0.5"/>`);
     }
     svg.push("</svg>");
-    $("#ov").innerHTML = `<div class="ovcard">${head(`${esc(p.meta?.name || "plan")} · ${(t % dur).toFixed(0)}/${dur.toFixed(0)}s`)}<div class="ovarena">${svg.join("")}</div></div>`;
-    bindTabs();
+    $("#ov").innerHTML = `<div class="ovcard">${head(`${esc(p.meta?.name || "plan")} · ${(t % dur).toFixed(0)}/${dur.toFixed(0)}s`)}<div class="ovarena">${svg.join("")}</div>${foot()}</div>`;
+    bindTabs(); bindFoot();
   }
   function bindTabs() {
     document.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => { tab = b.dataset.tab; (tab === "meter" ? pollMeter() : renderPlan()); }));
@@ -71,5 +80,6 @@
   setInterval(() => { if (tab === "meter") pollMeter(); }, 800);
   // plan animation loop
   setInterval(() => { t += 0.1; if (tab === "plan") renderPlan(); }, 100);
+  applyOpacity();
   pollMeter();
 })();

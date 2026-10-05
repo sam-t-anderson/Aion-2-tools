@@ -179,6 +179,40 @@ def test_app_server_endpoints(home):
         srv.shutdown()
 
 
+def test_logserver_check_and_overlay(home, monkeypatch):
+    from http.server import ThreadingHTTPServer
+
+    from aion2calc.app.server import Handler
+    from aion2calc.combat import share
+    monkeypatch.setattr(share, "_remote_default", lambda *a, **k: {})       # no network in tests
+
+    def raises(*_a, **_k):
+        raise OSError("boom")
+
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+
+    def get(path):
+        return json.loads(urllib.request.urlopen(base + path, timeout=30).read())
+
+    def post(path, body):
+        req = urllib.request.Request(base + path, json.dumps(body).encode(), {"Content-Type": "application/json"})
+        return json.loads(urllib.request.urlopen(req, timeout=30).read())
+    try:
+        assert get("/api/logserver/check")["ok"] is False                  # nothing set yet: honest, no crash
+        monkeypatch.setattr(share, "discover", raises)
+        share.save_settings("https://nope.invalid", visibility="unlisted")
+        r = get("/api/logserver/check")
+        assert r["ok"] is False and "boom" in r["detail"]                  # the reason reaches the user
+        monkeypatch.setattr(share, "discover", lambda url: {"name": "Test Logs", "auth": {"required": True}})
+        r = get("/api/logserver/check")
+        assert r["ok"] is True and r["name"] == "Test Logs" and r["auth_required"] is True
+        assert post("/api/overlay", {})["native"] is False                 # pywebview is not installed in tests
+    finally:
+        srv.shutdown()
+
+
 def test_new_skill_from_a_patch_is_simulated():
     """A skill the hand-written kit does not know falls back to the tooltip-driven model."""
     import copy
