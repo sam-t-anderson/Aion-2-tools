@@ -182,9 +182,11 @@ def test_app_server_endpoints(home):
 def test_logserver_check_and_overlay(home, monkeypatch):
     from http.server import ThreadingHTTPServer
 
+    from aion2calc.app import overlay_launch
     from aion2calc.app.server import Handler
     from aion2calc.combat import share
-    monkeypatch.setattr(share, "_remote_default", lambda *a, **k: {})       # no network in tests
+    monkeypatch.setattr(share, "default_server", lambda: {})               # no bundled/remote default, no network
+    monkeypatch.setattr(overlay_launch, "available", lambda: False)         # deterministic: no native window in tests
 
     def raises(*_a, **_k):
         raise OSError("boom")

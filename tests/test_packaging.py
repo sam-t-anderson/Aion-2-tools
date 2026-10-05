@@ -204,17 +204,35 @@ def test_update_pick_asset_and_available(monkeypatch):
     assert update.available(old) is None                      # not newer
 
 
-def test_auto_update_applies_installer(home, monkeypatch):
+def test_auto_update_stages_without_applying(home, monkeypatch):
+    from aion2calc import update
+    monkeypatch.setattr(update, "available", lambda release=None: {
+        "version": "99.0.0", "url": "x", "asset": {"name": "s.exe", "browser_download_url": "u"},
+        "kind": "installer", "silent": True})
+    staged, quit_called = {}, {}
+    monkeypatch.setattr(update, "fetch", lambda info: staged.setdefault("f", True))
+
+    def must_not_apply(p, silent=True):
+        raise AssertionError("auto-update must not silently apply an unsigned installer or quit")
+    monkeypatch.setattr(update, "apply_installer", must_not_apply)
+    assert update.auto_update(lambda: quit_called.setdefault("q", True)) == "downloaded"
+    assert staged.get("f") and not quit_called                 # it only stages; the chip offers a one-click install
+
+
+def test_install_now_launches_installer_interactively(home, monkeypatch):
     from aion2calc import update
     monkeypatch.setattr(update, "available", lambda release=None: {
         "version": "99.0.0", "url": "x", "asset": {"name": "s.exe", "browser_download_url": "u"},
         "kind": "installer", "silent": True})
     monkeypatch.setattr(update, "fetch", lambda info: __import__("pathlib").Path(str(home / "s.exe")))
-    applied, quit_called = {}, {}
-    monkeypatch.setattr(update, "apply_installer", lambda p: applied.setdefault("p", p) or True)
-    assert update.auto_update(lambda: quit_called.setdefault("q", True)) == "applying"
-    assert quit_called.get("q") and applied.get("p")
-    assert update.auto_update(lambda: None) == "pending"       # version already tried: no loop
+    seen = {}
+
+    def fake_apply(p, silent=True):
+        seen["silent"] = silent
+        return True
+    monkeypatch.setattr(update, "apply_installer", fake_apply)
+    assert update.install_now() == "launching"
+    assert seen.get("silent") is False                         # manual install runs the installer with its UI
 
 
 def test_auto_update_portable_stages_only(home, monkeypatch):
