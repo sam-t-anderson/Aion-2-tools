@@ -34,7 +34,7 @@
   }
 
   const A2PLAN_KEY = "a2plans";
-  const RAID_CLASSES = ["Gladiator", "Templar", "Assassin", "Ranger", "Sorcerer", "Spiritmaster", "Cleric", "Chanter", "Bard", "Painter", "Aethertech"];
+  const RAID_CLASSES = ["Templar", "Gladiator", "Assassin", "Ranger", "Sorcerer", "Spiritmaster", "Cleric", "Chanter"];
   const TOKEN_COLORS = ["#e66a5a", "#39c2e0", "#6fcf7a", "#e9a43a", "#a46cf0", "#f05a8c", "#5bc0de", "#b9984f", "#7fd6a8", "#6fa8dc", "#d4b45a", "#9fd36f"];
   const RAID_MARKERS = ["A", "B", "C", "D", "1", "2", "3", "4"];
 

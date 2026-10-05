@@ -32,13 +32,28 @@ jobs:
       - name: Assemble the site
         run: |
           mkdir -p _site/static/fonts _site/screenshots
-          cp site/index.html site/planner.html site/docs.html site/site.css site/site.js site/planner.js _site/
+          cp site/index.html site/planner.html site/docs.html site/logs.html site/leaderboard.html site/plans.html _site/
+          cp site/site.css site/site.js site/planner.js site/server.js site/logs.js site/leaderboard.js site/plans.js _site/
           cp aion2calc/app/static/raid.js _site/static/
           cp aion2calc/app/static/logo.png _site/static/ 2>/dev/null || true
           cp aion2calc/app/static/fonts/cinzel-latin.woff2 _site/static/fonts/ 2>/dev/null || true
           # the stylesheet's font URL is absolute (/static/...) for the app; make it relative for the Pages subpath
           sed 's#url("/static/fonts/#url("fonts/#g' aion2calc/app/static/app.css > _site/static/app.css
           cp docs/screenshots/app_dark.png docs/screenshots/app_light.png _site/screenshots/ 2>/dev/null || true
+      - name: Default share server (repo variables)
+        # The planner defaults Publish/Browse to this server; the visitor can still override it in
+        # their browser. The upload key is served in a public file by design (a community upload key),
+        # so set A2LOGS_UPLOAD_KEY only if you intend uploads without a visitor-supplied key.
+        env:
+          SERVER: ${{ vars.A2LOGS_PUBLIC_URL }}
+          KEY: ${{ secrets.A2LOGS_UPLOAD_KEY }}
+          KEY_VAR: ${{ vars.A2LOGS_UPLOAD_KEY }}
+        run: |
+          python3 - "$SERVER" "${KEY:-$KEY_VAR}" > _site/config.js <<'PY'
+          import json, sys
+          print("window.A2CONFIG = %s;" % json.dumps({"server": sys.argv[1], "key": sys.argv[2]}))
+          PY
+          echo "config.js: $(sed 's/"key": "[^"]*"/"key": "<hidden>"/' _site/config.js)"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
