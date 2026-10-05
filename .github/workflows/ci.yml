@@ -34,7 +34,7 @@ jobs:
       - run: python -m pyflakes aion2calc tests
       - run: python -m pytest -q
       - name: Check the frontend scripts parse
-        run: for f in aion2calc/app/static/*.js; do node --check "$f"; done
+        run: for f in aion2calc/app/static/*.js site/*.js; do node --check "$f"; done
 
   build:
     name: Build (${{ matrix.name }})

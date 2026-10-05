@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docs — aion2calc</title>
+<meta name="description" content="How to use the aion2calc raid planner and desktop app, and how to self-host the sharing server.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="static/logo.png">
+<script>try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="stylesheet" href="static/app.css">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><a href="index.html"><img src="static/logo.png" alt="">aion2calc</a> <small>Docs</small></div>
+  <nav class="nav">
+    <a href="index.html">Home</a>
+    <a href="planner.html">Raid Planner</a>
+    <a class="on" href="docs.html">Docs</a>
+    <a href="https://github.com/sam-t-anderson/Aion-2-tools" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://discord.gg/9y6zkUyvBv" target="_blank" rel="noopener">Discord</a>
+  </nav>
+</header>
+<main class="site doc2">
+  <h2>Using the raid planner</h2>
+  <p>The <a href="planner.html">Raid Planner</a> runs entirely in your browser — plans are saved on this device. To plan a fight:</p>
+  <ul>
+    <li><b>Add tokens</b> — players (by class), an enemy/boss, raid markers (A/B/C/1/2…) and AoE zones.</li>
+    <li><b>Plan movement over time</b> — move the <b>timelapse</b> slider to a moment, then drag a token to where it should be then. The planner keyframes that position and interpolates the movement in between, drawing the path. Press ▶ to play it back at 0.5–4×.</li>
+    <li><b>Party buffs</b> — lay buff windows (name, source, start–end) on the lane under the timeline; the buffs active at the current moment are highlighted.</li>
+    <li><b>Save &amp; share</b> — plans auto-save locally; export a <code>.a2plan</code> file, copy a share code, or <b>Publish</b> to a server (see below) and <b>Browse</b> others'.</li>
+  </ul>
+
+  <h2>Publishing &amp; browsing plans</h2>
+  <p>Publishing uses a self-hosted <b>aion2calc log server</b>. Enter its address (and an upload key, if it requires one) at the top of the planner page; it is stored only in your browser. Then <b>Publish</b> shares the current plan and gives a link, and <b>Browse plans</b> lists public plans you can open and copy. The desktop app can publish to the same server.</p>
+
+  <h2>The desktop app</h2>
+  <p>The <a href="https://github.com/sam-t-anderson/Aion-2-tools/releases/latest" target="_blank" rel="noopener">desktop app</a> adds build &amp; rotation optimization, gear advice, and combat-log analysis, and it updates itself. Guides:</p>
+  <ul>
+    <li><a href="https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/install.md" target="_blank" rel="noopener">Installing &amp; updating</a></li>
+    <li><a href="https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/app.md" target="_blank" rel="noopener">The app, page by page</a></li>
+    <li><a href="https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/methodology.md" target="_blank" rel="noopener">Formulas, sources &amp; assumptions</a></li>
+    <li><a href="https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/cli.md" target="_blank" rel="noopener">For developers (CLI, building, releasing)</a></li>
+  </ul>
+
+  <h2>Self-hosting the sharing server</h2>
+  <p>The sharing server (log and plan uploads, community statistics) is a small Python service you run on your own machine — a home box, a VPS, or behind a free Cloudflare Tunnel. It exposes an open JSON API (<code>/.well-known/a2log.json</code> describes it). See the <a href="https://github.com/sam-t-anderson/Aion-2-tools-server" target="_blank" rel="noopener">server repository</a>.</p>
+
+  <footer class="sitefoot">
+    <div class="muted small">Author: <b>Spirited - Zikel : Asmodian&nbsp;&nbsp;|&nbsp;&nbsp;Legion: WhaleWatch</b></div>
+    <div class="small">GPL-3.0 · fan-made, not affiliated with NCSOFT</div>
+  </footer>
+</main>
+</body>
+</html>

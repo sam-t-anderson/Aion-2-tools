@@ -1,0 +1,25 @@
+/* Styles for the GitHub Pages site (landing, docs, planner chrome). Builds on app.css tokens. */
+.site { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+.hero2 { display: grid; grid-template-columns: 120px 1fr; gap: 24px; align-items: center; padding: 20px 0 10px; }
+.herologo { width: 120px; height: 120px; }
+.hero2 h1 { font-family: var(--display); color: var(--gold); letter-spacing: 2px; font-size: 40px; margin: 0 0 6px; }
+.lead { font-size: 17px; max-width: 60ch; margin: 0 0 14px; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.cta .btn { padding: 10px 18px; font-size: 15px; }
+.cards3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 28px 0; }
+.scard { border: 1px solid var(--frame); border-radius: 10px; padding: 16px 18px; background: linear-gradient(180deg, var(--card-a), var(--card-b)); }
+.scard h3 { font-family: var(--display); letter-spacing: .6px; margin: 0 0 8px; color: var(--gold); font-size: 17px; }
+.shots h2, .dl h2 { font-family: var(--display); color: var(--gold); letter-spacing: 1px; margin: 32px 0 14px; }
+.shotgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.shotgrid img { width: 100%; border: 1px solid var(--frame); border-radius: 8px; display: block; }
+.dlrow { display: flex; flex-wrap: wrap; gap: 10px; }
+.sitefoot { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+/* planner page chrome */
+.srvbar { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-bottom: 1px solid var(--line-soft); }
+.srvbar .lbl { color: var(--muted); font-weight: 600; }
+.plannerwrap { max-width: 1240px; margin: 0 auto; padding: 16px; }
+.doc2 { max-width: 820px; } .doc2 h2 { font-family: var(--display); color: var(--gold); letter-spacing: .8px; margin: 26px 0 10px; }
+.doc2 h3 { margin: 18px 0 6px; } .doc2 li { margin: 3px 0; }
+.pcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.pcard { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--panel2); }
+@media (max-width: 900px) { .cards3, .shotgrid { grid-template-columns: 1fr; } .hero2 { grid-template-columns: 1fr; } .herologo { width: 84px; height: 84px; } }

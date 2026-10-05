@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raid Planner — aion2calc</title>
+<meta name="description" content="Plan AION 2 raids in your browser: drag player tokens on a map, scrub a timelapse slider to plan movement over time, lay out party buffs, and publish to share.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="static/logo.png">
+<script>try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="stylesheet" href="static/app.css">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><a href="index.html"><img src="static/logo.png" alt="">aion2calc</a> <small>Raid Planner</small></div>
+  <nav class="nav">
+    <a href="index.html">Home</a>
+    <a class="on" href="planner.html">Raid Planner</a>
+    <a href="docs.html">Docs</a>
+    <a href="https://github.com/sam-t-anderson/Aion-2-tools" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://discord.gg/9y6zkUyvBv" target="_blank" rel="noopener">Discord</a>
+  </nav>
+  <button class="iconbtn" id="theme" title="Theme">◐</button>
+</header>
+<div class="srvbar">
+  <span class="lbl small">Share server (optional)</span>
+  <input id="srvurl" type="text" placeholder="https://logs.yourdomain.com" style="width:260px">
+  <input id="srvkey" type="password" placeholder="upload key (optional)" style="width:180px">
+  <button class="btn small" id="srvsave">Save</button>
+  <span id="srvmsg" class="small muted"></span>
+</div>
+<main id="app" class="plannerwrap"><div class="empty">Loading…</div></main>
+<script src="static/raid.js"></script>
+<script src="planner.js"></script>
+</body>
+</html>
