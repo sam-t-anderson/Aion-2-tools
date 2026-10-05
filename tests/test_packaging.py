@@ -84,13 +84,11 @@ def test_smoke_test_and_running_app(home, tmp_path):
 
 def test_solver_choice(monkeypatch):
     from aion2calc.opt import solver
-    monkeypatch.setattr(solver.sys, "platform", "linux")
-    assert solver.name() == "CBC"
-    monkeypatch.setattr(solver.sys, "platform", "darwin")
-    monkeypatch.setattr(solver, "highs_available", lambda: False)
-    assert solver.name() == "CBC"
+    # HiGHS (in-process) is preferred on every platform; CBC is only the fallback when highspy is absent.
     monkeypatch.setattr(solver, "highs_available", lambda: True)
     assert solver.name() == "HiGHS"
+    monkeypatch.setattr(solver, "highs_available", lambda: False)
+    assert solver.name() == "CBC"
 
 
 def test_update_check_reads_github_releases(home, monkeypatch):

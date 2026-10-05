@@ -87,7 +87,7 @@ def act_character_optimize(body: dict, log) -> dict:
                            progress=log, use_cache=3600)
     out = results_dir() / "characters" / imp.loadout_name()[5:]
     log(f"optimizing under the same resources (writes {out})")
-    summ = optimize_character(imp, str(out), iterations=int(body.get("iterations", 2)))
+    summ = optimize_character(imp, str(out), iterations=int(body.get("iterations", 2)), progress=log)
     best = json.loads((out / "build.json").read_text(encoding="utf-8"))
     cur = json.loads((out / "current" / "build.json").read_text(encoding="utf-8"))
     return {"summary": summ, "optimized": views.build_view(best), "current_build": cur["build"],
@@ -103,7 +103,7 @@ def act_optimize_class(body: dict, log) -> dict:
     log(f"optimizing {cls} (this takes several minutes)")
     run_report(cls, str(out), iterations=int(body.get("iterations", 2)), loadout=body.get("loadout"),
                sp_budget=body.get("skill_points"), stigma_points=body.get("stigma_points"),
-               daev_budget=int(body.get("daevanion", 360)), verbose=False)
+               daev_budget=int(body.get("daevanion", 360)), verbose=False, progress=log)
     return views.build_view(_summary_at(str(out)))
 
 

@@ -25,6 +25,16 @@ if sys.platform == "win32":
             hiddenimports += h
         except Exception as err:
             print(f"aion2calc.spec: skipping {pkg} ({err})")
+
+# Bundle the in-process HiGHS solver (highspy) on every platform so the packaged app never falls back
+# to CBC's external subprocess, which hangs in the windowed build at the Daevanion solve.
+try:
+    d, b, h = collect_all("highspy")
+    datas += d
+    binaries += b
+    hiddenimports += h
+except Exception as err:
+    print(f"aion2calc.spec: skipping highspy ({err})")
 # PuLP ships CBC solver binaries for every platform; keep this platform's only
 datas += [d for d in collect_data_files("pulp") if "solverdir" not in d[0] or os.sep + PLAT + os.sep in d[0]
           or "/" + PLAT + "/" in d[0]]

@@ -113,7 +113,8 @@ class OptResult:
 class Optimizer:
     def __init__(self, cls: str, scenario: Scenario, daev_budget: int = 360,
                  stigma_points: int | None = None, sp_budget: int | None = None,
-                 search_duration: float | None = None, verbose: bool = True, gear_bonus: dict | None = None):
+                 search_duration: float | None = None, verbose: bool = True, gear_bonus: dict | None = None,
+                 progress=None):
         self.cls = cls
         self.cd = ClassData(cls)
         self.scenario = scenario
@@ -124,6 +125,7 @@ class Optimizer:
         self.slots = bud["slots"]
         self.search_cfg = replace(scenario.config, duration=search_duration or scenario.config.duration)
         self.verbose = verbose
+        self.progress = progress            # optional callback(str): live phase updates for the app UI
         self.gear_bonus = gear_bonus or {}
         self.history: list = []
         self._rotation_keys: set = set()    # kit actions the last rotation search could use
@@ -132,6 +134,11 @@ class Optimizer:
     def log(self, msg: str):
         if self.verbose:
             print(f"[{time.time() - self.t0:6.0f}s] {msg}", flush=True)
+        if self.progress:
+            try:
+                self.progress(f"[{time.time() - self.t0:.0f}s] {msg}")
+            except Exception:
+                pass
 
     # ------------------------------------------------------------ evaluation
     def evaluate(self, build: Build, policy: list, cfg=None, filler=None):

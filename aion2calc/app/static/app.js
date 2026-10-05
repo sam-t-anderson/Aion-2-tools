@@ -396,7 +396,13 @@ function renderOptState() {
   const o = S.character.opt, box = $("#optres"), opt = $("#opt");
   if (!o || !box) return;
   if (opt) opt.disabled = o.status === "running";
-  if (o.status === "running") box.innerHTML = `<p><span class="spinner"></span> optimizing with your gear and points (several minutes)… <span class="small muted">${esc((o.log && o.log[o.log.length - 1]) || "")}</span></p>`;
+  if (o.status === "running") {
+    const log = o.log || [];
+    const last = log.length ? log[log.length - 1] : "starting…";
+    box.innerHTML = `<p><span class="spinner"></span> Optimizing your build — <b>${esc(last)}</b></p>
+      <pre class="diff small" style="max-height:150px;overflow:auto;margin-top:6px">${esc(log.slice(-8).join("\n"))}</pre>
+      <p class="small faint">Runs the rotation, stigma, Daevanion and skill-point search; a couple of minutes is normal.</p>`;
+  }
   else if (o.status === "error") box.innerHTML = `<div class="note">${esc(o.error || "optimization failed")}</div>`;
   else if (o.status === "done" && o.result) renderOptResult(o.result);
 }
