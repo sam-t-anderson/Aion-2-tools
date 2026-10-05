@@ -24,20 +24,41 @@ from .statweights import node_values, stat_weights
 _CTX: dict = {}
 
 
-def _pmap(fn, items, workers: int | None = None):
-    """Parallel map over a module-level worker using fork (falls back to serial)."""
+def _pool_init(ctx: dict) -> None:
+    """Pool-worker setup for the ``spawn`` start method, where the child does not
+    inherit the parent's ``_CTX`` (as it does with ``fork``)."""
+    _CTX.update(ctx)
+
+
+def _pmap(fn, items, workers: int | None = None, ctx: dict | None = None):
+    """Parallel map over a module-level worker.
+
+    Uses ``fork`` where available (Linux, macOS) and ``spawn`` otherwise
+    (Windows, where the earlier fork-only path silently ran serial and made
+    "Optimize my build" take many minutes). ``ctx`` is the ``_CTX`` payload the
+    workers need; with ``spawn`` it is handed to each worker through
+    ``_pool_init`` since the child starts from a fresh import. Any problem
+    starting the pool falls back to a correct serial run.
+    """
     import multiprocessing as mp
     import os
     items = list(items)
     workers = workers or min(4, os.cpu_count() or 1)
     if workers <= 1 or len(items) < 4:
         return [fn(x) for x in items]
-    try:
-        ctx = mp.get_context("fork")
-    except ValueError:
+    methods = mp.get_all_start_methods()
+    method = "fork" if "fork" in methods else "spawn" if "spawn" in methods else None
+    if method is None:
         return [fn(x) for x in items]
-    with ctx.Pool(workers) as pool:
-        return pool.map(fn, items, chunksize=max(1, len(items) // (workers * 4)))
+    init, initargs = (None, ())
+    if method == "spawn" and ctx is not None:          # fork inherits _CTX; spawn must be given it
+        init, initargs = _pool_init, (ctx,)
+    try:
+        mpctx = mp.get_context(method)
+        with mpctx.Pool(workers, initializer=init, initargs=initargs) as pool:
+            return pool.map(fn, items, chunksize=max(1, len(items) // (workers * 4)))
+    except Exception:                                   # a pickling or start-up problem: stay correct, run serial
+        return [fn(x) for x in items]
 
 
 def _curve_worker(sid):
@@ -232,13 +253,14 @@ class Optimizer:
         base_pat = max(patterns, key=lambda p: (p.count(10), -p.count(1)))
         _CTX["stigma"] = (self, build, policy)
         jobs = [(combo, base_pat) for combo in itertools.combinations(cands, self.slots)]
-        scored = sorted(((v, job[0]) for job, v in _pmap(_stigma_worker, jobs)), reverse=True)
+        scored = sorted(((v, job[0]) for job, v in _pmap(_stigma_worker, jobs, ctx={"stigma": _CTX["stigma"]})),
+                        reverse=True)
         jobs = []
         for _, combo in scored[:6]:
             for pat in patterns:
                 for perm in set(itertools.permutations(pat)):
                     jobs.append((combo, perm))
-        for (combo, perm), v in _pmap(_stigma_worker, jobs):
+        for (combo, perm), v in _pmap(_stigma_worker, jobs, ctx={"stigma": _CTX["stigma"]}):
             if v > best * (1 + 1e-7):
                 best = v
                 best_b = build.copy()
@@ -250,7 +272,7 @@ class Optimizer:
         sids = [sid for sid, s in self.cd.skills.items() if s["kind"] != "stigma"]
         _CTX["curve"] = (self, build, policy, max_level)
         curves = {}
-        for sid, curve in _pmap(_curve_worker, sids):
+        for sid, curve in _pmap(_curve_worker, sids, ctx={"curve": _CTX["curve"]}):
             # flat curves (no DPS effect) are dropped to keep the program small
             if max(curve[1:]) - min(curve[1:]) > 1e-6:
                 curves[sid] = curve
@@ -343,7 +365,8 @@ class Optimizer:
                                 jobs.append(((a, -da), (b, db)))
                                 break       # taking a further level from ``a`` only wastes points
             _CTX["sp"] = (self, build, policy)
-            moves, v, b2 = max(_pmap(_sp_worker, jobs), key=lambda r: r[1], default=(None, 0, None))
+            moves, v, b2 = max(_pmap(_sp_worker, jobs, ctx={"sp": _CTX["sp"]}), key=lambda r: r[1],
+                               default=(None, 0, None))
             if not moves or v <= best * (1 + 1e-4):     # ignore noise-level moves
                 break
             self.log("polish SP: " + ", ".join(f"{cd.skills[s]['name']} {d:+d}" for s, d in moves)
