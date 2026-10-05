@@ -85,6 +85,10 @@ The command-line interface, running from source, the architecture overview, buil
 app, testing, releasing and adding a class are in **[`docs/cli.md`](docs/cli.md)**. Formulas,
 sources and every assumption are in [`docs/methodology.md`](docs/methodology.md).
 
+## Author
+
+**Spirited - Zikel : Asmodian | Legion: WhaleWatch**
+
 ## License
 
 GPL-3.0 (see `LICENSE`).  Game data belongs to NCSOFT; community data belongs
