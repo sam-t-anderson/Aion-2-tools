@@ -421,6 +421,101 @@ function lineChart(per, roll) {
     <div class="row small muted"><span>bars: damage per second</span><span style="color:var(--gold)">line: 10 s average</span><span>peak 10 s: ${n0(Math.max(...roll))}</span></div>`;
 }
 
+// ------------------------------------------------------------- AionFlex-style breakdown
+// One parse card (header stats · DPS/Defense/Accuracy tabs · damage-source donut · per-skill table ·
+// rotation strip), shared by the Combat Logs view and the Live Meter. Fed by a normalized object so
+// a saved log and a live snapshot render identically. No paid tiers — every panel is shown.
+const PCOL = ["#e8cf8e", "#58a6ff", "#b18cff", "#6fcf7a", "#e68a5a", "#5ad1c4", "#e45a8a", "#d7c15a", "#8a92a8"];
+let _ptab = "dps";
+const skillIcon = (id) => (id ? icon("https://metabot.gg/web/aion2/skills/" + id + ".webp") : "");
+function kfmt(x) {
+  if (x == null || isNaN(x)) return "—";
+  const a = Math.abs(x);
+  if (a >= 1e6) return (x / 1e6).toFixed(2) + "M";
+  if (a >= 1e3) return (x / 1e3).toFixed(2) + "K";
+  return Math.round(x).toString();
+}
+function pdonut(parts, center) {
+  const tot = parts.reduce((s, p) => s + (p.value || 0), 0) || 1;
+  const R = 86, r = 55, cx = 95, cy = 95;
+  let a0 = -Math.PI / 2;
+  const seg = parts.map((p) => {
+    const frac = Math.min((p.value || 0) / tot, 0.99999);
+    if (frac <= 0) return "";
+    const a1 = a0 + frac * 2 * Math.PI, big = frac > 0.5 ? 1 : 0;
+    const x0 = cx + R * Math.cos(a0), y0 = cy + R * Math.sin(a0), x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+    const xi1 = cx + r * Math.cos(a1), yi1 = cy + r * Math.sin(a1), xi0 = cx + r * Math.cos(a0), yi0 = cy + r * Math.sin(a0);
+    a0 = a1;
+    return `<path d="M${x0} ${y0} A${R} ${R} 0 ${big} 1 ${x1} ${y1} L${xi1} ${yi1} A${r} ${r} 0 ${big} 0 ${xi0} ${yi0} Z" fill="${p.color}"/>`;
+  }).join("");
+  return `<div class="pdonut"><svg viewBox="0 0 190 190">${seg}</svg><div class="mid"><b>${center[0]}</b><span>${center[1]}</span></div></div>`;
+}
+function renderParse(d) {
+  if (!d) return "";
+  const at = _ptab;
+  const skills = (d.skills || []).slice().sort((a, b) => (b.damage || 0) - (a.damage || 0));
+  const totDmg = d.dmg || skills.reduce((s, x) => s + (x.damage || 0), 0) || 1;
+  const top = skills.slice(0, 5), rest = skills.slice(5);
+  const otherDmg = rest.reduce((s, x) => s + (x.damage || 0), 0);
+  const parts = top.map((s, i) => ({ label: s.skill, value: s.damage || 0, color: PCOL[i % PCOL.length] }));
+  if (otherDmg > 0) parts.push({ label: `Other (${rest.length})`, value: otherDmg, color: PCOL[8] });
+  const topList = parts.map((p) => `<div class="trow"><span class="sw" style="background:${p.color}"></span><span class="nm">${esc(p.label)}</span><span class="pc">${Math.round(100 * p.value / totDmg)}%</span></div>`).join("");
+  const mxDmg = Math.max(...skills.map((s) => s.damage || 0), 1);
+  const srows = skills.map((s) => `<tr><td class="nm">${s.skill_id ? `<img src="${skillIcon(s.skill_id)}" alt="">` : ""}${esc(s.skill)}</td>
+    <td>${s.hits ?? "—"}</td><td>${kfmt(s.dps)}</td><td>${kfmt(s.avg)}</td><td>${s.min == null ? "—" : kfmt(s.min)}</td><td>${s.max == null ? "—" : kfmt(s.max)}</td>
+    <td class="dmg"><i style="width:${100 * (s.damage || 0) / mxDmg}%"></i><span>${kfmt(s.damage)}<span class="pcpct">${Math.round(100 * (s.damage || 0) / totDmg)}%</span></span></td></tr>`).join("");
+  const spark = d.timeline ? `<div style="margin:4px 0 12px">${lineChart(d.timeline.per_second, d.timeline.rolling10)}</div>` : "";
+  const dpsPanel = `<div class="ppanel" data-pane="dps"${at === "dps" ? "" : " hidden"}>
+    ${d.highest != null ? `<div class="phi"><div class="k">Highest hit</div><div class="v">${kfmt(d.highest)}</div></div>` : ""}
+    <div class="psplit">${pdonut(parts.length ? parts : [{ value: 1, color: "#2a3045" }], [kfmt(d.dps), "DPS"])}<div class="ptop">${topList || '<span class="muted">No skills recorded.</span>'}</div></div>
+    ${spark}<table class="pskills"><tr><th>Skill</th><th>Hit</th><th>DPS</th><th>Avg</th><th>Min</th><th>Max</th><th>Damage</th></tr>${srows}</table></div>`;
+  const rate = (x) => (x == null ? "—" : Math.round(100 * x) + "%");
+  const rc = (k, v) => `<div class="rc"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+  const accPanel = `<div class="ppanel" data-pane="acc"${at === "acc" ? "" : " hidden"}><div class="prates">
+    ${rc("Crit", rate(d.rates.crit))}${rc("Back", rate(d.rates.back))}${rc("Front", rate(d.rates.front))}${rc("Double", rate(d.rates.double))}${rc("Perfect", rate(d.rates.perfect))}${rc("Multi", rate(d.rates.multi))}</div></div>`;
+  const defPanel = `<div class="ppanel" data-pane="def"${at === "def" ? "" : " hidden"}><div class="pnote">Damage taken and mitigation aren't in this ${d.live ? "session" : "log"} — this tab fills in when the source provides incoming-damage events.</div></div>`;
+  const rot = (d.rotation || []).length ? `<div class="prot"><div class="lbl">Skill rotation</div><div class="strip">${d.rotation.slice(0, 80).map((e) => `<div class="ic"><img src="${skillIcon(e.skill_id)}" title="${esc(e.skill || "")}" alt="${esc(e.skill || "")}"><span>${e.t != null ? e.t.toFixed(0) + "s" : ""}</span></div>`).join("")}</div></div>` : "";
+  const stat = (l, v, gold) => `<div><span class="pl">${l}</span><span class="pv${gold ? " gold" : ""}">${v}</span></div>`;
+  const clsIcon = d.cls ? `<img class="pcls" src="${icon("https://metabot.gg/web/aion2/classes/" + String(d.cls).toLowerCase() + ".webp")}" alt="" onerror="this.style.visibility='hidden'">` : "";
+  return `<div class="parse">
+    <div class="phead"><div class="pwho">${clsIcon}<b>${esc(d.name || "—")}</b><span class="psub">${esc(cap(d.cls || ""))}${d.boss ? " · " + esc(d.boss) : ""}</span></div>
+      <div class="pstats">${d.gs != null ? stat("GS", n0(d.gs)) : ""}${d.cp != null ? stat("CP", kfmt(d.cp)) : ""}${stat("DMG", kfmt(d.dmg))}${stat("DPS", kfmt(d.dps), true)}${d.contrib != null ? stat("Contrib", Math.round(100 * d.contrib) + "%") : ""}</div></div>
+    <div class="ptabs"><button data-ptab="dps" class="${at === "dps" ? "on" : ""}">DPS</button><button data-ptab="def" class="${at === "def" ? "on" : ""}">Defense</button><button data-ptab="acc" class="${at === "acc" ? "on" : ""}">Accuracy</button></div>
+    ${dpsPanel}${defPanel}${accPanel}${rot}</div>`;
+}
+document.addEventListener("click", (e) => {                 // one delegated handler toggles the parse tabs
+  const b = e.target.closest && e.target.closest(".ptabs [data-ptab]");
+  if (!b) return;
+  _ptab = b.dataset.ptab;
+  const parse = b.closest(".parse");
+  parse.querySelectorAll(".ptabs [data-ptab]").forEach((x) => x.classList.toggle("on", x === b));
+  parse.querySelectorAll(".ppanel").forEach((p) => (p.hidden = p.dataset.pane !== _ptab));
+});
+function parseFromEncounter(a) {
+  const s = a.summary, m = a.meta, tot = s.total || 1, nameToId = {};
+  (a.skills || []).forEach((k) => { if (k.skill_id) nameToId[k.skill] = k.skill_id; });
+  return {
+    name: m.player, cls: m.class || m.class_name, gs: null, cp: m.combat_power || null,
+    dmg: s.total, dps: s.dps, contrib: null, duration: s.duration, boss: m.target,
+    highest: s.biggest_hit ? s.biggest_hit.damage : null,
+    rates: { crit: s.crit, double: s.double, perfect: s.perfect, multi: s.multi, back: s.back ?? null, front: s.front ?? null },
+    skills: (a.skills || []).map((k) => { const dmg = (k.share || 0) * tot; return { skill: k.skill, skill_id: k.skill_id, hits: k.hits, dps: dmg / (s.duration || 1), avg: k.avg_hit, min: null, max: k.max_hit, damage: dmg, share: k.share }; }),
+    rotation: (a.rotation || []).map(([t, k]) => ({ t, skill: k, skill_id: nameToId[k] })),
+    timeline: a.timeline, live: false,
+  };
+}
+function parseFromMeter(snap, idx) {
+  const p = (snap.players || [])[idx];
+  if (!p) return null;
+  return {
+    name: p.name, cls: p.class, gs: null, cp: null,
+    dmg: p.damage, dps: p.dps, contrib: p.share, duration: snap.duration, boss: snap.boss, highest: null,
+    rates: { crit: p.crit, double: p.double ?? null, perfect: p.perfect ?? null, multi: p.multi ?? null, back: null, front: null },
+    skills: (p.skills || []).map((s) => ({ skill: s.skill, skill_id: s.skill_id, hits: s.hits, dps: (s.damage || 0) / (snap.duration || 1), avg: (s.damage || 0) / (s.hits || 1), min: null, max: null, damage: s.damage, share: s.share })),
+    rotation: [], timeline: null, live: true,
+  };
+}
+
 async function pageCombat() {
   const st = S.combat;
   app().innerHTML = `<section class="win"><div class="wh"><h2>Combat logs</h2><span class="sub">per-skill breakdown, timeline, rates, idle time — compared with your optimal rotation</span></div>
@@ -486,16 +581,7 @@ async function pageCombatHistory() { /* refresh list after import */ if (locatio
 
 function renderEncounter(a) {
   const s = a.summary, m = a.meta;
-  const kp = [["DPS", n0(s.dps)], ["Total", n0(s.total)], ["Duration", s.duration.toFixed(0) + " s"], ["Casts / min", s.cpm.toFixed(0)],
-    ["Crit", pct(s.crit)], ["Double", pct(s.double)], ["Perfect", pct(s.perfect)], ["Multi-hit", pct(s.multi)], ["Idle", s.idle_seconds.toFixed(1) + " s"],
-    ["Biggest hit", s.biggest_hit ? `${n0(s.biggest_hit.damage)}` : "—"]];
-  const mx = Math.max(...a.skills.map((r) => r.share), 0.0001);
-  const table = `<table class="t"><tr><th>Skill</th><th>Share</th><th class="r">Casts</th><th class="r">Hits</th><th class="r">Crit</th><th class="r">Double</th><th class="r">Perfect</th>
-    <th class="r">Avg hit</th><th class="r">Max hit</th><th class="r">Cooldown use</th></tr>${a.skills.map((r) => `<tr><td>${r.skill_id ? `<span class="icon xs" style="display:inline-block;vertical-align:middle;margin-right:6px"><img src="${icon("https://metabot.gg/web/aion2/skills/" + r.skill_id + ".webp")}"></span>` : ""}${esc(r.skill)}</td>
-    <td style="width:22%"><div class="bar"><i style="width:${(100 * r.share) / mx}%"></i><span>${pct(r.share)}</span></div></td><td class="r">${r.kind === "passive" ? "proc" : r.casts}</td><td class="r">${r.hits}</td>
-    <td class="r">${pct(r.crit, 0)}</td><td class="r">${pct(r.double, 0)}</td><td class="r">${pct(r.perfect, 0)}</td><td class="r num">${n0(r.avg_hit)}</td><td class="r num">${n0(r.max_hit)}</td>
-    <td class="r">${r.cooldown_use == null ? "—" : pct(r.cooldown_use, 0)}</td></tr>`).join("")}</table>`;
-  const rot = `<div class="rot">${a.rotation.map(([t, k]) => `<div class="r"><span class="faint">${t.toFixed(1)}</span> ${esc(k)}</div>`).join("")}</div>`;
+  const extra = [["Casts / min", s.cpm.toFixed(0)], ["Multi-hit", pct(s.multi)], ["Idle", s.idle_seconds.toFixed(1) + " s"]];
   const buffs = a.buffs.map((b) => `<tr><td>${esc(b.name)}</td><td style="width:60%"><div class="bar"><i class="alt" style="width:${100 * (b.uptime || 0)}%"></i><span>${pct(b.uptime, 0)}</span></div></td></tr>`).join("");
   const o = a.vs_optimal || {};
   const opt = o.error ? `<div class="note">${esc(o.error)}</div>` : `${o.note ? `<div class="note">${esc(o.note)}</div>` : ""}
@@ -514,11 +600,10 @@ function renderEncounter(a) {
       `<button class="btn small ${p.name === m.player ? "primary" : ""}" data-player="${esc(p.name)}" title="${esc(p.class)} · ${n0(p.damage)} damage">${esc(p.name)} <span class="faint">${esc(p.class || "")}</span></button>`).join("")}</div>` : "";
   const shareRow = a.id ? `<div class="row small" style="margin-top:8px"><button class="btn small primary" data-share="1">Share link</button><span id="shared" class="muted"></span></div>` : "";
   const info = shareRow + `<div class="small muted" style="margin-top:8px">${(m.notes || []).map(esc).join(" · ")}${m.url ? ` · <a href="${esc(m.url)}" target="_blank" rel="noopener">open on AbyssLogs</a>` : ""}${a.file ? ` · saved as <code>${esc(a.file)}</code>` : ""}</div>`;
+  const chips = `<div class="row small" style="margin-top:8px">${extra.map(([k, v]) => `<span class="muted">${k}: <b>${v}</b></span>`).join("")}</div>`;
   return win("Encounter", `${esc(m.player || "")} · ${esc(cap(m.class || m.class_name || ""))} · ${esc(m.target || "")} · ${esc(m.source)}${m.combat_power ? " · CP " + n0(m.combat_power) : ""}`,
-      `${party}${info}<div class="kpis">${kp.map(([k, v]) => `<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("")}</div>
-       <div style="margin-top:14px">${lineChart(a.timeline.per_second, a.timeline.rolling10)}</div>`) +
-    win("Damage by skill", "", table) +
-    `<div class="grid2">${win("Rotation (first casts)", "", rot)}${win("Buff uptime", "", `<table class="t">${buffs}</table>` + (a.gaps.length ? `<p class="small muted">Idle gaps: ${a.gaps.map((g) => `${g.start.toFixed(1)}–${g.end.toFixed(1)}s`).join(", ")}</p>` : ""))}</div>` +
+      `${party}${info}${renderParse(parseFromEncounter(a))}${chips}`) +
+    win("Buff uptime", "", `<table class="t">${buffs}</table>` + (a.gaps.length ? `<p class="small muted">Idle gaps: ${a.gaps.map((g) => `${g.start.toFixed(1)}–${g.end.toFixed(1)}s`).join(", ")}</p>` : "")) +
     win("Compared with your optimal rotation", "same fight length, simulated", opt + specs) + (top ? win("Compared with top players", "A2DIL top-10 dummy logs", top) : "");
 }
 
@@ -622,13 +707,22 @@ function renderMeter(s) {
   const snap = s.snapshot || { players: [] }, msg = $("#mmsg");
   if (msg) { if (s.error) msg.textContent = s.error; else if (s.running) msg.textContent = `recording${s.source ? " (" + esc(s.source) + ")" : ""}…`; }
   const view = $("#mview"); if (!view) return;
+  if (!snap.players.length) {
+    view.innerHTML = win("Meter", "", '<div class="empty">No data yet — choose a source and press Start.</div>');
+    return;
+  }
   const mx = Math.max(...snap.players.map((p) => p.dps), 1);
-  const rows = snap.players.map((p) => `<tr><td class="gname">${esc(p.name)}</td><td>${esc(cap(p.class || ""))}</td>
-      <td style="width:42%"><div class="bar"><i style="width:${100 * p.dps / mx}%"></i><span>${n0(p.dps)} DPS</span></div></td>
-      <td class="r">${pct(p.share, 0)}</td><td class="r num">${n0(p.damage)}</td><td class="r">${pct(p.crit, 0)}</td></tr>`).join("");
-  view.innerHTML = win("Meter", `${esc(snap.boss || "")}${snap.boss ? " · " : ""}${(snap.duration || 0).toFixed(0)}s · ${n0(snap.dps || 0)} raid DPS`,
-    snap.players.length ? `<table class="t"><tr><th>Player</th><th>Class</th><th>DPS</th><th class="r">Share</th><th class="r">Damage</th><th class="r">Crit</th></tr>${rows}</table>`
-      : '<div class="empty">No data yet — choose a source and press Start.</div>');
+  if (st.sel == null || st.sel >= snap.players.length) st.sel = 0;
+  const rows = snap.players.map((p, i) => `<div class="pm ${i === st.sel ? "on" : ""}" data-sel="${i}">
+      <div class="nmc"><b>${esc(p.name)}</b> <span class="muted small">${esc(cap(p.class || ""))}</span></div>
+      <div class="bar"><i style="width:${100 * p.dps / mx}%"></i><span>${kfmt(p.dps)}/s · ${pct(p.share, 0)}</span></div></div>`).join("");
+  view.innerHTML = win("Meter", `${esc(snap.boss || "")}${snap.boss ? " · " : ""}${(snap.duration || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)} raid DPS`,
+    `<div class="pmeters">${rows}</div>`) + `<div id="pbd">${renderParse(parseFromMeter(snap, st.sel))}</div>`;
+  $$("[data-sel]").forEach((el) => (el.onclick = () => {
+    st.sel = +el.dataset.sel;
+    $("#pbd").innerHTML = renderParse(parseFromMeter(snap, st.sel));
+    $$("[data-sel]").forEach((x) => x.classList.toggle("on", +x.dataset.sel === st.sel));
+  }));
 }
 
 // ------------------------------------------------------------- gear & advice
