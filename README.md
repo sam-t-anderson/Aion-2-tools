@@ -62,6 +62,10 @@ Run anyway**. [Code signing policy](docs/code-signing.md).
   by simulated DPS gain, shown as game-style windows with the game's icons. Fights you import are
   matched to the gear you wore and calibrate the model
   ([details](docs/planner.md)).
+* **Raid planner**: plan a boss fight on a visual map. Drop player, enemy, marker and AoE tokens,
+  then scrub a **timelapse** slider and drag each token to where it should be at that moment — the
+  planner fills in the movement in between. Lay out **party buffs** on the timeline, overlay a saved
+  combat log to compare the plan with the real run, and save, export or share plans as a code.
 * **Share**: upload any saved fight to a log server in the open a2log format and get a link anyone
   can open.
 * **Database**: updates itself on every launch from the live sources. New items, skills or classes
