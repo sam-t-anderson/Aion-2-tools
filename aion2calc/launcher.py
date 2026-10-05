@@ -198,7 +198,8 @@ def main(argv=None) -> int:
         return smoke_test(args.smoke_test or None)
     log = _log_to_file()
     try:
-        apply_client_config(client_config())
+        # The default log server is resolved live from share.default_server() (so a changed
+        # quick-tunnel URL needs no rebuild); it is not persisted into the user's settings here.
         from .app import server
         prefer_app = server.ui_settings().get("app_window", True)
         if running_app(args.port):                # already running: just show it

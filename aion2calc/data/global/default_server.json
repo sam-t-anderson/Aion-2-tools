@@ -1,0 +1,5 @@
+{
+  "url": "https://necessarily-suits-fool-everyone.trycloudflare.com",
+  "visibility": "unlisted",
+  "note": "Default log server for new users; a user's own choice in Settings overrides it. Quick Cloudflare tunnels change URL on restart — update this file (one line) and clients pick it up within a few hours, no rebuild. For a permanent URL use a named tunnel (deploy/cloudflare-tunnel.sh <hostname>)."
+}

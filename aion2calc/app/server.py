@@ -302,7 +302,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(ui_settings())
         if path == "/api/logserver":
             from ..combat import share
-            st = share.settings()
+            st = share.effective()
             return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
         if path == "/api/calibration":
             from .. import learn
