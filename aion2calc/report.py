@@ -301,8 +301,9 @@ def sensitivity(build, scenario, policy, samples: int = 12, spread: float = 0.25
 def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget: int = 360,
                iterations: int = 3, loadout: str | None = None, verbose: bool = True,
                sp_budget: int | None = None, stigma_points: int | None = None,
-               current: object | None = None) -> dict:
-    """``current``: a Build (e.g. an imported character) to evaluate and diff against."""
+               current: object | None = None, progress=None) -> dict:
+    """``current``: a Build (e.g. an imported character) to evaluate and diff against.
+    ``progress``: optional callback(str) for live phase updates (the app streams these to the UI)."""
     t0 = time.time()
     out = Path(out_dir)
     (out / "images").mkdir(parents=True, exist_ok=True)
@@ -312,7 +313,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     cd = ClassData(cls)
 
     opt = Optimizer(cls, scen, daev_budget=daev_budget, verbose=verbose, sp_budget=sp_budget,
-                    stigma_points=stigma_points)
+                    stigma_points=stigma_points, progress=progress)
     res = opt.run(iterations=iterations)
     build, policy = res.build, res.policy
 

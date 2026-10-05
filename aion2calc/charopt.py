@@ -115,7 +115,7 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dic
 
 
 def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2,
-                       scenario_name: str = "boss") -> dict:
+                       scenario_name: str = "boss", progress=None) -> dict:
     from .diff import write_diff
     from .report import run_report
     out = Path(out_dir)
@@ -126,7 +126,7 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     bud = cur["budgets"]
     best = run_report(imp.cls, str(out), scenario_name=scenario_name, daev_budget=bud["daevanion"],
                       iterations=iterations, loadout=imp.loadout_name(), sp_budget=bud["skill"],
-                      stigma_points=bud["stigma"])
+                      stigma_points=bud["stigma"], progress=progress)
     write_diff(str(out / "current"), str(out), str(out / "DIFF.md"))
     gain = best["dps"][scenario_name] / cur["dps"][scenario_name] - 1
     summary = {"character": cur["character"], "current_dps": cur["dps"], "optimized_dps": best["dps"],

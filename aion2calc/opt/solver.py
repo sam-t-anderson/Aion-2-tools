@@ -1,13 +1,12 @@
 """The integer-program solver used by the optimizers.
 
-PuLP's bundled CBC works on Windows and Linux. On macOS it ships only an
-Intel (x86_64) CBC, which an Apple Silicon Mac can run only through Rosetta, so
-there HiGHS (the ``highspy`` package, a dependency on macOS) is used when
-installed.
+HiGHS (the ``highspy`` package) is preferred on every platform because it is an
+in-process solver: the packaged, windowed app has no console, and PuLP's bundled
+CBC runs as an external subprocess, which can stall there (the Daevanion solve
+would hang). HiGHS has no subprocess, so it is reliable in the bundle; CBC stays
+as the fallback when ``highspy`` is not installed.
 """
 from __future__ import annotations
-
-import sys
 
 import pulp
 
@@ -20,7 +19,7 @@ def highs_available() -> bool:
 
 
 def name() -> str:
-    return "HiGHS" if sys.platform == "darwin" and highs_available() else "CBC"
+    return "HiGHS" if highs_available() else "CBC"
 
 
 def solver(msg: bool = False, time_limit: float | None = None, gap: float | None = None,
