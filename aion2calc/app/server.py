@@ -309,6 +309,19 @@ class Handler(BaseHTTPRequestHandler):
             from ..combat import share
             st = share.effective()
             return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
+        if path == "/api/logserver/check":
+            # Probe the server from this computer (not the browser): no CORS or https/http limits, and it
+            # tests the path uploads actually use, so the answer is honest.
+            from ..combat import share
+            url = q.get("url") or share.effective().get("url") or ""
+            if not url:
+                return self._json({"ok": False, "detail": "no log server is set"})
+            try:
+                info = share.discover(url)
+                return self._json({"ok": True, "name": info.get("name"),
+                                   "auth_required": bool((info.get("auth") or {}).get("required"))})
+            except Exception as err:           # noqa: BLE001 - report the reason to the user
+                return self._json({"ok": False, "url": url, "detail": f"{type(err).__name__}: {err}"})
         if path == "/api/calibration":
             from .. import learn
             cal = learn.calibration(q.get("class", ""))
@@ -353,6 +366,10 @@ class Handler(BaseHTTPRequestHandler):
             from ..combat import share
             st = share.save_settings(body.get("url"), body.get("key"), body.get("visibility"))
             return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
+        if path == "/api/overlay":
+            from .overlay_launch import launch
+            port = self.server.server_address[1]
+            return self._json(launch(f"http://127.0.0.1:{port}/overlay"))
         if path.startswith("/api/encounters/") and path.endswith("/share"):
             from ..combat import share
             return self._json(share.share_encounter(int(path.split("/")[3]), visibility=body.get("visibility")))

@@ -5,12 +5,26 @@ import os
 import re
 import sys
 
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_submodules
 
 ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
 PLAT = {"win32": "win", "darwin": "osx"}.get(sys.platform, "linux")
 
 datas = collect_data_files("aion2calc")
+binaries = []
+hiddenimports = collect_submodules("aion2calc")          # class kits are imported by name
+
+# Bundle pywebview (Windows) so the app can open the transparent overlay with no extra install. Guarded
+# so a missing package never fails the build; the overlay falls back to a browser window without it.
+if sys.platform == "win32":
+    for pkg in ("webview", "clr_loader", "pythonnet"):
+        try:
+            d, b, h = collect_all(pkg)
+            datas += d
+            binaries += b
+            hiddenimports += h
+        except Exception as err:
+            print(f"aion2calc.spec: skipping {pkg} ({err})")
 # PuLP ships CBC solver binaries for every platform; keep this platform's only
 datas += [d for d in collect_data_files("pulp") if "solverdir" not in d[0] or os.sep + PLAT + os.sep in d[0]
           or "/" + PLAT + "/" in d[0]]
@@ -44,8 +58,9 @@ if sys.platform == "win32":
 a = Analysis(
     [os.path.join(SPECPATH, "entry.py")],
     pathex=[ROOT],
+    binaries=binaries,
     datas=datas,
-    hiddenimports=collect_submodules("aion2calc"),          # class kits are imported by name
+    hiddenimports=hiddenimports,
     excludes=["tkinter", "pytest", "IPython", "PyQt5", "PySide6"],
     noarchive=False,
 )

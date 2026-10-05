@@ -10,11 +10,16 @@ game. The overlay shows the live damage meter (from /api/meter) and plays your m
 from __future__ import annotations
 
 import argparse
+import os
 import webbrowser
 
 
 def _default_url() -> str:
-    """The URL the running app wrote on startup (home/app_url.txt), else the default port."""
+    """The overlay URL: what the app passed in the environment, else what it wrote on startup
+    (home/app_url.txt), else the default port."""
+    env = os.environ.get("AION2CALC_OVERLAY_URL")
+    if env:
+        return env
     try:
         from .paths import home
         f = home() / "app_url.txt"
@@ -39,9 +44,13 @@ def main(argv=None) -> int:
               "For a transparent, always-on-top overlay:  pip install pywebview")
         webbrowser.open(url)
         return 0
-    webview.create_window("aion2calc overlay", url, frameless=True, easy_drag=True,
-                          on_top=True, transparent=True, width=a.width, height=a.height)
-    webview.start()
+    try:
+        webview.create_window("aion2calc overlay", url, frameless=True, easy_drag=True,
+                              on_top=True, transparent=True, width=a.width, height=a.height)
+        webview.start()
+    except Exception as err:          # a backend problem (missing WebView2, GTK, etc.): still show the overlay
+        print(f"pywebview could not open a window ({type(err).__name__}: {err}); using the browser instead.")
+        webbrowser.open(url)
     return 0
 
 

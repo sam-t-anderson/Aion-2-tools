@@ -198,6 +198,14 @@ meter and a share link (above).
 tool that yields hits plugs straight into the analyzer and the history. Using
 third-party capture tools may break the game's terms of service.
 
+#### Overlay
+
+**Live Meter → Open overlay** opens a compact overlay you can place over the game: it shows the live
+meter and plays your most recent raid plan. On the installed Windows app it opens as a frameless,
+transparent, always-on-top window (pywebview is bundled, so there is nothing to install). Where that
+is not available it opens as a normal small window instead. From source, `python -m aion2calc.overlay`
+does the same (`pip install pywebview` for the transparent window).
+
 ### Database
 
 The page shows sync progress, the last sync, item, character and encounter

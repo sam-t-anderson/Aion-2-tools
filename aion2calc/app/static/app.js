@@ -595,7 +595,15 @@ async function pageMeter() {
     try { renderMeter(await api("/api/meter", body)); } catch (e) { $("#mmsg").textContent = e.message; }
   };
   $("#mstop").onclick = async () => { try { renderMeter(await api("/api/meter", { action: "stop" })); } catch (e) { $("#mmsg").textContent = e.message; } };
-  $("#movl").onclick = () => window.open("/overlay", "a2overlay", "width=300,height=430");
+  $("#movl").onclick = async () => {
+    $("#mmsg").textContent = "opening overlay…";
+    try {
+      const r = await api("/api/overlay", {});          // native transparent window (bundled on Windows)
+      if (r.native) { $("#mmsg").textContent = "overlay opened in a transparent window"; return; }
+    } catch (e) { /* fall through to a plain browser window */ }
+    window.open("/overlay", "a2overlay", "width=300,height=430");
+    $("#mmsg").textContent = "overlay opened in a window";
+  };
   $("#msave").onclick = async () => {
     $("#mmsg").textContent = "saving…";
     try { const r = await api("/api/meter", { action: "save" }); $("#mmsg").innerHTML = `saved as encounter #${r.id} — <a href="#/combat">open in Combat Logs</a>`; }
@@ -906,8 +914,14 @@ async function pageSettings() {
   $$("[data-open]").forEach((b) => (b.onclick = () => api("/api/open", { what: b.dataset.open }).catch((e) => toast(e.message))));
   $("#ssave").onclick = async () => {
     await api("/api/logserver", { url: $("#surl").value, key: $("#skey").value || null, visibility: $("#svis").value });
-    try { const r = await fetch($("#surl").value.replace(/\/$/, "") + "/.well-known/a2log.json"); $("#smsg").textContent = r.ok ? "saved · server reachable" : "saved · server did not answer"; }
-    catch (e) { $("#smsg").textContent = "saved · server not reachable from this computer"; }
+    $("#smsg").textContent = "saved · checking…";
+    // The app (not the browser) probes the server, so CORS and http/https rules don't give a false negative.
+    try {
+      const r = await api("/api/logserver/check");
+      $("#smsg").textContent = r.ok
+        ? "saved · server reachable" + (r.name ? " — " + esc(r.name) : "")
+        : "saved · can't reach the server" + (r.detail ? " (" + esc(r.detail) + ")" : "");
+    } catch (e) { $("#smsg").textContent = "saved · could not check: " + e.message; }
   };
   $("#sync").onclick = async () => { await api("/api/sync", {}); toast("Checking for game updates"); };
   $("#quit2").onclick = () => $("#quit").click();
