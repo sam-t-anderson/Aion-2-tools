@@ -1,0 +1,54 @@
+# Publishes the public site (landing, docs and the standalone raid planner) to GitHub Pages.
+# The planner shares the app's stylesheet and the raid.js module, so they are copied in at build
+# time. Enable once in the repo: Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
+name: Pages
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "site/**"
+      - "aion2calc/app/static/app.css"
+      - "aion2calc/app/static/raid.js"
+      - "aion2calc/app/static/logo.png"
+      - "docs/screenshots/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble the site
+        run: |
+          mkdir -p _site/static/fonts _site/screenshots
+          cp site/index.html site/planner.html site/docs.html site/site.css site/site.js site/planner.js _site/
+          cp aion2calc/app/static/raid.js _site/static/
+          cp aion2calc/app/static/logo.png _site/static/ 2>/dev/null || true
+          cp aion2calc/app/static/fonts/cinzel-latin.woff2 _site/static/fonts/ 2>/dev/null || true
+          # the stylesheet's font URL is absolute (/static/...) for the app; make it relative for the Pages subpath
+          sed 's#url("/static/fonts/#url("fonts/#g' aion2calc/app/static/app.css > _site/static/app.css
+          cp docs/screenshots/app_dark.png docs/screenshots/app_light.png _site/screenshots/ 2>/dev/null || true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
