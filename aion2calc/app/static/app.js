@@ -751,7 +751,7 @@ async function pageMeter() {
         <button class="btn primary" id="mstart" aria-pressed="false">Start</button>
         <button class="btn small" id="mclear">Clear session</button><button class="btn small" id="msave">Save to Combat Logs</button><button class="btn small" id="mexport">Export a2log</button>
         <button class="btn small" id="mupload">Upload</button><button class="btn small" id="mshot">Screenshot</button>
-        <button class="btn small" id="mhide">Hide overlay</button><button class="btn small" id="msplit">Split now</button><button class="btn small" id="movl" title="Open the compact overlay in a separate window">Open overlay</button><span id="mmsg" class="small muted"></span></div>
+        <button class="btn small" id="mhide">Hide overlay</button><button class="btn small" id="msplit">Split now</button><button class="btn small" id="mfinishrun">Finish run</button><button class="btn small" id="movl" title="Open the compact overlay in a separate window">Open overlay</button><span id="mmsg" class="small muted"></span></div>
       <div class="row" id="mlive" style="display:none;margin-top:6px">
         <label class="small muted">Encoder <input id="mdec" type="text" value="Built-in A2Tools decoder" readonly aria-label="Encoder module" style="width:180px"></label>
         <label class="small muted">Interface <select id="miface" aria-label="Capture interface" title="Npcap interface; Auto monitors all available adapters"><option value="auto">Auto</option></select></label><button class="btn small" id="mifacesrefresh">Refresh interfaces</button>
@@ -765,7 +765,7 @@ async function pageMeter() {
         <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads (enable before Start)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><span id="mrecordstatus" class="small muted"></span></div>
         <p class="small faint">Keeps up to 4 MiB locally, even when no combat events are decoded. Saves a diagnostic ZIP automatically when capture stops. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></div><div id="npcap" class="small faint" style="margin-top:8px"></div>
       <p class="small faint">Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, and capture permission. Export writes an open a2log file; Upload uses the log server configured in Settings.</p>
-      <div id="midentity" class="small" role="status"></div><div id="msaved" class="small" role="status"></div><div id="mnotice" class="small" role="status"></div>
+      <div class="row"><label class="small"><input id="mautofinish" type="checkbox" checked> Finish on configured final-boss death</label><label class="small">Final-boss NPC type IDs <input id="mfinalboss" placeholder="Comma-separated verified NPC IDs"></label></div><p class="small muted">Final-boss order and PvP match-end packets are not yet verified. Configure the final boss before Start, or use Finish run. Map/instance changes create separate runs without claiming completion. Capture keeps running.</p><div id="mrun" class="small" role="status"></div><div id="midentity" class="small" role="status"></div><div id="msaved" class="small" role="status"></div><div id="mnotice" class="small" role="status"></div>
     </div></section><div id="mview"></div><div id="mlog-review"></div>`;
   const live = () => {
     $("#mlive").style.display = $("#msrc").value !== "replay" ? "flex" : "none";
@@ -773,6 +773,8 @@ async function pageMeter() {
   };
   $("#msrc").onchange = live; live();
   try { $("#mchar").value = localStorage.getItem("meter-character") || ""; } catch (e) {}
+  try{$('#mfinalboss').value=localStorage.getItem('meter-final-boss-ids')||'';}catch(_){}
+  $('#mfinalboss').onchange=()=>localStorage.setItem('meter-final-boss-ids',$('#mfinalboss').value);
   let classification={};try{classification=JSON.parse(localStorage.getItem('meter-metadata'))||{};}catch(_){}
   $('#mmetadata').innerHTML=`<label class="small">Encounter type <select data-capture-meta="encounter_type">${Object.entries(A2Community.types).map(([v,l])=>`<option value="${v}" ${v===(classification.encounter_type||'unknown')?'selected':''}>${esc(l)}</option>`).join('')}</select></label>${['game_patch','difficulty','region','zone'].map(k=>`<label class="small">${esc(k.replaceAll('_',' '))} <input data-capture-meta="${k}" maxlength="200" value="${esc(classification[k]||'')}" placeholder="Unknown" style="width:130px"></label>`).join('')}<span class="small muted">Manual classification; not inferred from packets. Change between sessions.</span>`;
   const updateView = async (body) => { try { renderMeter(await api("/api/meter", {action: "view", ...body})); } catch (e) { $("#mnotice").textContent = e.message; } };
@@ -793,6 +795,7 @@ async function pageMeter() {
     st.liveReviewRoot=null;
     try { st.pinnedSegment = ""; renderMeter(await api("/api/meter", {action: "clear"})); } catch (e) { $("#mnotice").textContent = e.message; }
   };
+  $('#mfinishrun').onclick=async()=>{try{renderMeter(await api('/api/meter',{action:'finish-run'}));$('#mnotice').textContent='Run finished. Capture continues; the next fight starts a new run.';}catch(e){$('#mnotice').textContent=e.message;}};
   let decoderPath = null;
   $("#mcustomdec").onchange = async () => {
     const file = $("#mcustomdec").files[0]; decoderPath = null;
@@ -867,6 +870,8 @@ async function pageMeter() {
     const body = { action: "start", source, scope: $("#mscope").value, segment_gap: +$("#msegap").value || 10, decoder: source === "live" ? decoderPath : null,
       auto_port: source === "a2tools" && $("#mautoport").checked,
       automatic_splits: $("#mautosplit").checked,
+      auto_finish:$('#mautofinish').checked,
+      final_boss_ids:$('#mfinalboss').value.split(',').map(x=>x.trim()).filter(x=>/^\d+$/.test(x)).map(Number),
       record_packets: source !== "replay" && $("#mrecord").checked,
       iface: source !== "replay" && $("#miface").value !== "auto" ? $("#miface").value : null,
       host: source !== "replay" && $("#mhost").value !== "any" ? $("#mhost").value : null,
@@ -930,6 +935,7 @@ function renderDiagnosticExport(r) {
 }
 function renderMeter(s) {
   const st = S.meter; st.running = !!s.running;
+  if($("#mrun") && s.run)$("#mrun").textContent=`Run ${s.run.id} · ${s.run.closed?"finished/boundary recorded; waiting for next fight":"recording"}${s.run.end_reason?" · "+s.run.end_reason:""}`;
   if (s.diagnostic_export) st.diagnosticExport = s.diagnostic_export;
   renderDiagnosticExport(st.diagnosticExport);
   if ($("#mdiagerror")) $("#mdiagerror").textContent = s.diagnostics?.archive_error ? `Could not save diagnostic ZIP: ${s.diagnostics.archive_error}. Use Export capture diagnostics to retry before starting another capture.` : "";

@@ -1,3 +1,13 @@
+## Changes in 0.2.21 — run boundaries
+
+- Retain run IDs, completion/boundary reasons, map and dungeon IDs inside multi-fight captures; select a run on desktop and Pages.
+- Add Finish run without stopping capture, plus automatic completion for configured final-boss NPC IDs with observed deaths and matching dungeon context.
+- Separate confirmed open-world maps from unverified PvE/PvP sources.
+- Keep boss death markers that arrive shortly after the final damage; checkpoint changed run boundaries immediately.
+- Reuse identified player references across actor resets when character server/name or database identity is available.
+
+Final-boss order and PvP match-end packets remain unverified. No final-boss rule is enabled without supplied NPC IDs. Existing retained-history limits still apply.
+
 ## Changes in 0.2.20 — character builds in combat logs
 
 - Recover structured advice from `advice.json` and upgrade existing recovered text entries, restoring the same interactive Gear & Advice panels without recalculating.

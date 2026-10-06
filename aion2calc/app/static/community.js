@@ -2,7 +2,7 @@
 (function(){
 "use strict";
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const types={unknown:"Unknown",transcendence:"Transcendence dungeon",daily:"Daily dungeon",expedition:"Expedition",ascension:"Ascension trials",nightmare:"Nightmare",sanctuary:"Sanctuary raids",pvp_battleground:"PvP · Battleground",pvp_arena:"PvP · Arena",pvp_abyss:"PvP · Abyss",pvp_rift:"PvP · Rift",pvp_open_world:"PvP · Open world",pvp_other:"PvP · Other"};
+const types={unknown:"Unknown",pve_open_world:"PvE · Open world",pve_unverified:"PvE · Unverified source",transcendence:"Transcendence dungeon",daily:"Daily dungeon",expedition:"Expedition",ascension:"Ascension trials",nightmare:"Nightmare",sanctuary:"Sanctuary raids",pvp_battleground:"PvP · Battleground",pvp_arena:"PvP · Arena",pvp_abyss:"PvP · Abyss",pvp_rift:"PvP · Rift",pvp_open_world:"PvP · Open world",pvp_other:"PvP · Unverified / other"};
 const n=x=>Math.round(x||0).toLocaleString();
 const table=(heads,rows)=>`<div class="cr-scroll"><table class="t"><tr>${heads.map(x=>`<th>${x}</th>`).join("")}</tr>${rows.join("")||`<tr><td colspan="${heads.length}">No matching public submissions.</td></tr>`}</table></div>`;
 function mount(root,options){
