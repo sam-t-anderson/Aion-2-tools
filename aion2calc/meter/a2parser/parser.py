@@ -182,7 +182,12 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
         if 3_000_000 <= skill <= 3_099_999:
             skill = skill * 10 + 1
         raw_skill = skill
-        if not 1 <= skill <= 299_999_999 or 1_000_000 <= skill <= 9_999_999:
+        # NPC attacks use this lower skill-id range. Accept it only when
+        # directed at a verified player by a different entity; these
+        # records were previously rejected, leaving Defense empty.
+        incoming_npc = (known_players is not None and target_id in known_players
+                        and actor_id != target_id)
+        if not 1 <= skill <= 299_999_999 or (1_000_000 <= skill <= 9_999_999 and not incoming_npc):
             break
         if offset < len(frame):
             offset += 1  # UID

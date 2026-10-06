@@ -71,7 +71,20 @@ class MeterEngine:
 
     def set_local_character_name(self, name: str) -> None:
         with self._lock:
+            if not self.local_identity_from_game and str(name).strip() != self.local_character_name:
+                self.local_player_id = None
             self.local_character_name = str(name).strip()
+            self._bind_named_character()
+
+    def _bind_named_character(self) -> None:
+        """Bind only a unique observed name explicitly supplied by the user."""
+        if self.local_player_id is None and self.local_character_name:
+            matches = [actor_id for actor_id, name in self.names.items()
+                       if name.casefold() == self.local_character_name.casefold()]
+            if len(matches) == 1:
+                self.local_player_id = matches[0]
+                self.known_players.add(matches[0])
+                self.known_entities.add(matches[0])
 
     def _bind_character_list(self, data: bytes) -> None:
         if self.local_identity_from_game or not self.local_character_name:
@@ -130,7 +143,8 @@ class MeterEngine:
         for actor_id, name in scan_legacy_nicknames(complete):
             if actor_id not in self.summons:
                 self.names.setdefault(actor_id, name)
-        self.spawn_info.update(scan_spawn_metadata(complete))
+        for entity_id, info in scan_spawn_metadata(complete).items():
+            self.spawn_info.setdefault(entity_id, {}).update(info)
         self.known_entities.update(self.spawn_info)
         self.known_entities.update(links)
         self.known_entities.update(links.values())
@@ -152,6 +166,15 @@ class MeterEngine:
             if entity_id in self.targets:
                 self.targets[entity_id].current_hp = value
         for packet in _damage_frames(complete, inner=False):
+            # Spawn/HP records inside compressed bundles were previously
+            # scanned only as compressed bytes, losing the NPC database key.
+            for entity_id, info in scan_spawn_metadata(packet).items():
+                self.spawn_info.setdefault(entity_id, {}).update(info)
+            self.known_entities.update(self.spawn_info)
+            current, maximum = scan_hp_updates(packet)
+            self.live_hp.update(current)
+            for entity_id, value in maximum.items():
+                self.spawn_info.setdefault(entity_id, {})["maxHp"] = value
             for actor_id, name in scan_actor_name_bindings(packet):
                 if actor_id not in self.summons:
                     self.names.setdefault(actor_id, name)
@@ -173,6 +196,7 @@ class MeterEngine:
             roster = scan_party_roster(packet)
             if roster:
                 self._update_roster(*roster)
+        self._bind_named_character()
         events = list(decode_stream(complete, timestamp_ms, self.known_entities,
                                    self.seen_embedded_damage, self.seen_embedded_order,
                                    self.known_players))
@@ -298,6 +322,8 @@ class MeterEngine:
             return
         actor_id, server_id, job, level = profile
         self.local_player_id = actor_id
+        self.known_players.add(actor_id)
+        self.known_entities.add(actor_id)
         self.local_identity_from_game = True
         self.local_profile = {"serverId": server_id, "job": job, "level": level}
 

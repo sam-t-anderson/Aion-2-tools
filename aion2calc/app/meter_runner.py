@@ -9,7 +9,7 @@ from pathlib import Path
 from ..meter import Meter, load_decoder, replay_source
 from ..meter.a2parser.engine import MeterEngine as PacketMeterEngine
 from ..meter.a2parser.capture import capture_packets
-from ..meter import a2tools
+from ..meter.session import CombatSession
 
 DEMO = Path(__file__).resolve().parent.parent / "meter" / "demo_session.jsonl"
 
@@ -29,9 +29,16 @@ class Runner:
         self.diagnostics: dict = {}
         self.started_at: float | None = None
         self.recorder = None
+        self.diagnostic_export = None
+        self._exported_recorder = None
+        self._diagnostic_lock = threading.Lock()
         self._stop = False
         self.replay_stop = threading.Event()
         self.lock = threading.Lock()
+        self.session = CombatSession()
+        self.scope = "party"
+        self.segment_id = None
+        self.enemy_id = None
 
     def start(self, source: str = "replay", **opts) -> dict:
         self.stop()
@@ -46,6 +53,12 @@ class Runner:
         self._stop = False
         self.replay_stop = threading.Event()
         self.source_name = source
+        self.scope = str(opts.get("scope") or "party")
+        if self.scope not in ("party", "self", "all"):
+            self.scope = "party"
+        self.session.gap_seconds = min(120, max(3, int(opts.get("segment_gap") or 10)))
+        self.segment_id = None
+        self.enemy_id = None
         try:
             if source == "a2tools":
                 return self._start_a2tools(**opts)
@@ -82,6 +95,7 @@ class Runner:
         decoder = opts.get("custom_decoder")
         self.packet_engine = None if decoder else PacketMeterEngine()
         if self.packet_engine is not None:
+            self.session.begin_capture()
             self.packet_engine.set_server_port(port)
             if opts.get("character_name"):
                 self.packet_engine.set_local_character_name(str(opts["character_name"]))
@@ -120,6 +134,7 @@ class Runner:
                     with self.lock:
                         if engine is not None:
                             events = engine.consume(payload, timestamp_ms, stream)
+                            self.session.observe(engine, events)
                         else:
                             events = list(decoder.feed(payload))
                             for event in events:
@@ -141,8 +156,11 @@ class Runner:
             self.error = f"Decoder failed: {type(exc).__name__}: {exc}"
         finally:
             stop_event.set()
+            if self.packet_capture_thread:
+                self.packet_capture_thread.join(timeout=3.0)
             self.diagnostics["state"] = "error" if self.error else "stopped"
             self.running = False
+            self._archive_diagnostics()
 
     def _run(self, it) -> None:
         try:
@@ -170,28 +188,76 @@ class Runner:
         self.running = False
         if self.diagnostics:
             self.diagnostics["state"] = "stopped"
+        # Preserve the opted-in buffer before the next Start replaces it.
+        # Repeated Stop/Quit calls must not create duplicate archives.
+        self._archive_diagnostics()
+
+    def _archive_diagnostics(self) -> None:
+        if self.recorder is not None and self.recorder is not self._exported_recorder:
+            if self.recorder.snapshot(include_rows=False)[0]["records"]:
+                try:
+                    self.export_diagnostics()
+                except OSError as exc:
+                    self.diagnostics["archive_error"] = str(exc)
+
+    def export_diagnostics(self) -> dict:
+        with self._diagnostic_lock:
+            if self.recorder is not None and self.recorder is self._exported_recorder and self.diagnostic_export and not self.running:
+                return self.diagnostic_export
+            from ..meter.diagnostics import export
+            result = export(self.status(), self.recorder)
+            self.diagnostic_export = result
+            if not self.running:
+                self._exported_recorder = self.recorder
+            self.diagnostics.pop("archive_error", None)
+            return result
 
     def status(self) -> dict:
         with self.lock:
-            snap = (a2tools.snapshot(self.packet_engine, self.target_mode)
+            snap = (self.session.snapshot(self.scope, self.segment_id, self.enemy_id)
                     if self.packet_engine is not None else self.meter.snapshot())
             diagnostic = dict(self.diagnostics)
         if diagnostic:
             diagnostic["elapsed"] = round(time.monotonic() - self.started_at, 1) if self.started_at else 0
         return {"running": self.running, "source": self.source_name, "error": self.error,
                 "snapshot": snap, "diagnostics": diagnostic,
+                "diagnostic_export": self.diagnostic_export,
                 "recording": {"enabled": self.recorder is not None,
                               **(self.recorder.snapshot(include_rows=False)[0] if self.recorder is not None else {"records": 0})}}
+
+    def configure_view(self, body: dict) -> dict:
+        with self.lock:
+            if body.get("segment_gap") is not None:
+                self.session.gap_seconds = min(120, max(3, int(body["segment_gap"])))
+            if body.get("scope") in ("party", "self", "all"):
+                self.scope = body["scope"]
+            if "segment" in body:
+                self.segment_id = body["segment"] or None
+                self.enemy_id = None
+            if "enemy" in body:
+                self.enemy_id = body["enemy"] or None
+            if body.get("character_name") is not None and self.packet_engine is not None:
+                self.packet_engine.set_local_character_name(body["character_name"])
+                self.session.observe(self.packet_engine, [])
+        return self.status()
+
+    def clear_session(self) -> dict:
+        if self.running:
+            raise ValueError("Stop capture before clearing session history.")
+        with self.lock:
+            self.session = CombatSession()
+            self.segment_id = self.enemy_id = None
+        return self.status()
 
     def to_a2log(self, title: str | None = None) -> dict:
         with self.lock:
             if self.packet_engine is not None:
-                return a2tools.to_a2log(self.packet_engine, self.target_mode, title)
+                return self.session.to_a2log(self.scope, title)
             return self.meter.to_a2log(title=title)
 
     def has_data(self) -> bool:
         with self.lock:
-            return bool(self.packet_engine and self.packet_engine.event_log) or bool(self.meter.players)
+            return bool(self.packet_engine and self.session.records) or bool(self.meter.players)
 
 
 _RUNNER: Runner | None = None

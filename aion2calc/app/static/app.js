@@ -464,6 +464,27 @@ function lineChart(per, roll) {
 const PCOL = ["#e8cf8e", "#58a6ff", "#b18cff", "#6fcf7a", "#e68a5a", "#5ad1c4", "#e45a8a", "#d7c15a", "#8a92a8"];
 let _ptab = "dps";
 const skillIcon = (id) => (id ? icon("https://metabot.gg/web/aion2/skills/" + (Math.floor(Number(id) / 10000) * 10000) + ".webp") : "");
+const SKILL_PLACEHOLDER = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect width="24" height="24" rx="4" fill="#263048"/><path d="M12 4L19 12L12 20L5 12Z" fill="none" stroke="#e8cf8e"/></svg>');
+function skillArt(id, name = "") {
+  const source = skillIcon(id);
+  return `<img class="skill-art" width="24" height="24" data-skill-source="${esc(source)}" src="${esc(source || SKILL_PLACEHOLDER)}" title="${esc(name)}" alt="" onerror="this.onerror=null;this.src=SKILL_PLACEHOLDER">`;
+}
+function replaceMeterHtml(element, html) {
+  // Reuse decoded image nodes across live updates instead of loading every icon again.
+  const images = new Map();
+  element.querySelectorAll("img").forEach((node) => {
+    const key = node.dataset.skillSource || node.getAttribute("src");
+    if (!images.has(key)) images.set(key, []);
+    images.get(key).push(node);
+  });
+  const template = document.createElement("template"); template.innerHTML = html;
+  template.content.querySelectorAll("img").forEach((node) => {
+    const key = node.dataset.skillSource || node.getAttribute("src"), old = images.get(key)?.shift();
+    if (old) node.replaceWith(old);
+  });
+  element.replaceChildren(template.content);
+}
+
 function kfmt(x) {
   if (x == null || isNaN(x)) return "—";
   const a = Math.abs(x);
@@ -497,7 +518,7 @@ function renderParse(d) {
   if (otherDmg > 0) parts.push({ label: `Other (${rest.length})`, value: otherDmg, color: PCOL[8] });
   const topList = parts.map((p) => `<div class="trow"><span class="sw" style="background:${p.color}"></span><span class="nm">${esc(p.label)}</span><span class="pc">${Math.round(100 * p.value / totDmg)}%</span></div>`).join("");
   const mxDmg = Math.max(...skills.map((s) => s.damage || 0), 1);
-  const srows = skills.map((s) => `<tr><td class="nm">${s.skill_id ? `<img src="${skillIcon(s.skill_id)}" alt="" onerror="this.hidden=true">` : ""}${esc(s.skill)}</td>
+  const srows = skills.map((s) => `<tr><td class="nm">${skillArt(s.skill_id, s.skill)}${esc(s.skill)}</td>
     <td>${s.hits ?? "—"}</td><td>${kfmt(s.dps)}</td><td>${kfmt(s.avg)}</td><td>${s.min == null ? "—" : kfmt(s.min)}</td><td>${s.max == null ? "—" : kfmt(s.max)}</td>
     <td class="dmg"><i style="width:${100 * (s.damage || 0) / mxDmg}%"></i><span>${kfmt(s.damage)}<span class="pcpct">${Math.round(100 * (s.damage || 0) / totDmg)}%</span></span></td></tr>`).join("");
   const spark = d.timeline ? `<div style="margin:4px 0 12px">${lineChart(d.timeline.per_second, d.timeline.rolling10)}</div>` : "";
@@ -508,9 +529,10 @@ function renderParse(d) {
   const rate = (x) => (x == null ? "—" : Math.round(100 * x) + "%");
   const rc = (k, v) => `<div class="rc"><div class="k">${k}</div><div class="v">${v}</div></div>`;
   const accPanel = `<div class="ppanel" data-pane="acc"${at === "acc" ? "" : " hidden"}><div class="prates">
-    ${rc("Crit", rate(d.rates.crit))}${rc("Back", rate(d.rates.back))}${rc("Front", rate(d.rates.front))}${rc("Double", rate(d.rates.double))}${rc("Perfect", rate(d.rates.perfect))}${rc("Multi", rate(d.rates.multi))}</div></div>`;
-  const defPanel = `<div class="ppanel" data-pane="def"${at === "def" ? "" : " hidden"}><div class="pnote">Damage taken and mitigation aren't in this ${d.live ? "session" : "log"} — this tab fills in when the source provides incoming-damage events.</div></div>`;
-  const rot = (d.rotation || []).length ? `<div class="prot"><div class="lbl">Skill rotation</div><div class="strip">${d.rotation.slice(0, 80).map((e) => `<div class="ic"><img src="${skillIcon(e.skill_id)}" title="${esc(e.skill || "")}" alt="" onerror="this.hidden=true"><small>${esc(e.skill || "")}</small><span>${e.t != null ? e.t.toFixed(0) + "s" : ""}</span></div>`).join("")}</div></div>` : "";
+    ${rc("Hit chance", "Unavailable")}${rc("Crit", rate(d.rates.crit))}${rc("Back", rate(d.rates.back))}${rc("Front", rate(d.rates.front))}${rc("Double", rate(d.rates.double))}${rc("Perfect", rate(d.rates.perfect))}${rc("Multi", rate(d.rates.multi))}${rc("Parried", rate(d.rates.parry))}</div><p class="small muted">Rates use decoded outgoing hits. Hit chance requires attempted attacks and misses, which this source does not currently provide.</p></div>`;
+  const defense = d.incoming;
+  const defPanel = `<div class="ppanel" data-pane="def"${at === "def" ? "" : " hidden"}>${defense ? `<div class="prates">${rc("Damage taken", kfmt(defense.damage))}${rc("Incoming hits", n0(defense.hits))}${rc("Parried hits", n0(defense.parries))}${rc("Healing done", kfmt(d.healing || 0))}</div><table class="t"><tr><th>Attacker</th><th>Damage taken</th></tr>${Object.entries(defense.sources || {}).sort((a,b) => b[1]-a[1]).map(([name,damage]) => `<tr><td>${esc(name)}</td><td>${kfmt(damage)}</td></tr>`).join("")}</table><p class="small muted">Damage received and parry flags are measured from decoded hits. Avoided attacks and pre-mitigation damage are unavailable; armor, mitigation and dodge percentages cannot be inferred from received damage alone.</p>` : `<div class="pnote">This source does not provide incoming-damage events.</div>`}</div>`;
+  const rot = (d.rotation || []).length ? `<div class="prot"><div class="lbl">Skill rotation</div><div class="strip">${d.rotation.slice(0, 80).map((e) => `<div class="ic">${skillArt(e.skill_id, e.skill)}<small>${esc(e.skill || "")}</small><span>${e.t != null ? e.t.toFixed(0) + "s" : ""}</span></div>`).join("")}</div></div>` : "";
   const stat = (l, v, gold) => `<div><span class="pl">${l}</span><span class="pv${gold ? " gold" : ""}">${v}</span></div>`;
   const clsIcon = d.cls ? `<img class="pcls" src="${icon("https://metabot.gg/web/aion2/classes/" + String(d.cls).toLowerCase() + ".webp")}" alt="" onerror="this.style.visibility='hidden'">` : "";
   return `<div class="parse">
@@ -546,9 +568,9 @@ function parseFromMeter(snap, idx) {
   return {
     name: p.name, cls: p.class, gs: null, cp: null,
     dmg: p.damage, dps: p.dps, contrib: p.share, duration: snap.duration, boss: snap.boss, highest: null,
-    rates: { crit: p.crit, double: p.double ?? null, perfect: p.perfect ?? null, multi: p.multi ?? null, back: null, front: null },
-    skills: (p.skills || []).map((s) => ({ skill: s.skill, skill_id: s.skill_id, hits: s.hits, dps: (s.damage || 0) / (snap.duration || 1), avg: (s.damage || 0) / (s.hits || 1), min: null, max: null, damage: s.damage, share: s.share })),
-    rotation: [], timeline: null, live: true,
+    rates: { crit: p.crit, double: p.double ?? null, perfect: p.perfect ?? null, multi: p.multi ?? null, back: p.back ?? null, front: p.front ?? null, parry: p.parry ?? null },
+    skills: (p.skills || []).map((s) => ({ skill: s.skill, skill_id: s.skill_id, hits: s.hits, dps: (s.damage || 0) / (snap.duration || 1), avg: (s.damage || 0) / (s.hits || 1), min: s.min ?? null, max: s.max ?? null, damage: s.damage, share: s.share })),
+    rotation: [], timeline: p.timeline || null, incoming: p.incoming, healing: p.healing, live: true,
   };
 }
 
@@ -702,7 +724,7 @@ async function pageMeter() {
     <div class="wb"><div class="row"><label class="muted small">Source</label>
         <select id="msrc"><option value="a2tools" selected>Live Capture</option><option value="replay">Demo replay</option><option value="live">Custom decoder</option></select>
         <button class="btn primary" id="mstart" aria-pressed="false">Start</button>
-        <button class="btn small" id="msave">Save to Combat Logs</button><button class="btn small" id="mexport">Export a2log</button>
+        <button class="btn small" id="mclear">Clear session</button><button class="btn small" id="msave">Save to Combat Logs</button><button class="btn small" id="mexport">Export a2log</button>
         <button class="btn small" id="mupload">Upload</button><button class="btn small" id="mshot">Screenshot</button>
         <button class="btn small" id="movl" title="Open the compact overlay in a separate window">Open overlay</button><span id="mmsg" class="small muted"></span></div>
       <div class="row" id="mlive" style="display:none;margin-top:6px">
@@ -710,12 +732,13 @@ async function pageMeter() {
         <label class="small muted">Interface <select id="miface" aria-label="Capture interface" title="Npcap interface; Auto monitors all available adapters"><option value="auto">Auto</option></select></label><button class="btn small" id="mifacesrefresh">Refresh interfaces</button>
         <label class="small muted">Game host <input id="mhost" type="text" value="any" aria-label="Game host" style="width:100px" title="Use an address to limit the capture; any accepts game traffic on the port"></label>
         <label class="small muted"><input id="mautoport" type="checkbox" checked> Detect game port</label><label class="small muted">Fixed port <input id="mport" type="number" value="50349" aria-label="Game server port" style="width:80px"></label>
-        <label class="small muted">Target <select id="mtarget" aria-label="Target selection"><option value="bossTargets" selected>Boss target</option><option value="mostDamage">Most damage</option><option value="mostRecent">Most recent</option><option value="lastHitByMe">Last hit by me</option><option value="allTargets">All targets</option><option value="trainTargets">Training target</option></select></label>
-        <label class="small muted">Character <input id="mchar" type="text" placeholder="optional" style="width:120px"></label></div>
+
+        <label class="small muted">My character <input id="mchar" type="text" placeholder="in-game name" style="width:120px"></label></div>
+      <div class="row" style="margin-top:8px"><label class="small muted">Players <select id="mscope"><option value="party">Self + Party</option><option value="self">Self only</option><option value="all">All observed players</option></select></label><label class="small muted">Group combat within <input id="msegap" type="number" min="3" max="120" value="10" style="width:60px"> seconds</label><label class="small muted">Combat <select id="msegments"><option value="">Latest combat</option><option value="all">Whole session</option></select></label><button class="btn small" id="mallenemies">All enemies</button></div>
       <div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
       <div class="note" style="margin-top:10px"><b>Capture diagnostics</b>
         <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads (enable before Start)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><span id="mrecordstatus" class="small muted"></span></div>
-        <p class="small faint">Keeps up to 4 MiB locally, even when no combat events are decoded. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div></div><div id="npcap" class="small faint" style="margin-top:8px"></div>
+        <p class="small faint">Keeps up to 4 MiB locally, even when no combat events are decoded. Saves a diagnostic ZIP automatically when capture stops. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></div><div id="npcap" class="small faint" style="margin-top:8px"></div>
       <p class="small faint">Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, and capture permission. Export writes an open a2log file; Upload uses the log server configured in Settings.</p>
       <div id="mnotice" class="small" role="status"></div>
     </div></section><div id="mview"></div>`;
@@ -724,6 +747,17 @@ async function pageMeter() {
     $("#mcustom").style.display = $("#msrc").value === "live" ? "flex" : "none";
   };
   $("#msrc").onchange = live; live();
+  try { $("#mchar").value = localStorage.getItem("meter-character") || ""; } catch (e) {}
+  const updateView = async (body) => { try { renderMeter(await api("/api/meter", {action: "view", ...body})); } catch (e) { $("#mnotice").textContent = e.message; } };
+  $("#mchar").onchange = () => { try { localStorage.setItem("meter-character", $("#mchar").value.trim()); } catch (e) {} updateView({character_name: $("#mchar").value.trim()}); };
+  $("#mscope").onchange = () => updateView({scope: $("#mscope").value});
+  $("#msegap").onchange = () => updateView({segment_gap: +$("#msegap").value || 10});
+  $("#msegments").onchange = () => { st.pinnedSegment = $("#msegments").value; updateView({segment: st.pinnedSegment}); };
+  $("#mallenemies").onclick = () => updateView({enemy: null});
+  $("#mclear").onclick = async () => {
+    if (!window.confirm("Clear retained combat history? Export or save it first if you want to keep a copy.")) return;
+    try { st.pinnedSegment = ""; renderMeter(await api("/api/meter", {action: "clear"})); } catch (e) { $("#mnotice").textContent = e.message; }
+  };
   let decoderPath = null;
   $("#mcustomdec").onchange = async () => {
     const file = $("#mcustomdec").files[0]; decoderPath = null;
@@ -795,25 +829,21 @@ async function pageMeter() {
         }
       } catch (e) { $("#mnotice").textContent = "Could not check Npcap: " + e.message; return; }
     }
-    const body = { action: "start", source, decoder: source === "live" ? decoderPath : null,
+    const body = { action: "start", source, scope: $("#mscope").value, segment_gap: +$("#msegap").value || 10, decoder: source === "live" ? decoderPath : null,
       auto_port: source === "a2tools" && $("#mautoport").checked,
       record_packets: source !== "replay" && $("#mrecord").checked,
       iface: source !== "replay" && $("#miface").value !== "auto" ? $("#miface").value : null,
       host: source !== "replay" && $("#mhost").value !== "any" ? $("#mhost").value : null,
       port: source !== "replay" ? (+$("#mport").value || 50349) : null,
-      target_mode: source === "a2tools" ? $("#mtarget").value : "bossTargets",
+      target_mode: "allTargets",
       character_name: source === "a2tools" ? ($("#mchar").value || null) : null };
     button.disabled = true;
-    try { renderMeter(await api("/api/meter", body)); } catch (e) { $("#mnotice").textContent = e.message; }
+    try { st.pinnedSegment = ""; renderMeter(await api("/api/meter", body)); } catch (e) { $("#mnotice").textContent = e.message; }
     finally { button.disabled = false; }
   };
-  const showDiagnosticExport = () => {
-    const r = st.diagnosticExport; if (!r) return;
-    $("#mdiagresult").innerHTML = `<a class="btn small primary" href="${esc(r.download_url)}" download>Download diagnostic ZIP</a> ${r.records} TCP payload records.<br>Saved to <span style="overflow-wrap:anywhere">${esc(r.file)}</span>${r.records ? "" : "<br>Enable TCP recording before Start, then fight briefly and export again."}`;
-  };
-  showDiagnosticExport();
+  renderDiagnosticExport(st.diagnosticExport);
   $("#mdiag").onclick = async () => {
-    try { st.diagnosticExport = await api("/api/meter", {action: "diagnostics"}); showDiagnosticExport(); }
+    try { st.diagnosticExport = await api("/api/meter", {action: "diagnostics"}); renderDiagnosticExport(st.diagnosticExport); }
     catch (e) { $("#mnotice").textContent = e.message; }
   };
   $("#movl").onclick = async () => {
@@ -856,8 +886,17 @@ async function pageMeter() {
   renderMeter(initial);
   poll();
 }
+function renderDiagnosticExport(r) {
+  const target = $("#mdiagresult"); if (!r || !target) return;
+  if (target.dataset.savedFile === r.file) return;
+  target.dataset.savedFile = r.file;
+  target.innerHTML = `<a class="btn small primary" href="${esc(r.download_url)}" download>Download diagnostic ZIP</a> ${r.records} TCP payload records.<br>Last saved capture: <span style="overflow-wrap:anywhere">${esc(r.file)}</span>${r.records ? "" : "<br>Enable TCP recording before Start, then fight briefly and export again."}`;
+}
 function renderMeter(s) {
   const st = S.meter; st.running = !!s.running;
+  if (s.diagnostic_export) st.diagnosticExport = s.diagnostic_export;
+  renderDiagnosticExport(st.diagnosticExport);
+  if ($("#mdiagerror")) $("#mdiagerror").textContent = s.diagnostics?.archive_error ? `Could not save diagnostic ZIP: ${s.diagnostics.archive_error}. Use Export capture diagnostics to retry before starting another capture.` : "";
   const button = $("#mstart");
   if (button) {
     button.textContent = st.running ? "Stop" : "Start";
@@ -866,25 +905,41 @@ function renderMeter(s) {
     button.setAttribute("aria-pressed", String(st.running));
   }
   const record = $("#mrecord"); if (record) record.disabled = st.running;
+  if ($("#mclear")) $("#mclear").disabled = st.running;
   const recordStatus = $("#mrecordstatus");
   if (recordStatus) recordStatus.textContent = s.recording?.enabled ? `${s.recording.records || 0} TCP payload records available` : "TCP recording is off";
   const snap = s.snapshot || { players: [] }, msg = $("#mmsg");
+  if ($("#mscope") && snap.scope) $("#mscope").value = snap.scope;
+  const selector = $("#msegments");
+  if (selector && snap.segments && document.activeElement !== selector) {
+    const options = `<option value="">Latest combat</option><option value="all">Whole session</option>` + snap.segments.map((segment) => `<option value="${esc(segment.id)}">${esc(segment.label)} · ${new Date(segment.start).toLocaleTimeString()} · ${segment.duration.toFixed(1)}s</option>`).join("");
+    if (selector.innerHTML !== options) selector.innerHTML = options;
+    selector.value = st.pinnedSegment || (snap.selected_segment === "all" ? "all" : "");
+  }
   if (msg) { if (s.error) msg.textContent = s.error; else { const d = s.diagnostics || {}; msg.textContent = s.running ? `Recording · ${d.packets || 0} TCP packets · ${d.decoded_events || 0} combat events${d.port ? " · port " + d.port : d.auto_port ? " · detecting game port" : ""}` : "Stopped"; } }
   const view = $("#mview"); if (!view) return;
   if (!snap.players.length) {
-    view.innerHTML = win("Meter", "", `<div class="empty">${s.running ? ((s.diagnostics?.packets || 0) ? (s.diagnostics?.forwarded ? "The game stream is reaching the decoder but no combat events have been recognized. Enable TCP recording before Start and export capture diagnostics after fighting briefly." : "Packets are arriving. Waiting for a recognized game stream — enter combat. Enable TCP recording before Start to investigate.") : "No packets yet. Check capture support, adapter permissions and your interface selection, then enter combat.") : "No data yet — choose a source and press Start."}${s.diagnostics?.warnings?.length ? "<p>" + esc(s.diagnostics.warnings.join("; ")) + "</p>" : ""}</div>`);
+    st.lastMeterRender = null;
+    view.innerHTML = win("Meter", "", `<div class="empty">${s.running ? ((s.diagnostics?.packets || 0) ? (s.diagnostics?.forwarded ? "The game stream is reaching the decoder but no combat events have been recognized. Enable TCP recording before Start and export capture diagnostics after fighting briefly." : "Packets are arriving. Waiting for a recognized game stream — enter combat. Enable TCP recording before Start to investigate.") : "No packets yet. Check capture support, adapter permissions and your interface selection, then enter combat.") : "No data yet — choose a source and press Start."}${snap.warning ? "<p>" + esc(snap.warning) + "</p>" : ""}${s.diagnostics?.warnings?.length ? "<p>" + esc(s.diagnostics.warnings.join("; ")) + "</p>" : ""}</div>`);
     return;
   }
   const mx = Math.max(...snap.players.map((p) => p.dps), 1);
-  if (st.sel == null || st.sel >= snap.players.length) st.sel = 0;
+  const selected = snap.players.findIndex((player) => (player.key || player.id) === st.selectedPlayerKey);
+  st.sel = selected >= 0 ? selected : 0;
+  st.selectedPlayerKey = snap.players[st.sel].key || snap.players[st.sel].id;
+  const signature = JSON.stringify([snap, st.selectedPlayerKey, _ptab]);
+  if (st.lastMeterRender === signature) return;
+  st.lastMeterRender = signature;
   const rows = snap.players.map((p, i) => `<div class="pm ${i === st.sel ? "on" : ""}" data-sel="${i}">
       <div class="nmc"><b>${esc(p.name)}</b> <span class="muted small">${esc(cap(p.class || ""))}</span></div>
       <div class="bar"><i style="width:${100 * p.dps / mx}%"></i><span>${kfmt(p.dps)}/s · ${pct(p.share, 0)}</span></div></div>`).join("");
-  view.innerHTML = win("Meter", `${esc(snap.boss || "")}${snap.boss ? " · " : ""}${(snap.duration || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)} raid DPS`,
-    `<div class="pmeters">${rows}</div>`) + `<div id="pbd">${renderParse(parseFromMeter(snap, st.sel))}</div>`;
+  const enemyTable = snap.enemies?.length ? win("Enemies", "select an enemy to show each player's damage against it", `<table class="t"><tr><th>Enemy</th><th>Party damage dealt</th><th>Party DPS</th></tr>${snap.enemies.map((enemy) => `<tr class="${enemy.key === snap.selected_enemy ? "sel" : ""}"><td><button class="btn small" data-enemy="${esc(enemy.key)}">${esc(enemy.name)}</button></td><td>${kfmt(enemy.damage)}</td><td>${kfmt(enemy.dps)}</td></tr>`).join("")}</table>`) : "";
+  replaceMeterHtml(view, enemyTable + win("Players", `${esc(snap.boss || "")}${snap.boss ? " · " : ""}${(snap.duration || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)} raid DPS`,
+    `<div class="pmeters">${rows}</div>`) + `<div id="pbd">${renderParse(parseFromMeter(snap, st.sel))}</div>`);
+  $$("[data-enemy]").forEach((el) => (el.onclick = async () => { try { renderMeter(await api("/api/meter", {action: "view", enemy: el.dataset.enemy})); } catch (e) { $("#mnotice").textContent = e.message; } }));
   $$("[data-sel]").forEach((el) => (el.onclick = () => {
-    st.sel = +el.dataset.sel;
-    $("#pbd").innerHTML = renderParse(parseFromMeter(snap, st.sel));
+    st.sel = +el.dataset.sel; st.selectedPlayerKey = snap.players[st.sel].key || snap.players[st.sel].id;
+    replaceMeterHtml($("#pbd"), renderParse(parseFromMeter(snap, st.sel)));
     $$("[data-sel]").forEach((x) => x.classList.toggle("on", +x.dataset.sel === st.sel));
   }));
 }
