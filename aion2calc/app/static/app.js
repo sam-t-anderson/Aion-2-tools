@@ -906,7 +906,7 @@ function renderMeter(s) {
   const snap = s.snapshot || { players: [] }, msg = $("#mmsg");
   if ($("#mscope") && snap.scope) $("#mscope").value = snap.scope;
   const selector = $("#msegments");
-  if (selector && snap.segments) {
+  if (selector && snap.segments && document.activeElement !== selector) {
     const options = `<option value="">Latest combat</option><option value="all">Whole session</option>` + snap.segments.map((segment) => `<option value="${esc(segment.id)}">${esc(segment.label)} · ${new Date(segment.start).toLocaleTimeString()} · ${segment.duration.toFixed(1)}s</option>`).join("");
     if (selector.innerHTML !== options) selector.innerHTML = options;
     selector.value = st.pinnedSegment || (snap.selected_segment === "all" ? "all" : "");

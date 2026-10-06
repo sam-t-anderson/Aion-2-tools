@@ -71,6 +71,8 @@ class MeterEngine:
 
     def set_local_character_name(self, name: str) -> None:
         with self._lock:
+            if not self.local_identity_from_game and str(name).strip() != self.local_character_name:
+                self.local_player_id = None
             self.local_character_name = str(name).strip()
             self._bind_named_character()
 
