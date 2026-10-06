@@ -313,6 +313,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/encounters":
             from ..db import store
             return self._json(store.encounters(store.connect(), q.get("class")))
+        if path == "/api/sessions":
+            from ..combat.sessions import recent, path as session_path
+            if q.get("file"):
+                return self._json(json.loads(session_path(q["file"]).read_text(encoding="utf-8")))
+            return self._json(recent())
+        if path == "/api/meter/log":
+            from .meter_runner import runner
+            return self._json(runner().review_log())
         if path == "/api/inventory":
             return self._json(_inventory(q["character"])[1])
         if path == "/api/ui":
@@ -419,7 +427,10 @@ class Handler(BaseHTTPRequestHandler):
             st = share.save_settings(body.get("url"), body.get("key"), body.get("visibility"))
             return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
         if path == "/api/overlay":
-            from .overlay_launch import launch
+            from .overlay_launch import launch, close
+            if body.get("action") == "hide":
+                close()
+                return self._json({"hidden": True})
             port = self.server.server_address[1]
             return self._json(launch(f"http://127.0.0.1:{port}/overlay"))
         if path.startswith("/api/encounters/") and path.endswith("/share"):
@@ -448,9 +459,12 @@ class Handler(BaseHTTPRequestHandler):
                                           record_packets=bool(body.get("record_packets")),
                                           character_name=body.get("character_name"),
                                           scope=body.get("scope", "party"), segment_gap=body.get("segment_gap", 10),
+                                          automatic_splits=body.get("automatic_splits", True),
                                           target_mode=body.get("target_mode", "bossTargets")))
             if action == "view":
                 return self._json(r.configure_view(body))
+            if action == "split":
+                return self._json(r.split_now())
             if action == "clear":
                 return self._json(r.clear_session())
             if action == "stop":
@@ -495,7 +509,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/ui":
             from ..paths import write_user_json
             cur = ui_settings()
-            cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update")})
+            cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update", "combat_colors")})
             write_user_json(cur, "ui.json")
             return self._json(cur)
         if path == "/api/update":                 # manual "Install update now" (localhost only)

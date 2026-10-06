@@ -1,3 +1,15 @@
+## Changes in 0.2.16 — combat review iteration 1
+
+- Show automatic character detection with server and changing combat entity ID; keep an optional name override.
+- Add Split now, an Automatic splits toggle, and Hide overlay controls.
+- Save full party sessions on Stop/normal Quit and show Recent full sessions in Combat Logs.
+- Share a Summary/Damage Done/Damage Taken/Healing viewer across desktop, Pages and server: Table/Timeline/Events, graph/timeline visibility, actor/server labels, enemy encounters, class colors, known pet ownership and basic comparisons.
+- Retain explicit death markers, HP samples and supported healing recipients. Timeline markers represent effects; missing data is labeled unavailable.
+- Keep every Pages banner/navigation menu consistent and open public logs within Pages.
+- Play verified positions from imported logs and export a raid plan. Live movement decoding, community ranks/personal records, editable published plans and creature-mapping updates remain in later iterations: `docs/COMBAT_ROADMAP.md`.
+
+Update the server to 0.2.5 for the new optional a2log fields. Existing logs remain readable.
+
 ## Changes in 0.2.15
 
 - Retain live combat history independently of the protocol engine's idle and zone resets. Nearby pulls within a configurable gap (default 10 seconds) form one combat segment. Choose Latest combat, an earlier combat, or Whole session; history remains through Stop/Start until Clear session or application exit. Export/upload preserves all retained combat segments, rather than only the currently selected enemy. History is bounded to 400,000 decoded records and 200 displayed/exported segments.

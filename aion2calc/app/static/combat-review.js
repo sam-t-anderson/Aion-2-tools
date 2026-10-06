@@ -1,0 +1,148 @@
+/* Shared combat explorer used by the desktop, Pages and log server. */
+(function () {
+  "use strict";
+  const defaults = {gladiator:"#c69b6d",templar:"#f58cba",assassin:"#fff468",ranger:"#aad372",sorcerer:"#3fc7eb",spiritmaster:"#8788ee",cleric:"#ffffff",chanter:"#ff7c0a"};
+  const esc = x => String(x ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const number = x => Math.round(x || 0).toLocaleString();
+  function preferences() { try {return JSON.parse(localStorage.getItem("a2-combat-colors")) || {};} catch (_) {return {}; } }
+  function color(cls) { const pref=preferences(); const candidate=(pref.colors || {})[cls] || defaults[cls] || "#e8cf8e"; return pref.enabled === false ? "#e8cf8e" : /^#[0-9a-f]{6}$/i.test(candidate) ? candidate : "#e8cf8e"; }
+  function settings(root,onSave) {
+    const pref=preferences();
+    root.innerHTML=`<label><input type="checkbox" data-enable ${pref.enabled!==false?"checked":""}> Use class colors</label><div class="cr-colors">${Object.keys(defaults).map(c=>`<label>${esc(c)} <input type="color" data-color="${c}" value="${color(c)}"></label>`).join("")}</div><button class="btn small" data-reset>Reset class colors</button>`;
+    const save=()=>{const pref={enabled:root.querySelector("[data-enable]").checked,colors:Object.fromEntries([...root.querySelectorAll("[data-color]")].map(e=>[e.dataset.color,e.value]))};localStorage.setItem("a2-combat-colors",JSON.stringify(pref));if(onSave)onSave(pref);};
+    root.onchange=save;root.querySelector("[data-reset]").onclick=()=>{localStorage.removeItem("a2-combat-colors");settings(root,onSave);if(onSave)onSave({});};
+  }
+  const table = (headers,rows) => `<div class="cr-scroll"><table class="t"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.join("") || `<tr><td colspan="${headers.length}">No recorded events.</td></tr>`}</tbody></table></div>`;
+  function mount(root, doc, options={}) {
+    let state={segment:0,metric:"summary",view:"table",graph:true,timeline:true,skills:true,deaths:true,heals:true,pets:true,combine:true,actor:"",page:0,enemy:"",hidden:new Set(), ...options.state};
+    let comparison=null, ranks=null, rankRequest=0, replayFrame=null;
+    const refs=()=>{const r=Object.fromEntries([...(doc.players || []),...(doc.segments[state.segment]?.entities || [])].map(e=>[e.id,{...e}]));for(const e of Object.values(r))if(e.owner)e.class=r[e.owner]?.class;return r;};
+    const label=e=>e ? `${e.name || e.id}${e.server ? " · " + e.server : ""}` : "Unknown / not recorded";
+    const owner=(id,r)=>state.combine && r[id]?.owner ? r[id].owner : id;
+    function data() {
+      const segment=doc.segments[state.segment] || {duration:1,hits:[]};const r=refs();
+      const recorded=segment.events || [];
+      const events=(recorded.length ? recorded : (segment.hits || []).map(h=>({kind:"damage",t:h.t,source:h.source || h.player,target:h.target,amount:h.damage,skill:h.skill,skill_id:h.skill_id}))).slice().sort((a,b)=>a.t-b.t);
+      const friendly=new Set((doc.players || []).map(p=>p.id));
+      const rows=new Map();
+      const row=id=>{const key=owner(id,r);if(!key)return null;if(!rows.has(key)) rows.set(key,{...(r[key] || {id:key,name:key}),damage:0,taken:0,healing:0,deaths:0});return rows.get(key);};
+      for(const e of events) {
+        if(e.kind==="death") {if(friendly.has(e.target) || r[e.target]?.owner) {const p=row(e.target);if(p)p.deaths++;}continue;}
+        if(e.kind==="damage") {
+          if((friendly.has(e.source) || r[e.source]?.owner) && (!state.enemy || e.target===state.enemy)) {const p=row(e.source);if(p)p.damage+=e.amount;}
+          if((friendly.has(e.target) || r[e.target]?.owner) && (!state.enemy || e.source===state.enemy)) {const p=row(e.target);if(p)p.taken+=e.amount;}
+        }
+        if(e.kind==="heal" && (friendly.has(e.source) || r[e.source]?.owner)) {const p=row(e.source);if(p)p.healing+=e.amount;}
+      }
+      return {segment,r,events,rows:[...rows.values()],friendly};
+    }
+    function visibleEvents(d) {
+      return d.events.filter(e=>(!state.actor || owner(e.source,d.r)===state.actor || owner(e.target,d.r)===state.actor)
+        && (!state.enemy || e.kind!=="damage" || e.target===state.enemy || e.source===state.enemy)
+        && (state.pets || (!d.r[e.source]?.owner && !d.r[e.target]?.owner))
+        && (state.metric==="summary" || (state.metric==="damage" && e.kind==="damage" && (d.friendly.has(e.source) || d.r[e.source]?.owner))
+          || (state.metric==="taken" && e.kind==="damage" && (d.friendly.has(e.target) || d.r[e.target]?.owner)) || (state.metric==="healing" && e.kind==="heal")));
+    }
+    function graph(d, events) {
+      const duration=Math.max(d.segment.duration,1),step=Math.max(1,Math.ceil(duration/1200)),count=Math.ceil(duration/step)+1,series={};
+      for(const e of events) {
+        if(e.kind==="death")continue;
+        let actor,kind;
+        if(e.kind==="heal") {actor=owner(e.source,d.r);kind="Healing";}
+        else if(d.friendly.has(e.source) || d.r[e.source]?.owner) {actor=owner(e.source,d.r);kind="Damage done";}
+        else if(d.friendly.has(e.target) || d.r[e.target]?.owner) {actor=owner(e.target,d.r);kind="Damage taken";}else continue;
+        const key=actor+":"+kind;if(state.hidden.has(key))continue;
+        const line=series[key] ||= {actor,kind,values:Array(count).fill(0)};
+        const i=Math.min(count-1,Math.floor(e.t/step));line.values[i]+=(e.amount || 0)/step;
+      }
+      const lines=Object.entries(series),maximum=lines.reduce((m,[,s])=>s.values.reduce((m,v)=>Math.max(m,v),m),1);
+      const paths=lines.map(([key,s])=>`<polyline fill="none" stroke="${color(d.r[s.actor]?.class)}" stroke-width="2" ${s.kind==="Damage taken"?'stroke-dasharray="7 4"':s.kind==="Healing"?'stroke-dasharray="2 3"':""} points="${s.values.map((v,i)=>`${i*960/(count-1)},${160-v*150/maximum}`).join(" ")}"><title>${esc(label(d.r[s.actor]))} — ${s.kind}</title></polyline>`).join("");
+      const health=(d.segment.health || []).filter(s=>!state.enemy?d.r[s.entity]?.is_boss:s.entity===state.enemy);
+      const hpMax=Math.max(1,...health.map(s=>s.max || s.current));
+      const healthIds=[...new Set(health.map(s=>s.entity))];
+      const hp=healthIds.map(id=>`<polyline fill="none" stroke="#ef6262" stroke-width="2" points="${health.filter(s=>s.entity===id).map(s=>`${s.t*960/duration},${160-s.current*150/hpMax}`).join(" ")}"><title>${esc(label(d.r[id]))} HP (right scale)</title></polyline>`).join("");
+      return `<div class="cr-graph"><div class="small muted">Per-second amount · peak ${number(maximum)}${health.length?" · red: boss HP, separate right scale ("+number(hpMax)+")":" · Boss HP: not recorded"}</div><svg viewBox="0 0 960 190" role="img" aria-label="Combat amounts over time"><path d="M0 160H960" stroke="currentColor" opacity=".3"/>${paths}${hp}<text x="0" y="184" fill="currentColor">0:00</text><text x="885" y="184" fill="currentColor">${Math.floor(duration/60)}:${String(Math.floor(duration%60)).padStart(2,"0")}</text></svg><div class="cr-legend">${lines.map(([key,s])=>`<button class="btn small" data-series="${esc(key)}" style="color:${color(d.r[s.actor]?.class)}">${esc(label(d.r[s.actor]))} · ${s.kind}</button>`).join("")}<button class="btn small" data-showall>Show all series</button></div></div>`;
+    }
+    function encounters(d) {
+      const enemies=(d.segment.entities || []).filter(e=>e.kind==="enemy");
+      return `<h3>Enemy encounters</h3>${table(["Enemy","Creature type","Damage received","Observed lifespan"],enemies.map(e=>{
+        const ee=d.events.filter(x=>x.source===e.id || x.target===e.id),damage=ee.filter(x=>x.kind==="damage" && x.target===e.id).reduce((n,x)=>n+x.amount,0);
+        return `<tr><td><button class="btn small" data-enemy-filter="${esc(e.id)}">${esc(e.name || e.id)}${e.is_boss?" (boss)":""}</button></td><td>${esc(e.mob_code ?? "Unknown")}</td><td>${number(damage)}</td><td>${ee.length?ee[0].t.toFixed(1)+"–"+ee[ee.length-1].t.toFixed(1)+"s":"—"}</td></tr>`;}))}<button class="btn small" data-clear-enemy>All enemies</button>`;
+    }
+    function timeline(d, events) {
+      const duration=Math.max(1,d.segment.duration),ids=[...new Set(events.flatMap(e=>[owner(e.source,d.r),owner(e.target,d.r)]).filter(id=>id && (d.friendly.has(id) || d.r[id]?.owner)))];
+      let omitted=0;
+      const lanes=ids.map(id=>{
+        const all=events.filter(e=>e.kind==="death" ? state.deaths && owner(e.target,d.r)===id : state.skills && owner(e.source,d.r)===id && (e.kind!=="heal" || state.heals));
+        omitted+=Math.max(0,all.length-1500);
+        return `<div class="cr-lane"><div style="color:${color(d.r[id]?.class)}">${esc(label(d.r[id]))}</div><div class="cr-track">${all.slice(0,1500).map(e=>`<span class="cr-mark ${e.kind}" style="left:${Math.min(99.5,100*e.t/duration)}%;background:${e.kind==="death"?"#ef6262":e.kind==="heal"?"#58d68d":color(d.r[id]?.class)}" title="${esc(e.t.toFixed(2)+"s · "+label(d.r[e.source])+" → "+label(d.r[e.target])+" · "+(e.skill || e.kind)+" · "+number(e.amount))}">${e.kind==="death"?"✝":""}</span>`).join("")}</div></div>`;
+      }).join("");
+      return `<h3>Recorded skill hits, healing and deaths</h3><p class="small muted">Markers represent recorded effects, not unobserved cast starts. Hover for actor, recipient, skill and time.${omitted?" Dense lanes display their first 1,500 markers; use Events for the complete list.":""}</p><div class="cr-timeline">${lanes || "No timeline events recorded."}</div>`;
+    }
+    function ranksHTML(d) {
+      if(!options.rankings)return "";
+      if(!ranks)return '<div class="small muted">Loading comparisons with public logs…</div>';
+      if(ranks.error)return `<div class="small muted">${esc(ranks.error)}</div>`;
+      const values=x=>x ? `#${x.rank} / ${x.count}` : "Unavailable";
+      return `<h3>Public log rankings</h3><p class="small muted">DPS, matched encounter and class. World means all submitted public logs on this community server; this is not every AION 2 player. ${esc(ranks.note || "")}</p>${table(["Player","Server","Region","World"],(ranks.players || []).map(p=>`<tr><td>${esc(p.name)}</td><td>${values(p.server)}</td><td>${values(p.region)}</td><td>${values(p.world)}</td></tr>`))}<p>Run DPS: Server ${values(ranks.run?.server)} · Region ${values(ranks.run?.region)} · World ${values(ranks.run?.world)}</p>`;
+    }
+    function render() {
+      if(replayFrame)cancelAnimationFrame(replayFrame);replayFrame=null;
+      const d=data(),events=visibleEvents(d),duration=Math.max(1,d.segment.duration),metric=state.metric==="summary"?"damage":state.metric;
+      const rows=d.rows.filter(p=>!state.actor || p.id===state.actor).sort((a,b)=>b[metric]-a[metric]);
+      const summary=table(["Player / server","Class","Damage done","DPS","Damage taken","Healing","HPS","Deaths"],rows.map(p=>`<tr><td style="color:${color(p.class)}">${esc(label(p))}</td><td>${esc(p.class || "Unknown")}</td><td>${number(p.damage)}</td><td>${number(p.damage/duration)}</td><td>${number(p.taken)}</td><td>${number(p.healing)}</td><td>${number(p.healing/duration)}</td><td>${p.deaths}</td></tr>`));
+      const skills=new Map();for(const e of events) {if(e.kind==="death")continue;const actor=owner(state.metric==="taken"?e.target:e.source,d.r);const key=actor+":"+e.kind+":"+(e.skill_id || e.skill);const row=skills.get(key) || {actor,kind:e.kind,skill:e.skill || e.skill_id || "Unknown",amount:0,hits:0};row.amount+=e.amount || 0;row.hits++;skills.set(key,row);}
+      const breakdown=table(["Player / server","Ability","Effects","Amount","Per second"],[...skills.values()].sort((a,b)=>b.amount-a.amount).map(s=>`<tr><td style="color:${color(d.r[s.actor]?.class)}">${esc(label(d.r[s.actor]))}</td><td>${esc(s.skill)}${s.kind==="heal"?" (heal)":""}</td><td>${s.hits}</td><td>${number(s.amount)}</td><td>${number(s.amount/duration)}</td></tr>`));
+      const pageCount=Math.max(1,Math.ceil(events.length/100));state.page=Math.min(state.page,pageCount-1);
+      const eventTable=table(["Time","Event","Caster / attacker","Recipient / target","Ability","Amount"],events.slice(state.page*100,(state.page+1)*100).map(e=>`<tr><td>${e.t.toFixed(3)}s</td><td>${esc(e.kind)}</td><td>${esc(label(d.r[e.source]))}</td><td>${esc(label(d.r[e.target]))}</td><td>${esc(e.skill || e.skill_id || "—")}</td><td>${e.kind==="death"?"—":number(e.amount)}</td></tr>`));
+      root.innerHTML=`<section class="win cr-review"><div class="wh"><h2>${esc(doc.meta?.title || "Combat log")}</h2><span>${duration.toFixed(1)}s</span></div><div class="wb">
+        <div class="row"><label>Encounter <select data-control="segment">${doc.segments.map((s,i)=>`<option value="${i}" ${i===state.segment?"selected":""}>${esc(s.label || s.boss || "Combat "+(i+1))}</option>`).join("")}</select></label><label>Player <select data-control="actor"><option value="">All players</option>${d.rows.map(p=>`<option value="${esc(p.id)}" ${p.id===state.actor?"selected":""}>${esc(label(p))}</option>`).join("")}</select></label><button class="btn small" data-color-settings>Class colors</button></div>
+        <div class="cr-tabs">${["summary","damage","taken","healing"].map((v,i)=>`<button class="btn small ${state.metric===v?"primary":""}" data-metric="${v}">${["Summary","Damage Done","Damage Taken","Healing"][i]}</button>`).join("")}<span class="cr-spacer"></span>${["table","timeline","events"].map(v=>`<button class="btn small ${state.view===v?"primary":""}" data-view="${v}">${v[0].toUpperCase()+v.slice(1)}</button>`).join("")}</div>
+        <div class="cr-options">${[["graph","Graph"],["timeline","Timeline"],["skills","Skills"],["deaths","Deaths"],["heals","Healing"],["pets","Pets"],["combine","Combine pets with owner"]].map(([key,label])=>`<label><input type="checkbox" data-control="${key}" ${state[key]?"checked":""}> ${label}</label>`).join("")}</div>
+        <div data-colors hidden></div>${state.graph?graph(d,events):""}${encounters(d)}
+        ${state.view==="table" ? summary+(state.metric!=="summary"?breakdown:"") : state.view==="events" ? eventTable+`<div class="row"><button class="btn small" data-prev>Previous</button> ${state.page+1} / ${pageCount} · ${events.length} events <button class="btn small" data-next>Next</button></div>` : ""}
+        ${state.timeline && (state.view==="timeline" || state.view==="table") ? timeline(d,events):""}
+        <p class="small muted">${d.events.some(e=>e.kind==="heal"&&!e.target)?"Some healing recipients are not carried by their packet variant. ":""}${!d.events.some(e=>e.kind==="death")?"No death markers recorded; zero counts do not establish a deathless run. ":""}${!(d.segment.positions || []).length?"Movement replay is unavailable: no verified positions were recorded.":""}</p>
+        ${ranksHTML(d)}<div data-replay></div>
+        <div class="row"><input data-compare placeholder="Another public log ID" aria-label="Log ID to compare"><button class="btn small" data-compare-go ${options.compare?"":"disabled"}>Compare log</button><span data-compare-result></span><input type="file" data-compare-file accept=".json" aria-label="Compare a local a2log file"></div>
+        <div data-comparison>${comparisonHTML(d)}</div>
+      </div></section>`;
+      root.querySelectorAll("[data-control]").forEach(e=>e.onchange=()=>{const key=e.dataset.control;state[key]=e.type==="checkbox"?e.checked:key==="segment"?+e.value:e.value;state.page=0;if(key==="segment"){state.enemy="";state.actor="";ranks=null;requestRanks();}render();});
+      root.querySelectorAll("[data-metric]").forEach(e=>e.onclick=()=>{state.metric=e.dataset.metric;state.page=0;render();});
+      root.querySelectorAll("[data-view]").forEach(e=>e.onclick=()=>{state.view=e.dataset.view;render();});
+      root.querySelectorAll("[data-enemy-filter]").forEach(e=>e.onclick=()=>{state.enemy=e.dataset.enemyFilter;render();});
+      root.querySelector("[data-clear-enemy]").onclick=()=>{state.enemy="";render();};
+      root.querySelectorAll("[data-series]").forEach(e=>e.onclick=()=>{state.hidden.add(e.dataset.series);render();});
+      if(root.querySelector("[data-showall]"))root.querySelector("[data-showall]").onclick=()=>{state.hidden.clear();render();};
+      if(root.querySelector("[data-prev]"))root.querySelector("[data-prev]").onclick=()=>{state.page=Math.max(0,state.page-1);render();};
+      if(root.querySelector("[data-next]"))root.querySelector("[data-next]").onclick=()=>{state.page++;render();};
+      root.querySelector("[data-color-settings]").onclick=()=>{const box=root.querySelector("[data-colors]");box.hidden=!box.hidden;settings(box);};
+      root.querySelector("[data-compare-go]").onclick=async()=>{const id=root.querySelector("[data-compare]").value.trim();const msg=root.querySelector("[data-compare-result]");try{comparison=await options.compare(id);render();}catch(e){msg.textContent=e.message;}};
+      root.querySelector("[data-compare-file]").onchange=async e=>{try{const imported=JSON.parse(await e.target.files[0].text());if(imported.format!=="a2log" || !Array.isArray(imported.segments))throw Error("Choose an a2log JSON file");comparison=imported;render();}catch(e){root.querySelector("[data-compare-result]").textContent=e.message;}};
+      replay(d);
+    }
+    function comparisonHTML(d) {
+      if(!comparison)return "";
+      const other=comparison.segments.find(s=>(s.boss || s.label)===(d.segment.boss || d.segment.label));
+      if(!other)return '<p class="muted">The comparison has no matching encounter name.</p>';
+      const sums=new Map();for(const h of other.hits || [])sums.set(h.player,(sums.get(h.player)||0)+h.damage);
+      return `<h3>Comparison — ${esc(comparison.meta?.title || "Other log")}</h3><p class="small muted">Recorded DPS, not adjusted for gear, patch, difficulty or missing packets. Match those conditions before drawing conclusions.</p>${table(["Player","Class","Current DPS","Comparison DPS","Difference"],d.rows.map(p=>{const candidates=(comparison.players || []).filter(o=>o.class===p.class);const o=candidates.find(o=>o.name===p.name && o.server===p.server) || candidates[0];const theirs=o?(sums.get(o.id)||0)/Math.max(1,other.duration):null;const own=p.damage/Math.max(1,d.segment.duration);return `<tr><td>${esc(label(p))}</td><td>${esc(p.class)}</td><td>${number(own)}</td><td>${theirs===null?"Unavailable":number(theirs)+" · "+esc(label(o))}</td><td>${theirs?((own/theirs-1)*100).toFixed(1)+"%":"—"}</td></tr>`;}))}`;
+    }
+    function replay(d) {
+      const positions=d.segment.positions || [];if(!positions.length)return;
+      const box=root.querySelector("[data-replay]");
+      box.innerHTML='<h3>Recorded movement replay</h3><button class="btn small" data-play>Play</button> <button class="btn small" data-rewind>Rewind</button><input data-scrub type="range" min="0" step="0.1" value="0"><output data-clock></output><svg class="cr-arena" viewBox="0 0 100 100" aria-label="Recorded positions"></svg><button class="btn small" data-plan>Import into Raid Planner</button>';
+      const scrub=box.querySelector("[data-scrub]");scrub.max=d.segment.duration;const tokens={};
+      for(const pos of positions)(tokens[pos.entity] ||= []).push(pos);
+      const draw=t=>{scrub.value=t;box.querySelector("[data-clock]").textContent=t.toFixed(1)+"s";box.querySelector("svg").innerHTML=Object.entries(tokens).map(([id,frames])=>{const a=frames.filter(p=>p.t<=t).at(-1) || frames[0],b=frames.find(p=>p.t>t) || a,f=(t-a.t)/Math.max(.001,b.t-a.t);return `<circle cx="${100*(a.x+(b.x-a.x)*Math.min(1,f))}" cy="${100*(a.y+(b.y-a.y)*Math.min(1,f))}" r="2" fill="${color(d.r[id]?.class)}"><title>${esc(label(d.r[id]))}</title></circle>`;}).join("");};
+      const pause=()=>{if(replayFrame)cancelAnimationFrame(replayFrame);replayFrame=null;box.querySelector("[data-play]").textContent="Play";};
+      box.querySelector("[data-play]").onclick=()=>{if(replayFrame){pause();return;}let last=performance.now();box.querySelector("[data-play]").textContent="Pause";const tick=now=>{const t=Math.min(d.segment.duration,+scrub.value+(now-last)/1000);last=now;draw(t);if(t>=d.segment.duration)pause();else replayFrame=requestAnimationFrame(tick);};replayFrame=requestAnimationFrame(tick);};
+      box.querySelector("[data-rewind]").onclick=()=>{pause();draw(0);};scrub.oninput=()=>{pause();draw(+scrub.value);};
+      box.querySelector("[data-plan]").onclick=()=>{const plan={format:"a2plan",version:1,meta:{name:d.segment.boss || d.segment.label || "Recorded replay"},duration:d.segment.duration,arena:{kind:"square"},tokens:Object.entries(tokens).map(([id,keyframes])=>({id,kind:d.r[id]?.kind==="enemy"?"enemy":"player",label:label(d.r[id]),cls:d.r[id]?.class,color:color(d.r[id]?.class),keyframes})),buffs:[]};const blob=new Blob([JSON.stringify(plan)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="recorded-replay.a2plan.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};draw(0);
+    }
+    async function requestRanks() {if(!options.rankings)return;const request=++rankRequest;try{const response=await options.rankings(state.segment);if(request!==rankRequest)return;ranks=response;}catch(e){ranks={error:e.message};}if(root.isConnected)render();}
+    const api={update(next){doc=next;state.segment=Math.min(state.segment,doc.segments.length-1);render();},state,dispose(){rankRequest++;if(replayFrame)cancelAnimationFrame(replayFrame);}};
+    render();requestRanks();return api;
+  }
+  window.A2CombatReview={mount,color,settings};
+})();

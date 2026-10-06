@@ -584,7 +584,7 @@ async function pageCombat() {
         Files: AbyssLogs segment (.json / .json.gz), aion2calc JSON (see docs), or CSV with columns t, skill, damage, crit, double, perfect, multi, dot.</p>
       <div class="row small" id="logsdir"></div>
       <div class="row small" id="lsrv"></div>
-      <div id="hist"></div></div></section><div id="enc"></div>`;
+      <h3>Recent full sessions</h3><div id="sessions"></div><div id="session-review"></div><h3>Analyzed encounters</h3><div id="hist"></div></div></section><div id="enc"></div>`;
   api("/api/logs").then((l) => {
     $("#logsdir").innerHTML = `<span class="muted">Every analyzed log is saved as a file in</span> <code>${esc(l.folder)}</code> <span class="faint">(${l.files} files)</span>
       <button class="btn small" id="openlogs">Open folder</button>`;
@@ -599,6 +599,9 @@ async function pageCombat() {
     $("#lssave").onclick = async () => { await api("/api/logserver", { url: $("#lsurl").value, key: $("#lskey").value || null, visibility: $("#lsvis").value }); toast("Saved"); srv(); };
   };
   srv();
+  const sessions = await api("/api/sessions").catch(() => []);
+  $("#sessions").innerHTML = sessions.length ? `<table class="t"><tr><th>Session</th><th>Updated</th><th>Encounters</th><th>Players</th><th></th></tr>${sessions.map(s=>`<tr><td>${esc(s.title || s.file)}</td><td>${new Date(s.updated*1000).toLocaleString()}</td><td>${s.segments}</td><td>${s.players}</td><td><button class="btn small" data-session="${esc(s.file)}">Open</button></td></tr>`).join("")}</table>` : '<p class="small muted">Full live sessions are saved here automatically on Stop.</p>';
+  $$("[data-session]").forEach(b=>b.onclick=async()=>{try{const doc=await api("/api/sessions?file="+encodeURIComponent(b.dataset.session));if(st.review)st.review.dispose();st.review=A2CombatReview.mount($("#session-review"),doc);$("#session-review").scrollIntoView({block:"start",behavior:"smooth"});}catch(e){$("#lmsg").textContent=e.message;}});
   const hist = await api("/api/encounters").catch(() => []);
   $("#hist").innerHTML = hist.length ? `<table class="t"><tr><th>#</th><th>Player</th><th>Class</th><th>Target</th><th>Source</th><th class="r">Duration</th><th class="r">DPS</th><th></th></tr>${hist.map((e) =>
     `<tr><td>${e.id}</td><td>${esc(e.player || "")}</td><td>${esc(cap(e.class_name))}</td><td>${esc(e.boss || "")}</td><td>${esc(e.source)}</td><td class="r">${(e.duration || 0).toFixed(0)}s</td><td class="r num">${n0(e.dps)}</td>
@@ -726,22 +729,22 @@ async function pageMeter() {
         <button class="btn primary" id="mstart" aria-pressed="false">Start</button>
         <button class="btn small" id="mclear">Clear session</button><button class="btn small" id="msave">Save to Combat Logs</button><button class="btn small" id="mexport">Export a2log</button>
         <button class="btn small" id="mupload">Upload</button><button class="btn small" id="mshot">Screenshot</button>
-        <button class="btn small" id="movl" title="Open the compact overlay in a separate window">Open overlay</button><span id="mmsg" class="small muted"></span></div>
+        <button class="btn small" id="mhide">Hide overlay</button><button class="btn small" id="msplit">Split now</button><button class="btn small" id="movl" title="Open the compact overlay in a separate window">Open overlay</button><span id="mmsg" class="small muted"></span></div>
       <div class="row" id="mlive" style="display:none;margin-top:6px">
         <label class="small muted">Encoder <input id="mdec" type="text" value="Built-in A2Tools decoder" readonly aria-label="Encoder module" style="width:180px"></label>
         <label class="small muted">Interface <select id="miface" aria-label="Capture interface" title="Npcap interface; Auto monitors all available adapters"><option value="auto">Auto</option></select></label><button class="btn small" id="mifacesrefresh">Refresh interfaces</button>
         <label class="small muted">Game host <input id="mhost" type="text" value="any" aria-label="Game host" style="width:100px" title="Use an address to limit the capture; any accepts game traffic on the port"></label>
         <label class="small muted"><input id="mautoport" type="checkbox" checked> Detect game port</label><label class="small muted">Fixed port <input id="mport" type="number" value="50349" aria-label="Game server port" style="width:80px"></label>
 
-        <label class="small muted">My character <input id="mchar" type="text" placeholder="in-game name" style="width:120px"></label></div>
-      <div class="row" style="margin-top:8px"><label class="small muted">Players <select id="mscope"><option value="party">Self + Party</option><option value="self">Self only</option><option value="all">All observed players</option></select></label><label class="small muted">Group combat within <input id="msegap" type="number" min="3" max="120" value="10" style="width:60px"> seconds</label><label class="small muted">Combat <select id="msegments"><option value="">Latest combat</option><option value="all">Whole session</option></select></label><button class="btn small" id="mallenemies">All enemies</button></div>
+        <label class="small muted">Name override (optional) <input id="mchar" type="text" placeholder="Auto-detect" style="width:120px"></label></div>
+      <div class="row" style="margin-top:8px"><label class="small muted">Players <select id="mscope"><option value="party">Self + Party</option><option value="self">Self only</option><option value="all">All observed players</option></select></label><label class="small muted"><input id="mautosplit" type="checkbox" checked> Automatic splits</label><label class="small muted">Group combat within <input id="msegap" type="number" min="3" max="120" value="10" style="width:60px"> seconds</label><label class="small muted">Combat <select id="msegments"><option value="">Latest combat</option><option value="all">Whole session</option></select></label><button class="btn small" id="mallenemies">All enemies</button></div>
       <div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
       <div class="note" style="margin-top:10px"><b>Capture diagnostics</b>
         <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads (enable before Start)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><span id="mrecordstatus" class="small muted"></span></div>
         <p class="small faint">Keeps up to 4 MiB locally, even when no combat events are decoded. Saves a diagnostic ZIP automatically when capture stops. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></div><div id="npcap" class="small faint" style="margin-top:8px"></div>
       <p class="small faint">Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, and capture permission. Export writes an open a2log file; Upload uses the log server configured in Settings.</p>
-      <div id="mnotice" class="small" role="status"></div>
-    </div></section><div id="mview"></div>`;
+      <div id="midentity" class="small" role="status"></div><div id="msaved" class="small" role="status"></div><div id="mnotice" class="small" role="status"></div>
+    </div></section><div id="mview"></div><div id="mlog-review"></div>`;
   const live = () => {
     $("#mlive").style.display = $("#msrc").value !== "replay" ? "flex" : "none";
     $("#mcustom").style.display = $("#msrc").value === "live" ? "flex" : "none";
@@ -752,10 +755,16 @@ async function pageMeter() {
   $("#mchar").onchange = () => { try { localStorage.setItem("meter-character", $("#mchar").value.trim()); } catch (e) {} updateView({character_name: $("#mchar").value.trim()}); };
   $("#mscope").onchange = () => updateView({scope: $("#mscope").value});
   $("#msegap").onchange = () => updateView({segment_gap: +$("#msegap").value || 10});
+  $("#msplit").onclick = async()=>{st.pinnedSegment="";renderMeter(await api("/api/meter",{action:"split"}));$("#mnotice").textContent="Next combat event starts a new split.";};
+  $("#mautosplit").onchange=()=>updateView({automatic_splits:$("#mautosplit").checked});
+  $("#mhide").onclick=async()=>{await api("/api/overlay",{action:"hide"});if(st.overlayPopup)st.overlayPopup.close();$("#mnotice").textContent="Overlay hidden. Open overlay to show it again.";};
   $("#msegments").onchange = () => { st.pinnedSegment = $("#msegments").value; updateView({segment: st.pinnedSegment}); };
   $("#mallenemies").onclick = () => updateView({enemy: null});
   $("#mclear").onclick = async () => {
     if (!window.confirm("Clear retained combat history? Export or save it first if you want to keep a copy.")) return;
+    if(st.liveReview)st.liveReview.dispose();
+    if($("#mlog-review"))$("#mlog-review").innerHTML="";
+    st.liveReviewRoot=null;
     try { st.pinnedSegment = ""; renderMeter(await api("/api/meter", {action: "clear"})); } catch (e) { $("#mnotice").textContent = e.message; }
   };
   let decoderPath = null;
@@ -831,6 +840,7 @@ async function pageMeter() {
     }
     const body = { action: "start", source, scope: $("#mscope").value, segment_gap: +$("#msegap").value || 10, decoder: source === "live" ? decoderPath : null,
       auto_port: source === "a2tools" && $("#mautoport").checked,
+      automatic_splits: $("#mautosplit").checked,
       record_packets: source !== "replay" && $("#mrecord").checked,
       iface: source !== "replay" && $("#miface").value !== "auto" ? $("#miface").value : null,
       host: source !== "replay" && $("#mhost").value !== "any" ? $("#mhost").value : null,
@@ -852,7 +862,7 @@ async function pageMeter() {
       const r = await api("/api/overlay", {});          // native transparent window (bundled on Windows)
       if (r.native) { $("#mnotice").textContent = r.already_open ? "overlay is already open" : "overlay opened in a transparent window"; return; }
     } catch (e) { /* fall through to a plain browser window */ }
-    window.open("/overlay", "a2overlay", "width=300,height=430");
+    st.overlayPopup=window.open("/overlay", "a2overlay", "width=300,height=430");
     $("#mnotice").textContent = "overlay opened in a window";
   };
   $("#msave").onclick = async () => {
@@ -903,6 +913,13 @@ function renderMeter(s) {
     button.classList.toggle("danger", st.running);
     button.classList.toggle("primary", !st.running);
     button.setAttribute("aria-pressed", String(st.running));
+  }
+  const who=s.identity;
+  if($("#midentity"))$("#midentity").textContent=who?.id ? `${who.verified ? "Detected automatically" : "Matched name override"}: ${who.name || "Player #"+who.id}${who.serverId ? " · server "+who.serverId : ""} · combat entity #${who.id} (changes between instances)` : "Auto-detecting your character. Start before entering an instance or use the optional name override.";
+  if($("#msaved"))$("#msaved").textContent=s.diagnostics?.log_save_error || (s.saved_log ? "Full session saved to "+s.saved_log : "Full session saves automatically on Stop.");
+  if(s.snapshot?.players?.length && $("#mlog-review") && !st.reviewLoading && Date.now()-(st.reviewAt || 0)>4000) {
+    st.reviewLoading=true;st.reviewAt=Date.now();
+    api("/api/meter/log").then(doc=>{const target=$("#mlog-review");if(!target)return;if(st.liveReviewRoot!==target){if(st.liveReview)st.liveReview.dispose();st.liveReview=A2CombatReview.mount(target,doc);st.liveReviewRoot=target;}else st.liveReview.update(doc);}).catch(()=>{}).finally(()=>{st.reviewLoading=false;});
   }
   const record = $("#mrecord"); if (record) record.disabled = st.running;
   if ($("#mclear")) $("#mclear").disabled = st.running;
@@ -1208,12 +1225,14 @@ async function pageSettings() {
       <select id="svis">${["unlisted", "public", "private"].map((v) => `<option ${v === (srv.visibility || "unlisted") ? "selected" : ""}>${v}</option>`).join("")}</select>
       <button class="btn small" id="ssave">Save</button><span id="smsg" class="small muted"></span></div>
       ${srv.is_default && srv.url ? '<div class="small muted" style="margin-top:4px">Using the community default server. Enter your own above to override it.</div>' : ""}</div></div>
-    <div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button></div></div>
+    <div class="setrow"><div class="lbl">Combat class colors</div><div id="class-colors"></div></div><div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button></div></div>
     <div class="setrow"><div class="lbl">Updates</div><div><label><input type="checkbox" id="autoupd" ${ui.auto_update !== false ? "checked" : ""}> check and prompt for updates on launch</label></div></div>
     <div class="setrow"><div class="lbl">Version</div><div>Aion 2 Calc ${esc(s.version)} ${s.update ? `· version ${esc(s.update.version)} available <button class="btn small" id="instupd">Install now</button> <a href="${esc(s.update.url)}" target="_blank" rel="noopener">release notes</a>` : '<span class="muted">· up to date</span>'} <span id="updmsg" class="small muted"></span></div></div>
     <div class="setrow"><div class="lbl">Community</div><div><a href="${DISCORD}" target="_blank" rel="noopener">Join the aion2calc Discord</a> — questions, builds and help</div></div>
     <div class="setrow"><div class="lbl">Stop the app</div><div><button class="btn small" id="quit2">Quit aion2calc</button></div></div>
     <div class="setrow" style="border-top:1px solid var(--line);margin-top:8px;padding-top:10px"><div class="lbl">Author</div><div class="muted">Spirited - Zikel : Asmodian&nbsp;&nbsp;|&nbsp;&nbsp;Legion: WhaleWatch</div></div>`);
+  if(ui.combat_colors)localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));
+  A2CombatReview.settings($("#class-colors"),pref=>api("/api/ui",{combat_colors:pref}));
   $$("[data-th]").forEach((b) => (b.onclick = () => { setTheme(b.dataset.th); pageSettings(); }));
   $("#appwin").onchange = () => api("/api/ui", { app_window: $("#appwin").checked }).then(() => toast("Saved"));
   $("#autoupd").onchange = () => api("/api/ui", { auto_update: $("#autoupd").checked }).then(() => toast("Saved"));

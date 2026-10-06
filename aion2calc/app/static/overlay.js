@@ -6,7 +6,10 @@
   const kfmt = (x) => { if (x == null || isNaN(x)) return "—"; const a = Math.abs(x); return a >= 1e6 ? (x / 1e6).toFixed(2) + "M" : a >= 1e3 ? (x / 1e3).toFixed(2) + "K" : Math.round(x).toString(); };
   let tab = "meter", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false;
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
+  const syncColors=()=>fetch("/api/ui").then(r=>r.json()).then(ui=>{if(ui.combat_colors)localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));}).catch(()=>{});
+  syncColors();setInterval(syncColors,10000);
   const slider = $("#ovop");
+  $("#ovhide").onclick = () => fetch("/api/overlay", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"hide"})}).then(()=>window.close());
   slider.value = Math.round(op * 100);
   function nativeCall(name, ...args) {
     const api = nativeReady && window.pywebview?.api;
@@ -58,7 +61,7 @@
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
     const mx = Math.max(...players.map((p) => p.dps || 0), 1);
     const rows = players.slice(0, 8).map((p) => `<div class="ovrow"><span class="ovname" title="${esc(p.name)}">${esc(p.name)}</span>
-        <div class="ovbar"><i style="width:${100 * (p.dps || 0) / mx}%"></i><span>${kfmt(p.dps)}/s <span class="sub">${kfmt(p.damage)} · ${Math.round(100 * (p.share || 0))}%</span></span></div></div>`).join("");
+        <div class="ovbar"><i style="width:${100 * (p.dps || 0) / mx}%;background:${A2CombatReview.color(p.class)}"></i><span>${kfmt(p.dps)}/s <span class="sub">${kfmt(p.damage)} · ${Math.round(100 * (p.share || 0))}%</span></span></div></div>`).join("");
     $("#ovstatus").textContent = `${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(snap.duration) || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)}/s`;
     const empty = s.error || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app.");
     $("#ovcontent").innerHTML = rows || `<div class="muted">${esc(empty)}</div>`;

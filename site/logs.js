@@ -12,10 +12,9 @@
     $("#list").innerHTML = '<div class="empty">Loading…</div>';
     try {
       const data = await window.A2.api("/api/v1/logs?limit=100" + (boss ? "&boss=" + encodeURIComponent(boss) : ""));
-      const base = window.A2.base();
       const rows = (data.logs || []).map((l) => {
         const top = (l.players || [])[0] || {};
-        return `<tr onclick="location.href='${esc(base)}/l/${esc(l.id)}'" style="cursor:pointer">
+        return `<tr onclick="location.href='log.html?id=${esc(l.id)}'" style="cursor:pointer">
           <td class="gold">${esc(l.boss || l.title || "Fight")}</td>
           <td>${esc(top.name || "")} <span class="muted small">${esc(cap(top.class || ""))}</span></td>
           <td class="r num">${n0(l.top_dps)}</td>
