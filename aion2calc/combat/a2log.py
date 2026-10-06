@@ -62,6 +62,8 @@ SCHEMA = {
             "recorded_at": {"type": "string", "format": "date-time"},
             "zone": {"type": "string"}, "difficulty": {"type": "string"},
             "game_patch": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
+            "capture_active": {"type": "boolean"}, "checkpoint_at": {"type": "number"},
+            "capture_scope": {"enum": ["party", "self", "all"]},
             "visibility": {"enum": ["public", "unlisted", "private"]},
             "contribute": {"enum": ["yes", "no"], "description": "use this fight in the anonymous class "
                            "statistics (default yes; private logs never are)"}}},
@@ -148,6 +150,12 @@ def validate(doc) -> dict:
         raise Invalid('"meta" must be an object')
     clean_meta = {k: _text(v, f"meta.{k}") for k, v in meta.items()
                   if isinstance(v, str) and k in SCHEMA["properties"]["meta"]["properties"]}
+    if isinstance(meta.get("capture_active"), bool):
+        clean_meta["capture_active"] = meta["capture_active"]
+    if _num(meta.get("checkpoint_at")) and meta["checkpoint_at"] >= 0:
+        clean_meta["checkpoint_at"] = meta["checkpoint_at"]
+    if meta.get("capture_scope") in ("party", "self", "all"):
+        clean_meta["capture_scope"] = meta["capture_scope"]
     if clean_meta.get("encounter_type") not in (None, *ENCOUNTER_TYPES):
         raise Invalid("Unknown encounter_type")
     if clean_meta.get("visibility") not in (None, "public", "unlisted", "private"):

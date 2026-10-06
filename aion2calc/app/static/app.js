@@ -581,6 +581,7 @@ function parseFromMeter(snap, idx) {
 
 const communityAPI=(path,body)=>body?api('/api/community',{path,body}):api('/api/community?path='+encodeURIComponent(path));
 const localReviewOptions=file=>({
+ importPlan:plan=>{window.A2Raid.importPlan(plan);location.hash="raid";},
  compare:id=>communityAPI('/api/v1/logs/'+encodeURIComponent(id)+'/raw'),
  rankings:(segment,log)=>communityAPI('/api/v1/rankings',{segment,log}),
  ...(file?{saveMetadata:log=>api('/api/sessions',{file,log}),publish:visibility=>api('/api/sessions/share',{file,visibility})}:{})
@@ -614,7 +615,7 @@ async function pageCombat() {
   const renderSessions=()=>{
     const type=$('#sessiontype').value;
     const filtered=sessions.filter(s=>!type || s.contexts?.some(c=>c.encounter_type===type));
-  $("#sessions").innerHTML = filtered.length ? `<table class="t"><tr><th>Session</th><th>Updated</th><th>Encounters</th><th>Players</th><th></th></tr>${filtered.map(s=>`<tr><td>${esc(s.title || s.file)}</td><td>${new Date(s.updated*1000).toLocaleString()}</td><td>${s.segments}</td><td>${s.players}</td><td><button class="btn small" data-session="${esc(s.file)}">Open</button></td></tr>`).join("")}</table>` : '<p class="small muted">Full live sessions are saved here automatically on Stop.</p>';
+  $("#sessions").innerHTML = filtered.length ? `<table class="t"><tr><th>Session</th><th>Updated</th><th>Encounters</th><th>Players</th><th></th></tr>${filtered.map(s=>`<tr><td>${esc(s.title || s.file)}${s.unfinished ? ' <span class="small muted">(unfinished checkpoint)</span>' : ""}</td><td>${new Date(s.updated*1000).toLocaleString()}</td><td>${s.segments}</td><td>${s.players}</td><td><button class="btn small" data-session="${esc(s.file)}">Open</button></td></tr>`).join("")}</table>` : '<p class="small muted">Live sessions save every 15 seconds and on Stop. Unfinished checkpoints remain available after a crash.</p>';
   $$("[data-session]").forEach(b=>b.onclick=async()=>{try{const doc=await api("/api/sessions?file="+encodeURIComponent(b.dataset.session));if(st.review)st.review.dispose();st.review=A2CombatReview.mount($("#session-review"),doc,localReviewOptions(b.dataset.session));$("#session-review").scrollIntoView({block:"start",behavior:"smooth"});}catch(e){$("#lmsg").textContent=e.message;}});
   };
   $('#sessiontype').onchange=renderSessions;renderSessions();

@@ -397,5 +397,12 @@
     render();
   }
 
-  window.A2Raid = { mount };
+  window.A2Raid = { mount, importPlan(plan) {
+    if (!plan || plan.format !== "a2plan" || !Array.isArray(plan.tokens)) throw Error("Invalid replay plan");
+    const copy = JSON.parse(JSON.stringify(plan));
+    copy.meta = {...copy.meta, updated: Date.now()};
+    const all = raidPlans(); all[uid()] = copy;
+    // Propagate storage errors to the caller instead of losing the imported replay.
+    localStorage.setItem(A2PLAN_KEY, JSON.stringify(all));
+  } };
 })();

@@ -33,6 +33,8 @@ class Runner:
         self.diagnostic_export = None
         self._exported_recorder = None
         self._diagnostic_lock = threading.Lock()
+        self._session_save_lock = threading.Lock()
+        self._last_checkpoint = 0.0
         self._stop = False
         self.replay_stop = threading.Event()
         self.lock = threading.Lock()
@@ -54,6 +56,7 @@ class Runner:
         from ..meter.diagnostics import Recorder
         self.recorder = Recorder() if opts.get("record_packets") else None
         self.started_at = time.monotonic()
+        self._last_checkpoint = self.started_at
         self._stop = False
         self.replay_stop = threading.Event()
         self.source_name = source
@@ -132,6 +135,7 @@ class Runner:
                 try:
                     item = packets.get(timeout=0.5)
                 except queue.Empty:
+                    self._checkpoint_session()
                     continue
                 kind, *data = item
                 if kind == "packet":
@@ -157,6 +161,7 @@ class Runner:
                             engine.set_server_port(int(data[0]["port"]))
                 elif kind == "capture_stopped":
                     break
+                self._checkpoint_session()
         except Exception as exc:
             self.error = f"Decoder failed: {type(exc).__name__}: {exc}"
         finally:
@@ -197,15 +202,31 @@ class Runner:
         # Repeated Stop/Quit calls must not create duplicate archives.
         self._archive_diagnostics()
 
-    def _archive_diagnostics(self) -> None:
-        if self.packet_engine is not None and self.session.records:
+    def _checkpoint_session(self) -> None:
+        now = time.monotonic()
+        if now - self._last_checkpoint >= 15:
+            self._last_checkpoint = now
+            self._save_session(active=True)
+
+    def _save_session(self, active: bool) -> None:
+        if self.packet_engine is None or not self.session.records:
+            return
+        # Serialize snapshot and replacement together so an older periodic save
+        # cannot overwrite the final snapshot after Stop.
+        with self._session_save_lock:
             try:
                 from ..combat.sessions import save
                 with self.lock:
                     doc = self._metadata(self.session.to_a2log(self.scope))
+                    doc["meta"].update(capture_active=bool(active and self.running),
+                                       checkpoint_at=time.time(), capture_scope=self.scope)
                 self.saved_log = str(save(doc, self.session_file))
+                self.diagnostics.pop("log_save_error", None)
             except (ValueError, OSError) as exc:
                 self.diagnostics["log_save_error"] = str(exc)
+
+    def _archive_diagnostics(self) -> None:
+        self._save_session(active=False)
         if self.recorder is not None and self.recorder is not self._exported_recorder:
             if self.recorder.snapshot(include_rows=False)[0]["records"]:
                 try:
