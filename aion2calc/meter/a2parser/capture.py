@@ -38,6 +38,7 @@ class TCPReassembler:
         self.next_seq: int | None = None
         self.waiting: dict[int, bytes] = {}
         self.last_seen = time.monotonic()
+        self.discarded_payloads = 0
 
     def feed(self, sequence: int, payload: bytes, *, syn: bool = False) -> bytes:
         self.last_seen = time.monotonic()
@@ -59,6 +60,7 @@ class TCPReassembler:
         if delta:
             if delta > MAX_REORDER_DISTANCE or (sequence not in self.waiting
                                                  and len(self.waiting) >= MAX_REORDERED_SEGMENTS):
+                self.discarded_payloads += 1
                 return b""
             previous = self.waiting.get(sequence)
             if previous is None or (len(payload) > len(previous) and payload.startswith(previous)):
@@ -203,7 +205,9 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
     stats = {"packets": 0, "payload_packets": 0, "bytes": 0, "forwarded": 0,
              "auto_port": auto_port, "port": None if auto_port else server_port,
              "interface": interface or "Auto", "interfaces": interfaces, "warnings": [],
-             "state": "starting", "signature_packets": 0, "candidate_flows": []}
+             "state": "starting", "signature_packets": 0, "candidate_flows": [],
+             "transport_monitored": True, "tcp_discarded_payloads": 0, "tcp_unresolved_flows": 0,
+             "tcp_pending_bytes": 0}
     last_prune = time.monotonic()
 
     def on_packet(packet) -> None:
@@ -238,13 +242,16 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                 # seen on several adapters (e.g. VPN plus physical interface).
                 flow_key = stream_key if auto_port else stream_key[1:]
                 flow = flows.setdefault(flow_key, TCPReassembler())
+                before = flow.discarded_payloads
                 reassembled = flow.feed(sequence, chunk, syn=has_syn)
+                stats["tcp_discarded_payloads"] += flow.discarded_payloads - before
                 if reassembled:
                     _, src, sport, dst, dport = stream_key
                     emit("packet", f"{src}:{sport}->{dst}:{dport}", reassembled, time.time_ns() // 1_000_000)
                     stats["forwarded"] += 1
             if int(tcp.flags) & (0x01 | 0x04):
-                flows.pop(key if auto_port else key[1:], None)
+                closed = flows.pop(key if auto_port else key[1:], None)
+                stats["tcp_unresolved_flows"] += int(bool(closed and closed.waiting))
                 if auto_port and detector.is_connection(key):
                     detector.reset()
                     stats["port"] = None
@@ -278,10 +285,12 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                 if now - last_prune >= 30:
                     for stale_key, flow in tuple(flows.items()):
                         if now - flow.last_seen >= 120:
+                            stats["tcp_unresolved_flows"] += int(bool(flow.waiting))
                             flows.pop(stale_key, None)
                     last_prune = now
                 stats["candidate_flows"] = [{"interface": key[0], "src": key[1], "sport": key[2], "dst": key[3], "dport": key[4], "signature_hits": len(value["hits"])} for key, value in detector.candidates.items()]
                 stats["selected_flow"] = detector.selected
+                stats["tcp_pending_bytes"] = sum(len(data) for flow in flows.values() for data in flow.waiting.values())
                 emit("capture_stats", dict(stats))
     except Exception as exc:
         emit("error", str(exc))
@@ -305,5 +314,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                 except Exception:
                     pass
         stats["state"] = "stopped"
+        with callback_lock:
+            stats["tcp_pending_bytes"] = sum(len(data) for flow in flows.values() for data in flow.waiting.values())
         emit("capture_stats", dict(stats))
         emit("capture_stopped")

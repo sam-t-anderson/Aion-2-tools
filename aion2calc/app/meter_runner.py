@@ -109,6 +109,9 @@ class Runner:
             return self.status()
         decoder = opts.get("custom_decoder")
         self.packet_engine = None if decoder else PacketMeterEngine()
+        self._capture_loss_baseline = {k:self.session.capture_evidence.get(k, 0) for k in ("tcp_discarded_payloads", "tcp_unresolved_flows")}
+        if self.session.capture_evidence.get("tcp_pending_bytes", 0):
+            self._capture_loss_baseline["tcp_unresolved_flows"] += 1
         if self.packet_engine is not None:
             self.session.begin_capture()
             self.packet_engine.set_server_port(port)
@@ -167,6 +170,12 @@ class Runner:
                 elif kind == "capture_stats":
                     with self.lock:
                         self.diagnostics.update(data[0])
+                        for key in ("transport_monitored", "tcp_discarded_payloads", "tcp_unresolved_flows", "tcp_pending_bytes"):
+                            if key in data[0]:
+                                value = data[0][key]
+                                if key in ("tcp_discarded_payloads", "tcp_unresolved_flows"):
+                                    value += self._capture_loss_baseline.get(key, 0)
+                                self.session.capture_evidence[key] = value
                         if engine is not None and data[0].get("port"):
                             engine.set_server_port(int(data[0]["port"]))
                 elif kind == "capture_stopped":
@@ -179,6 +188,18 @@ class Runner:
             if self.packet_capture_thread:
                 self.packet_capture_thread.join(timeout=3.0)
             self.diagnostics["state"] = "error" if self.error else "stopped"
+            with self.lock:
+                if self.error:
+                    self.session.capture_evidence["capture_errors"] = self.session.capture_evidence.get("capture_errors", 0) + 1
+                # Drain final counters after the capture thread has stopped.
+                while not packets.empty():
+                    final = packets.get_nowait()
+                    if final[0] == "packet":
+                        self.session.capture_evidence["capture_errors"] = self.session.capture_evidence.get("capture_errors", 0) + 1
+                    if final[0] == "capture_stats":
+                        for key in ("transport_monitored", "tcp_discarded_payloads", "tcp_unresolved_flows", "tcp_pending_bytes"):
+                            if key in final[1]:
+                                self.session.capture_evidence[key] = final[1][key] + self._capture_loss_baseline.get(key, 0) if key in ("tcp_discarded_payloads", "tcp_unresolved_flows") else final[1][key]
             self.running = False
             self._archive_diagnostics()
 
@@ -354,6 +375,9 @@ class Runner:
         profile = self.packet_engine.local_profile if self.packet_engine else {}
         if profile.get("serverId"):
             doc["meta"]["server"] = str(profile["serverId"])
+        from ..combat.quality import assess
+        for segment in doc.get("segments", []):
+            segment["quality"] = assess(doc, segment)
         return doc
 
     def has_data(self) -> bool:

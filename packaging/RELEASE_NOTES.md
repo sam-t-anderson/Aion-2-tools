@@ -1,3 +1,13 @@
+## Changes in 0.2.23 — capture quality
+
+- Show capture-quality status and exclusion reasons in the shared desktop, Pages and server combat viewer.
+- Preserve decoder/application versions, capture scope, retained-history losses, validation losses, capture failures and observed TCP reassembly losses in exported sessions.
+- Preserve recent pre-pull boss HP evidence to distinguish a captured start from joining a fight partway through.
+- With the updated server, only sufficiently complete Party boss captures qualify for rankings, class distributions and personal bests. Other recordings remain available for review and personal history.
+- Show duplicate-public-upload status and rank eligibility alongside community logs and history.
+
+Older captures and PvP matches lack verified completeness evidence and remain unranked. These checks do not establish authenticity or guarantee every packet was captured. Server duplicate matching is conservative; ambiguous or incomplete captures may remain separate.
+
 ## Changes in 0.2.22 — distinct fight identities
 
 - Keep split IDs unique when multiple PvE/PvP fight groups start in the same decoded packet, preserving correct encounter selection in live review.

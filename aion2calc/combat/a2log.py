@@ -83,6 +83,7 @@ SCHEMA = {
             "game_patch": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
             "capture_active": {"type": "boolean"}, "checkpoint_at": {"type": "number"},
             "capture_scope": {"enum": ["party", "self", "all"]},
+            "capture_quality": {"type": "object", "description": "Capture evidence and loss counters; eligibility is computed by the server"},
             "visibility": {"enum": ["public", "unlisted", "private"]},
             "contribute": {"enum": ["yes", "no"], "description": "use this fight in the anonymous class "
                            "statistics (default yes; private logs never are)"}}},
@@ -178,6 +179,16 @@ def validate(doc) -> dict:
         clean_meta["checkpoint_at"] = meta["checkpoint_at"]
     if meta.get("capture_scope") in ("party", "self", "all"):
         clean_meta["capture_scope"] = meta["capture_scope"]
+    from .quality import COUNTERS
+    capture = meta.get("capture_quality")
+    if isinstance(capture, dict):
+        evidence = {k: capture[k][:100] for k in ("decoder", "app_version") if isinstance(capture.get(k), str)}
+        for k in (*COUNTERS, "tcp_pending_bytes"):
+            if isinstance(capture.get(k), int) and not isinstance(capture[k], bool) and 0 <= capture[k] <= 2**53-1:
+                evidence[k] = capture[k]
+        if isinstance(capture.get("transport_monitored"), bool):
+            evidence["transport_monitored"] = capture["transport_monitored"]
+        clean_meta["capture_quality"] = evidence
     if clean_meta.get("encounter_type") not in (None, *ENCOUNTER_TYPES):
         raise Invalid("Unknown encounter_type")
     if clean_meta.get("visibility") not in (None, "public", "unlisted", "private"):
@@ -331,7 +342,18 @@ def validate(doc) -> dict:
                 if key == "encounter_type" and s[key] not in ENCOUNTER_TYPES:
                     raise Invalid("Unknown segment encounter_type")
                 out_segs[-1][key] = s[key][:200]
-    return {"format": "a2log", "version": VERSION, "meta": clean_meta, "players": out_players, "segments": out_segs}
+    # Optional arrays are filtered/capped above. Make any loss visible after round trips.
+    removed = sum(max(0, len(s.get(key) or []) - len(out.get(key) or []))
+                  for s, out in zip(segs, out_segs)
+                  for key in ("events", "health", "positions", "entities", "buffs", "hp"))
+    if removed:
+        evidence = clean_meta.setdefault("capture_quality", {})
+        evidence["validation_discarded"] = min(2**53-1, evidence.get("validation_discarded", 0) + removed)
+    result = {"format": "a2log", "version": VERSION, "meta": clean_meta, "players": out_players, "segments": out_segs}
+    from .quality import assess
+    for segment in out_segs:
+        segment["quality"] = assess(result, segment)
+    return result
 
 
 # ------------------------------------------------------------- conversions
