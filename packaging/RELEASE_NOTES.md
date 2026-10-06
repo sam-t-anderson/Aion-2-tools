@@ -1,3 +1,13 @@
+## Changes in 0.2.24 — run timing and boss progression
+
+- Review each recorded run independently in desktop, Pages and shared logs: recorded span, encounter time, gaps and verified entry-to-final-boss elapsed time when available.
+- Show recorded boss attempts, kills, observed wipes, unknown outcomes, attempts to first recorded clear, best observed wipe HP and recovery gaps.
+- Join unresolved manual chunks of the same boss actor instead of counting each split as another pull.
+- Add public completed-run speed tables and boss progression summaries with the updated server. Speed comparisons match instance, boss route, patch, difficulty and party size; duplicate recordings count once.
+- Preserve observed instance-entry times and stable party-roster evidence for future captures.
+
+Speed eligibility requires an observed open-world-to-instance transition, configured final-boss completion, a stable identified party and complete capture evidence. Captures started inside an instance and manual finishes remain reviewable but unranked for speed. Unknown outcomes are not wipes; missing HP/death markers are unavailable. Encounter time is the union of recorded fight intervals, not action uptime. Existing bounded-history limits and unverified PvP boundaries remain.
+
 ## Changes in 0.2.23 — capture quality
 
 - Show capture-quality status and exclusion reasons in the shared desktop, Pages and server combat viewer.

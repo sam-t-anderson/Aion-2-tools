@@ -22,6 +22,12 @@ It answers, for any class:
 and produces images of the Daevanion boards and a planner-style build page plus
 share links for the metabot.gg and gamers4.life planners.
 
+## Run timing and boss progression
+
+Desktop, Pages and shared logs show each run's recorded span, combined encounter intervals and gaps between fights. The boss tables show recorded attempts, kills, observed wipes, unknown outcomes, first recorded clear, best observed wipe HP and recovery time. Unresolved manual chunks of the same boss actor count as one recorded attempt.
+
+Public **Completed-run speed** compares eligible elapsed times within the same instance, boss route, patch, difficulty and party size. Entry-to-final-boss timing requires capture to observe an open-world-to-instance transition and configured final-boss death, with a complete stable identified party and capture evidence. Starting inside an instance or finishing manually does not qualify. Missing deaths do not imply a wipe; missing HP is unavailable. These are community recordings, not official or authenticated game results. Encounter time measures recorded intervals, not action uptime.
+
 ## Multiple runs in one capture
 
 Capture can stay running across encounters and runs. **Finish run** closes the current run; the next damage starts another without clearing earlier fights. Map or dungeon-ID changes separate runs and label their completion as unverified. Desktop and Pages review have a **Run** selector; a single uploaded a2log retains the run boundaries and all included encounter splits.

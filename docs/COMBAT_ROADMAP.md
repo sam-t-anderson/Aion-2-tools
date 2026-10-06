@@ -4,8 +4,11 @@
 
 Implemented capture-quality reasons, Party encounter ranking eligibility, bounded-history/validation/TCP loss evidence, public cross-uploader duplicate grouping and operator counts. Incomplete and legacy captures stay reviewable; PvP boundaries remain unverified and unranked. Duplicate matching requires identical outgoing damage, stable player identities and anchored encounter time; partial/ambiguous matches are intentionally not merged. Quality uses submitted telemetry, not authenticated game records.
 
+## Insights roadmap — checkpoint 2 (0.2.24)
+
+Implemented per-run timing/progression, conservative observed wipes, best wipe HP, recovery gaps and matched public run speed rankings. Unknown attempts remain separate; manual chunks sharing an unresolved boss actor are joined. Speed eligibility requires observed entry, configured final-boss completion, stable identified party and no known capture loss. Public duplicate run/attempt samples count once. Existing bounded-history limits still apply; no unlimited archive or verified PvP match boundaries are claimed.
+
 Next checkpoints, in order:
-1. Complete-run speed rankings and progression: individual run groups, elapsed/combat/downtime, attempts/wipes and best remaining HP. Complete archive/retention evidence and reliable final-boss configuration are prerequisites for trustworthy full-run ranks.
 2. Fair cohorts and historical percentiles: patch/difficulty/party size, historical vs current ranks, minimum samples; gear brackets only with reliable gear evidence.
 3. Death recaps and player consistency/improvement.
 4. Phase, support and rotation analysis as cast/buff/resource decoding is verified.
