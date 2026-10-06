@@ -114,3 +114,11 @@ The single overlay attaches to the AION 2 process on Windows, preserves its drag
 After character optimization, anonymous allocations and rotation are sent to the configured server. The server resimulates them with common level-45 median gear and budgets (203 skill / 30 stigma / 360 Daevanion), compares against both the current Planner build and its saved class preset, and saves only improvements. It receives no character identity, private loadout names or gear. Higher-budget builds are rejected rather than unfairly compared. On launch, updated presets appear first in the Planner selection and remain cached offline.
 
 Windows **Install now** stages and validates the installer, starts a detached helper, closes the app, then opens the installer interactively after the process exits. Updates preserve user data. If the helper fails, its log is in the data folder's `updates` directory. macOS/Linux archives are staged for manual replacement.
+
+### Troubleshooting capture and updates
+
+If TCP packets arrive but no combat data appears, enable **Live Meter → Record TCP payloads for diagnostics** before **Start**, fight briefly, then **Stop → Export capture diagnostics**. The ZIP is saved to `%LOCALAPPDATA%\aion2calc\diagnostics` on Windows (`~/.aion2calc/diagnostics` elsewhere). It contains status/candidate-flow metadata and, only when recording was enabled, original TCP segments with timestamps and sequence numbers. The newest 4 MiB / 4096 records are retained. Raw traffic can contain character names, IP addresses and other traffic; review before sharing. No automatic upload occurs. A metadata-only ZIP can be exported without enabling payload recording.
+
+The application status log is `%LOCALAPPDATA%\aion2calc\aion2calc.log`; update handoff scripts/logs are under `%LOCALAPPDATA%\aion2calc\updates`. A plain `apply-update.ps1` is from an older version; newer helpers are named `apply-update-<id>.ps1` and log readiness, installer launch or failure. Two downloaded release packages are retained; older packages are removed after a successful staging step. Helper logs are preserved.
+
+Windows setup leaves Npcap checked by default when missing. If its service is already installed, the checkbox is disabled and unchecked, and Npcap setup is skipped.

@@ -148,13 +148,14 @@ class _OverlayAPI:
             set_style.restype = ctypes.c_ssize_t
             handle = native.Handle.ToInt64()
             style = get_style(handle, -20)
-            set_style(handle, -20, (style & ~0x00040000) | 0x00000080)
-            # WebView2 transparency alone leaves WinForms' opaque white client area.
-            # A color key clears that host surface; Opacity gives the card real alpha.
-            key = Color.FromArgb(1, 2, 3)
-            native.BackColor = key
-            native.TransparencyKey = key
-            native.webview.DefaultBackgroundColor = Color.Transparent
+            set_style(handle, -20, (style & ~(0x00040000 | 0x00000020)) | 0x00000080)
+            # A color-keyed WinForms parent can be hit-test transparent even where
+            # the separate WebView2 child draws the card. Use alpha on a compact
+            # dark host instead so the visible overlay accepts mouse input.
+            background = Color.FromArgb(10, 14, 22)
+            native.BackColor = background
+            native.TransparencyKey = Color.Empty
+            native.webview.DefaultBackgroundColor = background
             native.Opacity = self._opacity
 
         self._on_ui(configure)

@@ -136,6 +136,7 @@ def apply_installer(path: Path, silent: bool = True) -> bool:
     script = ("$ErrorActionPreference = 'Stop'\n"
               f"$log = '{log}'\n"
               "try {\n"
+              f"  'helper ready; waiting for app PID {os.getpid()}' | Set-Content -LiteralPath $log\n"
               f"  'ready' | Set-Content -LiteralPath '{ready_path}'\n"
               f"  Wait-Process -Id {os.getpid()} -Timeout 30 -ErrorAction SilentlyContinue\n"
               f"  if (Get-Process -Id {os.getpid()} -ErrorAction SilentlyContinue) {{ throw 'Aion 2 Calc did not exit within 30 seconds.' }}\n"
@@ -147,7 +148,7 @@ def apply_installer(path: Path, silent: bool = True) -> bool:
               "  [System.Windows.Forms.MessageBox]::Show('Could not open the update installer. See ' + $log, 'Aion 2 Calc update') | Out-Null\n"
               "}\n")
     try:
-        helper.write_text(script, encoding="utf-8")
+        helper.write_text(script, encoding="utf-8-sig")
         # Windows PowerShell exits silently under DETACHED_PROCESS without a console.
         # CREATE_NO_WINDOW keeps the helper independent and hidden while allowing it to run.
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
@@ -166,6 +167,25 @@ def apply_installer(path: Path, silent: bool = True) -> bool:
     except OSError:
         return False
     return False
+
+
+def cleanup_updates(current: Path | None = None) -> None:
+    """Retain two downloaded release packages; preserve helper scripts and logs."""
+    folder = home() / "updates"
+    if not folder.is_dir():
+        return
+    try:
+        packages = [p for p in folder.iterdir() if not p.is_symlink() and p.is_file()
+                    and p.name.startswith("aion2calc-")
+                    and (p.name.endswith(".exe") or p.name.endswith(".zip") or p.name.endswith(".tar.gz"))]
+        packages.sort(key=lambda p: (p == current, p.stat().st_mtime), reverse=True)
+        for path in packages[2:]:
+            try:
+                path.unlink()
+            except OSError:
+                pass  # An installer still open or locked by Windows is retained.
+    except OSError:
+        pass
 
 
 def fetch(info: dict) -> Path | None:
@@ -194,11 +214,13 @@ def fetch(info: dict) -> Path | None:
 
     with _FETCH_LOCK:
         if valid(dest):
+            cleanup_updates(dest)
             return dest
         dest.parent.mkdir(parents=True, exist_ok=True)
         try:
             download(asset["browser_download_url"], dest)
             if valid(dest):
+                cleanup_updates(dest)
                 return dest
             dest.unlink(missing_ok=True)
         except Exception:

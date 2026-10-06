@@ -135,7 +135,7 @@ class CombatFlowDetector:
 def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                     interface: str | None = None, server_port: int = 50349,
                     generation: int | None = None, host: str | None = None,
-                    auto_port: bool = False) -> None:
+                    auto_port: bool = False, recorder=None) -> None:
     """Capture on usable adapters, optionally detect the game flow, and reassemble it."""
     def emit(kind: str, *data) -> None:
         output_queue.put((kind, *data) if generation is None else (kind, generation, *data))
@@ -166,7 +166,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
     stats = {"packets": 0, "payload_packets": 0, "bytes": 0, "forwarded": 0,
              "auto_port": auto_port, "port": None if auto_port else server_port,
              "interface": interface or "Auto", "interfaces": interfaces, "warnings": [],
-             "state": "starting"}
+             "state": "starting", "signature_packets": 0, "candidate_flows": []}
     last_prune = time.monotonic()
 
     def on_packet(packet) -> None:
@@ -182,6 +182,8 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
         key = (str(getattr(packet, "sniffed_on", "")), source, int(tcp.sport), destination, int(tcp.dport))
         payload = bytes(tcp.payload)
         syn = bool(int(tcp.flags) & 0x02)
+        if recorder is not None:
+            recorder.record(key, int(tcp.seq), int(tcp.flags), payload, time.time_ns() // 1_000_000)
         with callback_lock:
             if auto_port and detector.selected == key and (int(tcp.flags) & (0x01 | 0x04)):
                 detector.selected = None
@@ -191,6 +193,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
             stats["packets"] += 1
             stats["payload_packets"] += bool(payload)
             stats["bytes"] += len(payload)
+            stats["signature_packets"] += int(any(marker in payload for marker in detector.signatures))
             if auto_port:
                 chunks = detector.feed(key, payload, int(tcp.seq), syn, time.monotonic())
                 if detector.selected:
@@ -242,6 +245,8 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                         if now - flow.last_seen >= 120:
                             flows.pop(stale_key, None)
                     last_prune = now
+                stats["candidate_flows"] = [{"interface": key[0], "src": key[1], "sport": key[2], "dst": key[3], "dport": key[4], "signature_hits": len(value["hits"])} for key, value in detector.candidates.items()]
+                stats["selected_flow"] = detector.selected
                 emit("capture_stats", dict(stats))
     except Exception as exc:
         emit("error", str(exc))

@@ -206,6 +206,8 @@ def main(argv=None) -> int:
         return smoke_test(args.smoke_test or None)
     log = _log_to_file()
     try:
+        from .update import cleanup_updates
+        cleanup_updates()
         # The default log server is resolved live from share.default_server() (so a changed
         # quick-tunnel URL needs no rebuild); it is not persisted into the user's settings here.
         from .app import server
@@ -233,6 +235,14 @@ def main(argv=None) -> int:
                     watch(proc, httpd.shutdown)
             threading.Thread(target=show, daemon=True).start()
         server.serve(open_browser=False, sync=not args.no_sync, httpd=httpd)
+        if _frozen() and server.HTTPD.get("closing"):
+            # Optimizer/solver worker exit hooks can otherwise keep the frozen
+            # executable locked after an explicit Quit or installer handoff.
+            # serve() has already stopped capture and closed the HTTP server.
+            for stream in (sys.stdout, sys.stderr):
+                if stream:
+                    stream.flush()
+            os._exit(0)
         return 0
     except Exception:
         print(traceback.format_exc())
