@@ -1,0 +1,48 @@
+/* Public community reports, shared by desktop and Pages. */
+(function(){
+"use strict";
+const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const types={unknown:"Unknown",transcendence:"Transcendence dungeon",daily:"Daily dungeon",expedition:"Expedition",ascension:"Ascension trials",nightmare:"Nightmare",sanctuary:"Sanctuary raids"};
+const n=x=>Math.round(x||0).toLocaleString();
+const table=(heads,rows)=>`<div class="cr-scroll"><table class="t"><tr>${heads.map(x=>`<th>${x}</th>`).join("")}</tr>${rows.join("")||`<tr><td colspan="${heads.length}">No matching public submissions.</td></tr>`}</table></div>`;
+function mount(root,options){
+ let page=1,recordPage=1,query={},identity={};
+ root.innerHTML=`<h3>Community combat logs</h3><p class="small muted">Public submissions only. Filters also apply to class performance and personal records. Patch names are submitted metadata; the latest submitted patch may differ from the current game patch.</p><div class="row" data-filters></div><p data-message class="small muted"></p><div data-logs></div><div class="row"><button class="btn small" data-prev>Previous</button><span data-page></span><button class="btn small" data-next>Next</button></div><h3>Class performance</h3><p class="small muted">Recorded DPS, separate distributions for each boss, difficulty, encounter type and patch. Sample size and gear can affect these comparisons.</p><div data-performance></div><h3>Personal records</h3><div class="row"><input data-name placeholder="Character name" aria-label="Character name"><input data-server placeholder="Character server ID" aria-label="Character server ID"><input data-character placeholder="Database character ID (optional)" aria-label="Database character ID"><button class="btn small" data-record-search>Find records</button></div><p data-record-note class="small muted"></p><div data-records></div><div data-history></div><div class="row"><button class="btn small" data-record-prev>Previous records</button><span data-record-page></span><button class="btn small" data-record-next>Next records</button></div>`;
+ const $=s=>root.querySelector(s),params=()=>new URLSearchParams(Object.entries(query).filter(([,v])=>v));
+ async function load(){
+  $('[data-message]').textContent='Loading…';
+  try{
+   const q=params();q.set('page',page);q.set('limit',30);
+   const [logs,perf]=await Promise.all([options.api('/api/v1/logs?'+q),options.api('/api/v1/performance?'+params())]);
+   $('[data-message]').textContent=`${logs.total||0} matching public logs`;
+   $('[data-page]').textContent=`Page ${page}`;
+   $('[data-prev]').disabled=page===1;$('[data-next]').disabled=page*30>=logs.total;
+   $('[data-logs]').innerHTML=table(['Encounter / session','Type · patch · difficulty','Players','Top DPS','Recorded'],(logs.logs||[]).map(l=>`<tr><td><button class="btn small" data-open="${esc(l.id)}">${esc(l.title||l.boss||l.id)}</button></td><td>${(l.contexts||[]).map(c=>`${esc(c.boss)}: ${esc(types[c.encounter_type]||c.encounter_type)} · ${esc(c.game_patch||'Unknown patch')} · ${esc(c.difficulty||'Unknown difficulty')}`).join('<br>')}</td><td>${l.players?.length||0}</td><td>${n(l.top_dps)}</td><td>${new Date(l.created_at*1000).toLocaleString()}</td></tr>`));
+   const buckets=new Map();for(const g of perf.groups||[]){const k=[g.boss,g.boss_key,g.encounter_type,g.game_patch,g.difficulty].join(' · ');if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(g);}
+   $('[data-performance]').innerHTML=`<p class="small muted">${esc(perf.note)} ${perf.samples||0} samples; ${perf.excluded_unknown_metadata||0} excluded for missing metadata.${perf.truncated?' Coverage capped.':''}</p>`+[...buckets].map(([key,groups])=>{
+    const maximum=Math.max(1,...groups.map(g=>g.max));
+    return `<h4>${esc(key)}</h4>`+table(['Class','DPS distribution (min / quartiles / max)','Median DPS','Range','Parses'],groups.sort((a,b)=>b.median-a.median).map(g=>`<tr><td style="color:${window.A2CombatReview.color(g.class)}">${esc(g.class)}</td><td><svg viewBox="0 0 360 32" style="min-width:230px;width:100%;max-width:500px" role="img" aria-label="${esc(g.class)} DPS distribution"><title>Min ${n(g.min)}; lower quartile ${n(g.q1)}; median ${n(g.median)}; upper quartile ${n(g.q3)}; max ${n(g.max)}; ${g.count} parses</title><line x1="${g.min/maximum*350}" x2="${g.max/maximum*350}" y1="16" y2="16" stroke="currentColor"/><rect x="${g.q1/maximum*350}" y="6" width="${Math.max(2,(g.q3-g.q1)/maximum*350)}" height="20" fill="${window.A2CombatReview.color(g.class)}"/><line x1="${g.median/maximum*350}" x2="${g.median/maximum*350}" y1="3" y2="29" stroke="currentColor"/></svg></td><td>${n(g.median)}</td><td>${n(g.min)} – ${n(g.max)}</td><td>${g.count}</td></tr>`));
+   }).join('');bindOpen();
+  }catch(e){$('[data-message]').textContent=e.message;}
+ }
+ function bindOpen(){root.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>options.open(b.dataset.open));}
+ async function records(){try{
+  const q=params();Object.entries(identity).forEach(([k,v])=>q.set(k,v));q.set('page',recordPage);
+  const r=await options.api('/api/v1/records?'+q);
+  $('[data-record-note]').textContent=r.identity+'. '+r.note;
+  $('[data-records]').innerHTML=table(['Encounter','Type · patch · difficulty','Class','Best DPS','Attempts'],(r.records||[]).map(x=>`<tr><td><button class="btn small" data-open="${esc(x.log)}">${esc(x.boss)}</button></td><td>${esc(types[x.encounter_type])} · ${esc(x.game_patch||'Unknown')} · ${esc(x.difficulty||'Unknown')}</td><td>${esc(x.class||'Unknown')}</td><td>${n(x.best_dps)}</td><td>${x.attempts}</td></tr>`));
+  $('[data-history]').innerHTML='<h4>All matching public attempts</h4>'+table(['Encounter','Character · server','DPS','Recorded'],(r.history||[]).map(x=>`<tr><td><button class="btn small" data-open="${esc(x.log_id)}">${esc(x.boss)}</button></td><td>${esc(x.name)} · ${esc(x.server)}</td><td>${n(x.dps)}</td><td>${new Date(x.created_at*1000).toLocaleString()}</td></tr>`));
+  $('[data-record-page]').textContent=`Page ${recordPage} · ${r.total} attempts`;$('[data-record-prev]').disabled=recordPage===1;$('[data-record-next]').disabled=recordPage*50>=r.total;bindOpen();
+ }catch(e){$('[data-record-note]').textContent=e.message;}}
+ $('[data-prev]').onclick=()=>{page=Math.max(1,page-1);load();};$('[data-next]').onclick=()=>{page++;load();};
+ $('[data-record-search]').onclick=()=>{identity={name:$('[data-name]').value.trim(),server:$('[data-server]').value.trim(),character_id:$('[data-character]').value.trim()};recordPage=1;records();};
+ $('[data-record-prev]').onclick=()=>{recordPage=Math.max(1,recordPage-1);records();};$('[data-record-next]').onclick=()=>{recordPage++;records();};
+ options.api('/api/v1/report-facets').then(f=>{
+  query.game_patch=f.latest_submitted_patch||'';
+  $('[data-filters]').innerHTML=['encounter_type','game_patch','boss','difficulty','region'].map(k=>`<label class="small">${esc(k.replaceAll('_',' '))} <select data-filter="${k}"><option value="">All</option>${(k==='encounter_type'?Object.keys(types):f[k]||[]).map(v=>`<option value="${esc(v)}" ${query[k]===v?'selected':''}>${esc(k==='encounter_type'?types[v]:v)}</option>`).join('')}</select></label>`).join('')+'<button class="btn small" data-refresh>Refresh</button>';
+  root.querySelectorAll('[data-filter]').forEach(e=>e.onchange=()=>{query[e.dataset.filter]=e.value;page=1;load();if(identity.server){recordPage=1;records();}});$('[data-refresh]').onclick=load;load();
+ }).catch(e=>{$('[data-message]').textContent=e.message;});
+ return {refresh:load};
+}
+window.A2Community={mount,types};
+})();

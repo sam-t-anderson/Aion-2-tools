@@ -24,15 +24,18 @@
   }
 
   const io = {
-    publish: async (plan, vis) => {
+    server: base,
+    refresh: async owner=>{if(owner.server!==base())throw Error("Select the original publication server first");const headers={"X-Plan-Token":owner.edit_token};const get=async path=>{const r=await fetch(base()+path,{headers,cache:"no-store"});const j=await r.json();if(!r.ok)throw Error(j.error||r.statusText);return j;};const summary=await get("/api/v1/plans/"+owner.id);return {plan:await get("/api/v1/plans/"+owner.id+"/raw"),revision:summary.revision};},
+    publish: async (plan, vis, owner) => {
       if (!base()) throw new Error("Set your share server at the top of the page first.");
       const headers = { "Content-Type": "application/json" };
       const key = cfg().key;
       if (key) headers.Authorization = "Bearer " + key;
-      const r = await fetch(`${base()}/api/v1/plans?visibility=${encodeURIComponent(vis)}`, { method: "POST", headers, body: JSON.stringify(plan) });
+      if(owner){if(owner.server!==base())throw Error('Select the original publication server first');headers['X-Plan-Token']=owner.edit_token;headers['If-Match']=String(owner.revision);}
+      const r = await fetch(`${base()}/api/v1/plans${owner?'/'+owner.id:''}?visibility=${encodeURIComponent(vis)}`, { method: owner?'PUT':'POST', headers, body: JSON.stringify(plan) });
       const j = await r.json().catch(() => ({ error: r.statusText }));
       if (!r.ok || j.error) throw new Error(j.error || r.statusText);
-      return { url: j.url };
+      return j;
     },
     browse: async () => {
       if (!base()) throw new Error("Set your share server at the top of the page first.");
@@ -78,7 +81,11 @@
     const id = new URLSearchParams(location.search).get("plan");
     if (!id || !base()) return;
     try {
-      const doc = await apiGET(`/api/v1/plans/${encodeURIComponent(id)}/raw`);
+      const entries=JSON.parse(localStorage.getItem('a2plan-owners')||'{}');
+      const own=Object.entries(entries).find(([,o])=>o.id===id && o.server===base());
+      if(own)return; // Keep the owned local copy and its unpublished edits.
+      const token=new URLSearchParams(location.search).get('t');
+      const doc = await apiGET(`/api/v1/plans/${encodeURIComponent(id)}/raw`+(token?'?t='+encodeURIComponent(token):''));
       if (doc && doc.format === "a2plan") {
         let all = {};
         try { all = JSON.parse(localStorage.getItem("a2plans") || "{}"); } catch (e) { all = {}; }

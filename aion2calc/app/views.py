@@ -396,7 +396,7 @@ def character_view(imp, evaluation: dict | None = None) -> dict:
                    "daevanion": daevanion_view(cd, build.daevanion)["used"]},
         "skills": skills_view(cd, build, gear_bonus, levels_override=totals),
         "stigmas": stigmas_view(cd, build),
-        "daevanion": daevanion_view(cd, build.daevanion),
+        "daevanion": daevanion_view(cd, build.daevanion, (evaluation or {}).get("budgets", {}).get("daevanion")),
         "equipment": {"slots": eq_rows, "total": fmt_stats(_sum(r.get("stats", {}) for r in sysm.get("equipment", []))),
                       "rolls": {}, "enchant": []},
         "arcana_items": arcana,

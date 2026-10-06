@@ -27,6 +27,7 @@ def recent() -> list[dict]:
         try:
             doc = json.loads(target.read_text(encoding="utf-8"))
             rows.append({"file": target.name, "title": doc.get("meta", {}).get("title"),
+                         "contexts": [{k: segment.get(k) or doc.get("meta", {}).get(k) or "unknown" for k in ("encounter_type", "game_patch", "difficulty")} for segment in doc["segments"]],
                          "updated": target.stat().st_mtime, "players": len(doc["players"]),
                          "segments": len(doc["segments"]), "duration": sum(s["duration"] for s in doc["segments"])})
         except (OSError, ValueError, KeyError):

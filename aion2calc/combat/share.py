@@ -150,7 +150,7 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
         raise RuntimeError(f"upload refused ({e.code}): {msg}") from None
 
 
-def plan_request(plan: dict | None = None, visibility: str = "unlisted", plan_id: str | None = None) -> dict:
+def plan_request(plan: dict | None = None, visibility: str = "unlisted", plan_id: str | None = None, owner: dict | None = None) -> dict:
     """Publish/browse plans using the desktop's configured server and upload key."""
     from urllib.parse import quote
     settings = effective()
@@ -160,11 +160,26 @@ def plan_request(plan: dict | None = None, visibility: str = "unlisted", plan_id
     target = base + "/api/v1/plans"
     headers = {"User-Agent": "aion2calc"}
     body = None
+    method = "GET"
+    summary = None
+    if owner:
+        if str(owner.get("server") or "").rstrip("/") != base:
+            raise ValueError("Choose the original publication server before using this ownership credential")
+        headers["X-Plan-Token"] = str(owner.get("edit_token") or "")
     if plan is not None:
         if visibility not in ("public", "unlisted", "private"):
             raise ValueError("visibility must be public, unlisted or private")
         if not isinstance(plan, dict) or plan.get("format") != "a2plan":
             raise ValueError("Not an a2plan document")
+        if owner:
+            plan_id = str(owner.get("id") or "")
+            if not plan_id.isalnum() or not 6 <= len(plan_id) <= 16:
+                raise ValueError("Invalid published plan ID")
+            target += "/" + plan_id
+            headers["If-Match"] = str(int(owner["revision"]))
+            method = "PUT"
+        else:
+            method = "POST"
         target += "?visibility=" + visibility
         body = json.dumps(plan, separators=(",", ":"), allow_nan=False).encode()
         if len(body) > 5 * 1024 * 1024:
@@ -175,11 +190,17 @@ def plan_request(plan: dict | None = None, visibility: str = "unlisted", plan_id
     elif plan_id is not None:
         if not plan_id.isalnum():
             raise ValueError("Invalid plan ID")
-        target += "/" + quote(plan_id, safe="") + "/raw"
+        target += "/" + quote(plan_id, safe="")
+        summary_target = target if owner else None
+        target += "/raw"
     try:
-        request = urllib.request.Request(target, body, headers, method="POST" if body is not None else "GET")
+        if owner and plan is None and plan_id:
+            with urllib.request.urlopen(urllib.request.Request(summary_target, headers=headers), timeout=30) as response:
+                summary = json.load(response)
+        request = urllib.request.Request(target, body, headers, method=method)
         with urllib.request.urlopen(request, timeout=30) as response:
-            return json.load(response)
+            doc = json.load(response)
+            return {"plan": doc, "revision": summary["revision"]} if owner and plan is None and plan_id else doc
     except urllib.error.HTTPError as err:
         text = err.read().decode("utf-8", "replace")
         try:
@@ -187,6 +208,34 @@ def plan_request(plan: dict | None = None, visibility: str = "unlisted", plan_id
         except ValueError:
             pass
         raise RuntimeError(f"Plan server refused ({err.code}): {text}") from None
+
+
+def community_request(path: str, body: dict | None = None) -> dict:
+    """Read community reports or preview local ranks through the configured server."""
+    import re
+    allowed = re.fullmatch(r"/api/v1/(report-facets|performance|records|logs|logs/[A-Za-z0-9]{6,16}/(raw|rankings)|rankings)(\?[^#]*)?", path)
+    if not allowed or (body is not None and path != "/api/v1/rankings"):
+        raise ValueError("Invalid community API path")
+    settings = effective()
+    base = str(settings.get("url") or "").rstrip("/")
+    if not base:
+        raise ValueError("Set a community server in Settings")
+    headers = {"User-Agent": "aion2calc"}
+    if settings.get("key"):
+        headers["Authorization"] = "Bearer " + settings["key"]
+    payload = None
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+        payload = json.dumps(body, allow_nan=False).encode()
+    try:
+        with urllib.request.urlopen(urllib.request.Request(base + path, payload, headers), timeout=30) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as exc:
+        try:
+            message = json.loads(exc.read()).get("error", exc.reason)
+        except ValueError:
+            message = exc.reason
+        raise RuntimeError(f"Community server ({exc.code}): {message}") from None
 
 
 def submit_preset(summary: dict) -> dict:

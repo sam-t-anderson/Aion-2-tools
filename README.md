@@ -1,6 +1,6 @@
 # Aion-2-tools
 
-Combat review is being delivered in iterations. See [completed features and remaining work](docs/COMBAT_ROADMAP.md). In 0.2.16, full party sessions save automatically on Stop/normal Quit and appear under Combat Logs → Recent full sessions; diagnostic ZIPs are only a rolling TCP buffer. Update the log server to 0.2.5 to retain the new event fields.
+Review combat sessions, compare public logs, search personal records, and copy optimized builds into the game. See the [feature roadmap](docs/COMBAT_ROADMAP.md) for remaining work.
 
 [![CI](https://github.com/sam-t-anderson/Aion-2-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/sam-t-anderson/Aion-2-tools/actions/workflows/ci.yml)
 [![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/9y6zkUyvBv)
@@ -13,9 +13,9 @@ as a fallback.
 
 It answers, for any class:
 
-* which skills to put the **203 skill points** into and which **specializations** to run,
-* which **4 stigmas** and levels to buy with the **30 stigma points**,
-* which **Daevanion nodes** to take with **360 crystal points** (exact connectivity rule),
+* which skills to put **your available skill points** into and which **specializations** to run,
+* which **4 stigmas** and levels to buy with **your available stigma points**,
+* which **Daevanion nodes** to take with **your available PvE crystal points** (exact connectivity rule),
 * the best **priority rotation**, an **in-game Skill Macro** layout and manual keys,
 * how much each **stat / item roll / title / arcana / enchant** is worth,
 
@@ -32,7 +32,7 @@ arcana, stigmas, priority list, macro, stat priority, build card and Daevanion b
 
 **Players:** download the app from the
 [Releases page](https://github.com/sam-t-anderson/Aion-2-tools/releases/latest). On Windows, run
-`aion2calc-setup-<version>.exe` and start **aion2calc** from the Start menu; portable builds for
+`aion2calc-setup-<version>.exe` and start **Aion 2 Calc** from the Start menu; portable builds for
 Windows, macOS and Linux are there too. No Python and no command line needed. The app follows your
 computer's light or dark mode. Details and updating: [`docs/install.md`](docs/install.md).
 
@@ -113,30 +113,27 @@ The single overlay attaches to the AION 2 process on Windows, preserves its drag
 
 **Skills hotbar** shows suggested bindings. **Macro & rotation** shows numbered macro steps with matching keys and 10 ms delays. Charged skills are manual: hold their own key and release after charging. The optimizer fills all legally reachable skill-point allocations; points can remain only when no further purchasable level fits.
 
-After character optimization, anonymous allocations and rotation are sent to the configured server. The server resimulates them with common level-45 median gear and budgets (203 skill / 30 stigma / 360 Daevanion), compares against both the current Planner build and its saved class preset, and saves only improvements. It receives no character identity, private loadout names or gear. Higher-budget builds are rejected rather than unfairly compared. On launch, updated presets appear first in the Planner selection and remain cached offline.
+After optimization, eligible anonymous builds can improve the class presets used by the Planner. Updated presets are cached for offline use. Character identity and private equipment are not submitted with these build suggestions.
 
 Windows **Install now** stages and validates the installer, starts a detached helper, closes the app, then opens the installer interactively after the process exits. Updates preserve user data. If the helper fails, its log is in the data folder's `updates` directory. macOS/Linux archives are staged for manual replacement.
 
-### Troubleshooting capture and updates
-
-If TCP packets arrive but no combat data appears, enable **Live Meter → Record TCP payloads for diagnostics** before **Start**, fight briefly, then **Stop**. Opted-in TCP diagnostics save automatically on Stop (also before another Start and on normal Quit); **Export capture diagnostics** offers a manual export. The ZIP is saved to `%LOCALAPPDATA%\aion2calc\diagnostics` on Windows (`~/.aion2calc/diagnostics` elsewhere). It contains status/candidate-flow metadata and, only when recording was enabled, original TCP segments with timestamps and sequence numbers. The newest 4 MiB / 4096 records are retained. Raw traffic can contain character names, IP addresses and other traffic; review before sharing. No automatic upload occurs. A metadata-only ZIP can be exported without enabling payload recording.
-
-The application status log is `%LOCALAPPDATA%\aion2calc\aion2calc.log`; update handoff scripts/logs are under `%LOCALAPPDATA%\aion2calc\updates`. A plain `apply-update.ps1` is from an older version; newer helpers are named `apply-update-<id>.ps1` and log readiness, installer launch or failure. Two downloaded release packages are retained; older packages are removed after a successful staging step. Helper logs are preserved.
-
-Windows setup leaves Npcap checked by default when missing. If its service is already installed, the checkbox is disabled and unchecked, and Npcap setup is skipped.
-
 ### Raid plan publishing and playback
 
-In **Raid Planner**, choose **Visibility** beside **Publish plan**: **Public** lists the plan in Browse plans; **Unlisted** shares it only by link; **Private** requires the secret link. The desktop uses the server and upload key from Settings. Publishing creates a new shared copy; to make an older unlisted plan public, open it, select Public, and publish again.
+In **Raid Planner**, choose **Visibility** beside **Publish plan**: **Public** lists the plan in Browse plans; **Unlisted** shares it only by link; **Private** requires the secret link. The desktop uses the server and upload key from Settings. Publishing saves an owner credential on this device. **Update published plan** changes the same link; **Publish new copy** creates a separate plan. Keep a **Private ownership backup** to edit from another device. Import that backup through Import file. A revision conflict requires Refresh published plan before trying again; export local edits first. Clearing browser data without a backup loses editing access.
 
-Shared `/p/<id>` pages support **Play/Pause**, **Rewind**, playback speed and a timeline scrub bar with moving tokens and active buffs on server 0.2.4 or later. Existing shared links get these controls after the server is updated.
+Shared `/p/<id>` pages support **Play/Pause**, **Rewind**, playback speed and a timeline scrub bar with moving tokens and active buffs.
 
 Live Meter uses one yellow **Start** / red **Stop** button. Under **Capture diagnostics**, enable TCP recording before Start, enter combat, then stop. The diagnostic ZIP saves automatically; the recorded payload count, saved path and ZIP download link remain visible. Use Export capture diagnostics for a manual archive. The Windows copy is also saved under `%LOCALAPPDATA%\aion2calc\diagnostics`; ordinary application logs do not contain TCP payloads. Export does not require decoded combat events.
 
-### Live combat history and party scope
 
-Live Meter defaults to **Self + Party**. Enter **My character** before Start when attaching mid-session; the name is remembered locally and matched only to a unique observed player. Decoded party rosters identify party members. **Self only** hides everyone else; **All observed players** explicitly includes nearby players. Capture retains data while identity is pending and explains why the filtered view is empty.
+## Community combat review
 
-Fighting enemies within **Group combat within** (10 seconds by default) forms a single segment. The **Combat** selector shows earlier fights or the whole session. Segment data survives inactivity, zone changes and Stop/Start within the app; **Clear session** explicitly removes it. Export/upload includes the retained segments. Save or export before quitting. The history limit is 400,000 records / 200 displayed segments.
+Combat Logs shows recent full sessions and the public community browser. Filter by encounter type, boss, difficulty, patch and region. Add missing classification using **Encounter metadata for comparisons** when opening a local session. Unknown metadata remains visible but cannot produce meaningful rankings.
 
-The **Enemies** table selects a target for the **Players** meter. Accuracy reports decoded outgoing hit flags; Defense reports received damage, parried hits and attackers. Getting hit alone cannot determine hit chance, avoided attacks, armor or mitigation percentages. Creature names come from captured entity-to-NPC-type mappings plus the included creature database; a missing spawn record leaves an honest unknown entity label.
+Class summaries show DPS distributions, median, quartiles, range and sample counts for each matching encounter. Server and region ranks require recorded identity metadata; World means public submissions to this community, not every player worldwide. Personal records search by character name and server ID, or database character ID and server ID. Exact duplicate uploads count once.
+
+Compare multiple local or public logs by choosing the encounter and each same-class player explicitly. Scores are recorded DPS, not adjusted for gear or capture completeness.
+
+## Build points
+
+**My Character** displays points spent and the optimization budget. Official profiles may omit unspent points. Enter the total from your in-game window (spent + unspent) for Skill, Stigma and PvE Daevanion before **Optimize my build**. Imported spend is a lower bound; it is not a verified character maximum. Planner budgets are configurable, including Daevanion. The bundled 203 / 30 / 360 preset describes an example simulation, not the total available to every character. Gear skill levels and PvP Daevanion points are separate from these budgets.

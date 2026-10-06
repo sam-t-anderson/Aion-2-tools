@@ -29,6 +29,7 @@ import re
 import math
 
 VERSION = 1
+ENCOUNTER_TYPES = ("unknown", "transcendence", "daily", "expedition", "ascension", "nightmare", "sanctuary")
 CLASSES = ("gladiator", "templar", "assassin", "ranger", "sorcerer", "spiritmaster", "cleric", "chanter")
 CLASS_ALIASES = {"elementalist": "spiritmaster", "brawler": "brawler"}
 #: optional players[].stats keys (percent values as numbers)
@@ -60,6 +61,7 @@ SCHEMA = {
             "title": {"type": "string"}, "region": {"type": "string"}, "server": {"type": "string"},
             "recorded_at": {"type": "string", "format": "date-time"},
             "zone": {"type": "string"}, "difficulty": {"type": "string"},
+            "game_patch": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
             "visibility": {"enum": ["public", "unlisted", "private"]},
             "contribute": {"enum": ["yes", "no"], "description": "use this fight in the anonymous class "
                            "statistics (default yes; private logs never are)"}}},
@@ -95,6 +97,7 @@ SCHEMA = {
 # Compatible v1 extensions. Older logs without these arrays remain readable.
 _segment_properties = SCHEMA["properties"]["segments"]["items"]["properties"]
 _segment_properties.update({
+    "game_patch": {"type": "string"}, "difficulty": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
     "entities": {"type": "array", "maxItems": 2000, "description": "Observed enemies and pets: id, name, kind, mob_code, is_boss, owner"},
     "events": {"type": "array", "maxItems": LIMITS["hits"], "description": "Recorded damage/heal/death effects: t, kind, source, target, skill, skill_id, amount; unknown recipients omitted"},
     "health": {"type": "array", "maxItems": LIMITS["hp"], "description": "Entity HP samples: t, entity, current, optional max"},
@@ -145,6 +148,8 @@ def validate(doc) -> dict:
         raise Invalid('"meta" must be an object')
     clean_meta = {k: _text(v, f"meta.{k}") for k, v in meta.items()
                   if isinstance(v, str) and k in SCHEMA["properties"]["meta"]["properties"]}
+    if clean_meta.get("encounter_type") not in (None, *ENCOUNTER_TYPES):
+        raise Invalid("Unknown encounter_type")
     if clean_meta.get("visibility") not in (None, "public", "unlisted", "private"):
         raise Invalid('meta.visibility must be "public", "unlisted" or "private"')
     players = doc.get("players")
@@ -273,6 +278,11 @@ def validate(doc) -> dict:
                          "start": _text(s.get("start"), "segment start"), "duration": float(s["duration"]),
                          "killed": s.get("killed") is True, "hits": out_hits, "buffs": buffs, "hp": hp,
                          "entities": entities, "events": events, "health": health, "positions": positions})
+        for key in ("game_patch", "difficulty", "encounter_type"):
+            if isinstance(s.get(key), str):
+                if key == "encounter_type" and s[key] not in ENCOUNTER_TYPES:
+                    raise Invalid("Unknown segment encounter_type")
+                out_segs[-1][key] = s[key][:200]
     return {"format": "a2log", "version": VERSION, "meta": clean_meta, "players": out_players, "segments": out_segs}
 
 

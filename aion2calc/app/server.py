@@ -95,7 +95,7 @@ def act_character_optimize(body: dict, log) -> dict:
     log(f"optimizing under the same resources (writes {out})")
     # One pass by default keeps the in-app optimize responsive (serial, no process pool when packaged);
     # the big gains are in pass 1 plus the final polish. The CLI can pass more for an exhaustive search.
-    summ = optimize_character(imp, str(out), iterations=int(body.get("iterations", 1)), progress=log)
+    summ = optimize_character(imp, str(out), iterations=int(body.get("iterations", 1)), progress=log, budgets=body.get("budgets"))
     best = json.loads((out / "build.json").read_text(encoding="utf-8"))
     cur = json.loads((out / "current" / "build.json").read_text(encoding="utf-8"))
     from ..combat import share
@@ -313,6 +313,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/encounters":
             from ..db import store
             return self._json(store.encounters(store.connect(), q.get("class")))
+        if path == "/api/community":
+            from ..combat.share import community_request
+            return self._json(community_request(q.get("path", "")))
         if path == "/api/sessions":
             from ..combat.sessions import recent, path as session_path
             if q.get("file"):
@@ -408,9 +411,23 @@ class Handler(BaseHTTPRequestHandler):
 
     # --------------------------------------------------------------- POST
     def route_post(self, path: str, body: dict):
+        if path == "/api/sessions/share":
+            from ..combat.sessions import path as session_path
+            from ..combat.share import upload
+            doc = json.loads(session_path(body["file"]).read_text(encoding="utf-8"))
+            return self._json(upload(doc, visibility=body.get("visibility", "unlisted")))
+        if path == "/api/community":
+            from ..combat.share import community_request
+            return self._json(community_request(body.get("path", ""), body.get("body")))
+        if path == "/api/sessions":
+            from ..combat.sessions import save
+            from ..combat.a2log import validate
+            doc = validate(body["log"])
+            save(doc, body["file"])
+            return self._json(doc)
         if path == "/api/plans":
             from ..combat.share import plan_request
-            return self._json(plan_request(body.get("plan"), body.get("visibility", "unlisted")))
+            return self._json(plan_request(body.get("plan"), body.get("visibility", "unlisted"), body.get("id"), body.get("owner")))
         if path == "/api/sync":
             start_sync(force=bool(body.get("force")), budget_s=body.get("budget", 900))
             return self._json({"ok": True})

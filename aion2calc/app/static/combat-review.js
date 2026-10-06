@@ -15,7 +15,7 @@
   const table = (headers,rows) => `<div class="cr-scroll"><table class="t"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.join("") || `<tr><td colspan="${headers.length}">No recorded events.</td></tr>`}</tbody></table></div>`;
   function mount(root, doc, options={}) {
     let state={segment:0,metric:"summary",view:"table",graph:true,timeline:true,skills:true,deaths:true,heals:true,pets:true,combine:true,actor:"",page:0,enemy:"",hidden:new Set(), ...options.state};
-    let comparison=null, ranks=null, rankRequest=0, replayFrame=null;
+    let comparisons=[], ranks=null, rankRequest=0, replayFrame=null;
     const refs=()=>{const r=Object.fromEntries([...(doc.players || []),...(doc.segments[state.segment]?.entities || [])].map(e=>[e.id,{...e}]));for(const e of Object.values(r))if(e.owner)e.class=r[e.owner]?.class;return r;};
     const label=e=>e ? `${e.name || e.id}${e.server ? " · " + e.server : ""}` : "Unknown / not recorded";
     const owner=(id,r)=>state.combine && r[id]?.owner ? r[id].owner : id;
@@ -103,7 +103,7 @@
         ${state.view==="table" ? summary+(state.metric!=="summary"?breakdown:"") : state.view==="events" ? eventTable+`<div class="row"><button class="btn small" data-prev>Previous</button> ${state.page+1} / ${pageCount} · ${events.length} events <button class="btn small" data-next>Next</button></div>` : ""}
         ${state.timeline && (state.view==="timeline" || state.view==="table") ? timeline(d,events):""}
         <p class="small muted">${d.events.some(e=>e.kind==="heal"&&!e.target)?"Some healing recipients are not carried by their packet variant. ":""}${!d.events.some(e=>e.kind==="death")?"No death markers recorded; zero counts do not establish a deathless run. ":""}${!(d.segment.positions || []).length?"Movement replay is unavailable: no verified positions were recorded.":""}</p>
-        ${ranksHTML(d)}<div data-replay></div>
+        ${metadataHTML(d)}${ranksHTML(d)}${options.rankings?'<button class="btn small" data-rank-refresh>Refresh rankings</button>':""}${options.publish?'<div class="row"><select data-upload-vis aria-label="Upload visibility"><option>unlisted</option><option>public</option><option>private</option></select><button class="btn small" data-upload>Upload saved session</button><span data-upload-result></span></div>':""}<div data-replay></div>
         <div class="row"><input data-compare placeholder="Another public log ID" aria-label="Log ID to compare"><button class="btn small" data-compare-go ${options.compare?"":"disabled"}>Compare log</button><span data-compare-result></span><input type="file" data-compare-file accept=".json" aria-label="Compare a local a2log file"></div>
         <div data-comparison>${comparisonHTML(d)}</div>
       </div></section>`;
@@ -117,16 +117,37 @@
       if(root.querySelector("[data-prev]"))root.querySelector("[data-prev]").onclick=()=>{state.page=Math.max(0,state.page-1);render();};
       if(root.querySelector("[data-next]"))root.querySelector("[data-next]").onclick=()=>{state.page++;render();};
       root.querySelector("[data-color-settings]").onclick=()=>{const box=root.querySelector("[data-colors]");box.hidden=!box.hidden;settings(box);};
-      root.querySelector("[data-compare-go]").onclick=async()=>{const id=root.querySelector("[data-compare]").value.trim();const msg=root.querySelector("[data-compare-result]");try{comparison=await options.compare(id);render();}catch(e){msg.textContent=e.message;}};
-      root.querySelector("[data-compare-file]").onchange=async e=>{try{const imported=JSON.parse(await e.target.files[0].text());if(imported.format!=="a2log" || !Array.isArray(imported.segments))throw Error("Choose an a2log JSON file");comparison=imported;render();}catch(e){root.querySelector("[data-compare-result]").textContent=e.message;}};
+      root.querySelector("[data-compare-go]").onclick=async()=>{const id=root.querySelector("[data-compare]").value.trim();const msg=root.querySelector("[data-compare-result]");try{addComparison(await options.compare(id));render();}catch(e){msg.textContent=e.message;}};
+      root.querySelector("[data-compare-file]").onchange=async e=>{try{const imported=JSON.parse(await e.target.files[0].text());if(imported.format!=="a2log" || !Array.isArray(imported.segments))throw Error("Choose an a2log JSON file");addComparison(imported);render();}catch(e){root.querySelector("[data-compare-result]").textContent=e.message;}};
+      root.querySelectorAll('[data-compare-segment]').forEach(e=>e.onchange=()=>{comparisons[+e.dataset.compareSegment].segment=+e.value;render();});
+      root.querySelectorAll('[data-compare-player]').forEach(e=>e.onchange=()=>{comparisons[+e.dataset.index].players[e.dataset.comparePlayer]=e.value;render();});
+      root.querySelectorAll('[data-compare-remove]').forEach(e=>e.onclick=()=>{comparisons.splice(+e.dataset.compareRemove,1);render();});
+      const save=root.querySelector('[data-meta-save]');if(save)save.onclick=async()=>{save.disabled=true;try{const next=JSON.parse(JSON.stringify(doc));root.querySelectorAll('[data-meta]').forEach(e=>{if(e.dataset.meta==='region'){next.meta ||= {};next.meta.region=e.value.trim();}else next.segments[state.segment][e.dataset.meta]=e.value.trim();});doc=await options.saveMetadata(next);ranks=null;requestRanks();render();}catch(e){root.querySelector('[data-meta-result]').textContent=e.message;save.disabled=false;}};
+      if(root.querySelector('[data-rank-refresh]'))root.querySelector('[data-rank-refresh]').onclick=requestRanks;
+      if(root.querySelector('[data-upload]'))root.querySelector('[data-upload]').onclick=async()=>{const button=root.querySelector('[data-upload]');button.disabled=true;try{const r=await options.publish(root.querySelector('[data-upload-vis]').value);root.querySelector('[data-upload-result]').innerHTML=`<a href="${esc(r.url)}" target="_blank" rel="noopener">Open shared log</a>`;}catch(e){root.querySelector('[data-upload-result]').textContent=e.message;}finally{button.disabled=false;}};
       replay(d);
     }
+    function addComparison(other) {
+      if(other.format!=="a2log" || !Array.isArray(other.players) || !Array.isArray(other.segments))throw Error("Choose an a2log document");
+      comparisons.push({doc:other,segment:0,players:{}});
+    }
+    const context=(document,segment)=>[segment.boss || segment.label || "Unknown",...['encounter_type','game_patch','difficulty'].map(k=>segment[k] || document.meta?.[k] || "Unknown")];
     function comparisonHTML(d) {
-      if(!comparison)return "";
-      const other=comparison.segments.find(s=>(s.boss || s.label)===(d.segment.boss || d.segment.label));
-      if(!other)return '<p class="muted">The comparison has no matching encounter name.</p>';
-      const sums=new Map();for(const h of other.hits || [])sums.set(h.player,(sums.get(h.player)||0)+h.damage);
-      return `<h3>Comparison — ${esc(comparison.meta?.title || "Other log")}</h3><p class="small muted">Recorded DPS, not adjusted for gear, patch, difficulty or missing packets. Match those conditions before drawing conclusions.</p>${table(["Player","Class","Current DPS","Comparison DPS","Difference"],d.rows.map(p=>{const candidates=(comparison.players || []).filter(o=>o.class===p.class);const o=candidates.find(o=>o.name===p.name && o.server===p.server) || candidates[0];const theirs=o?(sums.get(o.id)||0)/Math.max(1,other.duration):null;const own=p.damage/Math.max(1,d.segment.duration);return `<tr><td>${esc(label(p))}</td><td>${esc(p.class)}</td><td>${number(own)}</td><td>${theirs===null?"Unavailable":number(theirs)+" · "+esc(label(o))}</td><td>${theirs?((own/theirs-1)*100).toFixed(1)+"%":"—"}</td></tr>`;}))}`;
+      return comparisons.map((c,index)=>{
+        c.segment=Math.min(c.segment,c.doc.segments.length-1);
+        const other=c.doc.segments[c.segment];if(!other)return "";
+        const sums=new Map();for(const h of other.hits || [])sums.set(h.player,(sums.get(h.player)||0)+h.damage);
+        const mismatch=JSON.stringify(context(doc,d.segment))!==JSON.stringify(context(c.doc,other));
+        return `<h3>Comparison ${index+1} — ${esc(c.doc.meta?.title || "Other run")}</h3><div class="row"><label>Comparison encounter <select data-compare-segment="${index}">${c.doc.segments.map((s,i)=>`<option value="${i}" ${i===c.segment?'selected':''}>${esc(context(c.doc,s).join(' · '))}</option>`).join('')}</select></label><button class="btn small" data-compare-remove="${index}">Remove</button></div><p class="small muted">Current: ${esc(context(doc,d.segment).join(' · '))}. ${mismatch?'Encounter metadata differs. ':''}Recorded DPS is not adjusted for gear or missing packets. Select each player explicitly; multiple players of one class are never paired automatically.</p>${table(['Current player','Class','Current DPS','Comparison player','Comparison DPS','Difference'],d.rows.map(p=>{
+          const candidates=(c.doc.players || []).filter(o=>o.class && o.class===p.class);const selected=candidates.find(o=>o.id===c.players[p.id]);
+          const theirs=selected?(sums.get(selected.id)||0)/Math.max(.001,other.duration):null;const own=p.damage/Math.max(.001,d.segment.duration);
+          return `<tr><td>${esc(label(p))}</td><td>${esc(p.class)}</td><td>${number(own)}</td><td><select data-compare-player="${esc(p.id)}" data-index="${index}"><option value="">Select same-class player</option>${candidates.map(o=>`<option value="${esc(o.id)}" ${o.id===selected?.id?'selected':''}>${esc(label(o))}</option>`).join('')}</select></td><td>${theirs===null?'Unavailable':number(theirs)}</td><td>${theirs?((own/theirs-1)*100).toFixed(1)+'%':'—'}</td></tr>`;
+        }))}`;
+      }).join('');
+    }
+    function metadataHTML(d) {
+      if(!options.saveMetadata)return `<p class="small muted">${esc(context(doc,d.segment).join(' · '))}</p>`;
+      return `<details><summary>Encounter metadata for comparisons</summary><p class="small muted">Enter verified game patch, category and difficulty. Apply to this encounter; other encounters keep their metadata. Region applies to the session. Saving does not change an already uploaded copy.</p><div class="row"><label>Encounter type <select data-meta="encounter_type">${Object.entries(window.A2Community?.types || {unknown:'Unknown'}).map(([v,l])=>`<option value="${v}" ${v===(d.segment.encounter_type||doc.meta?.encounter_type||'unknown')?'selected':''}>${esc(l)}</option>`).join('')}</select></label>${['game_patch','difficulty','region','boss'].map(k=>`<label>${esc(k.replaceAll('_',' '))} <input data-meta="${k}" value="${esc(d.segment[k]||doc.meta?.[k]||'')}" maxlength="200"></label>`).join('')}<button class="btn small" data-meta-save>Save metadata</button><span data-meta-result></span></div></details>`;
     }
     function replay(d) {
       const positions=d.segment.positions || [];if(!positions.length)return;
@@ -140,7 +161,7 @@
       box.querySelector("[data-rewind]").onclick=()=>{pause();draw(0);};scrub.oninput=()=>{pause();draw(+scrub.value);};
       box.querySelector("[data-plan]").onclick=()=>{const plan={format:"a2plan",version:1,meta:{name:d.segment.boss || d.segment.label || "Recorded replay"},duration:d.segment.duration,arena:{kind:"square"},tokens:Object.entries(tokens).map(([id,keyframes])=>({id,kind:d.r[id]?.kind==="enemy"?"enemy":"player",label:label(d.r[id]),cls:d.r[id]?.class,color:color(d.r[id]?.class),keyframes})),buffs:[]};const blob=new Blob([JSON.stringify(plan)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="recorded-replay.a2plan.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};draw(0);
     }
-    async function requestRanks() {if(!options.rankings)return;const request=++rankRequest;try{const response=await options.rankings(state.segment);if(request!==rankRequest)return;ranks=response;}catch(e){ranks={error:e.message};}if(root.isConnected)render();}
+    async function requestRanks() {if(!options.rankings)return;const request=++rankRequest;try{const response=await options.rankings(state.segment,doc);if(request!==rankRequest)return;ranks=response;}catch(e){ranks={error:e.message};}if(root.isConnected)render();}
     const api={update(next){doc=next;state.segment=Math.min(state.segment,doc.segments.length-1);render();},state,dispose(){rankRequest++;if(replayFrame)cancelAnimationFrame(replayFrame);}};
     render();requestRanks();return api;
   }
