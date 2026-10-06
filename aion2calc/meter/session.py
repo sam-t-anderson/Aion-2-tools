@@ -112,7 +112,7 @@ class CombatSession:
             if (self.auto_finish and not self.pvp and sample["kind"] == "death"
                     and code in self.final_boss_ids and npc_info(code).get("isBoss")
                     and engine.dungeon_id == npc_info(code).get("dungeonId") and engine.dungeon_id
-                    and any(r.run == self.run and isinstance(r.event,DamageEvent) and r.event.target_id == sample["entity"] for r in self.records)):
+                    and any(r.run == self.run and isinstance(r.event,DamageEvent) and r.event.target_id == sample["entity"] and r.event.actor_id in self._allowed(r,"party") for r in self.records)):
                 self.finish_run("configured_final_boss_death")
         # Remove identity contexts when their bounded event history expires.
         if len(self.identities) > 250:
