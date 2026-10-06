@@ -206,6 +206,8 @@ def main(argv=None) -> int:
         return smoke_test(args.smoke_test or None)
     log = _log_to_file()
     try:
+        from .update import cleanup_updates
+        cleanup_updates()
         # The default log server is resolved live from share.default_server() (so a changed
         # quick-tunnel URL needs no rebuild); it is not persisted into the user's settings here.
         from .app import server
