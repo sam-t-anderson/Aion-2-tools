@@ -738,7 +738,7 @@ async function pageMeter() {
       <div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
       <div class="note" style="margin-top:10px"><b>Capture diagnostics</b>
         <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads (enable before Start)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><span id="mrecordstatus" class="small muted"></span></div>
-        <p class="small faint">Keeps up to 4 MiB locally, even when no combat events are decoded. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div></div><div id="npcap" class="small faint" style="margin-top:8px"></div>
+        <p class="small faint">Keeps up to 4 MiB locally, even when no combat events are decoded. Saves a diagnostic ZIP automatically when capture stops. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></div><div id="npcap" class="small faint" style="margin-top:8px"></div>
       <p class="small faint">Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, and capture permission. Export writes an open a2log file; Upload uses the log server configured in Settings.</p>
       <div id="mnotice" class="small" role="status"></div>
     </div></section><div id="mview"></div>`;
@@ -841,13 +841,9 @@ async function pageMeter() {
     try { st.pinnedSegment = ""; renderMeter(await api("/api/meter", body)); } catch (e) { $("#mnotice").textContent = e.message; }
     finally { button.disabled = false; }
   };
-  const showDiagnosticExport = () => {
-    const r = st.diagnosticExport; if (!r) return;
-    $("#mdiagresult").innerHTML = `<a class="btn small primary" href="${esc(r.download_url)}" download>Download diagnostic ZIP</a> ${r.records} TCP payload records.<br>Saved to <span style="overflow-wrap:anywhere">${esc(r.file)}</span>${r.records ? "" : "<br>Enable TCP recording before Start, then fight briefly and export again."}`;
-  };
-  showDiagnosticExport();
+  renderDiagnosticExport(st.diagnosticExport);
   $("#mdiag").onclick = async () => {
-    try { st.diagnosticExport = await api("/api/meter", {action: "diagnostics"}); showDiagnosticExport(); }
+    try { st.diagnosticExport = await api("/api/meter", {action: "diagnostics"}); renderDiagnosticExport(st.diagnosticExport); }
     catch (e) { $("#mnotice").textContent = e.message; }
   };
   $("#movl").onclick = async () => {
@@ -890,8 +886,17 @@ async function pageMeter() {
   renderMeter(initial);
   poll();
 }
+function renderDiagnosticExport(r) {
+  const target = $("#mdiagresult"); if (!r || !target) return;
+  if (target.dataset.savedFile === r.file) return;
+  target.dataset.savedFile = r.file;
+  target.innerHTML = `<a class="btn small primary" href="${esc(r.download_url)}" download>Download diagnostic ZIP</a> ${r.records} TCP payload records.<br>Last saved capture: <span style="overflow-wrap:anywhere">${esc(r.file)}</span>${r.records ? "" : "<br>Enable TCP recording before Start, then fight briefly and export again."}`;
+}
 function renderMeter(s) {
   const st = S.meter; st.running = !!s.running;
+  if (s.diagnostic_export) st.diagnosticExport = s.diagnostic_export;
+  renderDiagnosticExport(st.diagnosticExport);
+  if ($("#mdiagerror")) $("#mdiagerror").textContent = s.diagnostics?.archive_error ? `Could not save diagnostic ZIP: ${s.diagnostics.archive_error}. Use Export capture diagnostics to retry before starting another capture.` : "";
   const button = $("#mstart");
   if (button) {
     button.textContent = st.running ? "Stop" : "Start";

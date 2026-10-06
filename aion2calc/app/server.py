@@ -459,8 +459,7 @@ class Handler(BaseHTTPRequestHandler):
             if action == "diagnostics":
                 if self.client_address[0] not in ("127.0.0.1", "::1"):
                     raise PermissionError("diagnostics run only on this computer")
-                from ..meter.diagnostics import export
-                return self._json(export(r.status(), r.recorder))
+                return self._json(r.export_diagnostics())
             if action == "save":
                 if not r.has_data():
                     raise ValueError("nothing to save yet")

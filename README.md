@@ -117,7 +117,7 @@ Windows **Install now** stages and validates the installer, starts a detached he
 
 ### Troubleshooting capture and updates
 
-If TCP packets arrive but no combat data appears, enable **Live Meter → Record TCP payloads for diagnostics** before **Start**, fight briefly, then **Stop → Export capture diagnostics**. The ZIP is saved to `%LOCALAPPDATA%\aion2calc\diagnostics` on Windows (`~/.aion2calc/diagnostics` elsewhere). It contains status/candidate-flow metadata and, only when recording was enabled, original TCP segments with timestamps and sequence numbers. The newest 4 MiB / 4096 records are retained. Raw traffic can contain character names, IP addresses and other traffic; review before sharing. No automatic upload occurs. A metadata-only ZIP can be exported without enabling payload recording.
+If TCP packets arrive but no combat data appears, enable **Live Meter → Record TCP payloads for diagnostics** before **Start**, fight briefly, then **Stop**. Opted-in TCP diagnostics save automatically on Stop (also before another Start and on normal Quit); **Export capture diagnostics** offers a manual export. The ZIP is saved to `%LOCALAPPDATA%\aion2calc\diagnostics` on Windows (`~/.aion2calc/diagnostics` elsewhere). It contains status/candidate-flow metadata and, only when recording was enabled, original TCP segments with timestamps and sequence numbers. The newest 4 MiB / 4096 records are retained. Raw traffic can contain character names, IP addresses and other traffic; review before sharing. No automatic upload occurs. A metadata-only ZIP can be exported without enabling payload recording.
 
 The application status log is `%LOCALAPPDATA%\aion2calc\aion2calc.log`; update handoff scripts/logs are under `%LOCALAPPDATA%\aion2calc\updates`. A plain `apply-update.ps1` is from an older version; newer helpers are named `apply-update-<id>.ps1` and log readiness, installer launch or failure. Two downloaded release packages are retained; older packages are removed after a successful staging step. Helper logs are preserved.
 
@@ -129,7 +129,7 @@ In **Raid Planner**, choose **Visibility** beside **Publish plan**: **Public** l
 
 Shared `/p/<id>` pages support **Play/Pause**, **Rewind**, playback speed and a timeline scrub bar with moving tokens and active buffs on server 0.2.4 or later. Existing shared links get these controls after the server is updated.
 
-Live Meter uses one yellow **Start** / red **Stop** button. Under **Capture diagnostics**, enable TCP recording before Start, enter combat, stop, then export. The recorded payload count and ZIP download link remain visible. The Windows copy is also saved under `%LOCALAPPDATA%\aion2calc\diagnostics`; ordinary application logs do not contain TCP payloads. Export does not require decoded combat events.
+Live Meter uses one yellow **Start** / red **Stop** button. Under **Capture diagnostics**, enable TCP recording before Start, enter combat, then stop. The diagnostic ZIP saves automatically; the recorded payload count, saved path and ZIP download link remain visible. Use Export capture diagnostics for a manual archive. The Windows copy is also saved under `%LOCALAPPDATA%\aion2calc\diagnostics`; ordinary application logs do not contain TCP payloads. Export does not require decoded combat events.
 
 ### Live combat history and party scope
 

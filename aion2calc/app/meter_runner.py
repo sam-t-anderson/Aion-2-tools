@@ -29,6 +29,9 @@ class Runner:
         self.diagnostics: dict = {}
         self.started_at: float | None = None
         self.recorder = None
+        self.diagnostic_export = None
+        self._exported_recorder = None
+        self._diagnostic_lock = threading.Lock()
         self._stop = False
         self.replay_stop = threading.Event()
         self.lock = threading.Lock()
@@ -153,8 +156,11 @@ class Runner:
             self.error = f"Decoder failed: {type(exc).__name__}: {exc}"
         finally:
             stop_event.set()
+            if self.packet_capture_thread:
+                self.packet_capture_thread.join(timeout=3.0)
             self.diagnostics["state"] = "error" if self.error else "stopped"
             self.running = False
+            self._archive_diagnostics()
 
     def _run(self, it) -> None:
         try:
@@ -182,6 +188,29 @@ class Runner:
         self.running = False
         if self.diagnostics:
             self.diagnostics["state"] = "stopped"
+        # Preserve the opted-in buffer before the next Start replaces it.
+        # Repeated Stop/Quit calls must not create duplicate archives.
+        self._archive_diagnostics()
+
+    def _archive_diagnostics(self) -> None:
+        if self.recorder is not None and self.recorder is not self._exported_recorder:
+            if self.recorder.snapshot(include_rows=False)[0]["records"]:
+                try:
+                    self.export_diagnostics()
+                except OSError as exc:
+                    self.diagnostics["archive_error"] = str(exc)
+
+    def export_diagnostics(self) -> dict:
+        with self._diagnostic_lock:
+            if self.recorder is not None and self.recorder is self._exported_recorder and self.diagnostic_export and not self.running:
+                return self.diagnostic_export
+            from ..meter.diagnostics import export
+            result = export(self.status(), self.recorder)
+            self.diagnostic_export = result
+            if not self.running:
+                self._exported_recorder = self.recorder
+            self.diagnostics.pop("archive_error", None)
+            return result
 
     def status(self) -> dict:
         with self.lock:
@@ -192,6 +221,7 @@ class Runner:
             diagnostic["elapsed"] = round(time.monotonic() - self.started_at, 1) if self.started_at else 0
         return {"running": self.running, "source": self.source_name, "error": self.error,
                 "snapshot": snap, "diagnostics": diagnostic,
+                "diagnostic_export": self.diagnostic_export,
                 "recording": {"enabled": self.recorder is not None,
                               **(self.recorder.snapshot(include_rows=False)[0] if self.recorder is not None else {"records": 0})}}
 
