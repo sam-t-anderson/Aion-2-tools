@@ -23,15 +23,26 @@ _FILE = ("logserver.json",)
 DEFAULT_SERVER_RAW = ("https://raw.githubusercontent.com/sam-t-anderson/Aion-2-tools/"
                       "main/aion2calc/data/global/default_server.json")
 _DEFAULT_CACHE = ("cache", "default_server.json")
+_OBSOLETE_HOST = "try" + "cloudflare.com"  # retired quick-tunnel host
 
 
 def settings() -> dict:
     """The user's own saved log-server settings (empty until they save any)."""
-    return read_json(*_FILE) if data_file(*_FILE).exists() else {}
+    if not data_file(*_FILE).exists():
+        return {}
+    settings = read_json(*_FILE)
+    # Retired quick-tunnel addresses expire. Migrate an old saved choice so it cannot
+    # indefinitely override the project's live Tailscale default.
+    if _OBSOLETE_HOST in str(settings.get("url", "")).casefold():
+        replacement = _bundled_default().get("url", "")
+        if replacement:
+            settings["url"] = replacement.rstrip("/")
+            write_user_json(settings, *_FILE)
+    return settings
 
 
 def _remote_default(max_age: float = 21600) -> dict:
-    """The repo's default_server.json, fetched and cached ~6h, so a changed (e.g. quick-tunnel)
+    """The repo's default_server.json, fetched and cached ~6h, so a changed Tailscale
     URL reaches clients without a new build. Falls back to the last cache, then nothing."""
     import time
     p = data_file(*_DEFAULT_CACHE)
@@ -56,7 +67,7 @@ def default_server() -> dict:
     """Where new users share by default: the remote default, else the bundled one, else a
     ``client.json`` baked in by a build (A2LOGS_PUBLIC_URL). ``{}`` if none is configured."""
     for src in (_remote_default(), _bundled_default(), _client_json()):
-        if src.get("url"):
+        if src.get("url") and _OBSOLETE_HOST not in str(src["url"]).casefold():
             return {"url": src["url"].rstrip("/"), "visibility": src.get("visibility") or "unlisted"}
     return {}
 
