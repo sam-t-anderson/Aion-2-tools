@@ -9,11 +9,15 @@ apply can be turned off in Settings; a manual "Install update" always works.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
 import subprocess
 import sys
+import threading
+import time
+import uuid
 import urllib.request
 from pathlib import Path
 
@@ -21,6 +25,7 @@ from . import __version__
 from .paths import home
 
 RELEASES_API = "https://api.github.com/repos/sam-t-anderson/Aion-2-tools/releases/latest"
+_FETCH_LOCK = threading.Lock()
 _STATE = "update_state.json"          # remembers the version we last tried, so a failed apply does not loop
 
 
@@ -118,32 +123,47 @@ def apply_installer(path: Path, silent: bool = True) -> bool:
     helper waits for our PID, then opens the staged installer.  The caller is
     responsible for shutting down the local app immediately after this returns.
     """
-    args = [str(path)]
+    args = [str(path), "/NORESTART"]
     if silent:
         args += ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
-    args += ["/MERGETASKS=!desktopicon"]
-    helper = home() / "updates" / "apply-update.ps1"
+    helper = home() / "updates" / f"apply-update-{uuid.uuid4().hex[:8]}.ps1"
     helper.parent.mkdir(parents=True, exist_ok=True)
     quoted_path = str(path).replace("'", "''")
     quoted_args = ", ".join("'" + arg.replace("'", "''") + "'" for arg in args[1:])
     log = str(helper.with_suffix(".log")).replace("'", "''")
+    ready = helper.with_suffix(".ready")
+    ready_path = str(ready).replace("'", "''")
     script = ("$ErrorActionPreference = 'Stop'\n"
               f"$log = '{log}'\n"
               "try {\n"
-              f"  Wait-Process -Id {os.getpid()} -ErrorAction SilentlyContinue\n"
+              f"  'ready' | Set-Content -LiteralPath '{ready_path}'\n"
+              f"  Wait-Process -Id {os.getpid()} -Timeout 30 -ErrorAction SilentlyContinue\n"
+              f"  if (Get-Process -Id {os.getpid()} -ErrorAction SilentlyContinue) {{ throw 'Aion 2 Calc did not exit within 30 seconds.' }}\n"
               f"  Start-Process -FilePath '{quoted_path}' -ArgumentList @({quoted_args})\n"
               "  'installer launched' | Set-Content -LiteralPath $log\n"
               "} catch {\n"
               "  ($_ | Out-String) | Set-Content -LiteralPath $log\n"
+              "  Add-Type -AssemblyName System.Windows.Forms\n"
+              "  [System.Windows.Forms.MessageBox]::Show('Could not open the update installer. See ' + $log, 'Aion 2 Calc update') | Out-Null\n"
               "}\n")
     try:
         helper.write_text(script, encoding="utf-8")
         flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-        subprocess.Popen(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
-                          "-File", str(helper)], creationflags=flags, close_fds=True)
-        return True
+        shell = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32/WindowsPowerShell/v1.0/powershell.exe"
+        proc = subprocess.Popen([str(shell), "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
+                                 "-File", str(helper)], creationflags=flags, close_fds=True,
+                                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline:
+            if ready.is_file():
+                return True
+            if proc.poll() is not None:
+                return False
+            time.sleep(0.05)
+        proc.terminate()
     except OSError:
         return False
+    return False
 
 
 def fetch(info: dict) -> Path | None:
@@ -151,13 +171,36 @@ def fetch(info: dict) -> Path | None:
     asset = info.get("asset")
     if not asset or not asset.get("browser_download_url"):
         return None
-    dest = home() / "updates" / asset["name"]
-    if dest.exists() and dest.stat().st_size > 0:
-        return dest                   # already staged this version: don't re-download on every launch
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        return download(asset["browser_download_url"], dest)
-    except Exception:
+    name = asset.get("name", "")
+    if not name or Path(name).name != name:
+        return None
+    dest = home() / "updates" / name
+
+    def valid(path):
+        if not path.is_file() or path.stat().st_size == 0:
+            return False
+        if asset.get("size") and path.stat().st_size != asset["size"]:
+            return False
+        digest = asset.get("digest") or ""
+        if digest.startswith("sha256:"):
+            with path.open("rb") as stream:
+                check = hashlib.sha256()
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    check.update(chunk)
+                return check.hexdigest() == digest.partition(":")[2]
+        return True
+
+    with _FETCH_LOCK:
+        if valid(dest):
+            return dest
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            download(asset["browser_download_url"], dest)
+            if valid(dest):
+                return dest
+            dest.unlink(missing_ok=True)
+        except Exception:
+            pass
         return None
 
 
@@ -171,8 +214,8 @@ def install_now() -> str:
     path = fetch(info)
     if not path:
         return "download-failed"
-    if info["kind"] == "installer" and apply_installer(path, silent=False):
-        return "launching"            # the installer window opens; it closes and relaunches the app
+    if info["kind"] == "installer":
+        return "launching" if apply_installer(path, silent=False) else "launch-failed"
     return "downloaded"               # the UI reveals the file for the user to run/copy
 
 

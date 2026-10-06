@@ -3,11 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>aion2calc overlay</title>
+<title>Aion 2 Calc Overlay</title>
 <link rel="stylesheet" href="/static/overlay.css">
 </head>
 <body class="overlay">
-<div id="ov"><div class="ovcard"><div class="ovhd"><span>aion2calc</span></div><div class="muted">starting…</div></div></div>
+<div id="ov"><div class="ovcard pywebview-drag-region" title="Drag the card to move the overlay">
+  <div class="ovhd"><div class="ovtabs" role="tablist" aria-label="Overlay view">
+    <button id="meter-tab" role="tab" data-tab="meter" aria-controls="ovcontent" aria-selected="true" class="on">Meter</button>
+    <button id="plan-tab" role="tab" data-tab="plan" aria-controls="ovcontent" aria-selected="false">Plan</button>
+  </div><span class="ovsub" id="ovstatus"></span></div>
+  <div id="ovcontent" role="tabpanel" aria-labelledby="meter-tab"><div class="muted">Starting…</div></div>
+  <div class="ovfoot"><label for="ovop">Opacity</label><input type="range" id="ovop" min="20" max="100" value="72"><span class="ovbrand">Aion 2 Calc</span></div>
+</div></div>
 <script src="/static/overlay.js"></script>
 </body>
 </html>

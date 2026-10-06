@@ -209,7 +209,9 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None) -> Kit:
                 sim.buff(a.key, dur_buff, buff_stats)
         apply_dur_by[key] = apply_dur
         A[key] = Action(key, s["name"], sid, cast, cooldown=cdv, mp=mp, requires=requires,
-                        skill_speed=skill_speed, on_cast=on_cast, is_filler=is_filler)
+                        skill_speed=skill_speed, on_cast=on_cast, is_filler=is_filler,
+                        requires_charge=bool(re.search(r"\bCharge (?:Levels|Skill)\b", tip)
+                                             or any("Changes to Charge Skill" in t for t in active_specs)))
 
     def hook(sim, t, info):
         if "proc" in info["tags"] or "dot" in info["tags"]:

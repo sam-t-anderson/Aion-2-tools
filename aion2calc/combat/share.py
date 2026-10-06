@@ -151,74 +151,74 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
 
 
 def submit_preset(summary: dict) -> dict:
-    """Offer an optimized class build to the community preset service.
-
-    The report summary contains the class build and simulated score only. Character
-    identity, inventory and log-server credentials are never part of the payload.
-    Failure is deliberately non-fatal: a local optimization remains useful offline.
-    """
-    cls = str(summary.get("class") or "").lower()
-    if not cls or not isinstance(summary.get("build"), dict) or not summary.get("dps", {}).get("boss"):
-        return {"submitted": False, "reason": "no boss build summary"}
+    """Send only anonymous allocations and rotation. The server recomputes all scores."""
+    from ..presets import MAX_BYTES, candidate
     s = effective()
     base = (s.get("url") or "").rstrip("/")
     if not base:
-        return {"submitted": False, "reason": "no log server"}
-    doc = {"format": "a2preset", "version": 1, "class": cls, "build": summary}
+        return {"submitted": False, "reason": "No community server configured."}
+    body = json.dumps(candidate(summary), separators=(",", ":"), allow_nan=False).encode()
+    if len(body) > MAX_BYTES:
+        return {"submitted": False, "reason": "Build submission is too large."}
     headers = {"Content-Type": "application/json", "User-Agent": "aion2calc"}
     if s.get("key"):
         headers["Authorization"] = "Bearer " + s["key"]
     try:
-        info = discover(base)
-        target = (info.get("presets_url") or base + "/api/v1/presets").rstrip("/")
-        req = urllib.request.Request(target, json.dumps(doc, separators=(",", ":")).encode(), headers, method="POST")
-        with urllib.request.urlopen(req, timeout=20) as r:
-            return {"submitted": True, **json.load(r)}
-    except Exception as err:  # a failed community submission must never fail the character job
-        return {"submitted": False, "reason": f"{type(err).__name__}: {err}"}
+        req = urllib.request.Request(base + "/api/v1/presets", body, headers, method="POST")
+        with urllib.request.urlopen(req, timeout=20) as response:
+            return {"submitted": True, **json.load(response)}
+    except Exception as err:
+        return {"submitted": False, "reason": f"Community server unavailable: {err}"}
 
 
 def sync_presets() -> list[str]:
-    """Download the newest accepted build per class into the local planner results."""
-    from ..paths import results_dir
-    s = effective()
-    base = (s.get("url") or "").rstrip("/")
+    """Refresh validated class presets atomically; cached builds remain usable offline."""
+    from ..paths import list_names, write_user_json
+    from ..presets import MAX_BYTES, candidate, parse
+    base = (effective().get("url") or "").rstrip("/")
     if not base:
         return []
+    changed = []
     try:
-        info = discover(base)
-        index_url = info.get("presets_url") or base + "/api/v1/presets"
-        with urllib.request.urlopen(index_url, timeout=15) as r:
-            rows = json.load(r).get("presets") or []
-        changed = []
-        for row in rows:
-            cls = str(row.get("class_name") or row.get("class") or "").lower()
-            if not cls:
+        with urllib.request.urlopen(base + "/api/v1/presets", timeout=8) as response:
+            raw = response.read(MAX_BYTES + 1)
+            if len(raw) > MAX_BYTES:
+                return []
+            rows = json.loads(raw).get("presets", [])
+        if not isinstance(rows, list):
+            return []
+        classes = set(list_names("global", "classes"))
+        for row in rows[:len(classes)]:
+            if not isinstance(row, dict):
                 continue
-            target = (info.get("preset_url") or base + "/api/v1/presets/{class}").replace("{class}", cls)
-            with urllib.request.urlopen(target, timeout=15) as r:
-                remote = json.load(r)
-            build = remote.get("build")
-            if not isinstance(build, dict) or build.get("class") != cls:
+            cls = row.get("class_name") or row.get("class")
+            if cls not in classes:
                 continue
-            out = results_dir() / "community-presets" / cls / "build.json"
-            old = {}
             try:
-                old = json.loads(out.read_text(encoding="utf-8"))
+                cached = read_json("community_presets", f"{cls}.json")
             except (OSError, ValueError):
-                pass
-            if old.get("_community_preset_score") == remote.get("score"):
+                cached = {}
+            if cached.get("source") == base and cached.get("updated_at") == row.get("updated_at"):
                 continue
-            out.parent.mkdir(parents=True, exist_ok=True)
-            build = {**build, "_community_preset_score": remote.get("score"),
-                     "_community_preset_updated_at": remote.get("updated_at")}
-            tmp = out.with_suffix(".tmp")
-            tmp.write_text(json.dumps(build, ensure_ascii=False, indent=1), encoding="utf-8")
-            tmp.replace(out)
-            changed.append(cls)
-        return changed
-    except Exception:
-        return []
+            try:
+                with urllib.request.urlopen(base + "/api/v1/presets/" + cls, timeout=8) as response:
+                    raw = response.read(MAX_BYTES + 1)
+                if len(raw) > MAX_BYTES:
+                    continue
+                remote = json.loads(raw)
+                summary = remote["build"]
+                if summary.get("class") != cls or summary.get("loadout") != f"{cls}_l45_global_median":
+                    continue
+                parse(candidate(summary))
+                # The source is trusted for score computation; never import a character loadout path.
+                write_user_json({"source": base, "updated_at": remote["updated_at"], "build": summary},
+                                "community_presets", f"{cls}.json")
+                changed.append(cls)
+            except (OSError, ValueError, KeyError, TypeError):
+                continue
+    except (OSError, ValueError, TypeError):
+        pass
+    return changed
 
 
 def fight_stats(enc: dict) -> dict:

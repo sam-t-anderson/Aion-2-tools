@@ -336,7 +336,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "flame_arrow") -> Kit:
             TIMING["hellfire_charge"] * k + TIMING["hellfire_release"],
             cooldown=cd.cd(SID["HF"], lv("HF")) - (15 if has("HF", 5) else 0), cd_group="hellfire",
             mp=cd.mp(SID["HF"], lv("HF")), skill_speed=0.3 if has("HF", 1) else 0.0,
-            on_cast=hf_cast, element="fire")
+            on_cast=hf_cast, element="fire", requires_charge=True, charge_level=k)
 
     # ------------------------------------------------------------- stigmas
     def stig(key):

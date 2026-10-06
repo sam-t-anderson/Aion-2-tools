@@ -191,6 +191,89 @@ def extras_view(lo: dict, weights: list | None, summary: dict | None) -> dict:
     }
 
 
+def rotation_view(cd: ClassData, build, gear: dict, summary: dict) -> dict:
+    """Human-readable actions, safe legacy macros and one shared key layout."""
+    from ..opt.macro import MODEL_VERSION
+    from ..run import kit_module
+    with_gear = build.copy()
+    for sid, level in gear.items():
+        with_gear.bonus[sid] = with_gear.bonus.get(sid, 0) + level
+    kit = kit_module(cd.cls).build_kit(with_gear, cd)
+    levels = with_gear.effective_levels(cd)
+    macro = dict(summary.get("macro") or {})
+    if not macro:
+        from ..report import build_from_summary
+        from ..opt.rotation import describe
+        _, policy = build_from_summary(summary)
+        manual, steps = [], []
+        for entry in policy:
+            action_key = entry[0] if isinstance(entry, tuple) else entry
+            action = kit.actions.get(action_key)
+            if not action:
+                continue
+            if action.requires_charge or isinstance(entry, tuple):
+                manual.append(entry)
+            else:
+                steps.append(action_key)
+        macro = {"steps": steps, "manual": describe(manual)}
+
+    def key(entry):
+        return str(entry).split(" [", 1)[0]
+
+    manual = list(macro.get("manual") or [])
+    steps = []
+    for entry in macro.get("steps") or []:
+        action = kit.actions.get(key(entry))
+        if not action:
+            continue
+        if action.requires_charge:
+            if not any(key(e) == action.key for e in manual):
+                manual.append(entry)
+        else:
+            steps.append(entry)
+    # Old reports claimed charged damage from taps; do not keep those percentages.
+    stale = macro.get("model_version") != MODEL_VERSION
+    macro.update(steps=steps, manual=manual, needs_refresh=stale)
+    if stale:
+        macro.update(dps_macro=None, dps_alt=None)
+    actions = {}
+    for action in kit.actions.values():
+        actions[action.key] = {
+            "key": action.key, "name": action.name, "skill_id": action.skill_id,
+            "icon": SKILL_ICON.format(action.skill_id), "level": levels.get(action.skill_id, 1),
+            "charged": action.requires_charge, "charge_level": action.charge_level,
+        }
+    # Reserve F for the macro itself. Names/icons/key bindings are shared by both tabs.
+    bindings = ["1", "2", "3", "4", "5", "6", "7", "8", "Q", "E", "LMB", "="]
+    bindings += [f"F{i}" for i in range(1, 13)]
+    slots, seen = [], set()
+    for entry in manual + steps:
+        action = actions.get(key(entry))
+        if not action or action["skill_id"] in seen:
+            continue
+        seen.add(action["skill_id"])
+        index = len(slots)
+        slots.append({**action, "binding": bindings[index] if index < len(bindings) else "Assign key",
+                      "manual": any(key(e) == action["key"] for e in manual)})
+    bound = {slot["skill_id"]: slot["binding"] for slot in slots}
+    for action in actions.values():
+        action["binding"] = bound.get(action["skill_id"], "Assign key")
+    conditions = {"mp_hi": "when MP is at least 60%", "sync_de": "with Delayed Explosion timing",
+                  "in_ee": "with Element Enhancement timing"}
+
+    def entry_view(entry):
+        action = dict(actions.get(key(entry), {"key": key(entry), "name": key(entry).replace("_", " ").title()}))
+        condition = str(entry).partition(" [")[2].rstrip("]")
+        action["condition"] = conditions.get(condition, condition)
+        return action
+
+    return {"macro": macro,
+            "rotation": {"steps": [entry_view(e) for e in steps],
+                         "manual": [entry_view(e) for e in manual],
+                         "priority": [entry_view(e) for e in summary.get("policy", [])]},
+            "hotbar": {"slots": slots, "macro_binding": "F", "columns": 12}}
+
+
 def build_view(summary: dict) -> dict:
     """A report summary (build.json) -> every planner window."""
     from ..report import build_from_summary
@@ -212,7 +295,8 @@ def build_view(summary: dict) -> dict:
         "daevanion": daevanion_view(cd, build.daevanion, budgets.get("daevanion")),
         "equipment": equipment_view(lo, weights, cls),
         "extras": extras_view(lo, weights, summary),
-        "macro": summary.get("macro"), "policy": summary.get("policy"), "opener": summary.get("opener"),
+        **rotation_view(cd, build, gear, summary),
+        "policy": summary.get("policy"), "opener": summary.get("opener"),
         "stats": summary.get("stats"), "weights": weights[:12], "shares": summary.get("shares"),
         "links": summary.get("links"), "gear_skill_rolls": [{"name": cd.skills[k]["name"], "levels": v}
                                                             for k, v in gear.items() if k in cd.skills],
@@ -254,6 +338,19 @@ def list_results(roots: list[Path] | None = None) -> list[dict]:
                             r["class"] != "sorcerer", not r["mine"], str(r["_rel"])))
     for r in out:
         del r["_rel"]
+    if roots is None:
+        from ..paths import list_names, read_json
+        community = []
+        for cls in list_names("community_presets"):
+            try:
+                cached = read_json("community_presets", f"{cls}.json")
+                s = cached["build"]
+                community.append({"path": f"community:{cls}", "class": cls, "loadout": s["loadout"],
+                                  "dps": s["dps"], "scenario": "boss", "budgets": s["budgets"],
+                                  "community": True, "mine": False, "updated_at": cached["updated_at"]})
+            except (OSError, ValueError, KeyError):
+                continue
+        out = sorted(community, key=lambda r: (r["class"] != "sorcerer", r["class"])) + out
     return out
 
 

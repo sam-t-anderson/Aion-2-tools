@@ -225,16 +225,44 @@ function winTitles(v) {
     statGrid(ex.titles_total, "Stats from equipped titles"), { key: "titles" });
 }
 
+function rotationIcon(s) {
+  return `<div class="hotbar-icon">${s.icon ? `<img src="${esc(icon(s.icon))}" alt="" onerror="this.hidden=true">` : ""}<b class="hotbar-key">${esc(s.binding || "")}</b><span class="hotbar-level">Lv ${n0(s.level)}</span></div>`;
+}
+function winHotbar(v) {
+  const h = v.hotbar;
+  if (!h) return win("Skills hotbar", "", '<div class="empty">Optimize your build to generate its hotbar and macro setup.</div>');
+  const rows = [];
+  const total = Math.max(12, Math.ceil(h.slots.length / 12) * 12);
+  for (let first = 0; first < total; first += 12) {
+    rows.push(`<div class="hotbar-row"><span class="hotbar-row-label">${first / 12}</span>${Array.from({ length: 12 }, (_, i) => {
+      const s = h.slots[first + i];
+      return s ? `<div class="hotbar-slot ${s.manual ? "manual" : "automatic"}" title="${esc(s.name)} — ${s.manual ? "Manual" : "Macro"}${s.charged ? "; hold to charge" : ""}">
+        ${rotationIcon(s)}<span class="hotbar-name">${esc(s.name)}</span><small>${s.charged ? "Hold to charge" : s.manual ? "Manual" : "Macro"}</small></div>` : '<div class="hotbar-slot empty-slot"><span>+</span></div>';
+    }).join("")}</div>`);
+  }
+  const copy = h.slots.map((s) => `${s.binding}: ${s.name} (${s.charged ? "manual hold to charge" : s.manual ? "manual" : "macro"})`).join("\n") + `\nSuggested macro key: ${h.macro_binding}`;
+  return win("Skills hotbar", "suggested key bindings", `<p>Place each skill on your hotbar and assign the key shown on its icon. These are suggested bindings: match your in-game Key Settings, or use your own keys consistently in both tabs.</p>
+    <div class="hotbar-wrap">${rows.reverse().join("")}</div>
+    <p><b class="gold">Manual / Hold to charge:</b> keep these skills outside the macro. Hold a charge skill’s own key, then release it at the required charge level.</p>
+    <p>Reserve <kbd>${esc(h.macro_binding)}</kbd> for the macro, then follow <b>Macro &amp; rotation</b>. Hotbar positions are key bindings; the numbered macro rows are the order the macro tries skills.</p>`, { key: "hotbar", copy });
+}
 function winMacro(v) {
-  const m = v.macro;
-  if (!m) return win("Skill Macro", "", '<div class="empty">No macro (run an optimization)</div>');
-  const step = (s, i) => `<div class="r"><b class="gold">${i + 1}</b> ${esc(s)}</div>`;
-  const body = `<p class="muted small">Settings → Key Settings → General → Skill Macro. Skill Queue <b>ON</b>, 10 ms delay on every step, hold the key.</p>
-    <div class="rot">${m.steps.map(step).join("")}</div>
-    <p>${m.manual && m.manual.length ? `Manual keys: <b>${m.manual.map(esc).join(", ")}</b>` : "No manual keys — hold the macro key for the whole fight."}</p>
-    <p class="small muted">Simulated: ${pct(m.dps_macro / m.dps_priority)} of the ideal priority list.${m.alt_steps ? ` Alternative layout: ${pct(m.dps_alt / m.dps_priority)}.` : ""}</p>
-    <h4 class="gold small">PRIORITY LIST</h4><ol>${(v.policy || []).map((p) => `<li>${esc(p)}</li>`).join("")}</ol>`;
-  return win("Skill Macro & rotation", "", body, { key: "macro", copy: m.steps.map((s, i) => `${i + 1}. ${s}`).join("\n") + (m.manual?.length ? `\nManual: ${m.manual.join(", ")}` : "") });
+  const m = v.macro, r = v.rotation;
+  if (!m || !r) return win("Skill Macro", "", '<div class="empty">No macro (run an optimization)</div>');
+  const manual = r.manual.map((s) => `<div class="manual-skill">${rotationIcon(s)}<div><b>${esc(s.name)}</b><div class="small muted">${s.charged ? `Hold this skill’s key${s.charge_level ? ` to charge level ${s.charge_level}` : " to charge"}, then release. Never add it as a macro tap.` : "Press manually when ready."}${s.condition ? ` Use ${esc(s.condition)}.` : ""}</div></div></div>`).join("");
+  const steps = r.steps.map((s, i) => `<div class="macro-step"><strong class="macro-number">${i + 1}</strong><div>${rotationIcon(s)}<b>${esc(s.name)}</b></div><span class="macro-key-label">Hotbar key <kbd>${esc(s.binding)}</kbd></span></div>
+    ${i < r.steps.length - 1 ? '<div class="macro-delay"><span></span>Delay <b>10</b> ms<span></span></div>' : ""}`).join("");
+  const copy = r.steps.map((s, i) => `${i + 1}. ${s.name} — hotbar key ${s.binding}; delay 10 ms`).join("\n") +
+    (r.manual.length ? "\nManual: " + r.manual.map((s) => `${s.name} (${s.binding}${s.charged ? "; hold to charge" : ""})`).join(", ") : "");
+  const body = `<ol class="macro-instructions"><li>Copy the suggested bindings from <b>Skills hotbar</b>, or substitute your own.</li>
+    <li>Open <b>Settings → Key Settings → General → Skill Macro</b>. Add the skills below once each, from top to bottom. The large numbers are macro steps, not hotbar keys.</li>
+    <li>Set each step’s delay to <b>10 ms</b>, enable <b>Skill Queue</b>, and save the macro to an unused key (suggested: <kbd>${esc(v.hotbar?.macro_binding || "F")}</kbd>).</li>
+    <li>Hold the macro key during combat. Release it to use a manual skill; charge skills need their own button held before release. Resume the macro afterwards.</li></ol>
+    <div class="macro-layout"><div class="macro-editor"><h3>Macro</h3>${steps || '<p class="muted">This rotation uses manual skills only.</p>'}<div class="macro-save">Save to ${esc(v.hotbar?.macro_binding || "F")} in game</div></div>
+    <div><h4 class="gold">MANUAL SKILLS</h4>${manual || '<p class="muted">No manual skills for this rotation.</p>'}
+    <p class="small muted">${m.needs_refresh ? "This saved build predates charge-aware macros. Charged skills have been moved to manual controls; optimize again to recalculate the macro estimate." : `Estimated macro + manual execution: ${pct(m.dps_macro / m.dps_priority)} of the ideal priority rotation. This assumes you use the manual skills, including their charges.`}</p>
+    <h4 class="gold small">WHEN MULTIPLE SKILLS ARE READY</h4><p class="small muted">This priority list explains the optimizer’s decisions. It is not another macro to copy.</p><ol>${r.priority.map((s) => `<li>${esc(s.name)}${s.condition ? ` <span class="muted">(${esc(s.condition)})</span>` : ""}</li>`).join("")}</ol></div></div>`;
+  return win("Skill Macro & rotation", "", body, { key: "macro", copy });
 }
 
 function winOverview(v) {
@@ -253,7 +281,7 @@ function winOverview(v) {
 
 const WINDOWS = [
   ["overview", "Overview", "◆"], ["skills", "Skills", "✦"], ["stigma", "Stigma", "⬢"], ["daevanion", "Daevanion", "✧"],
-  ["equipment", "Equipment", "⚔"], ["arcana", "Arcana", "❖"], ["titles", "Titles & wings", "♛"], ["macro", "Macro & rotation", "⌨"],
+  ["equipment", "Equipment", "⚔"], ["arcana", "Arcana", "❖"], ["titles", "Titles & wings", "♛"], ["hotbar", "Skills hotbar", "▦"], ["macro", "Macro & rotation", "⌨"],
 ];
 function renderWindows(v, state, host) {
   const side = `<section class="win sidemenu"><div class="wb">${WINDOWS.map(([k, t, ic]) => `<a href="javascript:void 0" data-win="${k}" class="${state.win === k ? "on" : ""}"><span class="ic">${ic}</span>${t}</a>`).join("")}</div></section>`;
@@ -265,6 +293,7 @@ function renderWindows(v, state, host) {
     case "equipment": body = winEquipment(v); break;
     case "arcana": body = winArcana(v); break;
     case "titles": body = winTitles(v); break;
+    case "hotbar": body = winHotbar(v); break;
     case "macro": body = winMacro(v); break;
     default: body = winOverview(v);
   }
@@ -304,7 +333,7 @@ async function pagePlanner() {
       <button class="btn primary" id="go">Optimize</button><span id="jobmsg" class="small muted"></span></div></div></section><div id="wins"></div>`;
   if ($("#whide")) $("#whide").onclick = () => { try { localStorage.setItem("welcome-hidden", "1"); } catch (e) {} $("#welcome").remove(); };
   const [results, classes] = await Promise.all([api("/api/results"), api("/api/classes")]);
-  $("#res").innerHTML = results.map((r) => `<option value="${esc(r.path)}">${esc(cap(r.class))} · ${esc(r.loadout || "")} · ${n0(r.dps?.[r.scenario])} ${esc(r.scenario || "")} DPS</option>`).join("");
+  $("#res").innerHTML = results.map((r) => `<option value="${esc(r.path)}">${r.community ? "Community preset · " : ""}${esc(cap(r.class))} · ${esc(r.loadout || "")} · ${n0(r.dps?.[r.scenario])} ${esc(r.scenario || "")} DPS</option>`).join("");
   $("#cls").innerHTML = classes.map((c) => `<option>${esc(c)}</option>`).join("");
   if (st.path) $("#res").value = st.path;
   const load = async () => {
@@ -385,7 +414,7 @@ function renderOptResult(r) {
   const st = S.character, box = $("#optres");
   if (!box) return;
   const g = r.summary.gain;
-  const preset = r.preset?.submitted ? (r.preset.accepted ? "This build is now the community preset for its class." : "The server kept its current higher-scoring community preset.") : "";
+  const preset = r.preset?.submitted ? (r.preset.accepted ? "This build is now the community preset for its class." : "The server kept its current Planner preset: " + (r.preset.reason || "no improvement at the shared budgets") + "") : "";
   box.innerHTML = `<div class="kpis" style="margin-top:12px"><div class="kpi"><div class="k">Optimized boss DPS</div><div class="v">${n0(r.optimized.dps.boss)}</div></div>
       <div class="kpi"><div class="k">Gain</div><div class="v ${g > 0 ? "good" : ""}">${g >= 0 ? "+" : ""}${pct(g)}</div></div></div>
       ${preset ? `<p class="small good">${esc(preset)}</p>` : ""}<p class="small muted">The windows below now show the optimized build. What changes:</p><pre class="diff">${esc(r.diff)}</pre>`;
@@ -434,7 +463,7 @@ function lineChart(per, roll) {
 // a saved log and a live snapshot render identically. No paid tiers — every panel is shown.
 const PCOL = ["#e8cf8e", "#58a6ff", "#b18cff", "#6fcf7a", "#e68a5a", "#5ad1c4", "#e45a8a", "#d7c15a", "#8a92a8"];
 let _ptab = "dps";
-const skillIcon = (id) => (id ? icon("https://metabot.gg/web/aion2/skills/" + id + ".webp") : "");
+const skillIcon = (id) => (id ? icon("https://metabot.gg/web/aion2/skills/" + (Math.floor(Number(id) / 10000) * 10000) + ".webp") : "");
 function kfmt(x) {
   if (x == null || isNaN(x)) return "—";
   const a = Math.abs(x);
@@ -468,7 +497,7 @@ function renderParse(d) {
   if (otherDmg > 0) parts.push({ label: `Other (${rest.length})`, value: otherDmg, color: PCOL[8] });
   const topList = parts.map((p) => `<div class="trow"><span class="sw" style="background:${p.color}"></span><span class="nm">${esc(p.label)}</span><span class="pc">${Math.round(100 * p.value / totDmg)}%</span></div>`).join("");
   const mxDmg = Math.max(...skills.map((s) => s.damage || 0), 1);
-  const srows = skills.map((s) => `<tr><td class="nm">${s.skill_id ? `<img src="${skillIcon(s.skill_id)}" alt="">` : ""}${esc(s.skill)}</td>
+  const srows = skills.map((s) => `<tr><td class="nm">${s.skill_id ? `<img src="${skillIcon(s.skill_id)}" alt="" onerror="this.hidden=true">` : ""}${esc(s.skill)}</td>
     <td>${s.hits ?? "—"}</td><td>${kfmt(s.dps)}</td><td>${kfmt(s.avg)}</td><td>${s.min == null ? "—" : kfmt(s.min)}</td><td>${s.max == null ? "—" : kfmt(s.max)}</td>
     <td class="dmg"><i style="width:${100 * (s.damage || 0) / mxDmg}%"></i><span>${kfmt(s.damage)}<span class="pcpct">${Math.round(100 * (s.damage || 0) / totDmg)}%</span></span></td></tr>`).join("");
   const spark = d.timeline ? `<div style="margin:4px 0 12px">${lineChart(d.timeline.per_second, d.timeline.rolling10)}</div>` : "";
@@ -481,7 +510,7 @@ function renderParse(d) {
   const accPanel = `<div class="ppanel" data-pane="acc"${at === "acc" ? "" : " hidden"}><div class="prates">
     ${rc("Crit", rate(d.rates.crit))}${rc("Back", rate(d.rates.back))}${rc("Front", rate(d.rates.front))}${rc("Double", rate(d.rates.double))}${rc("Perfect", rate(d.rates.perfect))}${rc("Multi", rate(d.rates.multi))}</div></div>`;
   const defPanel = `<div class="ppanel" data-pane="def"${at === "def" ? "" : " hidden"}><div class="pnote">Damage taken and mitigation aren't in this ${d.live ? "session" : "log"} — this tab fills in when the source provides incoming-damage events.</div></div>`;
-  const rot = (d.rotation || []).length ? `<div class="prot"><div class="lbl">Skill rotation</div><div class="strip">${d.rotation.slice(0, 80).map((e) => `<div class="ic"><img src="${skillIcon(e.skill_id)}" title="${esc(e.skill || "")}" alt="${esc(e.skill || "")}"><span>${e.t != null ? e.t.toFixed(0) + "s" : ""}</span></div>`).join("")}</div></div>` : "";
+  const rot = (d.rotation || []).length ? `<div class="prot"><div class="lbl">Skill rotation</div><div class="strip">${d.rotation.slice(0, 80).map((e) => `<div class="ic"><img src="${skillIcon(e.skill_id)}" title="${esc(e.skill || "")}" alt="" onerror="this.hidden=true"><small>${esc(e.skill || "")}</small><span>${e.t != null ? e.t.toFixed(0) + "s" : ""}</span></div>`).join("")}</div></div>` : "";
   const stat = (l, v, gold) => `<div><span class="pl">${l}</span><span class="pv${gold ? " gold" : ""}">${v}</span></div>`;
   const clsIcon = d.cls ? `<img class="pcls" src="${icon("https://metabot.gg/web/aion2/classes/" + String(d.cls).toLowerCase() + ".webp")}" alt="" onerror="this.style.visibility='hidden'">` : "";
   return `<div class="parse">
@@ -675,25 +704,35 @@ async function pageMeter() {
         <button class="btn small" id="movl" title="Open the compact overlay in a separate window">Open overlay</button><span id="mmsg" class="small muted"></span></div>
       <div class="row" id="mlive" style="display:none;margin-top:6px">
         <label class="small muted">Encoder <input id="mdec" type="text" value="Built-in A2Tools decoder" readonly aria-label="Encoder module" style="width:180px"></label>
-        <label class="small muted">Interface <select id="miface" aria-label="Capture interface" title="Npcap interface; Auto chooses the system default"><option value="auto">Auto</option></select></label><button class="btn small" id="mifacesrefresh">Refresh interfaces</button>
+        <label class="small muted">Interface <select id="miface" aria-label="Capture interface" title="Npcap interface; Auto monitors all available adapters"><option value="auto">Auto</option></select></label><button class="btn small" id="mifacesrefresh">Refresh interfaces</button>
         <label class="small muted">Game host <input id="mhost" type="text" value="any" aria-label="Game host" style="width:100px" title="Use an address to limit the capture; any accepts game traffic on the port"></label>
-        <label class="small muted">Port <input id="mport" type="number" value="50349" aria-label="Game server port" style="width:80px"></label>
+        <label class="small muted"><input id="mautoport" type="checkbox" checked> Detect game port</label><label class="small muted">Fixed port <input id="mport" type="number" value="50349" aria-label="Game server port" style="width:80px"></label>
         <label class="small muted">Target <select id="mtarget" aria-label="Target selection"><option value="bossTargets" selected>Boss target</option><option value="mostDamage">Most damage</option><option value="mostRecent">Most recent</option><option value="lastHitByMe">Last hit by me</option><option value="allTargets">All targets</option><option value="trainTargets">Training target</option></select></label>
         <label class="small muted">Character <input id="mchar" type="text" placeholder="optional" style="width:120px"></label></div>
-      <div class="row" id="mcustom" style="display:none;margin-top:6px"><input id="mcustomdec" type="text" placeholder="decoder module (e.g. my_decoder or my_pkg:Factory)" style="width:300px"></div>
+      <div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
       <div id="npcap" class="small faint" style="margin-top:8px"></div>
       <p class="small faint">Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, and capture permission. Export writes an open a2log file; Upload uses the log server configured in Settings.</p>
     </div></section><div id="mview"></div>`;
   const live = () => {
-    $("#mlive").style.display = $("#msrc").value === "a2tools" ? "flex" : "none";
+    $("#mlive").style.display = $("#msrc").value !== "replay" ? "flex" : "none";
     $("#mcustom").style.display = $("#msrc").value === "live" ? "flex" : "none";
   };
   $("#msrc").onchange = live; live();
+  let decoderPath = null;
+  $("#mcustomdec").onchange = async () => {
+    const file = $("#mcustomdec").files[0]; decoderPath = null;
+    if (!file) return;
+    try {
+      if (file.size > 1048576) throw new Error("Decoder files must be smaller than 1 MiB");
+      const imported = await api("/api/meter/decoder", {name: file.name, source: await file.text()});
+      decoderPath = imported.path; $("#mdecodername").textContent = imported.name;
+    } catch (e) { $("#mdecodername").textContent = e.message; }
+  };
   const refreshInterfaces = async () => {
     try {
       const r = await api("/api/meter/interfaces");
       const select = $("#miface"), selected = select.value;
-      select.innerHTML = `<option value="auto">Auto</option>` + (r.interfaces || []).map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
+      select.innerHTML = `<option value="auto">Auto</option>` + (r.devices || (r.interfaces || []).map((name) => ({name, label: name}))).map((device) => `<option value="${esc(device.name)}">${esc(device.label)}${device.address ? " · " + esc(device.address) : ""}</option>`).join("");
       if ([...select.options].some((option) => option.value === selected)) select.value = selected;
     } catch (e) { $("#mmsg").textContent = "Could not list capture interfaces: " + e.message; }
   };
@@ -727,7 +766,8 @@ async function pageMeter() {
   refreshNpcap();
   $("#mstart").onclick = async () => {
     const source = $("#msrc").value;
-    if (source === "a2tools") {
+    if (source === "live" && !decoderPath) { $("#mmsg").textContent = "Choose a decoder .py file first."; return; }
+    if (source !== "replay") {
       try {
         const setup = await api("/api/capture/setup");
         if (setup.supported && !setup.installed) {
@@ -741,10 +781,11 @@ async function pageMeter() {
         }
       } catch (e) { $("#mmsg").textContent = "Could not check Npcap: " + e.message; return; }
     }
-    const body = { action: "start", source, decoder: source === "live" ? ($("#mcustomdec").value || null) : null,
-      iface: source === "a2tools" && $("#miface").value !== "auto" ? $("#miface").value : null,
-      host: source === "a2tools" && $("#mhost").value !== "any" ? $("#mhost").value : null,
-      port: source === "a2tools" ? (+$("#mport").value || 50349) : null,
+    const body = { action: "start", source, decoder: source === "live" ? decoderPath : null,
+      auto_port: source === "a2tools" && $("#mautoport").checked,
+      iface: source !== "replay" && $("#miface").value !== "auto" ? $("#miface").value : null,
+      host: source !== "replay" && $("#mhost").value !== "any" ? $("#mhost").value : null,
+      port: source !== "replay" ? (+$("#mport").value || 50349) : null,
       target_mode: source === "a2tools" ? $("#mtarget").value : "bossTargets",
       character_name: source === "a2tools" ? ($("#mchar").value || null) : null };
     try { renderMeter(await api("/api/meter", body)); } catch (e) { $("#mmsg").textContent = e.message; }
@@ -790,10 +831,10 @@ async function pageMeter() {
 function renderMeter(s) {
   const st = S.meter; st.running = !!s.running;
   const snap = s.snapshot || { players: [] }, msg = $("#mmsg");
-  if (msg) { if (s.error) msg.textContent = s.error; else if (s.running) msg.textContent = `recording${s.source ? " (" + esc(s.source) + ")" : ""}…`; }
+  if (msg) { if (s.error) msg.textContent = s.error; else { const d = s.diagnostics || {}; msg.textContent = s.running ? `Recording · ${d.packets || 0} TCP packets · ${d.decoded_events || 0} combat events${d.port ? " · port " + d.port : d.auto_port ? " · detecting game port" : ""}` : "Stopped"; } }
   const view = $("#mview"); if (!view) return;
   if (!snap.players.length) {
-    view.innerHTML = win("Meter", "", '<div class="empty">No data yet — choose a source and press Start.</div>');
+    view.innerHTML = win("Meter", "", `<div class="empty">${s.running ? ((s.diagnostics?.packets || 0) ? "Packets are arriving. Waiting for a recognized combat flow — enter combat. If no events appear, check your adapter selection and the game protocol version." : "No packets yet. Check capture support, adapter permissions and your interface selection, then enter combat.") : "No data yet — choose a source and press Start."}${s.diagnostics?.warnings?.length ? "<p>" + esc(s.diagnostics.warnings.join("; ")) + "</p>" : ""}</div>`);
     return;
   }
   const mx = Math.max(...snap.players.map((p) => p.dps), 1);
@@ -1075,8 +1116,8 @@ async function pageSettings() {
       <button class="btn small" id="ssave">Save</button><span id="smsg" class="small muted"></span></div>
       ${srv.is_default && srv.url ? '<div class="small muted" style="margin-top:4px">Using the community default server. Enter your own above to override it.</div>' : ""}</div></div>
     <div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button></div></div>
-    <div class="setrow"><div class="lbl">Updates</div><div><label><input type="checkbox" id="autoupd" ${ui.auto_update !== false ? "checked" : ""}> install new versions automatically on launch</label></div></div>
-    <div class="setrow"><div class="lbl">Version</div><div>aion2calc ${esc(s.version)} ${s.update ? `· version ${esc(s.update.version)} available <button class="btn small" id="instupd">Install now</button> <a href="${esc(s.update.url)}" target="_blank" rel="noopener">release notes</a>` : '<span class="muted">· up to date</span>'} <span id="updmsg" class="small muted"></span></div></div>
+    <div class="setrow"><div class="lbl">Updates</div><div><label><input type="checkbox" id="autoupd" ${ui.auto_update !== false ? "checked" : ""}> check and prompt for updates on launch</label></div></div>
+    <div class="setrow"><div class="lbl">Version</div><div>Aion 2 Calc ${esc(s.version)} ${s.update ? `· version ${esc(s.update.version)} available <button class="btn small" id="instupd">Install now</button> <a href="${esc(s.update.url)}" target="_blank" rel="noopener">release notes</a>` : '<span class="muted">· up to date</span>'} <span id="updmsg" class="small muted"></span></div></div>
     <div class="setrow"><div class="lbl">Community</div><div><a href="${DISCORD}" target="_blank" rel="noopener">Join the aion2calc Discord</a> — questions, builds and help</div></div>
     <div class="setrow"><div class="lbl">Stop the app</div><div><button class="btn small" id="quit2">Quit aion2calc</button></div></div>
     <div class="setrow" style="border-top:1px solid var(--line);margin-top:8px;padding-top:10px"><div class="lbl">Author</div><div class="muted">Spirited - Zikel : Asmodian&nbsp;&nbsp;|&nbsp;&nbsp;Legion: WhaleWatch</div></div>`);
@@ -1084,11 +1125,17 @@ async function pageSettings() {
   $("#appwin").onchange = () => api("/api/ui", { app_window: $("#appwin").checked }).then(() => toast("Saved"));
   $("#autoupd").onchange = () => api("/api/ui", { auto_update: $("#autoupd").checked }).then(() => toast("Saved"));
   if ($("#instupd")) $("#instupd").onclick = async () => {
-    $("#updmsg").textContent = "downloading…";
+    $("#instupd").disabled = true;
+    $("#updmsg").textContent = "Downloading and checking the installer…";
     try {
       const r = await api("/api/update", {});
-      $("#updmsg").textContent = { applying: "installing — the app will restart", launching: "closing the app, then opening the installer — follow the prompts (choose “More info → Run anyway” if Windows warns)", downloaded: "downloaded — open your data folder’s “updates” to run it", "download-failed": "download failed", "up-to-date": "already up to date" }[r.status] || r.status;
-    } catch (e) { $("#updmsg").textContent = e.message; }
+      if (r.status === "launching") {
+        document.body.innerHTML = '<div class="empty" style="margin-top:20vh">Aion 2 Calc is closing. The installer will open in a moment.</div>';
+        return;
+      }
+      $("#instupd").disabled = false;
+      $("#updmsg").textContent = { "launch-failed": "The installer helper did not start. Your app is still running; open the updates folder to run the setup file.", applying: "installing — the app will restart", launching: "closing the app, then opening the installer — follow the prompts (choose “More info → Run anyway” if Windows warns)", downloaded: "downloaded — open your data folder’s “updates” to run it", "download-failed": "download failed", "up-to-date": "already up to date" }[r.status] || r.status;
+    } catch (e) { if ($("#updmsg")) $("#updmsg").textContent = e.message; if ($("#instupd")) $("#instupd").disabled = false; }
   };
   $$("[data-open]").forEach((b) => (b.onclick = () => api("/api/open", { what: b.dataset.open }).catch((e) => toast(e.message))));
   $("#ssave").onclick = async () => {
@@ -1133,7 +1180,7 @@ async function syncPill() {
       running ? `updating database · ${esc(sy.phase)} ${sy.total ? `${sy.done}/${sy.total}` : ""}` : `database ${n0(s.db.items)} items`}</span>`;
     const up = $("#update");
     if (s.update && up) { up.hidden = false; up.href = s.update.url; up.textContent = `Version ${s.update.version} available`; }
-    if (s.update && !sessionStorage.getItem("update-prompted:" + s.update.version)) {
+    if (s.update && s.update_prompt !== false && !sessionStorage.getItem("update-prompted:" + s.update.version)) {
       sessionStorage.setItem("update-prompted:" + s.update.version, "1");
       setTimeout(async () => {
         if (!confirm(`Aion 2 Calc ${s.update.version} is ready. Install it now?`)) return;
