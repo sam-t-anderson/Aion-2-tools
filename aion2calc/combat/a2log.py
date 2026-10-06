@@ -43,6 +43,19 @@ PLAYER_STATS = ("critical_hit", "attack", "double_pct", "perfect_pct", "multihit
                 "cooldown_pct", "accuracy")
 LIMITS = {"players": 64, "segments": 200, "hits": 400_000, "buffs": 100_000, "hp": 50_000, "text": 200}
 
+
+def profile_snapshot(value):
+    if not isinstance(value,dict) or value.get("status") not in ("pending","ready","partial","unavailable"):
+        return None
+    import json
+    try:
+        if len(json.dumps(value,ensure_ascii=False,allow_nan=False).encode())>512*1024:
+            return None
+    except (ValueError,TypeError):
+        return None
+    return value
+
+
 HIT = {"type": "object", "required": ["t", "player", "damage"], "additionalProperties": True, "properties": {
     "t": {"type": "number", "minimum": 0, "description": "seconds from the segment start"},
     "player": {"type": "string", "description": "a players[].id"},
@@ -77,6 +90,7 @@ SCHEMA = {
             "type": "object", "required": ["id", "name"], "additionalProperties": True, "properties": {
                 "id": {"type": "string"}, "name": {"type": "string"},
                 "class": {"type": "string"}, "server": {"type": "string"},
+                "profile_snapshot": {"type":"object", "description":"Optional immutable official upload-time profile with status, timestamps and data; not proof of encounter-time gear"},
                 "combat_power": {"type": "number"}, "gear_score": {"type": "number"},
                 "specs": {"type": "object", "description": "skill name -> chosen specialization slots (1-5)",
                           "additionalProperties": {"type": "array", "items": {"type": "integer"}}},
@@ -179,6 +193,9 @@ def validate(doc) -> dict:
         ids.add(pid)
         q = {"id": pid, "name": _text(p.get("name"), f"players[{i}].name", True),
              "class": class_key(p.get("class")), "server": _text(p.get("server"), f"players[{i}].server")}
+        snapshot = profile_snapshot(p.get("profile_snapshot"))
+        if snapshot is not None:
+            q["profile_snapshot"] = snapshot
         for k in ("character_id", "region"):
             if p.get(k) is not None:
                 q[k] = _text(str(p[k]), f"players[{i}].{k}")
@@ -246,6 +263,9 @@ def validate(doc) -> dict:
             row = {k: str(entity[k])[:200] for k in ("id", "name", "kind", "owner") if entity.get(k) is not None}
             if entity.get("owner") not in ids:
                 row.pop("owner", None)
+            snapshot = profile_snapshot(entity.get("profile_snapshot"))
+            if snapshot is not None:
+                row["profile_snapshot"] = snapshot
             row["is_boss"] = entity.get("is_boss") is True
             row["is_player"] = entity.get("is_player") is True
             for key in ("class", "server", "character_id"):

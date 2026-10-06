@@ -82,9 +82,27 @@ def discover_legacy():
                   "created": target.stat().st_mtime, "result": build_view(summary)}, identifier)
         except (OSError, ValueError, KeyError, TypeError):
             continue
-    for target in results_dir().glob("**/ADVICE.md"):
+    advice_sources = set(results_dir().glob("**/ADVICE.md"))
+    advice_sources.update(p.with_name("ADVICE.md") for p in results_dir().glob("**/advice.json"))
+    for target in sorted(advice_sources):
         identifier = hashlib.sha256(str(target).encode()).hexdigest()[:24]
-        if not path(identifier).exists():
+        existing = None
+        try:
+            if path(identifier).exists():
+                existing = json.loads(path(identifier).read_text(encoding="utf-8"))
+                if existing.get("kind") != "advice-text":
+                    continue
+            structured = target.with_name("advice.json")
+            if structured.exists():
+                result = json.loads(structured.read_text(encoding="utf-8"))
+                save({"format":"a2result", "version":1, "kind":"advice",
+                      "title":target.parent.name + " · recovered advice",
+                      "created":existing["created"] if existing else structured.stat().st_mtime,
+                      "result":result}, identifier)
+                continue
+        except (OSError, ValueError, KeyError, TypeError):
+            pass  # Keep a readable legacy report if its sidecar is absent or damaged.
+        if not path(identifier).exists() and target.exists():
             try:
                 save({"format": "a2result", "version": 1, "kind": "advice-text", "title": target.parent.name + " · recovered advice",
                       "created": target.stat().st_mtime, "result": {"text": target.read_text(encoding="utf-8")}}, identifier)

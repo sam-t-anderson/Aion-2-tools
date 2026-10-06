@@ -456,6 +456,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/sync":
             start_sync(force=bool(body.get("force")), budget_s=body.get("budget", 900))
             return self._json({"ok": True})
+        if path == "/api/character/profile":
+            from ..sources.profile_snapshot import lookup
+            return self._json(lookup(body.get("player") or {},body.get("region")))
         if path == "/api/character/import":
             return self._json({"job": start_job("import", act_character_import, body)})
         if path == "/api/character/optimize":

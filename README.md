@@ -22,6 +22,16 @@ It answers, for any class:
 and produces images of the Daevanion boards and a planner-style build page plus
 share links for the metabot.gg and gamers4.life planners.
 
+## Recovered advice
+
+Saved Results restores the same interactive Gear & Advice panels from legacy `advice.json` files, including previously recovered text entries. Reports with only an `ADVICE.md` file remain readable as text because they lack the structured data needed for equipment and other controls. No advice calculation is rerun during recovery.
+
+## Character builds in combat logs
+
+Click a character name in a combat log to view their saved official equipment, skills, stigmas and other available build details. This includes identified PvP opponents on desktop and GitHub Pages. Uploaded logs request fresh public profiles from the official character service; completed snapshots stay with that historical log.
+
+The profile shows when the upload arrived and when the lookup completed. It represents gear reported around upload time, which may differ from gear used in the encounter. Missing names/server identity, ambiguous matches and unavailable official responses are shown explicitly. Older logs have no historical snapshot. Desktop can fetch a clearly labelled current profile preview without replacing the historical build.
+
 ## Example: Sorcerer, level 45 global
 
 The optimized Sorcerer build (boss DPS 17,962 on median launch gear, 25,890 on upgrade gear), with its
