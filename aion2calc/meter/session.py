@@ -17,6 +17,7 @@ class Record:
     local_id: int | None
     split: int = 0
     run: int = 1
+    sequence: int = 0
 
 
 class CombatSession:
@@ -32,6 +33,7 @@ class CombatSession:
         self.manual_split = 0
         self.telemetry = deque(maxlen=100_000)
         self._dead = set()
+        self.sequence = 0
         self.run = 1
         self.runs = {1: {"complete":False}}
         self.run_closed = False
@@ -98,7 +100,8 @@ class CombatSession:
         for event in events:
             if len(self.records) == self.records.maxlen:
                 self.discarded += 1
-            self.records.append(Record(self.epoch, event, party, engine.local_player_id, self.manual_split, self.run))
+            self.sequence += 1
+            self.records.append(Record(self.epoch, event, party, engine.local_player_id, self.manual_split, self.run, self.sequence))
         for sample in engine.telemetry:
             key = (self.epoch, sample["entity"])
             if sample["kind"] == "hp" and sample["current"] > 0:
@@ -180,7 +183,7 @@ class CombatSession:
             if (not groups or groups[-1]["epoch"] != record.epoch or groups[-1]["split"] != record.split
                     or groups[-1]["pvp"] != pvp
                     or (self.automatic_splits and event.timestamp_ms - groups[-1]["last_damage"] > self.gap_seconds * 1000)):
-                groups.append({"id": f"{record.epoch}-{event.timestamp_ms}", "epoch": record.epoch,
+                groups.append({"id": f"{record.epoch}-{event.timestamp_ms}-{record.sequence}", "epoch": record.epoch,
                                "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "split": record.split, "run":record.run, "pvp":pvp, "records": []})
             group = groups[-1]
             group["last_damage"] = max(group["last_damage"], event.timestamp_ms)
