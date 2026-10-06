@@ -505,9 +505,12 @@ class Handler(BaseHTTPRequestHandler):
                                           character_name=body.get("character_name"),
                                           scope=body.get("scope", "party"), segment_gap=body.get("segment_gap", 10),
                                           automatic_splits=body.get("automatic_splits", True),
+                                          auto_finish=body.get("auto_finish",True), final_boss_ids=body.get("final_boss_ids",[]),
                                           target_mode=body.get("target_mode", "bossTargets")))
             if action == "view":
                 return self._json(r.configure_view(body))
+            if action == "finish-run":
+                return self._json(r.finish_run())
             if action == "split":
                 return self._json(r.split_now())
             if action == "clear":

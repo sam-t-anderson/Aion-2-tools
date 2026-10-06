@@ -30,7 +30,7 @@ import math
 
 VERSION = 1
 PVP_TYPES = ("pvp_battleground", "pvp_arena", "pvp_abyss", "pvp_rift", "pvp_open_world", "pvp_other")
-ENCOUNTER_TYPES = ("unknown", "transcendence", "daily", "expedition", "ascension", "nightmare", "sanctuary", *PVP_TYPES)
+ENCOUNTER_TYPES = ("unknown", "pve_open_world", "pve_unverified", "transcendence", "daily", "expedition", "ascension", "nightmare", "sanctuary", *PVP_TYPES)
 
 
 def combat_mode(doc, segment=None):
@@ -119,6 +119,8 @@ SCHEMA = {
 # Compatible v1 extensions. Older logs without these arrays remain readable.
 _segment_properties = SCHEMA["properties"]["segments"]["items"]["properties"]
 _segment_properties.update({
+    "run_id":{"type":"string"}, "run_complete":{"type":"boolean"}, "run_end_reason":{"type":"string"},
+    "instance_id":{"type":"integer"}, "map_id":{"type":"integer"},
     "game_patch": {"type": "string"}, "difficulty": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
     "entities": {"type": "array", "maxItems": 2000, "description": "Observed enemies and pets: id, name, kind, mob_code, is_boss, owner"},
     "events": {"type": "array", "maxItems": LIMITS["hits"], "description": "Recorded damage/heal/death effects: t, kind, source, target, skill, skill_id, amount; unknown recipients omitted"},
@@ -316,6 +318,14 @@ def validate(doc) -> dict:
                          "start": _text(s.get("start"), "segment start"), "duration": float(s["duration"]),
                          "killed": s.get("killed") is True, "hits": out_hits, "buffs": buffs, "hp": hp,
                          "entities": entities, "events": events, "health": health, "positions": positions})
+        for key in ("run_id", "run_end_reason", "zone"):
+            if isinstance(s.get(key),str):
+                out_segs[-1][key] = s[key][:200]
+        if isinstance(s.get("run_complete"),bool):
+            out_segs[-1]["run_complete"] = s["run_complete"]
+        for key in ("instance_id", "map_id"):
+            if isinstance(s.get(key),int) and 0 <= s[key] <= 2**32-1:
+                out_segs[-1][key] = s[key]
         for key in ("game_patch", "difficulty", "encounter_type"):
             if isinstance(s.get(key), str):
                 if key == "encounter_type" and s[key] not in ENCOUNTER_TYPES:

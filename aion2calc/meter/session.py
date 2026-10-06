@@ -16,6 +16,7 @@ class Record:
     party: frozenset[str]
     local_id: int | None
     split: int = 0
+    run: int = 1
 
 
 class CombatSession:
@@ -31,15 +32,54 @@ class CombatSession:
         self.manual_split = 0
         self.telemetry = deque(maxlen=100_000)
         self._dead = set()
+        self.run = 1
+        self.runs = {1: {"complete":False}}
+        self.run_closed = False
+        self.final_boss_ids = set()
+        self.auto_finish = True
+        self._context = None
+
+    def finish_run(self, reason="manual", complete=True):
+        if not any(r.run == self.run for r in self.records) or self.run_closed:
+            return
+        self.runs[self.run].update(complete=complete, end_reason=reason)
+        self.run_closed = True
+        self.manual_split += 1
+
+    def _next_run(self):
+        self.run += 1
+        self.runs[self.run] = {"complete":False}
+        self.run_closed = False
 
     def split_now(self):
         self.manual_split += 1
 
     def begin_capture(self):
+        self.finish_run("capture_restart", complete=False)
+        self._context = None
         self.epoch += 1
         self._zone_reset = None
 
     def observe(self, engine, events):
+        context = (engine.map_id, engine.dungeon_id)
+        if self._context is not None:
+            from .a2parser.engine import OPEN_WORLD_MAPS
+            old_map, old_instance = self._context
+            changed = (old_instance and engine.dungeon_id and old_instance != engine.dungeon_id
+                       or old_map and engine.map_id and old_map != engine.map_id
+                       and not (old_instance and old_instance == engine.dungeon_id)
+                       or old_instance and not engine.dungeon_id and engine.map_id in OPEN_WORLD_MAPS
+                       or not old_instance and engine.dungeon_id and old_map in OPEN_WORLD_MAPS)
+            if changed:
+                self.finish_run("map_or_instance_change", complete=False)
+        self._context = context
+        if self.run_closed and any(isinstance(e,DamageEvent) and
+                (self.runs[self.run].get("end_reason") != "configured_final_boss_death"
+                 or (self.epoch,e.target_id) not in self._dead
+                 or engine.last_zone_reset_ms != self._zone_reset) for e in events):
+            self._next_run()
+        if not self.run_closed:
+            self.runs[self.run].update(map_id=engine.map_id, instance_id=engine.dungeon_id)
         if engine.last_zone_reset_ms != self._zone_reset:
             if self._zone_reset is not None or engine.last_zone_reset_ms is not None:
                 self.epoch += 1
@@ -58,7 +98,7 @@ class CombatSession:
         for event in events:
             if len(self.records) == self.records.maxlen:
                 self.discarded += 1
-            self.records.append(Record(self.epoch, event, party, engine.local_player_id, self.manual_split))
+            self.records.append(Record(self.epoch, event, party, engine.local_player_id, self.manual_split, self.run))
         for sample in engine.telemetry:
             key = (self.epoch, sample["entity"])
             if sample["kind"] == "hp" and sample["current"] > 0:
@@ -68,6 +108,12 @@ class CombatSession:
                     continue
                 self._dead.add(key)
             self.telemetry.append({**sample, "epoch": self.epoch})
+            code = identity["spawns"].get(sample["entity"], {}).get("mobCode")
+            if (self.auto_finish and not self.pvp and sample["kind"] == "death"
+                    and code in self.final_boss_ids and npc_info(code).get("isBoss")
+                    and engine.dungeon_id == npc_info(code).get("dungeonId") and engine.dungeon_id
+                    and any(r.run == self.run and isinstance(r.event,DamageEvent) and r.event.target_id == sample["entity"] and r.event.actor_id in self._allowed(r,"party") for r in self.records)):
+                self.finish_run("configured_final_boss_death")
         # Remove identity contexts when their bounded event history expires.
         if len(self.identities) > 250:
             retained = {record.epoch for record in self.records}
@@ -100,19 +146,25 @@ class CombatSession:
         allowed.update(pet for pet, owner in identity["owners"].items() if owner in allowed)
         return allowed
 
+    def _pvp_damage(self, record, allowed):
+        event = record.event
+        if not isinstance(event,DamageEvent):
+            return False
+        identity = self.identities[record.epoch]
+        opponent = event.target_id if event.actor_id in allowed else event.actor_id
+        opponent = identity["owners"].get(opponent,opponent)
+        return (not (event.actor_id in allowed and event.target_id in allowed)
+                and opponent in identity.get("player_ids",set())
+                and not identity["spawns"].get(opponent,{}).get("mobCode"))
+
     def groups(self, scope="party"):
         groups = []
         for record in self.records:
             event = record.event
             allowed = self._allowed(record, scope)
-            if self.pvp and isinstance(event, DamageEvent):
-                identity = self.identities[record.epoch]
-                opponent = event.target_id if event.actor_id in allowed else event.actor_id
-                opponent = identity["owners"].get(opponent,opponent)
-                if (event.actor_id in allowed and event.target_id in allowed) or opponent not in identity.get("player_ids", set()):
-                    continue  # Never call an unknown NPC a PvP opponent.
-                if identity["spawns"].get(opponent, {}).get("mobCode"):
-                    continue
+            pvp = self._pvp_damage(record,allowed)
+            if self.pvp and isinstance(event,DamageEvent) and not pvp:
+                continue  # Explicit PvP mode excludes unknown NPC/player opponents.
             relevant = event.actor_id in allowed or (event.target_id in allowed)
             if not relevant:
                 continue
@@ -126,13 +178,21 @@ class CombatSession:
                     groups[-1]["end"] = max(groups[-1]["end"], event.timestamp_ms)
                 continue
             if (not groups or groups[-1]["epoch"] != record.epoch or groups[-1]["split"] != record.split
+                    or groups[-1]["pvp"] != pvp
                     or (self.automatic_splits and event.timestamp_ms - groups[-1]["last_damage"] > self.gap_seconds * 1000)):
                 groups.append({"id": f"{record.epoch}-{event.timestamp_ms}", "epoch": record.epoch,
-                               "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "split": record.split, "records": []})
+                               "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "split": record.split, "run":record.run, "pvp":pvp, "records": []})
             group = groups[-1]
             group["last_damage"] = max(group["last_damage"], event.timestamp_ms)
             group["end"] = max(group["end"], event.timestamp_ms)
             group["records"].append(record)
+        deaths = [s for s in self.telemetry if s["kind"] == "death"]
+        for group in groups:
+            actors = {r.event.actor_id for r in group["records"]} | {r.event.target_id for r in group["records"]}
+            for sample in deaths:
+                if (sample["kind"] == "death" and sample["epoch"] == group["epoch"] and sample["entity"] in actors
+                        and group["end"] <= sample["timestamp_ms"] <= group["last_damage"] + self.gap_seconds*1000):
+                    group["end"] = sample["timestamp_ms"]
         return groups[-200:]
 
     @staticmethod
@@ -242,8 +302,9 @@ class CombatSession:
             identity = self.identities[group["epoch"]]
             hits, events, entities = [], [], {}
             resolving = set()
+            actor_refs = {}
             opponents = set()
-            if self.pvp:
+            if group["pvp"]:
                 for record in group["records"]:
                     if isinstance(record.event, DamageEvent):
                         allowed_now = self._allowed(record, scope)
@@ -264,6 +325,8 @@ class CombatSession:
                     info = identity["roster"].get(name.casefold(), {})
                     profile = identity.get("profile", {}) if actor_id == identity["local_id"] else {}
                     server = info.get("serverId") or profile.get("serverId")
+                    if server and actor_id in identity["names"]:
+                        pid = f"p:{server}:" + (str(info["dbid"]) if info.get("dbid") else name.casefold())
                     players[pid] = {"id": pid, "name": name, "class": identity["jobs"].get(actor_id) or info.get("job"),
                         "server": str(server) if server else None,
                         "character_id": str(info["dbid"]) if info.get("dbid") else None,
@@ -277,6 +340,7 @@ class CombatSession:
                     entities[pid] = {"id": pid, "name": name, "kind": "enemy", "mob_code": code,
                         "is_boss": bool(npc_info(code).get("isBoss")) if code else False,
                         "is_player": actor_id in opponents, "class": identity["jobs"].get(actor_id)}
+                actor_refs[actor_id] = pid
                 return pid
             for record in group["records"]:
                 event, allowed = record.event, self._allowed(record, scope)
@@ -307,7 +371,7 @@ class CombatSession:
             for sample in self.telemetry:
                 if sample["epoch"] != group["epoch"] or not group["start"] <= sample["timestamp_ms"] <= group["end"]:
                     continue
-                eid = f"{group['epoch']}:{sample['entity']}"
+                eid = actor_refs.get(sample["entity"],f"{group['epoch']}:{sample['entity']}")
                 if eid not in players and eid not in entities:
                     continue
                 t = (sample["timestamp_ms"] - group["start"]) / 1000
@@ -318,7 +382,15 @@ class CombatSession:
                         "max": sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("maxHp")})
             if hits or events:
                 bosses = [e for e in entities.values() if e.get("is_boss")]
-                segments.append({"id": group["id"], "label": bosses[0]["name"] if bosses else f"Combat {index+1}",
+                run = self.runs[group["run"]]
+                from .a2parser.engine import OPEN_WORLD_MAPS
+                category = "pvp_open_world" if group["pvp"] else "pve_open_world"
+                if run.get("map_id") not in OPEN_WORLD_MAPS:
+                    category = "pvp_other" if group["pvp"] else "pve_unverified"
+                segments.append({"run_id":str(group["run"]), "run_complete":run["complete"],
+                    "run_end_reason":run.get("end_reason", ""), "map_id":run.get("map_id",0),
+                    "instance_id":run.get("instance_id",0), "encounter_type":category,
+                    "id": group["id"], "label": bosses[0]["name"] if bosses else f"Combat {index+1}",
                     "boss": bosses[0]["name"] if bosses else None,
                     "killed": any(e["kind"] == "death" and e["target"] in {b["id"] for b in bosses} for e in events),
                     "hits": hits, "events": sorted(events, key=lambda e: e["t"]), "entities": list(entities.values()), "health": health,

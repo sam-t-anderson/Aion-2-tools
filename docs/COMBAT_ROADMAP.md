@@ -60,3 +60,7 @@ Server: authenticated private LAN dashboard on port 24662, persistent UTC-day re
 ### Upload-time character builds (0.2.20)
 
 Shared desktop/Pages combat review opens saved character profiles for friendlies and identified PvP opponents. Server enrichment uses fresh official public profiles, with immutable upload/fetch timestamps and explicit unavailable states. Current local previews are separate. Actual PvP packet coverage, automatic mode/team/objective detection and accurate encounter-time gear require further evidence; upload-time profiles cannot establish exact gear used in earlier combat.
+
+### Run boundaries (0.2.21)
+
+Implemented retained run groups, configured final-boss death completion, manual Finish run, map/dungeon transition boundaries and source-specific open-world/unverified categories. Shared viewer selects individual runs. Missing final-boss order and arena/battleground match-end protocol evidence prevents guessing automatic completion. Long-capture archival/rollover beyond the existing bounded history limits remains pending.

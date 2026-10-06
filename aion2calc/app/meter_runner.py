@@ -70,6 +70,8 @@ class Runner:
             return self.status()
         self.session.gap_seconds = min(120, max(3, int(opts.get("segment_gap") or 10)))
         self.session.automatic_splits = bool(opts.get("automatic_splits", True))
+        self.session.final_boss_ids = {int(x) for x in opts.get("final_boss_ids",[]) if str(x).isdigit()}
+        self.session.auto_finish = bool(opts.get("auto_finish",True))
         self.segment_id = None
         self.enemy_id = None
         try:
@@ -145,6 +147,7 @@ class Runner:
                 kind, *data = item
                 if kind == "packet":
                     stream, payload, timestamp_ms = data
+                    before_run = (self.session.run, self.session.run_closed)
                     with self.lock:
                         if engine is not None:
                             events = engine.consume(payload, timestamp_ms, stream)
@@ -154,6 +157,8 @@ class Runner:
                             for event in events:
                                 self.meter.add(event)
                         self.diagnostics["decoded_events"] += len(events)
+                    if before_run != (self.session.run, self.session.run_closed):
+                        self._save_session(active=True)
                 elif kind == "error":
                     self.error = str(data[0])
                     break
@@ -262,6 +267,7 @@ class Runner:
                 "snapshot": snap, "diagnostics": diagnostic,
                 "diagnostic_export": self.diagnostic_export,
                 "saved_log": self.saved_log,
+                "run": {"id":self.session.run, "closed":self.session.run_closed, **self.session.runs[self.session.run]},
                 "identity": ({"id": self.packet_engine.local_player_id,
                               "name": self.packet_engine.names.get(self.packet_engine.local_player_id),
                               "verified": self.packet_engine.local_identity_from_game,
@@ -317,6 +323,12 @@ class Runner:
             self.segment_id = self.enemy_id = None
         return self.status()
 
+    def finish_run(self):
+        with self.lock:
+            self.session.finish_run()
+        self._save_session(active=True)
+        return self.status()
+
     def to_a2log(self, title: str | None = None) -> dict:
         with self.lock:
             if self.packet_engine is not None:
@@ -331,6 +343,14 @@ class Runner:
 
     def _metadata(self, doc):
         doc.setdefault("meta", {}).update(self.metadata)
+        for segment in doc.get("segments",[]):
+            if (segment.get("encounter_type") in (None,"pve_unverified","pvp_other")
+                    and self.metadata.get("encounter_type") not in (None,"","unknown")
+                    and segment.get("encounter_type","").startswith("pvp_") == self.metadata["encounter_type"].startswith("pvp_")):
+                segment["encounter_type"] = self.metadata["encounter_type"]
+            for key in ("game_patch","difficulty","zone"):
+                if self.metadata.get(key):
+                    segment[key] = self.metadata[key]
         profile = self.packet_engine.local_profile if self.packet_engine else {}
         if profile.get("serverId"):
             doc["meta"]["server"] = str(profile["serverId"])
