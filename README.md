@@ -131,6 +131,14 @@ Compare multiple local or public logs by choosing the encounter and each same-cl
 
 After character optimization, anonymous point observations update the community's highest observed totals by class, region, patch and source. View these under Combat Logs. User-entered totals and allocated profile lower bounds are labelled separately; neither establishes the game's maximum.
 
+## PvP logs and leaderboards
+
+In Live Meter, Stop and **Clear session** before switching between PvE and PvP. Choose a PvP encounter category: battleground, arena, Abyss, rift, open world or other. Use **Self** or **Party** scope. Capture preserves observed player combat, healing and death markers; known NPC damage and unidentified opponents are excluded from PvP session grouping. Start before entering the encounter so identity packets can be observed. Opponent names/classes appear only when decoded.
+
+Enter the game patch, arena/encounter name and difficulty/ruleset for useful comparisons. Community Combat Logs and Pages leaderboards separate PvP from PvE, with DPS, HPS and damage-taken rate selections. Damage-taken rate is a recorded amount, not a higher-is-better performance grade. Healing or deaths with no matching marker remain unavailable in community statistics. Table, timeline, events, graph, splits, pets and replay controls use the same supported event data as PvE.
+
+Match outcomes, objective scores, kill credit, faction/team assignments outside the observed party, and movement not present in the log are not inferred. Mode selection is manual; entering a PvP area does not automatically prove a recording is PvP. A fresh PvP capture is still needed to confirm arena/battleground coverage.
+
 ## For developers
 
 The command-line interface, running from source, the architecture overview, building the desktop
