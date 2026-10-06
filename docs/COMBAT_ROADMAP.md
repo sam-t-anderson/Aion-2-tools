@@ -50,3 +50,9 @@ Recovery reopens the last saved a2log as a historical session; it does not resum
 
 - PvP tracking with the same supported combat metrics and dedicated leaderboards for battlegrounds, arenas, Abyss, rifts and other verified modes. Separate PvP from PvE datasets and rankings.
 - A server-local dashboard/domain for service health, capture/upload/error counts, logs by encounter/PvP type, storage and job metrics, build performance, class/player insights and data-quality coverage. Keep administrative operations authenticated and local/private by default; choose the host/domain when implementing it.
+
+## PvP and server metrics — started at user request before protocol follow-ups
+
+Implemented: explicit PvP categories, roster-based capture scope, known-player combat filtering, separate public PvE/PvP DPS/HPS/DTPS comparisons and records, and exclusion from PvE calibration. Existing supported combat review metrics remain available. New PvP packet formats, match results/objectives/kill credit and automatic mode detection remain unverified.
+
+Server: authenticated private LAN dashboard on port 24662, persistent UTC-day request/error/latency and preset-outcome counters, storage/process health, retained upload counts by type/visibility/day, missing-metadata coverage, simulated presets and public class/player insights. See the server README for access and administration. Client capture errors and actual build-to-combat-performance attribution remain unavailable.

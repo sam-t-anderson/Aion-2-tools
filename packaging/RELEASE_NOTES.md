@@ -1,3 +1,12 @@
+## Changes in 0.2.19 — PvP tracking
+
+- Add explicit battleground, arena, Abyss, rift, open-world and other PvP categories.
+- Use Self/Party scope for PvP and exclude known NPCs/unidentified opponents from session grouping. Clear session when changing between PvE and PvP.
+- Separate PvE/PvP community reports and Pages leaderboards, with DPS/HPS/damage-taken rate filters and personal records.
+- Preserve identified opponent classes in logs and reuse supported timeline, event, healing, damage-taken and death views.
+
+PvP mode is manually selected. Match outcomes, objectives, kill credit and automatic mode detection are unavailable. Additional PvP captures are needed to confirm coverage. The updated share server supplies the new report metrics; the dashboard and server administration are documented only in the server repository.
+
 ## Changes in 0.2.18 — checkpoint 3A
 
 - Save live sessions atomically every 15 seconds and on Stop. Interrupted sessions remain under Combat Logs as unfinished checkpoints for review/export; new captures start independently.

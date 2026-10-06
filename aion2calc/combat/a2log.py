@@ -29,7 +29,13 @@ import re
 import math
 
 VERSION = 1
-ENCOUNTER_TYPES = ("unknown", "transcendence", "daily", "expedition", "ascension", "nightmare", "sanctuary")
+PVP_TYPES = ("pvp_battleground", "pvp_arena", "pvp_abyss", "pvp_rift", "pvp_open_world", "pvp_other")
+ENCOUNTER_TYPES = ("unknown", "transcendence", "daily", "expedition", "ascension", "nightmare", "sanctuary", *PVP_TYPES)
+
+
+def combat_mode(doc, segment=None):
+    kind = (segment or {}).get("encounter_type") or doc.get("meta", {}).get("encounter_type")
+    return "pvp" if kind in PVP_TYPES else "pve"
 CLASSES = ("gladiator", "templar", "assassin", "ranger", "sorcerer", "spiritmaster", "cleric", "chanter")
 CLASS_ALIASES = {"elementalist": "spiritmaster", "brawler": "brawler"}
 #: optional players[].stats keys (percent values as numbers)
@@ -241,6 +247,10 @@ def validate(doc) -> dict:
             if entity.get("owner") not in ids:
                 row.pop("owner", None)
             row["is_boss"] = entity.get("is_boss") is True
+            row["is_player"] = entity.get("is_player") is True
+            for key in ("class", "server", "character_id"):
+                if isinstance(entity.get(key), str):
+                    row[key] = _text(entity[key], "entity." + key)
             if isinstance(entity.get("mob_code"), int):
                 row["mob_code"] = entity["mob_code"]
             entities.append(row)

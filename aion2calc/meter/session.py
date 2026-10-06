@@ -27,6 +27,7 @@ class CombatSession:
         self.gap_seconds = 10
         self._zone_reset = None
         self.automatic_splits = True
+        self.pvp = False
         self.manual_split = 0
         self.telemetry = deque(maxlen=100_000)
         self._dead = set()
@@ -44,6 +45,7 @@ class CombatSession:
                 self.epoch += 1
             self._zone_reset = engine.last_zone_reset_ms
         identity = self.identities.setdefault(self.epoch, {"names": {}, "spawns": {}, "jobs": {}, "local_id": None, "roster": {}, "owners": {}})
+        identity["player_ids"] = set(engine.known_players)
         identity["names"].update(engine.names)
         identity["jobs"].update(engine.jobs)
         identity["spawns"].update({key: dict(value) for key, value in engine.spawn_info.items()})
@@ -103,6 +105,14 @@ class CombatSession:
         for record in self.records:
             event = record.event
             allowed = self._allowed(record, scope)
+            if self.pvp and isinstance(event, DamageEvent):
+                identity = self.identities[record.epoch]
+                opponent = event.target_id if event.actor_id in allowed else event.actor_id
+                opponent = identity["owners"].get(opponent,opponent)
+                if (event.actor_id in allowed and event.target_id in allowed) or opponent not in identity.get("player_ids", set()):
+                    continue  # Never call an unknown NPC a PvP opponent.
+                if identity["spawns"].get(opponent, {}).get("mobCode"):
+                    continue
             relevant = event.actor_id in allowed or (event.target_id in allowed)
             if not relevant:
                 continue
@@ -232,6 +242,13 @@ class CombatSession:
             identity = self.identities[group["epoch"]]
             hits, events, entities = [], [], {}
             resolving = set()
+            opponents = set()
+            if self.pvp:
+                for record in group["records"]:
+                    if isinstance(record.event, DamageEvent):
+                        allowed_now = self._allowed(record, scope)
+                        other = record.event.target_id if record.event.actor_id in allowed_now else record.event.actor_id
+                        opponents.add(identity["owners"].get(other, other))
             def reference(actor_id):
                 if actor_id is None or actor_id in resolving:
                     return None
@@ -253,11 +270,13 @@ class CombatSession:
                         "combat_power": info.get("combatPower"), "gear_score": info.get("gearScore")}
                 elif actor_id in identity["names"]:
                     # Identified external healers are references, not party members.
-                    entities[pid] = {"id": pid, "name": name, "kind": "player"}
+                    entities[pid] = {"id": pid, "name": name, "kind": "enemy" if actor_id in opponents else "player",
+                                     "is_player": True, "class": identity["jobs"].get(actor_id)}
                 else:
                     code = identity["spawns"].get(actor_id, {}).get("mobCode")
                     entities[pid] = {"id": pid, "name": name, "kind": "enemy", "mob_code": code,
-                        "is_boss": bool(npc_info(code).get("isBoss")) if code else False}
+                        "is_boss": bool(npc_info(code).get("isBoss")) if code else False,
+                        "is_player": actor_id in opponents, "class": identity["jobs"].get(actor_id)}
                 return pid
             for record in group["records"]:
                 event, allowed = record.event, self._allowed(record, scope)

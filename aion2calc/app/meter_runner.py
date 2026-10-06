@@ -63,6 +63,11 @@ class Runner:
         self.scope = str(opts.get("scope") or "party")
         if self.scope not in ("party", "self", "all"):
             self.scope = "party"
+        from ..combat.a2log import combat_mode
+        self.session.pvp = combat_mode({"meta": self.metadata}) == "pvp"
+        if self.session.pvp and self.scope == "all":
+            self.error = "PvP capture requires Self or Party scope; opposing teams cannot be inferred from All observed players."
+            return self.status()
         self.session.gap_seconds = min(120, max(3, int(opts.get("segment_gap") or 10)))
         self.session.automatic_splits = bool(opts.get("automatic_splits", True))
         self.segment_id = None
@@ -273,11 +278,17 @@ class Runner:
                     raise ValueError("Invalid encounter type")
                 if self.running:
                     raise ValueError("Stop capture before changing session classification")
-                self.metadata = {k: str(metadata.get(k) or ("unknown" if k == "encounter_type" else "")).strip()[:200] for k in ("game_patch", "difficulty", "encounter_type", "region")}
+                from ..combat.a2log import combat_mode
+                if self.session.records and combat_mode({"meta":metadata}) != combat_mode({"meta":self.metadata}):
+                    raise ValueError("Clear session before switching between PvE and PvP.")
+                self.metadata = {k: str(metadata.get(k) or ("unknown" if k == "encounter_type" else "")).strip()[:200] for k in ("game_patch", "difficulty", "encounter_type", "region", "zone")}
+                self.session.pvp = combat_mode({"meta": self.metadata}) == "pvp"
             if "automatic_splits" in body:
                 self.session.automatic_splits = bool(body["automatic_splits"])
             if body.get("segment_gap") is not None:
                 self.session.gap_seconds = min(120, max(3, int(body["segment_gap"])))
+            if body.get("scope") == "all" and self.session.pvp:
+                raise ValueError("Use Self or Party scope for PvP capture.")
             if body.get("scope") in ("party", "self", "all"):
                 self.scope = body["scope"]
             if "segment" in body:
