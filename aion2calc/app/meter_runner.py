@@ -154,7 +154,7 @@ class Runner:
                     with self.lock:
                         if engine is not None:
                             events = engine.consume(payload, timestamp_ms, stream)
-                            self.session.observe(engine, events)
+                            self.session.observe(engine, events, timestamp_ms=timestamp_ms)
                         else:
                             events = list(decoder.feed(payload))
                             for event in events:
@@ -378,6 +378,8 @@ class Runner:
         from ..combat.quality import assess
         for segment in doc.get("segments", []):
             segment["quality"] = assess(doc, segment)
+        from ..combat.runs import summarize
+        doc["run_analysis"] = summarize(doc)
         return doc
 
     def has_data(self) -> bool:

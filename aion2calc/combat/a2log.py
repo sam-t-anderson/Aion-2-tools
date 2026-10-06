@@ -121,6 +121,8 @@ SCHEMA = {
 _segment_properties = SCHEMA["properties"]["segments"]["items"]["properties"]
 _segment_properties.update({
     "run_id":{"type":"string"}, "run_complete":{"type":"boolean"}, "run_end_reason":{"type":"string"},
+    "run_start_observed":{"type":"boolean"}, "run_started_at":{"type":"string"}, "run_ended_at":{"type":"string"},
+    "party_members":{"type":"array", "maxItems":64, "items":{"type":"string"}}, "party_roster_complete":{"type":"boolean"},
     "instance_id":{"type":"integer"}, "map_id":{"type":"integer"},
     "game_patch": {"type": "string"}, "difficulty": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
     "entities": {"type": "array", "maxItems": 2000, "description": "Observed enemies and pets: id, name, kind, mob_code, is_boss, owner"},
@@ -329,11 +331,19 @@ def validate(doc) -> dict:
                          "start": _text(s.get("start"), "segment start"), "duration": float(s["duration"]),
                          "killed": s.get("killed") is True, "hits": out_hits, "buffs": buffs, "hp": hp,
                          "entities": entities, "events": events, "health": health, "positions": positions})
-        for key in ("run_id", "run_end_reason", "zone"):
+        for key in ("run_id", "run_end_reason", "zone", "run_started_at", "run_ended_at"):
             if isinstance(s.get(key),str):
                 out_segs[-1][key] = s[key][:200]
         if isinstance(s.get("run_complete"),bool):
             out_segs[-1]["run_complete"] = s["run_complete"]
+        for key in ("run_start_observed", "party_roster_complete"):
+            if isinstance(s.get(key),bool):
+                out_segs[-1][key] = s[key]
+        if isinstance(s.get("party_members"),list):
+            members = s["party_members"]
+            if len(members)>64 or any(not isinstance(p,str) or p not in ids for p in members):
+                raise Invalid("party_members must reference at most 64 players")
+            out_segs[-1]["party_members"] = list(dict.fromkeys(members))
         for key in ("instance_id", "map_id"):
             if isinstance(s.get(key),int) and 0 <= s[key] <= 2**32-1:
                 out_segs[-1][key] = s[key]
@@ -353,6 +363,8 @@ def validate(doc) -> dict:
     from .quality import assess
     for segment in out_segs:
         segment["quality"] = assess(result, segment)
+    from .runs import summarize
+    result["run_analysis"] = summarize(result)
     return result
 
 

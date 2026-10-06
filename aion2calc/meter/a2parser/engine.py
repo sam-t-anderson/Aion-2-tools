@@ -291,6 +291,7 @@ class MeterEngine:
                 for info in self.spawn_info.values():
                     info.pop("currentHp", None)
                     info.pop("maxHp", None)
+                    info.pop("reportedMaxHp", None)
                 self.last_zone_reset_ms = timestamp_ms
         return events
 
