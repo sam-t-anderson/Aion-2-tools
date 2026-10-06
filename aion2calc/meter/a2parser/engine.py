@@ -147,6 +147,9 @@ class MeterEngine:
                 self.names.setdefault(actor_id, name)
         for entity_id, info in scan_spawn_metadata(complete).items():
             self.spawn_info.setdefault(entity_id, {}).update(info)
+            if info.get("maxHp"):
+                self.spawn_info[entity_id]["reportedMaxHp"] = info["maxHp"]
+                self.telemetry.append({"kind":"hp", "entity":entity_id, "current":info["currentHp"], "max":info["maxHp"], "timestamp_ms":timestamp_ms})
         self.known_entities.update(self.spawn_info)
         self.known_entities.update(links)
         self.known_entities.update(links.values())
@@ -165,6 +168,7 @@ class MeterEngine:
                 info["maxHp"] = value
         for entity_id, max_hp in maximum_hp.items():
             self.spawn_info.setdefault(entity_id, {})["maxHp"] = max_hp
+            self.spawn_info[entity_id]["reportedMaxHp"] = max_hp
         for entity_id, value in current_hp.items():
             if entity_id in self.targets:
                 self.targets[entity_id].current_hp = value
@@ -173,6 +177,9 @@ class MeterEngine:
             # scanned only as compressed bytes, losing the NPC database key.
             for entity_id, info in scan_spawn_metadata(packet).items():
                 self.spawn_info.setdefault(entity_id, {}).update(info)
+                if info.get("maxHp"):
+                    self.spawn_info[entity_id]["reportedMaxHp"] = info["maxHp"]
+                    self.telemetry.append({"kind":"hp", "entity":entity_id, "current":info["currentHp"], "max":info["maxHp"], "timestamp_ms":timestamp_ms})
             self.known_entities.update(self.spawn_info)
             current, maximum = scan_hp_updates(packet)
             self.telemetry.extend({"kind": "hp", "entity": eid, "current": hp, "max": maximum.get(eid), "timestamp_ms": timestamp_ms} for eid, hp in current.items())
@@ -180,6 +187,7 @@ class MeterEngine:
             self.live_hp.update(current)
             for entity_id, value in maximum.items():
                 self.spawn_info.setdefault(entity_id, {})["maxHp"] = value
+                self.spawn_info[entity_id]["reportedMaxHp"] = value
             for actor_id, name in scan_actor_name_bindings(packet):
                 if actor_id not in self.summons:
                     self.names.setdefault(actor_id, name)
