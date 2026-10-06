@@ -5,7 +5,7 @@ from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from .a2parser.lookup import job_from_skill, npc_name, skill_name
+from .a2parser.lookup import job_from_skill, npc_info, npc_name, skill_name
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
 
 
@@ -15,6 +15,7 @@ class Record:
     event: DamageEvent | HealEvent
     party: frozenset[str]
     local_id: int | None
+    split: int = 0
 
 
 class CombatSession:
@@ -25,6 +26,13 @@ class CombatSession:
         self.discarded = 0
         self.gap_seconds = 10
         self._zone_reset = None
+        self.automatic_splits = True
+        self.manual_split = 0
+        self.telemetry = deque(maxlen=100_000)
+        self._dead = set()
+
+    def split_now(self):
+        self.manual_split += 1
 
     def begin_capture(self):
         self.epoch += 1
@@ -35,17 +43,29 @@ class CombatSession:
             if self._zone_reset is not None or engine.last_zone_reset_ms is not None:
                 self.epoch += 1
             self._zone_reset = engine.last_zone_reset_ms
-        identity = self.identities.setdefault(self.epoch, {"names": {}, "spawns": {}, "jobs": {}, "local_id": None})
+        identity = self.identities.setdefault(self.epoch, {"names": {}, "spawns": {}, "jobs": {}, "local_id": None, "roster": {}, "owners": {}})
         identity["names"].update(engine.names)
         identity["jobs"].update(engine.jobs)
         identity["spawns"].update({key: dict(value) for key, value in engine.spawn_info.items()})
+        identity["roster"].update({name.casefold(): dict(value) for name, value in engine.roster.items()})
+        identity["owners"].update(engine.summon_owners)
+        identity["profile"] = dict(engine.local_profile)
         if engine.local_player_id is not None:
             identity["local_id"] = engine.local_player_id
         party = frozenset(name.casefold() for name in engine.roster)
         for event in events:
             if len(self.records) == self.records.maxlen:
                 self.discarded += 1
-            self.records.append(Record(self.epoch, event, party, engine.local_player_id))
+            self.records.append(Record(self.epoch, event, party, engine.local_player_id, self.manual_split))
+        for sample in engine.telemetry:
+            key = (self.epoch, sample["entity"])
+            if sample["kind"] == "hp" and sample["current"] > 0:
+                self._dead.discard(key)
+            if sample["kind"] == "death":
+                if key in self._dead:
+                    continue
+                self._dead.add(key)
+            self.telemetry.append({**sample, "epoch": self.epoch})
         # Remove identity contexts when their bounded event history expires.
         if len(self.identities) > 250:
             retained = {record.epoch for record in self.records}
@@ -75,6 +95,7 @@ class CombatSession:
             event = record.event
             if isinstance(event, DamageEvent) and job_from_skill(event.skill_code):
                 allowed.add(event.actor_id)
+        allowed.update(pet for pet, owner in identity["owners"].items() if owner in allowed)
         return allowed
 
     def groups(self, scope="party"):
@@ -92,10 +113,10 @@ class CombatSession:
                         and event.timestamp_ms - groups[-1]["end"] <= self.gap_seconds * 1000):
                     groups[-1]["records"].append(record)
                 continue
-            if (not groups or groups[-1]["epoch"] != record.epoch
-                    or event.timestamp_ms - groups[-1]["end"] > self.gap_seconds * 1000):
+            if (not groups or groups[-1]["epoch"] != record.epoch or groups[-1]["split"] != record.split
+                    or (self.automatic_splits and event.timestamp_ms - groups[-1]["end"] > self.gap_seconds * 1000)):
                 groups.append({"id": f"{record.epoch}-{event.timestamp_ms}", "epoch": record.epoch,
-                               "start": event.timestamp_ms, "end": event.timestamp_ms, "records": []})
+                               "start": event.timestamp_ms, "end": event.timestamp_ms, "split": record.split, "records": []})
             group = groups[-1]
             group["end"] = max(group["end"], event.timestamp_ms)
             group["records"].append(record)
@@ -198,35 +219,85 @@ class CombatSession:
         summary["history_discarded"] = self.discarded
         return summary
 
-    def to_a2log(self, scope="party", title=None):
+    def to_a2log(self, scope="party", title=None, segment_id="all"):
         from ..combat import a2log
         groups = self.groups(scope)
+        if segment_id != "all":
+            groups = [g for g in groups if g["id"] == segment_id] if segment_id else groups[-1:]
         players, segments = {}, []
         for index, group in enumerate(groups):
-            hits = []
+            identity = self.identities[group["epoch"]]
+            hits, events, entities = [], [], {}
+            def reference(actor_id):
+                if actor_id is None:
+                    return None
+                pid = f"{group['epoch']}:{actor_id}"
+                name = self.name(group["epoch"], actor_id, actor_id not in allowed)
+                owners = identity["owners"]
+                if actor_id in owners:
+                    owner = reference(owners[actor_id]) if owners[actor_id] != actor_id else None
+                    entities[pid] = {"id": pid, "name": name, "kind": "pet", "owner": owner}
+                elif actor_id in allowed:
+                    info = identity["roster"].get(name.casefold(), {})
+                    profile = identity.get("profile", {}) if actor_id == identity["local_id"] else {}
+                    server = info.get("serverId") or profile.get("serverId")
+                    players[pid] = {"id": pid, "name": name, "class": identity["jobs"].get(actor_id) or info.get("job"),
+                        "server": str(server) if server else None,
+                        "character_id": str(info["dbid"]) if info.get("dbid") else None,
+                        "combat_power": info.get("combatPower"), "gear_score": info.get("gearScore")}
+                else:
+                    code = identity["spawns"].get(actor_id, {}).get("mobCode")
+                    entities[pid] = {"id": pid, "name": name, "kind": "enemy", "mob_code": code,
+                        "is_boss": bool(npc_info(code).get("isBoss")) if code else False}
+                return pid
             for record in group["records"]:
-                event = record.event
-                allowed = self._allowed(record, scope)
-                if not isinstance(event, DamageEvent) or event.actor_id not in allowed or event.target_id in allowed:
+                event, allowed = record.event, self._allowed(record, scope)
+                source = reference(event.actor_id)
+                target = reference(event.target_id)
+                t = max(0, event.timestamp_ms - group["start"]) / 1000
+                if isinstance(event, HealEvent):
+                    events.append({"kind": "heal", "t": t, "source": source, "target": target,
+                        "skill_id": event.skill_code, "skill": skill_name(event.skill_code), "amount": event.amount})
                     continue
-                identity = self.identities[record.epoch]
-                pid = f"{record.epoch}:{event.actor_id}"
-                players[pid] = {"id": pid, "name": self.name(record.epoch, event.actor_id),
-                                "class": identity["jobs"].get(event.actor_id) or job_from_skill(event.skill_code)}
-                hit = {"t": max(0, event.timestamp_ms - group["start"]) / 1000, "player": pid,
-                       "damage": event.total_damage, "skill_id": event.skill_code, "skill": skill_name(event.skill_code)}
-                for flag,key in ((SpecialDamage.CRITICAL,"crit"),(SpecialDamage.BACK,"back"),(SpecialDamage.FRONTAL,"front"),
+                events.append({"kind": "damage", "t": t, "source": source, "target": target,
+                    "skill_id": event.skill_code, "skill": skill_name(event.skill_code), "amount": event.total_damage})
+                if event.actor_id not in allowed or event.target_id in allowed:
+                    continue
+                owner_id = identity["owners"].get(event.actor_id, event.actor_id)
+                pid = reference(owner_id)
+                players[pid]["class"] = players[pid].get("class") or job_from_skill(event.skill_code)
+                hit = {"t": t, "player": pid, "source": source, "target": target,
+                    "damage": event.total_damage, "skill_id": event.skill_code, "skill": skill_name(event.skill_code)}
+                if source != pid:
+                    hit["pet"] = source
+                for flag, key in ((SpecialDamage.CRITICAL,"crit"),(SpecialDamage.BACK,"back"),(SpecialDamage.FRONTAL,"front"),
                                  (SpecialDamage.DOUBLE,"double"),(SpecialDamage.PERFECT,"perfect")):
-                    if flag in event.specials: hit[key] = True
-                if event.multi_hit_count: hit["multi"] = event.multi_hit_count
-                if event.is_dot: hit["dot"] = True
+                    if flag in event.specials:
+                        hit[key] = True
                 hits.append(hit)
-            if hits:
-                segments.append({"id": group["id"], "label": f"Combat {index+1}", "hits": hits,
-                                 "start": datetime.fromtimestamp(group["start"] / 1000, timezone.utc).isoformat(),
-                                 "duration": max(0.001, (group["end"] - group["start"]) / 1000)})
+            health = []
+            for sample in self.telemetry:
+                if sample["epoch"] != group["epoch"] or not group["start"] <= sample["timestamp_ms"] <= group["end"]:
+                    continue
+                eid = f"{group['epoch']}:{sample['entity']}"
+                if eid not in players and eid not in entities:
+                    continue
+                t = (sample["timestamp_ms"] - group["start"]) / 1000
+                if sample["kind"] == "death":
+                    events.append({"kind": "death", "t": t, "target": eid})
+                else:
+                    health.append({"t": t, "entity": eid, "current": sample["current"],
+                        "max": sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("maxHp")})
+            if hits or events:
+                bosses = [e for e in entities.values() if e.get("is_boss")]
+                segments.append({"id": group["id"], "label": bosses[0]["name"] if bosses else f"Combat {index+1}",
+                    "boss": bosses[0]["name"] if bosses else None,
+                    "killed": any(e["kind"] == "death" and e["target"] in {b["id"] for b in bosses} for e in events),
+                    "hits": hits, "events": sorted(events, key=lambda e: e["t"]), "entities": list(entities.values()), "health": health,
+                    "start": datetime.fromtimestamp(group["start"] / 1000, timezone.utc).isoformat(),
+                    "duration": max(0.001, (group["end"] - group["start"]) / 1000)})
         if not players:
-            raise ValueError("No identified player damage is available under the selected party filter.")
+            raise ValueError("No identified player data is available under the selected party filter.")
         if len(players) > 64:
             raise ValueError("This session contains more than 64 player identities. Export a shorter session or use Party / Self filtering.")
         return a2log.validate({"format":"a2log","version":1,"meta":{"source":"Aion 2 Calc live session","title":title or "Live combat session"},

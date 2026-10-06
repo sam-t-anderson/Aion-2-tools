@@ -13,10 +13,9 @@
     $("#list").innerHTML = '<div class="empty">Loading…</div>';
     try {
       const data = await window.A2.api("/api/v1/leaderboard?limit=100" + (cls ? "&class=" + encodeURIComponent(cls.toLowerCase()) : "") + (boss ? "&boss=" + encodeURIComponent(boss) : ""));
-      const base = window.A2.base();
       const entries = data.entries || [];
       const mx = Math.max(...entries.map((e) => e.dps || 0), 1);
-      const rows = entries.map((e, i) => `<tr onclick="location.href='${esc(base)}/l/${esc(e.log)}'" style="cursor:pointer">
+      const rows = entries.map((e, i) => `<tr onclick="location.href='log.html?id=${esc(e.log)}'" style="cursor:pointer">
         <td class="r muted">${i + 1}</td><td class="gold">${esc(e.name || "")}</td><td>${esc(cap(e.class || ""))}</td>
         <td style="width:40%"><div class="bar"><i style="width:${100 * (e.dps || 0) / mx}%"></i><span>${n0(e.dps)}</span></div></td>
         <td>${esc(e.boss || "")}</td></tr>`).join("");

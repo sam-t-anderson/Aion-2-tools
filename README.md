@@ -1,5 +1,7 @@
 # Aion-2-tools
 
+Combat review is being delivered in iterations. See [completed features and remaining work](docs/COMBAT_ROADMAP.md). In 0.2.16, full party sessions save automatically on Stop/normal Quit and appear under Combat Logs → Recent full sessions; diagnostic ZIPs are only a rolling TCP buffer. Update the log server to 0.2.5 to retain the new event fields.
+
 [![CI](https://github.com/sam-t-anderson/Aion-2-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/sam-t-anderson/Aion-2-tools/actions/workflows/ci.yml)
 [![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/9y6zkUyvBv)
 

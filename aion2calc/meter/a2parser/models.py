@@ -44,6 +44,7 @@ class HealEvent:
     amount: int
     timestamp_ms: int
     is_hot: bool = False
+    target_id: int | None = None
 
 
 @dataclass(slots=True)

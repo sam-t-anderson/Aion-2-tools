@@ -4,6 +4,7 @@ from __future__ import annotations
 import threading
 import queue
 import time
+import uuid
 from pathlib import Path
 
 from ..meter import Meter, load_decoder, replay_source
@@ -39,6 +40,8 @@ class Runner:
         self.scope = "party"
         self.segment_id = None
         self.enemy_id = None
+        self.saved_log = None
+        self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
 
     def start(self, source: str = "replay", **opts) -> dict:
         self.stop()
@@ -57,6 +60,7 @@ class Runner:
         if self.scope not in ("party", "self", "all"):
             self.scope = "party"
         self.session.gap_seconds = min(120, max(3, int(opts.get("segment_gap") or 10)))
+        self.session.automatic_splits = bool(opts.get("automatic_splits", True))
         self.segment_id = None
         self.enemy_id = None
         try:
@@ -193,6 +197,14 @@ class Runner:
         self._archive_diagnostics()
 
     def _archive_diagnostics(self) -> None:
+        if self.packet_engine is not None and self.session.records:
+            try:
+                from ..combat.sessions import save
+                with self.lock:
+                    doc = self.session.to_a2log(self.scope)
+                self.saved_log = str(save(doc, self.session_file))
+            except (ValueError, OSError) as exc:
+                self.diagnostics["log_save_error"] = str(exc)
         if self.recorder is not None and self.recorder is not self._exported_recorder:
             if self.recorder.snapshot(include_rows=False)[0]["records"]:
                 try:
@@ -222,11 +234,18 @@ class Runner:
         return {"running": self.running, "source": self.source_name, "error": self.error,
                 "snapshot": snap, "diagnostics": diagnostic,
                 "diagnostic_export": self.diagnostic_export,
+                "saved_log": self.saved_log,
+                "identity": ({"id": self.packet_engine.local_player_id,
+                              "name": self.packet_engine.names.get(self.packet_engine.local_player_id),
+                              "verified": self.packet_engine.local_identity_from_game,
+                              **self.packet_engine.local_profile} if self.packet_engine else None),
                 "recording": {"enabled": self.recorder is not None,
                               **(self.recorder.snapshot(include_rows=False)[0] if self.recorder is not None else {"records": 0})}}
 
     def configure_view(self, body: dict) -> dict:
         with self.lock:
+            if "automatic_splits" in body:
+                self.session.automatic_splits = bool(body["automatic_splits"])
             if body.get("segment_gap") is not None:
                 self.session.gap_seconds = min(120, max(3, int(body["segment_gap"])))
             if body.get("scope") in ("party", "self", "all"):
@@ -241,11 +260,19 @@ class Runner:
                 self.session.observe(self.packet_engine, [])
         return self.status()
 
+    def split_now(self) -> dict:
+        with self.lock:
+            self.session.split_now()
+            self.segment_id = None
+        return self.status()
+
     def clear_session(self) -> dict:
         if self.running:
             raise ValueError("Stop capture before clearing session history.")
         with self.lock:
             self.session = CombatSession()
+            self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
+            self.saved_log = None
             self.segment_id = self.enemy_id = None
         return self.status()
 
@@ -254,6 +281,12 @@ class Runner:
             if self.packet_engine is not None:
                 return self.session.to_a2log(self.scope, title)
             return self.meter.to_a2log(title=title)
+
+    def review_log(self) -> dict:
+        with self.lock:
+            if self.packet_engine is not None:
+                return self.session.to_a2log(self.scope, segment_id=self.segment_id)
+            return self.meter.to_a2log()
 
     def has_data(self) -> bool:
         with self.lock:

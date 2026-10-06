@@ -26,6 +26,7 @@ below (the in-game name "Elementalist" is accepted for spiritmaster).
 from __future__ import annotations
 
 import re
+import math
 
 VERSION = 1
 CLASSES = ("gladiator", "templar", "assassin", "ranger", "sorcerer", "spiritmaster", "cleric", "chanter")
@@ -91,13 +92,26 @@ SCHEMA = {
     },
 }
 
+# Compatible v1 extensions. Older logs without these arrays remain readable.
+_segment_properties = SCHEMA["properties"]["segments"]["items"]["properties"]
+_segment_properties.update({
+    "entities": {"type": "array", "maxItems": 2000, "description": "Observed enemies and pets: id, name, kind, mob_code, is_boss, owner"},
+    "events": {"type": "array", "maxItems": LIMITS["hits"], "description": "Recorded damage/heal/death effects: t, kind, source, target, skill, skill_id, amount; unknown recipients omitted"},
+    "health": {"type": "array", "maxItems": LIMITS["hp"], "description": "Entity HP samples: t, entity, current, optional max"},
+    "positions": {"type": "array", "maxItems": LIMITS["hp"], "description": "Verified arena-normalized replay positions: t, entity, x and y in [0,1]"},
+})
+SCHEMA["properties"]["players"]["items"]["properties"].update({
+    "character_id": {"type": "string", "description": "Observed database character ID, distinct from the session combat entity ID"},
+    "region": {"type": "string"},
+})
+
 
 class Invalid(ValueError):
     pass
 
 
 def _num(x) -> bool:
-    return isinstance(x, (int, float)) and not isinstance(x, bool)
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
 
 
 def _text(x, where: str, required: bool = False) -> str | None:
@@ -146,6 +160,9 @@ def validate(doc) -> dict:
         ids.add(pid)
         q = {"id": pid, "name": _text(p.get("name"), f"players[{i}].name", True),
              "class": class_key(p.get("class")), "server": _text(p.get("server"), f"players[{i}].server")}
+        for k in ("character_id", "region"):
+            if p.get(k) is not None:
+                q[k] = _text(str(p[k]), f"players[{i}].{k}")
         for k in ("combat_power", "gear_score"):
             if _num(p.get(k)):
                 q[k] = p[k]
@@ -175,7 +192,7 @@ def validate(doc) -> dict:
         out_hits = []
         for j, h in enumerate(hits):
             w = f"segments[{i}].hits[{j}]"
-            if not isinstance(h, dict) or not _num(h.get("t")) or not _num(h.get("damage")):
+            if not isinstance(h, dict) or not _num(h.get("t")) or not _num(h.get("damage")) or h["t"] < 0 or h["damage"] < 0:
                 raise Invalid(f"{w} needs numeric t and damage")
             if h.get("player") not in ids:
                 raise Invalid(f"{w}.player must be one of the players' ids")
@@ -186,6 +203,9 @@ def validate(doc) -> dict:
                 x["skill_id"] = h["skill_id"]
             if isinstance(h.get("step"), str):
                 x["step"] = h["step"][:80]
+            for k in ("target", "source", "pet"):
+                if isinstance(h.get(k), str):
+                    x[k] = h[k][:200]
             for k in ("crit", "double", "perfect", "dot", "back", "front"):
                 if h.get(k) is True:
                     x[k] = True
@@ -200,10 +220,59 @@ def validate(doc) -> dict:
                               "start": float(b["start"]), "end": float(b["end"])})
         hp = [[float(a), float(b)] for a, b in (x for x in (s.get("hp") or [])[:LIMITS["hp"]]
                                                if isinstance(x, list) and len(x) == 2 and _num(x[0]) and _num(x[1]))]
+        entities = []
+        for entity in (s.get("entities") or [])[:2000]:
+            if not isinstance(entity, dict) or not isinstance(entity.get("id"), str):
+                continue
+            row = {k: str(entity[k])[:200] for k in ("id", "name", "kind", "owner") if entity.get(k) is not None}
+            if entity.get("owner") not in ids:
+                row.pop("owner", None)
+            row["is_boss"] = entity.get("is_boss") is True
+            if isinstance(entity.get("mob_code"), int):
+                row["mob_code"] = entity["mob_code"]
+            entities.append(row)
+        references = ids | {e["id"] for e in entities}
+        events = []
+        for event in (s.get("events") or [])[:LIMITS["hits"]]:
+            if not isinstance(event, dict) or event.get("kind") not in ("damage", "heal", "death"):
+                continue
+            if not _num(event.get("t")) or not 0 <= event["t"] <= s["duration"] + 1:
+                continue
+            row = {"kind": event["kind"], "t": float(event["t"])}
+            for k in ("source", "target"):
+                if event.get(k) in references:
+                    row[k] = event[k]
+            if event["kind"] == "death" and "target" not in row:
+                continue
+            if event["kind"] != "death":
+                if not _num(event.get("amount")) or event["amount"] < 0:
+                    continue
+                row["amount"] = float(event["amount"])
+            if isinstance(event.get("skill_id"), int):
+                row["skill_id"] = event["skill_id"]
+            if isinstance(event.get("skill"), str):
+                row["skill"] = event["skill"][:80]
+            events.append(row)
+        health = []
+        for sample in (s.get("health") or [])[:LIMITS["hp"]]:
+            if (isinstance(sample, dict) and sample.get("entity") in references
+                    and _num(sample.get("t")) and 0 <= sample["t"] <= s["duration"] + 1
+                    and _num(sample.get("current")) and sample["current"] >= 0):
+                row = {"t": float(sample["t"]), "entity": sample["entity"], "current": float(sample["current"])}
+                if _num(sample.get("max")) and sample["max"] > 0:
+                    row["max"] = float(sample["max"])
+                health.append(row)
+        positions = []
+        for sample in (s.get("positions") or [])[:LIMITS["hp"]]:
+            if (isinstance(sample, dict) and sample.get("entity") in references
+                    and all(_num(sample.get(k)) for k in ("t", "x", "y"))
+                    and 0 <= sample["t"] <= s["duration"] and 0 <= sample["x"] <= 1 and 0 <= sample["y"] <= 1):
+                positions.append({k: sample[k] for k in ("t", "entity", "x", "y")})
         out_segs.append({"id": _text(s.get("id"), "segment id") or str(i + 1),
                          "label": _text(s.get("label"), "segment label"), "boss": _text(s.get("boss"), "segment boss"),
                          "start": _text(s.get("start"), "segment start"), "duration": float(s["duration"]),
-                         "killed": s.get("killed") is True, "hits": out_hits, "buffs": buffs, "hp": hp})
+                         "killed": s.get("killed") is True, "hits": out_hits, "buffs": buffs, "hp": hp,
+                         "entities": entities, "events": events, "health": health, "positions": positions})
     return {"format": "a2log", "version": VERSION, "meta": clean_meta, "players": out_players, "segments": out_segs}
 
 

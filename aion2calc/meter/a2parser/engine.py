@@ -32,6 +32,7 @@ class MeterEngine:
         self.local_character_name = ""
         self.local_identity_from_game = False
         self.local_profile: dict[str, int | str] = {}
+        self.telemetry: list[dict] = []
         self.names: dict[int, str] = {}
         self.known_players: set[int] = set()
         self.jobs: dict[int, str] = {}
@@ -112,6 +113,7 @@ class MeterEngine:
             return self._consume_locked(buffer, timestamp_ms, stream_id)
 
     def _consume_locked(self, buffer: bytes, timestamp_ms: int | None, stream_id: str) -> list[DamageEvent | HealEvent]:
+        self.telemetry = []
         pending = self._pending[stream_id]
         pending.extend(buffer)
         framing = walk(bytes(pending))
@@ -154,6 +156,7 @@ class MeterEngine:
             if map_id in OPEN_WORLD_MAPS:
                 self.dungeon_id = 0
         current_hp, maximum_hp = scan_hp_updates(complete)
+        self.telemetry.extend({"kind": "hp", "entity": eid, "current": hp, "max": maximum_hp.get(eid), "timestamp_ms": timestamp_ms} for eid, hp in current_hp.items())
         self.live_hp.update(current_hp)
         for entity_id, value in current_hp.items():
             info = self.spawn_info.setdefault(entity_id, {})
@@ -172,6 +175,8 @@ class MeterEngine:
                 self.spawn_info.setdefault(entity_id, {}).update(info)
             self.known_entities.update(self.spawn_info)
             current, maximum = scan_hp_updates(packet)
+            self.telemetry.extend({"kind": "hp", "entity": eid, "current": hp, "max": maximum.get(eid), "timestamp_ms": timestamp_ms} for eid, hp in current.items())
+            self.telemetry.extend({"kind": "death", "entity": eid, "timestamp_ms": timestamp_ms} for eid in scan_deaths(packet))
             self.live_hp.update(current)
             for entity_id, value in maximum.items():
                 self.spawn_info.setdefault(entity_id, {})["maxHp"] = value
@@ -257,6 +262,7 @@ class MeterEngine:
         # Death is processed after damage from this read so a final hit and
         # death marker arriving together are both represented in the history.
         for entity_id in scan_deaths(complete):
+            self.telemetry.append({"kind": "death", "entity": entity_id, "timestamp_ms": timestamp_ms})
             target = self.targets.get(entity_id)
             if target and npc_info(target.mob_code).get("isBoss", False):
                 key = (target.target_id, target.first_hit_ms)

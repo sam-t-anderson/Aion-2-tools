@@ -367,7 +367,7 @@ def parse_dot_packet(frame: bytes, timestamp_ms: int | None = None) -> DamageEve
     if amount is None or not 0 < amount[0] <= 99_999_999:
         return None
     if is_heal:
-        return HealEvent(actor_id, skill_id, amount[0], timestamp_ms, effect_type == 0x0B)
+        return HealEvent(actor_id, skill_id, amount[0], timestamp_ms, effect_type == 0x0B, target_id)
     if skill_id not in DOT_SKILLS:
         return None
     return DamageEvent(actor_id, target_id, skill_id, amount[0], timestamp_ms, is_dot=True)
