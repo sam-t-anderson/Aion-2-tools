@@ -203,9 +203,11 @@ class Optimizer:
         for s in ranked:
             if s["kind"] == "stigma":
                 continue
-            if sp >= 21:
-                b.sp[s["id"]] = 10
-                sp -= 21
+            top = min(10, s.get("buyMax", 10))
+            cost = sp_to_reach(top)
+            if top > 1 and sp >= cost:
+                b.sp[s["id"]] = top
+                sp -= cost
         stig = [n for n in tp.get("stigmas", {}) if n not in DEFENSIVE_STIGMAS]
         stig_ids = [cd.by_name[n]["id"] for n in stig if n in cd.by_name][: self.slots]
         if len(stig_ids) < self.slots:
@@ -444,6 +446,49 @@ class Optimizer:
         lo = load_loadout(self.scenario.loadout) if isinstance(self.scenario.loadout, str) else self.scenario.loadout
         return dict(loadout_stats(lo).skill_bonus)
 
+    def spend_remaining_sp(self, build: Build, policy: list) -> Build:
+        """Spend all reachable remaining points, including DPS-neutral utility levels.
+
+        The DPS search deliberately drops flat curves and ignores tiny gains. A
+        final small knapsack fills that slack without taking away trained levels.
+        Among equally full allocations, simulated marginal DPS breaks ties.
+        """
+        slack = max(0, self.sp_budget - build.sp_spent())
+        if not slack:
+            return build
+        base = self.evaluate(build, policy)
+        choices = []
+        for sid, skill in sorted(self.cd.skills.items()):
+            if skill["kind"] not in ("active", "passive"):
+                continue
+            level = build.sp.get(sid, 1)
+            options = [(0, level, 0.0)]
+            for new_level in range(level + 1, min(10, skill.get("buyMax", 10)) + 1):
+                cost = sp_to_reach(new_level) - sp_to_reach(level)
+                if cost > slack:
+                    break
+                trial = build.copy()
+                trial.sp[sid] = new_level
+                options.append((cost, new_level, self.evaluate(trial, policy) - base))
+            if len(options) > 1:
+                choices.append((sid, options))
+        plans = {0: (0.0, {})}
+        for sid, options in choices:
+            updated = {}
+            for spent, (value, levels) in plans.items():
+                for cost, level, gain in options:
+                    total = spent + cost
+                    if total <= slack and (total not in updated or value + gain > updated[total][0]):
+                        updated[total] = (value + gain, {**levels, sid: level})
+            plans = updated
+        spent = max(plans)
+        out = build.copy()
+        out.sp.update({sid: lv for sid, lv in plans[spent][1].items() if lv > 1})
+        left = self.sp_budget - out.sp_spent()
+        self.log(f"skill points: {out.sp_spent()}/{self.sp_budget} spent" +
+                 (f"; {left} left because no further trained level fits the budget" if left else ""))
+        return out
+
     def _clean_specs(self, build: Build) -> Build:
         """Drop specs that became illegal after a level change."""
         cd = self.cd
@@ -480,6 +525,7 @@ class Optimizer:
                 build = build2
             self.history.append({"iter": it, "dps": max(v_old, v_new)})
         build = self.polish_sp(build, policy)
+        build = self.spend_remaining_sp(build, policy)
         build = self.optimize_specs(build, policy, passes=3)
         policy, dps, res = self.optimize_rotation(build, policy, restarts=4)
         cd, b, kit, stats = prepare(build, self.scenario)

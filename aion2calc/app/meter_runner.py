@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import threading
 import queue
+import time
 from pathlib import Path
 
-from ..meter import Meter, capture_source, live_frames, load_decoder, replay_source
+from ..meter import Meter, load_decoder, replay_source
 from ..meter.a2parser.engine import MeterEngine as PacketMeterEngine
 from ..meter.a2parser.capture import capture_packets
 from ..meter import a2tools
@@ -25,7 +26,10 @@ class Runner:
         self.packet_queue: queue.Queue | None = None
         self.packet_capture_thread: threading.Thread | None = None
         self.target_mode = "bossTargets"
+        self.diagnostics: dict = {}
+        self.started_at: float | None = None
         self._stop = False
+        self.replay_stop = threading.Event()
         self.lock = threading.Lock()
 
     def start(self, source: str = "replay", **opts) -> dict:
@@ -34,20 +38,23 @@ class Runner:
             self.meter = Meter()
             self.packet_engine = None
         self.error = None
+        self.diagnostics = {}
+        self.started_at = time.monotonic()
         self._stop = False
+        self.replay_stop = threading.Event()
         self.source_name = source
         try:
             if source == "a2tools":
                 return self._start_a2tools(**opts)
             if source == "replay":
                 path = opts.get("path") or str(DEMO)
-                it = replay_source(path, speed=float(opts.get("speed", 1.0)), realtime=opts.get("realtime", True))
+                it = replay_source(path, speed=float(opts.get("speed", 1.0)), realtime=opts.get("realtime", True), stop_event=self.replay_stop)
             elif source == "live":
                 dec = opts.get("decoder")
                 if not dec:
-                    self.error = "live capture needs a decoder module (the game protocol decoder is not bundled — supply your own)"
+                    self.error = "Import a decoder .py file, or select Live Capture to use the included A2Tools decoder."
                     return self.status()
-                it = capture_source(load_decoder(dec), live_frames(iface=opts.get("iface"), host=opts.get("host"), port=opts.get("port")))
+                return self._start_a2tools(custom_decoder=load_decoder(dec), **opts)
             else:
                 self.error = f"unknown source {source!r}"
                 return self.status()
@@ -69,10 +76,12 @@ class Runner:
         if not 1 <= port <= 65_535:
             self.error = "game server port must be between 1 and 65535"
             return self.status()
-        self.packet_engine = PacketMeterEngine()
-        self.packet_engine.set_server_port(port)
-        if opts.get("character_name"):
-            self.packet_engine.set_local_character_name(str(opts["character_name"]))
+        decoder = opts.get("custom_decoder")
+        self.packet_engine = None if decoder else PacketMeterEngine()
+        if self.packet_engine is not None:
+            self.packet_engine.set_server_port(port)
+            if opts.get("character_name"):
+                self.packet_engine.set_local_character_name(str(opts["character_name"]))
         self.target_mode = str(opts.get("target_mode") or "bossTargets")
         iface = str(opts.get("iface") or "").strip()
         host = str(opts.get("host") or "").strip()
@@ -81,36 +90,55 @@ class Runner:
         self.packet_stop = threading.Event()
         self.packet_queue = queue.Queue()
         self.running = True
-        self.thread = threading.Thread(target=self._run_a2tools, args=(iface, port, host),
+        self.diagnostics = {"state": "starting", "packets": 0, "bytes": 0, "decoded_events": 0,
+                            "auto_port": bool(opts.get("auto_port", decoder is None)), "port": None}
+        self.thread = threading.Thread(target=self._run_a2tools,
+                                       args=(iface, port, host, decoder, self.diagnostics["auto_port"]),
                                        daemon=True, name="a2tools-meter")
         self.thread.start()
         return self.status()
 
-    def _run_a2tools(self, iface: str | None, port: int, host: str | None) -> None:
-        assert self.packet_stop is not None and self.packet_queue is not None and self.packet_engine is not None
+    def _run_a2tools(self, iface: str | None, port: int, host: str | None, decoder, auto_port: bool) -> None:
+        assert self.packet_stop is not None and self.packet_queue is not None
+        stop_event, packets, engine = self.packet_stop, self.packet_queue, self.packet_engine
         self.packet_capture_thread = threading.Thread(
-            target=capture_packets, args=(self.packet_stop, self.packet_queue, iface, port, None, host),
+            target=capture_packets, args=(stop_event, packets, iface, port, None, host, auto_port),
             daemon=True, name="a2tools-capture")
         self.packet_capture_thread.start()
         try:
-            while not self._stop:
+            while not stop_event.is_set():
                 try:
-                    item = self.packet_queue.get(timeout=0.5)
+                    item = packets.get(timeout=0.5)
                 except queue.Empty:
                     continue
                 kind, *data = item
                 if kind == "packet":
                     stream, payload, timestamp_ms = data
                     with self.lock:
-                        self.packet_engine.consume(payload, timestamp_ms, stream)
+                        if engine is not None:
+                            events = engine.consume(payload, timestamp_ms, stream)
+                        else:
+                            events = list(decoder.feed(payload))
+                            for event in events:
+                                self.meter.add(event)
+                        self.diagnostics["decoded_events"] += len(events)
                 elif kind == "error":
                     self.error = str(data[0])
                     break
                 elif kind == "capture_started":
-                    continue
+                    self.diagnostics["state"] = "capturing"
+                elif kind == "capture_stats":
+                    with self.lock:
+                        self.diagnostics.update(data[0])
+                        if engine is not None and data[0].get("port"):
+                            engine.set_server_port(int(data[0]["port"]))
                 elif kind == "capture_stopped":
                     break
+        except Exception as exc:
+            self.error = f"Decoder failed: {type(exc).__name__}: {exc}"
         finally:
+            stop_event.set()
+            self.diagnostics["state"] = "error" if self.error else "stopped"
             self.running = False
 
     def _run(self, it) -> None:
@@ -127,6 +155,7 @@ class Runner:
 
     def stop(self) -> None:
         self._stop = True
+        self.replay_stop.set()
         if self.packet_stop:
             self.packet_stop.set()
         t = self.thread
@@ -136,12 +165,18 @@ class Runner:
         if capture and capture.is_alive():
             capture.join(timeout=3.0)
         self.running = False
+        if self.diagnostics:
+            self.diagnostics["state"] = "stopped"
 
     def status(self) -> dict:
         with self.lock:
             snap = (a2tools.snapshot(self.packet_engine, self.target_mode)
                     if self.packet_engine is not None else self.meter.snapshot())
-        return {"running": self.running, "source": self.source_name, "error": self.error, "snapshot": snap}
+            diagnostic = dict(self.diagnostics)
+        if diagnostic:
+            diagnostic["elapsed"] = round(time.monotonic() - self.started_at, 1) if self.started_at else 0
+        return {"running": self.running, "source": self.source_name, "error": self.error,
+                "snapshot": snap, "diagnostics": diagnostic}
 
     def to_a2log(self, title: str | None = None) -> dict:
         with self.lock:

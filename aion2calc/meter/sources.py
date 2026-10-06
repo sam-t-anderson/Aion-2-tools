@@ -9,7 +9,7 @@ from pathlib import Path
 from .events import CombatEvent
 
 
-def replay_source(path, speed: float = 1.0, realtime: bool = False):
+def replay_source(path, speed: float = 1.0, realtime: bool = False, stop_event=None):
     """Yield decoded :class:`CombatEvent`s from a JSON-lines file (one event object per line).
 
     With ``realtime`` the events are paced by their own ``t`` (divided by ``speed``), to feel like a
@@ -24,10 +24,16 @@ def replay_source(path, speed: float = 1.0, realtime: bool = False):
     base = rows[0].t if rows else 0.0
     start = time.monotonic()
     for ev in rows:
+        if stop_event is not None and stop_event.is_set():
+            return
         if realtime:
             delay = (ev.t - base) / max(1e-6, speed) - (time.monotonic() - start)
             if delay > 0:
-                time.sleep(delay)
+                if stop_event is not None:
+                    if stop_event.wait(delay):
+                        return
+                else:
+                    time.sleep(delay)
         yield ev
 
 

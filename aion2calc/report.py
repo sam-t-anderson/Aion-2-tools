@@ -11,7 +11,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from .kit.base import ClassData
-from .opt.macro import plan_macro
+from .opt.macro import MODEL_VERSION, describe_plan, plan_macro
 from .opt.pipeline import Optimizer
 from .opt.rotation import describe, materialize, optimize_rotation
 from .render.boards import render_boards
@@ -230,19 +230,17 @@ def rerender(out_dir: str) -> str:
     if "crit_sensitivity" not in summary:
         summary["crit_sensitivity"] = crit_sensitivity(build, SCENARIOS[summary["scenario"]](loadout), policy)
         path.write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
-    if "kr_fidelity" not in summary or "arcana_rolls" not in summary or "alt_steps" not in summary["macro"]:
+    if ("kr_fidelity" not in summary or "arcana_rolls" not in summary
+            or summary.get("macro", {}).get("model_version") != MODEL_VERSION):
         dummy = SCENARIOS["dummy"](loadout)
         scen = SCENARIOS[summary["scenario"]](loadout)
         summary.setdefault("kr_fidelity", kr_share_overlap(cls, _sim(build, dummy, policy)[0].shares()))
         summary.setdefault("arcana_rolls", arcana_roll_values(cls, build, SCENARIOS[summary["scenario"]](loadout), policy))
         summary.pop("arcana_skill_values", None)
-        if "alt_steps" not in summary["macro"]:
+        if summary.get("macro", {}).get("model_version") != MODEL_VERSION:
             _, _, kit, stats = prepare(build, scen)
             mp = plan_macro(stats.derived(), kit, policy, scen.target, scen.config)
-            summary["macro"] = {"steps": mp.macro_steps, "manual": describe(mp.manual),
-                                "dps_macro": mp.dps_macro, "dps_priority": mp.dps_priority,
-                                "alt_steps": mp.alt_steps, "alt_manual": describe(mp.alt_manual or []),
-                                "dps_alt": mp.dps_alt}
+            summary["macro"] = describe_plan(mp)
         path.write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
     _board_images(ClassData(cls), build, typical_build(cls), Path(out_dir), summary["daevanion_budget"])
     _build_card(ClassData(cls), summary, build, policy, Path(out_dir))
@@ -358,6 +356,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
                      "community_other_scenario": comm_other.dps},
         "build": {"sp": {cd.skills[k]["name"]: v for k, v in sorted(build.sp.items())},
                   "sp_spent": build.sp_spent(), "stigma_spent": build.stigma_spent(),
+                  "sp_unspent": max(0, opt.sp_budget - build.sp_spent()),
                   "stigmas": {cd.skills[k]["name"]: v for k, v in build.stigmas.items()},
                   "specs": {cd.skills[k]["name"]: [_spec_text(cd, k, x) for x in v]
                             for k, v in build.specs.items() if v},
@@ -365,10 +364,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
                   "daevanion_cost": build.daevanion_cost(cd),
                   "effective_levels": {cd.skills[k]["name"]: v for k, v in eff.items() if v > 1}},
         "policy": describe(policy),
-        "macro": {"steps": macro.macro_steps, "manual": describe(macro.manual),
-                  "dps_macro": macro.dps_macro, "dps_priority": macro.dps_priority,
-                  "alt_steps": macro.alt_steps, "alt_manual": describe(macro.alt_manual or []),
-                  "dps_alt": macro.dps_alt},
+        "macro": describe_plan(macro),
         "shares": final.shares(), "casts": final.casts, "uptime": final.uptime,
         "opener": timeline, "weights": res.weights, "stats": stat_summary,
         "sensitivity": sens, "links": links, "history": res.history,

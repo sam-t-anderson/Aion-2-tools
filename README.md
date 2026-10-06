@@ -100,3 +100,17 @@ sources and every assumption are in [`docs/methodology.md`](docs/methodology.md)
 
 GPL-3.0 (see `LICENSE`).  Game data belongs to NCSOFT; community data belongs
 to its respective sites.  This project is fan-made and not affiliated with NCSOFT.
+
+### Live Capture, overlays and optimized presets
+
+Windows setup selects **Download and install Npcap for Live Capture** by default. It downloads the current official installer separately; finish Npcap setup with **WinPcap API-compatible Mode** selected, then restart Aion 2 Calc. Scapy and LZ4 are included in desktop packages. Source installations need the dependencies in `pyproject.toml`; the native Windows overlay additionally requires pywebview and WebView2. macOS uses its system capture framework; Linux requires libpcap and capture permissions. The app offers capture setup when needed.
+
+**Live Meter → Live Capture → Start** uses the built-in decoder, all available adapters in **Auto**, host **any**, and automatic game-port detection. Enter combat to establish a recognized game flow. Packet and event counters distinguish adapter/permission problems from unrecognized protocol traffic. Disable detection to use a known fixed port (initial value `50349`). Stop cancels recording and retains the last result for export; Quit closes capture and the overlay. Custom decoders are trusted Python `.py` imports whose code executes when capture starts.
+
+The single overlay attaches to the AION 2 process on Windows, preserves its dragged offset, and remains available while waiting for the game. Tabs and the opacity slider are interactive; controls do not initiate dragging. Exclusive fullscreen behavior depends on the game and Windows compositor.
+
+**Skills hotbar** shows suggested bindings. **Macro & rotation** shows numbered macro steps with matching keys and 10 ms delays. Charged skills are manual: hold their own key and release after charging. The optimizer fills all legally reachable skill-point allocations; points can remain only when no further purchasable level fits.
+
+After character optimization, anonymous allocations and rotation are sent to the configured server. The server resimulates them with common level-45 median gear and budgets (203 skill / 30 stigma / 360 Daevanion), compares against both the current Planner build and its saved class preset, and saves only improvements. It receives no character identity, private loadout names or gear. Higher-budget builds are rejected rather than unfairly compared. On launch, updated presets appear first in the Planner selection and remain cached offline.
+
+Windows **Install now** stages and validates the installer, starts a detached helper, closes the app, then opens the installer interactively after the process exits. Updates preserve user data. If the helper fails, its log is in the data folder's `updates` directory. macOS/Linux archives are staged for manual replacement.

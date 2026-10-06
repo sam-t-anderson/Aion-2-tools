@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from ..sim.engine import Sim
 from .rotation import CONDITIONS
 
+MODEL_VERSION = 2
+
 
 @dataclass
 class MacroPlan:
@@ -43,7 +45,7 @@ class MacroPolicy:
         for k in range(n):
             key = self.steps[(self.ptr + k) % n]
             a = sim.actions.get(key)
-            if a and sim.usable(a):
+            if a and not a.requires_charge and sim.usable(a):
                 self.ptr = (self.ptr + k + 1) % n
                 return a
         return None
@@ -55,8 +57,8 @@ def plan_macro(derived, kit, policy: list, target, config, macro_cd_limit: float
     manual, steps = [], []
     for e in policy:
         a = kit.actions[keyf(e)]
-        if a.is_filler or (a.cooldown and a.cooldown * (1 - derived.cdr) <= macro_cd_limit
-                           and not isinstance(e, tuple)):
+        if not a.requires_charge and (a.is_filler or (a.cooldown and a.cooldown * (1 - derived.cdr) <= macro_cd_limit
+                           and not isinstance(e, tuple))):
             steps.append(keyf(e))
         else:
             manual.append(e)
@@ -76,19 +78,30 @@ def plan_macro(derived, kit, policy: list, target, config, macro_cd_limit: float
             v = run(MacroPolicy(manual, cand))
             if v > best:
                 best, best_steps = v, cand
-    # one-button alternative: everything in the macro; adjacent-swap search on the order
-    order = [keyf(e) for e in policy if not kit.actions[keyf(e)].is_filler] + \
-        [keyf(e) for e in policy if kit.actions[keyf(e)].is_filler]
-    one, one_v = order, run(MacroPolicy([], order))
+    # Even the larger macro needs manual charge skills: a macro only taps them.
+    charged = [e for e in policy if kit.actions[keyf(e)].requires_charge]
+    automatic = [keyf(e) for e in policy if not kit.actions[keyf(e)].requires_charge]
+    order = [k for k in automatic if not kit.actions[k].is_filler] + \
+        [k for k in automatic if kit.actions[k].is_filler]
+    one, one_v = order, run(MacroPolicy(charged, order))
     improved = True
     while improved:
         improved = False
         for i in range(len(one) - 1):
             cand = one[:i] + [one[i + 1], one[i]] + one[i + 2:]
-            v = run(MacroPolicy([], cand))
+            v = run(MacroPolicy(charged, cand))
             if v > one_v * (1 + 1e-6):
                 one, one_v, improved = cand, v, True
     split = (best_steps, manual, best)
-    single = (one, [], one_v)
+    single = (one, charged, one_v)
     first, second = (single, split) if one_v >= best else (split, single)
     return MacroPlan(first[0], first[1], first[2], dps_pri, second[0], second[1], second[2])
+
+
+def describe_plan(plan: MacroPlan) -> dict:
+    """Report format shared by local reports and downloaded class presets."""
+    from .rotation import describe
+    return {"model_version": MODEL_VERSION, "steps": plan.macro_steps, "manual": describe(plan.manual),
+            "dps_macro": plan.dps_macro, "dps_priority": plan.dps_priority,
+            "alt_steps": plan.alt_steps, "alt_manual": describe(plan.alt_manual or []),
+            "dps_alt": plan.dps_alt}

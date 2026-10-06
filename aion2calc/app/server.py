@@ -65,6 +65,12 @@ def start_sync(force: bool = False, budget_s: float | None = 900) -> None:
 
 # -------------------------------------------------------------------- actions
 def _summary_at(path: str) -> dict:
+    if path.startswith("community:"):
+        from ..paths import read_json
+        cls = path.partition(":")[2]
+        if cls not in list_names("global", "classes"):
+            raise FileNotFoundError(path)
+        return read_json("community_presets", f"{cls}.json")["build"]
     p = Path(path) / "build.json"
     if not any(p.resolve().is_relative_to(r.resolve()) for r in views.result_roots()) or not p.exists():
         raise FileNotFoundError(path)
@@ -95,7 +101,7 @@ def act_character_optimize(body: dict, log) -> dict:
     from ..combat import share
     preset = share.submit_preset(best)
     if preset.get("submitted"):
-        log("community preset " + ("updated" if preset.get("accepted") else "kept the existing higher-scoring build"))
+        log("Community preset updated." if preset.get("accepted") else preset.get("reason", "Current community preset retained."))
     elif preset.get("reason"):
         log("community preset was not submitted: " + preset["reason"])
     return {"summary": summ, "optimized": views.build_view(best), "current_build": cur["build"],
@@ -290,7 +296,8 @@ class Handler(BaseHTTPRequestHandler):
             s = SYNC.get("sync")
             from .. import __version__
             return self._json({"sync": s.state.as_dict() if s else None, "db": status(), "home": str(home()),
-                               "app": "aion2calc", "version": __version__, "update": update_info(wait=True)})
+                               "app": "aion2calc", "version": __version__, "update": update_info(),
+                               "update_prompt": ui_settings().get("auto_update", True)})
         if path == "/api/classes":
             return self._json(list_names("global", "classes"))
         if path == "/api/results":
@@ -311,6 +318,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/ui":
             return self._json(ui_settings())
         if path == "/api/update":
+            from .. import __version__
             from .. import update
             return self._json({"current": __version__, "info": update.available(), "kind": update.install_kind()})
         if path == "/api/npcap":
@@ -322,8 +330,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/meter/interfaces":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("capture interfaces are available only on this computer")
-            from ..meter.a2parser.capture import available_interfaces
-            return self._json({"interfaces": available_interfaces()})
+            from ..meter.a2parser.capture import interface_details
+            rows = interface_details()
+            return self._json({"interfaces": [row["name"] for row in rows], "devices": rows})
         if path == "/api/logserver":
             from ..combat import share
             st = share.effective()
@@ -396,14 +405,22 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"job": start_job("advice", act_advice, body)})
         if path.startswith("/api/inventory/"):
             return self._json(inventory_post(path, body))
+        if path == "/api/meter/decoder":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("Decoder files can only be imported on this computer")
+            from ..meter.decoder import import_decoder
+            return self._json(import_decoder(body.get("name", ""), body.get("source", "")))
         if path == "/api/meter":
             from .meter_runner import runner
             r = runner()
             action = body.get("action")
             if action == "start":
+                if self.client_address[0] not in ("127.0.0.1", "::1"):
+                    raise PermissionError("Packet capture runs only on this computer")
                 return self._json(r.start(body.get("source", "a2tools"), path=body.get("path"),
                                           speed=body.get("speed", 1.0), decoder=body.get("decoder"),
                                           iface=body.get("iface"), host=body.get("host"), port=body.get("port"),
+                                          auto_port=body.get("auto_port", body.get("source", "a2tools") == "a2tools"),
                                           character_name=body.get("character_name"),
                                           target_mode=body.get("target_mode", "bossTargets")))
             if action == "stop":
@@ -453,8 +470,7 @@ class Handler(BaseHTTPRequestHandler):
             from .. import update
             status = update.install_now()
             if status == "launching":
-                threading.Thread(target=lambda: (time.sleep(1.0), HTTPD.get("server")
-                                                 and HTTPD["server"].shutdown()), daemon=True).start()
+                schedule_shutdown()
             return self._json({"status": status})
         if path == "/api/npcap":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
@@ -479,21 +495,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/quit":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("only the computer running the app can stop it")
-            srv = HTTPD.get("server")
-            def stop_desktop() -> None:
-                # Let the JSON response leave first, then close every native window owned by this app.
-                time.sleep(0.2)
-                try:
-                    from . import overlay_launch
-                    overlay_launch.close()
-                except Exception:
-                    pass
-                proc = APP_WINDOW.get("process")
-                if proc is not None and proc.poll() is None:
-                    proc.terminate()
-                if srv:
-                    srv.shutdown()
-            threading.Thread(target=stop_desktop, daemon=True).start()
+            schedule_shutdown()
             return self._json({"stopping": True})
         if path == "/api/logs/open":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
@@ -532,6 +534,28 @@ PING: dict = {"at": time.time()}
 APP_WINDOW: dict = {}
 
 
+def schedule_shutdown() -> None:
+    """Let the response finish, stop capture, close native windows, then stop serving."""
+    def stop():
+        time.sleep(0.5)
+        from . import overlay_launch
+        from .meter_runner import runner
+        for close in (runner().stop, overlay_launch.close):
+            try:
+                close()
+            except Exception:
+                traceback.print_exc()
+        proc = APP_WINDOW.get("process")
+        if proc is not None and proc.poll() is None:
+            try:
+                proc.terminate()
+            except OSError:
+                pass
+        if HTTPD.get("server"):
+            HTTPD["server"].shutdown()
+    threading.Thread(target=stop, daemon=True, name="desktop-shutdown").start()
+
+
 def ui_settings() -> dict:
     from ..paths import data_file, read_json
     defaults = {"app_window": True, "auto_update": True}
@@ -540,6 +564,7 @@ def ui_settings() -> dict:
 
 def make_server(host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServer:
     httpd = ThreadingHTTPServer((host, port), Handler)
+    httpd.daemon_threads = True
     HTTPD["server"] = httpd
     return httpd
 
@@ -549,8 +574,9 @@ def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: 
     if sync:
         start_sync()
     # This is independent of the game-data sync: it is fast, optional, and never delays the UI.
-    threading.Thread(target=lambda: __import__("aion2calc.combat.share", fromlist=["sync_presets"]).sync_presets(),
-                     daemon=True, name="community-preset-sync").start()
+    from ..combat.share import sync_presets
+    if sync:
+        threading.Thread(target=sync_presets, daemon=True, name="community-preset-sync").start()
     httpd = httpd or make_server(host, port)
     host, port = httpd.server_address[:2]
     url = f"http://{host}:{port}/"
@@ -574,6 +600,8 @@ def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: 
     finally:
         try:
             from . import overlay_launch
+            from .meter_runner import runner
+            runner().stop()
             overlay_launch.close()
         except Exception:
             pass

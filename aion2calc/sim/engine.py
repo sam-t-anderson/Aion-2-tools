@@ -74,6 +74,8 @@ class Action:
     element: str | None = None
     is_filler: bool = False
     tags: tuple = ()
+    requires_charge: bool = False  # an in-game macro cannot hold the skill button
+    charge_level: int | None = None
 
     def group(self) -> str:
         return self.cd_group or self.key
