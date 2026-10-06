@@ -1,3 +1,8 @@
+## Changes in 0.2.22 — distinct fight identities
+
+- Keep split IDs unique when multiple PvE/PvP fight groups start in the same decoded packet, preserving correct encounter selection in live review.
+- Includes the run-boundary functionality introduced in 0.2.21; its evidence and retention limits still apply.
+
 ## Changes in 0.2.21 — run boundaries
 
 - Retain run IDs, completion/boundary reasons, map and dungeon IDs inside multi-fight captures; select a run on desktop and Pages.
