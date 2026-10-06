@@ -28,7 +28,7 @@ Capture can stay running across encounters and runs. **Finish run** closes the c
 
 For automatic final-boss completion, enter verified final-boss NPC type IDs before Start and leave **Finish on configured final-boss death** enabled. Completion requires a recorded death of that boss, recorded damage against it and a matching dungeon ID. The bundled NPC tables identify bosses but do not identify which boss is final; no final-boss rule is guessed from NPC ordering. PvP arenas/battlegrounds currently use **Finish run** or map/instance transitions until match-end packets are verified.
 
-Known open-world maps receive separate PvE/PvP open-world categories; unresolved sources use **PvE · Unverified source** or **PvP · Unverified / other** unless you supply a category. Mode selection remains manual. Existing bounded capture limits still apply: 400,000 retained effects, 200 exported encounter splits and 64 unresolved player identities. Completed-run rollover/archival beyond those limits remains a follow-up; this does not provide an unlimited recording.
+Known open-world maps receive separate PvE/PvP open-world categories; unresolved sources use **PvE · Unverified source** or **PvP · Unverified / other** unless you supply a category. Damage involving an identified opponent outside Self/Party scope is grouped separately as PvP; unknown actors are never assumed to be opponents. Arena/battleground selection remains manual. Existing bounded capture limits still apply: 400,000 retained effects, 200 exported encounter splits and 64 unresolved player identities. Completed-run rollover/archival beyond those limits remains a follow-up; this does not provide an unlimited recording.
 
 ## Recovered advice
 

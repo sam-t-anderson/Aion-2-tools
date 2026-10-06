@@ -146,19 +146,25 @@ class CombatSession:
         allowed.update(pet for pet, owner in identity["owners"].items() if owner in allowed)
         return allowed
 
+    def _pvp_damage(self, record, allowed):
+        event = record.event
+        if not isinstance(event,DamageEvent):
+            return False
+        identity = self.identities[record.epoch]
+        opponent = event.target_id if event.actor_id in allowed else event.actor_id
+        opponent = identity["owners"].get(opponent,opponent)
+        return (not (event.actor_id in allowed and event.target_id in allowed)
+                and opponent in identity.get("player_ids",set())
+                and not identity["spawns"].get(opponent,{}).get("mobCode"))
+
     def groups(self, scope="party"):
         groups = []
         for record in self.records:
             event = record.event
             allowed = self._allowed(record, scope)
-            if self.pvp and isinstance(event, DamageEvent):
-                identity = self.identities[record.epoch]
-                opponent = event.target_id if event.actor_id in allowed else event.actor_id
-                opponent = identity["owners"].get(opponent,opponent)
-                if (event.actor_id in allowed and event.target_id in allowed) or opponent not in identity.get("player_ids", set()):
-                    continue  # Never call an unknown NPC a PvP opponent.
-                if identity["spawns"].get(opponent, {}).get("mobCode"):
-                    continue
+            pvp = self._pvp_damage(record,allowed)
+            if self.pvp and isinstance(event,DamageEvent) and not pvp:
+                continue  # Explicit PvP mode excludes unknown NPC/player opponents.
             relevant = event.actor_id in allowed or (event.target_id in allowed)
             if not relevant:
                 continue
@@ -172,9 +178,10 @@ class CombatSession:
                     groups[-1]["end"] = max(groups[-1]["end"], event.timestamp_ms)
                 continue
             if (not groups or groups[-1]["epoch"] != record.epoch or groups[-1]["split"] != record.split
+                    or groups[-1]["pvp"] != pvp
                     or (self.automatic_splits and event.timestamp_ms - groups[-1]["last_damage"] > self.gap_seconds * 1000)):
                 groups.append({"id": f"{record.epoch}-{event.timestamp_ms}", "epoch": record.epoch,
-                               "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "split": record.split, "run":record.run, "records": []})
+                               "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "split": record.split, "run":record.run, "pvp":pvp, "records": []})
             group = groups[-1]
             group["last_damage"] = max(group["last_damage"], event.timestamp_ms)
             group["end"] = max(group["end"], event.timestamp_ms)
@@ -297,7 +304,7 @@ class CombatSession:
             resolving = set()
             actor_refs = {}
             opponents = set()
-            if self.pvp:
+            if group["pvp"]:
                 for record in group["records"]:
                     if isinstance(record.event, DamageEvent):
                         allowed_now = self._allowed(record, scope)
@@ -377,9 +384,9 @@ class CombatSession:
                 bosses = [e for e in entities.values() if e.get("is_boss")]
                 run = self.runs[group["run"]]
                 from .a2parser.engine import OPEN_WORLD_MAPS
-                category = "pvp_open_world" if self.pvp else "pve_open_world"
+                category = "pvp_open_world" if group["pvp"] else "pve_open_world"
                 if run.get("map_id") not in OPEN_WORLD_MAPS:
-                    category = "pvp_other" if self.pvp else "pve_unverified"
+                    category = "pvp_other" if group["pvp"] else "pve_unverified"
                 segments.append({"run_id":str(group["run"]), "run_complete":run["complete"],
                     "run_end_reason":run.get("end_reason", ""), "map_id":run.get("map_id",0),
                     "instance_id":run.get("instance_id",0), "encounter_type":category,

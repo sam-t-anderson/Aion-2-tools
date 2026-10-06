@@ -345,7 +345,8 @@ class Runner:
         doc.setdefault("meta", {}).update(self.metadata)
         for segment in doc.get("segments",[]):
             if (segment.get("encounter_type") in (None,"pve_unverified","pvp_other")
-                    and self.metadata.get("encounter_type") not in (None,"","unknown")):
+                    and self.metadata.get("encounter_type") not in (None,"","unknown")
+                    and segment.get("encounter_type","").startswith("pvp_") == self.metadata["encounter_type"].startswith("pvp_")):
                 segment["encounter_type"] = self.metadata["encounter_type"]
             for key in ("game_patch","difficulty","zone"):
                 if self.metadata.get(key):

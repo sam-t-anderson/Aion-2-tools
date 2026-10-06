@@ -2,6 +2,7 @@
 
 - Retain run IDs, completion/boundary reasons, map and dungeon IDs inside multi-fight captures; select a run on desktop and Pages.
 - Add Finish run without stopping capture, plus automatic completion for configured final-boss NPC IDs with observed deaths and matching dungeon context.
+- Separate observed damage against identified players from PvE fights, including mixed open-world captures; unknown actors are not guessed to be PvP opponents.
 - Separate confirmed open-world maps from unverified PvE/PvP sources.
 - Keep boss death markers that arrive shortly after the final damage; checkpoint changed run boundaries immediately.
 - Reuse identified player references across actor resets when character server/name or database identity is available.
