@@ -756,7 +756,7 @@ async function pageMeter() {
   $("#mallenemies").onclick = () => updateView({enemy: null});
   $("#mclear").onclick = async () => {
     if (!window.confirm("Clear retained combat history? Export or save it first if you want to keep a copy.")) return;
-    try { renderMeter(await api("/api/meter", {action: "clear"})); } catch (e) { $("#mnotice").textContent = e.message; }
+    try { st.pinnedSegment = ""; renderMeter(await api("/api/meter", {action: "clear"})); } catch (e) { $("#mnotice").textContent = e.message; }
   };
   let decoderPath = null;
   $("#mcustomdec").onchange = async () => {
@@ -838,7 +838,7 @@ async function pageMeter() {
       target_mode: "allTargets",
       character_name: source === "a2tools" ? ($("#mchar").value || null) : null };
     button.disabled = true;
-    try { renderMeter(await api("/api/meter", body)); } catch (e) { $("#mnotice").textContent = e.message; }
+    try { st.pinnedSegment = ""; renderMeter(await api("/api/meter", body)); } catch (e) { $("#mnotice").textContent = e.message; }
     finally { button.disabled = false; }
   };
   const showDiagnosticExport = () => {
