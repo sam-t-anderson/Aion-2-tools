@@ -359,7 +359,7 @@ class CombatSession:
                     server = info.get("serverId") or profile.get("serverId")
                     if server and actor_id in identity["names"]:
                         pid = f"p:{server}:" + (str(info["dbid"]) if info.get("dbid") else name.casefold())
-                    players[pid] = {"id": pid, "name": name, "class": identity["jobs"].get(actor_id) or info.get("job"),
+                    players[pid] = {"id": pid, "name": name, "class": identity["jobs"].get(actor_id) or info.get("job") or players.get(pid, {}).get("class"),
                         "server": str(server) if server else None,
                         "character_id": str(info["dbid"]) if info.get("dbid") else None,
                         "combat_power": info.get("combatPower"), "gear_score": info.get("gearScore")}
