@@ -26,6 +26,9 @@ class CombatSession:
         self.epoch = 0
         self.identities = {}
         self.discarded = 0
+        self.discarded_telemetry = 0
+        self.discarded_segments = 0
+        self.capture_evidence = {}
         self.gap_seconds = 10
         self._zone_reset = None
         self.automatic_splits = True
@@ -110,6 +113,8 @@ class CombatSession:
                 if key in self._dead:
                     continue
                 self._dead.add(key)
+            if len(self.telemetry) == self.telemetry.maxlen:
+                self.discarded_telemetry += 1
             self.telemetry.append({**sample, "epoch": self.epoch})
             code = identity["spawns"].get(sample["entity"], {}).get("mobCode")
             if (self.auto_finish and not self.pvp and sample["kind"] == "death"
@@ -196,6 +201,7 @@ class CombatSession:
                 if (sample["kind"] == "death" and sample["epoch"] == group["epoch"] and sample["entity"] in actors
                         and group["end"] <= sample["timestamp_ms"] <= group["last_damage"] + self.gap_seconds*1000):
                     group["end"] = sample["timestamp_ms"]
+        self.discarded_segments = max(self.discarded_segments, len(groups) - 200)
         return groups[-200:]
 
     @staticmethod
@@ -371,6 +377,18 @@ class CombatSession:
                         hit[key] = True
                 hits.append(hit)
             health = []
+            # Preserve the latest pre-pull HP evidence, bounded to 30 seconds.
+            # A stale earlier full-HP sample must never override a newer low-HP sample.
+            initial = {}
+            for sample in self.telemetry:
+                if (sample["epoch"] == group["epoch"] and sample["kind"] == "hp"
+                        and group["start"]-30_000 <= sample["timestamp_ms"] <= group["start"]):
+                    initial[sample["entity"]] = sample
+            for actor_id, sample in initial.items():
+                eid = actor_refs.get(actor_id)
+                if eid in entities and entities[eid].get("is_boss"):
+                    maximum = sample.get("max") or identity["spawns"].get(actor_id, {}).get("maxHp")
+                    health.append({"t":0, "entity":eid, "current":sample["current"], "max":maximum})
             for sample in self.telemetry:
                 if sample["epoch"] != group["epoch"] or not group["start"] <= sample["timestamp_ms"] <= group["end"]:
                     continue
@@ -403,5 +421,10 @@ class CombatSession:
             raise ValueError("No identified player data is available under the selected party filter.")
         if len(players) > 64:
             raise ValueError("This session contains more than 64 player identities. Export a shorter session or use Party / Self filtering.")
-        return a2log.validate({"format":"a2log","version":1,"meta":{"source":"Aion 2 Calc live session","title":title or "Live combat session"},
+        from .. import __version__
+        from ..combat.quality import DECODER
+        evidence = {**self.capture_evidence, "decoder":DECODER, "app_version":__version__,
+                    "discarded_effects":self.discarded, "discarded_segments":self.discarded_segments,
+                    "discarded_telemetry":self.discarded_telemetry}
+        return a2log.validate({"format":"a2log","version":1,"meta":{"source":"Aion 2 Calc live session","title":title or "Live combat session", "capture_scope":scope, "capture_quality":evidence},
                                "players":list(players.values()),"segments":segments})

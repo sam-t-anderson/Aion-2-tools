@@ -1,5 +1,18 @@
 # Combat logging iterations
 
+## Insights roadmap — checkpoint 1 (0.2.23)
+
+Implemented capture-quality reasons, Party encounter ranking eligibility, bounded-history/validation/TCP loss evidence, public cross-uploader duplicate grouping and operator counts. Incomplete and legacy captures stay reviewable; PvP boundaries remain unverified and unranked. Duplicate matching requires identical outgoing damage, stable player identities and anchored encounter time; partial/ambiguous matches are intentionally not merged. Quality uses submitted telemetry, not authenticated game records.
+
+Next checkpoints, in order:
+1. Complete-run speed rankings and progression: individual run groups, elapsed/combat/downtime, attempts/wipes and best remaining HP. Complete archive/retention evidence and reliable final-boss configuration are prerequisites for trustworthy full-run ranks.
+2. Fair cohorts and historical percentiles: patch/difficulty/party size, historical vs current ranks, minimum samples; gear brackets only with reliable gear evidence.
+3. Death recaps and player consistency/improvement.
+4. Phase, support and rotation analysis as cast/buff/resource decoding is verified.
+5. Character ownership/privacy/community tools and richer evidence-backed PvP scoring.
+
+Pending capture-quality follow-ups: additional OS/driver packet-drop counters, verified match boundaries, robust matching of incomplete perspectives, trusted game-version mapping and unlimited disk archival beyond bounded retention. These are not inferred from missing events.
+
 ## Iteration 1 — 0.2.16
 
 - Show verified automatic local identity. The optional name override is for captures started after the identity packet. Combat entity IDs change between instances; roster database character IDs and server IDs are retained separately when observed.
