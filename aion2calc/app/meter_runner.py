@@ -37,6 +37,7 @@ class Runner:
         self.replay_stop = threading.Event()
         self.lock = threading.Lock()
         self.session = CombatSession()
+        self.metadata = {}
         self.scope = "party"
         self.segment_id = None
         self.enemy_id = None
@@ -201,7 +202,7 @@ class Runner:
             try:
                 from ..combat.sessions import save
                 with self.lock:
-                    doc = self.session.to_a2log(self.scope)
+                    doc = self._metadata(self.session.to_a2log(self.scope))
                 self.saved_log = str(save(doc, self.session_file))
             except (ValueError, OSError) as exc:
                 self.diagnostics["log_save_error"] = str(exc)
@@ -244,6 +245,14 @@ class Runner:
 
     def configure_view(self, body: dict) -> dict:
         with self.lock:
+            if "metadata" in body:
+                from ..combat.a2log import ENCOUNTER_TYPES
+                metadata = body["metadata"]
+                if (metadata.get("encounter_type") or "unknown") not in ENCOUNTER_TYPES:
+                    raise ValueError("Invalid encounter type")
+                if self.running:
+                    raise ValueError("Stop capture before changing session classification")
+                self.metadata = {k: str(metadata.get(k) or ("unknown" if k == "encounter_type" else "")).strip()[:200] for k in ("game_patch", "difficulty", "encounter_type", "region")}
             if "automatic_splits" in body:
                 self.session.automatic_splits = bool(body["automatic_splits"])
             if body.get("segment_gap") is not None:
@@ -279,14 +288,21 @@ class Runner:
     def to_a2log(self, title: str | None = None) -> dict:
         with self.lock:
             if self.packet_engine is not None:
-                return self.session.to_a2log(self.scope, title)
-            return self.meter.to_a2log(title=title)
+                return self._metadata(self.session.to_a2log(self.scope, title))
+            return self._metadata(self.meter.to_a2log(title=title))
 
     def review_log(self) -> dict:
         with self.lock:
             if self.packet_engine is not None:
-                return self.session.to_a2log(self.scope, segment_id=self.segment_id)
-            return self.meter.to_a2log()
+                return self._metadata(self.session.to_a2log(self.scope, segment_id=self.segment_id))
+            return self._metadata(self.meter.to_a2log())
+
+    def _metadata(self, doc):
+        doc.setdefault("meta", {}).update(self.metadata)
+        profile = self.packet_engine.local_profile if self.packet_engine else {}
+        if profile.get("serverId"):
+            doc["meta"]["server"] = str(profile["serverId"])
+        return doc
 
     def has_data(self) -> bool:
         with self.lock:

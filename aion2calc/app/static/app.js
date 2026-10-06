@@ -135,7 +135,7 @@ function winDaevanion(v, boardIdx = 0) {
   }).join("");
   const tabs = `<div class="tabs">${d.boards.map((x, i) => `<button data-board="${i}" class="${i === boardIdx ? "on" : ""}">${esc(x.name)} <span class="faint">${x.used}/${x.total}</span></button>`).join("")}</div>`;
   const side = `<div class="daevside">
-      <div class="counter"><small>Points used</small> ${d.used} / ${d.budget ?? 360}</div>
+      <div class="counter"><small>Points used</small> ${d.used} / ${d.budget ?? "Unknown"}</div>
       <h4>${esc(b.name)} board</h4><div class="small">${b.used} / ${b.total} points · ${b.nodes.filter((x) => x.selected).length} nodes</div>
       <h4>Skill levels</h4>${d.skills.map((s) => `<div class="small">${esc(s.name)} <b class="gold">+${s.levels}</b></div>`).join("") || '<div class="faint small">none</div>'}
       <h4>Stats (all boards)</h4>${d.stats.map((s) => `<div class="small">${esc(s.label)} <b>${esc(s.text)}</b></div>`).join("")}
@@ -326,11 +326,11 @@ function welcomeCard() {
 
 async function pagePlanner() {
   const st = S.planner;
-  app().innerHTML = welcomeCard() + `<section class="win"><div class="wh"><h2>Build planner</h2><span class="sub">optimized builds — copy each window into the game</span></div>
+  app().innerHTML = welcomeCard() + `<section class="win"><div class="wh"><h2>Build planner</h2><a class="btn small" href="#/history">Saved results</a><span class="sub">optimized builds — copy each window into the game</span></div>
     <div class="wb"><div class="row"><label class="muted small">Build</label><select id="res"></select>
       <span class="muted small">or optimize:</span><select id="cls"></select>
       <input id="sp" type="number" placeholder="skill pts (203)" title="skill points (default 203)" style="width:150px"><input id="stg" type="number" placeholder="stigma pts (30)" title="stigma points (default 30)" style="width:150px">
-      <button class="btn primary" id="go">Optimize</button><span id="jobmsg" class="small muted"></span></div></div></section><div id="wins"></div>`;
+      <input id="dv" type="number" min="0" max="10000" placeholder="Daevanion pts (360 preset)" aria-label="Daevanion point budget" style="width:180px"><button class="btn primary" id="go">Optimize</button><span id="jobmsg" class="small muted"></span></div></div></section><div id="wins"></div>`;
   if ($("#whide")) $("#whide").onclick = () => { try { localStorage.setItem("welcome-hidden", "1"); } catch (e) {} $("#welcome").remove(); };
   const [results, classes] = await Promise.all([api("/api/results"), api("/api/classes")]);
   $("#res").innerHTML = results.map((r) => `<option value="${esc(r.path)}">${r.community ? "Community preset · " : ""}${esc(cap(r.class))} · ${esc(r.loadout || "")} · ${n0(r.dps?.[r.scenario])} ${esc(r.scenario || "")} DPS</option>`).join("");
@@ -348,7 +348,7 @@ async function pagePlanner() {
   $("#go").onclick = async () => {
     $("#go").disabled = true;
     try {
-      const v = await runJob("/api/optimize", { class: $("#cls").value, skill_points: +$("#sp").value || null, stigma_points: +$("#stg").value || null },
+      const v = await runJob("/api/optimize", { class: $("#cls").value, skill_points: $("#sp").value===""?null:+$("#sp").value, stigma_points: $("#stg").value===""?null:+$("#stg").value, daevanion: $("#dv").value===""?360:+$("#dv").value },
         (log) => ($("#jobmsg").textContent = log[log.length - 1] || "working…"));
       renderWindows(v, st, $("#wins"));
       $("#jobmsg").textContent = "done";
@@ -386,19 +386,24 @@ async function pageCharacter() {
   };
   const showChar = () => {
     const v = st.v;
+    let savedBudgets={};try{savedBudgets=JSON.parse(localStorage.getItem('character-point-budgets')||'{}')[v.key]||{};}catch(_){}
+    const availableBudgets=Object.fromEntries(['skill','stigma','daevanion'].map(k=>[k,Math.max(v.points[k],savedBudgets[k]??v.budgets?.[k]??v.points[k])]));
+    const rememberBudgets=()=>{const values=Object.fromEntries([...document.querySelectorAll('[data-character-budget]')].map(e=>[e.dataset.characterBudget,+e.value]));let all={};try{all=JSON.parse(localStorage.getItem('character-point-budgets')||'{}');}catch(_){}all[v.key]=values;localStorage.setItem('character-point-budgets',JSON.stringify(all));return values;};
     $("#cview").innerHTML = `<section class="win"><div class="wh"><h2>${esc(v.name)}</h2><span class="sub">${esc(cap(v.class))} · Lv ${v.level} · ${esc(v.server)} · Combat Power ${n0(v.combat_power)}</span>
       <div class="tools"><button class="btn primary" id="opt">Optimize my build</button></div></div><div class="wb">
       <div class="kpis">${Object.entries(v.dps || {}).map(([k, x]) => `<div class="kpi"><div class="k">${esc(k)} DPS as-is</div><div class="v">${n0(x)}</div></div>`).join("")}
-        <div class="kpi"><div class="k">Skill points</div><div class="v">${v.points.skill}</div></div><div class="kpi"><div class="k">Stigma points</div><div class="v">${v.points.stigma}</div></div>
-        <div class="kpi"><div class="k">Daevanion</div><div class="v">${v.points.daevanion}</div></div></div>
-      ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<div id="optres"></div></div></section><div id="cwins"></div>`;
+        <div class="kpi"><div class="k">Skill points</div><div class="v">${v.points.skill} / ${v.budgets?.skill??"Unknown"}</div></div><div class="kpi"><div class="k">Stigma points</div><div class="v">${v.points.stigma} / ${v.budgets?.stigma??"Unknown"}</div></div>
+        <div class="kpi"><div class="k">Daevanion</div><div class="v">${v.points.daevanion} / ${v.budgets?.daevanion??"Unknown"}</div></div></div>
+      ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${['skill','stigma','daevanion'].map(k=>`<label>${cap(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:90px"></label>`).join('')}<label>Game patch (optional) <input id="cpointpatch" maxlength="100" placeholder="Unknown" value="${esc(localStorage.getItem('point-game-patch')||'')}"></label></div><div id="optres"></div></div></section><div id="cwins"></div>`;
     renderWindows(v, st, $("#cwins"));
     st.optMeta = { name: v.name, server: v.server, combat_power: v.combat_power };
+    $("#cpointpatch").onchange=()=>localStorage.setItem("point-game-patch",$("#cpointpatch").value.trim());
+    document.querySelectorAll("[data-character-budget]").forEach(e=>e.onchange=rememberBudgets);
     $("#opt").onclick = async () => {
       S.character.opt = { status: "running", log: [], jobid: null };
       renderOptState();
       try {
-        const { job } = await api("/api/character/optimize", st.hit);
+        const { job } = await api("/api/character/optimize", {...st.hit,budgets:rememberBudgets(),game_patch:$("#cpointpatch").value.trim()});
         S.character.opt.jobid = job;
         pollOpt();
       } catch (e) { S.character.opt = { status: "error", error: e.message }; renderOptState(); }
@@ -574,6 +579,12 @@ function parseFromMeter(snap, idx) {
   };
 }
 
+const communityAPI=(path,body)=>body?api('/api/community',{path,body}):api('/api/community?path='+encodeURIComponent(path));
+const localReviewOptions=file=>({
+ compare:id=>communityAPI('/api/v1/logs/'+encodeURIComponent(id)+'/raw'),
+ rankings:(segment,log)=>communityAPI('/api/v1/rankings',{segment,log}),
+ ...(file?{saveMetadata:log=>api('/api/sessions',{file,log}),publish:visibility=>api('/api/sessions/share',{file,visibility})}:{})
+});
 async function pageCombat() {
   const st = S.combat;
   app().innerHTML = `<section class="win"><div class="wh"><h2>Combat logs</h2><span class="sub">per-skill breakdown, timeline, rates, idle time — compared with your optimal rotation</span></div>
@@ -584,7 +595,7 @@ async function pageCombat() {
         Files: AbyssLogs segment (.json / .json.gz), aion2calc JSON (see docs), or CSV with columns t, skill, damage, crit, double, perfect, multi, dot.</p>
       <div class="row small" id="logsdir"></div>
       <div class="row small" id="lsrv"></div>
-      <h3>Recent full sessions</h3><div id="sessions"></div><div id="session-review"></div><h3>Analyzed encounters</h3><div id="hist"></div></div></section><div id="enc"></div>`;
+      <h3>Recent full sessions</h3><div class="row"><label>Encounter type <select id="sessiontype"><option value="">All</option>${Object.entries(A2Community.types).map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join("")}</select></label></div><div id="sessions"></div><div id="session-review"></div><div id="community"></div><h3>Analyzed encounters</h3><div id="hist"></div></div></section><div id="enc"></div>`;
   api("/api/logs").then((l) => {
     $("#logsdir").innerHTML = `<span class="muted">Every analyzed log is saved as a file in</span> <code>${esc(l.folder)}</code> <span class="faint">(${l.files} files)</span>
       <button class="btn small" id="openlogs">Open folder</button>`;
@@ -600,8 +611,14 @@ async function pageCombat() {
   };
   srv();
   const sessions = await api("/api/sessions").catch(() => []);
-  $("#sessions").innerHTML = sessions.length ? `<table class="t"><tr><th>Session</th><th>Updated</th><th>Encounters</th><th>Players</th><th></th></tr>${sessions.map(s=>`<tr><td>${esc(s.title || s.file)}</td><td>${new Date(s.updated*1000).toLocaleString()}</td><td>${s.segments}</td><td>${s.players}</td><td><button class="btn small" data-session="${esc(s.file)}">Open</button></td></tr>`).join("")}</table>` : '<p class="small muted">Full live sessions are saved here automatically on Stop.</p>';
-  $$("[data-session]").forEach(b=>b.onclick=async()=>{try{const doc=await api("/api/sessions?file="+encodeURIComponent(b.dataset.session));if(st.review)st.review.dispose();st.review=A2CombatReview.mount($("#session-review"),doc);$("#session-review").scrollIntoView({block:"start",behavior:"smooth"});}catch(e){$("#lmsg").textContent=e.message;}});
+  const renderSessions=()=>{
+    const type=$('#sessiontype').value;
+    const filtered=sessions.filter(s=>!type || s.contexts?.some(c=>c.encounter_type===type));
+  $("#sessions").innerHTML = filtered.length ? `<table class="t"><tr><th>Session</th><th>Updated</th><th>Encounters</th><th>Players</th><th></th></tr>${filtered.map(s=>`<tr><td>${esc(s.title || s.file)}</td><td>${new Date(s.updated*1000).toLocaleString()}</td><td>${s.segments}</td><td>${s.players}</td><td><button class="btn small" data-session="${esc(s.file)}">Open</button></td></tr>`).join("")}</table>` : '<p class="small muted">Full live sessions are saved here automatically on Stop.</p>';
+  $$("[data-session]").forEach(b=>b.onclick=async()=>{try{const doc=await api("/api/sessions?file="+encodeURIComponent(b.dataset.session));if(st.review)st.review.dispose();st.review=A2CombatReview.mount($("#session-review"),doc,localReviewOptions(b.dataset.session));$("#session-review").scrollIntoView({block:"start",behavior:"smooth"});}catch(e){$("#lmsg").textContent=e.message;}});
+  };
+  $('#sessiontype').onchange=renderSessions;renderSessions();
+  A2Community.mount($('#community'),{api:communityAPI,open:async id=>{try{const doc=await communityAPI('/api/v1/logs/'+encodeURIComponent(id)+'/raw');if(st.review)st.review.dispose();st.review=A2CombatReview.mount($('#session-review'),doc,{compare:localReviewOptions().compare,rankings:segment=>communityAPI('/api/v1/logs/'+id+'/rankings?segment='+segment)});$('#session-review').scrollIntoView({behavior:'smooth'});}catch(e){toast(e.message);}}});
   const hist = await api("/api/encounters").catch(() => []);
   $("#hist").innerHTML = hist.length ? `<table class="t"><tr><th>#</th><th>Player</th><th>Class</th><th>Target</th><th>Source</th><th class="r">Duration</th><th class="r">DPS</th><th></th></tr>${hist.map((e) =>
     `<tr><td>${e.id}</td><td>${esc(e.player || "")}</td><td>${esc(cap(e.class_name))}</td><td>${esc(e.boss || "")}</td><td>${esc(e.source)}</td><td class="r">${(e.duration || 0).toFixed(0)}s</td><td class="r num">${n0(e.dps)}</td>
@@ -711,10 +728,13 @@ async function pageDatabase() {
 // The raid & boss planner is a shared module (raid.js), used here and on the planner site. In the
 // app it is wired to your saved combat logs so a fight can be overlaid on the plan's timeline.
 async function pageRaid() {
+  const publicationServer=await api("/api/logserver");
   await window.A2Raid.mount(app(), {
     encounters: () => api("/api/encounters"),
     encounter: (id) => api("/api/encounters/" + id),
-    publish: (plan, visibility) => api("/api/plans", {plan, visibility}),
+    server:()=>publicationServer.url.replace(/\/+$/, ""),
+    publish: (plan, visibility, owner) => api("/api/plans", {plan, visibility,owner}),
+    refresh:owner=>api("/api/plans",{id:owner.id,owner}),
     browse: async () => (await api("/api/plans")).plans,
     fetchPlan: (id) => api("/api/plans?id=" + encodeURIComponent(id)),
   });
@@ -738,7 +758,7 @@ async function pageMeter() {
 
         <label class="small muted">Name override (optional) <input id="mchar" type="text" placeholder="Auto-detect" style="width:120px"></label></div>
       <div class="row" style="margin-top:8px"><label class="small muted">Players <select id="mscope"><option value="party">Self + Party</option><option value="self">Self only</option><option value="all">All observed players</option></select></label><label class="small muted"><input id="mautosplit" type="checkbox" checked> Automatic splits</label><label class="small muted">Group combat within <input id="msegap" type="number" min="3" max="120" value="10" style="width:60px"> seconds</label><label class="small muted">Combat <select id="msegments"><option value="">Latest combat</option><option value="all">Whole session</option></select></label><button class="btn small" id="mallenemies">All enemies</button></div>
-      <div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
+      <div class="row" id="mmetadata"></div><div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
       <div class="note" style="margin-top:10px"><b>Capture diagnostics</b>
         <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads (enable before Start)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><span id="mrecordstatus" class="small muted"></span></div>
         <p class="small faint">Keeps up to 4 MiB locally, even when no combat events are decoded. Saves a diagnostic ZIP automatically when capture stops. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></div><div id="npcap" class="small faint" style="margin-top:8px"></div>
@@ -751,7 +771,11 @@ async function pageMeter() {
   };
   $("#msrc").onchange = live; live();
   try { $("#mchar").value = localStorage.getItem("meter-character") || ""; } catch (e) {}
+  let classification={};try{classification=JSON.parse(localStorage.getItem('meter-metadata'))||{};}catch(_){}
+  $('#mmetadata').innerHTML=`<label class="small">Encounter type <select data-capture-meta="encounter_type">${Object.entries(A2Community.types).map(([v,l])=>`<option value="${v}" ${v===(classification.encounter_type||'unknown')?'selected':''}>${esc(l)}</option>`).join('')}</select></label>${['game_patch','difficulty','region'].map(k=>`<label class="small">${esc(k.replaceAll('_',' '))} <input data-capture-meta="${k}" maxlength="200" value="${esc(classification[k]||'')}" placeholder="Unknown" style="width:130px"></label>`).join('')}<span class="small muted">Manual classification; not inferred from packets. Change between sessions.</span>`;
   const updateView = async (body) => { try { renderMeter(await api("/api/meter", {action: "view", ...body})); } catch (e) { $("#mnotice").textContent = e.message; } };
+  document.querySelectorAll('[data-capture-meta]').forEach(e=>e.onchange=()=>{classification=Object.fromEntries([...document.querySelectorAll('[data-capture-meta]')].map(e=>[e.dataset.captureMeta,e.value.trim()]));localStorage.setItem('meter-metadata',JSON.stringify(classification));updateView({metadata:classification});});
+  updateView({metadata:classification});
   $("#mchar").onchange = () => { try { localStorage.setItem("meter-character", $("#mchar").value.trim()); } catch (e) {} updateView({character_name: $("#mchar").value.trim()}); };
   $("#mscope").onchange = () => updateView({scope: $("#mscope").value});
   $("#msegap").onchange = () => updateView({segment_gap: +$("#msegap").value || 10});
@@ -919,7 +943,7 @@ function renderMeter(s) {
   if($("#msaved"))$("#msaved").textContent=s.diagnostics?.log_save_error || (s.saved_log ? "Full session saved to "+s.saved_log : "Full session saves automatically on Stop.");
   if(s.snapshot?.players?.length && $("#mlog-review") && !st.reviewLoading && Date.now()-(st.reviewAt || 0)>4000) {
     st.reviewLoading=true;st.reviewAt=Date.now();
-    api("/api/meter/log").then(doc=>{const target=$("#mlog-review");if(!target)return;if(st.liveReviewRoot!==target){if(st.liveReview)st.liveReview.dispose();st.liveReview=A2CombatReview.mount(target,doc);st.liveReviewRoot=target;}else st.liveReview.update(doc);}).catch(()=>{}).finally(()=>{st.reviewLoading=false;});
+    api("/api/meter/log").then(doc=>{const target=$("#mlog-review");if(!target)return;if(st.liveReviewRoot!==target){if(st.liveReview)st.liveReview.dispose();st.liveReview=A2CombatReview.mount(target,doc,localReviewOptions());st.liveReviewRoot=target;}else st.liveReview.update(doc);}).catch(()=>{}).finally(()=>{st.reviewLoading=false;});
   }
   const record = $("#mrecord"); if (record) record.disabled = st.running;
   if ($("#mclear")) $("#mclear").disabled = st.running;
@@ -961,12 +985,22 @@ function renderMeter(s) {
   }));
 }
 
+// Saved optimizer/advice snapshots survive process and browser restarts.
+async function pageHistory(){
+ app().innerHTML=win('Saved results','Previous optimizations and advice, stored on this computer',`<div class="row"><label>Import previous result <input id="result-import" type="file" accept=".json"></label><span id="history-msg" class="small muted"></span></div><div id="history-list"></div>`)+`<div id="history-view"></div>`;
+ const refresh=async()=>{const rows=await api('/api/history');$('#history-list').innerHTML=rows.length?`<table class="t"><tr><th>Run</th><th>Recorded</th><th></th></tr>${rows.map(r=>`<tr><td>${esc(r.title)}</td><td>${new Date(r.created*1000).toLocaleString()}</td><td><button class="btn small" data-history="${r.id}">Open</button><button class="btn small" data-history-export="${r.id}">Export</button></td></tr>`).join('')}</table>`:'<p>No saved runs yet. Completed optimizations and advice save here automatically.</p>';
+ document.querySelectorAll('[data-history]').forEach(b=>b.onclick=async()=>{try{const d=await api('/api/history?id='+b.dataset.history);const box=$('#history-view');box.innerHTML=`<p class="small muted">Saved result from ${new Date(d.created*1000).toLocaleString()}. This is a snapshot; advice may change as gear or game data changes.</p>`;if(d.kind==='advice-text')box.innerHTML+=`<pre class="diff">${esc(d.result.text)}</pre>`;else if(d.kind==='advice'){S.gear ||= {};box.innerHTML+='<div id="gout">'+renderAdvice(d.result)+'</div>';bindAdvice(d.result);}else{const v=d.kind==='optimize-character'?d.result.optimized:d.result;box.innerHTML+='<div id="saved-windows"></div>';renderWindows(v,{win:'overview'},$('#saved-windows'));}box.scrollIntoView({behavior:'smooth'});}catch(e){$('#history-msg').textContent=e.message;}});
+ document.querySelectorAll('[data-history-export]').forEach(b=>b.onclick=async()=>{const d=await api('/api/history?id='+b.dataset.historyExport),url=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='aion2calc-result-'+b.dataset.historyExport+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});};
+ $('#result-import').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>20*1024*1024)throw Error('Result exceeds 20 MiB');const result=JSON.parse(await file.text());await api('/api/history',result);await refresh();$('#history-msg').textContent='Result imported';}catch(e){$('#history-msg').textContent=e.message;}};
+ await refresh();
+}
+
 // ------------------------------------------------------------- gear & advice
 const sp = (x) => (x == null ? "—" : (x >= 0 ? "+" : "") + (100 * x).toFixed(1) + "%");
 async function pageGear() {
   const st = S.gear || (S.gear = {});
   const chars = await api("/api/characters").catch(() => []);
-  app().innerHTML = `<section class="win"><div class="wh"><h2>Gear &amp; advice</h2><span class="sub">what to wear from your inventory, goal gear, upgrade path, arcana, pantheon, genus insight — on simulated DPS</span></div>
+  app().innerHTML = `<section class="win"><div class="wh"><h2>Gear &amp; advice</h2><a class="btn small" href="#/history">Saved advice</a><span class="sub">what to wear from your inventory, goal gear, upgrade path, arcana, pantheon, genus insight — on simulated DPS</span></div>
     <div class="wb">${chars.length ? `<div class="row"><select id="gchar">${chars.map((c) => `<option value="${esc(c.key)}" ${c.key === st.key ? "selected" : ""}>${esc(c.name)} · ${esc(c.class_name)} · ${esc(c.region)}</option>`).join("")}</select>
       <button class="btn primary" id="gadv">Run advice</button><span id="gmsg" class="small muted"></span></div>
       <p class="small faint">Import the character on My Character first. The official page shows only equipped items: add bag and warehouse items below so the planner can use them. Fights you import on Combat Logs are matched to the gear the character wore and calibrate the model.</p>` :
@@ -1193,7 +1227,7 @@ function renderAdvice(a) {
   const r = a.rotation;
   const rot = r.fights ? `<p>${r.fights} fight(s), idle ${pct(r.idle_share, 0)} of the time.</p>${r.under_cast.slice(0, 6).map((t) => `<div class="tip">${esc(t.text)}</div>`).join("")}
     ${r.specs.map((d) => `<div class="tip">${esc(d.skill)}: specs ${esc(d.yours)} in your fights, ${esc(d.optimal)} in the optimized build</div>`).join("")}` : '<p class="muted">No saved fights for this character: import AbyssLogs links on Combat Logs.</p>';
-  return advTop(a) + advDoll(a) + advPath(a) + advArcana(a) + advTitles(a) + advPantheon(a) + advGenus(a, S.gear.inv) +
+  return advTop(a) + advDoll(a) + advPath(a) + advArcana(a) + advTitles(a) + advPantheon(a) + advGenus(a, a.inventory_snapshot || S.gear.inv) +
     `<div class="grid2">${win("Your fights", "", rot)}${win("Model calibration", "learned from fights matched to equipped gear", a.calibration.map((x) => `<div class="small">${esc(x)}</div>`).join(""))}</div>`;
 }
 function bindAdvice(a) {
@@ -1272,6 +1306,7 @@ async function route() {
   $$(".nav a").forEach((a) => a.classList.toggle("on", a.dataset.page === page));
   try {
     if (page === "character") await pageCharacter();
+    else if (page === "history") await pageHistory();
     else if (page === "gear") await pageGear();
     else if (page === "settings") await pageSettings();
     else if (page === "combat") await pageCombat();

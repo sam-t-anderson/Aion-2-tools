@@ -274,11 +274,21 @@ on the Database page).
 
 ## Point budgets
 
-| Budget | Value |
-|---|---|
-| Skill points | 203 from levels, plus 1 per Wisdom Stone. Wisdom Stones are exchanged for Empyrean Traces at monoliths; top global players at level 45 have spent 382–383 points. Pass `--skill-points` (CLI) or set it in the Planner. An imported character is optimized with what it has spent |
-| Stigma points | 30 from levels. Some profiles show more (up to about 70), so it is configurable the same way |
-| Daevanion | 360 crystal points at launch. An imported character is optimized with its own crystal spend |
+The build windows show points spent / optimization budget. Gear and Daevanion bonus skill levels do not consume purchased skill points. PvP Daevanion uses its own resource.
+
+For **My Character**, the official profile gives allocated levels/nodes; unused points may be absent. Enter your in-game **spent + unspent** totals before Optimize my build. Imported budgets are observed lower bounds. Totals below points already spent are rejected. The optimizer preserves gear and uses the entered skill, stigma and PvE Daevanion budgets.
+
+The Planner lets you set all three budgets. Bundled example budgets are 203 skill, 30 stigma and 360 PvE Daevanion; these are simulation presets, not a maximum or a guarantee about quest rewards.
+
+## Community comparisons
+
+Use Combat Logs to browse public submissions by type, boss, patch, difficulty and region. Class distributions stay in separate encounter buckets and show parse counts. Search personal records using server ID plus name, or database character ID. World ranks cover this community's public submissions only. Missing classification prevents ranking; open a local saved session to add verified metadata.
+
+Add multiple comparison logs and select matching encounters and players explicitly. Differences are recorded DPS, not gear-adjusted scores.
+
+## Editing shared plans
+
+Publish stores a unique owner credential locally. Update published plan keeps the shared link; Publish new copy creates a separate publication. Export a Private ownership backup and keep it private. Import file restores that backup on another device. Refresh published plan obtains the current revision and replaces local edits, so export those first. Old publications without a saved ownership/delete credential need a new publication; author names do not grant editing access.
 
 ## API
 
@@ -294,3 +304,9 @@ or `{"text": file contents, "name": file name, "player": name}`), `/api/encounte
 `/api/logserver`, `/api/inventory/add|remove|genus`, `/api/advice` (job), `/api/logs/open`
 
 Long requests return a job id; poll `/api/jobs/<id>` until its status is `done`.
+
+## Saved Results
+
+Completed character/class optimizations and advice save automatically under the app data folder's `history` directory. Open **Saved Results**, select Open to review a previous run, or Export/Import its result JSON. Import restores a snapshot; it does not run an optimization or change your equipped gear. The latest existing old build/advice files are recovered when available. Keep exported copies to move runs between installations. Advice reflects the saved run, not future game or gear changes.
+
+Edited point totals persist per character on this installation. Enter spent + unspent resources. Anonymous totals are sent after character optimization and accumulate as highest observed resources on the community service, grouped by class/region/patch/source. Unknown patch observations stay separate, and observed totals are not verified game caps.

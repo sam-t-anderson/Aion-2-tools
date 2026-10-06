@@ -34,6 +34,11 @@
   }
 
   const A2PLAN_KEY = "a2plans";
+  const OWNER_KEY = "a2plan-owners";
+  function owners(){try{return JSON.parse(localStorage.getItem(OWNER_KEY)||'{}');}catch(_){return {};}}
+  function owner(){return owners()[st.id];}
+  function saveOwner(value,id=st.id){const all=owners();all[id]=value;localStorage.setItem(OWNER_KEY,JSON.stringify(all));}
+
   const RAID_CLASSES = ["Templar", "Gladiator", "Assassin", "Ranger", "Sorcerer", "Spiritmaster", "Cleric", "Chanter"];
   const TOKEN_COLORS = ["#e66a5a", "#39c2e0", "#6fcf7a", "#e9a43a", "#a46cf0", "#f05a8c", "#5bc0de", "#b9984f", "#7fd6a8", "#6fa8dc", "#d4b45a", "#9fd36f"];
   const RAID_MARKERS = ["A", "B", "C", "D", "1", "2", "3", "4"];
@@ -98,7 +103,7 @@
     const sel = p.tokens.find((x) => x.id === st.sel) || null;
     const players = p.tokens.filter((x) => x.kind === "player");
 
-    const shareBtns = (io.publish ? `<label class="small muted" for="rvisibility">Visibility</label><select id="rvisibility" aria-label="Plan visibility">${["unlisted", "public", "private"].map((v) => `<option value="${v}" ${v === (p.meta?.visibility || "unlisted") ? "selected" : ""}>${v[0].toUpperCase() + v.slice(1)}</option>`).join("")}</select><button class="btn small primary" id="rpublish">Publish plan</button>` : "")
+    const shareBtns = (io.publish ? `<label class="small muted" for="rvisibility">Visibility</label><select id="rvisibility" aria-label="Plan visibility">${["unlisted", "public", "private"].map((v) => `<option value="${v}" ${v === (p.meta?.visibility || "unlisted") ? "selected" : ""}>${v[0].toUpperCase() + v.slice(1)}</option>`).join("")}</select><button class="btn small primary" id="rpublish">${owner()?"Update published plan":"Publish plan"}</button>${owner()?`<button class="btn small" id="rpublishcopy">Publish new copy</button><button class="btn small" id="rrefresh">Refresh published plan</button><button class="btn small" id="rownerbackup">Private ownership backup</button>`:""}` : "")
       + (io.browse ? `<button class="btn small" id="rbrowse">Browse plans</button>` : "");
     const hint = io.publish
       ? `<span class="faint small">Public: listed in Browse plans. Unlisted: anyone with the link. Private: requires the secret link.</span>`
@@ -112,7 +117,7 @@
       <div class="row" style="margin-top:8px"><button class="btn small" id="rexport">Export file</button>
         <label class="btn small" style="cursor:pointer">Import file<input id="rimport" type="file" accept=".json,.a2plan" hidden></label>
         <button class="btn small" id="rcode">Copy share code</button><button class="btn small" id="rload">Load from code</button>${shareBtns}${hint}</div>
-      <div class="row small" id="rpubmsg"></div>`;
+      <div class="row small" id="rpubmsg">${owner()?`Published link: <a href="${esc(owner().url)}" target="_blank" rel="noopener">${esc(owner().url)}</a> · revision ${owner().revision}`:""}</div>`;
 
     const tokensHtml = p.tokens.map((tk) => {
       const s = tk.id === st.sel ? " sel" : "";
@@ -247,7 +252,10 @@
     $("#rexport", st.root).onclick = () => download((p.meta?.name || "plan").replace(/[^\w-]+/g, "_") + ".a2plan", JSON.stringify(p, null, 2));
     $("#rimport", st.root).onchange = async (e) => {
       const f = e.target.files[0]; if (!f) return;
-      try { const pl = JSON.parse(await f.text()); if (pl.format !== "a2plan") throw new Error("Not an a2plan file"); importDoc(pl); render(); toast("Plan imported"); }
+      try { const pl = JSON.parse(await f.text()); if(pl.format==='a2plan-owner'){
+        const o=pl.owner;if(!o || !/^[A-Za-z0-9]{6,16}$/.test(o.id) || typeof o.edit_token!=='string' || o.edit_token.length<20 || !Number.isInteger(o.revision) || !/^https?:\/\//.test(o.server) || pl.plan?.format!=='a2plan')throw Error('Invalid ownership backup');
+        importDoc(pl.plan);saveOwner(o);
+      }else{if (pl.format !== "a2plan") throw new Error("Not an a2plan file"); importDoc(pl);} render(); toast("Plan imported"); }
       catch (err) { toast(err.message); }
     };
     $("#rcode", st.root).onclick = () => { copyText(planToCode(p)); };
@@ -256,6 +264,7 @@
       try { importDoc(codeToPlan(code)); render(); toast("Plan loaded"); } catch (err) { toast(err.message); }
     };
     if ($("#rpublish", st.root)) $("#rpublish", st.root).onclick = async () => {
+      const localId=st.id;
       const msg = $("#rpubmsg", st.root);
       const button = $("#rpublish", st.root);
       const vis = $("#rvisibility", st.root).value;
@@ -263,12 +272,17 @@
       button.disabled = true;
       if (msg) msg.textContent = "Publishing…";
       try {
-        const r = await io.publish(p, vis);
-        if (msg) { msg.innerHTML = `Published (${vis}): <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a> `;
+        const original=owner();
+        const r = await io.publish(p, vis, original);
+        if(r.edit_token || original){saveOwner({...original,id:r.id || original?.id,edit_token:r.edit_token || original?.edit_token,revision:r.revision,server:original?.server || io.server(),url:r.url},localId);if(st.id===localId)render();}
+        if (st.id===localId && $("#rpubmsg",st.root)) { const msg=$("#rpubmsg",st.root); msg.innerHTML = `Published (${vis}): <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a> `;
           const c = document.createElement("button"); c.className = "btn small"; c.textContent = "Copy link"; c.onclick = () => copyText(r.url); msg.appendChild(c); }
       } catch (e) { if (msg) msg.textContent = e.message; }
       finally { button.disabled = false; }
     };
+    if($('#rpublishcopy',st.root))$('#rpublishcopy',st.root).onclick=async()=>{try{const r=await io.publish(p,$('#rvisibility',st.root).value);importDoc(JSON.parse(JSON.stringify(p)));st.plan=raidPlans()[st.id];saveOwner({id:r.id,edit_token:r.edit_token,revision:r.revision,server:io.server(),url:r.url});render();toast('Published new editable copy');}catch(e){toast(e.message);}};
+    if($('#rownerbackup',st.root))$('#rownerbackup',st.root).onclick=()=>{if(!confirm('This private backup contains the credential that allows editing the published plan. Keep it private. Export it now?'))return;download('private-plan-ownership.json',JSON.stringify({format:'a2plan-owner',version:1,owner:owner(),plan:p},null,2));};
+    if($('#rrefresh',st.root))$('#rrefresh',st.root).onclick=async()=>{if(!confirm('Replace local changes with the published revision? Export the local plan first if you want to keep those edits.'))return;try{const r=await io.refresh(owner());st.plan=r.plan;saveOwner({...owner(),revision:r.revision});persist();render();}catch(e){toast(e.message);}};
     if ($("#rvisibility", st.root)) $("#rvisibility", st.root).onchange = (e) => { p.meta.visibility = e.target.value; persist(); };
     if ($("#rbrowse", st.root)) $("#rbrowse", st.root).onclick = async () => {
       try { const list = await io.browse(); st.browsing = list; renderBrowse(list); } catch (e) { toast(e.message); }

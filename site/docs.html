@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Docs — aion2calc</title>
-<meta name="description" content="How to use the aion2calc raid planner and desktop app, and how to self-host the sharing server.">
+<meta name="description" content="How to use the aion2calc raid planner and desktop app,.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" href="static/logo.png">
@@ -25,7 +25,7 @@
   </ul>
 
   <h2>Publishing &amp; browsing plans</h2>
-  <p>Publishing uses a self-hosted <b>aion2calc log server</b>. Enter its address (and an upload key, if it requires one) at the top of the planner page; it is stored only in your browser. Choose <b>Visibility</b> beside <b>Publish plan</b>: Public lists the plan in Browse plans, Unlisted shares by link, and Private requires the secret link. Then <b>Publish plan</b> shares a new copy of the current plan and gives a link, and <b>Browse plans</b> lists public plans you can open and copy. The desktop app has the same publishing controls and uses its Settings server and upload key. Shared links include Play/Pause, Rewind, playback speed and a timeline scrub bar after the server is updated to 0.2.4. To change an older shared plan’s visibility, open it and publish a new copy with the desired visibility.</p>
+  <p>Publishing uses a self-hosted <b>aion2calc log server</b>. Enter its address (and an upload key, if it requires one) at the top of the planner page; it is stored only in your browser. Choose <b>Visibility</b> beside <b>Publish plan</b>: Public lists the plan in Browse plans, Unlisted shares by link, and Private requires the secret link. Then <b>Publish plan</b> saves an owner credential in this browser and gives a shared link. Use <b>Update published plan</b> to update the same link or <b>Publish new copy</b> for a separate publication, and <b>Browse plans</b> lists public plans you can open and copy. The desktop app has the same publishing controls and uses its Settings server and upload key. Shared links include Play/Pause, Rewind, playback speed and a timeline scrub bar. Keep a <b>Private ownership backup</b> to restore editing access on another device using Import file. Refresh published plan resolves revision conflicts but replaces local edits; export local changes first. Older plans without saved credentials must be published as a new copy.</p>
 
   <h2>The desktop app</h2>
   <p>The <a href="https://github.com/sam-t-anderson/Aion-2-tools/releases/latest" target="_blank" rel="noopener">desktop app</a> adds build &amp; rotation optimization, gear advice, and combat-log analysis, and it updates itself. Guides:</p>
@@ -36,13 +36,7 @@
     <li><a href="https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/cli.md" target="_blank" rel="noopener">For developers (CLI, building, releasing)</a></li>
   </ul>
 
-  <h2>Self-hosting the sharing server</h2>
-  <p>The sharing server (log and plan uploads, community statistics) is a small Python service you run on your own machine — a home box, a VPS, or through Tailscale Funnel. It exposes an open JSON API (<code>/.well-known/a2log.json</code> describes it). See the <a href="https://github.com/sam-t-anderson/Aion-2-tools-server" target="_blank" rel="noopener">server repository</a>.</p>
-
-  <footer class="sitefoot">
-    <div class="muted small">Author: <b>Spirited - Zikel : Asmodian&nbsp;&nbsp;|&nbsp;&nbsp;Legion: WhaleWatch</b></div>
-    <div class="small">GPL-3.0 · fan-made, not affiliated with NCSOFT</div>
-  </footer>
+  <h2>Combat logs and comparisons</h2><p>Logs includes category, boss, patch, difficulty and region filters, class DPS distributions and personal record search. World ranks cover public community submissions, not the entire game population. Add missing metadata to local logs in the desktop before uploading. Compare multiple runs with explicit same-class player selection; recorded DPS is not adjusted for gear.</p>
 </main>
 <script src="navigation.js"></script>
 </body>

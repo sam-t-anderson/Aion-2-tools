@@ -1,3 +1,14 @@
+## Changes in 0.2.17 — community review and plan ownership
+
+- Filter community and recent local logs by encounter category; record game patch, difficulty and region for comparisons.
+- Show separate class DPS distributions and parse counts, public server/region/community rankings, and personal record history. Unknown metadata remains unranked.
+- Compare multiple runs with explicit same-class player and encounter selection.
+- Update published raid plans in place using locally saved ownership credentials; export/import private ownership backups and detect revision conflicts.
+- Show imported point budgets correctly and let users enter actual skill, stigma and PvE Daevanion totals, including unused points. Remove the invented extra stigma point.
+- Save completed optimizer/advice results across restarts, with export/import and recovery of existing older files.
+- Persist edited point budgets per character and update anonymous community highest-observed resources after optimization.
+- Keep player guides in this repository and hosting/administration guidance in the server repository.
+
 ## Changes in 0.2.16 — combat review iteration 1
 
 - Show automatic character detection with server and changing combat entity ID; keep an optional name override.
@@ -8,7 +19,7 @@
 - Keep every Pages banner/navigation menu consistent and open public logs within Pages.
 - Play verified positions from imported logs and export a raid plan. Live movement decoding, community ranks/personal records, editable published plans and creature-mapping updates remain in later iterations: `docs/COMBAT_ROADMAP.md`.
 
-Update the server to 0.2.5 for the new optional a2log fields. Existing logs remain readable.
+Existing logs remain readable.
 
 ## Changes in 0.2.15
 
@@ -31,7 +42,6 @@ Enter your character name in Live Meter before Start if you attach after login o
 - Make TCP diagnostics prominent, display the number of recorded payloads, and keep export results visible during polling. Export offers a direct ZIP download as well as the saved file path.
 - Exclude Ethernet padding from TCP payloads so padding on ACK packets cannot advance reassembly or corrupt framed messages. Resume game-flow detection after an idle/disconnected socket, including a FIN/RST in the opposite direction. A stopped user capture produced 24 combat events in offline analysis after excluding its padding; live game capture still needs confirmation with this release.
 
-Shared-link timeline playback is provided by Aion-2-tools-server 0.2.4. Update the server to get Play/Pause, Rewind, speed selection, the scrub bar and timed buff highlighting on existing `/p/<id>` links.
 
 ## Changes in 0.2.13
 

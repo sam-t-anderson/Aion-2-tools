@@ -62,9 +62,18 @@ def budgets_of(imp: ImportedCharacter) -> dict:
     """Optimize with at least the resources the character has already spent."""
     cd = ClassData(imp.cls)
     bud = cd.budget(imp.level or 45)
-    return {"skill": max(imp.build.sp_spent(), bud["skill"]),
-            "stigma": max(imp.build.stigma_spent(), bud["stigma"] + 1),
-            "daevanion": max(crystal_cost(cd, imp.build.daevanion), 1)}
+    result = {"skill": max(imp.build.sp_spent(), bud["skill"]),
+              "stigma": max(imp.build.stigma_spent(), bud["stigma"]),
+              "daevanion": max(crystal_cost(cd, imp.build.daevanion), 1)}
+    from .paths import read_json
+    try:
+        saved = read_json("character-points.json").get(imp.key, {})
+        for key in result:
+            if isinstance(saved.get(key), int) and not isinstance(saved[key], bool) and 0 <= saved[key] <= 10000:
+                result[key] = max(result[key], saved[key])
+    except (OSError, ValueError):
+        pass
+    return result
 
 
 def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dict:
@@ -115,15 +124,31 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dic
 
 
 def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2,
-                       scenario_name: str = "boss", progress=None) -> dict:
+                       scenario_name: str = "boss", progress=None, budgets: dict | None = None) -> dict:
     from .diff import write_diff
     from .report import run_report
     out = Path(out_dir)
     t0 = time.time()
     cur = evaluate_current(imp, scenario_name)
     (out / "current").mkdir(parents=True, exist_ok=True)
+    bud = dict(cur["budgets"])
+    for key, value in (budgets or {}).items():
+        if key not in bud or isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 10000:
+            raise ValueError("Point budgets must be whole numbers from 0 to 10000")
+        spent = {"skill": imp.build.sp_spent(), "stigma": imp.build.stigma_spent(), "daevanion": crystal_cost(ClassData(imp.cls), imp.build.daevanion)}[key]
+        if value < spent:
+            raise ValueError(f"{key} total cannot be lower than the {spent} points already spent")
+        bud[key] = value
+    if budgets:
+        from .paths import read_json
+        try:
+            saved = read_json("character-points.json")
+        except (OSError, ValueError):
+            saved = {}
+        saved[imp.key] = bud
+        write_user_json(saved, "character-points.json")
+    cur["budgets"] = bud
     (out / "current" / "build.json").write_text(json.dumps(cur, indent=1, default=str), encoding="utf-8")
-    bud = cur["budgets"]
     best = run_report(imp.cls, str(out), scenario_name=scenario_name, daev_budget=bud["daevanion"],
                       iterations=iterations, loadout=imp.loadout_name(), sp_budget=bud["skill"],
                       stigma_points=bud["stigma"], progress=progress)
