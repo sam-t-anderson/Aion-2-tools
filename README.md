@@ -88,21 +88,6 @@ folder: `%LOCALAPPDATA%\aion2calc` on Windows (`C:\Users\<you>\AppData\Local\aio
 
 Details: [`docs/app.md`](docs/app.md).
 
-## For developers
-
-The command-line interface, running from source, the architecture overview, building the desktop
-app, testing, releasing and adding a class are in **[`docs/cli.md`](docs/cli.md)**. Formulas,
-sources and every assumption are in [`docs/methodology.md`](docs/methodology.md).
-
-## Author
-
-**Spirited - Zikel : Asmodian | Legion: WhaleWatch**
-
-## License
-
-GPL-3.0 (see `LICENSE`).  Game data belongs to NCSOFT; community data belongs
-to its respective sites.  This project is fan-made and not affiliated with NCSOFT.
-
 ### Live Capture, overlays and optimized presets
 
 Windows setup selects **Download and install Npcap for Live Capture** by default. It downloads the current official installer separately; finish Npcap setup with **WinPcap API-compatible Mode** selected, then restart Aion 2 Calc. Scapy and LZ4 are included in desktop packages. Source installations need the dependencies in `pyproject.toml`; the native Windows overlay additionally requires pywebview and WebView2. macOS uses its system capture framework; Linux requires libpcap and capture permissions. The app offers capture setup when needed.
@@ -121,6 +106,8 @@ Windows **Install now** stages and validates the installer, starts a detached he
 
 In **Raid Planner**, choose **Visibility** beside **Publish plan**: **Public** lists the plan in Browse plans; **Unlisted** shares it only by link; **Private** requires the secret link. The desktop uses the server and upload key from Settings. Publishing saves an owner credential on this device. **Update published plan** changes the same link; **Publish new copy** creates a separate plan. Keep a **Private ownership backup** to edit from another device. Import that backup through Import file. A revision conflict requires Refresh published plan before trying again; export local edits first. Clearing browser data without a backup loses editing access.
 
+Combat logs containing recorded normalized positions offer **Open in Raid Planner** on desktop and Pages; the replay becomes a new local editable plan. Imported coordinates must already match the normalized arena. Live position decoding is not yet available.
+
 Shared `/p/<id>` pages support **Play/Pause**, **Rewind**, playback speed and a timeline scrub bar with moving tokens and active buffs.
 
 Live Meter uses one yellow **Start** / red **Stop** button. Under **Capture diagnostics**, enable TCP recording before Start, enter combat, then stop. The diagnostic ZIP saves automatically; the recorded payload count, saved path and ZIP download link remain visible. Use Export capture diagnostics for a manual archive. The Windows copy is also saved under `%LOCALAPPDATA%\aion2calc\diagnostics`; ordinary application logs do not contain TCP payloads. Export does not require decoded combat events.
@@ -128,7 +115,7 @@ Live Meter uses one yellow **Start** / red **Stop** button. Under **Capture diag
 
 ## Community combat review
 
-Combat Logs shows recent full sessions and the public community browser. Filter by encounter type, boss, difficulty, patch and region. Add missing classification using **Encounter metadata for comparisons** when opening a local session. Unknown metadata remains visible but cannot produce meaningful rankings.
+Combat Logs shows recent full sessions and the public community browser. Live sessions checkpoint every 15 seconds and save again on Stop. After a forced close, open the entry marked **unfinished checkpoint** to review or export the retained data. Capture restarts as a new session; up to the last 15 seconds plus disk-write time can be lost. Check **Capture diagnostics** for save errors. Snapshots use the selected Party / Self / All filter. Filter by encounter type, boss, difficulty, patch and region. Add missing classification using **Encounter metadata for comparisons** when opening a local session. Unknown metadata remains visible but cannot produce meaningful rankings.
 
 Class summaries show DPS distributions, median, quartiles, range and sample counts for each matching encounter. Server and region ranks require recorded identity metadata; World means public submissions to this community, not every player worldwide. Personal records search by character name and server ID, or database character ID and server ID. Exact duplicate uploads count once.
 
@@ -143,3 +130,18 @@ Compare multiple local or public logs by choosing the encounter and each same-cl
 **Saved Results** reopens completed character/class optimizations and advice after restarting. Export a result JSON and import it on another installation. The latest older build and advice files are recovered automatically when available; overwritten historical files cannot be reconstructed. Advice is a snapshot from that run, so regenerate it when your gear or game data changes.
 
 After character optimization, anonymous point observations update the community's highest observed totals by class, region, patch and source. View these under Combat Logs. User-entered totals and allocated profile lower bounds are labelled separately; neither establishes the game's maximum.
+
+## For developers
+
+The command-line interface, running from source, the architecture overview, building the desktop
+app, testing, releasing and adding a class are in **[`docs/cli.md`](docs/cli.md)**. Formulas,
+sources and every assumption are in [`docs/methodology.md`](docs/methodology.md).
+
+## Author
+
+**Spirited - Zikel : Asmodian | Legion: WhaleWatch**
+
+## License
+
+GPL-3.0 (see `LICENSE`).  Game data belongs to NCSOFT; community data belongs
+to its respective sites.  This project is fan-made and not affiliated with NCSOFT.

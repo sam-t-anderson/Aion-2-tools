@@ -34,6 +34,18 @@ Build-point follow-up: correct the imported Daevanion denominator, remove the in
 - Add supported casts, buffs, debuffs and resources as evidence permits. Unobserved threat, interrupts, mitigation and misses remain unavailable.
 - Add periodic disk checkpoints and crash recovery. Iteration 1 saves on Stop/normal Quit; forced termination can lose the active session.
 
+### Checkpoint 3A — retained sessions and replay handoff
+
+Implemented: atomic periodic session snapshots every 15 seconds, final save on Stop, unfinished-session labels and reopening from Combat Logs; direct local Raid Planner import for recorded normalized movement on desktop and Pages; incoming healing retains explicit recipient references across scope filtering; healing does not bridge automatic or manual encounter splits; pet-reference cycle protection during export. README developer/author/license sections now follow player documentation.
+
+Still pending in checkpoint 3:
+- Verified live positions, coordinate encoding, map IDs and arena transforms. Upstream recognizes the position opcode for zone changes but does not decode its coordinates. Imported normalized replay support does not establish live movement support.
+- Additional representative healing, pets and player-death evidence, especially full decoded sessions rather than bounded TCP diagnostics.
+- Trusted creature metadata refresh and a review workflow for unknown type IDs.
+- Verified cast/buff/debuff/resource packet formats. Recorded damage/healing effects are not cast-start records.
+
+Recovery reopens the last saved a2log as a historical session; it does not resume a lost TCP stream or concatenate a new capture into that historical session. Save errors remain visible under capture diagnostics. The selected scope applies to snapshots, and existing event/identity limits still apply.
+
 ## Last priority — only after iterations 1–3 are complete
 
 - PvP tracking with the same supported combat metrics and dedicated leaderboards for battlegrounds, arenas, Abyss, rifts and other verified modes. Separate PvP from PvE datasets and rankings.

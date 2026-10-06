@@ -103,21 +103,24 @@ class CombatSession:
         for record in self.records:
             event = record.event
             allowed = self._allowed(record, scope)
-            relevant = event.actor_id in allowed or (isinstance(event, DamageEvent) and event.target_id in allowed)
+            relevant = event.actor_id in allowed or (event.target_id in allowed)
             if not relevant:
                 continue
             if isinstance(event, HealEvent):
                 # Out-of-combat regeneration must not create a new fight or
                 # keep adjacent pulls joined indefinitely.
                 if (groups and groups[-1]["epoch"] == record.epoch
-                        and event.timestamp_ms - groups[-1]["end"] <= self.gap_seconds * 1000):
+                        and groups[-1]["split"] == record.split
+                        and 0 <= event.timestamp_ms - groups[-1]["last_damage"] <= self.gap_seconds * 1000):
                     groups[-1]["records"].append(record)
+                    groups[-1]["end"] = max(groups[-1]["end"], event.timestamp_ms)
                 continue
             if (not groups or groups[-1]["epoch"] != record.epoch or groups[-1]["split"] != record.split
-                    or (self.automatic_splits and event.timestamp_ms - groups[-1]["end"] > self.gap_seconds * 1000)):
+                    or (self.automatic_splits and event.timestamp_ms - groups[-1]["last_damage"] > self.gap_seconds * 1000)):
                 groups.append({"id": f"{record.epoch}-{event.timestamp_ms}", "epoch": record.epoch,
-                               "start": event.timestamp_ms, "end": event.timestamp_ms, "split": record.split, "records": []})
+                               "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "split": record.split, "records": []})
             group = groups[-1]
+            group["last_damage"] = max(group["last_damage"], event.timestamp_ms)
             group["end"] = max(group["end"], event.timestamp_ms)
             group["records"].append(record)
         return groups[-200:]
@@ -228,14 +231,17 @@ class CombatSession:
         for index, group in enumerate(groups):
             identity = self.identities[group["epoch"]]
             hits, events, entities = [], [], {}
+            resolving = set()
             def reference(actor_id):
-                if actor_id is None:
+                if actor_id is None or actor_id in resolving:
                     return None
                 pid = f"{group['epoch']}:{actor_id}"
                 name = self.name(group["epoch"], actor_id, actor_id not in allowed)
                 owners = identity["owners"]
                 if actor_id in owners:
-                    owner = reference(owners[actor_id]) if owners[actor_id] != actor_id else None
+                    resolving.add(actor_id)
+                    owner = reference(owners[actor_id])
+                    resolving.discard(actor_id)
                     entities[pid] = {"id": pid, "name": name, "kind": "pet", "owner": owner}
                 elif actor_id in allowed:
                     info = identity["roster"].get(name.casefold(), {})
@@ -245,6 +251,9 @@ class CombatSession:
                         "server": str(server) if server else None,
                         "character_id": str(info["dbid"]) if info.get("dbid") else None,
                         "combat_power": info.get("combatPower"), "gear_score": info.get("gearScore")}
+                elif actor_id in identity["names"]:
+                    # Identified external healers are references, not party members.
+                    entities[pid] = {"id": pid, "name": name, "kind": "player"}
                 else:
                     code = identity["spawns"].get(actor_id, {}).get("mobCode")
                     entities[pid] = {"id": pid, "name": name, "kind": "enemy", "mob_code": code,

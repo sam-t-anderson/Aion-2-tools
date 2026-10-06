@@ -1,3 +1,13 @@
+## Changes in 0.2.18 — checkpoint 3A
+
+- Save live sessions atomically every 15 seconds and on Stop. Interrupted sessions remain under Combat Logs as unfinished checkpoints for review/export; new captures start independently.
+- Retain explicit incoming healing recipients across party filters without letting regeneration join encounters or bypass manual splits.
+- Protect export against cyclic pet-owner references.
+- Open normalized recorded movement directly in Raid Planner from desktop and Pages as a new local plan.
+- Move developer, author and license information to the end of the client README.
+
+Live movement coordinates, new cast/buff/resource protocol coverage and trusted creature metadata refresh remain pending in `docs/COMBAT_ROADMAP.md`. Checkpoints retain the selected scope and existing history limits; up to 15 seconds plus save time can be lost on forced termination.
+
 ## Changes in 0.2.17 — community review and plan ownership
 
 - Filter community and recent local logs by encounter category; record game patch, difficulty and region for comparisons.

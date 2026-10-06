@@ -1,6 +1,7 @@
 """Full party logs on disk, separate from single-player analysis imports."""
 import json
 import os
+import tempfile
 from pathlib import Path
 
 from ..paths import logs_dir
@@ -15,9 +16,17 @@ def path(name: str) -> Path:
 def save(doc: dict, name: str) -> Path:
     target = path(name)
     target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_suffix(".tmp")
-    tmp.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    os.replace(tmp, target)
+    # Unique sibling files make overlapping final/checkpoint saves safe.
+    fd, temporary = tempfile.mkstemp(prefix=target.name + ".", suffix=".tmp", dir=target.parent)
+    tmp = Path(temporary)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(doc, stream, ensure_ascii=False, separators=(",", ":"))
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(tmp, target)
+    finally:
+        tmp.unlink(missing_ok=True)
     return target
 
 
@@ -28,6 +37,8 @@ def recent() -> list[dict]:
             doc = json.loads(target.read_text(encoding="utf-8"))
             rows.append({"file": target.name, "title": doc.get("meta", {}).get("title"),
                          "contexts": [{k: segment.get(k) or doc.get("meta", {}).get(k) or "unknown" for k in ("encounter_type", "game_patch", "difficulty")} for segment in doc["segments"]],
+                         "unfinished": bool(doc.get("meta", {}).get("capture_active")),
+                         "checkpoint_at": doc.get("meta", {}).get("checkpoint_at"),
                          "updated": target.stat().st_mtime, "players": len(doc["players"]),
                          "segments": len(doc["segments"]), "duration": sum(s["duration"] for s in doc["segments"])})
         except (OSError, ValueError, KeyError):
