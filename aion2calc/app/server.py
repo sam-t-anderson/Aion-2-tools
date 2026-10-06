@@ -43,6 +43,12 @@ def start_job(kind: str, fn, *args, **kwargs) -> str:
     def run():
         try:
             job["result"] = fn(*args, log=job["log"].append, **kwargs)
+            if kind in ("optimize-character", "optimize-class", "advice"):
+                from .history import capture
+                try:
+                    job["history_id"] = capture(kind, job["result"])
+                except (OSError, ValueError) as exc:
+                    job["log"].append("Result completed, but could not save history: " + str(exc))
             job["status"] = "done"
         except Exception as err:
             job["status"] = "error"
@@ -99,13 +105,22 @@ def act_character_optimize(body: dict, log) -> dict:
     best = json.loads((out / "build.json").read_text(encoding="utf-8"))
     cur = json.loads((out / "current" / "build.json").read_text(encoding="utf-8"))
     from ..combat import share
+    log("Submitting anonymous point observations…")
+    try:
+        points = share.community_request("/api/v1/progression", {"class": imp.cls, "region": body.get("region", ""),
+            "game_patch": body.get("game_patch", ""), "points": summ["budgets"],
+            "source": "user_reported" if body.get("budgets") else "profile_lower_bound"})
+        log("Community point observations updated.")
+    except Exception as exc:
+        points = {"error": str(exc)}
+        log("Could not submit point observations: " + str(exc))
     preset = share.submit_preset(best)
     if preset.get("submitted"):
         log("Community preset updated." if preset.get("accepted") else preset.get("reason", "Current community preset retained."))
     elif preset.get("reason"):
         log("community preset was not submitted: " + preset["reason"])
     return {"summary": summ, "optimized": views.build_view(best), "current_build": cur["build"],
-            "path": str(out), "diff": (out / "DIFF.md").read_text(encoding="utf-8"), "preset": preset}
+            "path": str(out), "diff": (out / "DIFF.md").read_text(encoding="utf-8"), "preset": preset, "point_observation": points}
 
 
 def act_optimize_class(body: dict, log) -> dict:
@@ -223,6 +238,7 @@ def act_advice(body: dict, log) -> dict:
     imp, inv = _inventory(body["character"])
     adv = advise(imp, inv, progress=log, genus_mix=body.get("genus_mix"))
     out = results_dir() / "characters" / imp.loadout_name()[5:]
+    adv["inventory_snapshot"] = {"genus": inv.get("genus", {})}
     adv["file"] = str(write_markdown(adv, out))
     return json.loads(json.dumps(adv, default=str))
 
@@ -300,6 +316,12 @@ class Handler(BaseHTTPRequestHandler):
                                "update_prompt": ui_settings().get("auto_update", True)})
         if path == "/api/classes":
             return self._json(list_names("global", "classes"))
+        if path == "/api/history":
+            from .history import discover_legacy, recent, path as history_path
+            if q.get("id"):
+                return self._json(json.loads(history_path(q["id"]).read_text(encoding="utf-8")))
+            discover_legacy()
+            return self._json(recent())
         if path == "/api/results":
             return self._json(views.list_results())
         if path == "/api/build":
@@ -411,6 +433,9 @@ class Handler(BaseHTTPRequestHandler):
 
     # --------------------------------------------------------------- POST
     def route_post(self, path: str, body: dict):
+        if path == "/api/history":
+            from .history import save
+            return self._json({"id": save(body)})
         if path == "/api/sessions/share":
             from ..combat.sessions import path as session_path
             from ..combat.share import upload

@@ -137,3 +137,9 @@ Compare multiple local or public logs by choosing the encounter and each same-cl
 ## Build points
 
 **My Character** displays points spent and the optimization budget. Official profiles may omit unspent points. Enter the total from your in-game window (spent + unspent) for Skill, Stigma and PvE Daevanion before **Optimize my build**. Imported spend is a lower bound; it is not a verified character maximum. Planner budgets are configurable, including Daevanion. The bundled 203 / 30 / 360 preset describes an example simulation, not the total available to every character. Gear skill levels and PvP Daevanion points are separate from these budgets.
+
+## Saved optimizations and advice
+
+**Saved Results** reopens completed character/class optimizations and advice after restarting. Export a result JSON and import it on another installation. The latest older build and advice files are recovered automatically when available; overwritten historical files cannot be reconstructed. Advice is a snapshot from that run, so regenerate it when your gear or game data changes.
+
+After character optimization, anonymous point observations update the community's highest observed totals by class, region, patch and source. View these under Combat Logs. User-entered totals and allocated profile lower bounds are labelled separately; neither establishes the game's maximum.

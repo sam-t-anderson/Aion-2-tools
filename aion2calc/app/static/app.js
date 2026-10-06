@@ -326,7 +326,7 @@ function welcomeCard() {
 
 async function pagePlanner() {
   const st = S.planner;
-  app().innerHTML = welcomeCard() + `<section class="win"><div class="wh"><h2>Build planner</h2><span class="sub">optimized builds — copy each window into the game</span></div>
+  app().innerHTML = welcomeCard() + `<section class="win"><div class="wh"><h2>Build planner</h2><a class="btn small" href="#/history">Saved results</a><span class="sub">optimized builds — copy each window into the game</span></div>
     <div class="wb"><div class="row"><label class="muted small">Build</label><select id="res"></select>
       <span class="muted small">or optimize:</span><select id="cls"></select>
       <input id="sp" type="number" placeholder="skill pts (203)" title="skill points (default 203)" style="width:150px"><input id="stg" type="number" placeholder="stigma pts (30)" title="stigma points (default 30)" style="width:150px">
@@ -397,12 +397,13 @@ async function pageCharacter() {
       ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${['skill','stigma','daevanion'].map(k=>`<label>${cap(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:90px"></label>`).join('')}</div><div id="optres"></div></div></section><div id="cwins"></div>`;
     renderWindows(v, st, $("#cwins"));
     st.optMeta = { name: v.name, server: v.server, combat_power: v.combat_power };
+    $("#cpointpatch").onchange=()=>localStorage.setItem("point-game-patch",$("#cpointpatch").value.trim());
     document.querySelectorAll("[data-character-budget]").forEach(e=>e.onchange=rememberBudgets);
     $("#opt").onclick = async () => {
       S.character.opt = { status: "running", log: [], jobid: null };
       renderOptState();
       try {
-        const { job } = await api("/api/character/optimize", {...st.hit,budgets:rememberBudgets()});
+        const { job } = await api("/api/character/optimize", {...st.hit,budgets:rememberBudgets(),game_patch:$("#cpointpatch").value.trim()});
         S.character.opt.jobid = job;
         pollOpt();
       } catch (e) { S.character.opt = { status: "error", error: e.message }; renderOptState(); }
@@ -984,12 +985,22 @@ function renderMeter(s) {
   }));
 }
 
+// Saved optimizer/advice snapshots survive process and browser restarts.
+async function pageHistory(){
+ app().innerHTML=win('Saved results','Previous optimizations and advice, stored on this computer',`<div class="row"><label>Import previous result <input id="result-import" type="file" accept=".json"></label><span id="history-msg" class="small muted"></span></div><div id="history-list"></div>`)+`<div id="history-view"></div>`;
+ const refresh=async()=>{const rows=await api('/api/history');$('#history-list').innerHTML=rows.length?`<table class="t"><tr><th>Run</th><th>Recorded</th><th></th></tr>${rows.map(r=>`<tr><td>${esc(r.title)}</td><td>${new Date(r.created*1000).toLocaleString()}</td><td><button class="btn small" data-history="${r.id}">Open</button><button class="btn small" data-history-export="${r.id}">Export</button></td></tr>`).join('')}</table>`:'<p>No saved runs yet. Completed optimizations and advice save here automatically.</p>';
+ document.querySelectorAll('[data-history]').forEach(b=>b.onclick=async()=>{try{const d=await api('/api/history?id='+b.dataset.history);const box=$('#history-view');box.innerHTML=`<p class="small muted">Saved result from ${new Date(d.created*1000).toLocaleString()}. This is a snapshot; advice may change as gear or game data changes.</p>`;if(d.kind==='advice-text')box.innerHTML+=`<pre class="diff">${esc(d.result.text)}</pre>`;else if(d.kind==='advice'){S.gear ||= {};box.innerHTML+='<div id="gout">'+renderAdvice(d.result)+'</div>';bindAdvice(d.result);}else{const v=d.kind==='optimize-character'?d.result.optimized:d.result;box.innerHTML+='<div id="saved-windows"></div>';renderWindows(v,{win:'overview'},$('#saved-windows'));}box.scrollIntoView({behavior:'smooth'});}catch(e){$('#history-msg').textContent=e.message;}});
+ document.querySelectorAll('[data-history-export]').forEach(b=>b.onclick=async()=>{const d=await api('/api/history?id='+b.dataset.historyExport),url=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='aion2calc-result-'+b.dataset.historyExport+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});};
+ $('#result-import').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>20*1024*1024)throw Error('Result exceeds 20 MiB');const result=JSON.parse(await file.text());await api('/api/history',result);await refresh();$('#history-msg').textContent='Result imported';}catch(e){$('#history-msg').textContent=e.message;}};
+ await refresh();
+}
+
 // ------------------------------------------------------------- gear & advice
 const sp = (x) => (x == null ? "—" : (x >= 0 ? "+" : "") + (100 * x).toFixed(1) + "%");
 async function pageGear() {
   const st = S.gear || (S.gear = {});
   const chars = await api("/api/characters").catch(() => []);
-  app().innerHTML = `<section class="win"><div class="wh"><h2>Gear &amp; advice</h2><span class="sub">what to wear from your inventory, goal gear, upgrade path, arcana, pantheon, genus insight — on simulated DPS</span></div>
+  app().innerHTML = `<section class="win"><div class="wh"><h2>Gear &amp; advice</h2><a class="btn small" href="#/history">Saved advice</a><span class="sub">what to wear from your inventory, goal gear, upgrade path, arcana, pantheon, genus insight — on simulated DPS</span></div>
     <div class="wb">${chars.length ? `<div class="row"><select id="gchar">${chars.map((c) => `<option value="${esc(c.key)}" ${c.key === st.key ? "selected" : ""}>${esc(c.name)} · ${esc(c.class_name)} · ${esc(c.region)}</option>`).join("")}</select>
       <button class="btn primary" id="gadv">Run advice</button><span id="gmsg" class="small muted"></span></div>
       <p class="small faint">Import the character on My Character first. The official page shows only equipped items: add bag and warehouse items below so the planner can use them. Fights you import on Combat Logs are matched to the gear the character wore and calibrate the model.</p>` :
@@ -1216,7 +1227,7 @@ function renderAdvice(a) {
   const r = a.rotation;
   const rot = r.fights ? `<p>${r.fights} fight(s), idle ${pct(r.idle_share, 0)} of the time.</p>${r.under_cast.slice(0, 6).map((t) => `<div class="tip">${esc(t.text)}</div>`).join("")}
     ${r.specs.map((d) => `<div class="tip">${esc(d.skill)}: specs ${esc(d.yours)} in your fights, ${esc(d.optimal)} in the optimized build</div>`).join("")}` : '<p class="muted">No saved fights for this character: import AbyssLogs links on Combat Logs.</p>';
-  return advTop(a) + advDoll(a) + advPath(a) + advArcana(a) + advTitles(a) + advPantheon(a) + advGenus(a, S.gear.inv) +
+  return advTop(a) + advDoll(a) + advPath(a) + advArcana(a) + advTitles(a) + advPantheon(a) + advGenus(a, a.inventory_snapshot || S.gear.inv) +
     `<div class="grid2">${win("Your fights", "", rot)}${win("Model calibration", "learned from fights matched to equipped gear", a.calibration.map((x) => `<div class="small">${esc(x)}</div>`).join(""))}</div>`;
 }
 function bindAdvice(a) {
@@ -1295,6 +1306,7 @@ async function route() {
   $$(".nav a").forEach((a) => a.classList.toggle("on", a.dataset.page === page));
   try {
     if (page === "character") await pageCharacter();
+    else if (page === "history") await pageHistory();
     else if (page === "gear") await pageGear();
     else if (page === "settings") await pageSettings();
     else if (page === "combat") await pageCombat();

@@ -24,7 +24,7 @@
 
 Implemented: encounter metadata and local filters; shared community browser; separate class distributions and public rankings; personal record search; explicit multi-run comparison; authenticated plan updates with ownership backups. Classification is manually supplied when the capture cannot verify it. Rankings are recorded DPS, not gear-adjusted, and World covers community submissions.
 
-Build-point follow-up: correct the imported Daevanion denominator, remove the invented extra stigma point, expose all character point budgets as editable totals, and label imported resources as observed lower bounds. Automatic verification of unspent points remains dependent on profile/capture evidence.
+Build-point follow-up: correct the imported Daevanion denominator, remove the invented extra stigma point, expose all character point budgets as editable totals, and label imported resources as observed lower bounds. Automatic verification of unspent points remains dependent on profile/capture evidence. Edited totals persist per character; anonymous observations update highest-observed resources by class/region/patch/source. Saved Results preserves optimizer and advice snapshots with export/import.
 
 ## Iteration 3 — protocol and replay enrichment
 

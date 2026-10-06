@@ -304,3 +304,9 @@ or `{"text": file contents, "name": file name, "player": name}`), `/api/encounte
 `/api/logserver`, `/api/inventory/add|remove|genus`, `/api/advice` (job), `/api/logs/open`
 
 Long requests return a job id; poll `/api/jobs/<id>` until its status is `done`.
+
+## Saved Results
+
+Completed character/class optimizations and advice save automatically under the app data folder's `history` directory. Open **Saved Results**, select Open to review a previous run, or Export/Import its result JSON. Import restores a snapshot; it does not run an optimization or change your equipped gear. The latest existing old build/advice files are recovered when available. Keep exported copies to move runs between installations. Advice reflects the saved run, not future game or gear changes.
+
+Edited point totals persist per character on this installation. Enter spent + unspent resources. Anonymous totals are sent after character optimization and accumulate as highest observed resources on the community service, grouped by class/region/patch/source. Unknown patch observations stay separate, and observed totals are not verified game caps.

@@ -5,6 +5,8 @@
 - Compare multiple runs with explicit same-class player and encounter selection.
 - Update published raid plans in place using locally saved ownership credentials; export/import private ownership backups and detect revision conflicts.
 - Show imported point budgets correctly and let users enter actual skill, stigma and PvE Daevanion totals, including unused points. Remove the invented extra stigma point.
+- Save completed optimizer/advice results across restarts, with export/import and recovery of existing older files.
+- Persist edited point budgets per character and update anonymous community highest-observed resources after optimization.
 - Keep player guides in this repository and hosting/administration guidance in the server repository.
 
 ## Changes in 0.2.16 — combat review iteration 1
