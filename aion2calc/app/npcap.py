@@ -17,7 +17,7 @@ from ..paths import home
 
 _PAGE = "https://npcap.com/"
 _MATCH = re.compile(r"(?:https?://npcap\.com/|/)?dist/(npcap-([0-9.]+)\.exe)", re.I)
-_LOCK = threading.Lock()
+_LOCK = threading.RLock()
 _STATE: dict[str, object] = {"status": "idle", "version": None, "error": None}
 
 
@@ -94,4 +94,12 @@ def begin_install() -> dict:
             return status()
         _STATE.update(status="finding", version=None, error=None)
     threading.Thread(target=_download_and_open, daemon=True, name="npcap-setup").start()
+    return status()
+
+
+def install_now() -> dict:
+    """Download and open Npcap synchronously for the installer post-install action."""
+    if sys.platform != "win32":
+        return {"supported": False, "status": "unsupported", "error": "Npcap is only needed on Windows"}
+    _download_and_open()
     return status()

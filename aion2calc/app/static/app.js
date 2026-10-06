@@ -674,7 +674,7 @@ async function pageMeter() {
         <button class="btn small" id="movl" title="Open the compact overlay in a separate window">Open overlay</button><span id="mmsg" class="small muted"></span></div>
       <div class="row" id="mlive" style="display:none;margin-top:6px">
         <label class="small muted">Encoder <input id="mdec" type="text" value="Built-in A2Tools decoder" readonly aria-label="Encoder module" style="width:180px"></label>
-        <label class="small muted">Interface <input id="miface" type="text" list="mifaces" value="auto" aria-label="Capture interface" style="width:100px" title="Npcap interface; use auto to choose"></label><datalist id="mifaces"></datalist><button class="btn small" id="mifacesrefresh">Interfaces</button>
+        <label class="small muted">Interface <select id="miface" aria-label="Capture interface" title="Npcap interface; Auto chooses the system default"><option value="auto">Auto</option></select></label><button class="btn small" id="mifacesrefresh">Refresh interfaces</button>
         <label class="small muted">Game host <input id="mhost" type="text" value="any" aria-label="Game host" style="width:100px" title="Use an address to limit the capture; any accepts game traffic on the port"></label>
         <label class="small muted">Port <input id="mport" type="number" value="50349" aria-label="Game server port" style="width:80px"></label>
         <label class="small muted">Target <select id="mtarget" aria-label="Target selection"><option value="bossTargets" selected>Boss target</option><option value="mostDamage">Most damage</option><option value="mostRecent">Most recent</option><option value="lastHitByMe">Last hit by me</option><option value="allTargets">All targets</option><option value="trainTargets">Training target</option></select></label>
@@ -691,7 +691,9 @@ async function pageMeter() {
   const refreshInterfaces = async () => {
     try {
       const r = await api("/api/meter/interfaces");
-      $("#mifaces").innerHTML = (r.interfaces || []).map((name) => `<option value="${esc(name)}"></option>`).join("");
+      const select = $("#miface"), selected = select.value;
+      select.innerHTML = `<option value="auto">Auto</option>` + (r.interfaces || []).map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
+      if ([...select.options].some((option) => option.value === selected)) select.value = selected;
     } catch (e) { $("#mmsg").textContent = "Could not list capture interfaces: " + e.message; }
   };
   $("#mifacesrefresh").onclick = refreshInterfaces;
@@ -724,6 +726,20 @@ async function pageMeter() {
   refreshNpcap();
   $("#mstart").onclick = async () => {
     const source = $("#msrc").value;
+    if (source === "a2tools") {
+      try {
+        const setup = await api("/api/capture/setup");
+        if (setup.supported && !setup.installed) {
+          if (window.confirm(setup.prompt || "Install packet-capture support now?")) {
+            await api("/api/capture/setup", { action: "install" });
+            $("#mmsg").textContent = `${setup.kind} setup is starting. Finish it, then press Start again.`;
+          } else {
+            $("#mmsg").textContent = `${setup.kind} is required before Live Capture can start.`;
+          }
+          return;
+        }
+      } catch (e) { $("#mmsg").textContent = "Could not check Npcap: " + e.message; return; }
+    }
     const body = { action: "start", source, decoder: source === "live" ? ($("#mcustomdec").value || null) : null,
       iface: source === "a2tools" && $("#miface").value !== "auto" ? $("#miface").value : null,
       host: source === "a2tools" && $("#mhost").value !== "any" ? $("#mhost").value : null,
@@ -737,7 +753,7 @@ async function pageMeter() {
     $("#mmsg").textContent = "opening overlay…";
     try {
       const r = await api("/api/overlay", {});          // native transparent window (bundled on Windows)
-      if (r.native) { $("#mmsg").textContent = "overlay opened in a transparent window"; return; }
+      if (r.native) { $("#mmsg").textContent = r.already_open ? "overlay is already open" : "overlay opened in a transparent window"; return; }
     } catch (e) { /* fall through to a plain browser window */ }
     window.open("/overlay", "a2overlay", "width=300,height=430");
     $("#mmsg").textContent = "overlay opened in a window";
@@ -1122,8 +1138,10 @@ async function syncPill() {
 }
 $("#quit").onclick = async () => {
   if (!confirm("Stop aion2calc? Start it again from the Start menu or desktop shortcut.")) return;
+  try { localStorage.setItem("aion2calc-closing", String(Date.now())); } catch (e) { /* native overlay is closed by the server */ }
   await api("/api/quit", {}).catch(() => {});
   document.body.innerHTML = '<div class="empty" style="margin-top:20vh">aion2calc has stopped. You can close this tab.</div>';
+  setTimeout(() => window.close(), 250);
 };
 route();
 syncPill();
