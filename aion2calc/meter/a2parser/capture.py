@@ -94,7 +94,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
     server_port = int(server_port)
     host = (host or "").strip() or None
     try:
-        from scapy.all import IP, IPv6, TCP, Raw, sniff
+        from scapy.all import AsyncSniffer, IP, IPv6, TCP, Raw
     except ImportError as exc:
         emit("error", f"Scapy is not installed: {exc}")
         return
@@ -135,14 +135,29 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
         if flags & (0x01 | 0x04):
             flows.pop(key, None)
 
+    sniffer = None
     try:
-        while not stop_event.is_set():
-            bpf_filter = f"tcp port {server_port}"
-            if host:
-                bpf_filter += f" and host {host}"
-            sniff(iface=interface or None, filter=bpf_filter, prn=on_packet,
-                  store=False, timeout=1)
+        bpf_filter = f"tcp port {server_port}"
+        if host:
+            bpf_filter += f" and host {host}"
+        sniffer = AsyncSniffer(iface=interface or None, filter=bpf_filter, prn=on_packet, store=False)
+        sniffer.start()
+        emit("capture_started")
+        while not stop_event.wait(0.25):
+            if sniffer.thread is not None and not sniffer.thread.is_alive():
+                raise RuntimeError("packet capture stopped unexpectedly; verify Npcap and the selected interface")
             prune_idle_flows()
-        emit("capture_stopped")
     except Exception as exc:
         emit("error", str(exc))
+    finally:
+        # AsyncSniffer marks itself running in its worker, so wait through the short start race
+        # before stopping it. This makes an immediate Stop click deterministic.
+        thread = getattr(sniffer, "thread", None) if sniffer is not None else None
+        while sniffer is not None and thread is not None and thread.is_alive() and not getattr(sniffer, "running", False):
+            time.sleep(0.01)
+        if sniffer is not None and getattr(sniffer, "running", False):
+            try:
+                sniffer.stop(join=True)
+            except Exception:                                                # capture backends can already be stopped
+                pass
+        emit("capture_stopped")

@@ -310,6 +310,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/npcap":
             from . import npcap
             return self._json(npcap.status())
+        if path == "/api/capture/setup":
+            from . import capture_setup
+            return self._json(capture_setup.status())
         if path == "/api/meter/interfaces":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("capture interfaces are available only on this computer")
@@ -454,6 +457,13 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError('Npcap action must be "install"')
             from . import npcap
             return self._json(npcap.begin_install())
+        if path == "/api/capture/setup":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("capture setup runs only on the computer running the app")
+            if body.get("action") != "install":
+                raise ValueError('capture setup action must be "install"')
+            from . import capture_setup
+            return self._json(capture_setup.begin_install())
         if path == "/api/open":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("folders open only on the computer running the app")
@@ -464,8 +474,20 @@ class Handler(BaseHTTPRequestHandler):
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("only the computer running the app can stop it")
             srv = HTTPD.get("server")
-            if srv:
-                threading.Thread(target=srv.shutdown, daemon=True).start()
+            def stop_desktop() -> None:
+                # Let the JSON response leave first, then close every native window owned by this app.
+                time.sleep(0.2)
+                try:
+                    from . import overlay_launch
+                    overlay_launch.close()
+                except Exception:
+                    pass
+                proc = APP_WINDOW.get("process")
+                if proc is not None and proc.poll() is None:
+                    proc.terminate()
+                if srv:
+                    srv.shutdown()
+            threading.Thread(target=stop_desktop, daemon=True).start()
             return self._json({"stopping": True})
         if path == "/api/logs/open":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
@@ -501,6 +523,7 @@ class Handler(BaseHTTPRequestHandler):
 
 HTTPD: dict = {}
 PING: dict = {"at": time.time()}
+APP_WINDOW: dict = {}
 
 
 def ui_settings() -> dict:
@@ -540,4 +563,9 @@ def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: 
     except KeyboardInterrupt:
         pass
     finally:
+        try:
+            from . import overlay_launch
+            overlay_launch.close()
+        except Exception:
+            pass
         httpd.server_close()

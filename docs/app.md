@@ -196,12 +196,18 @@ only when automatic selection cannot see the game traffic; the **Interfaces**
 button lists the identifiers Npcap exposes on this computer. Choose the target
 mode and optionally name your character to improve local-player detection.
 
-The Windows desktop build includes Scapy. When Npcap is missing, the Live
-Meter offers **Install Npcap**. After you confirm, it finds the current
-installer on [npcap.com](https://npcap.com/), downloads it to the app's
-`drivers` folder, and opens its normal installer. This keeps Npcap separate
-from aion2calc, as required by its license. Select WinPcap-compatible mode in
-the installer and grant capture permission.
+The Windows desktop build includes Scapy. Windows setup offers an optional
+**Download and install Npcap for Live Capture** choice, and Live Meter asks
+again when you press Start if Npcap is still missing. After you confirm, it
+finds the current installer on [npcap.com](https://npcap.com/), downloads it
+to the app's `drivers` folder, and opens its normal installer. This keeps
+Npcap separate from aion2calc, as required by its license. Select
+WinPcap-compatible mode in the installer and grant capture permission.
+
+Npcap is Windows-only. macOS uses its built-in packet-capture framework.
+Linux needs the distribution's `libpcap` package plus permission to capture
+packets; Live Meter reports that prerequisite when the operating system denies
+capture access.
 The meter keeps decoded combat events, not raw packet captures. **Save to
 Combat Logs** sends the active fight into the existing analyzer; **Export
 a2log** writes an open JSON file to the app's logs folder; **Upload** sends it
@@ -218,9 +224,9 @@ from locking the files the installer needs to replace.
 
 #### Overlay
 
-**Live Meter → Open overlay** opens a compact overlay you can place over the game: it shows the live
-meter and plays your most recent raid plan. On the installed Windows app it opens as a frameless,
-transparent, always-on-top window (pywebview is bundled, so there is nothing to install). Where that
+**Live Meter → Open overlay** opens one compact overlay that shows the live meter and plays your most
+recent raid plan. On the installed Windows app it is frameless, transparent, always on top, and follows
+the Aion 2 game window when it starts or moves. It closes with the desktop app. Where a native overlay
 is not available it opens as a normal small window instead. From source, `python -m aion2calc.overlay`
 does the same (`pip install pywebview` for the transparent window).
 

@@ -64,8 +64,11 @@ Run anyway**. [Code signing policy](docs/code-signing.md).
   ([details](docs/planner.md)).
 * **Live Meter**: capture the game connection with the included A2Tools packet engine. It starts in
   **Live Capture** mode with the built-in encoder, automatic interface and game-host detection, and
-  port `50349`. Save a fight to Combat Logs, export its open `a2log` JSON, upload it through the
-  configured log server, take a screenshot, or open the in-game overlay.
+  port `50349`. Windows users can choose **Download and install Npcap** in setup or approve the
+  prompt when starting Live Capture; the app fetches the current official installer, which must be
+  installed in WinPcap-compatible mode. Save a fight to Combat Logs, export its open `a2log` JSON,
+  upload it through the configured log server, take a screenshot, or open the transparent overlay.
+  The overlay stays above and follows the Aion 2 game window when it is available.
 * **Raid planner**: plan a boss fight on a visual map. Drop player, enemy, marker and AoE tokens,
   then scrub a **timelapse** slider and drag each token to where it should be at that moment — the
   planner fills in the movement in between. Lay out **party buffs** on the timeline, overlay a saved

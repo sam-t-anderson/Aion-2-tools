@@ -3,19 +3,24 @@
 // The server address comes from, in order: the visitor's own saved choice (localStorage, set on the
 // Raid Planner), the baked-in default from config.js (the repo's A2LOGS_PUBLIC_URL at build time), or
 // the project's live default_server.json on GitHub. Reading the live file last means a changed server
-// address (e.g. a new Cloudflare quick-tunnel URL) reaches the site by editing one file — no rebuild,
+// address (for example, a moved Tailscale Funnel endpoint) reaches the site by editing one file — no rebuild,
 // the same file the desktop app reads. If a request fails outright we refresh from that live file once
 // and retry, and errors say what actually went wrong instead of a bare "Failed to fetch".
 window.A2 = (function () {
   "use strict";
   const LS = "a2server";
+  const RETIRED_QUICK_TUNNEL = "try" + "cloudflare.com";
   const DEFAULT = (window.A2CONFIG || {});
   const LIVE_DEFAULT_URL = "https://raw.githubusercontent.com/sam-t-anderson/Aion-2-tools/main/aion2calc/data/global/default_server.json";
   let resolved = null;            // the base URL we settled on
   let triedLive = false;          // have we already consulted the live default this session?
 
   function saved() {
-    try { const s = JSON.parse(localStorage.getItem(LS) || "null"); if (s && (s.url || s.key)) return s; } catch (e) { /* ignore */ }
+    try {
+      const s = JSON.parse(localStorage.getItem(LS) || "null");
+      if (s && (s.url || "").toLowerCase().includes(RETIRED_QUICK_TUNNEL)) { localStorage.removeItem(LS); return null; }
+      if (s && (s.url || s.key)) return s;
+    } catch (e) { /* ignore */ }
     return null;
   }
   function cfg() { return saved() || { url: DEFAULT.server || "", key: DEFAULT.key || "" }; }
@@ -25,7 +30,7 @@ window.A2 = (function () {
     triedLive = true;
     try {
       const r = await fetch(LIVE_DEFAULT_URL, { cache: "no-store" });
-      if (r.ok) { const j = await r.json(); return clean(j.url || ""); }
+      if (r.ok) { const j = await r.json(); return (j.url || "").toLowerCase().includes(RETIRED_QUICK_TUNNEL) ? "" : clean(j.url || ""); }
     } catch (e) { /* offline or blocked: nothing to add */ }
     return "";
   }
@@ -43,7 +48,7 @@ window.A2 = (function () {
     let b = await ensureBase();
     if (!b) throw new Error("No share server is set up for this site yet. Open the Raid Planner and set one, or ask the site owner to configure A2LOGS_PUBLIC_URL.");
     if (location.protocol === "https:" && b.startsWith("http://")) {
-      throw new Error("The share server address is " + b + " (http), but this site is https, so the browser blocks it. Use an https address (a Cloudflare Tunnel gives you one).");
+      throw new Error("The share server address is " + b + " (http), but this site is https, so the browser blocks it. Use the configured HTTPS Tailscale address.");
     }
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -57,7 +62,7 @@ window.A2 = (function () {
           const live = await liveDefault();
           if (live && live !== b) { resolved = b = live; continue; }
         }
-        if (networkFail) throw new Error("Can't reach the share server at " + b + ". It may be offline, or its address changed (a Cloudflare quick tunnel gets a new URL every restart — use a named tunnel for a stable one).");
+        if (networkFail) throw new Error("Can't reach the share server at " + b + ". It may be offline, or its Tailscale address changed. The live project default is retried automatically.");
         throw e;
       }
     }

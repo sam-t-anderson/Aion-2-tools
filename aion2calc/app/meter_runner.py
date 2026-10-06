@@ -74,10 +74,14 @@ class Runner:
         if opts.get("character_name"):
             self.packet_engine.set_local_character_name(str(opts["character_name"]))
         self.target_mode = str(opts.get("target_mode") or "bossTargets")
+        iface = str(opts.get("iface") or "").strip()
+        host = str(opts.get("host") or "").strip()
+        iface = None if iface.lower() in ("", "auto") else iface
+        host = None if host.lower() in ("", "any", "auto") else host
         self.packet_stop = threading.Event()
         self.packet_queue = queue.Queue()
         self.running = True
-        self.thread = threading.Thread(target=self._run_a2tools, args=(opts.get("iface"), port, opts.get("host")),
+        self.thread = threading.Thread(target=self._run_a2tools, args=(iface, port, host),
                                        daemon=True, name="a2tools-meter")
         self.thread.start()
         return self.status()
@@ -102,6 +106,8 @@ class Runner:
                 elif kind == "error":
                     self.error = str(data[0])
                     break
+                elif kind == "capture_started":
+                    continue
                 elif kind == "capture_stopped":
                     break
         finally:
@@ -125,7 +131,10 @@ class Runner:
             self.packet_stop.set()
         t = self.thread
         if t and t.is_alive():
-            t.join(timeout=2.0)
+            t.join(timeout=3.0)
+        capture = self.packet_capture_thread
+        if capture and capture.is_alive():
+            capture.join(timeout=3.0)
         self.running = False
 
     def status(self) -> dict:

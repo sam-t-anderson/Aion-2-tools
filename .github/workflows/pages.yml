@@ -11,6 +11,7 @@ on:
       - "aion2calc/app/static/app.css"
       - "aion2calc/app/static/raid.js"
       - "aion2calc/app/static/logo.png"
+      - "aion2calc/data/global/default_server.json"
       - "docs/screenshots/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:

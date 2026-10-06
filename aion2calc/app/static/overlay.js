@@ -16,7 +16,11 @@
   const foot = () => `<div class="ovfoot"><span>Opacity</span><input type="range" id="ovop" min="20" max="100" value="${Math.round(op * 100)}"><span class="ovbrand">aion2calc</span></div>`;
   function bindFoot() {
     const r = $("#ovop");
-    if (r) r.oninput = () => { op = Math.max(0.2, Math.min(1, r.value / 100)); applyOpacity(); try { localStorage.setItem("ovopacity", op); } catch (e) { /* ignore */ } };
+    if (r) {
+      const stop = (event) => event.stopPropagation();
+      ["pointerdown", "mousedown", "touchstart", "click"].forEach((type) => r.addEventListener(type, stop));
+      r.oninput = () => { op = Math.max(0.2, Math.min(1, r.value / 100)); applyOpacity(); try { localStorage.setItem("ovopacity", op); } catch (e) { /* ignore */ } };
+    }
   }
 
   function tokenPos(tk, time) {
@@ -80,6 +84,7 @@
   setInterval(() => { if (tab === "meter") pollMeter(); }, 800);
   // plan animation loop
   setInterval(() => { t += 0.1; if (tab === "plan") renderPlan(); }, 100);
+  window.addEventListener("storage", (event) => { if (event.key === "aion2calc-closing") window.close(); });
   applyOpacity();
   pollMeter();
 })();

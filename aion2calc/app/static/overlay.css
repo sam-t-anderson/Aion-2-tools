@@ -1,6 +1,6 @@
 /* Transparent, compact overlay for a frameless always-on-top window (or a browser tab). The body is
    transparent so a native transparent window shows only the card over the game. */
-html, body { margin: 0; background: transparent; color: #eceae3;
+html, body, #ov { width: 100%; height: 100%; margin: 0; background: transparent; color: #eceae3;
   font: 12px/1.35 "Segoe UI", "Noto Sans", system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
 .ovcard { background: rgba(10, 14, 22, var(--ovbg, .72)); border: 1px solid rgba(233, 203, 128, .40); border-radius: 8px;
   padding: 8px 10px; margin: 6px; min-width: 250px; backdrop-filter: blur(4px); box-shadow: 0 4px 16px rgba(0,0,0,.5); }

@@ -192,11 +192,16 @@ def main(argv=None) -> int:
     p.add_argument("--port", type=int, default=8765)
     p.add_argument("--no-browser", action="store_true")
     p.add_argument("--no-sync", action="store_true", help="skip the launch-time database update")
+    p.add_argument("--install-npcap", action="store_true", help="download and open the current Npcap installer")
     p.add_argument("--smoke-test", nargs="?", const="", metavar="OUT", help="check the app starts, then exit")
     args = p.parse_args(argv)
     for name in ("stdout", "stderr"):            # the windowed build has no console
         if getattr(sys, name) is None:
             setattr(sys, name, open(os.devnull, "w", encoding="utf-8"))      # noqa: SIM115
+    if args.install_npcap:
+        from .app import npcap
+        npcap.install_now()
+        return 0
     if args.smoke_test is not None:
         return smoke_test(args.smoke_test or None)
     log = _log_to_file()
@@ -222,6 +227,8 @@ def main(argv=None) -> int:
             def show():
                 time.sleep(0.8)
                 proc = open_window(f"http://127.0.0.1:{port}/", prefer_app)
+                if proc is not None:
+                    server.APP_WINDOW["process"] = proc
                 if _frozen():                     # the installed app stops with its window
                     watch(proc, httpd.shutdown)
             threading.Thread(target=show, daemon=True).start()
