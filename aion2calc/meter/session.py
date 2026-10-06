@@ -73,7 +73,10 @@ class CombatSession:
             if changed:
                 self.finish_run("map_or_instance_change", complete=False)
         self._context = context
-        if self.run_closed and any(isinstance(e,DamageEvent) for e in events):
+        if self.run_closed and any(isinstance(e,DamageEvent) and
+                (self.runs[self.run].get("end_reason") != "configured_final_boss_death"
+                 or (self.epoch,e.target_id) not in self._dead
+                 or engine.last_zone_reset_ms != self._zone_reset) for e in events):
             self._next_run()
         if not self.run_closed:
             self.runs[self.run].update(map_id=engine.map_id, instance_id=engine.dungeon_id)
