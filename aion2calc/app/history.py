@@ -85,5 +85,8 @@ def discover_legacy():
     for target in results_dir().glob("**/ADVICE.md"):
         identifier = hashlib.sha256(str(target).encode()).hexdigest()[:24]
         if not path(identifier).exists():
-            save({"format": "a2result", "version": 1, "kind": "advice-text", "title": target.parent.name + " · recovered advice",
-                  "created": target.stat().st_mtime, "result": {"text": target.read_text(encoding="utf-8")}}, identifier)
+            try:
+                save({"format": "a2result", "version": 1, "kind": "advice-text", "title": target.parent.name + " · recovered advice",
+                      "created": target.stat().st_mtime, "result": {"text": target.read_text(encoding="utf-8")}}, identifier)
+            except (OSError, ValueError):
+                continue
