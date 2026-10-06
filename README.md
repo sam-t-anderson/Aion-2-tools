@@ -130,3 +130,11 @@ In **Raid Planner**, choose **Visibility** beside **Publish plan**: **Public** l
 Shared `/p/<id>` pages support **Play/Pause**, **Rewind**, playback speed and a timeline scrub bar with moving tokens and active buffs on server 0.2.4 or later. Existing shared links get these controls after the server is updated.
 
 Live Meter uses one yellow **Start** / red **Stop** button. Under **Capture diagnostics**, enable TCP recording before Start, enter combat, stop, then export. The recorded payload count and ZIP download link remain visible. The Windows copy is also saved under `%LOCALAPPDATA%\aion2calc\diagnostics`; ordinary application logs do not contain TCP payloads. Export does not require decoded combat events.
+
+### Live combat history and party scope
+
+Live Meter defaults to **Self + Party**. Enter **My character** before Start when attaching mid-session; the name is remembered locally and matched only to a unique observed player. Decoded party rosters identify party members. **Self only** hides everyone else; **All observed players** explicitly includes nearby players. Capture retains data while identity is pending and explains why the filtered view is empty.
+
+Fighting enemies within **Group combat within** (10 seconds by default) forms a single segment. The **Combat** selector shows earlier fights or the whole session. Segment data survives inactivity, zone changes and Stop/Start within the app; **Clear session** explicitly removes it. Export/upload includes the retained segments. Save or export before quitting. The history limit is 400,000 records / 200 displayed segments.
+
+The **Enemies** table selects a target for the **Players** meter. Accuracy reports decoded outgoing hit flags; Defense reports received damage, parried hits and attackers. Getting hit alone cannot determine hit chance, avoided attacks, armor or mitigation percentages. Creature names come from captured entity-to-NPC-type mappings plus the included creature database; a missing spawn record leaves an honest unknown entity label.

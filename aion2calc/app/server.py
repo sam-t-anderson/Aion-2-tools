@@ -447,7 +447,12 @@ class Handler(BaseHTTPRequestHandler):
                                           auto_port=body.get("auto_port", body.get("source", "a2tools") == "a2tools"),
                                           record_packets=bool(body.get("record_packets")),
                                           character_name=body.get("character_name"),
+                                          scope=body.get("scope", "party"), segment_gap=body.get("segment_gap", 10),
                                           target_mode=body.get("target_mode", "bossTargets")))
+            if action == "view":
+                return self._json(r.configure_view(body))
+            if action == "clear":
+                return self._json(r.clear_session())
             if action == "stop":
                 r.stop()
                 return self._json(r.status())
