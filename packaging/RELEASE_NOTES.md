@@ -1,3 +1,12 @@
+## Changes in 0.2.25 — matched comparisons and historical percentiles
+
+- Show current same-patch and reconstructed at-upload standings side by side in desktop, Pages and shared combat review, including run speed.
+- Match player comparisons by boss, class, encounter category, patch, difficulty, observed party size and instance. Keep personal bests and class distributions separate by party size/instance too.
+- Add party-size filters to community browsing and the Pages leaderboard; replace the leaderboard's cross-cohort row number with matched cohort rank.
+- Show percentile availability, public sample counts, distinct identities and provisional local/private comparisons. Percentiles need at least 10 samples and five distinct characters, or five distinct parties for run speed. Capped datasets do not receive a percentile.
+
+Requires server v0.2.12 for the new comparison fields. At-upload standings are reconstructed from currently public retained uploads received by that time; deletion, visibility and policy changes can change them. Current means current samples from the log's patch, not comparison with a newer patch. Ties share midrank percentiles. Small-sample class quartiles remain descriptive and show coverage warnings. HPS depends on healing demand; damage taken is descriptive, not a performance ranking. Upload-time gear cannot establish encounter-time equipment, so gear-adjusted brackets remain unavailable. Unknown party/instance evidence has no formal percentile. Existing capture and PvP evidence limits remain.
+
 ## Changes in 0.2.24 — run timing and boss progression
 
 - Review each recorded run independently in desktop, Pages and shared logs: recorded span, encounter time, gaps and verified entry-to-final-boss elapsed time when available.
