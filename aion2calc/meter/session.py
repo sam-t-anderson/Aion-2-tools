@@ -85,6 +85,13 @@ class CombatSession:
             relevant = event.actor_id in allowed or (isinstance(event, DamageEvent) and event.target_id in allowed)
             if not relevant:
                 continue
+            if isinstance(event, HealEvent):
+                # Out-of-combat regeneration must not create a new fight or
+                # keep adjacent pulls joined indefinitely.
+                if (groups and groups[-1]["epoch"] == record.epoch
+                        and event.timestamp_ms - groups[-1]["end"] <= self.gap_seconds * 1000):
+                    groups[-1]["records"].append(record)
+                continue
             if (not groups or groups[-1]["epoch"] != record.epoch
                     or event.timestamp_ms - groups[-1]["end"] > self.gap_seconds * 1000):
                 groups.append({"id": f"{record.epoch}-{event.timestamp_ms}", "epoch": record.epoch,
