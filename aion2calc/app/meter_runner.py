@@ -179,7 +179,9 @@ class Runner:
         if diagnostic:
             diagnostic["elapsed"] = round(time.monotonic() - self.started_at, 1) if self.started_at else 0
         return {"running": self.running, "source": self.source_name, "error": self.error,
-                "snapshot": snap, "diagnostics": diagnostic}
+                "snapshot": snap, "diagnostics": diagnostic,
+                "recording": {"enabled": self.recorder is not None,
+                              **(self.recorder.snapshot(include_rows=False)[0] if self.recorder is not None else {"records": 0})}}
 
     def to_a2log(self, title: str | None = None) -> dict:
         with self.lock:

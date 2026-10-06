@@ -1,3 +1,13 @@
+## Changes in 0.2.14
+
+- Choose Public, Unlisted or Private next to **Publish plan** in the website and desktop Raid Planner. Public plans appear in Browse plans; unlisted plans are accessible by link; private plans require the secret link. The choice is saved with each local plan. Publishing creates a new shared copy; existing links retain their original visibility.
+- Connect desktop plan publishing and browsing to the share server configured in Settings, including its upload key.
+- Replace Live Meter's separate Start/Stop controls with one button: yellow Start, red Stop while running.
+- Make TCP diagnostics prominent, display the number of recorded payloads, and keep export results visible during polling. Export offers a direct ZIP download as well as the saved file path.
+- Exclude Ethernet padding from TCP payloads so padding on ACK packets cannot advance reassembly or corrupt framed messages. Resume game-flow detection after an idle/disconnected socket, including a FIN/RST in the opposite direction. A stopped user capture produced 24 combat events in offline analysis after excluding its padding; live game capture still needs confirmation with this release.
+
+Shared-link timeline playback is provided by Aion-2-tools-server 0.2.4. Update the server to get Play/Pause, Rewind, speed selection, the scrub bar and timed buff highlighting on existing `/p/<id>` links.
+
 ## Changes in 0.2.13
 
 - Close the desktop's dedicated Chromium profile even when its launcher handed the window to an existing browser process. Explicit Quit/update exits the packaged process after server/capture cleanup so solver exit hooks cannot block the installer. Update helper logs now record readiness immediately.

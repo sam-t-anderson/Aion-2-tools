@@ -98,10 +98,32 @@ class CombatFlowDetector:
         self.candidates: dict[tuple, dict] = {}
         self.selected: tuple | None = None
         self.first_candidate: float | None = None
+        self.selected_last_seen: float | None = None
+
+    def reset(self) -> None:
+        self.selected = None
+        self.selected_last_seen = None
+        self.first_candidate = None
+        self.candidates.clear()
+
+    def is_connection(self, key: tuple) -> bool:
+        if self.selected is None:
+            return False
+        selected = self.selected
+        return key == selected or key == (selected[0], selected[3], selected[4], selected[1], selected[2])
 
     def feed(self, key: tuple, payload: bytes, sequence: int, syn: bool, now: float) -> list[tuple]:
         if self.selected is not None:
-            return [(key, sequence, payload, syn)] if key == self.selected else []
+            if key == self.selected:
+                if payload:
+                    self.selected_last_seen = now
+                return [(key, sequence, payload, syn)]
+            # Zone changes can replace the socket without a captured FIN/RST.
+            # Resume the marker gate when the previous server stream goes idle.
+            if self.selected_last_seen is not None and now - self.selected_last_seen >= 5.0:
+                self.reset()
+            else:
+                return []
         if not payload or (len(payload) >= 3 and 0x14 <= payload[0] <= 0x17 and payload[1] == 3):
             return []
         marked = any(signature in payload for signature in self.signatures)
@@ -127,9 +149,24 @@ class CombatFlowDetector:
         if len(candidate["hits"]) < 12 or (not loopback and now - self.first_candidate < 2.5):
             return []
         self.selected = key
+        self.selected_last_seen = now
         packets = candidate["packets"]
         self.candidates.clear()
         return packets
+
+
+def tcp_payload(ip, tcp) -> bytes:
+    """Use network-layer lengths: Ethernet padding is not TCP stream data."""
+    raw = bytes(tcp.payload)
+    header = int(tcp.dataofs or 5) * 4
+    if ip.version == 4:
+        size = int(ip.len) - int(ip.ihl or 5) * 4 - header
+    else:
+        # IPv6 plen includes extension headers before TCP, but excludes its
+        # 40-byte base header. Serialized lengths cancel any trailing padding.
+        extensions = len(bytes(ip.payload)) - len(bytes(tcp))
+        size = int(ip.plen) - extensions - header
+    return raw[:max(0, size)]
 
 
 def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
@@ -180,24 +217,19 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
             return
         source, destination = ip.src, ip.dst
         key = (str(getattr(packet, "sniffed_on", "")), source, int(tcp.sport), destination, int(tcp.dport))
-        payload = bytes(tcp.payload)
+        payload = tcp_payload(ip, tcp)
         syn = bool(int(tcp.flags) & 0x02)
         if recorder is not None:
             recorder.record(key, int(tcp.seq), int(tcp.flags), payload, time.time_ns() // 1_000_000)
         with callback_lock:
-            if auto_port and detector.selected == key and (int(tcp.flags) & (0x01 | 0x04)):
-                detector.selected = None
-                detector.first_candidate = None
-                detector.candidates.clear()
-                stats["port"] = None
             stats["packets"] += 1
             stats["payload_packets"] += bool(payload)
             stats["bytes"] += len(payload)
             stats["signature_packets"] += int(any(marker in payload for marker in detector.signatures))
             if auto_port:
                 chunks = detector.feed(key, payload, int(tcp.seq), syn, time.monotonic())
+                stats["port"] = detector.selected[2] if detector.selected else None
                 if detector.selected:
-                    stats["port"] = detector.selected[2]
                     stats["interface"] = detector.selected[0]
             else:
                 chunks = [(key, int(tcp.seq), payload, syn)]
@@ -213,6 +245,9 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                     stats["forwarded"] += 1
             if int(tcp.flags) & (0x01 | 0x04):
                 flows.pop(key if auto_port else key[1:], None)
+                if auto_port and detector.is_connection(key):
+                    detector.reset()
+                    stats["port"] = None
 
     sniffers = []
     try:

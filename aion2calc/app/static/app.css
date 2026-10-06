@@ -124,6 +124,7 @@ main { padding: 18px 22px 60px; max-width: 1920px; margin: 0 auto; }
 }
 .btn:hover { border-color: var(--frame-hi); color: var(--gold); }
 .btn.primary { background: linear-gradient(180deg, #6b5523, #3f3215); border-color: var(--frame-hi); color: #fff3cf; }
+.btn.danger { background: linear-gradient(180deg, #a32c36, #682029); border-color: #d75c66; color: #fff; }
 .btn.small { padding: 3px 8px; font-size: 12px; }
 .btn:disabled { opacity: .5; cursor: default; }
 input[type=text], input[type=number], input[type=password], select, textarea {

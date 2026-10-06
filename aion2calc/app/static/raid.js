@@ -98,10 +98,10 @@
     const sel = p.tokens.find((x) => x.id === st.sel) || null;
     const players = p.tokens.filter((x) => x.kind === "player");
 
-    const shareBtns = (io.publish ? `<button class="btn small" id="rpublish">Publish</button>` : "")
+    const shareBtns = (io.publish ? `<label class="small muted" for="rvisibility">Visibility</label><select id="rvisibility" aria-label="Plan visibility">${["unlisted", "public", "private"].map((v) => `<option value="${v}" ${v === (p.meta?.visibility || "unlisted") ? "selected" : ""}>${v[0].toUpperCase() + v.slice(1)}</option>`).join("")}</select><button class="btn small primary" id="rpublish">Publish plan</button>` : "")
       + (io.browse ? `<button class="btn small" id="rbrowse">Browse plans</button>` : "");
     const hint = io.publish
-      ? `<span class="faint small">Plans are saved on this computer; Publish shares one to the server.</span>`
+      ? `<span class="faint small">Public: listed in Browse plans. Unlisted: anyone with the link. Private: requires the secret link.</span>`
       : `<span class="faint small">Plans are saved on this computer.</span>`;
     const header = `<div class="row"><label class="muted small">Plan</label><select id="rplan" style="min-width:180px">${planOpts}</select>
         <button class="btn small" id="rnew">New</button><button class="btn small" id="rdup">Duplicate</button><button class="btn small" id="rdel">Delete</button></div>
@@ -159,7 +159,7 @@
 
     const fightRow = io.encounters ? `<h4 class="gold small">COMPARE WITH A FIGHT</h4>
         <div class="row"><select id="ractual"><option value="">— none —</option>${(st.encounters || []).map((e) => `<option value="${e.id}" ${st.actual && st.actual.id === e.id ? "selected" : ""}>#${e.id} ${esc(e.player || "")} ${esc(e.boss || "")} ${(e.duration || 0).toFixed(0)}s</option>`).join("")}</select></div>
-        <p class="small faint">Overlay a saved combat log so its skill casts and buff windows play on the same timeline. Planner-only data defaults to unlisted; attaching a fight shares the real run too.</p>` : "";
+        <p class="small faint">Overlay a saved combat log so its skill casts and buff windows play on the same timeline. Choose visibility before publishing; attaching a fight shares its timeline too.</p>` : "";
 
     const side = `<div class="rpanel"><h4 class="gold small">ADD</h4>
         <div class="row"><select id="rcls">${RAID_CLASSES.map((c) => `<option>${c}</option>`).join("")}</select><button class="btn small primary" id="raddp">+ Player</button></div>
@@ -257,14 +257,19 @@
     };
     if ($("#rpublish", st.root)) $("#rpublish", st.root).onclick = async () => {
       const msg = $("#rpubmsg", st.root);
-      const vis = (p.source && p.source.encounterId) ? "public" : "unlisted";   // default: share actual data, keep planner-only unlisted
+      const button = $("#rpublish", st.root);
+      const vis = $("#rvisibility", st.root).value;
+      p.meta.visibility = vis; persist();
+      button.disabled = true;
       if (msg) msg.textContent = "Publishing…";
       try {
         const r = await io.publish(p, vis);
         if (msg) { msg.innerHTML = `Published (${vis}): <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a> `;
           const c = document.createElement("button"); c.className = "btn small"; c.textContent = "Copy link"; c.onclick = () => copyText(r.url); msg.appendChild(c); }
       } catch (e) { if (msg) msg.textContent = e.message; }
+      finally { button.disabled = false; }
     };
+    if ($("#rvisibility", st.root)) $("#rvisibility", st.root).onchange = (e) => { p.meta.visibility = e.target.value; persist(); };
     if ($("#rbrowse", st.root)) $("#rbrowse", st.root).onclick = async () => {
       try { const list = await io.browse(); st.browsing = list; renderBrowse(list); } catch (e) { toast(e.message); }
     };

@@ -337,6 +337,27 @@ class Handler(BaseHTTPRequestHandler):
             from ..combat import share
             st = share.effective()
             return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
+        if path == "/api/plans":
+            from ..combat.share import plan_request
+            return self._json(plan_request(plan_id=q.get("id")))
+        if path == "/api/meter/diagnostics":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("diagnostics are available only on this computer")
+            name = q.get("name", "")
+            folder = (home() / "diagnostics").resolve()
+            target = folder / name
+            if (not name.startswith("meter-") or not name.endswith(".zip")
+                    or Path(name).name != name or target.resolve().parent != folder or not target.is_file()):
+                raise FileNotFoundError(name)
+            data = target.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/zip")
+            self.send_header("Content-Disposition", f'attachment; filename="{name}"')
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(data)
+            return
         if path == "/api/logserver/check":
             # Probe the server from this computer (not the browser): no CORS or https/http limits, and it
             # tests the path uploads actually use, so the answer is honest.
@@ -379,6 +400,9 @@ class Handler(BaseHTTPRequestHandler):
 
     # --------------------------------------------------------------- POST
     def route_post(self, path: str, body: dict):
+        if path == "/api/plans":
+            from ..combat.share import plan_request
+            return self._json(plan_request(body.get("plan"), body.get("visibility", "unlisted")))
         if path == "/api/sync":
             start_sync(force=bool(body.get("force")), budget_s=body.get("budget", 900))
             return self._json({"ok": True})
@@ -428,6 +452,8 @@ class Handler(BaseHTTPRequestHandler):
                 r.stop()
                 return self._json(r.status())
             if action == "diagnostics":
+                if self.client_address[0] not in ("127.0.0.1", "::1"):
+                    raise PermissionError("diagnostics run only on this computer")
                 from ..meter.diagnostics import export
                 return self._json(export(r.status(), r.recorder))
             if action == "save":
@@ -458,7 +484,7 @@ class Handler(BaseHTTPRequestHandler):
                 path = folder / f"live-meter-{time.strftime('%Y%m%d-%H%M%S')}.png"
                 ImageGrab.grab(all_screens=True).save(path, "PNG")
                 return self._json({"file": str(path)})
-            raise ValueError("action must be start, stop, save, export, upload or screenshot")
+            raise ValueError("action must be start, stop, diagnostics, save, export, upload or screenshot")
         if path == "/api/ping":
             PING["at"] = time.time()
             return self._json({"ok": True})
