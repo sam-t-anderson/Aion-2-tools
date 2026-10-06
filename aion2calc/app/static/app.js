@@ -581,6 +581,7 @@ function parseFromMeter(snap, idx) {
 
 const communityAPI=(path,body)=>body?api('/api/community',{path,body}):api('/api/community?path='+encodeURIComponent(path));
 const localReviewOptions=file=>({
+ lookupProfile:(player,region)=>api("/api/character/profile",{player,region}),
  importPlan:plan=>{window.A2Raid.importPlan(plan);location.hash="/raid";},
  compare:id=>communityAPI('/api/v1/logs/'+encodeURIComponent(id)+'/raw'),
  rankings:(segment,log)=>communityAPI('/api/v1/rankings',{segment,log}),
