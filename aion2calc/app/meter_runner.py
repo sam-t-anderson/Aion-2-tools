@@ -28,6 +28,7 @@ class Runner:
         self.target_mode = "bossTargets"
         self.diagnostics: dict = {}
         self.started_at: float | None = None
+        self.recorder = None
         self._stop = False
         self.replay_stop = threading.Event()
         self.lock = threading.Lock()
@@ -39,6 +40,8 @@ class Runner:
             self.packet_engine = None
         self.error = None
         self.diagnostics = {}
+        from ..meter.diagnostics import Recorder
+        self.recorder = Recorder() if opts.get("record_packets") else None
         self.started_at = time.monotonic()
         self._stop = False
         self.replay_stop = threading.Event()
@@ -102,7 +105,7 @@ class Runner:
         assert self.packet_stop is not None and self.packet_queue is not None
         stop_event, packets, engine = self.packet_stop, self.packet_queue, self.packet_engine
         self.packet_capture_thread = threading.Thread(
-            target=capture_packets, args=(stop_event, packets, iface, port, None, host, auto_port),
+            target=capture_packets, args=(stop_event, packets, iface, port, None, host, auto_port, self.recorder),
             daemon=True, name="a2tools-capture")
         self.packet_capture_thread.start()
         try:

@@ -421,11 +421,15 @@ class Handler(BaseHTTPRequestHandler):
                                           speed=body.get("speed", 1.0), decoder=body.get("decoder"),
                                           iface=body.get("iface"), host=body.get("host"), port=body.get("port"),
                                           auto_port=body.get("auto_port", body.get("source", "a2tools") == "a2tools"),
+                                          record_packets=bool(body.get("record_packets")),
                                           character_name=body.get("character_name"),
                                           target_mode=body.get("target_mode", "bossTargets")))
             if action == "stop":
                 r.stop()
                 return self._json(r.status())
+            if action == "diagnostics":
+                from ..meter.diagnostics import export
+                return self._json(export(r.status(), r.recorder))
             if action == "save":
                 if not r.has_data():
                     raise ValueError("nothing to save yet")
@@ -536,11 +540,13 @@ APP_WINDOW: dict = {}
 
 def schedule_shutdown() -> None:
     """Let the response finish, stop capture, close native windows, then stop serving."""
+    HTTPD["closing"] = True
     def stop():
         time.sleep(0.5)
         from . import overlay_launch
         from .meter_runner import runner
-        for close in (runner().stop, overlay_launch.close):
+        from .windows import close_app_browser
+        for close in (close_app_browser, runner().stop, overlay_launch.close):
             try:
                 close()
             except Exception:
@@ -566,6 +572,7 @@ def make_server(host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServe
     httpd = ThreadingHTTPServer((host, port), Handler)
     httpd.daemon_threads = True
     HTTPD["server"] = httpd
+    HTTPD["closing"] = False
     return httpd
 
 

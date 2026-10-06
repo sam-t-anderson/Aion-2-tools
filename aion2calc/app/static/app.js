@@ -700,7 +700,7 @@ async function pageMeter() {
         <select id="msrc"><option value="a2tools" selected>Live Capture</option><option value="replay">Demo replay</option><option value="live">Custom decoder</option></select>
         <button class="btn primary" id="mstart">Start</button><button class="btn" id="mstop">Stop</button>
         <button class="btn small" id="msave">Save to Combat Logs</button><button class="btn small" id="mexport">Export a2log</button>
-        <button class="btn small" id="mupload">Upload</button><button class="btn small" id="mshot">Screenshot</button>
+        <button class="btn small" id="mupload">Upload</button><button class="btn small" id="mdiag">Export capture diagnostics</button><button class="btn small" id="mshot">Screenshot</button>
         <button class="btn small" id="movl" title="Open the compact overlay in a separate window">Open overlay</button><span id="mmsg" class="small muted"></span></div>
       <div class="row" id="mlive" style="display:none;margin-top:6px">
         <label class="small muted">Encoder <input id="mdec" type="text" value="Built-in A2Tools decoder" readonly aria-label="Encoder module" style="width:180px"></label>
@@ -710,7 +710,7 @@ async function pageMeter() {
         <label class="small muted">Target <select id="mtarget" aria-label="Target selection"><option value="bossTargets" selected>Boss target</option><option value="mostDamage">Most damage</option><option value="mostRecent">Most recent</option><option value="lastHitByMe">Last hit by me</option><option value="allTargets">All targets</option><option value="trainTargets">Training target</option></select></label>
         <label class="small muted">Character <input id="mchar" type="text" placeholder="optional" style="width:120px"></label></div>
       <div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
-      <div id="npcap" class="small faint" style="margin-top:8px"></div>
+      <p class="small faint"><label><input id="mrecord" type="checkbox"> Record TCP payloads for diagnostics (enable before Start)</label>. Keeps up to 4 MiB locally. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="npcap" class="small faint" style="margin-top:8px"></div>
       <p class="small faint">Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, and capture permission. Export writes an open a2log file; Upload uses the log server configured in Settings.</p>
     </div></section><div id="mview"></div>`;
   const live = () => {
@@ -783,12 +783,17 @@ async function pageMeter() {
     }
     const body = { action: "start", source, decoder: source === "live" ? decoderPath : null,
       auto_port: source === "a2tools" && $("#mautoport").checked,
+      record_packets: source !== "replay" && $("#mrecord").checked,
       iface: source !== "replay" && $("#miface").value !== "auto" ? $("#miface").value : null,
       host: source !== "replay" && $("#mhost").value !== "any" ? $("#mhost").value : null,
       port: source !== "replay" ? (+$("#mport").value || 50349) : null,
       target_mode: source === "a2tools" ? $("#mtarget").value : "bossTargets",
       character_name: source === "a2tools" ? ($("#mchar").value || null) : null };
     try { renderMeter(await api("/api/meter", body)); } catch (e) { $("#mmsg").textContent = e.message; }
+  };
+  $("#mdiag").onclick = async () => {
+    try { const r = await api("/api/meter", {action: "diagnostics"}); $("#mmsg").textContent = `Saved ${r.file} (${r.records} payloads).${r.records ? " Review before attaching." : " Enable Record TCP payloads before Start for packet data."}`; }
+    catch (e) { $("#mmsg").textContent = e.message; }
   };
   $("#mstop").onclick = async () => { try { renderMeter(await api("/api/meter", { action: "stop" })); } catch (e) { $("#mmsg").textContent = e.message; } };
   $("#movl").onclick = async () => {

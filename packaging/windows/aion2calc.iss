@@ -54,6 +54,27 @@ Name: "{autodesktop}\Aion 2 Calc"; Filename: "{app}\aion2calc.exe"; Tasks: deskt
 [Run]
 ; Npcap is separately licensed and is fetched only after the user explicitly opts in. The app resolves
 ; the current official installer at npcap.com, then opens Npcap's own interactive installer.
-Filename: "{app}\aion2calc.exe"; Parameters: "--install-npcap"; Description: "Download and install Npcap now"; Tasks: npcap; Flags: postinstall waituntilterminated
+Filename: "{app}\aion2calc.exe"; Parameters: "--install-npcap"; Description: "Download and install Npcap now"; Tasks: npcap; Check: NeedsNpcap; Flags: postinstall waituntilterminated
 ; runs after a normal install (the checkbox) and after a silent auto-update, so the app relaunches
 Filename: "{app}\aion2calc.exe"; Description: "Start Aion 2 Calc now"; Flags: nowait postinstall
+
+[Code]
+function NeedsNpcap: Boolean;
+begin
+  Result := not RegKeyExists(HKLM, 'SYSTEM\CurrentControlSet\Services\npcap');
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+var
+  I: Integer;
+begin
+  if CurPageID = wpSelectTasks then
+    for I := 0 to WizardForm.TasksList.Items.Count - 1 do
+      if Pos('Npcap', WizardForm.TasksList.ItemCaption[I]) > 0 then begin
+        WizardForm.TasksList.ItemEnabled[I] := NeedsNpcap;
+        if not NeedsNpcap then begin
+          WizardForm.TasksList.Checked[I] := False;
+          WizardForm.TasksList.ItemSubItem[I] := 'Already installed';
+        end;
+      end;
+end;
