@@ -1,5 +1,6 @@
 ## Changes in 0.2.20 — character builds in combat logs
 
+- Recover structured advice from `advice.json` and upgrade existing recovered text entries, restoring the same interactive Gear & Advice panels without recalculating.
 - Click friendly characters and identified PvP opponents to view saved official gear/build profiles in desktop and Pages.
 - Show equipment, skill/stigma levels, available item/Daevanion details and profile JSON export.
 - Preserve upload/fetch timestamps and pending/partial/unavailable states; historical snapshots are never silently replaced with current gear.
