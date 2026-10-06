@@ -74,13 +74,13 @@ if sys.platform == "win32":
     version_info = VSVersionInfo(
         ffi=FixedFileInfo(filevers=nums, prodvers=nums),
         kids=[StringFileInfo([StringTable("040904B0", [
-            StringStruct("CompanyName", "aion2calc"),
-            StringStruct("FileDescription", "aion2calc: AION 2 build planner and combat analyzer"),
+            StringStruct("CompanyName", "Aion 2 Calc"),
+            StringStruct("FileDescription", "Aion 2 Calc: AION 2 build planner and combat analyzer"),
             StringStruct("FileVersion", VERSION),
             StringStruct("InternalName", "aion2calc"),
             StringStruct("LegalCopyright", "GPL-3.0, https://github.com/sam-t-anderson/Aion-2-tools"),
             StringStruct("OriginalFilename", "aion2calc.exe"),
-            StringStruct("ProductName", "aion2calc"),
+            StringStruct("ProductName", "Aion 2 Calc"),
             StringStruct("ProductVersion", VERSION)])]),
               VarFileInfo([VarStruct("Translation", [1033, 1200])])])
 

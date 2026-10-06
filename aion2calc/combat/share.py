@@ -150,6 +150,77 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
         raise RuntimeError(f"upload refused ({e.code}): {msg}") from None
 
 
+def submit_preset(summary: dict) -> dict:
+    """Offer an optimized class build to the community preset service.
+
+    The report summary contains the class build and simulated score only. Character
+    identity, inventory and log-server credentials are never part of the payload.
+    Failure is deliberately non-fatal: a local optimization remains useful offline.
+    """
+    cls = str(summary.get("class") or "").lower()
+    if not cls or not isinstance(summary.get("build"), dict) or not summary.get("dps", {}).get("boss"):
+        return {"submitted": False, "reason": "no boss build summary"}
+    s = effective()
+    base = (s.get("url") or "").rstrip("/")
+    if not base:
+        return {"submitted": False, "reason": "no log server"}
+    doc = {"format": "a2preset", "version": 1, "class": cls, "build": summary}
+    headers = {"Content-Type": "application/json", "User-Agent": "aion2calc"}
+    if s.get("key"):
+        headers["Authorization"] = "Bearer " + s["key"]
+    try:
+        info = discover(base)
+        target = (info.get("presets_url") or base + "/api/v1/presets").rstrip("/")
+        req = urllib.request.Request(target, json.dumps(doc, separators=(",", ":")).encode(), headers, method="POST")
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return {"submitted": True, **json.load(r)}
+    except Exception as err:  # a failed community submission must never fail the character job
+        return {"submitted": False, "reason": f"{type(err).__name__}: {err}"}
+
+
+def sync_presets() -> list[str]:
+    """Download the newest accepted build per class into the local planner results."""
+    from ..paths import results_dir
+    s = effective()
+    base = (s.get("url") or "").rstrip("/")
+    if not base:
+        return []
+    try:
+        info = discover(base)
+        index_url = info.get("presets_url") or base + "/api/v1/presets"
+        with urllib.request.urlopen(index_url, timeout=15) as r:
+            rows = json.load(r).get("presets") or []
+        changed = []
+        for row in rows:
+            cls = str(row.get("class_name") or row.get("class") or "").lower()
+            if not cls:
+                continue
+            target = (info.get("preset_url") or base + "/api/v1/presets/{class}").replace("{class}", cls)
+            with urllib.request.urlopen(target, timeout=15) as r:
+                remote = json.load(r)
+            build = remote.get("build")
+            if not isinstance(build, dict) or build.get("class") != cls:
+                continue
+            out = results_dir() / "community-presets" / cls / "build.json"
+            old = {}
+            try:
+                old = json.loads(out.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                pass
+            if old.get("_community_preset_score") == remote.get("score"):
+                continue
+            out.parent.mkdir(parents=True, exist_ok=True)
+            build = {**build, "_community_preset_score": remote.get("score"),
+                     "_community_preset_updated_at": remote.get("updated_at")}
+            tmp = out.with_suffix(".tmp")
+            tmp.write_text(json.dumps(build, ensure_ascii=False, indent=1), encoding="utf-8")
+            tmp.replace(out)
+            changed.append(cls)
+        return changed
+    except Exception:
+        return []
+
+
 def fight_stats(enc: dict) -> dict:
     """The player's stats during the fight, from the equipment snapshot nearest before it
     (lets the log server calibrate crit and the other rates). Empty when unknown."""

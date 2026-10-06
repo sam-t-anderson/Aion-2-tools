@@ -92,8 +92,14 @@ def act_character_optimize(body: dict, log) -> dict:
     summ = optimize_character(imp, str(out), iterations=int(body.get("iterations", 1)), progress=log)
     best = json.loads((out / "build.json").read_text(encoding="utf-8"))
     cur = json.loads((out / "current" / "build.json").read_text(encoding="utf-8"))
+    from ..combat import share
+    preset = share.submit_preset(best)
+    if preset.get("submitted"):
+        log("community preset " + ("updated" if preset.get("accepted") else "kept the existing higher-scoring build"))
+    elif preset.get("reason"):
+        log("community preset was not submitted: " + preset["reason"])
     return {"summary": summ, "optimized": views.build_view(best), "current_build": cur["build"],
-            "path": str(out), "diff": (out / "DIFF.md").read_text(encoding="utf-8")}
+            "path": str(out), "diff": (out / "DIFF.md").read_text(encoding="utf-8"), "preset": preset}
 
 
 def act_optimize_class(body: dict, log) -> dict:
@@ -284,7 +290,7 @@ class Handler(BaseHTTPRequestHandler):
             s = SYNC.get("sync")
             from .. import __version__
             return self._json({"sync": s.state.as_dict() if s else None, "db": status(), "home": str(home()),
-                               "app": "aion2calc", "version": __version__, "update": update_info()})
+                               "app": "aion2calc", "version": __version__, "update": update_info(wait=True)})
         if path == "/api/classes":
             return self._json(list_names("global", "classes"))
         if path == "/api/results":
@@ -542,6 +548,9 @@ def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: 
           httpd: ThreadingHTTPServer | None = None):
     if sync:
         start_sync()
+    # This is independent of the game-data sync: it is fast, optional, and never delays the UI.
+    threading.Thread(target=lambda: __import__("aion2calc.combat.share", fromlist=["sync_presets"]).sync_presets(),
+                     daemon=True, name="community-preset-sync").start()
     httpd = httpd or make_server(host, port)
     host, port = httpd.server_address[:2]
     url = f"http://{host}:{port}/"

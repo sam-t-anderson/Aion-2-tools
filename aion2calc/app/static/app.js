@@ -283,7 +283,7 @@ function welcomeCard() {
   if (hidden) return "";
   return `<section class="win" id="welcome"><div class="wh"><h2>Welcome</h2><span class="sub">three steps to your best build</span>
       <div class="tools"><button class="btn small" id="whide">Hide</button></div></div><div class="wb">
-    <div class="hero"><img src="/static/logo.png" alt=""><div><h1>aion2calc</h1><div class="muted">Plan your AION 2 build, check your gear and learn from your fights. Everything runs on this computer; the game database updates itself.</div>
+    <div class="hero"><img src="/static/logo.png" alt=""><div><h1>Aion 2 Calc</h1><div class="muted">Plan your AION 2 build, check your gear and learn from your fights. Everything runs on this computer; the game database updates itself.</div>
       <div class="small" style="margin-top:6px">Questions or builds to share? <a href="${DISCORD}" target="_blank" rel="noopener">Join the Discord</a>.</div></div></div>
     <div class="welcome" style="margin-top:14px">
       <div class="wstep"><div class="n">I</div><h4>Import your character</h4><div class="small muted">Search your name on the official site: gear, rolls, skills, stigmas and Daevanion come in.</div>
@@ -385,9 +385,10 @@ function renderOptResult(r) {
   const st = S.character, box = $("#optres");
   if (!box) return;
   const g = r.summary.gain;
+  const preset = r.preset?.submitted ? (r.preset.accepted ? "This build is now the community preset for its class." : "The server kept its current higher-scoring community preset.") : "";
   box.innerHTML = `<div class="kpis" style="margin-top:12px"><div class="kpi"><div class="k">Optimized boss DPS</div><div class="v">${n0(r.optimized.dps.boss)}</div></div>
       <div class="kpi"><div class="k">Gain</div><div class="v ${g > 0 ? "good" : ""}">${g >= 0 ? "+" : ""}${pct(g)}</div></div></div>
-      <p class="small muted">The windows below now show the optimized build. What changes:</p><pre class="diff">${esc(r.diff)}</pre>`;
+      ${preset ? `<p class="small good">${esc(preset)}</p>` : ""}<p class="small muted">The windows below now show the optimized build. What changes:</p><pre class="diff">${esc(r.diff)}</pre>`;
   st.v = Object.assign({}, r.optimized, st.optMeta || {});
   if ($("#cwins")) renderWindows(st.v, st, $("#cwins"));
 }
@@ -1132,6 +1133,17 @@ async function syncPill() {
       running ? `updating database · ${esc(sy.phase)} ${sy.total ? `${sy.done}/${sy.total}` : ""}` : `database ${n0(s.db.items)} items`}</span>`;
     const up = $("#update");
     if (s.update && up) { up.hidden = false; up.href = s.update.url; up.textContent = `Version ${s.update.version} available`; }
+    if (s.update && !sessionStorage.getItem("update-prompted:" + s.update.version)) {
+      sessionStorage.setItem("update-prompted:" + s.update.version, "1");
+      setTimeout(async () => {
+        if (!confirm(`Aion 2 Calc ${s.update.version} is ready. Install it now?`)) return;
+        try {
+          const r = await api("/api/update", {});
+          if (r.status === "launching") document.body.innerHTML = '<div class="empty" style="margin-top:20vh">Aion 2 Calc is closing. The installer will open in a moment.</div>';
+          else toast({ downloaded: "Update downloaded. Open the updates folder to install it.", "download-failed": "The update download failed." }[r.status] || r.status);
+        } catch (e) { toast("Update failed: " + e.message); }
+      }, 250);
+    }
     $("#quit").title = `Stop the app (version ${s.version || ""})`;
     setTimeout(syncPill, running ? 2500 : 20000);
   } catch (e) { setTimeout(syncPill, 20000); }

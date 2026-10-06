@@ -118,7 +118,7 @@ def open_window(url: str, prefer_app: bool = True):
     if exe:
         try:
             return subprocess.Popen([exe, f"--app={url}", f"--user-data-dir={home() / 'window'}", "--no-first-run",
-                                     "--no-default-browser-check", "--window-size=1440,920"])
+                                     "--no-default-browser-check", "--start-maximized"])
         except OSError:
             pass
     webbrowser.open(url)
