@@ -387,7 +387,7 @@ class CombatSession:
             for actor_id, sample in initial.items():
                 eid = actor_refs.get(actor_id)
                 if eid in entities and entities[eid].get("is_boss"):
-                    maximum = sample.get("max") or identity["spawns"].get(actor_id, {}).get("maxHp")
+                    maximum = sample.get("max") or identity["spawns"].get(actor_id, {}).get("reportedMaxHp")
                     health.append({"t":0, "entity":eid, "current":sample["current"], "max":maximum})
             for sample in self.telemetry:
                 if sample["epoch"] != group["epoch"] or not group["start"] <= sample["timestamp_ms"] <= group["end"]:
@@ -400,7 +400,7 @@ class CombatSession:
                     events.append({"kind": "death", "t": t, "target": eid})
                 else:
                     health.append({"t": t, "entity": eid, "current": sample["current"],
-                        "max": sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("maxHp")})
+                        "max": sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("reportedMaxHp")})
             if hits or events:
                 bosses = [e for e in entities.values() if e.get("is_boss")]
                 run = self.runs[group["run"]]
