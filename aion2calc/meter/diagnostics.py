@@ -33,10 +33,10 @@ class Recorder:
                 self.bytes -= size
                 self.discarded += 1
 
-    def snapshot(self):
+    def snapshot(self, include_rows: bool = True):
         with self.lock:
             return {"records": len(self.rows), "payload_bytes": self.bytes,
-                    "discarded_records": self.discarded}, [dict(row) for _, row in self.rows]
+                    "discarded_records": self.discarded}, ([dict(row) for _, row in self.rows] if include_rows else [])
 
 
 def export(status: dict, recorder: Recorder | None):
@@ -59,4 +59,6 @@ def export(status: dict, recorder: Recorder | None):
                          "Raw payloads may contain character names, IP addresses and other network traffic.\n"
                          "Review before sharing. Nothing is uploaded automatically.\n"
                          "These are original TCP segments: use sequence numbers to reassemble each direction.\n")
-    return {"file": str(path), "records": len(rows)}
+    from urllib.parse import quote
+    return {"file": str(path), "records": len(rows),
+            "download_url": "/api/meter/diagnostics?name=" + quote(path.name)}

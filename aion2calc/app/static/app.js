@@ -689,6 +689,9 @@ async function pageRaid() {
   await window.A2Raid.mount(app(), {
     encounters: () => api("/api/encounters"),
     encounter: (id) => api("/api/encounters/" + id),
+    publish: (plan, visibility) => api("/api/plans", {plan, visibility}),
+    browse: async () => (await api("/api/plans")).plans,
+    fetchPlan: (id) => api("/api/plans?id=" + encodeURIComponent(id)),
   });
 }
 
@@ -698,9 +701,9 @@ async function pageMeter() {
   app().innerHTML = `<section class="win"><div class="wh"><h2>Live damage meter</h2><span class="sub">built-in A2Tools packet capture, live analysis and a2log sharing</span></div>
     <div class="wb"><div class="row"><label class="muted small">Source</label>
         <select id="msrc"><option value="a2tools" selected>Live Capture</option><option value="replay">Demo replay</option><option value="live">Custom decoder</option></select>
-        <button class="btn primary" id="mstart">Start</button><button class="btn" id="mstop">Stop</button>
+        <button class="btn primary" id="mstart" aria-pressed="false">Start</button>
         <button class="btn small" id="msave">Save to Combat Logs</button><button class="btn small" id="mexport">Export a2log</button>
-        <button class="btn small" id="mupload">Upload</button><button class="btn small" id="mdiag">Export capture diagnostics</button><button class="btn small" id="mshot">Screenshot</button>
+        <button class="btn small" id="mupload">Upload</button><button class="btn small" id="mshot">Screenshot</button>
         <button class="btn small" id="movl" title="Open the compact overlay in a separate window">Open overlay</button><span id="mmsg" class="small muted"></span></div>
       <div class="row" id="mlive" style="display:none;margin-top:6px">
         <label class="small muted">Encoder <input id="mdec" type="text" value="Built-in A2Tools decoder" readonly aria-label="Encoder module" style="width:180px"></label>
@@ -710,8 +713,11 @@ async function pageMeter() {
         <label class="small muted">Target <select id="mtarget" aria-label="Target selection"><option value="bossTargets" selected>Boss target</option><option value="mostDamage">Most damage</option><option value="mostRecent">Most recent</option><option value="lastHitByMe">Last hit by me</option><option value="allTargets">All targets</option><option value="trainTargets">Training target</option></select></label>
         <label class="small muted">Character <input id="mchar" type="text" placeholder="optional" style="width:120px"></label></div>
       <div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
-      <p class="small faint"><label><input id="mrecord" type="checkbox"> Record TCP payloads for diagnostics (enable before Start)</label>. Keeps up to 4 MiB locally. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="npcap" class="small faint" style="margin-top:8px"></div>
+      <div class="note" style="margin-top:10px"><b>Capture diagnostics</b>
+        <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads (enable before Start)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><span id="mrecordstatus" class="small muted"></span></div>
+        <p class="small faint">Keeps up to 4 MiB locally, even when no combat events are decoded. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div></div><div id="npcap" class="small faint" style="margin-top:8px"></div>
       <p class="small faint">Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, and capture permission. Export writes an open a2log file; Upload uses the log server configured in Settings.</p>
+      <div id="mnotice" class="small" role="status"></div>
     </div></section><div id="mview"></div>`;
   const live = () => {
     $("#mlive").style.display = $("#msrc").value !== "replay" ? "flex" : "none";
@@ -734,7 +740,7 @@ async function pageMeter() {
       const select = $("#miface"), selected = select.value;
       select.innerHTML = `<option value="auto">Auto</option>` + (r.devices || (r.interfaces || []).map((name) => ({name, label: name}))).map((device) => `<option value="${esc(device.name)}">${esc(device.label)}${device.address ? " · " + esc(device.address) : ""}</option>`).join("");
       if ([...select.options].some((option) => option.value === selected)) select.value = selected;
-    } catch (e) { $("#mmsg").textContent = "Could not list capture interfaces: " + e.message; }
+    } catch (e) { $("#mnotice").textContent = "Could not list capture interfaces: " + e.message; }
   };
   $("#mifacesrefresh").onclick = refreshInterfaces;
   refreshInterfaces();
@@ -765,21 +771,29 @@ async function pageMeter() {
   };
   refreshNpcap();
   $("#mstart").onclick = async () => {
+    const button = $("#mstart");
+    if (st.running) {
+      button.disabled = true;
+      try { renderMeter(await api("/api/meter", {action: "stop"})); }
+      catch (e) { $("#mnotice").textContent = e.message; }
+      finally { button.disabled = false; }
+      return;
+    }
     const source = $("#msrc").value;
-    if (source === "live" && !decoderPath) { $("#mmsg").textContent = "Choose a decoder .py file first."; return; }
+    if (source === "live" && !decoderPath) { $("#mnotice").textContent = "Choose a decoder .py file first."; return; }
     if (source !== "replay") {
       try {
         const setup = await api("/api/capture/setup");
         if (setup.supported && !setup.installed) {
           if (window.confirm(setup.prompt || "Install packet-capture support now?")) {
             await api("/api/capture/setup", { action: "install" });
-            $("#mmsg").textContent = `${setup.kind} setup is starting. Finish it, then press Start again.`;
+            $("#mnotice").textContent = `${setup.kind} setup is starting. Finish it, then press Start again.`;
           } else {
-            $("#mmsg").textContent = `${setup.kind} is required before Live Capture can start.`;
+            $("#mnotice").textContent = `${setup.kind} is required before Live Capture can start.`;
           }
           return;
         }
-      } catch (e) { $("#mmsg").textContent = "Could not check Npcap: " + e.message; return; }
+      } catch (e) { $("#mnotice").textContent = "Could not check Npcap: " + e.message; return; }
     }
     const body = { action: "start", source, decoder: source === "live" ? decoderPath : null,
       auto_port: source === "a2tools" && $("#mautoport").checked,
@@ -789,57 +803,76 @@ async function pageMeter() {
       port: source !== "replay" ? (+$("#mport").value || 50349) : null,
       target_mode: source === "a2tools" ? $("#mtarget").value : "bossTargets",
       character_name: source === "a2tools" ? ($("#mchar").value || null) : null };
-    try { renderMeter(await api("/api/meter", body)); } catch (e) { $("#mmsg").textContent = e.message; }
+    button.disabled = true;
+    try { renderMeter(await api("/api/meter", body)); } catch (e) { $("#mnotice").textContent = e.message; }
+    finally { button.disabled = false; }
   };
+  const showDiagnosticExport = () => {
+    const r = st.diagnosticExport; if (!r) return;
+    $("#mdiagresult").innerHTML = `<a class="btn small primary" href="${esc(r.download_url)}" download>Download diagnostic ZIP</a> ${r.records} TCP payload records.<br>Saved to <span style="overflow-wrap:anywhere">${esc(r.file)}</span>${r.records ? "" : "<br>Enable TCP recording before Start, then fight briefly and export again."}`;
+  };
+  showDiagnosticExport();
   $("#mdiag").onclick = async () => {
-    try { const r = await api("/api/meter", {action: "diagnostics"}); $("#mmsg").textContent = `Saved ${r.file} (${r.records} payloads).${r.records ? " Review before attaching." : " Enable Record TCP payloads before Start for packet data."}`; }
-    catch (e) { $("#mmsg").textContent = e.message; }
+    try { st.diagnosticExport = await api("/api/meter", {action: "diagnostics"}); showDiagnosticExport(); }
+    catch (e) { $("#mnotice").textContent = e.message; }
   };
-  $("#mstop").onclick = async () => { try { renderMeter(await api("/api/meter", { action: "stop" })); } catch (e) { $("#mmsg").textContent = e.message; } };
   $("#movl").onclick = async () => {
-    $("#mmsg").textContent = "opening overlay…";
+    $("#mnotice").textContent = "opening overlay…";
     try {
       const r = await api("/api/overlay", {});          // native transparent window (bundled on Windows)
-      if (r.native) { $("#mmsg").textContent = r.already_open ? "overlay is already open" : "overlay opened in a transparent window"; return; }
+      if (r.native) { $("#mnotice").textContent = r.already_open ? "overlay is already open" : "overlay opened in a transparent window"; return; }
     } catch (e) { /* fall through to a plain browser window */ }
     window.open("/overlay", "a2overlay", "width=300,height=430");
-    $("#mmsg").textContent = "overlay opened in a window";
+    $("#mnotice").textContent = "overlay opened in a window";
   };
   $("#msave").onclick = async () => {
-    $("#mmsg").textContent = "saving…";
-    try { const r = await api("/api/meter", { action: "save" }); $("#mmsg").innerHTML = `saved as encounter #${r.id} — <a href="#/combat">open in Combat Logs</a>`; }
-    catch (e) { $("#mmsg").textContent = e.message; }
+    $("#mnotice").textContent = "saving…";
+    try { const r = await api("/api/meter", { action: "save" }); $("#mnotice").innerHTML = `saved as encounter #${r.id} — <a href="#/combat">open in Combat Logs</a>`; }
+    catch (e) { $("#mnotice").textContent = e.message; }
   };
   $("#mexport").onclick = async () => {
-    $("#mmsg").textContent = "exporting…";
-    try { const r = await api("/api/meter", { action: "export" }); $("#mmsg").textContent = `exported ${r.file}`; }
-    catch (e) { $("#mmsg").textContent = e.message; }
+    $("#mnotice").textContent = "exporting…";
+    try { const r = await api("/api/meter", { action: "export" }); $("#mnotice").textContent = `exported ${r.file}`; }
+    catch (e) { $("#mnotice").textContent = e.message; }
   };
   $("#mupload").onclick = async () => {
-    $("#mmsg").textContent = "uploading…";
-    try { const r = await api("/api/meter", { action: "upload" }); $("#mmsg").innerHTML = r.url ? `uploaded — <a href="${esc(r.url)}" target="_blank" rel="noopener">open shared log</a>` : "uploaded"; }
-    catch (e) { $("#mmsg").textContent = e.message; }
+    $("#mnotice").textContent = "uploading…";
+    try { const r = await api("/api/meter", { action: "upload" }); $("#mnotice").innerHTML = r.url ? `uploaded — <a href="${esc(r.url)}" target="_blank" rel="noopener">open shared log</a>` : "uploaded"; }
+    catch (e) { $("#mnotice").textContent = e.message; }
   };
   $("#mshot").onclick = async () => {
-    $("#mmsg").textContent = "capturing screenshot…";
-    try { const r = await api("/api/meter", { action: "screenshot" }); $("#mmsg").textContent = `screenshot saved to ${r.file}`; }
-    catch (e) { $("#mmsg").textContent = e.message; }
+    $("#mnotice").textContent = "capturing screenshot…";
+    try { const r = await api("/api/meter", { action: "screenshot" }); $("#mnotice").textContent = `screenshot saved to ${r.file}`; }
+    catch (e) { $("#mnotice").textContent = e.message; }
   };
   const poll = async () => {
     if (!location.hash.startsWith("#/meter")) return;
     try { renderMeter(await api("/api/meter")); } catch (e) {}
     setTimeout(poll, st.running ? 700 : 2500);
   };
-  renderMeter(await api("/api/meter").catch(() => ({ snapshot: { players: [] } })));
+  const initial = await api("/api/meter").catch(() => ({snapshot: {players: []}}));
+  if (initial.source) { $("#msrc").value = initial.source; live(); }
+  $("#mrecord").checked = !!initial.recording?.enabled;
+  renderMeter(initial);
   poll();
 }
 function renderMeter(s) {
   const st = S.meter; st.running = !!s.running;
+  const button = $("#mstart");
+  if (button) {
+    button.textContent = st.running ? "Stop" : "Start";
+    button.classList.toggle("danger", st.running);
+    button.classList.toggle("primary", !st.running);
+    button.setAttribute("aria-pressed", String(st.running));
+  }
+  const record = $("#mrecord"); if (record) record.disabled = st.running;
+  const recordStatus = $("#mrecordstatus");
+  if (recordStatus) recordStatus.textContent = s.recording?.enabled ? `${s.recording.records || 0} TCP payload records available` : "TCP recording is off";
   const snap = s.snapshot || { players: [] }, msg = $("#mmsg");
   if (msg) { if (s.error) msg.textContent = s.error; else { const d = s.diagnostics || {}; msg.textContent = s.running ? `Recording · ${d.packets || 0} TCP packets · ${d.decoded_events || 0} combat events${d.port ? " · port " + d.port : d.auto_port ? " · detecting game port" : ""}` : "Stopped"; } }
   const view = $("#mview"); if (!view) return;
   if (!snap.players.length) {
-    view.innerHTML = win("Meter", "", `<div class="empty">${s.running ? ((s.diagnostics?.packets || 0) ? "Packets are arriving. Waiting for a recognized combat flow — enter combat. If no events appear, check your adapter selection and the game protocol version." : "No packets yet. Check capture support, adapter permissions and your interface selection, then enter combat.") : "No data yet — choose a source and press Start."}${s.diagnostics?.warnings?.length ? "<p>" + esc(s.diagnostics.warnings.join("; ")) + "</p>" : ""}</div>`);
+    view.innerHTML = win("Meter", "", `<div class="empty">${s.running ? ((s.diagnostics?.packets || 0) ? (s.diagnostics?.forwarded ? "The game stream is reaching the decoder but no combat events have been recognized. Enable TCP recording before Start and export capture diagnostics after fighting briefly." : "Packets are arriving. Waiting for a recognized game stream — enter combat. Enable TCP recording before Start to investigate.") : "No packets yet. Check capture support, adapter permissions and your interface selection, then enter combat.") : "No data yet — choose a source and press Start."}${s.diagnostics?.warnings?.length ? "<p>" + esc(s.diagnostics.warnings.join("; ")) + "</p>" : ""}</div>`);
     return;
   }
   const mx = Math.max(...snap.players.map((p) => p.dps), 1);

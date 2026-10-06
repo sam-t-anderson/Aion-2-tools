@@ -150,6 +150,45 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
         raise RuntimeError(f"upload refused ({e.code}): {msg}") from None
 
 
+def plan_request(plan: dict | None = None, visibility: str = "unlisted", plan_id: str | None = None) -> dict:
+    """Publish/browse plans using the desktop's configured server and upload key."""
+    from urllib.parse import quote
+    settings = effective()
+    base = (settings.get("url") or "").rstrip("/")
+    if not base:
+        raise ValueError("Set the share server in Settings before publishing or browsing plans.")
+    target = base + "/api/v1/plans"
+    headers = {"User-Agent": "aion2calc"}
+    body = None
+    if plan is not None:
+        if visibility not in ("public", "unlisted", "private"):
+            raise ValueError("visibility must be public, unlisted or private")
+        if not isinstance(plan, dict) or plan.get("format") != "a2plan":
+            raise ValueError("Not an a2plan document")
+        target += "?visibility=" + visibility
+        body = json.dumps(plan, separators=(",", ":"), allow_nan=False).encode()
+        if len(body) > 5 * 1024 * 1024:
+            raise ValueError("Plan exceeds 5 MiB")
+        headers["Content-Type"] = "application/json"
+        if settings.get("key"):
+            headers["Authorization"] = "Bearer " + settings["key"]
+    elif plan_id is not None:
+        if not plan_id.isalnum():
+            raise ValueError("Invalid plan ID")
+        target += "/" + quote(plan_id, safe="") + "/raw"
+    try:
+        request = urllib.request.Request(target, body, headers, method="POST" if body is not None else "GET")
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as err:
+        text = err.read().decode("utf-8", "replace")
+        try:
+            text = json.loads(text).get("error", text)
+        except ValueError:
+            pass
+        raise RuntimeError(f"Plan server refused ({err.code}): {text}") from None
+
+
 def submit_preset(summary: dict) -> dict:
     """Send only anonymous allocations and rotation. The server recomputes all scores."""
     from ..presets import MAX_BYTES, candidate
