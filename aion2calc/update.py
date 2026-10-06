@@ -148,7 +148,9 @@ def apply_installer(path: Path, silent: bool = True) -> bool:
               "}\n")
     try:
         helper.write_text(script, encoding="utf-8")
-        flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        # Windows PowerShell exits silently under DETACHED_PROCESS without a console.
+        # CREATE_NO_WINDOW keeps the helper independent and hidden while allowing it to run.
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
         shell = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32/WindowsPowerShell/v1.0/powershell.exe"
         proc = subprocess.Popen([str(shell), "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
                                  "-File", str(helper)], creationflags=flags, close_fds=True,
