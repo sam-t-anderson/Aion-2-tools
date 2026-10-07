@@ -1,0 +1,1521 @@
+{
+ "class": "spiritmaster",
+ "level": 45,
+ "mode": "pvp",
+ "scenario": "pvp",
+ "loadout": "spiritmaster_l45_global_median",
+ "loadout_snapshot": {
+  "name": "Global L45 Spiritmaster - median of top tracked characters (metabot)",
+  "level": 45,
+  "notes": [
+   "Item choices and enchant levels are the most common ones among the 1,559 top tracked L45 Sorcerers (metabot.gg, global client, Oct 2026).",
+   "Fixed item stats come from the global client item tables; random rolls use the expected value of each roll pool.",
+   "Primary/deity stat points are the averages those characters' official profiles report (they already include gear rolls)."
+  ],
+  "components": [
+   {
+    "slot": "Main hand",
+    "item": "Spiritforged Orb +10",
+    "source": "metabot global item table, class's most used main hand",
+    "stats": {
+     "weapon_min": 187.0,
+     "weapon_max": 325.0,
+     "crit": 150.0,
+     "accuracy": 50.0
+    }
+   },
+   {
+    "slot": "Off-hand",
+    "item": "Spiritforged Guard +9",
+    "source": "Attack 92 +5/enchant",
+    "stats": {
+     "attack": 137,
+     "accuracy": 80,
+     "crit": 50
+    }
+   },
+   {
+    "slot": "Armor x7",
+    "item": "Vakron / Bakarma / Divine Canyon ~+5",
+    "source": "expected value of 4 random rolls per piece",
+    "stats": {
+     "crit": 42,
+     "accuracy": 56,
+     "attack": 24
+    }
+   },
+   {
+    "slot": "Necklace",
+    "item": "Aulamus Necklace +8",
+    "stats": {
+     "attack": 139
+    }
+   },
+   {
+    "slot": "Earrings x2",
+    "item": "Aulamus / Liberator Earrings ~+6",
+    "stats": {
+     "attack": 220
+    }
+   },
+   {
+    "slot": "Rings x2",
+    "item": "Aulamus Ring ~+7",
+    "stats": {
+     "attack": 198
+    }
+   },
+   {
+    "slot": "Accessory rolls",
+    "item": "expected value of 4 rolls x 5 accessories",
+    "stats": {
+     "attack": 34,
+     "crit": 45,
+     "accuracy": 60,
+     "combat_speed": 0.003
+    }
+   },
+   {
+    "slot": "Bracelets x2",
+    "item": "Ascension +9 / Liberator +6",
+    "stats": {
+     "attack": 157,
+     "crit": 17
+    }
+   },
+   {
+    "slot": "Amulet",
+    "item": "Revelation Amulet +0",
+    "stats": {
+     "weapon_amp": 0.1,
+     "perfect": 0.05,
+     "pen": 700
+    }
+   },
+   {
+    "slot": "Rune",
+    "item": "Clash Rune +2",
+    "stats": {
+     "amp_pve": 0.005,
+     "pen": 100,
+     "combat_speed": 0.01,
+     "multihit": 0.01
+    }
+   },
+   {
+    "slot": "Attack title",
+    "item": "Guardian of Altgard / Verteron",
+    "stats": {
+     "amp_pve": 0.03,
+     "pen": 210
+    }
+   },
+   {
+    "slot": "Other title",
+    "item": "Through Hell and Back",
+    "stats": {
+     "cdr": 0.03
+    }
+   },
+   {
+    "slot": "Owned titles",
+    "item": "collection bonuses (estimate)",
+    "stats": {
+     "crit": 20,
+     "accuracy": 30,
+     "attack": 4
+    }
+   },
+   {
+    "slot": "Wings",
+    "item": "Ultimate Daeva Wings",
+    "stats": {
+     "accuracy": 40,
+     "pen": 500
+    }
+   },
+   {
+    "slot": "Primary/deity stats",
+    "item": "profile averages",
+    "stats": {
+     "might": 22.1,
+     "precision": 1.4,
+     "justice": 39.4,
+     "time": 39.4,
+     "death": 34.9,
+     "freedom": 24.5,
+     "illusion": 5.4,
+     "destruction": 5.2,
+     "wisdom": 5.0
+    }
+   }
+  ]
+ },
+ "budgets": {
+  "skill": 203,
+  "stigma": 30,
+  "daevanion": 360
+ },
+ "daevanion_budget": 360,
+ "dps": {
+  "pvp": 16342.518791013705,
+  "pvp_burst": 16680.442077475174
+ },
+ "score": 16511.48043424444,
+ "scoring_policy": {
+  "version": 1,
+  "model": "0.2.58",
+  "class": "spiritmaster",
+  "mode": "pvp",
+  "budgets": {
+   "skill": 203,
+   "stigma": 30,
+   "daevanion": 360
+  },
+  "loadout": "spiritmaster_l45_global_median",
+  "loadout_fingerprint": "4aebfbb24e8a8e48b209cf0162d2b2e2678c96dc2337057bb4c50f7032f6e72a",
+  "data_fingerprint": "d6f2aea687b7ac943c4af05a028899fc552ac198dfabe69c1204fc405d46b413",
+  "score_kind": "weighted_modeled_dps",
+  "weights": {
+   "pvp": 0.5,
+   "pvp_burst": 0.5
+  },
+  "durations": {
+   "pvp": 180,
+   "pvp_burst": 30
+  },
+  "calibration": "disabled",
+  "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
+  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
+  "scope": "f6daa218ce9214a0c6d96b0035a740dae4d5bb5fc8afda152ebe9496736a9cdf"
+ },
+ "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
+ "build": {
+  "sp": {
+   "Soul's Cry": 10,
+   "Elemental Fusion": 10,
+   "Spirit Strike": 10,
+   "Spirit's Descent": 2,
+   "Corrode": 10,
+   "Spirit Revitalization": 8,
+   "Mental Focus": 10,
+   "Spirit Communion": 10,
+   "Element Unification": 10,
+   "Revitalization Contract": 10,
+   "Consecutive Countercurrent": 10
+  },
+  "stigmas": {
+   "Kaisinel's Power": 7,
+   "Enhance: Spirit's Benediction": 6,
+   "Command: Proxy": 6,
+   "Flame Blessing": 6
+  },
+  "specs": {
+   "Elemental Fusion": [
+    "Changes to AoE Skill",
+    "Extra damage after 3s on hit"
+   ],
+   "Soul's Cry": [
+    "+50% Multi-Hit on hit",
+    "Inflicts Root for 5s"
+   ]
+  },
+  "daevanion_nodes": [
+   510033,
+   510034,
+   510035,
+   510039,
+   510041,
+   510042,
+   510048,
+   510054,
+   510055,
+   510056,
+   510063,
+   510064,
+   510067,
+   510068,
+   510069,
+   510071,
+   510072,
+   510073,
+   510079,
+   510086,
+   510094,
+   510095,
+   510096,
+   510097,
+   510098,
+   510099,
+   510100,
+   510101,
+   510102,
+   510115,
+   510123,
+   510124,
+   510125,
+   510126,
+   510127,
+   510128,
+   510129,
+   510138,
+   510142,
+   510144,
+   510157,
+   510159,
+   510161,
+   510162,
+   510163,
+   510170,
+   510171,
+   510172,
+   510174,
+   510175,
+   510176,
+   510178,
+   510187,
+   510188,
+   510189,
+   510191,
+   510193,
+   520033,
+   520034,
+   520035,
+   520038,
+   520039,
+   520040,
+   520041,
+   520042,
+   520043,
+   520048,
+   520050,
+   520058,
+   520065,
+   520067,
+   520071,
+   520072,
+   520073,
+   520078,
+   520080,
+   520081,
+   520082,
+   520084,
+   520086,
+   520093,
+   520094,
+   520095,
+   520097,
+   520099,
+   520100,
+   520101,
+   520102,
+   520109,
+   520112,
+   520114,
+   520123,
+   520124,
+   520127,
+   520129,
+   520131,
+   520132,
+   520133,
+   520138,
+   520142,
+   520144,
+   520145,
+   520146,
+   520153,
+   520156,
+   520157,
+   520161,
+   520171,
+   520184,
+   520185,
+   520186,
+   520187,
+   520188,
+   520189,
+   520190,
+   530033,
+   530034,
+   530035,
+   530037,
+   530038,
+   530039,
+   530048,
+   530050,
+   530051,
+   530052,
+   530067,
+   530068,
+   530072,
+   530082,
+   530087,
+   530093,
+   530097,
+   530098,
+   530099,
+   530100,
+   530101,
+   530102,
+   530103,
+   530108,
+   530115,
+   530123,
+   530124,
+   530125,
+   530126,
+   530127,
+   530128,
+   530130,
+   530131,
+   530132,
+   530139,
+   530142,
+   530147,
+   530157,
+   530159,
+   530162,
+   530163,
+   530170,
+   530172,
+   530174,
+   530175,
+   530178,
+   530185,
+   530186,
+   530187,
+   530188,
+   530189,
+   530191,
+   530192,
+   530193,
+   540017,
+   540018,
+   540019,
+   540022,
+   540023,
+   540032,
+   540034,
+   540035,
+   540036,
+   540037,
+   540039,
+   540040,
+   540041,
+   540042,
+   540044,
+   540047,
+   540052,
+   540057,
+   540059,
+   540066,
+   540067,
+   540070,
+   540071,
+   540072,
+   540073,
+   540074,
+   540081,
+   540085,
+   540092,
+   540093,
+   540094,
+   540095,
+   540096,
+   540097,
+   540098,
+   540099,
+   540100,
+   540101,
+   540107,
+   540115,
+   540117,
+   540119,
+   540122,
+   540123,
+   540127,
+   540128,
+   540130,
+   540132,
+   540133,
+   540134,
+   540138,
+   540145,
+   540147,
+   540153,
+   540154,
+   540157,
+   540159,
+   540160,
+   540161,
+   540162,
+   540163,
+   540164,
+   540167,
+   540169,
+   540172,
+   540173,
+   540174,
+   540179,
+   540182,
+   540184,
+   540187,
+   540194,
+   540197,
+   540198,
+   540199,
+   540202,
+   540209
+  ],
+  "sp_spent": 203,
+  "stigma_spent": 30,
+  "daevanion_cost": 360,
+  "effective_levels": {
+   "Cold Shock": 1,
+   "Combustion": 3,
+   "Summon: Fire Spirit": 3,
+   "Summon: Water Spirit": 4,
+   "Jointstrike: Curse": 4,
+   "Rapid Scattershot": 2,
+   "Summon: Earth Spirit": 3,
+   "Dimensional Control": 4,
+   "Summon: Wind Spirit": 4,
+   "Soul's Cry": 14,
+   "Elemental Fusion": 14,
+   "Defiance": 4,
+   "Spirit Strike": 14,
+   "Spirit Protection": 3,
+   "Spirit's Descent": 3,
+   "Corrode": 14,
+   "Spirit Revitalization": 9,
+   "Mental Focus": 14,
+   "Consecutive Countercurrent": 11,
+   "Spirit Communion": 12,
+   "Revitalization Contract": 11,
+   "Element Unification": 14,
+   "Kaisinel's Power": 7,
+   "Enhance: Spirit's Benediction": 6,
+   "Command: Proxy": 6,
+   "Flame Blessing": 6
+  },
+  "specialties": [
+   {
+    "id": 16300000,
+    "skill": "Elemental Fusion",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 16300010,
+      "number": 1,
+      "text": "Changes to AoE Skill",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 16300020,
+      "number": 2,
+      "text": "Extra damage after 3s on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 16300030,
+      "number": 3,
+      "text": "+10 all Element Boost on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 16300040,
+      "number": 4,
+      "text": "Changes to Charge Skill, dealing up to 200% more damage",
+      "unlock": 12,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 16300050,
+      "number": 5,
+      "text": "25% chance to regain Four Elements",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 16070000,
+    "skill": "Soul's Cry",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 16070010,
+      "number": 1,
+      "text": "+50% Multi-Hit on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 16070020,
+      "number": 2,
+      "text": "Inflicts Root for 5s",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 16070030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 16070040,
+      "number": 4,
+      "text": "-10s cooldown",
+      "unlock": 12,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 16070050,
+      "number": 5,
+      "text": "+2s Fear duration",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 16200000,
+    "skill": "Defiance",
+    "kind": "active",
+    "level": 4,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 16200010,
+      "number": 1,
+      "text": "Adds [Curse of Despair] Chain Skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16200020,
+      "number": 2,
+      "text": "Restores 1,000 Stamina on using [Defiance]",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16200030,
+      "number": 3,
+      "text": "Restores 20% HP on using [Defiance]",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16200040,
+      "number": 4,
+      "text": "+2s Tenacity duration",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16200050,
+      "number": 5,
+      "text": "+50% PvE Damage Tolerance and +25% PvP Damage Tolerance for Tenacity duration",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 16330000,
+    "skill": "Dimensional Control",
+    "kind": "active",
+    "level": 4,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 16330010,
+      "number": 1,
+      "text": "+20% Slow effect",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16330020,
+      "number": 2,
+      "text": "Extra damage after 3s on hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16330030,
+      "number": 3,
+      "text": "+50% Multi-Hit chance on hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16330040,
+      "number": 4,
+      "text": "Pull in nearby targets",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16330050,
+      "number": 5,
+      "text": "30% chance to inflict Root for 3s on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 16140000,
+    "skill": "Jointstrike: Curse",
+    "kind": "active",
+    "level": 4,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 16140010,
+      "number": 1,
+      "text": "+2s Curse duration",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16140020,
+      "number": 2,
+      "text": "+50% Multi-Hit on hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16140030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16140040,
+      "number": 4,
+      "text": "-2s cooldown",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16140050,
+      "number": 5,
+      "text": "[Jointstrike: Curse] ignores Block and Evasion and lands as a Critical Hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 16110000,
+    "skill": "Summon: Water Spirit",
+    "kind": "active",
+    "level": 4,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 16110010,
+      "number": 1,
+      "text": "-50% MP Cost",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16110020,
+      "number": 2,
+      "text": "+10% Water Spirit Attack",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16110030,
+      "number": 3,
+      "text": "10% chance to activate skill when Water Spirit lands attack",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16110040,
+      "number": 4,
+      "text": "5% chance to inflict Root for 2s on landing Water Spirit attack",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16110050,
+      "number": 5,
+      "text": "+20% Water Spirit Stats",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 16120000,
+    "skill": "Summon: Wind Spirit",
+    "kind": "active",
+    "level": 4,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 16120010,
+      "number": 1,
+      "text": "-50% MP Cost",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16120020,
+      "number": 2,
+      "text": "+20% Wind Spirit Critical Hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16120030,
+      "number": 3,
+      "text": "10% chance to activate skill when Wind Spirit lands attack",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16120040,
+      "number": 4,
+      "text": "5% chance to reduce enemy Attack Speed by 30% for 10s on landing Wind Spirit attack",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16120050,
+      "number": 5,
+      "text": "+20% Wind Spirit Stats",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 16040000,
+    "skill": "Combustion",
+    "kind": "active",
+    "level": 3,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 16040010,
+      "number": 1,
+      "text": "-20% MP consumed",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16040020,
+      "number": 2,
+      "text": "Deals up to 12% more damage when less targets are hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16040030,
+      "number": 3,
+      "text": "+100 Skill Accuracy",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16040040,
+      "number": 4,
+      "text": "+20% Skill Speed",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16040050,
+      "number": 5,
+      "text": "Adds [Ashy Call] Chain Skill",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 16130000,
+    "skill": "Summon: Earth Spirit",
+    "kind": "active",
+    "level": 3,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 16130010,
+      "number": 1,
+      "text": "-50% MP Cost",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16130020,
+      "number": 2,
+      "text": "+20% PvE Damage Tolerance and +10 PvP Damage Tolerance to Earth Spirit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16130030,
+      "number": 3,
+      "text": "10% chance to activate skill when Earth Spirit lands attack",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16130040,
+      "number": 4,
+      "text": "5% chance to restore 5% of Spirit HP when landing Earth Spirit attack",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16130050,
+      "number": 5,
+      "text": "+20% Earth Spirit Stats",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 16100000,
+    "skill": "Summon: Fire Spirit",
+    "kind": "active",
+    "level": 3,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 16100010,
+      "number": 1,
+      "text": "-50% MP Cost",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16100020,
+      "number": 2,
+      "text": "+20% Fire Spirit Critical Hit damage",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16100030,
+      "number": 3,
+      "text": "10% chance to activate skill when Fire Spirit lands attack",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16100040,
+      "number": 4,
+      "text": "5% chance to inflict Knockdown for 3s on landing Fire Spirit attack",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16100050,
+      "number": 5,
+      "text": "+20% Fire Spirit Stats",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 16340000,
+    "skill": "Rapid Scattershot",
+    "kind": "active",
+    "level": 2,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 16340010,
+      "number": 1,
+      "text": "Absorbs 500, 500% HP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16340020,
+      "number": 2,
+      "text": "Restores 120 MP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16340030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16340040,
+      "number": 4,
+      "text": "Multi-Hit on hit",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16340050,
+      "number": 5,
+      "text": "-1s all skill cooldowns on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 16010000,
+    "skill": "Cold Shock",
+    "kind": "active",
+    "level": 1,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 16010010,
+      "number": 1,
+      "text": "+20% MP restored",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16010020,
+      "number": 2,
+      "text": "Absorbs 100, 100% HP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16010030,
+      "number": 3,
+      "text": "+50% Multi-Hit on hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16010040,
+      "number": 4,
+      "text": "+2% Attack on landing [Earth Tremor] (Up to 5 stacks)",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16010050,
+      "number": 5,
+      "text": "10% chance to remove 1 buff on landing [Earth Tremor]",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 16360000,
+    "skill": "Kaisinel's Power",
+    "kind": "stigma",
+    "level": 7,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 16360010,
+      "number": 1,
+      "text": "+150 Block and Evasion",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 16360020,
+      "number": 2,
+      "text": "+15% Status Effect Resist",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16360030,
+      "number": 3,
+      "text": "+150 Accuracy",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16360040,
+      "number": 4,
+      "text": "+15% Status Effect Chance",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   },
+   {
+    "id": 16170000,
+    "skill": "Command: Proxy",
+    "kind": "stigma",
+    "level": 6,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 16170010,
+      "number": 1,
+      "text": "+2s Command: Proxy duration",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 16170020,
+      "number": 2,
+      "text": "+10% PVP Damage Tolerance increase and +5% PvP Damage Tolerance increase to Spirit",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16170030,
+      "number": 3,
+      "text": "x1.5 [Spirit Protection] effect during Command: Proxy",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16170040,
+      "number": 4,
+      "text": "Restores 3% of Spirit's HP every 1s for Command: Proxy duration",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   },
+   {
+    "id": 16190000,
+    "skill": "Enhance: Spirit's Benediction",
+    "kind": "stigma",
+    "level": 6,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 16190010,
+      "number": 1,
+      "text": "Restores 10% of Max HP on cast",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 16190020,
+      "number": 2,
+      "text": "x1.5 [Spirit Strike] Damage Boost effect",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16190030,
+      "number": 3,
+      "text": "x1.5 activation chance and amount healed from [Spirit Communion]",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16190040,
+      "number": 4,
+      "text": "+25% PvE Damage Boost and Damage Tolerance, +12.5% PvP Damage Boost and Damage Tolerance for caster and Spirit",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   },
+   {
+    "id": 16370000,
+    "skill": "Flame Blessing",
+    "kind": "stigma",
+    "level": 6,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 16370010,
+      "number": 1,
+      "text": "+100 Accuracy",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 16370020,
+      "number": 2,
+      "text": "+100 Critical Hit",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16370030,
+      "number": 3,
+      "text": "+10% Critical Damage Boost",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 16370040,
+      "number": 4,
+      "text": "-50% extra damage cooldown",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   }
+  ]
+ },
+ "policy": [
+  "enhance_spirit_s_benediction",
+  "elemental_fusion [mp_hi]",
+  "soul_s_cry",
+  "cold_shock"
+ ],
+ "shares": {
+  "Elemental Fusion": 1.0
+ },
+ "opener": [
+  [
+   0.0,
+   "enhance_spirit_s_benediction"
+  ],
+  [
+   0.58,
+   "elemental_fusion"
+  ],
+  [
+   1.35,
+   "elemental_fusion"
+  ],
+  [
+   2.12,
+   "elemental_fusion"
+  ],
+  [
+   2.89,
+   "elemental_fusion"
+  ],
+  [
+   3.66,
+   "elemental_fusion"
+  ],
+  [
+   4.43,
+   "elemental_fusion"
+  ],
+  [
+   5.2,
+   "elemental_fusion"
+  ],
+  [
+   5.97,
+   "elemental_fusion"
+  ],
+  [
+   6.74,
+   "elemental_fusion"
+  ],
+  [
+   7.51,
+   "elemental_fusion"
+  ],
+  [
+   8.28,
+   "elemental_fusion"
+  ],
+  [
+   9.04,
+   "elemental_fusion"
+  ],
+  [
+   9.81,
+   "elemental_fusion"
+  ],
+  [
+   10.58,
+   "elemental_fusion"
+  ],
+  [
+   11.35,
+   "elemental_fusion"
+  ],
+  [
+   12.12,
+   "elemental_fusion"
+  ],
+  [
+   12.89,
+   "elemental_fusion"
+  ],
+  [
+   13.66,
+   "elemental_fusion"
+  ],
+  [
+   14.43,
+   "elemental_fusion"
+  ],
+  [
+   15.2,
+   "elemental_fusion"
+  ],
+  [
+   15.97,
+   "elemental_fusion"
+  ],
+  [
+   16.74,
+   "elemental_fusion"
+  ],
+  [
+   17.5,
+   "elemental_fusion"
+  ],
+  [
+   18.27,
+   "elemental_fusion"
+  ],
+  [
+   19.04,
+   "elemental_fusion"
+  ],
+  [
+   19.81,
+   "elemental_fusion"
+  ],
+  [
+   20.58,
+   "elemental_fusion"
+  ],
+  [
+   21.35,
+   "elemental_fusion"
+  ],
+  [
+   22.12,
+   "elemental_fusion"
+  ],
+  [
+   22.89,
+   "elemental_fusion"
+  ],
+  [
+   23.66,
+   "elemental_fusion"
+  ],
+  [
+   24.43,
+   "elemental_fusion"
+  ],
+  [
+   25.2,
+   "elemental_fusion"
+  ],
+  [
+   25.96,
+   "elemental_fusion"
+  ],
+  [
+   26.73,
+   "elemental_fusion"
+  ],
+  [
+   27.5,
+   "elemental_fusion"
+  ],
+  [
+   28.27,
+   "elemental_fusion"
+  ],
+  [
+   29.04,
+   "elemental_fusion"
+  ],
+  [
+   29.81,
+   "elemental_fusion"
+  ]
+ ],
+ "stats": {
+  "attack_avg": 1402.2645000000002,
+  "crit_stat": 812.4592,
+  "crit_chance_vs_target": 0.22894181584222986,
+  "cdr": 0.0354,
+  "combat_speed": 0.0824,
+  "boost_bucket": 0.11,
+  "double": 0.047,
+  "perfect": 0.1454,
+  "multihit": 0.05500000000000001,
+  "weapon_amp": 0.1
+ },
+ "evaluation": {
+  "model": "0.2.58",
+  "scope": "f6daa218ce9214a0c6d96b0035a740dae4d5bb5fc8afda152ebe9496736a9cdf",
+  "policy_version": 1
+ },
+ "candidate_generation": {
+  "objective": "pvp_burst",
+  "iterations": 1,
+  "calibration": "disabled",
+  "note": "Fresh stationary damage search under common comparison resources; not a global optimum or competitive win-rate claim.",
+  "selection": {
+   "method": "Highest equal-weight sustained/burst modeled DPS among two generated allocations",
+   "candidates": [
+    {
+     "objective": "pvp",
+     "score": 16337.74661024484,
+     "dps": {
+      "pvp": 16170.562781699111,
+      "pvp_burst": 16504.93043879057
+     }
+    },
+    {
+     "objective": "pvp_burst",
+     "score": 16511.48043424444,
+     "dps": {
+      "pvp": 16342.518791013705,
+      "pvp_burst": 16680.442077475174
+     }
+    }
+   ]
+  }
+ },
+ "preset_source": "bundled-example"
+}

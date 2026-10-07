@@ -1,0 +1,1551 @@
+{
+ "class": "chanter",
+ "level": 45,
+ "mode": "pvp",
+ "scenario": "pvp",
+ "loadout": "chanter_l45_global_median",
+ "loadout_snapshot": {
+  "name": "Global L45 Chanter - median of top tracked characters (metabot)",
+  "level": 45,
+  "notes": [
+   "Item choices and enchant levels are the most common ones among the 1,559 top tracked L45 Sorcerers (metabot.gg, global client, Oct 2026).",
+   "Fixed item stats come from the global client item tables; random rolls use the expected value of each roll pool.",
+   "Primary/deity stat points are the averages those characters' official profiles report (they already include gear rolls)."
+  ],
+  "components": [
+   {
+    "slot": "Main hand",
+    "item": "Spiritforged Staff +9",
+    "source": "metabot global item table, class's most used main hand",
+    "stats": {
+     "weapon_min": 228.0,
+     "weapon_max": 297.0,
+     "crit": 100.0,
+     "accuracy": 75.0
+    }
+   },
+   {
+    "slot": "Off-hand",
+    "item": "Spiritforged Guard +9",
+    "source": "Attack 92 +5/enchant",
+    "stats": {
+     "attack": 137,
+     "accuracy": 80,
+     "crit": 50
+    }
+   },
+   {
+    "slot": "Armor x7",
+    "item": "Vakron / Bakarma / Divine Canyon ~+5",
+    "source": "expected value of 4 random rolls per piece",
+    "stats": {
+     "crit": 42,
+     "accuracy": 56,
+     "attack": 24
+    }
+   },
+   {
+    "slot": "Necklace",
+    "item": "Aulamus Necklace +8",
+    "stats": {
+     "attack": 139
+    }
+   },
+   {
+    "slot": "Earrings x2",
+    "item": "Aulamus / Liberator Earrings ~+6",
+    "stats": {
+     "attack": 220
+    }
+   },
+   {
+    "slot": "Rings x2",
+    "item": "Aulamus Ring ~+7",
+    "stats": {
+     "attack": 198
+    }
+   },
+   {
+    "slot": "Accessory rolls",
+    "item": "expected value of 4 rolls x 5 accessories",
+    "stats": {
+     "attack": 34,
+     "crit": 45,
+     "accuracy": 60,
+     "combat_speed": 0.003
+    }
+   },
+   {
+    "slot": "Bracelets x2",
+    "item": "Ascension +9 / Liberator +6",
+    "stats": {
+     "attack": 157,
+     "crit": 17
+    }
+   },
+   {
+    "slot": "Amulet",
+    "item": "Revelation Amulet +0",
+    "stats": {
+     "weapon_amp": 0.1,
+     "perfect": 0.05,
+     "pen": 700
+    }
+   },
+   {
+    "slot": "Rune",
+    "item": "Clash Rune +2",
+    "stats": {
+     "amp_pve": 0.005,
+     "pen": 100,
+     "combat_speed": 0.01,
+     "multihit": 0.01
+    }
+   },
+   {
+    "slot": "Attack title",
+    "item": "Guardian of Altgard / Verteron",
+    "stats": {
+     "amp_pve": 0.03,
+     "pen": 210
+    }
+   },
+   {
+    "slot": "Other title",
+    "item": "Through Hell and Back",
+    "stats": {
+     "cdr": 0.03
+    }
+   },
+   {
+    "slot": "Owned titles",
+    "item": "collection bonuses (estimate)",
+    "stats": {
+     "crit": 20,
+     "accuracy": 30,
+     "attack": 4
+    }
+   },
+   {
+    "slot": "Wings",
+    "item": "Ultimate Daeva Wings",
+    "stats": {
+     "accuracy": 40,
+     "pen": 500
+    }
+   },
+   {
+    "slot": "Primary/deity stats",
+    "item": "profile averages",
+    "stats": {
+     "might": 21.9,
+     "precision": 1.4,
+     "time": 39.4,
+     "justice": 39.3,
+     "death": 34.9,
+     "freedom": 24.6,
+     "illusion": 5.4,
+     "destruction": 5.4,
+     "wisdom": 5.2
+    }
+   }
+  ]
+ },
+ "budgets": {
+  "skill": 203,
+  "stigma": 30,
+  "daevanion": 360
+ },
+ "daevanion_budget": 360,
+ "dps": {
+  "pvp": 11688.274390882782,
+  "pvp_burst": 14351.852996826767
+ },
+ "score": 13020.063693854774,
+ "scoring_policy": {
+  "version": 1,
+  "model": "0.2.58",
+  "class": "chanter",
+  "mode": "pvp",
+  "budgets": {
+   "skill": 203,
+   "stigma": 30,
+   "daevanion": 360
+  },
+  "loadout": "chanter_l45_global_median",
+  "loadout_fingerprint": "566d30d938ac33f1d212bda64e636a4ccbde13172b1ed2a0a122ef32f846e22d",
+  "data_fingerprint": "c705f433ce4a15ab0fcab865052f25edc657bd868b48b9f37ba9a46c7ba79f9e",
+  "score_kind": "weighted_modeled_dps",
+  "weights": {
+   "pvp": 0.5,
+   "pvp_burst": 0.5
+  },
+  "durations": {
+   "pvp": 180,
+   "pvp_burst": 30
+  },
+  "calibration": "disabled",
+  "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
+  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
+  "scope": "b439432885194e606d6de91003121a56063022c1104e20537ef45724bc0f3703"
+ },
+ "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
+ "build": {
+  "sp": {
+   "Onslaught": 10,
+   "Incandescent Blow": 10,
+   "Wave Blow": 6,
+   "Rushing Smash": 7,
+   "Dark Crush": 10,
+   "Heat Wave Blow": 8,
+   "Tremor Crush": 5,
+   "Spinning Strike": 10,
+   "Inspiring Spell": 10,
+   "Attack Preparation": 10,
+   "Impact Hit": 10,
+   "Survival Willpower": 2,
+   "Wind's Promise": 10
+  },
+  "stigmas": {
+   "Marchutan's Wrath": 10,
+   "Assault Shock": 5,
+   "Barrier Spell": 1,
+   "Fracturing Blow": 7
+  },
+  "specs": {
+   "Onslaught": [
+    "+50% Multi-Hit on hit",
+    "-1s [Spinning Strike] cooldown on hit"
+   ],
+   "Incandescent Blow": [
+    "-20% MP consumed",
+    "Deals up to 12% more damage when less targets are hit"
+   ],
+   "Dark Crush": [
+    "Absorbs 70, 70% HP",
+    "Critical Hit on hit"
+   ],
+   "Spinning Strike": [
+    "-5s cooldown",
+    "Up to +20% damage when less targets hit"
+   ],
+   "Rushing Smash": [
+    "-20% target's Impact-type Resist for 5s"
+   ],
+   "Heat Wave Blow": [
+    "Up to +20% damage when more targets hit",
+    "Ignores Block and Evasion and lands as Multi-Hit"
+   ],
+   "Tremor Crush": [
+    "+50% Multi-Hit on hit"
+   ],
+   "Wave Blow": [
+    "Multi-Hit on hit"
+   ]
+  },
+  "daevanion_nodes": [
+   810033,
+   810034,
+   810035,
+   810039,
+   810042,
+   810043,
+   810048,
+   810050,
+   810051,
+   810052,
+   810054,
+   810058,
+   810067,
+   810068,
+   810069,
+   810073,
+   810082,
+   810086,
+   810088,
+   810093,
+   810094,
+   810095,
+   810096,
+   810097,
+   810098,
+   810100,
+   810101,
+   810102,
+   810103,
+   810115,
+   810123,
+   810126,
+   810127,
+   810128,
+   810129,
+   810130,
+   810131,
+   810132,
+   810138,
+   810142,
+   810144,
+   810147,
+   810153,
+   810154,
+   810155,
+   810157,
+   810161,
+   810162,
+   810168,
+   810170,
+   810171,
+   810172,
+   810174,
+   810175,
+   810176,
+   810183,
+   810187,
+   810188,
+   810191,
+   810192,
+   810193,
+   820034,
+   820035,
+   820039,
+   820040,
+   820041,
+   820048,
+   820050,
+   820055,
+   820058,
+   820063,
+   820064,
+   820065,
+   820067,
+   820068,
+   820069,
+   820070,
+   820071,
+   820073,
+   820078,
+   820080,
+   820081,
+   820082,
+   820084,
+   820086,
+   820088,
+   820093,
+   820094,
+   820097,
+   820099,
+   820101,
+   820102,
+   820103,
+   820109,
+   820114,
+   820117,
+   820124,
+   820125,
+   820131,
+   820132,
+   820133,
+   820140,
+   820144,
+   820145,
+   820146,
+   820155,
+   820156,
+   820157,
+   820159,
+   820161,
+   820162,
+   820163,
+   820171,
+   820174,
+   820184,
+   820185,
+   820186,
+   820187,
+   820188,
+   830033,
+   830039,
+   830048,
+   830050,
+   830051,
+   830052,
+   830054,
+   830058,
+   830063,
+   830064,
+   830065,
+   830067,
+   830068,
+   830069,
+   830072,
+   830073,
+   830082,
+   830087,
+   830093,
+   830094,
+   830097,
+   830098,
+   830101,
+   830102,
+   830103,
+   830108,
+   830111,
+   830118,
+   830123,
+   830124,
+   830125,
+   830126,
+   830127,
+   830128,
+   830129,
+   830130,
+   830131,
+   830132,
+   830133,
+   830139,
+   830142,
+   830147,
+   830155,
+   830156,
+   830157,
+   830158,
+   830161,
+   830162,
+   830163,
+   830170,
+   830172,
+   830178,
+   830184,
+   830185,
+   830186,
+   830193,
+   840022,
+   840023,
+   840024,
+   840037,
+   840039,
+   840040,
+   840041,
+   840042,
+   840049,
+   840057,
+   840064,
+   840066,
+   840067,
+   840072,
+   840073,
+   840074,
+   840079,
+   840081,
+   840088,
+   840092,
+   840093,
+   840094,
+   840095,
+   840096,
+   840097,
+   840098,
+   840099,
+   840100,
+   840101,
+   840103,
+   840104,
+   840107,
+   840115,
+   840117,
+   840119,
+   840122,
+   840123,
+   840124,
+   840127,
+   840128,
+   840130,
+   840131,
+   840132,
+   840133,
+   840134,
+   840138,
+   840141,
+   840145,
+   840147,
+   840153,
+   840154,
+   840156,
+   840157,
+   840159,
+   840160,
+   840162,
+   840163,
+   840167,
+   840169,
+   840172,
+   840173,
+   840174,
+   840177,
+   840182,
+   840184,
+   840187,
+   840190,
+   840191,
+   840192,
+   840197,
+   840198,
+   840199,
+   840202,
+   840207,
+   840208,
+   840209
+  ],
+  "sp_spent": 203,
+  "stigma_spent": 30,
+  "daevanion_cost": 360,
+  "effective_levels": {
+   "Onslaught": 14,
+   "Incandescent Blow": 14,
+   "Rushing Smash": 11,
+   "Impactful Crush": 1,
+   "Dark Crush": 14,
+   "Gust Rampage": 1,
+   "Heat Wave Blow": 12,
+   "Recuperation": 2,
+   "Tremor Crush": 8,
+   "Wave Blow": 10,
+   "Spinning Strike": 14,
+   "Defiance": 1,
+   "Blessing of Life": 1,
+   "Crossguard": 1,
+   "Protection Circle": 1,
+   "Inspiring Spell": 14,
+   "Attack Preparation": 14,
+   "Impact Hit": 14,
+   "Raging Spell": 1,
+   "Earth's Promise": 3,
+   "Survival Willpower": 2,
+   "Wind's Promise": 14,
+   "Marchutan's Wrath": 10,
+   "Assault Shock": 5,
+   "Barrier Spell": 1,
+   "Fracturing Blow": 7
+  },
+  "specialties": [
+   {
+    "id": 18100000,
+    "skill": "Dark Crush",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 18100010,
+      "number": 1,
+      "text": "Absorbs 70, 70% HP",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18100020,
+      "number": 2,
+      "text": "Deals extra damage on attacking a target afflicted with Impact-type status",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18100030,
+      "number": 3,
+      "text": "Critical Hit on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18100040,
+      "number": 4,
+      "text": "Adds [Piercing Strike] Chain Skill",
+      "unlock": 12,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18100050,
+      "number": 5,
+      "text": "Removes [Dark Crush] cooldown",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 18040000,
+    "skill": "Incandescent Blow",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 18040010,
+      "number": 1,
+      "text": "-20% MP consumed",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18040020,
+      "number": 2,
+      "text": "+200 Block while using skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18040030,
+      "number": 3,
+      "text": "Deals up to 12% more damage when less targets are hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18040040,
+      "number": 4,
+      "text": "-200 enemy Accuracy for 3s on landing Bursting Blow",
+      "unlock": 12,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18040050,
+      "number": 5,
+      "text": "Ignores Block and Evasion and lands as Multi-Hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 18010000,
+    "skill": "Onslaught",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 18010010,
+      "number": 1,
+      "text": "+20% MP restored",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18010020,
+      "number": 2,
+      "text": "Absorbs 70, 70% HP",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18010030,
+      "number": 3,
+      "text": "+50% Multi-Hit on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18010040,
+      "number": 4,
+      "text": "-1s [Spinning Strike] cooldown on hit",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18010050,
+      "number": 5,
+      "text": "Adds [Storm Chain] Chain Skill",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 18290000,
+    "skill": "Spinning Strike",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 18290010,
+      "number": 1,
+      "text": "-5s cooldown",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18290020,
+      "number": 2,
+      "text": "+10% Heal Boost (up to 20%)",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18290030,
+      "number": 3,
+      "text": "Up to +20% damage when less targets hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18290040,
+      "number": 4,
+      "text": "40% chance to inflict Seal for 3s",
+      "unlock": 12,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18290050,
+      "number": 5,
+      "text": "Ignores Block and Evasion and lands as a Critical Hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 18150000,
+    "skill": "Heat Wave Blow",
+    "kind": "active",
+    "level": 12,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 18150010,
+      "number": 1,
+      "text": "40% chance to inflict Stun for 3s",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18150020,
+      "number": 2,
+      "text": "+20% Seal Chance",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18150030,
+      "number": 3,
+      "text": "Up to +20% damage when more targets hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18150040,
+      "number": 4,
+      "text": "Ignores Block and Evasion and lands as Multi-Hit",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18150050,
+      "number": 5,
+      "text": "25% chance to reset [Heat Wave Blow] cooldown on Block",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 18090000,
+    "skill": "Rushing Smash",
+    "kind": "active",
+    "level": 11,
+    "slots": 1,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 18090010,
+      "number": 1,
+      "text": "-20% target's Impact-type Resist for 5s",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18090020,
+      "number": 2,
+      "text": "Changes to Charge Skill, dealing up to 200% more damage",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18090030,
+      "number": 3,
+      "text": "50% chance to trigger [Heat Wave Blow] on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18090040,
+      "number": 4,
+      "text": "Resets cooldown on defeating an enemy",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18090050,
+      "number": 5,
+      "text": "Ignores Block and Evasion and lands as Multi-Hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 12,
+    "next_slot_level": 12
+   },
+   {
+    "id": 18080000,
+    "skill": "Wave Blow",
+    "kind": "active",
+    "level": 10,
+    "slots": 1,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 18080010,
+      "number": 1,
+      "text": "Multi-Hit on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18080020,
+      "number": 2,
+      "text": "+6m Range",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18080030,
+      "number": 3,
+      "text": "+1s Knockdown duration",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18080040,
+      "number": 4,
+      "text": "-15% target's PvE Damage Boost and -7.5% PvP Damage Boost for 10s",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18080050,
+      "number": 5,
+      "text": "-5s cooldown",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 12,
+    "next_slot_level": 12
+   },
+   {
+    "id": 18210000,
+    "skill": "Tremor Crush",
+    "kind": "active",
+    "level": 8,
+    "slots": 1,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 18210010,
+      "number": 1,
+      "text": "Restores 300 Stamina on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18210020,
+      "number": 2,
+      "text": "+10m [Tremor Crush] range",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 18210030,
+      "number": 3,
+      "text": "+50% Multi-Hit on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18210040,
+      "number": 4,
+      "text": "Adds [Surging Strike] Chain Skill",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18210050,
+      "number": 5,
+      "text": "+25% [Tremor Crush] Stun Chance",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 12,
+    "next_slot_level": 12
+   },
+   {
+    "id": 18120000,
+    "skill": "Recuperation",
+    "kind": "active",
+    "level": 2,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 18120010,
+      "number": 1,
+      "text": "+1 consecutive use and Heal over Time can stack up to 2 times",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18120020,
+      "number": 2,
+      "text": "Removes up to 2, 2 debuffs",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18120030,
+      "number": 3,
+      "text": "+4s healing duration",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18120040,
+      "number": 4,
+      "text": "+5% HP restored",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18120050,
+      "number": 5,
+      "text": "-3s cooldown",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 18200000,
+    "skill": "Defiance",
+    "kind": "active",
+    "level": 1,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 18200010,
+      "number": 1,
+      "text": "Adds [Crushing Strike] Chain Skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18200020,
+      "number": 2,
+      "text": "Restores 1,000 Stamina on using [Defiance]",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18200030,
+      "number": 3,
+      "text": "Restores 10% HP on using [Defiance]",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18200040,
+      "number": 4,
+      "text": "+2s Tenacity duration",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18200050,
+      "number": 5,
+      "text": "+50% PvE Damage Tolerance and +25% PvP Damage Tolerance for Tenacity duration",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 18300000,
+    "skill": "Gust Rampage",
+    "kind": "active",
+    "level": 1,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 18300010,
+      "number": 1,
+      "text": "Absorbs 500, 500% HP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18300020,
+      "number": 2,
+      "text": "Restores 120 MP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18300030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18300040,
+      "number": 4,
+      "text": "Multi-Hit on hit",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18300050,
+      "number": 5,
+      "text": "-1s all skill cooldowns on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 18060000,
+    "skill": "Impactful Crush",
+    "kind": "active",
+    "level": 1,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 18060010,
+      "number": 1,
+      "text": "Changes to AoE damage",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18060020,
+      "number": 2,
+      "text": "+1s [Impactful Crush] Stun duration",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18060030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18060040,
+      "number": 4,
+      "text": "+30% Skill Speed",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18060050,
+      "number": 5,
+      "text": "+20% [Impactful Crush] Stun Chance",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 18330000,
+    "skill": "Marchutan's Wrath",
+    "kind": "stigma",
+    "level": 10,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 18330010,
+      "number": 1,
+      "text": "Up to +20% damage when less targets hit",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18330020,
+      "number": 2,
+      "text": "50% chance to inflict Stun for 3s",
+      "unlock": 10,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18330030,
+      "number": 3,
+      "text": "-70% Incoming Heal and Potion Recovery",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18330040,
+      "number": 4,
+      "text": "+25% additional Stun Chance",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 15,
+    "next_slot_level": null
+   },
+   {
+    "id": 18130000,
+    "skill": "Fracturing Blow",
+    "kind": "stigma",
+    "level": 7,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 18130010,
+      "number": 1,
+      "text": "-15s cooldown",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18130020,
+      "number": 2,
+      "text": "Inflict Exposed for 5s on hit",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18130030,
+      "number": 3,
+      "text": "Critical Hit on hit",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18130040,
+      "number": 4,
+      "text": "+30% additional Impact-type Status target damage",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   },
+   {
+    "id": 18700000,
+    "skill": "Assault Shock",
+    "kind": "stigma",
+    "level": 5,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 18700010,
+      "number": 1,
+      "text": "+20% Attack for 5s on hit",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 18700020,
+      "number": 2,
+      "text": "500 MP damage on hit",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18700030,
+      "number": 3,
+      "text": "+10m range",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18700040,
+      "number": 4,
+      "text": "+20% Stun Chance",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   },
+   {
+    "id": 18440000,
+    "skill": "Barrier Spell",
+    "kind": "stigma",
+    "level": 1,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 18440010,
+      "number": 1,
+      "text": "Restores 10% HP when effect expires naturally",
+      "unlock": 5,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18440020,
+      "number": 2,
+      "text": "+10% PvE Damage Tolerance and +5% PvP Damage Tolerance for 10s when effect expires naturally",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18440030,
+      "number": 3,
+      "text": "+10% HP limit",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 18440040,
+      "number": 4,
+      "text": "+1s effect duration",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 5,
+    "next_slot_level": null
+   }
+  ]
+ },
+ "policy": [
+  "wave_blow",
+  "heat_wave_blow",
+  "dark_crush",
+  "marchutan_s_wrath",
+  "assault_shock",
+  "spinning_strike",
+  "incandescent_blow [mp_hi]",
+  "rushing_smash",
+  "onslaught"
+ ],
+ "shares": {
+  "Spinning Strike": 0.2645275716824537,
+  "Dark Crush": 0.21620923702033193,
+  "Onslaught": 0.17305087146289747,
+  "Incandescent Blow": 0.08908109475522405,
+  "Heat Wave Blow": 0.0729242505775018,
+  "Wind's Promise": 0.06769156568330298,
+  "Wave Blow": 0.04245689514548001,
+  "Marchutan's Wrath": 0.037917726070684984,
+  "Rushing Smash": 0.030394050438053235,
+  "Assault Shock": 0.005746737164063324
+ },
+ "opener": [
+  [
+   0.0,
+   "wave_blow"
+  ],
+  [
+   0.91,
+   "heat_wave_blow"
+  ],
+  [
+   1.82,
+   "dark_crush"
+  ],
+  [
+   2.72,
+   "marchutan_s_wrath"
+  ],
+  [
+   3.63,
+   "assault_shock"
+  ],
+  [
+   4.54,
+   "spinning_strike"
+  ],
+  [
+   5.45,
+   "incandescent_blow"
+  ],
+  [
+   6.22,
+   "incandescent_blow"
+  ],
+  [
+   6.98,
+   "dark_crush"
+  ],
+  [
+   7.89,
+   "incandescent_blow"
+  ],
+  [
+   8.66,
+   "incandescent_blow"
+  ],
+  [
+   9.43,
+   "incandescent_blow"
+  ],
+  [
+   10.2,
+   "incandescent_blow"
+  ],
+  [
+   10.97,
+   "heat_wave_blow"
+  ],
+  [
+   11.88,
+   "dark_crush"
+  ],
+  [
+   12.78,
+   "incandescent_blow"
+  ],
+  [
+   13.55,
+   "incandescent_blow"
+  ],
+  [
+   14.32,
+   "incandescent_blow"
+  ],
+  [
+   15.09,
+   "incandescent_blow"
+  ],
+  [
+   15.86,
+   "incandescent_blow"
+  ],
+  [
+   16.63,
+   "dark_crush"
+  ],
+  [
+   17.54,
+   "incandescent_blow"
+  ],
+  [
+   18.31,
+   "incandescent_blow"
+  ],
+  [
+   19.08,
+   "wave_blow"
+  ],
+  [
+   19.98,
+   "incandescent_blow"
+  ],
+  [
+   20.75,
+   "heat_wave_blow"
+  ],
+  [
+   21.66,
+   "dark_crush"
+  ],
+  [
+   22.57,
+   "incandescent_blow"
+  ],
+  [
+   23.34,
+   "incandescent_blow"
+  ],
+  [
+   24.11,
+   "incandescent_blow"
+  ],
+  [
+   24.87,
+   "incandescent_blow"
+  ],
+  [
+   25.64,
+   "incandescent_blow"
+  ],
+  [
+   26.41,
+   "dark_crush"
+  ],
+  [
+   27.32,
+   "rushing_smash"
+  ],
+  [
+   28.23,
+   "spinning_strike"
+  ],
+  [
+   29.14,
+   "onslaught"
+  ],
+  [
+   29.9,
+   "onslaught"
+  ]
+ ],
+ "stats": {
+  "attack_avg": 1405.8600500000002,
+  "crit_stat": 719.1922,
+  "crit_chance_vs_target": 0.14436612875846974,
+  "cdr": 0.0654,
+  "combat_speed": 0.0824,
+  "boost_bucket": 0.20800000000000002,
+  "double": 0.047200000000000006,
+  "perfect": 0.1593,
+  "multihit": 0.05500000000000001,
+  "weapon_amp": 0.1
+ },
+ "evaluation": {
+  "model": "0.2.58",
+  "scope": "b439432885194e606d6de91003121a56063022c1104e20537ef45724bc0f3703",
+  "policy_version": 1
+ },
+ "candidate_generation": {
+  "objective": "pvp",
+  "iterations": 1,
+  "calibration": "disabled",
+  "note": "Fresh stationary damage search under common comparison resources; not a global optimum or competitive win-rate claim.",
+  "selection": {
+   "method": "Highest equal-weight sustained/burst modeled DPS among two generated allocations",
+   "candidates": [
+    {
+     "objective": "pvp",
+     "score": 13020.063693854774,
+     "dps": {
+      "pvp": 11688.274390882782,
+      "pvp_burst": 14351.852996826767
+     }
+    },
+    {
+     "objective": "pvp_burst",
+     "score": 11365.396477415052,
+     "dps": {
+      "pvp": 6807.239426627696,
+      "pvp_burst": 15923.553528202407
+     }
+    }
+   ]
+  }
+ },
+ "preset_source": "bundled-example"
+}

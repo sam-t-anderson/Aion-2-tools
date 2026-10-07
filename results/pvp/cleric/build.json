@@ -1,0 +1,1549 @@
+{
+ "class": "cleric",
+ "level": 45,
+ "mode": "pvp",
+ "scenario": "pvp",
+ "loadout": "cleric_l45_global_median",
+ "loadout_snapshot": {
+  "name": "Global L45 Cleric - median of top tracked characters (metabot)",
+  "level": 45,
+  "notes": [
+   "Item choices and enchant levels are the most common ones among the 1,559 top tracked L45 Sorcerers (metabot.gg, global client, Oct 2026).",
+   "Fixed item stats come from the global client item tables; random rolls use the expected value of each roll pool.",
+   "Primary/deity stat points are the averages those characters' official profiles report (they already include gear rolls)."
+  ],
+  "components": [
+   {
+    "slot": "Main hand",
+    "item": "Spiritforged Mace +9",
+    "source": "metabot global item table, class's most used main hand",
+    "stats": {
+     "weapon_min": 205.0,
+     "weapon_max": 251.0,
+     "crit": 50.0,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "slot": "Off-hand",
+    "item": "Spiritforged Guard +9",
+    "source": "Attack 92 +5/enchant",
+    "stats": {
+     "attack": 137,
+     "accuracy": 80,
+     "crit": 50
+    }
+   },
+   {
+    "slot": "Armor x7",
+    "item": "Vakron / Bakarma / Divine Canyon ~+5",
+    "source": "expected value of 4 random rolls per piece",
+    "stats": {
+     "crit": 42,
+     "accuracy": 56,
+     "attack": 24
+    }
+   },
+   {
+    "slot": "Necklace",
+    "item": "Aulamus Necklace +8",
+    "stats": {
+     "attack": 139
+    }
+   },
+   {
+    "slot": "Earrings x2",
+    "item": "Aulamus / Liberator Earrings ~+6",
+    "stats": {
+     "attack": 220
+    }
+   },
+   {
+    "slot": "Rings x2",
+    "item": "Aulamus Ring ~+7",
+    "stats": {
+     "attack": 198
+    }
+   },
+   {
+    "slot": "Accessory rolls",
+    "item": "expected value of 4 rolls x 5 accessories",
+    "stats": {
+     "attack": 34,
+     "crit": 45,
+     "accuracy": 60,
+     "combat_speed": 0.003
+    }
+   },
+   {
+    "slot": "Bracelets x2",
+    "item": "Ascension +9 / Liberator +6",
+    "stats": {
+     "attack": 157,
+     "crit": 17
+    }
+   },
+   {
+    "slot": "Amulet",
+    "item": "Revelation Amulet +0",
+    "stats": {
+     "weapon_amp": 0.1,
+     "perfect": 0.05,
+     "pen": 700
+    }
+   },
+   {
+    "slot": "Rune",
+    "item": "Clash Rune +2",
+    "stats": {
+     "amp_pve": 0.005,
+     "pen": 100,
+     "combat_speed": 0.01,
+     "multihit": 0.01
+    }
+   },
+   {
+    "slot": "Attack title",
+    "item": "Guardian of Altgard / Verteron",
+    "stats": {
+     "amp_pve": 0.03,
+     "pen": 210
+    }
+   },
+   {
+    "slot": "Other title",
+    "item": "Through Hell and Back",
+    "stats": {
+     "cdr": 0.03
+    }
+   },
+   {
+    "slot": "Owned titles",
+    "item": "collection bonuses (estimate)",
+    "stats": {
+     "crit": 20,
+     "accuracy": 30,
+     "attack": 4
+    }
+   },
+   {
+    "slot": "Wings",
+    "item": "Ultimate Daeva Wings",
+    "stats": {
+     "accuracy": 40,
+     "pen": 500
+    }
+   },
+   {
+    "slot": "Primary/deity stats",
+    "item": "profile averages",
+    "stats": {
+     "might": 21.5,
+     "precision": 1.2,
+     "time": 39.0,
+     "justice": 38.9,
+     "death": 34.2,
+     "freedom": 24.2,
+     "destruction": 5.3,
+     "illusion": 5.2,
+     "wisdom": 5.0
+    }
+   }
+  ]
+ },
+ "budgets": {
+  "skill": 203,
+  "stigma": 30,
+  "daevanion": 360
+ },
+ "daevanion_budget": 360,
+ "dps": {
+  "pvp": 4623.392012419803,
+  "pvp_burst": 6350.3124728493085
+ },
+ "score": 5486.852242634555,
+ "scoring_policy": {
+  "version": 1,
+  "model": "0.2.58",
+  "class": "cleric",
+  "mode": "pvp",
+  "budgets": {
+   "skill": 203,
+   "stigma": 30,
+   "daevanion": 360
+  },
+  "loadout": "cleric_l45_global_median",
+  "loadout_fingerprint": "9cee09a5470c855513b416919aac57b1090e38bc9129a4ba03fdb0220100655e",
+  "data_fingerprint": "9387f3b84e132b49c5df65490fd9404cf304e26e62ce64b396e7b58a65acf03b",
+  "score_kind": "weighted_modeled_dps",
+  "weights": {
+   "pvp": 0.5,
+   "pvp_burst": 0.5
+  },
+  "durations": {
+   "pvp": 180,
+   "pvp_burst": 30
+  },
+  "calibration": "disabled",
+  "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
+  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
+  "scope": "85fe5ae37577555d2c887aae8ed623d1ece44a82e14d3853be4fbc3b245380c9"
+ },
+ "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
+ "build": {
+  "sp": {
+   "Earth's Retribution": 10,
+   "Bolt": 10,
+   "Chain of Torment": 10,
+   "Divine Aura": 10,
+   "Condemnation": 10,
+   "Empyrean Lord's Grace": 10,
+   "Heal Block": 2,
+   "Prayer of Concentration": 8,
+   "Earth's Grace": 10,
+   "Survival Willpower": 10,
+   "Radiant Benediction": 10
+  },
+  "stigmas": {
+   "Earth Punishment": 10,
+   "Assault Mark": 5,
+   "Noble Aura": 5,
+   "Prayer of Amplification": 5
+  },
+  "specs": {
+   "Earth's Retribution": [
+    "+50% Multi-Hit on hit",
+    "-7s [Bolt] cooldown on landing [Discharge]"
+   ],
+   "Chain of Torment": [
+    "Slows target for 5s",
+    "+3s Damage over Time"
+   ],
+   "Condemnation": [
+    "Restores 100 MP on hit",
+    "Up to +12% damage when less targets hit"
+   ],
+   "Divine Aura": [
+    "-40% Move Speed for 3s to up to 4 enemies within 4m of the Aura",
+    "Changes to AoE Skill"
+   ],
+   "Bolt": [
+    "+30% Skill Speed",
+    "Up to +20% damage when less targets hit"
+   ]
+  },
+  "daevanion_nodes": [
+   710033,
+   710034,
+   710035,
+   710041,
+   710042,
+   710043,
+   710048,
+   710050,
+   710051,
+   710052,
+   710054,
+   710055,
+   710056,
+   710058,
+   710067,
+   710071,
+   710082,
+   710086,
+   710093,
+   710094,
+   710096,
+   710097,
+   710098,
+   710100,
+   710101,
+   710102,
+   710108,
+   710115,
+   710123,
+   710127,
+   710128,
+   710130,
+   710131,
+   710132,
+   710138,
+   710142,
+   710144,
+   710147,
+   710153,
+   710154,
+   710157,
+   710158,
+   710159,
+   710161,
+   710162,
+   710168,
+   710170,
+   710171,
+   710172,
+   710174,
+   710175,
+   710176,
+   710183,
+   710184,
+   710185,
+   710187,
+   710188,
+   710191,
+   710192,
+   710193,
+   720034,
+   720035,
+   720036,
+   720037,
+   720040,
+   720041,
+   720048,
+   720052,
+   720055,
+   720058,
+   720063,
+   720067,
+   720068,
+   720069,
+   720070,
+   720071,
+   720072,
+   720073,
+   720078,
+   720080,
+   720081,
+   720082,
+   720084,
+   720086,
+   720093,
+   720094,
+   720095,
+   720097,
+   720099,
+   720101,
+   720102,
+   720109,
+   720114,
+   720117,
+   720123,
+   720124,
+   720125,
+   720129,
+   720132,
+   720133,
+   720138,
+   720140,
+   720144,
+   720145,
+   720146,
+   720155,
+   720156,
+   720159,
+   720161,
+   720162,
+   720171,
+   720174,
+   720176,
+   720184,
+   720185,
+   720186,
+   720187,
+   720188,
+   720190,
+   720191,
+   730038,
+   730039,
+   730040,
+   730050,
+   730051,
+   730052,
+   730054,
+   730058,
+   730067,
+   730068,
+   730069,
+   730070,
+   730071,
+   730072,
+   730073,
+   730082,
+   730084,
+   730087,
+   730093,
+   730094,
+   730095,
+   730096,
+   730097,
+   730098,
+   730101,
+   730102,
+   730103,
+   730111,
+   730118,
+   730124,
+   730125,
+   730126,
+   730127,
+   730128,
+   730129,
+   730131,
+   730132,
+   730133,
+   730139,
+   730144,
+   730147,
+   730157,
+   730158,
+   730159,
+   730161,
+   730162,
+   730163,
+   730170,
+   730172,
+   730178,
+   730184,
+   730185,
+   730186,
+   730187,
+   730193,
+   740017,
+   740018,
+   740019,
+   740022,
+   740023,
+   740024,
+   740032,
+   740034,
+   740035,
+   740036,
+   740037,
+   740039,
+   740040,
+   740041,
+   740042,
+   740047,
+   740049,
+   740052,
+   740057,
+   740064,
+   740066,
+   740067,
+   740071,
+   740072,
+   740073,
+   740081,
+   740088,
+   740095,
+   740096,
+   740097,
+   740098,
+   740099,
+   740100,
+   740101,
+   740103,
+   740104,
+   740115,
+   740117,
+   740119,
+   740122,
+   740123,
+   740127,
+   740128,
+   740130,
+   740132,
+   740134,
+   740138,
+   740141,
+   740145,
+   740147,
+   740152,
+   740153,
+   740154,
+   740155,
+   740156,
+   740157,
+   740159,
+   740160,
+   740161,
+   740162,
+   740163,
+   740167,
+   740172,
+   740173,
+   740174,
+   740177,
+   740182,
+   740184,
+   740187,
+   740190,
+   740191,
+   740192,
+   740197,
+   740198,
+   740199,
+   740202,
+   740207,
+   740208,
+   740209
+  ],
+  "sp_spent": 203,
+  "stigma_spent": 30,
+  "daevanion_cost": 360,
+  "effective_levels": {
+   "Earth's Retribution": 14,
+   "Judgment Thunder": 2,
+   "Debilitating Mark": 3,
+   "Divine Aura": 14,
+   "Chain of Torment": 14,
+   "Lightning Strike Scattershot": 3,
+   "Light of Regeneration": 3,
+   "Condemnation": 14,
+   "Healing Light": 2,
+   "Radiant Recovery": 2,
+   "Bolt": 14,
+   "Defiance": 2,
+   "Warm Benediction": 2,
+   "Empyrean Lords' Benediction": 1,
+   "Empyrean Lord's Grace": 14,
+   "Healing Enhancement": 2,
+   "Immortal Veil": 4,
+   "Heal Block": 4,
+   "Prayer of Concentration": 8,
+   "Earth's Grace": 14,
+   "Survival Willpower": 12,
+   "Radiant Benediction": 12,
+   "Earth Punishment": 10,
+   "Assault Mark": 5,
+   "Noble Aura": 5,
+   "Prayer of Amplification": 5
+  },
+  "specialties": [
+   {
+    "id": 17060000,
+    "skill": "Bolt",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 17060010,
+      "number": 1,
+      "text": "30% chance to inflict Stun for 3s when fully charged",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 17060020,
+      "number": 2,
+      "text": "+300 Skill Accuracy",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 17060030,
+      "number": 3,
+      "text": "+30% Skill Speed",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17060040,
+      "number": 4,
+      "text": "Up to +20% damage when less targets hit",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17060050,
+      "number": 5,
+      "text": "Critical Hit on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 17070000,
+    "skill": "Chain of Torment",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 17070010,
+      "number": 1,
+      "text": "Slows target for 5s",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17070020,
+      "number": 2,
+      "text": "+3s Damage over Time",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17070030,
+      "number": 3,
+      "text": "Has a 20% chance to inflict Knockdown on the target for 3s",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 17070040,
+      "number": 4,
+      "text": "+10% PvE Damage Tolerance reduction and +5% PvP Damage Tolerance reduction",
+      "unlock": 12,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 17070050,
+      "number": 5,
+      "text": "Ignores Block and Evasion and reduces Damage over Time interval by 50%",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 17350000,
+    "skill": "Condemnation",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 17350010,
+      "number": 1,
+      "text": "Restores 100 MP on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17350020,
+      "number": 2,
+      "text": "Up to +12% damage when less targets hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17350030,
+      "number": 3,
+      "text": "20% chance to inflict Root for 3s",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 17350040,
+      "number": 4,
+      "text": "Resets cooldown on landing a Critical Hit with [Condemnation]",
+      "unlock": 12,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 17350050,
+      "number": 5,
+      "text": "Multi-Hit on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 17150000,
+    "skill": "Divine Aura",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 17150010,
+      "number": 1,
+      "text": "-40% Move Speed for 3s to up to 4 enemies within 4m of the Aura",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17150020,
+      "number": 2,
+      "text": "Changes to AoE Skill",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17150030,
+      "number": 3,
+      "text": "+50% [Divine Aura] attacking speed",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 17150040,
+      "number": 4,
+      "text": "+3s [Divine Aura] duration",
+      "unlock": 12,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 17150050,
+      "number": 5,
+      "text": "-10s cooldown",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 17010000,
+    "skill": "Earth's Retribution",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 17010010,
+      "number": 1,
+      "text": "+20% MP restored",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 17010020,
+      "number": 2,
+      "text": "+20% [Discharge] Chain Skill trigger chance",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 17010030,
+      "number": 3,
+      "text": "+50% Multi-Hit on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17010040,
+      "number": 4,
+      "text": "-7s [Bolt] cooldown on landing [Discharge]",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17010050,
+      "number": 5,
+      "text": "Ignores Block and Evasion",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 17080000,
+    "skill": "Debilitating Mark",
+    "kind": "active",
+    "level": 3,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 17080010,
+      "number": 1,
+      "text": "Removes MP Consumed and restores 150 MP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17080020,
+      "number": 2,
+      "text": "-15% target Defense for duration of Damage over Time",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17080030,
+      "number": 3,
+      "text": "Has a 20% chance to inflict Stun on the target for 3s",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17080040,
+      "number": 4,
+      "text": "+10% PvE Damage Boost reduction and +5% PvP Damage Boost reduction",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17080050,
+      "number": 5,
+      "text": "Ignores Block and Evasion and reduces Damage over Time interval by 50%",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 17090000,
+    "skill": "Light of Regeneration",
+    "kind": "active",
+    "level": 3,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 17090010,
+      "number": 1,
+      "text": "+5% Defense while healing",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17090020,
+      "number": 2,
+      "text": "+20% amount healed when HP is 50% or less",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17090030,
+      "number": 3,
+      "text": "+5% Incoming Heal during healing",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17090040,
+      "number": 4,
+      "text": "+5% Move Speed during healing",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17090050,
+      "number": 5,
+      "text": "+5% PvE Damage Tolerance and +2.5% PvP Damage Tolerance during healing",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 17370000,
+    "skill": "Lightning Strike Scattershot",
+    "kind": "active",
+    "level": 3,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 17370010,
+      "number": 1,
+      "text": "Absorbs 500, 500% HP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17370020,
+      "number": 2,
+      "text": "Restores 120 MP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17370030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17370040,
+      "number": 4,
+      "text": "Multi-Hit on hit",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17370050,
+      "number": 5,
+      "text": "-1s all skill cooldowns on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 17240000,
+    "skill": "Defiance",
+    "kind": "active",
+    "level": 2,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 17240010,
+      "number": 1,
+      "text": "Adds [Blessing of Regeneration] Chain Skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17240020,
+      "number": 2,
+      "text": "Restores 1,000 Stamina on using [Defiance]",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17240030,
+      "number": 3,
+      "text": "Restores 10% HP on using [Defiance]",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17240040,
+      "number": 4,
+      "text": "+2s Tenacity duration",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17240050,
+      "number": 5,
+      "text": "+50% PvE Damage Tolerance and +25% PvP Damage Tolerance for Tenacity duration",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 17100000,
+    "skill": "Healing Light",
+    "kind": "active",
+    "level": 2,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 17100010,
+      "number": 1,
+      "text": "+2 consecutive uses",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17100020,
+      "number": 2,
+      "text": "+20% amount healed when HP is 50% or less",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17100030,
+      "number": 3,
+      "text": "50% chance to remove 1 debuff",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17100040,
+      "number": 4,
+      "text": "+2% HP restored",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17100050,
+      "number": 5,
+      "text": "-2s cooldown",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 17040000,
+    "skill": "Judgment Thunder",
+    "kind": "active",
+    "level": 2,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 17040010,
+      "number": 1,
+      "text": "-20% MP consumed",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17040020,
+      "number": 2,
+      "text": "Deals up to 12% more damage when less targets are hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17040030,
+      "number": 3,
+      "text": "-10% enemy Combat Speed for 5s on landing [Divine Punishment]",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17040040,
+      "number": 4,
+      "text": "10% chance to inflict Root for 2s on landing [Divine Punishment]",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17040050,
+      "number": 5,
+      "text": "Activates [Divine Punishment] 1 extra time",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 17120000,
+    "skill": "Radiant Recovery",
+    "kind": "active",
+    "level": 2,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 17120010,
+      "number": 1,
+      "text": "Removes up to 2 debuffs",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17120020,
+      "number": 2,
+      "text": "+1 consecutive use",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17120030,
+      "number": 3,
+      "text": "-3s cooldown",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17120040,
+      "number": 4,
+      "text": "+10% Incoming Heal for 10s",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17120050,
+      "number": 5,
+      "text": "+5% HP restored",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 17400000,
+    "skill": "Earth Punishment",
+    "kind": "stigma",
+    "level": 10,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 17400010,
+      "number": 1,
+      "text": "[Condemnation] lands as a Critical Hit on targets afflicted with [Earth Punishment]",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17400020,
+      "number": 2,
+      "text": "+10% Double Chance to caster and +5% to party members from [Earth's Blessing]",
+      "unlock": 10,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17400030,
+      "number": 3,
+      "text": "+10% Attack and Defense to caster and +5% to party members from [Earth's Blessing]",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17400040,
+      "number": 4,
+      "text": "+10s [Earth Punishment] and [Earth's Blessing] duration",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 15,
+    "next_slot_level": null
+   },
+   {
+    "id": 17700000,
+    "skill": "Assault Mark",
+    "kind": "stigma",
+    "level": 5,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 17700010,
+      "number": 1,
+      "text": "+20% Attack for 5s on hit",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17700020,
+      "number": 2,
+      "text": "500 MP damage on hit",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17700030,
+      "number": 3,
+      "text": "+10m range",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17700040,
+      "number": 4,
+      "text": "+20% Root Chance",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   },
+   {
+    "id": 17440000,
+    "skill": "Noble Aura",
+    "kind": "stigma",
+    "level": 5,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 17440010,
+      "number": 1,
+      "text": "+200 Aura Critical Hit",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17440020,
+      "number": 2,
+      "text": "+20 damage to targets afflicted with Debilitating Mark",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17440030,
+      "number": 3,
+      "text": "+30% damage to targets with Incapacitated Immunity",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17440040,
+      "number": 4,
+      "text": "-1s Aura attack cooldown",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   },
+   {
+    "id": 17430000,
+    "skill": "Prayer of Amplification",
+    "kind": "stigma",
+    "level": 5,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 17430010,
+      "number": 1,
+      "text": "+20% PvE Damage Boost and +10% PvP Damage Boost",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 17430020,
+      "number": 2,
+      "text": "x1.5 [Empyrean Lord's Grace] effect for the duration",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17430030,
+      "number": 3,
+      "text": "x1.5 [Earth's Grace] effect for the duration",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 17430040,
+      "number": 4,
+      "text": "+15% additional Attack",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   }
+  ]
+ },
+ "policy": [
+  "prayer_of_amplification",
+  "noble_aura",
+  "condemnation",
+  "assault_mark",
+  "bolt",
+  "divine_aura",
+  "earth_punishment",
+  "chain_of_torment",
+  "earth_s_retribution"
+ ],
+ "shares": {
+  "Earth's Retribution": 0.40572301824640017,
+  "Bolt": 0.225457035300636,
+  "Divine Aura": 0.13509176319000651,
+  "Condemnation": 0.08350202327639539,
+  "Earth Punishment": 0.0637321920339567,
+  "Chain of Torment": 0.056972003866988835,
+  "Noble Aura": 0.015418539540400646,
+  "Assault Mark": 0.014103424545220563
+ },
+ "opener": [
+  [
+   0.0,
+   "prayer_of_amplification"
+  ],
+  [
+   0.58,
+   "noble_aura"
+  ],
+  [
+   1.49,
+   "assault_mark"
+  ],
+  [
+   2.4,
+   "bolt"
+  ],
+  [
+   3.12,
+   "divine_aura"
+  ],
+  [
+   4.03,
+   "earth_punishment"
+  ],
+  [
+   4.93,
+   "chain_of_torment"
+  ],
+  [
+   5.84,
+   "condemnation"
+  ],
+  [
+   6.75,
+   "earth_s_retribution"
+  ],
+  [
+   7.52,
+   "earth_s_retribution"
+  ],
+  [
+   8.29,
+   "earth_s_retribution"
+  ],
+  [
+   9.06,
+   "earth_s_retribution"
+  ],
+  [
+   9.83,
+   "earth_s_retribution"
+  ],
+  [
+   10.6,
+   "bolt"
+  ],
+  [
+   11.31,
+   "earth_s_retribution"
+  ],
+  [
+   12.08,
+   "earth_s_retribution"
+  ],
+  [
+   12.85,
+   "earth_s_retribution"
+  ],
+  [
+   13.62,
+   "earth_s_retribution"
+  ],
+  [
+   14.39,
+   "earth_s_retribution"
+  ],
+  [
+   15.16,
+   "earth_s_retribution"
+  ],
+  [
+   15.93,
+   "bolt"
+  ],
+  [
+   16.65,
+   "earth_s_retribution"
+  ],
+  [
+   17.42,
+   "earth_s_retribution"
+  ],
+  [
+   18.19,
+   "earth_s_retribution"
+  ],
+  [
+   18.96,
+   "earth_s_retribution"
+  ],
+  [
+   19.73,
+   "earth_s_retribution"
+  ],
+  [
+   20.49,
+   "earth_s_retribution"
+  ],
+  [
+   21.26,
+   "bolt"
+  ],
+  [
+   21.98,
+   "earth_s_retribution"
+  ],
+  [
+   22.75,
+   "earth_s_retribution"
+  ],
+  [
+   23.52,
+   "earth_s_retribution"
+  ],
+  [
+   24.29,
+   "chain_of_torment"
+  ],
+  [
+   25.2,
+   "condemnation"
+  ],
+  [
+   26.11,
+   "earth_s_retribution"
+  ],
+  [
+   26.87,
+   "earth_s_retribution"
+  ],
+  [
+   27.64,
+   "earth_s_retribution"
+  ],
+  [
+   28.41,
+   "bolt"
+  ],
+  [
+   29.13,
+   "earth_s_retribution"
+  ],
+  [
+   29.9,
+   "earth_s_retribution"
+  ]
+ ],
+ "stats": {
+  "attack_avg": 1372.8316,
+  "crit_stat": 615.0276,
+  "crit_chance_vs_target": 0.0825702133600107,
+  "cdr": 0.0652,
+  "combat_speed": 0.082,
+  "boost_bucket": 0.17,
+  "double": 0.032999999999999995,
+  "perfect": 0.0889,
+  "multihit": 0.05500000000000001,
+  "weapon_amp": 0.1
+ },
+ "evaluation": {
+  "model": "0.2.58",
+  "scope": "85fe5ae37577555d2c887aae8ed623d1ece44a82e14d3853be4fbc3b245380c9",
+  "policy_version": 1
+ },
+ "candidate_generation": {
+  "objective": "pvp",
+  "iterations": 1,
+  "calibration": "disabled",
+  "note": "Fresh stationary damage search under common comparison resources; not a global optimum or competitive win-rate claim.",
+  "selection": {
+   "method": "Highest equal-weight sustained/burst modeled DPS among two generated allocations",
+   "candidates": [
+    {
+     "objective": "pvp",
+     "score": 5486.852242634555,
+     "dps": {
+      "pvp": 4623.392012419803,
+      "pvp_burst": 6350.3124728493085
+     }
+    },
+    {
+     "objective": "pvp_burst",
+     "score": 4835.821770723831,
+     "dps": {
+      "pvp": 2181.4964123831546,
+      "pvp_burst": 7490.147129064508
+     }
+    }
+   ]
+  }
+ },
+ "preset_source": "bundled-example"
+}

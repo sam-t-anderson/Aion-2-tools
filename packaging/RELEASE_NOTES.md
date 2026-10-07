@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.58
+
+Bundle fresh PvP comparison examples for all eight classes. Each class has separate sustained and burst allocation searches; both candidates are independently scored using equal-weight sustained/burst damage, and the stronger candidate is retained. Common gear, fixed example resources, frozen allocations and search provenance make these examples reproducible. They are not progression maxima, global optima or validated competitive PvP builds.
+
+Planner distinguishes bundled common-comparison examples from community presets and displays their weighted scores and search assumptions. PvP conditional critical effects now use the same fixed player-target critical curve as the rest of the PvP model, without importing personal PvE critical calibration.
+
 # Aion 2 Calc 0.2.57
 
 Planner synchronizes one cached canonical PvE and PvP preset per class from servers supporting mode-specific comparison policies. Refresh presets checks again without restarting. Generic class/level/region/mode labels, weighted modeled DPS, comparison assumptions and last-check time distinguish community comparisons from bundled examples. Personal runs remain in Saved Results.
