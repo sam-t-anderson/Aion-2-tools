@@ -135,7 +135,10 @@ class Optimizer:
     def __init__(self, cls: str, scenario: Scenario, daev_budget: int = 360,
                  stigma_points: int | None = None, sp_budget: int | None = None,
                  search_duration: float | None = None, verbose: bool = True, gear_bonus: dict | None = None,
-                 progress=None, survival=None):
+                 progress=None, survival=None, skill_reserves=None):
+        self.skill_reserves = skill_reserves
+        self.min_sp = (skill_reserves or {}).get("sp", {})
+        self.min_stigmas = (skill_reserves or {}).get("stigmas", {})
         self.survival = survival
         self.cls = cls
         self.cd = ClassData(cls)
@@ -200,30 +203,40 @@ class Optimizer:
         b.bonus = dict(self.gear_bonus)
         avg = {**tp.get("skills", {}), **tp.get("passives", {})}
         ranked = sorted(cd.skills.values(), key=lambda s: -(avg.get(s["name"], {}).get("avg_level") or 0))
-        sp = self.sp_budget
+        b.sp = {sid:level for sid,level in self.min_sp.items() if level>1}
+        sp = self.sp_budget-b.sp_spent()
         for s in ranked:
             if s["kind"] == "stigma":
                 continue
             top = min(10, s.get("buyMax", 10))
-            cost = sp_to_reach(top)
+            cost = sp_to_reach(top)-sp_to_reach(b.sp.get(s["id"],1))
             if top > 1 and sp >= cost:
                 b.sp[s["id"]] = top
                 sp -= cost
         stig = [n for n in tp.get("stigmas", {}) if n not in DEFENSIVE_STIGMAS]
-        stig_ids = [cd.by_name[n]["id"] for n in stig if n in cd.by_name][: self.slots]
+        stig_ids = list(self.min_stigmas)
+        stig_ids += [cd.by_name[n]["id"] for n in stig if n in cd.by_name and cd.by_name[n]["id"] not in stig_ids][:self.slots-len(stig_ids)]
         if len(stig_ids) < self.slots:
             for s in cd.skills.values():
                 if s["kind"] == "stigma" and s["name"] not in DEFENSIVE_STIGMAS and s["id"] not in stig_ids:
                     stig_ids.append(s["id"])
                 if len(stig_ids) >= self.slots:
                     break
+        while self.min_stigmas and sum(stigma_points_to_reach(self.min_stigmas.get(sid,1)) for sid in stig_ids)>self.stigma_points:
+            removable = [sid for sid in stig_ids if sid not in self.min_stigmas]
+            if not removable:
+                raise ValueError("Reserved stigmas exceed the stigma budget")
+            stig_ids.remove(removable[-1])
         b.stigmas = self._distribute_stigma(stig_ids, [10] + [5] * (len(stig_ids) - 1))
         return b
 
     def _distribute_stigma(self, ids, levels):
-        out = dict(zip(ids, levels))
+        out = {sid:max(level,self.min_stigmas.get(sid,1)) for sid,level in zip(ids,levels)}
         while sum(stigma_points_to_reach(l) for l in out.values()) > self.stigma_points:
-            k = max(out, key=out.get)
+            choices = [sid for sid,level in out.items() if level>self.min_stigmas.get(sid,1)]
+            if not choices:
+                raise ValueError("No feasible stigma allocation fits the reserved levels and budget")
+            k = max(choices, key=out.get)
             out[k] -= 1
         return out
 
@@ -273,16 +286,17 @@ class Optimizer:
     def optimize_stigmas(self, build: Build, policy: list) -> Build:
         cd = self.cd
         cands = [s["id"] for s in cd.skills.values()
-                 if s["kind"] == "stigma" and s["name"] not in DEFENSIVE_STIGMAS]
+                 if s["kind"] == "stigma" and (s["name"] not in DEFENSIVE_STIGMAS or s["id"] in self.min_stigmas)]
         # level patterns that spend the stigma points (levels unlock specs at 5/10/15)
         patterns = []
-        for lv in itertools.product([1, 3, 5, 6, 7, 8, 10, 11, 12, 13, 15], repeat=self.slots):
+        levels = sorted({1,3,5,6,7,8,10,11,12,13,15,*self.min_stigmas.values()})
+        for lv in itertools.product(levels, repeat=self.slots):
             if sum(stigma_points_to_reach(l) for l in lv) <= self.stigma_points:
                 patterns.append(lv)
         # keep only maximal patterns (no free point left to add a level)
         def maximal(p):
             spent = sum(stigma_points_to_reach(l) for l in p)
-            return all(spent - stigma_points_to_reach(l) + stigma_points_to_reach(l + 1) > self.stigma_points
+            return all(l>=20 or spent - stigma_points_to_reach(l) + stigma_points_to_reach(l + 1) > self.stigma_points
                        for l in p)
         patterns = sorted({tuple(sorted(p, reverse=True)) for p in patterns if maximal(p)})
         if not cands or not patterns or self.slots > len(cands):
@@ -292,7 +306,17 @@ class Optimizer:
         # stage 1: which set (uniform-ish pattern), stage 2: level assignment for top sets
         base_pat = max(patterns, key=lambda p: (p.count(10), -p.count(1)))
         _CTX["stigma"] = (self, build, policy)
-        jobs = [(combo, base_pat) for combo in itertools.combinations(cands, self.slots)]
+        combos = [combo for combo in itertools.combinations(cands,self.slots) if set(self.min_stigmas).issubset(combo)]
+        if self.min_stigmas:
+            jobs = []
+            for combo in combos:
+                try:
+                    seed = self._distribute_stigma(combo,base_pat)
+                    jobs.append((combo,tuple(seed[sid] for sid in combo)))
+                except ValueError:
+                    continue
+        else:
+            jobs = [(combo,base_pat) for combo in combos]
         self.log(f"stigma search: scoring {len(jobs)} stigma combinations")
         scored = sorted(((v, job[0]) for job, v in _pmap(
                             _stigma_worker, jobs, ctx={"stigma": _CTX["stigma"]},
@@ -304,7 +328,8 @@ class Optimizer:
         for _, combo in scored[:6]:
             for pat in patterns:
                 for perm in set(itertools.permutations(pat)):
-                    jobs.append((combo, perm))
+                    if all(level>=self.min_stigmas.get(sid,1) for sid,level in zip(combo,perm)):
+                        jobs.append((combo, perm))
         self.log(f"stigma search: comparing {len(jobs)} level assignments across the top {min(6, len(scored))} combinations")
         for (combo, perm), v in _pmap(
                 _stigma_worker, jobs, ctx={"stigma": _CTX["stigma"]},
@@ -328,7 +353,7 @@ class Optimizer:
                 progress=lambda done, total: self.log(f"skill curves: {done}/{total} skills"),
                 fallback=self.log):
             # flat curves (no DPS effect) are dropped to keep the program small
-            if max(curve[1:]) - min(curve[1:]) > 1e-6:
+            if max(curve[1:]) - min(curve[1:]) > 1e-6 or sid in self.min_sp:
                 curves[sid] = curve
         self.log(f"skill curves: retained {len(curves)} skills with measurable gains")
         return curves
@@ -390,7 +415,7 @@ class Optimizer:
         sol = daev_opt.solve(self.cd, curves, nv, daev_budget=self.daev_budget,
                              sp_budget=self.sp_budget, bonus=bonus,
                              time_limit=DAEV_SOLVER_TIME_LIMIT,
-                             min_node_hp=(self.survival or {}).get("minimum_node_hp", 0))
+                             min_node_hp=(self.survival or {}).get("minimum_node_hp", 0), min_sp=self.min_sp)
         self.log(f"skill allocation: solver finished ({sol['status']}, "
                  f"{time.monotonic() - solver_started:.1f} s)")
         self.log("skill allocation: applying the optimized points")
@@ -426,7 +451,7 @@ class Optimizer:
                     for a in trainable:
                         la = build.sp.get(a, 1)
                         for da in (1, 2):
-                            if a == b or la - da < 1:
+                            if a == b or la - da < self.min_sp.get(a,1):
                                 continue
                             if cost <= slack + sp_to_reach(la) - sp_to_reach(la - da):
                                 jobs.append(((a, -da), (b, db)))
@@ -536,6 +561,9 @@ class Optimizer:
         build = self.spend_remaining_sp(build, policy)
         build = self.optimize_specs(build, policy, passes=3)
         policy, dps, res = self.optimize_rotation(build, policy, restarts=4)
+        from .reserves import meets
+        if not meets(build,self.skill_reserves):
+            raise ValueError("The optimized build does not meet the requested trained skill reserves")
         cd, b, kit, stats = prepare(build, self.scenario)
         weights = stat_weights(stats, kit, policy, self.scenario.target, self.scenario.config)
         self.log(f"final: {dps:.0f} DPS  {describe(policy)}")

@@ -128,7 +128,7 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dic
 
 
 def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2,
-                       scenario_name: str = "boss", progress=None, budgets: dict | None = None, survival: dict | None = None) -> dict:
+                       scenario_name: str = "boss", progress=None, budgets: dict | None = None, survival: dict | None = None, skill_reserves: dict | None = None) -> dict:
     from .diff import write_diff
     from .report import run_report
     out = Path(out_dir)
@@ -155,14 +155,18 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
             saved = {}
         saved[imp.key] = bud
         write_user_json(saved, "character-points.json")
+    from .opt.reserves import prepare as prepare_reserves
+    reserve_plan = prepare_reserves(ClassData(imp.cls), skill_reserves, bud)
+    if reserve_plan and progress:
+        progress(f"Retaining trained minimums for {sum(len(v) for v in reserve_plan.values())} skills/stigmas")
     cur["budgets"] = bud
     (out / "current" / "build.json").write_text(json.dumps(cur, indent=1, default=str), encoding="utf-8")
     best = run_report(imp.cls, str(out), scenario_name=scenario_name, daev_budget=bud["daevanion"],
                       iterations=iterations, loadout=imp.loadout_name(), sp_budget=bud["skill"],
-                      stigma_points=bud["stigma"], progress=progress, survival=survival_plan, loadout_snapshot=imp.loadout)
+                      stigma_points=bud["stigma"], progress=progress, survival=survival_plan, loadout_snapshot=imp.loadout, skill_reserves=reserve_plan)
     write_diff(str(out / "current"), str(out), str(out / "DIFF.md"))
     gain = best["dps"][scenario_name] / cur["dps"][scenario_name] - 1
     summary = {"character": cur["character"], "current_dps": cur["dps"], "optimized_dps": best["dps"],
-               "gain": gain, "scenario": scenario_name, "survival": best.get("survival"), "budgets": bud, "seconds": time.time() - t0}
+               "gain": gain, "scenario": scenario_name, "survival": best.get("survival"), "skill_reserves": best.get("skill_reserves"), "budgets": bud, "seconds": time.time() - t0}
     (out / "character.json").write_text(json.dumps(summary, indent=1), encoding="utf-8")
     return summary

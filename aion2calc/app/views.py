@@ -106,7 +106,7 @@ def skills_view(cd: ClassData, build, gear_bonus: dict, levels_override: dict | 
         chosen = set(build.specs.get(sid, ()))
         rows[s["kind"]].append({
             "id": sid, "name": s["name"], "icon": SKILL_ICON.format(sid), "sp": sp, "daev": dv.get(sid, 0),
-            "gear": gear_bonus.get(sid, 0), "eff": eff, "slots": spec_slots(eff),
+            "gear": gear_bonus.get(sid, 0), "buy_max": min(10, s.get("buyMax", 10)), "eff": eff, "slots": spec_slots(eff),
             "next_effect_level": min((x["unlock"] for x in s.get("specs", []) if x["unlock"] > eff),default=None),
             "specs": [{"id": x["id"], "n": i + 1, "unlock": x["unlock"], "text": x["text"],
                        "chosen": x["id"] in chosen, "available": x["unlock"] <= eff}
@@ -314,6 +314,7 @@ def build_view(summary: dict) -> dict:
         "class": cls, "loadout": loadout, "loadout_name": lo.get("name"), "scenario": summary.get("scenario"),
         "equipment_source": "Saved run loadout" if saved_loadout else "Legacy run: current loadout file; original gear snapshot unavailable",
         "model_note": summary.get("model_note"), "survival": summary.get("survival"),
+        "skill_reserves": summary.get("skill_reserves"),
         "dps": summary.get("dps"), "baseline": summary.get("baseline"), "budgets": budgets,
         "points": {"skill": build.sp_spent(), "stigma": build.stigma_spent(), "daevanion": build.daevanion_cost(cd)},
         "skills": skills_view(cd, build, gear),

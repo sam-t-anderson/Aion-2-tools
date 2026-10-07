@@ -274,6 +274,18 @@ function survivalSummary(plan) {
     ${plan.opponents?.length?`<div class="cr-scroll"><table class="t"><tr><th>Assumed encounter / opponent</th><th>Hit + pressure + reserve</th><th>HP headroom (proxy)</th></tr>${plan.opponents.map(row=>`<tr><td>${esc(row.name)}<br><small>User assumption · ${row.window_s}s window</small></td><td>${n0(row.required_hp)}</td><td>${n0(row.headroom_hp)} · ${row.meets_assumed_pressure?'Meets assumed HP requirement':'Below requirement'}</td></tr>`).join('')}</table></div>`:''}
     <p class="small muted">${esc(plan.note)}</p><p class="small muted">DPS is maximized subject to this HP floor. These personal constraints are not compared against damage-only community presets.</p></section>`;
 }
+function skillReserveSummary(plan) {
+  if(!plan)return '';
+  return `<section class="note"><h3>Trained skill reserves · ${plan.met?'met':'not met'}</h3><table class="t"><tr><th>Skill</th><th>Minimum</th><th>Selected</th></tr>${plan.skills.map(row=>`<tr><td>${esc(row.name)}</td><td>${row.minimum}</td><td>${row.selected}</td></tr>`).join('')}</table><p class="small muted">${esc(plan.note)}</p></section>`;
+}
+function mountSkillReserves(root,key,v) {
+  let saved={};try{saved=JSON.parse(localStorage.getItem(key)||'{}')||{};}catch(_){}
+  const rows=[...(v.skills?.active||[]),...(v.skills?.passive||[])].map(row=>({...row,field:'sp',level:row.sp,max:row.buy_max||10})).concat((v.stigmas||[]).map(row=>({...row,field:'stigmas',max:20})));
+  root.innerHTML=`<details><summary>Retain trained skills and equipped stigmas</summary><p class="small muted">Optional minimums for skills you rely on for defense, control or movement. Applies to both PvE and PvP. Damage is optimized within these constraints. Bonuses and specialties may change; effective-level unlocks are not locked. Use utility skills manually when absent from the rotation. This does not simulate defensive skill use, crowd control, movement or opponent matchups.</p><div class="cr-scroll"><table class="t"><tr><th>Retain</th><th>Skill</th><th>Minimum trained level</th></tr>${rows.map(row=>`<tr data-reserve-row data-field="${row.field}" data-id="${row.id}"><td><input type="checkbox" data-reserve-enable aria-label="Retain ${esc(row.name)}" ${saved[row.field]?.[row.id]?'checked':''}></td><td>${esc(row.name)}${row.field==='stigmas'?' · keep equipped':''}</td><td><input type="number" data-reserve-level aria-label="Minimum ${esc(row.name)} level" min="1" max="${row.max}" value="${Math.max(1,Math.min(row.max,Number(saved[row.field]?.[row.id]||row.level||1)))}" style="width:80px"></td></tr>`).join('')}</table></div></details>`;
+  function read(){const plan={sp:{},stigmas:{}};root.querySelectorAll('[data-reserve-row]').forEach(row=>{const enable=row.querySelector('[data-reserve-enable]'),input=row.querySelector('[data-reserve-level]');input.disabled=!enable.checked;if(enable.checked){if(!input.checkValidity())throw new Error('Reserve levels must be whole numbers within the shown range.');plan[row.dataset.field][row.dataset.id]=Number(input.value);}});return plan;}
+  function save(){const plan=read();try{localStorage.setItem(key,JSON.stringify(plan));}catch(e){toast('Could not save skill reserves: '+e.message);}return plan;}
+  root.onchange=()=>{try{save();}catch(e){toast(e.message);}};read();return {read:save};
+}
 function mountSurvivalOptions(root,key) {
   let settings={preserve_hp:true,min_node_hp:0,current_hp:null,opponents:[]};
   try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(saved && typeof saved==='object')settings={...settings,...saved,opponents:Array.isArray(saved.opponents)?saved.opponents.slice(0,8):[]};}catch(_){}
@@ -302,7 +314,7 @@ function winOverview(v) {
     <div class="kpi"><div class="k">Combat speed</div><div class="v">${pct(st.combat_speed)}</div></div></div>`;
   const w = (v.weights || []).map((x) => `<tr><td>${esc(x.label)}</td><td class="r num">${x.pct >= 0 ? "+" : ""}${x.pct.toFixed(2)}%</td><td style="width:45%"><div class="bar"><i style="width:${Math.max(0, Math.min(100, x.pct * 25))}%"></i></div></td></tr>`).join("");
   const sh = Object.entries(v.shares || {}).slice(0, 12).map(([k, x]) => `<tr><td>${esc(k)}</td><td style="width:55%"><div class="bar"><i style="width:${100 * x / Math.max(...Object.values(v.shares))}%"></i><span>${pct(x)}</span></div></td></tr>`).join("");
-  return win("Overview", esc(v.loadout_name || ""), kpis + survivalSummary(v.survival) + `<div class="grid2" style="margin-top:14px"><div><h4 class="gold small">STAT PRIORITY (DPS PER UPGRADE)</h4><table class="t">${w}</table></div>
+  return win("Overview", esc(v.loadout_name || ""), kpis + survivalSummary(v.survival) + skillReserveSummary(v.skill_reserves) + `<div class="grid2" style="margin-top:14px"><div><h4 class="gold small">STAT PRIORITY (DPS PER UPGRADE)</h4><table class="t">${w}</table></div>
      <div><h4 class="gold small">DAMAGE SHARE</h4><table class="t">${sh}</table></div></div>`, { key: "overview" });
 }
 
@@ -422,8 +434,9 @@ async function pageCharacter() {
       <div class="kpis">${Object.entries(v.dps || {}).map(([k, x]) => `<div class="kpi"><div class="k">${esc(k)} DPS as-is</div><div class="v">${n0(x)}</div></div>`).join("")}
         <div class="kpi"><div class="k">Skill points</div><div class="v">${v.points.skill} / ${v.budgets?.skill??"Unknown"}</div></div><div class="kpi"><div class="k">Stigma points</div><div class="v">${v.points.stigma} / ${v.budgets?.stigma??"Unknown"}</div></div>
         <div class="kpi"><div class="k">Daevanion</div><div class="v">${v.points.daevanion} / ${v.budgets?.daevanion??"Unknown"}</div></div></div>
-      ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${['skill','stigma','daevanion'].map(k=>`<label>${cap(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:90px"></label>`).join('')}<label>Game patch (optional) <input id="cpointpatch" maxlength="100" placeholder="Unknown" value="${esc(localStorage.getItem('point-game-patch')||'')}"></label></div><p class="small muted">PvP optimization is an experimental damage-only estimate against a stationary player proxy. It does not score survival, crowd control or win chance. PvE and PvP results are saved separately.</p><div id="survival-options"></div><div id="optres"></div></div></section><div id="cwins"></div>`;
+      ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${['skill','stigma','daevanion'].map(k=>`<label>${cap(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:90px"></label>`).join('')}<label>Game patch (optional) <input id="cpointpatch" maxlength="100" placeholder="Unknown" value="${esc(localStorage.getItem('point-game-patch')||'')}"></label></div><p class="small muted">PvP optimization is an experimental damage-only estimate against a stationary player proxy. It does not score survival, crowd control or win chance. PvE and PvP results are saved separately.</p><div id="survival-options"></div><div id="skill-reserves"></div><div id="optres"></div></div></section><div id="cwins"></div>`;
     const survivalOptions=mountSurvivalOptions($('#survival-options'),'character-survival:'+JSON.stringify(st.hit||v.key||v.loadout));
+    const reservesOptions=mountSkillReserves($('#skill-reserves'),'character-skill-reserves:'+JSON.stringify(st.hit||v.key||v.loadout),v);
     renderWindows(v, st, $("#cwins"));
     st.optMeta = { name: v.name, server: v.server, combat_power: v.combat_power };
     $("#cpointpatch").onchange=()=>localStorage.setItem("point-game-patch",$("#cpointpatch").value.trim());
@@ -434,7 +447,7 @@ async function pageCharacter() {
       S.character.opt = { status: "running", mode, log: [], jobid: null };
       renderOptState();
       try {
-        const { job } = await api("/api/character/optimize", {...st.hit,mode,budgets:rememberBudgets(),survival:survivalOptions.read(),game_patch:$("#cpointpatch").value.trim()});
+        const { job } = await api("/api/character/optimize", {...st.hit,mode,budgets:rememberBudgets(),survival:survivalOptions.read(),skill_reserves:reservesOptions.read(),game_patch:$("#cpointpatch").value.trim()});
         S.character.opt.jobid = job;
         pollOpt();
       } catch (e) { S.character.opt = { status: "error", error: e.message }; renderOptState(); }
