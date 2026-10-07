@@ -1,43 +1,30 @@
 # Methodology, sources and assumptions
 
-## Capture driver evidence (0.2.37)
+This guide explains how build recommendations are calculated and how recorded combat evidence is interpreted. Start with the model's data and budgets, then follow the calculation and optimization steps. The final sections cover telemetry and its limits.
 
-Live Meter capture diagnostics and shared combat-review quality panels show received packets, capture-buffer drops and interface/driver drops when the active Npcap/libpcap backend provides statistics. Unsupported backends are labeled unavailable; partial adapter coverage is labeled. Counters are retained in saved/exported logs and diagnostic ZIPs, including the final sample after capture stops and cumulative evidence across capture restarts in a retained session.
+For controls and setup, see the [app guide](app.md) and [user guide](user-guide.md). Version-by-version changes are in [Releases](https://github.com/sam-t-anderson/Aion-2-tools/releases).
 
-A positive reported drop counter conservatively makes the recording unranked. It does not identify which game effects were lost: counters cover the capture handle and may include other traffic. Zero does not prove loss-free capture, and missing counters are not zero. These counts must not be added to TCP discards to estimate unique lost game packets. Native capture backends without a libpcap handle remain usable, with driver statistics unavailable. Other capture-quality rules remain in effect; driver support alone neither grants eligibility nor blocks older logs.
+## Contents
 
-Statistics are sampled before capture, in that adapter's packet callback and after its thread exits. Optional statistics failures do not interrupt packet decoding. See the [libpcap counter documentation](https://www.tcpdump.org/manpages/pcap_stats.3pcap.html) for platform-specific meanings and availability.
+- [Data sources and model scope](#data-sources-and-model-scope)
+- [Character budgets and legal allocations](#character-budgets-and-legal-allocations)
+- [Damage calculation](#damage-calculation)
+- [Simulation and scenarios](#simulation-and-scenarios)
+- [Optimization and macro planning](#optimization-and-macro-planning)
+- [Experimental PvP model](#experimental-pvp-model)
+- [Damage optimization with an HP reserve](#damage-optimization-with-an-hp-reserve)
+- [Assumptions and limitations](#assumptions-and-limitations)
+- [Validation and sensitivity](#validation-and-sensitivity)
+- [Combat-log evidence](#combat-log-evidence)
+- [Installation, identity and live rate evidence](#installation-identity-and-live-rate-evidence)
+- [Encounter catalog and boss roles](#encounter-catalog-and-boss-roles)
+- [Capture-driver counters](#capture-driver-counters)
+- [Archive boundaries and retention](#archive-boundaries-and-retention)
 
-The pet review filter now follows a selected pet to its owner when enabling **Combine pets with owner**, instead of leaving a selection that disappears from grouped rows.
+## Data sources and model scope
 
+The bundled model targets the global level-45 dataset. It is a versioned data snapshot, not a guarantee that every coefficient matches the latest regional live patch. Korean data fills specified gaps; region and source differences remain relevant.
 
-## Encounter catalog coverage (0.2.36)
-
-Live Meter fills difficulty only when the recorded PvE instance ID has an explicit difficulty in the bundled dungeon table. It does not infer difficulty from ID suffixes, damage, names or gear. Manual difficulty overrides remain available and their source is recorded. Content categories without a known mapping and the ranking game patch still require confirmation.
-
-Combat review on desktop and Pages includes **Mapping coverage** with recorded map/instance IDs, a catalog revision, unresolved NPC types and enemy references missing their type. **Export mapping report** downloads this bounded ID report without character names or raw traffic. Diagnostic ZIPs include current-view catalog coverage as well; the full combat log contains coverage per retained encounter. A supplied creature name does not automatically become a trusted catalog entry.
-
-Reports keep at most 100 unresolved IDs per encounter and show omitted counts. Entity references and effects are counts of retained evidence, not kills; player opponents and owned pets are excluded from NPC coverage. A missing type cannot be resolved from an actor ID, which changes between instances. An unmapped ID means absent from the installed catalog, not proof of new content.
-
-
-## Automatic capture metadata and idle DPS (0.2.35)
-
-Live Meter detects the installed game build for registered Windows installs and resolves recorded server IDs against official regional metadata in the background. Installation paths are not exported. Steam build IDs and executable versions are build evidence, not automatically a game patch. Optional classification overrides take precedence within the recorded PvE/PvP mode.
-
-Recorded map/instance IDs identify known open-world categories, Fire Temple Arena and available dungeon names. Unmapped content, difficulty, patch and match outcomes remain unknown. Detection provenance is visible in shared log review. Opponents without their own server ID are not assigned your server.
-
-Live DPS uses the recorded damage interval and pauses after two seconds without damage while capture continues. Healing after the last damage no longer lowers live DPS. Actual new damage resumes it. Saved logs preserve the full event interval, including healing/deaths, so report rates can differ from the live rate. This does not establish a kill or match result.
-
-
-This document explains where every number in `aion2calc` comes from, which
-parts are measured community knowledge, and which parts are assumptions you
-may want to tune.
-
-## 1. Which game version is modelled
-
-* **Global launch (Oct 2026)** opens at **level 45** on the Korean "Season 1"
-  content tier (KR Season 1 ran Nov 2025 – Jan 2026).  Global Early Access
-  started 30 Sep 2026 for Founder's Pack owners; open launch is 5 Oct 2026.
 * **Primary data source = the global client**, as published by
   [metabot.gg](https://metabot.gg/en/aion-2), which reads the global client's
   skill, Daevanion, item, title and stat tables.  The global client differs from
@@ -50,28 +37,30 @@ may want to tune.
   research (Taiwanese Bahamut / Inven tests run in KR Season 1), and the
   top-player training-dummy logs on [A2DIL](https://a2dil.com) for validation.
 
-## 2. Budgets at level 45 (global client)
+## Character budgets and legal allocations
+
+Budgets constrain a particular optimization, not the maximum progression available in the game. Official profiles can omit unspent points, so imported allocated points are a lower bound. Enter the actual in-game total before optimizing. Community observations distinguish profile spend from user-entered totals and do not establish a game maximum.
 
 | Resource | Value | Source |
 |---|---|---|
-| Skill points | 203 from levels **+ 1 per Wisdom Stone** (Empyrean Traces → monolith exchange); top global level-45 profiles show 382–383 spent. Configurable (`--skill-points`); imported characters use their own total | metabot (client Exp table), official profiles |
+| Skill points | 203 is the example level-based budget; additional progression grants points. Configurable (`--skill-points`); use the character's in-game spent + unspent total | metabot (client Exp table), official profiles |
 | Skill level price | Lv 2–4: 1, Lv 5–7: 2, Lv 8–10: 4 (21 per skill to Lv 10) | metabot (skill acquire table) |
 | Skill level cap from points | 10; Daevanion +4 max per skill (4 nodes per skill) | metabot / Inven |
 | Arcana skill rolls | (grade base + enhancement level) random skill levels per arcana — Rare 2, Legend 3, Unique 4 base, +1 per enhancement (Unique +5 = 9); repeats stack up to +4 per skill. Chalice (any skill), Parchment and Compass (two halves of the active skills) roll actives; Bell and Mirror roll passives | official item data (`/api/gameconst/item`, character equipment) + metabot pools (`data/global/arcana_skill_pools.json`) |
 | Accessory skill rolls | Unique accessories (e.g. Aulamus/Gartua) roll up to 4 passive skills at +1 from a 10-skill pool | official item data, metabot pools |
 | Specialization slots | 1 at skill Lv 8, 2 at Lv 12, 3 at Lv 20; options unlock at 8/12/16 | client data |
 | Highest active skill level at 45 | 10 SP + 4 Daevanion nodes + arcana rolls. A Unique +5 Parchment spreads 9 levels over six core actives, so the Lv 16 options (Pyroclasm reset, Wish −10 s, Blaze → Wish, Hellfire −15 s) are reachable with good rolls; a level-45 profile with only Rare arcana already shows Lv 15 actives | official profiles, derived |
-| Stigma points | 29 (+1 from the 3rd Ascension reward = 30) from levels; some profiles show more (up to ~70), so it is configurable (`--stigma-points`) | metabot, official profiles |
+| Stigma points | 30 is the example budget including the third Ascension reward; additional progression can increase it. Configurable (`--stigma-points`) | metabot, official profiles |
 | Stigma level price | Lv 1–5: 1, 6–10: 2, 11–15: 4, 16–20: 8 (75 to Lv 20) | metabot |
 | Stigma slots | 4 (Lv 22/27/32/37) | client data |
-| Daevanion Crystal points | **360** (136 from levels + 122 from 61 sealed dungeons + 58 regional quests + shop/fragment crystals) | metabot board guide; the global top-player "most common" board spends 351 |
+| Daevanion Crystal points | **360** is the example PvE budget, including level, dungeon, quest and other progression sources; it is configurable and is not a verified maximum | metabot board guide; the global top-player "most common" board spends 351 |
 | Daevanion boards | Nezekan (134), Zikel (134), Vaizel (134), Triniel (168) share the crystal pool; Azphel (232) is PvP and uses its own currency | client data |
 
 Daevanion connectivity rule (same as the in-game window and both public
 planners): a node can be taken only if it touches the board centre or another
 taken node orthogonally.
 
-## 3. Damage formula
+## Damage calculation
 
 Expected damage of one hit (implemented in `aion2calc/model/damage.py`):
 
@@ -108,7 +97,7 @@ efficiency, multi-hit 12.5 %, crit curve capped at 80 %).
   the model (fit to dummy tests: 1048 → 56 %, 1220 → 80 %, 1326 → 90 %;
   [Inven](https://www.inven.co.kr/board/aion2/6444/909)).  The cap never binds at
   launch.  At global-launch crit values (~400–700) the fit is an extrapolation and
-  gives 3–15 % — the largest single uncertainty for crit-related advice (§6).
+  gives 3–15 % — the largest single uncertainty for crit-related advice (see [Assumptions and limitations](#assumptions-and-limitations)).
 * **Primary and deity stats**: +0.1 % per point to each of their effects in the
   global client (metabot "Stats explained"; KR later raised deity stats to
   0.2 %).  Might/Destruction → Attack %, Precision/Death → Crit %, Wisdom →
@@ -118,7 +107,7 @@ efficiency, multi-hit 12.5 %, crit curve capped at 80 %).
   "ignores Block and Evasion" skills bypass parry); Accuracy is therefore a
   threshold stat, not a DPS stat.
 
-## 4. Simulation
+## Simulation and scenarios
 
 `aion2calc/sim/engine.py` is a deterministic, expected-value, event-driven
 simulator.  Skills are `Action`s with an on-cast callback; the kit decides what
@@ -137,7 +126,7 @@ Fight scenarios (`aion2calc/scenarios.py`):
   HP-threshold passives), three 8 s stagger windows.
 * **dummy**: 180 s, 10 % Damage Tolerance (TW measurement), 100 % HP.
 
-## 5. Optimization
+## Optimization and macro planning
 
 `aion2calc/opt/pipeline.py` alternates, accepting only improvements:
 
@@ -147,7 +136,7 @@ Fight scenarios (`aion2calc/scenarios.py`):
    entries, Hellfire charge level, filler choice, optional "wait for Delayed
    Explosion" and "inside Element Enhancement" conditions), several restarts.
 3. **Stigmas** – all 4-of-N damage stigmas, then every stigma-level pattern that
-   spends the 30 points for the best sets.
+   uses the configured stigma budget for the best sets.
 4. **Per-skill level curves** – DPS as a function of each skill's effective
    level (best specialization at each level), plus **stat weights** by finite
    differences.
@@ -161,7 +150,7 @@ Fight scenarios (`aion2calc/scenarios.py`):
    separable level curves of step 5 cannot see (one skill's level changing
    another skill's value, spec slots opening at Lv 8/12).
 
-Every step is scored on the full 180 s fight of the chosen scenario, so the
+Every step is scored on the full fight of the chosen scenario, so the
 numbers in the log are directly comparable.  The stat weights, the curves and
 the program are re-computed each iteration around the current build, and a
 reallocation is accepted only if the full simulation confirms it.
@@ -169,19 +158,37 @@ reallocation is accepted only if the full simulation confirms it.
 The in-game **Skill Macro** plan (`opt/macro.py`) keeps short-cooldown skills
 and fillers in the hold-to-run macro and leaves long-cooldown burst skills on
 manual keys, then simulates the macro's round-robin behaviour to check it gets
-close to the ideal priority.
+close to the ideal priority. Skills requiring charge are kept on manual keys because the game macro only taps them; the macro is not assumed to hold a charge. The suggested macro binding is Right-click; the app does not change game bindings.
 
-### Baseline ("typical top global build")
+### Example baseline
 
-Reports compare against what the top tracked global level-45 players of the
-class actually run (metabot.gg live statistics): each skill at its average
+Reports compare against a snapshot of tracked global level-45 player
+statistics from metabot.gg: each skill at its average
 level (minus the levels the most-picked Daevanion nodes give, fitted to 203
-SP), the four most-picked damage stigmas at their average levels (fitted to 30
+SP in this example), the four most-picked damage stigmas at their average levels (fitted to 30
 points) and the most-picked Daevanion nodes.  Specializations are not
 published, so the baseline gets the best legal specs for its levels.  It is
 shown with the default priority and with the same rotation optimizer.
 
-## 6. Assumptions you may want to tune
+## Experimental PvP model
+
+My Character provides separate PvE and PvP damage actions. PvP uses the generic class kit against a stationary neutral player proxy, excludes PvE/boss stat buckets and learned PvE skill/proc/critical calibration, and assesses sustained (180 seconds) and burst (30 seconds) damage. Saved results retain this model description. It does not optimize dedicated PvP progression, defensive skill use, crowd control, movement or opponent-specific defenses, and its skill coefficients are not validated PvP coefficients. PvP output is excluded from PvE community preset submission.
+
+The optional HP reserve below also applies to PvP, but it is a manual incoming-pressure constraint, not a simulation of an optimized opponent or a competitive win probability.
+
+## Damage optimization with an HP reserve
+
+My Character → **Survivability** preserves the character's imported flat **HPMax** contribution from the four optimized crystal boards by default. The existing DPS objective stays primary inside the set of allocations meeting this floor. Skill, stigma and Daevanion budgets and board connectivity remain enforced. A stricter minimum can trade some modeled DPS for more crystal HP. Disable preservation and leave the minimum/scenarios empty to use the previous damage-only objective. This is an HP-node constraint, not a full survival simulator.
+
+Optional scenarios describe one hit followed by sustained pressure. Enter current in-game maximum HP and up to eight encounter/opponent assumptions: **hit damage after mitigation + max(0, incoming DPS − assumed sustained HPS) × seconds + positive HP reserve**. The largest requirement sets the floor. HPS never absorbs the initial hit. Estimated total HP is entered current HP plus the flat node-HP change; percentage modifiers and passive/gear changes are not modeled. Headroom is a scenario proxy, not verified effective HP, guaranteed survival or win probability. Confirm final HP in game.
+
+Settings persist per selected character in this browser. Saved Results/build JSON/Markdown retain assumptions and the assessment. Infeasible requests report an error without publishing a lower-HP fallback. Solver limits can prevent finding an allocation even when one exists. Damage-only stat priorities, baseline comparisons and Gear & Advice do not validate survival; constrained builds are not submitted as community damage presets.
+
+PvP supports a manual multi-opponent **incoming-pressure** envelope, not optimized opponent-build combat. Next modeling work: resolve official current/historical opponent gear with provenance; evaluate outgoing damage and adverse matchups; include verified defensive skill, CC, mobility and coefficient rules before scoring them. Those metrics are explicitly unavailable here. Mitigation and tactical coefficients are not inferred from these manual scenarios.
+
+## Assumptions and limitations
+
+The model does not reproduce movement or boss mechanics, complete party interactions (optional buffs can be supplied via `Scenario.buffs`), verified opponent-specific PvP combat, pets' genus-specific damage, Power Shards, or content beyond its modeled level range. An HP-node reserve does not fill these gaps.
 
 | Item | Value | Where |
 |---|---|---|
@@ -199,7 +206,9 @@ The report's **sensitivity** section perturbs every animation time by up to
 ±25 % and re-optimizes the rotation; a small loss for the fixed recommendation
 means it is robust to these unknowns.
 
-## 7. Validation
+## Validation and sensitivity
+
+The following are historical Sorcerer comparison examples for the bundled dataset, not a current guarantee for every class, patch, gear set or encounter.
 
 * Simulated Sorcerer damage shares match the A2DIL top-KR dummy logs closely
   (Hellfire ~20 %, Fire Wall ~15 %, Cold Storm ~10–12 %, Blaze ~11–14 %,
@@ -208,34 +217,46 @@ means it is robust to these unknowns.
   (Element Enhancement, Fire Wall, Delayed Explosion, Cold Storm — metabot).
 * The global "most common" Daevanion board spends 351 of the 360 points.
 
-## 8. What is *not* modelled
+## Combat-log evidence
 
-Movement/boss mechanics, party buffs (optional via `Scenario.buffs`), PvP,
-pets' genus-specific damage (only matters versus that genus), Power Shards,
-and any content gated behind levels > 45.
+Combat review describes retained observations separately from simulated expectations. Recorded effects are not proof of cast starts, complete capture or authenticated game results. Missing telemetry remains unavailable. Linked pets retain their source IDs when totals are grouped with their owner.
 
-## Experimental PvP optimizer
+See the [user guide](user-guide.md) for matched comparison cohorts, ranking eligibility, privacy and review controls.
 
-My Character provides separate PvE and PvP damage actions. PvP uses the generic class kit against a stationary neutral player proxy, excludes PvE/boss stat buckets and learned PvE skill/proc/critical calibration, and assesses sustained (180 seconds) and burst (30 seconds) damage. Saved results retain this model description. It does not optimize dedicated PvP progression, survival, crowd control, movement or opponent-specific defenses, and its skill coefficients are not validated PvP coefficients. PvP output is excluded from PvE community preset submission.
+## Installation, identity and live rate evidence
 
-## Long live sessions (0.2.38)
+Live Meter reads installed build evidence from Steam library manifests and recognized Windows game registrations, including PURPLE registrations. It resolves recorded server IDs against official regional metadata in the background. Installation paths are not exported. Steam build IDs and executable versions are build evidence, not automatically a game patch. Optional classification overrides take precedence within the recorded PvE/PvP mode.
 
-Live capture automatically saves a numbered archive part before the current history reaches its effect, telemetry, encounter or observed-party identity budget. Each part has a shared archive ID and appears separately in **Combat Logs**. Capture continues with the same decoder and current identity context; the live meter and its export/upload buttons cover the current part. Open an earlier part from Combat Logs to review or upload it. There is no fixed total part count or automatic deletion; available disk space is the practical storage limit. The recent list shows the newest 100 files; older parts remain in the user logs folder and can be imported.
+Recorded map/instance IDs identify known open-world categories, Fire Temple Arena and available dungeon names. Unmapped content, difficulty, patch and match outcomes remain unknown. Detection provenance is visible in shared log review. Opponents without their own server ID are not assigned your server.
 
-A storage boundary is not a boss kill, instance finish or arena result. Parts crossing a storage boundary are conservatively unranked, and a continued run does not inherit observed entry. Parts are not automatically stitched into a combined report or uploaded as a batch. A failed rollover save stops capture visibly and retains the in-memory history instead of clearing it. Periodic recovery is still every 15 seconds; abrupt termination can lose newer unsaved effects.
+Live DPS uses the recorded damage interval and pauses after two seconds without damage while capture continues. Healing after the last damage does not extend the live damage interval. Actual new damage resumes it. Saved logs preserve the full event interval, including healing/deaths, so report rates can differ from the live rate. This does not establish a kill or match result.
+
+Unknown difficulty is not guessed from boss damage or observed current HP. Patch-specific maximum-HP signatures and corroborating evidence require independently labeled collection and validation before automatic inference. Installed build evidence, current published patch and the patch of a historical log are separate claims.
+
+## Encounter catalog and boss roles
+
+Live Meter fills difficulty only when the recorded PvE instance ID has an explicit difficulty in the bundled dungeon table. It does not infer difficulty from ID suffixes, damage, names or gear. Manual difficulty overrides remain available and their source is recorded. Content categories without a known mapping and the ranking game patch still require confirmation.
+
+Combat review on desktop and Pages includes **Mapping coverage** with recorded map/instance IDs, a catalog revision, unresolved NPC types and enemy references missing their type. **Export mapping report** downloads this bounded ID report without character names or raw traffic. Diagnostic ZIPs include current-view catalog coverage as well; the full combat log contains coverage per retained encounter. A supplied creature name does not automatically become a trusted catalog entry.
+
+Reports keep at most 100 unresolved IDs per encounter and show omitted counts. Entity references and effects are counts of retained evidence, not kills; player opponents and owned pets are excluded from NPC coverage. A missing type cannot be resolved from an actor ID, which changes between instances. An unmapped ID means absent from the installed catalog, not proof of new content.
+
+Boss progression requires catalog-confirmed bosses and observed engagement, excluding players, linked pets, dummies and known non-bosses. The broad catalog flag does not distinguish every miniboss from a major or world boss; that role distinction remains incomplete.
+
+## Capture-driver counters
+
+Live Meter capture diagnostics and shared combat-review quality panels show received packets, capture-buffer drops and interface/driver drops when the active Npcap/libpcap backend provides statistics. Unsupported backends are labeled unavailable; partial adapter coverage is labeled. Counters are retained in saved/exported logs and diagnostic ZIPs, including the final sample after capture stops and cumulative evidence across capture restarts in a retained session.
+
+A positive reported drop counter conservatively makes the recording unranked. It does not identify which game effects were lost: counters cover the capture handle and may include other traffic. Zero does not prove loss-free capture, and missing counters are not zero. These counts must not be added to TCP discards to estimate unique lost game packets. Native capture backends without a libpcap handle remain usable, with driver statistics unavailable. Other capture-quality rules remain in effect; driver support alone neither grants eligibility nor blocks older logs.
+
+Statistics are sampled before capture, in that adapter's packet callback and after its thread exits. Optional statistics failures do not interrupt packet decoding. See the [libpcap counter documentation](https://www.tcpdump.org/manpages/pcap_stats.3pcap.html) for platform-specific meanings and availability.
+
+## Archive boundaries and retention
+
+Live capture automatically saves a numbered archive part before the current history reaches its effect, telemetry, encounter or observed-party identity budget. Each part has a shared archive ID and appears separately in **Combat Logs**. Capture continues with the same decoder and current identity context; the live meter and its export/upload buttons cover the current part. Open an earlier part from Combat Logs to review or upload it. There is no fixed total part count or automatic deletion; available disk space is the practical storage limit. The recent list shows the newest 100 files; Saved Parts paginates the archive, and older files can also be imported.
+
+A storage boundary is not a boss kill, instance finish or arena result. Parts crossing a storage boundary are conservatively unranked, and a continued run does not inherit observed entry. Parts are not automatically stitched into a combined report. Saved Parts supports a batch queue that uploads each part as an independent report. A failed rollover save stops capture visibly and retains the in-memory history instead of clearing it. Periodic recovery is still every 15 seconds; abrupt termination can lose newer unsaved effects.
 
 Per-file format/validation limits still apply. In unusually large All-observed rosters, a part can exceed the 64-player validation limit; the app reports a save error rather than silently clearing it. Party/Self scope is recommended. This is automatic bounded-part archival, not an unlimited single JSON document. Raw TCP diagnostics remain a separate opt-in recording.
 
 Implementation: rollover is checked between decoded packet batches at 100,000 retained effects, 20,000 telemetry samples, 100 conservative candidate encounter boundaries or 48 observed party actor references. Saves use atomic replacement and fsync before releasing the old part. Thresholds leave headroom for normal packet batches. Counters remain conservative cumulative capture evidence across parts. No live TCP stream is reopened, historical identity epochs are not merged, and recorded pet links remain available.
-
-## Damage with an HP reserve (0.2.41)
-
-My Character → **Survivability** preserves the character's imported flat **HPMax** contribution from the four optimized crystal boards by default. The existing DPS objective stays primary inside the set of allocations meeting this floor. Skill, stigma and Daevanion budgets and board connectivity remain enforced. A stricter minimum can trade some modeled DPS for more crystal HP. Disable preservation and leave the minimum/scenarios empty to use the previous damage-only objective. This is an HP-node constraint, not a full survival simulator.
-
-Optional scenarios describe one hit followed by sustained pressure. Enter current in-game maximum HP and up to eight encounter/opponent assumptions: **hit damage after mitigation + max(0, incoming DPS − assumed sustained HPS) × seconds + positive HP reserve**. The largest requirement sets the floor. HPS never absorbs the initial hit. Estimated total HP is entered current HP plus the flat node-HP change; percentage modifiers and passive/gear changes are not modeled. Headroom is a scenario proxy, not verified effective HP, guaranteed survival or win probability. Confirm final HP in game.
-
-Settings persist per selected character in this browser. Saved Results/build JSON/Markdown retain assumptions and the assessment. Infeasible requests report an error without publishing a lower-HP fallback. Solver limits can prevent finding an allocation even when one exists. Damage-only stat priorities, baseline comparisons and Gear & Advice do not validate survival; constrained builds are not submitted as community damage presets.
-
-PvP supports a manual multi-opponent **incoming-pressure** envelope, not optimized opponent-build combat. Next modeling work: resolve official current/historical opponent gear with provenance; evaluate outgoing damage and adverse matchups; include verified defensive skill, CC, mobility and coefficient rules before scoring them. Those metrics are explicitly unavailable here. This checkpoint does not invent mitigation or tactical coefficients.
-
-Mapping coverage also recognizes a known dungeon ID repeated in the map field. The submitted 600021 report already identifies Fire Temple; it is no longer separately flagged as an unknown map. Distinct unknown map IDs and missing difficulty remain unresolved.
