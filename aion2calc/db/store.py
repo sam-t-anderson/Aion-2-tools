@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS items (
 CREATE INDEX IF NOT EXISTS items_cat ON items(category);
 CREATE TABLE IF NOT EXISTS official_items (
   id INTEGER, enchant INTEGER, data TEXT, fetched_at REAL, PRIMARY KEY (id, enchant));
+CREATE TABLE IF NOT EXISTS official_assets (
+  region TEXT, kind TEXT, asset_id TEXT, name TEXT, icon TEXT, grade TEXT, observed_at REAL,
+  reference_changes INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(region,kind,asset_id));
 CREATE TABLE IF NOT EXISTS characters (
   key TEXT PRIMARY KEY, region TEXT, server_id INTEGER, character_id TEXT, name TEXT,
   class_name TEXT, level INTEGER, combat_power INTEGER, data TEXT, fetched_at REAL);
@@ -154,6 +157,14 @@ def put_character(conn, key: str, ch: dict) -> None:
         (key, ch.get("region"), p.get("serverId"), p.get("characterId"), p.get("characterName"),
          p.get("className"), p.get("characterLevel"), p.get("combatPower"),
          json.dumps(ch, ensure_ascii=False), time.time()))
+    from .assets import record
+    conn.execute("SAVEPOINT asset_import")
+    try:
+        record(conn, ch)
+    except (sqlite3.Error, TypeError, ValueError, AttributeError):
+        conn.execute("ROLLBACK TO asset_import")
+    finally:
+        conn.execute("RELEASE asset_import")
     conn.commit()
 
 
