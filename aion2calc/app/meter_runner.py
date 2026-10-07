@@ -41,6 +41,7 @@ class Runner:
         self.lock = threading.Lock()
         self.session = CombatSession()
         self.metadata = {}
+        self.capture_metadata = None
         self.scope = "party"
         self.segment_id = None
         self.enemy_id = None
@@ -66,6 +67,11 @@ class Runner:
         self._stop = False
         self.replay_stop = threading.Event()
         self.source_name = source
+        if source in ("a2tools", "live"):
+            from ..meter.metadata import CaptureMetadata
+            self.capture_metadata = CaptureMetadata()
+        else:
+            self.capture_metadata = None
         self.scope = str(opts.get("scope") or "party")
         if self.scope not in ("party", "self", "all"):
             self.scope = "party"
@@ -294,8 +300,14 @@ class Runner:
             diagnostic = dict(self.diagnostics)
         if diagnostic:
             diagnostic["elapsed"] = round(time.monotonic() - self.started_at, 1) if self.started_at else 0
+        from ..meter.context import classify
+        current = self.session.runs[self.session.run]
+        context = classify(current.get("map_id"), current.get("instance_id"), snap.get("recorded_pvp", self.session.pvp))
         return {"running": self.running, "source": self.source_name, "error": self.error,
+                "automatic_context": context,
                 "snapshot": snap, "diagnostics": diagnostic,
+                "automatic_metadata": (self.capture_metadata.snapshot(self.packet_engine.local_profile.get("serverId") if self.packet_engine else None)
+                                       if self.capture_metadata else {}),
                 "diagnostic_export": self.diagnostic_export,
                 "saved_log": self.saved_log,
                 "run": {"id":self.session.run, "closed":self.session.run_closed, **self.session.runs[self.session.run]},
@@ -368,8 +380,9 @@ class Runner:
             metadata = dict(self.metadata)
             profile = dict(self.packet_engine.local_profile) if self.packet_engine else {}
             scope = self.scope
+            collector = self.capture_metadata
         doc = session.to_a2log(scope, title) if isinstance(session, CombatSession) else session.to_a2log(title=title)
-        return self._metadata(doc, metadata=metadata, profile=profile)
+        return self._metadata(doc, metadata=metadata, profile=profile, collector=collector)
 
     def review_log(self) -> dict:
         with self.lock:
@@ -377,20 +390,36 @@ class Runner:
             metadata = dict(self.metadata)
             profile = dict(self.packet_engine.local_profile) if self.packet_engine else {}
             scope, segment_id = self.scope, self.segment_id
+            collector = self.capture_metadata
         doc = session.to_a2log(scope, segment_id=segment_id) if isinstance(session, CombatSession) else session.to_a2log()
-        return self._metadata(doc, metadata=metadata, profile=profile)
+        return self._metadata(doc, metadata=metadata, profile=profile, collector=collector)
 
-    def _metadata(self, doc, *, metadata=None, profile=None):
+    def _metadata(self, doc, *, metadata=None, profile=None, collector=None):
         metadata = self.metadata if metadata is None else metadata
         doc.setdefault("meta", {}).update(metadata)
+        if collector:
+            detected = collector.snapshot((profile or {}).get("serverId"))
+            for key in ("installed_build", "installed_build_source"):
+                if detected.get(key):
+                    doc["meta"][key] = detected[key]
+            if not doc["meta"].get("region") and detected.get("region"):
+                doc["meta"].update(region=detected["region"], region_source=detected["region_source"])
+            elif metadata.get("region"):
+                doc["meta"]["region_source"] = "Manual override"
+            for actor in doc.get("players", []):
+                region = collector.snapshot(actor.get("server")).get("region")
+                if region and not actor.get("region"):
+                    actor["region"] = region
         for segment in doc.get("segments",[]):
-            if (segment.get("encounter_type") in (None,"pve_unverified","pvp_other")
-                    and metadata.get("encounter_type") not in (None,"","unknown")
+            if (metadata.get("encounter_type") not in (None,"","unknown")
                     and segment.get("encounter_type","").startswith("pvp_") == metadata["encounter_type"].startswith("pvp_")):
                 segment["encounter_type"] = metadata["encounter_type"]
+                segment["encounter_type_source"] = "Manual override"
             for key in ("game_patch","difficulty","zone"):
                 if metadata.get(key):
                     segment[key] = metadata[key]
+                    if key == "zone":
+                        segment["zone_source"] = "Manual override"
         if profile is None:
             profile = self.packet_engine.local_profile if self.packet_engine else {}
         if profile.get("serverId"):

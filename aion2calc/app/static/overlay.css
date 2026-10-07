@@ -28,3 +28,11 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovfoot input[type=range] { flex: 1; min-width: 0; height: 14px; accent-color: #e8cf8e; cursor: pointer; }
 .ovbrand { color: #b9984f; font-weight: 700; letter-spacing: .3px; }
 .ovrow .sub { color: #9aa3b5; font-weight: 400; font-variant-numeric: tabular-nums; }
+
+/* Match the desktop's compact framed buttons without changing the transparent page. */
+#ovhide { flex-shrink: 0; margin: 0 6px; padding: 3px 8px; border-radius: 4px;
+  border: 1px solid rgba(206,182,122,.28); background: linear-gradient(180deg,#2b3550,#1c2438);
+  color: #e9e6df; font: 600 11px/1.35 "Segoe UI", system-ui, sans-serif; cursor: pointer; }
+#ovhide:hover { border-color: rgba(233,203,128,.65); color: #e8cf8e; }
+#ovhide:focus-visible { outline: 2px solid #e8cf8e; outline-offset: 2px; }
+#ovhide:active { background: #1c2438; }

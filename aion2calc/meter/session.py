@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import time
 
 from .a2parser.lookup import job_from_skill, npc_info, npc_name, skill_name
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
@@ -232,7 +233,7 @@ class CombatSession:
 
     def _summary(self, groups, scope, enemy_id=None):
         players, enemies = {}, {}
-        durations = sum(max(1.0, (g["end"] - g["start"]) / 1000) for g in groups)
+        durations = sum(max(1.0, (g["last_damage"] - g["start"]) / 1000) for g in groups)
         timeline = {}
         offset = 0
         for group in groups:
@@ -314,6 +315,9 @@ class CombatSession:
                                 "events": len(group["records"])} for index, group in enumerate(groups)]
         summary["selected_segment"] = "all" if segment_id == "all" else chosen[-1]["id"] if chosen else None
         summary["selected_enemy"] = enemy_id
+        summary["paused"] = bool(chosen and time.time() * 1000 - chosen[-1]["last_damage"] >= 2000)
+        summary["recorded_pvp"] = bool(chosen and chosen[-1]["pvp"])
+        summary["dps_clock"] = "Recorded damage interval; healing after damage does not extend DPS time"
         summary["boss"] = next((row["name"] for row in summary["enemies"] if row["key"] == enemy_id), "All enemies")
         summary["scope"] = scope
         summary["warning"] = ("Waiting for your player identity. Enter your character name before Start; nearby players are excluded until you or party members are identified."
@@ -438,7 +442,10 @@ class CombatSession:
                 category = "pvp_open_world" if group["pvp"] else "pve_open_world"
                 if run.get("map_id") not in OPEN_WORLD_MAPS:
                     category = "pvp_other" if group["pvp"] else "pve_unverified"
-                segments.append({"run_id":str(group["run"]), "run_complete":run["complete"],
+                from .context import classify
+                context = classify(run.get("map_id"), run.get("instance_id"), group["pvp"])
+                category = context.get("encounter_type", category)
+                segments.append({**context, "run_id":str(group["run"]), "run_complete":run["complete"],
                     "run_start_observed":run.get("start_observed",False),
                     "run_started_at":datetime.fromtimestamp(run["started_at"]/1000,timezone.utc).isoformat() if run.get("started_at") is not None else None,
                     "run_ended_at":datetime.fromtimestamp(run["ended_at"]/1000,timezone.utc).isoformat() if run.get("ended_at") is not None else None,

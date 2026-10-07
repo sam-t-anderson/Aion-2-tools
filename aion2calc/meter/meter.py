@@ -14,6 +14,8 @@ class Meter:
     def reset(self) -> None:
         self.t0: float | None = None
         self.last: float | None = None
+        self.last_damage: float | None = None
+        self.damage_seen_at: float | None = None
         self.players: dict = {}
         self.buffs: list[CombatEvent] = []
         self.events: list[CombatEvent] = []
@@ -23,7 +25,7 @@ class Meter:
     def duration(self) -> float:
         if self.t0 is None:
             return 0.0
-        return max(0.0, (self.last if self.last is not None else self.t0) - self.t0)
+        return max(0.0, (self.last_damage if self.last_damage is not None else self.t0) - self.t0)
 
     def add(self, ev: CombatEvent) -> None:
         if self.t0 is None:
@@ -38,6 +40,9 @@ class Meter:
             return
         if ev.kind != "damage":
             return
+        import time
+        self.last_damage = max(self.last_damage if self.last_damage is not None else ev.t, ev.t)
+        self.damage_seen_at = time.monotonic()
         p = self.players.get(ev.source)
         if p is None:
             p = self.players[ev.source] = {"name": ev.source_name or ev.source, "class": ev.source_class,
@@ -62,6 +67,7 @@ class Meter:
             self.boss = ev.target or self.boss
 
     def snapshot(self) -> dict:
+        import time
         dur = self.duration or 1e-9
         total = sum(p["damage"] for p in self.players.values()) or 1.0
         rows = []
@@ -77,6 +83,7 @@ class Meter:
                          "skills": skills})
         rows.sort(key=lambda r: -r["damage"])
         return {"duration": round(self.duration, 2), "boss": self.boss, "total": total,
+                "paused": self.damage_seen_at is not None and time.monotonic() - self.damage_seen_at >= 2,
                 "dps": total / dur, "players": rows}
 
     def to_a2log(self, source: str = "aion2calc-meter", title: str | None = None, region: str | None = None) -> dict:
@@ -111,7 +118,7 @@ class Meter:
             buffs.append({"player": ids.get(ev.source, ev.source), "name": ev.buff or ev.skill or "buff",
                           "start": round(ev.t - (self.t0 or 0.0), 3),
                           "end": round((ev.buff_end if ev.buff_end is not None else (self.last or ev.t)) - (self.t0 or 0.0), 3)})
-        seg = {"label": self.boss or "Live session", "duration": round(self.duration, 3) or 0.001,
+        seg = {"label": self.boss or "Live session", "duration": round(max(0, (self.last or 0) - (self.t0 or 0)), 3) or 0.001,
                "killed": False, "hits": hits}
         if self.boss:
             seg["boss"] = self.boss

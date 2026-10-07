@@ -1,5 +1,7 @@
 # Aion-2-tools
 
+Live Meter can detect installed build evidence and known encounter metadata, and pauses live DPS during damage downtime. See [app documentation](docs/app.md) for detection coverage and overrides.
+
 Review combat sessions, compare public logs, search personal records, and copy optimized builds into the game. See the [feature roadmap](docs/COMBAT_ROADMAP.md) for remaining work.
 
 [![CI](https://github.com/sam-t-anderson/Aion-2-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/sam-t-anderson/Aion-2-tools/actions/workflows/ci.yml)

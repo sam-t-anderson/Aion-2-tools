@@ -1,5 +1,14 @@
 # Combat logging iterations
 
+## Automatic capture metadata and idle DPS (0.2.35)
+
+Live Meter detects the installed game build for registered Windows installs and resolves recorded server IDs against official regional metadata in the background. Installation paths are not exported. Steam build IDs and executable versions are build evidence, not automatically a game patch. Optional classification overrides take precedence within the recorded PvE/PvP mode.
+
+Recorded map/instance IDs identify known open-world categories, Fire Temple Arena and available dungeon names. Unmapped content, difficulty, patch and match outcomes remain unknown. Detection provenance is visible in shared log review. Opponents without their own server ID are not assigned your server.
+
+Live DPS uses the recorded damage interval and pauses after two seconds without damage while capture continues. Healing after the last damage no longer lowers live DPS. Actual new damage resumes it. Saved logs preserve the full event interval, including healing/deaths, so report rates can differ from the live rate. This does not establish a kill or match result.
+
+
 ## Insights roadmap — checkpoint 1 (0.2.23)
 
 Implemented capture-quality reasons, Party encounter ranking eligibility, bounded-history/validation/TCP loss evidence, public cross-uploader duplicate grouping and operator counts. Incomplete and legacy captures stay reviewable; PvP boundaries remain unverified and unranked. Duplicate matching requires identical outgoing damage, stable player identities and anchored encounter time; partial/ambiguous matches are intentionally not merged. Quality uses submitted telemetry, not authenticated game records.
