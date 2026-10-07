@@ -291,3 +291,7 @@ Gear & Advice provides five genus tabs, nine analysis-slot cards, level/stat/val
 ### Session image-failure diagnostics
 
 Desktop/Pages remember up to 200 failed image resources for five minutes and show stable placeholders during rerenders. Explicit Retry images clears the session list; desktop coverage export includes source-host/count/time and recognized public skill IDs without URLs, query strings or portrait paths. Browser HTTP status is unavailable; no automatic upload. Bundled item audit: 2,081 image references, no explicit official item-ID fields. Remaining: HTTP response diagnostics in the local proxy, verified NPC portrait sources, broader catalog reconciliation and permitted missing-asset retrieval.
+
+### Trained skill reserves
+
+Implemented optional active/passive trained-level floors and minimum levels for reserved equipped stigmas, with budget validation, solver constraints, local persistence and saved-result assessments. This supplements HP-node constraints; verified tactical skill use, CC/mobility modeling and optimized opponent matchups remain pending.

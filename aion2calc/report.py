@@ -302,7 +302,7 @@ def sensitivity(build, scenario, policy, samples: int = 12, spread: float = 0.25
 def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget: int = 360,
                iterations: int = 3, loadout: str | None = None, verbose: bool = True,
                sp_budget: int | None = None, stigma_points: int | None = None,
-               current: object | None = None, progress=None, survival=None, loadout_snapshot: dict | None = None) -> dict:
+               current: object | None = None, progress=None, survival=None, loadout_snapshot: dict | None = None, skill_reserves=None) -> dict:
     """``current``: a Build (e.g. an imported character) to evaluate and diff against.
     ``progress``: optional callback(str) for live phase updates (the app streams these to the UI)."""
     t0 = time.time()
@@ -317,7 +317,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     cd = ClassData(cls)
 
     opt = Optimizer(cls, scen, daev_budget=daev_budget, verbose=verbose, sp_budget=sp_budget,
-                    stigma_points=stigma_points, progress=progress, survival=survival)
+                    stigma_points=stigma_points, progress=progress, survival=survival, skill_reserves=skill_reserves)
     res = opt.run(iterations=iterations)
     build, policy = res.build, res.policy
 
@@ -386,6 +386,8 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     summary["loadout_snapshot"] = frozen_loadout
     from .opt.survival import assessment
     summary["survival"] = assessment(cd, build, survival)
+    from .opt.reserves import describe as describe_reserves
+    summary["skill_reserves"] = describe_reserves(cd, build, skill_reserves)
     summary["arcana_rolls"] = arcana_roll_values(cls, build, scen, policy)
     summary["crit_sensitivity"] = None if scenario_name.startswith("pvp") else crit_sensitivity(build, scen, policy)
     summary["kr_fidelity"] = (None if scenario_name.startswith("pvp") else

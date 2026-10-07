@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.52
+
+My Character can retain minimum trained active/passive skill levels and keep selected equipped stigmas at minimum levels while maximizing modeled damage. Options persist per character and apply to PvE and PvP; saved results and Markdown retain the constraints. Requests that cannot fit the point/slot budgets fail without publishing an unconstrained fallback. Personal constrained builds stay out of community damage presets.
+
+This preserves allocations, not tactical use: gear/Daevanion bonuses and specialties may change. Utility skills outside the suggested rotation need manual use. Defensive effects, CC, movement and optimized opponent matchups remain unmodeled.
+
 # Aion 2 Calc 0.2.51
 
 Remember up to 200 failed remote image resources in the current browser session. Render a stable placeholder for five minutes instead of repeatedly requesting a failed image on each live/review update. Apply this to desktop equipment/skill artwork and shared combat skill/profile images on desktop and Pages. Retry images clears the session failure list and permits another attempt; combat review rerenders immediately, while Settings asks users to reopen the affected view.

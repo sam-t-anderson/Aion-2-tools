@@ -41,6 +41,16 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
                 name = row["name"].replace("|", " / ").replace("\n", " ")
                 w(f"| {name} | {row['required_hp']:,.0f} | {row['headroom_hp']:,.0f} |")
         w("DPS is optimized subject to this reserve. Damage-only baselines and stat priorities do not validate survivability.\n")
+    if s.get("skill_reserves"):
+        reserve = s["skill_reserves"]
+        w("## Trained skill reserves\n")
+        w(reserve["note"] + "\n")
+        w("| Skill | Minimum trained level | Selected trained level |")
+        w("|---|---:|---:|")
+        for row in reserve["skills"]:
+            name = row["name"].replace("|", " / ").replace("\n", " ")
+            w(f"| {name} | {row['minimum']} | {row['selected']} |")
+        w("Reserve met.\n" if reserve["met"] else "Reserve not met.\n")
     w("## Results\n")
     w("| Build | " + scen + " DPS | " + other + " DPS |")
     w("|---|---:|---:|")

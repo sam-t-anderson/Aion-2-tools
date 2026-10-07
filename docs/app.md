@@ -139,6 +139,13 @@ Settings persist per selected character in this browser. Saved Results/build JSO
 
 PvP supports a manual multi-opponent **incoming-pressure** envelope, not optimized opponent-build combat. Next modeling work: resolve official current/historical opponent gear with provenance; evaluate outgoing damage and adverse matchups; include verified defensive skill, CC, mobility and coefficient rules before scoring them. Those metrics are explicitly unavailable here. Mitigation and tactical coefficients are not inferred from these manual scenarios.
 
+
+### Trained skill and stigma reserves
+
+My Character → **Retain trained skills and equipped stigmas** optionally sets minimum purchasable levels for active/passive skills and currently equipped stigmas. A reserved stigma stays equipped. The optimizer maximizes modeled damage within these floors and the point/slot budgets; infeasible requests produce an error. Settings persist per character and apply to both PvE and PvP. Saved Results, build JSON and Markdown retain the minimum and selected levels. These personal builds are excluded from community damage preset comparisons.
+
+Floors apply to trained levels, not effective levels. Daevanion/gear bonuses and specialties may change. Use utility skills manually when absent from the suggested rotation. Reserving a defensive or movement skill does not simulate its tactical use, CC, shields, opponent defenses or win probability; damage baselines and stat priorities remain unconstrained references.
+
 ## Live capture
 
 The **Live Meter** tab includes the migrated A2Tools packet engine. Choose
