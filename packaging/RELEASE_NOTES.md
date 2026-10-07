@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.67
+
+Personal survival settings can import an exported optimized PvP result as an opponent pressure benchmark. Choose sustained or burst-average modeled DPS, explicitly enter an incoming scale, and choose the pressure window. Saved results and Markdown retain the original result label, class, score, duration, model note and scale alongside editable assumptions.
+
+This reuses a saved damage estimate; it does not simulate a duel, infer mitigation against your gear, refresh an opponent profile or reconstruct peak burst from average DPS. Legacy durations are labeled when absent from the source objective. PvE/advice results are rejected. Up to eight pressure scenarios share the existing strictest HP reserve constraint. CC, mobility and defensive-ability interactions remain pending. Canonical scoring is unchanged; no server evaluator update is required.
+
 # Aion 2 Calc 0.2.66
 
 Personal survivability pressure scenarios now support healing delay and duration. This covers assumptions such as a healer reacting late or healing ending before incoming pressure stops. The HP constraint uses the largest ongoing damage deficit, never banks excess healing, and preserves the initial burst as a separate requirement. Default zero delay and blank duration retain the previous constant-healing behavior; zero duration disables healing in that scenario.

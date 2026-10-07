@@ -80,6 +80,10 @@ def prepare(cd, current, options=None):
             # Provenance is user-imported context, never authenticated telemetry.
             rows[-1]["recorded_evidence"] = {k: str(evidence[k])[:200] for k in
                 ("title", "recipient", "recipient_id", "segment", "window_s", "start_s", "end_s", "damage", "largest_hit", "damage_events") if k in evidence}
+        benchmark = row.get("opponent_benchmark")
+        if isinstance(benchmark, dict):
+            rows[-1]["opponent_benchmark"] = {k: str(benchmark[k])[:500] for k in
+                ("title", "created", "class", "metric", "modeled_dps", "scale", "source_duration_s", "duration_source", "model_note") if k in benchmark}
     if rows and hp is None:
         raise ValueError("Enter your current maximum HP before using incoming-damage scenarios")
     if not preserve and floor == 0 and not rows:
@@ -157,3 +161,41 @@ def recorded_pressure(document, segment=None, target=None, window_s=5):
     return {"scenario": {"name": f"{names[target]} · {label}"[:100], "burst_damage": peak,
                          "pressure_dps": 0, "window_s": window, "healing_hps": 0,
                          "reserve_hp": 1, "recorded_evidence": evidence}}
+
+
+def opponent_pressure(document, metric, scale, window_s):
+    """Use a saved optimized PvP score as an explicit, user-scaled pressure assumption."""
+    from ..app.history import validate
+    from ..combat.a2log import CLASSES
+    doc = validate(document)
+    if doc["kind"] not in ("optimize-character", "optimize-class"):
+        raise ValueError("Choose an exported optimized PvP result, not advice or a combat log")
+    view = doc["result"].get("optimized") if doc["kind"] == "optimize-character" else doc["result"]
+    if not isinstance(view, dict) or view.get("scenario") not in ("pvp", "pvp_burst") or view.get("class") not in CLASSES:
+        raise ValueError("This saved result is not an optimized PvP build")
+    if metric not in ("pvp", "pvp_burst"):
+        raise ValueError("Choose sustained or burst PvP benchmark")
+    scores = view.get("dps")
+    if not isinstance(scores, dict) or metric not in scores:
+        raise ValueError("This result does not include the selected PvP damage estimate")
+    dps = number(scores[metric], "Saved PvP modeled DPS")
+    factor = number(scale, "Assumed incoming damage scale", 10)
+    window = number(window_s, "Opponent pressure window", 120, .1)
+    objective = view.get("objective") or {}
+    if not isinstance(objective, dict):
+        raise ValueError("Invalid saved objective metadata")
+    durations = objective.get("durations") or {}
+    if not isinstance(durations, dict):
+        raise ValueError("Invalid saved objective durations")
+    source_duration = number(durations.get(metric, 30 if metric == "pvp_burst" else 180), "Benchmark duration", 3600, .1)
+    if window > source_duration:
+        raise ValueError("Pressure window cannot exceed the source benchmark duration")
+    pressure = number(dps * factor, "Scaled incoming damage per second")
+    evidence = {"title": doc["title"], "created": doc["created"], "class": view["class"],
+                "metric": metric, "modeled_dps": dps, "scale": factor,
+                "source_duration_s": source_duration,
+                "duration_source": "saved objective" if metric in durations else "legacy scenario default",
+                "model_note": str(view.get("model_note") or "Original model assumptions not recorded")[:500]}
+    return {"scenario": {"name": f"{view['class']} · {metric} benchmark"[:100],
+                         "burst_damage": 0, "pressure_dps": pressure, "window_s": window,
+                         "healing_hps": 0, "reserve_hp": 1, "opponent_benchmark": evidence}}
