@@ -302,7 +302,7 @@ class Runner:
             diagnostic["elapsed"] = round(time.monotonic() - self.started_at, 1) if self.started_at else 0
         from ..meter.context import classify
         current = self.session.runs[self.session.run]
-        context = classify(current.get("map_id"), current.get("instance_id"), self.session.pvp)
+        context = classify(current.get("map_id"), current.get("instance_id"), snap.get("recorded_pvp", self.session.pvp))
         return {"running": self.running, "source": self.source_name, "error": self.error,
                 "automatic_context": context,
                 "snapshot": snap, "diagnostics": diagnostic,

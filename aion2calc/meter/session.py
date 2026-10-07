@@ -316,6 +316,7 @@ class CombatSession:
         summary["selected_segment"] = "all" if segment_id == "all" else chosen[-1]["id"] if chosen else None
         summary["selected_enemy"] = enemy_id
         summary["paused"] = bool(chosen and time.time() * 1000 - chosen[-1]["last_damage"] >= 2000)
+        summary["recorded_pvp"] = bool(chosen and chosen[-1]["pvp"])
         summary["dps_clock"] = "Recorded damage interval; healing after damage does not extend DPS time"
         summary["boss"] = next((row["name"] for row in summary["enemies"] if row["key"] == enemy_id), "All enemies")
         summary["scope"] = scope
