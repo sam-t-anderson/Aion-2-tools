@@ -12,11 +12,13 @@ from ..presets import MAX_BYTES
 
 
 def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
-    """Reuse a current-scope result or search both common comparison scenarios."""
+    """Seed from both scenarios, then refine the exact common weighted objective."""
     from ..kit.base import ClassData
     from ..learn import uncalibrated
     from ..model.character import load_loadout
     from ..opt.pipeline import Optimizer
+    from ..opt.weighted import WeightedOptimizer
+    from ..presets import parse
     from ..opt.rotation import describe
     from ..report import _spec_text
     from ..scenarios import SCENARIOS
@@ -26,7 +28,8 @@ def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
     try:
         if cache.stat().st_size <= MAX_BYTES:
             summary = json.loads(cache.read_text(encoding="utf-8"))
-            if summary["scoring_policy"]["scope"] == policy["scope"]:
+            if (summary["scoring_policy"]["scope"] == policy["scope"]
+                    and summary.get("candidate_generation", {}).get("search_revision") == 2):
                 scored = evaluate(candidate(summary))
                 scored["candidate_generation"] = summary.get("candidate_generation", {})
                 if progress:
@@ -41,7 +44,7 @@ def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
     with uncalibrated():
         for index, objective in enumerate(MODES[mode], 1):
             if progress:
-                progress(f"Common comparison {index}/2: optimizing {objective}; personal gear and constraints are not inputs")
+                progress(f"Common comparison seed {index}/2: optimizing {objective}; personal gear and constraints are not inputs")
             opt = Optimizer(cls, SCENARIOS[objective](lo), verbose=False, progress=progress,
                             sp_budget=policy["budgets"]["skill"], stigma_points=policy["budgets"]["stigma"],
                             daev_budget=policy["budgets"]["daevanion"])
@@ -56,9 +59,31 @@ def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
             scored = evaluate(candidate(summary, policy))
             scored["candidate_generation"] = {"objective": objective, "iterations": 1, "calibration": "disabled"}
             scores.append(scored)
+        seed = max(scores, key=lambda item: item["score"])
+        primary = MODES[mode][0]
+        document = candidate(seed, policy)
+        build, rotation = parse({"format": "a2preset", "version": 1, "class": cls,
+                                 "build": document["build"]}, scenario_name=primary, loadout_snapshot=lo)
+        if progress:
+            progress("Common comparison refinement: optimizing the weighted objective across both scenarios")
+        scenarios = [(policy["weights"][name], SCENARIOS[name](lo, duration=policy["durations"][name])) for name in MODES[mode]]
+        opt = WeightedOptimizer(cls, scenarios, verbose=False, progress=progress,
+                                sp_budget=policy["budgets"]["skill"], stigma_points=policy["budgets"]["stigma"],
+                                daev_budget=policy["budgets"]["daevanion"])
+        result = opt.run(iterations=1, initial_build=build, initial_policy=rotation)
+        refined = {"class": cls, "scenario": primary, "policy": describe(result.policy),
+                   "build": {"sp": {cd.skills[k]["name"]: v for k, v in result.build.sp.items()},
+                             "stigmas": {cd.skills[k]["name"]: v for k, v in result.build.stigmas.items()},
+                             "specs": {cd.skills[k]["name"]: [_spec_text(cd, k, x) for x in v]
+                                       for k, v in result.build.specs.items()},
+                             "daevanion_nodes": sorted(result.build.daevanion)}}
+        scored = evaluate(candidate(refined, policy))
+        scored["candidate_generation"] = {"objective": "weighted", "iterations": 1, "calibration": "disabled"}
+        scores.append(scored)
     winner = max(scores, key=lambda item: item["score"])
+    winner["candidate_generation"]["search_revision"] = 2
     winner["candidate_generation"]["selection"] = {
-        "method": "Highest weighted modeled DPS among two separately optimized common-loadout candidates",
+        "method": "Two scenario seeds followed by direct weighted-objective refinement; retain the best evaluated candidate",
         "candidates": [{"objective": item["candidate_generation"]["objective"], "score": item["score"],
                         "dps": item["dps"]} for item in scores]}
     payload = json.dumps(winner, ensure_ascii=False, allow_nan=False).encode("utf-8")

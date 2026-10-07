@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.62
+
+Community comparison contributions now refine the combined PvE or experimental PvP objective directly. Two independent scenario searches seed a weighted refinement of specialties, skill points, stigmas, crystal-board allocation and priority. Every comparison uses the full configured scenario durations and existing equal weights. The best independently evaluated seed remains eligible, so a weaker refinement is not published as the winner.
+
+Board allocation still uses approximate separable curves and finite-difference stat weights; full weighted evaluation accepts or rejects the proposed allocation. This remains a local search, not proof of a global optimum. Cached contributions record the search revision and selection scores. The extra refinement increases calculation time and reports its progress.
+
+This checkpoint changes anonymous common-loadout contribution searches. Personal-build optimization, HP/skill reserves and fixed Genus inputs retain their existing behavior. PvP is still a stationary damage proxy without competitive crowd-control, movement, opponent survival or win-rate modeling. Servers must use the matching model release before accepting its scope.
+
 # Aion 2 Calc 0.2.61
 
 Reduce Windows capture pressure by requesting an 8 MiB Npcap kernel buffer per adapter before sniffing. Capture uses non-promiscuous mode. Diagnostics record whether the buffer request succeeded; a rejected request retains the backend default and shows a warning.

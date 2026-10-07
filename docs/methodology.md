@@ -188,6 +188,12 @@ Bundled PvP examples run separate sustained and burst allocation searches, each 
 
 The scope fingerprints the evaluator version, class data, hit profiles, common loadout, budgets, durations and weights. A different scope requires reevaluation. The best eligible evaluated candidate can become canonical; that does not establish a global optimum or a competitive PvP build. Mode-scoped storage records one current winner per comparison scope. Planner synchronizes bounded, validated common-loadout snapshots from the configured server and labels cached comparisons separately from examples. The server owns scoring; clients display its components and policy rather than substituting a score from a different local model.
 
+### Weighted contribution search
+
+Anonymous common-loadout contributions start with independent searches for each mode's two scenarios, then refine the better seed against their equally weighted modeled DPS. Skill/specialty/stigma comparisons, point polishing and priority search use both full-duration simulations. Crystal-board proposals use weighted separable skill curves and finite-difference stat weights; timing slopes retain the existing per-scenario rotation approximation. Full weighted evaluation accepts or rejects the proposal. The final candidates are independently scored under the same policy and the best is retained, including either original seed.
+
+The saved contribution records search revision, objectives and candidate scores. A changed scoring scope or search revision regenerates it. This local search does not establish a global optimum. Personal optimizations and their HP/skill reserves are separate. Experimental PvP remains a damage proxy; weighted damage is not a survivability or win-probability score.
+
 ## Manual Genus Insight
 
 Character optimization reads the saved inventory's manual Genus analysis lines by default. Both the current-build score and optimized build use the same frozen loadout component, including comparison scenarios and baseline builds. The official character import is unchanged; it does not supply Genus allocations. Saved reports retain levels, slots, values, mode, assumed mix and excluded effects.

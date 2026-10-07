@@ -83,11 +83,11 @@ def candidate_keys(kit) -> tuple[list, list, list]:
 
 def optimize_rotation(derived, kit, target, config, start: list | None = None, restarts: int = 3,
                       seed: int = 7, max_passes: int = 6, allow_conditions: bool = True,
-                      search_duration: float | None = None) -> RotationResult:
+                      search_duration: float | None = None, evaluator=None) -> RotationResult:
     from dataclasses import replace
     rng = random.Random(seed)
     scfg = replace(config, duration=search_duration) if search_duration else config
-    ev = Evaluator(derived, kit, target, scfg)
+    ev = evaluator if evaluator is not None else Evaluator(derived, kit, target, scfg)
     others, hell, fillers = candidate_keys(kit)
 
     def base_order():
@@ -119,7 +119,7 @@ def optimize_rotation(derived, kit, target, config, start: list | None = None, r
                 break
         if cur > best:
             best_pol, best = pol, cur
-    final = Evaluator(derived, kit, target, config)(best_pol)
+    final = ev(best_pol) if evaluator is not None else Evaluator(derived, kit, target, config)(best_pol)
     return RotationResult(best_pol, final[0], final[1])
 
 

@@ -395,12 +395,16 @@ class Optimizer:
             out.append(best)
         return out
 
+    def _stat_weights(self, build: Build, policy: list, *, final=False):
+        _, _, kit, stats = prepare(build, self.scenario)
+        return stat_weights(stats, kit, policy, self.scenario.target,
+                            self.scenario.config if final else self.search_cfg,
+                            progress=None if final else self.log)
+
     def allocate(self, build: Build, policy: list):
         curves = self.level_curves(build, policy)
-        cd, b, kit, stats = prepare(build, self.scenario)
         self.log("skill allocation: calculating stat weights")
-        weights = stat_weights(stats, kit, policy, self.scenario.target, self.search_cfg,
-                               progress=self.log)
+        weights = self._stat_weights(build, policy)
         nv = node_values(self.cd, weights)
         # bonus from gear stays outside the program; Daevanion/SP replace the build's
         gear = self._gear_bonus()
@@ -530,9 +534,11 @@ class Optimizer:
         return b
 
     # ----------------------------------------------------------------- main
-    def run(self, iterations: int = 3) -> OptResult:
-        build = self.initial_build()
-        policy = list(kit_module(self.cls, pvp=self.scenario.target.is_player).build_kit(self._with_gear(build), self.cd).policy)
+    def run(self, iterations: int = 3, *, initial_build: Build | None = None,
+            initial_policy: list | None = None) -> OptResult:
+        build = initial_build.copy() if initial_build is not None else self.initial_build()
+        policy = (list(initial_policy) if initial_policy is not None else
+                  list(kit_module(self.cls, pvp=self.scenario.target.is_player).build_kit(self._with_gear(build), self.cd).policy))
         curves, weights = {}, []
         for it in range(iterations):
             build = self._clean_specs(build)
@@ -564,7 +570,6 @@ class Optimizer:
         from .reserves import meets
         if not meets(build,self.skill_reserves):
             raise ValueError("The optimized build does not meet the requested trained skill reserves")
-        cd, b, kit, stats = prepare(build, self.scenario)
-        weights = stat_weights(stats, kit, policy, self.scenario.target, self.scenario.config)
+        weights = self._stat_weights(build, policy, final=True)
         self.log(f"final: {dps:.0f} DPS  {describe(policy)}")
         return OptResult(build, policy, dps, res, weights, self.history, curves)
