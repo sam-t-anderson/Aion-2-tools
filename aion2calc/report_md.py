@@ -56,6 +56,10 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
                 duration_label = "rest of window" if duration is None else f"{duration:g}s"
                 w(f"- {name}: assumed HPS {row['healing_hps']:g}; delay {row.get('healing_delay_s', 0):g}s; duration {duration_label}; peak ongoing pressure {row.get('peak_pressure_hp', 0):,.0f} HP at {row.get('peak_pressure_at_s', 0):g}s.\n")
             for row in hp["opponents"]:
+                benchmark = row.get("opponent_benchmark")
+                if benchmark:
+                    context = "; ".join(f"{key}: {value}" for key, value in benchmark.items()).replace("\n", " ")
+                    w(f"Optimized opponent benchmark (editable pressure assumption, not measured incoming damage): {context}\n")
                 evidence = row.get("recorded_evidence")
                 if evidence:
                     context = "; ".join(f"{key}: {value}" for key, value in evidence.items()).replace("\n", " ")
