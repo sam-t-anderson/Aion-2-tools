@@ -426,7 +426,9 @@ class Runner:
         return result
 
     def status(self, *, follow_latest: bool = False, compact: bool = False) -> dict:
-        with self.lock:
+        if not self.lock.acquire(timeout=0.5):
+            raise TimeoutError("Capture data is busy; refresh will retry. Capture diagnostics can still be exported.")
+        try:
             snap = (self.session.snapshot(self.scope, None if follow_latest else self.segment_id,
                                           None if follow_latest else self.enemy_id, self.combine_pets)
                     if self.packet_engine is not None else self.meter.snapshot())
@@ -472,6 +474,8 @@ class Runner:
                 }
             diagnostic.update(last_packet_age_seconds=round(now-self._last_packet_at, 1) if self._last_packet_at is not None else None,
                               last_combat_age_seconds=round(now-self._last_combat_at, 1) if self._last_combat_at is not None else None)
+        finally:
+            self.lock.release()
         if diagnostic:
             diagnostic["elapsed"] = round(time.monotonic() - self.started_at, 1) if self.started_at else 0
         from ..meter.context import classify

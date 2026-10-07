@@ -1,6 +1,6 @@
 # Aion 2 Calc 0.2.70
 
-Overlay refresh failures now show the HTTP/response/timeout reason, last successful refresh age and a Retry button. Last readings remain visible with capture status explicitly unknown. Overlay polling skips auxiliary catalog and installation work. Run and identity metadata are captured together to avoid reading them across a session replacement.
+Overlay refresh failures now show the HTTP/response/timeout reason, last successful refresh age and a Retry button. Last readings remain visible with capture status explicitly unknown. Overlay polling skips auxiliary catalog and installation work. Status requests return a clear busy error after a bounded wait for the decoder lock. Run and identity metadata are captured together to avoid reading them across a session replacement.
 
 Diagnostics export no longer calls the combat display snapshot. It can export counters, recorded status failures and opted-in TCP payloads even if graph aggregation fails; a busy decoder produces explicitly best-effort metadata. Cached display context includes its timestamp, and the no-payload message explains that counters remain useful without TCP recording.
 
