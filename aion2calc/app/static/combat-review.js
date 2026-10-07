@@ -14,11 +14,13 @@
   }
   const table = (headers,rows) => `<div class="cr-scroll"><table class="t"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.join("") || `<tr><td colspan="${headers.length}">No recorded events.</td></tr>`}</tbody></table></div>`;
   function mount(root, doc, options={}) {
-    let state={run:"",segment:0,metric:"summary",view:"table",graph:true,timeline:true,skills:true,deaths:true,heals:true,pets:true,combine:true,actor:"",page:0,enemy:"",hidden:new Set(), ...options.state};
+    let state={run:"",segment:0,metric:"summary",view:"table",graph:true,timeline:true,graphMode:"total",timelineWindow:30,timelineStart:0,skills:true,deaths:true,heals:true,pets:true,combine:true,actor:"",page:0,enemy:"",hidden:new Set(), ...options.state};
     let comparisons=[], ranks=null, rankRequest=0, replayFrame=null, profileRequest=0;
     let reportReason='privacy',reportDetails='',reportStatus='',reportBusy=false;
     const previews=new Map();
-    let timelineDetail="";
+    let timelineDetail="",graphModel=null;
+    const clock=(t,precise=false)=>{t=Math.max(0,precise?Math.round(t*100)/100:Math.floor(t));return `${Math.floor(t/60)}:${(precise?(t%60).toFixed(2):String(t%60)).padStart(precise?5:2,'0')}`;};
+    const skillSource=id=>{const n=Number(id);if(!Number.isSafeInteger(n)||n<=0)return '';return options.skillIcon?options.skillIcon(n):'https://metabot.gg/web/aion2/skills/'+(Math.floor(n/10000)*10000)+'.webp';};
     const refs=()=>{const r={};for(const e of [...(doc.players || []),...(doc.segments[state.segment]?.entities || [])])r[e.id]={...r[e.id],...e};for(const e of [...(doc.players || []),...doc.segments.flatMap(s=>s.entities || [])])if(e.profile_snapshot && r[e.id])r[e.id].profile_snapshot=e.profile_snapshot;for(const e of Object.values(r))if(e.owner)e.class=r[e.owner]?.class;return r;};
     const label=e=>e ? `${e.name || e.id}${e.server ? " · " + e.server : ""}` : "Unknown / not recorded";
     const character=e=>e && ((doc.players || []).some(p=>p.id===e.id) || e.is_player || e.kind==="player");
@@ -62,24 +64,37 @@
           || (state.metric==="taken" && e.kind==="damage" && (d.friendly.has(e.target) || d.r[e.target]?.owner)) || (state.metric==="healing" && e.kind==="heal") || (state.metric==="deaths" && e.kind==="death")));
     }
     function graph(d, events) {
-      const duration=Math.max(d.segment.duration,1),step=Math.max(1,Math.ceil(duration/1200)),count=Math.ceil(duration/step)+1,series={};
+      const duration=Math.max(d.segment.duration,1),step=Math.max(1,Math.ceil(duration/1200)),count=Math.ceil(duration/step),series={};
+      const primary=state.metric==='healing'?'Healing':state.metric==='taken'?'Damage taken':'Damage done';
       for(const e of events) {
-        if(e.kind==="death")continue;
+        if(e.kind==='death')continue;
         let actor,kind;
-        if(e.kind==="heal") {actor=owner(e.source,d.r);kind="Healing";}
-        else if(d.friendly.has(e.source) || d.r[e.source]?.owner) {actor=owner(e.source,d.r);kind="Damage done";}
-        else if(d.friendly.has(e.target) || d.r[e.target]?.owner) {actor=owner(e.target,d.r);kind="Damage taken";}else continue;
-        const key=actor+":"+kind;if(state.hidden.has(key))continue;
+        if(e.kind==='heal'){actor=owner(e.source,d.r);kind='Healing';}
+        else if(d.friendly.has(e.source)||d.r[e.source]?.owner){actor=owner(e.source,d.r);kind='Damage done';}
+        else if(d.friendly.has(e.target)||d.r[e.target]?.owner){actor=owner(e.target,d.r);kind='Damage taken';}else continue;
+        const key=actor+':'+kind;if(state.hidden.has(key))continue;
         const line=series[key] ||= {actor,kind,values:Array(count).fill(0)};
-        const i=Math.min(count-1,Math.floor(e.t/step));line.values[i]+=(e.amount || 0)/step;
+        const i=Math.max(0,Math.min(count-1,Math.floor(e.t/step)));
+        line.values[i]+=(e.amount||0)/Math.max(.001,Math.min(step,duration-i*step));
       }
-      const lines=Object.entries(series),maximum=lines.reduce((m,[,s])=>s.values.reduce((m,v)=>Math.max(m,v),m),1);
-      const paths=lines.map(([key,s])=>`<polyline fill="none" stroke="${color(d.r[s.actor]?.class)}" stroke-width="2" ${s.kind==="Damage taken"?'stroke-dasharray="7 4"':s.kind==="Healing"?'stroke-dasharray="2 3"':""} points="${s.values.map((v,i)=>`${i*960/(count-1)},${160-v*150/maximum}`).join(" ")}"><title>${esc(label(d.r[s.actor]))} — ${s.kind}</title></polyline>`).join("");
-      const health=(d.segment.health || []).filter(s=>!state.enemy?d.r[s.entity]?.is_boss:s.entity===state.enemy);
-      const hpMax=Math.max(1,...health.map(s=>s.max || s.current));
-      const healthIds=[...new Set(health.map(s=>s.entity))];
-      const hp=healthIds.map(id=>`<polyline fill="none" stroke="#ef6262" stroke-width="2" points="${health.filter(s=>s.entity===id).map(s=>`${s.t*960/duration},${160-s.current*150/hpMax}`).join(" ")}"><title>${esc(label(d.r[id]))} HP (right scale)</title></polyline>`).join("");
-      return `<div class="cr-graph"><div class="small muted">Per-second amount · peak ${number(maximum)}${health.length?" · red: boss HP, separate right scale ("+number(hpMax)+")":" · Boss HP: not recorded"}</div><svg viewBox="0 0 960 190" role="img" aria-label="Combat amounts over time"><path d="M0 160H960" stroke="currentColor" opacity=".3"/>${paths}${hp}<text x="0" y="184" fill="currentColor">0:00</text><text x="885" y="184" fill="currentColor">${Math.floor(duration/60)}:${String(Math.floor(duration%60)).padStart(2,"0")}</text></svg><div class="cr-legend">${lines.map(([key,s])=>`<button class="btn small" data-series="${esc(key)}" style="color:${color(d.r[s.actor]?.class)}">${esc(label(d.r[s.actor]))} · ${s.kind}</button>`).join("")}<button class="btn small" data-showall>Show all series</button></div></div>`;
+      const lines=Object.entries(series),total=Array(count).fill(0);
+      for(const [,line] of lines)if(line.kind===primary)line.values.forEach((v,i)=>total[i]+=v);
+      const roll=total.map((_,i)=>{let amount=0,seconds=0;for(let j=i;j>=0 && (i-j)*step<10;j--){const span=Math.min(step,duration-j*step,10-(i-j)*step);amount+=total[j]*span;seconds+=span;}return amount/Math.max(.001,seconds);});
+      let maximum=1;for(const v of [...total,...roll])maximum=Math.max(maximum,v);
+      if(state.graphMode==='players')for(const [,s] of lines)for(const v of s.values)maximum=Math.max(maximum,v);
+      const x=t=>60+880*t/duration,y=v=>180-v*160/maximum;
+      const grid=[0,.25,.5,.75,1].map(f=>`<path d="M60 ${180-f*160}H940" stroke="currentColor" opacity=".12"/><text x="52" y="${184-f*160}" text-anchor="end" fill="currentColor" font-size="11">${number(maximum*f)}</text>`).join('');
+      const ticks=Array.from({length:7},(_,i)=>`<text x="${60+i*880/6}" y="205" text-anchor="middle" fill="currentColor" font-size="11">${clock(duration*i/6)}</text>`).join('');
+      const bars=total.map((v,i)=>`<rect x="${x(i*step)}" y="${y(v)}" width="${Math.max(.5,880*Math.min(step,duration-i*step)/duration-1)}" height="${180-y(v)}" style="fill:var(--chart-bar,#39c2e047)"/>`).join('');
+      const average=`<polyline points="${roll.map((v,i)=>`${x(Math.min(duration,(i+.5)*step))},${y(v)}`).join(' ')}" fill="none" style="stroke:var(--chart-line,#e8cf8e)" stroke-width="2"/>`;
+      const paths=state.graphMode==='players'?lines.map(([,s])=>`<polyline fill="none" stroke="${color(d.r[s.actor]?.class)}" stroke-width="2" ${s.kind==='Damage taken'?'stroke-dasharray="7 4"':s.kind==='Healing'?'stroke-dasharray="2 3"':''} points="${s.values.map((v,i)=>`${x(Math.min(duration,(i+.5)*step))},${y(v)}`).join(' ')}"/>`).join(''):bars+average;
+      const health=(d.segment.health||[]).filter(s=>s.t>=0 && s.t<=duration && (state.enemy?s.entity===state.enemy:d.r[s.entity]?.is_boss));
+      let hpMax=1;for(const s of health)hpMax=Math.max(hpMax,s.max||s.current);
+      const hp=[...new Set(health.map(s=>s.entity))].map(id=>`<polyline fill="none" stroke="#ef6262" stroke-width="1.5" points="${health.filter(s=>s.entity===id).map(s=>`${x(s.t)},${180-s.current*160/hpMax}`).join(' ')}"><title>${esc(label(d.r[id]))} HP (right scale)</title></polyline>`).join('');
+      graphModel={duration,step,count,total,roll,lines,health,primary};
+      return `<div class="cr-graph"><div class="row small"><label>Graph style <select data-graph-mode><option value="total" ${state.graphMode!=='players'?'selected':''}>Live style · bars + 10 s average</option><option value="players" ${state.graphMode==='players'?'selected':''}>Player series</option></select></label><span>${esc(primary)} per second · ${step}s buckets${health.length?' · red: boss HP, right scale':' · Boss HP: not recorded'}</span></div>
+        <svg viewBox="0 0 1000 220" role="img" aria-label="Combat rate chart">${grid}${ticks}${paths}${hp}${health.length?`<text x="948" y="25" fill="#ef6262" font-size="11">${number(hpMax)}</text><text x="948" y="184" fill="#ef6262" font-size="11">0 HP</text>`:''}<path data-graph-cursor d="M60 20V180" stroke="currentColor" stroke-dasharray="3 3" visibility="hidden"/><rect data-graph-hit x="60" y="20" width="880" height="160" fill="transparent" tabindex="0" role="button" aria-label="Inspect graph time; use left and right arrow keys"/></svg>
+        <div class="note small" data-graph-detail role="status">Hover or click the graph for rates. In Timeline view, click a time to move the timeline window there.</div><div class="cr-legend">${lines.map(([key,s])=>`<button class="btn small" data-series="${esc(key)}" style="color:${color(d.r[s.actor]?.class)}">${esc(label(d.r[s.actor]))} · ${s.kind}</button>`).join('')}<button class="btn small" data-showall>Show all series</button></div></div>`;
     }
     function encounters(d) {
       const enemies=(d.segment.entities || []).filter(e=>e.kind==="enemy");
@@ -88,24 +103,32 @@
         return `<tr><td>${e.is_player?actorHTML(e):esc(e.name || e.id)} <button class="btn small" data-enemy-filter="${esc(e.id)}">Filter${e.is_player?" (opponent)":e.is_boss?" (boss)":""}</button></td><td>${esc(e.mob_code ?? "Unknown")}</td><td>${number(damage)}</td><td>${ee.length?ee[0].t.toFixed(1)+"–"+ee[ee.length-1].t.toFixed(1)+"s":"—"}</td></tr>`;}))}<button class="btn small" data-clear-enemy>All enemies</button>`;
     }
     function timeline(d, events) {
-      const duration=Math.max(1,d.segment.duration),ids=[...new Set(events.flatMap(e=>[owner(e.source,d.r),owner(e.target,d.r)]).filter(id=>id && (d.friendly.has(id) || d.r[id]?.owner)))];
+      const duration=Math.max(1,d.segment.duration),span=Math.min(duration,Number(state.timelineWindow)||duration);
+      state.timelineStart=Math.max(0,Math.min(Number(state.timelineStart)||0,duration-span));
+      const start=state.timelineStart,end=start+span,width=Math.max(900,Math.min(8000,span*32));
+      const inWindow=events.filter(e=>e.t>=start && (e.t<end || end===duration && e.t<=end));
+      const ids=[...new Set(events.flatMap(e=>[owner(e.source,d.r),owner(e.target,d.r)]).filter(id=>id && (d.friendly.has(id)||d.r[id]?.owner)))];
       let omitted=0;
       const lanes=ids.map(id=>{
-        const all=events.filter(e=>{
-          if(e.kind==="death")return state.deaths && owner(e.target,d.r)===id && (!state.combine || !d.r[e.target]?.owner);
-          if(e.kind==="heal")return state.heals && owner(e.source,d.r)===id;
-          return state.skills && (state.metric==="taken"?owner(e.target,d.r)===id:owner(e.source,d.r)===id);
-        });
-        omitted+=Math.max(0,all.length-1500);
-        const marks=all.slice(0,1500).map(e=>{
-          const x=Math.max(0,Math.min(996,1000*e.t/duration)),fill=e.kind==="death"?"#ef6262":e.kind==="heal"?"#58d68d":state.metric==="taken"?"#ed9863":color(d.r[id]?.class);
-          const title=esc(e.t.toFixed(2)+"s · "+label(d.r[e.source])+" → "+label(d.r[e.target])+" · "+(e.skill || e.kind)+" · "+number(e.amount));
-          return e.kind==="death"?`<text class="cr-marker" data-effect-detail="${title}" tabindex="0" role="button" aria-label="${title}" x="${x}" y="23" fill="${fill}" font-size="24">✝<title>${title}</title></text>`:`<rect class="cr-marker" data-effect-detail="${title}" tabindex="0" role="button" aria-label="${title}" x="${x}" y="8" width="4" height="16" fill="${fill}"><title>${title}</title></rect>`;
-        }).join('');
-        return `<div class="cr-lane"><div>${actorHTML(d.r[id])}</div><svg class="cr-track" viewBox="0 0 1000 32" preserveAspectRatio="none" role="img" aria-label="${esc(label(d.r[id]))} recorded effects">${marks || '<text x="10" y="22" fill="#aaa" font-size="16">No effects for these filters</text>'}</svg></div>`;
-      }).join("");
-      const ticks=Array.from({length:6},(_,i)=>`<text x="${i*200}" y="20" fill="#aaa" font-size="16" text-anchor="${i===0?'start':i===5?'end':'middle'}">${(duration*i/5).toFixed(1)}s</text>`).join('');
-      return `<h3>Recorded skill hits, healing and deaths</h3><p class="small muted">Markers represent recorded effects, not unobserved cast starts. Hover, focus or click a marker for time, skill, amount, source and recipient. Green: healing; red: deaths; orange: damage taken.${omitted?" Dense lanes display their first 1,500 markers; use Events for the complete list.":""}</p><div class="cr-timeline"><div class="cr-lane"><div>Encounter time</div><svg class="cr-track cr-time-axis" viewBox="0 0 1000 28" preserveAspectRatio="none" aria-label="Encounter time in seconds">${ticks}</svg></div>${lanes || "No timeline events recorded for these filters."}</div><div class="note" data-effect-panel role="status">${esc(timelineDetail || "Select or hover over a timeline marker to see its details.")}</div>`;
+        const all=inWindow.filter(e=>e.kind==='death'?state.deaths && owner(e.target,d.r)===id && (!state.combine||!d.r[e.target]?.owner):e.kind==='heal'?state.heals && owner(e.source,d.r)===id:state.skills && (state.metric==='taken'?owner(e.target,d.r)===id:owner(e.source,d.r)===id));
+        const occupied=[-100,-100,-100];let marks='';
+        for(const e of all) {
+          const x=Math.max(0,Math.min(width-24,(e.t-start)*width/span));
+          const lane=occupied.findIndex(last=>x>=last+25);
+          if(e.kind!=='death' && lane<0){omitted++;continue;}
+          const y=e.kind==='death'?2:3+lane*27;if(e.kind!=='death')occupied[lane]=x;
+          const fill=e.kind==='death'?'#ef6262':e.kind==='heal'?'#58d68d':state.metric==='taken'?'#ed9863':color(d.r[id]?.class);
+          const detail=esc(clock(e.t,true)+' · '+label(d.r[e.source])+' → '+label(d.r[e.target])+' · '+(e.skill||e.kind)+' · '+number(e.amount));
+          const icon=e.kind==='death'?'':skillSource(e.skill_id);
+          marks+=`<g class="cr-marker" data-effect-detail="${detail}" tabindex="0" role="button" aria-label="${detail}"><title>${detail}</title>${e.kind==='death'?`<path d="M${x+11} 0V84" stroke="${fill}" stroke-width="2"/><text x="${x}" y="20" fill="${fill}" font-size="21">✝</text>`:`<rect x="${x}" y="${y}" width="23" height="23" rx="2" fill="${fill}" opacity=".45"/><text x="${x+11}" y="${y+15}" text-anchor="middle" fill="currentColor" font-size="9">${esc(String(e.skill_id||e.kind).slice(-3))}</text>${icon?`<image data-skill-icon href="${esc(icon)}" x="${x+1}" y="${y+1}" width="21" height="21" preserveAspectRatio="xMidYMid meet" pointer-events="none"/>`:''}<path d="M${x} ${y+24}h23" stroke="${fill}" stroke-width="2"/>`}</g>`;
+        }
+        return `<div class="cr-lane" style="grid-template-columns:180px ${width}px"><div class="cr-lane-name" style="color:${color(d.r[id]?.class)}">${actorHTML(d.r[id])}</div><svg class="cr-track" style="width:${width}px;height:84px" viewBox="0 0 ${width} 84" role="img" aria-label="${esc(label(d.r[id]))} recorded effects">${marks||'<text x="12" y="25" fill="currentColor" font-size="12">No effects in this window</text>'}</svg></div>`;
+      }).join('');
+      const tick=span<=30?1:span<=120?5:Math.ceil(span/120),major=tick*5;
+      let ticks='';for(let t=Math.ceil(start/tick)*tick;t<=end;t+=tick){const x=(t-start)*width/span,long=Math.abs(t/major-Math.round(t/major))<.001;ticks+=`<path d="M${x} ${long?17:24}V32" stroke="currentColor" opacity=".6"/>${long?`<text x="${Math.max(22,Math.min(width-22,x))}" y="13" text-anchor="middle" fill="currentColor" font-size="11">${clock(t)}</text>`:''}`;}
+      return `<h3>Recorded effect timeline</h3><div class="row small"><label>Window <select data-timeline-window>${[15,30,60,120,0].map(v=>`<option value="${v}" ${v===Number(state.timelineWindow)?'selected':''}>${v?v+' seconds':'Full encounter'}</option>`).join('')}</select></label><button class="btn small" data-time-prev ${start<=0?'disabled':''}>Earlier</button><button class="btn small" data-time-next ${end>=duration?'disabled':''}>Later</button><label>Start <input type="number" data-time-start min="0" max="${Math.max(0,duration-span)}" step=".5" value="${start.toFixed(1)}"></label><span>${clock(start)}–${clock(end)}</span></div><input class="cr-time-scrub" data-time-scrub aria-label="Timeline window start" type="range" min="0" max="${Math.max(0,duration-span)}" step=".5" value="${start}">
+        <p class="small muted">Icons are recorded hits/heals, not cast starts or durations. Three stacks separate nearby effects. Green: healing; red: deaths; orange: damage taken. ${omitted?number(omitted)+' crowded markers omitted in this window; zoom in or use Events for every effect.':''} Unavailable skill images keep an ID tile.</p>
+        <div class="cr-timeline"><div class="cr-lane cr-ruler" style="grid-template-columns:180px ${width}px"><div class="cr-lane-name">Encounter time</div><svg class="cr-track cr-time-axis" style="width:${width}px;height:34px" viewBox="0 0 ${width} 34">${ticks}</svg></div>${lanes||'No timeline effects recorded for these filters.'}</div><div class="note" data-effect-panel role="status">${esc(timelineDetail||'Hover, focus or click a skill icon to inspect its effect.')}</div><div class="cr-effect-tooltip" data-effect-tooltip role="tooltip" hidden></div>`;
     }
     function catalogHTML(d) {
       const c=doc.encounter_insights?.segments?.find(s=>s.segment===state.segment)?.catalog;
@@ -186,16 +209,16 @@
         ${state.view==="table" ? summary+(state.metric!=="deaths"?skillChart+breakdown:"") : state.view==="events" ? eventTable+`<div class="row"><button class="btn small" data-prev>Previous</button> ${state.page+1} / ${pageCount} · ${events.length} events <button class="btn small" data-next>Next</button></div>` : ""}
         ${state.timeline && state.view==="timeline" ? timeline(d,events):""}
         <p class="small muted">${d.events.some(e=>e.kind==="heal"&&!e.target)?"Some healing recipients are not carried by their packet variant. ":""}${!d.events.some(e=>e.kind==="death")?"No death markers recorded; zero counts do not establish a deathless run. ":""}${!(d.segment.positions || []).length?"Movement replay is unavailable: no verified positions were recorded.":""}</p>
-        ${reportHTML()}${metadataHTML(d)}${ranksHTML(d)}${options.rankings?'<button class="btn small" data-rank-refresh>Refresh rankings</button>':""}${options.publish?'<div class="row"><select data-upload-vis aria-label="Upload visibility"><option>unlisted</option><option>public</option><option>private</option></select><button class="btn small" data-upload>Upload saved session</button><span data-upload-result></span></div>':""}<div data-replay></div>
+        ${reportHTML()}${metadataHTML(d)}${ranksHTML(d)}${options.rankings?'<button class="btn small" data-rank-refresh>Refresh rankings</button>':""}${options.publish?'<details><summary>Publish this log</summary><div class="row"><select data-upload-vis aria-label="Upload visibility"><option>unlisted</option><option>public</option><option>private</option></select><button class="btn small" data-upload>Upload saved session</button><span data-upload-result></span></div></details>':""}<div data-replay></div>
         <div class="row"><input data-compare placeholder="Another public log ID" aria-label="Log ID to compare"><button class="btn small" data-compare-go ${options.compare?"":"disabled"}>Compare log</button><span data-compare-result></span><input type="file" data-compare-file accept=".json" aria-label="Compare a local a2log file"></div>
         <div data-comparison>${comparisonHTML(d)}</div>
       </div></section>`;
-      root.querySelectorAll("[data-control]").forEach(e=>e.onchange=()=>{const key=e.dataset.control;if(key==="combine" && e.checked && state.actor){state.actor=refs()[state.actor]?.owner || state.actor;}state[key]=e.type==="checkbox"?e.checked:key==="segment"?+e.value:e.value;state.page=0;if(key==="run"){const index=doc.segments.findIndex(s=>!state.run || (s.run_id || "legacy")===state.run);state.segment=Math.max(0,index);state.enemy="";state.actor="";ranks=null;requestRanks();}if(key==="segment"){state.enemy="";state.actor="";ranks=null;requestRanks();}render();});
+      root.querySelectorAll("[data-control]").forEach(e=>e.onchange=()=>{const key=e.dataset.control;if(key==="combine" && e.checked && state.actor){state.actor=refs()[state.actor]?.owner || state.actor;}state[key]=e.type==="checkbox"?e.checked:key==="segment"?+e.value:e.value;state.page=0;if(key==="run"){const index=doc.segments.findIndex(s=>!state.run || (s.run_id || "legacy")===state.run);state.segment=Math.max(0,index);state.enemy="";state.actor="";ranks=null;requestRanks();}if(key==="run" || key==="segment"){state.timelineStart=0;timelineDetail="";}if(key==="segment"){state.enemy="";state.actor="";ranks=null;requestRanks();}render();});
       const mapping=root.querySelector('[data-export-mappings]');if(mapping)mapping.onclick=()=>{const c=doc.encounter_insights.segments.find(s=>s.segment===state.segment).catalog;const url=URL.createObjectURL(new Blob([JSON.stringify(c,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='aion2-mapping-report.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);root.querySelector('[data-mapping-status]').textContent='Mapping report download started.';};
       root.querySelectorAll("[data-recap]").forEach(e=>e.onclick=()=>{state.recap=+e.dataset.recap;render();});
       root.querySelectorAll("[data-metric]").forEach(e=>e.onclick=()=>{state.metric=e.dataset.metric;state.page=0;render();});
       root.querySelectorAll("[data-view]").forEach(e=>e.onclick=()=>{state.view=e.dataset.view;if(state.view==="timeline")state.timeline=true;render();});
-      root.querySelectorAll('[data-attempt-segment]').forEach(e=>e.onclick=()=>{state.segment=+e.dataset.attemptSegment;state.enemy='';state.actor='';ranks=null;requestRanks();render();});
+      root.querySelectorAll('[data-attempt-segment]').forEach(e=>e.onclick=()=>{state.segment=+e.dataset.attemptSegment;state.timelineStart=0;timelineDetail="";state.enemy='';state.actor='';ranks=null;requestRanks();render();});
       root.querySelectorAll("[data-enemy-filter]").forEach(e=>e.onclick=()=>{state.enemy=e.dataset.enemyFilter;render();});
       root.querySelector("[data-clear-enemy]").onclick=()=>{state.enemy="";render();};
       root.querySelectorAll("[data-series]").forEach(e=>e.onclick=()=>{state.hidden.add(e.dataset.series);render();});
@@ -222,10 +245,30 @@
         report.onclick=async()=>{if(reportBusy)return;reportBusy=true;report.disabled=true;try{const result=await options.report({reason:reportReason,details:reportDetails});reportStatus=result.message+' Receipt: '+result.id;reportDetails='';}catch(e){reportStatus=e.message;}finally{reportBusy=false;if(root.isConnected)render();}};
       }
       root.querySelectorAll('[data-effect-detail]').forEach(marker=>{
-        const show=()=>{timelineDetail=marker.dataset.effectDetail;const panel=root.querySelector('[data-effect-panel]');if(panel)panel.textContent=timelineDetail;};
-        marker.onpointerenter=show;marker.onfocus=show;marker.onclick=show;
+        const show=e=>{timelineDetail=marker.dataset.effectDetail;const panel=root.querySelector('[data-effect-panel]');if(panel)panel.textContent=timelineDetail;const tip=root.querySelector('[data-effect-tooltip]');if(tip){tip.textContent=timelineDetail;tip.hidden=false;const bounds=marker.getBoundingClientRect();tip.style.left=Math.max(8,Math.min(innerWidth-370,(e?.clientX||bounds.left)+12))+'px';tip.style.top=Math.max(8,Math.min(innerHeight-100,(e?.clientY||bounds.top)+22))+'px';}};
+        marker.onpointerenter=show;marker.onpointermove=show;marker.onfocus=show;marker.onclick=show;
+        marker.onpointerleave=()=>{const tip=root.querySelector('[data-effect-tooltip]');if(tip)tip.hidden=true;};marker.onblur=marker.onpointerleave;
         marker.onkeydown=e=>{if(e.key==='Enter' || e.key===' '){e.preventDefault();show();}};
       });
+      root.querySelectorAll('[data-skill-icon]').forEach(image=>{image.onerror=()=>image.remove();});
+      const graphMode=root.querySelector('[data-graph-mode]');if(graphMode)graphMode.onchange=()=>{state.graphMode=graphMode.value;render();};
+      const hit=root.querySelector('[data-graph-hit]');
+      if(hit && graphModel){
+        let inspected=0;
+        const inspect=t=>{const m=graphModel;inspected=Math.max(0,Math.min(m.duration,t));const i=Math.min(m.count-1,Math.floor(inspected/m.step));
+          const parts=[clock(inspected,true),m.primary+': '+number(m.total[i])+'/s','10 s average: '+number(m.roll[i])+'/s'];
+          for(const [,s] of m.lines.slice(0,8))parts.push(label(d.r[s.actor])+' · '+s.kind+': '+number(s.values[i])+'/s');
+          if(m.lines.length>8)parts.push((m.lines.length-8)+' additional series; select a player for detail');
+          for(const id of new Set(m.health.map(s=>s.entity))){const sample=m.health.filter(s=>s.entity===id && s.t<=inspected).at(-1);if(sample)parts.push(label(d.r[id])+' HP: '+number(sample.current)+' (sample '+clock(sample.t,true)+')');}
+          root.querySelector('[data-graph-detail]').textContent=parts.join(' · ');const cursor=root.querySelector('[data-graph-cursor]');cursor.setAttribute('d','M'+(60+880*inspected/m.duration)+' 20V180');cursor.setAttribute('visibility','visible');};
+        const time=e=>{const box=hit.getBoundingClientRect();return (e.clientX-box.left)/Math.max(1,box.width)*graphModel.duration;};
+        hit.onpointermove=e=>inspect(time(e));hit.onfocus=()=>inspect(inspected);
+        hit.onclick=e=>{inspect(time(e));if(state.view==='timeline'){state.timelineStart=Math.max(0,inspected-(Number(state.timelineWindow)||graphModel.duration)/2);render();}};
+        hit.onkeydown=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();inspect(inspected+(e.key==='ArrowLeft'?-1:1)*graphModel.step);}};
+      }
+      const windowControl=root.querySelector('[data-timeline-window]');if(windowControl)windowControl.onchange=()=>{state.timelineWindow=Number(windowControl.value);render();};
+      for(const selector of ['[data-time-start]','[data-time-scrub]']){const input=root.querySelector(selector);if(input)input.onchange=()=>{state.timelineStart=Number(input.value);render();};}
+      for(const [selector,direction] of [['[data-time-prev]',-1],['[data-time-next]',1]]){const button=root.querySelector(selector);if(button)button.onclick=()=>{state.timelineStart+=(Number(state.timelineWindow)||d.segment.duration)*direction;render();};}
       replay(d);
     }
     function addComparison(other) {

@@ -585,12 +585,37 @@ function parseFromMeter(snap, idx) {
 
 const communityAPI=(path,body)=>body?api('/api/community',{path,body}):api('/api/community?path='+encodeURIComponent(path));
 const localReviewOptions=file=>({
+ skillIcon,
  lookupProfile:(player,region)=>api("/api/character/profile",{player,region}),
  importPlan:plan=>{window.A2Raid.importPlan(plan);location.hash="/raid";},
  compare:id=>communityAPI('/api/v1/logs/'+encodeURIComponent(id)+'/raw'),
  rankings:(segment,log)=>communityAPI('/api/v1/rankings',{segment,log}),
  ...(file?{saveMetadata:log=>api('/api/sessions',{file,log}),publish:visibility=>api('/api/sessions/share',{file,visibility})}:{})
 });
+async function pageCombatLog() {
+  const routeHash=location.hash, parts=routeHash.split('/'), kind=parts[2], value=decodeURIComponent(parts.slice(3).join('/'));
+  if(S.combat.review){S.combat.review.dispose();S.combat.review=null;}
+  app().innerHTML='<p><a class="btn small" href="#/combat">← Back to combat logs</a></p><div id="focused-log">Loading combat log…</div>';
+  const target=$('#focused-log');
+  let doc,options=localReviewOptions();
+  if(kind==='analysis'){
+    const analysis=await api('/api/encounters/'+encodeURIComponent(value));
+    if(location.hash!==routeHash || !target.isConnected)return;
+    target.innerHTML=renderEncounter(analysis);
+    target.querySelectorAll('[data-share]').forEach(button=>button.onclick=async()=>{button.disabled=true;try{const result=await api('/api/encounters/'+analysis.id+'/share',{});const link=document.createElement('a');link.href=result.url;link.textContent='Open shared log';link.target='_blank';link.rel='noopener';target.querySelector('#shared').replaceChildren(link);if(result.ownership_warning)toast(result.ownership_warning);}catch(e){target.querySelector('#shared').textContent=e.message;}finally{button.disabled=false;}});
+    target.querySelectorAll('[data-player]').forEach(button=>button.onclick=async()=>{try{button.disabled=true;const next=await runJob('/api/encounters/import',{ref:analysis.meta.url,player:button.dataset.player},lines=>toast(lines.at(-1)||'Analyzing…'));location.hash='/combat-log/analysis/'+next.id;}catch(e){toast(e.message);button.disabled=false;}});
+    window.scrollTo(0,0);return;
+  }
+  if(kind==='local'){doc=await api('/api/sessions?file='+encodeURIComponent(value));options=localReviewOptions(value);}
+  else if(kind==='shared'){
+    doc=await communityAPI('/api/v1/logs/'+encodeURIComponent(value)+'/raw');
+    options={...options,report:body=>communityAPI('/api/v1/logs/'+encodeURIComponent(value)+'/reports',body),rankings:segment=>communityAPI('/api/v1/logs/'+encodeURIComponent(value)+'/rankings?segment='+segment)};
+  }else if(kind==='opened' && S.combat.openedLog)doc=S.combat.openedLog;
+  else {target.textContent='This temporary preview is no longer available. Return to combat logs to open it again.';return;}
+  if(location.hash!==routeHash || !target.isConnected)return;
+  S.combat.review=A2CombatReview.mount(target,doc,options);
+  window.scrollTo(0,0);
+}
 async function pageCombat() {
   const st = S.combat;
   app().innerHTML = `<section class="win"><div class="wh"><h2>Combat logs</h2><span class="sub">per-skill breakdown, timeline, rates, idle time — compared with your optimal rotation</span></div>
@@ -603,12 +628,14 @@ async function pageCombat() {
       <div class="row small" id="lsrv"></div>
       <div id="sessions"></div><div id="session-review"></div><div id="owned-logs"></div><div id="community"></div><h3>Analyzed encounters</h3><div id="hist"></div></div></section><div id="enc"></div>`;
   api("/api/logs").then((l) => {
+    if(!$("#logsdir"))return;
     $("#logsdir").innerHTML = `<span class="muted">Every analyzed log is saved as a file in</span> <code>${esc(l.folder)}</code> <span class="faint">(${l.files} files)</span>
       <button class="btn small" id="openlogs">Open folder</button>`;
     $("#openlogs").onclick = () => api("/api/logs/open", {}).catch((e) => ($("#lmsg").textContent = e.message));
   }).catch(() => {});
   const srv = async () => {
     const c = await api("/api/logserver").catch(() => ({}));
+    if(!$("#lsrv"))return;
     $("#lsrv").innerHTML = `<span class="muted">Share to a log server:</span><input id="lsurl" type="text" placeholder="https://logs.example.com" value="${esc(c.url || "")}" style="width:240px">
       <input id="lskey" type="password" placeholder="${c.has_key ? "key saved" : "upload key"}" style="width:160px">
       <select id="lsvis">${["unlisted", "public", "private"].map((v) => `<option ${v === (c.visibility || "unlisted") ? "selected" : ""}>${v}</option>`).join("")}</select>
@@ -620,7 +647,7 @@ async function pageCombat() {
     types:A2Community.types,
     list:(offset,limit)=>api('/api/sessions?paged=1&offset='+offset+'&limit='+limit),
     context:()=>api('/api/logserver'),
-    open:async row=>{const doc=await api('/api/sessions?file='+encodeURIComponent(row.file));if(st.review)st.review.dispose();st.review=A2CombatReview.mount($('#session-review'),doc,localReviewOptions(row.file));$('#session-review').scrollIntoView({block:'start',behavior:'smooth'});},
+    open:row=>{location.hash='/combat-log/local/'+encodeURIComponent(row.file);},
     upload:(row,batch)=>api('/api/sessions/share',{file:row.file,visibility:batch.visibility,server:batch.url,completed_only:true})
   });
   A2LogOwnership.mount($('#owned-logs'),{
@@ -628,34 +655,20 @@ async function pageCombat() {
     import:owners=>api('/api/log-ownership',{action:'import',owners}),
     forget:owner=>api('/api/log-ownership',{action:'forget',owner}),
     request:(owner,action,visibility)=>api('/api/log-ownership',{owner,action,visibility}),
-    open:doc=>{if(st.review)st.review.dispose();st.review=A2CombatReview.mount($('#session-review'),doc,localReviewOptions());$('#session-review').scrollIntoView({behavior:'smooth'});}
+    open:doc=>{S.combat.openedLog=doc;location.hash='/combat-log/opened/'+Date.now();}
   });
-  A2Community.mount($('#community'),{api:communityAPI,open:async id=>{try{const doc=await communityAPI('/api/v1/logs/'+encodeURIComponent(id)+'/raw');if(st.review)st.review.dispose();st.review=A2CombatReview.mount($('#session-review'),doc,{report:body=>communityAPI("/api/v1/logs/"+id+"/reports",body),compare:localReviewOptions().compare,rankings:segment=>communityAPI('/api/v1/logs/'+id+'/rankings?segment='+segment)});$('#session-review').scrollIntoView({behavior:'smooth'});}catch(e){toast(e.message);}}});
+  A2Community.mount($('#community'),{api:communityAPI,open:id=>{location.hash='/combat-log/shared/'+encodeURIComponent(id);}});
   const hist = await api("/api/encounters").catch(() => []);
+  if(!$("#hist"))return;
   $("#hist").innerHTML = hist.length ? `<table class="t"><tr><th>#</th><th>Player</th><th>Class</th><th>Target</th><th>Source</th><th class="r">Duration</th><th class="r">DPS</th><th></th></tr>${hist.map((e) =>
     `<tr><td>${e.id}</td><td>${esc(e.player || "")}</td><td>${esc(cap(e.class_name))}</td><td>${esc(e.boss || "")}</td><td>${esc(e.source)}</td><td class="r">${(e.duration || 0).toFixed(0)}s</td><td class="r num">${n0(e.dps)}</td>
      <td class="r"><button class="btn small" data-enc="${e.id}">Open</button></td></tr>`).join("")}</table>` : '<div class="faint small">No encounters yet.</div>';
   $$("[data-enc]").forEach((b) => (b.onclick = () => openEnc(+b.dataset.enc)));
   const progress = (l) => ($("#lmsg").textContent = l[l.length - 1] || "");
-  const show = (a) => {
-    st.a = a; $("#enc").innerHTML = renderEncounter(a);
-    $$("[data-share]").forEach((b) => (b.onclick = async () => {
-      try {
-        const r = await api(`/api/encounters/${a.id}/share`, {});
-        $("#shared").innerHTML = `Shared: <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a> <button class="btn small" id="cpy">Copy link</button>`;
-        $("#cpy").onclick = () => copyText(r.url);
-        if(r.ownership_warning)toast(r.ownership_warning);
-        document.dispatchEvent(new Event('a2log-uploaded'));
-      } catch (e) { $("#shared").textContent = e.message; }
-    }));
-    $$("[data-player]").forEach((b) => (b.onclick = async () => {        // another player of the same party log
-      try { show(await runJob("/api/encounters/import", { ref: a.meta.url, player: b.dataset.player }, progress)); pageCombatHistory(); }
-      catch (e) { $("#lmsg").textContent = e.message; }
-    }));
-  };
-  const openEnc = async (id) => { $("#enc").innerHTML = '<div class="empty"><span class="spinner"></span></div>'; show(await api("/api/encounters/" + id)); };
+  const show = a => {st.a=a;location.hash='/combat-log/analysis/'+a.id;};
+  const openEnc = id => {location.hash='/combat-log/analysis/'+id;};
   $("#imp").onclick = async () => {
-    try { show(await runJob("/api/encounters/import", { ref: $("#ref").value, player: $("#player").value }, progress)); pageCombatHistory(); }
+    try { show(await runJob("/api/encounters/import", { ref: $("#ref").value, player: $("#player").value }, progress)); }
     catch (e) { $("#lmsg").textContent = e.message; }
   };
   $("#file").onchange = async () => {
@@ -664,10 +677,10 @@ async function pageCombat() {
       const gz = new Uint8Array(await f.slice(0, 2).arrayBuffer());
       const text = gz[0] === 0x1f && gz[1] === 0x8b                      // AbyssLogs segment files are gzip
         ? await new Response(f.stream().pipeThrough(new DecompressionStream("gzip"))).text() : await f.text();
-      show(await runJob("/api/encounters/import", { text, name: f.name, player: $("#player").value }, progress)); pageCombatHistory();
+      show(await runJob("/api/encounters/import", { text, name: f.name, player: $("#player").value }, progress));
     } catch (e) { $("#lmsg").textContent = e.message; }
   };
-  if (st.a) show(st.a);
+
 }
 async function pageCombatHistory() { /* refresh list after import */ if (location.hash.startsWith("#/combat")) { const a = S.combat.a; await pageCombat(); if (a) $("#enc").innerHTML = renderEncounter(a); } }
 
@@ -1354,13 +1367,15 @@ setInterval(() => fetch("/api/ping", { method: "POST" }).catch(() => {}), 20000)
 // ------------------------------------------------------------- router
 async function route() {
   const page = (location.hash.replace(/^#\//, "") || "planner").split("/")[0];
-  $$(".nav a").forEach((a) => a.classList.toggle("on", a.dataset.page === page));
+  $$(".nav a").forEach((a) => a.classList.toggle("on", a.dataset.page === (page === "combat-log" ? "combat" : page)));
+  if(page!=="combat-log" && S.combat.review){S.combat.review.dispose();S.combat.review=null;}
   try {
     if (page === "character") await pageCharacter();
     else if (page === "history") await pageHistory();
     else if (page === "gear") await pageGear();
     else if (page === "settings") await pageSettings();
     else if (page === "combat") await pageCombat();
+    else if (page === "combat-log") await pageCombatLog();
     else if (page === "raid") await pageRaid();
     else if (page === "meter") await pageMeter();
     else if (page === "database") await pageDatabase();

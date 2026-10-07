@@ -1,13 +1,28 @@
 A2LogOwnership.mount(document.getElementById("owned-logs"));
 A2Community.mount(document.getElementById("community"),{api:path=>A2.api(path),open:id=>{location.href="log.html?id="+encodeURIComponent(id);}});
 
-let archiveReview;
+let archiveReview, previewDocument;
+const previewRoot=document.getElementById('archive-review');
+function renderPreviewPage(){
+  const focused=location.hash==='#local-log' && !!previewDocument;
+  for(const child of document.querySelector('main').children)child.hidden=focused?child!==previewRoot:child===previewRoot;
+  if(archiveReview){archiveReview.dispose();archiveReview=null;}
+  previewRoot.replaceChildren();
+  document.title=focused?'Combat log — Aion 2 Calc':'Logs — Aion 2 Calc';
+  if(!focused)return;
+  const back=document.createElement('a');back.className='btn small';back.href='#';back.textContent='← Back to combat logs';
+  const heading=document.createElement('p');heading.append(back);const viewer=document.createElement('div');previewRoot.append(heading,viewer);
+  archiveReview=A2CombatReview.mount(viewer,previewDocument);
+  window.scrollTo(0,0);
+}
+window.addEventListener('hashchange',renderPreviewPage);
+renderPreviewPage();
 A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
   files:true,types:A2Community.types,
   context:async()=>{const config=A2.cfg(),url=(A2.base()||config.url||'').replace(/\/+$/,'');
     return {url,key:url===(config.url||'').replace(/\/+$/,'')?config.key:undefined};},
-  open:async row=>{const doc=JSON.parse(await row.input.text());if(archiveReview)archiveReview.dispose();
-    archiveReview=A2CombatReview.mount(document.getElementById('archive-review'),doc);document.getElementById('archive-review').scrollIntoView({behavior:'smooth'});},
+  open:async row=>{previewDocument=JSON.parse(await row.input.text());
+    if(location.hash==='#local-log')renderPreviewPage();else location.hash='local-log';},
   upload:async(row,batch)=>{
     const text=await row.input.text(),doc=JSON.parse(text);
     if(doc.meta?.capture_active)throw Error('Unfinished checkpoints are excluded; review and export a finished part first.');
