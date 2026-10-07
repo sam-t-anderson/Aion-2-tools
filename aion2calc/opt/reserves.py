@@ -1,12 +1,10 @@
 """Explicit trained-level/equipped-stigma constraints, without utility coefficients."""
 from __future__ import annotations
 
-from math import ceil
-
 from ..kit.base import sp_to_reach, stigma_points_to_reach, SPEC_SLOT_LEVELS
 
 NOTE = ("User-selected trained skill/stigma minimums. Reserved stigmas stay equipped. "
-        "Reserved supporting effects stay selected; their unlock and slot requirements are funded with trained levels plus fixed gear bonuses. Effects needing changeable Daevanion levels cannot be reserved in this version. Other bonuses and specialties may change. "
+        "Reserved supporting effects stay selected; their effective-level unlock and slot requirements constrain trained points, fixed gear bonuses and connected Daevanion nodes. Other bonuses and specialties may change. "
         "Use utility skills manually when they are absent from the damage rotation. These constraints "
         "do not simulate CC, mobility, shields, opponent defenses or win probability. Damage baselines "
         "and stat priorities remain unconstrained references.")
@@ -34,7 +32,7 @@ def prepare(cd, options, budgets, gear_bonus=None):
     effects = options.get("specs", {})
     if not isinstance(effects, dict) or len(effects) > len(cd.skills):
         raise ValueError("Invalid supporting-effect reserves")
-    required = {}
+    required, minimum_effective = {}, {}
     for key, chosen in effects.items():
         if isinstance(key, bool) or not str(key).isascii() or not str(key).isdigit():
             raise ValueError("Reserve effects on a known active skill")
@@ -46,13 +44,11 @@ def prepare(cd, options, budgets, gear_bonus=None):
         if any(type(effect) is not int or effect not in catalog for effect in chosen) or len(set(chosen)) != len(chosen):
             raise ValueError("Choose distinct supporting effects from this skill's catalog")
         unlock = max(SPEC_SLOT_LEVELS[len(chosen)-1], *(catalog[effect]["unlock"] for effect in chosen))
-        trained = max(1, ceil(unlock - (gear_bonus or {}).get(sid, 0)), result["sp"].get(sid, 1))
-        if trained > min(10, skill.get("buyMax", 10)):
-            raise ValueError(f"{skill['name']}: these effects need effective level {unlock}; fixed gear and purchasable trained levels cannot guarantee it without Daevanion levels. Reserve fewer/lower effects.")
-        result["sp"][sid] = trained
+        minimum_effective[sid] = unlock
         required[sid] = tuple(sorted(chosen))
     if required:
         result["specs"] = required
+        result["effective"] = minimum_effective
     if len(result["stigmas"])>cd.budget(45)["slots"]:
         raise ValueError("Too many reserved stigmas for the available equip slots")
     if sum(sp_to_reach(lv) for lv in result["sp"].values())>budgets["skill"]:
@@ -62,16 +58,24 @@ def prepare(cd, options, budgets, gear_bonus=None):
     return result if any(result.values()) else None
 
 
-def meets(build, plan):
+def meets(build, plan, cd=None):
     return not plan or (all(build.sp.get(sid,1)>=lv for sid,lv in plan["sp"].items())
         and all(sid in build.stigmas and build.stigmas[sid]>=lv for sid,lv in plan["stigmas"].items())
-        and all(set(chosen) <= set(build.specs.get(sid, ())) for sid,chosen in plan.get("specs", {}).items()))
+        and all(set(chosen) <= set(build.specs.get(sid, ())) for sid,chosen in plan.get("specs", {}).items())
+        and (not plan.get("effective") or (cd is not None and
+             all(build.effective_levels(cd).get(sid,1)>=level for sid,level in plan["effective"].items()))))
 
 
 def describe(cd, build, plan):
     if not plan:
         return None
-    return {"version": 2, "note": NOTE, "met": meets(build,plan),
+    return {"version": 3, "note": NOTE, "met": meets(build,plan,cd),
+            "effective_levels": [{"id": sid, "name": cd.skills[sid]["name"], "minimum": level,
+                                  "selected": build.effective_levels(cd).get(sid,1),
+                                  "trained": build.sp.get(sid,1),
+                                  "daevanion": cd.daevanion_levels(build.daevanion).get(sid,0),
+                                  "gear": build.bonus.get(sid,0)}
+                                 for sid,level in sorted(plan.get("effective", {}).items())],
             "effects": [{"skill": cd.skills[sid]["name"], "id": effect["id"], "text": effect["text"], "unlock": effect["unlock"], "selected": effect["id"] in build.specs.get(sid, ())}
                         for sid,chosen in plan.get("specs", {}).items() for effect in cd.skills[sid].get("specs", []) if effect["id"] in chosen],
             "skills": [{"id":sid,"name":cd.skills[sid]["name"],"kind":cd.skills[sid]["kind"],

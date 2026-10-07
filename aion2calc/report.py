@@ -399,7 +399,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     from .opt.survival import assessment
     summary["survival"] = assessment(cd, build, survival)
     from .opt.reserves import describe as describe_reserves
-    summary["skill_reserves"] = describe_reserves(cd, build, skill_reserves)
+    summary["skill_reserves"] = describe_reserves(cd, opt._with_gear(build), skill_reserves)
     summary["arcana_rolls"] = arcana_roll_values(cls, build, scen, policy)
     summary["crit_sensitivity"] = None if scenario_name.startswith("pvp") else crit_sensitivity(build, scen, policy)
     summary["kr_fidelity"] = (None if scenario_name.startswith("pvp") else
