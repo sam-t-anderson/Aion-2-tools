@@ -1,3 +1,13 @@
+# Aion 2 Calc 0.2.35
+
+- Style the overlay Hide button with the same dark gradient, gold frame, hover and keyboard focus treatment as the desktop controls.
+
+- Freeze live DPS at the last recorded damage event during healing-only downtime. Show Paused after two seconds without damage; capture continues and new damage resumes the clock. Saved logs retain the full event interval, so historical report rates can differ from live DPS.
+- Detect the installed game build from registered Windows installations (Steam manifest or executable version resource). Export build evidence without installation paths. Installed build is separate from the game patch used for rankings.
+- Resolve recorded server IDs against official regional server lists in the background, with a six-hour cache. Missing or ambiguous IDs remain unresolved.
+- Identify Fire Temple Arena from the confirmed map capture, known open-world categories from the map catalog, and dungeon names from recorded instance IDs. Show automatic detection in Live Meter and preserve provenance in shared review. Optional manual overrides remain available.
+- Unknown patch, difficulty, content and match outcomes remain unknown; additional verified mappings are needed.
+
 # Aion 2 Calc 0.2.34
 
 - Restore the live skill breakdown after tab navigation by invalidating the removed DOM render cache.

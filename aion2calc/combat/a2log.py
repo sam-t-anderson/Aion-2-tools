@@ -80,6 +80,7 @@ SCHEMA = {
             "title": {"type": "string"}, "region": {"type": "string"}, "server": {"type": "string"},
             "recorded_at": {"type": "string", "format": "date-time"},
             "zone": {"type": "string"}, "difficulty": {"type": "string"},
+            "installed_build": {"type": "string"}, "installed_build_source": {"type": "string"}, "region_source": {"type": "string"},
             "game_patch": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
             "capture_active": {"type": "boolean"}, "checkpoint_at": {"type": "number"},
             "capture_scope": {"enum": ["party", "self", "all"]},
@@ -124,6 +125,7 @@ _segment_properties.update({
     "run_start_observed":{"type":"boolean"}, "run_started_at":{"type":"string"}, "run_ended_at":{"type":"string"},
     "party_members":{"type":"array", "maxItems":64, "items":{"type":"string"}}, "party_roster_complete":{"type":"boolean"},
     "instance_id":{"type":"integer"}, "map_id":{"type":"integer"},
+    "zone_source":{"type":"string"}, "encounter_type_source":{"type":"string"},
     "game_patch": {"type": "string"}, "difficulty": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
     "entities": {"type": "array", "maxItems": 2000, "description": "Observed enemies and pets: id, name, kind, mob_code, is_boss, owner"},
     "events": {"type": "array", "maxItems": LIMITS["hits"], "description": "Recorded damage/heal/death effects: t, kind, source, target, skill, skill_id, amount; unknown recipients omitted"},
@@ -331,7 +333,7 @@ def validate(doc) -> dict:
                          "start": _text(s.get("start"), "segment start"), "duration": float(s["duration"]),
                          "killed": s.get("killed") is True, "hits": out_hits, "buffs": buffs, "hp": hp,
                          "entities": entities, "events": events, "health": health, "positions": positions})
-        for key in ("run_id", "run_end_reason", "zone", "run_started_at", "run_ended_at"):
+        for key in ("run_id", "run_end_reason", "zone", "zone_source", "encounter_type_source", "run_started_at", "run_ended_at"):
             if isinstance(s.get(key),str):
                 out_segs[-1][key] = s[key][:200]
         if isinstance(s.get("run_complete"),bool):

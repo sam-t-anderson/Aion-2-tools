@@ -62,7 +62,7 @@
     const mx = Math.max(...players.map((p) => p.dps || 0), 1);
     const rows = players.slice(0, 8).map((p) => `<div class="ovrow"><span class="ovname" title="${esc(p.name)}">${esc(p.name)}</span>
         <div class="ovbar"><i style="width:${100 * (p.dps || 0) / mx}%;background:${A2CombatReview.color(p.class)}"></i><span>${kfmt(p.dps)}/s <span class="sub">${kfmt(p.damage)} · ${Math.round(100 * (p.share || 0))}%</span></span></div></div>`).join("");
-    $("#ovstatus").textContent = `${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(snap.duration) || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)}/s`;
+    $("#ovstatus").textContent = `${snap.paused ? "Paused · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(snap.duration) || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)}/s`;
     const empty = s.error || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app.");
     $("#ovcontent").innerHTML = rows || `<div class="muted">${esc(empty)}</div>`;
   }
