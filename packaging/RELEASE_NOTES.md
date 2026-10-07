@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.43
+
+**Live Meter → Game installation** lists detected Steam libraries and recognized registered Windows/PURPLE game installs. Choose a copy when several are present; Auto only selects a single discovered copy. The local preference survives application restarts. Removed selections stay unavailable instead of silently switching to another install. Installation paths and the local selector ID are not added to uploaded combat documents.
+
+Installation selection is locked during capture and while combat history is retained. Stop, save/export and clear the session before selecting another copy. Clear also removes retained demo-meter data. Installed build evidence stays with retained live combat when capture is restarted. Capture remains available when no install/version is detected; missing evidence stays unavailable.
+
+Region overrides now use a dropdown with Auto (recorded home server) and the existing official region choices. A manually chosen recording region does not assign that region to opponents or other players. The official server-region cache now writes to the user data directory, including on first use in packaged installations. Installed build IDs are separate from published game patches; automatic patch/difficulty inference and discovery of unregistered PURPLE installs remain pending.
+
 # Aion 2 Calc 0.2.42
 
 Discover Steam AION 2 installations from library manifests, including alternate library drives, alongside recognized Windows/PURPLE registrations. Installed build IDs remain separate from official published patch labels. Multiple-install/region selection and automatic difficulty inference remain follow-up work.

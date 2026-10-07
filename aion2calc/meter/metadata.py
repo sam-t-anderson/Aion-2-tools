@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ctypes
+import hashlib
 import json
 import os
 import re
@@ -11,7 +12,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-from ..paths import data_file
+from ..paths import user_data, write_user_json
 
 REGIONS = ("nae", "eu", "as", "la")
 _COLLECTION_LOCK = threading.Lock()
@@ -110,30 +111,78 @@ def _file_version(path):
     return None if version in ("0.0.0.0", "1.0.0.0") else version
 
 
-def installation():
-    """Return public build evidence only; never expose the installation path."""
-    for root in _installed_roots():
-        # Steam common/<installdir> is discovered through the registry, not a fixed drive.
-        if root.parent.name.casefold() == "common":
-            for manifest in sorted(root.parent.parent.glob("appmanifest_*.acf")):
-                try:
-                    fields = dict(re.findall(r'"([^"\n]+)"\s+"([^"\n]*)"', manifest.read_text(encoding="utf-8")))
-                    if fields.get("installdir", "").casefold() != root.name.casefold():
-                        continue
-                    if fields.get("buildid", "").isdigit():
-                        return {"installed_build": fields["buildid"], "installed_build_source": "Steam app manifest", "status": "ready"}
-                except (OSError, UnicodeError):
+def _build_evidence(root):
+    """Return public build evidence only; paths remain local."""
+    # Steam common/<installdir> is discovered through the registry, not a fixed drive.
+    if root.parent.name.casefold() == "common":
+        for manifest in sorted(root.parent.parent.glob("appmanifest_*.acf")):
+            try:
+                fields = dict(re.findall(r'"([^"\n]+)"\s+"([^"\n]*)"', manifest.read_text(encoding="utf-8")))
+                if fields.get("installdir", "").casefold() != root.name.casefold():
                     continue
-        for binary in (root / "Aion2/Binaries/Win64/AION2.exe", root / "AION2.exe"):
-            version = _file_version(binary)
-            if version:
-                return {"installed_build": version, "installed_build_source": "Game executable version resource", "status": "ready"}
-    return {"status": "unavailable", "reason": "No usable installed game build was found. Installation detection currently supports Steam libraries and registered Windows installs, including recognized PURPLE game registrations."}
+                if fields.get("buildid", "").isdigit():
+                    return {"installed_build": fields["buildid"], "installed_build_source": "Steam app manifest", "status": "ready"}
+            except (OSError, UnicodeError):
+                continue
+    for binary in (root / "Aion2/Binaries/Win64/AION2.exe", root / "AION2.exe"):
+        version = _file_version(binary)
+        if version:
+            return {"installed_build": version, "installed_build_source": "Game executable version resource", "status": "ready"}
+    return {"status": "unavailable", "reason": "No usable version resource or Steam build ID was found."}
+
+
+def _installation_id(root):
+    return hashlib.sha256(os.path.normcase(str(root.resolve())).encode("utf-8")).hexdigest()[:24]
+
+
+def selected_installation():
+    try:
+        saved = json.loads((user_data() / "capture-installation.json").read_text(encoding="utf-8"))
+        value = saved.get("id", "")
+        return value if isinstance(value, str) else ""
+    except (OSError, ValueError, AttributeError):
+        return ""
+
+
+def installation_options():
+    rows = []
+    for root in _installed_roots():
+        evidence = _build_evidence(root)
+        launcher = "Steam" if root.parent.name.casefold() == "common" else "Registered Windows install"
+        label = f"{launcher} · {root.name} · {root.drive or 'local'}"
+        if evidence.get("installed_build"):
+            label += " · build " + evidence["installed_build"]
+        rows.append({"id": _installation_id(root), "label": label, **evidence})
+    selected = selected_installation()
+    return {"installations": rows, "selected": selected,
+            "selection_required": not selected and len(rows) > 1}
+
+
+def choose_installation(value):
+    if not isinstance(value, str) or (value and value not in {_installation_id(root) for root in _installed_roots()}):
+        raise ValueError("Choose an installation discovered on this computer, or Auto.")
+    write_user_json({"id": value}, "capture-installation.json")
+    return installation_options()
+
+
+def installation(selected=None):
+    selected = selected_installation() if selected is None else selected
+    roots = _installed_roots()
+    if selected:
+        roots = [root for root in roots if _installation_id(root) == selected]
+        if not roots:
+            return {"status": "unavailable", "reason": "The selected game installation is no longer available. Refresh installations and select another before a new session."}
+    elif len(roots) > 1:
+        return {"status": "selection_required", "reason": "Multiple game installations were found. Select one before starting a new session."}
+    if roots:
+        return _build_evidence(roots[0])
+    return {"status": "unavailable", "reason": "No registered game installation was found. Detection supports Steam libraries and recognized Windows game registrations, including PURPLE."}
 
 
 class CaptureMetadata:
     def __init__(self):
         self.lock = threading.Lock()
+        self.selected = selected_installation()
         self.build = {"status": "detecting"}
         self.regions = {}
         self.region_status = "detecting"
@@ -141,7 +190,7 @@ class CaptureMetadata:
 
     def _collect(self):
         try:
-            build = installation()
+            build = installation(self.selected)
         except (OSError, ValueError):
             build = {"status": "unavailable", "reason": "Installed game metadata could not be read."}
         with self.lock:
@@ -150,7 +199,7 @@ class CaptureMetadata:
             self._collect_regions()
 
     def _collect_regions(self):
-        cache = data_file("cache", "capture-server-regions.json")
+        cache = user_data() / "cache" / "capture-server-regions.json"
         try:
             saved = json.loads(cache.read_text(encoding="utf-8"))
             if (0 <= time.time() - saved["fetched_at"] < 21600

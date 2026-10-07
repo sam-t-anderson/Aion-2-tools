@@ -253,3 +253,11 @@ Promote candidates with verified game tables or repeated independently labeled r
 ### Preset naming
 
 Keep homepage/build-planner preset labels generic: `<class>_<level>_<region>_<PvE|PvP>`, for example `sorcerer_45_global_PvE`. Do not expose contributor or character names as preset titles. Keep performance, provenance and loadout variants as separate details. Saved personal optimizer history can retain character names. Apply this when publishing the canonical per-class/mode presets.
+
+### Installation selection checkpoint
+
+Implemented local persistent selection among detected Steam/registered Windows game copies, explicit multiple-copy and missing-copy states, recording-region dropdown, retained-session installation lock and writable first-use official region cache. Follow-up: unregistered PURPLE configuration discovery, verified official regional patch feed and patch-specific encounter signatures. Published patch labels must not be guessed from Steam build IDs or applied retrospectively to older logs.
+
+### Community log presentation and mixed modes
+
+Next: replace the community list's Type/patch/difficulty cell with event count, patch and verified boss icons (PvE) or distinct opponent-class icons (PvP). Use an existing game-asset placeholder when no verified boss/icon exists. Mixed PvE/PvP uploads appear in both mode lists, with mode-specific events, players and totals; preserve the original document and avoid cross-mode leaderboard contamination.
