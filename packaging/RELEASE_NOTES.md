@@ -1,5 +1,8 @@
 # Aion 2 Calc 0.2.34
 
+- Restore the live skill breakdown after tab navigation by invalidating the removed DOM render cache.
+- Add per-player ability contribution charts and damage/healing tables to saved/shared log review, including effects, total, share, per-second amount, average, minimum and maximum. Summary defaults to friendly damage done; player filters apply.
+
 - Make Table, Timeline and Events mutually exclusive in the shared desktop, Pages and server combat viewer. Table no longer displays the timeline underneath it. Graph remains an independent toggle.
 
 # Aion 2 Calc 0.2.33
