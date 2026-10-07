@@ -568,3 +568,11 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; backgrou
 .news-card { background:var(--panel2); border:1px solid var(--frame); border-radius:8px; padding:16px; overflow-wrap:anywhere; }
 .news-card h3 { margin:12px 0; }
 .news-card .row { justify-content:space-between; }
+
+/* Manual Pet Genus Insight allocations. */
+.genus-editor-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0;}
+.genus-editor-grid .gslot {gap:8px;align-items:stretch;text-align:left;padding:12px;}
+.genus-editor-grid label {display:grid;grid-template-columns:40px minmax(0,1fr);align-items:center;gap:8px;}
+.genus-editor-grid input {min-width:0;width:100%;box-sizing:border-box;}
+#genus-editor textarea {width:100%;box-sizing:border-box;margin:8px 0;}
+@media(max-width:680px){.genus-editor-grid{grid-template-columns:1fr;}}

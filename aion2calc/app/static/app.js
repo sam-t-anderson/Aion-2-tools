@@ -1109,7 +1109,9 @@ async function pageGear() {
   if (!chars.length) return;
   const key = () => (st.key = $("#gchar").value);
   const showInv = async () => {
-    const inv = await api("/api/inventory?character=" + encodeURIComponent(key()));
+    const inventoryKey=key();
+    const inv = await api("/api/inventory?character=" + encodeURIComponent(inventoryKey));
+    if($("#gchar")?.value!==inventoryKey)return;
     st.inv = inv;
     const rows = inv.items.map((e) => `<tr><td>${esc(e.slot || e.category || "")}</td><td class="gname" data-grade="${esc(e.grade)}">${esc(e.name)} +${e.enchant || 0}</td>
       <td class="small">${esc((e.skills || []).map(([n, l]) => `${n} +${l}`).join(", "))}</td><td class="small muted">${esc(e.source)}</td>
@@ -1121,9 +1123,7 @@ async function pageGear() {
         <input id="gen" type="number" min="0" max="20" value="0" style="width:70px" title="enchant level"><input id="gsk" type="text" placeholder="skill options, e.g. Hellfire=2, Blaze=1" style="width:260px"></div>
       <div id="gres"></div>
       <h4 class="gold small" style="margin-top:12px">GENUS INSIGHT</h4>
-      <p class="small faint">One line per analysis slot: <code>Genus | level | slot | stat | value</code>, e.g. <code>Varian | 7 | 4 | Varian Damage Boost | 3.6%</code></p>
-      <textarea id="ggen" rows="5" style="width:100%">${esc(Object.entries(genus).flatMap(([g, x]) => (x.lines || []).map((l) => `${g} | ${x.level || 0} | ${l.slot ?? ""} | ${l.stat} | ${l.value}`)).join("\n"))}</textarea>
-      <button class="btn small" id="ggsave">Save genus lines</button>
+      <div id="genus-editor"></div>
       <h4 class="gold small" style="margin-top:12px">TITLES YOU OWN</h4>
       <p class="small faint">The official page shows only equipped titles. One title name per line (copy them from the in-game Titles window).</p>
       <textarea id="gtit" rows="4" style="width:100%">${esc((inv.titles_owned || []).join("\n"))}</textarea>
@@ -1140,22 +1140,24 @@ async function pageGear() {
       }));
     };
     $("#gtsave").onclick = async () => { await api("/api/inventory/titles", { character: key(), titles: $("#gtit").value.split("\n") }); toast("Saved"); showInv(); };
-    $("#ggsave").onclick = async () => {
-      const g = {};
-      $("#ggen").value.split("\n").map((l) => l.split("|").map((x) => x.trim())).filter((p) => p.length >= 5 && p[3]).forEach(([gn, lv, slot, stat, value]) => {
-        const x = (g[gn] = g[gn] || { level: +lv || 0, lines: [] });
-        x.level = Math.max(x.level, +lv || 0);
-        x.lines.push({ slot: +slot || null, stat, value });
-      });
-      await api("/api/inventory/genus", { character: key(), genus: g }); toast("Saved"); await showInv();
-      if (st.adv) { $("#gout").innerHTML = renderAdvice(st.adv); bindAdvice(st.adv); }
-    };
+    const genusRoot=$('#genus-editor');
+    A2GenusEditor.mount(genusRoot,genus,async draft=>{
+      const saved=await api('/api/inventory/genus',{character:inventoryKey,genus:draft});
+      st.genusRevision=(st.genusRevision||0)+1;
+      if(st.key===inventoryKey&&genusRoot.isConnected){st.inv=saved;st.adv=null;
+      $('#gout').innerHTML='<p class="note">Genus lines saved. Run advice again to update recommendations.</p>';}
+      return saved.genus||{};
+    });
   };
   $("#gchar").onchange = () => { st.adv = null; $("#gout").innerHTML = ""; showInv(); };
   $("#gadv").onclick = async () => {
     $("#gout").innerHTML = '<div class="empty"><span class="spinner"></span></div>';
-    try { st.adv = await runJob("/api/advice", { character: key() }, (l) => ($("#gmsg").textContent = l[l.length - 1] || "")); $("#gout").innerHTML = renderAdvice(st.adv); bindAdvice(st.adv); }
-    catch (e) { $("#gout").innerHTML = `<div class="note">${esc(e.message)}</div>`; }
+    const characterKey=key(),revision=st.genusRevision||0,run=st.adviceRun=(st.adviceRun||0)+1;
+    try {const advice=await runJob("/api/advice",{character:characterKey},lines=>{if($('#gmsg')&&st.key===characterKey&&st.adviceRun===run)$('#gmsg').textContent=lines[lines.length-1]||'';});
+      if(!$('#gout')||st.key!==characterKey||st.adviceRun!==run)return;
+      if((st.genusRevision||0)!==revision){$('#gout').innerHTML='<p class="note">Genus allocations changed during calculation. Run advice again.</p>';return;}
+      st.adv=advice;$('#gout').innerHTML=renderAdvice(advice);bindAdvice(advice);
+    }catch(e){if($('#gout')&&st.key===characterKey&&st.adviceRun===run)$('#gout').innerHTML=`<div class="note">${esc(e.message)}</div>`;}
   };
   await showInv();
   if (st.adv) { $("#gout").innerHTML = renderAdvice(st.adv); bindAdvice(st.adv); }

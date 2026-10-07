@@ -283,3 +283,7 @@ Desktop/Pages provide official English/global notice/update headline cards with 
 ### Official asset-reference coverage
 
 Fresh official imports retain sanitized public image references scoped by region, kind and ID. Equipment missing a recorded icon can use an unchanged same-region/item-ID reference before slug/unique-name fallback. Settings exports counts and up to 200 missing/changed reference IDs without character identities, stats or credentials. Follow-up: runtime HTTP-failure diagnostics, verified NPC portraits, stable-ID reconciliation with third-party catalog slugs and broader title/item coverage. URL changes disable ID fallback until reviewed; this does not establish an identity conflict or map numeric namespaces.
+
+### Manual Genus Insight editor
+
+Gear & Advice provides five genus tabs, nine analysis-slot cards, level/stat/value controls, draft retention across tabs, per-slot clearing and save feedback. Validate allocations before replacing inventory; retain malformed legacy entries in Advanced JSON for repair. Saving requires recalculation instead of displaying stale advice. Remaining: official allocation retrieval (not supplied by current profiles), verified in-game reference art/interaction details, richer genus presentation across build views and defensive-effect modeling.
