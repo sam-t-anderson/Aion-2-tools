@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.74
+
+Live Meter no longer offers session-wide encounter type, build, difficulty, zone or region overrides, and ignores their legacy browser settings. Capture uses automatic evidence; unidentified metadata remains unknown. The live configuration API rejects classification changes.
+
+Completed saved logs support corrections to one encounter or every encounter with the same recorded run ID. Only changed fields propagate; boss name stays encounter-specific and region stays session-wide. Active captures have no correction form. Saved corrections do not rewrite an already uploaded copy.
+
+Character build headers now show gear score from the official profile's gearScore or item-level stat, alongside combat power. The Korean item-level label is translated. Secondary-stat effects supplied as text now render correctly instead of showing “: Unavailable”; empty entries are hidden. The shared viewer applies to desktop and Pages. Common scoring is unchanged; no server update is required.
+
 # Aion 2 Calc 0.2.73
 
 Personal PvE and PvP pressure windows now accept an optional assumed effective cooldown for their linked skill. Repeated activations within each scenario must respect the largest supplied cooldown for that skill. Blank stays unknown, zero permits immediate reuse, and entries at the same start count as one activation. Separate encounter scenarios are checked independently with all skills initially ready.

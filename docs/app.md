@@ -233,7 +233,7 @@ Use **Export capture diagnostics** even if the meter display cannot refresh or T
 
 Live Meter reads installed build evidence from Steam library manifests, including alternate library drives, and recognized Windows/PURPLE game registrations. Installation paths are not exported. Recorded home server IDs are matched against official regional catalogs; opponents without their own server ID are not assigned your server.
 
-Recognized map/instance IDs supply supported zone and content metadata. Difficulty is filled only when the recorded PvE instance has an explicit catalog value. Optional overrides have their source recorded. Unknown build, difficulty and match outcomes remain unknown. New Steam captures use the selected installation’s Build ID. Executable versions alone do not identify a unique launcher build, and current installation evidence is never applied to historical logs. Choose a detected installation when multiple copies are present. Unregistered PURPLE installation discovery, launcher namespace equivalence and verified difficulty-signature inference remain planned work.
+Recognized map/instance IDs supply supported zone and content metadata. Difficulty is filled only when the recorded PvE instance has an explicit catalog value. Live capture has no manual classification overrides. Correct completed saved logs by encounter or recorded run; manual corrections retain their source. Unknown build, difficulty and match outcomes remain unknown. New Steam captures use the selected installation’s Build ID. Executable versions alone do not identify a unique launcher build, and current installation evidence is never applied to historical logs. Choose a detected installation when multiple copies are present. Unregistered PURPLE installation discovery, launcher namespace equivalence and verified difficulty-signature inference remain planned work.
 
 Capture errors now reach the displayed meter status and Start/Stop control instead of being discarded as failed status requests. Meter polling has a timeout and retries; desktop and overlay retain the last readings with a visible connection warning when refresh fails. An interrupted view does not establish whether capture is still running.
 
@@ -249,7 +249,7 @@ Live DPS pauses after two seconds without damage while capture continues, and re
 
 ### Installation build numbers
 
-New live Steam captures automatically use the selected installation's exact Build ID as the comparison identifier. Reports display **Build 25767555 · Steam**, for example; the stored key also retains the Steam app ID to separate launcher namespaces. Clear the optional game build override to use automatic detection. Capture freezes the selected installation's build evidence for that session; saved logs retain it and are not rewritten using today's installation.
+New live Steam captures automatically use the selected installation's exact Build ID as the comparison identifier. Reports display **Build 25767555 · Steam**, for example; the stored key also retains the Steam app ID to separate launcher namespaces. Build, encounter type, zone, difficulty and region are detected automatically during capture; legacy session-wide overrides are no longer applied. Capture freezes the selected installation's build evidence for that session; saved logs retain it and are not rewritten using today's installation.
 
 Generic executable/engine versions do not identify a unique game build; PURPLE installs without a recognized launcher build ID remain unavailable. Build evidence alone does not establish encounter difficulty, authenticity or complete capture.
 
@@ -257,7 +257,7 @@ Generic executable/engine versions do not identify a unique game build; PURPLE i
 
 In Live Meter, **Game installation → Refresh installations** lists Steam library manifests and recognized Windows game registrations. Select the copy you play if several are installed. Auto chooses only when one copy is found. The choice is stored locally and takes effect at capture start. A missing selected installation stays unavailable until you choose another; a launcher installation without a recognized game registration may not appear.
 
-Save or export retained combat, stop capture, then clear the session before changing the installation. Restarting live capture with retained combat keeps that session's installed-build evidence. The selected Steam Build ID supplies the comparison build; executable versions alone are insufficient. The region dropdown is an optional recording override; Auto resolves from the recorded home-server ID and official server metadata. Other actors retain their own recorded identities.
+Save or export retained combat, stop capture, then clear the session before changing the installation. Restarting live capture with retained combat keeps that session's installed-build evidence. The selected Steam Build ID supplies the comparison build; executable versions alone are insufficient. Region resolves from the recorded home-server ID and official server metadata. Other actors retain their own recorded identities.
 
 ## Long recordings and archive parts
 

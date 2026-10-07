@@ -225,7 +225,7 @@ Official desktop builds use the configured community upload key for the default 
 
 In Live Meter, **Game installation → Refresh installations** lists Steam library manifests and recognized Windows game registrations. Select the copy you play if several are installed. Auto chooses only when one copy is found. The choice is stored locally and takes effect at capture start. A missing selected installation stays unavailable until you choose another; a launcher installation without a recognized game registration may not appear.
 
-Save or export retained combat, stop capture, then clear the session before changing the installation. Restarting live capture with retained combat keeps that session's installed-build evidence. New Steam captures use the selected installation’s Build ID for comparisons; executable versions alone are insufficient. Current installation evidence is never assigned to historical logs. The region dropdown is an optional recording override; Auto resolves from the recorded home-server ID and official server metadata. Other actors retain their own recorded identities.
+Save or export retained combat, stop capture, then clear the session before changing the installation. Restarting live capture with retained combat keeps that session's installed-build evidence. New Steam captures use the selected installation’s Build ID for comparisons; executable versions alone are insufficient. Current installation evidence is never assigned to historical logs. Region resolves automatically from the recorded home-server ID and official server metadata. Classification corrections belong to completed saved logs, per encounter or recorded run. Other actors retain their own recorded identities.
 
 ## Long live sessions
 
