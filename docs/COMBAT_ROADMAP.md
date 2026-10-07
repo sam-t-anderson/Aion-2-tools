@@ -260,4 +260,4 @@ Implemented local persistent selection among detected Steam/registered Windows g
 
 ### Community log presentation and mixed modes
 
-Next: replace the community list's Type/patch/difficulty cell with event count, patch and verified boss icons (PvE) or distinct opponent-class icons (PvP). Use an existing game-asset placeholder when no verified boss/icon exists. Mixed PvE/PvP uploads appear in both mode lists, with mode-specific events, players and totals; preserve the original document and avoid cross-mode leaderboard contamination.
+Implemented the community list's Type/patch/difficulty cell replacement with event count, patch and catalog boss placeholders (PvE) or distinct opponent-class icons (PvP). The bundled AION 2 emblem is the fallback; verified boss portraits remain pending because the NPC catalog lacks image URLs. Mixed uploads with recorded segments of both modes appear in both lists with matching-segment totals, and open a mode-filtered viewer preserving original ranking indices. Follow-up: verified boss portraits and unambiguous per-effect mode evidence when one segment contains mixed activity.

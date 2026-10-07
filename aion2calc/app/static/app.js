@@ -620,11 +620,11 @@ const localReviewOptions=file=>({
  ...(file?{saveMetadata:log=>api('/api/sessions',{file,log}),publish:visibility=>api('/api/sessions/share',{file,visibility})}:{})
 });
 async function pageCombatLog() {
-  const routeHash=location.hash, parts=routeHash.split('/'), kind=parts[2], value=decodeURIComponent(parts.slice(3).join('/'));
+  const routeHash=location.hash, routeParts=routeHash.split('?'), parts=routeParts[0].split('/'), kind=parts[2], value=decodeURIComponent(parts.slice(3).join('/')), mode=new URLSearchParams(routeParts[1]||'').get('mode');
   if(S.combat.review){S.combat.review.dispose();S.combat.review=null;}
   app().innerHTML='<p><a class="btn small" href="#/combat">← Back to combat logs</a></p><div id="focused-log">Loading combat log…</div>';
   const target=$('#focused-log');
-  let doc,options=localReviewOptions();
+  let doc,options={...localReviewOptions(),mode};
   if(kind==='analysis'){
     const analysis=await api('/api/encounters/'+encodeURIComponent(value));
     if(location.hash!==routeHash || !target.isConnected)return;
@@ -687,7 +687,7 @@ async function pageCombat() {
     request:(owner,action,visibility)=>api('/api/log-ownership',{owner,action,visibility}),
     open:doc=>{S.combat.openedLog=doc;location.hash='/combat-log/opened/'+Date.now();}
   });
-  A2Community.mount($('#community'),{api:communityAPI,open:id=>{location.hash='/combat-log/shared/'+encodeURIComponent(id);}});
+  A2Community.mount($('#community'),{api:communityAPI,open:(id,mode)=>{location.hash='/combat-log/shared/'+encodeURIComponent(id)+'?mode='+encodeURIComponent(mode||'');}});
   const hist = await api("/api/encounters").catch(() => []);
   if(!$("#hist"))return;
   $("#hist").innerHTML = hist.length ? `<table class="t"><tr><th>#</th><th>Player</th><th>Class</th><th>Target</th><th>Source</th><th class="r">Duration</th><th class="r">DPS</th><th></th></tr>${hist.map((e) =>

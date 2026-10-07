@@ -202,6 +202,8 @@ Skill images use the desktop icon cache or metabot.gg on the website; unavailabl
 
 Choose **Table**, **Timeline** or **Events** for the detailed metrics. Graph and timeline visibility controls are separate. Damage Done, Damage Taken, Healing and Death recaps describe recorded effects; unavailable telemetry is not shown as zero.
 
+Community lists show recorded-event count, patch and encounter icons. PvP classes are deduplicated; unknown classes, absent bosses and unavailable portraits use an AION 2 emblem. Open a community entry to review only its selected combat mode, or choose **All recorded modes** in the focused viewer. Mode filters select recorded encounters and retain their original ranking indices; they do not infer the mode of ambiguous effects within a single encounter. Whole-run progression is available in the unfiltered view.
+
 ## Importing external logs
 
 Import a log in any of these ways:

@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.44
+
+Community Combat Logs replaces Type/patch/difficulty in the list with recorded-event count, patch and encounter icons. PvP shows each recorded opponent class once; PvE shows catalog-confirmed bosses. Missing classes, absent bosses and missing portraits use the bundled AION 2 emblem with explanatory hover/accessible labels. The current NPC catalog does not contain boss portraits; those remain placeholders until verified assets are available.
+
+Opening a community log carries the selected PvE/PvP mode into its focused review. The Combat mode dropdown filters encounter choices, graphs, tables, timelines and events while preserving original segment indices for rankings. Choose All recorded modes to inspect the full document. Whole-run timing/progression is hidden while a mode filter is active to avoid mixing run-wide totals. Mixed documents appear in both community lists when the server identifies segments of each recorded mode. Mode-specific list counts and aggregates require the corresponding server update; older servers show event count unavailable.
+
+This filters recorded encounter classifications. It does not infer ambiguous PvE/PvP activity inside a single encounter, guess missing opponent identities or change uploaded evidence.
+
 # Aion 2 Calc 0.2.43
 
 **Live Meter → Game installation** lists detected Steam libraries and recognized registered Windows/PURPLE game installs. Choose a copy when several are present; Auto only selects a single discovered copy. The local preference survives application restarts. Removed selections stay unavailable instead of silently switching to another install. Installation paths and the local selector ID are not added to uploaded combat documents.

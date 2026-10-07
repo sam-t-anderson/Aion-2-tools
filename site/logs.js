@@ -1,7 +1,7 @@
 let logSource='community';
 A2LogTabs.mount(document.getElementById('combat-log-tabs'),logSource,value=>{logSource=value;});
 A2LogOwnership.mount(document.getElementById("owned-logs"));
-A2Community.mount(document.getElementById("community"),{api:path=>A2.api(path),open:id=>{location.href="log.html?id="+encodeURIComponent(id);}});
+A2Community.mount(document.getElementById("community"),{api:path=>A2.api(path),open:(id,mode)=>{location.href="log.html?id="+encodeURIComponent(id)+"&mode="+encodeURIComponent(mode||"");}});
 
 let archiveReview, previewDocument;
 const previewRoot=document.getElementById('archive-review');
