@@ -371,6 +371,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/log-ownership":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Private upload credentials are local to this computer")
+            origin = self.headers.get("Origin")
+            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
+                raise PermissionError("Upload credentials require the local application origin")
             from ..combat.ownership import entries
             return self._json(entries())
         if path == "/api/logserver":
@@ -443,6 +446,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/log-ownership":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Private upload credentials are local to this computer")
+            origin = self.headers.get("Origin")
+            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
+                raise PermissionError("Upload management requires the local application origin")
             from ..combat import ownership
             action = body.get("action")
             if action == "import":
