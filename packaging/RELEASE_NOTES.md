@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.37
+
+- Record supported Npcap/libpcap received, buffer-drop and interface/driver-drop counters per adapter. Show partial/unavailable statistics explicitly; zero is not proof of loss-free capture.
+- Preserve final statistics on Stop, cumulative evidence across retained-session restarts, saved logs and diagnostic ZIPs. Display evidence in shared desktop/Pages/server quality panels.
+- Conservatively exclude recordings with reported positive driver drop counters from rankings. Counters cover capture handles and cannot identify unique lost game effects.
+- Keep optional statistics failures separate from decoding and sample handles on their owning thread, with explicit socket cleanup after capture exits.
+- Fix selected-pet filters when switching to combined owner rows in shared review.
+
 # Aion 2 Calc 0.2.36
 
 - Fix live pet/spirit totals to collapse into recorded owners by default. Add synchronized Combine pets with owner controls to Live Meter and overlay; keep separate source detail in saved logs.

@@ -8,7 +8,7 @@ import re
 
 DECODER = "a2tools-python-v1"
 COUNTERS = ("discarded_effects", "discarded_segments", "discarded_telemetry",
-            "validation_discarded", "tcp_discarded_payloads", "tcp_unresolved_flows", "capture_errors")
+            "validation_discarded", "tcp_discarded_payloads", "tcp_unresolved_flows", "capture_errors", "pcap_dropped", "pcap_if_dropped")
 LABELS = {
     "missing_metadata": "Record the game patch, difficulty and encounter category.",
     "unverified_category": "The encounter category has not been identified.",
@@ -16,7 +16,7 @@ LABELS = {
     "end_unverified": "The deaths of all recorded bosses were not observed.",
     "boss_unverified": "No identified boss NPC was recorded.",
     "identity_unverified": "A participating player is missing a name, server or class.",
-    "capture_loss": "Capture data was discarded, interrupted or removed during validation.",
+    "capture_loss": "Capture/driver reported discarded data, interruption or validation loss.",
     "transport_unverified": "TCP loss monitoring was unavailable for this capture.",
     "tcp_pending": "The TCP stream still contains unresolved out-of-order data.",
     "decoder_unverified": "The decoder or application version is missing or unsupported.",
@@ -75,7 +75,12 @@ def assess(doc, segment):
             reasons.append("start_unverified")
         if not bosses or not bosses <= deaths or not segment.get("killed"):
             reasons.append("end_unverified")
-    return {"policy_version": 1, "eligible": not reasons,
+    from ..meter.a2parser.capture_stats import NOTE
+    monitoring = {"sampled":capture.get("pcap_stats_sampled") is True,
+                  "partial":capture.get("pcap_stats_partial") is True,
+                  **{k:capture.get(k) for k in ("pcap_received", "pcap_dropped", "pcap_if_dropped", "pcap_stats_reads")},
+                  "note":NOTE}
+    return {"policy_version": 1, "driver_monitoring":monitoring, "eligible": not reasons,
             "status": "eligible" if not reasons else "unranked",
             "reasons": reasons, "messages": [LABELS[k] for k in reasons],
             "note": "Completeness checks use submitted telemetry; they do not verify authenticity or prove that every packet was captured."}
