@@ -282,7 +282,7 @@ Desktop/Pages provide official English/global notice/update headline cards with 
 
 ### Official asset-reference coverage
 
-Fresh official imports retain sanitized public image references scoped by region, kind and ID. Equipment missing a recorded icon can use an unchanged same-region/item-ID reference before slug/unique-name fallback. Settings exports counts and up to 200 missing/changed reference IDs without character identities, stats or credentials. Follow-up: runtime HTTP-failure diagnostics, verified NPC portraits, stable-ID reconciliation with third-party catalog slugs and broader title/item coverage. URL changes disable ID fallback until reviewed; this does not establish an identity conflict or map numeric namespaces.
+Fresh official imports retain sanitized public image references scoped by region, kind and ID. Equipment missing a recorded icon can use an unchanged same-region/item-ID reference before slug/unique-name fallback. Settings exports counts and up to 200 missing/changed reference IDs without character identities, stats or credentials. Runtime HTTP-failure counters are available in image coverage exports. Follow-up: verified NPC portraits, stable-ID reconciliation with third-party catalog slugs and broader title/item coverage. URL changes disable ID fallback until reviewed; this does not establish an identity conflict or map numeric namespaces.
 
 ### Manual Genus Insight editor
 
@@ -290,7 +290,7 @@ Gear & Advice provides five genus tabs, nine analysis-slot cards, level/stat/val
 
 ### Session image-failure diagnostics
 
-Desktop/Pages remember up to 200 failed image resources for five minutes and show stable placeholders during rerenders. Explicit Retry images clears the session list; desktop coverage export includes source-host/count/time and recognized public skill IDs without URLs, query strings or portrait paths. Browser HTTP status is unavailable; no automatic upload. Bundled item audit: 2,081 image references, no explicit official item-ID fields. Remaining: HTTP response diagnostics in the local proxy, verified NPC portrait sources, broader catalog reconciliation and permitted missing-asset retrieval.
+Desktop/Pages remember up to 200 failed image resources for five minutes and show stable placeholders during rerenders. Explicit Retry images clears the session list; desktop coverage export includes source-host/count/time and recognized public skill IDs without URLs, query strings or portrait paths. Browser HTTP status is unavailable; no automatic upload. Bundled item audit: 2,081 image references, no explicit official item-ID fields. Local image-proxy HTTP response counters are now available. Remaining: verified NPC portrait sources, broader catalog reconciliation and permitted missing-asset retrieval.
 
 ### Trained skill reserves
 
