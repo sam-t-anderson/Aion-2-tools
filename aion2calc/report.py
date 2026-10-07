@@ -302,7 +302,7 @@ def sensitivity(build, scenario, policy, samples: int = 12, spread: float = 0.25
 def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget: int = 360,
                iterations: int = 3, loadout: str | None = None, verbose: bool = True,
                sp_budget: int | None = None, stigma_points: int | None = None,
-               current: object | None = None, progress=None, survival=None, loadout_snapshot: dict | None = None, skill_reserves=None) -> dict:
+               current: object | None = None, progress=None, survival=None, loadout_snapshot: dict | None = None, skill_reserves=None, genus=None) -> dict:
     """``current``: a Build (e.g. an imported character) to evaluate and diff against.
     ``progress``: optional callback(str) for live phase updates (the app streams these to the UI)."""
     t0 = time.time()
@@ -311,6 +311,8 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     loadout = loadout or f"{cls}_l45_global_median"
     from .model.character import load_loadout
     frozen_loadout = copy.deepcopy(loadout_snapshot) if loadout_snapshot is not None else load_loadout(loadout)
+    from .opt.genus import apply as apply_genus
+    frozen_loadout = apply_genus(frozen_loadout, genus)
     scen = SCENARIOS[scenario_name](frozen_loadout)
     other_name = comparison_scenario(scenario_name)
     other = SCENARIOS[other_name](frozen_loadout)
@@ -384,6 +386,10 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     summary["loadout"] = loadout
     from .model.character import load_loadout
     summary["loadout_snapshot"] = frozen_loadout
+    from .opt.genus import assess as assess_genus
+    if genus and genus["enabled"] and progress:
+        progress("Scoring saved Genus line contributions on the final build")
+    summary["genus"] = assess_genus(genus, build, scen, policy)
     from .opt.survival import assessment
     summary["survival"] = assessment(cd, build, survival)
     from .opt.reserves import describe as describe_reserves

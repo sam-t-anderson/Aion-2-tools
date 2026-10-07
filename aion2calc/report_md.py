@@ -51,6 +51,20 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
             name = row["name"].replace("|", " / ").replace("\n", " ")
             w(f"| {name} | {row['minimum']} | {row['selected']} |")
         w("Reserve met.\n" if reserve["met"] else "Reserve not met.\n")
+    if s.get("genus"):
+        g = s["genus"]
+        w("## Pet Genus Insight\n")
+        w(("Saved manual lines included." if g["enabled"] else "Genus scoring disabled.") + "\n")
+        w(g["note"] + "\n")
+        if g.get("mix"):
+            w(g["mix_source"] + ": " + ", ".join(f"{k} {v:.1%}" for k, v in g["mix"].items()) + "\n")
+        w("| Genus / slot | Analysis line | Value | DPS contribution | Model status |")
+        w("|---|---|---:|---:|---|")
+        for row in g["lines"]:
+            fields = [f"{row['genus']} / {row['slot']}", row["stat"], row["value"],
+                      "—" if row.get("gain") is None else f"{row['gain']:.2%}", row["reason"] or "Included"]
+            w("| " + " | ".join(str(x).replace("|", "/").replace("\n", " ").replace("\r", " ") for x in fields) + " |")
+        w("")
     w("## Results\n")
     w("| Build | " + scen + " DPS | " + other + " DPS |")
     w("|---|---:|---:|")

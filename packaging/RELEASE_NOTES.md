@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.55
+
+My Character includes saved Pet Genus Insight lines in PvE and PvP optimization. Edit and save the same inventory used by Gear & Advice, choose a PvE enemy mix, or disable Genus scoring. Current-build comparisons, optimization and saved reports share a frozen allocation snapshot. The Pet Genus results window and Markdown show line contributions and excluded effects. Unsaved edits must be saved before optimization.
+
+Genus rolls remain fixed; this optimizes other build choices around the lines you own. PvE uses weighted stats as an approximation. PvP includes supported general effects and excludes genus-specific effects whose applicability to players is unverified. Defensive effects, owned collection bonuses and reroll costs are not simulated. Personal Genus builds are excluded from shared presets that use a common loadout.
+
 # Aion 2 Calc 0.2.54
 
 Saved Parts adds **Show recording** and **All recordings** controls. Desktop searches saved session files for the exact recorded archive ID and pages them in part order; Pages filters the files selected locally. Existing upload selections and retry receipts survive recording navigation. Restored files recover their recorded archive metadata.

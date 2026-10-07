@@ -109,6 +109,11 @@ model is calibrated from the character's fights when there are enough. Details:
 
 ### Pet Genus Insight
 
+**My Character → Pet Genus Insight** edits the same saved lines as Gear & Advice. Save edits before using either **Optimize PvE build** or **Optimize PvP damage**. Genus scoring defaults on; disable it to compare without manual lines. Set relative PvE enemy weights (default: equal Cogni/Fera/Natura/Varian). The PvP model ignores enemy mix and excludes genus-specific effects whose applicability to players is unverified.
+
+Optimization holds your lines fixed while choosing skills, specialties and boards. Current-build comparisons and optimized results use the same snapshot. The **Pet Genus** results window and Markdown retain the inputs, modeled line contributions and reasons for excluding effects, including in Saved Results. Low contributions can guide review but do not predict reroll cost or guarantee better rolls. Defensive and owned collection effects are not simulated.
+
+
 In **Gear & Advice**, choose a genus tab, enter its in-game Insight level and fill its unlocked analysis slots with the stat and exact value (including `%` when shown). All five genus drafts stay available while switching tabs. **Clear slot** removes a line; clear occupied higher slots before lowering the level. **Save genus lines** saves all genera together, then run advice again to recalculate. Invalid saves retain the previous inventory.
 
 The official profile does not provide Genus Insight allocations. **Advanced JSON** lets you repair older entries; apply it to the draft before saving. Defensive lines are retained for reference, but current advice evaluates damage effects only. Recovered saved advice shows the allocation snapshot used at calculation time.
