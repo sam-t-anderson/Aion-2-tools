@@ -313,6 +313,8 @@ Announcement dates do not prove the installed game build or patch used by an old
 | Stop the app | the same as **Quit** in the top bar |
 
 Settings → **Game database → Export image coverage** saves a troubleshooting JSON with image-reference counts and up to 200 missing or changed official IDs. Refresh a character import to collect its current official item/skill/pet/wing references. The export contains asset labels/IDs, not character identities, gear stats or keys. It checks recorded references, not whether remote URLs currently load. Equipment ID fallback stays within the recorded region; unavailable NPC portraits still use placeholders.
+The export also includes image failures from this browser session: source host, count, time and recognized public skill IDs. It omits full URLs and portrait paths; browser errors do not provide HTTP status codes. Failed resources use a placeholder for five minutes. **Retry images** permits another attempt and clears that failure list, so export first when troubleshooting. Combat review has the same retry control; Settings requires reopening the affected view. No failure records are uploaded automatically.
+
 
 ## Application updates
 
