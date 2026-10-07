@@ -1,0 +1,95 @@
+{
+  "format": "a2catalog-source",
+  "version": 1,
+  "repository": "taengu/A2Tools-DPS-Meter",
+  "revision": "509717427ad516b72d0a2986cc503d7184aab8e0",
+  "checked_at": "2026-10-07T23:56:40.684143+00:00",
+  "game_build": null,
+  "files": [
+    {
+      "file": "npcs/de.json",
+      "records": 9780,
+      "sha256": "a68c873977b025126579a938f3cb07579f29009ee5d379fa10c8f118412ebe0c",
+      "source_sha256": "004adc5e3685c317449813cfe0717680eabe27eef87395eb9441bc023efe2bf0"
+    },
+    {
+      "file": "npcs/en.json",
+      "records": 9780,
+      "sha256": "322fbf9d75f3c736ea09467db90b2af37a44ec8d3ee758d73c53854fa090bbe7",
+      "source_sha256": "8b16afc6ad8a7b2db546424aff3afe64e6d9cc1fb573dcf18163ecab959e2745"
+    },
+    {
+      "file": "npcs/es.json",
+      "records": 9780,
+      "sha256": "6b088c960e85a6e461a9a5d3e0770ef347de950c1cadea60826981317787a401",
+      "source_sha256": "797fa50a086614da94194324c2b48eafcaf6dbe35f41b57779e9ebf4b4a89f47"
+    },
+    {
+      "file": "npcs/fr.json",
+      "records": 9780,
+      "sha256": "38ec8245b87960344eb0e1ea76b33c0d831015a71086f85dd408daa6926aa4db",
+      "source_sha256": "d22d76ee74782c72a16164407994ef92b9305f66bbf85d01211a34073f7a573b"
+    },
+    {
+      "file": "npcs/ja.json",
+      "records": 9780,
+      "sha256": "1029b40c541a1ba0010a0008138aa886734f764b5d8eaa6406c24ccd5486dee9",
+      "source_sha256": "fd80a7073f6d0a3b117c80209e53f1e38d4923b00228c75aad134a1fdec86e2a"
+    },
+    {
+      "file": "npcs/ko.json",
+      "records": 9780,
+      "sha256": "0add467092cfb4390d8d46f8bbd01a15ca1f4423ae59bc4de3a5523efef198f0",
+      "source_sha256": "6cc1c6eaa71ebd9edf32000d70fba984f317822acb56d6c74b1374647f69bd46"
+    },
+    {
+      "file": "npcs/pt.json",
+      "records": 9780,
+      "sha256": "10485e45f2e89c38b9818ba0bb9bfd5b7fc8805e49409a1d6d69d5d0fd74173b",
+      "source_sha256": "410ebddf8496821bc66c6325770264f41207722d16dcbcdc8bb3c66cdd1dabb7"
+    },
+    {
+      "file": "npcs/ru.json",
+      "records": 9780,
+      "sha256": "e7627dd60645c86cd0a2fb5f3e1a4dddcf847b71b40a3c1bef188d57c03168be",
+      "source_sha256": "1b5301fa8199d77251a5a0f0887217787f1676c577208f540ce8426c46e07d14"
+    },
+    {
+      "file": "npcs/zh-Hans.json",
+      "records": 9780,
+      "sha256": "d74674c36dbfbdd738c816fba648c2bf688183463c65b462cc067a7ce910f44f",
+      "source_sha256": "8bc123a8340ecd76b7017d1c80d06c37bd9b5819cf88ae99f03e35e508965e20"
+    },
+    {
+      "file": "npcs/zh-Hant.json",
+      "records": 9780,
+      "sha256": "c843173cfc9748b26b351f573f8e07579bba066ecc455b71dd298e224f293c18",
+      "source_sha256": "fa35581f2c825f037a2ad721d18cd0bbb4a501876b94498fc685ddd615223202"
+    },
+    {
+      "file": "dungeons/en.json",
+      "records": 58,
+      "sha256": "3dcf8bdf5ea90e3406f7ef5d2d497fe5d8844c4b8f93563a07dfbae9a10bdf31",
+      "source_sha256": "edbf63792084edad97bb277ea2b1fd60d79fcfbf2a9eee3661cad509b548be24"
+    },
+    {
+      "file": "dungeons/ko.json",
+      "records": 58,
+      "sha256": "fbb6f55e7f21f5d38f426e19902b4a9a6f459f34d1ff8ffef851080ac4a9fd51",
+      "source_sha256": "3594fd090a5b9a6481c2923ce9c859573c8c7952b1861aa27748ef3ebfd90c4e"
+    },
+    {
+      "file": "dungeons/zh-Hans.json",
+      "records": 58,
+      "sha256": "7a1d2b674c99945b6342b648e7ab93936003bc70b13feee283c8435b49a4dece",
+      "source_sha256": "841402e78c45bb10ef31027e4501adab64eebe91ccd0553022f9487cb434d56c"
+    },
+    {
+      "file": "dungeons/zh-Hant.json",
+      "records": 58,
+      "sha256": "64106a320d364c6c076c9fe75f26c3258c469ec9284d21120a95211c15401574",
+      "source_sha256": "5d682bae861dbab5dcbeb14c054c34f4ed7805983a11865f5c8f830c46d5db7a"
+    }
+  ],
+  "note": "Community parser catalog, not an official game-build mapping. Broad boss flags may include minibosses. No inferred IDs, portraits or difficulty values."
+}

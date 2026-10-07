@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.77
+
+- Added a pinned encounter-catalog refresh command that stages NPC/dungeon tables with schema checks, hashes and an ID-change audit for release review.
+- New mapping coverage includes the community source commit and check date on desktop and Pages. Game-build applicability remains explicitly unestablished.
+- Audited all 14 localized tables: the existing 9,780 NPC IDs and 58 dungeon IDs match the checked upstream snapshot. No new mappings or portraits are claimed.
+
 # Aion 2 Calc 0.2.76
 
 - Settings now offers **Re-index cached icons**, with progress and a completion summary, to recover official item, skill, pet, wing, title and board references from previously imported profiles.

@@ -1,6 +1,7 @@
 """Command line entry point: ``python -m aion2calc <command>``.
 
 Commands
+  catalog-refresh  stage pinned enemy/dungeon tables and an audit for release review
   refresh    re-scrape the sources and rebuild aion2calc/data
   optimize   full build + rotation optimization for a class, writes a report folder
   simulate   simulate the typical top global build or a saved build.json
@@ -34,6 +35,10 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--only", help="a single class key, e.g. sorcerer")
     r.add_argument("--skip-kr", action="store_true", help="skip gamers4.life / A2DIL")
     r.add_argument("--items-only", action="store_true", help="only items and titles")
+
+    cat = sub.add_parser("catalog-refresh", help="stage pinned NPC/dungeon tables and a review diff")
+    cat.add_argument("--revision", required=True, help="full upstream commit SHA (40 lowercase hex characters)")
+    cat.add_argument("--out", required=True, help="new staging directory; does not replace installed tables")
 
     o = sub.add_parser("optimize", help="optimize build + rotation and write a report")
     o.add_argument("cls", help="class key: gladiator templar assassin ranger sorcerer spiritmaster cleric chanter")
@@ -128,7 +133,10 @@ def main(argv: list[str] | None = None) -> int:
     if getattr(args, "crit_midpoint", None):
         from .model.stats import set_crit_midpoint
         set_crit_midpoint(args.crit_midpoint)
-    if args.cmd == "refresh":
+    if args.cmd == "catalog-refresh":
+        from .scrape.catalog import stage
+        stage(args.revision, args.out)
+    elif args.cmd == "refresh":
         from .scrape.refresh import refresh
         refresh(only=args.only, skip_kr=args.skip_kr, items_only=args.items_only)
     elif args.cmd == "optimize":
