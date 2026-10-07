@@ -227,6 +227,7 @@ class Optimizer:
         return out
 
     def optimize_specs(self, build: Build, policy: list, passes: int = 2) -> Build:
+        build = self._clean_specs(build)  # levels/gear may have changed since the previous search
         mod = kit_module(self.cls)
         best = self.evaluate(build, policy)
         for _ in range(passes):
