@@ -32,6 +32,7 @@ class Runner:
         self.packet_capture_thread: threading.Thread | None = None
         self.target_mode = "bossTargets"
         self.diagnostics: dict = {}
+        self._last_display_diagnostics: dict = {}
         self.started_at: float | None = None
         self._last_packet_at: float | None = None
         self._last_combat_at: float | None = None
@@ -63,6 +64,7 @@ class Runner:
             self.meter = Meter()
             self.packet_engine = None
         self.error = None
+        self._last_display_diagnostics = {}
         self.diagnostics = {}
         from ..meter.diagnostics import Recorder
         if self.recorder is not None:
@@ -362,7 +364,7 @@ class Runner:
             if self.recorder is not None and self.recorder is self._exported_recorder and self.diagnostic_export and not self.running:
                 return self.diagnostic_export
             from ..meter.diagnostics import export
-            result = export(self.status(), self.recorder)
+            result = export(self.diagnostic_status(), self.recorder)
             self.diagnostic_export = result
             if not self.running:
                 self._exported_recorder = self.recorder
@@ -374,13 +376,75 @@ class Runner:
             self.diagnostics.pop("archive_error", None)
             return result
 
-    def status(self, *, follow_latest: bool = False) -> dict:
-        with self.lock:
+    def record_status_failure(self, exc) -> None:
+        # Reporting a failed/blocked display must not wait on the decoder lock.
+        self.diagnostics["status_error"] = f"{type(exc).__name__}: {exc}"[:512]
+        self.diagnostics["status_error_at"] = time.time()
+        self.diagnostics["status_error_count"] = self.diagnostics.get("status_error_count", 0) + 1
+
+    def diagnostic_status(self) -> dict:
+        """Counters and metadata without rendering/aggregating combat history.
+
+        A blocked decoder or broken display snapshot must not prevent exporting
+        evidence. A timed-out lock produces explicitly best-effort counters.
+        """
+        acquired = self.lock.acquire(timeout=0.25)
+        try:
+            diagnostic = dict(self.diagnostics)
+            diagnostic["export_consistency"] = "locked" if acquired else "best_effort_decoder_busy"
+            diagnostic["raw_recording_enabled"] = self.recorder is not None
+            diagnostic["scope"] = self.scope
+            diagnostic["retained_effects"] = len(self.session.records)
+            diagnostic["retained_telemetry"] = len(self.session.telemetry)
+            engine, collector = self.packet_engine, self.capture_metadata
+            server = engine.local_profile.get("serverId") if engine else None
+            diagnostic["local_identity_available"] = bool(engine and engine.local_player_id is not None)
+            diagnostic["roster_entries"] = len(engine.roster) if engine else 0
+            now = time.monotonic()
+            diagnostic.update(last_packet_age_seconds=round(now-self._last_packet_at,1) if self._last_packet_at is not None else None,
+                              last_combat_age_seconds=round(now-self._last_combat_at,1) if self._last_combat_at is not None else None)
+            diagnostic["pipeline"] = {"stage": "display_snapshot_skipped", "scope": self.scope,
+                                      "raw_recording_enabled": self.recorder is not None,
+                                      "local_identity_available": diagnostic["local_identity_available"],
+                                      "local_identity_from_game": bool(engine and engine.local_identity_from_game),
+                                      "roster_entries": diagnostic["roster_entries"],
+                                      "retained_effects": diagnostic["retained_effects"]}
+            cached = self._last_display_diagnostics
+            diagnostic["display_context_cached_at"] = cached.get("at")
+            result = {"source": self.source_name, "running": self.running,
+                      "error": self.error, "diagnostics": diagnostic,
+                      "automatic_context": cached.get("automatic_context"),
+                      "catalog_coverage": cached.get("catalog_coverage")}
+        finally:
+            if acquired:
+                self.lock.release()
+        if collector:
+            try:
+                result["automatic_metadata"] = collector.snapshot(server)
+            except Exception as exc:
+                diagnostic["metadata_error"] = f"{type(exc).__name__}: {exc}"[:512]
+        return result
+
+    def status(self, *, follow_latest: bool = False, compact: bool = False) -> dict:
+        if not self.lock.acquire(timeout=0.5):
+            raise TimeoutError("Capture data is busy; refresh will retry. Capture diagnostics can still be exported.")
+        try:
             snap = (self.session.snapshot(self.scope, None if follow_latest else self.segment_id,
                                           None if follow_latest else self.enemy_id, self.combine_pets)
                     if self.packet_engine is not None else self.meter.snapshot())
             if self.packet_engine is not None and not follow_latest:
                 self.enemy_id = snap.get("selected_enemy")
+            if compact:
+                return {"running": self.running, "error": self.error,
+                        "combine_pets": self.combine_pets, "snapshot": snap}
+            current = dict(self.session.runs[self.session.run])
+            run = {"id": self.session.run, "closed": self.session.run_closed, **current}
+            engine = self.packet_engine
+            identity = ({"id": engine.local_player_id,
+                         "name": engine.names.get(engine.local_player_id),
+                         "verified": engine.local_identity_from_game,
+                         **engine.local_profile} if engine else None)
+            collector = self.capture_metadata
             installation_locked = self.running or bool(self.session.records) or bool(self.meter.players)
             diagnostic = dict(self.diagnostics)
             now = time.monotonic()
@@ -410,26 +474,24 @@ class Runner:
                 }
             diagnostic.update(last_packet_age_seconds=round(now-self._last_packet_at, 1) if self._last_packet_at is not None else None,
                               last_combat_age_seconds=round(now-self._last_combat_at, 1) if self._last_combat_at is not None else None)
+        finally:
+            self.lock.release()
         if diagnostic:
             diagnostic["elapsed"] = round(time.monotonic() - self.started_at, 1) if self.started_at else 0
         from ..meter.context import classify
-        current = self.session.runs[self.session.run]
         from ..combat.catalog import coverage
         catalog = coverage({**current, "entities": [dict(e, id=e["key"], kind="enemy") for e in snap.get("enemies", []) if e.get("mob_code")]})
-        context = classify(current.get("map_id"), current.get("instance_id"), snap.get("recorded_pvp", self.session.pvp))
+        context = classify(current.get("map_id"), current.get("instance_id"), snap.get("recorded_pvp", False))
+        self._last_display_diagnostics = {"automatic_context": context, "catalog_coverage": catalog, "at": time.time()}
         return {"running": self.running, "source": self.source_name, "error": self.error,
                 "combine_pets": self.combine_pets, "installation_locked": installation_locked,
                 "automatic_context": context, "catalog_coverage": catalog,
                 "snapshot": snap, "diagnostics": diagnostic,
-                "automatic_metadata": (self.capture_metadata.snapshot(self.packet_engine.local_profile.get("serverId") if self.packet_engine else None)
-                                       if self.capture_metadata else {}),
+                "automatic_metadata": (collector.snapshot(identity.get("serverId") if identity else None)
+                                       if collector else {}),
                 "diagnostic_export": self.diagnostic_export,
                 "saved_log": self.saved_log,
-                "run": {"id":self.session.run, "closed":self.session.run_closed, **self.session.runs[self.session.run]},
-                "identity": ({"id": self.packet_engine.local_player_id,
-                              "name": self.packet_engine.names.get(self.packet_engine.local_player_id),
-                              "verified": self.packet_engine.local_identity_from_game,
-                              **self.packet_engine.local_profile} if self.packet_engine else None),
+                "run": run, "identity": identity,
                 "recording": {"enabled": self.recorder is not None,
                               **(self.recorder.snapshot(include_rows=False)[0] if self.recorder is not None else {"records": 0})}}
 

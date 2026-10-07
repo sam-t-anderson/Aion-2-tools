@@ -1081,7 +1081,7 @@ async function pageMeter() {
   renderDiagnosticExport(st.diagnosticExport);
   $("#mdiag").onclick = async () => {
     try { st.diagnosticExport = await api("/api/meter", {action: "diagnostics"}); renderDiagnosticExport(st.diagnosticExport); $("#mnotice").textContent = `Diagnostic ZIP exported to ${st.diagnosticExport.file}`; }
-    catch (e) { $("#mnotice").textContent = e.message; }
+    catch (e) { $("#mnotice").textContent = "Diagnostic export failed: " + e.message; }
   };
   $("#movl").onclick = async () => {
     $("#mnotice").textContent = "opening overlay…";
@@ -1132,7 +1132,7 @@ async function pageMeter() {
   const poll = async () => {
     if (!location.hash.startsWith("#/meter")) return;
     try { const result=await meterStatus(); if(location.hash.startsWith("#/meter")) renderMeter(result); }
-    catch (e) { if($('#mmsg')) $('#mmsg').textContent='Could not refresh the meter. Last readings retained; capture status is unknown. Retrying…'; }
+    catch (e) { if($('#mmsg')) $('#mmsg').textContent='Could not refresh the meter: '+e.message+'. Last readings retained; capture status is unknown. Export capture diagnostics, or wait for automatic retry.'; }
     setTimeout(poll, st.running ? 700 : 2500);
   };
   const initial = await meterStatus().catch(() => ({snapshot: {players: []}}));
@@ -1145,7 +1145,7 @@ function renderDiagnosticExport(r) {
   const target = $("#mdiagresult"); if (!r || !target) return;
   if (target.dataset.savedFile === r.file) return;
   target.dataset.savedFile = r.file;
-  target.innerHTML = `<a class="btn small primary" href="${esc(r.download_url)}" download>Download diagnostic ZIP</a> ${r.records} TCP payload records.<br>Last saved capture: <span style="overflow-wrap:anywhere">${esc(r.file)}</span>${r.records ? "" : "<br>Enable TCP recording before Start, then fight briefly and export again."}`;
+  target.innerHTML = `<a class="btn small primary" href="${esc(r.download_url)}" download>Download diagnostic ZIP</a> ${r.records} TCP payload records.<br>Last saved capture: <span style="overflow-wrap:anywhere">${esc(r.file)}</span>${r.records ? "" : "<br>No raw TCP payloads were recorded. Capture counters and status errors are included; TCP recording is optional."}`;
 }
 function renderMeter(s) {
   if($("#mdriverstats")) {const d=s.diagnostics || {};$("#mdriverstats").textContent=d.pcap_stats_sampled?`Driver counters${d.pcap_stats_partial?' (partial coverage)':''}: ${d.pcap_received || 0} received, ${d.pcap_dropped || 0} capture-buffer drops, ${d.pcap_if_dropped || 0} interface/driver drops. Zero does not prove loss-free capture; counts can include other traffic.`:'Driver counters: unavailable or not sampled. TCP reassembly monitoring is separate.';}

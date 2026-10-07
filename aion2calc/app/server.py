@@ -556,7 +556,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({k: v for k, v in job.items() if k != "log"} | {"log": job["log"][-12:]})
         if path == "/api/meter":
             from .meter_runner import runner
-            return self._json(runner().status(follow_latest=q.get("view") == "latest"))
+            current = runner()
+            try:
+                overlay = q.get("view") == "latest"
+                return self._json(current.status(follow_latest=overlay, compact=overlay))
+            except Exception as exc:
+                current.record_status_failure(exc)
+                raise
         if path == "/api/icon":
             return self._icon(q.get("u", ""))
         raise FileNotFoundError(path)

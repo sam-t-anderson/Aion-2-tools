@@ -213,6 +213,12 @@ does the same (`pip install pywebview` for the transparent window).
 
 Use **Hide overlay** to hide it and **Open overlay** to show it again. Drag its non-interactive background to reposition it; use the opacity slider directly to change opacity. Repeated Open requests reuse the existing overlay.
 
+### Overlay refresh and diagnostic export
+
+The overlay retains its last readings if a refresh fails. Its warning shows the HTTP error, invalid response or timeout, the age of the last successful refresh, and a Retry button. This warning means capture status is unknown; it is separate from a decoder error saying capture stopped.
+
+Use **Export capture diagnostics** even if the meter display cannot refresh or TCP recording was off. Export reads capture counters independently of combat graph aggregation. A busy decoder is labeled as a best-effort snapshot; cached zone/catalog context includes its timestamp. Raw payloads are included only when recording was enabled. The result shows the saved ZIP path and a download link. Include the ZIP when reporting a persistent refresh failure.
+
 ## Automatic metadata and idle DPS
 
 Live Meter reads installed build evidence from Steam library manifests, including alternate library drives, and recognized Windows/PURPLE game registrations. Installation paths are not exported. Recorded home server IDs are matched against official regional catalogs; opponents without their own server ID are not assigned your server.
