@@ -235,3 +235,11 @@ Recovered old build titles show PvE/PvP and use the saved character sidecar name
 - Crafting simulator resembling the game: materials/quantities, output/rarity, chances/modifiers, explicit recipe/patch/region provenance and unknown values. Research database/wiki formulas and permitted images before modeling; keep deterministic costs distinct from probability estimates and do not invent chances.
 
 Existing priorities remain: verified defensive/CC/mobility/opponent modeling, upload idempotency/archive stitching, combat protocol gaps and evidence-based catalog/patch/difficulty mapping. PvP analytics and operations dashboard continue in parallel with those user-requested checkpoints; expansions above do not imply already-completed features.
+
+### Installation and encounter inference follow-up
+
+Fix Steam-library discovery in v0.2.42; this machine has AION 2 app3393110 in the primary Steam manifest, build25719316, with a newer target update recorded. The installed manifest is evidence of installed build, not proof of the latest live patch or completed pending update.
+
+Next metadata checkpoint: enumerate validated Steam/PURPLE installations, provide a persistent local install/region selector when ambiguous, investigate launcher game registration/config/version files and official regional published patch feeds. Keep paths local and installed/published patch provenance separate; a newer website announcement cannot prove an old installation or historical log ran that patch. Move manual encounter corrections to post-recording once automatic classification is adequately supported.
+
+Classify zone, content and difficulty independently using exact versioned map/instance/NPC IDs, explicit server difficulty flags, verified boss roles, boss sequence and reported maximum HP signatures. Damage/received damage are weak supporting signals due to gear/buffs/mitigation. Evaluate confidence calibration using independently labeled captures, held-out regions/builds and conflicting/missing evidence. Target >=99% measured precision before enabling probabilistic automatic labels; abstain where unsupported rather than inventing a percentage. No such classifier or confidence guarantee ships yet. User requests confidence-based classification without pre-recording manual choices; this remains a priority after discovery fixes.

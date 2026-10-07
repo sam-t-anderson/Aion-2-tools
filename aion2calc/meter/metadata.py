@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ctypes
 import json
+import os
 import re
 import sys
 import threading
@@ -16,11 +17,53 @@ REGIONS = ("nae", "eu", "as", "la")
 _COLLECTION_LOCK = threading.Lock()
 
 
+
+def _steam_game_roots():
+    """Read Steam library manifests, including libraries outside its own drive."""
+    if sys.platform != "win32":
+        return []
+    import winreg
+    steam = []
+    for hive, key_path, value in ((winreg.HKEY_CURRENT_USER,r"Software\Valve\Steam","SteamPath"),
+                                  (winreg.HKEY_LOCAL_MACHINE,r"Software\Valve\Steam","InstallPath")):
+        for view in (winreg.KEY_WOW64_64KEY,winreg.KEY_WOW64_32KEY):
+            try:
+                with winreg.OpenKey(hive,key_path,0,winreg.KEY_READ|view) as key:
+                    steam.append(Path(winreg.QueryValueEx(key,value)[0]))
+            except OSError:
+                continue
+    for variable in ("ProgramFiles(x86)","ProgramFiles"):
+        if os.environ.get(variable):
+            steam.append(Path(os.environ[variable])/"Steam")
+    libraries = set(steam)
+    for root in steam:
+        try:
+            text=(root/"steamapps/libraryfolders.vdf").read_text(encoding="utf-8")
+            libraries.update(Path(value.replace("\\\\","\\")) for value in re.findall(r'"path"\s+"([^"\n]+)"',text))
+        except (OSError,UnicodeError):
+            continue
+    found=[]
+    for library in sorted(libraries):
+        common=(library/"steamapps/common").resolve()
+        for manifest in sorted((library/"steamapps").glob("appmanifest_*.acf")):
+            try:
+                fields=dict(re.findall(r'"([^"\n]+)"\s+"([^"\n]*)"',manifest.read_text(encoding="utf-8")))
+                if re.sub(r"[^a-z0-9]","",fields.get("name","").casefold()) not in ("aion2","aion2playtest"):
+                    continue
+                name=fields.get("installdir","")
+                root=(common/name).resolve()
+                if name and root.is_relative_to(common) and root.is_dir() and root not in found:
+                    found.append(root)
+            except (OSError,UnicodeError,ValueError):
+                continue
+    return found
+
+
 def _installed_roots():
     if sys.platform != "win32":
         return []
     import winreg
-    roots = []
+    roots = _steam_game_roots()
     key_path = r"Software\Microsoft\Windows\CurrentVersion\Uninstall"
     for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
         for view in (winreg.KEY_WOW64_64KEY, winreg.KEY_WOW64_32KEY):
@@ -30,7 +73,7 @@ def _installed_roots():
                         try:
                             with winreg.OpenKey(key, winreg.EnumKey(key, index)) as entry:
                                 name = str(winreg.QueryValueEx(entry, "DisplayName")[0]).strip().casefold()
-                                if name not in ("aion 2", "aion2"):
+                                if not re.fullmatch(r"aion\s*2(?:\s*[-(].*)?|아이온\s*2|永恆之塔\s*2", name):
                                     continue
                                 root = Path(winreg.QueryValueEx(entry, "InstallLocation")[0])
                                 if root.is_dir() and root not in roots:
@@ -85,7 +128,7 @@ def installation():
             version = _file_version(binary)
             if version:
                 return {"installed_build": version, "installed_build_source": "Game executable version resource", "status": "ready"}
-    return {"status": "unavailable", "reason": "No usable installed game build was found. Installation detection currently supports registered Windows installs."}
+    return {"status": "unavailable", "reason": "No usable installed game build was found. Installation detection currently supports Steam libraries and registered Windows installs, including recognized PURPLE game registrations."}
 
 
 class CaptureMetadata:

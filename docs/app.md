@@ -421,3 +421,5 @@ Completed-run speed and Boss progression are now permitted read-only community e
 **My Character → Imported before** lists the newest eight imports as buttons that fetch the current official profile. Macro/hotbar suggestions reserve **Right-click** instead of F. This is guidance; the app does not change game bindings.
 
 Recovered old build titles show PvE/PvP and use the saved character sidecar name when available. Generic class titles remain when identity is unavailable. Existing generic recovered titles are upgraded without replacing their result snapshot or timestamp. Recovery entries and explicit run snapshots remain separate historical records.
+
+Steam detection now reads libraryfolders.vdf and AION 2 app manifests from each registered Steam library, including non-default drives. Recognized PURPLE/Windows game registrations remain supported. Installed Steam build IDs are separate from game patch labels; current published patch, multi-install selection and verified automatic encounter difficulty remain follow-up work. Installation paths are not included in combat exports.
