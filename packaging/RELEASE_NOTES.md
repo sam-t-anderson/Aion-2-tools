@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.70
+
+Overlay refresh failures now show the HTTP/response/timeout reason, last successful refresh age and a Retry button. Last readings remain visible with capture status explicitly unknown. Overlay polling skips auxiliary catalog and installation work. Run and identity metadata are captured together to avoid reading them across a session replacement.
+
+Diagnostics export no longer calls the combat display snapshot. It can export counters, recorded status failures and opted-in TCP payloads even if graph aggregation fails; a busy decoder produces explicitly best-effort metadata. Cached display context includes its timestamp, and the no-payload message explains that counters remain useful without TCP recording.
+
+This improves recovery and evidence collection for the reported connection warning; the original failure has not yet been reproduced. Optimizer CC, mobility and defensive timing work remains next. No server update or community evaluator change is required.
+
 # Aion 2 Calc 0.2.69
 
 Supporting-effect reserves now allow unlocks that depend on Daevanion levels. The optimizer jointly allocates trained points and connected board nodes while respecting skill, Daevanion and HP reserves. It requires a feasible allocation before damage search, preserves effective-level floors during point polishing, and validates the final effects. Requests that cannot be satisfied within the budgets and solver time limit fail explicitly.

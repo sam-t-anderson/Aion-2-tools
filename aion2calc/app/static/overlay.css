@@ -40,3 +40,8 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovoptions { color: #9aa3b5; font-size: 10px; margin-bottom: 5px; cursor: default; }
 .ovoptions label { cursor: pointer; }
 .ovoptions input { margin: 0 3px 0 0; vertical-align: middle; accent-color: #e8cf8e; }
+
+.ovconnection { color: #e8cf8e; font-size: 11px; overflow-wrap: anywhere;
+  padding: 5px 0; cursor: default; }
+#ovretry { margin: 2px; border: 1px solid #b9984f66; border-radius: 4px;
+  background: #1c2438; color: #e9e6df; cursor: pointer; }
