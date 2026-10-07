@@ -411,3 +411,13 @@ Mapping coverage also recognizes a known dungeon ID repeated in the map field. T
 ### Catalog follow-up
 
 Map 61 is categorized as Arena only when identified player combat is recorded, based on a user-confirmed arena capture. The exact arena name remains unverified. Map 600021 with matching known instance 600021 resolves to Fire Temple. Map 200003 remains unresolved: NPC dungeon references alone do not establish the recorded map's name or difficulty. Unknown patch/difficulty are retained rather than guessed.
+
+## Combat log navigation and recovered builds (0.2.42)
+
+Combat Logs separates **Saved Parts**, **My Uploads** and **Community Combat Logs** on desktop and Pages. Desktop remembers the selected list tab while opening a focused log and returning; Pages preserves it while opening a local preview. Tabs hide their panels without resetting upload queues. Website Saved Parts means files selected from your computer, not direct access to the desktop archive directory. Arrow keys, Home and End navigate tabs.
+
+Completed-run speed and Boss progression are now permitted read-only community endpoints in the desktop proxy. Boss progression requires catalog-confirmed bosses with observed engagement and excludes players, pets, dummies and catalog non-bosses. Unmapped NPCs do not establish boss roles. The current catalog does not separate every miniboss from a major or world boss; comprehensive miniboss exclusion remains pending verified role metadata. Unknown patch/difficulty and ranking eligibility rules are unchanged.
+
+**My Character → Imported before** lists the newest eight imports as buttons that fetch the current official profile. Macro/hotbar suggestions reserve **Right-click** instead of F. This is guidance; the app does not change game bindings.
+
+Recovered old build titles show PvE/PvP and use the saved character sidecar name when available. Generic class titles remain when identity is unavailable. Existing generic recovered titles are upgraded without replacing their result snapshot or timestamp. Recovery entries and explicit run snapshots remain separate historical records.

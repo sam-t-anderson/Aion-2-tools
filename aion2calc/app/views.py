@@ -245,7 +245,7 @@ def rotation_view(cd: ClassData, build, gear: dict, summary: dict) -> dict:
             "icon": SKILL_ICON.format(action.skill_id), "level": levels.get(action.skill_id, 1),
             "charged": action.requires_charge, "charge_level": action.charge_level,
         }
-    # Reserve F for the macro itself. Names/icons/key bindings are shared by both tabs.
+    # Reserve right-click for the macro itself. Names/icons/key bindings are shared by both tabs.
     bindings = ["1", "2", "3", "4", "5", "6", "7", "8", "Q", "E", "LMB", "="]
     bindings += [f"F{i}" for i in range(1, 13)]
     slots, seen = [], set()
@@ -273,7 +273,7 @@ def rotation_view(cd: ClassData, build, gear: dict, summary: dict) -> dict:
             "rotation": {"steps": [entry_view(e) for e in steps],
                          "manual": [entry_view(e) for e in manual],
                          "priority": [entry_view(e) for e in summary.get("policy", [])]},
-            "hotbar": {"slots": slots, "macro_binding": "F", "columns": 12}}
+            "hotbar": {"slots": slots, "macro_binding": "Right-click", "columns": 12}}
 
 
 def build_view(summary: dict) -> dict:

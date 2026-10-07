@@ -5,6 +5,7 @@ from datetime import datetime
 import math
 
 from .quality import assess
+from ..meter.a2parser.lookup import npc_info
 
 NOTE = ("Timing uses recorded wall-clock boundaries and the union of encounter intervals, not time spent actively pressing skills. "
         "Unknown outcomes are not wipes. Missing HP or death markers are unavailable, not zero. "
@@ -115,7 +116,10 @@ def summarize(doc):
             if common:
                 reasons.append("One or more encounters have incomplete capture/identity evidence.")
             for boss in segment.get("entities", []):
-                if not boss.get("is_boss") or not boss.get("mob_code"):
+                if (not boss.get("is_boss") or not boss.get("mob_code") or boss.get("is_player") or boss.get("owner")):
+                    continue
+                catalog = npc_info(boss["mob_code"])
+                if not catalog.get("isBoss") or catalog.get("isDummy"):
                     continue
                 # Merely seeing a boss is not an attempt; require recorded engagement.
                 if not any(h.get("target") == boss["id"] for h in segment.get("hits", [])):
