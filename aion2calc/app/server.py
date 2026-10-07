@@ -627,6 +627,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(lookup(body.get("player") or {},body.get("region")))
         if path == "/api/character/import":
             return self._json({"job": start_job("import", act_character_import, body)})
+        if path == "/api/character/pressure":
+            from ..opt.survival import recorded_pressure
+            return self._json(recorded_pressure(body.get("log"), body.get("segment"), body.get("target"), body.get("window_s", 5)))
         if path == "/api/character/optimize":
             return self._json({"job": start_job("optimize-character", act_character_optimize, body)})
         if path == "/api/planner/presets/contribute":

@@ -24,3 +24,8 @@
 .pcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .pcard { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--panel2); }
 @media (max-width: 900px) { .cards3, .shotgrid { grid-template-columns: 1fr; } .hero2 { grid-template-columns: 1fr; } .herologo { width: 84px; height: 84px; } }
+
+/* Small breathing room around expandable information panels. */
+details { margin-block:2px; }
+details > summary { padding-block:2px; }
+details[open] > summary { margin-bottom:2px; }

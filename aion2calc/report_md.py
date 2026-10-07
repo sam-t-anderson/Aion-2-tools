@@ -47,6 +47,11 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
             for row in hp["opponents"]:
                 name = row["name"].replace("|", " / ").replace("\n", " ")
                 w(f"| {name} | {row['required_hp']:,.0f} | {row['headroom_hp']:,.0f} |")
+            for row in hp["opponents"]:
+                evidence = row.get("recorded_evidence")
+                if evidence:
+                    context = "; ".join(f"{key}: {value}" for key, value in evidence.items()).replace("\n", " ")
+                    w(f"Imported recording context (editable assumption): {context}\n")
         w("DPS is optimized subject to this reserve. Damage-only baselines and stat priorities do not validate survivability.\n")
     if s.get("skill_reserves"):
         reserve = s["skill_reserves"]
