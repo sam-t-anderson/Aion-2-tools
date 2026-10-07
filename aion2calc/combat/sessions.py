@@ -30,9 +30,18 @@ def save(doc: dict, name: str) -> Path:
     return target
 
 
-def recent() -> list[dict]:
+def recent_page(offset: int = 0, limit: int = 25) -> dict:
+    if not 0 <= offset <= 10_000_000 or not 1 <= limit <= 100:
+        raise ValueError("Invalid session page")
+    targets = []
+    for target in logs_dir().glob("session-*.a2log.json"):
+        try:
+            targets.append((target.stat().st_mtime, target.name, target))
+        except OSError:
+            continue
+    targets.sort(reverse=True)
     rows = []
-    for target in sorted(logs_dir().glob("session-*.a2log.json"), key=lambda p: p.stat().st_mtime, reverse=True)[:100]:
+    for _, _, target in targets[offset:offset + limit]:
         try:
             doc = json.loads(target.read_text(encoding="utf-8"))
             rows.append({"file": target.name, "title": doc.get("meta", {}).get("title"),
@@ -42,6 +51,10 @@ def recent() -> list[dict]:
                          "checkpoint_at": doc.get("meta", {}).get("checkpoint_at"),
                          "updated": target.stat().st_mtime, "players": len(doc["players"]),
                          "segments": len(doc["segments"]), "duration": sum(s["duration"] for s in doc["segments"])})
-        except (OSError, ValueError, KeyError):
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
             continue
-    return rows
+    return {"rows":rows, "offset":offset, "limit":limit, "has_more":offset + limit < len(targets), "file_count":len(targets)}
+
+
+def recent() -> list[dict]:
+    return recent_page(limit=100)["rows"]

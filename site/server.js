@@ -23,7 +23,12 @@ window.A2 = (function () {
     } catch (e) { /* ignore */ }
     return null;
   }
-  function cfg() { return saved() || { url: DEFAULT.server || "", key: DEFAULT.key || "" }; }
+  function cfg() {
+    const choice=saved();
+    if(!choice)return {url:DEFAULT.server||"",key:DEFAULT.key||""};
+    const url=choice.url||DEFAULT.server||"";
+    return {...choice,url,key:choice.key||(clean(url)===clean(DEFAULT.server)?DEFAULT.key||"":"")};
+  }
   function clean(u) { return (u || "").replace(/\/+$/, ""); }
 
   async function liveDefault() {

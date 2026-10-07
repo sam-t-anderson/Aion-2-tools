@@ -1,3 +1,16 @@
+# Aion 2 Calc 0.2.39
+
+- Stack supporting effects vertically on the right of skill cards, with effect text, unlock levels and recommendation status beside each number. Fix cramped selection summaries and overlapping text.
+
+- Open saved, analyzed and shared logs in a focused detail view with **Back to combat logs**. History, upload queues and server settings stay on the list screen. Pages local previews use a temporary focused browser view; refresh requires reopening the file.
+- Reconstructed rate graphs now offer live-style bars with a trailing 10-second average, player series and time inspection. Timeline adds a seconds ruler, sticky player labels, skill icons, zoom windows and navigation; hover, focus or click shows effect details. Markers represent observed effects, not inferred cast durations. Crowded markers are labeled and remain available in Events.
+
+- Browse saved local logs in pages of 25, reaching older archive parts beyond the previous newest-100 view.
+- Add a shared desktop/Pages queue to review and upload up to 100 saved parts sequentially with explicit visibility, per-file results, cancellation between uploads and retry of remaining entries.
+- Stop the queue on connection/authentication/rate-limit errors, exclude unfinished checkpoints and retain individual ownership credentials.
+- Export a results manifest without upload/ownership keys or private view links. Public/unlisted links can be included.
+- Keep parts as independent reports; combined timelines, durable retry/idempotency and automatic archive stitching remain future work.
+
 # Aion 2 Calc 0.2.38
 
 - Fix desktop builds omitting the configured public community upload key, which caused 401 errors for new users. Restore blank-key defaults only for the matching community server; preserve custom servers and personal keys.
