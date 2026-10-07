@@ -125,7 +125,10 @@ def export(status: dict, recorder: Recorder | None):
     # remain raw and may themselves contain identifying game/network information.
     metadata = {"app_version": __version__, "source": status.get("source"),
                 "running": status.get("running"), "error": status.get("error"),
-                "capture": status.get("diagnostics")}
+                "capture": status.get("diagnostics"),
+                "catalog_coverage": status.get("catalog_coverage"),
+                "automatic_context": status.get("automatic_context"),
+                "automatic_metadata": status.get("automatic_metadata")}
     partial = path.with_suffix(".zip.part")
     with zipfile.ZipFile(partial, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         if recorder:

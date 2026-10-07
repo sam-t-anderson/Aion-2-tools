@@ -1,5 +1,7 @@
 # Aion-2-tools
 
+Combat review includes an exportable mapping-coverage report for unresolved creature and instance IDs.
+
 Live Meter can detect installed build evidence and known encounter metadata, and pauses live DPS during damage downtime. See [app documentation](docs/app.md) for detection coverage and overrides.
 
 Review combat sessions, compare public logs, search personal records, and copy optimized builds into the game. See the [feature roadmap](docs/COMBAT_ROADMAP.md) for remaining work.

@@ -1,5 +1,14 @@
 # Methodology, sources and assumptions
 
+## Encounter catalog coverage (0.2.36)
+
+Live Meter fills difficulty only when the recorded PvE instance ID has an explicit difficulty in the bundled dungeon table. It does not infer difficulty from ID suffixes, damage, names or gear. Manual difficulty overrides remain available and their source is recorded. Content categories without a known mapping and the ranking game patch still require confirmation.
+
+Combat review on desktop and Pages includes **Mapping coverage** with recorded map/instance IDs, a catalog revision, unresolved NPC types and enemy references missing their type. **Export mapping report** downloads this bounded ID report without character names or raw traffic. Diagnostic ZIPs include current-view catalog coverage as well; the full combat log contains coverage per retained encounter. A supplied creature name does not automatically become a trusted catalog entry.
+
+Reports keep at most 100 unresolved IDs per encounter and show omitted counts. Entity references and effects are counts of retained evidence, not kills; player opponents and owned pets are excluded from NPC coverage. A missing type cannot be resolved from an actor ID, which changes between instances. An unmapped ID means absent from the installed catalog, not proof of new content.
+
+
 ## Automatic capture metadata and idle DPS (0.2.35)
 
 Live Meter detects the installed game build for registered Windows installs and resolves recorded server IDs against official regional metadata in the background. Installation paths are not exported. Steam build IDs and executable versions are build evidence, not automatically a game patch. Optional classification overrides take precedence within the recorded PvE/PvP mode.

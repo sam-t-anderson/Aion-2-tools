@@ -1,6 +1,8 @@
 """Descriptive encounter evidence; effects are never treated as cast records."""
 from collections import defaultdict
 
+from .catalog import coverage
+
 LIMIT = 100
 NOTE = ("Analysis describes retained evidence in this encounter, not cast starts or optimal play. "
         "Effects can include multi-hit attacks, periodic damage and pets. Equal timestamps do not establish order. "
@@ -96,7 +98,7 @@ def summarize(doc):
         ordered = {"healing":sorted(healing.values(),key=lambda r:-r["amount"]),
                    "skills":sorted(skills.values(),key=lambda r:-r["amount"]),
                    "buffs":sorted(buffs,key=lambda r:-r["seconds"]),"milestones":milestones}
-        segments.append({"segment":index, **{key:rows[:LIMIT] for key,rows in ordered.items()},
+        segments.append({"segment":index, "catalog":coverage(segment), **{key:rows[:LIMIT] for key,rows in ordered.items()},
             "omitted":{key:max(0,len(rows)-LIMIT) for key,rows in ordered.items()},
             "opening":opening,"omitted_opening":omitted_opening,"invalid_buff_windows":invalid_windows,
             "healing_without_source":missing_heal_source,"healing_without_target":missing_heal_target})

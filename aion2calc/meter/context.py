@@ -9,9 +9,13 @@ def classify(map_id, instance_id, pvp):
                 "zone_source": "Map 60 + identified player combat; user-confirmed arena capture",
                 "encounter_type_source": "Observed map catalog v1"}
     result = {}
-    name = _table("dungeons", "en").get(str(instance_id), {}).get("name")
+    dungeon = _table("dungeons", "en").get(str(instance_id), {})
+    name = dungeon.get("name")
     if name:
         result.update(zone=name, zone_source="Recorded instance ID + bundled dungeon name table")
+    if not pvp and dungeon.get("difficulty"):
+        result.update(difficulty=dungeon["difficulty"],
+                      difficulty_source="Recorded instance ID + exact bundled dungeon difficulty")
     if map_id in OPEN_WORLD_MAPS:
         result.update(encounter_type="pvp_open_world" if pvp else "pve_open_world",
                       encounter_type_source="Recorded map ID + bundled open-world map table")

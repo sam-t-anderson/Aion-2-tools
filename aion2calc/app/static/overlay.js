@@ -10,6 +10,12 @@
   syncColors();setInterval(syncColors,10000);
   const slider = $("#ovop");
   $("#ovhide").onclick = () => fetch("/api/overlay", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"hide"})}).then(()=>window.close());
+  $("#ovcombine").onchange = async () => {
+    const input=$("#ovcombine"), message=$("#ovpetstatus"); input.disabled=true;
+    try { const response=await fetch("/api/meter",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"view",combine_pets:input.checked})});if(!response.ok)throw Error("Could not change pet grouping");lastSnap=await response.json();message.textContent="";renderMeter(); }
+    catch(e){message.textContent=e.message;}
+    finally{input.disabled=false;}
+  };
   slider.value = Math.round(op * 100);
   function nativeCall(name, ...args) {
     const api = nativeReady && window.pywebview?.api;
@@ -59,8 +65,9 @@
   }
   function renderMeter() {
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
+    if(!$("#ovcombine").disabled) $("#ovcombine").checked=s.combine_pets!==false;
     const mx = Math.max(...players.map((p) => p.dps || 0), 1);
-    const rows = players.slice(0, 8).map((p) => `<div class="ovrow"><span class="ovname" title="${esc(p.name)}">${esc(p.name)}</span>
+    const rows = players.slice(0, 8).map((p) => `<div class="ovrow"><span class="ovname" title="${esc(p.name)}${p.includes_pets?" · Includes linked pets":""}">${esc(p.name)}</span>
         <div class="ovbar"><i style="width:${100 * (p.dps || 0) / mx}%;background:${A2CombatReview.color(p.class)}"></i><span>${kfmt(p.dps)}/s <span class="sub">${kfmt(p.damage)} · ${Math.round(100 * (p.share || 0))}%</span></span></div></div>`).join("");
     $("#ovstatus").textContent = `${snap.paused ? "Paused · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(snap.duration) || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)}/s`;
     const empty = s.error || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app.");

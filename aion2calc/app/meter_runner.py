@@ -43,6 +43,7 @@ class Runner:
         self.metadata = {}
         self.capture_metadata = None
         self.scope = "party"
+        self.combine_pets = True
         self.segment_id = None
         self.enemy_id = None
         self.saved_log = None
@@ -295,16 +296,19 @@ class Runner:
 
     def status(self) -> dict:
         with self.lock:
-            snap = (self.session.snapshot(self.scope, self.segment_id, self.enemy_id)
+            snap = (self.session.snapshot(self.scope, self.segment_id, self.enemy_id, self.combine_pets)
                     if self.packet_engine is not None else self.meter.snapshot())
             diagnostic = dict(self.diagnostics)
         if diagnostic:
             diagnostic["elapsed"] = round(time.monotonic() - self.started_at, 1) if self.started_at else 0
         from ..meter.context import classify
         current = self.session.runs[self.session.run]
+        from ..combat.catalog import coverage
+        catalog = coverage({**current, "entities": [dict(e, id=e["key"], kind="enemy") for e in snap.get("enemies", []) if e.get("mob_code")]})
         context = classify(current.get("map_id"), current.get("instance_id"), snap.get("recorded_pvp", self.session.pvp))
         return {"running": self.running, "source": self.source_name, "error": self.error,
-                "automatic_context": context,
+                "combine_pets": self.combine_pets,
+                "automatic_context": context, "catalog_coverage": catalog,
                 "snapshot": snap, "diagnostics": diagnostic,
                 "automatic_metadata": (self.capture_metadata.snapshot(self.packet_engine.local_profile.get("serverId") if self.packet_engine else None)
                                        if self.capture_metadata else {}),
@@ -332,6 +336,8 @@ class Runner:
                     raise ValueError("Clear session before switching between PvE and PvP.")
                 self.metadata = {k: str(metadata.get(k) or ("unknown" if k == "encounter_type" else "")).strip()[:200] for k in ("game_patch", "difficulty", "encounter_type", "region", "zone")}
                 self.session.pvp = combat_mode({"meta": self.metadata}) == "pvp"
+            if "combine_pets" in body:
+                self.combine_pets = bool(body["combine_pets"])
             if "automatic_splits" in body:
                 self.session.automatic_splits = bool(body["automatic_splits"])
             if body.get("segment_gap") is not None:
@@ -418,8 +424,8 @@ class Runner:
             for key in ("game_patch","difficulty","zone"):
                 if metadata.get(key):
                     segment[key] = metadata[key]
-                    if key == "zone":
-                        segment["zone_source"] = "Manual override"
+                    if key in ("zone", "difficulty"):
+                        segment[key + "_source"] = "Manual override"
         if profile is None:
             profile = self.packet_engine.local_profile if self.packet_engine else {}
         if profile.get("serverId"):
