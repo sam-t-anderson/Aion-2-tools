@@ -302,7 +302,7 @@ def sensitivity(build, scenario, policy, samples: int = 12, spread: float = 0.25
 def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget: int = 360,
                iterations: int = 3, loadout: str | None = None, verbose: bool = True,
                sp_budget: int | None = None, stigma_points: int | None = None,
-               current: object | None = None, progress=None, survival=None, loadout_snapshot: dict | None = None, skill_reserves=None, genus=None) -> dict:
+               current: object | None = None, progress=None, survival=None, loadout_snapshot: dict | None = None, skill_reserves=None, genus=None, objective="primary") -> dict:
     """``current``: a Build (e.g. an imported character) to evaluate and diff against.
     ``progress``: optional callback(str) for live phase updates (the app streams these to the UI)."""
     t0 = time.time()
@@ -318,8 +318,10 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     other = SCENARIOS[other_name](frozen_loadout)
     cd = ClassData(cls)
 
-    opt = Optimizer(cls, scen, daev_budget=daev_budget, verbose=verbose, sp_budget=sp_budget,
-                    stigma_points=stigma_points, progress=progress, survival=survival, skill_reserves=skill_reserves)
+    from .opt.weighted import optimizer_for, objective_summary
+    opt = optimizer_for(cls, scen, other, objective, daev_budget=daev_budget, verbose=verbose, sp_budget=sp_budget,
+                        stigma_points=stigma_points, progress=progress, survival=survival, skill_reserves=skill_reserves)
+    opt.log("Damage objective: " + objective + "; HP and trained-skill reserves remain enforced")
     res = opt.run(iterations=iterations)
     build, policy = res.build, res.policy
 
@@ -380,6 +382,8 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
         "sensitivity": sens, "links": links, "history": res.history,
         "runtime_s": time.time() - t0,
     }
+    summary["objective"] = objective_summary(objective, scenario_name, other_name, summary["dps"],
+                                             {scenario_name: scen.config.duration, other_name: other.config.duration})
     from .opt.gear import per_unit
     wc = weapon_compare(build, scen, policy, per_unit(res.weights))
     summary["weapon_compare"] = wc

@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.64
+
+My Character offers a saved damage-objective choice: the existing primary scenario or balanced 50/50 PvE boss/dummy or PvP sustained/burst scoring. Balanced personal optimization uses the frozen imported gear, saved Genus lines, point totals and the same HP/skill reserves across both scenarios. The existing primary objective remains the default; balanced simulations take longer.
+
+Current-build specialty/rotation evaluation uses the selected objective too. Results, Saved Results, Markdown and build differences retain objective weights, component DPS and combined score. The reported gain compares matching objectives, while each scenario's DPS remains separately available. Skill shares, opener, macro and sensitivity remain primary-scenario views; a higher combined score may trade away primary damage. Board proposals remain approximate, accepted against full weighted scoring. No global optimum or competitive PvP efficacy is claimed.
+
+This personal-search option does not change the canonical common-loadout scoring model or require a server evaluator update. PvP crowd control, mobility, opponent builds and full survivability modeling remain future work; the current HP and trained-skill constraints still apply.
+
 # Aion 2 Calc 0.2.63
 
 Automatic storage rollover no longer treats an unidentified/filtered-out session as a decoder failure. When the selected Self/Party filter cannot form a report, capture continues and rollover retries after five seconds, preserving the bounded current session. Live Meter shows a deferred-archive warning. Identity and party filtering remain enforced; unknown nearby players are not silently included. If identity remains unresolved, ordinary retention limits and loss counters still apply. Actual decoder failures and failed disk saves remain errors.

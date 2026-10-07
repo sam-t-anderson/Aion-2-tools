@@ -29,9 +29,14 @@ def write_diff(a_dir: str, b_dir: str, out: str | None = None) -> str:
     w(f"# {la}  vs  {lb}\n")
     w("| | A | B | B vs A |")
     w("|---|---:|---:|---:|")
+    ao, bo = a.get("objective"), b.get("objective")
+    if ao and bo and ao["weights"] == bo["weights"] and ao.get("durations") == bo.get("durations"):
+        change = f"{100 * (bo['score'] / ao['score'] - 1):+.1f}%" if ao["score"] > 0 else "Unavailable"
+        w(f"| {bo['label']} | {ao['score']:,.0f} | {bo['score']:,.0f} | {change} |")
     for k in a["dps"]:
         if k in b["dps"]:
-            w(f"| {k} DPS | {a['dps'][k]:,.0f} | {b['dps'][k]:,.0f} | {100 * (b['dps'][k] / a['dps'][k] - 1):+.1f}% |")
+            change = f"{100 * (b['dps'][k] / a['dps'][k] - 1):+.1f}%" if a["dps"][k] > 0 else "Unavailable"
+            w(f"| {k} DPS | {a['dps'][k]:,.0f} | {b['dps'][k]:,.0f} | {change} |")
     for key, label, pct in [("crit_chance_vs_target", "Crit chance", True), ("cdr", "Cooldown reduction", True),
                             ("combat_speed", "Combat Speed", True), ("attack_avg", "Attack (avg)", False),
                             ("boost_bucket", "Damage Boost bucket", True)]:

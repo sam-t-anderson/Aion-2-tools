@@ -178,6 +178,10 @@ My Character provides separate PvE and PvP damage actions. PvP uses the generic 
 
 The optional HP reserve below also applies to PvP, but it is a manual incoming-pressure constraint, not a simulation of an optimized opponent or a competitive win probability.
 
+### Personal multi-scenario optimization
+
+Personal character search can use its primary scenario or an equal-weight pair within the same mode. Frozen gear, Genus lines, point budgets and HP/trained-skill reserves are shared across scenarios. Current-build specialties and priority are evaluated with the same selected objective before comparison. Full weighted simulations score specialty/stigma choices, skill curves and priority changes; weighted finite-difference slopes guide approximate board proposals before full-score acceptance. Results preserve both component DPS and combined modeled DPS. Higher combined damage does not guarantee higher primary damage, survivability or PvP win probability. Ancillary skill-share, macro and sensitivity views remain primary-scenario views.
+
 ## Canonical preset comparison policy
 
 The versioned canonical preset evaluator compares allocations within one class, combat mode and scoring scope. It uses a common median loadout and fixed example budgets of 203 Skill, 30 Stigma and 360 crystal-board Daevanion points. These are comparison resources, not verified game maxima. Over-budget submissions need a separate optimization under these resources; they are not silently trimmed into a different build.
