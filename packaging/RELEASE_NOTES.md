@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.76
+
+- Settings now offers **Re-index cached icons**, with progress and a completion summary, to recover official item, skill, pet, wing, title and board references from previously imported profiles.
+- Re-indexing uses original import times, preserves newer references and flags conflicting icons rather than using an ambiguous fallback. Saved builds and historical logs are retained.
+- Image coverage exports include the last re-index summary. Re-indexing does not fetch new profiles, validate remote image availability or add NPC/boss mappings.
+
 # Aion 2 Calc 0.2.75
 
 Yellow information and warning panels now have a consistent small vertical margin (3px, approximately 2pt), including adjacent panels and panels directly below overview metrics. The shared stylesheet covers desktop views and GitHub Pages: optimizer summaries, HP/skill reserves, combat-log notices, diagnostics, uploads and expandable information panels. Explicit larger view spacing remains in effect.

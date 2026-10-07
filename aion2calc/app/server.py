@@ -78,6 +78,15 @@ def start_job(kind: str, fn, *args, **kwargs) -> str:
     return jid
 
 
+def start_asset_reindex():
+    from ..db.assets import reindex
+    with _jobs_lock:
+        for job in JOBS.values():
+            if job["kind"] == "asset-reindex" and job["status"] == "running":
+                return job["id"]
+        return start_job("asset-reindex", reindex)
+
+
 def start_sync(force: bool = False, budget_s: float | None = 900) -> None:
     from ..db.sync import Sync
     cur = SYNC.get("sync")
@@ -625,6 +634,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/plans":
             from ..combat.share import plan_request
             return self._json(plan_request(body.get("plan"), body.get("visibility", "unlisted"), body.get("id"), body.get("owner")))
+        if path == "/api/assets/reindex":
+            return self._json({"job": start_asset_reindex()})
         if path == "/api/sync":
             start_sync(force=bool(body.get("force")), budget_s=body.get("budget", 900))
             return self._json({"ok": True})
