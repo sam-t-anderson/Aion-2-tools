@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.73
+
+Personal PvE and PvP pressure windows now accept an optional assumed effective cooldown for their linked skill. Repeated activations within each scenario must respect the largest supplied cooldown for that skill. Blank stays unknown, zero permits immediate reuse, and entries at the same start count as one activation. Separate encounter scenarios are checked independently with all skills initially ready.
+
+Saved Results and Markdown show activation starts, shortest reuse gaps and whether spacing satisfies the entered assumption. Changing a linked skill clears its previous cooldown input. Charges, resets, shared groups and outgoing action-time costs remain unmodeled; no catalog cooldown or tactical success is inferred. Review effective cooldown assumptions when gear or cooldown reduction changes.
+
+Common scoring is unchanged; no server update is required. Action-time integration and asset/catalog re-indexing remain pending.
+
 # Aion 2 Calc 0.2.72
 
 Personal pressure-reduction windows can now link a class skill, its minimum trained level and an optional active-skill supporting effect. The optimizer automatically unions those requirements with personal reserves, preserves stricter minimums, keeps linked stigmas equipped and enforces supporting-effect unlocks through trained points, fixed bonuses and connected Daevanion nodes. Requests that exceed effect slots or point budgets fail explicitly.
