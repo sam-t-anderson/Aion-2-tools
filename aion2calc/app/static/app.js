@@ -377,13 +377,21 @@ function winOverview(v) {
      <div><h4 class="gold small">DAMAGE SHARE</h4><table class="t">${sh}</table></div></div>`, { key: "overview" });
 }
 
-function winGenus(v) {
-  const g=v.genus;
-  if(!g)return win('Pet Genus Insight','', '<p class="muted">This result has no Genus snapshot. Save your lines in My Character or Gear &amp; Advice, then optimize again.</p>');
-  const rows=(g.lines||[]).map(x=>`<tr><td>${esc(x.genus)} · ${esc(x.slot)}</td><td>${esc(x.stat)}</td><td>${esc(x.value)}</td><td>${x.gain==null?'—':(100*x.gain).toFixed(2)+'%'}</td><td>${esc(x.reason||'Included in the damage model')}</td></tr>`).join('');
-  const levels=Object.entries(g.state||{}).map(([k,x])=>`${esc(k)} Lv ${esc(x.level)}`).join(' · ');
-  const mix=Object.entries(g.mix||{}).map(([k,x])=>`${esc(k)} ${(x*100).toFixed(1)}%`).join(' · ');
-  return win('Pet Genus Insight',esc((g.mode||'').toUpperCase()), `<p>${g.enabled?'Saved manual lines included':'Genus scoring disabled for this run'}</p><p class="small muted">${esc(g.note)}</p><p>${levels}</p>${mix?`<p>${esc(g.mix_source)}: ${mix}</p>`:''}<div class="tablewrap"><table class="t"><tr><th>Genus · slot</th><th>Analysis line</th><th>Value</th><th>DPS contribution</th><th>Model status</th></tr>${rows||'<tr><td colspan="5">No saved lines were used.</td></tr>'}</table></div><p class="small muted">Review low-contribution lines for this mode first. This does not predict reroll cost or guarantee a better obtainable roll. Levels and slots are preserved exactly as entered.</p>`);
+function winGenus(v,selected='Cogni') {
+  const g=v.genus,genera=['Cogni','Fera','Natura','Varian','Special'];
+  if(!genera.includes(selected))selected='Cogni';
+  const snapshot=g?.state||{},group=snapshot[selected],level=Number.isInteger(group?.level)?group.level:null;
+  const rows=Array.from({length:9},(_,i)=>{
+    const slot=i+1,line=(group?.lines||[]).find(x=>x.slot===slot),score=(g?.lines||[]).find(x=>x.genus===selected&&x.slot===slot),locked=level!==null&&slot>level;
+    return `<tr><td>${slot}</td><td>${locked?'Locked · opens at Lv '+slot:line?esc(line.stat):'Not recorded'}</td><td>${line?esc(line.value):'—'}</td><td>${score?.gain==null?'—':(100*score.gain).toFixed(2)+'%'}</td><td>${score?esc(score.reason||'Included in the damage model'):'—'}</td></tr>`;
+  }).join('');
+  const anyLines=Object.values(snapshot).some(x=>x?.lines?.length),mix=Object.entries(g?.mix||{}).map(([k,x])=>`${esc(k)} ${(x*100).toFixed(1)}%`).join(' · ');
+  return win('Pet Genus Insight',esc((g?.mode||'').toUpperCase()),`
+    <p class="note">${anyLines?(g.enabled?'Saved manual lines included':'Genus scoring disabled for this run'):'No Genus analysis lines were recorded in this result.'} The official profile supplies the equipped pet but does not supply these Insight allocations. <a href="#/character">My Character</a> or <a href="#/gear">Gear &amp; Advice</a> → Pet Genus Insight: enter and save your levels and lines, then recalculate. Saved results keep their original snapshot.</p>
+    <div class="genus-report-layout"><div class="genus-selectors" role="group" aria-label="Pet genera">${genera.map(name=>`<button class="btn ${name===selected?'primary':''}" data-result-genus="${name}" aria-pressed="${name===selected}"><b>${esc(name)}</b><small>${Number.isInteger(snapshot[name]?.level)?'Lv '+esc(snapshot[name].level):'Not recorded'}</small></button>`).join('')}</div>
+    <div>${A2GenusEditor.ringHTML(selected,group)}<p class="small muted">Gold: saved line · gray: not recorded · dim: locked. Recording status, not rarity.</p></div>
+    <div class="genus-analysis"><h3>${esc(selected)} Insight · ${level===null?'Level not recorded':'Lv '+esc(level)+(level===10?' · MAX':'')}</h3><div class="tablewrap"><table class="t"><tr><th>Slot</th><th>Analysis effect</th><th>Value</th><th>DPS contribution</th><th>Model status</th></tr>${rows}</table></div></div></div>
+    ${g?.note?`<details><summary>Model assumptions and line contributions</summary><p class="small muted">${esc(g.note)}</p>${mix?`<p>${esc(g.mix_source)}: ${mix}</p>`:''}<p class="small muted">Line contributions are not additive. Defensive effects and roll probabilities are not simulated. No in-game portraits or rarity grades are inferred.</p></details>`:''}`);
 }
 
 function mountCharacterGenus(root,key) {
@@ -445,7 +453,7 @@ function renderWindows(v, state, host) {
     case "skills": body = winSkills(v, state.skilltab || "active"); break;
     case "stigma": body = winStigmas(v); break;
     case "daevanion": body = winDaevanion(v, state.board || 0); break;
-    case "genus": body = winGenus(v); break;
+    case "genus": body = winGenus(v,state.genusTab); break;
     case "equipment": body = winEquipment(v); break;
     case "arcana": body = winArcana(v); break;
     case "titles": body = winTitles(v); break;
@@ -459,6 +467,7 @@ function renderWindows(v, state, host) {
   if(common){common.dataset.commonClass=v.class;common.dataset.commonMode=String(v.scenario||'').startsWith('pvp')?'pvp':'pve';renderCommonComparisons();}
   $$("[data-win]", host).forEach((a) => (a.onclick = () => { state.win = a.dataset.win; renderWindows(v, state, host); }));
   $$("[data-skilltab]", host).forEach((b) => (b.onclick = () => { state.skilltab = b.dataset.skilltab; renderWindows(v, state, host); }));
+  $$("[data-result-genus]", host).forEach(b=>b.onclick=()=>{state.genusTab=b.dataset.resultGenus;renderWindows(v,state,host);});
   $$("[data-board]", host).forEach((b) => (b.onclick = () => { state.board = +b.dataset.board; renderWindows(v, state, host); }));
 }
 
@@ -1250,6 +1259,17 @@ async function pageHistory(){
 
 // ------------------------------------------------------------- gear & advice
 const sp = (x) => (x == null ? "—" : (x >= 0 ? "+" : "") + (100 * x).toFixed(1) + "%");
+function renderAdviceProgress(){
+  const box=$('#gadvice-progress'),job=S.gear.adviceJob;if(!box)return;
+  const current=job&&job.key===S.gear.key,busy=current&&job.status==='running';
+  if($('#gadv')){$('#gadv').disabled=!!busy;$('#gadv').textContent=busy?'Calculating advice…':'Run advice';}
+  if($('#gchar'))$('#gchar').disabled=!!busy;
+  box.hidden=!current;if(!current)return;
+  const elapsed=Math.max(0,Math.floor((Date.now()-job.started)/1000)),lines=job.log||[];
+  box.innerHTML=busy?`<p role="status"><span class="spinner"></span> Calculating advice · ${elapsed}s · <b>${esc(lines.at(-1)||'Starting…')}</b></p><progress aria-label="Advice calculation in progress"></progress><pre class="diff small">${esc(lines.slice(-6).join('\n'))}</pre><p class="small muted">Working through your build and recommendations. Results will appear below your inventory; a View results button will be shown here when ready.</p>`:job.status==='done'?'<p role="status"><b>Advice complete.</b> Scroll down below your inventory to see the recommendations.</p><button class="btn primary small" data-advice-results>View results ↓</button>':`<p role="alert">Advice did not complete: ${esc(job.error||'Unknown error')}</p>`;
+  const view=box.querySelector('[data-advice-results]');if(view)view.onclick=()=>{const results=$('#gout');if(results){results.scrollIntoView({behavior:'smooth',block:'start'});results.focus({preventScroll:true});}};
+}
+
 async function pageGear() {
   const st = S.gear || (S.gear = {});
   const chars = await api("/api/characters").catch(() => []);
@@ -1258,9 +1278,10 @@ async function pageGear() {
       <button class="btn primary" id="gadv">Run advice</button><span id="gmsg" class="small muted"></span></div>
       <p class="small faint">Import the character on My Character first. The official page shows only equipped items: add bag and warehouse items below so the planner can use them. Fights you import on Combat Logs are matched to the gear the character wore and calibrate the model.</p>` :
       '<div class="note">Import a character on My Character first.</div>'}
-    <div id="ginv"></div></div></section><div id="gout"></div>`;
+    <div id="gadvice-progress" class="note advice-progress" hidden></div><div id="ginv"></div></div></section><div id="gout" tabindex="-1"></div>`;
   if (!chars.length) return;
   const key = () => (st.key = $("#gchar").value);
+  let genusEditor=null;
   const showInv = async () => {
     const inventoryKey=key();
     const inv = await api("/api/inventory?character=" + encodeURIComponent(inventoryKey));
@@ -1294,24 +1315,33 @@ async function pageGear() {
     };
     $("#gtsave").onclick = async () => { await api("/api/inventory/titles", { character: key(), titles: $("#gtit").value.split("\n") }); toast("Saved"); showInv(); };
     const genusRoot=$('#genus-editor');
-    A2GenusEditor.mount(genusRoot,genus,async draft=>{
+    genusEditor=A2GenusEditor.mount(genusRoot,genus,async draft=>{
       const saved=await api('/api/inventory/genus',{character:inventoryKey,genus:draft});
+      if($('#gmsg'))$('#gmsg').textContent='';
       st.genusRevision=(st.genusRevision||0)+1;
       if(st.key===inventoryKey&&genusRoot.isConnected){st.inv=saved;st.adv=null;
       $('#gout').innerHTML='<p class="note">Genus lines saved. Run advice again to update recommendations.</p>';}
       return saved.genus||{};
     });
   };
-  $("#gchar").onchange = () => { st.adv = null; $("#gout").innerHTML = ""; showInv(); };
+  $("#gchar").onchange = () => { st.adv = null; $("#gout").innerHTML = ""; key();renderAdviceProgress();showInv(); };
   $("#gadv").onclick = async () => {
-    $("#gout").innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+    if(st.adviceJob?.status==='running')return;
+    if(genusEditor?.isDirty()){$('#gmsg').textContent='Save your Genus lines before running advice.';toast('Save your Genus lines first.');return;}
+    $('#gmsg').textContent='';st.adv=null;
+    $("#gout").innerHTML = '<div class="empty"><span class="spinner"></span> Calculating advice…</div>';
     const characterKey=key(),revision=st.genusRevision||0,run=st.adviceRun=(st.adviceRun||0)+1;
-    try {const advice=await runJob("/api/advice",{character:characterKey},lines=>{if($('#gmsg')&&st.key===characterKey&&st.adviceRun===run)$('#gmsg').textContent=lines[lines.length-1]||'';});
-      if(!$('#gout')||st.key!==characterKey||st.adviceRun!==run)return;
-      if((st.genusRevision||0)!==revision){$('#gout').innerHTML='<p class="note">Genus allocations changed during calculation. Run advice again.</p>';return;}
-      st.adv=advice;$('#gout').innerHTML=renderAdvice(advice);bindAdvice(advice);
-    }catch(e){if($('#gout')&&st.key===characterKey&&st.adviceRun===run)$('#gout').innerHTML=`<div class="note">${esc(e.message)}</div>`;}
+    const job=st.adviceJob={key:characterKey,status:'running',started:Date.now(),log:[]};renderAdviceProgress();
+    try {
+      const advice=await runJob("/api/advice",{character:characterKey},lines=>{job.log=lines;if(st.adviceJob===job)renderAdviceProgress();});
+      if(st.key!==characterKey||st.adviceRun!==run)return;
+      if((st.genusRevision||0)!==revision)throw Error('Genus allocations changed during calculation. Run advice again.');
+      st.adv=advice;job.status='done';
+      if($('#gout')){$('#gout').innerHTML=renderAdvice(advice);bindAdvice(advice);toast('Advice complete. Scroll down or choose View results.',7000);}
+    }catch(e){job.status='error';job.error=e.message;if($('#gout')&&st.key===characterKey&&st.adviceRun===run)$('#gout').innerHTML=`<div class="note">${esc(e.message)}</div>`;}
+    finally{if(st.adviceJob===job)renderAdviceProgress();}
   };
+  renderAdviceProgress();
   await showInv();
   if (st.adv) { $("#gout").innerHTML = renderAdvice(st.adv); bindAdvice(st.adv); }
 }
@@ -1432,20 +1462,20 @@ function advGenus(a, inv) {
   const chase = g.chase.find((c) => c.genus === cur);
   const cells = Array.from({ length: 9 }, (_, i) => {
     const n = i + 1, line = (st.lines || []).find((l) => +l.slot === n), v = val[n];
-    const locked = n > (st.level || 0);
+    const known=Number.isInteger(state[cur]?.level),locked = known && n > st.level;
     const special = n === 4 || n === 7;
     if (locked) return `<div class="gslot locked ${special ? "sp" : ""}"><div class="gn">${n}</div><div class="small faint">opens at Lv ${n}</div></div>`;
-    if (!line) return `<div class="gslot ${special ? "sp" : ""}"><div class="gn">${n}</div><div class="small faint">${special && chase ? "chase: " + esc(chase.line) : "empty"}</div></div>`;
+    if (!line) return `<div class="gslot ${special ? "sp" : ""}"><div class="gn">${n}</div><div class="small faint">${special && chase ? "Possible line: " + esc(chase.line) : "Not recorded"}</div></div>`;
     const dead = v && v.gain <= 1e-6;
     return `<div class="gslot filled ${special ? "sp" : ""} ${dead ? "dead" : ""}"><div class="gn">${n}</div><div class="gst">${esc(line.stat)}</div><div class="gv">${esc(line.value)}</div>
       ${v ? `<div class="gain ${dead ? "down" : "up"}">${dead ? "no damage: reroll" : (v.gain < 0.001 ? "+" + (100 * v.gain).toFixed(2) + "%" : sp(v.gain))}</div>` : ""}</div>`;
   }).join("");
   const mix = Object.entries(g.mix).map(([k, v]) => `<span class="mixseg" style="flex:${v}" title="${esc(k)} ${pct(v, 0)}">${esc(k)} ${pct(v, 0)}</span>`).join("");
   return win("Genus Insight", "pet genus lines: slots 4 and 7 hold the genus damage line; lines are weighted by your fight time per genus",
-    `<div class="tabs">${genera.map((x) => `<button data-gtab="${x}" class="${x === cur ? "on" : ""}">${x} <span class="faint">Lv ${(state[x] || {}).level || 0}</span></button>`).join("")}</div>
-     <div class="gwrap"><div class="ggrid">${cells}</div><div class="gside"><h4 class="gold small">YOUR FIGHT TIME</h4><div class="mix">${mix}</div>
+    `<p class="note">Genus levels and analysis lines are manual inputs; they are not included in the official profile. Enter and save them in the Genus Insight editor above, then run advice again. Blank slots are not recorded, not evidence of a locked Insight. Possible lines below are recommendations, not your saved rolls.</p><div class="tabs">${genera.map((x) => `<button data-gtab="${x}" class="${x === cur ? "on" : ""}">${x} <span class="faint">${Number.isInteger(state[x]?.level)?"Lv "+esc(state[x].level):"Not recorded"}</span></button>`).join("")}</div>
+     <div class="gwrap"><div>${A2GenusEditor.ringHTML(cur,state[cur])}<div class="ggrid">${cells}</div></div><div class="gside"><h4 class="gold small">YOUR FIGHT TIME</h4><div class="mix">${mix}</div>
        ${chase ? `<h4 class="gold small">CHASE</h4><div>${esc(chase.line)} <span class="small muted">${esc(chase.value)}</span> <span class="gain up">${sp(chase.gain)}</span></div>` : ""}
-       <h4 class="gold small">LEVEL ORDER</h4>${g.level_order.slice(0, 5).map((r, i) => `<div class="small">${i + 1}. ${esc(r.genus)} <span class="faint">Lv ${r.level} · ${pct(r.share, 0)} of fights${r.next ? ` · next opens slot ${r.next.opens_slot}` : ""}</span></div>`).join("")}</div></div>`,
+       <h4 class="gold small">LEVEL ORDER</h4>${g.level_order.slice(0, 5).map((r, i) => `<div class="small">${i + 1}. ${esc(r.genus)} <span class="faint">Lv ${Number.isInteger(state[r.genus]?.level)?r.level:"not recorded"} · ${pct(r.share, 0)} of fights${r.next ? ` · next opens slot ${r.next.opens_slot}` : ""}</span></div>`).join("")}</div></div>`,
     { key: "adv-genus", copy: g.lines.map((l) => `${l.genus} slot ${l.slot}: ${l.stat} ${l.value} (${sp(l.gain)})`).join("\n") });
 }
 

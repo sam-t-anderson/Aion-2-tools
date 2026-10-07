@@ -1,3 +1,13 @@
+# Aion 2 Calc 0.2.75
+
+Yellow information and warning panels now have a consistent small vertical margin (3px, approximately 2pt), including adjacent panels and panels directly below overview metrics. The shared stylesheet covers desktop views and GitHub Pages: optimizer summaries, HP/skill reserves, combat-log notices, diagnostics, uploads and expandable information panels. Explicit larger view spacing remains in effect.
+
+Pet Genus Insight results now show five genus selectors, a nine-slot ring and a full analysis list. The manual editor also shows the ring. Missing snapshot levels and lines are explicitly not recorded, rather than looking like an empty successful import; links explain where to save actual in-game allocations and recalculate. The official profile currently supplies equipped pet details, not Insight allocations. Ring colors represent recording status, not inferred rarity or grades.
+
+Gear & Advice now shows sticky progress beside its controls, with actual job stages, an indeterminate progress bar and elapsed time. Completed jobs show a scroll-down prompt and View results button. Duplicate starts are disabled, and returning to the page retains the current job's feedback and completed result. Missing saved Genus levels in advice are labeled not recorded rather than Lv 0; possible recommended lines remain separate from owned rolls.
+
+This extends the earlier expandable-menu spacing to the bordered notice panels themselves. Common scoring and capture behavior are unchanged.
+
 # Aion 2 Calc 0.2.74
 
 Live Meter no longer offers session-wide encounter type, build, difficulty, zone or region overrides, and ignores their legacy browser settings. Capture uses automatic evidence; unidentified metadata remains unknown. The live configuration API rejects classification changes.

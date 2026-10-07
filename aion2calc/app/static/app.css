@@ -277,7 +277,8 @@ table.t td.r, table.t th.r { text-align: right; }
           border: 1px solid var(--line); border-radius: 4px; font-size: 11px; }
 .prog { height: 8px; background: var(--inset); border-radius: 4px; overflow: hidden; }
 .prog i { display: block; height: 100%; background: linear-gradient(90deg, #2a8fb0, #39c2e0); }
-.note { padding: 9px 12px; border: 1px solid rgba(233,164,58,.35); background: rgba(233,164,58,.07);
+/* Shared yellow information panels need space outside their borders, too. */
+.note { margin-block: 3px; padding: 9px 12px; border: 1px solid rgba(233,164,58,.35); background: rgba(233,164,58,.07);
         border-radius: 5px; color: var(--note-fg); font-size: 12.5px; }
 .tip { padding: 7px 10px; border-left: 3px solid var(--accent); background: rgba(57,194,224,.06); margin: 4px 0;
        border-radius: 0 4px 4px 0; font-size: 13px; }
@@ -581,3 +582,31 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; backgrou
 details { margin-block:2px; }
 details > summary { padding-block:2px; }
 details[open] > summary { margin-bottom:2px; }
+
+/* Pet Genus Insight: five genera, a nine-slot ring and an analysis list. */
+.genus-report-layout{display:grid;grid-template-columns:120px minmax(230px,340px) minmax(300px,1fr);gap:14px;align-items:center;margin-block:12px;}
+.genus-selectors{display:flex;flex-direction:column;gap:6px;}
+.genus-selectors .btn{display:flex;flex-direction:column;gap:4px;padding:10px;}
+.genus-ring{display:block;width:100%;max-width:340px;margin-inline:auto;}
+.genus-ring-track{fill:none;stroke:var(--frame);stroke-width:8;}
+.genus-ring-center{fill:var(--inset);stroke:var(--gold);stroke-width:2;}
+.genus-ring-inner{fill:none;stroke:var(--line);stroke-width:1;}
+.genus-ring-sigil{font-size:48px;fill:var(--gold);font-family:var(--display);}
+.genus-ring-name{font-size:16px;fill:var(--gold);font-weight:700;}
+.genus-ring-level{font-size:12px;fill:var(--muted);}
+.genus-node circle{fill:var(--panel2);stroke:var(--muted);stroke-width:2;}
+.genus-node text{fill:var(--text);font-size:14px;font-weight:700;pointer-events:none;}
+.genus-node.filled circle{fill:var(--gold);stroke:var(--frame-hi);}
+.genus-node.filled text{fill:var(--inset);}
+.genus-node.locked{opacity:.4;}
+.genus-node:focus{outline:none;}.genus-node:focus circle{stroke:var(--accent);stroke-width:4;}
+.genus-analysis{min-width:0;}.genus-analysis td{overflow-wrap:anywhere;}
+.genus-editor-layout{display:grid;grid-template-columns:minmax(200px,300px) minmax(0,1fr);gap:16px;align-items:start;}
+.genus-editor-layout .genus-editor-grid{margin-top:0;}
+@media(max-width:1100px){.genus-report-layout{grid-template-columns:110px minmax(200px,1fr);}.genus-analysis{grid-column:1/-1;}.genus-editor-layout{grid-template-columns:1fr;}}
+@media(max-width:540px){.genus-report-layout{grid-template-columns:1fr;}.genus-selectors{flex-direction:row;flex-wrap:wrap;}.genus-selectors .btn{flex:1 1 90px;}.genus-analysis{grid-column:auto;}}
+
+.advice-progress{position:sticky;top:64px;z-index:5;background:var(--panel);box-shadow:0 3px 12px #0003;}
+.advice-progress pre{max-height:100px;overflow:auto;margin-block:4px;}
+.advice-progress progress{width:min(100%,420px);accent-color:var(--gold);}
+#gout{scroll-margin-top:72px;}
