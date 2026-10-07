@@ -773,7 +773,7 @@ async function pageMeter() {
       <div class="row" id="mmetadata"></div><div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
       <div class="note" style="margin-top:10px"><b>Capture diagnostics</b>
         <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads (enable before Start)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><span id="mrecordstatus" class="small muted"></span></div>
-        <p class="small faint">Keeps up to 4 MiB locally, even when no combat events are decoded. Saves a diagnostic ZIP automatically when capture stops. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></div><div id="npcap" class="small faint" style="margin-top:8px"></div>
+        <p class="small faint">Records the full session to disk without a record or size limit, even when no combat events are decoded. Available disk space limits recording. Saves a diagnostic ZIP automatically when capture stops; long recordings take longer to compress. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></div><div id="npcap" class="small faint" style="margin-top:8px"></div>
       <p class="small faint">Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, and capture permission. Export writes an open a2log file; Upload uses the log server configured in Settings.</p>
       <div class="row"><label class="small"><input id="mautofinish" type="checkbox" checked> Finish on configured final-boss death</label><label class="small">Final-boss NPC type IDs <input id="mfinalboss" placeholder="Comma-separated verified NPC IDs"></label></div><p class="small muted">Final-boss order and PvP match-end packets are not yet verified. Configure the final boss before Start, or use Finish run. Map/instance changes create separate runs without claiming completion. Capture keeps running.</p><div id="mrun" class="small" role="status"></div><div id="midentity" class="small" role="status"></div><div id="msaved" class="small" role="status"></div><div id="mnotice" class="small" role="status"></div>
     </div></section><div id="mview"></div><div id="mlog-review"></div>`;
@@ -950,7 +950,7 @@ function renderMeter(s) {
   if($("#mrun") && s.run)$("#mrun").textContent=`Run ${s.run.id} · ${s.run.closed?"finished/boundary recorded; waiting for next fight":"recording"}${s.run.end_reason?" · "+s.run.end_reason:""}`;
   if (s.diagnostic_export) st.diagnosticExport = s.diagnostic_export;
   renderDiagnosticExport(st.diagnosticExport);
-  if ($("#mdiagerror")) $("#mdiagerror").textContent = s.diagnostics?.archive_error ? `Could not save diagnostic ZIP: ${s.diagnostics.archive_error}. Use Export capture diagnostics to retry before starting another capture.` : "";
+  if ($("#mdiagerror")) $("#mdiagerror").textContent = [s.recording?.error ? `TCP recording stopped writing: ${s.recording.error}. ${s.recording.discarded_records || 0} records were not saved. Free disk space and export the retained data.` : "", s.diagnostics?.archive_error ? `Could not save diagnostic ZIP: ${s.diagnostics.archive_error}. Use Export capture diagnostics to retry before starting another capture.` : "", s.diagnostics?.recording_cleanup_error ? `Raw diagnostic cleanup failed: ${s.diagnostics.recording_cleanup_error}. The raw file remains in the diagnostics folder.` : ""].filter(Boolean).join(" ");
   const button = $("#mstart");
   if (button) {
     button.textContent = st.running ? "Stop" : "Start";
@@ -968,7 +968,7 @@ function renderMeter(s) {
   const record = $("#mrecord"); if (record) record.disabled = st.running;
   if ($("#mclear")) $("#mclear").disabled = st.running;
   const recordStatus = $("#mrecordstatus");
-  if (recordStatus) recordStatus.textContent = s.recording?.enabled ? `${s.recording.records || 0} TCP payload records available` : "TCP recording is off";
+  if (recordStatus) recordStatus.textContent = s.recording?.enabled ? `${s.recording.records || 0} TCP payload records · ${((s.recording.disk_bytes || 0)/1048576).toFixed(1)} MiB on disk · no record limit` : "TCP recording is off";
   const snap = s.snapshot || { players: [] }, msg = $("#mmsg");
   if ($("#mscope") && snap.scope) $("#mscope").value = snap.scope;
   const selector = $("#msegments");
