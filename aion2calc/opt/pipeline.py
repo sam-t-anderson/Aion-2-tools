@@ -138,6 +138,7 @@ class Optimizer:
                  progress=None, survival=None, skill_reserves=None):
         self.skill_reserves = skill_reserves
         self.required_specs = (skill_reserves or {}).get("specs", {})
+        self.min_effective = (skill_reserves or {}).get("effective", {})
         self.min_sp = (skill_reserves or {}).get("sp", {})
         self.min_stigmas = (skill_reserves or {}).get("stigmas", {})
         self.survival = survival
@@ -356,7 +357,7 @@ class Optimizer:
                 progress=lambda done, total: self.log(f"skill curves: {done}/{total} skills"),
                 fallback=self.log):
             # flat curves (no DPS effect) are dropped to keep the program small
-            if max(curve[1:]) - min(curve[1:]) > 1e-6 or sid in self.min_sp:
+            if max(curve[1:]) - min(curve[1:]) > 1e-6 or sid in self.min_sp or sid in self.min_effective:
                 curves[sid] = curve
         self.log(f"skill curves: retained {len(curves)} skills with measurable gains")
         return curves
@@ -426,7 +427,7 @@ class Optimizer:
         sol = daev_opt.solve(self.cd, curves, nv, daev_budget=self.daev_budget,
                              sp_budget=self.sp_budget, bonus=bonus,
                              time_limit=DAEV_SOLVER_TIME_LIMIT,
-                             min_node_hp=(self.survival or {}).get("minimum_node_hp", 0), min_sp=self.min_sp)
+                             min_node_hp=(self.survival or {}).get("minimum_node_hp", 0), min_sp=self.min_sp, min_effective=self.min_effective)
         self.log(f"skill allocation: solver finished ({sol['status']}, "
                  f"{time.monotonic() - solver_started:.1f} s)")
         self.log("skill allocation: applying the optimized points")
@@ -449,6 +450,7 @@ class Optimizer:
         best = self.evaluate(build, policy)
         for round_no in range(1, rounds + 1):
             slack = self.sp_budget - build.sp_spent()
+            effective = self._with_gear(build).effective_levels(cd)
             jobs = []
             for b in trainable:
                 lb, top = build.sp.get(b, 1), cd.skills[b].get("buyMax", 10)
@@ -462,7 +464,8 @@ class Optimizer:
                     for a in trainable:
                         la = build.sp.get(a, 1)
                         for da in (1, 2):
-                            if a == b or la - da < self.min_sp.get(a,1):
+                            if (a == b or la - da < self.min_sp.get(a,1)
+                                    or effective.get(a,1)-da < self.min_effective.get(a,1)):
                                 continue
                             if cost <= slack + sp_to_reach(la) - sp_to_reach(la - da):
                                 jobs.append(((a, -da), (b, db)))
@@ -552,6 +555,19 @@ class Optimizer:
     def run(self, iterations: int = 3, *, initial_build: Build | None = None,
             initial_policy: list | None = None) -> OptResult:
         build = initial_build.copy() if initial_build is not None else self.initial_build()
+        if self.min_effective:
+            # Establish a legal seed before specialty search. Joint feasibility
+            # includes board connectivity, SP/Daevanion budgets and any HP floor.
+            self.log("skill reserves: finding a feasible trained/Daevanion allocation")
+            curves = {sid: [0.0]*21 for sid,s in self.cd.skills.items()
+                      if s["kind"] in ("active", "passive")}
+            sol = daev_opt.solve(self.cd, curves, {}, daev_budget=self.daev_budget,
+                                 sp_budget=self.sp_budget, bonus=self._with_gear(build).bonus,
+                                 time_limit=DAEV_SOLVER_TIME_LIMIT, min_sp=self.min_sp,
+                                 min_effective=self.min_effective,
+                                 min_node_hp=(self.survival or {}).get("minimum_node_hp", 0))
+            build.sp, build.daevanion = sol["sp"], sol["nodes"]
+            build = self._clean_specs(build)
         policy = (list(initial_policy) if initial_policy is not None else
                   list(kit_module(self.cls, pvp=self.scenario.target.is_player).build_kit(self._with_gear(build), self.cd).policy))
         curves, weights = {}, []
@@ -583,8 +599,8 @@ class Optimizer:
         build = self.optimize_specs(build, policy, passes=3)
         policy, dps, res = self.optimize_rotation(build, policy, restarts=4)
         from .reserves import meets
-        if not meets(build,self.skill_reserves):
-            raise ValueError("The optimized build does not meet the requested trained skill reserves")
+        if not meets(self._with_gear(build),self.skill_reserves,self.cd):
+            raise ValueError("The optimized build does not meet the requested skill and supporting-effect reserves")
         weights = self._stat_weights(build, policy, final=True)
         self.log(f"final: {dps:.0f} DPS  {describe(policy)}")
         return OptResult(build, policy, dps, res, weights, self.history, curves)

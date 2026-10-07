@@ -34,9 +34,13 @@ def _neighbors(board):
 def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[int, float],
           daev_budget: int = 360, sp_budget: int = 203, bonus: dict | None = None,
           max_level: int = 20, fixed_sp: dict | None = None, time_limit: int = 120,
-          boards: tuple = CRYSTAL_BOARDS, gap: float = 0.0005, min_node_hp: float = 0, min_sp: dict | None = None) -> dict:
+          boards: tuple = CRYSTAL_BOARDS, gap: float = 0.0005, min_node_hp: float = 0, min_sp: dict | None = None,
+          min_effective: dict | None = None) -> dict:
     """``skill_curves[sid][L]`` = DPS with skill at effective level L (index 0 unused)."""
     bonus = bonus or {}
+    min_effective = min_effective or {}
+    if (set(min_effective) | set(min_sp or {})) - set(skill_curves):
+        raise ValueError("Reserved skills require allocation curves")
     prob = pulp.LpProblem("daevanion", pulp.LpMaximize)
     x, flows, obj = {}, [], []
     node_skill: dict[int, list] = {}
@@ -100,6 +104,8 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
             prob += z[sid][k] >= z[sid][k + 1]
         eff = (pulp.lpSum(l * v for l, v in y[sid].items()) + pulp.lpSum(node_skill.get(sid, []))
                + bonus.get(sid, 0))
+        if sid in min_effective:
+            prob += eff >= min_effective[sid], f"minimum_effective_{sid}"
         prob += pulp.lpSum(z[sid].values()) <= eff
         prob += pulp.lpSum(z[sid].values()) >= eff - 0  # exact when eff <= kmax
         for k in range(1, kmax + 1):
@@ -115,7 +121,7 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
         for l, var in ys.items():
             if var.value() and var.value() > 0.5:
                 sp[sid] = l
-    if min_node_hp > 0 or min_sp:
+    if min_node_hp > 0 or min_sp or min_effective:
         from .survival import node_hp
         variables = list(x.values()) + [v for values in y.values() for v in values.values()] + [v for values in z.values() for v in values.values()]
         integral = all(v.value() is not None and abs(v.value()-round(v.value())) <= 1e-5 for v in variables)
@@ -123,8 +129,10 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
                 or not connected(cd, nodes) or sum(cost[n] for n in nodes) > daev_budget
                 or sum(sum(SP_COST[:l]) for l in sp.values()) > sp_budget
                 or len(sp) != len(y) or node_hp(cd, nodes)+1e-6 < min_node_hp
-                or any(sp.get(sid,1)<level for sid,level in (min_sp or {}).items())):
-            if min_sp:
+                or any(sp.get(sid,1)<level for sid,level in (min_sp or {}).items())
+                or any(sp.get(sid,1)+cd.daevanion_levels(nodes).get(sid,0)+bonus.get(sid,0)<level
+                       for sid,level in min_effective.items())):
+            if min_sp or min_effective:
                 raise ValueError("No feasible skill/HP reserve allocation was found within the budgets and solver time limit. No unconstrained fallback was published.")
             raise ValueError("No feasible HP-reserve allocation was found within the budgets and solver time limit. Lower the reserve or adjust your assumptions; no unconstrained fallback was published.")
     return {"status": pulp.LpStatus[status], "nodes": nodes, "sp": sp,

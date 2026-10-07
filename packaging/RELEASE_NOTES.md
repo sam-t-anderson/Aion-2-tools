@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.69
+
+Supporting-effect reserves now allow unlocks that depend on Daevanion levels. The optimizer jointly allocates trained points and connected board nodes while respecting skill, Daevanion and HP reserves. It requires a feasible allocation before damage search, preserves effective-level floors during point polishing, and validates the final effects. Requests that cannot be satisfied within the budgets and solver time limit fail explicitly.
+
+Saved results and Markdown show each required effective level and its trained, Daevanion and fixed-bonus contributions. Utility effects remain user-selected constraints; tactical CC, mobility, shields and matchup simulation are still future work. Common community scoring is unchanged; no server update is needed.
+
 # Aion 2 Calc 0.2.68
 
 Personal skill reserves now support specific supporting effects on active skills. The optimizer retains selected effects while searching the remaining damage choices. Minimum trained levels automatically cover effect unlocks and selection-slot gates using fixed gear bonuses, with the same skill-point budget. Saved results and Markdown list the retained effects.

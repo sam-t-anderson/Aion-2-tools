@@ -71,6 +71,9 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         w(reserve["note"] + "\n")
         for effect in reserve.get("effects", []):
             w(f"- Reserved supporting effect: {effect['skill']} · {effect['text']} (effect Lv {effect['unlock']}); {'retained' if effect['selected'] else 'missing'}.\n")
+        for row in reserve.get("effective_levels", []):
+            w(f"- {row['name']}: effective Lv {row['selected']} / required {row['minimum']} "
+              f"(trained {row['trained']} + Daevanion {row['daevanion']} + fixed bonuses {row['gear']}).\n")
         w("| Skill | Minimum trained level | Selected trained level |")
         w("|---|---:|---:|")
         for row in reserve["skills"]:
