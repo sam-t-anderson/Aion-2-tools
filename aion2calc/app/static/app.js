@@ -1131,7 +1131,7 @@ function renderMeter(s) {
   if($("#msaved"))$("#msaved").textContent=s.diagnostics?.log_save_error || ((s.diagnostics?.archive_parts_saved ? `${s.diagnostics.archive_parts_saved} earlier archive part(s) saved in Combat Logs. Live view/export contains the current part. ` : "") + (s.saved_log ? "Latest saved part: "+s.saved_log : "Current part checkpoints every 15 seconds and saves on Stop."));
   if(s.snapshot?.players?.length && $("#mlog-review") && !st.reviewLoading && Date.now()-(st.reviewAt || 0)>4000) {
     st.reviewLoading=true;st.reviewAt=Date.now();
-    api("/api/meter/log").then(doc=>{const target=$("#mlog-review");if(!target)return;if(st.liveReviewRoot!==target){if(st.liveReview)st.liveReview.dispose();st.liveReview=A2CombatReview.mount(target,doc,localReviewOptions());st.liveReviewRoot=target;}else st.liveReview.update(doc);}).catch(()=>{}).finally(()=>{st.reviewLoading=false;});
+    api("/api/meter/log").then(doc=>{const target=$("#mlog-review");if(!target)return;if(st.liveReviewRoot!==target){if(st.liveReview)st.liveReview.dispose();st.liveReview=A2CombatReview.mount(target,doc,{...localReviewOptions(),live:true});st.liveReviewRoot=target;}else st.liveReview.update(doc);}).catch(()=>{}).finally(()=>{st.reviewLoading=false;});
   }
   const record = $("#mrecord"); if (record) record.disabled = st.running;
   if ($("#mclear")) $("#mclear").disabled = st.running;

@@ -6,6 +6,8 @@ An enemy filter from a previous encounter is cleared when that enemy is absent f
 
 Capture errors now reach the displayed meter status and Start/Stop control instead of being discarded as failed status requests. Meter polling has a timeout and retries; desktop and overlay retain the last readings with a visible connection warning when refresh fails. An interrupted view does not establish whether capture is still running.
 
+The Live Combat Session explorer also follows new encounters by default, rather than staying on its first encounter. Selecting a historical encounter or run pins it; enable **Follow latest encounter** to resume following. Saved-log and shared-log viewers retain their normal historical selection behavior.
+
 The overlay follows the latest encounter independently of desktop history/enemy selections. Live Meter labels a pinned or historical view and offers Follow latest combat. Diagnostics show the age of the last forwarded game data and decoded effect to distinguish idle combat from missing input; these ages are included in diagnostic exports.
 
 These address confirmed code paths that can hide or interrupt subsequent combat. The reported 0.2.58 incident has no diagnostic archive yet, so its specific cause is not established. Capture should continue across encounters without reopening the overlay.

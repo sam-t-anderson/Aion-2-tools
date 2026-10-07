@@ -207,6 +207,8 @@ Recognized map/instance IDs supply supported zone and content metadata. Difficul
 
 Capture errors now reach the displayed meter status and Start/Stop control instead of being discarded as failed status requests. Meter polling has a timeout and retries; desktop and overlay retain the last readings with a visible connection warning when refresh fails. An interrupted view does not establish whether capture is still running.
 
+The Live Combat Session explorer also follows new encounters by default, rather than staying on its first encounter. Selecting a historical encounter or run pins it; enable **Follow latest encounter** to resume following. Saved-log and shared-log viewers retain their normal historical selection behavior.
+
 The overlay follows the latest encounter independently of the desktop’s selected historical encounter or enemy. Live Meter labels a pinned/earlier encounter and provides **Follow latest combat** to clear its encounter and enemy selections. Capture diagnostics show elapsed time since the last forwarded game data and decoded effect; idle time alone does not prove a capture failure.
 
 A missing TCP chunk can leave later traffic waiting for reassembly. Capture allows five seconds for normal reordering, then resumes from fresh bytes at a recorded lossy boundary. Live Meter shows recovery counts, retains earlier combat and marks the capture incomplete for rankings. Recovery does not reconstruct missing effects. An enemy filter is cleared when that enemy is absent from the newly selected combat; a deliberately selected historical combat remains pinned until you choose **Latest combat**.
