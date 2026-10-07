@@ -287,3 +287,7 @@ Fresh official imports retain sanitized public image references scoped by region
 ### Manual Genus Insight editor
 
 Gear & Advice provides five genus tabs, nine analysis-slot cards, level/stat/value controls, draft retention across tabs, per-slot clearing and save feedback. Validate allocations before replacing inventory; retain malformed legacy entries in Advanced JSON for repair. Saving requires recalculation instead of displaying stale advice. Remaining: official allocation retrieval (not supplied by current profiles), verified in-game reference art/interaction details, richer genus presentation across build views and defensive-effect modeling.
+
+### Session image-failure diagnostics
+
+Desktop/Pages remember up to 200 failed image resources for five minutes and show stable placeholders during rerenders. Explicit Retry images clears the session list; desktop coverage export includes source-host/count/time and recognized public skill IDs without URLs, query strings or portrait paths. Browser HTTP status is unavailable; no automatic upload. Bundled item audit: 2,081 image references, no explicit official item-ID fields. Remaining: HTTP response diagnostics in the local proxy, verified NPC portrait sources, broader catalog reconciliation and permitted missing-asset retrieval.

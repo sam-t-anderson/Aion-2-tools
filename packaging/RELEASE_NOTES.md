@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.51
+
+Remember up to 200 failed remote image resources in the current browser session. Render a stable placeholder for five minutes instead of repeatedly requesting a failed image on each live/review update. Apply this to desktop equipment/skill artwork and shared combat skill/profile images on desktop and Pages. Retry images clears the session failure list and permits another attempt; combat review rerenders immediately, while Settings asks users to reopen the affected view.
+
+Image coverage exports include browser failure counts, source hosts and recognized public skill IDs, without full URLs, query strings, portrait paths, character identifiers or tokens. Browser error events do not expose an HTTP status or prove a missing catalog mapping. No image failure records are uploaded automatically. The catalog audit found 2,081 bundled item references, all with image URLs and none with official ID fields; official and third-party IDs remain separate.
+
 # Aion 2 Calc 0.2.50
 
 Gear & Advice replaces the free-text genus-line entry with five genus tabs and nine analysis-slot cards. Enter Insight level, stat and exact value, clear individual slots, and save all genera together with explicit progress/error feedback. Drafts stay across genus tabs. Advanced JSON retains older malformed entries for repair instead of silently dropping them.
