@@ -1118,7 +1118,7 @@ function renderMeter(s) {
   if($("#mrun") && s.run)$("#mrun").textContent=`Run ${s.run.id} · ${s.run.closed?"finished/boundary recorded; waiting for next fight":"recording"}${s.run.end_reason?" · "+s.run.end_reason:""}`;
   if (s.diagnostic_export) st.diagnosticExport = s.diagnostic_export;
   renderDiagnosticExport(st.diagnosticExport);
-  if ($("#mdiagerror")) $("#mdiagerror").textContent = [s.recording?.error ? `TCP recording stopped writing: ${s.recording.error}. ${s.recording.discarded_records || 0} records were not saved. Free disk space and export the retained data.` : "", s.diagnostics?.archive_error ? `Could not save diagnostic ZIP: ${s.diagnostics.archive_error}. Use Export capture diagnostics to retry before starting another capture.` : "", s.diagnostics?.recording_cleanup_error ? `Raw diagnostic cleanup failed: ${s.diagnostics.recording_cleanup_error}. The raw file remains in the diagnostics folder.` : ""].filter(Boolean).join(" ");
+  if ($("#mdiagerror")) $("#mdiagerror").textContent = [s.recording?.error ? `TCP recording stopped writing: ${s.recording.error}. ${s.recording.discarded_records || 0} records were not saved. Free disk space and export the retained data.` : "", s.diagnostics?.archive_deferred || "", s.diagnostics?.archive_error ? `Could not save diagnostic ZIP: ${s.diagnostics.archive_error}. Use Export capture diagnostics to retry before starting another capture.` : "", s.diagnostics?.recording_cleanup_error ? `Raw diagnostic cleanup failed: ${s.diagnostics.recording_cleanup_error}. The raw file remains in the diagnostics folder.` : ""].filter(Boolean).join(" ");
   const button = $("#mstart");
   if (button) {
     button.textContent = st.running ? "Stop" : "Start";

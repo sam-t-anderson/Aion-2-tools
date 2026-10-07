@@ -22,6 +22,10 @@ class Record:
     sequence: int = 0
 
 
+class NoIdentifiedPlayerData(ValueError):
+    """The selected scope cannot yet form an identified combat report."""
+
+
 class CombatSession:
     def continuation(self):
         """A storage part continues decoding, but cannot establish run entry."""
@@ -507,7 +511,7 @@ class CombatSession:
                     "start": datetime.fromtimestamp(group["start"] / 1000, timezone.utc).isoformat(),
                     "duration": max(0.001, (group["end"] - group["start"]) / 1000)})
         if not players:
-            raise ValueError("No identified player data is available under the selected party filter.")
+            raise NoIdentifiedPlayerData("No identified player data is available under the selected party filter.")
         if len(players) > 64:
             raise ValueError("This session contains more than 64 player identities. Export a shorter session or use Party / Self filtering.")
         from .. import __version__
