@@ -4,6 +4,8 @@ Prevent known capture stalls after a missing TCP chunk: allow normal packet reor
 
 An enemy filter from a previous encounter is cleared when that enemy is absent from the selected combat, so a new pull is visible in both the desktop meter and overlay. Explicit historical encounter selections remain available.
 
+The overlay follows the latest encounter independently of desktop history/enemy selections. Live Meter labels a pinned or historical view and offers Follow latest combat. Diagnostics show the age of the last forwarded game data and decoded effect to distinguish idle combat from missing input; these ages are included in diagnostic exports.
+
 These address confirmed code paths that can hide or interrupt subsequent combat. The reported 0.2.58 incident has no diagnostic archive yet, so its specific cause is not established. Capture should continue across encounters without reopening the overlay.
 
 # Aion 2 Calc 0.2.59

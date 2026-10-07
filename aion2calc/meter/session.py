@@ -359,6 +359,8 @@ class CombatSession:
                                 "duration": max(1, (group["end"] - group["start"]) / 1000),
                                 "events": len(group["records"])} for index, group in enumerate(groups)]
         summary["selected_segment"] = "all" if segment_id == "all" else chosen[-1]["id"] if chosen else None
+        summary["selection_mode"] = "whole" if segment_id == "all" else "encounter" if segment_id else "latest"
+        summary["viewing_historical"] = bool(segment_id not in (None, "all") and chosen and chosen[-1]["id"] != groups[-1]["id"])
         summary["selected_enemy"] = enemy_id
         summary["combine_pets"] = combine_pets
         summary["paused"] = bool(chosen and time.time() * 1000 - chosen[-1]["last_damage"] >= 2000)
