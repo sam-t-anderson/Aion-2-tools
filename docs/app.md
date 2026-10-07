@@ -204,6 +204,8 @@ Choose **Table**, **Timeline** or **Events** for the detailed metrics. Graph and
 
 Community lists show recorded-event count, patch and encounter icons. PvP classes are deduplicated; unknown classes, absent bosses and unavailable portraits use an AION 2 emblem. Open a community entry to review only its selected combat mode, or choose **All recorded modes** in the focused viewer. Mode filters select recorded encounters and retain their original ranking indices; they do not infer the mode of ambiguous effects within a single encounter. Whole-run progression is available in the unfiltered view.
 
+Click a character to open its focused build page, then **Back to log** to restore the same review selections. Saved official profiles display the available portrait, stats, equipment slots, skills, passives, stigmas, pet/wings and boards. Full recorded build information retains all source sections, including rolls and specialties. Current official lookups remain previews and never replace historical profiles. Missing assets and pet genus stay unavailable when not supplied.
+
 ## Importing external logs
 
 Import a log in any of these ways:

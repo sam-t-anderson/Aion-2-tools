@@ -12,3 +12,18 @@
 .cr-time-scrub{width:100%;margin:10px 0}.cr-review [data-time-start]{width:90px}
 .cr-effect-tooltip{position:fixed;z-index:1000;max-width:350px;background:var(--panel,#222934);color:var(--text,#e0e6ef);border:1px solid var(--gold,#e8cf8e);padding:10px;box-shadow:0 4px 18px #0008;pointer-events:none;font-size:12px}
 .cr-graph [data-graph-hit]{cursor:crosshair}.cr-graph [data-graph-detail]{min-height:3em}
+
+/* Focused historical/current character build page. */
+.cr-profile-hero {display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin:18px 0}
+.cr-profile-hero > img {width:140px;height:180px;object-fit:contain;border-radius:8px;background:var(--panel)}
+.cr-profile-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:12px 0 24px}
+.cr-profile-card {display:flex;gap:12px;align-items:center;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:6px;min-width:0}
+.cr-profile-card > img,.cr-profile-empty {width:48px;height:48px;object-fit:contain;flex-shrink:0}
+.cr-profile-empty {display:grid;place-items:center;color:var(--muted);font-size:24px}
+.cr-profile-card strong,.cr-profile-card small,.cr-profile-card span {display:block;overflow-wrap:anywhere}
+.cr-profile-card small,.cr-profile-card span {color:var(--muted);font-size:12px}
+.cr-profile-card[data-grade=Unique] {border-color:#f0bf4a}.cr-profile-card[data-grade=Legend] {border-color:#a46cf0}.cr-profile-card[data-grade=Epic] {border-color:#a46cf0}.cr-profile-card[data-grade=Rare] {border-color:#4aa3e6}
+.cr-profile-stats {display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:24px}
+.cr-profile-stats > div {padding:12px;border:1px solid var(--line);border-radius:6px}
+.cr-profile-stats span,.cr-profile-stats small {display:block}.cr-profile-stats small {color:var(--muted)}
+.cr-profile-json {max-height:400px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}

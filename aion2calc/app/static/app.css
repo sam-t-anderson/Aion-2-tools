@@ -553,3 +553,7 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; backgrou
   .skilllist > .skill { grid-template-columns:minmax(0,1fr); }
   .skilllist .specs { width:85%; justify-self:end; box-sizing:border-box; }
 }
+
+/* Leave a visible grade ring around skill/passive images on Daevanion nodes. */
+.node.skill .node-skill-icon {position:absolute;width:26px;height:26px;inset:3px;border-radius:50%;object-fit:cover;z-index:1}
+.node.skill > span {position:relative;z-index:0}
