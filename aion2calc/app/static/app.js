@@ -1150,7 +1150,7 @@ function renderMeter(s) {
     if (selector.innerHTML !== options) selector.innerHTML = options;
     selector.value = st.pinnedSegment || (snap.selected_segment === "all" ? "all" : "");
   }
-  if (msg) { if (s.error) msg.textContent = s.error; else { const d = s.diagnostics || {}; msg.textContent = s.running ? `${s.snapshot?.paused ? "Paused DPS · capture continues" : "Recording"} · ${d.packets || 0} TCP packets · ${d.decoded_events || 0} combat events${d.tcp_stream_resets ? ' · '+d.tcp_stream_resets+' lossy TCP recovery boundaries (capture incomplete)' : ''}${d.port ? " · port " + d.port : d.auto_port ? " · detecting game port" : ""}` : "Stopped"; } }
+  if (msg) { if (s.error) msg.textContent = s.error; else { const d = s.diagnostics || {}; msg.textContent = s.running ? `${s.snapshot?.paused ? "Paused DPS · capture continues" : "Recording"} · ${d.packets || 0} TCP packets · ${d.decoded_events || 0} combat events${d.tcp_stream_resets ? ' · '+d.tcp_stream_resets+' lossy TCP recovery boundaries (capture incomplete)' : ''}${d.port ? " · port " + d.port : d.auto_port ? " · detecting game port" : ""}${d.pcap_dropped || d.pcap_if_dropped ? " · Capture drops detected; data may be incomplete (see diagnostics)" : ""}` : "Stopped"; } }
   const view = $("#mview"); if (!view) return;
   if (!snap.players.length) {
     st.lastMeterRender = null;

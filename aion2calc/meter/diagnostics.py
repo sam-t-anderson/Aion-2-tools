@@ -23,6 +23,7 @@ class Recorder:
         self.error = None
         self.path = None
         self.writer = None
+        self.next_flush = time.monotonic() + 1
         # Explicit limits remain available for small callers. Live capture uses
         # the default disk recorder; neither record count nor payload size rolls over.
         if max_bytes is None and max_records is None:
@@ -30,7 +31,7 @@ class Recorder:
             folder = home() / "diagnostics"
             folder.mkdir(parents=True, exist_ok=True)
             self.path = folder / f"tcp-session-{uuid.uuid4().hex}.jsonl"
-            self.writer = self.path.open("xb", buffering=0)
+            self.writer = self.path.open("xb", buffering=256 * 1024)
 
     def record(self, key: tuple, sequence: int, flags: int, payload: bytes, timestamp_ms: int):
         if not payload or (self.max_bytes is not None and len(payload) > self.max_bytes):
@@ -50,6 +51,10 @@ class Recorder:
                         raise OSError("Diagnostic recorder is closed")
                     if self.writer.write(data) != len(data):
                         raise OSError("Incomplete diagnostic disk write")
+                    now = time.monotonic()
+                    if now >= self.next_flush:
+                        self.writer.flush()
+                        self.next_flush = now + 1
                 except OSError as exc:
                     self.error = str(exc)
                     self.discarded += 1
@@ -79,6 +84,14 @@ class Recorder:
     def archive_payloads(self, archive):
         """Export a fixed prefix while capture can continue appending to disk."""
         with self.lock:
+            # Flush before selecting the exported prefix. Later appends can
+            # remain buffered without changing the fixed byte count below.
+            if self.writer is not None:
+                try:
+                    self.writer.flush()
+                except OSError as exc:
+                    self.error = str(exc)
+                    raise
             counts, rows = self._archive_snapshot()
             size = self.spool_bytes
         with archive.open("tcp-payloads.jsonl", "w", force_zip64=True) as target:
@@ -109,9 +122,13 @@ class Recorder:
         """Close a replaced recorder; remove raw data only after a successful archive."""
         with self.lock:
             if self.writer is not None:
-                self.writer.close()
-                self.writer = None
-            if remove and self.path is not None:
+                try:
+                    self.writer.close()
+                except OSError as exc:
+                    self.error = str(exc)
+                finally:
+                    self.writer = None
+            if remove and not self.error and self.path is not None:
                 self.path.unlink(missing_ok=True)
 
 

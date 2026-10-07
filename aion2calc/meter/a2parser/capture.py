@@ -307,8 +307,10 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
         for name in interfaces:
             capture_socket = None
             try:
-                capture_socket = resolve_iface(name).l2listen()(iface=name, filter=bpf_filter)
+                capture_socket = resolve_iface(name).l2listen()(iface=name, filter=bpf_filter, promisc=False)
                 monitor = PcapStats(capture_socket)
+                if monitor.buffer_warning:
+                    stats["warnings"].append(f"{name}: {monitor.buffer_warning}")
                 monitor.sample(force=True)
                 sniffer = AsyncSniffer(opened_socket={capture_socket: name}, prn=packet_callback(monitor), store=False)
                 sniffer.start()
