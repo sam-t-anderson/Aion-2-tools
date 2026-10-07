@@ -171,7 +171,7 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     from .model.character import loadout_stats
     reserve_plan = prepare_reserves(ClassData(imp.cls), skill_reserves, bud, loadout_stats(imp.loadout).skill_bonus)
     if reserve_plan and progress:
-        progress(f"Retaining trained minimums for {sum(len(reserve_plan[k]) for k in ("sp", "stigmas"))} skills/stigmas")
+        progress(f"Retaining trained minimums for {sum(len(reserve_plan[k]) for k in ('sp', 'stigmas'))} skills/stigmas")
     cur["budgets"] = bud
     (out / "current" / "build.json").write_text(json.dumps(cur, indent=1, default=str), encoding="utf-8")
     best = run_report(imp.cls, str(out), scenario_name=scenario_name, daev_budget=bud["daevanion"],
