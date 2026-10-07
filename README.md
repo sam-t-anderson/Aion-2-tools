@@ -22,6 +22,14 @@ It answers, for any class:
 and produces images of the Daevanion boards and a planner-style build page plus
 share links for the metabot.gg and gamers4.life planners.
 
+## Encounter insights
+
+In combat review, enable **Encounter insights** to see healer → recipient totals, observed ability effects and the first 20 effects per player/pet. Player and pet filters apply; pets keep their source labels. These are recorded effects, not casts or a recommended rotation. Healing totals do not establish effective healing or overheal.
+
+Imported buff windows show merged, encounter-clipped duration and uptime; live buff coverage and buff casters remain unavailable. Boss HP milestones show the first observed sample at or below 75%, 50%, 25% and zero when boss identity and maximum HP are recorded. They do not infer named mechanics or exact transitions. Late captures may show several thresholds simultaneously.
+
+Each section retains up to 100 rows per encounter, with omissions and missing healing attribution shown. Filters apply after those limits. Use Events for retained underlying effects. Older local files gain insights when reopened with the updated application; shared archives require an updated sharing server.
+
 ## Death recaps and character trends
 
 Choose **Death recaps** in combat review to see recorded incoming damage, received healing and HP samples in the ten seconds before an explicit player death marker. Open a recap for relative event times and sources. The last incoming hit is an observation, not a confirmed killing blow. Equal timestamps do not establish event order; missing recipients, HP or death markers remain unavailable. Pet deaths are separate from owner deaths.

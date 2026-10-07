@@ -1,3 +1,10 @@
+## 0.2.27
+
+- Add optional Encounter insights to shared desktop, Pages and server combat review: healer/recipient pairs, imported buff uptime, observed ability effects and opening sequences, and sampled boss HP milestones.
+- Merge overlapping imported buff windows, clip them to encounter duration, expose missing healing attribution and bounded detail omissions. Preserve separate pet sources.
+- Recompute insights from retained evidence for local files, saved sessions and shared archives. No cast counts, named mechanic phases, effective healing, support damage credit or cooldown/rotation verdicts are inferred.
+- Live cast/buff/resource and movement decoding still require representative protocol evidence.
+
 ## Changes in 0.2.26 — death recaps and character trends
 
 - Add a Death recaps tab on desktop, Pages and shared logs, showing up to 10 seconds of recorded incoming damage, received healing and HP before explicit player death markers.
