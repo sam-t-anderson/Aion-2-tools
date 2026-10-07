@@ -605,3 +605,8 @@ details[open] > summary { margin-bottom:2px; }
 .genus-editor-layout .genus-editor-grid{margin-top:0;}
 @media(max-width:1100px){.genus-report-layout{grid-template-columns:110px minmax(200px,1fr);}.genus-analysis{grid-column:1/-1;}.genus-editor-layout{grid-template-columns:1fr;}}
 @media(max-width:540px){.genus-report-layout{grid-template-columns:1fr;}.genus-selectors{flex-direction:row;flex-wrap:wrap;}.genus-selectors .btn{flex:1 1 90px;}.genus-analysis{grid-column:auto;}}
+
+.advice-progress{position:sticky;top:64px;z-index:5;background:var(--panel);box-shadow:0 3px 12px #0003;}
+.advice-progress pre{max-height:100px;overflow:auto;margin-block:4px;}
+.advice-progress progress{width:min(100%,420px);accent-color:var(--gold);}
+#gout{scroll-margin-top:72px;}

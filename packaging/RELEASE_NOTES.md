@@ -4,6 +4,8 @@ Yellow information and warning panels now have a consistent small vertical margi
 
 Pet Genus Insight results now show five genus selectors, a nine-slot ring and a full analysis list. The manual editor also shows the ring. Missing snapshot levels and lines are explicitly not recorded, rather than looking like an empty successful import; links explain where to save actual in-game allocations and recalculate. The official profile currently supplies equipped pet details, not Insight allocations. Ring colors represent recording status, not inferred rarity or grades.
 
+Gear & Advice now shows sticky progress beside its controls, with actual job stages, an indeterminate progress bar and elapsed time. Completed jobs show a scroll-down prompt and View results button. Duplicate starts are disabled, and returning to the page retains the current job's feedback and completed result. Missing saved Genus levels in advice are labeled not recorded rather than Lv 0; possible recommended lines remain separate from owned rolls.
+
 This extends the earlier expandable-menu spacing to the bordered notice panels themselves. Common scoring and capture behavior are unchanged.
 
 # Aion 2 Calc 0.2.74
