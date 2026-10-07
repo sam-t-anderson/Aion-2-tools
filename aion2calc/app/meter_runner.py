@@ -476,9 +476,14 @@ class Runner:
         doc.setdefault("meta", {}).update(metadata)
         if collector:
             detected = collector.snapshot((profile or {}).get("serverId"))
-            for key in ("installed_build", "installed_build_source"):
+            for key in ("installed_build", "installed_build_source", "installed_build_namespace", "installed_build_cohort"):
                 if detected.get(key):
                     doc["meta"][key] = detected[key]
+            if not doc["meta"].get("game_patch") and detected.get("game_patch"):
+                for key in ("game_patch", "game_patch_source", "game_patch_basis"):
+                    doc["meta"][key] = detected[key]
+            elif metadata.get("game_patch"):
+                doc["meta"].update(game_patch_source="Manual override", game_patch_basis="manual")
             if not doc["meta"].get("region") and detected.get("region"):
                 doc["meta"].update(region=detected["region"], region_source=detected["region_source"])
             elif metadata.get("region"):
@@ -495,8 +500,14 @@ class Runner:
             for key in ("game_patch","difficulty","zone"):
                 if metadata.get(key):
                     segment[key] = metadata[key]
-                    if key in ("zone", "difficulty"):
+                    if key in ("zone", "difficulty", "game_patch"):
                         segment[key + "_source"] = "Manual override"
+                    if key == "game_patch":
+                        segment["game_patch_basis"] = "manual"
+            if not segment.get("game_patch") and doc["meta"].get("game_patch"):
+                for key in ("game_patch", "game_patch_source", "game_patch_basis"):
+                    if doc["meta"].get(key):
+                        segment[key] = doc["meta"][key]
         if profile is None:
             profile = self.packet_engine.local_profile if self.packet_engine else {}
         if profile.get("serverId"):

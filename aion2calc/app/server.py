@@ -9,6 +9,7 @@ Long jobs (optimizing a character) run in worker threads; the UI polls them.
 from __future__ import annotations
 
 import hashlib
+from functools import wraps
 import json
 import mimetypes
 import threading
@@ -30,7 +31,24 @@ ICON_HOSTS = ("metabot.gg", "assets.playnccdn.com", "profileimg.plaync.com", "a2
 
 SYNC = {"sync": None, "thread": None}
 JOBS: dict[str, dict] = {}
-_jobs_lock = threading.Lock()
+_jobs_lock = threading.RLock()
+_MODEL_LOCK = threading.RLock()
+_COMPARISON_JOBS: dict[tuple[str, str], str] = {}
+
+
+def _model_action(fn):
+    @wraps(fn)
+    def run(*args, **kwargs):
+        acquired = _MODEL_LOCK.acquire(blocking=False)
+        if not acquired and kwargs.get("log"):
+            kwargs["log"]("Waiting for another model calculation to finish")
+        if not acquired:
+            _MODEL_LOCK.acquire()
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            _MODEL_LOCK.release()
+    return run
 
 
 # ----------------------------------------------------------------------- jobs
@@ -89,6 +107,7 @@ def _summary_at(path: str) -> dict:
     return json.loads(p.read_text(encoding="utf-8"))
 
 
+@_model_action
 def act_character_import(body: dict, log) -> dict:
     from ..charopt import evaluate_current, import_character
     log("importing from the official site")
@@ -99,6 +118,7 @@ def act_character_import(body: dict, log) -> dict:
     return views.character_view(imp, ev)
 
 
+@_model_action
 def act_character_optimize(body: dict, log) -> dict:
     from ..charopt import import_character, optimize_character
     mode = body.get("mode", "pve")
@@ -140,6 +160,35 @@ def act_character_optimize(body: dict, log) -> dict:
             "path": str(out), "diff": (out / "DIFF.md").read_text(encoding="utf-8"), "preset": preset, "point_observation": points}
 
 
+def start_comparison(body: dict) -> str:
+    from ..canonical_presets import scoring_policy
+    cls, mode = body.get("class"), body.get("mode")
+    scoring_policy(cls, mode)  # Reject unknown input before queuing a worker.
+    key = (cls, mode)
+    with _jobs_lock:
+        previous = _COMPARISON_JOBS.get(key)
+        if previous and JOBS.get(previous, {}).get("status") == "running":
+            return previous
+        jid = start_job("community-comparison", act_community_comparison, {"class": cls, "mode": mode})
+        _COMPARISON_JOBS[key] = jid
+        return jid
+
+
+@_model_action
+def act_community_comparison(body: dict, log) -> dict:
+    from .community_comparison import generate
+    from ..combat.preset_sync import submit
+    summary, reused = generate(body["class"], body["mode"], progress=log)
+    log("Common comparison saved; submitting anonymous allocations")
+    submission = submit(summary)
+    if submission is None:
+        submission = {"submitted": False, "reason": "The configured server does not support mode-specific common comparisons"}
+    log(submission.get("reason") or ("Community preset updated" if submission.get("accepted") else "Current community preset retained"))
+    return {"class": body["class"], "mode": body["mode"], "score": summary["score"],
+            "dps": summary["dps"], "model": summary["evaluation"]["model"],
+            "reused": reused, "submission": submission}
+
+
 def act_preset_refresh(body: dict, log) -> dict:
     from ..combat.preset_sync import sync, cached_presets
     log("Checking community presets")
@@ -150,6 +199,7 @@ def act_preset_refresh(body: dict, log) -> dict:
     return {"changed": changed, "checked": checked}
 
 
+@_model_action
 def act_optimize_class(body: dict, log) -> dict:
     from ..report import run_report
     cls = body["class"]
@@ -174,6 +224,7 @@ def act_optimize_class(body: dict, log) -> dict:
     return {**views.build_view(summary), "preset_submission": submission}
 
 
+@_model_action
 def encounter_view(enc_id: int) -> dict:
     from ..combat.analyze import analyze, vs_optimal, vs_top
     from ..db import store
@@ -196,6 +247,7 @@ def encounter_view(enc_id: int) -> dict:
     return a
 
 
+@_model_action
 def act_encounter_import(body: dict, log) -> dict:
     from ..combat import adapters, logs
     player = body.get("player") or None
@@ -271,6 +323,7 @@ def _inventory(key: str) -> tuple:
     return imp, inv
 
 
+@_model_action
 def act_advice(body: dict, log) -> dict:
     from ..plan.advisor import advise, write_markdown
     imp, inv = _inventory(body["character"])
@@ -573,6 +626,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"job": start_job("import", act_character_import, body)})
         if path == "/api/character/optimize":
             return self._json({"job": start_job("optimize-character", act_character_optimize, body)})
+        if path == "/api/planner/presets/contribute":
+            return self._json({"job": start_comparison(body)})
         if path == "/api/planner/presets/refresh":
             return self._json({"job": start_job("preset-refresh", act_preset_refresh, body)})
         if path == "/api/optimize":

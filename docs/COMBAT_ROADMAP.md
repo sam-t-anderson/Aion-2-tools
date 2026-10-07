@@ -20,7 +20,7 @@ Live Meter and the overlay now both have **Combine pets with owner**, enabled by
 
 ## Encounter catalog coverage (0.2.36)
 
-Live Meter fills difficulty only when the recorded PvE instance ID has an explicit difficulty in the bundled dungeon table. It does not infer difficulty from ID suffixes, damage, names or gear. Manual difficulty overrides remain available and their source is recorded. Content categories without a known mapping and the ranking game patch still require confirmation.
+Live Meter fills difficulty only when the recorded PvE instance ID has an explicit difficulty in the bundled dungeon table. It does not infer difficulty from ID suffixes, damage, names or gear. Manual difficulty overrides remain available and their source is recorded. Content categories without a known mapping and the ranking game build still require confirmation.
 
 Combat review on desktop and Pages includes **Mapping coverage** with recorded map/instance IDs, a catalog revision, unresolved NPC types and enemy references missing their type. **Export mapping report** downloads this bounded ID report without character names or raw traffic. Diagnostic ZIPs include current-view catalog coverage as well; the full combat log contains coverage per retained encounter. A supplied creature name does not automatically become a trusted catalog entry.
 
@@ -29,9 +29,9 @@ Reports keep at most 100 unresolved IDs per encounter and show omitted counts. E
 
 ## Automatic capture metadata and idle DPS (0.2.35)
 
-Live Meter detects the installed game build for registered Windows installs and resolves recorded server IDs against official regional metadata in the background. Installation paths are not exported. Steam build IDs and executable versions are build evidence, not automatically a game patch. Optional classification overrides take precedence within the recorded PvE/PvP mode.
+Live Meter detects the installed game build for registered Windows installs and resolves recorded server IDs against official regional metadata in the background. Installation paths are not exported. New Steam captures use the selected installation’s Build ID for comparisons; executable versions alone are insufficient. Optional classification overrides take precedence within the recorded PvE/PvP mode.
 
-Recorded map/instance IDs identify known open-world categories, Fire Temple Arena and available dungeon names. Unmapped content, difficulty, patch and match outcomes remain unknown. Detection provenance is visible in shared log review. Opponents without their own server ID are not assigned your server.
+Recorded map/instance IDs identify known open-world categories, Fire Temple Arena and available dungeon names. Unmapped content, difficulty, build and match outcomes remain unknown. Detection provenance is visible in shared log review. Opponents without their own server ID are not assigned your server.
 
 Live DPS uses the recorded damage interval and pauses after two seconds without damage while capture continues. Healing after the last damage no longer lowers live DPS. Actual new damage resumes it. Saved logs preserve the full event interval, including healing/deaths, so report rates can differ from the live rate. This does not establish a kill or match result.
 
@@ -46,7 +46,7 @@ Implemented per-run timing/progression, conservative observed wipes, best wipe H
 
 ## Insights roadmap — checkpoint 3 (0.2.25)
 
-Implemented observed party-size/instance cohorts for player comparisons, class distributions and personal bests; current same-patch and reconstructed at-upload standings for players and run speed; minimum sample/distinct identity gates, cap warnings, tie-aware empirical percentiles and provisional labels. Community and Pages filters expose party size. Historical reconstruction uses currently public retained uploads, not immutable snapshots. Gear brackets remain unavailable until encounter-time gear is reliable; upload-time profiles are insufficient. No cross-patch normalization is inferred.
+Implemented observed party-size/instance cohorts for player comparisons, class distributions and personal bests; current same-build and reconstructed at-upload standings for players and run speed; minimum sample/distinct identity gates, cap warnings, tie-aware empirical percentiles and provisional labels. Community and Pages filters expose party size. Historical reconstruction uses currently public retained uploads, not immutable snapshots. Gear brackets remain unavailable until encounter-time gear is reliable; upload-time profiles are insufficient. No cross-build normalization is inferred.
 
 ## Insights roadmap — checkpoint 4 (0.2.26)
 
@@ -86,17 +86,17 @@ Pending capture-quality follow-ups: additional OS/driver packet-drop counters, v
 
 ## Iteration 2 — 0.2.17 — community comparison and ownership
 
-- Encounter-type filters: Transcendence dungeon, daily dungeon, expedition, ascension trials, nightmare and sanctuary raids, plus Unknown for logs without reliable classification. Record type, difficulty and game patch on upload; preserve them in local history and server indexes.
-- A class-performance summary on desktop Combat Logs and Pages: distributions/box plots, median, quartiles, range and parse counts for the selected patch and encounter category. Expose data coverage; do not combine unrelated bosses, difficulties or patches into a misleading balance ranking.
+- Encounter-type filters: Transcendence dungeon, daily dungeon, expedition, ascension trials, nightmare and sanctuary raids, plus Unknown for logs without reliable classification. Record type, difficulty and game build on upload; preserve them in local history and server indexes.
+- A class-performance summary on desktop Combat Logs and Pages: distributions/box plots, median, quartiles, range and parse counts for the selected build and encounter category. Expose data coverage; do not combine unrelated bosses, difficulties or builds into a misleading balance ranking.
 
-- Player/run ranks by server, region and all submitted public community logs. Match boss, difficulty and patch, and report sample sizes; do not claim the dataset covers every player worldwide.
+- Player/run ranks by server, region and all submitted public community logs. Match boss, difficulty and build, and report sample sizes; do not claim the dataset covers every player worldwide.
 - Personal-record search/history using verified database character ID or name plus server.
 - A dedicated comparison workflow with selectable matching players, encounter filters and multiple runs. Iteration 1 provides basic recorded-DPS comparisons.
 - Edit published raid plans using locally stored owner credentials and authenticated updates that preserve the shared link. Add credential backup/import; author names must not grant ownership.
 
 Implemented: encounter metadata and local filters; shared community browser; separate class distributions and public rankings; personal record search; explicit multi-run comparison; authenticated plan updates with ownership backups. Classification is manually supplied when the capture cannot verify it. Rankings are recorded DPS, not gear-adjusted, and World covers community submissions.
 
-Build-point follow-up: correct the imported Daevanion denominator, remove the invented extra stigma point, expose all character point budgets as editable totals, and label imported resources as observed lower bounds. Automatic verification of unspent points remains dependent on profile/capture evidence. Edited totals persist per character; anonymous observations update highest-observed resources by class/region/patch/source. Saved Results preserves optimizer and advice snapshots with export/import.
+Build-point follow-up: correct the imported Daevanion denominator, remove the invented extra stigma point, expose all character point budgets as editable totals, and label imported resources as observed lower bounds. Automatic verification of unspent points remains dependent on profile/capture evidence. Edited totals persist per character; anonymous observations update highest-observed resources by class/region/build/source. Saved Results preserves optimizer and advice snapshots with export/import.
 
 ## Iteration 3 — protocol and replay enrichment
 
@@ -202,13 +202,13 @@ Mapping coverage also recognizes a known dungeon ID repeated in the map field. T
 
 ### Catalog follow-up
 
-Map 61 is categorized as Arena only when identified player combat is recorded, based on a user-confirmed arena capture. The exact arena name remains unverified. Map 600021 with matching known instance 600021 resolves to Fire Temple. Map 200003 remains unresolved: NPC dungeon references alone do not establish the recorded map's name or difficulty. Unknown patch/difficulty are retained rather than guessed.
+Map 61 is categorized as Arena only when identified player combat is recorded, based on a user-confirmed arena capture. The exact arena name remains unverified. Map 600021 with matching known instance 600021 resolves to Fire Temple. Map 200003 remains unresolved: NPC dungeon references alone do not establish the recorded map's name or difficulty. Unknown build/difficulty are retained rather than guessed.
 
 ## Combat log navigation and recovered builds (0.2.42)
 
 Combat Logs separates **Saved Parts**, **My Uploads** and **Community Combat Logs** on desktop and Pages. Desktop remembers the selected list tab while opening a focused log and returning; Pages preserves it while opening a local preview. Tabs hide their panels without resetting upload queues. Website Saved Parts means files selected from your computer, not direct access to the desktop archive directory. Arrow keys, Home and End navigate tabs.
 
-Completed-run speed and Boss progression are now permitted read-only community endpoints in the desktop proxy. Boss progression requires catalog-confirmed bosses with observed engagement and excludes players, pets, dummies and catalog non-bosses. Unmapped NPCs do not establish boss roles. The current catalog does not separate every miniboss from a major or world boss; comprehensive miniboss exclusion remains pending verified role metadata. Unknown patch/difficulty and ranking eligibility rules are unchanged.
+Completed-run speed and Boss progression are now permitted read-only community endpoints in the desktop proxy. Boss progression requires catalog-confirmed bosses with observed engagement and excludes players, pets, dummies and catalog non-bosses. Unmapped NPCs do not establish boss roles. The current catalog does not separate every miniboss from a major or world boss; comprehensive miniboss exclusion remains pending verified role metadata. Unknown build/difficulty and ranking eligibility rules are unchanged.
 
 **My Character → Imported before** lists the newest eight imports as buttons that fetch the current official profile. Macro/hotbar suggestions reserve **Right-click** instead of F. This is guidance; the app does not change game bindings.
 
@@ -232,23 +232,23 @@ Recovered old build titles show PvE/PvP and use the saved character sidecar name
 - Build viewer/planner/editor with profile links and return-to-log navigation. References: https://gamers4.life/aion-2/database/en/builds/ and https://questlog.gg/aion-2/en/character-builder . Reuse the focused character view and validate legal allocations before optimization/export.
 - News cards from permitted RSS/API feeds, showing publisher, timestamp, preview and source link; sanitize embedded content and avoid arbitrary iframe/HTML injection. Reference https://shugo.gg/news . Feed availability/reuse must be confirmed, not assumed from a news listing.
 - Interactive maps: verified zone/coordinate data, search/filters, provenance and permitted tile/icon assets. References https://a2db.ru/en/maps , https://shugo.gg/map , https://interactivemap.app/aion2/maps/ . These are references, not licensed datasets automatically available for copying.
-- Crafting simulator resembling the game: materials/quantities, output/rarity, chances/modifiers, explicit recipe/patch/region provenance and unknown values. Research database/wiki formulas and permitted images before modeling; keep deterministic costs distinct from probability estimates and do not invent chances.
+- Crafting simulator resembling the game: materials/quantities, output/rarity, chances/modifiers, explicit recipe/build/region provenance and unknown values. Research database/wiki formulas and permitted images before modeling; keep deterministic costs distinct from probability estimates and do not invent chances.
 
-Existing priorities remain: verified defensive/CC/mobility/opponent modeling, request reconciliation/archive stitching, combat protocol gaps and evidence-based catalog/patch/difficulty mapping. PvP analytics and operations dashboard continue in parallel with those user-requested checkpoints; expansions above do not imply already-completed features.
+Existing priorities remain: verified defensive/CC/mobility/opponent modeling, request reconciliation/archive stitching, combat protocol gaps and evidence-based catalog/build/difficulty mapping. PvP analytics and operations dashboard continue in parallel with those user-requested checkpoints; expansions above do not imply already-completed features.
 
 ### Installation and encounter inference follow-up
 
-Fix Steam-library discovery in v0.2.42; this machine has AION 2 app3393110 in the primary Steam manifest, build25719316, with a newer target update recorded. The installed manifest is evidence of installed build, not proof of the latest live patch or completed pending update.
+Fix Steam-library discovery in v0.2.42; this machine has AION 2 app3393110 in the primary Steam manifest, build25719316, with a newer target update recorded. The installed manifest is evidence of installed build, not proof of the latest live build or completed pending update.
 
-Next metadata checkpoint: enumerate validated Steam/PURPLE installations, provide a persistent local install/region selector when ambiguous, investigate launcher game registration/config/version files and official regional published patch feeds. Keep paths local and installed/published patch provenance separate; a newer website announcement cannot prove an old installation or historical log ran that patch. Move manual encounter corrections to post-recording once automatic classification is adequately supported.
+Next metadata checkpoint: enumerate validated Steam/PURPLE installations, provide a persistent local install/region selector when ambiguous, investigate launcher game registration/config/version files and official regional published build feeds. Keep paths local and installed/published build provenance separate; a newer website announcement cannot prove an old installation or historical log ran that build. Move manual encounter corrections to post-recording once automatic classification is adequately supported.
 
 Classify zone, content and difficulty independently using exact versioned map/instance/NPC IDs, explicit server difficulty flags, verified boss roles, boss sequence and reported maximum HP signatures. Damage/received damage are weak supporting signals due to gear/buffs/mitigation. Evaluate confidence calibration using independently labeled captures, held-out regions/builds and conflicting/missing evidence. Target >=99% measured precision before enabling probabilistic automatic labels; abstain where unsupported rather than inventing a percentage. No such classifier or confidence guarantee ships yet. User requests confidence-based classification without pre-recording manual choices; this remains a priority after discovery fixes.
 
-### Patch-versioned boss signature collection (before difficulty inference)
+### Build-versioned boss signature collection (before difficulty inference)
 
-Collect candidate signatures server-side from retained reported HP samples, grouped by region, installed build/verified patch, instance/map, NPC type, independently confirmed difficulty, party size and scaling/modifier conditions. Preserve source evidence, sample counts and catalog provenance. Separate explicit reported max HP from maximum observed current HP and incomplete captures. Derive ability-specific raw boss damage only when mitigation/buff/ability metadata makes it comparable; received damage alone is not a stable fingerprint.
+Collect candidate signatures server-side from retained reported HP samples, grouped by region, installed build/verified build, instance/map, NPC type, independently confirmed difficulty, party size and scaling/modifier conditions. Preserve source evidence, sample counts and catalog provenance. Separate explicit reported max HP from maximum observed current HP and incomplete captures. Derive ability-specific raw boss damage only when mitigation/buff/ability metadata makes it comparable; received damage alone is not a stable fingerprint.
 
-Promote candidates with verified game tables or repeated independently labeled recordings; do not use the classifier's own predicted labels as confirmation. Track ambiguity and collisions, detect patch shifts, retain old mappings for historical reports, and abstain on new/unverified patches until evidence supports a label. A unique verified maximum-HP signature plus boss/instance identity can be sufficient; overlapping/scaled values need explicit flags or additional evidence. Confidence thresholds need labeled held-out validation, not an invented certainty percentage. Candidate collection and promotion are planned server work, not enabled in v0.2.26.
+Promote candidates with verified game tables or repeated independently labeled recordings; do not use the classifier's own predicted labels as confirmation. Track ambiguity and collisions, detect build shifts, retain old mappings for historical reports, and abstain on new/unverified builds until evidence supports a label. A unique verified maximum-HP signature plus boss/instance identity can be sufficient; overlapping/scaled values need explicit flags or additional evidence. Confidence thresholds need labeled held-out validation, not an invented certainty percentage. Candidate collection and promotion are planned server work, not enabled in v0.2.26.
 
 ### Preset naming
 
@@ -256,11 +256,11 @@ Keep homepage/build-planner preset labels generic: `<class>_<level>_<region>_<Pv
 
 ### Installation selection checkpoint
 
-Implemented local persistent selection among detected Steam/registered Windows game copies, explicit multiple-copy and missing-copy states, recording-region dropdown, retained-session installation lock and writable first-use official region cache. Follow-up: unregistered PURPLE configuration discovery, verified official regional patch feed and patch-specific encounter signatures. Published patch labels must not be guessed from Steam build IDs or applied retrospectively to older logs.
+Implemented local persistent selection among detected Steam/registered Windows game copies, explicit multiple-copy and missing-copy states, recording-region dropdown, retained-session installation lock and writable first-use official region cache. Follow-up: unregistered PURPLE configuration discovery, verified official regional build feed and build-specific encounter signatures. Use exact launcher Build IDs and keep namespaces separate. Current installation evidence must not be applied retrospectively to older logs.
 
 ### Community log presentation and mixed modes
 
-Implemented the community list's Type/patch/difficulty cell replacement with event count, patch and catalog boss placeholders (PvE) or distinct opponent-class icons (PvP). The bundled AION 2 emblem is the fallback; verified boss portraits remain pending because the NPC catalog lacks image URLs. Mixed uploads with recorded segments of both modes appear in both lists with matching-segment totals, and open a mode-filtered viewer preserving original ranking indices. Follow-up: verified boss portraits and unambiguous per-effect mode evidence when one segment contains mixed activity.
+Implemented the community list's Type/build/difficulty cell replacement with event count, build and catalog boss placeholders (PvE) or distinct opponent-class icons (PvP). The bundled AION 2 emblem is the fallback; verified boss portraits remain pending because the NPC catalog lacks image URLs. Mixed uploads with recorded segments of both modes appear in both lists with matching-segment totals, and open a mode-filtered viewer preserving original ranking indices. Follow-up: verified boss portraits and unambiguous per-effect mode evidence when one segment contains mixed activity.
 
 ### Build visualization checkpoint
 
@@ -270,7 +270,7 @@ Implemented focused character pages shared by desktop/Pages with Back to log, re
 
 New imported loadouts preserve official equipment IDs/slots/icons/grades/enchants, and new optimizer raw reports freeze their simulation loadout for future review/rerender. Missing/broken equipment images show a placeholder; name fallback requires a unique match and does not choose one member of a grouped family. Follow-up: catalog stable-ID reconciliation and verified NPC/item/title asset coverage. Old reports without gear snapshots cannot be reconstructed retroactively.
 
-Server candidate collection now groups publicly retained engaged boss HP evidence by patch/build/region/NPC/map/instance and submitted difficulty/source/recorded complete roster size, keeping reported max HP separate from peak current HP. Dashboard/export flags changing or inconsistent maxima. Independent labels, scaling/modifiers, promotion and held-out precision validation remain pending; candidates do not classify difficulty or alter ranking eligibility.
+Server candidate collection now groups publicly retained engaged boss HP evidence by build/build/region/NPC/map/instance and submitted difficulty/source/recorded complete roster size, keeping reported max HP separate from peak current HP. Dashboard/export flags changing or inconsistent maxima. Independent labels, scaling/modifiers, promotion and held-out precision validation remain pending; candidates do not classify difficulty or alter ranking eligibility.
 
 ### Durable saved-part request retries
 
@@ -278,7 +278,7 @@ Saved Parts desktop/Pages queues persist/export random request IDs before sendin
 
 ### Official news foundation
 
-Desktop/Pages provide official English/global notice/update headline cards with publication/retrieval dates, category filters and original source links, backed by a fixed-source server cache. No article HTML or inferred installed/historical patch is used. Follow-up: verified regional patch/build matching, Korean/Taiwan sources, permitted additional feeds and regional event timers. News is included consistently in Pages navigation.
+Desktop/Pages provide official English/global notice/update headline cards with publication/retrieval dates, category filters and original source links, backed by a fixed-source server cache. No article HTML or inferred installed/historical build is used. Follow-up: verified regional build/build matching, Korean/Taiwan sources, permitted additional feeds and regional event timers. News is included consistently in Pages navigation.
 
 ### Official asset-reference coverage
 

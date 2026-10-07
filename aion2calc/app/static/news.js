@@ -1,4 +1,4 @@
-/* Official headline cards; no article HTML or inferred patch assignment. */
+/* Official headline cards; no article HTML or inferred build assignment. */
 (function(){
   'use strict';
   const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -10,7 +10,7 @@
       if(!root.isConnected)return;
       const rows=(Array.isArray(data?.entries)?data.entries:[]).slice(0,20).filter(r=>filter==='All'||r.category===filter);
       root.innerHTML=`<section class="note"><div class="row"><h2>Official AION 2 news</h2><button class="btn small" data-refresh ${busy?'disabled':''}>Refresh</button><label>Show <select data-filter>${['All','Notices','Updates'].map(v=>`<option ${v===filter?'selected':''}>${v}</option>`).join('')}</select></label></div>
-        <p class="small muted">English/global headlines from the official site. Announcement dates do not identify the patch installed on your computer or used in a past combat log.</p>
+        <p class="small muted">English/global headlines from the official site. Announcement dates do not identify the build installed on your computer or used in a past combat log.</p>
         <p><a href="https://aion2.plaync.com/en-us/board/notice/list" target="_blank" rel="noopener noreferrer">Official notices</a> · <a href="https://aion2.plaync.com/en-us/board/update/list" target="_blank" rel="noopener noreferrer">Official updates</a></p>
         <div role="status" aria-live="polite">${esc(busy?'Loading official headlines…':error||(!data?'':data.status==='ready'?'Official sources loaded.':'Some official sources are unavailable; retained headlines may be stale.'))}</div>
         <div class="news-cards">${rows.map(r=>{const url=official(r.url);if(!url)return '';return `<article class="news-card"><div class="row"><span class="chip">${esc(r.category)}</span><span class="small muted">${esc(date(r.published_at))}</span></div><h3><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(r.title)}</a></h3><p class="small muted">${esc(r.publisher||'Official AION 2 site')}${r.retrieved_at?' · retrieved '+esc(date(r.retrieved_at*1000)):''}</p><a class="btn small" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Read on official site ↗</a></article>`;}).join('')||(!busy?'<p>No retained headlines match this filter. Use the official source links above.</p>':'')}</div>

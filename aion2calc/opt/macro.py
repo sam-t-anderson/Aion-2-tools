@@ -1,6 +1,6 @@
 """Turn an optimized priority list into an AION 2 in-game Skill Macro + manual keys.
 
-The in-game Skill Macro (added in the KR 2026-01-28 patch) runs while its key
+The in-game Skill Macro (added in the KR 2026-01-28 build) runs while its key
 is held, trying each step in order with a per-step delay; manual presses always
 take priority.  We put the short-cooldown core in the macro (fillers last) and
 leave long-cooldown burst skills on their own keys, then simulate the macro's

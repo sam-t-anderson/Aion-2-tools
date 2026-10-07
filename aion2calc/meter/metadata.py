@@ -121,7 +121,8 @@ def _build_evidence(root):
                 if fields.get("installdir", "").casefold() != root.name.casefold():
                     continue
                 if fields.get("buildid", "").isdigit():
-                    return {"installed_build": fields["buildid"], "installed_build_source": "Steam app manifest", "status": "ready"}
+                    return {"installed_build": fields["buildid"], "installed_build_source": "Steam app manifest",
+                            "installed_build_namespace": "steam:" + fields.get("appid", ""), "status": "ready"}
             except (OSError, UnicodeError):
                 continue
     for binary in (root / "Aion2/Binaries/Win64/AION2.exe", root / "AION2.exe"):
@@ -241,6 +242,8 @@ class CaptureMetadata:
     def snapshot(self, server=None):
         with self.lock:
             matches = [region for region, servers in self.regions.items() if str(server) in servers]
-            return {**self.build, "region": matches[0] if len(matches) == 1 else None,
+            from .builds import resolve
+            region = matches[0] if len(matches) == 1 else None
+            return {**self.build, **resolve(self.build), "region": region,
                     "region_status": self.region_status,
                     "region_source": "Official server metadata + recorded server ID" if len(matches) == 1 else None}

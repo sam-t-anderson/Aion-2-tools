@@ -12,6 +12,8 @@ For controls and setup, see the [app guide](app.md) and [user guide](user-guide.
 - [Simulation and scenarios](#simulation-and-scenarios)
 - [Optimization and macro planning](#optimization-and-macro-planning)
 - [Experimental PvP model](#experimental-pvp-model)
+- [Canonical preset comparison policy](#canonical-preset-comparison-policy)
+- [Manual Genus Insight](#manual-genus-insight)
 - [Damage optimization with an HP reserve](#damage-optimization-with-an-hp-reserve)
 - [Assumptions and limitations](#assumptions-and-limitations)
 - [Validation and sensitivity](#validation-and-sensitivity)
@@ -23,7 +25,7 @@ For controls and setup, see the [app guide](app.md) and [user guide](user-guide.
 
 ## Data sources and model scope
 
-The bundled model targets the global level-45 dataset. It is a versioned data snapshot, not a guarantee that every coefficient matches the latest regional live patch. Korean data fills specified gaps; region and source differences remain relevant.
+The bundled model targets the global level-45 dataset. It is a versioned data snapshot, not a guarantee that every coefficient matches the latest regional live build. Korean data fills specified gaps; region and source differences remain relevant.
 
 * **Primary data source = the global client**, as published by
   [metabot.gg](https://metabot.gg/en/aion-2), which reads the global client's
@@ -233,7 +235,7 @@ means it is robust to these unknowns.
 
 ## Validation and sensitivity
 
-The following are historical Sorcerer comparison examples for the bundled dataset, not a current guarantee for every class, patch, gear set or encounter.
+The following are historical Sorcerer comparison examples for the bundled dataset, not a current guarantee for every class, build, gear set or encounter.
 
 * Simulated Sorcerer damage shares match the A2DIL top-KR dummy logs closely
   (Hellfire ~20 %, Fire Wall ~15 %, Cold Storm ~10–12 %, Blaze ~11–14 %,
@@ -250,17 +252,17 @@ See the [user guide](user-guide.md) for matched comparison cohorts, ranking elig
 
 ## Installation, identity and live rate evidence
 
-Live Meter reads installed build evidence from Steam library manifests and recognized Windows game registrations, including PURPLE registrations. It resolves recorded server IDs against official regional metadata in the background. Installation paths are not exported. Steam build IDs and executable versions are build evidence, not automatically a game patch. Optional classification overrides take precedence within the recorded PvE/PvP mode.
+Live Meter reads installed build evidence from Steam library manifests and recognized Windows game registrations, including PURPLE registrations. It resolves recorded server IDs against official regional metadata in the background. Installation paths are not exported. New Steam captures use the exact selected-installation Build ID, qualified by the Steam app namespace, as their technical build comparison key. Executable resources can contain engine versions and are not promoted to game build identifiers. Unrecognized PURPLE build metadata remains unavailable; launcher namespaces are not merged without verified equivalence. Capture records this evidence for its session and never retrospectively applies a current install build to historical logs. Optional classification overrides take precedence within the recorded PvE/PvP mode.
 
-Recorded map/instance IDs identify known open-world categories, Fire Temple Arena and available dungeon names. Unmapped content, difficulty, patch and match outcomes remain unknown. Detection provenance is visible in shared log review. Opponents without their own server ID are not assigned your server.
+Recorded map/instance IDs identify known open-world categories, Fire Temple Arena and available dungeon names. Unmapped content, difficulty, build and match outcomes remain unknown. Detection provenance is visible in shared log review. Opponents without their own server ID are not assigned your server.
 
 Live DPS uses the recorded damage interval and pauses after two seconds without damage while capture continues. Healing after the last damage does not extend the live damage interval. Actual new damage resumes it. Saved logs preserve the full event interval, including healing/deaths, so report rates can differ from the live rate. This does not establish a kill or match result.
 
-Unknown difficulty is not guessed from boss damage or observed current HP. Patch-specific maximum-HP signatures and corroborating evidence require independently labeled collection and validation before automatic inference. Installed build evidence, current published patch and the patch of a historical log are separate claims.
+Unknown difficulty is not guessed from boss damage or observed current HP. Build-specific maximum-HP signatures and corroborating evidence require independently labeled collection and validation before automatic inference. Current installation evidence is never applied retrospectively to historical logs.
 
 ## Encounter catalog and boss roles
 
-Live Meter fills difficulty only when the recorded PvE instance ID has an explicit difficulty in the bundled dungeon table. It does not infer difficulty from ID suffixes, damage, names or gear. Manual difficulty overrides remain available and their source is recorded. Content categories without a known mapping and the ranking game patch still require confirmation.
+Live Meter fills difficulty only when the recorded PvE instance ID has an explicit difficulty in the bundled dungeon table. It does not infer difficulty from ID suffixes, damage, names or gear. Manual difficulty overrides remain available and their source is recorded. Content categories without a known mapping still require confirmation. Missing unique launcher build evidence stays unavailable.
 
 Combat review on desktop and Pages includes **Mapping coverage** with recorded map/instance IDs, a catalog revision, unresolved NPC types and enemy references missing their type. **Export mapping report** downloads this bounded ID report without character names or raw traffic. Diagnostic ZIPs include current-view catalog coverage as well; the full combat log contains coverage per retained encounter. A supplied creature name does not automatically become a trusted catalog entry.
 

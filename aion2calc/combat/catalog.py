@@ -58,4 +58,4 @@ def coverage(segment):
             "npc_entities_without_type": missing,
             "note": "Unmapped means absent from this bundled catalog, not a verified new creature or zone. "
                     "IDs without an NPC type cannot be named reliably. Counts describe retained records, not unique kills. "
-                    "Names, difficulty, category and game patch are never guessed from damage or ID patterns."}
+                    "Names, difficulty, category and game build are never guessed from damage or ID patterns."}

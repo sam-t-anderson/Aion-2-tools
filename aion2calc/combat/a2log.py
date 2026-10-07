@@ -80,8 +80,8 @@ SCHEMA = {
             "title": {"type": "string"}, "region": {"type": "string"}, "server": {"type": "string"},
             "recorded_at": {"type": "string", "format": "date-time"},
             "zone": {"type": "string"}, "difficulty": {"type": "string"},
-            "installed_build": {"type": "string"}, "installed_build_source": {"type": "string"}, "region_source": {"type": "string"},
-            "game_patch": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
+            "installed_build": {"type": "string"}, "installed_build_namespace": {"type": "string"}, "installed_build_cohort": {"type": "string"}, "installed_build_source": {"type": "string"}, "region_source": {"type": "string"},
+            "game_patch": {"type": "string"}, "game_patch_source": {"type": "string"}, "game_patch_basis": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
             "capture_active": {"type": "boolean"}, "checkpoint_at": {"type": "number"},
             "capture_scope": {"enum": ["party", "self", "all"]},
             "archive": {"type":"object", "properties":{"id":{"type":"string"}, "part":{"type":"integer", "minimum":1}, "closed":{"type":"boolean"}}},
@@ -127,7 +127,7 @@ _segment_properties.update({
     "party_members":{"type":"array", "maxItems":64, "items":{"type":"string"}}, "party_roster_complete":{"type":"boolean"},
     "instance_id":{"type":"integer"}, "map_id":{"type":"integer"},
     "zone_source":{"type":"string"}, "encounter_type_source":{"type":"string"}, "difficulty_source":{"type":"string"},
-    "game_patch": {"type": "string"}, "difficulty": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
+    "game_patch": {"type": "string"}, "game_patch_source": {"type": "string"}, "game_patch_basis": {"type": "string"}, "difficulty": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
     "entities": {"type": "array", "maxItems": 2000, "description": "Observed enemies and pets: id, name, kind, mob_code, is_boss, owner"},
     "events": {"type": "array", "maxItems": LIMITS["hits"], "description": "Recorded damage/heal/death effects: t, kind, source, target, skill, skill_id, amount; unknown recipients omitted"},
     "health": {"type": "array", "maxItems": LIMITS["hp"], "description": "Entity HP samples: t, entity, current, optional max"},
@@ -354,7 +354,7 @@ def validate(doc) -> dict:
         for key in ("instance_id", "map_id"):
             if isinstance(s.get(key),int) and 0 <= s[key] <= 2**32-1:
                 out_segs[-1][key] = s[key]
-        for key in ("game_patch", "difficulty", "encounter_type"):
+        for key in ("game_patch", "game_patch_source", "game_patch_basis", "difficulty", "encounter_type"):
             if isinstance(s.get(key), str):
                 if key == "encounter_type" and s[key] not in ENCOUNTER_TYPES:
                     raise Invalid("Unknown segment encounter_type")

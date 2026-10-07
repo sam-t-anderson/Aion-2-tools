@@ -444,7 +444,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "flame_arrow") -> Kit:
                          skill_speed=sspeed, on_cast=nuke, element=elem)
 
     policy = default_policy(A, filler)
-    # skills this hand-written kit does not know (added by a patch) fall back to the
+    # skills this hand-written kit does not know (added by a build) fall back to the
     # generic tooltip-driven model, so new content is simulated without code changes
     known = {a.skill_id for a in A.values()} | set(SID.values())
     unknown = {sid for sid, s in cd.skills.items() if sid not in known and s["kind"] in ("active", "stigma")}

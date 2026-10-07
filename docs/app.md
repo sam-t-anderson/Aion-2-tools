@@ -96,6 +96,8 @@ Planner lists one community PvE and PvP preset per class when the configured ser
 
 Comparison resources and common gear make eligible builds comparable within a class, mode and scoring policy. These scores are not player rankings or win probabilities. PvP remains experimental. Eligible optimizations submit anonymous allocations for server evaluation; personal Genus/HP/trained-minimum constraints and larger resource budgets require a separate common-loadout optimization. Open **Saved Results** for all your personal runs and advice.
 
+**Overview → Contribute a community comparison → Generate community comparison** runs a separate anonymous optimization with the common gear and budgets. It searches both mode-specific scenarios once and keeps the better weighted score. Personal gear, Genus, trained minimums, HP reserves and larger point totals are not inputs; your personal result is retained. Progress survives tab navigation in the current app session. Model calculations wait for other optimizer/advice jobs to finish. A completed comparison is cached by scoring inputs and reused across restarts; **Resubmit saved comparison** retries submission without another search. A network failure retains that cache. Closing the app during calculation interrupts it, and the next request restarts an unfinished search.
+
 The **Optimize** button runs a new optimization for any class in the selected PvE or experimental PvP damage mode. Outputs are saved separately by mode. Skill, Stigma and Daevanion budgets are configurable. Presets are examples, not character progression maxima.
 
 Set up **Skills hotbar** first, then copy the numbered **Macro & rotation** steps. The macro binding suggestion is **Right-click**. Skills that require charging stay on manual keys; the app does not change game bindings.
@@ -127,7 +129,7 @@ The official profile does not provide Genus Insight allocations. **Advanced JSON
 
 Completed character/class optimizations and advice save automatically under the app data folder's `history` directory. Open **Saved Results**, select Open to review a previous run, or Export/Import its result JSON. Import restores a snapshot; it does not run an optimization or change your equipped gear. The latest existing old build/advice files are recovered when available. Keep exported copies to move runs between installations. Advice reflects the saved run, not future game or gear changes.
 
-Edited point totals persist per character on this installation. Enter spent + unspent resources. Anonymous totals are sent after character optimization and accumulate as highest observed resources on the community service, grouped by class/region/patch/source. Unknown patch observations stay separate, and observed totals are not verified game caps.
+Edited point totals persist per character on this installation. Enter spent + unspent resources. Anonymous totals are sent after character optimization and accumulate as highest observed resources on the community service, grouped by class/region/build/source. Unknown build observations stay separate, and observed totals are not verified game caps.
 
 New raw optimizer reports include their simulation loadout, equipment IDs, available official icons and enchant levels. Reopening or rerendering those reports uses saved gear rather than a later character import. Older raw reports without this snapshot show a legacy gear-source notice; their original gear cannot be recovered from a newer profile. Existing Saved Results are already stored view snapshots and remain unchanged.
 
@@ -201,15 +203,21 @@ Use **Hide overlay** to hide it and **Open overlay** to show it again. Drag its 
 
 Live Meter reads installed build evidence from Steam library manifests, including alternate library drives, and recognized Windows/PURPLE game registrations. Installation paths are not exported. Recorded home server IDs are matched against official regional catalogs; opponents without their own server ID are not assigned your server.
 
-Recognized map/instance IDs supply supported zone and content metadata. Difficulty is filled only when the recorded PvE instance has an explicit catalog value. Optional overrides have their source recorded. Unknown patch, difficulty and match outcomes remain unknown. Installed build IDs and executable versions do not establish the published regional patch or the patch used by a historical log. Choose a detected installation when multiple copies are present. Unregistered PURPLE installations, published regional patch matching and verified difficulty-signature inference remain planned work.
+Recognized map/instance IDs supply supported zone and content metadata. Difficulty is filled only when the recorded PvE instance has an explicit catalog value. Optional overrides have their source recorded. Unknown build, difficulty and match outcomes remain unknown. New Steam captures use the selected installation’s Build ID. Executable versions alone do not identify a unique launcher build, and current installation evidence is never applied to historical logs. Choose a detected installation when multiple copies are present. Unregistered PURPLE installation discovery, launcher namespace equivalence and verified difficulty-signature inference remain planned work.
 
 Live DPS pauses after two seconds without damage while capture continues, and resumes when damage returns. Healing does not extend the live damage interval. Saved reports use the full retained event interval, so their rates can differ. This does not establish a kill.
+
+### Installation build numbers
+
+New live Steam captures automatically use the selected installation's exact Build ID as the comparison identifier. Reports display **Build 25767555 · Steam**, for example; the stored key also retains the Steam app ID to separate launcher namespaces. Clear the optional game build override to use automatic detection. Capture freezes the selected installation's build evidence for that session; saved logs retain it and are not rewritten using today's installation.
+
+Generic executable/engine versions do not identify a unique game build; PURPLE installs without a recognized launcher build ID remain unavailable. Build evidence alone does not establish encounter difficulty, authenticity or complete capture.
 
 ### Choosing a game installation
 
 In Live Meter, **Game installation → Refresh installations** lists Steam library manifests and recognized Windows game registrations. Select the copy you play if several are installed. Auto chooses only when one copy is found. The choice is stored locally and takes effect at capture start. A missing selected installation stays unavailable until you choose another; a launcher installation without a recognized game registration may not appear.
 
-Save or export retained combat, stop capture, then clear the session before changing the installation. Restarting live capture with retained combat keeps that session's installed-build evidence. Installed versions are evidence from local files, separate from the published patch used for rankings. The region dropdown is an optional recording override; Auto resolves from the recorded home-server ID and official server metadata. Other actors retain their own recorded identities.
+Save or export retained combat, stop capture, then clear the session before changing the installation. Restarting live capture with retained combat keeps that session's installed-build evidence. The selected Steam Build ID supplies the comparison build; executable versions alone are insufficient. The region dropdown is an optional recording override; Auto resolves from the recorded home-server ID and official server metadata. Other actors retain their own recorded identities.
 
 ## Long recordings and archive parts
 
@@ -232,7 +240,7 @@ Skill images use the desktop icon cache or metabot.gg on the website; unavailabl
 
 Choose **Table**, **Timeline** or **Events** for the detailed metrics. Graph and timeline visibility controls are separate. Damage Done, Damage Taken, Healing and Death recaps describe recorded effects; unavailable telemetry is not shown as zero.
 
-Community lists show recorded-event count, patch and encounter icons. PvP classes are deduplicated; unknown classes, absent bosses and unavailable portraits use an AION 2 emblem. Open a community entry to review only its selected combat mode, or choose **All recorded modes** in the focused viewer. Mode filters select recorded encounters and retain their original ranking indices; they do not infer the mode of ambiguous effects within a single encounter. Whole-run progression is available in the unfiltered view.
+Community lists show recorded-event count, build and encounter icons. PvP classes are deduplicated; unknown classes, absent bosses and unavailable portraits use an AION 2 emblem. Open a community entry to review only its selected combat mode, or choose **All recorded modes** in the focused viewer. Mode filters select recorded encounters and retain their original ranking indices; they do not infer the mode of ambiguous effects within a single encounter. Whole-run progression is available in the unfiltered view.
 
 Click a character to open its focused build page, then **Back to log** to restore the same review selections. Saved official profiles display the available portrait, stats, equipment slots, skills, passives, stigmas, pet/wings and boards. Full recorded build information retains all source sections, including rolls and specialties. Current official lookups remain previews and never replace historical profiles. Missing assets and pet genus stay unavailable when not supplied.
 
@@ -305,7 +313,7 @@ Upload a retained fight or saved part to the server selected in Settings. Choose
 
 ## Community comparisons
 
-Use Combat Logs to browse public submissions by type, boss, patch, difficulty and region. Class distributions stay in separate encounter buckets and show parse counts. Search personal records using server ID plus name, or database character ID. World ranks cover this community's public submissions only. Missing classification prevents ranking; open a local saved session to add verified metadata.
+Use Combat Logs to browse public submissions by type, boss, build, difficulty and region. Class distributions stay in separate encounter buckets and show parse counts. Search personal records using server ID plus name, or database character ID. World ranks cover this community's public submissions only. Missing classification prevents ranking; open a local saved session to add verified metadata.
 
 Add multiple comparison logs and select matching encounters and players explicitly. Differences are recorded DPS, not gear-adjusted scores.
 
@@ -319,7 +327,7 @@ Publish stores a unique owner credential locally. Update published plan keeps th
 
 **News** on desktop and Pages lists official English/global notice and update headlines. Filter Notices/Updates and open the original article on NCSoft's site. Publication and retrieval dates are separate; cached headlines can be stale when a source is unavailable. The source-list links remain available when the configured community server cannot serve the feed. All Pages tabs share the same banner and News option.
 
-Announcement dates do not prove the installed game build or patch used by an older combat log, and do not automatically set ranking patches. Korean/Taiwan feeds and automatic patch-to-build matching remain unavailable.
+Announcement dates do not prove the build installed on your computer or used by an older combat log. Korean/Taiwan feeds remain unavailable.
 
 ## Settings
 
@@ -371,7 +379,7 @@ When the app starts, a background sync checks for new and changed data. The sync
   (`aion2calc/data/seed/items.json.gz`), so only the changes are fetched.
 * **Limits.** The sync is time-boxed (15 minutes per launch) and resumable. A
   page whose layout changed is skipped, and the old data is kept.
-* **New skills.** A skill that appears in a patch is simulated from its tooltip
+* **New skills.** A skill that appears in a build is simulated from its tooltip
   by the generic kit, even for classes with a hand-written kit.
 
 To sync by hand, use **Settings → Game database → Check now** (or **Full re-sync**
