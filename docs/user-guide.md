@@ -241,7 +241,13 @@ Open a log to see its own detail page, then use **Back to combat logs** to retur
 
 ### Resume uploads
 
-Use **Restore saved queue** after reopening Combat Logs. Pages asks you to reselect the original files. **Export recovery file** creates a portable queue backup; it contains no upload keys or ownership credentials. Matching fingerprints let the queue skip known successes. Check My uploads before explicitly retrying an uncertain request, since the server may already have accepted it. Clearing a queue clears its recovery checkpoint too.
+**Combat Logs → Saved parts → Restore saved queue** restores the last queue saved on this computer. On Pages, it restores the last queue in this browser/site storage; reselect the original JSON files before resuming. Recovery metadata is saved after selections and before/after each request. Keep only one active queue per computer/browser; concurrent windows are not coordinated. A local-storage or disk write failure stops further uploads.
+
+**Export recovery file** / **Import recovery file** moves a queue checkpoint between launches or computers. It stores filenames, titles, SHA-256 fingerprints, original server/visibility, statuses and report IDs. It does not include combat documents, upload keys, owner credentials or private links. Select the same server and supply any required key through ordinary settings. Keep **My uploads → Export private credentials** as a separate ownership backup. The older results manifest is for reporting outcomes, not recovery.
+
+The file fingerprint must match before a successful entry is skipped or another request is sent. A changed file stops the queue; remove it or clear/review a new queue. A missing file must be restored or removed. Pages can reattach uniquely named files after copying; fingerprints still verify content. Recovery files are user-editable local records, not authenticated server receipts or upload ownership.
+
+Requests interrupted during upload restore as **unknown**. Check **My uploads**/the original server before checking the explicit uncertain-retry option. The server may already have accepted a request even if the response was lost; explicit retry can duplicate it. Known successful uploads are skipped, but this is not durable server idempotency. No automatic upload starts when restoring or importing. Private report links must be reopened through My uploads, since recovery files intentionally omit them. Clearing a queue also clears its saved checkpoint, without deleting logs or uploads.
 
 ### Preserve HP while optimizing
 
