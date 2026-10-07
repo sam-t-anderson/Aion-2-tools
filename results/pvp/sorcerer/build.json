@@ -1,0 +1,1557 @@
+{
+ "class": "sorcerer",
+ "level": 45,
+ "mode": "pvp",
+ "scenario": "pvp",
+ "loadout": "sorcerer_l45_global_median",
+ "loadout_snapshot": {
+  "name": "Global L45 Sorcerer - median of top tracked characters (metabot, Oct 2026)",
+  "level": 45,
+  "notes": [
+   "Item choices and enchant levels are the most common ones among the 1,559 top tracked L45 Sorcerers (metabot.gg, global client, Oct 2026).",
+   "Fixed item stats come from the global client item tables; random rolls use the expected value of each roll pool.",
+   "Primary/deity stat points are the averages those characters' official profiles report (they already include gear rolls)."
+  ],
+  "components": [
+   {
+    "slot": "Main hand",
+    "item": "Spiritforged Spellbook +10",
+    "source": "metabot item table (206-229, +5/enchant)",
+    "stats": {
+     "weapon_min": 256,
+     "weapon_max": 279,
+     "crit": 116,
+     "accuracy": 100,
+     "mp_max": 57
+    }
+   },
+   {
+    "slot": "Off-hand",
+    "item": "Spiritforged Guard +9",
+    "source": "Attack 92 +5/enchant",
+    "stats": {
+     "attack": 137,
+     "accuracy": 80,
+     "crit": 50
+    }
+   },
+   {
+    "slot": "Armor x7",
+    "item": "Vakron / Bakarma / Divine Canyon ~+5",
+    "source": "expected value of 4 random rolls per piece",
+    "stats": {
+     "crit": 42,
+     "accuracy": 56,
+     "attack": 24
+    }
+   },
+   {
+    "slot": "Necklace",
+    "item": "Aulamus Necklace +8",
+    "stats": {
+     "attack": 139
+    }
+   },
+   {
+    "slot": "Earrings x2",
+    "item": "Aulamus / Liberator Earrings ~+6",
+    "stats": {
+     "attack": 220
+    }
+   },
+   {
+    "slot": "Rings x2",
+    "item": "Aulamus Ring ~+7",
+    "stats": {
+     "attack": 198
+    }
+   },
+   {
+    "slot": "Accessory rolls",
+    "item": "expected value of 4 rolls x 5 accessories",
+    "stats": {
+     "attack": 34,
+     "crit": 45,
+     "accuracy": 60,
+     "combat_speed": 0.003
+    }
+   },
+   {
+    "slot": "Bracelets x2",
+    "item": "Ascension +9 / Liberator +6",
+    "stats": {
+     "attack": 157,
+     "crit": 17
+    }
+   },
+   {
+    "slot": "Amulet",
+    "item": "Revelation Amulet +0",
+    "stats": {
+     "weapon_amp": 0.1,
+     "perfect": 0.05,
+     "pen": 700
+    }
+   },
+   {
+    "slot": "Rune",
+    "item": "Clash Rune +2",
+    "stats": {
+     "amp_pve": 0.005,
+     "pen": 100,
+     "combat_speed": 0.01,
+     "multihit": 0.01
+    }
+   },
+   {
+    "slot": "Attack title",
+    "item": "Guardian of Altgard / Verteron",
+    "stats": {
+     "amp_pve": 0.03,
+     "pen": 210
+    }
+   },
+   {
+    "slot": "Other title",
+    "item": "Through Hell and Back",
+    "stats": {
+     "cdr": 0.03
+    }
+   },
+   {
+    "slot": "Owned titles",
+    "item": "collection bonuses (estimate)",
+    "stats": {
+     "crit": 20,
+     "accuracy": 30,
+     "attack": 4
+    }
+   },
+   {
+    "slot": "Wings",
+    "item": "Ultimate Daeva Wings",
+    "stats": {
+     "accuracy": 40,
+     "pen": 500
+    }
+   },
+   {
+    "slot": "Primary/deity stats",
+    "item": "profile averages",
+    "stats": {
+     "might": 21.3,
+     "precision": 1.2,
+     "time": 38.7,
+     "justice": 38.6,
+     "death": 34.1,
+     "freedom": 24.1,
+     "destruction": 5.3,
+     "wisdom": 5.2,
+     "illusion": 5.3
+    }
+   }
+  ]
+ },
+ "budgets": {
+  "skill": 203,
+  "stigma": 30,
+  "daevanion": 360
+ },
+ "daevanion_budget": 360,
+ "dps": {
+  "pvp": 5736.8506306021845,
+  "pvp_burst": 9220.360954402384
+ },
+ "score": 7478.605792502284,
+ "scoring_policy": {
+  "version": 1,
+  "model": "0.2.58",
+  "class": "sorcerer",
+  "mode": "pvp",
+  "budgets": {
+   "skill": 203,
+   "stigma": 30,
+   "daevanion": 360
+  },
+  "loadout": "sorcerer_l45_global_median",
+  "loadout_fingerprint": "9f8357937d5ed3923f46a4117de65ffa4b66ac1d1b23c6ecec5b3d3060d92a17",
+  "data_fingerprint": "d452292e6f47890e8f47c05d64b12fdf355c885f0f5981d7b7d1ebe18ebbea5e",
+  "score_kind": "weighted_modeled_dps",
+  "weights": {
+   "pvp": 0.5,
+   "pvp_burst": 0.5
+  },
+  "durations": {
+   "pvp": 180,
+   "pvp_burst": 30
+  },
+  "calibration": "disabled",
+  "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
+  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
+  "scope": "5bee580f3265bd13607794b091a7a9954757f77cdd09f659c57fd464cd128e04"
+ },
+ "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
+ "build": {
+  "sp": {
+   "Firestorm": 10,
+   "Hellfire": 10,
+   "Winter's Shackles": 6,
+   "Frost": 7,
+   "Flame Arrow": 10,
+   "Frost Burst": 10,
+   "Bittercold Wind": 10,
+   "Wish of Concentration": 9,
+   "Cold Snap": 8,
+   "Robe of Flame": 10,
+   "Grace of Enhancement": 7,
+   "Revitalization Contract": 2,
+   "Vitality Evaporation": 10
+  },
+  "stigmas": {
+   "Glacial Smite": 5,
+   "Assault Bombardment": 5,
+   "Element Enhancement": 5,
+   "Delayed Explosion": 10
+  },
+  "specs": {
+   "Flame Arrow": [
+    "+20% MP restored",
+    "+50% Multi-Hit on hit"
+   ],
+   "Firestorm": [
+    "+20% Skill Speed",
+    "-2s [Hellfire] cooldown per fireball"
+   ],
+   "Bittercold Wind": [
+    "+1s [Bittercold Wind] summon duration",
+    "Ignores Block and Evasion and lands as a Critical Hit"
+   ],
+   "Wish of Concentration": [
+    "Reduces MP Cost by 10%",
+    "+10% additional Attack"
+   ],
+   "Hellfire": [
+    "+30% Skill Speed",
+    "Ignores Block and Evasion and lands as Multi-Hit"
+   ],
+   "Frost": [
+    "-5s cooldown"
+   ],
+   "Winter's Shackles": [
+    "+20% PvE Damage Boost and +10% PvP Damage Boost for 5s on landing [Winter's Shackles]"
+   ],
+   "Frost Burst": [
+    "Absorbs 700, 700% HP",
+    "Ignores Block and Evasion and lands as a Critical Hit"
+   ]
+  },
+  "daevanion_nodes": [
+   610033,
+   610034,
+   610035,
+   610039,
+   610041,
+   610042,
+   610043,
+   610048,
+   610050,
+   610051,
+   610052,
+   610054,
+   610058,
+   610067,
+   610068,
+   610069,
+   610071,
+   610072,
+   610073,
+   610084,
+   610086,
+   610093,
+   610094,
+   610098,
+   610099,
+   610100,
+   610101,
+   610102,
+   610108,
+   610115,
+   610123,
+   610124,
+   610125,
+   610126,
+   610127,
+   610129,
+   610130,
+   610131,
+   610138,
+   610142,
+   610144,
+   610155,
+   610157,
+   610158,
+   610159,
+   610161,
+   610162,
+   610170,
+   610171,
+   610172,
+   610174,
+   610175,
+   610176,
+   610183,
+   610184,
+   610185,
+   610191,
+   610192,
+   610193,
+   620040,
+   620041,
+   620048,
+   620050,
+   620055,
+   620058,
+   620063,
+   620064,
+   620065,
+   620067,
+   620069,
+   620070,
+   620071,
+   620072,
+   620073,
+   620078,
+   620082,
+   620084,
+   620086,
+   620093,
+   620094,
+   620095,
+   620097,
+   620099,
+   620101,
+   620102,
+   620109,
+   620112,
+   620114,
+   620123,
+   620124,
+   620125,
+   620126,
+   620127,
+   620129,
+   620131,
+   620133,
+   620142,
+   620144,
+   620145,
+   620146,
+   620148,
+   620156,
+   620157,
+   620161,
+   620162,
+   620163,
+   620171,
+   620176,
+   620184,
+   620185,
+   620186,
+   620187,
+   620188,
+   620190,
+   620191,
+   630033,
+   630039,
+   630040,
+   630048,
+   630050,
+   630051,
+   630052,
+   630054,
+   630063,
+   630064,
+   630065,
+   630067,
+   630068,
+   630069,
+   630071,
+   630072,
+   630082,
+   630084,
+   630087,
+   630093,
+   630097,
+   630098,
+   630102,
+   630103,
+   630108,
+   630118,
+   630123,
+   630124,
+   630125,
+   630126,
+   630127,
+   630128,
+   630129,
+   630130,
+   630131,
+   630132,
+   630133,
+   630139,
+   630144,
+   630147,
+   630157,
+   630158,
+   630159,
+   630162,
+   630163,
+   630170,
+   630172,
+   630174,
+   630178,
+   630185,
+   630186,
+   630187,
+   630189,
+   630192,
+   630193,
+   640018,
+   640019,
+   640022,
+   640023,
+   640034,
+   640035,
+   640036,
+   640037,
+   640044,
+   640052,
+   640057,
+   640059,
+   640066,
+   640067,
+   640070,
+   640071,
+   640072,
+   640073,
+   640074,
+   640081,
+   640085,
+   640092,
+   640093,
+   640094,
+   640095,
+   640096,
+   640097,
+   640098,
+   640100,
+   640101,
+   640102,
+   640107,
+   640115,
+   640117,
+   640119,
+   640122,
+   640123,
+   640127,
+   640128,
+   640129,
+   640130,
+   640132,
+   640133,
+   640134,
+   640138,
+   640145,
+   640147,
+   640152,
+   640156,
+   640157,
+   640159,
+   640160,
+   640162,
+   640163,
+   640167,
+   640172,
+   640173,
+   640174,
+   640177,
+   640182,
+   640184,
+   640185,
+   640186,
+   640187,
+   640192,
+   640197,
+   640198,
+   640199,
+   640202,
+   640207,
+   640208,
+   640209
+  ],
+  "sp_spent": 203,
+  "stigma_spent": 30,
+  "daevanion_cost": 360,
+  "effective_levels": {
+   "Flame Arrow": 14,
+   "Ice Chain": 1,
+   "Firestorm": 14,
+   "Bittercold Wind": 14,
+   "Blaze": 4,
+   "Flame Scattershot": 1,
+   "Frost": 11,
+   "Winter's Shackles": 10,
+   "Frost Burst": 14,
+   "Wish of Concentration": 13,
+   "Hellfire": 13,
+   "Defiance": 2,
+   "Fire Mark": 1,
+   "Robe of Earth": 1,
+   "Cold Snap": 12,
+   "Robe of Flame": 14,
+   "Absorb Essence": 2,
+   "Grace of Resistance": 2,
+   "Robe of Cold": 2,
+   "Grace of Enhancement": 11,
+   "Revitalization Contract": 4,
+   "Vitality Evaporation": 14,
+   "Glacial Smite": 5,
+   "Assault Bombardment": 5,
+   "Element Enhancement": 5,
+   "Delayed Explosion": 10
+  },
+  "specialties": [
+   {
+    "id": 15280000,
+    "skill": "Bittercold Wind",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 15280010,
+      "number": 1,
+      "text": "+1s [Bittercold Wind] summon duration",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15280020,
+      "number": 2,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15280030,
+      "number": 3,
+      "text": "Pull effect",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15280040,
+      "number": 4,
+      "text": "Ignores Block and Evasion and lands as a Critical Hit",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15280050,
+      "number": 5,
+      "text": "-1s [Frost] cooldown on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 15040000,
+    "skill": "Firestorm",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 15040010,
+      "number": 1,
+      "text": "-50% MP Cost",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15040020,
+      "number": 2,
+      "text": "+20% Skill Speed",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15040030,
+      "number": 3,
+      "text": "-60% Incoming Heal for 5s on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15040040,
+      "number": 4,
+      "text": "-2s [Hellfire] cooldown per fireball",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15040050,
+      "number": 5,
+      "text": "+15% damage per fireball, up to +75%",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 15210000,
+    "skill": "Flame Arrow",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 15210010,
+      "number": 1,
+      "text": "+20% MP restored",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15210020,
+      "number": 2,
+      "text": "Absorbs 100, 100% HP",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15210030,
+      "number": 3,
+      "text": "+50% Multi-Hit on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15210040,
+      "number": 4,
+      "text": "+5% Fire Damage Boost for 10s on activating [Pyroclasm]",
+      "unlock": 12,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15210050,
+      "number": 5,
+      "text": "Reset [Blaze] cooldown on landing [Pyroclasm]",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 15220000,
+    "skill": "Frost Burst",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 15220010,
+      "number": 1,
+      "text": "Absorbs 700, 700% HP",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15220020,
+      "number": 2,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15220030,
+      "number": 3,
+      "text": "75% chance to Knock Back 2m",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15220040,
+      "number": 4,
+      "text": "Ignores Block and Evasion and lands as a Critical Hit",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15220050,
+      "number": 5,
+      "text": "50% chance to reset cooldown",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 15060000,
+    "skill": "Hellfire",
+    "kind": "active",
+    "level": 13,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 15060010,
+      "number": 1,
+      "text": "+30% Skill Speed",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15060020,
+      "number": 2,
+      "text": "Fire Damage over Time for 10s on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15060030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15060040,
+      "number": 4,
+      "text": "Ignores Block and Evasion and lands as Multi-Hit",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15060050,
+      "number": 5,
+      "text": "-15s cooldown",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 15310000,
+    "skill": "Wish of Concentration",
+    "kind": "active",
+    "level": 13,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 15310010,
+      "number": 1,
+      "text": "Reduces MP Cost by 10%",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15310020,
+      "number": 2,
+      "text": "+10% additional Attack",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15310030,
+      "number": 3,
+      "text": "+500 Max MP",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15310040,
+      "number": 4,
+      "text": "+10% Combat Speed",
+      "unlock": 12,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15310050,
+      "number": 5,
+      "text": "-10s all skill cooldowns",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 15150000,
+    "skill": "Frost",
+    "kind": "active",
+    "level": 11,
+    "slots": 1,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 15150010,
+      "number": 1,
+      "text": "Restores 200 MP",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15150020,
+      "number": 2,
+      "text": "-5s cooldown",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15150030,
+      "number": 3,
+      "text": "Reset [Frost Burst] cooldown on landing Frost",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15150040,
+      "number": 4,
+      "text": "+25% PC target Frost Chance",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15150050,
+      "number": 5,
+      "text": "+1s Frost duration",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 12,
+    "next_slot_level": 12
+   },
+   {
+    "id": 15110000,
+    "skill": "Winter's Shackles",
+    "kind": "active",
+    "level": 10,
+    "slots": 1,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 15110010,
+      "number": 1,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15110020,
+      "number": 2,
+      "text": "30% chance to inflict Frost for 3s on landing [Winter's Shackles]",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 15110030,
+      "number": 3,
+      "text": "+20% PvE Damage Boost and +10% PvP Damage Boost for 5s on landing [Winter's Shackles]",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15110040,
+      "number": 4,
+      "text": "Adds [Winter's Illusion] Chain Skill",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15110050,
+      "number": 5,
+      "text": "-15s [Winter's Shackles] cooldown",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 12,
+    "next_slot_level": 12
+   },
+   {
+    "id": 15050000,
+    "skill": "Blaze",
+    "kind": "active",
+    "level": 4,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 15050010,
+      "number": 1,
+      "text": "Absorbs 300, 300% HP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15050020,
+      "number": 2,
+      "text": "+50% MP restored",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15050030,
+      "number": 3,
+      "text": "Delayed Damage after 3s",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15050040,
+      "number": 4,
+      "text": "Multi-Hit on hit",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15050050,
+      "number": 5,
+      "text": "-3s [Wish of Concentration] cooldown on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 15240000,
+    "skill": "Defiance",
+    "kind": "active",
+    "level": 2,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 15240010,
+      "number": 1,
+      "text": "Adds [Curse: Old Tree] Chain Skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15240020,
+      "number": 2,
+      "text": "Restores 1,000 Stamina on using [Defiance]",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15240030,
+      "number": 3,
+      "text": "Restores 20% HP on using [Defiance]",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15240040,
+      "number": 4,
+      "text": "+2s Tenacity duration",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15240050,
+      "number": 5,
+      "text": "+50% PvE Damage Tolerance and +25% PvP Damage Tolerance for Tenacity duration",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 15010000,
+    "skill": "Flame Scattershot",
+    "kind": "active",
+    "level": 1,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 15010010,
+      "number": 1,
+      "text": "Absorbs 500, 500% HP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15010020,
+      "number": 2,
+      "text": "Restores 120 MP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15010030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15010040,
+      "number": 4,
+      "text": "Multi-Hit on hit",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15010050,
+      "number": 5,
+      "text": "-1s all skill cooldowns on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 15090000,
+    "skill": "Ice Chain",
+    "kind": "active",
+    "level": 1,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 15090010,
+      "number": 1,
+      "text": "-20% MP Cost",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15090020,
+      "number": 2,
+      "text": "+20% Skill Speed",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15090030,
+      "number": 3,
+      "text": "Deals up to 12% more damage when less targets are hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15090040,
+      "number": 4,
+      "text": "-1s [Winter's Shackles] cooldown on hit",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15090050,
+      "number": 5,
+      "text": "5% chance to inflict Frost for 2s on landing [Cold Wave]",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 15320000,
+    "skill": "Delayed Explosion",
+    "kind": "stigma",
+    "level": 10,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 15320010,
+      "number": 1,
+      "text": "Restores 200 MP",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15320020,
+      "number": 2,
+      "text": "-10s [Delayed Explosion] cooldown",
+      "unlock": 10,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15320030,
+      "number": 3,
+      "text": "Changes to AoE Skill",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15320040,
+      "number": 4,
+      "text": "+10% additional Damage Taken",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 15,
+    "next_slot_level": null
+   },
+   {
+    "id": 15700000,
+    "skill": "Assault Bombardment",
+    "kind": "stigma",
+    "level": 5,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 15700010,
+      "number": 1,
+      "text": "+20% Attack for 5s on hit",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15700020,
+      "number": 2,
+      "text": "500 MP damage on hit",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15700030,
+      "number": 3,
+      "text": "+10m range",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15700040,
+      "number": 4,
+      "text": "+20% Frost Chance",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   },
+   {
+    "id": 15400000,
+    "skill": "Element Enhancement",
+    "kind": "stigma",
+    "level": 5,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 15400010,
+      "number": 1,
+      "text": "+200 Accuracy",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15400020,
+      "number": 2,
+      "text": "x1.5 [Robe of Flame] effect",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15400030,
+      "number": 3,
+      "text": "x1.5 [Grace of Enhancement] effect",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15400040,
+      "number": 4,
+      "text": "+10% additional Fire and Water Attack",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   },
+   {
+    "id": 15120000,
+    "skill": "Glacial Smite",
+    "kind": "stigma",
+    "level": 5,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 15120010,
+      "number": 1,
+      "text": "Up to +20% damage when more targets hit",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 15120020,
+      "number": 2,
+      "text": "-30s cooldown",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15120030,
+      "number": 3,
+      "text": "50% chance to inflict Frost for 3s",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 15120040,
+      "number": 4,
+      "text": "Ignores Block and Evasion and lands as Multi-Hit",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   }
+  ]
+ },
+ "policy": [
+  "bittercold_wind",
+  "hellfire",
+  "wish_of_concentration",
+  "blaze",
+  "frost_burst",
+  "firestorm",
+  "element_enhancement",
+  "delayed_explosion",
+  "frost",
+  "glacial_smite",
+  "ice_chain [mp_hi]",
+  "assault_bombardment",
+  "winter_s_shackles",
+  "flame_arrow"
+ ],
+ "shares": {
+  "Flame Arrow": 0.41788798355578605,
+  "Vitality Evaporation": 0.1870551537003702,
+  "Bittercold Wind": 0.07412747301983771,
+  "Cold Snap": 0.07256282966542352,
+  "Grace of Enhancement": 0.06415449778153783,
+  "Firestorm": 0.04827225132525993,
+  "Hellfire": 0.04012286655502278,
+  "Frost Burst": 0.039250283830452176,
+  "Frost": 0.015231356942848244,
+  "Delayed Explosion": 0.012927023505260857,
+  "Assault Bombardment": 0.009839078088928538,
+  "Glacial Smite": 0.008698009240343989,
+  "Winter's Shackles": 0.005349726787683151,
+  "Ice Chain": 0.004521466001241771
+ },
+ "opener": [
+  [
+   0.0,
+   "bittercold_wind"
+  ],
+  [
+   0.91,
+   "hellfire"
+  ],
+  [
+   1.63,
+   "wish_of_concentration"
+  ],
+  [
+   2.21,
+   "firestorm"
+  ],
+  [
+   2.98,
+   "element_enhancement"
+  ],
+  [
+   3.57,
+   "delayed_explosion"
+  ],
+  [
+   4.47,
+   "frost"
+  ],
+  [
+   5.38,
+   "frost_burst"
+  ],
+  [
+   6.29,
+   "glacial_smite"
+  ],
+  [
+   7.2,
+   "firestorm"
+  ],
+  [
+   7.97,
+   "ice_chain"
+  ],
+  [
+   8.74,
+   "ice_chain"
+  ],
+  [
+   9.51,
+   "assault_bombardment"
+  ],
+  [
+   10.42,
+   "winter_s_shackles"
+  ],
+  [
+   11.33,
+   "flame_arrow"
+  ],
+  [
+   12.1,
+   "firestorm"
+  ],
+  [
+   12.87,
+   "flame_arrow"
+  ],
+  [
+   13.64,
+   "hellfire"
+  ],
+  [
+   14.35,
+   "bittercold_wind"
+  ],
+  [
+   15.26,
+   "flame_arrow"
+  ],
+  [
+   16.03,
+   "flame_arrow"
+  ],
+  [
+   16.8,
+   "firestorm"
+  ],
+  [
+   17.57,
+   "flame_arrow"
+  ],
+  [
+   18.34,
+   "flame_arrow"
+  ],
+  [
+   19.11,
+   "flame_arrow"
+  ],
+  [
+   19.88,
+   "flame_arrow"
+  ],
+  [
+   20.65,
+   "flame_arrow"
+  ],
+  [
+   21.42,
+   "flame_arrow"
+  ],
+  [
+   22.19,
+   "firestorm"
+  ],
+  [
+   22.96,
+   "delayed_explosion"
+  ],
+  [
+   23.87,
+   "flame_arrow"
+  ],
+  [
+   24.64,
+   "flame_arrow"
+  ],
+  [
+   25.41,
+   "flame_arrow"
+  ],
+  [
+   26.18,
+   "flame_arrow"
+  ],
+  [
+   26.95,
+   "firestorm"
+  ],
+  [
+   27.72,
+   "flame_arrow"
+  ],
+  [
+   28.49,
+   "bittercold_wind"
+  ],
+  [
+   29.4,
+   "hellfire"
+  ]
+ ],
+ "stats": {
+  "attack_avg": 1413.1149,
+  "crit_stat": 512.4735000000001,
+  "crit_chance_vs_target": 0.04630594314988296,
+  "cdr": 0.0653,
+  "combat_speed": 0.08170000000000001,
+  "boost_bucket": 0.07,
+  "double": 0.0332,
+  "perfect": 0.08860000000000001,
+  "multihit": 0.05500000000000001,
+  "weapon_amp": 0.1
+ },
+ "evaluation": {
+  "model": "0.2.58",
+  "scope": "5bee580f3265bd13607794b091a7a9954757f77cdd09f659c57fd464cd128e04",
+  "policy_version": 1
+ },
+ "candidate_generation": {
+  "objective": "pvp_burst",
+  "iterations": 1,
+  "calibration": "disabled",
+  "note": "Fresh stationary damage search under common comparison resources; not a global optimum or competitive win-rate claim.",
+  "selection": {
+   "method": "Highest equal-weight sustained/burst modeled DPS among two generated allocations",
+   "candidates": [
+    {
+     "objective": "pvp",
+     "score": 6369.00349344935,
+     "dps": {
+      "pvp": 6202.670081507046,
+      "pvp_burst": 6535.336905391653
+     }
+    },
+    {
+     "objective": "pvp_burst",
+     "score": 7478.605792502284,
+     "dps": {
+      "pvp": 5736.8506306021845,
+      "pvp_burst": 9220.360954402384
+     }
+    }
+   ]
+  }
+ },
+ "preset_source": "bundled-example"
+}

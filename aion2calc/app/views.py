@@ -317,7 +317,8 @@ def build_view(summary: dict) -> dict:
         "skill_reserves": summary.get("skill_reserves"), "genus": summary.get("genus"),
         "dps": summary.get("dps"), "baseline": summary.get("baseline"), "budgets": budgets,
         "score": summary.get("score"), "scoring_policy": summary.get("scoring_policy"),
-        "preset_checked_at": summary.get("preset_checked_at"),
+        "preset_checked_at": summary.get("preset_checked_at"), "preset_source": summary.get("preset_source"),
+        "candidate_generation": summary.get("candidate_generation"),
         "points": {"skill": build.sp_spent(), "stigma": build.stigma_spent(), "daevanion": build.daevanion_cost(cd)},
         "skills": skills_view(cd, build, gear),
         "stigmas": stigmas_view(cd, build),
@@ -362,6 +363,7 @@ def list_results(roots: list[Path] | None = None) -> list[dict]:
             rel = p.parent.relative_to(root)
             out.append({"path": str(p.parent), "class": s["class"], "loadout": s.get("loadout"),
                         "dps": s.get("dps"), "scenario": s.get("scenario"), "budgets": s.get("budgets"),
+                        "score": s.get("score"), "scoring_policy": s.get("scoring_policy"),
                         "level": s.get("level"), "mine": mine, "_rel": rel})
     out.sort(key=lambda r: (len(r["_rel"].parts), "compare" in r["_rel"].parts, "characters" in r["_rel"].parts,
                             r["class"] != "sorcerer", not r["mine"], str(r["_rel"])))
@@ -385,7 +387,7 @@ def list_results(roots: list[Path] | None = None) -> list[dict]:
         loadout = row.get("loadout") or ""
         level = re.search(r"_l(\d+)(?:_|$)", loadout)
         region = re.search(r"_(global|kr)(?:_|$)", loadout)
-        row["preset_label"] = "_".join((row["class"].lower(), str(row.get("level") or (level[1] if level else "unknown")), region[1] if region else "unknown", "PvP" if row.get("scenario") == "pvp" else "PvE"))
+        row["preset_label"] = "_".join((row["class"].lower(), str(row.get("level") or (level[1] if level else "unknown")), region[1] if region else "unknown", "PvP" if str(row.get("scenario", "")).startswith("pvp") else "PvE"))
     return out
 
 

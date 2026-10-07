@@ -1,0 +1,1562 @@
+{
+ "class": "ranger",
+ "level": 45,
+ "mode": "pvp",
+ "scenario": "pvp",
+ "loadout": "ranger_l45_global_median",
+ "loadout_snapshot": {
+  "name": "Global L45 Ranger - median of top tracked characters (metabot)",
+  "level": 45,
+  "notes": [
+   "Item choices and enchant levels are the most common ones among the 1,559 top tracked L45 Sorcerers (metabot.gg, global client, Oct 2026).",
+   "Fixed item stats come from the global client item tables; random rolls use the expected value of each roll pool.",
+   "Primary/deity stat points are the averages those characters' official profiles report (they already include gear rolls)."
+  ],
+  "components": [
+   {
+    "slot": "Main hand",
+    "item": "Spiritforged Bow +10",
+    "source": "metabot global item table, class's most used main hand",
+    "stats": {
+     "weapon_min": 227.0,
+     "weapon_max": 273.0,
+     "crit": 100.0,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "slot": "Off-hand",
+    "item": "Spiritforged Guard +9",
+    "source": "Attack 92 +5/enchant",
+    "stats": {
+     "attack": 137,
+     "accuracy": 80,
+     "crit": 50
+    }
+   },
+   {
+    "slot": "Armor x7",
+    "item": "Vakron / Bakarma / Divine Canyon ~+5",
+    "source": "expected value of 4 random rolls per piece",
+    "stats": {
+     "crit": 42,
+     "accuracy": 56,
+     "attack": 24
+    }
+   },
+   {
+    "slot": "Necklace",
+    "item": "Aulamus Necklace +8",
+    "stats": {
+     "attack": 139
+    }
+   },
+   {
+    "slot": "Earrings x2",
+    "item": "Aulamus / Liberator Earrings ~+6",
+    "stats": {
+     "attack": 220
+    }
+   },
+   {
+    "slot": "Rings x2",
+    "item": "Aulamus Ring ~+7",
+    "stats": {
+     "attack": 198
+    }
+   },
+   {
+    "slot": "Accessory rolls",
+    "item": "expected value of 4 rolls x 5 accessories",
+    "stats": {
+     "attack": 34,
+     "crit": 45,
+     "accuracy": 60,
+     "combat_speed": 0.003
+    }
+   },
+   {
+    "slot": "Bracelets x2",
+    "item": "Ascension +9 / Liberator +6",
+    "stats": {
+     "attack": 157,
+     "crit": 17
+    }
+   },
+   {
+    "slot": "Amulet",
+    "item": "Revelation Amulet +0",
+    "stats": {
+     "weapon_amp": 0.1,
+     "perfect": 0.05,
+     "pen": 700
+    }
+   },
+   {
+    "slot": "Rune",
+    "item": "Clash Rune +2",
+    "stats": {
+     "amp_pve": 0.005,
+     "pen": 100,
+     "combat_speed": 0.01,
+     "multihit": 0.01
+    }
+   },
+   {
+    "slot": "Attack title",
+    "item": "Guardian of Altgard / Verteron",
+    "stats": {
+     "amp_pve": 0.03,
+     "pen": 210
+    }
+   },
+   {
+    "slot": "Other title",
+    "item": "Through Hell and Back",
+    "stats": {
+     "cdr": 0.03
+    }
+   },
+   {
+    "slot": "Owned titles",
+    "item": "collection bonuses (estimate)",
+    "stats": {
+     "crit": 20,
+     "accuracy": 30,
+     "attack": 4
+    }
+   },
+   {
+    "slot": "Wings",
+    "item": "Ultimate Daeva Wings",
+    "stats": {
+     "accuracy": 40,
+     "pen": 500
+    }
+   },
+   {
+    "slot": "Primary/deity stats",
+    "item": "profile averages",
+    "stats": {
+     "might": 22.1,
+     "precision": 1.3,
+     "time": 39.1,
+     "justice": 39.0,
+     "death": 34.7,
+     "freedom": 24.5,
+     "illusion": 5.5,
+     "destruction": 5.4,
+     "wisdom": 5.3
+    }
+   }
+  ]
+ },
+ "budgets": {
+  "skill": 203,
+  "stigma": 30,
+  "daevanion": 360
+ },
+ "daevanion_budget": 360,
+ "dps": {
+  "pvp": 6306.167242445388,
+  "pvp_burst": 6750.239948856362
+ },
+ "score": 6528.203595650875,
+ "scoring_policy": {
+  "version": 1,
+  "model": "0.2.58",
+  "class": "ranger",
+  "mode": "pvp",
+  "budgets": {
+   "skill": 203,
+   "stigma": 30,
+   "daevanion": 360
+  },
+  "loadout": "ranger_l45_global_median",
+  "loadout_fingerprint": "a869750b3d222ec68f7597f221202f77b3efa00936ead3faaea9a1dfaa37b469",
+  "data_fingerprint": "11ed4c749d557753859a597f22d55e3c328785387c1b6d29d3d1087e1a15d896",
+  "score_kind": "weighted_modeled_dps",
+  "weights": {
+   "pvp": 0.5,
+   "pvp_burst": 0.5
+  },
+  "durations": {
+   "pvp": 180,
+   "pvp_burst": 30
+  },
+  "calibration": "disabled",
+  "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
+  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
+  "scope": "2af229e124418ca03cbd93e4e6b94f34395915f860238a26c90eadf0404eee9b"
+ },
+ "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
+ "build": {
+  "sp": {
+   "Deadshot": 10,
+   "Snipe": 10,
+   "Drill Dart": 10,
+   "Suppressing Arrow": 7,
+   "Burst Arrow": 10,
+   "Marking Shot": 10,
+   "Gale Arrow": 10,
+   "Concentrated Fire": 7,
+   "Focused Eye": 10,
+   "Hunter's Resolve": 10,
+   "Rooting Eye": 7,
+   "Melee Fire": 6,
+   "Hunter's Soul": 2
+  },
+  "stigmas": {
+   "Explosive Arrow": 10,
+   "Vaizel's Authority": 5,
+   "Assault Smite": 5,
+   "Ambush Kick": 5
+  },
+  "specs": {
+   "Snipe": [
+    "+50% Multi-Hit on hit",
+    "-1s [Deadshot] cooldown on hit"
+   ],
+   "Drill Dart": [
+    "+20% Skill Speed",
+    "Multi-Hit on hit"
+   ],
+   "Gale Arrow": [
+    "+5s duration",
+    "50% chance to inflict Knock Back on hit"
+   ],
+   "Burst Arrow": [
+    "+50% Multi-Hit on hit",
+    "Up to +20% damage when less targets hit"
+   ],
+   "Deadshot": [
+    "+30% Skill Speed",
+    "Ignores Block and Evasion and lands as Multi-Hit"
+   ],
+   "Marking Shot": [
+    "+5% Perfect Chance for the duration",
+    "30% chance to inflict Knock Back on hit"
+   ],
+   "Suppressing Arrow": [
+    "+50% Multi-Hit on hit"
+   ]
+  },
+  "daevanion_nodes": [
+   310033,
+   310034,
+   310035,
+   310037,
+   310038,
+   310039,
+   310042,
+   310043,
+   310050,
+   310051,
+   310052,
+   310054,
+   310058,
+   310067,
+   310073,
+   310082,
+   310086,
+   310088,
+   310093,
+   310094,
+   310097,
+   310098,
+   310099,
+   310100,
+   310101,
+   310102,
+   310103,
+   310108,
+   310115,
+   310123,
+   310126,
+   310127,
+   310130,
+   310131,
+   310132,
+   310138,
+   310142,
+   310144,
+   310147,
+   310153,
+   310154,
+   310155,
+   310157,
+   310158,
+   310159,
+   310161,
+   310162,
+   310163,
+   310168,
+   310170,
+   310171,
+   310172,
+   310174,
+   310175,
+   310176,
+   310183,
+   310187,
+   310188,
+   310191,
+   310192,
+   310193,
+   320034,
+   320035,
+   320040,
+   320041,
+   320048,
+   320050,
+   320055,
+   320058,
+   320063,
+   320064,
+   320065,
+   320067,
+   320068,
+   320070,
+   320071,
+   320072,
+   320073,
+   320078,
+   320080,
+   320081,
+   320082,
+   320084,
+   320086,
+   320094,
+   320095,
+   320097,
+   320099,
+   320100,
+   320101,
+   320102,
+   320109,
+   320112,
+   320114,
+   320117,
+   320124,
+   320125,
+   320131,
+   320132,
+   320133,
+   320138,
+   320140,
+   320145,
+   320146,
+   320153,
+   320154,
+   320155,
+   320156,
+   320157,
+   320158,
+   320159,
+   320161,
+   320162,
+   320163,
+   320171,
+   320174,
+   320184,
+   320185,
+   320186,
+   320187,
+   320188,
+   330039,
+   330050,
+   330051,
+   330052,
+   330054,
+   330058,
+   330067,
+   330068,
+   330069,
+   330072,
+   330073,
+   330082,
+   330087,
+   330093,
+   330094,
+   330095,
+   330096,
+   330097,
+   330098,
+   330099,
+   330100,
+   330101,
+   330102,
+   330103,
+   330108,
+   330111,
+   330115,
+   330118,
+   330124,
+   330125,
+   330126,
+   330129,
+   330130,
+   330131,
+   330132,
+   330139,
+   330147,
+   330154,
+   330155,
+   330156,
+   330157,
+   330158,
+   330159,
+   330161,
+   330162,
+   330163,
+   330170,
+   330172,
+   330176,
+   330184,
+   330185,
+   330186,
+   330191,
+   330192,
+   340017,
+   340018,
+   340019,
+   340022,
+   340023,
+   340024,
+   340032,
+   340034,
+   340035,
+   340036,
+   340037,
+   340039,
+   340040,
+   340047,
+   340049,
+   340057,
+   340064,
+   340065,
+   340066,
+   340067,
+   340070,
+   340071,
+   340072,
+   340073,
+   340074,
+   340079,
+   340081,
+   340088,
+   340092,
+   340093,
+   340094,
+   340095,
+   340097,
+   340098,
+   340099,
+   340100,
+   340101,
+   340102,
+   340103,
+   340104,
+   340107,
+   340115,
+   340117,
+   340119,
+   340122,
+   340123,
+   340124,
+   340125,
+   340126,
+   340127,
+   340128,
+   340130,
+   340132,
+   340134,
+   340138,
+   340141,
+   340147,
+   340152,
+   340153,
+   340154,
+   340156,
+   340157,
+   340162,
+   340167,
+   340172,
+   340173,
+   340174,
+   340177,
+   340182,
+   340185,
+   340186,
+   340187,
+   340190,
+   340191,
+   340192,
+   340197,
+   340198,
+   340199,
+   340202
+  ],
+  "sp_spent": 203,
+  "stigma_spent": 30,
+  "daevanion_cost": 360,
+  "effective_levels": {
+   "Snipe": 14,
+   "Tempest Shot": 2,
+   "Snare Shot": 1,
+   "Marking Shot": 14,
+   "Drill Dart": 14,
+   "Arrow Scattershot": 1,
+   "Gale Arrow": 14,
+   "Explosion Trap": 1,
+   "Burst Arrow": 14,
+   "Suppressing Arrow": 11,
+   "Deadshot": 14,
+   "Defiance": 2,
+   "Vigilant Eye": 1,
+   "Concentrated Fire": 11,
+   "Wind Vigor": 2,
+   "Focused Eye": 14,
+   "Hunter's Resolve": 14,
+   "Unyielding Resolve": 3,
+   "Rooting Eye": 10,
+   "Melee Fire": 8,
+   "Revitalization Contract": 3,
+   "Hunter's Soul": 5,
+   "Explosive Arrow": 10,
+   "Vaizel's Authority": 5,
+   "Assault Smite": 5,
+   "Ambush Kick": 5
+  },
+  "specialties": [
+   {
+    "id": 14080000,
+    "skill": "Burst Arrow",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 14080010,
+      "number": 1,
+      "text": "Absorbs 1000, 1000% HP",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 14080020,
+      "number": 2,
+      "text": "+50% Multi-Hit on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14080030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 14080040,
+      "number": 4,
+      "text": "Up to +20% damage when less targets hit",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14080050,
+      "number": 5,
+      "text": "25% chance to reset cooldown on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 14010000,
+    "skill": "Deadshot",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 14010010,
+      "number": 1,
+      "text": "Removes MP consumed",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 14010020,
+      "number": 2,
+      "text": "+30% Skill Speed",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14010030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 14010040,
+      "number": 4,
+      "text": "Ignores Block and Evasion and lands as Multi-Hit",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14010050,
+      "number": 5,
+      "text": "[Deadshot] grants extra damage on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 14050000,
+    "skill": "Drill Dart",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 14050010,
+      "number": 1,
+      "text": "Absorbs 300, 300% HP",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 14050020,
+      "number": 2,
+      "text": "+2s Bleed duration",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 14050030,
+      "number": 3,
+      "text": "+20% Skill Speed",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14050040,
+      "number": 4,
+      "text": "Multi-Hit on hit",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14050050,
+      "number": 5,
+      "text": "Activates [Drill Dart] 1 extra time",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 14110000,
+    "skill": "Gale Arrow",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 14110010,
+      "number": 1,
+      "text": "+5s duration",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14110020,
+      "number": 2,
+      "text": "50% chance to inflict Knock Back on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14110030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 14110040,
+      "number": 4,
+      "text": "Increases Combat Speed, PvE Damage Boost, and PvP Damage Boost when less targets hit",
+      "unlock": 12,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 14110050,
+      "number": 5,
+      "text": "-10s cooldown",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 14090000,
+    "skill": "Marking Shot",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 14090010,
+      "number": 1,
+      "text": "+5% Perfect Chance for the duration",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14090020,
+      "number": 2,
+      "text": "30% chance to inflict Knock Back on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14090030,
+      "number": 3,
+      "text": "+5s duration",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 14090040,
+      "number": 4,
+      "text": "+1 consecutive use",
+      "unlock": 12,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 14090050,
+      "number": 5,
+      "text": "Ignores Block and Evasion and lands as a Critical Hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 14020000,
+    "skill": "Snipe",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 14020010,
+      "number": 1,
+      "text": "+20% MP restored",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 14020020,
+      "number": 2,
+      "text": "Absorbs 70, 70% HP",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 14020030,
+      "number": 3,
+      "text": "+50% Multi-Hit on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14020040,
+      "number": 4,
+      "text": "-1s [Deadshot] cooldown on hit",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14020050,
+      "number": 5,
+      "text": "Adds [Tempest Arrow] Chain Skill",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 14070000,
+    "skill": "Suppressing Arrow",
+    "kind": "active",
+    "level": 11,
+    "slots": 1,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 14070010,
+      "number": 1,
+      "text": "+50% Multi-Hit on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14070020,
+      "number": 2,
+      "text": "+1s Stun duration",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 14070030,
+      "number": 3,
+      "text": "+20% Skill Speed",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 14070040,
+      "number": 4,
+      "text": "+20% Stun Chance",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14070050,
+      "number": 5,
+      "text": "25% chance to reset cooldown on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 12,
+    "next_slot_level": 12
+   },
+   {
+    "id": 14260000,
+    "skill": "Defiance",
+    "kind": "active",
+    "level": 2,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 14260010,
+      "number": 1,
+      "text": "Adds [Lightning Arrow] Chain Skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14260020,
+      "number": 2,
+      "text": "Restores 1,000 Stamina on using [Defiance]",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14260030,
+      "number": 3,
+      "text": "Restores 20% HP on using [Defiance]",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14260040,
+      "number": 4,
+      "text": "+2s Tenacity duration",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14260050,
+      "number": 5,
+      "text": "+50% PvE Damage Tolerance and +25% PvP Damage Tolerance for Tenacity duration",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 14340000,
+    "skill": "Tempest Shot",
+    "kind": "active",
+    "level": 2,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 14340010,
+      "number": 1,
+      "text": "-20% MP consumed",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14340020,
+      "number": 2,
+      "text": "+10% skill Critical Hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14340030,
+      "number": 3,
+      "text": "Deals up to 12% more damage when less targets are hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14340040,
+      "number": 4,
+      "text": "5% chance to inflict Knock Back on Critical Hit",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14340050,
+      "number": 5,
+      "text": "+20% Skill Speed",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 14330000,
+    "skill": "Arrow Scattershot",
+    "kind": "active",
+    "level": 1,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 14330010,
+      "number": 1,
+      "text": "Absorbs 500, 500% HP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14330020,
+      "number": 2,
+      "text": "Restores 120 MP on hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14330030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14330040,
+      "number": 4,
+      "text": "Multi-Hit on hit",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14330050,
+      "number": 5,
+      "text": "-1s all cooldowns on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 14170000,
+    "skill": "Explosion Trap",
+    "kind": "active",
+    "level": 1,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 14170010,
+      "number": 1,
+      "text": "Pulls enemies on explosion",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14170020,
+      "number": 2,
+      "text": "+1s Stun duration",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14170030,
+      "number": 3,
+      "text": "Extra damage after 3s on hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14170040,
+      "number": 4,
+      "text": "+20% Stun Chance",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14170050,
+      "number": 5,
+      "text": "+1 consecutive use",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 14130000,
+    "skill": "Snare Shot",
+    "kind": "active",
+    "level": 1,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 14130010,
+      "number": 1,
+      "text": "+20% Move Speed reduction",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14130020,
+      "number": 2,
+      "text": "+20% Skill Speed",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14130030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14130040,
+      "number": 4,
+      "text": "Adds [Shackling Arrow] Chain Skill",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14130050,
+      "number": 5,
+      "text": "+2s Slow and Root duration",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 14360000,
+    "skill": "Explosive Arrow",
+    "kind": "stigma",
+    "level": 10,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 14360010,
+      "number": 1,
+      "text": "-15s cooldown",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14360020,
+      "number": 2,
+      "text": "+10% additional damage to targets afflicted with Slow or Root",
+      "unlock": 10,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14360030,
+      "number": 3,
+      "text": "Critical Hit on hit",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14360040,
+      "number": 4,
+      "text": "+20% additional damage to targets afflicted with Slow or Root",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 15,
+    "next_slot_level": null
+   },
+   {
+    "id": 14120000,
+    "skill": "Ambush Kick",
+    "kind": "stigma",
+    "level": 5,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 14120010,
+      "number": 1,
+      "text": "+5m Range",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14120020,
+      "number": 2,
+      "text": "10% Max HP Protective Shield for 5s on hit",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14120030,
+      "number": 3,
+      "text": "50% chance to inflict Stun for 3s on hit",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14120040,
+      "number": 4,
+      "text": "+50% Stun Chance",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   },
+   {
+    "id": 14700000,
+    "skill": "Assault Smite",
+    "kind": "stigma",
+    "level": 5,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 14700010,
+      "number": 1,
+      "text": "+20% Attack for 5s on hit",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14700020,
+      "number": 2,
+      "text": "500 MP damage on hit",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14700030,
+      "number": 3,
+      "text": "+10m range",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14700040,
+      "number": 4,
+      "text": "+20% Stun Chance",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   },
+   {
+    "id": 14310000,
+    "skill": "Vaizel's Authority",
+    "kind": "stigma",
+    "level": 5,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 14310010,
+      "number": 1,
+      "text": "+10% Perfect Chance for the duration",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 14310020,
+      "number": 2,
+      "text": "x1.5 [Focused Eye] effect for the duration",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14310030,
+      "number": 3,
+      "text": "x1.5 [Hunter's Soul] effect for the duration",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 14310040,
+      "number": 4,
+      "text": "50% chance to reduce all skill cooldowns by 1s on Critical Hit for the duration",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   }
+  ]
+ },
+ "policy": [
+  "vaizel_s_authority",
+  "burst_arrow",
+  "marking_shot",
+  "gale_arrow",
+  "drill_dart",
+  "assault_smite",
+  "deadshot",
+  "explosive_arrow",
+  "ambush_kick",
+  "suppressing_arrow",
+  "snipe"
+ ],
+ "shares": {
+  "Snipe": 0.15910602892088233,
+  "Drill Dart": 0.15185525147690038,
+  "Deadshot": 0.11067922727194493,
+  "Burst Arrow": 0.09879311185864414,
+  "Marking Shot": 0.0900714030978666,
+  "Gale Arrow": 0.069387125753126,
+  "Explosive Arrow": 0.0634873810279472,
+  "Rooting Eye": 0.05865600951995469,
+  "Concentrated Fire": 0.0514886423662391,
+  "Suppressing Arrow": 0.047068284076713734,
+  "Melee Fire": 0.0463162531597397,
+  "Ambush Kick": 0.03510173259051424,
+  "Assault Smite": 0.010693985766157415,
+  "Hunter's Soul": 0.0072955631133677186
+ },
+ "opener": [
+  [
+   0.0,
+   "vaizel_s_authority"
+  ],
+  [
+   0.58,
+   "burst_arrow"
+  ],
+  [
+   1.49,
+   "marking_shot"
+  ],
+  [
+   2.4,
+   "gale_arrow"
+  ],
+  [
+   3.31,
+   "drill_dart"
+  ],
+  [
+   4.08,
+   "assault_smite"
+  ],
+  [
+   4.99,
+   "deadshot"
+  ],
+  [
+   5.7,
+   "explosive_arrow"
+  ],
+  [
+   6.61,
+   "ambush_kick"
+  ],
+  [
+   7.52,
+   "suppressing_arrow"
+  ],
+  [
+   8.43,
+   "drill_dart"
+  ],
+  [
+   9.2,
+   "snipe"
+  ],
+  [
+   9.97,
+   "snipe"
+  ],
+  [
+   10.74,
+   "snipe"
+  ],
+  [
+   11.51,
+   "marking_shot"
+  ],
+  [
+   12.42,
+   "snipe"
+  ],
+  [
+   13.18,
+   "drill_dart"
+  ],
+  [
+   13.96,
+   "snipe"
+  ],
+  [
+   14.72,
+   "snipe"
+  ],
+  [
+   15.49,
+   "snipe"
+  ],
+  [
+   16.26,
+   "snipe"
+  ],
+  [
+   17.03,
+   "deadshot"
+  ],
+  [
+   17.75,
+   "snipe"
+  ],
+  [
+   18.52,
+   "drill_dart"
+  ],
+  [
+   19.29,
+   "burst_arrow"
+  ],
+  [
+   20.2,
+   "snipe"
+  ],
+  [
+   20.97,
+   "marking_shot"
+  ],
+  [
+   21.88,
+   "gale_arrow"
+  ],
+  [
+   22.78,
+   "snipe"
+  ],
+  [
+   23.55,
+   "drill_dart"
+  ],
+  [
+   24.32,
+   "snipe"
+  ],
+  [
+   25.09,
+   "snipe"
+  ],
+  [
+   25.86,
+   "snipe"
+  ],
+  [
+   26.63,
+   "suppressing_arrow"
+  ],
+  [
+   27.54,
+   "snipe"
+  ],
+  [
+   28.31,
+   "drill_dart"
+  ],
+  [
+   29.08,
+   "deadshot"
+  ],
+  [
+   29.8,
+   "snipe"
+  ]
+ ],
+ "stats": {
+  "attack_avg": 1396.3725000000002,
+  "crit_stat": 475.524,
+  "crit_chance_vs_target": 0.03742781254618582,
+  "cdr": 0.0655,
+  "combat_speed": 0.0821,
+  "boost_bucket": 0.26,
+  "double": 0.033299999999999996,
+  "perfect": 0.089,
+  "multihit": 0.04,
+  "weapon_amp": 0.1
+ },
+ "evaluation": {
+  "model": "0.2.58",
+  "scope": "2af229e124418ca03cbd93e4e6b94f34395915f860238a26c90eadf0404eee9b",
+  "policy_version": 1
+ },
+ "candidate_generation": {
+  "objective": "pvp",
+  "iterations": 1,
+  "calibration": "disabled",
+  "note": "Fresh stationary damage search under common comparison resources; not a global optimum or competitive win-rate claim.",
+  "selection": {
+   "method": "Highest equal-weight sustained/burst modeled DPS among two generated allocations",
+   "candidates": [
+    {
+     "objective": "pvp",
+     "score": 6528.203595650875,
+     "dps": {
+      "pvp": 6306.167242445388,
+      "pvp_burst": 6750.239948856362
+     }
+    },
+    {
+     "objective": "pvp_burst",
+     "score": 6383.666848802495,
+     "dps": {
+      "pvp": 4679.9012371886065,
+      "pvp_burst": 8087.432460416383
+     }
+    }
+   ]
+  }
+ },
+ "preset_source": "bundled-example"
+}

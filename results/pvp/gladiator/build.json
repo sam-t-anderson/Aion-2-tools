@@ -1,0 +1,1546 @@
+{
+ "class": "gladiator",
+ "level": 45,
+ "mode": "pvp",
+ "scenario": "pvp",
+ "loadout": "gladiator_l45_global_median",
+ "loadout_snapshot": {
+  "name": "Global L45 Gladiator - median of top tracked characters (metabot)",
+  "level": 45,
+  "notes": [
+   "Item choices and enchant levels are the most common ones among the 1,559 top tracked L45 Sorcerers (metabot.gg, global client, Oct 2026).",
+   "Fixed item stats come from the global client item tables; random rolls use the expected value of each roll pool.",
+   "Primary/deity stat points are the averages those characters' official profiles report (they already include gear rolls)."
+  ],
+  "components": [
+   {
+    "slot": "Main hand",
+    "item": "Spiritforged Greatsword +9",
+    "source": "metabot global item table, class's most used main hand",
+    "stats": {
+     "weapon_min": 240.0,
+     "weapon_max": 308.0,
+     "crit": 150.0,
+     "accuracy": 100.0
+    }
+   },
+   {
+    "slot": "Off-hand",
+    "item": "Spiritforged Guard +9",
+    "source": "Attack 92 +5/enchant",
+    "stats": {
+     "attack": 137,
+     "accuracy": 80,
+     "crit": 50
+    }
+   },
+   {
+    "slot": "Armor x7",
+    "item": "Vakron / Bakarma / Divine Canyon ~+5",
+    "source": "expected value of 4 random rolls per piece",
+    "stats": {
+     "crit": 42,
+     "accuracy": 56,
+     "attack": 24
+    }
+   },
+   {
+    "slot": "Necklace",
+    "item": "Aulamus Necklace +8",
+    "stats": {
+     "attack": 139
+    }
+   },
+   {
+    "slot": "Earrings x2",
+    "item": "Aulamus / Liberator Earrings ~+6",
+    "stats": {
+     "attack": 220
+    }
+   },
+   {
+    "slot": "Rings x2",
+    "item": "Aulamus Ring ~+7",
+    "stats": {
+     "attack": 198
+    }
+   },
+   {
+    "slot": "Accessory rolls",
+    "item": "expected value of 4 rolls x 5 accessories",
+    "stats": {
+     "attack": 34,
+     "crit": 45,
+     "accuracy": 60,
+     "combat_speed": 0.003
+    }
+   },
+   {
+    "slot": "Bracelets x2",
+    "item": "Ascension +9 / Liberator +6",
+    "stats": {
+     "attack": 157,
+     "crit": 17
+    }
+   },
+   {
+    "slot": "Amulet",
+    "item": "Revelation Amulet +0",
+    "stats": {
+     "weapon_amp": 0.1,
+     "perfect": 0.05,
+     "pen": 700
+    }
+   },
+   {
+    "slot": "Rune",
+    "item": "Clash Rune +2",
+    "stats": {
+     "amp_pve": 0.005,
+     "pen": 100,
+     "combat_speed": 0.01,
+     "multihit": 0.01
+    }
+   },
+   {
+    "slot": "Attack title",
+    "item": "Guardian of Altgard / Verteron",
+    "stats": {
+     "amp_pve": 0.03,
+     "pen": 210
+    }
+   },
+   {
+    "slot": "Other title",
+    "item": "Through Hell and Back",
+    "stats": {
+     "cdr": 0.03
+    }
+   },
+   {
+    "slot": "Owned titles",
+    "item": "collection bonuses (estimate)",
+    "stats": {
+     "crit": 20,
+     "accuracy": 30,
+     "attack": 4
+    }
+   },
+   {
+    "slot": "Wings",
+    "item": "Ultimate Daeva Wings",
+    "stats": {
+     "accuracy": 40,
+     "pen": 500
+    }
+   },
+   {
+    "slot": "Primary/deity stats",
+    "item": "profile averages",
+    "stats": {
+     "might": 21.7,
+     "precision": 1.4,
+     "time": 38.7,
+     "justice": 38.6,
+     "death": 34.1,
+     "freedom": 24.2,
+     "illusion": 5.2,
+     "destruction": 5.2,
+     "wisdom": 5.1
+    }
+   }
+  ]
+ },
+ "budgets": {
+  "skill": 203,
+  "stigma": 30,
+  "daevanion": 360
+ },
+ "daevanion_budget": 360,
+ "dps": {
+  "pvp": 4549.207813136798,
+  "pvp_burst": 8054.114282681123
+ },
+ "score": 6301.66104790896,
+ "scoring_policy": {
+  "version": 1,
+  "model": "0.2.58",
+  "class": "gladiator",
+  "mode": "pvp",
+  "budgets": {
+   "skill": 203,
+   "stigma": 30,
+   "daevanion": 360
+  },
+  "loadout": "gladiator_l45_global_median",
+  "loadout_fingerprint": "887abf5970dc9128bf492e422fa5f3228625265fac8a816005db91c3c5d1cb2d",
+  "data_fingerprint": "5ed19e9bfaa2a8441bb3830c02dfa26093e6bc5b4dcc4a93f1390e560a6b65cf",
+  "score_kind": "weighted_modeled_dps",
+  "weights": {
+   "pvp": 0.5,
+   "pvp_burst": 0.5
+  },
+  "durations": {
+   "pvp": 180,
+   "pvp_burst": 30
+  },
+  "calibration": "disabled",
+  "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
+  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
+  "scope": "4a8592f5414ffa3950cfada5b6b58e05462e8bdd44d67b8591c6e4ffec05f0f4"
+ },
+ "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
+ "build": {
+  "sp": {
+   "Rending Blow": 10,
+   "Ruinous Blow": 10,
+   "Overhead Slam": 10,
+   "Leaping Slam": 6,
+   "Ankle Slice": 8,
+   "Mocking Blade": 7,
+   "Aerial Snare": 8,
+   "Rush Strike": 8,
+   "Identify Weakness": 10,
+   "Attack Preparation": 10,
+   "Impact Hit": 10,
+   "Experienced Counterstrike": 10,
+   "Murderous Burst": 2
+  },
+  "stigmas": {
+   "Assault Strike": 5,
+   "Zikel's Blessing": 6,
+   "Lifestealing Blade": 6,
+   "Rage Burst": 8
+  },
+  "specs": {
+   "Rending Blow": [
+    "-20% MP consumed",
+    "Deals up to 12% more damage when less targets are hit"
+   ],
+   "Overhead Slam": [
+    "Absorbs 70, 70% HP",
+    "Critical Hit on hit"
+   ],
+   "Ruinous Blow": [
+    "+20% Skill Speed",
+    "+12.5m Range"
+   ],
+   "Leaping Slam": [
+    "Prepare for Battle effect on the caster for 3s"
+   ],
+   "Mocking Blade": [
+    "Absorbs 400, 400% HP, absorbs 1500, 1500% HP of target with Incapacitated Immunity"
+   ],
+   "Ankle Slice": [
+    "30% chance to inflict Knockdown for 3s on landing [Ankle Slice]",
+    "Ignores Block and Evasion and lands as Multi-Hit"
+   ],
+   "Rush Strike": [
+    "Restores 300 Stamina on hit",
+    "-10s cooldown"
+   ],
+   "Aerial Snare": [
+    "Multi-Hit on hit",
+    "+100% damage to targets with Incapacitated Immunity"
+   ]
+  },
+  "daevanion_nodes": [
+   110033,
+   110034,
+   110035,
+   110039,
+   110042,
+   110043,
+   110048,
+   110050,
+   110051,
+   110052,
+   110054,
+   110058,
+   110067,
+   110068,
+   110069,
+   110073,
+   110084,
+   110086,
+   110088,
+   110094,
+   110095,
+   110096,
+   110097,
+   110098,
+   110099,
+   110100,
+   110101,
+   110102,
+   110103,
+   110115,
+   110123,
+   110126,
+   110127,
+   110128,
+   110138,
+   110142,
+   110144,
+   110153,
+   110154,
+   110155,
+   110157,
+   110158,
+   110159,
+   110161,
+   110162,
+   110168,
+   110170,
+   110171,
+   110172,
+   110174,
+   110175,
+   110176,
+   110183,
+   110187,
+   110188,
+   110191,
+   110192,
+   110193,
+   120039,
+   120040,
+   120041,
+   120048,
+   120055,
+   120058,
+   120063,
+   120067,
+   120068,
+   120069,
+   120070,
+   120071,
+   120073,
+   120078,
+   120080,
+   120081,
+   120082,
+   120084,
+   120086,
+   120088,
+   120093,
+   120094,
+   120095,
+   120097,
+   120101,
+   120102,
+   120103,
+   120109,
+   120112,
+   120114,
+   120117,
+   120123,
+   120124,
+   120127,
+   120131,
+   120132,
+   120133,
+   120138,
+   120142,
+   120145,
+   120146,
+   120148,
+   120156,
+   120157,
+   120161,
+   120163,
+   120171,
+   120176,
+   120184,
+   120185,
+   120186,
+   120187,
+   120188,
+   120189,
+   120190,
+   130039,
+   130048,
+   130050,
+   130051,
+   130052,
+   130054,
+   130063,
+   130064,
+   130065,
+   130067,
+   130068,
+   130069,
+   130072,
+   130073,
+   130082,
+   130084,
+   130087,
+   130093,
+   130098,
+   130099,
+   130100,
+   130101,
+   130102,
+   130103,
+   130108,
+   130123,
+   130124,
+   130125,
+   130126,
+   130127,
+   130128,
+   130131,
+   130132,
+   130139,
+   130142,
+   130147,
+   130154,
+   130155,
+   130157,
+   130158,
+   130159,
+   130161,
+   130162,
+   130163,
+   130170,
+   130172,
+   130174,
+   130175,
+   130176,
+   130185,
+   130186,
+   130189,
+   130191,
+   130192,
+   140017,
+   140018,
+   140019,
+   140022,
+   140023,
+   140024,
+   140032,
+   140034,
+   140035,
+   140036,
+   140037,
+   140039,
+   140040,
+   140041,
+   140042,
+   140044,
+   140047,
+   140052,
+   140057,
+   140059,
+   140066,
+   140067,
+   140070,
+   140071,
+   140072,
+   140073,
+   140074,
+   140081,
+   140085,
+   140092,
+   140093,
+   140094,
+   140095,
+   140100,
+   140101,
+   140107,
+   140115,
+   140117,
+   140119,
+   140122,
+   140123,
+   140124,
+   140125,
+   140126,
+   140127,
+   140128,
+   140129,
+   140130,
+   140131,
+   140132,
+   140133,
+   140134,
+   140138,
+   140145,
+   140147,
+   140152,
+   140153,
+   140156,
+   140157,
+   140159,
+   140160,
+   140162,
+   140163,
+   140164,
+   140167,
+   140172,
+   140173,
+   140174,
+   140179,
+   140182,
+   140184,
+   140187,
+   140194,
+   140197,
+   140198,
+   140199,
+   140202,
+   140209
+  ],
+  "sp_spent": 203,
+  "stigma_spent": 30,
+  "daevanion_cost": 360,
+  "effective_levels": {
+   "Keen Strike": 2,
+   "Rending Blow": 14,
+   "Leaping Slam": 10,
+   "Mocking Blade": 11,
+   "Overhead Slam": 14,
+   "Sword Aura Rampage": 1,
+   "Ankle Slice": 12,
+   "Crushing Wave": 2,
+   "Rush Strike": 12,
+   "Aerial Snare": 12,
+   "Ruinous Blow": 14,
+   "Defiance": 3,
+   "Survival Stance": 1,
+   "Protection Armor": 2,
+   "Blood Absorption": 2,
+   "Identify Weakness": 14,
+   "Attack Preparation": 14,
+   "Impact Hit": 14,
+   "Destructive Impulse": 1,
+   "Experienced Counterstrike": 14,
+   "Survival Willpower": 1,
+   "Murderous Burst": 3,
+   "Assault Strike": 5,
+   "Zikel's Blessing": 6,
+   "Lifestealing Blade": 6,
+   "Rage Burst": 8
+  },
+  "specialties": [
+   {
+    "id": 11170000,
+    "skill": "Overhead Slam",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 11170010,
+      "number": 1,
+      "text": "Absorbs 70, 70% HP",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11170020,
+      "number": 2,
+      "text": "Changes to AoE Skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11170030,
+      "number": 3,
+      "text": "Adds [Upward Strike] Chain Skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11170040,
+      "number": 4,
+      "text": "Critical Hit on hit",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11170050,
+      "number": 5,
+      "text": "Remove cooldown",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 11010000,
+    "skill": "Rending Blow",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 11010010,
+      "number": 1,
+      "text": "-20% MP consumed",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11010020,
+      "number": 2,
+      "text": "+200 Block while using skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11010030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11010040,
+      "number": 4,
+      "text": "Deals up to 12% more damage when less targets are hit",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11010050,
+      "number": 5,
+      "text": "Restores 50 MP on landing a Critical Hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 11100000,
+    "skill": "Ruinous Blow",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 11100010,
+      "number": 1,
+      "text": "+20% Skill Speed",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11100020,
+      "number": 2,
+      "text": "+12.5m Range",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11100030,
+      "number": 3,
+      "text": "+30% Skill Critical Hit",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11100040,
+      "number": 4,
+      "text": "Extra damage on hit",
+      "unlock": 12,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11100050,
+      "number": 5,
+      "text": "Ignores Block and Evasion and lands as Multi-Hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 11300000,
+    "skill": "Aerial Snare",
+    "kind": "active",
+    "level": 12,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 11300010,
+      "number": 1,
+      "text": "Multi-Hit on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11300020,
+      "number": 2,
+      "text": "+25% [Aerial Snare] Airborne Chance",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11300030,
+      "number": 3,
+      "text": "+100% damage to targets with Incapacitated Immunity",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11300040,
+      "number": 4,
+      "text": "Adds [Forced Fall] Chain Skill",
+      "unlock": 12,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11300050,
+      "number": 5,
+      "text": "-50% [Aerial Snare] cooldown",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 11200000,
+    "skill": "Ankle Slice",
+    "kind": "active",
+    "level": 12,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 11200010,
+      "number": 1,
+      "text": "30% chance to inflict Knockdown for 3s on landing [Ankle Slice]",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11200020,
+      "number": 2,
+      "text": "Adds [Ankle Smash] Chain Skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11200030,
+      "number": 3,
+      "text": "+16m [Ankle Slice] range",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11200040,
+      "number": 4,
+      "text": "Ignores Block and Evasion and lands as Multi-Hit",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11200050,
+      "number": 5,
+      "text": "25% chance to reset [Ankle Slice] cooldown on Block",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 11360000,
+    "skill": "Rush Strike",
+    "kind": "active",
+    "level": 12,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 11360010,
+      "number": 1,
+      "text": "Restores 300 Stamina on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11360020,
+      "number": 2,
+      "text": "+10m range",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11360030,
+      "number": 3,
+      "text": "Changes to Charge Skill and deals AoE damage",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11360040,
+      "number": 4,
+      "text": "-10s cooldown",
+      "unlock": 12,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11360050,
+      "number": 5,
+      "text": "+25% Knockdown Chance",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20
+   },
+   {
+    "id": 11290000,
+    "skill": "Mocking Blade",
+    "kind": "active",
+    "level": 11,
+    "slots": 1,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 11290010,
+      "number": 1,
+      "text": "Absorbs 400, 400% HP, absorbs 1500, 1500% HP of target with Incapacitated Immunity",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11290020,
+      "number": 2,
+      "text": "Changes to AoE damage on down strike",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11290030,
+      "number": 3,
+      "text": "Adds 2 additional strikes",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11290040,
+      "number": 4,
+      "text": "+1s Knockdown duration",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11290050,
+      "number": 5,
+      "text": "Ignores Block and Evasion and lands as Multi-Hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 12,
+    "next_slot_level": 12
+   },
+   {
+    "id": 11190000,
+    "skill": "Leaping Slam",
+    "kind": "active",
+    "level": 10,
+    "slots": 1,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 11190010,
+      "number": 1,
+      "text": "Prepare for Battle effect on the caster for 3s",
+      "unlock": 8,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11190020,
+      "number": 2,
+      "text": "50% chance to trigger [Ankle Slice] on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11190030,
+      "number": 3,
+      "text": "Resets cooldown on defeating an enemy",
+      "unlock": 8,
+      "available": true,
+      "selected": false
+     },
+     {
+      "id": 11190040,
+      "number": 4,
+      "text": "+20% PvE Damage Tolerance and +10 PvP Damage Tolerance for 3s",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11190050,
+      "number": 5,
+      "text": "Changes to AoE skill and pulls in enemies",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 12,
+    "next_slot_level": 12
+   },
+   {
+    "id": 11260000,
+    "skill": "Defiance",
+    "kind": "active",
+    "level": 3,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 11260010,
+      "number": 1,
+      "text": "Adds [Wrath Burst] Chain Skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11260020,
+      "number": 2,
+      "text": "Restores 1,000 Stamina on using [Defiance]",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11260030,
+      "number": 3,
+      "text": "Restores 20% HP on using [Defiance]",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11260040,
+      "number": 4,
+      "text": "+2s Tenacity duration",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11260050,
+      "number": 5,
+      "text": "+50% PvE Damage Tolerance and +25% PvP Damage Tolerance for Tenacity duration",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 11050000,
+    "skill": "Crushing Wave",
+    "kind": "active",
+    "level": 2,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 11050010,
+      "number": 1,
+      "text": "Absorbs 200, 200% HP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11050020,
+      "number": 2,
+      "text": "Restores 50 MP on landing a Critical Hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11050030,
+      "number": 3,
+      "text": "Up to +20% damage when more targets hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11050040,
+      "number": 4,
+      "text": "Resets cooldown on landing a Critical Hit",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11050050,
+      "number": 5,
+      "text": "50% chance to pull",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 11020000,
+    "skill": "Keen Strike",
+    "kind": "active",
+    "level": 2,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 11020010,
+      "number": 1,
+      "text": "+20% MP restored",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11020020,
+      "number": 2,
+      "text": "Absorbs 100, 100% HP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11020030,
+      "number": 3,
+      "text": "+50% Multi-Hit on hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11020040,
+      "number": 4,
+      "text": "-1s [Ruinous Blow] cooldown on hit",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11020050,
+      "number": 5,
+      "text": "Adds [Reckless Strike] Chain Skill",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 11280000,
+    "skill": "Sword Aura Rampage",
+    "kind": "active",
+    "level": 1,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 11280010,
+      "number": 1,
+      "text": "Absorbs 500, 500% HP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11280020,
+      "number": 2,
+      "text": "Restores 120 MP",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11280030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11280040,
+      "number": 4,
+      "text": "Multi-Hit on hit",
+      "unlock": 12,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11280050,
+      "number": 5,
+      "text": "-1s all skill cooldowns on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8
+   },
+   {
+    "id": 11390000,
+    "skill": "Rage Burst",
+    "kind": "stigma",
+    "level": 8,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 11390010,
+      "number": 1,
+      "text": "-15s [Rage Burst] cooldown",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11390020,
+      "number": 2,
+      "text": "+10% Attack reduction",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11390030,
+      "number": 3,
+      "text": "Critical Hit on hit",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11390040,
+      "number": 4,
+      "text": "+10% PvE Damage Boost increase and +5% PvP Damage Boost increase",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   },
+   {
+    "id": 11340000,
+    "skill": "Lifestealing Blade",
+    "kind": "stigma",
+    "level": 6,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 11340010,
+      "number": 1,
+      "text": "Up to +20% damage when more targets hit",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11340020,
+      "number": 2,
+      "text": "Predation effect on party members for 20s",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11340030,
+      "number": 3,
+      "text": "-30s cooldown",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11340040,
+      "number": 4,
+      "text": "+5% HP absorbed",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   },
+   {
+    "id": 11250000,
+    "skill": "Zikel's Blessing",
+    "kind": "stigma",
+    "level": 6,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 11250010,
+      "number": 1,
+      "text": "+50% Stagger Gauge Damage",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11250020,
+      "number": 2,
+      "text": "+10% PvE Damage Boost and +5% PvP Damage Boost",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11250030,
+      "number": 3,
+      "text": "+50% Multi-Hit chance",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11250040,
+      "number": 4,
+      "text": "+20% Status Effect Chance",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   },
+   {
+    "id": 11700000,
+    "skill": "Assault Strike",
+    "kind": "stigma",
+    "level": 5,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 11700010,
+      "number": 1,
+      "text": "+20% Attack for 5s on hit",
+      "unlock": 5,
+      "available": true,
+      "selected": true
+     },
+     {
+      "id": 11700020,
+      "number": 2,
+      "text": "500 MP damage on hit",
+      "unlock": 10,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11700030,
+      "number": 3,
+      "text": "+10m range",
+      "unlock": 15,
+      "available": false,
+      "selected": false
+     },
+     {
+      "id": 11700040,
+      "number": 4,
+      "text": "+20% Knockdown Chance",
+      "unlock": 20,
+      "available": false,
+      "selected": false
+     }
+    ],
+    "next_effect_level": 10,
+    "next_slot_level": null
+   }
+  ]
+ },
+ "policy": [
+  "rage_burst",
+  "ankle_slice",
+  "zikel_s_blessing",
+  "overhead_slam",
+  "rush_strike",
+  "assault_strike",
+  "ruinous_blow",
+  "mocking_blade",
+  "lifestealing_blade",
+  "aerial_snare",
+  "leaping_slam",
+  "rending_blow"
+ ],
+ "shares": {
+  "Overhead Slam": 0.36559478380179883,
+  "Ankle Slice": 0.14793767835008437,
+  "Rending Blow": 0.1434064326843083,
+  "Rush Strike": 0.11497053796868809,
+  "Ruinous Blow": 0.07093057183224732,
+  "Leaping Slam": 0.056978103354775884,
+  "Mocking Blade": 0.02695161416005506,
+  "Aerial Snare": 0.021970191886977183,
+  "Rage Burst": 0.02145277955747398,
+  "Assault Strike": 0.015346894113781194,
+  "Lifestealing Blade": 0.014460412289810888
+ },
+ "opener": [
+  [
+   0.0,
+   "rage_burst"
+  ],
+  [
+   0.91,
+   "ankle_slice"
+  ],
+  [
+   1.82,
+   "zikel_s_blessing"
+  ],
+  [
+   2.4,
+   "overhead_slam"
+  ],
+  [
+   3.31,
+   "rush_strike"
+  ],
+  [
+   4.22,
+   "assault_strike"
+  ],
+  [
+   5.13,
+   "ruinous_blow"
+  ],
+  [
+   5.9,
+   "mocking_blade"
+  ],
+  [
+   6.81,
+   "lifestealing_blade"
+  ],
+  [
+   7.71,
+   "overhead_slam"
+  ],
+  [
+   8.62,
+   "aerial_snare"
+  ],
+  [
+   9.53,
+   "leaping_slam"
+  ],
+  [
+   10.44,
+   "ankle_slice"
+  ],
+  [
+   11.35,
+   "rending_blow"
+  ],
+  [
+   12.12,
+   "rending_blow"
+  ],
+  [
+   12.89,
+   "overhead_slam"
+  ],
+  [
+   13.79,
+   "rush_strike"
+  ],
+  [
+   14.7,
+   "rending_blow"
+  ],
+  [
+   15.47,
+   "rending_blow"
+  ],
+  [
+   16.24,
+   "rending_blow"
+  ],
+  [
+   17.01,
+   "rending_blow"
+  ],
+  [
+   17.78,
+   "overhead_slam"
+  ],
+  [
+   18.69,
+   "rending_blow"
+  ],
+  [
+   19.46,
+   "rending_blow"
+  ],
+  [
+   20.23,
+   "ankle_slice"
+  ],
+  [
+   21.14,
+   "rending_blow"
+  ],
+  [
+   21.91,
+   "rending_blow"
+  ],
+  [
+   22.68,
+   "overhead_slam"
+  ],
+  [
+   23.58,
+   "rush_strike"
+  ],
+  [
+   24.49,
+   "leaping_slam"
+  ],
+  [
+   25.4,
+   "mocking_blade"
+  ],
+  [
+   26.31,
+   "rending_blow"
+  ],
+  [
+   27.08,
+   "rending_blow"
+  ],
+  [
+   27.85,
+   "overhead_slam"
+  ],
+  [
+   28.76,
+   "rage_burst"
+  ],
+  [
+   29.66,
+   "ankle_slice"
+  ]
+ ],
+ "stats": {
+  "attack_avg": 1420.2026999999998,
+  "crit_stat": 806.6545000000001,
+  "crit_chance_vs_target": 0.2227742506167482,
+  "cdr": 0.0652,
+  "combat_speed": 0.08170000000000001,
+  "boost_bucket": 0.11599999999999999,
+  "double": 0.0471,
+  "perfect": 0.15860000000000002,
+  "multihit": 0.05500000000000001,
+  "weapon_amp": 0.1
+ },
+ "evaluation": {
+  "model": "0.2.58",
+  "scope": "4a8592f5414ffa3950cfada5b6b58e05462e8bdd44d67b8591c6e4ffec05f0f4",
+  "policy_version": 1
+ },
+ "candidate_generation": {
+  "objective": "pvp_burst",
+  "iterations": 1,
+  "calibration": "disabled",
+  "note": "Fresh stationary damage search under common comparison resources; not a global optimum or competitive win-rate claim.",
+  "selection": {
+   "method": "Highest equal-weight sustained/burst modeled DPS among two generated allocations",
+   "candidates": [
+    {
+     "objective": "pvp",
+     "score": 6256.620493097411,
+     "dps": {
+      "pvp": 6104.031382028831,
+      "pvp_burst": 6409.209604165992
+     }
+    },
+    {
+     "objective": "pvp_burst",
+     "score": 6301.66104790896,
+     "dps": {
+      "pvp": 4549.207813136798,
+      "pvp_burst": 8054.114282681123
+     }
+    }
+   ]
+  }
+ },
+ "preset_source": "bundled-example"
+}

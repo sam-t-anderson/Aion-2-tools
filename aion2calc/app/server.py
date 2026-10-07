@@ -75,7 +75,7 @@ def _summary_at(path: str) -> dict:
         from ..combat.preset_sync import cached_presets
         for row in cached_presets():
             if path == f"community-v2:{row['class']}:{row['mode']}":
-                return {**row["build"], "preset_checked_at": row["checked_at"]}
+                return {**row["build"], "preset_checked_at": row["checked_at"], "preset_source": "community"}
         raise FileNotFoundError(path)
     if path.startswith("community:"):
         from ..paths import read_json
