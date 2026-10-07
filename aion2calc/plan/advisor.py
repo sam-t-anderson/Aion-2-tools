@@ -109,6 +109,11 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
         say("scoring the character as it is")
         ctx = PlanContext.from_character(imp, inv, evaluation)
         base = ctx.dps(ctx.equipped)
+        from ..run import prepare
+        from ..scenarios import SCENARIOS
+        from ..kit.specialties import describe as describe_specialties
+        specialty_cd, specialty_build, _, _ = prepare(ctx.build,SCENARIOS[ctx.scenario](ctx.loadout))
+        specialties = describe_specialties(specialty_cd,specialty_build)
         say("best gear from your inventory")
         equip = best_equip(ctx, inv)
         say("goal gear per slot")
@@ -174,7 +179,7 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
                 f"community calibration from your log server: {c['fights']} fights" for c in
                 [learn.community(imp.cls, fetch=False)] if c and c.get("active")], "calibrated": bool(cal),
             "top": top, "doll": doll, "equip": equip, "goals": goals, "upgrade_path": path, "arcana": arc,
-            "pantheon": pan, "titles": tit, "genus": gen, "rotation": rot, "community": cs, "seconds": time.time() - t0}
+            "pantheon": pan, "titles": tit, "genus": gen, "skill_specialties": specialties, "rotation": rot, "community": cs, "seconds": time.time() - t0}
 
 
 def _pct(x) -> str:
@@ -188,6 +193,12 @@ def write_markdown(adv: dict, out: Path) -> Path:
          + (" (model calibrated from your fights)" if adv["calibrated"] else ""), "",
          "## Top changes", "", "| Area | Change | DPS |", "|---|---|---:|"]
     L += [f"| {r['area']} | {r['text']} | {_pct(r['gain'])} |" for r in adv["top"]]
+    L += ["", "## Skill specialties", "", "Recommended for the imported equipped build; official profiles do not disclose your selected specialties. Effective levels include trained, Daevanion and gear bonuses. Stigma effects activate automatically. Recalculate after changing gear or points.", ""]
+    for row in adv.get("skill_specialties", []):
+        picked = "; ".join(f"#{e['number']} (Lv {e['unlock']}): {e['text']}" for e in row["effects"] if e["selected"])
+        L += [f"* {row['skill']} · effective Lv {row['level']}: {picked or 'No specialty selected/unlocked'}"]
+        if row["next_effect_level"]:
+            L += [f"  Next effect unlock: Lv {row['next_effect_level']}."]
     L += ["", "## Gear", "", f"Best set from your inventory: {_pct(adv['equip']['gain'])}", ""]
     L += [f"* {x['slot']}: {x['to']} (was {x['from']}), {_pct(x['gain'])}" for x in adv["equip"]["changes"]]
     if adv["equip"].get("empty_slots"):

@@ -22,6 +22,10 @@ It answers, for any class:
 and produces images of the Daevanion boards and a planner-style build page plus
 share links for the metabot.gg and gamers4.life planners.
 
+## Skill specialties
+
+**Optimize my build → Skills** shows recommended specialty numbers, descriptions and effect unlock levels. **Gear & Advice → Skill specialties** shows recommendations for your imported equipped build, all effect requirements and the next unlock, even without combat logs. Effective levels include training, Daevanion and gear. Stigma effects activate automatically. The official profile does not disclose selected specialties, so these are recommendations rather than confirmed current choices. Recalculate after changing gear or points. New saved advice retains its specialty snapshot; older snapshots require recalculation for this panel.
+
 ## Reporting a shared combat log
 
 Open a shared log in Combat Logs, the website, or its server link and expand **Report this shared log**. Choose a reason, describe the concern, and keep the receipt. Reports are private requests for human review; they do not automatically hide logs or establish wrongdoing. Do not include credentials or unnecessary personal details.

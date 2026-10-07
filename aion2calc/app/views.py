@@ -106,6 +106,7 @@ def skills_view(cd: ClassData, build, gear_bonus: dict, levels_override: dict | 
         rows[s["kind"]].append({
             "id": sid, "name": s["name"], "icon": SKILL_ICON.format(sid), "sp": sp, "daev": dv.get(sid, 0),
             "gear": gear_bonus.get(sid, 0), "eff": eff, "slots": spec_slots(eff),
+            "next_effect_level": min((x["unlock"] for x in s.get("specs", []) if x["unlock"] > eff),default=None),
             "specs": [{"id": x["id"], "n": i + 1, "unlock": x["unlock"], "text": x["text"],
                        "chosen": x["id"] in chosen, "available": x["unlock"] <= eff}
                       for i, x in enumerate(s.get("specs", []))]})

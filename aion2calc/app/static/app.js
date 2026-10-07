@@ -95,11 +95,12 @@ function winSkills(v, tab = "active") {
       <div><div class="nm">${esc(s.name)}</div>
         <div class="lvl"><b>Lv ${s.eff}</b> = SP ${s.sp} + Daevanion ${s.daev}${s.gear ? ` + gear ${s.gear}` : ""}</div></div>
       <div class="specs">${s.specs.map((x) => `<div class="spec ${x.chosen ? "on" : x.available ? "av" : ""}" title="${esc(`${x.n}. ${x.text} (unlocks at Lv ${x.unlock})`)}">${x.n}</div>`).join("")}</div>
-      ${chosen.length ? `<div class="spectext">${chosen.map((x) => `<span>${x.n}</span> ${esc(x.text)}`).join(" &nbsp;·&nbsp; ")}</div>` : ""}
+      ${s.specs.length?`<div class="small muted">${esc(s.slots)} selection slot(s) · ${chosen.length} recommended${s.next_effect_level?` · next effect at Lv ${esc(s.next_effect_level)}`:''}</div>`:''}
+      ${chosen.length ? `<div class="spectext">${chosen.map((x) => `<span>${x.n}</span> ${esc(x.text)} <span class="faint">(effect Lv ${esc(x.unlock)})</span>`).join(" &nbsp;·&nbsp; ")}</div>` : ""}
     </div>`;
   }).join("");
   const copy = (v.skills.active.concat(v.skills.passive)).filter((s) => s.sp > 1 || s.specs.some((x) => x.chosen))
-    .map((s) => `${s.name}: train to ${s.sp} (Lv ${s.eff})${s.specs.some((x) => x.chosen) ? " — specs " + s.specs.filter((x) => x.chosen).map((x) => x.n).join(", ") : ""}`).join("\n");
+    .map((s) => `${s.name}: train to ${s.sp} (Lv ${s.eff})${s.specs.some((x) => x.chosen) ? " — specialties " + s.specs.filter((x) => x.chosen).map((x) => `${x.n}: ${x.text} (effect Lv ${esc(x.unlock)})`).join("; ") : ""}`).join("\n");
   const tabs = `<div class="tabs">${["active", "passive"].map((t) => `<button data-skilltab="${t}" class="${t === tab ? "on" : ""}">${cap(t)}</button>`).join("")}</div>`;
   const rolls = (v.gear_skill_rolls || []).map((r) => `${r.name} +${r.levels}`).join(", ");
   return win("Skills", counter, tabs + `<div class="skilllist">${rows}</div>` +
@@ -1242,11 +1243,17 @@ function advTop(a) {
      <p class="small faint">Saved as <code>${esc(a.file || "")}</code></p>`, { key: "adv-top", copy: a.top.map((r) => `${r.area}: ${r.text} ${r.gain == null ? "" : sp(r.gain)}`).join("\n") });
 }
 
+function advSpecialties(a) {
+  const rows=a.skill_specialties;
+  if(!rows)return win("Skill specialties", "", '<p class="muted">This older saved advice has no specialty snapshot. Recalculate advice to include it.</p>');
+  const text=rows.map(r=>`${r.skill} · effective Lv ${esc(r.level)}: ${r.effects.filter(e=>e.selected).map(e=>`#${esc(e.number)}: ${e.text} (effect Lv ${esc(e.unlock)})`).join('; ')||'None unlocked/selected'}`).join('\n');
+  return win("Skill specialties", "recommended for your imported equipped build", `<p class="small muted">Effective levels include trained, Daevanion and gear bonuses. These are simulated recommendations; the official profile does not show your selected specialties. Stigma effects activate automatically. Recalculate after changing gear or points.</p><table class="t"><tr><th>Skill / effective level</th><th>Recommended specialties</th><th>Next unlock</th></tr>${rows.map(r=>`<tr><td>${esc(r.skill)} · Lv ${esc(r.level)}<br><span class="small muted">${r.automatic?'Automatic stigma effects':esc(r.slots)+' selection slot(s)'}</span></td><td>${r.effects.filter(e=>e.selected).map(e=>`<div><b>#${esc(e.number)}</b> ${esc(e.text)} <span class="faint">(effect Lv ${esc(e.unlock)})</span></div>`).join('')||'None unlocked/selected'}<details><summary>All effects and requirements</summary>${r.effects.map(e=>`<p class="small">#${esc(e.number)} · Lv ${esc(e.unlock)} · ${e.selected?'Recommended':e.available?'Available':'Locked'}: ${esc(e.text)}</p>`).join('')}</details></td><td>${r.next_effect_level?'Effect Lv '+esc(r.next_effect_level):'All effects unlocked'}${r.next_slot_level?'<br>Selection slot Lv '+esc(r.next_slot_level):''}</td></tr>`).join('')}</table>`, {key:'adv-specialties',copy:text});
+}
 function renderAdvice(a) {
   const r = a.rotation;
   const rot = r.fights ? `<p>${r.fights} fight(s), idle ${pct(r.idle_share, 0)} of the time.</p>${r.under_cast.slice(0, 6).map((t) => `<div class="tip">${esc(t.text)}</div>`).join("")}
     ${r.specs.map((d) => `<div class="tip">${esc(d.skill)}: specs ${esc(d.yours)} in your fights, ${esc(d.optimal)} in the optimized build</div>`).join("")}` : '<p class="muted">No saved fights for this character: import AbyssLogs links on Combat Logs.</p>';
-  return advTop(a) + advDoll(a) + advPath(a) + advArcana(a) + advTitles(a) + advPantheon(a) + advGenus(a, a.inventory_snapshot || S.gear.inv) +
+  return advTop(a) + advSpecialties(a) + advDoll(a) + advPath(a) + advArcana(a) + advTitles(a) + advPantheon(a) + advGenus(a, a.inventory_snapshot || S.gear.inv) +
     `<div class="grid2">${win("Your fights", "", rot)}${win("Model calibration", "learned from fights matched to equipped gear", a.calibration.map((x) => `<div class="small">${esc(x)}</div>`).join(""))}</div>`;
 }
 function bindAdvice(a) {

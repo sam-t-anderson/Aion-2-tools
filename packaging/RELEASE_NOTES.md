@@ -1,3 +1,10 @@
+# Aion 2 Calc 0.2.31
+
+- Add skill-specialty recommendations to Gear & Advice without requiring combat logs: effect descriptions, selection numbers, effective levels and unlock requirements, plus automatic stigma effects.
+- Save specialty snapshots with calculated advice and optimizer/current-build JSON. Older advice remains readable and explains when recalculation is needed.
+- Show effect unlock levels and next thresholds in the optimizer Skills screen and copyable setup.
+- Clean invalid specialty choices before each optimizer specialty search after gear/level changes. Use each skill's effect requirements separately from the existing selection-slot level gates, confirmed by the user for this iteration.
+
 # Aion 2 Calc 0.2.30
 
 - Add private report forms to shared combat logs on desktop, Pages and server views, with receipt numbers and clear unverified-report labels.

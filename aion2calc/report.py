@@ -332,6 +332,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     sens = sensitivity(build, scen, policy, samples=8)
 
     eff = opt._with_gear(build).effective_levels(cd)
+    from .kit.specialties import describe as describe_specialties
 
     timeline = [(round(t, 2), k) for t, k in final.timeline if t < 30]
     links = {
@@ -362,7 +363,8 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
                             for k, v in build.specs.items() if v},
                   "daevanion_nodes": sorted(build.daevanion),
                   "daevanion_cost": build.daevanion_cost(cd),
-                  "effective_levels": {cd.skills[k]["name"]: v for k, v in eff.items() if v > 1}},
+                  "effective_levels": {cd.skills[k]["name"]: v for k, v in eff.items() if v > 1},
+                  "specialties": describe_specialties(cd,opt._with_gear(build))},
         "policy": describe(policy),
         "macro": describe_plan(macro),
         "shares": final.shares(), "casts": final.casts, "uptime": final.uptime,

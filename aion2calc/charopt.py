@@ -97,6 +97,7 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dic
     d = stats.derived()
     from .model.stats import crit_chance
     eff = bg.effective_levels(cd)
+    from .kit.specialties import describe as describe_specialties
     return {
         "class": cls, "loadout": imp.loadout_name(), "scenario": scenario_name, "kind": "current",
         "character": {"name": imp.name, "server": imp.server, "level": imp.level,
@@ -114,7 +115,8 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dic
                             for k, v in b.specs.items() if v},
                   "daevanion_nodes": sorted(b.daevanion),
                   "daevanion_cost": crystal_cost(cd, b.daevanion),
-                  "effective_levels": {cd.skills[k]["name"]: v for k, v in eff.items() if v > 1}},
+                  "effective_levels": {cd.skills[k]["name"]: v for k, v in eff.items() if v > 1},
+                  "specialties": describe_specialties(cd,bg)},
         "policy": describe(policy),
         "policy_raw": [list(e) if isinstance(e, tuple) else e for e in policy],
         "weights": stat_weights(stats, kit, policy, scen.target, scen.config),
