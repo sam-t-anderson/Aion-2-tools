@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.48
+
+Desktop and Pages add **News**, with official English/global notice and update headlines, publication/retrieval dates, category filters and direct source links. All Pages tabs keep the same banner/navigation, including News. The configured community server caches the fixed official feeds; stale or unavailable sources are explained and official list links remain available offline from the community feed.
+
+No article HTML, unofficial RSS or embedded executable content is loaded. Source announcements are not installed-game version evidence and do not set historical log/ranking patches. Korean/Taiwan feeds, patch-to-build matching, regional event timers and broader news sources remain follow-up work. A supporting community server is required for cached headline cards.
+
 # Aion 2 Calc 0.2.47
 
 Saved Parts queues generate and persist a random request ID before sending each file, on desktop and Pages. Recovery exports retain that non-secret ID. Updated servers reuse the accepted report for matching retries under the same upload-key identity (or anonymous scope), content and visibility, including after a client/server restart. Fingerprint checks and explicit uncertain-retry approval remain. Older servers and old uncertain requests without a prior ID can still duplicate; clearing the queue starts fresh request IDs.
