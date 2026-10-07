@@ -262,6 +262,8 @@ def community_request(path: str, body: dict | None = None) -> dict:
 
 def submit_preset(summary: dict) -> dict:
     """Send only anonymous allocations and rotation. The server recomputes all scores."""
+    if (summary.get("genus") or {}).get("stats"):
+        return {"submitted": False, "reason": "Personal Genus builds remain local; shared presets use a common loadout."}
     if summary.get("skill_reserves"):
         return {"submitted": False, "reason": "Personal skill-reserve builds remain local; shared presets compare damage-only objectives."}
     if summary.get("survival"):

@@ -4,17 +4,18 @@
   const genera=['Cogni','Fera','Natura','Varian','Special'];
   const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function mount(root,initial,save){
+    let dirty=false;
     let state=JSON.parse(JSON.stringify(initial||{})),selected=genera[0],busy=false,message='',jsonDraft=null,repair=false;
     if(!state||typeof state!=='object'||Array.isArray(state)){jsonDraft=JSON.stringify(state,null,2);state={};repair=true;message='Older genus data needs repair in Advanced JSON.';}
     const current=()=>{if(!state[selected]||typeof state[selected]!=='object'||Array.isArray(state[selected]))state[selected]={level:0,lines:[]};return state[selected];};
     const entries=()=>Array.isArray(current().lines)?current().lines:[];
-    const update=(slot,field,value)=>{const item=current();if(!Array.isArray(item.lines))item.lines=[];let row=item.lines.find(x=>x&&x.slot===slot);if(!row){row={slot,stat:'',value:''};item.lines.push(row);}row[field]=value;jsonDraft=null;const textarea=root.querySelector("[data-genus-json]");if(textarea)textarea.value=JSON.stringify(state,null,2);};
+    const update=(slot,field,value)=>{dirty=true;const item=current();if(!Array.isArray(item.lines))item.lines=[];let row=item.lines.find(x=>x&&x.slot===slot);if(!row){row={slot,stat:'',value:''};item.lines.push(row);}row[field]=value;jsonDraft=null;const textarea=root.querySelector("[data-genus-json]");if(textarea)textarea.value=JSON.stringify(state,null,2);};
     function render(){
       if(!root.isConnected)return;
       const group=state[selected],validGroup=!group||(typeof group==='object'&&!Array.isArray(group)&&(!Object.hasOwn(group,'lines')||Array.isArray(group.lines)));
       const item=state[selected]||{level:0,lines:[]},rows=Array.isArray(item.lines)?item.lines:[],level=Number(item.level)||0;
       const unusual=Object.keys(state).some(k=>!genera.includes(k))||genera.some(g=>{const x=state[g];return x&&(typeof x!=='object'||Array.isArray(x)||(Object.hasOwn(x,'lines')&&!Array.isArray(x.lines))||(Array.isArray(x.lines)&&x.lines.some(l=>!l||!Number.isInteger(l.slot)||l.slot<1||l.slot>9)));});
-      root.innerHTML=`<p class="small muted">Enter your in-game Pet Genus Insight levels and analysis lines. The official profile does not provide these allocations. Changes apply to local advice after saving and recalculating.</p>
+      root.innerHTML=`<p class="small muted">Enter your in-game Pet Genus Insight levels and analysis lines. The official profile does not provide these allocations. Changes apply to advice and PvE/PvP character optimization after saving and recalculating.</p>
         <div class="tabs" role="group" aria-label="Pet genera">${genera.map(g=>`<button type="button" aria-pressed="${g===selected}" data-genus-tab="${g}" class="${g===selected?'on':''}" ${busy?'disabled':''}>${g} · Lv ${esc(state[g]?.level||0)}</button>`).join('')}</div>
         <div class="row"><h4>${esc(selected)} Insight</h4><label>Insight level <input data-genus-level type="number" min="0" max="10" step="1" value="${esc(item.level??0)}" ${busy||repair||!validGroup?'disabled':''}></label><span class="small muted">Nine analysis slots · level 10 changes grade chances</span></div>
         ${unusual?'<p class="note">Some saved entries need review. They are retained in Advanced JSON; correct their genus/slot before saving.</p>':''}
@@ -23,14 +24,15 @@
         <details><summary>Advanced JSON / repair older entries</summary><p class="small muted">Apply JSON before changing genus tabs. Nothing is saved until Save genus lines succeeds.</p><textarea data-genus-json rows="8">${esc(jsonDraft??JSON.stringify(state,null,2))}</textarea><button type="button" class="btn small" data-genus-apply ${busy?'disabled':''}>Apply JSON to draft</button></details>
         <div class="row"><button type="button" class="btn primary" data-genus-save ${busy?'disabled':''}>${busy?'Saving…':'Save genus lines'}</button><span role="status" aria-live="polite">${esc(message)}</span></div>`;
       root.querySelectorAll('[data-genus-tab]').forEach(button=>button.onclick=()=>{selected=button.dataset.genusTab;message='';render();});
-      root.querySelector('[data-genus-level]').onchange=e=>{current().level=Number(e.target.value);jsonDraft=null;render();};
+      root.querySelector('[data-genus-level]').onchange=e=>{dirty=true;current().level=Number(e.target.value);jsonDraft=null;render();};
       root.querySelectorAll('[data-genus-field]').forEach(input=>input.oninput=()=>update(Number(input.dataset.genusSlot),input.dataset.genusField,input.value));
-      root.querySelectorAll('[data-genus-clear]').forEach(button=>button.onclick=()=>{current().lines=entries().filter(x=>!x||x.slot!==Number(button.dataset.genusClear));jsonDraft=null;render();});
-      root.querySelector('[data-genus-json]').oninput=e=>{jsonDraft=e.target.value;};
-      root.querySelector('[data-genus-apply]').onclick=()=>{try{const next=JSON.parse(jsonDraft??root.querySelector('[data-genus-json]').value);if(!next||typeof next!=='object'||Array.isArray(next))throw Error('Use an object keyed by genus.');state=next;repair=false;jsonDraft=null;message='Draft applied. Review and save.';render();}catch(e){message='JSON could not be applied: '+e.message;render();}};
-      root.querySelector('[data-genus-save]').onclick=async()=>{if(jsonDraft!==null){message='Apply the edited JSON before saving.';render();return;}busy=true;message='Saving genus lines…';render();try{const result=await save(state);state=JSON.parse(JSON.stringify(result));message='Genus lines saved. Run advice again to recalculate.';}catch(e){message='Not saved: '+e.message;}finally{busy=false;render();}};
+      root.querySelectorAll('[data-genus-clear]').forEach(button=>button.onclick=()=>{dirty=true;current().lines=entries().filter(x=>!x||x.slot!==Number(button.dataset.genusClear));jsonDraft=null;render();});
+      root.querySelector('[data-genus-json]').oninput=e=>{dirty=true;jsonDraft=e.target.value;};
+      root.querySelector('[data-genus-apply]').onclick=()=>{try{const next=JSON.parse(jsonDraft??root.querySelector('[data-genus-json]').value);if(!next||typeof next!=='object'||Array.isArray(next))throw Error('Use an object keyed by genus.');dirty=true;state=next;repair=false;jsonDraft=null;message='Draft applied. Review and save.';render();}catch(e){message='JSON could not be applied: '+e.message;render();}};
+      root.querySelector('[data-genus-save]').onclick=async()=>{if(jsonDraft!==null){message='Apply the edited JSON before saving.';render();return;}busy=true;message='Saving genus lines…';render();try{const result=await save(state);state=JSON.parse(JSON.stringify(result));dirty=false;message='Genus lines saved. Optimize or run advice again to recalculate.';}catch(e){message='Not saved: '+e.message;}finally{busy=false;render();}};
     }
     render();
+    return {isDirty:()=>dirty||busy||repair||jsonDraft!==null};
   }
   window.A2GenusEditor={mount};
 })();

@@ -314,7 +314,7 @@ def build_view(summary: dict) -> dict:
         "class": cls, "loadout": loadout, "loadout_name": lo.get("name"), "scenario": summary.get("scenario"),
         "equipment_source": "Saved run loadout" if saved_loadout else "Legacy run: current loadout file; original gear snapshot unavailable",
         "model_note": summary.get("model_note"), "survival": summary.get("survival"),
-        "skill_reserves": summary.get("skill_reserves"),
+        "skill_reserves": summary.get("skill_reserves"), "genus": summary.get("genus"),
         "dps": summary.get("dps"), "baseline": summary.get("baseline"), "budgets": budgets,
         "points": {"skill": build.sp_spent(), "stigma": build.stigma_spent(), "daevanion": build.daevanion_cost(cd)},
         "skills": skills_view(cd, build, gear),

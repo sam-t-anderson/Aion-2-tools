@@ -77,10 +77,11 @@ def budgets_of(imp: ImportedCharacter) -> dict:
     return result
 
 
-def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dict:
+def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus: dict | None = None) -> dict:
     """The character as it is (best legal specs for its levels, optimized rotation)."""
     cls = imp.cls
-    frozen_loadout = copy.deepcopy(imp.loadout)
+    from .opt.genus import apply as apply_genus
+    frozen_loadout = apply_genus(imp.loadout, genus)
     scen = SCENARIOS[scenario_name](frozen_loadout)
     other_name = comparison_scenario(scenario_name)
     other = SCENARIOS[other_name](frozen_loadout)
@@ -123,12 +124,12 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dic
         "policy_raw": [list(e) if isinstance(e, tuple) else e for e in policy],
         "weights": stat_weights(stats, kit, policy, scen.target, scen.config),
         "shares": res.shares(),
-        "systems": imp.systems,
+        "systems": imp.systems, "genus": copy.deepcopy(genus),
     }
 
 
 def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2,
-                       scenario_name: str = "boss", progress=None, budgets: dict | None = None, survival: dict | None = None, skill_reserves: dict | None = None) -> dict:
+                       scenario_name: str = "boss", progress=None, budgets: dict | None = None, survival: dict | None = None, skill_reserves: dict | None = None, genus: dict | None = None) -> dict:
     from .diff import write_diff
     from .report import run_report
     out = Path(out_dir)
@@ -137,7 +138,13 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     survival_plan = prepare_survival(ClassData(imp.cls), imp.build, survival)
     if survival_plan and progress:
         progress(f"HP reserve: maximize damage while retaining at least {survival_plan['minimum_node_hp']:,.0f} flat crystal-board HP")
-    cur = evaluate_current(imp, scenario_name)
+    from .plan import inventory as INV
+    from .opt.genus import prepare as prepare_genus
+    inv = INV.load(INV.profile_name(imp.cls, imp.loadout_name()), imp.cls)
+    genus_plan = prepare_genus(inv.get("genus", {}), "pvp" if scenario_name.startswith("pvp") else "pve", genus)
+    if progress:
+        progress(f"Genus Insight: {len(genus_plan['lines'])} saved lines; {genus_plan['mode'].upper()} damage model")
+    cur = evaluate_current(imp, scenario_name, genus_plan)
     (out / "current").mkdir(parents=True, exist_ok=True)
     bud = dict(cur["budgets"])
     for key, value in (budgets or {}).items():
@@ -163,10 +170,10 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     (out / "current" / "build.json").write_text(json.dumps(cur, indent=1, default=str), encoding="utf-8")
     best = run_report(imp.cls, str(out), scenario_name=scenario_name, daev_budget=bud["daevanion"],
                       iterations=iterations, loadout=imp.loadout_name(), sp_budget=bud["skill"],
-                      stigma_points=bud["stigma"], progress=progress, survival=survival_plan, loadout_snapshot=imp.loadout, skill_reserves=reserve_plan)
+                      stigma_points=bud["stigma"], progress=progress, survival=survival_plan, loadout_snapshot=imp.loadout, skill_reserves=reserve_plan, genus=genus_plan)
     write_diff(str(out / "current"), str(out), str(out / "DIFF.md"))
     gain = best["dps"][scenario_name] / cur["dps"][scenario_name] - 1
     summary = {"character": cur["character"], "current_dps": cur["dps"], "optimized_dps": best["dps"],
-               "gain": gain, "scenario": scenario_name, "survival": best.get("survival"), "skill_reserves": best.get("skill_reserves"), "budgets": bud, "seconds": time.time() - t0}
+               "gain": gain, "scenario": scenario_name, "genus": best.get("genus"), "survival": best.get("survival"), "skill_reserves": best.get("skill_reserves"), "budgets": bud, "seconds": time.time() - t0}
     (out / "character.json").write_text(json.dumps(summary, indent=1), encoding="utf-8")
     return summary

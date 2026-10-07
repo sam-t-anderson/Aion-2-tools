@@ -318,9 +318,41 @@ function winOverview(v) {
      <div><h4 class="gold small">DAMAGE SHARE</h4><table class="t">${sh}</table></div></div>`, { key: "overview" });
 }
 
+function winGenus(v) {
+  const g=v.genus;
+  if(!g)return win('Pet Genus Insight','', '<p class="muted">This result has no Genus snapshot. Save your lines in My Character or Gear &amp; Advice, then optimize again.</p>');
+  const rows=(g.lines||[]).map(x=>`<tr><td>${esc(x.genus)} · ${esc(x.slot)}</td><td>${esc(x.stat)}</td><td>${esc(x.value)}</td><td>${x.gain==null?'—':(100*x.gain).toFixed(2)+'%'}</td><td>${esc(x.reason||'Included in the damage model')}</td></tr>`).join('');
+  const levels=Object.entries(g.state||{}).map(([k,x])=>`${esc(k)} Lv ${esc(x.level)}`).join(' · ');
+  const mix=Object.entries(g.mix||{}).map(([k,x])=>`${esc(k)} ${(x*100).toFixed(1)}%`).join(' · ');
+  return win('Pet Genus Insight',esc((g.mode||'').toUpperCase()), `<p>${g.enabled?'Saved manual lines included':'Genus scoring disabled for this run'}</p><p class="small muted">${esc(g.note)}</p><p>${levels}</p>${mix?`<p>${esc(g.mix_source)}: ${mix}</p>`:''}<div class="tablewrap"><table class="t"><tr><th>Genus · slot</th><th>Analysis line</th><th>Value</th><th>DPS contribution</th><th>Model status</th></tr>${rows||'<tr><td colspan="5">No saved lines were used.</td></tr>'}</table></div><p class="small muted">Review low-contribution lines for this mode first. This does not predict reroll cost or guarantee a better obtainable roll. Levels and slots are preserved exactly as entered.</p>`);
+}
+
+function mountCharacterGenus(root,key) {
+  let editor=null,ready=false;
+  const prefKey='character-genus-options:'+key;
+  let saved={};try{saved=JSON.parse(localStorage.getItem(prefKey)||'{}');}catch(_){}
+  root.innerHTML=`<details><summary>Pet Genus Insight · PvE and PvP</summary><p class="small muted">Use the saved analysis lines from this character's Gear &amp; Advice inventory. Save edits before optimizing. Current-build and optimized scores use identical lines; Genus rolls are held fixed.</p><label><input type="checkbox" data-use-genus ${saved.enabled===false?'':'checked'}> Include saved Genus lines</label><p class="small muted">PvE enemy mix (relative weights; default equal). PvP ignores this mix and excludes genus-specific effects whose applicability to players is unverified.</p><div class="row">${['Cogni','Fera','Natura','Varian','Special'].map(g=>`<label>${g} <input data-genus-mix="${g}" type="number" min="0" max="100" step="any" value="${esc(saved.mix?.[g]??(g==='Special'?0:25))}" style="width:75px"></label>`).join('')}</div><div data-character-genus-editor role="status">Loading saved lines…</div></details>`;
+  const host=root.querySelector('[data-character-genus-editor]');
+  api('/api/inventory?character='+encodeURIComponent(key)).then(inv=>{
+    if(!root.isConnected)return;
+    editor=A2GenusEditor.mount(host,inv.genus||{},async draft=>{
+      const result=await api('/api/inventory/genus',{character:key,genus:draft});
+      return result.genus||{};
+    });ready=true;
+  }).catch(e=>{if(root.isConnected)host.textContent='Could not load Genus: '+e.message;});
+  return {read(mode){
+    const enabled=root.querySelector('[data-use-genus]').checked;
+    if(enabled&&(!ready||editor?.isDirty()))throw Error(ready?'Save your Genus edits before optimizing.':'Wait for Genus lines to load, or disable Genus scoring.');
+    const mix=Object.fromEntries([...root.querySelectorAll('[data-genus-mix]')].map(e=>[e.dataset.genusMix,Number(e.value)]));
+    if(mode==='pve'&&enabled&&(Object.values(mix).some(x=>!Number.isFinite(x)||x<0||x>100)||!Object.values(mix).some(x=>x>0)))throw Error('Set a positive PvE Genus mix using weights from 0 to 100.');
+    localStorage.setItem(prefKey,JSON.stringify({enabled,mix}));
+    return mode==='pvp'||!enabled?{enabled}:{enabled,mix};
+  }};
+}
+
 const WINDOWS = [
   ["overview", "Overview", "◆"], ["skills", "Skills", "✦"], ["stigma", "Stigma", "⬢"], ["daevanion", "Daevanion", "✧"],
-  ["equipment", "Equipment", "⚔"], ["arcana", "Arcana", "❖"], ["titles", "Titles & wings", "♛"], ["hotbar", "Skills hotbar", "▦"], ["macro", "Macro & rotation", "⌨"],
+  ["genus", "Pet Genus", "◈"], ["equipment", "Equipment", "⚔"], ["arcana", "Arcana", "❖"], ["titles", "Titles & wings", "♛"], ["hotbar", "Skills hotbar", "▦"], ["macro", "Macro & rotation", "⌨"],
 ];
 function renderWindows(v, state, host) {
   const side = `<section class="win sidemenu"><div class="wb">${WINDOWS.map(([k, t, ic]) => `<a href="javascript:void 0" data-win="${k}" class="${state.win === k ? "on" : ""}"><span class="ic">${ic}</span>${t}</a>`).join("")}</div></section>`;
@@ -329,6 +361,7 @@ function renderWindows(v, state, host) {
     case "skills": body = winSkills(v, state.skilltab || "active"); break;
     case "stigma": body = winStigmas(v); break;
     case "daevanion": body = winDaevanion(v, state.board || 0); break;
+    case "genus": body = winGenus(v); break;
     case "equipment": body = winEquipment(v); break;
     case "arcana": body = winArcana(v); break;
     case "titles": body = winTitles(v); break;
@@ -434,11 +467,12 @@ async function pageCharacter() {
       <div class="kpis">${Object.entries(v.dps || {}).map(([k, x]) => `<div class="kpi"><div class="k">${esc(k)} DPS as-is</div><div class="v">${n0(x)}</div></div>`).join("")}
         <div class="kpi"><div class="k">Skill points</div><div class="v">${v.points.skill} / ${v.budgets?.skill??"Unknown"}</div></div><div class="kpi"><div class="k">Stigma points</div><div class="v">${v.points.stigma} / ${v.budgets?.stigma??"Unknown"}</div></div>
         <div class="kpi"><div class="k">Daevanion</div><div class="v">${v.points.daevanion} / ${v.budgets?.daevanion??"Unknown"}</div></div></div>
-      ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${['skill','stigma','daevanion'].map(k=>`<label>${cap(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:90px"></label>`).join('')}<label>Game patch (optional) <input id="cpointpatch" maxlength="100" placeholder="Unknown" value="${esc(localStorage.getItem('point-game-patch')||'')}"></label></div><p class="small muted">PvP optimization is an experimental damage-only estimate against a stationary player proxy. It does not score survival, crowd control or win chance. PvE and PvP results are saved separately.</p><div id="survival-options"></div><div id="skill-reserves"></div><div id="optres"></div></div></section><div id="cwins"></div>`;
+      ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${['skill','stigma','daevanion'].map(k=>`<label>${cap(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:90px"></label>`).join('')}<label>Game patch (optional) <input id="cpointpatch" maxlength="100" placeholder="Unknown" value="${esc(localStorage.getItem('point-game-patch')||'')}"></label></div><p class="small muted">PvP optimization is an experimental damage-only estimate against a stationary player proxy. It does not score survival, crowd control or win chance. PvE and PvP results are saved separately.</p><div id="survival-options"></div><div id="skill-reserves"></div><div id="character-genus"></div><div id="optres"></div></div></section><div id="cwins"></div>`;
     const survivalOptions=mountSurvivalOptions($('#survival-options'),'character-survival:'+JSON.stringify(st.hit||v.key||v.loadout));
     const reservesOptions=mountSkillReserves($('#skill-reserves'),'character-skill-reserves:'+JSON.stringify(st.hit||v.key||v.loadout),v);
+    const genusOptions=mountCharacterGenus($("#character-genus"),v.key);
     renderWindows(v, st, $("#cwins"));
-    st.optMeta = { name: v.name, server: v.server, combat_power: v.combat_power };
+    st.optMeta = { key: v.key, name: v.name, level: v.level, warnings: v.warnings, server: v.server, combat_power: v.combat_power };
     $("#cpointpatch").onchange=()=>localStorage.setItem("point-game-patch",$("#cpointpatch").value.trim());
     document.querySelectorAll("[data-character-budget]").forEach(e=>e.onchange=rememberBudgets);
     document.querySelectorAll("[data-opt-mode]").forEach(button => button.onclick = async () => {
@@ -447,7 +481,7 @@ async function pageCharacter() {
       S.character.opt = { status: "running", mode, log: [], jobid: null };
       renderOptState();
       try {
-        const { job } = await api("/api/character/optimize", {...st.hit,mode,budgets:rememberBudgets(),survival:survivalOptions.read(),skill_reserves:reservesOptions.read(),game_patch:$("#cpointpatch").value.trim()});
+        const { job } = await api("/api/character/optimize", {...st.hit,mode,budgets:rememberBudgets(),survival:survivalOptions.read(),skill_reserves:reservesOptions.read(),genus:genusOptions.read(mode),game_patch:$("#cpointpatch").value.trim()});
         S.character.opt.jobid = job;
         pollOpt();
       } catch (e) { S.character.opt = { status: "error", error: e.message }; renderOptState(); }

@@ -176,6 +176,14 @@ My Character provides separate PvE and PvP damage actions. PvP uses the generic 
 
 The optional HP reserve below also applies to PvP, but it is a manual incoming-pressure constraint, not a simulation of an optimized opponent or a competitive win probability.
 
+## Manual Genus Insight
+
+Character optimization reads the saved inventory's manual Genus analysis lines by default. Both the current-build score and optimized build use the same frozen loadout component, including comparison scenarios and baseline builds. The official character import is unchanged; it does not supply Genus allocations. Saved reports retain levels, slots, values, mode, assumed mix and excluded effects.
+
+PvE scales genus-specific stat lines by a user-assumed enemy mix (equal Cogni/Fera/Natura/Varian by default). This is a weighted-stat approximation: nonlinear effects are not simulated separately for each enemy genus. PvP includes supported general damage stats and excludes genus-specific effects because their applicability to players is unverified. Unsupported effects, defensive lines and owned collection effects contribute no modeled benefit.
+
+Optimization holds rolls fixed while selecting other allocations. Reported line contributions remove one line from the final build using its existing rotation; contributions are conditional and not additive. They do not represent reroll probabilities, costs or guaranteed obtainable replacements. Genus-dependent personal builds are not submitted to common-loadout presets.
+
 ## Damage optimization with an HP reserve
 
 My Character → **Survivability** preserves the character's imported flat **HPMax** contribution from the four optimized crystal boards by default. The existing DPS objective stays primary inside the set of allocations meeting this floor. Skill, stigma and Daevanion budgets and board connectivity remain enforced. A stricter minimum can trade some modeled DPS for more crystal HP. Disable preservation and leave the minimum/scenarios empty to use the previous damage-only objective. This is an HP-node constraint, not a full survival simulator.
@@ -195,7 +203,7 @@ Floors apply to trained levels, not effective levels. Daevanion/gear bonuses and
 
 ## Assumptions and limitations
 
-The model does not reproduce movement or boss mechanics, complete party interactions (optional buffs can be supplied via `Scenario.buffs`), verified opponent-specific PvP combat, pets' genus-specific damage, Power Shards, or content beyond its modeled level range. An HP-node reserve does not fill these gaps.
+The model does not reproduce movement or boss mechanics, complete party interactions (optional buffs can be supplied via `Scenario.buffs`), verified opponent-specific PvP combat, verified per-genus pet combat interactions, Power Shards, or content beyond its modeled level range. An HP-node reserve does not fill these gaps.
 
 | Item | Value | Where |
 |---|---|---|
