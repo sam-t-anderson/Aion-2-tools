@@ -365,6 +365,8 @@ def validate(doc) -> dict:
         segment["quality"] = assess(result, segment)
     from .runs import summarize
     result["run_analysis"] = summarize(result)
+    from .recaps import summarize as death_recaps
+    result["death_analysis"] = death_recaps(result)
     return result
 
 

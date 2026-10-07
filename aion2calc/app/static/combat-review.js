@@ -39,10 +39,11 @@
       const recorded=segment.events || [];
       const events=(recorded.length ? recorded : (segment.hits || []).map(h=>({kind:"damage",t:h.t,source:h.source || h.player,target:h.target,amount:h.damage,skill:h.skill,skill_id:h.skill_id}))).slice().sort((a,b)=>a.t-b.t);
       const friendly=new Set((doc.players || []).map(p=>p.id));
+      const seenDeaths=new Set();
       const rows=new Map();
       const row=id=>{const key=owner(id,r);if(!key)return null;if(!rows.has(key)) rows.set(key,{...(r[key] || {id:key,name:key}),damage:0,taken:0,healing:0,deaths:0});return rows.get(key);};
       for(const e of events) {
-        if(e.kind==="death") {if(friendly.has(e.target) || r[e.target]?.owner) {const p=row(e.target);if(p)p.deaths++;}continue;}
+        if(e.kind==="death") {const key=e.target+":"+e.t;if(seenDeaths.has(key))continue;seenDeaths.add(key);if(friendly.has(e.target) || (!state.combine && r[e.target]?.owner)) {const p=row(e.target);if(p)p.deaths++;}continue;}
         if(e.kind==="damage") {
           if((friendly.has(e.source) || r[e.source]?.owner) && (!state.enemy || e.target===state.enemy)) {const p=row(e.source);if(p)p.damage+=e.amount;}
           if((friendly.has(e.target) || r[e.target]?.owner) && (!state.enemy || e.source===state.enemy)) {const p=row(e.target);if(p)p.taken+=e.amount;}
@@ -56,7 +57,7 @@
         && (!state.enemy || e.kind!=="damage" || e.target===state.enemy || e.source===state.enemy)
         && (state.pets || (!d.r[e.source]?.owner && !d.r[e.target]?.owner))
         && (state.metric==="summary" || (state.metric==="damage" && e.kind==="damage" && (d.friendly.has(e.source) || d.r[e.source]?.owner))
-          || (state.metric==="taken" && e.kind==="damage" && (d.friendly.has(e.target) || d.r[e.target]?.owner)) || (state.metric==="healing" && e.kind==="heal")));
+          || (state.metric==="taken" && e.kind==="damage" && (d.friendly.has(e.target) || d.r[e.target]?.owner)) || (state.metric==="healing" && e.kind==="heal") || (state.metric==="deaths" && e.kind==="death")));
     }
     function graph(d, events) {
       const duration=Math.max(d.segment.duration,1),step=Math.max(1,Math.ceil(duration/1200)),count=Math.ceil(duration/step)+1,series={};
@@ -88,11 +89,20 @@
       const duration=Math.max(1,d.segment.duration),ids=[...new Set(events.flatMap(e=>[owner(e.source,d.r),owner(e.target,d.r)]).filter(id=>id && (d.friendly.has(id) || d.r[id]?.owner)))];
       let omitted=0;
       const lanes=ids.map(id=>{
-        const all=events.filter(e=>e.kind==="death" ? state.deaths && owner(e.target,d.r)===id : state.skills && owner(e.source,d.r)===id && (e.kind!=="heal" || state.heals));
+        const all=events.filter(e=>e.kind==="death" ? state.deaths && owner(e.target,d.r)===id && (!state.combine || !d.r[e.target]?.owner) : state.skills && owner(e.source,d.r)===id && (e.kind!=="heal" || state.heals));
         omitted+=Math.max(0,all.length-1500);
         return `<div class="cr-lane"><div style="color:${color(d.r[id]?.class)}">${actorHTML(d.r[id])}</div><div class="cr-track">${all.slice(0,1500).map(e=>`<span class="cr-mark ${e.kind}" style="left:${Math.min(99.5,100*e.t/duration)}%;background:${e.kind==="death"?"#ef6262":e.kind==="heal"?"#58d68d":color(d.r[id]?.class)}" title="${esc(e.t.toFixed(2)+"s · "+label(d.r[e.source])+" → "+label(d.r[e.target])+" · "+(e.skill || e.kind)+" · "+number(e.amount))}">${e.kind==="death"?"✝":""}</span>`).join("")}</div></div>`;
       }).join("");
       return `<h3>Recorded skill hits, healing and deaths</h3><p class="small muted">Markers represent recorded effects, not unobserved cast starts. Hover for actor, recipient, skill and time.${omitted?" Dense lanes display their first 1,500 markers; use Events for the complete list.":""}</p><div class="cr-timeline">${lanes || "No timeline events recorded."}</div>`;
+    }
+    function recapsHTML(d) {
+      const analysis=doc.death_analysis;
+      if(!analysis)return '<p class="note">Death recaps are unavailable in this older view. Reopen the local file with the updated app, or update the sharing server.</p>';
+      const shown=(analysis.recaps || []).map((r,i)=>({...r,index:i})).filter(r=>r.segment===state.segment && (!state.actor || r.player===state.actor));
+      const selected=shown.find(r=>r.index===state.recap) || shown[0];
+      const hp=x=>x?number(x.current)+(x.max?' / '+number(x.max):' (maximum unavailable)'):'Unavailable';
+      const last=x=>x?`${actorHTML(d.r[x.source])} · ${esc(x.skill || x.skill_id || 'Unknown ability')} · ${number(x.amount)} at ${x.t.toFixed(3)}s`:'Unavailable';
+      return `<h3>Player death recaps</h3><p class="small muted">${esc(analysis.note)} Recaps include all recorded incoming sources for the selected player; enemy/metric/pet filters do not remove their context. ${analysis.omitted_recaps?`${analysis.omitted_recaps} recaps omitted by the 200-recap session limit.`:''}</p>${table(['Player','Death marker','Window','Recorded incoming damage','Recorded received healing','Latest recorded HP','Last observed incoming hit'],shown.map(r=>`<tr><td>${actorHTML(d.r[r.player])}<br><button class="btn small" data-recap="${r.index}">Open recap</button></td><td>${r.t.toFixed(3)}s</td><td>${r.window_seconds.toFixed(1)}s${r.short_window?' (short / split boundary)':''}</td><td>${number(r.incoming_damage)}</td><td>${number(r.received_healing)}</td><td>${hp(r.last_hp)}${r.last_hp?` at ${r.last_hp.t.toFixed(3)}s`:''}</td><td>${last(r.last_incoming_hit)}</td></tr>`))}${selected?`<h4>${esc(label(d.r[selected.player]))} · death marker at ${selected.t.toFixed(3)}s</h4><p class="small muted">Negative times are seconds before this marker. Equal timestamps do not establish ordering. Showing the last 200 effects and 200 HP samples; ${selected.omitted_events} effects and ${selected.omitted_health} HP samples omitted. Window totals include omitted effects.</p>${table(['Relative time','Effect','Source','Ability','Recorded amount'],selected.events.map(e=>`<tr><td>${(e.t-selected.t).toFixed(3)}s</td><td>${esc(e.kind)}</td><td>${actorHTML(d.r[e.source])}</td><td>${esc(e.skill || e.skill_id || 'Unknown')}</td><td>${number(e.amount)}</td></tr>`))}${table(['Relative time','Observed HP'],selected.health.map(s=>`<tr><td>${(s.t-selected.t).toFixed(3)}s</td><td>${hp(s)}</td></tr>`))}`:'<p>No explicit player death markers were recorded for this selection; this does not prove survival.</p>'}`;
     }
     function ranksHTML(d) {
       if(!options.rankings)return "";
@@ -118,7 +128,7 @@
       const runs=[...new Set(doc.segments.map(s=>s.run_id || "legacy"))];
       const runMenu=runs.some(id=>id!=="legacy")?`<label>Run <select data-control="run"><option value="">All runs</option>${runs.map(id=>`<option value="${esc(id)}" ${state.run===id?'selected':''}>Run ${esc(id)}</option>`).join('')}</select></label><span class="small muted">Run ${esc(d.segment.run_id || "legacy")} · ${d.segment.run_complete?'Finished':'Unfinished / completion unverified'} · ${esc(d.segment.run_end_reason || '')}</span>`:"";
       const rows=d.rows.filter(p=>!state.actor || p.id===state.actor).sort((a,b)=>b[metric]-a[metric]);
-      const summary=table(["Player / server","Class","Damage done","DPS","Damage taken","Healing","HPS","Deaths"],rows.map(p=>`<tr><td style="color:${color(p.class)}">${actorHTML(p)}</td><td>${esc(p.class || "Unknown")}</td><td>${number(p.damage)}</td><td>${number(p.damage/duration)}</td><td>${number(p.taken)}</td><td>${number(p.healing)}</td><td>${number(p.healing/duration)}</td><td>${p.deaths}</td></tr>`));
+      const summary=table(["Player / server","Class","Damage done","DPS","Damage taken","Healing","HPS","Deaths"],rows.map(p=>`<tr><td style="color:${color(p.class)}">${actorHTML(p)}</td><td>${esc(p.class || "Unknown")}</td><td>${number(p.damage)}</td><td>${number(p.damage/duration)}</td><td>${number(p.taken)}</td><td>${number(p.healing)}</td><td>${number(p.healing/duration)}</td><td>${p.deaths || 'No markers'}</td></tr>`));
       const skills=new Map();for(const e of events) {if(e.kind==="death")continue;const actor=owner(state.metric==="taken"?e.target:e.source,d.r);const key=actor+":"+e.kind+":"+(e.skill_id || e.skill);const row=skills.get(key) || {actor,kind:e.kind,skill:e.skill || e.skill_id || "Unknown",amount:0,hits:0};row.amount+=e.amount || 0;row.hits++;skills.set(key,row);}
       const breakdown=table(["Player / server","Ability","Effects","Amount","Per second"],[...skills.values()].sort((a,b)=>b.amount-a.amount).map(s=>`<tr><td style="color:${color(d.r[s.actor]?.class)}">${actorHTML(d.r[s.actor])}</td><td>${esc(s.skill)}${s.kind==="heal"?" (heal)":""}</td><td>${s.hits}</td><td>${number(s.amount)}</td><td>${number(s.amount/duration)}</td></tr>`));
       const pageCount=Math.max(1,Math.ceil(events.length/100));state.page=Math.min(state.page,pageCount-1);
@@ -126,10 +136,10 @@
       root.innerHTML=`<section class="win cr-review"><div class="wh"><h2>${esc(doc.meta?.title || "Combat log")}</h2><span>${duration.toFixed(1)}s</span></div><div class="wb">
         <div class="row">${runMenu}<label>Encounter <select data-control="segment">${doc.segments.map((s,i)=>(state.run && (s.run_id || "legacy")!==state.run)?"":`<option value="${i}" ${i===state.segment?"selected":""}>${esc(s.label || s.boss || "Combat "+(i+1))}</option>`).join("")}</select></label><label>Player <select data-control="actor"><option value="">All players</option>${d.rows.map(p=>`<option value="${esc(p.id)}" ${p.id===state.actor?"selected":""}>${esc(label(p))}</option>`).join("")}</select></label><button class="btn small" data-color-settings>Class colors</button></div>
         ${(d.segment.encounter_type||doc.meta?.encounter_type||'').startsWith('pvp_')?'<p class="note">PvP recording · matched by mode, arena/encounter, ruleset and patch. Opponents are outside the recorded Self/Party roster. Only observed combat effects are shown; match results, objectives and kill credit are not inferred.</p>':''}
-        ${qualityHTML}${runsHTML(d)}<div class="cr-tabs">${["summary","damage","taken","healing"].map((v,i)=>`<button class="btn small ${state.metric===v?"primary":""}" data-metric="${v}">${["Summary","Damage Done","Damage Taken","Healing"][i]}</button>`).join("")}<span class="cr-spacer"></span>${["table","timeline","events"].map(v=>`<button class="btn small ${state.view===v?"primary":""}" data-view="${v}">${v[0].toUpperCase()+v.slice(1)}</button>`).join("")}</div>
+        ${qualityHTML}${runsHTML(d)}<div class="cr-tabs">${["summary","damage","taken","healing","deaths"].map((v,i)=>`<button class="btn small ${state.metric===v?"primary":""}" data-metric="${v}">${["Summary","Damage Done","Damage Taken","Healing","Death recaps"][i]}</button>`).join("")}<span class="cr-spacer"></span>${["table","timeline","events"].map(v=>`<button class="btn small ${state.view===v?"primary":""}" data-view="${v}">${v[0].toUpperCase()+v.slice(1)}</button>`).join("")}</div>
         <div class="cr-options">${[["graph","Graph"],["timeline","Timeline"],["skills","Skills"],["deaths","Deaths"],["heals","Healing"],["pets","Pets"],["combine","Combine pets with owner"]].map(([key,label])=>`<label><input type="checkbox" data-control="${key}" ${state[key]?"checked":""}> ${label}</label>`).join("")}</div>
-        <div class="row"><span>Character builds:</span>${Object.values(d.r).filter(character).map(actorHTML).join(" ")}</div><div data-profile>${profileHTML()}</div><div data-colors hidden></div>${state.graph?graph(d,events):""}${encounters(d)}
-        ${state.view==="table" ? summary+(state.metric!=="summary"?breakdown:"") : state.view==="events" ? eventTable+`<div class="row"><button class="btn small" data-prev>Previous</button> ${state.page+1} / ${pageCount} · ${events.length} events <button class="btn small" data-next>Next</button></div>` : ""}
+        <div class="row"><span>Character builds:</span>${Object.values(d.r).filter(character).map(actorHTML).join(" ")}</div><div data-profile>${profileHTML()}</div><div data-colors hidden></div>${state.graph && state.metric!=="deaths"?graph(d,events):""}${encounters(d)}${state.metric==="deaths"?recapsHTML(d):""}
+        ${state.view==="table" ? summary+(state.metric!=="summary" && state.metric!=="deaths"?breakdown:"") : state.view==="events" ? eventTable+`<div class="row"><button class="btn small" data-prev>Previous</button> ${state.page+1} / ${pageCount} · ${events.length} events <button class="btn small" data-next>Next</button></div>` : ""}
         ${state.timeline && (state.view==="timeline" || state.view==="table") ? timeline(d,events):""}
         <p class="small muted">${d.events.some(e=>e.kind==="heal"&&!e.target)?"Some healing recipients are not carried by their packet variant. ":""}${!d.events.some(e=>e.kind==="death")?"No death markers recorded; zero counts do not establish a deathless run. ":""}${!(d.segment.positions || []).length?"Movement replay is unavailable: no verified positions were recorded.":""}</p>
         ${metadataHTML(d)}${ranksHTML(d)}${options.rankings?'<button class="btn small" data-rank-refresh>Refresh rankings</button>':""}${options.publish?'<div class="row"><select data-upload-vis aria-label="Upload visibility"><option>unlisted</option><option>public</option><option>private</option></select><button class="btn small" data-upload>Upload saved session</button><span data-upload-result></span></div>':""}<div data-replay></div>
@@ -137,6 +147,7 @@
         <div data-comparison>${comparisonHTML(d)}</div>
       </div></section>`;
       root.querySelectorAll("[data-control]").forEach(e=>e.onchange=()=>{const key=e.dataset.control;state[key]=e.type==="checkbox"?e.checked:key==="segment"?+e.value:e.value;state.page=0;if(key==="run"){const index=doc.segments.findIndex(s=>!state.run || (s.run_id || "legacy")===state.run);state.segment=Math.max(0,index);state.enemy="";state.actor="";ranks=null;requestRanks();}if(key==="segment"){state.enemy="";state.actor="";ranks=null;requestRanks();}render();});
+      root.querySelectorAll("[data-recap]").forEach(e=>e.onclick=()=>{state.recap=+e.dataset.recap;render();});
       root.querySelectorAll("[data-metric]").forEach(e=>e.onclick=()=>{state.metric=e.dataset.metric;state.page=0;render();});
       root.querySelectorAll("[data-view]").forEach(e=>e.onclick=()=>{state.view=e.dataset.view;render();});
       root.querySelectorAll('[data-attempt-segment]').forEach(e=>e.onclick=()=>{state.segment=+e.dataset.attemptSegment;state.enemy='';state.actor='';ranks=null;requestRanks();render();});

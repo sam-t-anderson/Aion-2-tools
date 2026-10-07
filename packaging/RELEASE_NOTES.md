@@ -1,3 +1,13 @@
+## Changes in 0.2.26 — death recaps and character trends
+
+- Add a Death recaps tab on desktop, Pages and shared logs, showing up to 10 seconds of recorded incoming damage, received healing and HP before explicit player death markers.
+- Show relative event times, last observed incoming hit, latest HP timestamp, short-window and density-limit notices. Unknown killing blows, mitigation and defensives are never inferred.
+- Correct pet deaths being added to owner death counts; deduplicate identical player death markers. No markers is labeled explicitly rather than claiming a deathless recording.
+- Add Character consistency and trends after personal-record search: matched completed-boss rates, median/range, standard deviation, median absolute deviation, relative variation and upload-ordered history.
+- Variation requires 5 matched recordings; recent-five versus previous-five trends require 10. Cap warnings suppress variation/trends.
+
+Updated server v0.2.13 provides community trends and recomputed recaps for older shared logs. Recaps are limited to 200 per session and the last 200 effects/HP samples per window; totals include omitted effects. Split boundaries can shorten windows. Missing healing recipients, HP and death markers remain unavailable. Public trends exclude unranked captures/wipes under the current eligibility policy and do not prove improved play: gear, teammates and fight lengths can differ. Existing capture, PvP and gear-evidence limits remain.
+
 ## Changes in 0.2.25 — matched comparisons and historical percentiles
 
 - Show current same-patch and reconstructed at-upload standings side by side in desktop, Pages and shared combat review, including run speed.
