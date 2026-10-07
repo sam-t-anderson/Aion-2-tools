@@ -160,6 +160,14 @@ Settings persist per selected character in this browser. Saved Results/build JSO
 PvP supports a multi-opponent **incoming-pressure** envelope, not optimized opponent-build combat. Next modeling work: resolve official current/historical opponent gear with provenance; evaluate outgoing damage and adverse matchups; include verified defensive skill, CC, mobility and coefficient rules before scoring them. Those metrics are explicitly unavailable here. Mitigation and tactical coefficients are not inferred from these manual scenarios.
 
 
+### Timed pressure reductions
+
+Each incoming-pressure scenario supports up to eight optional **defensive**, **control** or **movement** windows. Enter a name, start delay, duration and assumed percentage reduction of ongoing incoming DPS. Times are relative to the scenario start; windows are clipped to its duration. New windows default to zero duration and reduction.
+
+Overlapping windows use the strongest percentage; reductions do not stack. Healing still follows its own delay and duration, excess healing is not banked, and the initial hit remains unchanged. The calculation checks the largest ongoing HP deficit at every window boundary. Saved Results and Markdown show the timings, required HP and a reference using the same healing without the added reductions.
+
+These are editable assumptions about successful tactical use, not decoded skill formulas, boss immunity rules, PvP success rates or automatic casts. Do not apply the same reduction again if it is already included in your incoming DPS. Retain the skills and supporting effects you need using the separate reserves. The optimizer does not automatically select those skills or account for their outgoing damage opportunity cost. For a failure case, add another scenario with no reductions; the strictest scenario constrains the build.
+
 ### Trained skill and stigma reserves
 
 Under **Retain trained skills and equipped stigmas → Choose effects**, reserve supporting effects on active skills. The optimizer keeps those effects while searching the remaining choices. The optimizer jointly allocates trained points and connected Daevanion nodes to cover catalog effect unlocks and selection-slot gates, including fixed gear bonuses. This can cost skill points, Daevanion points and damage. Requests that cannot fit the budgets and any HP reserve are rejected explicitly. Saved results also show the effective-level requirement and its trained, Daevanion and fixed-bonus contributions. Stigma effects remain automatic. Saved results and Markdown list the retained effects. These choices preserve your utility setup; their defensive, control or movement efficacy is not scored.

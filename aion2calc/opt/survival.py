@@ -11,7 +11,9 @@ from .daevanion import CRYSTAL_BOARDS
 
 NOTE = ("Flat crystal-board HP reserve only. Total HP headroom uses entered current HP plus the "
         "change in flat HPMax nodes; percentage HP, defensive passives, armor, shields, healing skills, "
-        "crowd control and movement are not simulated. Incoming damage/healing are user assumptions "
+        "crowd control and movement are not inferred. Timed pressure reductions are explicit user assumptions, "
+        "not skill casts, guaranteed control or successful avoidance. Overlap uses the strongest reduction only. "
+        "Incoming damage/healing are user assumptions "
         "after mitigation. Healing timing is assumed, excess healing is not banked and the initial burst remains protected separately. Positive headroom is not a guarantee of survival or a PvP win prediction.")
 
 
@@ -25,6 +27,46 @@ def number(value, name, maximum=1e9, minimum=0):
     if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not minimum <= value <= maximum:
         raise ValueError(f"{name} must be a finite number from {minimum:g} to {maximum:g}")
     return float(value)
+
+
+
+def pressure_deficit(pressure, window, healing, healing_start, healing_end, reductions=()):
+    """Exact peak of reflected, piecewise-constant pressure minus assumed healing.
+
+    The strongest active reduction wins; overlap never adds percentages or
+    multiplies them. Initial burst, shields and outgoing damage are separate.
+    """
+    boundaries = sorted({0.0, window, healing_start, healing_end,
+                         *(w["start_s"] for w in reductions), *(w["end_s"] for w in reductions)})
+    deficit = peak = peak_time = 0.0
+    for start, end in zip(boundaries, boundaries[1:]):
+        reduction = max((w["reduction_pct"]/100 for w in reductions
+                         if w["start_s"] <= start < w["end_s"]), default=0.0)
+        hps = healing if healing_start <= start < healing_end else 0.0
+        deficit = max(0.0, deficit + (pressure*(1-reduction)-hps)*(end-start))
+        if deficit > peak:
+            peak, peak_time = deficit, end
+    return peak, peak_time
+
+
+def reduction_windows(row, window):
+    values = row.get("reductions", [])
+    if not isinstance(values, list) or len(values) > 8:
+        raise ValueError("Use at most eight pressure-reduction windows per scenario")
+    result = []
+    for item in values:
+        if not isinstance(item, dict) or item.get("kind", "defensive") not in ("defensive", "control", "movement"):
+            raise ValueError("Choose defensive, control or movement for a pressure window")
+        delay = number(item.get("delay_s", 0), "Reduction delay", 120)
+        duration = number(item.get("duration_s", 0), "Reduction duration", 120)
+        reduction = number(item.get("reduction_pct", 0), "Assumed pressure reduction percent", 100)
+        start = min(window, delay)
+        end = min(window, delay+duration)
+        result.append({"name": str(item.get("name") or "Assumed reduction")[:100],
+                       "kind": item.get("kind", "defensive"), "delay_s": delay,
+                       "duration_s": duration, "reduction_pct": reduction,
+                       "start_s": start, "end_s": end, "active_s": end-start})
+    return result
 
 
 def prepare(cd, current, options=None):
@@ -57,16 +99,9 @@ def prepare(cd, current, options=None):
             duration = number(duration, "Healing duration", 120)
         healing_start = min(window, delay)
         healing_end = window if duration is None else min(window, healing_start + duration)
-        # Healing repays ongoing pressure only. Excess healing cannot be banked,
-        # and the initial burst remains a separate minimum HP requirement.
-        deficit = peak_pressure = pressure * healing_start
-        peak_time = healing_start if peak_pressure else 0.0
-        deficit = max(0, deficit + (pressure-healing) * (healing_end-healing_start))
-        if deficit > peak_pressure:
-            peak_pressure, peak_time = deficit, healing_end
-        deficit += pressure * (window-healing_end)
-        if deficit > peak_pressure:
-            peak_pressure, peak_time = deficit, window
+        reductions = reduction_windows(row, window)
+        peak_pressure, peak_time = pressure_deficit(pressure, window, healing, healing_start, healing_end, reductions)
+        unprotected_peak, _ = pressure_deficit(pressure, window, healing, healing_start, healing_end)
         reserve = number(row.get("reserve_hp", 1), "HP reserve", minimum=1)
         required = burst + peak_pressure + reserve
         rows.append({"name": str(row.get("name") or "Incoming pressure")[:100], "burst_damage": burst,
@@ -74,7 +109,9 @@ def prepare(cd, current, options=None):
                      "healing_delay_s": delay, "healing_duration_s": duration,
                      "healing_active_s": healing_end-healing_start,
                      "peak_pressure_hp": peak_pressure, "peak_pressure_at_s": peak_time,
-                     "reserve_hp": reserve, "required_hp": required, "source": "user_assumption"})
+                     "reserve_hp": reserve, "required_hp": required, "source": "user_assumption",
+                     "reductions": reductions, "unprotected_required_hp": burst+unprotected_peak+reserve,
+                     "assumed_requirement_reduction_hp": max(0, unprotected_peak-peak_pressure)})
         evidence = row.get("recorded_evidence")
         if isinstance(evidence, dict):
             # Provenance is user-imported context, never authenticated telemetry.
@@ -93,7 +130,7 @@ def prepare(cd, current, options=None):
     available = node_hp(cd, {nid for nid, (_, node) in cd.node_index.items() if node.get("type") != "Start"})
     if floor > available+1e-6:
         raise ValueError(f"Requested crystal HP reserve {floor:,.0f} exceeds the catalog's total {available:,.0f}, even before point/connectivity costs. Lower the reserve or incoming-damage assumptions.")
-    return {"version": 2, "preserve_hp": preserve, "reference_node_hp": reference,
+    return {"version": 3, "preserve_hp": preserve, "reference_node_hp": reference,
             "minimum_node_hp": max(0, floor), "current_hp": hp, "opponents": rows, "note": NOTE}
 
 

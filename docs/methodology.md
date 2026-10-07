@@ -217,6 +217,12 @@ Settings persist per selected character in this browser. Saved Results/build JSO
 PvP supports a manual multi-opponent **incoming-pressure** envelope, not optimized opponent-build combat. Next modeling work: resolve official current/historical opponent gear with provenance; evaluate outgoing damage and adverse matchups; include verified defensive skill, CC, mobility and coefficient rules before scoring them. Those metrics are explicitly unavailable here. Mitigation and tactical coefficients are not inferred from these manual scenarios.
 
 
+### Timed pressure assumptions
+
+Personal incoming-pressure scenarios can include up to eight named defensive, control or movement windows. All percentages and timings are user assumptions. Within the scenario window, each interval uses `incoming DPS × (1 − strongest active reduction) − active healing HPS`. The running ongoing deficit is floored at zero; its maximum determines the pressure component of the HP requirement. Interval boundaries include all reduction and healing starts and ends. The initial burst is added separately and is never reduced by these windows. Overlaps do not add or multiply reductions.
+
+Results retain a reference with identical healing and no added reductions. This is sensitivity analysis, not a calibrated tactical model: skill availability, casts, cooldowns, immunity, chance of control/avoidance and outgoing damage opportunity costs are not inferred. Skill/effect reserves are separate user constraints. An additional no-reduction scenario can constrain the same build for failed execution or immune opponents.
+
 ### Trained skill and stigma reserves
 
 My Character → **Retain trained skills and equipped stigmas** optionally sets minimum purchasable levels for active/passive skills and currently equipped stigmas. A reserved stigma stays equipped. The optimizer maximizes modeled damage within these floors and the point/slot budgets; infeasible requests produce an error. Settings persist per character and apply to both PvE and PvP. Saved Results, build JSON and Markdown retain the minimum and selected levels. These personal builds are excluded from community damage preset comparisons.

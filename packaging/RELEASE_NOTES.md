@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.71
+
+Personal PvE and PvP survivability scenarios now support timed pressure-reduction assumptions for defense, control or movement. Enter up to eight windows per scenario. The optimizer checks peak ongoing pressure across their boundaries and the healing schedule, uses only the strongest overlapping reduction, and keeps the initial hit unchanged.
+
+Saved Results and Markdown retain timings and compare required HP with the same healing but no added reductions. These are explicit manual assumptions; skill casts, cooldowns, immunity, tactical success and outgoing damage costs are not simulated. Skill/supporting-effect reserves remain separate. Add a no-reduction scenario to constrain the build for failed execution.
+
+Common community scoring is unchanged; no server update is needed. Verified skill coefficients and full opponent matchup scoring remain future work.
+
 # Aion 2 Calc 0.2.70
 
 Overlay refresh failures now show the HTTP/response/timeout reason, last successful refresh age and a Retry button. Last readings remain visible with capture status explicitly unknown. Overlay polling skips auxiliary catalog and installation work. Status requests return a clear busy error after a bounded wait for the decoder lock. Run and identity metadata are captured together to avoid reading them across a session replacement.

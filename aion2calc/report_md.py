@@ -56,6 +56,12 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
                 duration_label = "rest of window" if duration is None else f"{duration:g}s"
                 w(f"- {name}: assumed HPS {row['healing_hps']:g}; delay {row.get('healing_delay_s', 0):g}s; duration {duration_label}; peak ongoing pressure {row.get('peak_pressure_hp', 0):,.0f} HP at {row.get('peak_pressure_at_s', 0):g}s.\n")
             for row in hp["opponents"]:
+                if row.get("reductions"):
+                    w(f"- Same healing without added reductions: {row['unprotected_required_hp']:,.0f} HP required; assumed reduction {row['assumed_requirement_reduction_hp']:,.0f} HP. Initial hit unchanged; strongest overlap only.\n")
+                    for effect in row["reductions"]:
+                        label = effect["name"].replace("\n", " ")
+                        w(f"  - {label} ({effect['kind']}): assumed {effect['reduction_pct']:g}% pressure reduction from {effect['start_s']:g}s to {effect['end_s']:g}s.\n")
+            for row in hp["opponents"]:
                 benchmark = row.get("opponent_benchmark")
                 if benchmark:
                     context = "; ".join(f"{key}: {value}" for key, value in benchmark.items()).replace("\n", " ")
