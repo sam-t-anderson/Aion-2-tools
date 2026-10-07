@@ -54,6 +54,11 @@ class Runner:
         self.error = None
         self.diagnostics = {}
         from ..meter.diagnostics import Recorder
+        if self.recorder is not None:
+            try:
+                self.recorder.release(remove=self.recorder is self._exported_recorder)
+            except OSError as exc:
+                self.diagnostics["recording_cleanup_error"] = str(exc)
         self.recorder = Recorder() if opts.get("record_packets") else None
         self.started_at = time.monotonic()
         self._last_checkpoint = self.started_at
@@ -274,6 +279,11 @@ class Runner:
             self.diagnostic_export = result
             if not self.running:
                 self._exported_recorder = self.recorder
+                if self.recorder is not None:
+                    try:
+                        self.recorder.release(remove=True)
+                    except OSError as exc:
+                        self.diagnostics["recording_cleanup_error"] = str(exc)
             self.diagnostics.pop("archive_error", None)
             return result
 

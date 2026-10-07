@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.32
+
+- Remove the live TCP diagnostic record-count and size caps. Stream the complete opted-in session to disk and export ZIPs without loading the full recording into memory.
+- Show diagnostic disk usage and recording failures. Preserve raw recordings after a crash or failed export; remove temporary raw files after a successful stopped-session archive.
+- Update capture documentation. Available disk space limits recording; long captures take longer to compress. Decoded combat-history limits are unchanged.
+
 # Aion 2 Calc 0.2.31
 
 - Fix shared combat timelines under the server Content Security Policy by drawing markers with SVG attributes instead of blocked inline styles. Correct incoming-damage lanes and independent healing visibility, add a time scale, and restore Timeline when its view button is selected.
