@@ -261,3 +261,7 @@ Implemented local persistent selection among detected Steam/registered Windows g
 ### Community log presentation and mixed modes
 
 Implemented the community list's Type/patch/difficulty cell replacement with event count, patch and catalog boss placeholders (PvE) or distinct opponent-class icons (PvP). The bundled AION 2 emblem is the fallback; verified boss portraits remain pending because the NPC catalog lacks image URLs. Mixed uploads with recorded segments of both modes appear in both lists with matching-segment totals, and open a mode-filtered viewer preserving original ranking indices. Follow-up: verified boss portraits and unambiguous per-effect mode evidence when one segment contains mixed activity.
+
+### Build visualization checkpoint
+
+Implemented focused character pages shared by desktop/Pages with Back to log, recorded official images/stats/equipment slots/skills/pets/boards and complete expandable source sections. Added skill/passive images to Daevanion nodes preserving rarity rings, and generic Planner selection labels. Remaining: stable-ID catalog icon recovery, game-style Pet Genus using verified data, canonical weighted PvE/PvP presets per class, and richer editable build boards. These display changes do not add survival/CC/movement formulas or change optimizer scores.

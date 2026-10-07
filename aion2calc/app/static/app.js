@@ -133,7 +133,7 @@ function winDaevanion(v, boardIdx = 0) {
     const tip = nd.type === "SkillLevel" ? `${nd.skill} +1 (${nd.grade}, ${nd.cost} pt)` : nd.type === "Start" ? "Start" : `${nd.label} (${nd.grade}, ${nd.cost} pt)`;
     const txt = nd.type === "SkillLevel" ? (nd.skill || "").split(/\s+/).map((w) => w[0]).join("").slice(0, 3) : nd.type === "Start" ? "" : esc(nd.short || "");
     return `<div class="node ${cls} ${nd.selected || nd.type === "Start" ? "sel" : ""}" data-grade="${esc(nd.grade)}"
-      style="grid-row:${nd.row};grid-column:${nd.col}" title="${esc(tip)}">${txt}</div>`;
+      style="grid-row:${nd.row};grid-column:${nd.col}" title="${esc(tip)}">${nd.type==="SkillLevel" && Number.isSafeInteger(+nd.skill_id) && +nd.skill_id>0?`<img class="node-skill-icon" src="${esc(icon("https://metabot.gg/web/aion2/skills/"+nd.skill_id+".webp"))}" alt="${esc(nd.skill||"Skill")}" loading="lazy" onerror="this.hidden=true">`:""}<span>${txt}</span></div>`;
   }).join("");
   const tabs = `<div class="tabs">${d.boards.map((x, i) => `<button data-board="${i}" class="${i === boardIdx ? "on" : ""}">${esc(x.name)} <span class="faint">${x.used}/${x.total}</span></button>`).join("")}</div>`;
   const side = `<div class="daevside">
@@ -360,7 +360,7 @@ async function pagePlanner() {
       <input id="dv" type="number" min="0" max="10000" placeholder="Daevanion pts (360 preset)" aria-label="Daevanion point budget" style="width:180px"><button class="btn primary" id="go">Optimize</button><span id="jobmsg" class="small muted"></span></div></div></section><div id="wins"></div>`;
   if ($("#whide")) $("#whide").onclick = () => { try { localStorage.setItem("welcome-hidden", "1"); } catch (e) {} $("#welcome").remove(); };
   const [results, classes] = await Promise.all([api("/api/results"), api("/api/classes")]);
-  $("#res").innerHTML = results.map((r) => `<option value="${esc(r.path)}">${r.community ? "Community preset · " : ""}${esc(cap(r.class))} · ${esc(r.loadout || "")} · ${n0(r.dps?.[r.scenario])} ${esc(r.scenario || "")} DPS</option>`).join("");
+  $("#res").innerHTML = results.map((r) => `<option value="${esc(r.path)}">${r.community ? "Community preset · " : ""}${esc(r.preset_label || cap(r.class))} · ${n0(r.dps?.[r.scenario])} ${esc(r.scenario || "")} DPS</option>`).join("");
   $("#cls").innerHTML = classes.map((c) => `<option>${esc(c)}</option>`).join("");
   if (st.path) $("#res").value = st.path;
   const load = async () => {

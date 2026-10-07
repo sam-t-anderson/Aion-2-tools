@@ -336,7 +336,7 @@ def list_results(roots: list[Path] | None = None) -> list[dict]:
             rel = p.parent.relative_to(root)
             out.append({"path": str(p.parent), "class": s["class"], "loadout": s.get("loadout"),
                         "dps": s.get("dps"), "scenario": s.get("scenario"), "budgets": s.get("budgets"),
-                        "mine": mine, "_rel": rel})
+                        "level": s.get("level"), "mine": mine, "_rel": rel})
     out.sort(key=lambda r: (len(r["_rel"].parts), "compare" in r["_rel"].parts, "characters" in r["_rel"].parts,
                             r["class"] != "sorcerer", not r["mine"], str(r["_rel"])))
     for r in out:
@@ -350,10 +350,16 @@ def list_results(roots: list[Path] | None = None) -> list[dict]:
                 s = cached["build"]
                 community.append({"path": f"community:{cls}", "class": cls, "loadout": s["loadout"],
                                   "dps": s["dps"], "scenario": "boss", "budgets": s["budgets"],
-                                  "community": True, "mine": False, "updated_at": cached["updated_at"]})
+                                  "level": s.get("level"), "community": True, "mine": False, "updated_at": cached["updated_at"]})
             except (OSError, ValueError, KeyError):
                 continue
         out = sorted(community, key=lambda r: (r["class"] != "sorcerer", r["class"])) + out
+    import re
+    for row in out:
+        loadout = row.get("loadout") or ""
+        level = re.search(r"_l(\d+)(?:_|$)", loadout)
+        region = re.search(r"_(global|kr)(?:_|$)", loadout)
+        row["preset_label"] = "_".join((row["class"].lower(), str(row.get("level") or (level[1] if level else "unknown")), region[1] if region else "unknown", "PvP" if row.get("scenario") == "pvp" else "PvE"))
     return out
 
 

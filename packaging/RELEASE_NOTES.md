@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.45
+
+Clicking a character in a combat log opens a focused build view with **Back to log**, preserving the encounter, metric and timeline selections. Desktop and Pages share the view. Display the recorded official portrait, character identity, stats, equipment with inventory slots and rarity borders, skill/passive/stigma images and levels, pets/wings and Daevanion boards when present. Expand Full recorded build information for item rolls, specialties, titles, skins and every other saved official section. Export retains the original profile JSON.
+
+Saved upload-time profiles and manually fetched current previews remain clearly separated. Missing profiles/assets remain unavailable; no gear or historical snapshots are guessed. Image URLs must use HTTPS on supported game asset hosts. Pet genus is shown only if the profile supplies it; the current official snapshot generally lacks genus, so the complete in-game genus planner remains follow-up work.
+
+Daevanion skill/passive level nodes now show their skill images inside the existing rarity-colored ring, with initials as a fallback. Planner build choices use generic class/level/data-region/mode labels such as `sorcerer_45_global_PvE`; missing fields remain `unknown`. This does not create canonical PvP presets or change personal Saved Results names or optimizer scoring.
+
 # Aion 2 Calc 0.2.44
 
 Community Combat Logs replaces Type/patch/difficulty in the list with recorded-event count, patch and encounter icons. PvP shows each recorded opponent class once; PvE shows catalog-confirmed bosses. Missing classes, absent bosses and missing portraits use the bundled AION 2 emblem with explanatory hover/accessible labels. The current NPC catalog does not contain boss portraits; those remain placeholders until verified assets are available.
