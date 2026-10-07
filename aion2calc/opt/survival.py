@@ -182,7 +182,11 @@ def opponent_pressure(document, metric, scale, window_s):
     factor = number(scale, "Assumed incoming damage scale", 10)
     window = number(window_s, "Opponent pressure window", 120, .1)
     objective = view.get("objective") or {}
+    if not isinstance(objective, dict):
+        raise ValueError("Invalid saved objective metadata")
     durations = objective.get("durations") or {}
+    if not isinstance(durations, dict):
+        raise ValueError("Invalid saved objective durations")
     source_duration = number(durations.get(metric, 30 if metric == "pvp_burst" else 180), "Benchmark duration", 3600, .1)
     if window > source_duration:
         raise ValueError("Pressure window cannot exceed the source benchmark duration")
