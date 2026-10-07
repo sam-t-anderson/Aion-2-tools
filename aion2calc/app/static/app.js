@@ -601,7 +601,7 @@ async function pageCombat() {
         Files: AbyssLogs segment (.json / .json.gz), aion2calc JSON (see docs), or CSV with columns t, skill, damage, crit, double, perfect, multi, dot.</p>
       <div class="row small" id="logsdir"></div>
       <div class="row small" id="lsrv"></div>
-      <h3>Recent full sessions</h3><div class="row"><label>Encounter type <select id="sessiontype"><option value="">All</option>${Object.entries(A2Community.types).map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join("")}</select></label></div><div id="sessions"></div><div id="session-review"></div><div id="owned-logs"></div><div id="community"></div><h3>Analyzed encounters</h3><div id="hist"></div></div></section><div id="enc"></div>`;
+      <div id="sessions"></div><div id="session-review"></div><div id="owned-logs"></div><div id="community"></div><h3>Analyzed encounters</h3><div id="hist"></div></div></section><div id="enc"></div>`;
   api("/api/logs").then((l) => {
     $("#logsdir").innerHTML = `<span class="muted">Every analyzed log is saved as a file in</span> <code>${esc(l.folder)}</code> <span class="faint">(${l.files} files)</span>
       <button class="btn small" id="openlogs">Open folder</button>`;
@@ -616,14 +616,13 @@ async function pageCombat() {
     $("#lssave").onclick = async () => { await api("/api/logserver", { url: $("#lsurl").value, key: $("#lskey").value || null, visibility: $("#lsvis").value }); toast("Saved"); srv(); };
   };
   srv();
-  const sessions = await api("/api/sessions").catch(() => []);
-  const renderSessions=()=>{
-    const type=$('#sessiontype').value;
-    const filtered=sessions.filter(s=>!type || s.contexts?.some(c=>c.encounter_type===type));
-  $("#sessions").innerHTML = filtered.length ? `<table class="t"><tr><th>Session</th><th>Updated</th><th>Encounters</th><th>Players</th><th></th></tr>${filtered.map(s=>`<tr><td>${esc(s.title || s.file)}${s.unfinished ? ' <span class="small muted">(unfinished checkpoint)</span>' : ""}</td><td>${new Date(s.updated*1000).toLocaleString()}</td><td>${s.segments}</td><td>${s.players}</td><td><button class="btn small" data-session="${esc(s.file)}">Open</button></td></tr>`).join("")}</table>` : '<p class="small muted">Live sessions save every 15 seconds and on Stop. Unfinished checkpoints remain available after a crash.</p>';
-  $$("[data-session]").forEach(b=>b.onclick=async()=>{try{const doc=await api("/api/sessions?file="+encodeURIComponent(b.dataset.session));if(st.review)st.review.dispose();st.review=A2CombatReview.mount($("#session-review"),doc,localReviewOptions(b.dataset.session));$("#session-review").scrollIntoView({block:"start",behavior:"smooth"});}catch(e){$("#lmsg").textContent=e.message;}});
-  };
-  $('#sessiontype').onchange=renderSessions;renderSessions();
+  A2ArchiveUpload.mount($('#sessions'),{
+    types:A2Community.types,
+    list:(offset,limit)=>api('/api/sessions?paged=1&offset='+offset+'&limit='+limit),
+    context:()=>api('/api/logserver'),
+    open:async row=>{const doc=await api('/api/sessions?file='+encodeURIComponent(row.file));if(st.review)st.review.dispose();st.review=A2CombatReview.mount($('#session-review'),doc,localReviewOptions(row.file));$('#session-review').scrollIntoView({block:'start',behavior:'smooth'});},
+    upload:(row,batch)=>api('/api/sessions/share',{file:row.file,visibility:batch.visibility,server:batch.url,completed_only:true})
+  });
   A2LogOwnership.mount($('#owned-logs'),{
     list:()=>api('/api/log-ownership'),
     import:owners=>api('/api/log-ownership',{action:'import',owners}),

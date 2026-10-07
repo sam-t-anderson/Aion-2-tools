@@ -349,9 +349,11 @@ class Handler(BaseHTTPRequestHandler):
             from ..combat.share import community_request
             return self._json(community_request(q.get("path", "")))
         if path == "/api/sessions":
-            from ..combat.sessions import recent, path as session_path
+            from ..combat.sessions import recent, recent_page, path as session_path
             if q.get("file"):
                 return self._json(json.loads(session_path(q["file"]).read_text(encoding="utf-8")))
+            if q.get("paged"):
+                return self._json(recent_page(int(q.get("offset", 0)), int(q.get("limit", 25))))
             return self._json(recent())
         if path == "/api/meter/log":
             from .meter_runner import runner
@@ -470,8 +472,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"id": save(body)})
         if path == "/api/sessions/share":
             from ..combat.sessions import path as session_path
-            from ..combat.share import upload
+            from ..combat.share import upload, effective
             doc = json.loads(session_path(body["file"]).read_text(encoding="utf-8"))
+            if body.get("completed_only"):
+                from .meter_runner import runner
+                current = runner()
+                with current.lock:
+                    active = current.running and current.session_file == body["file"]
+                if active or doc.get("meta", {}).get("capture_active"):
+                    raise ValueError("Active or unfinished checkpoints are excluded from batch upload; stop capture or review and publish this part individually.")
+                settings = effective()
+                if body.get("server") != settings.get("url"):
+                    raise ValueError("Upload server changed. Start a new batch with the intended server.")
+                return self._json(upload(doc, url=settings["url"], key=settings.get("key"), visibility=body.get("visibility", "unlisted")))
             return self._json(upload(doc, visibility=body.get("visibility", "unlisted")))
         if path == "/api/community":
             from ..combat.share import community_request
