@@ -507,17 +507,7 @@ class Runner:
     def configure_view(self, body: dict) -> dict:
         with self.lock:
             if "metadata" in body:
-                from ..combat.a2log import ENCOUNTER_TYPES
-                metadata = body["metadata"]
-                if (metadata.get("encounter_type") or "unknown") not in ENCOUNTER_TYPES:
-                    raise ValueError("Invalid encounter type")
-                if self.running:
-                    raise ValueError("Stop capture before changing session classification")
-                from ..combat.a2log import combat_mode
-                if self.session.records and combat_mode({"meta":metadata}) != combat_mode({"meta":self.metadata}):
-                    raise ValueError("Clear session before switching between PvE and PvP.")
-                self.metadata = {k: str(metadata.get(k) or ("unknown" if k == "encounter_type" else "")).strip()[:200] for k in ("game_patch", "difficulty", "encounter_type", "region", "zone")}
-                self.session.pvp = combat_mode({"meta": self.metadata}) == "pvp"
+                raise ValueError("Live capture classification is automatic. Correct a completed saved log per encounter or run.")
             if "combine_pets" in body:
                 self.combine_pets = bool(body["combine_pets"])
             if "automatic_splits" in body:
