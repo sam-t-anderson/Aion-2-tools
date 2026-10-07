@@ -90,11 +90,21 @@
       const duration=Math.max(1,d.segment.duration),ids=[...new Set(events.flatMap(e=>[owner(e.source,d.r),owner(e.target,d.r)]).filter(id=>id && (d.friendly.has(id) || d.r[id]?.owner)))];
       let omitted=0;
       const lanes=ids.map(id=>{
-        const all=events.filter(e=>e.kind==="death" ? state.deaths && owner(e.target,d.r)===id && (!state.combine || !d.r[e.target]?.owner) : state.skills && owner(e.source,d.r)===id && (e.kind!=="heal" || state.heals));
+        const all=events.filter(e=>{
+          if(e.kind==="death")return state.deaths && owner(e.target,d.r)===id && (!state.combine || !d.r[e.target]?.owner);
+          if(e.kind==="heal")return state.heals && owner(e.source,d.r)===id;
+          return state.skills && (state.metric==="taken"?owner(e.target,d.r)===id:owner(e.source,d.r)===id);
+        });
         omitted+=Math.max(0,all.length-1500);
-        return `<div class="cr-lane"><div style="color:${color(d.r[id]?.class)}">${actorHTML(d.r[id])}</div><div class="cr-track">${all.slice(0,1500).map(e=>`<span class="cr-mark ${e.kind}" style="left:${Math.min(99.5,100*e.t/duration)}%;background:${e.kind==="death"?"#ef6262":e.kind==="heal"?"#58d68d":color(d.r[id]?.class)}" title="${esc(e.t.toFixed(2)+"s · "+label(d.r[e.source])+" → "+label(d.r[e.target])+" · "+(e.skill || e.kind)+" · "+number(e.amount))}">${e.kind==="death"?"✝":""}</span>`).join("")}</div></div>`;
+        const marks=all.slice(0,1500).map(e=>{
+          const x=Math.max(0,Math.min(996,1000*e.t/duration)),fill=e.kind==="death"?"#ef6262":e.kind==="heal"?"#58d68d":state.metric==="taken"?"#ed9863":color(d.r[id]?.class);
+          const title=esc(e.t.toFixed(2)+"s · "+label(d.r[e.source])+" → "+label(d.r[e.target])+" · "+(e.skill || e.kind)+" · "+number(e.amount));
+          return e.kind==="death"?`<text class="cr-marker" x="${x}" y="23" fill="${fill}" font-size="24">✝<title>${title}</title></text>`:`<rect class="cr-marker" x="${x}" y="8" width="4" height="16" fill="${fill}"><title>${title}</title></rect>`;
+        }).join('');
+        return `<div class="cr-lane"><div>${actorHTML(d.r[id])}</div><svg class="cr-track" viewBox="0 0 1000 32" preserveAspectRatio="none" role="img" aria-label="${esc(label(d.r[id]))} recorded effects">${marks || '<text x="10" y="22" fill="#aaa" font-size="16">No effects for these filters</text>'}</svg></div>`;
       }).join("");
-      return `<h3>Recorded skill hits, healing and deaths</h3><p class="small muted">Markers represent recorded effects, not unobserved cast starts. Hover for actor, recipient, skill and time.${omitted?" Dense lanes display their first 1,500 markers; use Events for the complete list.":""}</p><div class="cr-timeline">${lanes || "No timeline events recorded."}</div>`;
+      const ticks=Array.from({length:6},(_,i)=>`<text x="${i*200}" y="20" fill="#aaa" font-size="16" text-anchor="${i===0?'start':i===5?'end':'middle'}">${(duration*i/5).toFixed(1)}s</text>`).join('');
+      return `<h3>Recorded skill hits, healing and deaths</h3><p class="small muted">Markers represent recorded effects, not unobserved cast starts. Hover for actor, recipient, skill and time. Green: healing; red: deaths; orange: damage taken.${omitted?" Dense lanes display their first 1,500 markers; use Events for the complete list.":""}</p><div class="cr-timeline"><div class="cr-lane"><div>Encounter time</div><svg class="cr-track cr-time-axis" viewBox="0 0 1000 28" preserveAspectRatio="none" aria-label="Encounter time in seconds">${ticks}</svg></div>${lanes || "No timeline events recorded for these filters."}</div>`;
     }
     function insightsHTML(d) {
       const analysis=doc.encounter_insights, s=analysis?.segments?.find(s=>s.segment===state.segment);
@@ -171,7 +181,7 @@
       root.querySelectorAll("[data-control]").forEach(e=>e.onchange=()=>{const key=e.dataset.control;state[key]=e.type==="checkbox"?e.checked:key==="segment"?+e.value:e.value;state.page=0;if(key==="run"){const index=doc.segments.findIndex(s=>!state.run || (s.run_id || "legacy")===state.run);state.segment=Math.max(0,index);state.enemy="";state.actor="";ranks=null;requestRanks();}if(key==="segment"){state.enemy="";state.actor="";ranks=null;requestRanks();}render();});
       root.querySelectorAll("[data-recap]").forEach(e=>e.onclick=()=>{state.recap=+e.dataset.recap;render();});
       root.querySelectorAll("[data-metric]").forEach(e=>e.onclick=()=>{state.metric=e.dataset.metric;state.page=0;render();});
-      root.querySelectorAll("[data-view]").forEach(e=>e.onclick=()=>{state.view=e.dataset.view;render();});
+      root.querySelectorAll("[data-view]").forEach(e=>e.onclick=()=>{state.view=e.dataset.view;if(state.view==="timeline")state.timeline=true;render();});
       root.querySelectorAll('[data-attempt-segment]').forEach(e=>e.onclick=()=>{state.segment=+e.dataset.attemptSegment;state.enemy='';state.actor='';ranks=null;requestRanks();render();});
       root.querySelectorAll("[data-enemy-filter]").forEach(e=>e.onclick=()=>{state.enemy=e.dataset.enemyFilter;render();});
       root.querySelector("[data-clear-enemy]").onclick=()=>{state.enemy="";render();};

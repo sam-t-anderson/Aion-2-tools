@@ -1,5 +1,7 @@
 # Aion 2 Calc 0.2.31
 
+- Fix shared combat timelines under the server Content Security Policy by drawing markers with SVG attributes instead of blocked inline styles. Correct incoming-damage lanes and independent healing visibility, add a time scale, and restore Timeline when its view button is selected.
+
 - Add skill-specialty recommendations to Gear & Advice without requiring combat logs: effect descriptions, selection numbers, effective levels and unlock requirements, plus automatic stigma effects.
 - Save specialty snapshots with calculated advice and optimizer/current-build JSON. Older advice remains readable and explains when recalculation is needed.
 - Show effect unlock levels and next thresholds in the optimizer Skills screen and copyable setup.
