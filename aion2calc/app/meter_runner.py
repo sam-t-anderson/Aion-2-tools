@@ -384,6 +384,30 @@ class Runner:
             installation_locked = self.running or bool(self.session.records) or bool(self.meter.players)
             diagnostic = dict(self.diagnostics)
             now = time.monotonic()
+            if self.source_name in ("a2tools", "live"):
+                if self.error:
+                    stage = "capture_error"
+                elif not diagnostic.get("packets"):
+                    stage = "waiting_for_tcp"
+                elif not diagnostic.get("payload_packets"):
+                    stage = "waiting_for_payloads"
+                elif not diagnostic.get("forwarded"):
+                    stage = "waiting_for_game_flow" if diagnostic.get("auto_port") and not diagnostic.get("port") else "waiting_for_reassembly"
+                elif not diagnostic.get("decoded_events"):
+                    stage = "waiting_for_combat_effects"
+                elif not snap.get("players"):
+                    stage = "no_players_in_selected_view"
+                else:
+                    stage = "combat_visible"
+                diagnostic["pipeline"] = {
+                    "stage": stage, "raw_recording_enabled": self.recorder is not None,
+                    "scope": self.scope, "visible_players": len(snap.get("players", [])),
+                    "retained_effects": len(self.session.records),
+                    "local_identity_available": bool(self.packet_engine and self.packet_engine.local_player_id is not None),
+                    "local_identity_from_game": bool(self.packet_engine and self.packet_engine.local_identity_from_game),
+                    "roster_entries": len(self.packet_engine.roster) if self.packet_engine else 0,
+                    "selection_mode": snap.get("selection_mode"),
+                }
             diagnostic.update(last_packet_age_seconds=round(now-self._last_packet_at, 1) if self._last_packet_at is not None else None,
                               last_combat_age_seconds=round(now-self._last_combat_at, 1) if self._last_combat_at is not None else None)
         if diagnostic:
