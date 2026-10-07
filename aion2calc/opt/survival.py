@@ -12,7 +12,7 @@ from .daevanion import CRYSTAL_BOARDS
 NOTE = ("Flat crystal-board HP reserve only. Total HP headroom uses entered current HP plus the "
         "change in flat HPMax nodes; percentage HP, defensive passives, armor, shields, healing skills, "
         "crowd control and movement are not inferred. Timed pressure reductions are explicit user assumptions, "
-        "not skill casts, guaranteed control or successful avoidance. Overlap uses the strongest reduction only. "
+        "not skill casts, guaranteed control or successful avoidance. Linked skills/effects are retained as allocation constraints. Overlap uses the strongest reduction only. "
         "Incoming damage/healing are user assumptions "
         "after mitigation. Healing timing is assumed, excess healing is not banked and the initial burst remains protected separately. Positive headroom is not a guarantee of survival or a PvP win prediction.")
 
@@ -49,7 +49,7 @@ def pressure_deficit(pressure, window, healing, healing_start, healing_end, redu
     return peak, peak_time
 
 
-def reduction_windows(row, window):
+def reduction_windows(cd, row, window):
     values = row.get("reductions", [])
     if not isinstance(values, list) or len(values) > 8:
         raise ValueError("Use at most eight pressure-reduction windows per scenario")
@@ -60,12 +60,31 @@ def reduction_windows(row, window):
         delay = number(item.get("delay_s", 0), "Reduction delay", 120)
         duration = number(item.get("duration_s", 0), "Reduction duration", 120)
         reduction = number(item.get("reduction_pct", 0), "Assumed pressure reduction percent", 100)
+        sid, effect = item.get("skill_id"), item.get("effect_id")
+        requirement = None
+        if sid is not None:
+            if type(sid) is not int or sid not in cd.skills:
+                raise ValueError("Link a known skill from your class to the pressure window")
+            skill = cd.skills[sid]
+            cap = 20 if skill["kind"] == "stigma" else min(10, skill.get("buyMax",10))
+            trained = item.get("min_trained", 1)
+            if type(trained) is not int or not 1 <= trained <= cap:
+                raise ValueError("Linked skill trained minimum must fit its purchasable range")
+            catalog = {e["id"]: e for e in skill.get("specs", [])}
+            if effect is not None and (type(effect) is not int or skill["kind"] != "active" or effect not in catalog):
+                raise ValueError("Link a supporting effect belonging to the selected active skill")
+            requirement = {"id": sid, "name": skill["name"], "kind": skill["kind"], "minimum": trained,
+                           "effect_id": effect, "effect": catalog[effect]["text"] if effect is not None else None}
+        elif effect is not None:
+            raise ValueError("Choose a skill before linking its supporting effect")
         start = min(window, delay)
         end = min(window, delay+duration)
         result.append({"name": str(item.get("name") or "Assumed reduction")[:100],
                        "kind": item.get("kind", "defensive"), "delay_s": delay,
                        "duration_s": duration, "reduction_pct": reduction,
-                       "start_s": start, "end_s": end, "active_s": end-start})
+                       "start_s": start, "end_s": end, "active_s": end-start,
+                       "skill_requirement": requirement, "skill_id": sid, "effect_id": effect,
+                       "min_trained": requirement["minimum"] if requirement else 1})
     return result
 
 
@@ -99,7 +118,7 @@ def prepare(cd, current, options=None):
             duration = number(duration, "Healing duration", 120)
         healing_start = min(window, delay)
         healing_end = window if duration is None else min(window, healing_start + duration)
-        reductions = reduction_windows(row, window)
+        reductions = reduction_windows(cd, row, window)
         peak_pressure, peak_time = pressure_deficit(pressure, window, healing, healing_start, healing_end, reductions)
         unprotected_peak, _ = pressure_deficit(pressure, window, healing, healing_start, healing_end)
         reserve = number(row.get("reserve_hp", 1), "HP reserve", minimum=1)
@@ -130,7 +149,7 @@ def prepare(cd, current, options=None):
     available = node_hp(cd, {nid for nid, (_, node) in cd.node_index.items() if node.get("type") != "Start"})
     if floor > available+1e-6:
         raise ValueError(f"Requested crystal HP reserve {floor:,.0f} exceeds the catalog's total {available:,.0f}, even before point/connectivity costs. Lower the reserve or incoming-damage assumptions.")
-    return {"version": 3, "preserve_hp": preserve, "reference_node_hp": reference,
+    return {"version": 4, "preserve_hp": preserve, "reference_node_hp": reference,
             "minimum_node_hp": max(0, floor), "current_hp": hp, "opponents": rows, "note": NOTE}
 
 

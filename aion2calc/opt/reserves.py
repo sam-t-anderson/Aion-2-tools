@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from ..kit.base import sp_to_reach, stigma_points_to_reach, SPEC_SLOT_LEVELS
 
-NOTE = ("User-selected trained skill/stigma minimums. Reserved stigmas stay equipped. "
+NOTE = ("User-selected and linked-window trained skill/stigma minimums. Reserved stigmas stay equipped. "
         "Reserved supporting effects stay selected; their effective-level unlock and slot requirements constrain trained points, fixed gear bonuses and connected Daevanion nodes. Other bonuses and specialties may change. "
         "Use utility skills manually when they are absent from the damage rotation. These constraints "
         "do not simulate CC, mobility, shields, opponent defenses or win probability. Damage baselines "
@@ -81,3 +81,24 @@ def describe(cd, build, plan):
             "skills": [{"id":sid,"name":cd.skills[sid]["name"],"kind":cd.skills[sid]["kind"],
                         "minimum":level,"selected":(build.stigmas if field=="stigmas" else build.sp).get(sid,1)}
                        for field in ("sp","stigmas") for sid,level in sorted(plan[field].items())]}
+
+
+def include_survival(cd, plan, survival, budgets, gear_bonus=None):
+    """Union validated personal reserves with linked timing requirements.
+
+    Never overwrite a stricter user minimum or silently drop an effect to fit
+    slots/budgets. Reuse normal reserve validation for the combined request.
+    """
+    linked = [w["skill_requirement"] for row in (survival or {}).get("opponents", [])
+              for w in row.get("reductions", []) if w.get("skill_requirement")]
+    if not linked:
+        return plan
+    raw = {field: dict((plan or {}).get(field, {})) for field in ("sp", "stigmas")}
+    raw["specs"] = {sid: list(chosen) for sid,chosen in (plan or {}).get("specs", {}).items()}
+    for req in linked:
+        field = "stigmas" if req["kind"] == "stigma" else "sp"
+        sid = req["id"]
+        raw[field][sid] = max(raw[field].get(sid,1), req["minimum"])
+        if req["effect_id"] is not None:
+            raw["specs"][sid] = sorted(set(raw["specs"].get(sid, [])) | {req["effect_id"]})
+    return prepare(cd, raw, budgets, gear_bonus)

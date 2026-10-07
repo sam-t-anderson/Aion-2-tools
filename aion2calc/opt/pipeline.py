@@ -136,11 +136,6 @@ class Optimizer:
                  stigma_points: int | None = None, sp_budget: int | None = None,
                  search_duration: float | None = None, verbose: bool = True, gear_bonus: dict | None = None,
                  progress=None, survival=None, skill_reserves=None):
-        self.skill_reserves = skill_reserves
-        self.required_specs = (skill_reserves or {}).get("specs", {})
-        self.min_effective = (skill_reserves or {}).get("effective", {})
-        self.min_sp = (skill_reserves or {}).get("sp", {})
-        self.min_stigmas = (skill_reserves or {}).get("stigmas", {})
         self.survival = survival
         self.cls = cls
         self.cd = ClassData(cls)
@@ -154,6 +149,14 @@ class Optimizer:
         self.verbose = verbose
         self.progress = progress            # optional callback(str): live phase updates for the app UI
         self.gear_bonus = gear_bonus or {}
+        from .reserves import include_survival
+        skill_reserves = include_survival(self.cd, skill_reserves, survival,
+                                         {"skill": self.sp_budget, "stigma": self.stigma_points})
+        self.skill_reserves = skill_reserves
+        self.required_specs = (skill_reserves or {}).get("specs", {})
+        self.min_effective = (skill_reserves or {}).get("effective", {})
+        self.min_sp = (skill_reserves or {}).get("sp", {})
+        self.min_stigmas = (skill_reserves or {}).get("stigmas", {})
         self.history: list = []
         self._rotation_keys: set = set()    # kit actions the last rotation search could use
         self.t0 = time.time()

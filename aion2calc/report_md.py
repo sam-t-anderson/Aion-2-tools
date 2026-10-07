@@ -61,6 +61,12 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
                     for effect in row["reductions"]:
                         label = effect["name"].replace("\n", " ")
                         w(f"  - {label} ({effect['kind']}): assumed {effect['reduction_pct']:g}% pressure reduction from {effect['start_s']:g}s to {effect['end_s']:g}s.\n")
+                        req = effect.get("skill_requirement")
+                        if req:
+                            w(f"    Retained skill: {req['name']} (trained minimum {req['minimum']})" +
+                              (f"; supporting effect: {req['effect']}" if req.get("effect") else "") + ".\n")
+                        else:
+                            w("    Unlinked timing assumption.\n")
             for row in hp["opponents"]:
                 benchmark = row.get("opponent_benchmark")
                 if benchmark:
