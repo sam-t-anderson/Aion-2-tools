@@ -22,6 +22,18 @@ It answers, for any class:
 and produces images of the Daevanion boards and a planner-style build page plus
 share links for the metabot.gg and gamers4.life planners.
 
+## My uploads and privacy
+
+Open **Combat Logs → My uploads** on desktop or **Logs → My uploads** on the website. New desktop uploads automatically save a separate private credential. Click **Refresh** to check the original server, then change visibility, rotate a private link, or delete the uploaded copy. Your local combat file remains after server deletion.
+
+- **Public:** listed; eligible samples contribute to community comparisons.
+- **Unlisted:** anyone with the link can view; not listed or ranked publicly. Legacy anonymous calibration may contribute.
+- **Private:** requires its secret view link or owner credential; excluded from public comparisons and calibration. Rotating the link revokes the previous private view link. Changing back to Private creates a new link.
+
+Use **Export private credentials** and **Import private backup** to move management access between desktop, browsers and devices. Keep the backup private: it permits viewing private logs, privacy changes and deletion. Credentials are outside public a2log exports. Desktop stores them with your user data; website storage belongs to that browser and site. Desktop management requires selecting the upload's original share server in Settings. Importing credentials does not contact a server until you use its controls.
+
+Older uploads can be recovered with the server address, upload ID and original delete token (the `token` in the original delete URL). A shared upload key, character name or view link cannot recover management access. If the original credential is lost, it cannot be recovered by the app. Upload ownership does not verify ownership of any recorded character. Making a log private or deleting it cannot recall previously downloaded copies or old cached responses.
+
 ## Encounter insights
 
 In combat review, enable **Encounter insights** to see healer → recipient totals, observed ability effects and the first 20 effects per player/pet. Player and pet filters apply; pets keep their source labels. These are recorded effects, not casts or a recommended rotation. Healing totals do not establish effective healing or overheal.

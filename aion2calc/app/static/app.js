@@ -597,7 +597,7 @@ async function pageCombat() {
         Files: AbyssLogs segment (.json / .json.gz), aion2calc JSON (see docs), or CSV with columns t, skill, damage, crit, double, perfect, multi, dot.</p>
       <div class="row small" id="logsdir"></div>
       <div class="row small" id="lsrv"></div>
-      <h3>Recent full sessions</h3><div class="row"><label>Encounter type <select id="sessiontype"><option value="">All</option>${Object.entries(A2Community.types).map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join("")}</select></label></div><div id="sessions"></div><div id="session-review"></div><div id="community"></div><h3>Analyzed encounters</h3><div id="hist"></div></div></section><div id="enc"></div>`;
+      <h3>Recent full sessions</h3><div class="row"><label>Encounter type <select id="sessiontype"><option value="">All</option>${Object.entries(A2Community.types).map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join("")}</select></label></div><div id="sessions"></div><div id="session-review"></div><div id="owned-logs"></div><div id="community"></div><h3>Analyzed encounters</h3><div id="hist"></div></div></section><div id="enc"></div>`;
   api("/api/logs").then((l) => {
     $("#logsdir").innerHTML = `<span class="muted">Every analyzed log is saved as a file in</span> <code>${esc(l.folder)}</code> <span class="faint">(${l.files} files)</span>
       <button class="btn small" id="openlogs">Open folder</button>`;
@@ -620,6 +620,13 @@ async function pageCombat() {
   $$("[data-session]").forEach(b=>b.onclick=async()=>{try{const doc=await api("/api/sessions?file="+encodeURIComponent(b.dataset.session));if(st.review)st.review.dispose();st.review=A2CombatReview.mount($("#session-review"),doc,localReviewOptions(b.dataset.session));$("#session-review").scrollIntoView({block:"start",behavior:"smooth"});}catch(e){$("#lmsg").textContent=e.message;}});
   };
   $('#sessiontype').onchange=renderSessions;renderSessions();
+  A2LogOwnership.mount($('#owned-logs'),{
+    list:()=>api('/api/log-ownership'),
+    import:owners=>api('/api/log-ownership',{action:'import',owners}),
+    forget:owner=>api('/api/log-ownership',{action:'forget',owner}),
+    request:(owner,action,visibility)=>api('/api/log-ownership',{owner,action,visibility}),
+    open:doc=>{if(st.review)st.review.dispose();st.review=A2CombatReview.mount($('#session-review'),doc,localReviewOptions());$('#session-review').scrollIntoView({behavior:'smooth'});}
+  });
   A2Community.mount($('#community'),{api:communityAPI,open:async id=>{try{const doc=await communityAPI('/api/v1/logs/'+encodeURIComponent(id)+'/raw');if(st.review)st.review.dispose();st.review=A2CombatReview.mount($('#session-review'),doc,{compare:localReviewOptions().compare,rankings:segment=>communityAPI('/api/v1/logs/'+id+'/rankings?segment='+segment)});$('#session-review').scrollIntoView({behavior:'smooth'});}catch(e){toast(e.message);}}});
   const hist = await api("/api/encounters").catch(() => []);
   $("#hist").innerHTML = hist.length ? `<table class="t"><tr><th>#</th><th>Player</th><th>Class</th><th>Target</th><th>Source</th><th class="r">Duration</th><th class="r">DPS</th><th></th></tr>${hist.map((e) =>
@@ -634,6 +641,8 @@ async function pageCombat() {
         const r = await api(`/api/encounters/${a.id}/share`, {});
         $("#shared").innerHTML = `Shared: <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a> <button class="btn small" id="cpy">Copy link</button>`;
         $("#cpy").onclick = () => copyText(r.url);
+        if(r.ownership_warning)toast(r.ownership_warning);
+        document.dispatchEvent(new Event('a2log-uploaded'));
       } catch (e) { $("#shared").textContent = e.message; }
     }));
     $$("[data-player]").forEach((b) => (b.onclick = async () => {        // another player of the same party log

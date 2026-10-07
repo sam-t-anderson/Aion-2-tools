@@ -1,3 +1,4 @@
+A2LogOwnership.mount(document.getElementById("owned-logs"));
 (async function () {
   const params=new URLSearchParams(location.search), id=params.get("id"),token=params.get("t");
   const query=token?"?t="+encodeURIComponent(token):"";

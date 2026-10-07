@@ -12,6 +12,7 @@ on:
       - "aion2calc/app/static/raid.js"
       - "aion2calc/app/static/combat-review.*"
       - "aion2calc/app/static/community.js"
+      - "aion2calc/app/static/log-ownership.js"
       - "aion2calc/app/static/logo.png"
       - "aion2calc/data/global/default_server.json"
       - "docs/screenshots/**"
@@ -37,7 +38,7 @@ jobs:
           mkdir -p _site/static/fonts _site/screenshots
           cp site/*.html _site/
           cp site/*.css site/*.js _site/
-          cp aion2calc/app/static/raid.js aion2calc/app/static/combat-review.js aion2calc/app/static/combat-review.css aion2calc/app/static/community.js _site/static/
+          cp aion2calc/app/static/raid.js aion2calc/app/static/combat-review.js aion2calc/app/static/combat-review.css aion2calc/app/static/community.js aion2calc/app/static/log-ownership.js _site/static/
           cp aion2calc/app/static/logo.png _site/static/ 2>/dev/null || true
           cp aion2calc/app/static/fonts/cinzel-latin.woff2 _site/static/fonts/ 2>/dev/null || true
           # the stylesheet's font URL is absolute (/static/...) for the app; make it relative for the Pages subpath

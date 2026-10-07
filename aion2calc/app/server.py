@@ -272,6 +272,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         if cache:
             self.send_header("Cache-Control", f"max-age={cache}")
+        else:
+            self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 
@@ -366,6 +368,14 @@ class Handler(BaseHTTPRequestHandler):
             from ..meter.a2parser.capture import interface_details
             rows = interface_details()
             return self._json({"interfaces": [row["name"] for row in rows], "devices": rows})
+        if path == "/api/log-ownership":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("Private upload credentials are local to this computer")
+            origin = self.headers.get("Origin")
+            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
+                raise PermissionError("Upload credentials require the local application origin")
+            from ..combat.ownership import entries
+            return self._json(entries())
         if path == "/api/logserver":
             from ..combat import share
             st = share.effective()
@@ -433,6 +443,20 @@ class Handler(BaseHTTPRequestHandler):
 
     # --------------------------------------------------------------- POST
     def route_post(self, path: str, body: dict):
+        if path == "/api/log-ownership":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("Private upload credentials are local to this computer")
+            origin = self.headers.get("Origin")
+            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
+                raise PermissionError("Upload management requires the local application origin")
+            from ..combat import ownership
+            action = body.get("action")
+            if action == "import":
+                return self._json(ownership.merge(body.get("owners")))
+            row = ownership.clean(body.get("owner"))
+            if action == "forget":
+                return self._json(ownership.forget(row["server"],row["id"]))
+            return self._json(ownership.request(row,action,body.get("visibility")))
         if path == "/api/history":
             from .history import save
             return self._json({"id": save(body)})
@@ -467,6 +491,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"job": start_job("optimize-class", act_optimize_class, body)})
         if path == "/api/encounters/import":
             return self._json({"job": start_job("encounter", act_encounter_import, body)})
+        if path == "/api/log-ownership":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("Private upload credentials are local to this computer")
+            from ..combat.ownership import entries
+            return self._json(entries())
         if path == "/api/logserver":
             from ..combat import share
             st = share.save_settings(body.get("url"), body.get("key"), body.get("visibility"))
