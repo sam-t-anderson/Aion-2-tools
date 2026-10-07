@@ -22,6 +22,12 @@ It answers, for any class:
 and produces images of the Daevanion boards and a planner-style build page plus
 share links for the metabot.gg and gamers4.life planners.
 
+## Reporting a shared combat log
+
+Open a shared log in Combat Logs, the website, or its server link and expand **Report this shared log**. Choose a reason, describe the concern, and keep the receipt. Reports are private requests for human review; they do not automatically hide logs or establish wrongdoing. Do not include credentials or unnecessary personal details.
+
+If your upload is quarantined, **My uploads → Refresh** shows the moderator's reason. Shared links and visibility changes pause; your original credential still allows desktop review and deletion. A released upload stays private until you publish it again. A character name does not prove ownership of a log or character. Reporting requires a server with report support.
+
 ## Npcap installation on Windows
 
 Choose **Install Npcap** in Live Meter to download the current official installer. Windows asks for administrator approval through its normal UAC prompt; approve it to run the installer. Cancelling or denying approval leaves Npcap uninstalled and the app explains how to retry. Npcap is installed separately, not bundled.

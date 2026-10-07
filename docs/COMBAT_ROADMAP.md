@@ -26,9 +26,13 @@ Pending evidence for phase/support/rotation enrichment: verified cast-start/end,
 
 Implemented per-upload ownership retention on desktop/CLI, shared My uploads management on desktop/Pages/server views, current status, visibility changes, private-link rotation, deletion, private credential backups/import and recovery with original delete tokens. Shared upload keys no longer read private combat logs or delete logs. Privacy changes reindex reports and exclude private calibration; mutable responses use no-store. This is upload ownership, not proof of character identity. Existing downloads/caches cannot be recalled, and lost unique credentials cannot be inferred.
 
-Remaining ownership/community work: verified character claims, opt-out of appearances in other uploaders' logs, account/device recovery and moderation/reporting workflows. Those need an explicit trustworthy identity/authentication design. Richer PvP scoring still requires representative match/kill/objective evidence; user will gather PvP captures later. Live protocol enrichment remains dependent on verified packet evidence.
+Remaining ownership/community work: verified character claims, opt-out of appearances in other uploaders' logs, account/device recovery and individual moderator identities/appeals workflows. Those need an explicit trustworthy identity/authentication design. Richer PvP scoring still requires representative match/kill/objective evidence; user will gather PvP captures later. Live protocol enrichment remains dependent on verified packet evidence.
 
-Next checkpoint: community moderation/reporting tools and remaining evidence-backed metrics; avoid inventing PvP boundaries or character ownership proof.
+## Insights roadmap — checkpoint 7 (0.2.30)
+
+Implemented private anonymous reports from shared desktop/Pages/server combat review, bounded/rate-limited intake and receipts, private LAN dashboard review/dismiss/quarantine/release, required decision notes and audit history. Reports never automatically hide uploads. Quarantine rotates shared access, excludes public/calibration samples and pauses owner visibility changes; original unique credentials retain review/deletion. Release leaves the upload private. No report contents are exposed publicly.
+
+Remaining: verified character claims and opt-out across other uploaders' logs, account/device recovery, individual moderator identities/roles and an authenticated appeals/status workflow. Shared admin-token audit establishes credential use, not the identity of a person. Protocol-dependent metrics (live positions, casts, buffs, resources, effective healing and PvP outcomes/objectives) still require representative evidence. Further work should begin with verified character authentication design or new protocol captures.
 
 Pending capture-quality follow-ups: additional OS/driver packet-drop counters, verified match boundaries, robust matching of incomplete perspectives, trusted game-version mapping and unlimited disk archival beyond bounded retention. These are not inferred from missing events.
 

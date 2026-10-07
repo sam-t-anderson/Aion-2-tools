@@ -16,6 +16,7 @@
   function mount(root, doc, options={}) {
     let state={run:"",segment:0,metric:"summary",view:"table",graph:true,timeline:true,skills:true,deaths:true,heals:true,pets:true,combine:true,actor:"",page:0,enemy:"",hidden:new Set(), ...options.state};
     let comparisons=[], ranks=null, rankRequest=0, replayFrame=null, profileRequest=0;
+    let reportReason='privacy',reportDetails='',reportStatus='',reportBusy=false;
     const previews=new Map();
     const refs=()=>{const r={};for(const e of [...(doc.players || []),...(doc.segments[state.segment]?.entities || [])])r[e.id]={...r[e.id],...e};for(const e of [...(doc.players || []),...doc.segments.flatMap(s=>s.entities || [])])if(e.profile_snapshot && r[e.id])r[e.id].profile_snapshot=e.profile_snapshot;for(const e of Object.values(r))if(e.owner)e.class=r[e.owner]?.class;return r;};
     const label=e=>e ? `${e.name || e.id}${e.server ? " · " + e.server : ""}` : "Unknown / not recorded";
@@ -163,7 +164,7 @@
         ${state.view==="table" ? summary+(state.metric!=="summary" && state.metric!=="deaths"?breakdown:"") : state.view==="events" ? eventTable+`<div class="row"><button class="btn small" data-prev>Previous</button> ${state.page+1} / ${pageCount} · ${events.length} events <button class="btn small" data-next>Next</button></div>` : ""}
         ${state.timeline && (state.view==="timeline" || state.view==="table") ? timeline(d,events):""}
         <p class="small muted">${d.events.some(e=>e.kind==="heal"&&!e.target)?"Some healing recipients are not carried by their packet variant. ":""}${!d.events.some(e=>e.kind==="death")?"No death markers recorded; zero counts do not establish a deathless run. ":""}${!(d.segment.positions || []).length?"Movement replay is unavailable: no verified positions were recorded.":""}</p>
-        ${metadataHTML(d)}${ranksHTML(d)}${options.rankings?'<button class="btn small" data-rank-refresh>Refresh rankings</button>':""}${options.publish?'<div class="row"><select data-upload-vis aria-label="Upload visibility"><option>unlisted</option><option>public</option><option>private</option></select><button class="btn small" data-upload>Upload saved session</button><span data-upload-result></span></div>':""}<div data-replay></div>
+        ${reportHTML()}${metadataHTML(d)}${ranksHTML(d)}${options.rankings?'<button class="btn small" data-rank-refresh>Refresh rankings</button>':""}${options.publish?'<div class="row"><select data-upload-vis aria-label="Upload visibility"><option>unlisted</option><option>public</option><option>private</option></select><button class="btn small" data-upload>Upload saved session</button><span data-upload-result></span></div>':""}<div data-replay></div>
         <div class="row"><input data-compare placeholder="Another public log ID" aria-label="Log ID to compare"><button class="btn small" data-compare-go ${options.compare?"":"disabled"}>Compare log</button><span data-compare-result></span><input type="file" data-compare-file accept=".json" aria-label="Compare a local a2log file"></div>
         <div data-comparison>${comparisonHTML(d)}</div>
       </div></section>`;
@@ -192,6 +193,11 @@
       const saved=root.querySelector('[data-profile-saved]');if(saved)saved.onclick=()=>{previews.delete(state.character);render();};
       const current=root.querySelector('[data-profile-current]');if(current)current.onclick=async()=>{const id=state.character,request=++profileRequest;current.disabled=true;root.querySelector('[data-profile-message]').textContent='Fetching current official profile…';try{const result=await options.lookupProfile(refs()[id],doc.meta?.region);if(request!==profileRequest)return;previews.set(id,result);render();}catch(e){if(request===profileRequest)root.querySelector('[data-profile-message]').textContent=e.message;}finally{if(current.isConnected)current.disabled=false;}};
       const download=root.querySelector('[data-profile-download]');if(download)download.onclick=()=>{const snapshot=previews.get(state.character) || refs()[state.character]?.profile_snapshot;const url=URL.createObjectURL(new Blob([JSON.stringify(snapshot,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='character-profile.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+      const report=root.querySelector('[data-report-send]');if(report){
+        const reason=root.querySelector('[data-report-reason]'),details=root.querySelector('[data-report-details]');reason.value=reportReason;details.value=reportDetails;root.querySelector('[data-report-status]').textContent=reportStatus;report.disabled=reportBusy;
+        reason.onchange=()=>{reportReason=reason.value;};details.oninput=()=>{reportDetails=details.value;};
+        report.onclick=async()=>{if(reportBusy)return;reportBusy=true;report.disabled=true;try{const result=await options.report({reason:reportReason,details:reportDetails});reportStatus=result.message+' Receipt: '+result.id;reportDetails='';}catch(e){reportStatus=e.message;}finally{reportBusy=false;if(root.isConnected)render();}};
+      }
       replay(d);
     }
     function addComparison(other) {
@@ -211,6 +217,10 @@
           return `<tr><td>${actorHTML(p)}</td><td>${esc(p.class)}</td><td>${number(own)}</td><td><select data-compare-player="${esc(p.id)}" data-index="${index}"><option value="">Select same-class player</option>${candidates.map(o=>`<option value="${esc(o.id)}" ${o.id===selected?.id?'selected':''}>${esc(label(o))}</option>`).join('')}</select></td><td>${theirs===null?'Unavailable':number(theirs)}</td><td>${theirs?((own/theirs-1)*100).toFixed(1)+'%':'—'}</td></tr>`;
         }))}`;
       }).join('');
+    }
+    function reportHTML() {
+      if(!options.report)return '';
+      return `<details data-report-form ${reportDetails||reportStatus||reportBusy?'open':''}><summary>Report this shared log</summary><p class="small muted">Reports go privately to the server operator for human review. A report is not a verified finding. Do not include credentials or unnecessary personal information.</p><label>Reason <select data-report-reason><option value="privacy">Privacy concern</option><option value="harassment">Harassment</option><option value="suspected_tampering">Suspected data tampering</option><option value="wrong_metadata">Incorrect encounter metadata</option><option value="other">Other</option></select></label><label>Details (10–1,000 characters)<textarea data-report-details minlength="10" maxlength="1000" rows="3"></textarea></label><button class="btn small" data-report-send>Send report</button><p data-report-status role="status"></p></details>`;
     }
     function metadataHTML(d) {
       if(!options.saveMetadata)return `<p class="small muted">${esc(context(doc,d.segment).join(' · '))}</p>`;
