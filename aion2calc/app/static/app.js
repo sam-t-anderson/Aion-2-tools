@@ -95,12 +95,12 @@ function winSkills(v, tab = "active") {
       <div><div class="nm">${esc(s.name)}</div>
         <div class="lvl"><b>Lv ${s.eff}</b> = SP ${s.sp} + Daevanion ${s.daev}${s.gear ? ` + gear ${s.gear}` : ""}</div></div>
       <div class="specs">${s.specs.map((x) => `<div class="spec ${x.chosen ? "on" : x.available ? "av" : ""}" title="${esc(`${x.n}. ${x.text} (unlocks at Lv ${x.unlock})`)}">${x.n}</div>`).join("")}</div>
-      ${s.specs.length?`<div class="small muted">${s.slots} selection slot(s) · ${chosen.length} recommended${s.next_effect_level?` · next effect at Lv ${esc(s.next_effect_level)}`:''}</div>`:''}
-      ${chosen.length ? `<div class="spectext">${chosen.map((x) => `<span>${x.n}</span> ${esc(x.text)} <span class="faint">(effect Lv ${x.unlock})</span>`).join(" &nbsp;·&nbsp; ")}</div>` : ""}
+      ${s.specs.length?`<div class="small muted">${esc(s.slots)} selection slot(s) · ${chosen.length} recommended${s.next_effect_level?` · next effect at Lv ${esc(s.next_effect_level)}`:''}</div>`:''}
+      ${chosen.length ? `<div class="spectext">${chosen.map((x) => `<span>${x.n}</span> ${esc(x.text)} <span class="faint">(effect Lv ${esc(x.unlock)})</span>`).join(" &nbsp;·&nbsp; ")}</div>` : ""}
     </div>`;
   }).join("");
   const copy = (v.skills.active.concat(v.skills.passive)).filter((s) => s.sp > 1 || s.specs.some((x) => x.chosen))
-    .map((s) => `${s.name}: train to ${s.sp} (Lv ${s.eff})${s.specs.some((x) => x.chosen) ? " — specialties " + s.specs.filter((x) => x.chosen).map((x) => `${x.n}: ${x.text} (effect Lv ${x.unlock})`).join("; ") : ""}`).join("\n");
+    .map((s) => `${s.name}: train to ${s.sp} (Lv ${s.eff})${s.specs.some((x) => x.chosen) ? " — specialties " + s.specs.filter((x) => x.chosen).map((x) => `${x.n}: ${x.text} (effect Lv ${esc(x.unlock)})`).join("; ") : ""}`).join("\n");
   const tabs = `<div class="tabs">${["active", "passive"].map((t) => `<button data-skilltab="${t}" class="${t === tab ? "on" : ""}">${cap(t)}</button>`).join("")}</div>`;
   const rolls = (v.gear_skill_rolls || []).map((r) => `${r.name} +${r.levels}`).join(", ");
   return win("Skills", counter, tabs + `<div class="skilllist">${rows}</div>` +
