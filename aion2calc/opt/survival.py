@@ -56,6 +56,11 @@ def prepare(cd, current, options=None):
         rows.append({"name": str(row.get("name") or "Incoming pressure")[:100], "burst_damage": burst,
                      "pressure_dps": pressure, "window_s": window, "healing_hps": healing,
                      "reserve_hp": reserve, "required_hp": required, "source": "user_assumption"})
+        evidence = row.get("recorded_evidence")
+        if isinstance(evidence, dict):
+            # Provenance is user-imported context, never authenticated telemetry.
+            rows[-1]["recorded_evidence"] = {k: str(evidence[k])[:200] for k in
+                ("title", "recipient", "recipient_id", "segment", "window_s", "start_s", "end_s", "damage", "largest_hit", "damage_events") if k in evidence}
     if rows and hp is None:
         raise ValueError("Enter your current maximum HP before using incoming-damage scenarios")
     if not preserve and floor == 0 and not rows:
@@ -79,3 +84,57 @@ def assessment(cd, build, plan):
     return {**plan, "selected_node_hp": hp, "meets_node_floor": hp+1e-6 >= plan["minimum_node_hp"],
             "estimated_total_hp_proxy": total, "opponents": rows,
             "worst_headroom_hp": min((r["headroom_hp"] for r in rows), default=None)}
+
+
+def recorded_pressure(document, segment=None, target=None, window_s=5):
+    """Extract gross recorded damage windows, without inferring mitigation or healing."""
+    from ..combat.a2log import validate, combat_mode
+    doc = validate(document)
+    names = {p["id"]: p["name"] for p in doc["players"]}
+    choices = []
+    for index, fight in enumerate(doc["segments"]):
+        targets = sorted({e["target"] for e in fight.get("events", [])
+                          if e["kind"] == "damage" and e.get("target") in names and e["amount"] > 0})
+        if targets:
+            choices.append({"index": index, "label": fight.get("label") or f"Encounter {index+1}",
+                            "mode": combat_mode(doc, fight),
+                            "targets": [{"id": pid, "name": names[pid]} for pid in targets]})
+    if segment is None:
+        return {"encounters": choices}
+    if type(segment) is not int or not 0 <= segment < len(doc["segments"]):
+        raise ValueError("Choose an encounter from this recording")
+    fight = doc["segments"][segment]
+    window = number(window_s, "Recorded damage window", 120, .1)
+    if target not in names:
+        raise ValueError("Choose a recorded player recipient")
+    events = sorted((e for e in fight.get("events", []) if e["kind"] == "damage"
+                     and e.get("target") == target and e["amount"] > 0), key=lambda e: e["t"])
+    if not events:
+        raise ValueError("No damage with this player as recipient was recorded")
+    from collections import deque
+    deaths = [e for e in fight.get("events", []) if e["kind"] == "death" and e.get("target") == target]
+    records = sorted(events + deaths, key=lambda e: (e["t"], e["kind"] == "death"))
+    # Inclusive windows preserve simultaneous hits; recorded deaths separate lives.
+    active = deque()
+    running = peak = 0.0
+    start = end = 0.0
+    for event in records:
+        if event["kind"] == "death":
+            active.clear()
+            running = 0.0
+            continue
+        active.append(event)
+        running += event["amount"]
+        while event["t"] - active[0]["t"] > window:
+            running -= active.popleft()["amount"]
+        if running > peak:
+            peak, start, end = running, active[0]["t"], event["t"]
+    number(peak, "Recorded peak damage")
+    label = fight.get("label") or f"Encounter {segment+1}"
+    evidence = {"title": str(doc.get("meta", {}).get("title") or label)[:200],
+                "recipient": names[target], "recipient_id": target, "segment": segment,
+                "window_s": window, "start_s": start, "end_s": end, "damage": peak,
+                "largest_hit": max(e["amount"] for e in events), "damage_events": len(events)}
+    return {"scenario": {"name": f"{names[target]} · {label}"[:100], "burst_damage": peak,
+                         "pressure_dps": 0, "window_s": window, "healing_hps": 0,
+                         "reserve_hp": 1, "recorded_evidence": evidence}}

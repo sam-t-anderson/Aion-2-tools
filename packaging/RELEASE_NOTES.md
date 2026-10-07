@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.65
+
+Survivability settings can import a recorded incoming-damage scenario from an exported a2log JSON file. Choose the encounter, player recipient and rolling time window. The largest recorded gross damage window becomes a burst requirement, with zero additional sustained damage or healing to avoid counting the same pressure twice. Recorded deaths reset the window so observed separate lives are not combined. Review your maximum HP and positive reserve before optimizing.
+
+Saved results retain the recording label, recipient, peak window, largest hit and event count alongside editable assumptions. These are user-imported observations, not authenticated telemetry or a matchup simulation. Damage reflects the recorded recipient's defenses; packet loss can understate pressure. Crowd control, mobility, armor changes and opponent-build simulation remain future work. Expandable information headings and contents have a small consistent spacing gap in the desktop app and Pages. Canonical community scoring is unchanged; no server evaluator update is required.
+
 # Aion 2 Calc 0.2.64
 
 My Character offers a saved damage-objective choice: the existing primary scenario or balanced 50/50 PvE boss/dummy or PvP sustained/burst scoring. Balanced personal optimization uses the frozen imported gear, saved Genus lines, point totals and the same HP/skill reserves across both scenarios. The existing primary objective remains the default; balanced simulations take longer.

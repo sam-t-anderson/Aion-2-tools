@@ -576,3 +576,8 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; backgrou
 .genus-editor-grid input {min-width:0;width:100%;box-sizing:border-box;}
 #genus-editor textarea {width:100%;box-sizing:border-box;margin:8px 0;}
 @media(max-width:680px){.genus-editor-grid{grid-template-columns:1fr;}}
+
+/* Small breathing room around expandable information panels. */
+details { margin-block:2px; }
+details > summary { padding-block:2px; }
+details[open] > summary { margin-bottom:2px; }
