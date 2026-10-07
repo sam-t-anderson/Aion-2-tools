@@ -95,13 +95,21 @@ def act_character_import(body: dict, log) -> dict:
 
 def act_character_optimize(body: dict, log) -> dict:
     from ..charopt import import_character, optimize_character
+    mode = body.get("mode", "pve")
+    if mode not in ("pve", "pvp"):
+        raise ValueError("Choose PvE or PvP optimization")
+    scenario = "pvp" if mode == "pvp" else "boss"
     imp = import_character(body["character_id"], int(body["server_id"]), body.get("region", "nae"),
                            progress=log, use_cache=3600)
     out = results_dir() / "characters" / imp.loadout_name()[5:]
-    log(f"optimizing under the same resources (writes {out})")
+    if mode == "pvp":
+        out = out / "pvp"
+        from ..scenarios import PVP_NOTE
+        log(PVP_NOTE)
+    log(f"optimizing {mode.upper()} under the same resources (writes {out})")
     # One pass by default keeps the in-app optimize responsive (serial, no process pool when packaged);
     # the big gains are in pass 1 plus the final polish. The CLI can pass more for an exhaustive search.
-    summ = optimize_character(imp, str(out), iterations=int(body.get("iterations", 1)), progress=log, budgets=body.get("budgets"))
+    summ = optimize_character(imp, str(out), iterations=int(body.get("iterations", 1)), scenario_name=scenario, progress=log, budgets=body.get("budgets"))
     best = json.loads((out / "build.json").read_text(encoding="utf-8"))
     cur = json.loads((out / "current" / "build.json").read_text(encoding="utf-8"))
     from ..combat import share

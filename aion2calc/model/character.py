@@ -20,6 +20,7 @@ LABEL_MAP = {
     "Perfect Chance": ("perfect", 0.01), "Double Chance": ("double", 0.01),
     "Multi-hit Chance": ("multihit", 0.01), "Combat Speed": ("combat_speed", 0.01),
     "Cooldown Reduction": ("cdr", 0.01), "Penetration": ("pen", 1),
+    "PvP Damage Boost": ("amp_pvp", 0.01), "PvP Attack": ("pvp_atk", 1),
     "PvE Attack": ("pve_atk", 1), "Boss Attack": ("boss_atk", 1),
     "Front Attack": ("front_atk", 1), "Back Attack": ("back_atk", 1),
     "Might": ("might", 1), "Precision": ("precision", 1), "MP": ("mp_max", 1),

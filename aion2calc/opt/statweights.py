@@ -55,6 +55,8 @@ def _reopt_worker(job):
 
 def stat_weights(stats, kit, policy, target, config, steps=STAT_STEPS, reopt_timing: bool = True,
                  progress=None) -> list[dict]:
+    if target.is_player:
+        steps = [("amp_pvp" if f == "amp_pve" else "pvp_atk" if f == "pve_atk" else f, step, label.replace("PvE", "PvP")) for f, step, label in steps]
     policy = [e for e in policy if (e[0] if isinstance(e, tuple) else e) in kit.actions]
     def dps(st):
         sim = Sim(st.derived(), kit.actions, materialize(policy), target, config,

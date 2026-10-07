@@ -18,7 +18,7 @@ from .render.boards import render_boards
 from .render.links import (gamers4life_build_url, gamers4life_daevanion_url, metabot_build_url,
                            metabot_daevanion_url)
 from .run import kit_module, prepare
-from .scenarios import SCENARIOS, typical_build
+from .scenarios import SCENARIOS, typical_build, comparison_scenario
 from .sim.engine import Sim
 
 
@@ -275,7 +275,7 @@ def sensitivity(build, scenario, policy, samples: int = 12, spread: float = 0.25
     """Randomly perturb every action time by up to +-spread and compare the fixed policy
     against a re-optimized one: small losses mean the recommendation is robust."""
     rng = random.Random(seed)
-    mod = kit_module(build.cls)
+    mod = kit_module(build.cls, pvp=scenario.target.is_player)
     base_timing = dict(getattr(mod, "TIMING", {}))
     out = []
     try:
@@ -307,7 +307,8 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     (out / "images").mkdir(parents=True, exist_ok=True)
     loadout = loadout or f"{cls}_l45_global_median"
     scen = SCENARIOS[scenario_name](loadout)
-    other = SCENARIOS["dummy" if scenario_name == "boss" else "boss"](loadout)
+    other_name = comparison_scenario(scenario_name)
+    other = SCENARIOS[other_name](loadout)
     cd = ClassData(cls)
 
     opt = Optimizer(cls, scen, daev_budget=daev_budget, verbose=verbose, sp_budget=sp_budget,
@@ -318,7 +319,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     # baseline: the typical top global build (live statistics) with the best legal
     # specs for its levels, played with the default priority and with an optimized rotation
     comm = typical_build(cls, sp_budget=opt.sp_budget, stigma_points=opt.stigma_points)
-    comm = opt.optimize_specs(comm, list(kit_module(cls).build_kit(opt._with_gear(comm), cd).policy))
+    comm = opt.optimize_specs(comm, list(kit_module(cls, pvp=scen.target.is_player).build_kit(opt._with_gear(comm), cd).policy))
     cd_, cb, ckit, cstats = prepare(comm, scen)
     naive = Sim(cstats.derived(), ckit.actions, ckit.policy, scen.target, scen.config,
                 hooks=ckit.hooks, cond_mods=ckit.cond_mods).run()
@@ -344,7 +345,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     from .model.stats import crit_chance
     stat_summary = {
         "attack_avg": d.attack(), "attack_max": d.attack(perfect=True),
-        "crit_stat": d.crit_stat, "crit_chance_vs_target": crit_chance(d.crit_stat, scen.target.crit_resist),
+        "crit_stat": d.crit_stat, "crit_chance_vs_target": crit_chance(d.crit_stat, scen.target.crit_resist, midpoint=1024.52 if scen.target.is_player else None),
         "double": d.double, "perfect": d.perfect, "multihit": d.multihit, "boost_bucket": d.amp,
         "weapon_amp": d.weapon_amp, "combat_speed": d.combat_speed, "cdr": d.cdr,
         "accuracy": d.accuracy, "mp_max": d.mp_max,
@@ -352,7 +353,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     summary = {
         "class": cls, "level": 45, "scenario": scenario_name, "daevanion_budget": daev_budget,
         "budgets": {"skill": opt.sp_budget, "stigma": opt.stigma_points, "daevanion": daev_budget},
-        "dps": {scenario_name: final.dps, other.target.hp_model and ("dummy" if scenario_name == "boss" else "boss"): final_other.dps},
+        "dps": {scenario_name: final.dps, other_name: final_other.dps},
         "baseline": {"community_naive": naive.dps, "community_optimized_rotation": comm_rot.dps,
                      "community_other_scenario": comm_other.dps},
         "build": {"sp": {cd.skills[k]["name"]: v for k, v in sorted(build.sp.items())},
@@ -377,9 +378,12 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     summary["weapon_compare"] = wc
     summary["loadout"] = loadout
     summary["arcana_rolls"] = arcana_roll_values(cls, build, scen, policy)
-    summary["crit_sensitivity"] = crit_sensitivity(build, scen, policy)
-    summary["kr_fidelity"] = kr_share_overlap(cls, final_other.shares() if scenario_name == "boss"
-                                              else final.shares())
+    summary["crit_sensitivity"] = None if scenario_name.startswith("pvp") else crit_sensitivity(build, scen, policy)
+    summary["kr_fidelity"] = (None if scenario_name.startswith("pvp") else
+                              kr_share_overlap(cls, final_other.shares() if scenario_name == "boss" else final.shares()))
+    if scenario_name.startswith("pvp"):
+        from .scenarios import PVP_NOTE
+        summary["model_note"] = PVP_NOTE
     (out / "build.json").write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
 
     # ---- images

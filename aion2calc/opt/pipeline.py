@@ -228,7 +228,7 @@ class Optimizer:
 
     def optimize_specs(self, build: Build, policy: list, passes: int = 2) -> Build:
         build = self._clean_specs(build)  # levels/gear may have changed since the previous search
-        mod = kit_module(self.cls)
+        mod = kit_module(self.cls, pvp=self.scenario.target.is_player)
         best = self.evaluate(build, policy)
         for _ in range(passes):
             changed = False
@@ -333,7 +333,7 @@ class Optimizer:
         return curves
 
     def _curve_for(self, build: Build, policy: list, sid: int, max_level: int) -> list[float]:
-        mod = kit_module(self.cls)
+        mod = kit_module(self.cls, pvp=self.scenario.target.is_player)
         cd = self.cd
         s = cd.skills[sid]
         L_now = self._with_gear(build).effective_levels(cd)
@@ -353,7 +353,7 @@ class Optimizer:
 
     def level_gains(self, build: Build, policy: list, sid: int, extra: int) -> list[float]:
         """DPS with ``sid`` raised by +1..+extra levels, best legal specs at each level."""
-        mod = kit_module(self.cls)
+        mod = kit_module(self.cls, pvp=self.scenario.target.is_player)
         s = self.cd.skills[sid]
         out = []
         for k in range(1, extra + 1):
@@ -505,7 +505,7 @@ class Optimizer:
     # ----------------------------------------------------------------- main
     def run(self, iterations: int = 3) -> OptResult:
         build = self.initial_build()
-        policy = list(kit_module(self.cls).build_kit(self._with_gear(build), self.cd).policy)
+        policy = list(kit_module(self.cls, pvp=self.scenario.target.is_player).build_kit(self._with_gear(build), self.cd).policy)
         curves, weights = {}, []
         for it in range(iterations):
             build = self._clean_specs(build)

@@ -15,7 +15,7 @@ from .opt.rotation import describe
 from .opt.statweights import stat_weights
 from .paths import write_user_json
 from .run import prepare
-from .scenarios import SCENARIOS
+from .scenarios import SCENARIOS, comparison_scenario
 from .sources import official
 from .sources.character import ImportedCharacter, from_profile
 
@@ -80,7 +80,7 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dic
     """The character as it is (best legal specs for its levels, optimized rotation)."""
     cls = imp.cls
     scen = SCENARIOS[scenario_name](imp.loadout_name())
-    other_name = "dummy" if scenario_name == "boss" else "boss"
+    other_name = comparison_scenario(scenario_name)
     other = SCENARIOS[other_name](imp.loadout_name())
     b = imp.build.copy()
     b.bonus = {}                       # gear skill rolls come from the loadout
@@ -88,7 +88,7 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dic
     opt = Optimizer(cls, scen, verbose=False, sp_budget=bud["skill"], stigma_points=bud["stigma"],
                     daev_budget=bud["daevanion"])
     from .run import kit_module
-    policy = list(kit_module(cls).build_kit(opt._with_gear(b), opt.cd).policy)
+    policy = list(kit_module(cls, pvp=scen.target.is_player).build_kit(opt._with_gear(b), opt.cd).policy)
     b = opt.optimize_specs(b, policy)
     policy, dps, res = opt.optimize_rotation(b, policy)
     cd, bg, kit, stats = prepare(b, scen)
@@ -105,7 +105,7 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dic
         "dps": {scenario_name: dps, other_name: res_other.dps},
         "budgets": bud,
         "stats": {"attack_avg": d.attack(), "crit_stat": d.crit_stat,
-                  "crit_chance_vs_target": crit_chance(d.crit_stat, scen.target.crit_resist),
+                  "crit_chance_vs_target": crit_chance(d.crit_stat, scen.target.crit_resist, midpoint=1024.52 if scen.target.is_player else None),
                   "cdr": d.cdr, "combat_speed": d.combat_speed, "boost_bucket": d.amp,
                   "double": d.double, "perfect": d.perfect, "multihit": d.multihit, "weapon_amp": d.weapon_amp},
         "build": {"sp": {cd.skills[k]["name"]: v for k, v in sorted(b.sp.items())},
@@ -157,6 +157,6 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     write_diff(str(out / "current"), str(out), str(out / "DIFF.md"))
     gain = best["dps"][scenario_name] / cur["dps"][scenario_name] - 1
     summary = {"character": cur["character"], "current_dps": cur["dps"], "optimized_dps": best["dps"],
-               "gain": gain, "budgets": bud, "seconds": time.time() - t0}
+               "gain": gain, "scenario": scenario_name, "budgets": bud, "seconds": time.time() - t0}
     (out / "character.json").write_text(json.dumps(summary, indent=1), encoding="utf-8")
     return summary

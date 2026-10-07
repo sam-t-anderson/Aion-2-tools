@@ -246,6 +246,8 @@ def community_request(path: str, body: dict | None = None) -> dict:
 
 def submit_preset(summary: dict) -> dict:
     """Send only anonymous allocations and rotation. The server recomputes all scores."""
+    if str(summary.get("scenario", "")).startswith("pvp"):
+        return {"submitted": False, "reason": "Experimental PvP builds are stored locally; PvE community presets are separate."}
     from ..presets import MAX_BYTES, candidate
     s = effective()
     base = (s.get("url") or "").rstrip("/")

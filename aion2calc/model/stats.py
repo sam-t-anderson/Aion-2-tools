@@ -60,6 +60,7 @@ class Stats:
     multihit: float = 0.0          # Multi-hit chance
     # damage boost groups
     amp_all: float = 0.0           # Damage Boost
+    amp_pvp: float = 0.0           # PvP Damage Boost (experimental additive model)
     amp_pve: float = 0.0           # PvE Damage Boost
     amp_boss: float = 0.0          # Boss Damage Boost
     weapon_amp: float = 0.0        # Weapon Damage Boost
@@ -68,6 +69,7 @@ class Stats:
     fire_amp: float = 0.0          # Fire Attack % (Element Enhancement)
     water_amp: float = 0.0
     # flat damage adds
+    pvp_atk: float = 0.0           # PvP Attack
     pve_atk: float = 0.0           # PvE Attack (flat)
     boss_atk: float = 0.0          # Boss Attack (flat)
     front_atk: float = 0.0         # Front Attack (flat, frontal hits)
@@ -93,12 +95,13 @@ class Stats:
     freedom: float = 0.0
     # skill level bonuses from gear/arcana: {skill_id: levels}
     skill_bonus: dict = field(default_factory=dict)
+    pvp: bool = False
 
     def add(self, other: "Stats | dict") -> "Stats":
         items = other.items() if isinstance(other, dict) else (
             (f.name, getattr(other, f.name)) for f in fields(other))
         for k, v in items:
-            if k == "level":
+            if k in ("level", "pvp"):
                 continue
             if k == "skill_bonus":
                 for sid, lv in (v or {}).items():
@@ -124,13 +127,13 @@ class Stats:
             atk_flat=self.attack, atk_pct=atk_pct,
             weapon_min=self.weapon_min, weapon_max=self.weapon_max,
             crit_stat=crit_stat, crit_dmg=self.crit_dmg, crit_atk=self.crit_atk,
-            double=(self.double + p * self.wisdom) * CALIBRATION["double"],
-            perfect=(self.perfect + p * self.justice) * CALIBRATION["perfect"],
-            multihit=self.multihit * CALIBRATION["multihit"],
-            amp=self.amp_all + self.amp_pve + self.amp_boss,
+            double=(self.double + p * self.wisdom) * (1.0 if self.pvp else CALIBRATION["double"]),
+            perfect=(self.perfect + p * self.justice) * (1.0 if self.pvp else CALIBRATION["perfect"]),
+            multihit=self.multihit * (1.0 if self.pvp else CALIBRATION["multihit"]),
+            amp=self.amp_all + (self.amp_pvp if self.pvp else self.amp_pve + self.amp_boss),
             weapon_amp=self.weapon_amp, front_amp=self.front_amp,
             fire_amp=self.fire_amp, water_amp=self.water_amp,
-            flat_add=self.pve_atk + self.boss_atk + PEN_FLAT * self.pen,
+            flat_add=(self.pvp_atk if self.pvp else self.pve_atk + self.boss_atk) + PEN_FLAT * self.pen,
             front_atk=self.front_atk,
             combat_speed=self.combat_speed + p * self.time,
             cdr=min(CDR_CAP, self.cdr + p * self.illusion),
@@ -178,7 +181,7 @@ def set_crit_midpoint(x0: float) -> None:
     CRIT_X0 = float(x0)
 
 
-def crit_chance(crit_stat: float, target_crit_resist: float = 0.0) -> float:
+def crit_chance(crit_stat: float, target_crit_resist: float = 0.0, *, midpoint: float | None = None) -> float:
     eff = max(0.0, crit_stat - target_crit_resist)
-    p = CRIT_A / (1 + math.exp(-CRIT_K * (eff - CRIT_X0)))
+    p = CRIT_A / (1 + math.exp(-CRIT_K * (eff - (CRIT_X0 if midpoint is None else midpoint))))
     return max(0.0, min(CRIT_CAP, p))

@@ -14,7 +14,9 @@ BASE_MP_45 = 2500.0
 BASE_MP_REGEN = 20.0 / 3.0
 
 
-def kit_module(cls: str):
+def kit_module(cls: str, *, pvp: bool = False):
+    if pvp:
+        return importlib.import_module("aion2calc.kit.pvp")
     try:
         return importlib.import_module(f"aion2calc.kit.{cls}")
     except ModuleNotFoundError:
@@ -42,6 +44,7 @@ def character_stats(build: Build, cd: ClassData, scenario: Scenario, kit_static:
     s.add(kit_static)
     for b in scenario.buffs:
         s.add(b)
+    s.pvp = scenario.target.is_player
     return s
 
 
@@ -53,7 +56,7 @@ def prepare(build: Build, scenario: Scenario, policy: list | None = None, filler
     b = build.copy()
     for sid, lv in gear_bonus.items():
         b.bonus[sid] = b.bonus.get(sid, 0) + lv
-    mod = kit_module(build.cls)
+    mod = kit_module(build.cls, pvp=scenario.target.is_player)
     kit = mod.build_kit(b, cd, filler=filler or "flame_arrow") if filler else mod.build_kit(b, cd)
     stats = character_stats(b, cd, scenario, kit.static)
     return cd, b, kit, stats

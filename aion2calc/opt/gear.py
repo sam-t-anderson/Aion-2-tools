@@ -20,9 +20,9 @@ ARCANA = {
 
 def per_unit(weights: list[dict]) -> dict[str, float]:
     pu = {w["stat"]: w["per_unit"] for w in weights}
-    pu.setdefault("amp_all", pu.get("amp_pve", 0.0))
+    pu.setdefault("amp_all", pu.get("amp_pve", pu.get("amp_pvp", 0.0)))
     pu.setdefault("amp_boss", pu.get("amp_pve", 0.0))
-    pu.setdefault("front_atk", pu.get("pve_atk", 0.0))
+    pu.setdefault("front_atk", pu.get("pve_atk", pu.get("pvp_atk", 0.0)))
     pu.setdefault("precision", pu.get("death", 0.0))
     pu.setdefault("weapon_min", pu.get("attack", 0.0) / 2)
     for k in ("accuracy", "freedom", "space", "life", "destiny"):

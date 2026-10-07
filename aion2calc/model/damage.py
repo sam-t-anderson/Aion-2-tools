@@ -70,7 +70,8 @@ def expected_hit(d: Derived, mods: dict, target, ctx: HitContext) -> float:
     if "crit" in ctx.tags:
         p_c = 1.0
     else:
-        p_c = crit_chance(d.crit_stat + g("crit", 0.0), target.crit_resist)
+        p_c = crit_chance(d.crit_stat + g("crit", 0.0), target.crit_resist,
+                          midpoint=1024.52 if getattr(target, "is_player", False) else None)
     crit_dmg = d.crit_dmg + g("crit_dmg", 0.0) - target.crit_dmg_tol
     p_d = min(1.0, max(0.0, d.double + g("double", 0.0) - target.double_resist))
     p_p = min(1.0, max(0.0, d.perfect + g("perfect", 0.0)))

@@ -47,7 +47,13 @@ PASSIVE_STATS = [
 CONDITIONAL_PASSIVE = re.compile(r"\bwhen\b|\bfor \{\d+\}|on Block|on Evasion|after", re.I)
 
 
-def build_kit(build: Build, cd: ClassData, filler: str | None = None) -> Kit:
+def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bool = False) -> Kit:
+    boost_kind = "PvP" if pvp else "PvE"
+
+    def boost_match(text):
+        return (re.search(rf"{boost_kind} Damage Boost by \{{(\d+)\}}%", text)
+                or re.search(r"(?<!PvE )(?<!PvP )Damage Boost by \{(\d+)\}%", text))
+
     L = build.effective_levels(cd)
     specs = {sid: set(v) for sid, v in build.specs.items()}
     name_to_key = {s["name"]: _key(s["name"]) for s in cd.skills.values()}
@@ -70,6 +76,8 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None) -> Kit:
         first_sentence = tip.split(".")[0]
         if not CONDITIONAL_PASSIVE.search(first_sentence):
             for pat, field, sc in PASSIVE_STATS:
+                if pvp and field == "amp_pve":
+                    pat, field = pat.replace("PvE", "PvP"), "amp_pvp"
                 for m in re.finditer(pat, first_sentence):
                     idx = int(m.group(1))
                     if idx < len(v) and isinstance(v[idx], (int, float)):
@@ -141,7 +149,7 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None) -> Kit:
                 mp *= 1 - float(m.group(1)) / 100
             elif m := re.search(r"\+(\d+)% Attack for (\d+)s on hit", t):
                 buffs.append(("attack_pct", float(m.group(1)) / 100, float(m.group(2))))
-            elif m := re.search(r"\+(\d+)% PvE Damage Boost.*?for (\d+)s", t):
+            elif m := re.search(rf"\+(\d+)% {boost_kind} Damage Boost.*?for (\d+)s", t):
                 buffs.append(("amp", float(m.group(1)) / 100, float(m.group(2))))
         # buff skills: "Increases ... Attack by {0}% ... for {n}"
         buff_stats = {}
@@ -151,7 +159,7 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None) -> Kit:
             if m and md:
                 buff_stats["attack_pct"] = v[int(m.group(1))] / 100
                 dur_buff = _ms(v[int(md.group(1))])
-            m = re.search(r"Damage Boost by \{(\d+)\}%", tip)
+            m = boost_match(tip)
             if m and md:
                 buff_stats["amp"] = v[int(m.group(1))] / 100
                 dur_buff = _ms(v[int(md.group(1))])
@@ -173,7 +181,7 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None) -> Kit:
         if mreq and mreq.group(1) in name_to_key and mreq.group(1) != s["name"]:
             requires = requires + (name_to_key[mreq.group(1)],)
         if pairs:
-            mb = re.search(r"increases the caster's (?:PvE )?Damage Boost by \{(\d+)\}%.*?for \{(\d+)\}", tip)
+            mb = re.search(rf"increases the caster's (?:{boost_kind} )?Damage Boost by \{{(\d+)\}}%.*?for \{{(\d+)\}}", tip)
             if mb and int(mb.group(1)) < len(v) and int(mb.group(2)) < len(v):
                 buffs.append(("amp", v[int(mb.group(1))] / 100, _ms(v[int(mb.group(2))])))
             ma = re.search(r"increases the caster's Attack by \{(\d+)\}%.*?for \{(\d+)\}", tip)
