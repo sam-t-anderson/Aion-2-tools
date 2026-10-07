@@ -53,12 +53,17 @@ def summarize(doc):
         windows = defaultdict(list)
         buff_labels = {}
         invalid_windows = 0
-        for buff in segment.get("buffs", []):
+        for window_index, buff in enumerate(segment.get("buffs", [])):
             start, end = max(0,buff["start"]), min(duration,buff["end"])
             if end <= start:
                 invalid_windows += 1
                 continue
-            identity = ("id",buff["skill_id"]) if buff.get("skill_id") is not None else ("name",buff.get("name"))
+            if buff.get("skill_id") is not None:
+                identity = ("id",buff["skill_id"])
+            elif buff.get("name"):
+                identity = ("name",buff["name"])
+            else:
+                identity = ("unknown",window_index)
             key = (buff["player"],identity)
             windows[key].append((start,end))
             buff_labels.setdefault(key, (buff.get("skill_id"),buff.get("name")))
