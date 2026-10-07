@@ -11,12 +11,12 @@ import hashlib
 import json
 import math
 
-from . import __version__
 from .kit.base import ClassData
 from .model.character import load_loadout
 from .paths import list_names
 from .presets import BUDGETS, InvalidPreset, candidate as legacy_candidate, parse
 
+MODEL_VERSION = "0.2.62"  # Bump for evaluator/model changes, not capture/UI releases.
 VERSION = 2
 POLICY_VERSION = 1
 MODES = {"pve": ("boss", "dummy"), "pvp": ("pvp", "pvp_burst")}
@@ -39,7 +39,7 @@ def _context(cls: str, mode: str):
     cd = ClassData(cls)
     loadout_name = f"{cls}_l45_global_median"
     lo = copy.deepcopy(load_loadout(loadout_name))
-    policy = {"version": POLICY_VERSION, "model": __version__, "class": cls, "mode": mode,
+    policy = {"version": POLICY_VERSION, "model": MODEL_VERSION, "class": cls, "mode": mode,
               "budgets": dict(BUDGETS), "loadout": loadout_name,
               "loadout_fingerprint": _digest(lo),
               "data_fingerprint": _digest({"class": cd.raw, "hit_profiles": cd.hit_profiles}),
@@ -132,4 +132,4 @@ def _evaluate(document: dict, policy: dict, lo: dict) -> dict:
                                                        midpoint=1024.52 if scen.target.is_player else None),
                       "cdr": d.cdr, "combat_speed": d.combat_speed, "boost_bucket": d.amp,
                       "double": d.double, "perfect": d.perfect, "multihit": d.multihit, "weapon_amp": d.weapon_amp},
-            "evaluation": {"model": __version__, "scope": policy["scope"], "policy_version": POLICY_VERSION}}
+            "evaluation": {"model": MODEL_VERSION, "scope": policy["scope"], "policy_version": POLICY_VERSION}}

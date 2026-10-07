@@ -11,7 +11,7 @@ from pathlib import Path
 from ..meter import Meter, load_decoder, replay_source
 from ..meter.a2parser.engine import MeterEngine as PacketMeterEngine
 from ..meter.a2parser.capture import capture_packets
-from ..meter.session import CombatSession
+from ..meter.session import CombatSession, NoIdentifiedPlayerData
 from ..meter.a2parser.capture_stats import FIELDS as PCAP_FIELDS, FLAGS as PCAP_FLAGS
 
 CAPTURE_COUNTERS = ("tcp_discarded_payloads", "tcp_unresolved_flows", *PCAP_FIELDS)
@@ -41,6 +41,7 @@ class Runner:
         self._diagnostic_lock = threading.Lock()
         self._session_save_lock = threading.Lock()
         self._last_checkpoint = 0.0
+        self._rollover_retry_at = 0.0
         self._stop = False
         self.replay_stop = threading.Event()
         self.lock = threading.Lock()
@@ -73,6 +74,7 @@ class Runner:
         self._last_packet_at = self._last_combat_at = None
         self.started_at = time.monotonic()
         self._last_checkpoint = self.started_at
+        self._rollover_retry_at = 0.0
         self._stop = False
         self.replay_stop = threading.Event()
         self.source_name = source
@@ -286,7 +288,7 @@ class Runner:
                 return  # Idle telemetry alone cannot form an identified combat log.
             due = (len(self.session.records) >= 100_000 or len(self.session.telemetry) >= 20_000
                    or self.session.storage_groups >= 100 or len(self.session.storage_players) >= 48)
-        if not due:
+        if not due or time.monotonic() < self._rollover_retry_at:
             return
         from ..combat.sessions import save
         with self._session_save_lock:
@@ -298,7 +300,19 @@ class Runner:
             detached.capture_evidence["storage_boundary"] = True
             detached.finish_run("storage_rollover", complete=False)
             title = f"Live combat session {self.archive_id[:8]} · Part {self.archive_part}"
-            doc = self._metadata(detached.to_a2log(scope, title), metadata=metadata, profile=profile, collector=collector)
+            try:
+                document = detached.to_a2log(scope, title)
+            except NoIdentifiedPlayerData:
+                # Identity/filter eligibility is not a decoder failure. Keep
+                # the bounded session intact and retry without copying it on
+                # every subsequent packet. Ordinary retention counters expose
+                # any history lost while identity remains unresolved.
+                self._rollover_retry_at = time.monotonic() + 5
+                self.diagnostics["archive_deferred"] = (
+                    "Archive rollover is waiting for player data under the selected filter. "
+                    "Capture continues; unresolved history remains subject to retention limits.")
+                return
+            doc = self._metadata(document, metadata=metadata, profile=profile, collector=collector)
             doc["meta"].update(capture_active=False, checkpoint_at=time.time(),
                                archive={"id":self.archive_id, "part":self.archive_part, "closed":True})
             # Never clear the memory part unless its atomic disk save succeeded.
@@ -313,6 +327,8 @@ class Runner:
                 self.saved_log = saved
                 self.diagnostics["archive_parts_saved"] = self.archive_part - 1
                 self.diagnostics["archive_last_part"] = saved
+                self.diagnostics.pop("archive_deferred", None)
+                self._rollover_retry_at = 0.0
             self._last_checkpoint = time.monotonic()
 
     def _save_session(self, active: bool) -> None:

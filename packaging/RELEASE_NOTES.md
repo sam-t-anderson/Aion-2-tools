@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.63
+
+Automatic storage rollover no longer treats an unidentified/filtered-out session as a decoder failure. When the selected Self/Party filter cannot form a report, capture continues and rollover retries after five seconds, preserving the bounded current session. Live Meter shows a deferred-archive warning. Identity and party filtering remain enforced; unknown nearby players are not silently included. If identity remains unresolved, ordinary retention limits and loss counters still apply. Actual decoder failures and failed disk saves remain errors.
+
+The common-comparison evaluator keeps model revision 0.2.62 for this capture-only fix, so clients remain compatible with a server using that released model. Application versions and scoring-model revisions are now separate.
+
 # Aion 2 Calc 0.2.62
 
 Community comparison contributions now refine the combined PvE or experimental PvP objective directly. Two independent scenario searches seed a weighted refinement of specialties, skill points, stigmas, crystal-board allocation and priority. Every comparison uses the full configured scenario durations and existing equal weights. The best independently evaluated seed remains eligible, so a weaker refinement is not published as the winner.

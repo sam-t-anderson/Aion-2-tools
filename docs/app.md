@@ -211,6 +211,8 @@ The Live Combat Session explorer also follows new encounters by default, rather 
 
 The overlay follows the latest encounter independently of the desktop’s selected historical encounter or enemy. Live Meter labels a pinned/earlier encounter and provides **Follow latest combat** to clear its encounter and enemy selections. Capture diagnostics show elapsed time since the last forwarded game data and decoded effect; idle time alone does not prove a capture failure.
 
+Automatic archive rollover waits and retries when the current Self/Party filter has no identifiable combat report. A visible warning explains that capture continues within its history limits; unresolved identities can still prevent saving or cause old history to expire. This condition does not stop the decoder.
+
 A missing TCP chunk can leave later traffic waiting for reassembly. Capture allows five seconds for normal reordering, then resumes from fresh bytes at a recorded lossy boundary. Live Meter shows recovery counts, retains earlier combat and marks the capture incomplete for rankings. Recovery does not reconstruct missing effects. An enemy filter is cleared when that enemy is absent from the newly selected combat; a deliberately selected historical combat remains pinned until you choose **Latest combat**.
 
 Live DPS pauses after two seconds without damage while capture continues, and resumes when damage returns. Healing does not extend the live damage interval. Saved reports use the full retained event interval, so their rates can differ. This does not establish a kill.
