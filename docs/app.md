@@ -120,6 +120,8 @@ model is calibrated from the character's fights when there are enough. Details:
 
 ### Pet Genus Insight
 
+The Pet Genus results view uses five genus selectors, a nine-slot ring and an analysis list. Gold nodes have saved lines; gray nodes are not recorded, and dim nodes are locked according to the saved Insight level. These colors do not indicate rarity. The editor shows the same ring alongside its inputs. The official profile supplies the equipped pet but not these Insight levels or rolls, so enter them from the in-game window. Missing data remains explicitly not recorded. Saving new lines does not change an old result: optimize or calculate advice again.
+
 **My Character → Pet Genus Insight** edits the same saved lines as Gear & Advice. Save edits before using either **Optimize PvE build** or **Optimize PvP damage**. Genus scoring defaults on; disable it to compare without manual lines. Set relative PvE enemy weights (default: equal Cogni/Fera/Natura/Varian). The PvP model ignores enemy mix and excludes genus-specific effects whose applicability to players is unverified.
 
 Optimization holds your lines fixed while choosing skills, specialties and boards. Current-build comparisons and optimized results use the same snapshot. The **Pet Genus** results window and Markdown retain the inputs, modeled line contributions and reasons for excluding effects, including in Saved Results. Low contributions can guide review but do not predict reroll cost or guarantee better rolls. Defensive and owned collection effects are not simulated.

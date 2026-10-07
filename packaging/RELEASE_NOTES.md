@@ -2,6 +2,8 @@
 
 Yellow information and warning panels now have a consistent small vertical margin (3px, approximately 2pt), including adjacent panels and panels directly below overview metrics. The shared stylesheet covers desktop views and GitHub Pages: optimizer summaries, HP/skill reserves, combat-log notices, diagnostics, uploads and expandable information panels. Explicit larger view spacing remains in effect.
 
+Pet Genus Insight results now show five genus selectors, a nine-slot ring and a full analysis list. The manual editor also shows the ring. Missing snapshot levels and lines are explicitly not recorded, rather than looking like an empty successful import; links explain where to save actual in-game allocations and recalculate. The official profile currently supplies equipped pet details, not Insight allocations. Ring colors represent recording status, not inferred rarity or grades.
+
 This extends the earlier expandable-menu spacing to the bordered notice panels themselves. Common scoring and capture behavior are unchanged.
 
 # Aion 2 Calc 0.2.74
