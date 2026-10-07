@@ -16,9 +16,13 @@ Implemented observed party-size/instance cohorts for player comparisons, class d
 
 Implemented bounded explicit-player-death recaps with observed damage/healing/HP, relative timestamps, missing-evidence/short-window notices and no inferred killing blows. Pet deaths no longer count as owner deaths; identical markers are deduplicated. Shared desktop/Pages personal search shows matched public completed-boss consistency and recent-five/previous-five trends, minimum sample gates, capped history and descriptive caveats. Wipes remain reviewable with recaps but unranked for these public rate trends. Avoidable damage, defensives and causal improvement require further protocol/encounter evidence.
 
-Next checkpoints, in order:
-4. Phase, support and rotation analysis as cast/buff/resource decoding is verified.
-5. Character ownership/privacy/community tools and richer evidence-backed PvP scoring.
+## Insights roadmap — checkpoint 5 (0.2.27)
+
+Implemented optional shared Encounter insights: healing source/recipient relationships and missing attribution, merged/clipped imported buff uptime, ability effect counts and first/last times, bounded opening effect sequences and first sampled boss HP thresholds. Local validation/saved sessions and protected server/raw views recompute from retained evidence. Details and omissions are bounded and visible; pets retain distinct sources. No effect count is labeled a cast, no HP threshold is named a mechanic phase, and no effective-healing/support-credit or optimal-rotation verdict is inferred.
+
+Pending evidence for phase/support/rotation enrichment: verified cast-start/end, buff source/application/removal, resources, shields/overheal and encounter mechanic definitions. Live movement and richer PvP protocol evidence remain pending. Imported windows do not establish live decoding support.
+
+Next checkpoint: Character ownership/privacy/community tools and richer evidence-backed PvP scoring. Verified protocol enrichment remains dependent on representative captures.
 
 Pending capture-quality follow-ups: additional OS/driver packet-drop counters, verified match boundaries, robust matching of incomplete perspectives, trusted game-version mapping and unlimited disk archival beyond bounded retention. These are not inferred from missing events.
 

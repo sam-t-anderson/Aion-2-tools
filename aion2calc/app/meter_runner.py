@@ -382,6 +382,8 @@ class Runner:
         doc["run_analysis"] = summarize(doc)
         from ..combat.recaps import summarize as death_recaps
         doc["death_analysis"] = death_recaps(doc)
+        from ..combat.insights import summarize as encounter_insights
+        doc["encounter_insights"] = encounter_insights(doc)
         return doc
 
     def has_data(self) -> bool:

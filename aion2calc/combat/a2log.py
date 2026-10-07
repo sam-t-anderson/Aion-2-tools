@@ -367,6 +367,8 @@ def validate(doc) -> dict:
     result["run_analysis"] = summarize(result)
     from .recaps import summarize as death_recaps
     result["death_analysis"] = death_recaps(result)
+    from .insights import summarize as encounter_insights
+    result["encounter_insights"] = encounter_insights(result)
     return result
 
 
