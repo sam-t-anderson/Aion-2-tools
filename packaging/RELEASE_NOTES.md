@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.54
+
+Saved Parts adds **Show recording** and **All recordings** controls. Desktop searches saved session files for the exact recorded archive ID and pages them in part order; Pages filters the files selected locally. Existing upload selections and retry receipts survive recording navigation. Restored files recover their recorded archive metadata.
+
+Parts remain separate reports. Shared archive IDs are grouping metadata, not proof of completeness, authenticity or ownership; no effects are stitched or deduplicated. Initial desktop searches read uncached file metadata and may take time for large archives.
+
 # Aion 2 Calc 0.2.53
 
 Settings → Export image coverage now includes desktop image-proxy HTTP status/error counters alongside browser image failures. Counters are local to the running desktop process and contain only approved source hosts, outcomes, status codes, counts and timestamps. No full image URLs, portrait paths, character identities, credentials or exception text are retained. Cache hits and browser-direct image errors remain distinct from HTTP checks.

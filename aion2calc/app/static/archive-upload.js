@@ -24,7 +24,7 @@
   }
   const browserFingerprint=async row=>{if(!row.input)throw Error('Reselect the original JSON files before resuming.');if(!crypto.subtle)throw Error('Secure file fingerprints require HTTPS or localhost.');return [...new Uint8Array(await crypto.subtle.digest('SHA-256',await row.input.arrayBuffer()))].map(v=>v.toString(16).padStart(2,'0')).join('');};
   function mount(root, io) {
-    let rows=[], offset=0, more=false, busy=false, cancel=false, message='', filter='', type='', chosenVisibility='unlisted', batch=null,retryUnknown=false,writes=Promise.resolve();
+    let rows=[], offset=0, more=false, busy=false, cancel=false, message='', filter='', type='', recording='', chosenVisibility='unlisted', batch=null,retryUnknown=false,writes=Promise.resolve();
     const selected=new Map(), results=new Map();
     const label=r=>r.title || r.file;
     const checkpoint=()=>cleanCheckpoint({format:'a2log-upload-checkpoint',version:1,server:batch?.url||'',visibility:batch?.visibility||chosenVisibility,
@@ -55,8 +55,8 @@
     }
     async function load(next) {
       busy=true;render();
-      try {const page=await io.list(next,25);rows=page.rows;offset=next;more=page.has_more;}
-      catch(e){message=e.message;}
+      try {const page=await io.list(next,25,recording);rows=page.rows;offset=next;more=page.has_more;}
+      catch(e){rows=[];more=false;message=e.message;}
       finally {busy=false;render();}
     }
     async function run() {
@@ -103,20 +103,22 @@
     }
     function render() {
       if(!root.isConnected)return;
-      const visible=rows.filter(r=>(!type || r.contexts?.some(c=>c.encounter_type===type)) && (!filter || [label(r),r.archive?.id,r.archive?.part,
+      const visible=rows.filter(r=>(!io.files || !recording || r.archive?.id===recording) && (!type || r.contexts?.some(c=>c.encounter_type===type)) && (!filter || [label(r),r.archive?.id,r.archive?.part,
         ...(r.contexts||[]).map(c=>c.encounter_type)].join(' ').toLowerCase().includes(filter.toLowerCase())));
+      if(recording&&io.files)visible.sort((a,b)=>a.archive.part-b.archive.part || a.file.localeCompare(b.file));
       const disabled=busy?'disabled':'';
       root.innerHTML=`<section class="note"><h3>Saved parts · review and batch upload</h3>
         <p class="small muted">Each selected file becomes a separate report. Active/unfinished checkpoints are excluded from the queue. Up to 100 files per queue. Recovery metadata is saved locally without upload keys, private links or ownership credentials. Navigating away stops before the next upload; the in-flight request can finish.</p>
         ${io.files?'<label>Add saved a2log JSON files <input data-files type="file" accept=".json" multiple '+disabled+'></label>':''}
         <div class="row"><button class="btn small" data-restore ${busy||selected.size?'disabled':''}>Restore saved queue</button><label>Import recovery file <input type="file" data-recovery accept=".json" ${busy||selected.size?'disabled':''}></label><button class="btn small" data-export-recovery ${busy||!selected.size?'disabled':''}>Export recovery file</button></div>
+        ${recording?`<div class="row"><span>Recording ${esc(recording)} · parts remain separate reports</span><button class="btn small" data-all-recordings ${disabled}>All recordings</button></div>`:''}
         <div class="row"><label>Filter this page <input data-filter value="${esc(filter)}" placeholder="Archive ID, name or encounter type" ${disabled}></label>
         <label>Encounter type <select data-type ${disabled}><option value="">All</option>${Object.entries(io.types||{}).map(([v,l])=>`<option value="${esc(v)}" ${v===type?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
         <button class="btn small" data-select ${disabled}>Select eligible rows on this page</button>
-        ${io.list?`<button class="btn small" data-prev ${busy||!offset?'disabled':''}>Newer</button><span>File slots ${offset+1}–${offset+25}</span><button class="btn small" data-next ${busy||!more?'disabled':''}>Older</button>`:''}</div>
+        ${io.list?`<button class="btn small" data-prev ${busy||!offset?'disabled':''}>${recording?'Previous parts':'Newer'}</button><span>File slots ${offset+1}–${offset+25}</span><button class="btn small" data-next ${busy||!more?'disabled':''}>${recording?'Next parts':'Older'}</button>`:''}</div>
         <div class="cr-scroll"><table class="t"><tr><th>Select</th><th>Session / archive part</th><th>Encounters</th><th>State</th><th></th></tr>
         ${visible.map((r,i)=>`<tr><td><input type="checkbox" data-pick="${i}" aria-label="Select ${esc(label(r))}" ${selected.has(r.file)?'checked':''} ${busy||r.unfinished?'disabled':''}></td>
-        <td>${esc(label(r))}${r.archive?`<br><span class="small muted">${esc(r.archive.id)} · Part ${esc(r.archive.part)}</span>`:''}</td>
+        <td>${esc(label(r))}${r.archive?`<br><span class="small muted">${esc(r.archive.id)} · Part ${esc(r.archive.part)}</span> <button class="btn small" data-recording="${i}" ${disabled}>Show recording</button>`:''}</td>
         <td>${r.segments??'—'}</td><td>${r.unfinished?'Unfinished checkpoint':'Saved file'}</td><td><button class="btn small" data-open="${i}" ${disabled}>Open</button></td></tr>`).join('')||'<tr><td colspan="5">No matching files on this page.</td></tr>'}</table></div>
         <div class="row"><span>${selected.size} selected</span><label>Visibility <select data-visibility ${disabled}>${['unlisted','public','private'].map(v=>`<option ${v===chosenVisibility?'selected':''}>${v}</option>`).join('')}</select></label>
         <button class="btn primary" data-upload ${busy||!selected.size?'disabled':''}>Upload selected / retry remaining</button>
@@ -127,6 +129,8 @@
         <div role="status" aria-live="polite">${esc(message)}</div>
         <ul>${[...selected.values()].map(r=>{const s=results.get(r.file);const link=safeLink(s?.url);return `<li><button class="btn small" data-remove="${esc(r.file)}" ${disabled}>Remove</button> ${esc(label(r))}: ${esc(s?.status||'pending')}${s?.error?' — '+esc(s.error):''}${s?.warning?' — '+esc(s.warning):''}${s?.status==='uploaded'&&link?` · <a href="${esc(link)}" target="_blank" rel="noopener noreferrer">Open uploaded report</a>`:''}</li>`;}).join('')}</ul></section>`;
       const $=s=>root.querySelector(s);
+      if($('[data-all-recordings]'))$('[data-all-recordings]').onclick=()=>{recording='';filter='';type='';if(io.list)load(0);else render();};
+      root.querySelectorAll('[data-recording]').forEach(button=>button.onclick=()=>{recording=visible[+button.dataset.recording].archive.id;filter='';type='';if(io.list)load(0);else render();});
       root.querySelectorAll('[data-remove]').forEach(button=>button.onclick=()=>{selected.delete(button.dataset.remove);remember();render();});
       $('[data-filter]').onchange=e=>{filter=e.target.value;render();};
       $('[data-type]').onchange=e=>{type=e.target.value;render();};
@@ -148,14 +152,14 @@
             const id=file.name+':'+file.size+':'+file.lastModified;
             const exact=rows.find(r=>r.file===id),matches=rows.filter(r=>!r.input && r.name===file.name);
             if(!exact && matches.length>1)throw Error('Ambiguous restored filename: '+file.name+'. Restore files with distinct names.');
-            const recovered=exact||matches[0];if(recovered){recovered.input=file;recovered.unfinished=!!doc.meta?.capture_active;recovered.segments=doc.segments.length;recovered.contexts=doc.segments.map(s=>({encounter_type:s.encounter_type||doc.meta?.encounter_type||'unknown'}));continue;}
-            if(rows.length>=100)throw Error('Queue limit is 100 files.');rows.push({file:id,input:file,title:doc.meta?.title||file.name,archive:doc.meta?.archive,
+            const recovered=exact||matches[0];if(recovered){recovered.input=file;recovered.archive=archiveMeta(doc.meta?.archive);recovered.unfinished=!!doc.meta?.capture_active;recovered.segments=doc.segments.length;recovered.contexts=doc.segments.map(s=>({encounter_type:s.encounter_type||doc.meta?.encounter_type||'unknown'}));continue;}
+            if(rows.length>=100)throw Error('Queue limit is 100 files.');rows.push({file:id,input:file,title:doc.meta?.title||file.name,archive:archiveMeta(doc.meta?.archive),
               unfinished:!!doc.meta?.capture_active,segments:doc.segments.length,contexts:doc.segments.map(s=>({encounter_type:s.encounter_type||doc.meta?.encounter_type||'unknown'}))});}
           message='Files loaded locally. Select new parts or resume the restored queue.';
         }catch(error){message=error.message;}finally{busy=false;render();}
       };
       $('[data-upload]').onclick=run;$('[data-cancel]').onclick=()=>{cancel=true;message='Cancellation requested; the in-flight upload can finish.';render();};
-      $('[data-clear]').onclick=()=>{for(const r of new Set([...rows,...selected.values()])){delete r.request_id;delete r.fingerprint;}selected.clear();results.clear();batch=null;retryUnknown=false;if(io.files)rows=[];remember();message='Queue cleared; local files and server uploads remain.';render();};
+      $('[data-clear]').onclick=()=>{for(const r of new Set([...rows,...selected.values()])){delete r.request_id;delete r.fingerprint;}selected.clear();results.clear();batch=null;retryUnknown=false;if(io.files){rows=[];recording='';}remember();message='Queue cleared; local files and server uploads remain.';render();};
       $('[data-manifest]').onclick=download;
     }
     render();if(io.list)load(0);

@@ -362,7 +362,7 @@ class Handler(BaseHTTPRequestHandler):
             if q.get("file"):
                 return self._json(json.loads(session_path(q["file"]).read_text(encoding="utf-8")))
             if q.get("paged"):
-                return self._json(recent_page(int(q.get("offset", 0)), int(q.get("limit", 25))))
+                return self._json(recent_page(int(q.get("offset", 0)), int(q.get("limit", 25)), q.get("archive", "")))
             return self._json(recent())
         if path == "/api/meter/log":
             from .meter_runner import runner

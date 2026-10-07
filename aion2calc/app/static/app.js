@@ -686,7 +686,7 @@ async function pageCombat() {
   srv();
   A2ArchiveUpload.mount($('#sessions'),{
     types:A2Community.types,
-    list:(offset,limit)=>api('/api/sessions?paged=1&offset='+offset+'&limit='+limit),
+    list:(offset,limit,archive)=>api('/api/sessions?paged=1&offset='+offset+'&limit='+limit+'&archive='+encodeURIComponent(archive||'')),
     context:()=>api('/api/logserver'),
     loadCheckpoint:()=>api('/api/upload-queue'),saveCheckpoint:value=>api('/api/upload-queue',value),
     fingerprint:async row=>(await api('/api/sessions?fingerprint='+encodeURIComponent(row.file))).fingerprint,

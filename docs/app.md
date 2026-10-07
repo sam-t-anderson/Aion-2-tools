@@ -207,6 +207,10 @@ Long captures save numbered archive parts before retained-history limits are rea
 
 There is no fixed total part count or automatic deletion; disk space is the practical limit. A part boundary is not a kill or completed instance. Boundary parts are conservatively unranked and are not automatically stitched together. Failed rollover saves stop capture visibly and retain memory. Recovery checkpoints are saved every 15 seconds; abrupt termination can lose newer unsaved data. See [retention limits](methodology.md#archive-boundaries-and-retention).
 
+### Browse a recording
+
+In Saved Parts, **Show recording** groups the exact recorded archive ID. Desktop searches all saved session files and shows parts in numeric order; Pages groups only files selected locally. **All recordings** returns to the list. Upload selections and recovery receipts remain in the queue while navigating. The first desktop search can take time for a large archive; metadata caching avoids repeatedly parsing unchanged files. Parts remain separate reports: archive IDs do not prove completeness or ownership, and effects are not stitched or deduplicated.
+
 ## Combat-log review
 
 Combat Logs separates **Saved Parts**, **My Uploads** and **Community Combat Logs** on desktop and Pages. Desktop remembers the selected list tab while opening a focused log and returning; Pages preserves it while opening a local preview. Tabs hide their panels without resetting upload queues. Website Saved Parts means files selected from your computer, not direct access to the desktop archive directory. Arrow keys, Home and End navigate tabs.
