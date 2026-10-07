@@ -1,3 +1,10 @@
+## 0.2.29
+
+- Fix Npcap installer launch failing with WinError 740: request Windows administrator approval through the normal runas/UAC installer flow.
+- Check installation via read-only service registry detection, without starting sc.exe or elevating the application. Unknown detection is shown separately from not installed.
+- Explain denied/cancelled UAC approval and distinguish an installed driver from capture access permissions.
+- Includes the My uploads ownership/privacy controls from 0.2.28.
+
 ## 0.2.28
 
 - Add My uploads to desktop Combat Logs, Pages Logs/shared review and the server viewer: refresh privacy status, change visibility, rotate private links, delete uploads, and back up/import per-upload credentials.

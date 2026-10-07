@@ -22,6 +22,12 @@ It answers, for any class:
 and produces images of the Daevanion boards and a planner-style build page plus
 share links for the metabot.gg and gamers4.life planners.
 
+## Npcap installation on Windows
+
+Choose **Install Npcap** in Live Meter to download the current official installer. Windows asks for administrator approval through its normal UAC prompt; approve it to run the installer. Cancelling or denying approval leaves Npcap uninstalled and the app explains how to retry. Npcap is installed separately, not bundled.
+
+Checking installation reads the registered Npcap service and does not elevate the application. An installed driver does not guarantee capture access: if Npcap was installed with administrator-only access, capture may require administrator permissions. If registration cannot be read, the app reports an unknown state instead of asking you to reinstall blindly.
+
 ## My uploads and privacy
 
 Open **Combat Logs → My uploads** on desktop or **Logs → My uploads** on the website. New desktop uploads automatically save a separate private credential. Click **Refresh** to check the original server, then change visibility, rotate a private link, or delete the uploaded copy. Your local combat file remains after server deletion.
