@@ -271,6 +271,8 @@ Use **Restore saved queue** after reopening Combat Logs. Pages asks you to resel
 
 My Character → **Survivability** preserves current flat crystal-board HP by default. Set a higher minimum or add optional incoming-damage scenarios, then optimize for damage within that reserve. Results show the HP reserve and assumed headroom. This does not simulate defensive skills, CC, movement or PvP wins; verify HP in game. Personal constrained builds stay local, and Gear & Advice remains damage-based.
 
+Combat Logs now separates Saved Parts, My Uploads and Community Combat Logs. Previously imported characters can be refreshed from My Character, and recovered build titles retain available character identity and PvE/PvP mode. Macro instructions suggest right-click.
+
 ## For developers
 
 The command-line interface, running from source, the architecture overview, building the desktop

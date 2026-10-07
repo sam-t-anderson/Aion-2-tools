@@ -164,7 +164,7 @@ def character(conn, key: str) -> dict | None:
 
 def characters(conn) -> list[dict]:
     return [dict(r) for r in conn.execute(
-        "SELECT key, region, server_id, name, class_name, level, combat_power, fetched_at FROM characters "
+        "SELECT key, region, server_id, character_id, name, class_name, level, combat_power, fetched_at FROM characters "
         "ORDER BY fetched_at DESC")]
 
 

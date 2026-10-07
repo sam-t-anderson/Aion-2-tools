@@ -258,9 +258,9 @@ function winMacro(v) {
     (r.manual.length ? "\nManual: " + r.manual.map((s) => `${s.name} (${s.binding}${s.charged ? "; hold to charge" : ""})`).join(", ") : "");
   const body = `<ol class="macro-instructions"><li>Copy the suggested bindings from <b>Skills hotbar</b>, or substitute your own.</li>
     <li>Open <b>Settings → Key Settings → General → Skill Macro</b>. Add the skills below once each, from top to bottom. The large numbers are macro steps, not hotbar keys.</li>
-    <li>Set each step’s delay to <b>10 ms</b>, enable <b>Skill Queue</b>, and save the macro to an unused key (suggested: <kbd>${esc(v.hotbar?.macro_binding || "F")}</kbd>).</li>
+    <li>Set each step’s delay to <b>10 ms</b>, enable <b>Skill Queue</b>, and save the macro to an unused key (suggested: <kbd>${esc(v.hotbar?.macro_binding || "Right-click")}</kbd>).</li>
     <li>Hold the macro key during combat. Release it to use a manual skill; charge skills need their own button held before release. Resume the macro afterwards.</li></ol>
-    <div class="macro-layout"><div class="macro-editor"><h3>Macro</h3>${steps || '<p class="muted">This rotation uses manual skills only.</p>'}<div class="macro-save">Save to ${esc(v.hotbar?.macro_binding || "F")} in game</div></div>
+    <div class="macro-layout"><div class="macro-editor"><h3>Macro</h3>${steps || '<p class="muted">This rotation uses manual skills only.</p>'}<div class="macro-save">Save to ${esc(v.hotbar?.macro_binding || "Right-click")} in game</div></div>
     <div><h4 class="gold">MANUAL SKILLS</h4>${manual || '<p class="muted">No manual skills for this rotation.</p>'}
     <p class="small muted">${m.needs_refresh ? "This saved build predates charge-aware macros. Charged skills have been moved to manual controls; optimize again to recalculate the macro estimate." : `Estimated macro + manual execution: ${pct(m.dps_macro / m.dps_priority)} of the ideal priority rotation. This assumes you use the manual skills, including their charges.`}</p>
     <h4 class="gold small">WHEN MULTIPLE SKILLS ARE READY</h4><p class="small muted">This priority list explains the optimizer’s decisions. It is not another macro to copy.</p><ol>${r.priority.map((s) => `<li>${esc(s.name)}${s.condition ? ` <span class="muted">(${esc(s.condition)})</span>` : ""}</li>`).join("")}</ol></div></div>`;
@@ -393,7 +393,7 @@ async function pageCharacter() {
       <button class="btn primary" id="find">Search</button><span id="cmsg" class="small muted"></span></div>
       <div id="hits" style="margin-top:10px"></div><div id="known" style="margin-top:10px"></div></div></section><div id="cview"></div>`;
   const known = await api("/api/characters").catch(() => []);
-  if (known.length) $("#known").innerHTML = `<div class="small muted">Imported before: ${known.slice(0, 8).map((c) => `<span class="chip gold">${esc(c.name)} · ${esc(c.class_name)} · ${n0(c.combat_power)}</span>`).join("")}</div>`;
+  if (known.length) $("#known").innerHTML = `<div class="small muted">Imported before · newest first (click to fetch current profile): <div class="row">${known.slice(0, 8).map((c,i) => `<button class="btn small" data-known-character="${i}">${esc(c.name)} · ${esc(c.class_name)} · ${n0(c.combat_power)}</button>`).join("")}</div></div>`;
   $("#find").onclick = async () => {
     $("#cmsg").innerHTML = '<span class="spinner"></span>';
     try {
@@ -411,6 +411,7 @@ async function pageCharacter() {
       st.v = v; st.hit = h; showChar();
     } catch (e) { $("#cview").innerHTML = `<div class="note">${esc(e.message)}</div>`; }
   };
+  $$("[data-known-character]").forEach(b=>b.onclick=()=>{const c=known[Number(b.dataset.knownCharacter)];doImport({character_id:c.character_id,server_id:c.server_id,region:c.region,name:c.name});});
   const showChar = () => {
     const v = st.v;
     let savedBudgets={};try{savedBudgets=JSON.parse(localStorage.getItem('character-point-budgets')||'{}')[v.key]||{};}catch(_){}
@@ -645,14 +646,15 @@ async function pageCombatLog() {
 async function pageCombat() {
   const st = S.combat;
   app().innerHTML = `<section class="win"><div class="wh"><h2>Combat logs</h2><span class="sub">per-skill breakdown, timeline, rates, idle time — compared with your optimal rotation</span></div>
-    <div class="wb"><div class="row"><input id="ref" type="text" placeholder="AbyssLogs link (abysslogs.com/e/…) or A2DIL link" style="width:400px">
+    <div class="wb"><div id="combat-log-tabs"><div class="row" role="tablist" aria-label="Combat log sources"><button class="btn small" role="tab" id="log-tab-saved" data-log-tab="saved" aria-controls="log-panel-saved">Saved Parts</button><button class="btn small" role="tab" id="log-tab-owned" data-log-tab="owned" aria-controls="log-panel-owned">My Uploads</button><button class="btn small" role="tab" id="log-tab-community" data-log-tab="community" aria-controls="log-panel-community">Community Combat Logs</button></div><div id="log-panel-saved" data-log-panel="saved" role="tabpanel" aria-labelledby="log-tab-saved"><div class="row"><input id="ref" type="text" placeholder="AbyssLogs link (abysslogs.com/e/…) or A2DIL link" style="width:400px">
       <input id="player" type="text" placeholder="player (party logs)" style="width:150px"><button class="btn primary" id="imp">Analyze</button>
       <span class="muted small">or</span><input id="file" type="file" accept=".json,.gz,.csv"><span id="lmsg" class="small muted"></span></div>
       <p class="small faint">Record a fight with the free <a href="https://abysslogs.com" target="_blank" rel="noopener">AbyssLogs meter</a>, press Share, and paste the link here. A party log shows the recorder's damage unless you name a player.
         Files: AbyssLogs segment (.json / .json.gz), aion2calc JSON (see docs), or CSV with columns t, skill, damage, crit, double, perfect, multi, dot.</p>
       <div class="row small" id="logsdir"></div>
       <div class="row small" id="lsrv"></div>
-      <div id="sessions"></div><div id="session-review"></div><div id="owned-logs"></div><div id="community"></div><h3>Analyzed encounters</h3><div id="hist"></div></div></section><div id="enc"></div>`;
+      <div id="sessions"></div><div id="session-review"></div><h3>Analyzed encounters</h3><div id="hist"></div></div><div id="log-panel-owned" data-log-panel="owned" role="tabpanel" aria-labelledby="log-tab-owned" hidden><div id="owned-logs"></div></div><div id="log-panel-community" data-log-panel="community" role="tabpanel" aria-labelledby="log-tab-community" hidden><div id="community"></div></div></div></div></section><div id="enc"></div>`;
+  A2LogTabs.mount($('#combat-log-tabs'),st.listTab||'saved',value=>{st.listTab=value;});
   api("/api/logs").then((l) => {
     if(!$("#logsdir"))return;
     $("#logsdir").innerHTML = `<span class="muted">Every analyzed log is saved as a file in</span> <code>${esc(l.folder)}</code> <span class="faint">(${l.files} files)</span>

@@ -1,3 +1,16 @@
+# Aion 2 Calc 0.2.42
+
+Discover Steam AION 2 installations from library manifests, including alternate library drives, alongside recognized Windows/PURPLE registrations. Installed build IDs remain separate from official published patch labels. Multiple-install/region selection and automatic difficulty inference remain follow-up work.
+
+
+Combat Logs separates **Saved Parts**, **My Uploads** and **Community Combat Logs** on desktop and Pages. Desktop remembers the selected list tab while opening a focused log and returning; Pages preserves it while opening a local preview. Tabs hide their panels without resetting upload queues. Website Saved Parts means files selected from your computer, not direct access to the desktop archive directory. Arrow keys, Home and End navigate tabs.
+
+Completed-run speed and Boss progression are now permitted read-only community endpoints in the desktop proxy. Boss progression requires catalog-confirmed bosses with observed engagement and excludes players, pets, dummies and catalog non-bosses. Unmapped NPCs do not establish boss roles. The current catalog does not separate every miniboss from a major or world boss; comprehensive miniboss exclusion remains pending verified role metadata. Unknown patch/difficulty and ranking eligibility rules are unchanged.
+
+**My Character → Imported before** lists the newest eight imports as buttons that fetch the current official profile. Macro/hotbar suggestions reserve **Right-click** instead of F. This is guidance; the app does not change game bindings.
+
+Recovered old build titles show PvE/PvP and use the saved character sidecar name when available. Generic class titles remain when identity is unavailable. Existing generic recovered titles are upgraded without replacing their result snapshot or timestamp. Recovery entries and explicit run snapshots remain separate historical records.
+
 # Aion 2 Calc 0.2.41
 
 - Recognize map 61 as a user-confirmed arena when player combat is present, retaining an explicit unknown-specific-name label. Catalog revisions now include map evidence and coverage rules so the server can refresh existing coverage.

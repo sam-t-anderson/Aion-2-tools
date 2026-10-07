@@ -73,14 +73,29 @@ def discover_legacy():
     from .views import build_view
     for target in results_dir().glob("**/build.json"):
         identifier = hashlib.sha256(str(target).encode()).hexdigest()[:24]
-        if path(identifier).exists():
-            continue
         try:
+            existing = json.loads(path(identifier).read_text(encoding="utf-8")) if path(identifier).exists() else None
+            if existing and not existing.get("title", "").endswith(" · recovered build"):
+                continue
             summary = json.loads(target.read_text(encoding="utf-8"))
             if summary.get("kind") == "current" or not summary.get("class"):
                 continue
-            save({"format": "a2result", "version": 1, "kind": "optimize-class", "title": summary["class"] + " · recovered build",
-                  "created": target.stat().st_mtime, "result": build_view(summary)}, identifier)
+            character = summary.get("character") or {}
+            sidecar = target.with_name("character.json")
+            if not character and sidecar.exists():
+                try:
+                    character = json.loads(sidecar.read_text(encoding="utf-8")).get("character") or {}
+                except (OSError, ValueError, TypeError):
+                    pass
+            name = character.get("name") if isinstance(character, dict) else None
+            mode = "PvP (experimental)" if str(summary.get("scenario", "")).startswith("pvp") else "PvE"
+            title = f"{name or summary['class']} · {mode} · recovered {'character' if name else 'class'} build"
+            if existing:
+                existing["title"] = title
+                save(existing, identifier)
+            else:
+                save({"format": "a2result", "version": 1, "kind": "optimize-class", "title": title,
+                      "created": target.stat().st_mtime, "result": build_view(summary)}, identifier)
         except (OSError, ValueError, KeyError, TypeError):
             continue
     advice_sources = set(results_dir().glob("**/ADVICE.md"))

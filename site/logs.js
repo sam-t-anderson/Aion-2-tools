@@ -1,3 +1,5 @@
+let logSource='community';
+A2LogTabs.mount(document.getElementById('combat-log-tabs'),logSource,value=>{logSource=value;});
 A2LogOwnership.mount(document.getElementById("owned-logs"));
 A2Community.mount(document.getElementById("community"),{api:path=>A2.api(path),open:id=>{location.href="log.html?id="+encodeURIComponent(id);}});
 
@@ -9,7 +11,7 @@ function renderPreviewPage(){
   if(archiveReview){archiveReview.dispose();archiveReview=null;}
   previewRoot.replaceChildren();
   document.title=focused?'Combat log — Aion 2 Calc':'Logs — Aion 2 Calc';
-  if(!focused)return;
+  if(!focused){A2LogTabs.mount(document.getElementById('combat-log-tabs'),logSource,value=>{logSource=value;});return;}
   const back=document.createElement('a');back.className='btn small';back.href='#';back.textContent='← Back to combat logs';
   const heading=document.createElement('p');heading.append(back);const viewer=document.createElement('div');previewRoot.append(heading,viewer);
   archiveReview=A2CombatReview.mount(viewer,previewDocument);
