@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.46
+
+Imported equipment now retains official item IDs, inventory positions, icons, rarity and enchant levels in optimizer loadouts. Equipment and Gear & Advice show a consistent placeholder when an image is missing or fails. Catalog fallback prefers explicit slugs and unique name matches; grouped item families and ambiguous matches no longer borrow an arbitrary item's picture.
+
+New optimizer reports embed the loadout used for simulation in `build.json`. Current-character evaluation and optimization use frozen copies of that gear; report review and rerender use the saved copy instead of a later import's loadout file. Recovered new reports can therefore show their saved equipment and gear skill bonuses even after the original loadout file changes or disappears. Existing Saved Results snapshots remain unchanged. Older raw build reports without a gear snapshot retain their legacy lookup and explicitly show that the original gear snapshot is unavailable; old equipment cannot be reconstructed retroactively.
+
+This preserves reported equipment visuals and optimizer inputs, not a full official upload-time combat profile. It does not change damage or survivability formulas or recover assets missing from their source.
+
 # Aion 2 Calc 0.2.45
 
 Clicking a character in a combat log opens a focused build view with **Back to log**, preserving the encounter, metric and timeline selections. Desktop and Pages share the view. Display the recorded official portrait, character identity, stats, equipment with inventory slots and rarity borders, skill/passive/stigma images and levels, pets/wings and Daevanion boards when present. Expand Full recorded build information for item rolls, specialties, titles, skins and every other saved official section. Export retains the original profile JSON.

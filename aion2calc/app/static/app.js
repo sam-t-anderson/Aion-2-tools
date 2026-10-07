@@ -162,7 +162,7 @@ function slotTile(s) {
   (s.skills || []).forEach(([k, lv]) => extras.push(`<span class="chip" style="color:var(--gold)">${esc(k)} +${lv}</span>`));
   const st = (s.stats || []).slice(0, 4).map((x) => `<b>${esc(x.text)}</b> ${esc(x.label)}`).join(" · ");
   return `<div class="slot" data-grade="${esc(s.grade || "")}">
-      <div class="icon sm">${s.icon ? `<img src="${icon(s.icon)}" alt="">` : ""}${s.enchant ? `<span class="lv">+${s.enchant}</span>` : ""}</div>
+      <div class="icon sm with-fallback"><span class="asset-placeholder" aria-hidden="true">◇</span>${s.icon ? `<img src="${icon(s.icon)}" alt="${esc(s.item || s.name || s.slot)}" loading="lazy" onerror="this.hidden=true">` : ""}${s.enchant ? `<span class="lv">+${s.enchant}</span>` : ""}</div>
       <div><div class="sl">${esc(s.slot)}</div><div class="gname">${esc(s.item || s.name || "")}</div>
         <div class="st">${st}</div>${extras.length ? `<div>${extras.join("")}</div>` : ""}${s.source ? `<div class="faint small">${esc(s.source)}</div>` : ""}</div>
     </div>`;
@@ -180,7 +180,7 @@ function winEquipment(v) {
       <div><h4 class="gold small">ENCHANT PRIORITY</h4>${(e.enchant || []).map((r) => `<div class="small">${esc(r.slot)} <b>${r.dps.toFixed(1)}</b> DPS / level</div>`).join("")}</div></div>`;
   }
   const copy = e.slots.map((s) => `${s.slot}: ${s.item || s.name}`).join("\n");
-  return win("Equipment", v.name ? "current gear (official profile)" : "loadout used for this build",
+  return win("Equipment", v.equipment_source || (v.name ? "current gear (official profile)" : "loadout used for this build"),
     `<div class="paperdoll"><div class="slots">${left.map(slotTile).join("")}</div>${doll}<div class="slots">${right.map(slotTile).join("")}</div></div>` +
     rolls + statGrid(e.total, "Stats from equipment, rolls and manastones"), { key: "equipment", copy });
 }
@@ -1166,7 +1166,7 @@ const DOLL_LEFT = ["MainHand", "SubHand", "Helmet", "Shoulder", "Torso", "Pants"
 const DOLL_RIGHT = ["Necklace", "Earring1", "Earring2", "Ring1", "Ring2", "Bracelet1", "Bracelet2", "Amulet", "Rune1", "Rune2"];
 const SLOT_NAME = { MainHand: "Main hand", SubHand: "Off-hand", Torso: "Chest", Pants: "Legs", Cape: "Cloak", Earring1: "Earring", Earring2: "Earring",
   Ring1: "Ring", Ring2: "Ring", Bracelet1: "Bracelet", Bracelet2: "Bracelet", Rune1: "Rune", Rune2: "Rune" };
-const itemIcon = (it, cls = "") => `<div class="icon ${cls}" data-grade="${esc(it?.grade || "")}">${it?.icon ? `<img src="${icon(it.icon)}" alt="">` : ""}${it?.enchant ? `<span class="lv">+${it.enchant}</span>` : ""}</div>`;
+const itemIcon = (it, cls = "") => `<div class="icon with-fallback ${cls}" data-grade="${esc(it?.grade || "")}"><span class="asset-placeholder" aria-hidden="true">◇</span>${it?.icon ? `<img src="${icon(it.icon)}" alt="${esc(it.name || "Equipment")}" loading="lazy" onerror="this.hidden=true">` : ""}${it?.enchant ? `<span class="lv">+${it.enchant}</span>` : ""}</div>`;
 function itemCard(it, label, gain, extra = "") {
   if (!it) return `<div class="icard empty"><div class="ilabel">${esc(label)}</div><div class="faint small">—</div></div>`;
   return `<div class="icard" data-grade="${esc(it.grade || "")}"><div class="ilabel">${esc(label)}</div>${itemIcon(it, "lg")}

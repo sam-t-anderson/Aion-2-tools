@@ -557,3 +557,9 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; backgrou
 /* Leave a visible grade ring around skill/passive images on Daevanion nodes. */
 .node.skill .node-skill-icon {position:absolute;width:26px;height:26px;inset:3px;border-radius:50%;object-fit:cover;z-index:1}
 .node.skill > span {position:relative;z-index:0}
+
+.icon.with-fallback .asset-placeholder { position:absolute; inset:0; display:grid; place-items:center; color:var(--gold); font-size:1.2em; }
+.icon.with-fallback img { position:relative; z-index:1; }
+.icon.with-fallback img[hidden] { display:none; }
+
+.icon.with-fallback .lv { z-index:2; }

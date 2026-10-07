@@ -265,3 +265,9 @@ Implemented the community list's Type/patch/difficulty cell replacement with eve
 ### Build visualization checkpoint
 
 Implemented focused character pages shared by desktop/Pages with Back to log, recorded official images/stats/equipment slots/skills/pets/boards and complete expandable source sections. Added skill/passive images to Daevanion nodes preserving rarity rings, and generic Planner selection labels. Remaining: stable-ID catalog icon recovery, game-style Pet Genus using verified data, canonical weighted PvE/PvP presets per class, and richer editable build boards. These display changes do not add survival/CC/movement formulas or change optimizer scores.
+
+### Retained gear and asset provenance
+
+New imported loadouts preserve official equipment IDs/slots/icons/grades/enchants, and new optimizer raw reports freeze their simulation loadout for future review/rerender. Missing/broken equipment images show a placeholder; name fallback requires a unique match and does not choose one member of a grouped family. Follow-up: catalog stable-ID reconciliation and verified NPC/item/title asset coverage. Old reports without gear snapshots cannot be reconstructed retroactively.
+
+Server candidate collection now groups publicly retained engaged boss HP evidence by patch/build/region/NPC/map/instance and submitted difficulty/source/recorded complete roster size, keeping reported max HP separate from peak current HP. Dashboard/export flags changing or inconsistent maxima. Independent labels, scaling/modifiers, promotion and held-out precision validation remain pending; candidates do not classify difficulty or alter ranking eligibility.

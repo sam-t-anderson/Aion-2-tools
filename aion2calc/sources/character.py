@@ -137,7 +137,10 @@ def from_profile(ch: dict) -> ImportedCharacter:
         (systems["arcana"] if slot.startswith("Arcana") else systems["equipment"]).append(row)
         if it.get("error"):
             warnings.append(f"{slot}: item details unavailable ({it['error'][:60]})")
-        comps.append({"slot": slot, "item": f"{e.get('name')} +{e.get('enchantLevel', 0)}", "stats": st})
+        comps.append({"slot": slot, "item": f"{e.get('name')} +{e.get('enchantLevel', 0)}", "stats": st,
+                      "item_id": e.get("id"), "slot_pos": e.get("slotPos"), "icon": e.get("icon"),
+                      "grade": e.get("grade"), "enchant": e.get("enchantLevel"),
+                      "visual_source": "Official imported equipment"})
 
     # titles (equipped bonus) + an estimate for the collection bonus of owned titles
     for t in (ch.get("title") or {}).get("titleList", []):

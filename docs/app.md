@@ -112,6 +112,8 @@ Completed character/class optimizations and advice save automatically under the 
 
 Edited point totals persist per character on this installation. Enter spent + unspent resources. Anonymous totals are sent after character optimization and accumulate as highest observed resources on the community service, grouped by class/region/patch/source. Unknown patch observations stay separate, and observed totals are not verified game caps.
 
+New raw optimizer reports include their simulation loadout, equipment IDs, available official icons and enchant levels. Reopening or rerendering those reports uses saved gear rather than a later character import. Older raw reports without this snapshot show a legacy gear-source notice; their original gear cannot be recovered from a newer profile. Existing Saved Results are already stored view snapshots and remain unchanged.
+
 Recovered build titles use saved character identity and PvE/PvP mode when available. A generic class title means the older snapshot lacks character identity. Recovery entries and explicitly saved runs remain separate historical records.
 
 ## Experimental PvP optimization

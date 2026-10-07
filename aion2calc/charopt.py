@@ -5,6 +5,7 @@ the same gear and point budgets, and write the difference.
 """
 from __future__ import annotations
 
+import copy
 import json
 import time
 from pathlib import Path
@@ -79,9 +80,10 @@ def budgets_of(imp: ImportedCharacter) -> dict:
 def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dict:
     """The character as it is (best legal specs for its levels, optimized rotation)."""
     cls = imp.cls
-    scen = SCENARIOS[scenario_name](imp.loadout_name())
+    frozen_loadout = copy.deepcopy(imp.loadout)
+    scen = SCENARIOS[scenario_name](frozen_loadout)
     other_name = comparison_scenario(scenario_name)
-    other = SCENARIOS[other_name](imp.loadout_name())
+    other = SCENARIOS[other_name](frozen_loadout)
     b = imp.build.copy()
     b.bonus = {}                       # gear skill rolls come from the loadout
     bud = budgets_of(imp)
@@ -99,7 +101,7 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dic
     eff = bg.effective_levels(cd)
     from .kit.specialties import describe as describe_specialties
     return {
-        "class": cls, "loadout": imp.loadout_name(), "scenario": scenario_name, "kind": "current",
+        "class": cls, "loadout": imp.loadout_name(), "loadout_snapshot": frozen_loadout, "scenario": scenario_name, "kind": "current",
         "character": {"name": imp.name, "server": imp.server, "level": imp.level,
                       "combat_power": imp.combat_power, "warnings": imp.warnings},
         "dps": {scenario_name: dps, other_name: res_other.dps},
@@ -157,7 +159,7 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     (out / "current" / "build.json").write_text(json.dumps(cur, indent=1, default=str), encoding="utf-8")
     best = run_report(imp.cls, str(out), scenario_name=scenario_name, daev_budget=bud["daevanion"],
                       iterations=iterations, loadout=imp.loadout_name(), sp_budget=bud["skill"],
-                      stigma_points=bud["stigma"], progress=progress, survival=survival_plan)
+                      stigma_points=bud["stigma"], progress=progress, survival=survival_plan, loadout_snapshot=imp.loadout)
     write_diff(str(out / "current"), str(out), str(out / "DIFF.md"))
     gain = best["dps"][scenario_name] / cur["dps"][scenario_name] - 1
     summary = {"character": cur["character"], "current_dps": cur["dps"], "optimized_dps": best["dps"],
