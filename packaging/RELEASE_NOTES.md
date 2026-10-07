@@ -1,3 +1,14 @@
+# Aion 2 Calc 0.2.36
+
+- Fix live pet/spirit totals to collapse into recorded owners by default. Add synchronized Combine pets with owner controls to Live Meter and overlay; keep separate source detail in saved logs.
+
+- Populate PvE difficulty from exact recorded instance IDs when the bundled catalog explicitly lists it; preserve automatic/manual provenance.
+- Show map and instance IDs, detected difficulty and current-view unresolved ID count in Live Meter.
+- Add Mapping coverage to shared desktop/Pages/server combat review and an exportable JSON report with catalog revision, unresolved NPC/map/instance IDs, retained entity/effect counts and omission notices.
+- Include current-view catalog and automatic metadata in diagnostic ZIPs. Reports exclude character names and raw traffic; existing opted-in TCP payloads remain unchanged.
+- Correct provenance when editing difficulty, zone or encounter category in saved local logs.
+- Unknown category, game patch, unrecorded NPC types and PvP outcomes remain unresolved. Catalog reports do not infer kills or automatically trust names.
+
 # Aion 2 Calc 0.2.35
 
 - Style the overlay Hide button with the same dark gradient, gold frame, hover and keyboard focus treatment as the desktop controls.

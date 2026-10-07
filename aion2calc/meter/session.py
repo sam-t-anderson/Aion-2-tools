@@ -231,7 +231,7 @@ class CombatSession:
                 "damage": 0, "hits": 0, "healing": 0, "skills": {}, "incoming": {"damage": 0, "hits": 0, "parries": 0, "sources": {}},
                 "counts": {key: 0 for key in ("crit", "back", "front", "double", "perfect", "multi", "parry")}}
 
-    def _summary(self, groups, scope, enemy_id=None):
+    def _summary(self, groups, scope, enemy_id=None, combine_pets=True):
         players, enemies = {}, {}
         durations = sum(max(1.0, (g["last_damage"] - g["start"]) / 1000) for g in groups)
         timeline = {}
@@ -243,9 +243,22 @@ class CombatSession:
                 def player(actor_id):
                     # IDs may be reused after a zone/socket change: don't merge
                     # unnamed actors from unrelated contexts into one person.
+                    original = actor_id
+                    if combine_pets:
+                        seen = set()
+                        while actor_id in identity["owners"] and actor_id not in seen:
+                            seen.add(actor_id)
+                            actor_id = identity["owners"][actor_id]
+                        if actor_id in seen:
+                            actor_id = original  # Never collapse a cyclic owner reference.
                     name = self.name(record.epoch, actor_id)
                     key = f"{record.epoch}:{actor_id}"
-                    row = players.setdefault(key, self._actor(actor_id, name, identity["jobs"].get(actor_id)))
+                    job = identity["jobs"].get(actor_id) or identity["jobs"].get(identity["owners"].get(actor_id))
+                    row = players.setdefault(key, self._actor(actor_id, name, job))
+                    if original != actor_id:
+                        row["includes_pets"] = True
+                    elif actor_id in identity["owners"]:
+                        row["owner"] = str(identity["owners"][actor_id])
                     row["key"] = key
                     return row
                 if isinstance(event, HealEvent):
@@ -306,15 +319,16 @@ class CombatSession:
                 "enemies": sorted(enemies.values(), key=lambda row: -row["damage"]), "duration": durations,
                 "total": total, "dps": total / max(1, durations)}
 
-    def snapshot(self, scope="party", segment_id=None, enemy_id=None):
+    def snapshot(self, scope="party", segment_id=None, enemy_id=None, combine_pets=True):
         groups = self.groups(scope)
         chosen = groups if segment_id == "all" else [next((g for g in groups if g["id"] == segment_id), groups[-1])] if groups else []
-        summary = self._summary(chosen, scope, enemy_id)
+        summary = self._summary(chosen, scope, enemy_id, combine_pets)
         summary["segments"] = [{"id": group["id"], "label": f"Combat {index + 1}", "start": group["start"],
                                 "duration": max(1, (group["end"] - group["start"]) / 1000),
                                 "events": len(group["records"])} for index, group in enumerate(groups)]
         summary["selected_segment"] = "all" if segment_id == "all" else chosen[-1]["id"] if chosen else None
         summary["selected_enemy"] = enemy_id
+        summary["combine_pets"] = combine_pets
         summary["paused"] = bool(chosen and time.time() * 1000 - chosen[-1]["last_damage"] >= 2000)
         summary["recorded_pvp"] = bool(chosen and chosen[-1]["pvp"])
         summary["dps_clock"] = "Recorded damage interval; healing after damage does not extend DPS time"

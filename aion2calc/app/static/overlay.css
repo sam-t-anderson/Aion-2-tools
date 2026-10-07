@@ -36,3 +36,7 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 #ovhide:hover { border-color: rgba(233,203,128,.65); color: #e8cf8e; }
 #ovhide:focus-visible { outline: 2px solid #e8cf8e; outline-offset: 2px; }
 #ovhide:active { background: #1c2438; }
+
+.ovoptions { color: #9aa3b5; font-size: 10px; margin-bottom: 5px; cursor: default; }
+.ovoptions label { cursor: pointer; }
+.ovoptions input { margin: 0 3px 0 0; vertical-align: middle; accent-color: #e8cf8e; }
