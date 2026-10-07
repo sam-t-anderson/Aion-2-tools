@@ -12,7 +12,7 @@ from .daevanion import CRYSTAL_BOARDS
 NOTE = ("Flat crystal-board HP reserve only. Total HP headroom uses entered current HP plus the "
         "change in flat HPMax nodes; percentage HP, defensive passives, armor, shields, healing skills, "
         "crowd control and movement are not inferred. Timed pressure reductions are explicit user assumptions, "
-        "not skill casts, guaranteed control or successful avoidance. Linked skills/effects are retained as allocation constraints. Overlap uses the strongest reduction only. "
+        "not skill casts, guaranteed control or successful avoidance. Linked skills/effects are retained as allocation constraints. Entered effective cooldowns check repeat spacing only; missing cooldowns remain unknown. Overlap uses the strongest reduction only. "
         "Incoming damage/healing are user assumptions "
         "after mitigation. Healing timing is assumed, excess healing is not banked and the initial burst remains protected separately. Positive headroom is not a guarantee of survival or a PvP win prediction.")
 
@@ -77,6 +77,11 @@ def reduction_windows(cd, row, window):
                            "effect_id": effect, "effect": catalog[effect]["text"] if effect is not None else None}
         elif effect is not None:
             raise ValueError("Choose a skill before linking its supporting effect")
+        cooldown = item.get("cooldown_s")
+        if cooldown is not None:
+            cooldown = number(cooldown, "Assumed effective cooldown", 3600)
+            if sid is None:
+                raise ValueError("Link a skill before entering its cooldown")
         start = min(window, delay)
         end = min(window, delay+duration)
         result.append({"name": str(item.get("name") or "Assumed reduction")[:100],
@@ -84,7 +89,39 @@ def reduction_windows(cd, row, window):
                        "duration_s": duration, "reduction_pct": reduction,
                        "start_s": start, "end_s": end, "active_s": end-start,
                        "skill_requirement": requirement, "skill_id": sid, "effect_id": effect,
-                       "min_trained": requirement["minimum"] if requirement else 1})
+                       "min_trained": requirement["minimum"] if requirement else 1, "cooldown_s": cooldown})
+    return result
+
+
+def cooldown_checks(reductions):
+    """Validate only user-assumed reuse spacing, separately per encounter.
+
+    All linked skills start ready. A shared start represents one activation
+    with multiple effect entries. No charges, resets or shared groups inferred.
+    """
+    skills = {}
+    for w in reductions:
+        req = w.get("skill_requirement")
+        if req is None:
+            continue
+        row = skills.setdefault(req["id"], {"skill_id": req["id"], "skill": req["name"],
+                                           "starts": set(), "cooldowns": []})
+        if w.get("cooldown_s") is not None:
+            row["cooldowns"].append(w["cooldown_s"])
+        if w["active_s"] > 0 and w["reduction_pct"] > 0:
+            row["starts"].add(w["start_s"])
+    result = []
+    for row in skills.values():
+        starts = sorted(row["starts"])
+        cooldown = max(row["cooldowns"], default=None)
+        gap = min((b-a for a,b in zip(starts, starts[1:])), default=None)
+        if cooldown is not None and gap is not None and gap+1e-9 < cooldown:
+            raise ValueError(f"{row['skill']}: pressure windows reuse the skill after {gap:g}s, "
+                             f"before the assumed {cooldown:g}s cooldown. Adjust the starts or assumption.")
+        result.append({"skill_id": row["skill_id"], "skill": row["skill"], "activation_starts_s": starts,
+                       "cooldown_s": cooldown, "shortest_reuse_gap_s": gap,
+                       "status": "no_active_windows" if not starts else "unknown" if cooldown is None else "assumed_spacing_satisfied",
+                       "mixed_assumptions": len(set(row["cooldowns"])) > 1})
     return result
 
 
@@ -119,6 +156,7 @@ def prepare(cd, current, options=None):
         healing_start = min(window, delay)
         healing_end = window if duration is None else min(window, healing_start + duration)
         reductions = reduction_windows(cd, row, window)
+        timing_checks = cooldown_checks(reductions)
         peak_pressure, peak_time = pressure_deficit(pressure, window, healing, healing_start, healing_end, reductions)
         unprotected_peak, _ = pressure_deficit(pressure, window, healing, healing_start, healing_end)
         reserve = number(row.get("reserve_hp", 1), "HP reserve", minimum=1)
@@ -129,7 +167,7 @@ def prepare(cd, current, options=None):
                      "healing_active_s": healing_end-healing_start,
                      "peak_pressure_hp": peak_pressure, "peak_pressure_at_s": peak_time,
                      "reserve_hp": reserve, "required_hp": required, "source": "user_assumption",
-                     "reductions": reductions, "unprotected_required_hp": burst+unprotected_peak+reserve,
+                     "reductions": reductions, "cooldown_checks": timing_checks, "unprotected_required_hp": burst+unprotected_peak+reserve,
                      "assumed_requirement_reduction_hp": max(0, unprotected_peak-peak_pressure)})
         evidence = row.get("recorded_evidence")
         if isinstance(evidence, dict):
@@ -149,7 +187,7 @@ def prepare(cd, current, options=None):
     available = node_hp(cd, {nid for nid, (_, node) in cd.node_index.items() if node.get("type") != "Start"})
     if floor > available+1e-6:
         raise ValueError(f"Requested crystal HP reserve {floor:,.0f} exceeds the catalog's total {available:,.0f}, even before point/connectivity costs. Lower the reserve or incoming-damage assumptions.")
-    return {"version": 4, "preserve_hp": preserve, "reference_node_hp": reference,
+    return {"version": 5, "preserve_hp": preserve, "reference_node_hp": reference,
             "minimum_node_hp": max(0, floor), "current_hp": hp, "opponents": rows, "note": NOTE}
 
 

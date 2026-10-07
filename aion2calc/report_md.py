@@ -68,6 +68,20 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
                         else:
                             w("    Unlinked timing assumption.\n")
             for row in hp["opponents"]:
+                for check in row.get("cooldown_checks", []):
+                    starts = ", ".join(f"{t:g}s" for t in check["activation_starts_s"]) or "none"
+                    cooldown = check["cooldown_s"]
+                    gap = check["shortest_reuse_gap_s"]
+                    if check["status"] == "no_active_windows":
+                        status = "No active reduction windows"
+                    elif cooldown is None:
+                        status = "Cooldown unknown; reuse not assessed"
+                    else:
+                        reuse = "no repeated activation" if gap is None else f"shortest reuse gap {gap:g}s"
+                        status = f"Assumed effective cooldown {cooldown:g}s; {reuse}; assumed spacing satisfied"
+                    mixed = "; largest of differing assumptions used" if check["mixed_assumptions"] else ""
+                    w(f"- {row['name']} / {check['skill']}: starts {starts}; {status}{mixed}.\n")
+            for row in hp["opponents"]:
                 benchmark = row.get("opponent_benchmark")
                 if benchmark:
                     context = "; ".join(f"{key}: {value}" for key, value in benchmark.items()).replace("\n", " ")
