@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.56
+
+Adds a versioned common-loadout scoring foundation for canonical PvE and PvP presets. Comparisons use fixed example budgets and equal weighting of two mode-specific damage scenarios. Each scope records the model, class data, common loadout and policy so changed inputs cannot be compared silently. Submitted gear, reported scores and personal constraints are excluded.
+
+PvP scores remain experimental stationary damage estimates. Server storage, preset synchronization and Planner selection follow in subsequent checkpoints. Shared budgets describe a comparison, not verified character progression maxima.
+
 # Aion 2 Calc 0.2.55
 
 My Character includes saved Pet Genus Insight lines in PvE and PvP optimization. Edit and save the same inventory used by Gear & Advice, choose a PvE enemy mix, or disable Genus scoring. Current-build comparisons, optimization and saved reports share a frozen allocation snapshot. The Pet Genus results window and Markdown show line contributions and excluded effects. Unsaved edits must be saved before optimization.
