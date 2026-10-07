@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.50
+
+Gear & Advice replaces the free-text genus-line entry with five genus tabs and nine analysis-slot cards. Enter Insight level, stat and exact value, clear individual slots, and save all genera together with explicit progress/error feedback. Drafts stay across genus tabs. Advanced JSON retains older malformed entries for repair instead of silently dropping them.
+
+Validate known genera, levels 0–10, unique unlocked slots 1–9, bounded stat labels and nonnegative numeric/percentage values before replacing saved allocations. Invalid saves preserve the previous inventory. Saving invalidates the on-screen advice so users recalculate rather than viewing old scores against new inputs. Saved advice retains its original allocation snapshot. These are manual entries; official profiles do not expose Genus Insight, and defensive/CC/movement effects are not newly simulated.
+
 # Aion 2 Calc 0.2.49
 
 Fresh official profile imports retain public item/skill/pet/wing/title/board image references by region, kind and recorded ID. Equipment with a missing recorded icon can use an unchanged official reference for the same region/item ID before catalog slug/name fallback. Character identities, gear stats and tokens are not stored in this reference registry. Recorded gear snapshots remain intact; no new remote image search or guessed NPC mapping is performed.

@@ -107,6 +107,12 @@ pantheon deities and the genus insight grids. The
 model is calibrated from the character's fights when there are enough. Details:
 [planner.md](planner.md).
 
+### Pet Genus Insight
+
+In **Gear & Advice**, choose a genus tab, enter its in-game Insight level and fill its unlocked analysis slots with the stat and exact value (including `%` when shown). All five genus drafts stay available while switching tabs. **Clear slot** removes a line; clear occupied higher slots before lowering the level. **Save genus lines** saves all genera together, then run advice again to recalculate. Invalid saves retain the previous inventory.
+
+The official profile does not provide Genus Insight allocations. **Advanced JSON** lets you repair older entries; apply it to the draft before saving. Defensive lines are retained for reference, but current advice evaluates damage effects only. Recovered saved advice shows the allocation snapshot used at calculation time.
+
 ## Saved Results
 
 Completed character/class optimizations and advice save automatically under the app data folder's `history` directory. Open **Saved Results**, select Open to review a previous run, or Export/Import its result JSON. Import restores a snapshot; it does not run an optimization or change your equipped gear. The latest existing old build/advice files are recovered when available. Keep exported copies to move runs between installations. Advice reflects the saved run, not future game or gear changes.

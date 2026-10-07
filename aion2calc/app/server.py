@@ -260,7 +260,8 @@ def inventory_post(path: str, body: dict) -> dict:
     elif path.endswith("/remove"):
         INV.remove(inv, body["id"])
     elif path.endswith("/genus"):
-        inv["genus"] = body.get("genus") or {}
+        from ..plan.genus import validate_state
+        inv["genus"] = validate_state(body.get("genus", {}))
     elif path.endswith("/titles"):
         inv["titles_owned"] = [t.strip() for t in body.get("titles") or [] if t and t.strip()]
     INV.save(inv)

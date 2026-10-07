@@ -14,6 +14,7 @@ Your lines are entered in the app (Gear page) or the inventory JSON::
 from __future__ import annotations
 
 import re
+import math
 
 from ..model.character import LABEL_MAP
 from ..paths import read_json
@@ -30,6 +31,43 @@ MAIN = ("Cogni", "Fera", "Natura", "Varian")
 
 def data() -> dict:
     return read_json("global", "genus_insight.json")
+
+
+def validate_state(value):
+    """Validate manual allocations before replacing a saved inventory's genus state."""
+    if not isinstance(value, dict) or len(value) > 5:
+        raise ValueError("Genus allocations must be an object with at most five genera")
+    result = {}
+    for genus, state in value.items():
+        if genus not in (*MAIN, "Special") or not isinstance(state, dict):
+            raise ValueError("Choose Cogni, Fera, Natura, Varian or Special")
+        level = state.get("level", 0)
+        if type(level) is not int or not 0 <= level <= 10:
+            raise ValueError(f"{genus}: Insight level must be an integer from 0 to 10")
+        lines = state.get("lines", [])
+        if not isinstance(lines, list) or len(lines) > 9:
+            raise ValueError(f"{genus}: use at most nine analysis lines")
+        seen, clean = set(), []
+        for line in lines:
+            if not isinstance(line, dict):
+                raise ValueError(f"{genus}: each analysis line must be an object")
+            slot = line.get("slot")
+            if type(slot) is not int or not 1 <= slot <= min(level, 9) or slot in seen:
+                raise ValueError(f"{genus}: use each unlocked slot once (slots 1–{min(level, 9)})")
+            stat = line.get("stat")
+            if not isinstance(stat, str) or not stat.strip() or len(stat.strip()) > 100:
+                raise ValueError(f"{genus} slot {slot}: enter a stat name (up to 100 characters)")
+            raw = line.get("value")
+            text = str(raw).strip()
+            if isinstance(raw, bool) or len(text) > 40 or not re.fullmatch(r"\+?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?%?", text):
+                raise ValueError(f"{genus} slot {slot}: enter a nonnegative number, with % when shown in game")
+            number = float(text.rstrip("%").replace(",", ""))
+            if not math.isfinite(number) or number > 1e9:
+                raise ValueError(f"{genus} slot {slot}: value exceeds the supported range")
+            seen.add(slot)
+            clean.append({"slot": slot, "stat": stat.strip(), "value": text})
+        result[genus] = {"level": level, "lines": sorted(clean, key=lambda row: row["slot"])}
+    return result
 
 
 def content_mix(encounters: list[dict] | None = None, given: dict | None = None,
