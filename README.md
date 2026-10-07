@@ -22,6 +22,14 @@ It answers, for any class:
 and produces images of the Daevanion boards and a planner-style build page plus
 share links for the metabot.gg and gamers4.life planners.
 
+## Matched comparisons and percentiles
+
+Combat review shows **Current standings (same patch)** and **At upload (reconstructed)**. Player comparisons match boss, class, category, patch, difficulty, observed party size and instance. Community browsing and Pages leaderboards include party-size filters; ranks apply within the matching cohort. Class summaries and personal bests also separate party sizes and instances.
+
+Percentiles require at least 10 eligible public samples and five distinct characters, or five distinct parties for run speed. Smaller samples retain descriptive ranks and distributions with coverage warnings; capped datasets and unknown party/instance metadata have no formal percentile. Ties share a midrank percentile. Local/private comparisons are labeled provisional and never enter public samples. Healing depends on demand, and damage taken is not a better-performance score.
+
+Historical standings are reconstructed from currently public retained uploads received by the viewed log's upload time. Deletions, visibility changes and policy updates can change that reconstruction. Current standings use the log's patch; they never silently compare it with a newer patch. Upload-time gear is not proof of encounter-time equipment, so gear-adjusted comparisons remain unavailable. These are community samples, not the entire game population.
+
 ## Run timing and boss progression
 
 Desktop, Pages and shared logs show each run's recorded span, combined encounter intervals and gaps between fights. The boss tables show recorded attempts, kills, observed wipes, unknown outcomes, first recorded clear, best observed wipe HP and recovery time. Unresolved manual chunks of the same boss actor count as one recorded attempt.

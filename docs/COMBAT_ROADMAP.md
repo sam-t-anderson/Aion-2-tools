@@ -8,8 +8,11 @@ Implemented capture-quality reasons, Party encounter ranking eligibility, bounde
 
 Implemented per-run timing/progression, conservative observed wipes, best wipe HP, recovery gaps and matched public run speed rankings. Unknown attempts remain separate; manual chunks sharing an unresolved boss actor are joined. Speed eligibility requires observed entry, configured final-boss completion, stable identified party and no known capture loss. Public duplicate run/attempt samples count once. Existing bounded-history limits still apply; no unlimited archive or verified PvP match boundaries are claimed.
 
+## Insights roadmap — checkpoint 3 (0.2.25)
+
+Implemented observed party-size/instance cohorts for player comparisons, class distributions and personal bests; current same-patch and reconstructed at-upload standings for players and run speed; minimum sample/distinct identity gates, cap warnings, tie-aware empirical percentiles and provisional labels. Community and Pages filters expose party size. Historical reconstruction uses currently public retained uploads, not immutable snapshots. Gear brackets remain unavailable until encounter-time gear is reliable; upload-time profiles are insufficient. No cross-patch normalization is inferred.
+
 Next checkpoints, in order:
-2. Fair cohorts and historical percentiles: patch/difficulty/party size, historical vs current ranks, minimum samples; gear brackets only with reliable gear evidence.
 3. Death recaps and player consistency/improvement.
 4. Phase, support and rotation analysis as cast/buff/resource decoding is verified.
 5. Character ownership/privacy/community tools and richer evidence-backed PvP scoring.

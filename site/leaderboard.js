@@ -13,16 +13,16 @@
     $("#list").innerHTML = '<div class="empty">Loading…</div>';
     try {
       const query = new URLSearchParams({limit:100,combat_mode:$("#mode").value,metric:$("#metric").value});
-      for(const [key,value] of Object.entries({class:cls.toLowerCase(),boss,encounter_type:$("#type").value,game_patch:$("#patch").value.trim(),difficulty:$("#difficulty").value.trim()}))if(value)query.set(key,value);
+      for(const [key,value] of Object.entries({class:cls.toLowerCase(),boss,encounter_type:$("#type").value,game_patch:$("#patch").value.trim(),difficulty:$("#difficulty").value.trim(),party_size:$("#party-size").value}))if(value)query.set(key,value);
       const data = await window.A2.api("/api/v1/leaderboard?"+query);
       const entries = data.entries || [];
       const mx = Math.max(...entries.map((e) => e.score ?? e.dps ?? 0), 1);
-      const rows = entries.map((e, i) => `<tr onclick="location.href='log.html?id=${esc(e.log)}'" style="cursor:pointer">
-        <td class="r muted">${i + 1}</td><td class="gold">${esc(e.name || "")}</td><td>${esc(cap(e.class || ""))}</td>
+      const rows = entries.map((e) => `<tr onclick="location.href='log.html?id=${esc(e.log)}'" style="cursor:pointer">
+        <td class="r muted">${e.comparison?.rank??'—'} / ${e.comparison?.count??'—'}<br>${e.comparison?.percentile!==null && e.comparison?.percentile!==undefined?e.comparison.percentile.toFixed(1)+' percentile':'Percentile unavailable'}</td><td class="gold">${esc(e.name || "")}</td><td>${esc(cap(e.class || ""))}</td>
         <td style="width:40%"><div class="bar"><i style="width:${100 * (e.score ?? e.dps ?? 0) / mx}%"></i><span>${n0(e.score??e.dps)}</span></div></td>
-        <td>${esc(e.boss || "")} · ${esc(e.difficulty||"Unknown ruleset")} · ${esc(e.game_patch||"Unknown patch")}</td></tr>`).join("");
+        <td>${esc(e.boss || "")} · ${esc(e.difficulty||"Unknown ruleset")} · ${esc(e.game_patch||"Unknown patch")} · party ${e.party_size||'unknown'} · instance ${e.instance_id||'unknown'}<br><small>${esc((e.comparison?.reasons||[]).join(' '))}</small></td></tr>`).join("");
       $("#list").innerHTML = rows
-        ? `<table class="t"><tr><th class="r">#</th><th>Player</th><th>Class</th><th>${esc($("#metric").value.toUpperCase())}</th><th>Encounter / ruleset / patch</th></tr>${rows}</table>`
+        ? `<table class="t"><tr><th class="r">Matched cohort rank</th><th>Player</th><th>Class</th><th>${esc($("#metric").value.toUpperCase())}</th><th>Encounter / ruleset / patch</th></tr>${rows}</table>`
         : '<div class="empty">No parses yet. Share public logs from the app to populate the leaderboard.</div>';
       $("#msg").textContent = `${entries.length} parses. ${data.note||""}`;
     } catch (e) { $("#list").innerHTML = `<div class="note">${esc(e.message)}</div>`; }
