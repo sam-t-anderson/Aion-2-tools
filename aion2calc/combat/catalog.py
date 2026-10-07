@@ -5,13 +5,16 @@ import hashlib
 import json
 
 from ..meter.a2parser.lookup import _table, npc_info
+from ..meter.context import PVP_MAPS
 
 LIMIT = 100
 
 
 @lru_cache(maxsize=1)
 def revision():
+    from ..meter.a2parser.engine import OPEN_WORLD_MAPS
     tables = {key: _table(key, "en") for key in ("npcs", "dungeons")}
+    tables.update(open_world_maps=sorted(OPEN_WORLD_MAPS), pvp_maps=PVP_MAPS, coverage_rules=3)
     return hashlib.sha256(json.dumps(tables, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:16]
 
 
@@ -46,7 +49,7 @@ def coverage(segment):
         rows.append(row)
     if instance and not dungeon:
         rows.append({"kind": "instance", "code": instance, "entity_count": 0, "effects": 0})
-    if map_id and map_id not in OPEN_WORLD_MAPS and map_id != 60:
+    if map_id and map_id not in OPEN_WORLD_MAPS and map_id not in PVP_MAPS and not (map_id == instance and dungeon):
         rows.append({"kind": "map", "code": map_id, "entity_count": 0, "effects": 0})
     rows.sort(key=lambda r: (r["kind"], r["code"]))
     return {"catalog_revision": revision(), "map_id": map_id, "instance_id": instance,

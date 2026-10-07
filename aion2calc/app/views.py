@@ -290,7 +290,7 @@ def build_view(summary: dict) -> dict:
                                          "daevanion": summary.get("daevanion_budget", 360)}
     return {
         "class": cls, "loadout": loadout, "loadout_name": lo.get("name"), "scenario": summary.get("scenario"),
-        "model_note": summary.get("model_note"),
+        "model_note": summary.get("model_note"), "survival": summary.get("survival"),
         "dps": summary.get("dps"), "baseline": summary.get("baseline"), "budgets": budgets,
         "points": {"skill": build.sp_spent(), "stigma": build.stigma_spent(), "daevanion": build.daevanion_cost(cd)},
         "skills": skills_view(cd, build, gear),

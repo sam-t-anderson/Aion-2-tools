@@ -187,3 +187,19 @@ User priority: maximize PvE damage while meeting configurable survivability cons
 For PvP, evaluate damage/burst, crowd control, mobility and survival across an ensemble of optimized opponent builds/archetypes. Use official current profiles or recorded profile snapshots when identities resolve, with timestamps and provenance. Include average and adverse matchup results and sensitivity to uncertain coefficients; avoid optimizing against one stationary target or claiming verified win probabilities. User-provided profiles/scenario inputs should remain editable. Current experimental PvP optimizer is still a damage-only proxy until this separate modeling checkpoint is implemented and validated.
 
 Next after recovery: durable server request idempotency and archive navigation/stitching design; optimizer scenario/constraint implementation is a separate substantial checkpoint. Representative PvP round/death, CC/movement and mitigation evidence remains needed to validate mechanical predictions.
+
+## Damage with an HP reserve (0.2.41)
+
+My Character → **Survivability** preserves the character's imported flat **HPMax** contribution from the four optimized crystal boards by default. The existing DPS objective stays primary inside the set of allocations meeting this floor. Skill, stigma and Daevanion budgets and board connectivity remain enforced. A stricter minimum can trade some modeled DPS for more crystal HP. Disable preservation and leave the minimum/scenarios empty to use the previous damage-only objective. This is an HP-node constraint, not a full survival simulator.
+
+Optional scenarios describe one hit followed by sustained pressure. Enter current in-game maximum HP and up to eight encounter/opponent assumptions: **hit damage after mitigation + max(0, incoming DPS − assumed sustained HPS) × seconds + positive HP reserve**. The largest requirement sets the floor. HPS never absorbs the initial hit. Estimated total HP is entered current HP plus the flat node-HP change; percentage modifiers and passive/gear changes are not modeled. Headroom is a scenario proxy, not verified effective HP, guaranteed survival or win probability. Confirm final HP in game.
+
+Settings persist per selected character in this browser. Saved Results/build JSON/Markdown retain assumptions and the assessment. Infeasible requests report an error without publishing a lower-HP fallback. Solver limits can prevent finding an allocation even when one exists. Damage-only stat priorities, baseline comparisons and Gear & Advice do not validate survival; constrained builds are not submitted as community damage presets.
+
+PvP supports a manual multi-opponent **incoming-pressure** envelope, not optimized opponent-build combat. Next modeling work: resolve official current/historical opponent gear with provenance; evaluate outgoing damage and adverse matchups; include verified defensive skill, CC, mobility and coefficient rules before scoring them. Those metrics are explicitly unavailable here. This checkpoint does not invent mitigation or tactical coefficients.
+
+Mapping coverage also recognizes a known dungeon ID repeated in the map field. The submitted 600021 report already identifies Fire Temple; it is no longer separately flagged as an unknown map. Distinct unknown map IDs and missing difficulty remain unresolved.
+
+### Catalog follow-up
+
+Map 61 is categorized as Arena only when identified player combat is recorded, based on a user-confirmed arena capture. The exact arena name remains unverified. Map 600021 with matching known instance 600021 resolves to Fire Temple. Map 200003 remains unresolved: NPC dungeon references alone do not establish the recorded map's name or difficulty. Unknown patch/difficulty are retained rather than guessed.

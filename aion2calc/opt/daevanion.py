@@ -34,7 +34,7 @@ def _neighbors(board):
 def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[int, float],
           daev_budget: int = 360, sp_budget: int = 203, bonus: dict | None = None,
           max_level: int = 20, fixed_sp: dict | None = None, time_limit: int = 120,
-          boards: tuple = CRYSTAL_BOARDS, gap: float = 0.0005) -> dict:
+          boards: tuple = CRYSTAL_BOARDS, gap: float = 0.0005, min_node_hp: float = 0) -> dict:
     """``skill_curves[sid][L]`` = DPS with skill at effective level L (index 0 unused)."""
     bonus = bonus or {}
     prob = pulp.LpProblem("daevanion", pulp.LpMaximize)
@@ -73,6 +73,13 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
     cost = {nid: cd.node_index[nid][1]["cost"] for nid in x}
     prob += pulp.lpSum(cost[n] * x[n] for n in x) <= daev_budget
 
+    if min_node_hp > 0:
+        hp_terms = []
+        for nid, var in x.items():
+            hp = sum(float(s["value"]) for s in cd.node_index[nid][1].get("stats", []) if s.get("stat") == "HPMax")
+            hp_terms.append(hp * var)
+        prob += pulp.lpSum(hp_terms) >= min_node_hp, "minimum_flat_crystal_hp"
+
     # skill points
     y, z = {}, {}
     sp_terms = []
@@ -106,6 +113,15 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
         for l, var in ys.items():
             if var.value() and var.value() > 0.5:
                 sp[sid] = l
+    if min_node_hp > 0:
+        from .survival import node_hp
+        variables = list(x.values()) + [v for values in y.values() for v in values.values()] + [v for values in z.values() for v in values.values()]
+        integral = all(v.value() is not None and abs(v.value()-round(v.value())) <= 1e-5 for v in variables)
+        if (not integral or not prob.valid(1e-5) or pulp.LpStatus[status] in ("Infeasible", "Unbounded", "Undefined")
+                or not connected(cd, nodes) or sum(cost[n] for n in nodes) > daev_budget
+                or sum(sum(SP_COST[:l]) for l in sp.values()) > sp_budget
+                or len(sp) != len(y) or node_hp(cd, nodes)+1e-6 < min_node_hp):
+            raise ValueError("No feasible HP-reserve allocation was found within the budgets and solver time limit. Lower the reserve or adjust your assumptions; no unconstrained fallback was published.")
     return {"status": pulp.LpStatus[status], "nodes": nodes, "sp": sp,
             "objective": pulp.value(prob.objective),
             "daev_cost": sum(cost[n] for n in nodes),
