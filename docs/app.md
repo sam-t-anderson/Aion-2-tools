@@ -22,6 +22,7 @@ A task-oriented guide to the desktop app and shared review controls. Detailed co
 - [Sharing logs and recovering upload queues](#sharing-logs-and-recovering-upload-queues)
 - [Community comparisons](#community-comparisons)
 - [Editing shared raid plans](#editing-shared-raid-plans)
+- [Official news](#official-news)
 - [Settings](#settings)
 - [Application updates](#application-updates)
 - [Database and data sync](#database-and-data-sync)
@@ -286,6 +287,12 @@ Completed-run speed and Boss progression require supported evidence. Boss progre
 ## Editing shared raid plans
 
 Publish stores a unique owner credential locally. Update published plan keeps the shared link; Publish new copy creates a separate publication. Export a Private ownership backup and keep it private. Import file restores that backup on another device. Refresh published plan obtains the current revision and replaces local edits, so export those first. Old publications without a saved ownership/delete credential need a new publication; author names do not grant editing access.
+
+## Official news
+
+**News** on desktop and Pages lists official English/global notice and update headlines. Filter Notices/Updates and open the original article on NCSoft's site. Publication and retrieval dates are separate; cached headlines can be stale when a source is unavailable. The source-list links remain available when the configured community server cannot serve the feed. All Pages tabs share the same banner and News option.
+
+Announcement dates do not prove the installed game build or patch used by an older combat log, and do not automatically set ranking patches. Korean/Taiwan feeds and automatic patch-to-build matching remain unavailable.
 
 ## Settings
 

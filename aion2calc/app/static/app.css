@@ -563,3 +563,8 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; backgrou
 .icon.with-fallback img[hidden] { display:none; }
 
 .icon.with-fallback .lv { z-index:2; }
+
+.news-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:14px; margin:16px 0; }
+.news-card { background:var(--panel2); border:1px solid var(--frame); border-radius:8px; padding:16px; overflow-wrap:anywhere; }
+.news-card h3 { margin:12px 0; }
+.news-card .row { justify-content:space-between; }

@@ -1406,6 +1406,11 @@ async function pageSettings() {
 }
 setInterval(() => fetch("/api/ping", { method: "POST" }).catch(() => {}), 20000);
 
+async function pageNews(){
+  app().innerHTML='<div id="official-news"></div>';
+  A2News.mount($('#official-news'),{api:communityAPI});
+}
+
 // ------------------------------------------------------------- router
 async function route() {
   const page = (location.hash.replace(/^#\//, "") || "planner").split("/")[0];
@@ -1421,6 +1426,7 @@ async function route() {
     else if (page === "raid") await pageRaid();
     else if (page === "meter") await pageMeter();
     else if (page === "database") await pageDatabase();
+    else if (page === "news") await pageNews();
     else await pagePlanner();
   } catch (e) { app().innerHTML = `${page==="combat-log"?'<p><a class="btn small" href="#/combat">← Back to combat logs</a></p>':""}<div class="note">${esc(e.message)}</div>`; }
 }

@@ -275,3 +275,7 @@ Server candidate collection now groups publicly retained engaged boss HP evidenc
 ### Durable saved-part request retries
 
 Saved Parts desktop/Pages queues persist/export random request IDs before sending. Supporting servers atomically retain request-to-report mappings scoped by upload-key identity (or anonymous), compare normalized content/visibility, replay accepted IDs, reject conflicts and retain deletion tombstones. Retry IDs do not grant ownership; receipts never reissue private links/tokens. Explicit uncertain retries and file fingerprint verification remain. Legacy requests/servers and separately started queues can duplicate; full content-based duplicate reconciliation, archive stitching and ownership recovery after a lost first response remain follow-up work.
+
+### Official news foundation
+
+Desktop/Pages provide official English/global notice/update headline cards with publication/retrieval dates, category filters and original source links, backed by a fixed-source server cache. No article HTML or inferred installed/historical patch is used. Follow-up: verified regional patch/build matching, Korean/Taiwan sources, permitted additional feeds and regional event timers. News is included consistently in Pages navigation.
