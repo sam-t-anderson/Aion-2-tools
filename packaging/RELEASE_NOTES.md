@@ -1,3 +1,7 @@
+# Aion 2 Calc 0.2.34
+
+- Make Table, Timeline and Events mutually exclusive in the shared desktop, Pages and server combat viewer. Table no longer displays the timeline underneath it. Graph remains an independent toggle.
+
 # Aion 2 Calc 0.2.33
 
 - Show timeline marker details in a visible panel on hover, click or keyboard focus; explain unavailable comparison ranks instead of relying on hidden tooltips.
