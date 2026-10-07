@@ -327,7 +327,10 @@ class Handler(BaseHTTPRequestHandler):
                                "update_prompt": ui_settings().get("auto_update", True)})
         if path == "/api/assets":
             from ..db.assets import report
-            return self._json(report())
+            from .image_health import report as image_report
+            data = report()
+            data["desktop_image_proxy"] = image_report()
+            return self._json(data)
         if path == "/api/classes":
             return self._json(list_names("global", "classes"))
         if path == "/api/history":
@@ -698,6 +701,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _icon(self, u: str):
         """Fetch and cache game icons locally so the UI keeps working offline."""
+        from .image_health import record
         host = urllib.parse.urlparse(u).hostname or ""
         if not any(host == h or host.endswith("." + h) for h in ICON_HOSTS):
             raise FileNotFoundError(u)
@@ -706,10 +710,12 @@ class Handler(BaseHTTPRequestHandler):
         f = cache / (hashlib.sha1(u.encode()).hexdigest() + Path(urllib.parse.urlparse(u).path).suffix)
         if not f.exists():
             from ..scrape.http import fetch_bytes
-            data = fetch_bytes(u)
+            data = fetch_bytes(u, observe=lambda outcome, status: record(host, outcome, status))
             if not data:
                 raise FileNotFoundError(u)
             f.write_bytes(data)
+        else:
+            record(host, "cache_hit")
         self._send(200, f.read_bytes(), mimetypes.guess_type(f.name)[0] or "image/png", cache=86400 * 7)
 
 

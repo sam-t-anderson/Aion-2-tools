@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.53
+
+Settings → Export image coverage now includes desktop image-proxy HTTP status/error counters alongside browser image failures. Counters are local to the running desktop process and contain only approved source hosts, outcomes, status codes, counts and timestamps. No full image URLs, portrait paths, character identities, credentials or exception text are retained. Cache hits and browser-direct image errors remain distinct from HTTP checks.
+
+Counts describe request attempts rather than unique missing assets; capture the export before closing the app. Existing fetch retries and cache behavior are unchanged.
+
 # Aion 2 Calc 0.2.52
 
 My Character can retain minimum trained active/passive skill levels and keep selected equipped stigmas at minimum levels while maximizing modeled damage. Options persist per character and apply to PvE and PvP; saved results and Markdown retain the constraints. Requests that cannot fit the point/slot budgets fail without publishing an unconstrained fallback. Personal constrained builds stay out of community damage presets.

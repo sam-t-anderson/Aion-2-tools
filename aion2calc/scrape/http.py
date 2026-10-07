@@ -96,20 +96,34 @@ def fetch_json(url: str, params: dict | None = None, *, referer: str | None = No
     return json.loads(_get(url, h, timeout=30).decode("utf-8", errors="replace"))
 
 
-def fetch_bytes(url: str, *, max_age: float = 30 * 86400) -> bytes | None:
-    """Binary variant of :func:`fetch` (icons); returns None on failure."""
+def fetch_bytes(url: str, *, max_age: float = 30 * 86400, observe=None) -> bytes | None:
+    """Binary variant of :func:`fetch`; optional observer receives outcome/status only."""
+    def emit(outcome, status=None):
+        if observe:
+            try:
+                observe(outcome, status)
+            except Exception:
+                pass  # diagnostics must never prevent an image from loading
     key = hashlib.sha1(url.encode()).hexdigest()
     path = cache_dir() / f"{key}.bin"
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and time.time() - path.stat().st_mtime < max_age:
-        return path.read_bytes()
+        data = path.read_bytes()
+        emit("cache_hit")
+        return data
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     for attempt in range(3):
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 data = resp.read()
+                status = getattr(resp, "status", None)
             path.write_bytes(data)
+            emit("http_success" if data else "empty_body", status)
             return data
+        except urllib.error.HTTPError as exc:
+            emit("http_error", exc.code)
+            time.sleep(1 + attempt)
         except Exception:
+            emit("fetch_error")
             time.sleep(1 + attempt)
     return None

@@ -295,3 +295,7 @@ Desktop/Pages remember up to 200 failed image resources for five minutes and sho
 ### Trained skill reserves
 
 Implemented optional active/passive trained-level floors and minimum levels for reserved equipped stigmas, with budget validation, solver constraints, local persistence and saved-result assessments. This supplements HP-node constraints; verified tactical skill use, CC/mobility modeling and optimized opponent matchups remain pending.
+
+### Desktop image HTTP diagnostics
+
+Image coverage export includes process-local approved-host HTTP status/error/cache counters without full URLs or character paths. These are attempt counts, not resource identity reconciliation. Browser-direct failures remain status-unavailable. Missing NPC portrait sources and third-party stable-ID catalog matching remain pending.

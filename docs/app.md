@@ -323,6 +323,10 @@ Settings → **Game database → Export image coverage** saves a troubleshooting
 The export also includes image failures from this browser session: source host, count, time and recognized public skill IDs. It omits full URLs and portrait paths; browser errors do not provide HTTP status codes. Failed resources use a placeholder for five minutes. **Retry images** permits another attempt and clears that failure list, so export first when troubleshooting. Combat review has the same retry control; Settings requires reopening the affected view. No failure records are uploaded automatically.
 
 
+### Image diagnostics
+
+Settings → **Export image coverage** includes observed official references, browser-session image failures and desktop image-proxy request counters. HTTP error codes help distinguish missing assets from server failures; fetch/cache errors have no HTTP status. Counts are attempts, not unique assets. Cached images do not check remote availability. The export omits full image URLs, portrait paths, character identities and credentials. Export before closing the app; runtime counters are not persisted or automatically uploaded. Browser-direct images remain separate because the browser does not expose their HTTP status.
+
 ## Application updates
 
 **Install update** stages the new installer first. When you choose it, the app
