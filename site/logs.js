@@ -17,9 +17,14 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
       body=await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
       headers['Content-Encoding']='gzip';
     }
-    const response=await fetch(batch.url+'/api/v1/logs?visibility='+encodeURIComponent(batch.visibility),
-      {method:'POST',body,headers,credentials:'omit',redirect:'error',cache:'no-store'});
-    const result=await response.json().catch(()=>({error:response.statusText}));
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),65000);
+    let response,result;
+    try {
+      response=await fetch(batch.url+'/api/v1/logs?visibility='+encodeURIComponent(batch.visibility),
+        {method:'POST',body,headers,credentials:'omit',redirect:'error',cache:'no-store',signal:controller.signal});
+      result=await response.json();
+    }catch(e){if(e.name==='AbortError')throw Error('Upload timed out; the server outcome is unknown. Check My uploads/server before retrying.');throw e;}
+    finally{clearTimeout(timer);}
     if(!response.ok || result.error)throw Error('Upload refused ('+response.status+'): '+(result.error||response.statusText));
     try {A2LogOwnership.remember(batch.url,result,doc.meta?.title||row.input.name);}
     catch(e){result.ownership_warning='Uploaded, but could not save ownership on this browser: '+e.message;}

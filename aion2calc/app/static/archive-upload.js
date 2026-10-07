@@ -9,7 +9,7 @@
     const label=r=>r.title || r.file;
     function download() {
       const manifest={format:'a2log-upload-manifest',version:1,server:batch?.url,visibility:batch?.visibility,
-        parts:[...selected.values()].map(r=>{const s=results.get(r.file)||{};return {file:r.file,archive:r.archive,
+        parts:[...selected.values()].map(r=>{const s=results.get(r.file)||{};return {file:r.input?.name||r.file,archive:r.archive,
           status:s.status||'pending',id:s.id,error:s.error,
           ...(s.status==='uploaded' && s.visibility!=='private'?{url:safeLink(s.url)}:{})};})};
       const url=URL.createObjectURL(new Blob([JSON.stringify(manifest,null,2)],{type:'application/json'}));
@@ -43,11 +43,11 @@
             document.dispatchEvent(new Event('a2log-uploaded'));
           } catch(e) {
             results.set(row.file,{status:'failed',error:e.message});
-            if(e instanceof TypeError || /\b(401|403|429)\b|server changed|failed to fetch/i.test(e.message)){halted=true;break;}
+            if(e instanceof TypeError || /\b(401|403|429)\b|server changed|failed to fetch|timed out|aborted/i.test(e.message)){halted=true;break;}
           }
           render();
         }
-        const done=[...results.values()].filter(r=>r.status==='uploaded').length;
+        const done=[...selected.keys()].filter(file=>results.get(file)?.status==='uploaded').length;
         message=`${done} / ${selected.size} uploaded. ${cancel?'Cancelled between uploads. ':''}${halted?'Stopped after a connection, authentication or rate-limit error; remaining files are pending. ':''}Successful parts are skipped on retry in this queue.`;
       } catch(e) {message=e.message;}
       finally {busy=false;render();}
