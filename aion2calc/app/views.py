@@ -313,7 +313,7 @@ def build_view(summary: dict) -> dict:
     return {
         "class": cls, "loadout": loadout, "loadout_name": lo.get("name"), "scenario": summary.get("scenario"),
         "equipment_source": "Saved run loadout" if saved_loadout else "Legacy run: current loadout file; original gear snapshot unavailable",
-        "model_note": summary.get("model_note"), "survival": summary.get("survival"),
+        "model_note": summary.get("model_note"), "objective": summary.get("objective"), "survival": summary.get("survival"),
         "skill_reserves": summary.get("skill_reserves"), "genus": summary.get("genus"),
         "dps": summary.get("dps"), "baseline": summary.get("baseline"), "budgets": budgets,
         "score": summary.get("score"), "scoring_policy": summary.get("scoring_policy"),

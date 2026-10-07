@@ -1,4 +1,4 @@
-"""Direct multi-scenario refinement of anonymous common-loadout candidates."""
+"""Direct multi-scenario refinement with shared personal or comparison constraints."""
 from __future__ import annotations
 
 import math
@@ -73,3 +73,28 @@ class WeightedOptimizer(Optimizer):
             row["pct"] = 100 * row["dps_gain"] / base if base > 0 else 0.0
             row["attack_equiv"] = row["dps_gain"] / attack if attack > 0 else None
         return sorted(combined.values(), key=lambda row: -row["dps_gain"])
+
+
+def optimizer_for(cls, primary, secondary, objective="primary", **kwargs):
+    if objective not in ("primary", "balanced"):
+        raise ValueError("Choose primary or balanced damage optimization")
+    if objective == "balanced":
+        return WeightedOptimizer(cls, [(0.5, primary), (0.5, secondary)], **kwargs)
+    return Optimizer(cls, primary, **kwargs)
+
+
+def objective_summary(objective, primary, secondary, dps, durations=None):
+    if objective not in ("primary", "balanced"):
+        raise ValueError("Choose primary or balanced damage optimization")
+    weights = {primary: 0.5, secondary: 0.5} if objective == "balanced" else {primary: 1.0}
+    components = {name: dps[name] for name in weights}
+    if any(not math.isfinite(value) or value < 0 for value in components.values()):
+        raise ValueError("Objective scores must be finite nonnegative damage values")
+    return {"kind": objective, "weights": weights, "components": components,
+            "score": sum(weights[name] * value for name, value in components.items()),
+            "durations": {name: value for name, value in (durations or {}).items() if name in weights},
+            "label": "Balanced modeled DPS" if objective == "balanced" else primary + " modeled DPS",
+            "note": ("Damage objective subject to the saved HP and trained-skill reserves. "
+                     "Balanced uses equal scenario weights. Stat weights follow the selected objective; "
+                     "skill shares, opener, macro and sensitivity remain primary-scenario views. "
+                     "This local search does not establish a global optimum or competitive PvP efficacy.")}

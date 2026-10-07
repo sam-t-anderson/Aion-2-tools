@@ -321,6 +321,10 @@ Upload a retained fight or saved part to the server selected in Settings. Choose
 
 **Saved Parts** supports a sequential upload queue. Select local files, choose visibility and upload; each file becomes an independent report. Results show progress, report links and errors. **Restore saved queue** or an exported recovery file resumes local queue metadata; Pages requires you to reselect the original files. Check My Uploads before explicitly retrying an uncertain request, because the server may have accepted it already. File fingerprints verify content and saved random request IDs let updated servers reuse matching accepted requests. Older servers and legacy uncertain requests can still duplicate. Clearing a queue starts fresh request IDs. Retry receipts do not reissue private links or ownership tokens; use the original My Uploads entry or ownership backup. Recovery files do not grant ownership. See [saved-part uploads](user-guide.md#review-and-upload-saved-parts) and [queue recovery](user-guide.md#resume-uploads).
 
+### Personal damage objectives
+
+My Character's **Damage objective** selects the existing primary scenario or balanced equal-weight boss/dummy (PvE) or sustained/burst (PvP) damage. The choice is remembered locally. Both scenarios use the same imported gear, fixed saved Genus lines, entered budgets and HP/trained-skill constraints. Balanced search takes longer and can trade primary DPS for the combined score. Results and recovered builds show the weights, component DPS and objective score; the gain compares the current and optimized builds using the same objective. Shares, macro, opener and sensitivity remain primary-scenario views. PvP remains experimental.
+
 ## Community comparisons
 
 Use Combat Logs to browse public submissions by type, boss, build, difficulty and region. Class distributions stay in separate encounter buckets and show parse counts. Search personal records using server ID plus name, or database character ID. World ranks cover this community's public submissions only. Missing classification prevents ranking; open a local saved session to add verified metadata.

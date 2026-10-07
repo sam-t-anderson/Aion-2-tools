@@ -125,6 +125,9 @@ def act_character_optimize(body: dict, log) -> dict:
     if mode not in ("pve", "pvp"):
         raise ValueError("Choose PvE or PvP optimization")
     scenario = "pvp" if mode == "pvp" else "boss"
+    objective = body.get("objective", "primary")
+    if objective not in ("primary", "balanced"):
+        raise ValueError("Choose primary or balanced damage optimization")
     imp = import_character(body["character_id"], int(body["server_id"]), body.get("region", "nae"),
                            progress=log, use_cache=3600)
     out = results_dir() / "characters" / imp.loadout_name()[5:]
@@ -135,7 +138,7 @@ def act_character_optimize(body: dict, log) -> dict:
     log(f"optimizing {mode.upper()} under the same resources (writes {out})")
     # One pass by default keeps the in-app optimize responsive (serial, no process pool when packaged);
     # the big gains are in pass 1 plus the final polish. The CLI can pass more for an exhaustive search.
-    summ = optimize_character(imp, str(out), iterations=int(body.get("iterations", 1)), scenario_name=scenario, progress=log, budgets=body.get("budgets"), survival=body.get("survival", {"preserve_hp": True}), skill_reserves=body.get("skill_reserves"), genus=body.get("genus"))
+    summ = optimize_character(imp, str(out), iterations=int(body.get("iterations", 1)), scenario_name=scenario, progress=log, budgets=body.get("budgets"), survival=body.get("survival", {"preserve_hp": True}), skill_reserves=body.get("skill_reserves"), genus=body.get("genus"), objective=objective)
     best = json.loads((out / "build.json").read_text(encoding="utf-8"))
     cur = json.loads((out / "current" / "build.json").read_text(encoding="utf-8"))
     from ..combat import share

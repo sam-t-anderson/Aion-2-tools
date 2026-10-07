@@ -11,9 +11,7 @@ import time
 from pathlib import Path
 
 from .kit.base import ClassData
-from .opt.pipeline import Optimizer
 from .opt.rotation import describe
-from .opt.statweights import stat_weights
 from .paths import write_user_json
 from .run import prepare
 from .scenarios import SCENARIOS, comparison_scenario
@@ -77,7 +75,7 @@ def budgets_of(imp: ImportedCharacter) -> dict:
     return result
 
 
-def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus: dict | None = None) -> dict:
+def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus: dict | None = None, objective="primary") -> dict:
     """The character as it is (best legal specs for its levels, optimized rotation)."""
     cls = imp.cls
     from .opt.genus import apply as apply_genus
@@ -88,8 +86,9 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus:
     b = imp.build.copy()
     b.bonus = {}                       # gear skill rolls come from the loadout
     bud = budgets_of(imp)
-    opt = Optimizer(cls, scen, verbose=False, sp_budget=bud["skill"], stigma_points=bud["stigma"],
-                    daev_budget=bud["daevanion"])
+    from .opt.weighted import optimizer_for, objective_summary
+    opt = optimizer_for(cls, scen, other, objective, verbose=False, sp_budget=bud["skill"],
+                        stigma_points=bud["stigma"], daev_budget=bud["daevanion"])
     from .run import kit_module
     policy = list(kit_module(cls, pvp=scen.target.is_player).build_kit(opt._with_gear(b), opt.cd).policy)
     b = opt.optimize_specs(b, policy)
@@ -97,6 +96,9 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus:
     cd, bg, kit, stats = prepare(b, scen)
     from .report import _sim
     res_other, _, _ = _sim(b, other, policy)
+    # Weighted rotation returns a composite scalar, not the primary DPS.
+    res, _, _ = _sim(b, scen, policy)
+    dps = res.dps
     d = stats.derived()
     from .model.stats import crit_chance
     eff = bg.effective_levels(cd)
@@ -106,6 +108,9 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus:
         "character": {"name": imp.name, "server": imp.server, "level": imp.level,
                       "combat_power": imp.combat_power, "warnings": imp.warnings},
         "dps": {scenario_name: dps, other_name: res_other.dps},
+        "objective": objective_summary(objective, scenario_name, other_name,
+                                       {scenario_name: dps, other_name: res_other.dps},
+                                       {scenario_name: scen.config.duration, other_name: other.config.duration}),
         "budgets": bud,
         "stats": {"attack_avg": d.attack(), "crit_stat": d.crit_stat,
                   "crit_chance_vs_target": crit_chance(d.crit_stat, scen.target.crit_resist, midpoint=1024.52 if scen.target.is_player else None),
@@ -122,14 +127,14 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus:
                   "specialties": describe_specialties(cd,bg)},
         "policy": describe(policy),
         "policy_raw": [list(e) if isinstance(e, tuple) else e for e in policy],
-        "weights": stat_weights(stats, kit, policy, scen.target, scen.config),
+        "weights": opt._stat_weights(b, policy, final=True),
         "shares": res.shares(),
         "systems": imp.systems, "genus": copy.deepcopy(genus),
     }
 
 
 def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2,
-                       scenario_name: str = "boss", progress=None, budgets: dict | None = None, survival: dict | None = None, skill_reserves: dict | None = None, genus: dict | None = None) -> dict:
+                       scenario_name: str = "boss", progress=None, budgets: dict | None = None, survival: dict | None = None, skill_reserves: dict | None = None, genus: dict | None = None, objective="primary") -> dict:
     from .diff import write_diff
     from .report import run_report
     out = Path(out_dir)
@@ -144,7 +149,7 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     genus_plan = prepare_genus(inv.get("genus", {}), "pvp" if scenario_name.startswith("pvp") else "pve", genus)
     if progress:
         progress(f"Genus Insight: {len(genus_plan['lines'])} saved lines; {genus_plan['mode'].upper()} damage model")
-    cur = evaluate_current(imp, scenario_name, genus_plan)
+    cur = evaluate_current(imp, scenario_name, genus_plan, objective)
     (out / "current").mkdir(parents=True, exist_ok=True)
     bud = dict(cur["budgets"])
     for key, value in (budgets or {}).items():
@@ -170,10 +175,12 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     (out / "current" / "build.json").write_text(json.dumps(cur, indent=1, default=str), encoding="utf-8")
     best = run_report(imp.cls, str(out), scenario_name=scenario_name, daev_budget=bud["daevanion"],
                       iterations=iterations, loadout=imp.loadout_name(), sp_budget=bud["skill"],
-                      stigma_points=bud["stigma"], progress=progress, survival=survival_plan, loadout_snapshot=imp.loadout, skill_reserves=reserve_plan, genus=genus_plan)
+                      stigma_points=bud["stigma"], progress=progress, survival=survival_plan, loadout_snapshot=imp.loadout, skill_reserves=reserve_plan, genus=genus_plan, objective=objective)
     write_diff(str(out / "current"), str(out), str(out / "DIFF.md"))
-    gain = best["dps"][scenario_name] / cur["dps"][scenario_name] - 1
+    current_score, optimized_score = cur["objective"]["score"], best["objective"]["score"]
+    gain = optimized_score / current_score - 1 if current_score > 0 else None
     summary = {"character": cur["character"], "current_dps": cur["dps"], "optimized_dps": best["dps"],
-               "gain": gain, "scenario": scenario_name, "genus": best.get("genus"), "survival": best.get("survival"), "skill_reserves": best.get("skill_reserves"), "budgets": bud, "seconds": time.time() - t0}
+               "gain": gain, "scenario": scenario_name,
+               "objective": {**best["objective"], "current_score": current_score, "gain": gain}, "genus": best.get("genus"), "survival": best.get("survival"), "skill_reserves": best.get("skill_reserves"), "budgets": bud, "seconds": time.time() - t0}
     (out / "character.json").write_text(json.dumps(summary, indent=1), encoding="utf-8")
     return summary
