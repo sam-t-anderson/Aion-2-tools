@@ -61,6 +61,10 @@ What the profile does not show, and how it is handled:
 
 **Imported before** lists the newest eight imports. Click one to fetch its current official profile again. This refresh is separate from reopening a saved optimization snapshot.
 
+### Personal damage objectives
+
+My Character's **Damage objective** selects the existing primary scenario or balanced equal-weight boss/dummy (PvE) or sustained/burst (PvP) damage. The choice is remembered locally. Both scenarios use the same imported gear, fixed saved Genus lines, entered budgets and HP/trained-skill constraints. Balanced search takes longer and can trade primary DPS for the combined score. Results and recovered builds show the weights, component DPS and objective score; the gain compares the current and optimized builds using the same objective. Shares, macro, opener and sensitivity remain primary-scenario views. PvP remains experimental.
+
 ## Point budgets
 
 The build windows show points spent / optimization budget. Gear and Daevanion bonus skill levels do not consume purchased skill points. PvP Daevanion uses its own resource.
@@ -320,10 +324,6 @@ Upload a retained fight or saved part to the server selected in Settings. Choose
 **My Uploads** uses separate ownership credentials to change visibility, rotate private links or delete uploads. Export a private credential backup before moving devices. A shared upload key or character name does not recover ownership. See [privacy and ownership](user-guide.md#my-uploads-and-privacy).
 
 **Saved Parts** supports a sequential upload queue. Select local files, choose visibility and upload; each file becomes an independent report. Results show progress, report links and errors. **Restore saved queue** or an exported recovery file resumes local queue metadata; Pages requires you to reselect the original files. Check My Uploads before explicitly retrying an uncertain request, because the server may have accepted it already. File fingerprints verify content and saved random request IDs let updated servers reuse matching accepted requests. Older servers and legacy uncertain requests can still duplicate. Clearing a queue starts fresh request IDs. Retry receipts do not reissue private links or ownership tokens; use the original My Uploads entry or ownership backup. Recovery files do not grant ownership. See [saved-part uploads](user-guide.md#review-and-upload-saved-parts) and [queue recovery](user-guide.md#resume-uploads).
-
-### Personal damage objectives
-
-My Character's **Damage objective** selects the existing primary scenario or balanced equal-weight boss/dummy (PvE) or sustained/burst (PvP) damage. The choice is remembered locally. Both scenarios use the same imported gear, fixed saved Genus lines, entered budgets and HP/trained-skill constraints. Balanced search takes longer and can trade primary DPS for the combined score. Results and recovered builds show the weights, component DPS and objective score; the gain compares the current and optimized builds using the same objective. Shares, macro, opener and sensitivity remain primary-scenario views. PvP remains experimental.
 
 ## Community comparisons
 
