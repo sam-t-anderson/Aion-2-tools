@@ -1,5 +1,7 @@
 # Aion 2 Calc 0.2.33
 
+- Let combat-review users supply a missing character home server and region for a current official profile preview. Manual previews remain separate from upload-time historical snapshots. Pages and server views require server 0.2.18. Show PvP timing without unrelated boss-progression/speed tables.
+
 - Upload Live Meter logs as a background job using a detached session copy. Prepare summaries outside the capture lock so uploads do not monopolize packet decoding; expose upload progress and restore controls after failure.
 
 - Add separate **Optimize PvE build** and **Optimize PvP damage (experimental)** actions. Save PvP results separately and identify their model in reports and recovered results.
