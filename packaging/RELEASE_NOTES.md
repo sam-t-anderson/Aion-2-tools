@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.61
+
+Reduce Windows capture pressure by requesting an 8 MiB Npcap kernel buffer per adapter before sniffing. Capture uses non-promiscuous mode. Diagnostics record whether the buffer request succeeded; a rejected request retains the backend default and shows a warning.
+
+Opt-in TCP diagnostics batch disk writes with a bounded 256 KiB buffer, flushing during recording and before export. Export still copies a fixed prefix while capture continues. Write/flush failures remain visible; failed recordings are retained. A sudden process termination can lose the unflushed diagnostic tail; combat logging is separate.
+
+Analysis of the supplied 0.2.59 recording found capture-driver drops and long TCP forwarding gaps. Replaying its retained segments with 0.2.60 reduced the longest forwarding gap from about 521 seconds to 7.6 seconds. This is a transport replay, not proof of complete combat decoding or loss-free capture. Keep 0.2.60's bounded TCP recovery and incomplete-capture reporting; missing data cannot be reconstructed.
+
 # Aion 2 Calc 0.2.60
 
 Prevent known capture stalls after a missing TCP chunk: allow normal packet reordering for five seconds, then resume from fresh bytes with a recorded lossy boundary instead of buffering later encounters indefinitely. Queue limits and observed replacement SYN also reset stale partial decoder framing. Recovery splits the encounter, preserves earlier data and records capture loss for ranking eligibility. Live Meter displays the recovery count. Missing packets are not reconstructed.

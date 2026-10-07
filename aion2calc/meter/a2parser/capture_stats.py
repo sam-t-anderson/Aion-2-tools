@@ -1,4 +1,5 @@
 """Read cumulative libpcap counters on the capture thread, never during a concurrent read."""
+import sys
 import threading
 import time
 
@@ -17,6 +18,20 @@ class PcapStats:
         self.values = {key: 0 for key in FIELDS}
         self.error = None
         self.partial = False
+        self.buffer_bytes = None
+        self.buffer_warning = None
+        # Scapy has already activated the handle. Npcap's Windows extension
+        # supports resizing here; the portable pre-activation API does not.
+        # Do this only before sniffing: resizing discards the old buffer.
+        if sys.platform == "win32":
+            try:
+                from scapy.libs.winpcapy import pcap_setbuff
+                handle = getattr(getattr(capture_socket, "pcap_fd", None), "pcap", None)
+                if not handle or pcap_setbuff(handle, 8 * 1024 * 1024) != 0:
+                    raise OSError("Capture buffer request was not accepted")
+                self.buffer_bytes = 8 * 1024 * 1024
+            except Exception:
+                self.buffer_warning = "Could not enlarge the Windows capture buffer; using the backend default."
 
     def sample(self, force=False):
         """Call before sniffing, in its packet callback, or after its thread has exited."""
@@ -49,4 +64,5 @@ class PcapStats:
     def snapshot(self):
         with self.lock:
             return {**self.values, "pcap_stats_sampled": self.values["pcap_stats_reads"] > 0,
-                    "pcap_stats_partial": self.partial, "reason": self.error}
+                    "pcap_stats_partial": self.partial, "reason": self.error,
+                    "capture_buffer_bytes": self.buffer_bytes, "capture_buffer_warning": self.buffer_warning}
