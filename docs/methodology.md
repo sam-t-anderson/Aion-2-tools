@@ -176,6 +176,14 @@ My Character provides separate PvE and PvP damage actions. PvP uses the generic 
 
 The optional HP reserve below also applies to PvP, but it is a manual incoming-pressure constraint, not a simulation of an optimized opponent or a competitive win probability.
 
+## Canonical preset comparison policy
+
+The versioned canonical preset evaluator compares allocations within one class, combat mode and scoring scope. It uses a common median loadout and fixed example budgets of 203 Skill, 30 Stigma and 360 crystal-board Daevanion points. These are comparison resources, not verified game maxima. Over-budget submissions need a separate optimization under these resources; they are not silently trimmed into a different build.
+
+PvE weights the 180-second boss and dummy damage scenarios equally. PvP weights the 180-second stationary player proxy and 30-second burst proxy equally. The score is the arithmetic mean of the two modeled DPS values, not a percentile, user rating or win probability. Personal gear, Genus, HP reserves and trained skill constraints are not shared comparison inputs. Learned calibration is disabled.
+
+The scope fingerprints the evaluator version, class data, hit profiles, common loadout, budgets, durations and weights. A different scope requires reevaluation. The best eligible evaluated candidate can become canonical; that does not establish a global optimum or a competitive PvP build. Mode-scoped server storage, synchronization and Planner selection build on this evaluator in subsequent checkpoints.
+
 ## Manual Genus Insight
 
 Character optimization reads the saved inventory's manual Genus analysis lines by default. Both the current-build score and optimized build use the same frozen loadout component, including comparison scenarios and baseline builds. The official character import is unchanged; it does not supply Genus allocations. Saved reports retain levels, slots, values, mode, assumed mix and excluded effects.

@@ -25,7 +25,7 @@ def candidate(summary: dict) -> dict:
                       "policy": copy.deepcopy(summary.get("policy", []))}}
 
 
-def parse(doc: dict):
+def parse(doc: dict, *, scenario_name: str = "boss", loadout_snapshot: dict | None = None):
     """Accept only known skills, legal levels, connected boards and bounded policies."""
     from .opt.daevanion import CRYSTAL_BOARDS, connected
     from .opt.rotation import CONDITIONS
@@ -33,6 +33,8 @@ def parse(doc: dict):
     from .run import prepare
     from .scenarios import SCENARIOS
 
+    if scenario_name not in ("boss", "pvp"):
+        raise InvalidPreset("unsupported preset scenario")
     if not isinstance(doc, dict) or doc.get("format") != "a2preset" or doc.get("version") != 1:
         raise InvalidPreset("not an a2preset v1 document")
     cls = doc.get("class")
@@ -82,7 +84,7 @@ def parse(doc: dict):
     build, rotation = build_from_summary(clean)
     if build.sp_spent() > BUDGETS["skill"] or build.stigma_spent() > BUDGETS["stigma"] or build.daevanion_cost(cd) > BUDGETS["daevanion"]:
         raise InvalidPreset("build exceeds the shared Planner budget (203 skill / 30 stigma / 360 Daevanion)")
-    scen = SCENARIOS["boss"](f"{cls}_l45_global_median")
+    scen = SCENARIOS[scenario_name](loadout_snapshot if loadout_snapshot is not None else f"{cls}_l45_global_median")
     _, geared, kit, _ = prepare(build, scen)
     # A real character may unlock more specializations through gear. Keep only those
     # available with the common class loadout used for the comparison.
