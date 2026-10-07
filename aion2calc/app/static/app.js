@@ -758,6 +758,7 @@ async function pageRaid() {
 // ------------------------------------------------------------- live meter
 async function pageMeter() {
   const st = S.meter;
+  st.lastMeterRender = null; // The previous DOM was removed when leaving this page.
   app().innerHTML = `<section class="win"><div class="wh"><h2>Live damage meter</h2><span class="sub">built-in A2Tools packet capture, live analysis and a2log sharing</span></div>
     <div class="wb"><div class="row"><label class="muted small">Source</label>
         <select id="msrc"><option value="a2tools" selected>Live Capture</option><option value="replay">Demo replay</option><option value="live">Custom decoder</option></select>
