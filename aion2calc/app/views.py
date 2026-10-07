@@ -127,23 +127,34 @@ def stigmas_view(cd: ClassData, build) -> list[dict]:
     return out
 
 
-def _catalog_look(name: str) -> dict:
-    """Icon and grade for a loadout item name ("Aulamus / Liberator Earrings ~+6" -> Aulamus Earrings)."""
+def _catalog_look(name: str, slug: str | None = None) -> dict:
+    """Prefer an explicit catalog slug; do not guess one item from a grouped family."""
     import re as _re
     try:
         from ..db import store
         conn = store.connect()
+        if slug:
+            row = conn.execute("SELECT icon, grade FROM items WHERE slug=?", (slug,)).fetchone()
+            if row:
+                return {"icon": row[0], "grade": row[1], "visual_source": "Catalog slug"}
+        base = _re.sub(r"\s*[~+]\+?\d+.*$", "", name or "").strip()
+        if not base or " / " in base:
+            return {}
+        rows = conn.execute("SELECT DISTINCT icon, grade FROM items WHERE name = ? COLLATE NOCASE LIMIT 2", (base,)).fetchall()
+        if len(rows) == 1:
+            return {"icon": rows[0][0], "grade": rows[0][1], "visual_source": "Unique catalog name"}
     except Exception:
         return {}
-    base = _re.sub(r"\s*[~+]\+?\d+.*$", "", name or "").strip()
-    first = base.split(" / ")[0].strip()
-    if " / " in base and len(first.split()) == 1:          # "Aulamus / Liberator Earrings"
-        first = first + " " + base.split()[-1]
-    for cand in (base, first):
-        row = conn.execute("SELECT icon, grade FROM items WHERE name = ? COLLATE NOCASE LIMIT 1", (cand,)).fetchone()
-        if row:
-            return {"icon": row[0], "grade": row[1]}
     return {}
+
+
+def _component_look(component: dict) -> dict:
+    direct = {k: component[k] for k in ("icon", "grade", "enchant", "item_id", "slot_pos", "visual_source")
+              if component.get(k) is not None}
+    if direct.get("icon"):
+        return direct
+    direct.pop("icon", None)
+    return {**_catalog_look(component.get("item", ""), component.get("item_slug")), **direct}
 
 
 def _class_ok(item: dict, cls: str | None) -> bool:
@@ -159,7 +170,7 @@ def equipment_view(lo: dict, weights: list | None, cls: str | None = None) -> di
     gear_like = [c for c in comps if not c["slot"].startswith(("Title", "Attack title", "Other title",
                                                                "Defense title", "Owned titles", "Wings",
                                                                "Primary/deity", "Gear skill", "Arcana"))]
-    slots = [{"slot": c["slot"], "item": c.get("item"), "source": c.get("source"), **_catalog_look(c.get("item", "")),
+    slots = [{"slot": c["slot"], "item": c.get("item"), "source": c.get("source"), **_component_look(c),
               "stats": fmt_stats({k: v for k, v in c.get("stats", {}).items() if k != "skill_bonus"})}
              for c in gear_like]
     pu = per_unit(weights) if weights else {}
@@ -283,13 +294,18 @@ def build_view(summary: dict) -> dict:
     cd = ClassData(cls)
     build, policy = build_from_summary(summary)
     loadout = summary.get("loadout") or f"{cls}_l45_global_median"
-    lo = load_loadout(loadout)
+    snapshot = summary.get("loadout_snapshot")
+    saved_loadout = (isinstance(snapshot, dict) and isinstance(snapshot.get("components"), list)
+                     and all(isinstance(c, dict) and isinstance(c.get("stats", {}), dict) and isinstance(c.get("slot"), str)
+                             for c in snapshot["components"]))
+    lo = snapshot if saved_loadout else load_loadout(loadout)
     gear = loadout_stats(lo).skill_bonus
     weights = summary.get("weights") or []
     budgets = summary.get("budgets") or {"skill": 203, "stigma": 30,
                                          "daevanion": summary.get("daevanion_budget", 360)}
     return {
         "class": cls, "loadout": loadout, "loadout_name": lo.get("name"), "scenario": summary.get("scenario"),
+        "equipment_source": "Saved run loadout" if saved_loadout else "Legacy run: current loadout file; original gear snapshot unavailable",
         "model_note": summary.get("model_note"), "survival": summary.get("survival"),
         "dps": summary.get("dps"), "baseline": summary.get("baseline"), "budgets": budgets,
         "points": {"skill": build.sp_spent(), "stigma": build.stigma_spent(), "daevanion": build.daevanion_cost(cd)},

@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import copy
 import json
 import random
 import time
@@ -138,10 +139,11 @@ def _build_card(cd, summary: dict, build, policy, out: Path) -> None:
         from .render.buildcard import render_build_card
         cls, scen_name = summary["class"], summary["scenario"]
         loadout = summary.get("loadout") or f"{cls}_l45_global_median"
-        _, bg, kit, _ = prepare(build, SCENARIOS[scen_name](loadout))
+        lo = summary.get("loadout_snapshot") or load_loadout(loadout)
+        _, bg, kit, _ = prepare(build, SCENARIOS[scen_name](lo))
         eff = bg.effective_levels(cd)
         dv = cd.daevanion_levels(build.daevanion)
-        gear = loadout_stats(load_loadout(loadout)).skill_bonus
+        gear = loadout_stats(lo).skill_bonus
 
         def skill_rows(kind):
             rows = []
@@ -186,14 +188,14 @@ def _build_card(cd, summary: dict, build, policy, out: Path) -> None:
             subtitle=f"Optimized for: {scen_name} · Daevanion {build.daevanion_cost(cd)}/{summary['daevanion_budget']}"
                      f" · SP {build.sp_spent()}/{summary.get('budgets', {}).get('skill', 203)}"
                      f" · Stigma {build.stigma_spent()}/{summary.get('budgets', {}).get('stigma', 30)}"
-                     f" · Gear: {load_loadout(loadout).get('name', loadout).split(' - ')[-1]}",
+                     f" · Gear: {lo.get('name', loadout).split(' - ')[-1]}",
             skills=skill_rows("active"), passives=skill_rows("passive"), stigmas=stig_rows, priority=pr,
             macro={"steps": [names.get(x, x) for x in m["steps"]],
                    "manual": [names.get(x.split(" [")[0], x) for x in m["manual"]],
                    "note": ("Hold the macro key; press the manual skills when they come off cooldown."
                             if m["manual"] else "Hold the macro key all fight; steps on cooldown are skipped.")},
             stat_lines=stat_lines, weights=summary["weights"],
-            shares=list(summary["shares"].items()), gear=_gear_lines(loadout),
+            shares=list(summary["shares"].items()), gear=_gear_lines(lo),
             links=[f"{k}: {v[:118]}{'…' if len(v) > 118 else ''}" for k, v in links.items()])
     except Exception as err:  # images are a bonus; never fail the report on them
         print("build card failed:", err)
@@ -225,17 +227,18 @@ def rerender(out_dir: str) -> str:
     cls = summary["class"]
     loadout = summary.get("loadout") or f"{cls}_l45_global_median"
     summary["loadout"] = loadout
+    lo = summary.get("loadout_snapshot") or load_loadout(loadout)
     build, policy = build_from_summary(summary)
     (Path(out_dir) / "images").mkdir(parents=True, exist_ok=True)
     if "crit_sensitivity" not in summary:
-        summary["crit_sensitivity"] = crit_sensitivity(build, SCENARIOS[summary["scenario"]](loadout), policy)
+        summary["crit_sensitivity"] = crit_sensitivity(build, SCENARIOS[summary["scenario"]](lo), policy)
         path.write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
     if ("kr_fidelity" not in summary or "arcana_rolls" not in summary
             or summary.get("macro", {}).get("model_version") != MODEL_VERSION):
-        dummy = SCENARIOS["dummy"](loadout)
-        scen = SCENARIOS[summary["scenario"]](loadout)
+        dummy = SCENARIOS["dummy"](lo)
+        scen = SCENARIOS[summary["scenario"]](lo)
         summary.setdefault("kr_fidelity", kr_share_overlap(cls, _sim(build, dummy, policy)[0].shares()))
-        summary.setdefault("arcana_rolls", arcana_roll_values(cls, build, SCENARIOS[summary["scenario"]](loadout), policy))
+        summary.setdefault("arcana_rolls", arcana_roll_values(cls, build, SCENARIOS[summary["scenario"]](lo), policy))
         summary.pop("arcana_skill_values", None)
         if summary.get("macro", {}).get("model_version") != MODEL_VERSION:
             _, _, kit, stats = prepare(build, scen)
@@ -245,8 +248,8 @@ def rerender(out_dir: str) -> str:
     _board_images(ClassData(cls), build, typical_build(cls), Path(out_dir), summary["daevanion_budget"])
     _build_card(ClassData(cls), summary, build, policy, Path(out_dir))
     return write_markdown(summary, out_dir, extra={
-        "gear_lines": _gear_lines(loadout), "weapon_compare": summary.get("weapon_compare"),
-        "loadout_name": load_loadout(loadout).get("name", loadout)})
+        "gear_lines": _gear_lines(lo), "weapon_compare": summary.get("weapon_compare"),
+        "loadout_name": lo.get("name", loadout)})
 
 
 def crit_sensitivity(build, scenario, policy, midpoint: float = 700.0) -> dict:
@@ -299,16 +302,18 @@ def sensitivity(build, scenario, policy, samples: int = 12, spread: float = 0.25
 def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget: int = 360,
                iterations: int = 3, loadout: str | None = None, verbose: bool = True,
                sp_budget: int | None = None, stigma_points: int | None = None,
-               current: object | None = None, progress=None, survival=None) -> dict:
+               current: object | None = None, progress=None, survival=None, loadout_snapshot: dict | None = None) -> dict:
     """``current``: a Build (e.g. an imported character) to evaluate and diff against.
     ``progress``: optional callback(str) for live phase updates (the app streams these to the UI)."""
     t0 = time.time()
     out = Path(out_dir)
     (out / "images").mkdir(parents=True, exist_ok=True)
     loadout = loadout or f"{cls}_l45_global_median"
-    scen = SCENARIOS[scenario_name](loadout)
+    from .model.character import load_loadout
+    frozen_loadout = copy.deepcopy(loadout_snapshot) if loadout_snapshot is not None else load_loadout(loadout)
+    scen = SCENARIOS[scenario_name](frozen_loadout)
     other_name = comparison_scenario(scenario_name)
-    other = SCENARIOS[other_name](loadout)
+    other = SCENARIOS[other_name](frozen_loadout)
     cd = ClassData(cls)
 
     opt = Optimizer(cls, scen, daev_budget=daev_budget, verbose=verbose, sp_budget=sp_budget,
@@ -377,6 +382,8 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     wc = weapon_compare(build, scen, policy, per_unit(res.weights))
     summary["weapon_compare"] = wc
     summary["loadout"] = loadout
+    from .model.character import load_loadout
+    summary["loadout_snapshot"] = frozen_loadout
     from .opt.survival import assessment
     summary["survival"] = assessment(cd, build, survival)
     summary["arcana_rolls"] = arcana_roll_values(cls, build, scen, policy)
@@ -393,8 +400,8 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     _build_card(cd, summary, build, policy, out)
     from .report_md import write_markdown
     from .model.character import load_loadout
-    write_markdown(summary, str(out), extra={"gear_lines": _gear_lines(loadout), "weapon_compare": wc,
-                                             "loadout_name": load_loadout(loadout).get("name", loadout)})
+    write_markdown(summary, str(out), extra={"gear_lines": _gear_lines(frozen_loadout), "weapon_compare": wc,
+                                             "loadout_name": frozen_loadout.get("name", loadout)})
     if verbose:
         print(f"report written to {out} in {time.time() - t0:.0f}s")
     return summary
@@ -465,7 +472,7 @@ def weapon_compare(build, scenario, policy, pu) -> list[dict]:
     return rows
 
 
-def _gear_lines(loadout: str) -> list[str]:
+def _gear_lines(loadout: str | dict) -> list[str]:
     from .model.character import load_loadout
-    lo = load_loadout(loadout)
+    lo = load_loadout(loadout) if isinstance(loadout, str) else loadout
     return [f"{c['slot']}: {c['item']}" for c in lo.get("components", [])]
