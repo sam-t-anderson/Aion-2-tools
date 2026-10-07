@@ -162,6 +162,8 @@ PvP supports a multi-opponent **incoming-pressure** envelope, not optimized oppo
 
 ### Trained skill and stigma reserves
 
+Under **Retain trained skills and equipped stigmas → Choose effects**, reserve supporting effects on active skills. The optimizer keeps those effects while searching the remaining choices. Trained minimums automatically increase to cover the catalog effect unlocks and selection-slot gates with fixed gear bonuses. This can cost skill points and damage. If purchasable levels plus gear cannot guarantee the effects without Daevanion levels, the request is rejected explicitly. Stigma effects remain automatic. Saved results and Markdown list the retained effects. These choices preserve your utility setup; their defensive, control or movement efficacy is not scored.
+
 My Character → **Retain trained skills and equipped stigmas** optionally sets minimum purchasable levels for active/passive skills and currently equipped stigmas. A reserved stigma stays equipped. The optimizer maximizes modeled damage within these floors and the point/slot budgets; infeasible requests produce an error. Settings persist per character and apply to both PvE and PvP. Saved Results, build JSON and Markdown retain the minimum and selected levels. These personal builds are excluded from community damage preset comparisons.
 
 Floors apply to trained levels, not effective levels. Daevanion/gear bonuses and specialties may change. Use utility skills manually when absent from the suggested rotation. Reserving a defensive or movement skill does not simulate its tactical use, CC, shields, opponent defenses or win probability; damage baselines and stat priorities remain unconstrained references.

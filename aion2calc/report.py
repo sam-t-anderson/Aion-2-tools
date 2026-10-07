@@ -328,7 +328,9 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     # baseline: the typical top global build (live statistics) with the best legal
     # specs for its levels, played with the default priority and with an optimized rotation
     comm = typical_build(cls, sp_budget=opt.sp_budget, stigma_points=opt.stigma_points)
-    comm = opt.optimize_specs(comm, list(kit_module(cls, pvp=scen.target.is_player).build_kit(opt._with_gear(comm), cd).policy))
+    baseline_opt = (optimizer_for(cls, scen, other, objective, verbose=False)
+                    if (skill_reserves or {}).get("specs") else opt)
+    comm = baseline_opt.optimize_specs(comm, list(kit_module(cls, pvp=scen.target.is_player).build_kit(baseline_opt._with_gear(comm), cd).policy))
     cd_, cb, ckit, cstats = prepare(comm, scen)
     naive = Sim(cstats.derived(), ckit.actions, ckit.policy, scen.target, scen.config,
                 hooks=ckit.hooks, cond_mods=ckit.cond_mods).run()

@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.68
+
+Personal skill reserves now support specific supporting effects on active skills. The optimizer retains selected effects while searching the remaining damage choices. Minimum trained levels automatically cover effect unlocks and selection-slot gates using fixed gear bonuses, with the same skill-point budget. Saved results and Markdown list the retained effects.
+
+Effects that require changeable Daevanion levels beyond the guaranteed trained-plus-gear floor are rejected in this first version. Stigma effects remain automatic. Utility effects are preserved by user choice, not ranked by inferred defensive, CC or mobility coefficients. Canonical community scoring is unchanged; no server evaluator update is required.
+
 # Aion 2 Calc 0.2.67
 
 Personal survival settings can import an exported optimized PvP result as an opponent pressure benchmark. Choose sustained or burst-average modeled DPS, explicitly enter an incoming scale, and choose the pressure window. Saved results and Markdown retain the original result label, class, score, duration, model note and scale alongside editable assumptions.
