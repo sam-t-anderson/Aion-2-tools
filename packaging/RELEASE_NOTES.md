@@ -1,3 +1,13 @@
+# Aion 2 Calc 0.2.41
+
+- Recognize map 61 as a user-confirmed arena when player combat is present, retaining an explicit unknown-specific-name label. Catalog revisions now include map evidence and coverage rules so the server can refresh existing coverage.
+
+- My Character optimization preserves the imported flat HP contribution from crystal boards by default, maximizing modeled DPS subject to that reserve. Add a manual minimum or disable preservation for the previous damage-only objective.
+- Add up to eight editable incoming-damage scenarios for PvE encounters or PvP opponents. Enter current maximum HP, hit damage after mitigation, incoming DPS, sustained HPS, time window and positive reserve. The strictest assumed requirement constrains the node allocation; show per-scenario HP headroom and worst headroom in results and recovered snapshots.
+- Keep HP proxy assumptions visible. Armor, percentage HP, defensive skills, CC, movement, optimized opponent profiles and PvP win probabilities are not modeled in this checkpoint. Gear & Advice remains damage-based. Constrained builds stay local instead of replacing damage-only community presets.
+- Reject infeasible HP allocations rather than silently publishing an unconstrained fallback; validate integer solutions, connectivity, budgets and constraints.
+- Fix a mapping-coverage false positive when a known dungeon ID is repeated as the map ID (including Fire Temple 600021). Unknown difficulty remains unknown.
+
 # Aion 2 Calc 0.2.40
 
 - Save bounded upload-recovery checkpoints on desktop disk and in Pages browser storage. Restore a saved queue or export/import its recovery file after navigation or restart.

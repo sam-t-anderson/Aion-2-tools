@@ -126,11 +126,15 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss") -> dic
 
 
 def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2,
-                       scenario_name: str = "boss", progress=None, budgets: dict | None = None) -> dict:
+                       scenario_name: str = "boss", progress=None, budgets: dict | None = None, survival: dict | None = None) -> dict:
     from .diff import write_diff
     from .report import run_report
     out = Path(out_dir)
     t0 = time.time()
+    from .opt.survival import prepare as prepare_survival
+    survival_plan = prepare_survival(ClassData(imp.cls), imp.build, survival)
+    if survival_plan and progress:
+        progress(f"HP reserve: maximize damage while retaining at least {survival_plan['minimum_node_hp']:,.0f} flat crystal-board HP")
     cur = evaluate_current(imp, scenario_name)
     (out / "current").mkdir(parents=True, exist_ok=True)
     bud = dict(cur["budgets"])
@@ -153,10 +157,10 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     (out / "current" / "build.json").write_text(json.dumps(cur, indent=1, default=str), encoding="utf-8")
     best = run_report(imp.cls, str(out), scenario_name=scenario_name, daev_budget=bud["daevanion"],
                       iterations=iterations, loadout=imp.loadout_name(), sp_budget=bud["skill"],
-                      stigma_points=bud["stigma"], progress=progress)
+                      stigma_points=bud["stigma"], progress=progress, survival=survival_plan)
     write_diff(str(out / "current"), str(out), str(out / "DIFF.md"))
     gain = best["dps"][scenario_name] / cur["dps"][scenario_name] - 1
     summary = {"character": cur["character"], "current_dps": cur["dps"], "optimized_dps": best["dps"],
-               "gain": gain, "scenario": scenario_name, "budgets": bud, "seconds": time.time() - t0}
+               "gain": gain, "scenario": scenario_name, "survival": best.get("survival"), "budgets": bud, "seconds": time.time() - t0}
     (out / "character.json").write_text(json.dumps(summary, indent=1), encoding="utf-8")
     return summary

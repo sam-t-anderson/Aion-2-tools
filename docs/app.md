@@ -395,3 +395,19 @@ Skill images use the desktop icon cache or metabot.gg on the website; unavailabl
 The file fingerprint must match before a successful entry is skipped or another request is sent. A changed file stops the queue; remove it or clear/review a new queue. A missing file must be restored or removed. Pages can reattach uniquely named files after copying; fingerprints still verify content. Recovery files are user-editable local records, not authenticated server receipts or upload ownership.
 
 Requests interrupted during upload restore as **unknown**. Check **My uploads**/the original server before checking the explicit uncertain-retry option. The server may already have accepted a request even if the response was lost; explicit retry can duplicate it. Known successful uploads are skipped, but this is not durable server idempotency. No automatic upload starts when restoring or importing. Private report links must be reopened through My uploads, since recovery files intentionally omit them. Clearing a queue also clears its saved checkpoint, without deleting logs or uploads.
+
+## Damage with an HP reserve (0.2.41)
+
+My Character → **Survivability** preserves the character's imported flat **HPMax** contribution from the four optimized crystal boards by default. The existing DPS objective stays primary inside the set of allocations meeting this floor. Skill, stigma and Daevanion budgets and board connectivity remain enforced. A stricter minimum can trade some modeled DPS for more crystal HP. Disable preservation and leave the minimum/scenarios empty to use the previous damage-only objective. This is an HP-node constraint, not a full survival simulator.
+
+Optional scenarios describe one hit followed by sustained pressure. Enter current in-game maximum HP and up to eight encounter/opponent assumptions: **hit damage after mitigation + max(0, incoming DPS − assumed sustained HPS) × seconds + positive HP reserve**. The largest requirement sets the floor. HPS never absorbs the initial hit. Estimated total HP is entered current HP plus the flat node-HP change; percentage modifiers and passive/gear changes are not modeled. Headroom is a scenario proxy, not verified effective HP, guaranteed survival or win probability. Confirm final HP in game.
+
+Settings persist per selected character in this browser. Saved Results/build JSON/Markdown retain assumptions and the assessment. Infeasible requests report an error without publishing a lower-HP fallback. Solver limits can prevent finding an allocation even when one exists. Damage-only stat priorities, baseline comparisons and Gear & Advice do not validate survival; constrained builds are not submitted as community damage presets.
+
+PvP supports a manual multi-opponent **incoming-pressure** envelope, not optimized opponent-build combat. Next modeling work: resolve official current/historical opponent gear with provenance; evaluate outgoing damage and adverse matchups; include verified defensive skill, CC, mobility and coefficient rules before scoring them. Those metrics are explicitly unavailable here. This checkpoint does not invent mitigation or tactical coefficients.
+
+Mapping coverage also recognizes a known dungeon ID repeated in the map field. The submitted 600021 report already identifies Fire Temple; it is no longer separately flagged as an unknown map. Distinct unknown map IDs and missing difficulty remain unresolved.
+
+### Catalog follow-up
+
+Map 61 is categorized as Arena only when identified player combat is recorded, based on a user-confirmed arena capture. The exact arena name remains unverified. Map 600021 with matching known instance 600021 resolves to Fire Temple. Map 200003 remains unresolved: NPC dungeon references alone do not establish the recorded map's name or difficulty. Unknown patch/difficulty are retained rather than guessed.

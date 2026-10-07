@@ -29,6 +29,18 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
     w("![Build card](images/build_card.png)\n")
     if s.get("model_note"):
         w(s["model_note"] + "\n")
+    if s.get("survival"):
+        hp = s["survival"]
+        w("## HP reserve\n")
+        w(f"Crystal-board HP: {hp['selected_node_hp']:,.0f}; minimum {hp['minimum_node_hp']:,.0f}; previous {hp['reference_node_hp']:,.0f}.\n")
+        w(hp["note"] + "\n")
+        if hp["opponents"]:
+            w("| User-assumed encounter/opponent | Required HP | Proxy HP headroom |")
+            w("|---|---:|---:|")
+            for row in hp["opponents"]:
+                name = row["name"].replace("|", " / ").replace("\n", " ")
+                w(f"| {name} | {row['required_hp']:,.0f} | {row['headroom_hp']:,.0f} |")
+        w("DPS is optimized subject to this reserve. Damage-only baselines and stat priorities do not validate survivability.\n")
     w("## Results\n")
     w("| Build | " + scen + " DPS | " + other + " DPS |")
     w("|---|---:|---:|")

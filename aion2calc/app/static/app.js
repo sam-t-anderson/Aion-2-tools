@@ -267,6 +267,31 @@ function winMacro(v) {
   return win("Skill Macro & rotation", "", body, { key: "macro", copy });
 }
 
+function survivalSummary(plan) {
+  if(!plan)return '';
+  return `<section class="note"><h3>HP reserve · constrained damage optimization</h3><p>Crystal-board flat HP: <b>${n0(plan.selected_node_hp)}</b> · requested floor: ${n0(plan.minimum_node_hp)} · previous contribution: ${n0(plan.reference_node_hp)}. ${plan.meets_node_floor?'Reserve met.':'Reserve not met.'}</p>
+    ${plan.estimated_total_hp_proxy!=null?`<p>Estimated total HP proxy: ${n0(plan.estimated_total_hp_proxy)} · worst assumed headroom: ${plan.worst_headroom_hp==null?'Not assessed':n0(plan.worst_headroom_hp)}</p>`:''}
+    ${plan.opponents?.length?`<div class="cr-scroll"><table class="t"><tr><th>Assumed encounter / opponent</th><th>Hit + pressure + reserve</th><th>HP headroom (proxy)</th></tr>${plan.opponents.map(row=>`<tr><td>${esc(row.name)}<br><small>User assumption · ${row.window_s}s window</small></td><td>${n0(row.required_hp)}</td><td>${n0(row.headroom_hp)} · ${row.meets_assumed_pressure?'Meets assumed HP requirement':'Below requirement'}</td></tr>`).join('')}</table></div>`:''}
+    <p class="small muted">${esc(plan.note)}</p><p class="small muted">DPS is maximized subject to this HP floor. These personal constraints are not compared against damage-only community presets.</p></section>`;
+}
+function mountSurvivalOptions(root,key) {
+  let settings={preserve_hp:true,min_node_hp:0,current_hp:null,opponents:[]};
+  try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(saved && typeof saved==='object')settings={...settings,...saved,opponents:Array.isArray(saved.opponents)?saved.opponents.slice(0,8):[]};}catch(_){}
+  const read=()=>{settings={preserve_hp:root.querySelector('[data-preserve-hp]').checked,min_node_hp:Number(root.querySelector('[data-hp-floor]').value),current_hp:root.querySelector('[data-current-hp]').value===''?null:Number(root.querySelector('[data-current-hp]').value),
+    opponents:[...root.querySelectorAll('[data-pressure-row]')].map(row=>Object.fromEntries([...row.querySelectorAll('[data-pressure]')].map(input=>[input.dataset.pressure,input.dataset.pressure==='name'?input.value:Number(input.value)])))};return settings;};
+  const save=()=>{read();try{localStorage.setItem(key,JSON.stringify(settings));}catch(e){toast('Could not save survival options: '+e.message);}return settings;};
+  function render(){root.innerHTML=`<details><summary>Survivability · preserve HP while optimizing damage</summary><p class="small muted">Protects flat HP from crystal-board nodes. It does not model armor, defensive skills or CC. Incoming scenarios are optional manual assumptions, not decoded boss mechanics or actual opponent simulations.</p>
+    <div class="row"><label><input type="checkbox" data-preserve-hp ${settings.preserve_hp?'checked':''}> Preserve current crystal-board HP</label><label>Minimum crystal-board HP <input data-hp-floor type="number" min="0" max="1000000000" value="${esc(settings.min_node_hp)}"></label><label>Current in-game maximum HP (for scenarios) <input data-current-hp type="number" min="1" max="1000000000" value="${esc(settings.current_hp??'')}" placeholder="Optional"></label></div>
+    <p class="small muted">Use hits and incoming DPS after your mitigation. The requirement is one hit plus net pressure over the selected window plus a positive HP reserve. Healing is treated as sustained, never as a shield against the first hit. Total HP uses only a flat node-delta proxy; verify the result in game.</p>
+    <div class="cr-scroll"><table class="t"><tr><th>Encounter / opponent</th><th>Hit damage</th><th>Incoming DPS</th><th>Seconds</th><th>Assumed HPS</th><th>HP reserve</th><th></th></tr>${settings.opponents.map((row,index)=>`<tr data-pressure-row><td><input data-pressure="name" maxlength="100" value="${esc(row.name||'Incoming pressure')}"></td>${[['burst_damage',0],['pressure_dps',0],['window_s',5],['healing_hps',0],['reserve_hp',1]].map(([field,fallback])=>`<td><input data-pressure="${field}" aria-label="${field.replaceAll('_',' ')}" type="number" min="${field==='window_s'?'.1':field==='reserve_hp'?'1':'0'}" max="${field==='window_s'?'120':'1000000000'}" step="any" value="${esc(row[field]??fallback)}" style="width:95px"></td>`).join('')}<td><button class="btn small" data-remove-pressure="${index}">Remove</button></td></tr>`).join('')}</table></div>
+    <button class="btn small" data-add-pressure ${settings.opponents.length>=8?'disabled':''}>Add encounter / opponent scenario</button><p class="small muted">Up to eight scenarios; the strictest HP requirement constrains the build. For PvP, enter different burst/pressure opponents. Optimized opponent profiles, matchup damage, crowd control, mobility and win chances are still future work.</p></details>`;
+    root.onchange=save;
+    root.querySelector('[data-add-pressure]').onclick=()=>{save();settings.opponents.push({name:'Pressure '+(settings.opponents.length+1),burst_damage:0,pressure_dps:0,window_s:5,healing_hps:0,reserve_hp:1});saveState();render();};
+    root.querySelectorAll('[data-remove-pressure]').forEach(button=>button.onclick=()=>{save();settings.opponents.splice(Number(button.dataset.removePressure),1);saveState();render();});
+  }
+  function saveState(){try{localStorage.setItem(key,JSON.stringify(settings));}catch(e){toast('Could not save survival options: '+e.message);}}
+  render();return {read:save};
+}
 function winOverview(v) {
   const dps = v.dps || {};
   const st = v.stats || {};
@@ -277,7 +302,7 @@ function winOverview(v) {
     <div class="kpi"><div class="k">Combat speed</div><div class="v">${pct(st.combat_speed)}</div></div></div>`;
   const w = (v.weights || []).map((x) => `<tr><td>${esc(x.label)}</td><td class="r num">${x.pct >= 0 ? "+" : ""}${x.pct.toFixed(2)}%</td><td style="width:45%"><div class="bar"><i style="width:${Math.max(0, Math.min(100, x.pct * 25))}%"></i></div></td></tr>`).join("");
   const sh = Object.entries(v.shares || {}).slice(0, 12).map(([k, x]) => `<tr><td>${esc(k)}</td><td style="width:55%"><div class="bar"><i style="width:${100 * x / Math.max(...Object.values(v.shares))}%"></i><span>${pct(x)}</span></div></td></tr>`).join("");
-  return win("Overview", esc(v.loadout_name || ""), kpis + `<div class="grid2" style="margin-top:14px"><div><h4 class="gold small">STAT PRIORITY (DPS PER UPGRADE)</h4><table class="t">${w}</table></div>
+  return win("Overview", esc(v.loadout_name || ""), kpis + survivalSummary(v.survival) + `<div class="grid2" style="margin-top:14px"><div><h4 class="gold small">STAT PRIORITY (DPS PER UPGRADE)</h4><table class="t">${w}</table></div>
      <div><h4 class="gold small">DAMAGE SHARE</h4><table class="t">${sh}</table></div></div>`, { key: "overview" });
 }
 
@@ -396,7 +421,8 @@ async function pageCharacter() {
       <div class="kpis">${Object.entries(v.dps || {}).map(([k, x]) => `<div class="kpi"><div class="k">${esc(k)} DPS as-is</div><div class="v">${n0(x)}</div></div>`).join("")}
         <div class="kpi"><div class="k">Skill points</div><div class="v">${v.points.skill} / ${v.budgets?.skill??"Unknown"}</div></div><div class="kpi"><div class="k">Stigma points</div><div class="v">${v.points.stigma} / ${v.budgets?.stigma??"Unknown"}</div></div>
         <div class="kpi"><div class="k">Daevanion</div><div class="v">${v.points.daevanion} / ${v.budgets?.daevanion??"Unknown"}</div></div></div>
-      ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${['skill','stigma','daevanion'].map(k=>`<label>${cap(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:90px"></label>`).join('')}<label>Game patch (optional) <input id="cpointpatch" maxlength="100" placeholder="Unknown" value="${esc(localStorage.getItem('point-game-patch')||'')}"></label></div><p class="small muted">PvP optimization is an experimental damage-only estimate against a stationary player proxy. It does not score survival, crowd control or win chance. PvE and PvP results are saved separately.</p><div id="optres"></div></div></section><div id="cwins"></div>`;
+      ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${['skill','stigma','daevanion'].map(k=>`<label>${cap(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:90px"></label>`).join('')}<label>Game patch (optional) <input id="cpointpatch" maxlength="100" placeholder="Unknown" value="${esc(localStorage.getItem('point-game-patch')||'')}"></label></div><p class="small muted">PvP optimization is an experimental damage-only estimate against a stationary player proxy. It does not score survival, crowd control or win chance. PvE and PvP results are saved separately.</p><div id="survival-options"></div><div id="optres"></div></div></section><div id="cwins"></div>`;
+    const survivalOptions=mountSurvivalOptions($('#survival-options'),'character-survival:'+JSON.stringify(st.hit||v.key||v.loadout));
     renderWindows(v, st, $("#cwins"));
     st.optMeta = { name: v.name, server: v.server, combat_power: v.combat_power };
     $("#cpointpatch").onchange=()=>localStorage.setItem("point-game-patch",$("#cpointpatch").value.trim());
@@ -407,7 +433,7 @@ async function pageCharacter() {
       S.character.opt = { status: "running", mode, log: [], jobid: null };
       renderOptState();
       try {
-        const { job } = await api("/api/character/optimize", {...st.hit,mode,budgets:rememberBudgets(),game_patch:$("#cpointpatch").value.trim()});
+        const { job } = await api("/api/character/optimize", {...st.hit,mode,budgets:rememberBudgets(),survival:survivalOptions.read(),game_patch:$("#cpointpatch").value.trim()});
         S.character.opt.jobid = job;
         pollOpt();
       } catch (e) { S.character.opt = { status: "error", error: e.message }; renderOptState(); }

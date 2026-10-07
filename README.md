@@ -267,6 +267,10 @@ Open a log to see its own detail page, then use **Back to combat logs** to retur
 
 Use **Restore saved queue** after reopening Combat Logs. Pages asks you to reselect the original files. **Export recovery file** creates a portable queue backup; it contains no upload keys or ownership credentials. Matching fingerprints let the queue skip known successes. Check My uploads before explicitly retrying an uncertain request, since the server may already have accepted it. Clearing a queue clears its recovery checkpoint too.
 
+### Preserve HP while optimizing
+
+My Character → **Survivability** preserves current flat crystal-board HP by default. Set a higher minimum or add optional incoming-damage scenarios, then optimize for damage within that reserve. Results show the HP reserve and assumed headroom. This does not simulate defensive skills, CC, movement or PvP wins; verify HP in game. Personal constrained builds stay local, and Gear & Advice remains damage-based.
+
 ## For developers
 
 The command-line interface, running from source, the architecture overview, building the desktop

@@ -109,7 +109,7 @@ def act_character_optimize(body: dict, log) -> dict:
     log(f"optimizing {mode.upper()} under the same resources (writes {out})")
     # One pass by default keeps the in-app optimize responsive (serial, no process pool when packaged);
     # the big gains are in pass 1 plus the final polish. The CLI can pass more for an exhaustive search.
-    summ = optimize_character(imp, str(out), iterations=int(body.get("iterations", 1)), scenario_name=scenario, progress=log, budgets=body.get("budgets"))
+    summ = optimize_character(imp, str(out), iterations=int(body.get("iterations", 1)), scenario_name=scenario, progress=log, budgets=body.get("budgets"), survival=body.get("survival", {"preserve_hp": True}))
     best = json.loads((out / "build.json").read_text(encoding="utf-8"))
     cur = json.loads((out / "current" / "build.json").read_text(encoding="utf-8"))
     from ..combat import share

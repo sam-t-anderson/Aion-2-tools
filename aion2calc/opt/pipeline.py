@@ -135,7 +135,8 @@ class Optimizer:
     def __init__(self, cls: str, scenario: Scenario, daev_budget: int = 360,
                  stigma_points: int | None = None, sp_budget: int | None = None,
                  search_duration: float | None = None, verbose: bool = True, gear_bonus: dict | None = None,
-                 progress=None):
+                 progress=None, survival=None):
+        self.survival = survival
         self.cls = cls
         self.cd = ClassData(cls)
         self.scenario = scenario
@@ -388,7 +389,8 @@ class Optimizer:
         solver_started = time.monotonic()
         sol = daev_opt.solve(self.cd, curves, nv, daev_budget=self.daev_budget,
                              sp_budget=self.sp_budget, bonus=bonus,
-                             time_limit=DAEV_SOLVER_TIME_LIMIT)
+                             time_limit=DAEV_SOLVER_TIME_LIMIT,
+                             min_node_hp=(self.survival or {}).get("minimum_node_hp", 0))
         self.log(f"skill allocation: solver finished ({sol['status']}, "
                  f"{time.monotonic() - solver_started:.1f} s)")
         self.log("skill allocation: applying the optimized points")
@@ -522,9 +524,14 @@ class Optimizer:
             v_old, v_new = self.evaluate(build, policy), self.evaluate(build2, policy)
             self.log(f"iter {it}: daevanion/SP ({sol['status']}, {sol['daev_cost']} pts, "
                      f"{sol['sp_cost']} SP) -> {v_new:.0f} (was {v_old:.0f})")
-            if v_new >= v_old:
+            from .survival import node_hp
+            floor = (self.survival or {}).get("minimum_node_hp", 0)
+            if v_new >= v_old or node_hp(self.cd, build.daevanion)+1e-6 < floor:
                 build = build2
-            self.history.append({"iter": it, "dps": max(v_old, v_new)})
+            self.history.append({"iter": it, "dps": self.evaluate(build, policy)})
+        from .survival import node_hp
+        if node_hp(self.cd, build.daevanion)+1e-6 < (self.survival or {}).get("minimum_node_hp", 0):
+            raise ValueError("The optimized allocation does not meet the requested HP reserve")
         build = self.polish_sp(build, policy)
         build = self.spend_remaining_sp(build, policy)
         build = self.optimize_specs(build, policy, passes=3)
