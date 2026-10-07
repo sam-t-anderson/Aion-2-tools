@@ -215,6 +215,12 @@ Match outcomes, objective scores, kill credit, faction/team assignments outside 
 
 Official desktop builds use the configured community upload key for the default server. You do not need to enter it manually. A custom server may require its own key in Settings; a personal key takes precedence. If an upload reports an upload-key 401, install the latest release and retry; custom servers may require their own key.
 
+### Choosing a game installation
+
+In Live Meter, **Game installation → Refresh installations** lists Steam library manifests and recognized Windows game registrations. Select the copy you play if several are installed. Auto chooses only when one copy is found. The choice is stored locally and takes effect at capture start. A missing selected installation stays unavailable until you choose another; a launcher installation without a recognized game registration may not appear.
+
+Save or export retained combat, stop capture, then clear the session before changing the installation. Restarting live capture with retained combat keeps that session's installed-build evidence. Installed versions are evidence from local files, separate from the published patch used for rankings. The region dropdown is an optional recording override; Auto resolves from the recorded home-server ID and official server metadata. Other actors retain their own recorded identities.
+
 ## Long live sessions
 
 Live capture automatically saves a numbered archive part before the current history reaches its effect, telemetry, encounter or observed-party identity budget. Each part has a shared archive ID and appears separately in **Combat Logs**. Capture continues with the same decoder and current identity context; the live meter and its export/upload buttons cover the current part. Open an earlier part from Combat Logs to review or upload it. There is no fixed total part count or automatic deletion; available disk space is the practical storage limit. The recent list shows the newest 100 files; older parts remain in the user logs folder and can be imported.

@@ -374,6 +374,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/capture/setup":
             from . import capture_setup
             return self._json(capture_setup.status())
+        if path == "/api/meter/installations":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("Game installations are available only on this computer")
+            from ..meter.metadata import installation_options
+            return self._json(installation_options())
         if path == "/api/meter/interfaces":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("capture interfaces are available only on this computer")
@@ -578,6 +583,10 @@ class Handler(BaseHTTPRequestHandler):
                                           automatic_splits=body.get("automatic_splits", True),
                                           auto_finish=body.get("auto_finish",True), final_boss_ids=body.get("final_boss_ids",[]),
                                           target_mode=body.get("target_mode", "bossTargets")))
+            if action == "installation":
+                if self.client_address[0] not in ("127.0.0.1", "::1"):
+                    raise PermissionError("Game installation selection is local to this computer")
+                return self._json(r.select_installation(body.get("id", "")))
             if action == "view":
                 return self._json(r.configure_view(body))
             if action == "finish-run":

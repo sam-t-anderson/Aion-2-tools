@@ -179,6 +179,12 @@ Recognized map/instance IDs supply supported zone and content metadata. Difficul
 
 Live DPS pauses after two seconds without damage while capture continues, and resumes when damage returns. Healing does not extend the live damage interval. Saved reports use the full retained event interval, so their rates can differ. This does not establish a kill.
 
+### Choosing a game installation
+
+In Live Meter, **Game installation → Refresh installations** lists Steam library manifests and recognized Windows game registrations. Select the copy you play if several are installed. Auto chooses only when one copy is found. The choice is stored locally and takes effect at capture start. A missing selected installation stays unavailable until you choose another; a launcher installation without a recognized game registration may not appear.
+
+Save or export retained combat, stop capture, then clear the session before changing the installation. Restarting live capture with retained combat keeps that session's installed-build evidence. Installed versions are evidence from local files, separate from the published patch used for rankings. The region dropdown is an optional recording override; Auto resolves from the recorded home-server ID and official server metadata. Other actors retain their own recorded identities.
+
 ## Long recordings and archive parts
 
 Long captures save numbered archive parts before retained-history limits are reached. Each part shares an archive ID and appears in **Combat Logs → Saved Parts**. Capture continues with its decoder and identity context; Live Meter export/upload covers the current part. Open earlier parts separately to review or upload them.

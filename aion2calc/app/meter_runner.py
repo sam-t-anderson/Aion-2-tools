@@ -75,7 +75,8 @@ class Runner:
         self.source_name = source
         if source in ("a2tools", "live"):
             from ..meter.metadata import CaptureMetadata
-            self.capture_metadata = CaptureMetadata()
+            if self.capture_metadata is None or not self.session.records:
+                self.capture_metadata = CaptureMetadata()
         else:
             self.capture_metadata = None
         self.scope = str(opts.get("scope") or "party")
@@ -349,6 +350,7 @@ class Runner:
         with self.lock:
             snap = (self.session.snapshot(self.scope, self.segment_id, self.enemy_id, self.combine_pets)
                     if self.packet_engine is not None else self.meter.snapshot())
+            installation_locked = self.running or bool(self.session.records) or bool(self.meter.players)
             diagnostic = dict(self.diagnostics)
         if diagnostic:
             diagnostic["elapsed"] = round(time.monotonic() - self.started_at, 1) if self.started_at else 0
@@ -358,7 +360,7 @@ class Runner:
         catalog = coverage({**current, "entities": [dict(e, id=e["key"], kind="enemy") for e in snap.get("enemies", []) if e.get("mob_code")]})
         context = classify(current.get("map_id"), current.get("instance_id"), snap.get("recorded_pvp", self.session.pvp))
         return {"running": self.running, "source": self.source_name, "error": self.error,
-                "combine_pets": self.combine_pets,
+                "combine_pets": self.combine_pets, "installation_locked": installation_locked,
                 "automatic_context": context, "catalog_coverage": catalog,
                 "snapshot": snap, "diagnostics": diagnostic,
                 "automatic_metadata": (self.capture_metadata.snapshot(self.packet_engine.local_profile.get("serverId") if self.packet_engine else None)
@@ -372,6 +374,15 @@ class Runner:
                               **self.packet_engine.local_profile} if self.packet_engine else None),
                 "recording": {"enabled": self.recorder is not None,
                               **(self.recorder.snapshot(include_rows=False)[0] if self.recorder is not None else {"records": 0})}}
+
+    def select_installation(self, value):
+        from ..meter.metadata import choose_installation
+        with self.lock:
+            if self.running or self.session.records or self.meter.players:
+                raise ValueError("Stop capture, save/export retained combat, and clear the session before changing installation.")
+            result = choose_installation(value)
+            self.capture_metadata = None
+        return result
 
     def configure_view(self, body: dict) -> dict:
         with self.lock:
@@ -418,6 +429,8 @@ class Runner:
             raise ValueError("Stop capture before clearing session history.")
         with self.lock:
             self.session = CombatSession()
+            self.meter = Meter()
+            self.capture_metadata = None
             self.archive_id = uuid.uuid4().hex
             self.archive_part = 1
             self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
