@@ -80,6 +80,7 @@ screens, so you can copy each one into the game:
 | Skills | Active and Passive tabs. Each skill shows its icon with a level badge, the level split (skill points + Daevanion + gear), and five numbered specialty rows with effect descriptions. Recommended effects are highlighted |
 | Stigma | the four slots with level and which specializations are unlocked |
 | Daevanion | one tab per board with the node grid (taken nodes lit), and the game's left-side summary: points used, skill levels gained, stats gained. There is also a link to the metabot planner |
+| Pet Genus | saved manual analysis lines, modeled contributions and excluded effects |
 | Equipment | a paper-doll layout of the loadout, the rolls to keep or reroll toward, and enchant priority |
 | Arcana | the recommended variant per slot, and the value of each slot's skill rolls (Unique +0 and +5) |
 | Titles & wings | equipped titles, wings, pet, and the best titles for the build |
@@ -91,7 +92,11 @@ text** puts the window's choices on the clipboard. **My screenshot** lets you
 pin a screenshot of the same in-game window next to it, so you can compare them
 side by side. The screenshot is kept only in your browser.
 
-The **Optimize** button runs a new optimization for any class. Skill, Stigma and Daevanion budgets are configurable. Presets are examples, not character progression maxima.
+Planner lists one community PvE and PvP preset per class when the configured service supports canonical comparisons. **Refresh presets** checks for updates; launch synchronization also runs in the background. The overview shows weighted modeled DPS, comparison assumptions and last-check time. Bundled or legacy examples fill missing choices and are labeled **Example**. Offline viewing uses the last successful matching-server snapshot; a different configured server does not reuse another server's community cache.
+
+Comparison resources and common gear make eligible builds comparable within a class, mode and scoring policy. These scores are not player rankings or win probabilities. PvP remains experimental. Eligible optimizations submit anonymous allocations for server evaluation; personal Genus/HP/trained-minimum constraints and larger resource budgets require a separate common-loadout optimization. Open **Saved Results** for all your personal runs and advice.
+
+The **Optimize** button runs a new optimization for any class in the selected PvE or experimental PvP damage mode. Outputs are saved separately by mode. Skill, Stigma and Daevanion budgets are configurable. Presets are examples, not character progression maxima.
 
 Set up **Skills hotbar** first, then copy the numbered **Macro & rotation** steps. The macro binding suggestion is **Right-click**. Skills that require charging stay on manual keys; the app does not change game bindings.
 

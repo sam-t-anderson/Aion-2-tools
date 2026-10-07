@@ -218,7 +218,7 @@ def rotation_view(cd: ClassData, build, gear: dict, summary: dict) -> dict:
     with_gear = build.copy()
     for sid, level in gear.items():
         with_gear.bonus[sid] = with_gear.bonus.get(sid, 0) + level
-    kit = kit_module(cd.cls).build_kit(with_gear, cd)
+    kit = kit_module(cd.cls, pvp=str(summary.get("scenario", "")).startswith("pvp")).build_kit(with_gear, cd)
     levels = with_gear.effective_levels(cd)
     macro = dict(summary.get("macro") or {})
     if not macro:
@@ -316,6 +316,8 @@ def build_view(summary: dict) -> dict:
         "model_note": summary.get("model_note"), "survival": summary.get("survival"),
         "skill_reserves": summary.get("skill_reserves"), "genus": summary.get("genus"),
         "dps": summary.get("dps"), "baseline": summary.get("baseline"), "budgets": budgets,
+        "score": summary.get("score"), "scoring_policy": summary.get("scoring_policy"),
+        "preset_checked_at": summary.get("preset_checked_at"),
         "points": {"skill": build.sp_spent(), "stigma": build.stigma_spent(), "daevanion": build.daevanion_cost(cd)},
         "skills": skills_view(cd, build, gear),
         "stigmas": stigmas_view(cd, build),
@@ -385,6 +387,36 @@ def list_results(roots: list[Path] | None = None) -> list[dict]:
         region = re.search(r"_(global|kr)(?:_|$)", loadout)
         row["preset_label"] = "_".join((row["class"].lower(), str(row.get("level") or (level[1] if level else "unknown")), region[1] if region else "unknown", "PvP" if row.get("scenario") == "pvp" else "PvE"))
     return out
+
+
+def planner_presets() -> list[dict]:
+    """One authoritative cached preset per class/mode; bundled examples fill gaps."""
+    from ..combat.preset_sync import cached_presets
+    from ..combat.share import effective
+    from ..paths import read_json
+    chosen = {}
+    for cached in cached_presets():
+        cls, mode, summary = cached["class"], cached["mode"], cached["build"]
+        chosen[(cls, mode)] = {"path": f"community-v2:{cls}:{mode}", "class": cls,
+            "mode": mode, "loadout": summary["loadout"], "level": 45, "dps": summary["dps"],
+            "scenario": summary["scenario"], "budgets": summary["budgets"], "score": summary["score"],
+            "scoring_policy": summary["scoring_policy"], "checked_at": cached["checked_at"],
+            "community": True, "canonical": True, "mine": False, "preset_label": f"{cls}_45_global_{mode.upper()}"}
+    base = str(effective().get("url") or "").rstrip("/")
+    for row in list_results():
+        mode = "pvp" if str(row.get("scenario", "")).startswith("pvp") else "pve"
+        key = (row["class"], mode)
+        if key in chosen or row.get("mine"):
+            continue
+        if row.get("community"):
+            try:
+                cached = read_json("community_presets", row["class"] + ".json")
+                if cached.get("source") != base:
+                    continue
+            except (OSError, ValueError, AttributeError):
+                continue
+        chosen[key] = {**row, "mode": mode, "canonical": False, "example": True}
+    return sorted(chosen.values(), key=lambda row: (row["class"] != "sorcerer", row["class"], row["mode"]))
 
 
 def character_view(imp, evaluation: dict | None = None) -> dict:

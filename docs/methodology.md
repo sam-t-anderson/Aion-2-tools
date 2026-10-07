@@ -182,7 +182,7 @@ The versioned canonical preset evaluator compares allocations within one class, 
 
 PvE weights the 180-second boss and dummy damage scenarios equally. PvP weights the 180-second stationary player proxy and 30-second burst proxy equally. The score is the arithmetic mean of the two modeled DPS values, not a percentile, user rating or win probability. Personal gear, Genus, HP reserves and trained skill constraints are not shared comparison inputs. Learned calibration is disabled.
 
-The scope fingerprints the evaluator version, class data, hit profiles, common loadout, budgets, durations and weights. A different scope requires reevaluation. The best eligible evaluated candidate can become canonical; that does not establish a global optimum or a competitive PvP build. Mode-scoped server storage, synchronization and Planner selection build on this evaluator in subsequent checkpoints.
+The scope fingerprints the evaluator version, class data, hit profiles, common loadout, budgets, durations and weights. A different scope requires reevaluation. The best eligible evaluated candidate can become canonical; that does not establish a global optimum or a competitive PvP build. Mode-scoped storage records one current winner per comparison scope. Planner synchronizes bounded, validated common-loadout snapshots from the configured server and labels cached comparisons separately from examples. The server owns scoring; clients display its components and policy rather than substituting a score from a different local model.
 
 ## Manual Genus Insight
 

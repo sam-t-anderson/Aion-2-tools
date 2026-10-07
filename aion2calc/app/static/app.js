@@ -314,7 +314,7 @@ function winOverview(v) {
     <div class="kpi"><div class="k">Combat speed</div><div class="v">${pct(st.combat_speed)}</div></div></div>`;
   const w = (v.weights || []).map((x) => `<tr><td>${esc(x.label)}</td><td class="r num">${x.pct >= 0 ? "+" : ""}${x.pct.toFixed(2)}%</td><td style="width:45%"><div class="bar"><i style="width:${Math.max(0, Math.min(100, x.pct * 25))}%"></i></div></td></tr>`).join("");
   const sh = Object.entries(v.shares || {}).slice(0, 12).map(([k, x]) => `<tr><td>${esc(k)}</td><td style="width:55%"><div class="bar"><i style="width:${100 * x / Math.max(...Object.values(v.shares))}%"></i><span>${pct(x)}</span></div></td></tr>`).join("");
-  return win("Overview", esc(v.loadout_name || ""), kpis + survivalSummary(v.survival) + skillReserveSummary(v.skill_reserves) + `<div class="grid2" style="margin-top:14px"><div><h4 class="gold small">STAT PRIORITY (DPS PER UPGRADE)</h4><table class="t">${w}</table></div>
+  return win("Overview", esc(v.loadout_name || ""), kpis + (v.scoring_policy ? `<div class="note">Community ${esc((v.scoring_policy.mode||'').toUpperCase())} preset · ${n0(v.score)} weighted modeled DPS<br><span class="small">Equal weighting of ${v.scoring_policy.mode==='pvp'?'sustained and burst player-target damage':'boss and training-dummy damage'}. Common gear and comparison point budgets. ${v.preset_checked_at?'Last checked '+esc(new Date(v.preset_checked_at*1000).toLocaleString()):''}</span><details><summary>Comparison assumptions</summary>${esc(v.scoring_policy.note)}<br>Evaluator ${esc(v.scoring_policy.model)}</details></div>` : '') + (v.model_note?`<p class="small muted">${esc(v.model_note)}</p>`:'') + survivalSummary(v.survival) + skillReserveSummary(v.skill_reserves) + `<div class="grid2" style="margin-top:14px"><div><h4 class="gold small">STAT PRIORITY (DPS PER UPGRADE)</h4><table class="t">${w}</table></div>
      <div><h4 class="gold small">DAMAGE SHARE</h4><table class="t">${sh}</table></div></div>`, { key: "overview" });
 }
 
@@ -399,31 +399,35 @@ function welcomeCard() {
 async function pagePlanner() {
   const st = S.planner;
   app().innerHTML = welcomeCard() + `<section class="win"><div class="wh"><h2>Build planner</h2><a class="btn small" href="#/history">Saved results</a><span class="sub">optimized builds — copy each window into the game</span></div>
-    <div class="wb"><div class="row"><label class="muted small">Build</label><select id="res"></select>
-      <span class="muted small">or optimize:</span><select id="cls"></select>
+    <div class="wb"><div class="row"><label class="muted small">Build</label><select id="res"></select><button class="btn small" id="refresh-presets">Refresh presets</button>
+      <span class="muted small">or optimize:</span><select id="cls"></select><select id="preset-mode" aria-label="Optimization mode"><option value="pve">PvE</option><option value="pvp">PvP damage (experimental)</option></select>
       <input id="sp" type="number" placeholder="skill pts (203)" title="skill points (default 203)" style="width:150px"><input id="stg" type="number" placeholder="stigma pts (30)" title="stigma points (default 30)" style="width:150px">
       <input id="dv" type="number" min="0" max="10000" placeholder="Daevanion pts (360 preset)" aria-label="Daevanion point budget" style="width:180px"><button class="btn primary" id="go">Optimize</button><span id="jobmsg" class="small muted"></span></div></div></section><div id="wins"></div>`;
   if ($("#whide")) $("#whide").onclick = () => { try { localStorage.setItem("welcome-hidden", "1"); } catch (e) {} $("#welcome").remove(); };
-  const [results, classes] = await Promise.all([api("/api/results"), api("/api/classes")]);
-  $("#res").innerHTML = results.map((r) => `<option value="${esc(r.path)}">${r.community ? "Community preset · " : ""}${esc(r.preset_label || cap(r.class))} · ${n0(r.dps?.[r.scenario])} ${esc(r.scenario || "")} DPS</option>`).join("");
+  const [results, classes] = await Promise.all([api("/api/planner/presets"), api("/api/classes")]);
+  $("#res").innerHTML = results.map((r) => `<option value="${esc(r.path)}">${r.canonical ? "Community · " : "Example · "}${esc(r.preset_label || cap(r.class))} · ${r.canonical?n0(r.score)+" weighted DPS":n0(r.dps?.[r.scenario])+" "+esc(r.scenario||"")+" DPS"}</option>`).join("");
   $("#cls").innerHTML = classes.map((c) => `<option>${esc(c)}</option>`).join("");
-  if (st.path) $("#res").value = st.path;
+  if (results.some(r=>r.path===st.path)) $("#res").value = st.path;
+  else if(st.choice){const match=results.find(r=>r.class===st.choice.class&&r.mode===st.choice.mode);if(match)$("#res").value=match.path;}
+  $("#refresh-presets").onclick=async()=>{const b=$("#refresh-presets");b.disabled=true;try{const result=await runJob("/api/planner/presets/refresh",{},log=>$("#jobmsg").textContent=log.at(-1)||"Checking presets…");await pagePlanner();$("#jobmsg").textContent=result.checked?"Community presets checked.":"Showing saved presets or examples; server refresh unavailable.";}catch(e){$("#jobmsg").textContent=e.message;b.disabled=false;}};
   const load = async () => {
     st.path = $("#res").value;
+    const selected=results.find(r=>r.path===st.path);if(selected)st.choice={class:selected.class,mode:selected.mode};
     if (!st.path) { $("#wins").innerHTML = '<div class="empty">No optimized builds yet — pick a class and press Optimize.</div>'; return; }
     $("#wins").innerHTML = '<div class="empty"><span class="spinner"></span> loading</div>';
     const v = await api("/api/build?path=" + encodeURIComponent(st.path));
     $("#cls").value = v.class;
+    $("#preset-mode").value = String(v.scenario||"").startsWith("pvp")?"pvp":"pve";
     renderWindows(v, st, $("#wins"));
   };
   $("#res").onchange = load;
   $("#go").onclick = async () => {
     $("#go").disabled = true;
     try {
-      const v = await runJob("/api/optimize", { class: $("#cls").value, skill_points: $("#sp").value===""?null:+$("#sp").value, stigma_points: $("#stg").value===""?null:+$("#stg").value, daevanion: $("#dv").value===""?360:+$("#dv").value },
+      const v = await runJob("/api/optimize", { class: $("#cls").value, mode:$("#preset-mode").value, skill_points: $("#sp").value===""?null:+$("#sp").value, stigma_points: $("#stg").value===""?null:+$("#stg").value, daevanion: $("#dv").value===""?360:+$("#dv").value },
         (log) => ($("#jobmsg").textContent = log[log.length - 1] || "working…"));
       renderWindows(v, st, $("#wins"));
-      $("#jobmsg").textContent = "done";
+      $("#jobmsg").textContent = v.preset_submission?.reason || "done";
     } catch (e) { $("#jobmsg").textContent = e.message; }
     $("#go").disabled = false;
   };
@@ -464,7 +468,7 @@ async function pageCharacter() {
     const rememberBudgets=()=>{const values=Object.fromEntries([...document.querySelectorAll('[data-character-budget]')].map(e=>[e.dataset.characterBudget,+e.value]));let all={};try{all=JSON.parse(localStorage.getItem('character-point-budgets')||'{}');}catch(_){}all[v.key]=values;localStorage.setItem('character-point-budgets',JSON.stringify(all));return values;};
     $("#cview").innerHTML = `<section class="win"><div class="wh"><h2>${esc(v.name)}</h2><span class="sub">${esc(cap(v.class))} · Lv ${v.level} · ${esc(v.server)} · Combat Power ${n0(v.combat_power)}</span>
       <div class="tools"><button class="btn primary" id="opt" data-opt-mode="pve">Optimize PvE build</button><button class="btn" id="optpvp" data-opt-mode="pvp">Optimize PvP damage (experimental)</button></div></div><div class="wb">
-      <div class="kpis">${Object.entries(v.dps || {}).map(([k, x]) => `<div class="kpi"><div class="k">${esc(k)} DPS as-is</div><div class="v">${n0(x)}</div></div>`).join("")}
+      <div class="kpis">${Object.entries(v.dps || {}).map(([k, x]) => `<div class="kpi"><div class="k">${esc(k)} ${v.genus?"saved build DPS":"imported DPS (without manual Genus)"}</div><div class="v">${n0(x)}</div></div>`).join("")}
         <div class="kpi"><div class="k">Skill points</div><div class="v">${v.points.skill} / ${v.budgets?.skill??"Unknown"}</div></div><div class="kpi"><div class="k">Stigma points</div><div class="v">${v.points.stigma} / ${v.budgets?.stigma??"Unknown"}</div></div>
         <div class="kpi"><div class="k">Daevanion</div><div class="v">${v.points.daevanion} / ${v.budgets?.daevanion??"Unknown"}</div></div></div>
       ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${['skill','stigma','daevanion'].map(k=>`<label>${cap(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:90px"></label>`).join('')}<label>Game patch (optional) <input id="cpointpatch" maxlength="100" placeholder="Unknown" value="${esc(localStorage.getItem('point-game-patch')||'')}"></label></div><p class="small muted">PvP optimization is an experimental damage-only estimate against a stationary player proxy. It does not score survival, crowd control or win chance. PvE and PvP results are saved separately.</p><div id="survival-options"></div><div id="skill-reserves"></div><div id="character-genus"></div><div id="optres"></div></div></section><div id="cwins"></div>`;
@@ -497,10 +501,10 @@ function renderOptResult(r) {
   const st = S.character, box = $("#optres");
   if (!box) return;
   const g = r.summary.gain, scenario = r.summary.scenario || r.optimized.scenario || "boss";
-  const preset = r.preset?.submitted ? (r.preset.accepted ? "This build is now the community preset for its class." : "The server kept its current Planner preset: " + (r.preset.reason || "no improvement at the shared budgets") + "") : "";
+  const preset = r.preset?.submitted ? (r.preset.accepted ? "This build is now the community preset for its class." : "The server kept its current Planner preset: " + (r.preset.reason || "no improvement at the shared budgets") + "") : (r.preset?.reason ? "Community preset: " + r.preset.reason : "");
   box.innerHTML = `<div class="kpis" style="margin-top:12px"><div class="kpi"><div class="k">Optimized ${scenario === "pvp" ? "PvP proxy" : "boss"} DPS</div><div class="v">${n0(r.optimized.dps[scenario])}</div></div>
       <div class="kpi"><div class="k">Gain</div><div class="v ${g > 0 ? "good" : ""}">${g >= 0 ? "+" : ""}${pct(g)}</div></div></div>
-      ${r.optimized.model_note ? `<p class="note">${esc(r.optimized.model_note)}</p>` : ""}${preset ? `<p class="small good">${esc(preset)}</p>` : ""}<p class="small muted">The windows below now show the optimized build. What changes:</p><pre class="diff">${esc(r.diff)}</pre>`;
+      ${r.optimized.model_note ? `<p class="note">${esc(r.optimized.model_note)}</p>` : ""}${preset ? `<p class="small ${r.preset?.accepted?"good":"muted"}">${esc(preset)}</p>` : ""}<p class="small muted">The windows below now show the optimized build. What changes:</p><pre class="diff">${esc(r.diff)}</pre>`;
   st.v = Object.assign({}, r.optimized, st.optMeta || {});
   if ($("#cwins")) renderWindows(st.v, st, $("#cwins"));
 }
