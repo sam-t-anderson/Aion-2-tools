@@ -1,3 +1,10 @@
+# Aion 2 Calc 0.2.30
+
+- Add private report forms to shared combat logs on desktop, Pages and server views, with receipt numbers and clear unverified-report labels.
+- Show moderator hold reasons in My uploads and pause visibility/link changes during review; owner deletion and desktop review remain available.
+- Pair with server v0.2.16 for private human moderation. Reports never automatically remove a log. Releasing a hold leaves it private for the owner to republish.
+- Keep report drafts and submission state through viewer redraws. Original uploads, credentials and downloaded copies remain subject to existing privacy limits.
+
 ## 0.2.29
 
 - Fix Npcap installer launch failing with WinError 740: request Windows administrator approval through the normal runas/UAC installer flow.
