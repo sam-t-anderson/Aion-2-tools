@@ -1,5 +1,7 @@
 # Aion 2 Calc 0.2.33
 
+- Show timeline marker details in a visible panel on hover, click or keyboard focus; explain unavailable comparison ranks instead of relying on hidden tooltips.
+
 - Let combat-review users supply a missing character home server and region for a current official profile preview. Manual previews remain separate from upload-time historical snapshots. Pages and server views require server 0.2.18. Show PvP timing without unrelated boss-progression/speed tables.
 
 - Upload Live Meter logs as a background job using a detached session copy. Prepare summaries outside the capture lock so uploads do not monopolize packet decoding; expose upload progress and restore controls after failure.

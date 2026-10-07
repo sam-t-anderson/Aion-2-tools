@@ -18,6 +18,7 @@
     let comparisons=[], ranks=null, rankRequest=0, replayFrame=null, profileRequest=0;
     let reportReason='privacy',reportDetails='',reportStatus='',reportBusy=false;
     const previews=new Map();
+    let timelineDetail="";
     const refs=()=>{const r={};for(const e of [...(doc.players || []),...(doc.segments[state.segment]?.entities || [])])r[e.id]={...r[e.id],...e};for(const e of [...(doc.players || []),...doc.segments.flatMap(s=>s.entities || [])])if(e.profile_snapshot && r[e.id])r[e.id].profile_snapshot=e.profile_snapshot;for(const e of Object.values(r))if(e.owner)e.class=r[e.owner]?.class;return r;};
     const label=e=>e ? `${e.name || e.id}${e.server ? " · " + e.server : ""}` : "Unknown / not recorded";
     const character=e=>e && ((doc.players || []).some(p=>p.id===e.id) || e.is_player || e.kind==="player");
@@ -99,12 +100,12 @@
         const marks=all.slice(0,1500).map(e=>{
           const x=Math.max(0,Math.min(996,1000*e.t/duration)),fill=e.kind==="death"?"#ef6262":e.kind==="heal"?"#58d68d":state.metric==="taken"?"#ed9863":color(d.r[id]?.class);
           const title=esc(e.t.toFixed(2)+"s · "+label(d.r[e.source])+" → "+label(d.r[e.target])+" · "+(e.skill || e.kind)+" · "+number(e.amount));
-          return e.kind==="death"?`<text class="cr-marker" x="${x}" y="23" fill="${fill}" font-size="24">✝<title>${title}</title></text>`:`<rect class="cr-marker" x="${x}" y="8" width="4" height="16" fill="${fill}"><title>${title}</title></rect>`;
+          return e.kind==="death"?`<text class="cr-marker" data-effect-detail="${title}" tabindex="0" role="button" aria-label="${title}" x="${x}" y="23" fill="${fill}" font-size="24">✝<title>${title}</title></text>`:`<rect class="cr-marker" data-effect-detail="${title}" tabindex="0" role="button" aria-label="${title}" x="${x}" y="8" width="4" height="16" fill="${fill}"><title>${title}</title></rect>`;
         }).join('');
         return `<div class="cr-lane"><div>${actorHTML(d.r[id])}</div><svg class="cr-track" viewBox="0 0 1000 32" preserveAspectRatio="none" role="img" aria-label="${esc(label(d.r[id]))} recorded effects">${marks || '<text x="10" y="22" fill="#aaa" font-size="16">No effects for these filters</text>'}</svg></div>`;
       }).join("");
       const ticks=Array.from({length:6},(_,i)=>`<text x="${i*200}" y="20" fill="#aaa" font-size="16" text-anchor="${i===0?'start':i===5?'end':'middle'}">${(duration*i/5).toFixed(1)}s</text>`).join('');
-      return `<h3>Recorded skill hits, healing and deaths</h3><p class="small muted">Markers represent recorded effects, not unobserved cast starts. Hover for actor, recipient, skill and time. Green: healing; red: deaths; orange: damage taken.${omitted?" Dense lanes display their first 1,500 markers; use Events for the complete list.":""}</p><div class="cr-timeline"><div class="cr-lane"><div>Encounter time</div><svg class="cr-track cr-time-axis" viewBox="0 0 1000 28" preserveAspectRatio="none" aria-label="Encounter time in seconds">${ticks}</svg></div>${lanes || "No timeline events recorded for these filters."}</div>`;
+      return `<h3>Recorded skill hits, healing and deaths</h3><p class="small muted">Markers represent recorded effects, not unobserved cast starts. Hover, focus or click a marker for time, skill, amount, source and recipient. Green: healing; red: deaths; orange: damage taken.${omitted?" Dense lanes display their first 1,500 markers; use Events for the complete list.":""}</p><div class="cr-timeline"><div class="cr-lane"><div>Encounter time</div><svg class="cr-track cr-time-axis" viewBox="0 0 1000 28" preserveAspectRatio="none" aria-label="Encounter time in seconds">${ticks}</svg></div>${lanes || "No timeline events recorded for these filters."}</div><div class="note" data-effect-panel role="status">${esc(timelineDetail || "Select or hover over a timeline marker to see its details.")}</div>`;
     }
     function insightsHTML(d) {
       const analysis=doc.encounter_insights, s=analysis?.segments?.find(s=>s.segment===state.segment);
@@ -140,7 +141,7 @@
       if(!options.rankings)return "";
       if(!ranks)return '<div class="small muted">Loading comparisons with public logs…</div>';
       if(ranks.error)return `<div class="small muted">${esc(ranks.error)}</div>`;
-      const values=x=>!x?'Unavailable':`<span title="${esc((x.reasons || []).join(' '))}">${x.rank===null?'Rank unavailable':`#${x.rank} / ${x.count}`}${x.provisional?' (provisional)':''}<br>${x.percentile===null || x.percentile===undefined?'Percentile unavailable':x.percentile.toFixed(1)+' percentile'}${x.public_samples!==undefined?` · ${x.public_samples} public samples · ${x.identities} distinct identities`:''}</span>`;
+      const values=x=>!x?'Unavailable — no eligible matched comparison is available. Check capture quality and encounter metadata above.':`<span title="${esc((x.reasons || []).join(' '))}">${x.rank===null?'Rank unavailable':`#${x.rank} / ${x.count}`}${x.provisional?' (provisional)':''}<br>${x.percentile===null || x.percentile===undefined?'Percentile unavailable':x.percentile.toFixed(1)+' percentile'}${x.public_samples!==undefined?` · ${x.public_samples} public samples · ${x.identities} distinct identities`:''}${x.reasons?.length?'<br>'+esc(x.reasons.join(' ')):''}</span>`;
       const scopes=x=>['server','region','world'].map(s=>`${s[0].toUpperCase()+s.slice(1)}: ${values(x?.[s])}`).join('<br>');
       return `<h3>Matched public comparisons</h3><p class="small muted">${esc(ranks.note || '')} ${esc(ranks.cohort_note || '')}</p>${table(['Player · party size','Current standings (same patch)','At upload (reconstructed)'],(ranks.players || []).map(p=>`<tr><td>${esc(p.name)} · ${p.party_size || 'Unknown'} players${p.uploaded_at?`<br>Uploaded ${esc(new Date(p.uploaded_at*1000).toLocaleString())}`:''}</td><td>${scopes(p)}</td><td>${scopes(p.at_upload)}</td></tr>`))}<h4>Run speed · lower elapsed time wins</h4>${table(['Current standings (same patch)','At upload (reconstructed)'],[`<tr><td>${scopes(ranks.run)}</td><td>${scopes(ranks.run_at_upload)}</td></tr>`])}`;
     }
@@ -209,6 +210,11 @@
         reason.onchange=()=>{reportReason=reason.value;};details.oninput=()=>{reportDetails=details.value;};
         report.onclick=async()=>{if(reportBusy)return;reportBusy=true;report.disabled=true;try{const result=await options.report({reason:reportReason,details:reportDetails});reportStatus=result.message+' Receipt: '+result.id;reportDetails='';}catch(e){reportStatus=e.message;}finally{reportBusy=false;if(root.isConnected)render();}};
       }
+      root.querySelectorAll('[data-effect-detail]').forEach(marker=>{
+        const show=()=>{timelineDetail=marker.dataset.effectDetail;const panel=root.querySelector('[data-effect-panel]');if(panel)panel.textContent=timelineDetail;};
+        marker.onpointerenter=show;marker.onfocus=show;marker.onclick=show;
+        marker.onkeydown=e=>{if(e.key==='Enter' || e.key===' '){e.preventDefault();show();}};
+      });
       replay(d);
     }
     function addComparison(other) {
