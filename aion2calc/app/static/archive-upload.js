@@ -14,10 +14,11 @@
     const seen=new Set(),parts=value.parts.map(r=>{
       if(!r || typeof r.file!=='string'||!r.file||r.file.length>1024||seen.has(r.file))throw Error('Invalid or duplicate checkpoint filename.');seen.add(r.file);
       if(r.fingerprint!=null && !/^[a-f0-9]{64}$/.test(r.fingerprint))throw Error('Invalid file fingerprint.');
+      if(r.request_id!=null && !/^[a-f0-9]{32}$/.test(r.request_id))throw Error('Invalid upload request ID.');
       const status=r.status||'pending';if(!['pending','uploading','unknown','failed','uploaded'].includes(status))throw Error('Invalid checkpoint status.');
       if(r.id!=null && !/^[a-z0-9]{6,16}$/i.test(r.id))throw Error('Invalid uploaded report ID.');
       if(status==='uploaded' && (!server||!r.id||!r.fingerprint))throw Error('Successful records require a server, ID and fingerprint.');
-      return {file:r.file,name:String(r.name||r.file).slice(0,1024),title:String(r.title||r.file).slice(0,200),fingerprint:r.fingerprint||null,status,id:r.id||null};
+      return {file:r.file,name:String(r.name||r.file).slice(0,1024),title:String(r.title||r.file).slice(0,200),fingerprint:r.fingerprint||null,request_id:r.request_id||null,status,id:r.id||null};
     });
     return {format:'a2log-upload-checkpoint',version:1,server,visibility,parts};
   }
@@ -27,7 +28,7 @@
     const selected=new Map(), results=new Map();
     const label=r=>r.title || r.file;
     const checkpoint=()=>cleanCheckpoint({format:'a2log-upload-checkpoint',version:1,server:batch?.url||'',visibility:batch?.visibility||chosenVisibility,
-      parts:[...selected.values()].map(r=>{const result=results.get(r.file)||{};return {file:r.file,name:r.input?.name||r.name||r.file,title:label(r),fingerprint:r.fingerprint,status:result.status||'pending',id:result.id};})});
+      parts:[...selected.values()].map(r=>{const result=results.get(r.file)||{};return {file:r.file,name:r.input?.name||r.name||r.file,title:label(r),fingerprint:r.fingerprint,request_id:r.request_id,status:result.status||'pending',id:result.id};})});
     const saveCheckpoint=io.saveCheckpoint||(value=>localStorage.setItem(checkpointKey,JSON.stringify(value)));
     const loadCheckpoint=io.loadCheckpoint||(()=>JSON.parse(localStorage.getItem(checkpointKey)||'null'));
     const persist=()=>{const value=checkpoint();writes=writes.catch(()=>{}).then(()=>saveCheckpoint(value));return writes;};
@@ -38,7 +39,7 @@
       if(selected.size)throw Error('Clear the current queue before restoring another.');
       if(!value || !value.parts?.length)throw Error('No saved upload queue is available.');
       const saved=cleanCheckpoint(value);batch=saved.server?{url:saved.server,visibility:saved.visibility}:null;chosenVisibility=saved.visibility;retryUnknown=false;
-      for(const item of saved.parts){const row={file:item.file,name:item.name,title:item.title,fingerprint:item.fingerprint};selected.set(row.file,row);results.set(row.file,{status:item.status==='uploading'?'unknown':item.status,id:item.id,fingerprint:item.fingerprint});}
+      for(const item of saved.parts){const row={file:item.file,name:item.name,title:item.title,fingerprint:item.fingerprint,request_id:item.request_id};selected.set(row.file,row);results.set(row.file,{status:item.status==='uploading'?'unknown':item.status,id:item.id,fingerprint:item.fingerprint});}
       if(io.files)rows=[...selected.values()];
       message='Queue restored. '+(io.files?'Reselect the original JSON files to verify their fingerprints. ':'Files are verified before skipping known successes. ')+'Interrupted requests remain uncertain; check My uploads before retrying them.';
       render();
@@ -77,6 +78,7 @@
           if(results.get(row.file)?.status==='uploaded')continue;
           if(results.get(row.file)?.status==='unknown' && !retryUnknown)throw Error('Uncertain upload outcome for '+label(row)+'. Check My uploads, then explicitly allow retry if it was not received.');
           if(cancel || !root.isConnected)break;
+          row.request_id ||= [...crypto.getRandomValues(new Uint8Array(16))].map(v=>v.toString(16).padStart(2,'0')).join('');
           results.set(row.file,{status:'uploading',fingerprint});message='Uploading '+label(row)+'…';render();
           await persist();
           if(cancel || !root.isConnected){results.set(row.file,{status:'pending',fingerprint});await persist();break;}
@@ -86,9 +88,9 @@
               warning:response.ownership_warning,fingerprint});
             document.dispatchEvent(new Event('a2log-uploaded'));
           } catch(e) {
-            const known=/\b(400|401|403|413|429)\b|file changed|unfinished checkpoints/i.test(e.message);
+            const known=/\b(400|401|403|409|410|413|429)\b|file changed|unfinished checkpoints/i.test(e.message);
             results.set(row.file,{status:known?'failed':'unknown',error:e.message,fingerprint});
-            if(!known || e instanceof TypeError || /\b(401|403|429)\b|server changed|failed to fetch|timed out|aborted/i.test(e.message)){halted=true;}
+            if(!known || e instanceof TypeError || /\b(401|403|409|410|429)\b|server changed|failed to fetch|timed out|aborted/i.test(e.message)){halted=true;}
           }
           await persist();
           if(halted)break;
@@ -121,7 +123,7 @@
         <button class="btn small" data-cancel ${!busy?'disabled':''}>Cancel after current upload</button>
         <button class="btn small" data-clear ${disabled}>Clear queue</button><button class="btn small" data-manifest ${busy||!results.size?'disabled':''}>Export upload results</button></div>
         <label class="small"><input data-retry-unknown type="checkbox" ${retryUnknown?'checked':''} ${disabled}> I checked My uploads and want to retry uncertain requests (may duplicate an accepted upload).</label>
-        <p class="small muted">Public uploads are listed; unlisted uploads can be viewed with their link; private uploads require a secret link. The results manifest can contain unlisted links, but excludes private links and ownership/upload keys. A failed network response can be ambiguous: interrupted requests are marked uncertain and require explicit retry. Recovery stores outcomes, not a server receipt or durable upload idempotency guarantee.</p>
+        <p class="small muted">Public uploads are listed; unlisted uploads can be viewed with their link; private uploads require a secret link. The results manifest can contain unlisted links, but excludes private links and ownership/upload keys. A failed network response can be ambiguous: interrupted requests are marked uncertain and require explicit retry. Updated servers reuse matching request IDs instead of creating duplicate reports. Older servers and legacy uncertain requests without a prior ID can still duplicate. Request IDs are not ownership credentials; retries do not reissue private links or management tokens.</p>
         <div role="status" aria-live="polite">${esc(message)}</div>
         <ul>${[...selected.values()].map(r=>{const s=results.get(r.file);const link=safeLink(s?.url);return `<li><button class="btn small" data-remove="${esc(r.file)}" ${disabled}>Remove</button> ${esc(label(r))}: ${esc(s?.status||'pending')}${s?.error?' — '+esc(s.error):''}${s?.warning?' — '+esc(s.warning):''}${s?.status==='uploaded'&&link?` · <a href="${esc(link)}" target="_blank" rel="noopener noreferrer">Open uploaded report</a>`:''}</li>`;}).join('')}</ul></section>`;
       const $=s=>root.querySelector(s);
@@ -153,7 +155,7 @@
         }catch(error){message=error.message;}finally{busy=false;render();}
       };
       $('[data-upload]').onclick=run;$('[data-cancel]').onclick=()=>{cancel=true;message='Cancellation requested; the in-flight upload can finish.';render();};
-      $('[data-clear]').onclick=()=>{selected.clear();results.clear();batch=null;retryUnknown=false;if(io.files)rows=[];remember();message='Queue cleared; local files and server uploads remain.';render();};
+      $('[data-clear]').onclick=()=>{for(const r of new Set([...rows,...selected.values()])){delete r.request_id;delete r.fingerprint;}selected.clear();results.clear();batch=null;retryUnknown=false;if(io.files)rows=[];remember();message='Queue cleared; local files and server uploads remain.';render();};
       $('[data-manifest]').onclick=download;
     }
     render();if(io.list)load(0);

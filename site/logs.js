@@ -30,6 +30,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     if(doc.meta?.capture_active)throw Error('Unfinished checkpoints are excluded; review and export a finished part first.');
     let body=text;const headers={'Content-Type':'application/json'};
     if(batch.key)headers.Authorization='Bearer '+batch.key;
+    if(row.request_id)headers['Idempotency-Key']=row.request_id;
     if(typeof CompressionStream!=='undefined'){
       body=await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
       headers['Content-Encoding']='gzip';
@@ -43,7 +44,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     }catch(e){if(e.name==='AbortError')throw Error('Upload timed out; the server outcome is unknown. Check My uploads/server before retrying.');throw e;}
     finally{clearTimeout(timer);}
     if(!response.ok || result.error)throw Error('Upload refused ('+response.status+'): '+(result.error||response.statusText));
-    try {A2LogOwnership.remember(batch.url,result,doc.meta?.title||row.input.name);}
+    try {if(!result.replayed)A2LogOwnership.remember(batch.url,result,doc.meta?.title||row.input.name);}
     catch(e){result.ownership_warning='Uploaded, but could not save ownership on this browser: '+e.message;}
     return result;
   }

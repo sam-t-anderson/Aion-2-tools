@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import re
 import urllib.error
 import urllib.request
 
@@ -131,7 +132,7 @@ def discover(url: str) -> dict:
         return json.load(r)
 
 
-def upload(doc: dict, url: str | None = None, key: str | None = None, visibility: str | None = None) -> dict:
+def upload(doc: dict, url: str | None = None, key: str | None = None, visibility: str | None = None, request_id: str | None = None) -> dict:
     s = effective()
     url = (url or s.get("url") or "").rstrip("/")
     key = key or (s.get("key") if url == str(s.get("url") or "").rstrip("/") else None)
@@ -147,13 +148,18 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
     headers = {"Content-Type": "application/json", "Content-Encoding": "gzip", "User-Agent": "aion2calc"}
     if key:
         headers["Authorization"] = "Bearer " + key
+    if request_id is not None:
+        if not isinstance(request_id, str) or not re.fullmatch(r"[a-f0-9]{32}", request_id):
+            raise ValueError("Invalid upload request ID")
+        headers["Idempotency-Key"] = request_id
     req = urllib.request.Request(f"{target}?visibility={vis}", body, headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
             result = json.load(r)
         from .ownership import remember
         try:
-            remember(url,result,doc.get("meta",{}).get("title", ""))
+            if not result.get("replayed"):
+                remember(url,result,doc.get("meta",{}).get("title", ""))
         except (OSError, ValueError, KeyError) as exc:
             result["ownership_warning"] = "Uploaded, but could not save ownership locally: " + str(exc)
         return result

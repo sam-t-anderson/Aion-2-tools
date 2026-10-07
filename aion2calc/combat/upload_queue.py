@@ -36,6 +36,9 @@ def clean(value):
         fingerprint = row.get("fingerprint")
         if fingerprint is not None and (not isinstance(fingerprint, str) or not re.fullmatch(r"[a-f0-9]{64}", fingerprint)):
             raise ValueError("Invalid file fingerprint")
+        request_id = row.get("request_id")
+        if request_id is not None and (not isinstance(request_id, str) or not re.fullmatch(r"[a-f0-9]{32}", request_id)):
+            raise ValueError("Invalid upload request ID")
         status = row.get("status", "pending")
         if status not in ("pending", "uploading", "unknown", "failed", "uploaded"):
             raise ValueError("Invalid recovery status")
@@ -46,7 +49,7 @@ def clean(value):
             raise ValueError("Successful recovery records require a server, report ID and fingerprint")
         parts.append({"file": file, "name": str(row.get("name") or file)[:1024],
                       "title": str(row.get("title") or file)[:200], "fingerprint": fingerprint,
-                      "status": status, "id": log_id})
+                      "status": status, "id": log_id, "request_id": request_id})
     return {"format": "a2log-upload-checkpoint", "version": 1, "server": server,
             "visibility": visibility, "parts": parts}
 

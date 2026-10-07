@@ -178,7 +178,7 @@ Skill images use the desktop icon cache or metabot.gg on the website; unavailabl
 
 The file fingerprint must match before a successful entry is skipped or another request is sent. A changed file stops the queue; remove it or clear/review a new queue. A missing file must be restored or removed. Pages can reattach uniquely named files after copying; fingerprints still verify content. Recovery files are user-editable local records, not authenticated server receipts or upload ownership.
 
-Requests interrupted during upload restore as **unknown**. Check **My uploads**/the original server before checking the explicit uncertain-retry option. The server may already have accepted a request even if the response was lost; explicit retry can duplicate it. Known successful uploads are skipped, but this is not durable server idempotency. No automatic upload starts when restoring or importing. Private report links must be reopened through My uploads, since recovery files intentionally omit them. Clearing a queue also clears its saved checkpoint, without deleting logs or uploads.
+Requests interrupted during upload restore as **unknown**. Check **My uploads**/the original server before checking the explicit uncertain-retry option. The server may already have accepted a request even if the response was lost. Matching saved request IDs now support durable duplicate prevention on updated servers; legacy requests/servers can still duplicate. Known successful uploads are skipped. No automatic upload starts when restoring or importing. Private report links must be reopened through My uploads, since recovery files intentionally omit them. Clearing a queue also clears its saved checkpoint, without deleting logs or uploads.
 
 ## Planned optimizer objective update
 
@@ -186,7 +186,7 @@ User priority: maximize PvE damage while meeting configurable survivability cons
 
 For PvP, evaluate damage/burst, crowd control, mobility and survival across an ensemble of optimized opponent builds/archetypes. Use official current profiles or recorded profile snapshots when identities resolve, with timestamps and provenance. Include average and adverse matchup results and sensitivity to uncertain coefficients; avoid optimizing against one stationary target or claiming verified win probabilities. User-provided profiles/scenario inputs should remain editable. Current experimental PvP optimizer is still a damage-only proxy until this separate modeling checkpoint is implemented and validated.
 
-Next after recovery: durable server request idempotency and archive navigation/stitching design; optimizer scenario/constraint implementation is a separate substantial checkpoint. Representative PvP round/death, CC/movement and mitigation evidence remains needed to validate mechanical predictions.
+Saved-part request retries now have durable server mappings; archive navigation/stitching remains next, while optimizer scenario/constraint implementation is a separate substantial checkpoint. Representative PvP round/death, CC/movement and mitigation evidence remains needed to validate mechanical predictions.
 
 ## Damage with an HP reserve (0.2.41)
 
@@ -234,7 +234,7 @@ Recovered old build titles show PvE/PvP and use the saved character sidecar name
 - Interactive maps: verified zone/coordinate data, search/filters, provenance and permitted tile/icon assets. References https://a2db.ru/en/maps , https://shugo.gg/map , https://interactivemap.app/aion2/maps/ . These are references, not licensed datasets automatically available for copying.
 - Crafting simulator resembling the game: materials/quantities, output/rarity, chances/modifiers, explicit recipe/patch/region provenance and unknown values. Research database/wiki formulas and permitted images before modeling; keep deterministic costs distinct from probability estimates and do not invent chances.
 
-Existing priorities remain: verified defensive/CC/mobility/opponent modeling, upload idempotency/archive stitching, combat protocol gaps and evidence-based catalog/patch/difficulty mapping. PvP analytics and operations dashboard continue in parallel with those user-requested checkpoints; expansions above do not imply already-completed features.
+Existing priorities remain: verified defensive/CC/mobility/opponent modeling, request reconciliation/archive stitching, combat protocol gaps and evidence-based catalog/patch/difficulty mapping. PvP analytics and operations dashboard continue in parallel with those user-requested checkpoints; expansions above do not imply already-completed features.
 
 ### Installation and encounter inference follow-up
 
@@ -271,3 +271,7 @@ Implemented focused character pages shared by desktop/Pages with Back to log, re
 New imported loadouts preserve official equipment IDs/slots/icons/grades/enchants, and new optimizer raw reports freeze their simulation loadout for future review/rerender. Missing/broken equipment images show a placeholder; name fallback requires a unique match and does not choose one member of a grouped family. Follow-up: catalog stable-ID reconciliation and verified NPC/item/title asset coverage. Old reports without gear snapshots cannot be reconstructed retroactively.
 
 Server candidate collection now groups publicly retained engaged boss HP evidence by patch/build/region/NPC/map/instance and submitted difficulty/source/recorded complete roster size, keeping reported max HP separate from peak current HP. Dashboard/export flags changing or inconsistent maxima. Independent labels, scaling/modifiers, promotion and held-out precision validation remain pending; candidates do not classify difficulty or alter ranking eligibility.
+
+### Durable saved-part request retries
+
+Saved Parts desktop/Pages queues persist/export random request IDs before sending. Supporting servers atomically retain request-to-report mappings scoped by upload-key identity (or anonymous), compare normalized content/visibility, replay accepted IDs, reject conflicts and retain deletion tombstones. Retry IDs do not grant ownership; receipts never reissue private links/tokens. Explicit uncertain retries and file fingerprint verification remain. Legacy requests/servers and separately started queues can duplicate; full content-based duplicate reconciliation, archive stitching and ownership recovery after a lost first response remain follow-up work.

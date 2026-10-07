@@ -678,7 +678,7 @@ async function pageCombat() {
     loadCheckpoint:()=>api('/api/upload-queue'),saveCheckpoint:value=>api('/api/upload-queue',value),
     fingerprint:async row=>(await api('/api/sessions?fingerprint='+encodeURIComponent(row.file))).fingerprint,
     open:row=>{location.hash='/combat-log/local/'+encodeURIComponent(row.file);},
-    upload:(row,batch)=>api('/api/sessions/share',{file:row.file,visibility:batch.visibility,server:batch.url,completed_only:true,fingerprint:row.fingerprint})
+    upload:(row,batch)=>api('/api/sessions/share',{file:row.file,visibility:batch.visibility,server:batch.url,completed_only:true,fingerprint:row.fingerprint,request_id:row.request_id})
   });
   A2LogOwnership.mount($('#owned-logs'),{
     list:()=>api('/api/log-ownership'),
