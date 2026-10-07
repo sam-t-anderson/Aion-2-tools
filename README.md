@@ -22,6 +22,16 @@ It answers, for any class:
 and produces images of the Daevanion boards and a planner-style build page plus
 share links for the metabot.gg and gamers4.life planners.
 
+## Death recaps and character trends
+
+Choose **Death recaps** in combat review to see recorded incoming damage, received healing and HP samples in the ten seconds before an explicit player death marker. Open a recap for relative event times and sources. The last incoming hit is an observation, not a confirmed killing blow. Equal timestamps do not establish event order; missing recipients, HP or death markers remain unavailable. Pet deaths are separate from owner deaths.
+
+Recaps use the selected encounter's history and include every recorded incoming source regardless of enemy/graph filters. Split boundaries or a previous death can shorten the window. Sessions show up to 200 recaps, with the last 200 effects and HP samples per window; omitted counts are shown and window totals include omitted effects. No defensive, mitigation, avoidable-damage or cause-of-death conclusions are invented.
+
+In **Combat Logs → Personal records**, search a character by server and name or database ID to open **Character consistency and trends**. Desktop and Pages show matched completed-boss public recordings, rate history, median/range, population standard deviation, median absolute deviation and relative variation. Variation requires five recordings; recent-five versus preceding-five medians require ten. Dataset caps suppress variation/trend claims. History is ordered by upload receipt, not verified fight time.
+
+Only eligible public completed-boss captures enter these trends; private/unlisted logs and unranked wipes/partial captures are excluded. Rates match boss, class, category, patch, difficulty, party size and instance. Gear, teammates and fight length can still differ, so a rate change does not prove improved play. Healing effects are not verified effective healing; damage taken is descriptive. Missing death markers never establish a deathless run.
+
 ## Matched comparisons and percentiles
 
 Combat review shows **Current standings (same patch)** and **At upload (reconstructed)**. Player comparisons match boss, class, category, patch, difficulty, observed party size and instance. Community browsing and Pages leaderboards include party-size filters; ranks apply within the matching cohort. Class summaries and personal bests also separate party sizes and instances.

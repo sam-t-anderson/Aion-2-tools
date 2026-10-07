@@ -12,8 +12,11 @@ Implemented per-run timing/progression, conservative observed wipes, best wipe H
 
 Implemented observed party-size/instance cohorts for player comparisons, class distributions and personal bests; current same-patch and reconstructed at-upload standings for players and run speed; minimum sample/distinct identity gates, cap warnings, tie-aware empirical percentiles and provisional labels. Community and Pages filters expose party size. Historical reconstruction uses currently public retained uploads, not immutable snapshots. Gear brackets remain unavailable until encounter-time gear is reliable; upload-time profiles are insufficient. No cross-patch normalization is inferred.
 
+## Insights roadmap — checkpoint 4 (0.2.26)
+
+Implemented bounded explicit-player-death recaps with observed damage/healing/HP, relative timestamps, missing-evidence/short-window notices and no inferred killing blows. Pet deaths no longer count as owner deaths; identical markers are deduplicated. Shared desktop/Pages personal search shows matched public completed-boss consistency and recent-five/previous-five trends, minimum sample gates, capped history and descriptive caveats. Wipes remain reviewable with recaps but unranked for these public rate trends. Avoidable damage, defensives and causal improvement require further protocol/encounter evidence.
+
 Next checkpoints, in order:
-3. Death recaps and player consistency/improvement.
 4. Phase, support and rotation analysis as cast/buff/resource decoding is verified.
 5. Character ownership/privacy/community tools and richer evidence-backed PvP scoring.
 

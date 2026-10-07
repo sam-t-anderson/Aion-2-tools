@@ -380,6 +380,8 @@ class Runner:
             segment["quality"] = assess(doc, segment)
         from ..combat.runs import summarize
         doc["run_analysis"] = summarize(doc)
+        from ..combat.recaps import summarize as death_recaps
+        doc["death_analysis"] = death_recaps(doc)
         return doc
 
     def has_data(self) -> bool:
