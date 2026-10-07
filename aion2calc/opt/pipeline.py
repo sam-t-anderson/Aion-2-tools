@@ -137,6 +137,7 @@ class Optimizer:
                  search_duration: float | None = None, verbose: bool = True, gear_bonus: dict | None = None,
                  progress=None, survival=None, skill_reserves=None):
         self.skill_reserves = skill_reserves
+        self.required_specs = (skill_reserves or {}).get("specs", {})
         self.min_sp = (skill_reserves or {}).get("sp", {})
         self.min_stigmas = (skill_reserves or {}).get("stigmas", {})
         self.survival = survival
@@ -250,6 +251,8 @@ class Optimizer:
             for sid, combos in opts.items():
                 cur = build.specs.get(sid, ())
                 for combo in combos:
+                    if not set(self.required_specs.get(sid, ())) <= set(combo):
+                        continue
                     if tuple(sorted(combo)) == tuple(sorted(cur)):
                         continue
                     b2 = build.copy()
@@ -371,6 +374,8 @@ class Optimizer:
             if s["kind"] == "active" and s.get("specs"):
                 opts = mod.spec_options(cd, self._with_gear(b2)).get(sid, [()])
                 for combo in opts:
+                    if not set(self.required_specs.get(sid, ())) <= set(combo):
+                        continue
                     b3 = b2.copy()
                     b3.specs[sid] = tuple(combo)
                     best = max(best, self.evaluate(b3, policy))
@@ -389,6 +394,8 @@ class Optimizer:
             best = self.evaluate(b2, policy)
             if s["kind"] == "active" and s.get("specs"):
                 for combo in mod.spec_options(self.cd, self._with_gear(b2)).get(sid, [()]):
+                    if not set(self.required_specs.get(sid, ())) <= set(combo):
+                        continue
                     b3 = b2.copy()
                     b3.specs[sid] = tuple(combo)
                     best = max(best, self.evaluate(b3, policy))
@@ -531,6 +538,14 @@ class Optimizer:
             ok = [x for x in b.specs[sid] if any(sp["id"] == x and sp["unlock"] <= L.get(sid, 1)
                                                  for sp in s["specs"])]
             b.specs[sid] = tuple(ok[: spec_slots(L.get(sid, 1))])
+        for sid, chosen in self.required_specs.items():
+            skill = cd.skills[sid]
+            available = {effect["id"] for effect in skill.get("specs", []) if effect["unlock"] <= L.get(sid, 1)}
+            slots = spec_slots(L.get(sid, 1))
+            if not set(chosen) <= available or len(chosen) > slots:
+                raise ValueError(f"{skill['name']}: reserved supporting effects are unavailable at the proposed level")
+            extras = [effect for effect in b.specs.get(sid, ()) if effect not in chosen]
+            b.specs[sid] = tuple(chosen) + tuple(extras[:slots-len(chosen)])
         return b
 
     # ----------------------------------------------------------------- main

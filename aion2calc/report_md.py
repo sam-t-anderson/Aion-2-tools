@@ -69,6 +69,8 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         reserve = s["skill_reserves"]
         w("## Trained skill reserves\n")
         w(reserve["note"] + "\n")
+        for effect in reserve.get("effects", []):
+            w(f"- Reserved supporting effect: {effect['skill']} · {effect['text']} (effect Lv {effect['unlock']}); {'retained' if effect['selected'] else 'missing'}.\n")
         w("| Skill | Minimum trained level | Selected trained level |")
         w("|---|---:|---:|")
         for row in reserve["skills"]:
