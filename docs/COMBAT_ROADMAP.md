@@ -299,3 +299,7 @@ Implemented optional active/passive trained-level floors and minimum levels for 
 ### Desktop image HTTP diagnostics
 
 Image coverage export includes process-local approved-host HTTP status/error/cache counters without full URLs or character paths. These are attempt counts, not resource identity reconciliation. Browser-direct failures remain status-unavailable. Missing NPC portrait sources and third-party stable-ID catalog matching remain pending.
+
+### Recording part navigation
+
+Saved Parts groups exact archive IDs with part-order pagination on desktop and selected-file grouping on Pages, preserving upload queues. This does not stitch effects, prove completeness or reconcile duplicate captures; those remain pending.
