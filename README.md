@@ -24,7 +24,7 @@ share links for the metabot.gg and gamers4.life planners.
 
 ## Skill specialties
 
-**Optimize my build → Skills** shows recommended specialty numbers, descriptions and effect unlock levels. **Gear & Advice → Skill specialties** shows recommendations for your imported equipped build, all effect requirements and the next unlock, even without combat logs. Effective levels include training, Daevanion and gear. Stigma effects activate automatically. The official profile does not disclose selected specialties, so these are recommendations rather than confirmed current choices. Recalculate after changing gear or points. New saved advice retains its specialty snapshot; older snapshots require recalculation for this panel.
+**Optimize PvE build → Skills** shows recommended specialty numbers, descriptions and effect unlock levels. **Gear & Advice → Skill specialties** shows recommendations for your imported equipped build, all effect requirements and the next unlock, even without combat logs. Effective levels include training, Daevanion and gear. Stigma effects activate automatically. The official profile does not disclose selected specialties, so these are recommendations rather than confirmed current choices. Recalculate after changing gear or points. New saved advice retains its specialty snapshot; older snapshots require recalculation for this panel.
 
 ## Reporting a shared combat log
 
@@ -207,13 +207,21 @@ Compare multiple local or public logs by choosing the encounter and each same-cl
 
 ## Build points
 
-**My Character** displays points spent and the optimization budget. Official profiles may omit unspent points. Enter the total from your in-game window (spent + unspent) for Skill, Stigma and PvE Daevanion before **Optimize my build**. Imported spend is a lower bound; it is not a verified character maximum. Planner budgets are configurable, including Daevanion. The bundled 203 / 30 / 360 preset describes an example simulation, not the total available to every character. Gear skill levels and PvP Daevanion points are separate from these budgets.
+**My Character** displays points spent and the optimization budget. Official profiles may omit unspent points. Enter the total from your in-game window (spent + unspent) for Skill, Stigma and PvE Daevanion before **Optimize PvE build**. Imported spend is a lower bound; it is not a verified character maximum. Planner budgets are configurable, including Daevanion. The bundled 203 / 30 / 360 preset describes an example simulation, not the total available to every character. Gear skill levels and PvP Daevanion points are separate from these budgets.
 
 ## Saved optimizations and advice
 
 **Saved Results** reopens completed character/class optimizations and advice after restarting. Export a result JSON and import it on another installation. The latest older build and advice files are recovered automatically when available; overwritten historical files cannot be reconstructed. Advice is a snapshot from that run, so regenerate it when your gear or game data changes.
 
 After character optimization, anonymous point observations update the community's highest observed totals by class, region, patch and source. View these under Combat Logs. User-entered totals and allocated profile lower bounds are labelled separately; neither establishes the game's maximum.
+
+## PvE and PvP optimization
+
+**My Character** offers **Optimize PvE build** and **Optimize PvP damage (experimental)**. PvP results save separately and can be reopened through Saved Results. They cannot replace community PvE presets.
+
+The experimental PvP mode compares a 180-second sustained damage proxy and a 30-second burst assessment against a stationary neutral player target. It excludes PvE/boss bonuses and learned PvE calibration. It does not yet model verified PvP skill coefficients, opponent gear/mitigation, movement, crowd control, survivability or win chance. Existing character point budgets apply; dedicated PvP progression is not yet optimized.
+
+Live Meter buttons show progress and completion/error feedback. Export confirmations show the saved file path; diagnostic exports also offer a download link. Buttons are disabled while their request is running.
 
 ## PvP logs and leaderboards
 

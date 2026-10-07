@@ -95,13 +95,21 @@ def act_character_import(body: dict, log) -> dict:
 
 def act_character_optimize(body: dict, log) -> dict:
     from ..charopt import import_character, optimize_character
+    mode = body.get("mode", "pve")
+    if mode not in ("pve", "pvp"):
+        raise ValueError("Choose PvE or PvP optimization")
+    scenario = "pvp" if mode == "pvp" else "boss"
     imp = import_character(body["character_id"], int(body["server_id"]), body.get("region", "nae"),
                            progress=log, use_cache=3600)
     out = results_dir() / "characters" / imp.loadout_name()[5:]
-    log(f"optimizing under the same resources (writes {out})")
+    if mode == "pvp":
+        out = out / "pvp"
+        from ..scenarios import PVP_NOTE
+        log(PVP_NOTE)
+    log(f"optimizing {mode.upper()} under the same resources (writes {out})")
     # One pass by default keeps the in-app optimize responsive (serial, no process pool when packaged);
     # the big gains are in pass 1 plus the final polish. The CLI can pass more for an exhaustive search.
-    summ = optimize_character(imp, str(out), iterations=int(body.get("iterations", 1)), progress=log, budgets=body.get("budgets"))
+    summ = optimize_character(imp, str(out), iterations=int(body.get("iterations", 1)), scenario_name=scenario, progress=log, budgets=body.get("budgets"))
     best = json.loads((out / "build.json").read_text(encoding="utf-8"))
     cur = json.loads((out / "current" / "build.json").read_text(encoding="utf-8"))
     from ..combat import share
@@ -567,9 +575,13 @@ class Handler(BaseHTTPRequestHandler):
             if action == "upload":
                 if not r.has_data():
                     raise ValueError("nothing to upload yet")
-                from ..combat import share
-                return self._json(share.upload(r.to_a2log(title=body.get("title")),
-                                               visibility=body.get("visibility")))
+                def upload_snapshot(*, log):
+                    from ..combat import share
+                    log("Preparing a copy of the session; capture can continue.")
+                    doc = r.to_a2log(title=body.get("title"))
+                    log("Uploading session snapshot…")
+                    return share.upload(doc, visibility=body.get("visibility"))
+                return self._json({"job": start_job("meter-upload", upload_snapshot)})
             if action == "screenshot":
                 if self.client_address[0] not in ("127.0.0.1", "::1"):
                     raise PermissionError("screenshots run only on this computer")

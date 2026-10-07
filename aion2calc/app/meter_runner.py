@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import threading
+import copy
 import queue
 import time
 import uuid
@@ -252,10 +253,9 @@ class Runner:
         with self._session_save_lock:
             try:
                 from ..combat.sessions import save
-                with self.lock:
-                    doc = self._metadata(self.session.to_a2log(self.scope))
-                    doc["meta"].update(capture_active=bool(active and self.running),
-                                       checkpoint_at=time.time(), capture_scope=self.scope)
+                doc = self.to_a2log()
+                doc["meta"].update(capture_active=bool(active and self.running),
+                                   checkpoint_at=time.time(), capture_scope=self.scope)
                 self.saved_log = str(save(doc, self.session_file))
                 self.diagnostics.pop("log_save_error", None)
             except (ValueError, OSError) as exc:
@@ -361,28 +361,38 @@ class Runner:
         return self.status()
 
     def to_a2log(self, title: str | None = None) -> dict:
+        # Detach quickly under the capture lock. Validation, summaries and upload
+        # must never hold that lock while the decoder is receiving new packets.
         with self.lock:
-            if self.packet_engine is not None:
-                return self._metadata(self.session.to_a2log(self.scope, title))
-            return self._metadata(self.meter.to_a2log(title=title))
+            session = copy.deepcopy(self.session if self.packet_engine is not None else self.meter)
+            metadata = dict(self.metadata)
+            profile = dict(self.packet_engine.local_profile) if self.packet_engine else {}
+            scope = self.scope
+        doc = session.to_a2log(scope, title) if isinstance(session, CombatSession) else session.to_a2log(title=title)
+        return self._metadata(doc, metadata=metadata, profile=profile)
 
     def review_log(self) -> dict:
         with self.lock:
-            if self.packet_engine is not None:
-                return self._metadata(self.session.to_a2log(self.scope, segment_id=self.segment_id))
-            return self._metadata(self.meter.to_a2log())
+            session = copy.deepcopy(self.session if self.packet_engine is not None else self.meter)
+            metadata = dict(self.metadata)
+            profile = dict(self.packet_engine.local_profile) if self.packet_engine else {}
+            scope, segment_id = self.scope, self.segment_id
+        doc = session.to_a2log(scope, segment_id=segment_id) if isinstance(session, CombatSession) else session.to_a2log()
+        return self._metadata(doc, metadata=metadata, profile=profile)
 
-    def _metadata(self, doc):
-        doc.setdefault("meta", {}).update(self.metadata)
+    def _metadata(self, doc, *, metadata=None, profile=None):
+        metadata = self.metadata if metadata is None else metadata
+        doc.setdefault("meta", {}).update(metadata)
         for segment in doc.get("segments",[]):
             if (segment.get("encounter_type") in (None,"pve_unverified","pvp_other")
-                    and self.metadata.get("encounter_type") not in (None,"","unknown")
-                    and segment.get("encounter_type","").startswith("pvp_") == self.metadata["encounter_type"].startswith("pvp_")):
-                segment["encounter_type"] = self.metadata["encounter_type"]
+                    and metadata.get("encounter_type") not in (None,"","unknown")
+                    and segment.get("encounter_type","").startswith("pvp_") == metadata["encounter_type"].startswith("pvp_")):
+                segment["encounter_type"] = metadata["encounter_type"]
             for key in ("game_patch","difficulty","zone"):
-                if self.metadata.get(key):
-                    segment[key] = self.metadata[key]
-        profile = self.packet_engine.local_profile if self.packet_engine else {}
+                if metadata.get(key):
+                    segment[key] = metadata[key]
+        if profile is None:
+            profile = self.packet_engine.local_profile if self.packet_engine else {}
         if profile.get("serverId"):
             doc["meta"]["server"] = str(profile["serverId"])
         from ..combat.quality import assess

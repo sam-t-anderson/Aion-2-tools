@@ -23,6 +23,7 @@ FIELD_LABELS = {
     "crit_dmg": ("Critical Damage Boost", "pct"), "double": ("Double chance", "pct"),
     "perfect": ("Perfect chance", "pct"), "multihit": ("Multi-hit chance", "pct"),
     "amp_all": ("Damage Boost", "pct"), "amp_pve": ("PvE Damage Boost", "pct"),
+    "amp_pvp": ("PvP Damage Boost", "pct"), "pvp_atk": ("PvP Attack", "num"),
     "amp_boss": ("Boss Damage Boost", "pct"), "weapon_amp": ("Weapon Damage Boost", "pct"),
     "pve_atk": ("PvE Attack", "num"), "boss_atk": ("Boss Attack", "num"), "front_atk": ("Front Attack", "num"),
     "back_atk": ("Back Attack", "num"), "pen": ("Penetration", "num"), "combat_speed": ("Combat Speed", "pct"),
@@ -289,6 +290,7 @@ def build_view(summary: dict) -> dict:
                                          "daevanion": summary.get("daevanion_budget", 360)}
     return {
         "class": cls, "loadout": loadout, "loadout_name": lo.get("name"), "scenario": summary.get("scenario"),
+        "model_note": summary.get("model_note"),
         "dps": summary.get("dps"), "baseline": summary.get("baseline"), "budgets": budgets,
         "points": {"skill": build.sp_spent(), "stigma": build.stigma_spent(), "daevanion": build.daevanion_cost(cd)},
         "skills": skills_view(cd, build, gear),

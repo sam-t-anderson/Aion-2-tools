@@ -1,3 +1,16 @@
+# Aion 2 Calc 0.2.33
+
+- Show timeline marker details in a visible panel on hover, click or keyboard focus; explain unavailable comparison ranks instead of relying on hidden tooltips.
+
+- Let combat-review users supply a missing character home server and region for a current official profile preview. Manual previews remain separate from upload-time historical snapshots. Pages and server views require server 0.2.18. Show PvP timing without unrelated boss-progression/speed tables.
+
+- Upload Live Meter logs as a background job using a detached session copy. Prepare summaries outside the capture lock so uploads do not monopolize packet decoding; expose upload progress and restore controls after failure.
+
+- Add separate **Optimize PvE build** and **Optimize PvP damage (experimental)** actions. Save PvP results separately and identify their model in reports and recovered results.
+- The PvP damage proxy excludes PvE/boss bonuses and PvE calibration. It compares sustained and burst damage against a stationary neutral player target; it does not predict survivability, crowd control, movement, opponent mitigation or win chance. Dedicated PvP progression and verified PvP skill coefficients remain pending.
+- Keep experimental PvP results out of PvE community presets.
+- Add Live Meter action progress, disabled buttons during requests and completion/error notifications for exports, uploads, screenshots, splits, run completion and overlay controls. Export confirmation includes the saved path.
+
 # Aion 2 Calc 0.2.32
 
 - Remove the live TCP diagnostic record-count and size caps. Stream the complete opted-in session to disk and export ZIPs without loading the full recording into memory.

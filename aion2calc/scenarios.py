@@ -20,7 +20,30 @@ def boss(loadout: str = "sorcerer_l45_global_median", duration: float = 180.0) -
                     config=SimConfig(duration=duration))
 
 
-SCENARIOS = {"dummy": dummy, "boss": boss}
+PVP_NOTE = ("Experimental PvP damage-only proxy: 180 seconds against a stationary player target "
+            "with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned "
+            "proc/skill multipliers are excluded. Generic skill data is used for every class; "
+            "PvP-specific damage coefficients, opponent gear, movement, crowd control, survival "
+            "and win probability are not modeled. Uses the existing skill, stigma and crystal-board "
+            "budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score "
+            "evaluates the same build and priority. This is not a verified competitive PvP build.")
+
+
+def pvp(loadout: str = "sorcerer_l45_global_median", duration: float = 180.0) -> Scenario:
+    return Scenario(loadout=loadout,
+                    target=Target(tolerance=0, is_boss=False, is_player=True),
+                    config=SimConfig(duration=duration))
+
+
+def pvp_burst(loadout: str = "sorcerer_l45_global_median", duration: float = 30.0) -> Scenario:
+    return pvp(loadout, duration)
+
+
+def comparison_scenario(name):
+    return "pvp_burst" if name == "pvp" else "pvp" if name == "pvp_burst" else "dummy" if name == "boss" else "boss"
+
+
+SCENARIOS = {"dummy": dummy, "boss": boss, "pvp": pvp, "pvp_burst": pvp_burst}
 
 
 def decode_metabot_daevanion(cd: ClassData, h: str) -> set:

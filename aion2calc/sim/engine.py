@@ -39,6 +39,8 @@ class Target:
     is_boss: bool = True
     hp_model: str = "dummy"        # "dummy" (always 100%) or "linear" (100% -> 0% over the fight)
 
+    is_player: bool = False
+
     def hp_pct(self, t: float, duration: float) -> float:
         if self.hp_model == "linear":
             return max(0.0, 1.0 - t / max(duration, 1e-9))
@@ -261,7 +263,7 @@ class Sim:
     # ------------------------------------------------------------- internals
     def _land(self, t: float, source: str, flat: float, coef: float, element, tags, mult,
               extra: dict | None = None):
-        if SKILL_MULT:
+        if SKILL_MULT and not self.target.is_player:
             mult *= SKILL_MULT.get(source.split(" (")[0], 1.0)
         mods = self.stat_mods(t)
         if extra:

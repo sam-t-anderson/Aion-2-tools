@@ -184,3 +184,7 @@ means it is robust to these unknowns.
 Movement/boss mechanics, party buffs (optional via `Scenario.buffs`), PvP,
 pets' genus-specific damage (only matters versus that genus), Power Shards,
 and any content gated behind levels > 45.
+
+## Experimental PvP optimizer
+
+My Character provides separate PvE and PvP damage actions. PvP uses the generic class kit against a stationary neutral player proxy, excludes PvE/boss stat buckets and learned PvE skill/proc/critical calibration, and assesses sustained (180 seconds) and burst (30 seconds) damage. Saved results retain this model description. It does not optimize dedicated PvP progression, survival, crowd control, movement or opponent-specific defenses, and its skill coefficients are not validated PvP coefficients. PvP output is excluded from PvE community preset submission.

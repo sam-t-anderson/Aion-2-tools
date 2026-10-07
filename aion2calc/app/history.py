@@ -52,7 +52,8 @@ def save(doc, identifier=None):
 
 def capture(kind, result):
     character = result.get("character") or result.get("summary", {}).get("character") or {}
-    title = (character.get("name") or result.get("class") or "Build") + " · " + kind.replace("-", " ")
+    mode = (result.get("summary") or {}).get("scenario", result.get("scenario", "boss"))
+    title = (character.get("name") or result.get("class") or "Build") + " · " + ("PvP (experimental)" if mode == "pvp" else "PvE") + " · " + kind.replace("-", " ")
     return save({"format": "a2result", "version": 1, "kind": kind, "title": title, "created": time.time(), "result": result})
 
 

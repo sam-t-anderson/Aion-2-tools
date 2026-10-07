@@ -32,13 +32,14 @@ async function runJob(path, body, onLog) {
 function copyText(t) {
   navigator.clipboard?.writeText(t).then(() => toast("Copied to clipboard"), () => toast("Copy failed"));
 }
-function toast(msg) {
+function toast(msg, duration = 4000) {
   const d = document.createElement("div");
+  d.setAttribute("role", "status");
   d.textContent = msg;
   Object.assign(d.style, { position: "fixed", bottom: "20px", left: "50%", transform: "translateX(-50%)", background: "#1c2438",
     border: "1px solid rgba(233,203,128,.6)", padding: "8px 16px", borderRadius: "6px", zIndex: 99, color: "#e8cf8e" });
   document.body.appendChild(d);
-  setTimeout(() => d.remove(), 1800);
+  setTimeout(() => d.remove(), duration);
 }
 const statGrid = (rows, title = "Stats from this system") =>
   rows && rows.length
@@ -391,24 +392,26 @@ async function pageCharacter() {
     const availableBudgets=Object.fromEntries(['skill','stigma','daevanion'].map(k=>[k,Math.max(v.points[k],savedBudgets[k]??v.budgets?.[k]??v.points[k])]));
     const rememberBudgets=()=>{const values=Object.fromEntries([...document.querySelectorAll('[data-character-budget]')].map(e=>[e.dataset.characterBudget,+e.value]));let all={};try{all=JSON.parse(localStorage.getItem('character-point-budgets')||'{}');}catch(_){}all[v.key]=values;localStorage.setItem('character-point-budgets',JSON.stringify(all));return values;};
     $("#cview").innerHTML = `<section class="win"><div class="wh"><h2>${esc(v.name)}</h2><span class="sub">${esc(cap(v.class))} · Lv ${v.level} · ${esc(v.server)} · Combat Power ${n0(v.combat_power)}</span>
-      <div class="tools"><button class="btn primary" id="opt">Optimize my build</button></div></div><div class="wb">
+      <div class="tools"><button class="btn primary" id="opt" data-opt-mode="pve">Optimize PvE build</button><button class="btn" id="optpvp" data-opt-mode="pvp">Optimize PvP damage (experimental)</button></div></div><div class="wb">
       <div class="kpis">${Object.entries(v.dps || {}).map(([k, x]) => `<div class="kpi"><div class="k">${esc(k)} DPS as-is</div><div class="v">${n0(x)}</div></div>`).join("")}
         <div class="kpi"><div class="k">Skill points</div><div class="v">${v.points.skill} / ${v.budgets?.skill??"Unknown"}</div></div><div class="kpi"><div class="k">Stigma points</div><div class="v">${v.points.stigma} / ${v.budgets?.stigma??"Unknown"}</div></div>
         <div class="kpi"><div class="k">Daevanion</div><div class="v">${v.points.daevanion} / ${v.budgets?.daevanion??"Unknown"}</div></div></div>
-      ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${['skill','stigma','daevanion'].map(k=>`<label>${cap(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:90px"></label>`).join('')}<label>Game patch (optional) <input id="cpointpatch" maxlength="100" placeholder="Unknown" value="${esc(localStorage.getItem('point-game-patch')||'')}"></label></div><div id="optres"></div></div></section><div id="cwins"></div>`;
+      ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${['skill','stigma','daevanion'].map(k=>`<label>${cap(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:90px"></label>`).join('')}<label>Game patch (optional) <input id="cpointpatch" maxlength="100" placeholder="Unknown" value="${esc(localStorage.getItem('point-game-patch')||'')}"></label></div><p class="small muted">PvP optimization is an experimental damage-only estimate against a stationary player proxy. It does not score survival, crowd control or win chance. PvE and PvP results are saved separately.</p><div id="optres"></div></div></section><div id="cwins"></div>`;
     renderWindows(v, st, $("#cwins"));
     st.optMeta = { name: v.name, server: v.server, combat_power: v.combat_power };
     $("#cpointpatch").onchange=()=>localStorage.setItem("point-game-patch",$("#cpointpatch").value.trim());
     document.querySelectorAll("[data-character-budget]").forEach(e=>e.onchange=rememberBudgets);
-    $("#opt").onclick = async () => {
-      S.character.opt = { status: "running", log: [], jobid: null };
+    document.querySelectorAll("[data-opt-mode]").forEach(button => button.onclick = async () => {
+      if (S.character.opt?.status === "running") return;
+      const mode = button.dataset.optMode;
+      S.character.opt = { status: "running", mode, log: [], jobid: null };
       renderOptState();
       try {
-        const { job } = await api("/api/character/optimize", {...st.hit,budgets:rememberBudgets(),game_patch:$("#cpointpatch").value.trim()});
+        const { job } = await api("/api/character/optimize", {...st.hit,mode,budgets:rememberBudgets(),game_patch:$("#cpointpatch").value.trim()});
         S.character.opt.jobid = job;
         pollOpt();
       } catch (e) { S.character.opt = { status: "error", error: e.message }; renderOptState(); }
-    };
+    });
     renderOptState();                 // show a job that is still running (or finished) after returning to this tab
   };
   if (st.v) showChar();
@@ -419,23 +422,23 @@ async function pageCharacter() {
 function renderOptResult(r) {
   const st = S.character, box = $("#optres");
   if (!box) return;
-  const g = r.summary.gain;
+  const g = r.summary.gain, scenario = r.summary.scenario || r.optimized.scenario || "boss";
   const preset = r.preset?.submitted ? (r.preset.accepted ? "This build is now the community preset for its class." : "The server kept its current Planner preset: " + (r.preset.reason || "no improvement at the shared budgets") + "") : "";
-  box.innerHTML = `<div class="kpis" style="margin-top:12px"><div class="kpi"><div class="k">Optimized boss DPS</div><div class="v">${n0(r.optimized.dps.boss)}</div></div>
+  box.innerHTML = `<div class="kpis" style="margin-top:12px"><div class="kpi"><div class="k">Optimized ${scenario === "pvp" ? "PvP proxy" : "boss"} DPS</div><div class="v">${n0(r.optimized.dps[scenario])}</div></div>
       <div class="kpi"><div class="k">Gain</div><div class="v ${g > 0 ? "good" : ""}">${g >= 0 ? "+" : ""}${pct(g)}</div></div></div>
-      ${preset ? `<p class="small good">${esc(preset)}</p>` : ""}<p class="small muted">The windows below now show the optimized build. What changes:</p><pre class="diff">${esc(r.diff)}</pre>`;
+      ${r.optimized.model_note ? `<p class="note">${esc(r.optimized.model_note)}</p>` : ""}${preset ? `<p class="small good">${esc(preset)}</p>` : ""}<p class="small muted">The windows below now show the optimized build. What changes:</p><pre class="diff">${esc(r.diff)}</pre>`;
   st.v = Object.assign({}, r.optimized, st.optMeta || {});
   if ($("#cwins")) renderWindows(st.v, st, $("#cwins"));
 }
 function renderOptState() {
   if (!location.hash.startsWith("#/character")) return;
-  const o = S.character.opt, box = $("#optres"), opt = $("#opt");
+  const o = S.character.opt, box = $("#optres");
   if (!o || !box) return;
-  if (opt) opt.disabled = o.status === "running";
+  document.querySelectorAll("[data-opt-mode]").forEach(b=>b.disabled = o.status === "running");
   if (o.status === "running") {
     const log = o.log || [];
     const last = log.length ? log[log.length - 1] : "starting…";
-    box.innerHTML = `<p><span class="spinner"></span> Optimizing your build — <b>${esc(last)}</b></p>
+    box.innerHTML = `<p><span class="spinner"></span> Optimizing ${o.mode === "pvp" ? "PvP damage (experimental)" : "PvE build"} — <b>${esc(last)}</b></p>
       <pre class="diff small" style="max-height:150px;overflow:auto;margin-top:6px">${esc(log.slice(-8).join("\n"))}</pre>
       <p class="small faint">Runs the rotation, stigma, Daevanion and skill-point search. Progress stays visible during the stigma and skill-level searches; the full optimization may take a few minutes.</p>`;
   }
@@ -803,7 +806,7 @@ async function pageMeter() {
     if(st.liveReview)st.liveReview.dispose();
     if($("#mlog-review"))$("#mlog-review").innerHTML="";
     st.liveReviewRoot=null;
-    try { st.pinnedSegment = ""; renderMeter(await api("/api/meter", {action: "clear"})); } catch (e) { $("#mnotice").textContent = e.message; }
+    try { st.pinnedSegment = ""; renderMeter(await api("/api/meter", {action: "clear"})); $("#mnotice").textContent = "Combat history cleared."; } catch (e) { $("#mnotice").textContent = e.message; }
   };
   $('#mfinishrun').onclick=async()=>{try{renderMeter(await api('/api/meter',{action:'finish-run'}));$('#mnotice').textContent='Run finished. Capture continues; the next fight starts a new run.';}catch(e){$('#mnotice').textContent=e.message;}};
   let decoderPath = null;
@@ -857,7 +860,7 @@ async function pageMeter() {
     const button = $("#mstart");
     if (st.running) {
       button.disabled = true;
-      try { renderMeter(await api("/api/meter", {action: "stop"})); }
+      try { $("#mnotice").textContent = "Stopping capture and saving logs…"; const result = await api("/api/meter", {action: "stop"}); renderMeter(result); $("#mnotice").textContent = result.diagnostics?.log_save_error ? "Capture stopped, but log saving failed: " + result.diagnostics.log_save_error : result.saved_log ? "Capture stopped. Session saved to " + result.saved_log : "Capture stopped. No session file was saved; check Combat Logs and capture diagnostics."; toast($("#mnotice").textContent, 6000); }
       catch (e) { $("#mnotice").textContent = e.message; }
       finally { button.disabled = false; }
       return;
@@ -891,12 +894,12 @@ async function pageMeter() {
       target_mode: "allTargets",
       character_name: source === "a2tools" ? ($("#mchar").value || null) : null };
     button.disabled = true;
-    try { st.pinnedSegment = ""; renderMeter(await api("/api/meter", body)); } catch (e) { $("#mnotice").textContent = e.message; }
+    try { st.pinnedSegment = ""; renderMeter(await api("/api/meter", body)); $("#mnotice").textContent = "Capture started. Waiting for combat data."; toast("Capture started"); } catch (e) { $("#mnotice").textContent = e.message; }
     finally { button.disabled = false; }
   };
   renderDiagnosticExport(st.diagnosticExport);
   $("#mdiag").onclick = async () => {
-    try { st.diagnosticExport = await api("/api/meter", {action: "diagnostics"}); renderDiagnosticExport(st.diagnosticExport); }
+    try { st.diagnosticExport = await api("/api/meter", {action: "diagnostics"}); renderDiagnosticExport(st.diagnosticExport); $("#mnotice").textContent = `Diagnostic ZIP exported to ${st.diagnosticExport.file}`; }
     catch (e) { $("#mnotice").textContent = e.message; }
   };
   $("#movl").onclick = async () => {
@@ -920,7 +923,7 @@ async function pageMeter() {
   };
   $("#mupload").onclick = async () => {
     $("#mnotice").textContent = "uploading…";
-    try { const r = await api("/api/meter", { action: "upload" }); $("#mnotice").innerHTML = r.url ? `uploaded — <a href="${esc(r.url)}" target="_blank" rel="noopener">open shared log</a>` : "uploaded"; }
+    try { const r = await runJob("/api/meter", { action: "upload" }, lines => { if (lines.length && $("#mnotice")) $("#mnotice").textContent = lines[lines.length - 1]; }); $("#mnotice").innerHTML = r.url ? `uploaded — <a href="${esc(r.url)}" target="_blank" rel="noopener">open shared log</a>` : "uploaded"; }
     catch (e) { $("#mnotice").textContent = e.message; }
   };
   $("#mshot").onclick = async () => {
@@ -928,6 +931,23 @@ async function pageMeter() {
     try { const r = await api("/api/meter", { action: "screenshot" }); $("#mnotice").textContent = `screenshot saved to ${r.file}`; }
     catch (e) { $("#mnotice").textContent = e.message; }
   };
+  // Keep action feedback visible while polling updates the live readings.
+  const actionLabels = {mdiag: "Exporting diagnostic ZIP…", mexport: "Exporting combat log…", msave: "Saving combat log…", mupload: "Uploading combat log…", mshot: "Saving screenshot…", msplit: "Splitting encounter…", mfinishrun: "Finishing run…", mhide: "Hiding overlay…", movl: "Opening overlay…", mifacesrefresh: "Refreshing interfaces…"};
+  for (const [id, pending] of Object.entries(actionLabels)) {
+    const button = $("#" + id), handler = button.onclick;
+    button.onclick = async () => {
+      if (button.disabled) return;
+      const label = button.textContent, notice = $("#mnotice");
+      button.disabled = true; button.setAttribute("aria-busy", "true");
+      button.textContent = pending; notice.textContent = pending;
+      try {
+        await handler();
+        if (notice.textContent === pending) notice.textContent = id === "mifacesrefresh" ? "Capture interfaces refreshed." : "Action completed.";
+        toast(notice.textContent, 6000);
+      } catch (e) { notice.textContent = "Action failed: " + e.message; toast(notice.textContent, 6000); }
+      finally { button.disabled = false; button.removeAttribute("aria-busy"); button.textContent = label; }
+    };
+  }
   const poll = async () => {
     if (!location.hash.startsWith("#/meter")) return;
     try { renderMeter(await api("/api/meter")); } catch (e) {}

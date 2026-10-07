@@ -100,3 +100,7 @@ Shared desktop/Pages combat review opens saved character profiles for friendlies
 ### Run boundaries (0.2.21)
 
 Implemented retained run groups, configured final-boss death completion, manual Finish run, map/dungeon transition boundaries and source-specific open-world/unverified categories. Shared viewer selects individual runs. Missing final-boss order and arena/battleground match-end protocol evidence prevents guessing automatic completion. Long-capture archival/rollover beyond the existing bounded history limits remains pending.
+
+### PvP optimizer checkpoint (0.2.33)
+
+Separate PvE and experimental PvP damage actions, isolated saved results and explicit model limits. Live Meter actions now provide progress and completion feedback. A full arena capture against RaZoR was supplied with a reported 0–3 loss and three local deaths; replay currently observes only two local zero-HP transitions and no explicit local death markers. Death and round/match detection therefore remain incomplete. Next: reconcile this capture with death/round signals, then verify automatic arena completion and classification. Verified PvP coefficients, opponent defenses and defensive/CC objectives remain future work.
