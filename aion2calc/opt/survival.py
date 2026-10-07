@@ -111,17 +111,24 @@ def recorded_pressure(document, segment=None, target=None, window_s=5):
                      and e.get("target") == target and e["amount"] > 0), key=lambda e: e["t"])
     if not events:
         raise ValueError("No damage with this player as recipient was recorded")
-    # Inclusive windows preserve simultaneous hits and hits exactly on the boundary.
-    left = 0
+    from collections import deque
+    deaths = [e for e in fight.get("events", []) if e["kind"] == "death" and e.get("target") == target]
+    records = sorted(events + deaths, key=lambda e: (e["t"], e["kind"] == "death"))
+    # Inclusive windows preserve simultaneous hits; recorded deaths separate lives.
+    active = deque()
     running = peak = 0.0
     start = end = 0.0
-    for right, event in enumerate(events):
+    for event in records:
+        if event["kind"] == "death":
+            active.clear()
+            running = 0.0
+            continue
+        active.append(event)
         running += event["amount"]
-        while event["t"] - events[left]["t"] > window:
-            running -= events[left]["amount"]
-            left += 1
+        while event["t"] - active[0]["t"] > window:
+            running -= active.popleft()["amount"]
         if running > peak:
-            peak, start, end = running, events[left]["t"], event["t"]
+            peak, start, end = running, active[0]["t"], event["t"]
     number(peak, "Recorded peak damage")
     label = fight.get("label") or f"Encounter {segment+1}"
     evidence = {"title": str(doc.get("meta", {}).get("title") or label)[:200],
