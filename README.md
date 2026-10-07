@@ -1,5 +1,7 @@
 # Aion-2-tools
 
+Live Meter shows supported capture-driver drop counters alongside TCP diagnostics.
+
 Combat review includes an exportable mapping-coverage report for unresolved creature and instance IDs.
 
 Live Meter can detect installed build evidence and known encounter metadata, and pauses live DPS during damage downtime. See [app documentation](docs/app.md) for detection coverage and overrides.

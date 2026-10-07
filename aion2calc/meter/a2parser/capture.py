@@ -193,6 +193,8 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
             return
     try:
         from scapy.all import AsyncSniffer, IP, IPv6, TCP
+        from scapy.interfaces import resolve_iface
+        from .capture_stats import PcapStats, FIELDS, NOTE
         interfaces = [interface] if interface else available_interfaces()
         if not interfaces:
             raise RuntimeError("No capture adapters are available. Install capture support and restart the app.")
@@ -257,16 +259,41 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                     stats["port"] = None
 
     sniffers = []
+    resources = []
+
+    def driver_snapshot():
+        rows = [{"interface": name, **monitor.snapshot()} for name, _, monitor, _ in resources]
+        return {**{key: sum(row[key] for row in rows) for key in FIELDS},
+                "pcap_stats_sampled": any(row["pcap_stats_sampled"] for row in rows),
+                "pcap_stats_partial": len(resources) < len(interfaces) or any(row["pcap_stats_partial"] for row in rows),
+                "pcap_interfaces": rows, "pcap_stats_note": NOTE}
+
+    def packet_callback(monitor):
+        def receive(packet):
+            monitor.sample()  # Same thread as libpcap recv; no cross-thread handle calls.
+            on_packet(packet)
+        return receive
+
     try:
         bpf_filter = "tcp" if auto_port else f"tcp port {server_port}"
         if host:
             bpf_filter += f" and host {host}"
         for name in interfaces:
-            sniffer = AsyncSniffer(iface=name, filter=bpf_filter, prn=on_packet, store=False)
+            capture_socket = None
             try:
+                capture_socket = resolve_iface(name).l2listen()(iface=name, filter=bpf_filter)
+                monitor = PcapStats(capture_socket)
+                monitor.sample(force=True)
+                sniffer = AsyncSniffer(opened_socket={capture_socket: name}, prn=packet_callback(monitor), store=False)
                 sniffer.start()
+                resources.append((name, capture_socket, monitor, sniffer))
                 sniffers.append((name, sniffer))
             except Exception as exc:
+                if capture_socket is not None:
+                    try:
+                        capture_socket.close()
+                    except Exception:
+                        pass
                 stats["warnings"].append(f"{name}: {exc}")
         stats["state"] = "capturing"
         emit("capture_started")
@@ -291,6 +318,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                 stats["candidate_flows"] = [{"interface": key[0], "src": key[1], "sport": key[2], "dst": key[3], "dport": key[4], "signature_hits": len(value["hits"])} for key, value in detector.candidates.items()]
                 stats["selected_flow"] = detector.selected
                 stats["tcp_pending_bytes"] = sum(len(data) for flow in flows.values() for data in flow.waiting.values())
+                stats.update(driver_snapshot())
                 emit("capture_stats", dict(stats))
     except Exception as exc:
         emit("error", str(exc))
@@ -313,6 +341,26 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                     sniffer.stop(join=False)
                 except Exception:
                     pass
+        for name, capture_socket, monitor, sniffer in resources:
+            thread = getattr(sniffer, "thread", None)
+            if thread is not None and thread.is_alive():
+                stats["warnings"].append(f"{name}: capture thread did not stop before the final statistics snapshot")
+                monitor.partial = True
+                # Do not close a handle or call pcap_stats while recv is still using it.
+                def close_after_exit(thread=thread, capture_socket=capture_socket):
+                    thread.join()
+                    try:
+                        capture_socket.close()
+                    except Exception:
+                        pass
+                threading.Thread(target=close_after_exit, daemon=True, name="capture-cleanup").start()
+            else:
+                monitor.sample(force=True)
+                try:
+                    capture_socket.close()
+                except Exception as exc:
+                    stats["warnings"].append(f"{name}: capture handle cleanup failed: {exc}")
+        stats.update(driver_snapshot())
         stats["state"] = "stopped"
         with callback_lock:
             stats["tcp_pending_bytes"] = sum(len(data) for flow in flows.values() for data in flow.waiting.values())

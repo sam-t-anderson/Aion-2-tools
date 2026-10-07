@@ -12,6 +12,9 @@ from ..meter import Meter, load_decoder, replay_source
 from ..meter.a2parser.engine import MeterEngine as PacketMeterEngine
 from ..meter.a2parser.capture import capture_packets
 from ..meter.session import CombatSession
+from ..meter.a2parser.capture_stats import FIELDS as PCAP_FIELDS, FLAGS as PCAP_FLAGS
+
+CAPTURE_COUNTERS = ("tcp_discarded_payloads", "tcp_unresolved_flows", *PCAP_FIELDS)
 
 DEMO = Path(__file__).resolve().parent.parent / "meter" / "demo_session.jsonl"
 
@@ -122,7 +125,7 @@ class Runner:
             return self.status()
         decoder = opts.get("custom_decoder")
         self.packet_engine = None if decoder else PacketMeterEngine()
-        self._capture_loss_baseline = {k:self.session.capture_evidence.get(k, 0) for k in ("tcp_discarded_payloads", "tcp_unresolved_flows")}
+        self._capture_loss_baseline = {k:self.session.capture_evidence.get(k, 0) for k in CAPTURE_COUNTERS}
         if self.session.capture_evidence.get("tcp_pending_bytes", 0):
             self._capture_loss_baseline["tcp_unresolved_flows"] += 1
         if self.packet_engine is not None:
@@ -182,13 +185,7 @@ class Runner:
                     self.diagnostics["state"] = "capturing"
                 elif kind == "capture_stats":
                     with self.lock:
-                        self.diagnostics.update(data[0])
-                        for key in ("transport_monitored", "tcp_discarded_payloads", "tcp_unresolved_flows", "tcp_pending_bytes"):
-                            if key in data[0]:
-                                value = data[0][key]
-                                if key in ("tcp_discarded_payloads", "tcp_unresolved_flows"):
-                                    value += self._capture_loss_baseline.get(key, 0)
-                                self.session.capture_evidence[key] = value
+                        self._record_capture_stats(data[0])
                         if engine is not None and data[0].get("port"):
                             engine.set_server_port(int(data[0]["port"]))
                 elif kind == "capture_stopped":
@@ -210,11 +207,23 @@ class Runner:
                     if final[0] == "packet":
                         self.session.capture_evidence["capture_errors"] = self.session.capture_evidence.get("capture_errors", 0) + 1
                     if final[0] == "capture_stats":
-                        for key in ("transport_monitored", "tcp_discarded_payloads", "tcp_unresolved_flows", "tcp_pending_bytes"):
-                            if key in final[1]:
-                                self.session.capture_evidence[key] = final[1][key] + self._capture_loss_baseline.get(key, 0) if key in ("tcp_discarded_payloads", "tcp_unresolved_flows") else final[1][key]
+                        self._record_capture_stats(final[1])
+                self.diagnostics["state"] = "error" if self.error else "stopped"
             self.running = False
             self._archive_diagnostics()
+
+    def _record_capture_stats(self, stats):
+        # Caller holds self.lock; final counters must also reach the visible diagnostics.
+        self.diagnostics.update(stats)
+        for key in ("transport_monitored", *CAPTURE_COUNTERS, *PCAP_FLAGS, "tcp_pending_bytes"):
+            if key not in stats:
+                continue
+            value = stats[key]
+            if key in CAPTURE_COUNTERS:
+                value += self._capture_loss_baseline.get(key, 0)
+            if key in PCAP_FLAGS:
+                value = bool(value or self.session.capture_evidence.get(key, False))
+            self.session.capture_evidence[key] = value
 
     def _run(self, it) -> None:
         try:
