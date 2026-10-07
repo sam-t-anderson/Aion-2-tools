@@ -1,5 +1,7 @@
 # Aion 2 Calc 0.2.42
 
+Discover Steam AION 2 installations from library manifests, including alternate library drives, alongside recognized Windows/PURPLE registrations. Installed build IDs remain separate from official published patch labels. Multiple-install/region selection and automatic difficulty inference remain follow-up work.
+
 
 Combat Logs separates **Saved Parts**, **My Uploads** and **Community Combat Logs** on desktop and Pages. Desktop remembers the selected list tab while opening a focused log and returning; Pages preserves it while opening a local preview. Tabs hide their panels without resetting upload queues. Website Saved Parts means files selected from your computer, not direct access to the desktop archive directory. Arrow keys, Home and End navigate tabs.
 
