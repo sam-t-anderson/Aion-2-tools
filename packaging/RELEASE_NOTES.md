@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.38
+
+- Save long live captures automatically as numbered local archive parts before ordinary history bounds are reached; continue decoding in the next part.
+- Retain archive ID/part information through validation, export and shared desktop/Pages/server review. Earlier parts remain in Combat Logs; current live export/upload contains the current part.
+- Clear an old part only after an atomic disk save succeeds. A save failure stops capture visibly and preserves memory history.
+- Mark storage-boundary parts unranked and remove inherited run-entry evidence. Storage boundaries do not infer kills or completion.
+- Per-file limits and the newest-100 local list remain; automatic stitching/batch upload and unusually large All-observed rosters need further work.
+
 # Aion 2 Calc 0.2.37
 
 - Record supported Npcap/libpcap received, buffer-drop and interface/driver-drop counters per adapter. Show partial/unavailable statistics explicitly; zero is not proof of loss-free capture.

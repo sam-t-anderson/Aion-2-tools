@@ -10,6 +10,7 @@ DECODER = "a2tools-python-v1"
 COUNTERS = ("discarded_effects", "discarded_segments", "discarded_telemetry",
             "validation_discarded", "tcp_discarded_payloads", "tcp_unresolved_flows", "capture_errors", "pcap_dropped", "pcap_if_dropped")
 LABELS = {
+    "storage_boundary": "This archive part crosses a storage boundary; full fight/run completeness is not established.",
     "missing_metadata": "Record the game patch, difficulty and encounter category.",
     "unverified_category": "The encounter category has not been identified.",
     "start_unverified": "A boss at full health was not observed at the start of this encounter.",
@@ -32,6 +33,8 @@ def assess(doc, segment):
     meta = doc.get("meta") or {}
     capture = meta.get("capture_quality") or {}
     reasons = []
+    if capture.get("storage_boundary") is True:
+        reasons.append("storage_boundary")
     kind = segment.get("encounter_type") or meta.get("encounter_type") or "unknown"
     if not all(segment.get(k) or meta.get(k) for k in ("game_patch", "difficulty")):
         reasons.append("missing_metadata")

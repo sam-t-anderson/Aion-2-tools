@@ -38,6 +38,7 @@ def recent() -> list[dict]:
             rows.append({"file": target.name, "title": doc.get("meta", {}).get("title"),
                          "contexts": [{k: segment.get(k) or doc.get("meta", {}).get(k) or "unknown" for k in ("encounter_type", "game_patch", "difficulty")} for segment in doc["segments"]],
                          "unfinished": bool(doc.get("meta", {}).get("capture_active")),
+                         "archive": doc.get("meta", {}).get("archive"),
                          "checkpoint_at": doc.get("meta", {}).get("checkpoint_at"),
                          "updated": target.stat().st_mtime, "players": len(doc["players"]),
                          "segments": len(doc["segments"]), "duration": sum(s["duration"] for s in doc["segments"])})

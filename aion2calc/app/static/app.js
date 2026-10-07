@@ -986,7 +986,7 @@ function renderMeter(s) {
   }
   const who=s.identity;
   if($("#midentity"))$("#midentity").textContent=who?.id ? `${who.verified ? "Detected automatically" : "Matched name override"}: ${who.name || "Player #"+who.id}${who.serverId ? " · server "+who.serverId : ""} · combat entity #${who.id} (changes between instances)` : "Auto-detecting your character. Start before entering an instance or use the optional name override.";
-  if($("#msaved"))$("#msaved").textContent=s.diagnostics?.log_save_error || (s.saved_log ? "Full session saved to "+s.saved_log : "Full session checkpoints every 15 seconds and saves on Stop.");
+  if($("#msaved"))$("#msaved").textContent=s.diagnostics?.log_save_error || ((s.diagnostics?.archive_parts_saved ? `${s.diagnostics.archive_parts_saved} earlier archive part(s) saved in Combat Logs. Live view/export contains the current part. ` : "") + (s.saved_log ? "Latest saved part: "+s.saved_log : "Current part checkpoints every 15 seconds and saves on Stop."));
   if(s.snapshot?.players?.length && $("#mlog-review") && !st.reviewLoading && Date.now()-(st.reviewAt || 0)>4000) {
     st.reviewLoading=true;st.reviewAt=Date.now();
     api("/api/meter/log").then(doc=>{const target=$("#mlog-review");if(!target)return;if(st.liveReviewRoot!==target){if(st.liveReview)st.liveReview.dispose();st.liveReview=A2CombatReview.mount(target,doc,localReviewOptions());st.liveReviewRoot=target;}else st.liveReview.update(doc);}).catch(()=>{}).finally(()=>{st.reviewLoading=false;});
