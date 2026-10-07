@@ -277,7 +277,8 @@ table.t td.r, table.t th.r { text-align: right; }
           border: 1px solid var(--line); border-radius: 4px; font-size: 11px; }
 .prog { height: 8px; background: var(--inset); border-radius: 4px; overflow: hidden; }
 .prog i { display: block; height: 100%; background: linear-gradient(90deg, #2a8fb0, #39c2e0); }
-.note { padding: 9px 12px; border: 1px solid rgba(233,164,58,.35); background: rgba(233,164,58,.07);
+/* Shared yellow information panels need space outside their borders, too. */
+.note { margin-block: 3px; padding: 9px 12px; border: 1px solid rgba(233,164,58,.35); background: rgba(233,164,58,.07);
         border-radius: 5px; color: var(--note-fg); font-size: 12.5px; }
 .tip { padding: 7px 10px; border-left: 3px solid var(--accent); background: rgba(57,194,224,.06); margin: 4px 0;
        border-radius: 0 4px 4px 0; font-size: 13px; }
