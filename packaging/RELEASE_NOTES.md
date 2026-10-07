@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.49
+
+Fresh official profile imports retain public item/skill/pet/wing/title/board image references by region, kind and recorded ID. Equipment with a missing recorded icon can use an unchanged official reference for the same region/item ID before catalog slug/name fallback. Character identities, gear stats and tokens are not stored in this reference registry. Recorded gear snapshots remain intact; no new remote image search or guessed NPC mapping is performed.
+
+Settings → Game database → Export image coverage downloads aggregate reference coverage and up to 200 missing/changed IDs for troubleshooting. It also counts missing catalog item references. URL presence does not prove the image can be downloaded; HTTP failures and NPC portraits remain follow-up work. Old cached profiles need refreshing to populate these references. No optimizer formulas or score changes.
+
 # Aion 2 Calc 0.2.48
 
 Desktop and Pages add **News**, with official English/global notice and update headlines, publication/retrieval dates, category filters and direct source links. All Pages tabs keep the same banner/navigation, including News. The configured community server caches the fixed official feeds; stale or unavailable sources are explained and official list links remain available offline from the community feed.

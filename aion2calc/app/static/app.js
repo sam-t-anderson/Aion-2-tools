@@ -1365,7 +1365,7 @@ async function pageSettings() {
       <select id="svis">${["unlisted", "public", "private"].map((v) => `<option ${v === (srv.visibility || "unlisted") ? "selected" : ""}>${v}</option>`).join("")}</select>
       <button class="btn small" id="ssave">Save</button><span id="smsg" class="small muted"></span></div>
       ${srv.is_default && srv.url ? '<div class="small muted" style="margin-top:4px">Using the community default server. Enter your own above to override it.</div>' : ""}</div></div>
-    <div class="setrow"><div class="lbl">Combat class colors</div><div id="class-colors"></div></div><div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button></div></div>
+    <div class="setrow"><div class="lbl">Combat class colors</div><div id="class-colors"></div></div><div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button> <button class="btn small" id="asset-report">Export image coverage</button><span id="asset-msg" class="small muted" role="status" aria-live="polite"></span></div></div>
     <div class="setrow"><div class="lbl">Updates</div><div><label><input type="checkbox" id="autoupd" ${ui.auto_update !== false ? "checked" : ""}> check and prompt for updates on launch</label></div></div>
     <div class="setrow"><div class="lbl">Version</div><div>Aion 2 Calc ${esc(s.version)} ${s.update ? `· version ${esc(s.update.version)} available <button class="btn small" id="instupd">Install now</button> <a href="${esc(s.update.url)}" target="_blank" rel="noopener">release notes</a>` : '<span class="muted">· up to date</span>'} <span id="updmsg" class="small muted"></span></div></div>
     <div class="setrow"><div class="lbl">Community</div><div><a href="${DISCORD}" target="_blank" rel="noopener">Join the aion2calc Discord</a> — questions, builds and help</div></div>
@@ -1402,6 +1402,11 @@ async function pageSettings() {
     } catch (e) { $("#smsg").textContent = "saved · could not check: " + e.message; }
   };
   $("#sync").onclick = async () => { await api("/api/sync", {}); toast("Checking for game updates"); };
+  $('#asset-report').onclick = async () => {
+    const button=$('#asset-report'),message=$('#asset-msg');button.disabled=true;message.textContent='Collecting image references…';
+    try {const data=await api('/api/assets'),url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='aion2-asset-coverage.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);message.textContent='Image coverage export requested. Check your Downloads folder.';}
+    catch(e){message.textContent='Could not export image coverage: '+e.message;}finally{button.disabled=false;}
+  };
   $("#quit2").onclick = () => $("#quit").click();
 }
 setInterval(() => fetch("/api/ping", { method: "POST" }).catch(() => {}), 20000);

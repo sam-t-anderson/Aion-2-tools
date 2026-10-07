@@ -149,11 +149,18 @@ def _catalog_look(name: str, slug: str | None = None) -> dict:
 
 
 def _component_look(component: dict) -> dict:
-    direct = {k: component[k] for k in ("icon", "grade", "enchant", "item_id", "slot_pos", "visual_source")
+    direct = {k: component[k] for k in ("icon", "grade", "enchant", "item_id", "item_region", "slot_pos", "visual_source")
               if component.get(k) is not None}
     if direct.get("icon"):
         return direct
     direct.pop("icon", None)
+    try:
+        from ..db import assets, store
+        exact = assets.lookup(store.connect(), component.get("item_region"), "item", component.get("item_id"))
+        if exact.get("icon"):
+            return {**exact, **direct, "visual_source": exact["visual_source"]}
+    except Exception:
+        pass
     return {**_catalog_look(component.get("item", ""), component.get("item_slug")), **direct}
 
 

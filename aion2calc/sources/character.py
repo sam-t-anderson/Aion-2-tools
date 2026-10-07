@@ -138,7 +138,7 @@ def from_profile(ch: dict) -> ImportedCharacter:
         if it.get("error"):
             warnings.append(f"{slot}: item details unavailable ({it['error'][:60]})")
         comps.append({"slot": slot, "item": f"{e.get('name')} +{e.get('enchantLevel', 0)}", "stats": st,
-                      "item_id": e.get("id"), "slot_pos": e.get("slotPos"), "icon": e.get("icon"),
+                      "item_id": e.get("id"), "item_region": ch.get("region"), "slot_pos": e.get("slotPos"), "icon": e.get("icon"),
                       "grade": e.get("grade"), "enchant": e.get("enchantLevel"),
                       "visual_source": "Official imported equipment"})
 

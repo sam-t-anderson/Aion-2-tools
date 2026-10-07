@@ -324,6 +324,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"sync": s.state.as_dict() if s else None, "db": status(), "home": str(home()),
                                "app": "aion2calc", "version": __version__, "update": update_info(),
                                "update_prompt": ui_settings().get("auto_update", True)})
+        if path == "/api/assets":
+            from ..db.assets import report
+            return self._json(report())
         if path == "/api/classes":
             return self._json(list_names("global", "classes"))
         if path == "/api/history":

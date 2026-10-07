@@ -279,3 +279,7 @@ Saved Parts desktop/Pages queues persist/export random request IDs before sendin
 ### Official news foundation
 
 Desktop/Pages provide official English/global notice/update headline cards with publication/retrieval dates, category filters and original source links, backed by a fixed-source server cache. No article HTML or inferred installed/historical patch is used. Follow-up: verified regional patch/build matching, Korean/Taiwan sources, permitted additional feeds and regional event timers. News is included consistently in Pages navigation.
+
+### Official asset-reference coverage
+
+Fresh official imports retain sanitized public image references scoped by region, kind and ID. Equipment missing a recorded icon can use an unchanged same-region/item-ID reference before slug/unique-name fallback. Settings exports counts and up to 200 missing/changed reference IDs without character identities, stats or credentials. Follow-up: runtime HTTP-failure diagnostics, verified NPC portraits, stable-ID reconciliation with third-party catalog slugs and broader title/item coverage. URL changes disable ID fallback until reviewed; this does not establish an identity conflict or map numeric namespaces.

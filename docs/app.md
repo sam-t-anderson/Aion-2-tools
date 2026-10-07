@@ -306,6 +306,8 @@ Announcement dates do not prove the installed game build or patch used by an old
 | Version | the app version, and a link when a newer release is out |
 | Stop the app | the same as **Quit** in the top bar |
 
+Settings → **Game database → Export image coverage** saves a troubleshooting JSON with image-reference counts and up to 200 missing or changed official IDs. Refresh a character import to collect its current official item/skill/pet/wing references. The export contains asset labels/IDs, not character identities, gear stats or keys. It checks recorded references, not whether remote URLs currently load. Equipment ID fallback stays within the recorded region; unavailable NPC portraits still use placeholders.
+
 ## Application updates
 
 **Install update** stages the new installer first. When you choose it, the app
