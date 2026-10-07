@@ -12,12 +12,19 @@ const icon = u => {const source=u?"/api/icon?u="+encodeURIComponent(u.startsWith
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "");
 const app = () => $("#app");
 
-async function api(path, body) {
+async function api(path, body, signal) {
   const opt = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+  if(signal) opt.signal=signal;
   const r = await fetch(path, opt);
   const j = await r.json().catch(() => ({ error: r.statusText }));
-  if (!r.ok || j.error) throw new Error(j.error || r.statusText);
+  const captureStatus=path.split('?')[0]==='/api/meter' && typeof j.running==='boolean' && j.snapshot;
+  if (!r.ok || (j.error && !captureStatus)) throw new Error(j.error || r.statusText);
   return j;
+}
+async function meterStatus() {
+  const controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),8000);
+  try { return await api('/api/meter',undefined,controller.signal); }
+  finally { clearTimeout(timeout); }
 }
 async function runJob(path, body, onLog) {
   const { job } = await api(path, body);
@@ -1085,10 +1092,11 @@ async function pageMeter() {
   }
   const poll = async () => {
     if (!location.hash.startsWith("#/meter")) return;
-    try { renderMeter(await api("/api/meter")); } catch (e) {}
+    try { const result=await meterStatus(); if(location.hash.startsWith("#/meter")) renderMeter(result); }
+    catch (e) { if($('#mmsg')) $('#mmsg').textContent='Could not refresh the meter. Last readings retained; capture status is unknown. Retrying…'; }
     setTimeout(poll, st.running ? 700 : 2500);
   };
-  const initial = await api("/api/meter").catch(() => ({snapshot: {players: []}}));
+  const initial = await meterStatus().catch(() => ({snapshot: {players: []}}));
   if (initial.source) { $("#msrc").value = initial.source; live(); }
   $("#mrecord").checked = !!initial.recording?.enabled;
   renderMeter(initial);

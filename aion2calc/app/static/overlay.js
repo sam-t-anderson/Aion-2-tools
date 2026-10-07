@@ -4,7 +4,7 @@
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const kfmt = (x) => { if (x == null || isNaN(x)) return "—"; const a = Math.abs(x); return a >= 1e6 ? (x / 1e6).toFixed(2) + "M" : a >= 1e3 ? (x / 1e3).toFixed(2) + "K" : Math.round(x).toString(); };
-  let tab = "meter", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false;
+  let tab = "meter", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false, meterUnavailable = false;
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
   const syncColors=()=>fetch("/api/ui").then(r=>r.json()).then(ui=>{if(ui.combat_colors)localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));}).catch(()=>{});
   syncColors();setInterval(syncColors,10000);
@@ -70,6 +70,8 @@
     const rows = players.slice(0, 8).map((p) => `<div class="ovrow"><span class="ovname" title="${esc(p.name)}${p.includes_pets?" · Includes linked pets":""}">${esc(p.name)}</span>
         <div class="ovbar"><i style="width:${100 * (p.dps || 0) / mx}%;background:${A2CombatReview.color(p.class)}"></i><span>${kfmt(p.dps)}/s <span class="sub">${kfmt(p.damage)} · ${Math.round(100 * (p.share || 0))}%</span></span></div></div>`).join("");
     $("#ovstatus").textContent = `Latest combat · ${snap.paused ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(snap.duration) || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)}/s`;
+    if(s.error) $("#ovstatus").textContent='Capture stopped: '+s.error;
+    if(meterUnavailable) $("#ovstatus").textContent='Connection interrupted · last readings retained · retrying';
     const empty = s.error || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app.");
     $("#ovcontent").innerHTML = rows || `<div class="muted">${esc(empty)}</div>`;
   }
@@ -110,8 +112,11 @@
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 4000);
     try {
       const response = await fetch("/api/meter?view=latest", { signal: controller.signal });
-      if (response.ok) lastSnap = await response.json();
-    } catch (e) { /* Preserve the last meter when the application is temporarily unavailable. */ }
+      if (!response.ok) throw Error('Meter refresh failed');
+      const next=await response.json();
+      if(typeof next.running!=='boolean'||!next.snapshot) throw Error('Invalid meter response');
+      lastSnap=next;meterUnavailable=false;
+    } catch (e) { meterUnavailable=true; /* Preserve the last readings with a visible stale-state warning. */ }
     finally { clearTimeout(timeout); polling = false; }
     if (tab === "meter") renderMeter();
   }

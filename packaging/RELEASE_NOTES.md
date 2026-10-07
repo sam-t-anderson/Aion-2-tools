@@ -4,6 +4,8 @@ Prevent known capture stalls after a missing TCP chunk: allow normal packet reor
 
 An enemy filter from a previous encounter is cleared when that enemy is absent from the selected combat, so a new pull is visible in both the desktop meter and overlay. Explicit historical encounter selections remain available.
 
+Capture errors now reach the displayed meter status and Start/Stop control instead of being discarded as failed status requests. Meter polling has a timeout and retries; desktop and overlay retain the last readings with a visible connection warning when refresh fails. An interrupted view does not establish whether capture is still running.
+
 The overlay follows the latest encounter independently of desktop history/enemy selections. Live Meter labels a pinned or historical view and offers Follow latest combat. Diagnostics show the age of the last forwarded game data and decoded effect to distinguish idle combat from missing input; these ages are included in diagnostic exports.
 
 These address confirmed code paths that can hide or interrupt subsequent combat. The reported 0.2.58 incident has no diagnostic archive yet, so its specific cause is not established. Capture should continue across encounters without reopening the overlay.
