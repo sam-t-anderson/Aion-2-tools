@@ -15,7 +15,7 @@ const buildLabel=x=>String(x??'').replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})
   }
   const table = (headers,rows) => `<div class="cr-scroll"><table class="t"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.join("") || `<tr><td colspan="${headers.length}">No recorded events.</td></tr>`}</tbody></table></div>`;
   function mount(root, doc, options={}) {
-    let state={mode:["pve","pvp"].includes(options.mode)?options.mode:"",run:"",segment:0,metric:"summary",view:"table",graph:true,timeline:true,graphMode:"total",timelineWindow:30,timelineStart:0,skills:true,deaths:true,heals:true,pets:true,combine:true,actor:"",page:0,enemy:"",hidden:new Set(), ...options.state};
+    let state={followLatest:!!options.live,mode:["pve","pvp"].includes(options.mode)?options.mode:"",run:"",segment:0,metric:"summary",view:"table",graph:true,timeline:true,graphMode:"total",timelineWindow:30,timelineStart:0,skills:true,deaths:true,heals:true,pets:true,combine:true,actor:"",page:0,enemy:"",hidden:new Set(), ...options.state};
     let comparisons=[], ranks=null, rankRequest=0, replayFrame=null, profileRequest=0;
     let reportReason='privacy',reportDetails='',reportStatus='',reportBusy=false;
     const previews=new Map();
@@ -24,6 +24,16 @@ const buildLabel=x=>String(x??'').replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})
     const skillSource=id=>{const n=Number(id);if(!Number.isSafeInteger(n)||n<=0)return '';const source=options.skillIcon?options.skillIcon(n):'https://metabot.gg/web/aion2/skills/'+(Math.floor(n/10000)*10000)+'.webp';return window.A2AssetHealth?A2AssetHealth.source(source):source;};
     const modeOf=segment=>(segment.encounter_type||doc.meta?.encounter_type||'').startsWith('pvp_')?'pvp':'pve';
     const matchesMode=segment=>!state.mode||modeOf(segment)===state.mode;
+    function selectLatest() {
+      if(!options.live || !state.followLatest)return false;
+      let index=doc.segments.length-1;
+      while(index>=0 && !matchesMode(doc.segments[index]))index--;
+      if(index<0)return false;
+      state.run='';
+      if(index===state.segment)return false;
+      state.segment=index;state.actor='';state.enemy='';state.page=0;state.timelineStart=0;timelineDetail='';ranks=null;
+      return true;
+    }
     const refs=()=>{const r={};for(const e of [...(doc.players || []),...(doc.segments[state.segment]?.entities || [])])r[e.id]={...r[e.id],...e};for(const e of [...(doc.players || []),...doc.segments.flatMap(s=>s.entities || [])])if(e.profile_snapshot && r[e.id])r[e.id].profile_snapshot=e.profile_snapshot;for(const e of Object.values(r))if(e.owner)e.class=r[e.owner]?.class;return r;};
     const label=e=>e ? `${e.name || e.id}${e.server ? " · " + e.server : ""}` : "Unknown / not recorded";
     const character=e=>e && ((doc.players || []).some(p=>p.id===e.id) || e.is_player || e.kind==="player");
@@ -224,7 +234,7 @@ const buildLabel=x=>String(x??'').replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})
       const pageCount=Math.max(1,Math.ceil(events.length/100));state.page=Math.min(state.page,pageCount-1);
       const eventTable=table(["Time","Event","Caster / attacker","Recipient / target","Ability","Amount"],events.slice(state.page*100,(state.page+1)*100).map(e=>`<tr><td>${e.t.toFixed(3)}s</td><td>${esc(e.kind)}</td><td>${actorHTML(d.r[e.source])}</td><td>${actorHTML(d.r[e.target])}</td><td>${esc(e.skill || e.skill_id || "—")}</td><td>${e.kind==="death"?"—":number(e.amount)}</td></tr>`));
       root.innerHTML=`<section class="win cr-review"><div class="wh"><h2>${esc(doc.meta?.title || "Combat log")}</h2><span>${duration.toFixed(1)}s</span></div><div class="wb">
-        <div class="row"><label>Combat mode <select data-control="mode"><option value="" ${!state.mode?'selected':''}>All recorded modes</option><option value="pve" ${state.mode==='pve'?'selected':''}>PvE</option><option value="pvp" ${state.mode==='pvp'?'selected':''}>PvP</option></select></label>${runMenu}<label>Encounter <select data-control="segment">${doc.segments.map((s,i)=>(!matchesMode(s) || (state.run && (s.run_id || "legacy")!==state.run))?"":`<option value="${i}" ${i===state.segment?"selected":""}>${esc(s.label || s.boss || "Combat "+(i+1))}</option>`).join("")}</select></label><label>Player <select data-control="actor"><option value="">All players</option>${d.rows.map(p=>`<option value="${esc(p.id)}" ${p.id===state.actor?"selected":""}>${esc(label(p))}</option>`).join("")}</select></label><button class="btn small" data-color-settings>Class colors</button>${window.A2AssetHealth?'<button class="btn small" data-retry-images>Retry images</button>':''}<label><input type="checkbox" data-control="insights" ${state.insights?"checked":""}> Encounter insights</label></div>
+        <div class="row"><label>Combat mode <select data-control="mode"><option value="" ${!state.mode?'selected':''}>All recorded modes</option><option value="pve" ${state.mode==='pve'?'selected':''}>PvE</option><option value="pvp" ${state.mode==='pvp'?'selected':''}>PvP</option></select></label>${runMenu}${options.live?`<label><input type="checkbox" data-control="followLatest" ${state.followLatest?'checked':''}> Follow latest encounter</label>`:''}<label>Encounter <select data-control="segment">${doc.segments.map((s,i)=>(!matchesMode(s) || (state.run && (s.run_id || "legacy")!==state.run))?"":`<option value="${i}" ${i===state.segment?"selected":""}>${esc(s.label || s.boss || "Combat "+(i+1))}</option>`).join("")}</select></label><label>Player <select data-control="actor"><option value="">All players</option>${d.rows.map(p=>`<option value="${esc(p.id)}" ${p.id===state.actor?"selected":""}>${esc(label(p))}</option>`).join("")}</select></label><button class="btn small" data-color-settings>Class colors</button>${window.A2AssetHealth?'<button class="btn small" data-retry-images>Retry images</button>':''}<label><input type="checkbox" data-control="insights" ${state.insights?"checked":""}> Encounter insights</label></div>
         ${(d.segment.encounter_type||doc.meta?.encounter_type||'').startsWith('pvp_')?'<p class="note">PvP recording · matched by mode, arena/encounter, ruleset and build. Opponents are outside the recorded Self/Party roster. Only observed combat effects are shown; match results, objectives and kill credit are not inferred.</p>':''}
         <p class="small muted">${doc.meta?.installed_build?`Installed build: ${esc(doc.meta.installed_build)} (${esc(doc.meta.installed_build_source)}). `:""}${d.segment.game_patch||doc.meta?.game_patch?`Build source: ${esc(buildLabel(d.segment.game_patch_source||doc.meta?.game_patch_source||"source not recorded"))}. `:""}${d.segment.zone?`Zone: ${esc(d.segment.zone)} · ${esc(d.segment.zone_source || "source not recorded")}. `:""}${d.segment.difficulty?`Difficulty: ${esc(d.segment.difficulty)} · ${esc(d.segment.difficulty_source || "source not recorded")}. `:""}${d.segment.encounter_type_source?`Encounter type source: ${esc(d.segment.encounter_type_source)}. `:""}${doc.meta?.region_source?`Region source: ${esc(doc.meta.region_source)}.`:""}</p>
         ${doc.meta?.archive?`<p class="note">Archive ${esc(doc.meta.archive.id)} · Part ${esc(doc.meta.archive.part)}. Other parts are separate logs; this view does not combine their totals.</p>`:''}${qualityHTML}${catalogHTML(d)}${state.mode?'<p class="small muted">Showing only encounters recorded as '+state.mode.toUpperCase()+'. Whole-run timing is hidden in this filtered view.</p>':runsHTML(d)}<div class="cr-tabs">${["summary","damage","taken","healing","deaths"].map((v,i)=>`<button class="btn small ${state.metric===v?"primary":""}" data-metric="${v}">${["Summary","Damage Done","Damage Taken","Healing","Death recaps"][i]}</button>`).join("")}<span class="cr-spacer"></span>${["table","timeline","events"].map(v=>`<button class="btn small ${state.view===v?"primary":""}" data-view="${v}">${v[0].toUpperCase()+v.slice(1)}</button>`).join("")}</div>
@@ -237,7 +247,17 @@ const buildLabel=x=>String(x??'').replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})
         <div class="row"><input data-compare placeholder="Another public log ID" aria-label="Log ID to compare"><button class="btn small" data-compare-go ${options.compare?"":"disabled"}>Compare log</button><span data-compare-result></span><input type="file" data-compare-file accept=".json" aria-label="Compare a local a2log file"></div>
         <div data-comparison>${comparisonHTML(d)}</div>
       </div></section>`;
-      root.querySelectorAll("[data-control]").forEach(e=>e.onchange=()=>{const key=e.dataset.control;if(key==="combine" && e.checked && state.actor){state.actor=refs()[state.actor]?.owner || state.actor;}state[key]=e.type==="checkbox"?e.checked:key==="segment"?+e.value:e.value;state.page=0;if(key==="mode"){state.run="";state.segment=Math.max(0,doc.segments.findIndex(matchesMode));state.actor="";state.enemy="";ranks=null;state.timelineStart=0;timelineDetail="";requestRanks();}if(key==="run"){const index=doc.segments.findIndex(s=>matchesMode(s) && (!state.run || (s.run_id || "legacy")===state.run));state.segment=Math.max(0,index);state.enemy="";state.actor="";ranks=null;requestRanks();}if(key==="run" || key==="segment"){state.timelineStart=0;timelineDetail="";}if(key==="segment"){state.enemy="";state.actor="";ranks=null;requestRanks();}render();});
+      root.querySelectorAll("[data-control]").forEach(e=>e.onchange=()=>{
+        const key=e.dataset.control;
+        if(key==='combine' && e.checked && state.actor)state.actor=refs()[state.actor]?.owner || state.actor;
+        state[key]=e.type==='checkbox'?e.checked:key==='segment'?+e.value:e.value;state.page=0;
+        if(key==='run' || key==='segment')state.followLatest=false;
+        const changedEncounter=['mode','run','segment','followLatest'].includes(key);
+        if(key==='mode'){state.run='';state.segment=Math.max(0,doc.segments.findIndex(matchesMode));}
+        if(key==='run'){const index=doc.segments.findIndex(s=>matchesMode(s) && (!state.run || (s.run_id || 'legacy')===state.run));state.segment=Math.max(0,index);}
+        if(changedEncounter){state.enemy='';state.actor='';ranks=null;state.timelineStart=0;timelineDetail='';}
+        selectLatest();render();if(changedEncounter)requestRanks();
+      });
       const mapping=root.querySelector('[data-export-mappings]');if(mapping)mapping.onclick=()=>{const c=doc.encounter_insights.segments.find(s=>s.segment===state.segment).catalog;const url=URL.createObjectURL(new Blob([JSON.stringify(c,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='aion2-mapping-report.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);root.querySelector('[data-mapping-status]').textContent='Mapping report download started.';};
       root.querySelectorAll("[data-recap]").forEach(e=>e.onclick=()=>{state.recap=+e.dataset.recap;render();});
       root.querySelectorAll("[data-metric]").forEach(e=>e.onclick=()=>{state.metric=e.dataset.metric;state.page=0;render();});
@@ -332,8 +352,8 @@ const buildLabel=x=>String(x??'').replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})
       box.querySelector("[data-plan]").onclick=()=>{const plan={format:"a2plan",version:1,meta:{name:d.segment.boss || d.segment.label || "Recorded replay"},duration:d.segment.duration,arena:{kind:"square"},tokens:Object.entries(tokens).map(([id,keyframes])=>({id,kind:d.r[id]?.kind==="enemy"?"enemy":"player",label:label(d.r[id]),cls:d.r[id]?.class,color:color(d.r[id]?.class),keyframes})),buffs:[]};if(options.importPlan){try{options.importPlan(plan);}catch(e){box.querySelector("[data-plan-status]").textContent=e.message;}return;}const blob=new Blob([JSON.stringify(plan)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="recorded-replay.a2plan.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};box.querySelector("[data-plan]").textContent=options.importPlan?"Open in Raid Planner":"Export Raid Planner file";draw(0);
     }
     async function requestRanks() {if(!options.rankings)return;const request=++rankRequest;try{const response=await options.rankings(state.segment,doc);if(request!==rankRequest)return;ranks=response;}catch(e){ranks={error:e.message};}if(root.isConnected)render();}
-    const api={update(next){doc=next;state.segment=Math.min(state.segment,doc.segments.length-1);render();},state,dispose(){rankRequest++;profileRequest++;if(replayFrame)cancelAnimationFrame(replayFrame);}};
-    render();requestRanks();return api;
+    const api={update(next){doc=next;state.segment=Math.min(state.segment,doc.segments.length-1);const changed=selectLatest();render();if(changed)requestRanks();},state,dispose(){rankRequest++;profileRequest++;if(replayFrame)cancelAnimationFrame(replayFrame);}};
+    selectLatest();render();requestRanks();return api;
   }
   window.A2CombatReview={mount,color,settings};
 })();

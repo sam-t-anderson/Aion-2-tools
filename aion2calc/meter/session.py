@@ -349,11 +349,18 @@ class CombatSession:
     def snapshot(self, scope="party", segment_id=None, enemy_id=None, combine_pets=True):
         groups = self.groups(scope)
         chosen = groups if segment_id == "all" else [next((g for g in groups if g["id"] == segment_id), groups[-1])] if groups else []
-        summary = self._summary(chosen, scope, enemy_id, combine_pets)
+        summary = self._summary(chosen, scope, None, combine_pets)
+        if enemy_id is not None:
+            if any(row["key"] == enemy_id for row in summary["enemies"]):
+                summary = self._summary(chosen, scope, enemy_id, combine_pets)
+            else:
+                enemy_id = None  # A previous encounter's filter must not hide a new pull.
         summary["segments"] = [{"id": group["id"], "label": f"Combat {index + 1}", "start": group["start"],
                                 "duration": max(1, (group["end"] - group["start"]) / 1000),
                                 "events": len(group["records"])} for index, group in enumerate(groups)]
         summary["selected_segment"] = "all" if segment_id == "all" else chosen[-1]["id"] if chosen else None
+        summary["selection_mode"] = "whole" if segment_id == "all" else "encounter" if segment_id else "latest"
+        summary["viewing_historical"] = bool(segment_id not in (None, "all") and chosen and chosen[-1]["id"] != groups[-1]["id"])
         summary["selected_enemy"] = enemy_id
         summary["combine_pets"] = combine_pets
         summary["paused"] = bool(chosen and time.time() * 1000 - chosen[-1]["last_damage"] >= 2000)

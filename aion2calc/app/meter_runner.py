@@ -33,6 +33,8 @@ class Runner:
         self.target_mode = "bossTargets"
         self.diagnostics: dict = {}
         self.started_at: float | None = None
+        self._last_packet_at: float | None = None
+        self._last_combat_at: float | None = None
         self.recorder = None
         self.diagnostic_export = None
         self._exported_recorder = None
@@ -68,6 +70,7 @@ class Runner:
             except OSError as exc:
                 self.diagnostics["recording_cleanup_error"] = str(exc)
         self.recorder = Recorder() if opts.get("record_packets") else None
+        self._last_packet_at = self._last_combat_at = None
         self.started_at = time.monotonic()
         self._last_checkpoint = self.started_at
         self._stop = False
@@ -171,6 +174,7 @@ class Runner:
                     stream, payload, timestamp_ms = data
                     before_run = (self.session.run, self.session.run_closed)
                     with self.lock:
+                        self._last_packet_at = time.monotonic()
                         if engine is not None:
                             events = engine.consume(payload, timestamp_ms, stream)
                             self.session.observe(engine, events, timestamp_ms=timestamp_ms)
@@ -179,10 +183,18 @@ class Runner:
                             for event in events:
                                 self.meter.add(event)
                         self.diagnostics["decoded_events"] += len(events)
+                        if events:
+                            self._last_combat_at = time.monotonic()
                     if before_run != (self.session.run, self.session.run_closed):
                         self._save_session(active=True)
                     if engine is not None:
                         self._rollover_session()
+                elif kind == "stream_reset":
+                    with self.lock:
+                        if engine is not None:
+                            engine.reset_stream(data[0])
+                            self.session.split_now()
+                            self.segment_id = self.enemy_id = None
                 elif kind == "error":
                     self.error = str(data[0])
                     break
@@ -346,12 +358,18 @@ class Runner:
             self.diagnostics.pop("archive_error", None)
             return result
 
-    def status(self) -> dict:
+    def status(self, *, follow_latest: bool = False) -> dict:
         with self.lock:
-            snap = (self.session.snapshot(self.scope, self.segment_id, self.enemy_id, self.combine_pets)
+            snap = (self.session.snapshot(self.scope, None if follow_latest else self.segment_id,
+                                          None if follow_latest else self.enemy_id, self.combine_pets)
                     if self.packet_engine is not None else self.meter.snapshot())
+            if self.packet_engine is not None and not follow_latest:
+                self.enemy_id = snap.get("selected_enemy")
             installation_locked = self.running or bool(self.session.records) or bool(self.meter.players)
             diagnostic = dict(self.diagnostics)
+            now = time.monotonic()
+            diagnostic.update(last_packet_age_seconds=round(now-self._last_packet_at, 1) if self._last_packet_at is not None else None,
+                              last_combat_age_seconds=round(now-self._last_combat_at, 1) if self._last_combat_at is not None else None)
         if diagnostic:
             diagnostic["elapsed"] = round(time.monotonic() - self.started_at, 1) if self.started_at else 0
         from ..meter.context import classify

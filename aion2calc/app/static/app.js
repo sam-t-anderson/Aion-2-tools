@@ -12,12 +12,19 @@ const icon = u => {const source=u?"/api/icon?u="+encodeURIComponent(u.startsWith
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "");
 const app = () => $("#app");
 
-async function api(path, body) {
+async function api(path, body, signal) {
   const opt = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+  if(signal) opt.signal=signal;
   const r = await fetch(path, opt);
   const j = await r.json().catch(() => ({ error: r.statusText }));
-  if (!r.ok || j.error) throw new Error(j.error || r.statusText);
+  const captureStatus=path.split('?')[0]==='/api/meter' && typeof j.running==='boolean' && j.snapshot;
+  if (!r.ok || (j.error && !captureStatus)) throw new Error(j.error || r.statusText);
   return j;
+}
+async function meterStatus() {
+  const controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),8000);
+  try { return await api('/api/meter',undefined,controller.signal); }
+  finally { clearTimeout(timeout); }
 }
 async function runJob(path, body, onLog) {
   const { job } = await api(path, body);
@@ -894,7 +901,7 @@ async function pageMeter() {
         <label class="small muted"><input id="mautoport" type="checkbox" checked> Detect game port</label><label class="small muted">Fixed port <input id="mport" type="number" value="50349" aria-label="Game server port" style="width:80px"></label>
 
         <label class="small muted">Name override (optional) <input id="mchar" type="text" placeholder="Auto-detect" style="width:120px"></label></div>
-      <div class="row" style="margin-top:8px"><label class="small muted">Players <select id="mscope"><option value="party">Self + Party</option><option value="self">Self only</option><option value="all">All observed players</option></select></label><label class="small muted"><input id="mcombinepets" type="checkbox" checked> Combine pets with owner</label><label class="small muted"><input id="mautosplit" type="checkbox" checked> Automatic splits</label><label class="small muted">Group combat within <input id="msegap" type="number" min="3" max="120" value="10" style="width:60px"> seconds</label><label class="small muted">Combat <select id="msegments"><option value="">Latest combat</option><option value="all">Whole session</option></select></label><button class="btn small" id="mallenemies">All enemies</button></div>
+      <div class="row" style="margin-top:8px"><label class="small muted">Players <select id="mscope"><option value="party">Self + Party</option><option value="self">Self only</option><option value="all">All observed players</option></select></label><label class="small muted"><input id="mcombinepets" type="checkbox" checked> Combine pets with owner</label><label class="small muted"><input id="mautosplit" type="checkbox" checked> Automatic splits</label><label class="small muted">Group combat within <input id="msegap" type="number" min="3" max="120" value="10" style="width:60px"> seconds</label><label class="small muted">Combat <select id="msegments"><option value="">Latest combat</option><option value="all">Whole session</option></select></label><button class="btn small" id="mallenemies">All enemies</button><button class="btn small" id="mfollow" hidden>Follow latest combat</button><span id="mviewstate" class="small muted" role="status"></span></div>
       <div class="row"><label class="small">Game installation <select id="minstall"><option value="">Auto (one installed copy)</option></select></label><button class="btn small" id="minstallrefresh">Refresh installations</button><span class="small muted" id="minstallstatus" role="status"></span></div><div class="row" id="mmetadata"></div><div class="note small" id="mautometa" role="status"></div><div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
       <div class="note" style="margin-top:10px"><b>Capture diagnostics</b><div id="mdriverstats" class="small muted" role="status"></div>
         <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads (enable before Start)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><span id="mrecordstatus" class="small muted"></span></div>
@@ -924,6 +931,7 @@ async function pageMeter() {
   $("#mhide").onclick=async()=>{await api("/api/overlay",{action:"hide"});if(st.overlayPopup)st.overlayPopup.close();$("#mnotice").textContent="Overlay hidden. Open overlay to show it again.";};
   $("#msegments").onchange = () => { st.pinnedSegment = $("#msegments").value; updateView({segment: st.pinnedSegment}); };
   $("#mallenemies").onclick = () => updateView({enemy: null});
+  $("#mfollow").onclick = () => { st.pinnedSegment=""; updateView({segment:null,enemy:null}); };
   $("#mclear").onclick = async () => {
     if (!window.confirm("Clear retained combat history? Export or save it first if you want to keep a copy.")) return;
     if(st.liveReview)st.liveReview.dispose();
@@ -1084,10 +1092,11 @@ async function pageMeter() {
   }
   const poll = async () => {
     if (!location.hash.startsWith("#/meter")) return;
-    try { renderMeter(await api("/api/meter")); } catch (e) {}
+    try { const result=await meterStatus(); if(location.hash.startsWith("#/meter")) renderMeter(result); }
+    catch (e) { if($('#mmsg')) $('#mmsg').textContent='Could not refresh the meter. Last readings retained; capture status is unknown. Retrying…'; }
     setTimeout(poll, st.running ? 700 : 2500);
   };
-  const initial = await api("/api/meter").catch(() => ({snapshot: {players: []}}));
+  const initial = await meterStatus().catch(() => ({snapshot: {players: []}}));
   if (initial.source) { $("#msrc").value = initial.source; live(); }
   $("#mrecord").checked = !!initial.recording?.enabled;
   renderMeter(initial);
@@ -1122,7 +1131,7 @@ function renderMeter(s) {
   if($("#msaved"))$("#msaved").textContent=s.diagnostics?.log_save_error || ((s.diagnostics?.archive_parts_saved ? `${s.diagnostics.archive_parts_saved} earlier archive part(s) saved in Combat Logs. Live view/export contains the current part. ` : "") + (s.saved_log ? "Latest saved part: "+s.saved_log : "Current part checkpoints every 15 seconds and saves on Stop."));
   if(s.snapshot?.players?.length && $("#mlog-review") && !st.reviewLoading && Date.now()-(st.reviewAt || 0)>4000) {
     st.reviewLoading=true;st.reviewAt=Date.now();
-    api("/api/meter/log").then(doc=>{const target=$("#mlog-review");if(!target)return;if(st.liveReviewRoot!==target){if(st.liveReview)st.liveReview.dispose();st.liveReview=A2CombatReview.mount(target,doc,localReviewOptions());st.liveReviewRoot=target;}else st.liveReview.update(doc);}).catch(()=>{}).finally(()=>{st.reviewLoading=false;});
+    api("/api/meter/log").then(doc=>{const target=$("#mlog-review");if(!target)return;if(st.liveReviewRoot!==target){if(st.liveReview)st.liveReview.dispose();st.liveReview=A2CombatReview.mount(target,doc,{...localReviewOptions(),live:true});st.liveReviewRoot=target;}else st.liveReview.update(doc);}).catch(()=>{}).finally(()=>{st.reviewLoading=false;});
   }
   const record = $("#mrecord"); if (record) record.disabled = st.running;
   if ($("#mclear")) $("#mclear").disabled = st.running;
@@ -1130,13 +1139,18 @@ function renderMeter(s) {
   if (recordStatus) recordStatus.textContent = s.recording?.enabled ? `${s.recording.records || 0} TCP payload records · ${((s.recording.disk_bytes || 0)/1048576).toFixed(1)} MiB on disk · no record limit` : "TCP recording is off";
   const snap = s.snapshot || { players: [] }, msg = $("#mmsg");
   if ($("#mscope") && snap.scope) $("#mscope").value = snap.scope;
+  const mode=snap.selection_mode||'latest';
+  if($('#mfollow')) $('#mfollow').hidden=mode==='latest';
+  if($('#mviewstate')) $('#mviewstate').textContent=mode==='whole'?'Viewing the whole retained session.':mode==='encounter'?(snap.viewing_historical?'Viewing an earlier encounter; capture continues into newer combat.':'This encounter is pinned; select Follow latest combat to follow the next pull.'):'Following latest combat. Overlay always follows the latest encounter.';
+  const d=s.diagnostics||{};
+  if($('#mdriverstats')) $('#mdriverstats').textContent+=` Last forwarded game data: ${d.last_packet_age_seconds==null?'not observed':d.last_packet_age_seconds.toFixed(1)+'s ago'}. Last decoded effect: ${d.last_combat_age_seconds==null?'not observed':d.last_combat_age_seconds.toFixed(1)+'s ago'}. Idle time alone does not establish a capture failure.`;
   const selector = $("#msegments");
   if (selector && snap.segments && document.activeElement !== selector) {
     const options = `<option value="">Latest combat</option><option value="all">Whole session</option>` + snap.segments.map((segment) => `<option value="${esc(segment.id)}">${esc(segment.label)} · ${new Date(segment.start).toLocaleTimeString()} · ${segment.duration.toFixed(1)}s</option>`).join("");
     if (selector.innerHTML !== options) selector.innerHTML = options;
     selector.value = st.pinnedSegment || (snap.selected_segment === "all" ? "all" : "");
   }
-  if (msg) { if (s.error) msg.textContent = s.error; else { const d = s.diagnostics || {}; msg.textContent = s.running ? `${s.snapshot?.paused ? "Paused DPS · capture continues" : "Recording"} · ${d.packets || 0} TCP packets · ${d.decoded_events || 0} combat events${d.port ? " · port " + d.port : d.auto_port ? " · detecting game port" : ""}` : "Stopped"; } }
+  if (msg) { if (s.error) msg.textContent = s.error; else { const d = s.diagnostics || {}; msg.textContent = s.running ? `${s.snapshot?.paused ? "Paused DPS · capture continues" : "Recording"} · ${d.packets || 0} TCP packets · ${d.decoded_events || 0} combat events${d.tcp_stream_resets ? ' · '+d.tcp_stream_resets+' lossy TCP recovery boundaries (capture incomplete)' : ''}${d.port ? " · port " + d.port : d.auto_port ? " · detecting game port" : ""}` : "Stopped"; } }
   const view = $("#mview"); if (!view) return;
   if (!snap.players.length) {
     st.lastMeterRender = null;

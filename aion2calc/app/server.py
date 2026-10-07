@@ -553,7 +553,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({k: v for k, v in job.items() if k != "log"} | {"log": job["log"][-12:]})
         if path == "/api/meter":
             from .meter_runner import runner
-            return self._json(runner().status())
+            return self._json(runner().status(follow_latest=q.get("view") == "latest"))
         if path == "/api/icon":
             return self._icon(q.get("u", ""))
         raise FileNotFoundError(path)

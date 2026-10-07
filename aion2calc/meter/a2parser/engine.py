@@ -108,6 +108,11 @@ class MeterEngine:
         with self._lock:
             self.server_port = int(value)
 
+    def reset_stream(self, stream_id: str) -> None:
+        """Discard partial framing at a recorded lossy transport boundary."""
+        with self._lock:
+            self._pending.pop(stream_id, None)
+
     def consume(self, buffer: bytes, timestamp_ms: int | None = None, stream_id: str = "default") -> list[DamageEvent | HealEvent]:
         with self._lock:
             return self._consume_locked(buffer, timestamp_ms, stream_id)
