@@ -247,6 +247,8 @@ Compare shares and casts more than DPS when:
 * the log is a boss fight: movement, mechanics and party buffs are not in a training-dummy
   simulation.
 
+For uploads made by an external meter, use that meter's supported sharing workflow; importing its log here does not upload it back to the external service. Aion 2 Calc sharing uses the configured community server.
+
 ## Pet and spirit grouping
 
 In desktop/website combat review, **Combine pets with owner** is checked by default above the graph. Uncheck it for separate pet rows/lanes. **Pets** controls pet effect visibility in the graph/timeline; it does not remove pet damage from the recorded table totals. Encounter insights retain separate source labels. Pet deaths are not counted as owner deaths.
