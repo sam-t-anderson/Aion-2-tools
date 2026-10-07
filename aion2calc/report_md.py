@@ -47,6 +47,14 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
             for row in hp["opponents"]:
                 name = row["name"].replace("|", " / ").replace("\n", " ")
                 w(f"| {name} | {row['required_hp']:,.0f} | {row['headroom_hp']:,.0f} |")
+            w("\nHealing timing assumptions (blank duration means the rest of the pressure window):\n")
+            for row in hp["opponents"]:
+                if "peak_pressure_hp" not in row:
+                    continue
+                name = row["name"].replace("\n", " ")
+                duration = row.get("healing_duration_s")
+                duration_label = "rest of window" if duration is None else f"{duration:g}s"
+                w(f"- {name}: assumed HPS {row['healing_hps']:g}; delay {row.get('healing_delay_s', 0):g}s; duration {duration_label}; peak ongoing pressure {row.get('peak_pressure_hp', 0):,.0f} HP at {row.get('peak_pressure_at_s', 0):g}s.\n")
             for row in hp["opponents"]:
                 evidence = row.get("recorded_evidence")
                 if evidence:

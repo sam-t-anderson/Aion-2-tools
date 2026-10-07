@@ -12,7 +12,7 @@ from .daevanion import CRYSTAL_BOARDS
 NOTE = ("Flat crystal-board HP reserve only. Total HP headroom uses entered current HP plus the "
         "change in flat HPMax nodes; percentage HP, defensive passives, armor, shields, healing skills, "
         "crowd control and movement are not simulated. Incoming damage/healing are user assumptions "
-        "after mitigation. Positive headroom is not a guarantee of survival or a PvP win prediction.")
+        "after mitigation. Healing timing is assumed, excess healing is not banked and the initial burst remains protected separately. Positive headroom is not a guarantee of survival or a PvP win prediction.")
 
 
 def node_hp(cd, nodes):
@@ -51,10 +51,29 @@ def prepare(cd, current, options=None):
         pressure = number(row.get("pressure_dps", 0), "Incoming damage per second")
         window = number(row.get("window_s", 5), "Pressure window", 120, .1)
         healing = number(row.get("healing_hps", 0), "Assumed healing per second")
+        delay = number(row.get("healing_delay_s", 0), "Healing delay", 120)
+        duration = row.get("healing_duration_s")
+        if duration is not None:
+            duration = number(duration, "Healing duration", 120)
+        healing_start = min(window, delay)
+        healing_end = window if duration is None else min(window, healing_start + duration)
+        # Healing repays ongoing pressure only. Excess healing cannot be banked,
+        # and the initial burst remains a separate minimum HP requirement.
+        deficit = peak_pressure = pressure * healing_start
+        peak_time = healing_start if peak_pressure else 0.0
+        deficit = max(0, deficit + (pressure-healing) * (healing_end-healing_start))
+        if deficit > peak_pressure:
+            peak_pressure, peak_time = deficit, healing_end
+        deficit += pressure * (window-healing_end)
+        if deficit > peak_pressure:
+            peak_pressure, peak_time = deficit, window
         reserve = number(row.get("reserve_hp", 1), "HP reserve", minimum=1)
-        required = burst + max(0, pressure-healing)*window + reserve
+        required = burst + peak_pressure + reserve
         rows.append({"name": str(row.get("name") or "Incoming pressure")[:100], "burst_damage": burst,
                      "pressure_dps": pressure, "window_s": window, "healing_hps": healing,
+                     "healing_delay_s": delay, "healing_duration_s": duration,
+                     "healing_active_s": healing_end-healing_start,
+                     "peak_pressure_hp": peak_pressure, "peak_pressure_at_s": peak_time,
                      "reserve_hp": reserve, "required_hp": required, "source": "user_assumption"})
         evidence = row.get("recorded_evidence")
         if isinstance(evidence, dict):
@@ -70,7 +89,7 @@ def prepare(cd, current, options=None):
     available = node_hp(cd, {nid for nid, (_, node) in cd.node_index.items() if node.get("type") != "Start"})
     if floor > available+1e-6:
         raise ValueError(f"Requested crystal HP reserve {floor:,.0f} exceeds the catalog's total {available:,.0f}, even before point/connectivity costs. Lower the reserve or incoming-damage assumptions.")
-    return {"version": 1, "preserve_hp": preserve, "reference_node_hp": reference,
+    return {"version": 2, "preserve_hp": preserve, "reference_node_hp": reference,
             "minimum_node_hp": max(0, floor), "current_hp": hp, "opponents": rows, "note": NOTE}
 
 
