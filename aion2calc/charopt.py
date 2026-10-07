@@ -167,9 +167,10 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
             saved = {}
         saved[imp.key] = bud
         write_user_json(saved, "character-points.json")
-    from .opt.reserves import prepare as prepare_reserves
+    from .opt.reserves import prepare as prepare_reserves, include_survival
     from .model.character import loadout_stats
     reserve_plan = prepare_reserves(ClassData(imp.cls), skill_reserves, bud, loadout_stats(imp.loadout).skill_bonus)
+    reserve_plan = include_survival(ClassData(imp.cls), reserve_plan, survival_plan, bud, loadout_stats(imp.loadout).skill_bonus)
     if reserve_plan and progress:
         progress(f"Retaining trained minimums for {sum(len(reserve_plan[k]) for k in ('sp', 'stigmas'))} skills/stigmas")
     cur["budgets"] = bud

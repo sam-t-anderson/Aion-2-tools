@@ -321,6 +321,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     from .opt.weighted import optimizer_for, objective_summary
     opt = optimizer_for(cls, scen, other, objective, daev_budget=daev_budget, verbose=verbose, sp_budget=sp_budget,
                         stigma_points=stigma_points, progress=progress, survival=survival, skill_reserves=skill_reserves)
+    skill_reserves = opt.skill_reserves
     opt.log("Damage objective: " + objective + "; HP and trained-skill reserves remain enforced")
     res = opt.run(iterations=iterations)
     build, policy = res.build, res.policy

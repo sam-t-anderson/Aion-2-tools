@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.72
+
+Personal pressure-reduction windows can now link a class skill, its minimum trained level and an optional active-skill supporting effect. The optimizer automatically unions those requirements with personal reserves, preserves stricter minimums, keeps linked stigmas equipped and enforces supporting-effect unlocks through trained points, fixed bonuses and connected Daevanion nodes. Requests that exceed effect slots or point budgets fail explicitly.
+
+Saved Results and Markdown show the linked requirements. All links apply, including zero-duration windows; unlinked windows remain manual assumptions. Links retain allocations, not casts: timing, reduction percentages, immunity, cooldowns, tactical success and outgoing damage costs are still user assumptions or unmodeled.
+
+Common scoring is unchanged; no server update is required. Cooldown and opportunity-cost modeling remain next.
+
 # Aion 2 Calc 0.2.71
 
 Personal PvE and PvP survivability scenarios now support timed pressure-reduction assumptions for defense, control or movement. Enter up to eight windows per scenario. The optimizer checks peak ongoing pressure across their boundaries and the healing schedule, uses only the strongest overlapping reduction, and keeps the initial hit unchanged.
