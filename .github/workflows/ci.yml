@@ -59,12 +59,20 @@ jobs:
         if: runner.os == 'Windows'
         run: pip install pywebview
       - name: Preset the log server for new users (repository variable A2LOGS_PUBLIC_URL)
-        if: vars.A2LOGS_PUBLIC_URL != ''
-        shell: bash
+        # This is the same deliberately public community-upload key used by Pages.
+        # Do not configure an administrative or ownership token here.
         env:
           URL: ${{ vars.A2LOGS_PUBLIC_URL }}
+          PUBLIC_COMMUNITY_KEY: ${{ vars.A2LOGS_UPLOAD_KEY }}
+        shell: python
         run: |
-          printf '{"logserver_url": "%s", "visibility": "unlisted"}\n' "$URL" > packaging/client.json
+          import json, os
+          from pathlib import Path
+          default = json.loads(Path('aion2calc/data/global/default_server.json').read_text())
+          url = os.environ.get('URL') or default.get('url', '')
+          key = os.environ.get('PUBLIC_COMMUNITY_KEY') or ''
+          Path('packaging/client.json').write_text(json.dumps({'logserver_url':url, 'visibility':'unlisted', 'key':key}), encoding='utf-8')
+          print('Desktop server configured:', bool(url), 'community upload key configured:', bool(key))
       - run: pyinstaller packaging/aion2calc.spec --noconfirm
       - name: Version
         id: v

@@ -66,9 +66,15 @@ def _remote_default(max_age: float = 21600) -> dict:
 def default_server() -> dict:
     """Where new users share by default: the remote default, else the bundled one, else a
     ``client.json`` baked in by a build (A2LOGS_PUBLIC_URL). ``{}`` if none is configured."""
-    for src in (_remote_default(), _bundled_default(), _client_json()):
+    client = _client_json()
+    for src in (_remote_default(), _bundled_default(), client):
         if src.get("url") and _OBSOLETE_HOST not in str(src["url"]).casefold():
-            return {"url": src["url"].rstrip("/"), "visibility": src.get("visibility") or "unlisted"}
+            result = {"url": src["url"].rstrip("/"), "visibility": src.get("visibility") or "unlisted"}
+            # The deliberately public community-upload key is scoped to its
+            # configured server. Never transfer it to a changed/custom server.
+            if client.get("key") and str(client.get("url") or "").rstrip("/") == result["url"]:
+                result["key"] = client["key"]
+            return result
     return {}
 
 
@@ -85,7 +91,7 @@ def _client_json() -> dict:
     if p.exists():
         try:
             c = json.loads(p.read_text(encoding="utf-8"))
-            return {"url": c.get("logserver_url"), "visibility": c.get("visibility")}
+            return {"url": c.get("logserver_url"), "visibility": c.get("visibility"), "key": c.get("key")}
         except ValueError:
             return {}
     return {}
@@ -96,10 +102,14 @@ def effective() -> dict:
     not chosen one. ``is_default`` marks which it is (so the UI can show it)."""
     s = settings()
     if s.get("url"):
+        if not s.get("key"):
+            d = default_server()
+            if str(s["url"]).rstrip("/") == d.get("url") and d.get("key"):
+                s = {**s, "key":d["key"]}
         return {**s, "is_default": False}
     d = default_server()
     if d.get("url"):
-        return {**d, "key": s.get("key"), "is_default": True}
+        return {**d, "key": s.get("key") or d.get("key"), "is_default": True}
     return {"is_default": False}
 
 
@@ -124,7 +134,7 @@ def discover(url: str) -> dict:
 def upload(doc: dict, url: str | None = None, key: str | None = None, visibility: str | None = None) -> dict:
     s = effective()
     url = (url or s.get("url") or "").rstrip("/")
-    key = key or s.get("key")
+    key = key or (s.get("key") if url == str(s.get("url") or "").rstrip("/") else None)
     vis = visibility or s.get("visibility") or "unlisted"
     if not url:
         raise ValueError("no log server set: pass --server (or set it on the Combat Logs page)")

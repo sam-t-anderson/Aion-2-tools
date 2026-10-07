@@ -51,6 +51,8 @@ class Runner:
         self.enemy_id = None
         self.saved_log = None
         self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
+        self.archive_id = uuid.uuid4().hex
+        self.archive_part = 1
 
     def start(self, source: str = "replay", **opts) -> dict:
         self.stop()
@@ -178,6 +180,8 @@ class Runner:
                         self.diagnostics["decoded_events"] += len(events)
                     if before_run != (self.session.run, self.session.run_closed):
                         self._save_session(active=True)
+                    if engine is not None:
+                        self._rollover_session()
                 elif kind == "error":
                     self.error = str(data[0])
                     break
@@ -261,6 +265,43 @@ class Runner:
             self._last_checkpoint = now
             self._save_session(active=True)
 
+    def _rollover_session(self) -> None:
+        # Keep substantial headroom below both live and import/export limits.
+        # Only the decoder thread invokes rollover, between packet batches.
+        with self.lock:
+            if not self.session.records:
+                return  # Idle telemetry alone cannot form an identified combat log.
+            due = (len(self.session.records) >= 100_000 or len(self.session.telemetry) >= 20_000
+                   or self.session.storage_groups >= 100 or len(self.session.storage_players) >= 48)
+        if not due:
+            return
+        from ..combat.sessions import save
+        with self._session_save_lock:
+            with self.lock:
+                detached = copy.deepcopy(self.session)
+                metadata = dict(self.metadata)
+                profile = dict(self.packet_engine.local_profile)
+                scope, collector = self.scope, self.capture_metadata
+            detached.capture_evidence["storage_boundary"] = True
+            detached.finish_run("storage_rollover", complete=False)
+            title = f"Live combat session {self.archive_id[:8]} · Part {self.archive_part}"
+            doc = self._metadata(detached.to_a2log(scope, title), metadata=metadata, profile=profile, collector=collector)
+            doc["meta"].update(capture_active=False, checkpoint_at=time.time(),
+                               archive={"id":self.archive_id, "part":self.archive_part, "closed":True})
+            # Never clear the memory part unless its atomic disk save succeeded.
+            # A failed save propagates to the runner and stops capture visibly.
+            saved = str(save(doc, self.session_file))
+            with self.lock:
+                self.session = self.session.continuation()
+                self.session.capture_evidence["storage_boundary"] = True
+                self.archive_part += 1
+                self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
+                self.segment_id = self.enemy_id = None
+                self.saved_log = saved
+                self.diagnostics["archive_parts_saved"] = self.archive_part - 1
+                self.diagnostics["archive_last_part"] = saved
+            self._last_checkpoint = time.monotonic()
+
     def _save_session(self, active: bool) -> None:
         if self.packet_engine is None or not self.session.records:
             return
@@ -271,7 +312,8 @@ class Runner:
                 from ..combat.sessions import save
                 doc = self.to_a2log()
                 doc["meta"].update(capture_active=bool(active and self.running),
-                                   checkpoint_at=time.time(), capture_scope=self.scope)
+                                   checkpoint_at=time.time(), capture_scope=self.scope,
+                                   archive={"id":self.archive_id, "part":self.archive_part, "closed":False})
                 self.saved_log = str(save(doc, self.session_file))
                 self.diagnostics.pop("log_save_error", None)
             except (ValueError, OSError) as exc:
@@ -376,6 +418,8 @@ class Runner:
             raise ValueError("Stop capture before clearing session history.")
         with self.lock:
             self.session = CombatSession()
+            self.archive_id = uuid.uuid4().hex
+            self.archive_part = 1
             self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
             self.saved_log = None
             self.segment_id = self.enemy_id = None
@@ -396,7 +440,12 @@ class Runner:
             profile = dict(self.packet_engine.local_profile) if self.packet_engine else {}
             scope = self.scope
             collector = self.capture_metadata
+            archive = {"id":self.archive_id, "part":self.archive_part, "closed":False}
+        if isinstance(session, CombatSession) and not title:
+            title = f"Live combat session {archive['id'][:8]} · Part {archive['part']}"
         doc = session.to_a2log(scope, title) if isinstance(session, CombatSession) else session.to_a2log(title=title)
+        if isinstance(session, CombatSession):
+            doc["meta"]["archive"] = archive
         return self._metadata(doc, metadata=metadata, profile=profile, collector=collector)
 
     def review_log(self) -> dict:

@@ -5,6 +5,7 @@ from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import time
+import copy
 
 from .a2parser.lookup import job_from_skill, npc_info, npc_name, skill_name
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
@@ -22,6 +23,20 @@ class Record:
 
 
 class CombatSession:
+    def continuation(self):
+        """A storage part continues decoding, but cannot establish run entry."""
+        result = CombatSession()
+        for key in ("epoch", "gap_seconds", "automatic_splits", "pvp", "manual_split",
+                    "sequence", "run", "run_closed", "auto_finish", "_zone_reset", "_context"):
+            setattr(result, key, getattr(self, key))
+        result.final_boss_ids = set(self.final_boss_ids)
+        result._dead = set(self._dead)
+        result.capture_evidence = dict(self.capture_evidence)
+        result.identities = {self.epoch: copy.deepcopy(self.identities[self.epoch])} if self.epoch in self.identities else {}
+        result.runs = {self.run: {**self.runs[self.run], "start_observed": False}}
+        result.runs[self.run].pop("started_at", None)
+        return result
+
     def __init__(self):
         self.records = deque(maxlen=400_000)
         self.epoch = 0
@@ -45,6 +60,9 @@ class CombatSession:
         self.auto_finish = True
         self._context = None
         self._pending_run_start = None
+        self.storage_groups = 0
+        self._storage_last = None
+        self.storage_players = set()
 
     def finish_run(self, reason="manual", complete=True, timestamp_ms=None):
         if not any(r.run == self.run for r in self.records) or self.run_closed:
@@ -122,6 +140,15 @@ class CombatSession:
             identity["local_id"] = engine.local_player_id
         party = frozenset(name.casefold() for name in engine.roster)
         for event in events:
+            record = Record(self.epoch, event, party, engine.local_player_id)
+            allowed = self._allowed(record, "party")
+            self.storage_players.update((self.epoch, actor) for actor in allowed if actor not in identity["owners"])
+            if isinstance(event, DamageEvent):
+                context_key = (self.epoch, self.manual_split, self._pvp_damage(record, allowed))
+                if (self._storage_last is None or context_key != self._storage_last[0]
+                        or self.automatic_splits and event.timestamp_ms - self._storage_last[1] > self.gap_seconds * 1000):
+                    self.storage_groups += 1
+                self._storage_last = (context_key, event.timestamp_ms)
             if len(self.records) == self.records.maxlen:
                 self.discarded += 1
             self.sequence += 1

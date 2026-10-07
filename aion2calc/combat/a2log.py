@@ -84,6 +84,7 @@ SCHEMA = {
             "game_patch": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
             "capture_active": {"type": "boolean"}, "checkpoint_at": {"type": "number"},
             "capture_scope": {"enum": ["party", "self", "all"]},
+            "archive": {"type":"object", "properties":{"id":{"type":"string"}, "part":{"type":"integer", "minimum":1}, "closed":{"type":"boolean"}}},
             "capture_quality": {"type": "object", "description": "Capture evidence and loss counters; eligibility is computed by the server"},
             "visibility": {"enum": ["public", "unlisted", "private"]},
             "contribute": {"enum": ["yes", "no"], "description": "use this fight in the anonymous class "
@@ -190,10 +191,13 @@ def validate(doc) -> dict:
         for k in (*COUNTERS, "tcp_pending_bytes", "pcap_received", "pcap_stats_reads"):
             if isinstance(capture.get(k), int) and not isinstance(capture[k], bool) and 0 <= capture[k] <= 2**53-1:
                 evidence[k] = capture[k]
-        for flag in ("transport_monitored", "pcap_stats_sampled", "pcap_stats_partial"):
+        for flag in ("transport_monitored", "pcap_stats_sampled", "pcap_stats_partial", "storage_boundary"):
             if isinstance(capture.get(flag), bool):
                 evidence[flag] = capture[flag]
         clean_meta["capture_quality"] = evidence
+    archive = meta.get("archive")
+    if isinstance(archive, dict) and isinstance(archive.get("id"), str) and isinstance(archive.get("part"), int) and not isinstance(archive["part"], bool) and 1 <= archive["part"] <= 2**53-1:
+        clean_meta["archive"] = {"id": archive["id"][:100], "part": archive["part"], "closed": archive.get("closed") is True}
     if clean_meta.get("encounter_type") not in (None, *ENCOUNTER_TYPES):
         raise Invalid("Unknown encounter_type")
     if clean_meta.get("visibility") not in (None, "public", "unlisted", "private"):

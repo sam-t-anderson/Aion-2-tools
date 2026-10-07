@@ -237,6 +237,16 @@ Enter the game patch, arena/encounter name and difficulty/ruleset for useful com
 
 Match outcomes, objective scores, kill credit, faction/team assignments outside the observed party, and movement not present in the log are not inferred. Mode selection is manual; entering a PvP area does not automatically prove a recording is PvP. A fresh PvP capture is still needed to confirm arena/battleground coverage.
 
+Official desktop builds use the configured community upload key for the default server. You do not need to enter it manually. A custom server may require its own key in Settings; a personal key takes precedence. If a previous build reported an upload-key 401, update to 0.2.38 or later and retry.
+
+## Long live sessions (0.2.38)
+
+Live capture automatically saves a numbered archive part before the current history reaches its effect, telemetry, encounter or observed-party identity budget. Each part has a shared archive ID and appears separately in **Combat Logs**. Capture continues with the same decoder and current identity context; the live meter and its export/upload buttons cover the current part. Open an earlier part from Combat Logs to review or upload it. There is no fixed total part count or automatic deletion; available disk space is the practical storage limit. The recent list shows the newest 100 files; older parts remain in the user logs folder and can be imported.
+
+A storage boundary is not a boss kill, instance finish or arena result. Parts crossing a storage boundary are conservatively unranked, and a continued run does not inherit observed entry. Parts are not automatically stitched into a combined report or uploaded as a batch. A failed rollover save stops capture visibly and retains the in-memory history instead of clearing it. Periodic recovery is still every 15 seconds; abrupt termination can lose newer unsaved effects.
+
+Per-file format/validation limits still apply. In unusually large All-observed rosters, a part can exceed the 64-player validation limit; the app reports a save error rather than silently clearing it. Party/Self scope is recommended. This is automatic bounded-part archival, not an unlimited single JSON document. Raw TCP diagnostics remain a separate opt-in recording.
+
 ## For developers
 
 The command-line interface, running from source, the architecture overview, building the desktop
