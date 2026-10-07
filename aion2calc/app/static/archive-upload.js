@@ -3,15 +3,17 @@
   'use strict';
   const esc = x => String(x ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const safeLink = x => {try {const u=new URL(x);return ['https:','http:'].includes(u.protocol)?u.href:'';} catch (_) {return '';}};
+  const archiveMeta = a => a && typeof a.id==='string' && Number.isSafeInteger(a.part) && a.part>0 ? {id:a.id.slice(0,100),part:a.part,closed:a.closed===true}:undefined;
+  const exportedLink = x => {try {const u=new URL(safeLink(x));return !u.search && !u.hash?u.href:undefined;}catch(_){return undefined;}};
   function mount(root, io) {
     let rows=[], offset=0, more=false, busy=false, cancel=false, message='', filter='', type='', chosenVisibility='unlisted', batch=null;
     const selected=new Map(), results=new Map();
     const label=r=>r.title || r.file;
     function download() {
       const manifest={format:'a2log-upload-manifest',version:1,server:batch?.url,visibility:batch?.visibility,
-        parts:[...selected.values()].map(r=>{const s=results.get(r.file)||{};return {file:r.input?.name||r.file,archive:r.archive,
+        parts:[...selected.values()].map(r=>{const s=results.get(r.file)||{};return {file:r.input?.name||r.file,archive:archiveMeta(r.archive),
           status:s.status||'pending',id:s.id,error:s.error,
-          ...(s.status==='uploaded' && s.visibility!=='private'?{url:safeLink(s.url)}:{})};})};
+          ...(s.status==='uploaded' && s.visibility!=='private'?{url:exportedLink(s.url)}:{})};})};
       const url=URL.createObjectURL(new Blob([JSON.stringify(manifest,null,2)],{type:'application/json'}));
       const a=document.createElement('a');a.href=url;a.download='combat-upload-manifest.json';a.click();
       setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -38,7 +40,7 @@
           results.set(row.file,{status:'uploading'});message='Uploading '+label(row)+'…';render();
           try {
             const response=await io.upload(row,batch);
-            results.set(row.file,{status:'uploaded',id:response.id,url:response.url,visibility:batch.visibility,
+            results.set(row.file,{status:'uploaded',id:response.id,url:response.url,visibility:response.visibility||batch.visibility,
               warning:response.ownership_warning});
             document.dispatchEvent(new Event('a2log-uploaded'));
           } catch(e) {
