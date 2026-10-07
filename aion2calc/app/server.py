@@ -71,6 +71,12 @@ def start_sync(force: bool = False, budget_s: float | None = 900) -> None:
 
 # -------------------------------------------------------------------- actions
 def _summary_at(path: str) -> dict:
+    if path.startswith("community-v2:"):
+        from ..combat.preset_sync import cached_presets
+        for row in cached_presets():
+            if path == f"community-v2:{row['class']}:{row['mode']}":
+                return {**row["build"], "preset_checked_at": row["checked_at"]}
+        raise FileNotFoundError(path)
     if path.startswith("community:"):
         from ..paths import read_json
         cls = path.partition(":")[2]
@@ -122,7 +128,10 @@ def act_character_optimize(body: dict, log) -> dict:
     except Exception as exc:
         points = {"error": str(exc)}
         log("Could not submit point observations: " + str(exc))
-    preset = share.submit_preset(best)
+    from ..combat.preset_sync import submit as submit_canonical
+    preset = submit_canonical(best)
+    if preset is None:
+        preset = share.submit_preset(best)
     if preset.get("submitted"):
         log("Community preset updated." if preset.get("accepted") else preset.get("reason", "Current community preset retained."))
     elif preset.get("reason"):
@@ -131,17 +140,38 @@ def act_character_optimize(body: dict, log) -> dict:
             "path": str(out), "diff": (out / "DIFF.md").read_text(encoding="utf-8"), "preset": preset, "point_observation": points}
 
 
+def act_preset_refresh(body: dict, log) -> dict:
+    from ..combat.preset_sync import sync, cached_presets
+    log("Checking community presets")
+    started = time.time()
+    changed = sync()
+    rows = cached_presets()
+    checked = bool(rows) and max(row["checked_at"] for row in rows) >= started
+    return {"changed": changed, "checked": checked}
+
+
 def act_optimize_class(body: dict, log) -> dict:
     from ..report import run_report
     cls = body["class"]
-    out = results_dir() / (body.get("out") or f"{cls}_l45")
+    mode = body.get("mode", "pve")
+    if mode not in ("pve", "pvp"):
+        raise ValueError("Choose PvE or PvP optimization")
+    scenario = "pvp" if mode == "pvp" else "boss"
+    out = results_dir() / (body.get("out") or (f"{cls}_l45_pvp" if mode == "pvp" else f"{cls}_l45"))
     if not out.resolve().is_relative_to(results_dir().resolve()):
         raise ValueError("out must stay inside the results folder")
     log(f"optimizing {cls} (this takes several minutes)")
-    run_report(cls, str(out), iterations=int(body.get("iterations", 2)), loadout=body.get("loadout"),
+    run_report(cls, str(out), scenario_name=scenario, iterations=int(body.get("iterations", 2)), loadout=body.get("loadout"),
                sp_budget=body.get("skill_points"), stigma_points=body.get("stigma_points"),
                daev_budget=int(body.get("daevanion", 360)), verbose=False, progress=log)
-    return views.build_view(_summary_at(str(out)))
+    summary = _summary_at(str(out))
+    from ..combat.preset_sync import submit as submit_canonical
+    from ..combat.share import submit_preset
+    log("Submitting eligible anonymous allocations for common-loadout comparison")
+    submission = submit_canonical(summary)
+    if submission is None:
+        submission = submit_preset(summary)
+    return {**views.build_view(summary), "preset_submission": submission}
 
 
 def encounter_view(enc_id: int) -> dict:
@@ -339,6 +369,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(json.loads(history_path(q["id"]).read_text(encoding="utf-8")))
             discover_legacy()
             return self._json(recent())
+        if path == "/api/planner/presets":
+            return self._json(views.planner_presets())
         if path == "/api/results":
             return self._json(views.list_results())
         if path == "/api/build":
@@ -541,6 +573,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"job": start_job("import", act_character_import, body)})
         if path == "/api/character/optimize":
             return self._json({"job": start_job("optimize-character", act_character_optimize, body)})
+        if path == "/api/planner/presets/refresh":
+            return self._json({"job": start_job("preset-refresh", act_preset_refresh, body)})
         if path == "/api/optimize":
             return self._json({"job": start_job("optimize-class", act_optimize_class, body)})
         if path == "/api/encounters/import":
@@ -770,6 +804,8 @@ def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: 
     from ..combat.share import sync_presets
     if sync:
         threading.Thread(target=sync_presets, daemon=True, name="community-preset-sync").start()
+        from ..combat.preset_sync import sync as sync_canonical
+        threading.Thread(target=sync_canonical, daemon=True, name="canonical-preset-sync").start()
     httpd = httpd or make_server(host, port)
     host, port = httpd.server_address[:2]
     url = f"http://{host}:{port}/"

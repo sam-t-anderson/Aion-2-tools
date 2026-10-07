@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.57
+
+Planner synchronizes one cached canonical PvE and PvP preset per class from servers supporting mode-specific comparison policies. Refresh presets checks again without restarting. Generic class/level/region/mode labels, weighted modeled DPS, comparison assumptions and last-check time distinguish community comparisons from bundled examples. Personal runs remain in Saved Results.
+
+Planner can generate class examples separately in PvE or experimental PvP mode. Eligible anonymous class and character optimizations submit allocations against the server's authoritative policy. Responses are bounded and validated; snapshots preserve common gear, score components and scope. Servers without v2 support use the existing PvE path. Personal Genus/HP/skill constraints and over-budget builds are not silently converted into common-loadout candidates. PvP hotbar reconstruction uses the player-target kit.
+
 # Aion 2 Calc 0.2.56
 
 Adds a versioned common-loadout scoring foundation for canonical PvE and PvP presets. Comparisons use fixed example budgets and equal weighting of two mode-specific damage scenarios. Each scope records the model, class data, common loadout and policy so changed inputs cannot be compared silently. Submitted gear, reported scores and personal constraints are excluded.
