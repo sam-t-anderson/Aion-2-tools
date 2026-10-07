@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.47
+
+Saved Parts queues generate and persist a random request ID before sending each file, on desktop and Pages. Recovery exports retain that non-secret ID. Updated servers reuse the accepted report for matching retries under the same upload-key identity (or anonymous scope), content and visibility, including after a client/server restart. Fingerprint checks and explicit uncertain-retry approval remain. Older servers and old uncertain requests without a prior ID can still duplicate; clearing the queue starts fresh request IDs.
+
+A reused request reports that no duplicate was created. Retry receipts do not reissue ownership tokens or private links; use the original My Uploads entry or ownership backup. If the first response and its ownership credentials were lost, this retry cannot recover them. Changed content/visibility returns a conflict; deleted originals return Gone instead of being recreated. These errors stop the queue for review.
+
+This applies to Saved Parts batch uploads using supporting servers. It does not combine archive parts, deduplicate every manual/live-meter upload, coordinate separate queues or repair duplicates already submitted.
+
 # Aion 2 Calc 0.2.46
 
 Imported equipment now retains official item IDs, inventory positions, icons, rarity and enchant levels in optimizer loadouts. Equipment and Gear & Advice show a consistent placeholder when an image is missing or fails. Catalog fallback prefers explicit slugs and unique name matches; grouped item families and ambiguous matches no longer borrow an arbitrary item's picture.

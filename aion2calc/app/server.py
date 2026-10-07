@@ -510,7 +510,7 @@ class Handler(BaseHTTPRequestHandler):
                 settings = effective()
                 if body.get("server") != settings.get("url"):
                     raise ValueError("Upload server changed. Start a new batch with the intended server.")
-                return self._json(upload(doc, url=settings["url"], key=settings.get("key"), visibility=body.get("visibility", "unlisted")))
+                return self._json(upload(doc, url=settings["url"], key=settings.get("key"), visibility=body.get("visibility", "unlisted"), request_id=body.get("request_id")))
             return self._json(upload(doc, visibility=body.get("visibility", "unlisted")))
         if path == "/api/community":
             from ..combat.share import community_request
