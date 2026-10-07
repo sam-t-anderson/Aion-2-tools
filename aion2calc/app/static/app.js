@@ -830,7 +830,8 @@ async function pageMeter() {
     try {
       const r = await api("/api/npcap");
       if (!r.supported) { node.textContent = "Npcap setup is only needed on Windows."; return; }
-      if (r.installed) { node.textContent = "Npcap is installed and ready for Live Capture."; return; }
+      if (r.detection_error) { node.textContent = r.detection_error + " Installation status is unknown; check with your administrator before reinstalling."; return; }
+      if (r.installed) { node.textContent = "Npcap is installed. Live Capture may need administrator permissions if Npcap was installed with administrator-only access."; return; }
       if (["finding", "downloading", "opening"].includes(r.status)) {
         node.textContent = { finding: "Finding the current official Npcap installer…", downloading: `Downloading Npcap ${r.version || ""}…`, opening: "Opening the Npcap installer…" }[r.status];
         setTimeout(refreshNpcap, 1200); return;
@@ -865,6 +866,7 @@ async function pageMeter() {
     if (source !== "replay") {
       try {
         const setup = await api("/api/capture/setup");
+        if (setup.detection_error) throw Error(setup.detection_error);
         if (setup.supported && !setup.installed) {
           if (window.confirm(setup.prompt || "Install packet-capture support now?")) {
             await api("/api/capture/setup", { action: "install" });

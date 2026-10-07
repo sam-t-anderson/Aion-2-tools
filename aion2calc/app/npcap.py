@@ -7,8 +7,8 @@ and opens its normal interactive installer.
 """
 from __future__ import annotations
 
+import os
 import re
-import subprocess
 import sys
 import threading
 import urllib.request
@@ -21,26 +21,30 @@ _LOCK = threading.RLock()
 _STATE: dict[str, object] = {"status": "idle", "version": None, "error": None}
 
 
-def _creation_flags() -> int:
-    return getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0
+def _installed_state() -> tuple[bool | None, str | None]:
+    """Read service registration without launching a process or requesting elevation."""
+    if sys.platform != "win32":
+        return False, None
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\npcap"):
+            return True, None
+    except FileNotFoundError:
+        return False, None
+    except (OSError, ImportError) as exc:
+        return None, "Could not read Npcap's service registration: " + str(exc)
 
 
 def installed() -> bool:
-    """Whether Windows reports the Npcap service as installed."""
-    if sys.platform != "win32":
-        return False
-    try:
-        return subprocess.run(["sc.exe", "query", "npcap"], stdout=subprocess.DEVNULL,
-                              stderr=subprocess.DEVNULL, timeout=3,
-                              creationflags=_creation_flags()).returncode == 0
-    except OSError:
-        return False
+    """Whether the Npcap service is registered; not a capture-permission check."""
+    return _installed_state()[0] is True
 
 
 def status() -> dict:
     with _LOCK:
         state = dict(_STATE)
-    return {"supported": sys.platform == "win32", "installed": installed(), **state}
+    present, error = _installed_state()
+    return {"supported": sys.platform == "win32", "installed": present, "detection_error": error, **state}
 
 
 def _version_key(value: str) -> tuple[int, ...]:
@@ -79,10 +83,17 @@ def _download_and_open() -> None:
                     output.write(block)
             temporary.replace(target)
         _set(status="opening", version=version)
-        subprocess.Popen([str(target)], cwd=str(folder), creationflags=_creation_flags())
+        # CreateProcess cannot launch an elevation-required installer (WinError 740).
+        # ShellExecute's runas verb asks Windows to display the normal UAC prompt.
+        os.startfile(str(target), "runas", cwd=str(folder))
         _set(status="installer-opened", version=version)
     except Exception as err:  # the UI receives a concise, actionable status
-        _set(status="error", error=f"{type(err).__name__}: {err}")
+        if getattr(err, "winerror", None) in (5, 740, 1223):
+            message = ("Npcap installation needs administrator approval. Windows denied or cancelled the elevation request. "
+                       "Choose Install Npcap again and approve the UAC prompt, or ask your administrator to install Npcap.")
+        else:
+            message = f"{type(err).__name__}: {err}"
+        _set(status="error", error=message)
 
 
 def begin_install() -> dict:

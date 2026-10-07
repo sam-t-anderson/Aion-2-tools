@@ -44,7 +44,7 @@ def _alert(msg: str) -> None:
     if sys.platform == "win32" and _frozen():
         try:
             import ctypes
-            ctypes.windll.user32.MessageBoxW(None, msg, "aion2calc", 0x10)
+            ctypes.windll.user32.MessageBoxW(None, msg, "Aion 2 Calc", 0x10)
         except Exception:
             pass
 
@@ -200,7 +200,11 @@ def main(argv=None) -> int:
             setattr(sys, name, open(os.devnull, "w", encoding="utf-8"))      # noqa: SIM115
     if args.install_npcap:
         from .app import npcap
-        npcap.install_now()
+        result = npcap.install_now()
+        if result.get("status") != "installer-opened":
+            _log_to_file()
+            _alert("Npcap setup did not open. " + str(result.get("error") or "Open Live Meter to retry installation."))
+            return 1
         return 0
     if args.smoke_test is not None:
         return smoke_test(args.smoke_test or None)
