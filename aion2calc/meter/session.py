@@ -349,7 +349,12 @@ class CombatSession:
     def snapshot(self, scope="party", segment_id=None, enemy_id=None, combine_pets=True):
         groups = self.groups(scope)
         chosen = groups if segment_id == "all" else [next((g for g in groups if g["id"] == segment_id), groups[-1])] if groups else []
-        summary = self._summary(chosen, scope, enemy_id, combine_pets)
+        summary = self._summary(chosen, scope, None, combine_pets)
+        if enemy_id is not None:
+            if any(row["key"] == enemy_id for row in summary["enemies"]):
+                summary = self._summary(chosen, scope, enemy_id, combine_pets)
+            else:
+                enemy_id = None  # A previous encounter's filter must not hide a new pull.
         summary["segments"] = [{"id": group["id"], "label": f"Combat {index + 1}", "start": group["start"],
                                 "duration": max(1, (group["end"] - group["start"]) / 1000),
                                 "events": len(group["records"])} for index, group in enumerate(groups)]

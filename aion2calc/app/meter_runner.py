@@ -183,6 +183,12 @@ class Runner:
                         self._save_session(active=True)
                     if engine is not None:
                         self._rollover_session()
+                elif kind == "stream_reset":
+                    with self.lock:
+                        if engine is not None:
+                            engine.reset_stream(data[0])
+                            self.session.split_now()
+                            self.segment_id = self.enemy_id = None
                 elif kind == "error":
                     self.error = str(data[0])
                     break
@@ -350,6 +356,8 @@ class Runner:
         with self.lock:
             snap = (self.session.snapshot(self.scope, self.segment_id, self.enemy_id, self.combine_pets)
                     if self.packet_engine is not None else self.meter.snapshot())
+            if self.packet_engine is not None:
+                self.enemy_id = snap.get("selected_enemy")
             installation_locked = self.running or bool(self.session.records) or bool(self.meter.players)
             diagnostic = dict(self.diagnostics)
         if diagnostic:

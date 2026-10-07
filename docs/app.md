@@ -205,6 +205,8 @@ Live Meter reads installed build evidence from Steam library manifests, includin
 
 Recognized map/instance IDs supply supported zone and content metadata. Difficulty is filled only when the recorded PvE instance has an explicit catalog value. Optional overrides have their source recorded. Unknown build, difficulty and match outcomes remain unknown. New Steam captures use the selected installation’s Build ID. Executable versions alone do not identify a unique launcher build, and current installation evidence is never applied to historical logs. Choose a detected installation when multiple copies are present. Unregistered PURPLE installation discovery, launcher namespace equivalence and verified difficulty-signature inference remain planned work.
 
+A missing TCP chunk can leave later traffic waiting for reassembly. Capture allows five seconds for normal reordering, then resumes from fresh bytes at a recorded lossy boundary. Live Meter shows recovery counts, retains earlier combat and marks the capture incomplete for rankings. Recovery does not reconstruct missing effects. An enemy filter is cleared when that enemy is absent from the newly selected combat; a deliberately selected historical combat remains pinned until you choose **Latest combat**.
+
 Live DPS pauses after two seconds without damage while capture continues, and resumes when damage returns. Healing does not extend the live damage interval. Saved reports use the full retained event interval, so their rates can differ. This does not establish a kill.
 
 ### Installation build numbers

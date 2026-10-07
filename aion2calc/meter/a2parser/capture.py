@@ -8,6 +8,7 @@ import time
 
 MAX_REORDERED_SEGMENTS = 256
 MAX_REORDER_DISTANCE = 1_048_576
+MAX_GAP_WAIT_SECONDS = 5.0
 
 
 def interface_details() -> list[dict[str, str]]:
@@ -39,12 +40,16 @@ class TCPReassembler:
         self.waiting: dict[int, bytes] = {}
         self.last_seen = time.monotonic()
         self.discarded_payloads = 0
+        self.gap_started: float | None = None
+        self.generation = 0
 
     def feed(self, sequence: int, payload: bytes, *, syn: bool = False) -> bytes:
         self.last_seen = time.monotonic()
         sequence &= 0xFFFF_FFFF
         if syn:
             sequence = (sequence + 1) & 0xFFFF_FFFF
+            if self.next_seq is not None and self.next_seq != sequence:
+                self._restart(sequence)
         if self.next_seq is None:
             self.next_seq = sequence
         if not payload:
@@ -58,14 +63,20 @@ class TCPReassembler:
             sequence = self.next_seq
             delta = 0
         if delta:
-            if delta > MAX_REORDER_DISTANCE or (sequence not in self.waiting
-                                                 and len(self.waiting) >= MAX_REORDERED_SEGMENTS):
-                self.discarded_payloads += 1
+            if self.gap_started is None:
+                self.gap_started = self.last_seen
+            if (self.last_seen - self.gap_started >= MAX_GAP_WAIT_SECONDS
+                    or delta > MAX_REORDER_DISTANCE
+                    or sequence not in self.waiting and len(self.waiting) >= MAX_REORDERED_SEGMENTS):
+                # A missed capture chunk may never be retransmitted to this
+                # observer. Resume from fresh bytes instead of buffering forever.
+                # This is a lossy boundary, never reconstruction of missing data.
+                self._restart(sequence)
+            else:
+                previous = self.waiting.get(sequence)
+                if previous is None or (len(payload) > len(previous) and payload.startswith(previous)):
+                    self.waiting[sequence] = payload
                 return b""
-            previous = self.waiting.get(sequence)
-            if previous is None or (len(payload) > len(previous) and payload.startswith(previous)):
-                self.waiting[sequence] = payload
-            return b""
         output = bytearray(payload)
         self.next_seq = (self.next_seq + len(payload)) & 0xFFFF_FFFF
         while self.waiting:
@@ -89,7 +100,16 @@ class TCPReassembler:
                     break
             output.extend(chunk)
             self.next_seq = (self.next_seq + len(chunk)) & 0xFFFF_FFFF
+        if not self.waiting:
+            self.gap_started = None
         return bytes(output)
+
+    def _restart(self, sequence: int) -> None:
+        self.discarded_payloads += max(1, len(self.waiting))
+        self.waiting.clear()
+        self.next_seq = sequence
+        self.gap_started = None
+        self.generation += 1
 
 
 class CombatFlowDetector:
@@ -209,7 +229,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
              "interface": interface or "Auto", "interfaces": interfaces, "warnings": [],
              "state": "starting", "signature_packets": 0, "candidate_flows": [],
              "transport_monitored": True, "tcp_discarded_payloads": 0, "tcp_unresolved_flows": 0,
-             "tcp_pending_bytes": 0}
+             "tcp_pending_bytes": 0, "tcp_stream_resets": 0}
     last_prune = time.monotonic()
 
     def on_packet(packet) -> None:
@@ -244,12 +264,18 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                 # seen on several adapters (e.g. VPN plus physical interface).
                 flow_key = stream_key if auto_port else stream_key[1:]
                 flow = flows.setdefault(flow_key, TCPReassembler())
-                before = flow.discarded_payloads
+                before, generation_before = flow.discarded_payloads, flow.generation
                 reassembled = flow.feed(sequence, chunk, syn=has_syn)
                 stats["tcp_discarded_payloads"] += flow.discarded_payloads - before
+                _, src, sport, dst, dport = stream_key
+                stream_id = f"{src}:{sport}->{dst}:{dport}"
+                if flow.generation != generation_before:
+                    stats["tcp_stream_resets"] += 1
+                    emit("stream_reset", stream_id)
+                    # Record loss before subsequent combat can trigger a save.
+                    emit("capture_stats", dict(stats))
                 if reassembled:
-                    _, src, sport, dst, dport = stream_key
-                    emit("packet", f"{src}:{sport}->{dst}:{dport}", reassembled, time.time_ns() // 1_000_000)
+                    emit("packet", stream_id, reassembled, time.time_ns() // 1_000_000)
                     stats["forwarded"] += 1
             if int(tcp.flags) & (0x01 | 0x04):
                 closed = flows.pop(key if auto_port else key[1:], None)

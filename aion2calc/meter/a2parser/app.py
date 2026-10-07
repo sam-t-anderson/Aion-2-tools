@@ -290,6 +290,11 @@ class MeterApp:
                         self.store.save_fight(fight)
                         self.status.set(f"Saved completed boss fight: {fight['bossName']}")
                     changed = True
+                elif kind == "stream_reset":
+                    if value != self.capture_generation:
+                        continue
+                    self.engine.reset_stream(item[2])
+                    self.status.set("Recovered a lossy TCP boundary; earlier capture is incomplete")
                 elif kind == "replay_auto_save":
                     fight = item[2]
                     self.store.save_fight(fight)

@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.60
+
+Prevent known capture stalls after a missing TCP chunk: allow normal packet reordering for five seconds, then resume from fresh bytes with a recorded lossy boundary instead of buffering later encounters indefinitely. Queue limits and observed replacement SYN also reset stale partial decoder framing. Recovery splits the encounter, preserves earlier data and records capture loss for ranking eligibility. Live Meter displays the recovery count. Missing packets are not reconstructed.
+
+An enemy filter from a previous encounter is cleared when that enemy is absent from the selected combat, so a new pull is visible in both the desktop meter and overlay. Explicit historical encounter selections remain available.
+
+These address confirmed code paths that can hide or interrupt subsequent combat. The reported 0.2.58 incident has no diagnostic archive yet, so its specific cause is not established. Capture should continue across encounters without reopening the overlay.
+
 # Aion 2 Calc 0.2.59
 
 Overview can generate a separate common-budget community comparison for PvE or PvP. Two anonymous common-loadout searches are scored with the same weighted objective; completed results are cached by scoring inputs, reused across restarts and retained when submission fails. Personal gear, point totals, Genus and survival/trained-skill constraints are never trimmed into a shared candidate. Progress survives tab navigation. Model calculation jobs serialize to avoid shared optimizer/calibration state races.
