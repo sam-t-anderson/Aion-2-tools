@@ -158,7 +158,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--f
 .gname { color: var(--gc, var(--text)); font-weight: 600; }
 
 /* ---------- skill window ---------- */
-.skilllist { display: grid; grid-template-columns: repeat(auto-fill, minmax(430px, 1fr)); gap: 8px; }
+.skilllist { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 480px), 1fr)); gap: 8px; }
 .skill {
   display: grid; grid-template-columns: 54px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px;
   background: var(--panel2); border: 1px solid var(--line); border-radius: 5px;
@@ -536,3 +536,20 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; backgrou
 .manual-skill { display: flex; gap: 12px; align-items: center; margin: 12px 0; }
 .manual-skill .hotbar-icon { margin: 0; }
 @media (max-width: 1050px) { .macro-layout { grid-template-columns: 1fr; } }
+
+/* Supporting effects occupy a vertical panel on the right of each skill card. */
+.skilllist > .skill { grid-template-columns:minmax(0, .9fr) minmax(0, 1.1fr); align-items:start; gap:14px; }
+.skill-overview, .skill-title, .skill-effect-text { min-width:0; overflow-wrap:anywhere; }
+.skill-heading { display:flex; align-items:flex-start; gap:10px; }
+.skill-heading .icon { flex:0 0 52px; }
+.skill-slot-summary { margin:14px 0 0; line-height:1.6; }
+.skilllist .specs { display:flex; flex-direction:column; gap:9px; border-left:1px solid var(--line); padding-left:12px; }
+.skill-effect { display:grid; grid-template-columns:26px minmax(0,1fr); gap:8px; align-items:start; }
+.skill-effect .spec { box-sizing:border-box; }
+.skill-effect-text { font-size:12px; line-height:1.45; }
+.skill-effect-text small { display:block; margin-top:3px; font-size:11px; }
+.effect-recommended { color:var(--gold); }
+@media(max-width:520px) {
+  .skilllist > .skill { grid-template-columns:minmax(0,1fr); }
+  .skilllist .specs { width:85%; justify-self:end; box-sizing:border-box; }
+}

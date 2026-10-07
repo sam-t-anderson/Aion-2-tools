@@ -1,5 +1,7 @@
 # Aion 2 Calc 0.2.39
 
+- Stack supporting effects vertically on the right of skill cards, with effect text, unlock levels and recommendation status beside each number. Fix cramped selection summaries and overlapping text.
+
 - Open saved, analyzed and shared logs in a focused detail view with **Back to combat logs**. History, upload queues and server settings stay on the list screen. Pages local previews use a temporary focused browser view; refresh requires reopening the file.
 - Reconstructed rate graphs now offer live-style bars with a trailing 10-second average, player series and time inspection. Timeline adds a seconds ruler, sticky player labels, skill icons, zoom windows and navigation; hover, focus or click shows effect details. Markers represent observed effects, not inferred cast durations. Crowded markers are labeled and remain available in Events.
 

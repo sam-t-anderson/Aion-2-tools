@@ -92,12 +92,12 @@ function winSkills(v, tab = "active") {
   const rows = list.map((s) => {
     const chosen = s.specs.filter((x) => x.chosen);
     return `<div class="skill ${s.eff <= 1 ? "dim" : ""}">
-      <div class="icon"><img src="${icon(s.icon)}" alt="" loading="lazy"><span class="lv">Lv${s.eff}</span></div>
-      <div><div class="nm">${esc(s.name)}</div>
-        <div class="lvl"><b>Lv ${s.eff}</b> = SP ${s.sp} + Daevanion ${s.daev}${s.gear ? ` + gear ${s.gear}` : ""}</div></div>
-      <div class="specs">${s.specs.map((x) => `<div class="spec ${x.chosen ? "on" : x.available ? "av" : ""}" title="${esc(`${x.n}. ${x.text} (unlocks at Lv ${x.unlock})`)}">${x.n}</div>`).join("")}</div>
-      ${s.specs.length?`<div class="small muted">${esc(s.slots)} selection slot(s) · ${chosen.length} recommended${s.next_effect_level?` · next effect at Lv ${esc(s.next_effect_level)}`:''}</div>`:''}
-      ${chosen.length ? `<div class="spectext">${chosen.map((x) => `<span>${x.n}</span> ${esc(x.text)} <span class="faint">(effect Lv ${esc(x.unlock)})</span>`).join(" &nbsp;·&nbsp; ")}</div>` : ""}
+      <div class="skill-overview"><div class="skill-heading">
+        <div class="icon"><img src="${icon(s.icon)}" alt="" loading="lazy"><span class="lv">Lv${s.eff}</span></div>
+        <div class="skill-title"><div class="nm">${esc(s.name)}</div>
+          <div class="lvl"><b>Lv ${s.eff}</b> = SP ${s.sp} + Daevanion ${s.daev}${s.gear ? ` + gear ${s.gear}` : ""}</div></div>
+      </div>${s.specs.length?`<p class="skill-slot-summary small muted">${esc(s.slots)} selection slot(s)<br>${chosen.length} recommended${s.next_effect_level?`<br>Next effect at Lv ${esc(s.next_effect_level)}`:''}</p>`:''}</div>
+      ${s.specs.length?`<div class="specs" role="list" aria-label="Supporting effects for ${esc(s.name)}">${s.specs.map(x=>`<div class="skill-effect" role="listitem"><span class="spec ${x.chosen?'on':x.available?'av':''}" title="${esc(x.chosen?'Recommended':x.available?'Available':'Locked')}">${esc(x.n)}</span><div class="skill-effect-text">${esc(x.name||x.text)}<small class="${x.chosen?'effect-recommended':'faint'}">Lv ${esc(x.unlock)} · ${x.chosen?'Recommended':x.available?'Available':'Locked'}</small></div></div>`).join('')}</div>`:''}
     </div>`;
   }).join("");
   const copy = (v.skills.active.concat(v.skills.passive)).filter((s) => s.sp > 1 || s.specs.some((x) => x.chosen))
@@ -682,7 +682,7 @@ async function pageCombat() {
   };
 
 }
-async function pageCombatHistory() { /* refresh list after import */ if (location.hash.startsWith("#/combat")) { const a = S.combat.a; await pageCombat(); if (a) $("#enc").innerHTML = renderEncounter(a); } }
+
 
 function renderEncounter(a) {
   const s = a.summary, m = a.meta;
@@ -1380,7 +1380,7 @@ async function route() {
     else if (page === "meter") await pageMeter();
     else if (page === "database") await pageDatabase();
     else await pagePlanner();
-  } catch (e) { app().innerHTML = `<div class="note">${esc(e.message)}</div>`; }
+  } catch (e) { app().innerHTML = `${page==="combat-log"?'<p><a class="btn small" href="#/combat">← Back to combat logs</a></p>':""}<div class="note">${esc(e.message)}</div>`; }
 }
 window.addEventListener("hashchange", route);
 
