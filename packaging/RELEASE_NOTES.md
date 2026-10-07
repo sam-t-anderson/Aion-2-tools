@@ -1,3 +1,11 @@
+## 0.2.28
+
+- Add My uploads to desktop Combat Logs, Pages Logs/shared review and the server viewer: refresh privacy status, change visibility, rotate private links, delete uploads, and back up/import per-upload credentials.
+- Save credentials automatically for new desktop/CLI uploads outside public combat files. Desktop storage persists independently of the webview port; browser storage is local to each site/browser. Recover older uploads with their original delete credential.
+- Require per-upload credentials for combat-log management. Shared upload keys no longer read private combat logs or authorize deletion. Private view links grant viewing only.
+- Update ranking/deduplication indexes when privacy changes, remove private logs from legacy calibration, and disable future HTTP caching for mutable combat-log responses. Privacy cannot recall already downloaded copies or old cached responses.
+- Lost original credentials cannot be recovered from a character name or shared upload key. Character identity verification and richer PvP evidence remain pending.
+
 ## 0.2.27
 
 - Add optional Encounter insights to shared desktop, Pages and server combat review: healer/recipient pairs, imported buff uptime, observed ability effects and opening sequences, and sampled boss HP milestones.

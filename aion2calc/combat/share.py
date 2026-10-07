@@ -140,7 +140,13 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
     req = urllib.request.Request(f"{target}?visibility={vis}", body, headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
-            return json.load(r)
+            result = json.load(r)
+        from .ownership import remember
+        try:
+            remember(url,result,doc.get("meta",{}).get("title", ""))
+        except (OSError, ValueError, KeyError) as exc:
+            result["ownership_warning"] = "Uploaded, but could not save ownership locally: " + str(exc)
+        return result
     except urllib.error.HTTPError as e:
         msg = e.read().decode("utf-8", "replace")
         try:

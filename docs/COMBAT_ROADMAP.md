@@ -22,7 +22,13 @@ Implemented optional shared Encounter insights: healing source/recipient relatio
 
 Pending evidence for phase/support/rotation enrichment: verified cast-start/end, buff source/application/removal, resources, shields/overheal and encounter mechanic definitions. Live movement and richer PvP protocol evidence remain pending. Imported windows do not establish live decoding support.
 
-Next checkpoint: Character ownership/privacy/community tools and richer evidence-backed PvP scoring. Verified protocol enrichment remains dependent on representative captures.
+## Insights roadmap — checkpoint 6 (0.2.28)
+
+Implemented per-upload ownership retention on desktop/CLI, shared My uploads management on desktop/Pages/server views, current status, visibility changes, private-link rotation, deletion, private credential backups/import and recovery with original delete tokens. Shared upload keys no longer read private combat logs or delete logs. Privacy changes reindex reports and exclude private calibration; mutable responses use no-store. This is upload ownership, not proof of character identity. Existing downloads/caches cannot be recalled, and lost unique credentials cannot be inferred.
+
+Remaining ownership/community work: verified character claims, opt-out of appearances in other uploaders' logs, account/device recovery and moderation/reporting workflows. Those need an explicit trustworthy identity/authentication design. Richer PvP scoring still requires representative match/kill/objective evidence; user will gather PvP captures later. Live protocol enrichment remains dependent on verified packet evidence.
+
+Next checkpoint: community moderation/reporting tools and remaining evidence-backed metrics; avoid inventing PvP boundaries or character ownership proof.
 
 Pending capture-quality follow-ups: additional OS/driver packet-drop counters, verified match boundaries, robust matching of incomplete perspectives, trusted game-version mapping and unlimited disk archival beyond bounded retention. These are not inferred from missing events.
 
