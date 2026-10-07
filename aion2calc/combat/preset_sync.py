@@ -22,6 +22,11 @@ def _base():
     return str(effective().get("url") or "").rstrip("/")
 
 
+class _NoPostRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise urllib.error.HTTPError(req.full_url, code, "Preset POST redirects are not followed", headers, fp)
+
+
 def _request(base, path, body=None):
     headers = {"User-Agent": "aion2calc"}
     payload = None
@@ -36,7 +41,9 @@ def _request(base, path, body=None):
         payload = json.dumps(body, allow_nan=False).encode()
         if len(payload) > MAX_BYTES:
             raise ValueError("Preset exceeds 100 KB")
-    with urllib.request.urlopen(urllib.request.Request(base + path, payload, headers), timeout=8) as response:
+    request = urllib.request.Request(base + path, payload, headers)
+    open_request = urllib.request.build_opener(_NoPostRedirect()).open if body is not None else urllib.request.urlopen
+    with open_request(request, timeout=8) as response:
         raw = response.read(MAX_BYTES + 1)
     if len(raw) > MAX_BYTES:
         raise ValueError("Preset response exceeds 100 KB")
@@ -56,7 +63,10 @@ def _supported(base):
 
 
 def _number(value):
-    return type(value) in (float, int) and math.isfinite(value)
+    try:
+        return type(value) in (float, int) and math.isfinite(value)
+    except OverflowError:
+        return False
 
 
 def _validate(remote, cls, mode, scope):
@@ -82,7 +92,7 @@ def _validate(remote, cls, mode, scope):
     if not _number(score) or score <= 0 or any(not _number(values.get(k)) or values[k] <= 0 for k in (primary, secondary)):
         raise ValueError("Preset scores must be finite positive numbers")
     expected = .5 * values[primary] + .5 * values[secondary]
-    if not math.isclose(score, expected, rel_tol=1e-8) or not math.isclose(summary["score"], score, rel_tol=1e-8):
+    if not _number(summary.get("score")) or not math.isclose(score, expected, rel_tol=1e-8) or not math.isclose(summary["score"], score, rel_tol=1e-8):
         raise ValueError("Preset weighted score is inconsistent")
     lo = summary["loadout_snapshot"]
     if not isinstance(lo, dict) or lo.get("level") != 45 or not isinstance(lo.get("components"), list) or len(lo["components"]) > 128:
@@ -92,7 +102,7 @@ def _validate(remote, cls, mode, scope):
             raise ValueError("Invalid preset loadout component")
         for field, value in component["stats"].items():
             if field == "skill_bonus":
-                if not isinstance(value, dict) or len(value) > 128 or any(not str(k).isdigit() or type(v) is not int or not 0 <= v <= 100 for k, v in value.items()):
+                if not isinstance(value, dict) or len(value) > 128 or any(not str(k).isdigit() or len(str(k)) > 10 or type(v) is not int or not 0 <= v <= 100 for k, v in value.items()):
                     raise ValueError("Invalid preset skill bonuses")
             elif field not in Stats.__dataclass_fields__ or not _number(value) or abs(value) > 1e9:
                 raise ValueError("Invalid preset stats")
