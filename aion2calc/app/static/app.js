@@ -647,8 +647,10 @@ async function pageCombat() {
     types:A2Community.types,
     list:(offset,limit)=>api('/api/sessions?paged=1&offset='+offset+'&limit='+limit),
     context:()=>api('/api/logserver'),
+    loadCheckpoint:()=>api('/api/upload-queue'),saveCheckpoint:value=>api('/api/upload-queue',value),
+    fingerprint:async row=>(await api('/api/sessions?fingerprint='+encodeURIComponent(row.file))).fingerprint,
     open:row=>{location.hash='/combat-log/local/'+encodeURIComponent(row.file);},
-    upload:(row,batch)=>api('/api/sessions/share',{file:row.file,visibility:batch.visibility,server:batch.url,completed_only:true})
+    upload:(row,batch)=>api('/api/sessions/share',{file:row.file,visibility:batch.visibility,server:batch.url,completed_only:true,fingerprint:row.fingerprint})
   });
   A2LogOwnership.mount($('#owned-logs'),{
     list:()=>api('/api/log-ownership'),
