@@ -11,7 +11,7 @@ COUNTERS = ("discarded_effects", "discarded_segments", "discarded_telemetry",
             "validation_discarded", "tcp_discarded_payloads", "tcp_unresolved_flows", "capture_errors", "pcap_dropped", "pcap_if_dropped")
 LABELS = {
     "storage_boundary": "This archive part crosses a storage boundary; full fight/run completeness is not established.",
-    "missing_metadata": "Record the game patch, difficulty and encounter category.",
+    "missing_metadata": "Record the game build, difficulty and encounter category.",
     "unverified_category": "The encounter category has not been identified.",
     "start_unverified": "A boss at full health was not observed at the start of this encounter.",
     "end_unverified": "The deaths of all recorded bosses were not observed.",

@@ -3,7 +3,7 @@
 Every AION 2 damage meter (AionFlex, A2DIL's recorder, aion2t) works the same
 way: it passively captures the game's TCP traffic with npcap on Windows,
 reassembles the stream and decodes the game's undocumented, partly compressed
-binary protocol, which changes with patches.  That decoder is not public, and
+binary protocol, which changes with builds.  That decoder is not public, and
 it can only be reverse-engineered from captures of a running game client, so it
 is not part of this package.
 

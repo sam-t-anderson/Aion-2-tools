@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.59
+
+Overview can generate a separate common-budget community comparison for PvE or PvP. Two anonymous common-loadout searches are scored with the same weighted objective; completed results are cached by scoring inputs, reused across restarts and retained when submission fails. Personal gear, point totals, Genus and survival/trained-skill constraints are never trimmed into a shared candidate. Progress survives tab navigation. Model calculation jobs serialize to avoid shared optimizer/calibration state races.
+
+New Steam live captures automatically record the selected install's exact build number as their comparison key. Build namespaces remain separate internally; desktop, Pages and shared review display build numbers and retain provenance. No named build or decimal version is required. Historical logs are not assigned today's build. Generic executable/engine versions and unrecognized PURPLE build metadata remain unavailable. Other ranking eligibility requirements still apply.
+
 # Aion 2 Calc 0.2.58
 
 Bundle fresh PvP comparison examples for all eight classes. Each class has separate sustained and burst allocation searches; both candidates are independently scored using equal-weight sustained/burst damage, and the stronger candidate is retained. Common gear, fixed example resources, frozen allocations and search provenance make these examples reproducible. They are not progression maxima, global optima or validated competitive PvP builds.
@@ -62,7 +68,7 @@ Settings → Game database → Export image coverage downloads aggregate referen
 
 Desktop and Pages add **News**, with official English/global notice and update headlines, publication/retrieval dates, category filters and direct source links. All Pages tabs keep the same banner/navigation, including News. The configured community server caches the fixed official feeds; stale or unavailable sources are explained and official list links remain available offline from the community feed.
 
-No article HTML, unofficial RSS or embedded executable content is loaded. Source announcements are not installed-game version evidence and do not set historical log/ranking patches. Korean/Taiwan feeds, patch-to-build matching, regional event timers and broader news sources remain follow-up work. A supporting community server is required for cached headline cards.
+No article HTML, unofficial RSS or embedded executable content is loaded. Source announcements are not installed-game version evidence and do not set historical log/ranking builds. Korean/Taiwan feeds, build-to-build matching, regional event timers and broader news sources remain follow-up work. A supporting community server is required for cached headline cards.
 
 # Aion 2 Calc 0.2.47
 
@@ -90,7 +96,7 @@ Daevanion skill/passive level nodes now show their skill images inside the exist
 
 # Aion 2 Calc 0.2.44
 
-Community Combat Logs replaces Type/patch/difficulty in the list with recorded-event count, patch and encounter icons. PvP shows each recorded opponent class once; PvE shows catalog-confirmed bosses. Missing classes, absent bosses and missing portraits use the bundled AION 2 emblem with explanatory hover/accessible labels. The current NPC catalog does not contain boss portraits; those remain placeholders until verified assets are available.
+Community Combat Logs replaces Type/build/difficulty in the list with recorded-event count, build and encounter icons. PvP shows each recorded opponent class once; PvE shows catalog-confirmed bosses. Missing classes, absent bosses and missing portraits use the bundled AION 2 emblem with explanatory hover/accessible labels. The current NPC catalog does not contain boss portraits; those remain placeholders until verified assets are available.
 
 Opening a community log carries the selected PvE/PvP mode into its focused review. The Combat mode dropdown filters encounter choices, graphs, tables, timelines and events while preserving original segment indices for rankings. Choose All recorded modes to inspect the full document. Whole-run timing/progression is hidden while a mode filter is active to avoid mixing run-wide totals. Mixed documents appear in both community lists when the server identifies segments of each recorded mode. Mode-specific list counts and aggregates require the corresponding server update; older servers show event count unavailable.
 
@@ -102,16 +108,16 @@ This filters recorded encounter classifications. It does not infer ambiguous PvE
 
 Installation selection is locked during capture and while combat history is retained. Stop, save/export and clear the session before selecting another copy. Clear also removes retained demo-meter data. Installed build evidence stays with retained live combat when capture is restarted. Capture remains available when no install/version is detected; missing evidence stays unavailable.
 
-Region overrides now use a dropdown with Auto (recorded home server) and the existing official region choices. A manually chosen recording region does not assign that region to opponents or other players. The official server-region cache now writes to the user data directory, including on first use in packaged installations. Installed build IDs are separate from published game patches; automatic patch/difficulty inference and discovery of unregistered PURPLE installs remain pending.
+Region overrides now use a dropdown with Auto (recorded home server) and the existing official region choices. A manually chosen recording region does not assign that region to opponents or other players. The official server-region cache now writes to the user data directory, including on first use in packaged installations. Installed build IDs are separate from published game builds; automatic build/difficulty inference and discovery of unregistered PURPLE installs remain pending.
 
 # Aion 2 Calc 0.2.42
 
-Discover Steam AION 2 installations from library manifests, including alternate library drives, alongside recognized Windows/PURPLE registrations. Installed build IDs remain separate from official published patch labels. Multiple-install/region selection and automatic difficulty inference remain follow-up work.
+Discover Steam AION 2 installations from library manifests, including alternate library drives, alongside recognized Windows/PURPLE registrations. Installed build IDs remain separate from official published build labels. Multiple-install/region selection and automatic difficulty inference remain follow-up work.
 
 
 Combat Logs separates **Saved Parts**, **My Uploads** and **Community Combat Logs** on desktop and Pages. Desktop remembers the selected list tab while opening a focused log and returning; Pages preserves it while opening a local preview. Tabs hide their panels without resetting upload queues. Website Saved Parts means files selected from your computer, not direct access to the desktop archive directory. Arrow keys, Home and End navigate tabs.
 
-Completed-run speed and Boss progression are now permitted read-only community endpoints in the desktop proxy. Boss progression requires catalog-confirmed bosses with observed engagement and excludes players, pets, dummies and catalog non-bosses. Unmapped NPCs do not establish boss roles. The current catalog does not separate every miniboss from a major or world boss; comprehensive miniboss exclusion remains pending verified role metadata. Unknown patch/difficulty and ranking eligibility rules are unchanged.
+Completed-run speed and Boss progression are now permitted read-only community endpoints in the desktop proxy. Boss progression requires catalog-confirmed bosses with observed engagement and excludes players, pets, dummies and catalog non-bosses. Unmapped NPCs do not establish boss roles. The current catalog does not separate every miniboss from a major or world boss; comprehensive miniboss exclusion remains pending verified role metadata. Unknown build/difficulty and ranking eligibility rules are unchanged.
 
 **My Character → Imported before** lists the newest eight imports as buttons that fetch the current official profile. Macro/hotbar suggestions reserve **Right-click** instead of F. This is guidance; the app does not change game bindings.
 
@@ -174,17 +180,17 @@ Recovered old build titles show PvE/PvP and use the saved character sidecar name
 - Add Mapping coverage to shared desktop/Pages/server combat review and an exportable JSON report with catalog revision, unresolved NPC/map/instance IDs, retained entity/effect counts and omission notices.
 - Include current-view catalog and automatic metadata in diagnostic ZIPs. Reports exclude character names and raw traffic; existing opted-in TCP payloads remain unchanged.
 - Correct provenance when editing difficulty, zone or encounter category in saved local logs.
-- Unknown category, game patch, unrecorded NPC types and PvP outcomes remain unresolved. Catalog reports do not infer kills or automatically trust names.
+- Unknown category, game build, unrecorded NPC types and PvP outcomes remain unresolved. Catalog reports do not infer kills or automatically trust names.
 
 # Aion 2 Calc 0.2.35
 
 - Style the overlay Hide button with the same dark gradient, gold frame, hover and keyboard focus treatment as the desktop controls.
 
 - Freeze live DPS at the last recorded damage event during healing-only downtime. Show Paused after two seconds without damage; capture continues and new damage resumes the clock. Saved logs retain the full event interval, so historical report rates can differ from live DPS.
-- Detect the installed game build from registered Windows installations (Steam manifest or executable version resource). Export build evidence without installation paths. Installed build is separate from the game patch used for rankings.
+- Detect the installed game build from registered Windows installations (Steam manifest or executable version resource). Export build evidence without installation paths. Installed build is separate from the game build used for rankings.
 - Resolve recorded server IDs against official regional server lists in the background, with a six-hour cache. Missing or ambiguous IDs remain unresolved.
 - Identify Fire Temple Arena from the confirmed map capture, known open-world categories from the map catalog, and dungeon names from recorded instance IDs. Show automatic detection in Live Meter and preserve provenance in shared review. Optional manual overrides remain available.
-- Unknown patch, difficulty, content and match outcomes remain unknown; additional verified mappings are needed.
+- Unknown build, difficulty, content and match outcomes remain unknown; additional verified mappings are needed.
 
 # Aion 2 Calc 0.2.34
 
@@ -262,19 +268,19 @@ Updated server v0.2.13 provides community trends and recomputed recaps for older
 
 ## Changes in 0.2.25 — matched comparisons and historical percentiles
 
-- Show current same-patch and reconstructed at-upload standings side by side in desktop, Pages and shared combat review, including run speed.
-- Match player comparisons by boss, class, encounter category, patch, difficulty, observed party size and instance. Keep personal bests and class distributions separate by party size/instance too.
+- Show current same-build and reconstructed at-upload standings side by side in desktop, Pages and shared combat review, including run speed.
+- Match player comparisons by boss, class, encounter category, build, difficulty, observed party size and instance. Keep personal bests and class distributions separate by party size/instance too.
 - Add party-size filters to community browsing and the Pages leaderboard; replace the leaderboard's cross-cohort row number with matched cohort rank.
 - Show percentile availability, public sample counts, distinct identities and provisional local/private comparisons. Percentiles need at least 10 samples and five distinct characters, or five distinct parties for run speed. Capped datasets do not receive a percentile.
 
-Requires server v0.2.12 for the new comparison fields. At-upload standings are reconstructed from currently public retained uploads received by that time; deletion, visibility and policy changes can change them. Current means current samples from the log's patch, not comparison with a newer patch. Ties share midrank percentiles. Small-sample class quartiles remain descriptive and show coverage warnings. HPS depends on healing demand; damage taken is descriptive, not a performance ranking. Upload-time gear cannot establish encounter-time equipment, so gear-adjusted brackets remain unavailable. Unknown party/instance evidence has no formal percentile. Existing capture and PvP evidence limits remain.
+Requires server v0.2.12 for the new comparison fields. At-upload standings are reconstructed from currently public retained uploads received by that time; deletion, visibility and policy changes can change them. Current means current samples from the log's build, not comparison with a newer build. Ties share midrank percentiles. Small-sample class quartiles remain descriptive and show coverage warnings. HPS depends on healing demand; damage taken is descriptive, not a performance ranking. Upload-time gear cannot establish encounter-time equipment, so gear-adjusted brackets remain unavailable. Unknown party/instance evidence has no formal percentile. Existing capture and PvP evidence limits remain.
 
 ## Changes in 0.2.24 — run timing and boss progression
 
 - Review each recorded run independently in desktop, Pages and shared logs: recorded span, encounter time, gaps and verified entry-to-final-boss elapsed time when available.
 - Show recorded boss attempts, kills, observed wipes, unknown outcomes, attempts to first recorded clear, best observed wipe HP and recovery gaps.
 - Join unresolved manual chunks of the same boss actor instead of counting each split as another pull.
-- Add public completed-run speed tables and boss progression summaries with the updated server. Speed comparisons match instance, boss route, patch, difficulty and party size; duplicate recordings count once.
+- Add public completed-run speed tables and boss progression summaries with the updated server. Speed comparisons match instance, boss route, build, difficulty and party size; duplicate recordings count once.
 - Preserve observed instance-entry times and stable party-roster evidence for future captures.
 
 Speed eligibility requires an observed open-world-to-instance transition, configured final-boss completion, a stable identified party and complete capture evidence. Captures started inside an instance and manual finishes remain reviewable but unranked for speed. Unknown outcomes are not wipes; missing HP/death markers are unavailable. Encounter time is the union of recorded fight intervals, not action uptime. Existing bounded-history limits and unverified PvP boundaries remain.
@@ -336,7 +342,7 @@ Live movement coordinates, new cast/buff/resource protocol coverage and trusted 
 
 ## Changes in 0.2.17 — community review and plan ownership
 
-- Filter community and recent local logs by encounter category; record game patch, difficulty and region for comparisons.
+- Filter community and recent local logs by encounter category; record game build, difficulty and region for comparisons.
 - Show separate class DPS distributions and parse counts, public server/region/community rankings, and personal record history. Unknown metadata remains unranked.
 - Compare multiple runs with explicit same-class player and encounter selection.
 - Update published raid plans in place using locally saved ownership credentials; export/import private ownership backups and detect revision conflicts.

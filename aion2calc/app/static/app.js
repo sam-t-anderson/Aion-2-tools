@@ -354,6 +354,31 @@ const WINDOWS = [
   ["overview", "Overview", "◆"], ["skills", "Skills", "✦"], ["stigma", "Stigma", "⬢"], ["daevanion", "Daevanion", "✧"],
   ["genus", "Pet Genus", "◈"], ["equipment", "Equipment", "⚔"], ["arcana", "Arcana", "❖"], ["titles", "Titles & wings", "♛"], ["hotbar", "Skills hotbar", "▦"], ["macro", "Macro & rotation", "⌨"],
 ];
+function renderCommonComparisons() {
+  document.querySelectorAll('[data-common-comparison]').forEach(root=>{
+    const cls=root.dataset.commonClass, mode=root.dataset.commonMode, key=cls+':'+mode;
+    const state=S.commonComparisons[key], running=state?.status==='running';
+    const result=state?.result, submission=result?.submission;
+    let message=state?.message||'';
+    if(result) message=`${result.reused?'Saved comparison reused':'Comparison saved'} · ${n0(result.score)} weighted modeled DPS (${result.model}). `+(submission?.reason||(submission?.accepted?'Community preset updated.':'Current community preset retained.'));
+    root.innerHTML=`<button class="btn small" data-common-start ${running?'disabled':''}>${running?'Calculating…':result?'Resubmit saved comparison':'Generate community comparison'}</button><p class="small ${submission?.accepted?'good':'muted'}" role="status">${esc(message)}</p>${result?`<div class="small muted">${Object.entries(result.dps||{}).map(([name,value])=>esc(name)+': '+n0(value)+' modeled DPS').join(' · ')}${submission?.candidate_score!=null?'<br>Server evaluation: '+n0(submission.candidate_score)+' weighted modeled DPS (server policy).':''}</div>`:''}`;
+    root.querySelector('[data-common-start]').onclick=async()=>{
+      S.commonComparisons[key]={status:'running',message:'Starting a separate common-budget calculation…'};renderCommonComparisons();
+      try {
+        const {job}=await api('/api/planner/presets/contribute',{class:cls,mode});
+        for(;;){
+          await new Promise(resolve=>setTimeout(resolve,1200));
+          const next=await api('/api/jobs/'+job);
+          S.commonComparisons[key]={status:next.status,message:next.log?.at(-1)||'Waiting for the calculation…',result:next.result};
+          renderCommonComparisons();
+          if(next.status==='error')throw Error(next.error);
+          if(next.status==='done')break;
+        }
+      } catch(error){S.commonComparisons[key]={status:'error',message:error.message};renderCommonComparisons();}
+    };
+  });
+}
+
 function renderWindows(v, state, host) {
   const side = `<section class="win sidemenu"><div class="wb">${WINDOWS.map(([k, t, ic]) => `<a href="javascript:void 0" data-win="${k}" class="${state.win === k ? "on" : ""}"><span class="ic">${ic}</span>${t}</a>`).join("")}</div></section>`;
   let body = "";
@@ -369,14 +394,17 @@ function renderWindows(v, state, host) {
     case "macro": body = winMacro(v); break;
     default: body = winOverview(v);
   }
-  host.innerHTML = `<div class="layout"><div>${side}</div><div>${body}</div></div>`;
+  const comparison=(state.win||'overview')==='overview'?`<section class="win" style="margin-top:12px"><div class="wb"><details><summary>Contribute a community comparison</summary><p class="small muted">Generate a separate ${String(v.scenario||'').startsWith('pvp')?'PvP':'PvE'} example with common gear and 203 Skill / 30 Stigma / 360 crystal Daevanion points. Your personal build, Genus and HP/skill reserves stay saved separately. Two searches can take several minutes; completed comparisons are reused until the scoring inputs change. Only anonymous allocations are submitted. Stationary damage comparison, not a survival or win-rate model.</p><div data-common-comparison></div></details></div></section>`:'';
+  host.innerHTML = `<div class="layout"><div>${side}</div><div>${body}${comparison}</div></div>`;
+  const common=host.querySelector('[data-common-comparison]');
+  if(common){common.dataset.commonClass=v.class;common.dataset.commonMode=String(v.scenario||'').startsWith('pvp')?'pvp':'pve';renderCommonComparisons();}
   $$("[data-win]", host).forEach((a) => (a.onclick = () => { state.win = a.dataset.win; renderWindows(v, state, host); }));
   $$("[data-skilltab]", host).forEach((b) => (b.onclick = () => { state.skilltab = b.dataset.skilltab; renderWindows(v, state, host); }));
   $$("[data-board]", host).forEach((b) => (b.onclick = () => { state.board = +b.dataset.board; renderWindows(v, state, host); }));
 }
 
 // ------------------------------------------------------------------ pages
-const S = { planner: { win: "overview" }, character: { win: "overview" }, combat: {}, database: {}, gear: {}, raid: {}, meter: {} };
+const S = { commonComparisons: {}, planner: { win: "overview" }, character: { win: "overview" }, combat: {}, database: {}, gear: {}, raid: {}, meter: {} };
 
 function welcomeCard() {
   let hidden = false;
@@ -471,7 +499,7 @@ async function pageCharacter() {
       <div class="kpis">${Object.entries(v.dps || {}).map(([k, x]) => `<div class="kpi"><div class="k">${esc(k)} ${v.genus?"saved build DPS":"imported DPS (without manual Genus)"}</div><div class="v">${n0(x)}</div></div>`).join("")}
         <div class="kpi"><div class="k">Skill points</div><div class="v">${v.points.skill} / ${v.budgets?.skill??"Unknown"}</div></div><div class="kpi"><div class="k">Stigma points</div><div class="v">${v.points.stigma} / ${v.budgets?.stigma??"Unknown"}</div></div>
         <div class="kpi"><div class="k">Daevanion</div><div class="v">${v.points.daevanion} / ${v.budgets?.daevanion??"Unknown"}</div></div></div>
-      ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${['skill','stigma','daevanion'].map(k=>`<label>${cap(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:90px"></label>`).join('')}<label>Game patch (optional) <input id="cpointpatch" maxlength="100" placeholder="Unknown" value="${esc(localStorage.getItem('point-game-patch')||'')}"></label></div><p class="small muted">PvP optimization is an experimental damage-only estimate against a stationary player proxy. It does not score survival, crowd control or win chance. PvE and PvP results are saved separately.</p><div id="survival-options"></div><div id="skill-reserves"></div><div id="character-genus"></div><div id="optres"></div></div></section><div id="cwins"></div>`;
+      ${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${['skill','stigma','daevanion'].map(k=>`<label>${cap(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:90px"></label>`).join('')}<label>Game build (optional) <input id="cpointpatch" maxlength="100" placeholder="Unknown" value="${esc(localStorage.getItem('point-game-patch')||'')}"></label></div><p class="small muted">PvP optimization is an experimental damage-only estimate against a stationary player proxy. It does not score survival, crowd control or win chance. PvE and PvP results are saved separately.</p><div id="survival-options"></div><div id="skill-reserves"></div><div id="character-genus"></div><div id="optres"></div></div></section><div id="cwins"></div>`;
     const survivalOptions=mountSurvivalOptions($('#survival-options'),'character-survival:'+JSON.stringify(st.hit||v.key||v.loadout));
     const reservesOptions=mountSkillReserves($('#skill-reserves'),'character-skill-reserves:'+JSON.stringify(st.hit||v.key||v.loadout),v);
     const genusOptions=mountCharacterGenus($("#character-genus"),v.key);
@@ -883,7 +911,7 @@ async function pageMeter() {
   try{$('#mfinalboss').value=localStorage.getItem('meter-final-boss-ids')||'';}catch(_){}
   $('#mfinalboss').onchange=()=>localStorage.setItem('meter-final-boss-ids',$('#mfinalboss').value);
   let classification={};try{classification=JSON.parse(localStorage.getItem('meter-metadata'))||{};}catch(_){}
-  $('#mmetadata').innerHTML=`<label class="small">Encounter type <select data-capture-meta="encounter_type">${Object.entries(A2Community.types).map(([v,l])=>`<option value="${v}" ${v===(classification.encounter_type||'unknown')?'selected':''}>${v==='unknown'?'Auto detect':esc(l)}</option>`).join('')}</select></label>${['game_patch','difficulty','zone'].map(k=>`<label class="small">${esc(k.replaceAll('_',' '))} <input data-capture-meta="${k}" maxlength="200" value="${esc(classification[k]||'')}" placeholder="Unknown" style="width:130px"></label>`).join('')}<label class="small">Region <select data-capture-meta="region"><option value="">Auto (recorded home server)</option>${[['nae','North America'],['eu','Europe'],['as','Asia'],['la','Latin America'],...((classification.region&&!['nae','eu','as','la'].includes(classification.region))?[[classification.region,'Previously saved: '+classification.region]]:[])].map(([v,l])=>`<option value="${esc(v)}" ${v===classification.region?'selected':''}>${esc(l)}</option>`).join('')}</select></label><span class="small muted">Optional overrides. Recognized maps/instances and region are detected automatically; unknown content stays unverified. Change overrides between sessions.</span>`;
+  $('#mmetadata').innerHTML=`<label class="small">Encounter type <select data-capture-meta="encounter_type">${Object.entries(A2Community.types).map(([v,l])=>`<option value="${v}" ${v===(classification.encounter_type||'unknown')?'selected':''}>${v==='unknown'?'Auto detect':esc(l)}</option>`).join('')}</select></label>${['game_patch','difficulty','zone'].map(k=>`<label class="small">${esc(k==='game_patch'?'game build override':k.replaceAll('_',' '))} <input data-capture-meta="${k}" maxlength="200" value="${esc(classification[k]||'')}" placeholder="Unknown" style="width:130px"></label>`).join('')}<label class="small">Region <select data-capture-meta="region"><option value="">Auto (recorded home server)</option>${[['nae','North America'],['eu','Europe'],['as','Asia'],['la','Latin America'],...((classification.region&&!['nae','eu','as','la'].includes(classification.region))?[[classification.region,'Previously saved: '+classification.region]]:[])].map(([v,l])=>`<option value="${esc(v)}" ${v===classification.region?'selected':''}>${esc(l)}</option>`).join('')}</select></label><span class="small muted">Optional overrides. The selected Steam build, recognized maps/instances and region are detected automatically; unknown content stays unverified. Change overrides between sessions.</span>`;
   const updateView = async (body) => { try { renderMeter(await api("/api/meter", {action: "view", ...body})); } catch (e) { $("#mnotice").textContent = e.message; } };
   document.querySelectorAll('[data-capture-meta]').forEach(e=>e.onchange=()=>{classification=Object.fromEntries([...document.querySelectorAll('[data-capture-meta]')].map(e=>[e.dataset.captureMeta,e.value.trim()]));localStorage.setItem('meter-metadata',JSON.stringify(classification));updateView({metadata:classification});});
   updateView({metadata:classification});
@@ -1076,7 +1104,7 @@ function renderMeter(s) {
 
   if($("#mcombinepets")) $("#mcombinepets").checked=s.combine_pets!==false;
   if($('#minstall')) $('#minstall').disabled = !!s.installation_locked;
-  if($("#mautometa")) { const m=s.automatic_metadata || {}; $("#mautometa").textContent = `Installed game build: ${m.installed_build || m.status || "unavailable"}${m.installed_build_source ? " ("+m.installed_build_source+")" : ""}. Automatic region: ${m.region || (m.region_status === "ready" ? "waiting for recorded server ID" : m.region_status) || "unavailable"}. Zone: ${(s.automatic_context || {}).zone || "not identified"}. Content: ${(s.automatic_context || {}).encounter_type || "not identified"}. Difficulty: ${(s.automatic_context || {}).difficulty || "not identified"}. Map / instance IDs: ${s.catalog_coverage?.map_id || "not recorded"} / ${s.catalog_coverage?.instance_id || "not recorded"}. ${s.catalog_coverage?.unmapped?.length || 0} unmapped IDs in this view (included in diagnostics). ${m.reason ? m.reason+" " : ""}Installed build is separate from the game patch used for rankings.`; }
+  if($("#mautometa")) { const m=s.automatic_metadata || {}; $("#mautometa").textContent = `Installed game build: ${m.installed_build || m.status || "unavailable"}${m.installed_build_source ? " ("+m.installed_build_source+")" : ""}. Comparison build: ${m.game_patch ? (m.installed_build || m.game_patch) : "unavailable"}. Automatic region: ${m.region || (m.region_status === "ready" ? "waiting for recorded server ID" : m.region_status) || "unavailable"}. Zone: ${(s.automatic_context || {}).zone || "not identified"}. Content: ${(s.automatic_context || {}).encounter_type || "not identified"}. Difficulty: ${(s.automatic_context || {}).difficulty || "not identified"}. Map / instance IDs: ${s.catalog_coverage?.map_id || "not recorded"} / ${s.catalog_coverage?.instance_id || "not recorded"}. ${s.catalog_coverage?.unmapped?.length || 0} unmapped IDs in this view (included in diagnostics). ${m.reason ? m.reason+" " : ""}Build numbers identify comparison groups; launcher namespaces remain separate.`; }
   const st = S.meter; st.running = !!s.running;
   if($("#mrun") && s.run)$("#mrun").textContent=`Run ${s.run.id} · ${s.run.closed?"finished/boundary recorded; waiting for next fight":"recording"}${s.run.end_reason?" · "+s.run.end_reason:""}`;
   if (s.diagnostic_export) st.diagnosticExport = s.diagnostic_export;

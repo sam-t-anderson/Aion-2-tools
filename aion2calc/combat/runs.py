@@ -105,7 +105,7 @@ def summarize(doc):
             reasons.append("Run contains different encounter categories or rulesets.")
         kind, patch, difficulty, instance = next(iter(contexts))
         if kind not in ("transcendence", "daily", "expedition", "ascension", "nightmare", "sanctuary") or not patch or not difficulty or not instance:
-            reasons.append("An identified PvE instance, patch and difficulty are required.")
+            reasons.append("An identified PvE instance, build and difficulty are required.")
         attempts, open_attempts = [], {}
         participants = set()
         for index, segment in selected:
