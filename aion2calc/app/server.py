@@ -575,9 +575,13 @@ class Handler(BaseHTTPRequestHandler):
             if action == "upload":
                 if not r.has_data():
                     raise ValueError("nothing to upload yet")
-                from ..combat import share
-                return self._json(share.upload(r.to_a2log(title=body.get("title")),
-                                               visibility=body.get("visibility")))
+                def upload_snapshot(*, log):
+                    from ..combat import share
+                    log("Preparing a copy of the session; capture can continue.")
+                    doc = r.to_a2log(title=body.get("title"))
+                    log("Uploading session snapshot…")
+                    return share.upload(doc, visibility=body.get("visibility"))
+                return self._json({"job": start_job("meter-upload", upload_snapshot)})
             if action == "screenshot":
                 if self.client_address[0] not in ("127.0.0.1", "::1"):
                     raise PermissionError("screenshots run only on this computer")

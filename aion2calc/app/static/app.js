@@ -923,7 +923,7 @@ async function pageMeter() {
   };
   $("#mupload").onclick = async () => {
     $("#mnotice").textContent = "uploading…";
-    try { const r = await api("/api/meter", { action: "upload" }); $("#mnotice").innerHTML = r.url ? `uploaded — <a href="${esc(r.url)}" target="_blank" rel="noopener">open shared log</a>` : "uploaded"; }
+    try { const r = await runJob("/api/meter", { action: "upload" }, lines => { if (lines.length && $("#mnotice")) $("#mnotice").textContent = lines[lines.length - 1]; }); $("#mnotice").innerHTML = r.url ? `uploaded — <a href="${esc(r.url)}" target="_blank" rel="noopener">open shared log</a>` : "uploaded"; }
     catch (e) { $("#mnotice").textContent = e.message; }
   };
   $("#mshot").onclick = async () => {

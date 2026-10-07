@@ -1,5 +1,7 @@
 # Aion 2 Calc 0.2.33
 
+- Upload Live Meter logs as a background job using a detached session copy. Prepare summaries outside the capture lock so uploads do not monopolize packet decoding; expose upload progress and restore controls after failure.
+
 - Add separate **Optimize PvE build** and **Optimize PvP damage (experimental)** actions. Save PvP results separately and identify their model in reports and recovered results.
 - The PvP damage proxy excludes PvE/boss bonuses and PvE calibration. It compares sustained and burst damage against a stationary neutral player target; it does not predict survivability, crowd control, movement, opponent mitigation or win chance. Dedicated PvP progression and verified PvP skill coefficients remain pending.
 - Keep experimental PvP results out of PvE community presets.
