@@ -263,6 +263,10 @@ Active or unfinished checkpoints are excluded from batch upload; stop capture fi
 
 Open a log to see its own detail page, then use **Back to combat logs** to return to history. Switch between Table, Timeline and Events. Rate graphs offer live-style bars/average or player series; timeline windows show skill icons with hover/click details and time navigation. Only recorded effects are shown. Website local-file previews must be reopened after a refresh.
 
+### Resume uploads
+
+Use **Restore saved queue** after reopening Combat Logs. Pages asks you to reselect the original files. **Export recovery file** creates a portable queue backup; it contains no upload keys or ownership credentials. Matching fingerprints let the queue skip known successes. Check My uploads before explicitly retrying an uncertain request, since the server may already have accepted it. Clearing a queue clears its recovery checkpoint too.
+
 ## For developers
 
 The command-line interface, running from source, the architecture overview, building the desktop

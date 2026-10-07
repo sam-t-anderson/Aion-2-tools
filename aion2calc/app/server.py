@@ -350,6 +350,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(community_request(q.get("path", "")))
         if path == "/api/sessions":
             from ..combat.sessions import recent, recent_page, path as session_path
+            if q.get("fingerprint"):
+                return self._json({"fingerprint": hashlib.sha256(session_path(q["fingerprint"]).read_bytes()).hexdigest()})
             if q.get("file"):
                 return self._json(json.loads(session_path(q["file"]).read_text(encoding="utf-8")))
             if q.get("paged"):
@@ -378,6 +380,14 @@ class Handler(BaseHTTPRequestHandler):
             from ..meter.a2parser.capture import interface_details
             rows = interface_details()
             return self._json({"interfaces": [row["name"] for row in rows], "devices": rows})
+        if path == "/api/upload-queue":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("Upload recovery is local to this computer")
+            origin = self.headers.get("Origin")
+            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
+                raise PermissionError("Upload recovery requires the local application origin")
+            from ..combat import upload_queue
+            return self._json(upload_queue.load())
         if path == "/api/log-ownership":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Private upload credentials are local to this computer")
@@ -453,6 +463,14 @@ class Handler(BaseHTTPRequestHandler):
 
     # --------------------------------------------------------------- POST
     def route_post(self, path: str, body: dict):
+        if path == "/api/upload-queue":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("Upload recovery is local to this computer")
+            origin = self.headers.get("Origin")
+            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
+                raise PermissionError("Upload recovery requires the local application origin")
+            from ..combat import upload_queue
+            return self._json(upload_queue.save(body))
         if path == "/api/log-ownership":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Private upload credentials are local to this computer")
@@ -473,7 +491,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/sessions/share":
             from ..combat.sessions import path as session_path
             from ..combat.share import upload, effective
-            doc = json.loads(session_path(body["file"]).read_text(encoding="utf-8"))
+            raw = session_path(body["file"]).read_bytes()
+            if body.get("fingerprint") and hashlib.sha256(raw).hexdigest() != body["fingerprint"]:
+                raise ValueError("File changed since fingerprint verification; clear the queue and review it again.")
+            doc = json.loads(raw)
             if body.get("completed_only"):
                 from .meter_runner import runner
                 current = runner()

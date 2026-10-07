@@ -1,3 +1,10 @@
+# Aion 2 Calc 0.2.40
+
+- Save bounded upload-recovery checkpoints on desktop disk and in Pages browser storage. Restore a saved queue or export/import its recovery file after navigation or restart.
+- Verify SHA-256 file fingerprints before retrying or skipping known successful entries; reject changed desktop files again at upload time. Pages requires reselecting original JSON files.
+- Mark interrupted or ambiguous requests as uncertain and require explicit retry after checking My uploads. Persistence failures stop further uploads. Recovery contains filenames, titles, fingerprints and report IDs, without upload keys, owner credentials or private links.
+- Keep reports independent. This is client recovery, not server idempotency or archive stitching; accepted requests with lost responses may still duplicate when explicitly retried.
+
 # Aion 2 Calc 0.2.39
 
 - Stack supporting effects vertically on the right of skill cards, with effect text, unlock levels and recommendation status beside each number. Fix cramped selection summaries and overlapping text.
