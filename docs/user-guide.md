@@ -205,6 +205,12 @@ The experimental PvP mode compares a 180-second sustained damage proxy and a 30-
 
 Live Meter buttons show progress and completion/error feedback. Export confirmations show the saved file path; diagnostic exports also offer a download link. Buttons are disabled while their request is running.
 
+### Preserve HP while optimizing
+
+My Character → **Survivability** preserves current flat crystal-board HP by default. Set a higher minimum or add optional incoming-damage scenarios, then optimize for damage within that reserve. Results show the HP reserve and assumed headroom. This does not simulate defensive skills, CC, movement or PvP wins; verify HP in game. Personal constrained builds stay local, and Gear & Advice remains damage-based.
+
+Combat Logs separates Saved Parts, My Uploads and Community Combat Logs. Previously imported characters can be refreshed from My Character, and recovered build titles retain available character identity and PvE/PvP mode. Macro instructions suggest right-click.
+
 ## PvP logs and leaderboards
 
 In Live Meter, Stop and **Clear session** before switching between PvE and PvP. Choose a PvP encounter category: battleground, arena, Abyss, rift, open world or other. Use **Self** or **Party** scope. Capture preserves observed player combat, healing and death markers; known NPC damage and unidentified opponents are excluded from PvP session grouping. Start before entering the encounter so identity packets can be observed. Opponent names/classes appear only when decoded.
@@ -254,13 +260,6 @@ Open a log to see its own detail page, then use **Back to combat logs** to retur
 The file fingerprint must match before a successful entry is skipped or another request is sent. A changed file stops the queue; remove it or clear/review a new queue. A missing file must be restored or removed. Pages can reattach uniquely named files after copying; fingerprints still verify content. Recovery files are user-editable local records, not authenticated server receipts or upload ownership.
 
 Requests interrupted during upload restore as **unknown**. Check **My uploads**/the original server before checking the explicit uncertain-retry option. The server may already have accepted a request even if the response was lost. On an updated server, the same saved request ID, upload-key identity (or anonymous scope), normalized content and visibility reuse its report; older servers or legacy uncertain requests without a prior ID can still duplicate. Known successful uploads are skipped, but matching request IDs support durable server duplicate prevention on updated servers. No automatic upload starts when restoring or importing. Private report links must be reopened through My uploads, since recovery files intentionally omit them. Clearing a queue also clears its saved checkpoint, without deleting logs or uploads.
-
-### Preserve HP while optimizing
-
-My Character → **Survivability** preserves current flat crystal-board HP by default. Set a higher minimum or add optional incoming-damage scenarios, then optimize for damage within that reserve. Results show the HP reserve and assumed headroom. This does not simulate defensive skills, CC, movement or PvP wins; verify HP in game. Personal constrained builds stay local, and Gear & Advice remains damage-based.
-
-Combat Logs separates Saved Parts, My Uploads and Community Combat Logs. Previously imported characters can be refreshed from My Character, and recovered build titles retain available character identity and PvE/PvP mode. Macro instructions suggest right-click.
-
 
 ### Request retry receipts
 
