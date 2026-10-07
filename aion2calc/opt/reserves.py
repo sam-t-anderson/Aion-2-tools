@@ -16,7 +16,7 @@ def prepare(cd, options, budgets, gear_bonus=None):
     if options is None:
         return None
     if not isinstance(options, dict) or set(options)-{"sp", "stigmas", "specs"}:
-        raise ValueError("Skill reserves need sp and stigmas allocation objects")
+        raise ValueError("Skill reserves need sp, stigmas and optional specs allocation objects")
     result = {"sp": {}, "stigmas": {}}
     for field, kinds, cap in (("sp", ("active", "passive"), 10), ("stigmas", ("stigma",), 20)):
         values = options.get(field, {})

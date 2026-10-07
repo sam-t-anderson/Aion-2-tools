@@ -166,7 +166,7 @@ Under **Retain trained skills and equipped stigmas → Choose effects**, reserve
 
 My Character → **Retain trained skills and equipped stigmas** optionally sets minimum purchasable levels for active/passive skills and currently equipped stigmas. A reserved stigma stays equipped. The optimizer maximizes modeled damage within these floors and the point/slot budgets; infeasible requests produce an error. Settings persist per character and apply to both PvE and PvP. Saved Results, build JSON and Markdown retain the minimum and selected levels. These personal builds are excluded from community damage preset comparisons.
 
-Floors apply to trained levels, not effective levels. Daevanion/gear bonuses and specialties may change. Use utility skills manually when absent from the suggested rotation. Reserving a defensive or movement skill does not simulate its tactical use, CC, shields, opponent defenses or win probability; damage baselines and stat priorities remain unconstrained references.
+Skill minimums apply to trained levels. Reserved supporting effects additionally require their catalog unlock and slot levels, guaranteed by trained minimums plus fixed gear bonuses; other specialties and Daevanion bonuses may change. Effects needing additional Daevanion levels cannot currently be reserved. Use utility skills manually when absent from the suggested rotation. Reserving a defensive or movement skill does not simulate its tactical use, CC, shields, opponent defenses or win probability; damage baselines and stat priorities remain unconstrained references.
 
 ## Live capture
 
