@@ -3,6 +3,7 @@
 - Default live view automatically shows observed players when local identity is missing, including numbered unnamed actors; nearby players may be included. Self and party membership are never guessed.
 - Show partial-capture status in the app and overlay; retained metrics and saved/uploaded log review remain available. Strict Self and Party filters remain selectable.
 - Persist partial evidence and keep runs without observed entry or player membership unranked. Updated server processing excludes these samples from community learning.
+- Importing partial a2log metrics for local analysis preserves their exclusion from personal optimizer calibration.
 - TCP recording remains optional for live decoding; it cannot reconstruct packets sent before capture started.
 
 # Aion 2 Calc 0.2.85

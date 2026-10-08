@@ -275,6 +275,8 @@ def act_encounter_import(body: dict, log) -> dict:
     try:
         from .. import learn
         learn.update(eid)
+        if enc.get("meta", {}).get("learning_excluded"):
+            log("Partial capture saved for review; excluded from optimizer calibration.")
     except Exception as err:                  # learning never blocks an import
         log(f"not used for calibration: {err}")
     log("analyzing")

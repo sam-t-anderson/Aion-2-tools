@@ -400,7 +400,8 @@ def from_encounter(enc: dict, source: str = "aion2calc", stats: dict | None = No
             "players": [{"id": pid, "name": m.get("player") or "player", "class": m.get("class"),
                          "combat_power": m.get("combat_power"), "specs": specs, "stats": stats or {}}],
             "segments": [{"label": m.get("target"), "boss": m.get("target"), "duration": m.get("duration") or 1.0,
-                          "killed": bool(m.get("boss_killed")), "hits": hits, "buffs": buffs}]}
+                          "killed": bool(m.get("boss_killed")), "hits": hits, "buffs": buffs,
+                          "partial_capture":m.get("learning_excluded") is True}]}
 
 
 def to_encounter(doc: dict, player_id: str, segment: int = 0) -> dict:
@@ -438,6 +439,10 @@ def to_encounter(doc: dict, player_id: str, segment: int = 0) -> dict:
     enc = {"meta": {"source": "a2log", "player": p["name"], "class": p.get("class"), "target": seg.get("boss") or
                     seg.get("label"), "duration": seg["duration"], "combat_power": p.get("combat_power")},
            "hits": hits, "buffs": buffs, "specs": {}}
+    from .quality import assess
+    excluded = {"partial_capture", "party_roster_late"}.intersection(assess(doc, seg)["reasons"])
+    enc["meta"]["learning_excluded"] = bool(excluded)
+    enc["meta"]["learning_exclusion_reasons"] = sorted(excluded)
     enc = normalize(enc)
     enc["specs"] = {k: ", ".join(map(str, v)) for k, v in (p.get("specs") or {}).items() if v}
     return enc

@@ -68,6 +68,8 @@ def observe(encounter_id: int, conn=None) -> dict | None:
     if not enc:
         return None
     m = enc["meta"]
+    if m.get("learning_excluded") is True:
+        return None
     cls, player = m.get("class"), m.get("player")
     if not cls or not player:
         return None
