@@ -1171,7 +1171,7 @@ async function pageMeter() {
   };
   $("#mshot").onclick = async () => {
     $("#mnotice").textContent = "capturing screenshot…";
-    try { const r = await api("/api/meter", { action: "screenshot" }); $("#mnotice").textContent = `screenshot saved to ${r.file}`; }
+    try { await A2Screenshot.capture(body=>api("/api/screenshot",body),text=>{if($("#mnotice"))$("#mnotice").textContent=text;}); }
     catch (e) { $("#mnotice").textContent = e.message; }
   };
   // Keep action feedback visible while polling updates the live readings.
@@ -1577,6 +1577,13 @@ function setTheme(t) {
 $("#theme").onclick = () => setTheme(THEMES[(THEMES.indexOf(getTheme()) + 1) % THEMES.length]);
 setTheme(getTheme());
 
+async function showMaintenance(){
+ const target=$('#maintenance-details');if(!target)return;
+ target.textContent='Inspecting managed cache and update files…';
+ try{const r=await api('/api/maintenance');if(!target.isConnected)return;
+ target.innerHTML=`<p class="small muted">${esc(r.note)}</p>${r.external_web_cache?'<p class="note">An external web cache is configured; this tool leaves it untouched.</p>':''}${r.truncated?'<p class="note">Scan limit reached; counts are lower bounds.</p>':''}<table class="t"><thead><tr><th>Category</th><th>Files</th><th>MiB</th><th>Oldest (days)</th><th>Cache cleanup eligible</th></tr></thead><tbody>${r.groups.map(g=>`<tr><td>${esc(g.category)}</td><td>${g.files}</td><td>${(g.bytes/1048576).toFixed(2)}</td><td>${g.oldest_days}</td><td>${g.eligible_files} files / ${(g.eligible_bytes/1048576).toFixed(2)} MiB</td></tr>`).join('')}</tbody></table>`;
+ }catch(e){if(target.isConnected)target.textContent=e.message;}
+}
 async function pageSettings() {
   const [s, srv, ui] = await Promise.all([api("/api/status"), api("/api/logserver").catch(() => ({})), api("/api/ui").catch(() => ({}))]);
   const t = getTheme();
@@ -1592,11 +1599,18 @@ async function pageSettings() {
       ${srv.is_default && srv.url ? '<div class="small muted" style="margin-top:4px">Using the community default server. Enter your own above to override it.</div>' : ""}</div></div>
     <div class="setrow"><div class="lbl">Overlay number colors</div><div><div class="row"><label>Rate text <input type="color" id="ov-rate-color" value="${esc(overlayText('rate'))}"></label><label>Total / share text <input type="color" id="ov-total-color" value="${esc(overlayText('total'))}"></label><button class="btn small" id="ov-color-reset">Reset to black</button><span class="small muted" id="ov-color-msg" role="status"></span></div><p class="small muted">Applies to DPS, HPS and D.Taken. Changes reach an open overlay within 10 seconds.</p></div></div>
     <div class="setrow"><div class="lbl">Combat class colors</div><div id="class-colors"></div></div><div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button> <button class="btn small" id="asset-reindex">Re-index cached icons</button> <button class="btn small" id="asset-report">Export image coverage</button> <button class="btn small" id="retry-images">Retry images</button><span id="asset-msg" class="small muted" role="status" aria-live="polite"></span></div></div>
+    <div class="setrow"><div class="lbl">Storage maintenance</div><div><div class="row"><button class="btn small" id="storage-inspect">Inspect cache / updates</button><button class="btn small" id="storage-cache">Clean old disposable cache</button><button class="btn small" id="storage-updates">Clean old update files</button></div><p class="small muted">Web/comparison cache: 7 days; images: 30 days. Updates retain two packages, helpers for 7 days, and at least five logs / 30 days. Active or uninspectable helpers are preserved. Cache images may need downloading again.</p><p id="storage-message" role="status"></p><div id="maintenance-details"></div></div></div>
     <div class="setrow"><div class="lbl">Updates</div><div><label><input type="checkbox" id="autoupd" ${ui.auto_update !== false ? "checked" : ""}> check and prompt for updates on launch</label></div></div>
     <div class="setrow"><div class="lbl">Version</div><div>Aion 2 Calc ${esc(s.version)} ${s.update ? `· version ${esc(s.update.version)} available <button class="btn small" id="instupd">Install now</button> <a href="${esc(s.update.url)}" target="_blank" rel="noopener">release notes</a>` : '<span class="muted">· up to date</span>'} <span id="updmsg" class="small muted"></span></div></div>
     <div class="setrow"><div class="lbl">Community</div><div><a href="${DISCORD}" target="_blank" rel="noopener">Join the aion2calc Discord</a> — questions, builds and help</div></div>
     <div class="setrow"><div class="lbl">Stop the app</div><div><button class="btn small" id="quit2">Quit aion2calc</button></div></div>
     <div class="setrow" style="border-top:1px solid var(--line);margin-top:8px;padding-top:10px"><div class="lbl">Author</div><div class="muted">Spirited - Zikel : Asmodian&nbsp;&nbsp;|&nbsp;&nbsp;Legion: WhaleWatch</div></div>`);
+  $('#storage-inspect').onclick=showMaintenance;
+  for(const [id,action] of [['storage-cache','caches'],['storage-updates','updates']])$('#'+id).onclick=async()=>{
+    const b=$('#'+id),message=$('#storage-message');b.disabled=true;message.textContent='Cleaning eligible files…';
+    try{const r=await api('/api/maintenance',{action});if(message.isConnected)message.textContent=`Removed ${r.deleted} files; ${r.skipped||0} changed, active, locked or uninspectable files preserved.`;await showMaintenance();}
+    catch(e){if(message.isConnected)message.textContent=e.message;}finally{if(b.isConnected)b.disabled=false;}
+  };
   if(ui.combat_colors)localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));
   A2CombatReview.settings($("#class-colors"),pref=>api("/api/ui",{combat_colors:pref}));
   const saveOverlayColors=async()=>{
@@ -1730,3 +1744,9 @@ $("#quit").onclick = async () => {
 };
 route();
 syncPill();
+
+$('#app-screenshot').onclick=async()=>{
+ const button=$('#app-screenshot'),status=$('#app-screenshot-status');button.disabled=true;
+ try{await A2Screenshot.capture(body=>api('/api/screenshot',body),text=>status.textContent=text);}
+ catch(e){status.textContent='Screenshot failed: '+e.message;}finally{button.disabled=false;}
+};

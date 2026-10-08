@@ -22,6 +22,7 @@ const buildLabel=x=>String(x??'').replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})
     let reportReason='privacy',reportDetails='',reportStatus='',reportBusy=false;
     const previews=new Map();
     let timelineDetail="",graphModel=null;
+    const timelineHidden=new Set(),timelineCollapsed=new Set();
     let archivePage=null,archiveOffset=0,archiveBusy=false,archiveError="",archiveOpen=false,archiveRequest=0,disposed=false;
     const clock=(t,precise=false)=>{t=Math.max(0,precise?Math.round(t*100)/100:Math.floor(t));return `${Math.floor(t/60)}:${(precise?(t%60).toFixed(2):String(t%60)).padStart(precise?5:2,'0')}`;};
     const skillSource=id=>{const n=Number(id);if(!Number.isSafeInteger(n)||n<=0)return '';const source=options.skillIcon?options.skillIcon(n):'https://metabot.gg/web/aion2/skills/'+(Math.floor(n/10000)*10000)+'.webp';return window.A2AssetHealth?A2AssetHealth.source(source):source;};
@@ -34,7 +35,7 @@ const buildLabel=x=>String(x??'').replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})
       if(index<0)return false;
       state.run='';
       if(index===state.segment)return false;
-      state.segment=index;state.actor='';state.enemy='';state.page=0;state.timelineStart=0;timelineDetail='';ranks=null;
+      timelineHidden.clear();timelineCollapsed.clear();state.segment=index;state.actor='';state.enemy='';state.page=0;state.timelineStart=0;timelineDetail='';ranks=null;
       return true;
     }
     const refs=()=>{
@@ -152,7 +153,9 @@ const buildLabel=x=>String(x??'').replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})
       const inWindow=events.filter(e=>e.t>=start && (e.t<end || end===duration && e.t<=end));
       const ids=[...new Set(events.flatMap(e=>[owner(e.source,d.r),owner(e.target,d.r)]).filter(id=>id && (d.friendly.has(id)||d.r[id]?.owner)))];
       let omitted=0;
-      const lanes=ids.map(id=>{
+      const lanes=ids.filter(id=>!timelineHidden.has(id)).map(id=>{
+        const controls=`<button class="btn small" data-timeline-collapse="${esc(id)}" aria-expanded="${!timelineCollapsed.has(id)}">${timelineCollapsed.has(id)?'Expand':'Collapse'}</button><button class="btn small" data-timeline-hide="${esc(id)}">Hide</button>`;
+        if(timelineCollapsed.has(id))return `<div class="cr-lane cr-lane-collapsed" style="grid-template-columns:180px ${width}px"><div class="cr-lane-name" style="color:${color(d.r[id]?.class)}">${actorHTML(d.r[id])}</div><div class="row cr-lane-controls">${controls}<span class="small muted">Timeline collapsed</span></div></div>`;
         const all=inWindow.filter(e=>e.kind==='death'?state.deaths && owner(e.target,d.r)===id && (!state.combine||!d.r[e.target]?.owner):e.kind==='heal'?state.heals && owner(e.source,d.r)===id:state.skills && (state.metric==='taken'?owner(e.target,d.r)===id:owner(e.source,d.r)===id));
         const occupied=[-100,-100,-100];let marks='';
         for(const e of all) {
@@ -165,18 +168,18 @@ const buildLabel=x=>String(x??'').replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})
           const icon=e.kind==='death'?'':skillSource(e.skill_id);
           marks+=`<g class="cr-marker" data-effect-detail="${detail}" tabindex="0" role="button" aria-label="${detail}"><title>${detail}</title>${e.kind==='death'?`<path d="M${x+11} 0V84" stroke="${fill}" stroke-width="2"/><text x="${x}" y="20" fill="${fill}" font-size="21">✝</text>`:`<rect x="${x}" y="${y}" width="23" height="23" rx="2" fill="${fill}" opacity=".45"/><text x="${x+11}" y="${y+15}" text-anchor="middle" fill="currentColor" font-size="9">${esc(String(e.skill_id||e.kind).slice(-3))}</text>${icon?`<image data-skill-icon href="${esc(icon)}" x="${x+1}" y="${y+1}" width="21" height="21" preserveAspectRatio="xMidYMid meet" pointer-events="none"/>`:''}<path d="M${x} ${y+24}h23" stroke="${fill}" stroke-width="2"/>`}</g>`;
         }
-        return `<div class="cr-lane" style="grid-template-columns:180px ${width}px"><div class="cr-lane-name" style="color:${color(d.r[id]?.class)}">${actorHTML(d.r[id])}</div><svg class="cr-track" style="width:${width}px;height:84px" viewBox="0 0 ${width} 84" role="img" aria-label="${esc(label(d.r[id]))} recorded effects">${marks||'<text x="12" y="25" fill="currentColor" font-size="12">No effects in this window</text>'}</svg></div>`;
+        return `<div class="cr-lane" style="grid-template-columns:180px ${width}px"><div class="cr-lane-name" style="color:${color(d.r[id]?.class)}">${actorHTML(d.r[id])}<span class="cr-lane-controls">${controls}</span></div><svg class="cr-track" style="width:${width}px;height:84px" viewBox="0 0 ${width} 84" role="img" aria-label="${esc(label(d.r[id]))} recorded effects">${marks||'<text x="12" y="25" fill="currentColor" font-size="12">No effects in this window</text>'}</svg></div>`;
       }).join('');
       const tick=span<=30?1:span<=120?5:Math.ceil(span/120),major=tick*5;
       let ticks='';for(let t=Math.ceil(start/tick)*tick;t<=end;t+=tick){const x=(t-start)*width/span,long=Math.abs(t/major-Math.round(t/major))<.001;ticks+=`<path d="M${x} ${long?17:24}V32" stroke="currentColor" opacity=".6"/>${long?`<text x="${Math.max(22,Math.min(width-22,x))}" y="13" text-anchor="middle" fill="currentColor" font-size="11">${clock(t)}</text>`:''}`;}
-      return `<h3>Recorded effect timeline</h3><div class="row small"><label>Window <select data-timeline-window>${[15,30,60,120,0].map(v=>`<option value="${v}" ${v===Number(state.timelineWindow)?'selected':''}>${v?v+' seconds':'Full encounter'}</option>`).join('')}</select></label><button class="btn small" data-time-prev ${start<=0?'disabled':''}>Earlier</button><button class="btn small" data-time-next ${end>=duration?'disabled':''}>Later</button><label>Start <input type="number" data-time-start min="0" max="${Math.max(0,duration-span)}" step=".5" value="${start.toFixed(1)}"></label><span>${clock(start)}–${clock(end)}</span></div><input class="cr-time-scrub" data-time-scrub aria-label="Timeline window start" type="range" min="0" max="${Math.max(0,duration-span)}" step=".5" value="${start}">
+      return `<h3>Recorded effect timeline</h3><details class="note"><summary>Player timeline visibility · ${ids.filter(id=>!timelineHidden.has(id)).length} / ${ids.length} shown</summary><p class="small muted">Display only; graphs, tables and recorded totals are unchanged. Preferences reset when changing encounters.</p><div class="row">${ids.map(id=>`<label><input type="checkbox" data-timeline-visible="${esc(id)}" ${timelineHidden.has(id)?'':'checked'}> ${esc(label(d.r[id]))}</label>`).join('')}<button class="btn small" data-timeline-show-all>Show all</button><button class="btn small" data-timeline-expand-all>Expand all</button></div></details><div class="row small"><label>Window <select data-timeline-window>${[15,30,60,120,0].map(v=>`<option value="${v}" ${v===Number(state.timelineWindow)?'selected':''}>${v?v+' seconds':'Full encounter'}</option>`).join('')}</select></label><button class="btn small" data-time-prev ${start<=0?'disabled':''}>Earlier</button><button class="btn small" data-time-next ${end>=duration?'disabled':''}>Later</button><label>Start <input type="number" data-time-start min="0" max="${Math.max(0,duration-span)}" step=".5" value="${start.toFixed(1)}"></label><span>${clock(start)}–${clock(end)}</span></div><input class="cr-time-scrub" data-time-scrub aria-label="Timeline window start" type="range" min="0" max="${Math.max(0,duration-span)}" step=".5" value="${start}">
         <p class="small muted">Icons are recorded hits/heals, not cast starts or durations. Three stacks separate nearby effects. Green: healing; red: deaths; orange: damage taken. ${omitted?number(omitted)+' crowded markers omitted in this window; zoom in or use Events for every effect.':''} Unavailable skill images keep an ID tile.</p>
         <div class="cr-timeline"><div class="cr-lane cr-ruler" style="grid-template-columns:180px ${width}px"><div class="cr-lane-name">Encounter time</div><svg class="cr-track cr-time-axis" style="width:${width}px;height:34px" viewBox="0 0 ${width} 34">${ticks}</svg></div>${lanes||'No timeline effects recorded for these filters.'}</div><div class="note" data-effect-panel role="status">${esc(timelineDetail||'Hover, focus or click a skill icon to inspect its effect.')}</div><div class="cr-effect-tooltip" data-effect-tooltip role="tooltip" hidden></div>`;
     }
     function classificationHTML(d) {
       const c=d.segment.classification;if(!c)return '';
       const labels={catalog_match:'Catalog match',map_match:'Map match',ambiguous:'Partial match',conflict:'Conflicting evidence',unavailable:'Not identified'};
-      return `<details class="note" ${c.status==='conflict'?'open':''}><summary>Automatic encounter context Â· ${esc(labels[c.status]||c.status)}${c.basis==='npc_only'?' Â· NPC-only suggestion':''}</summary><p>${esc(c.note)}</p><p>Recorded map: ${esc(c.recorded_map_id||'not recorded')} Â· Recorded instance: ${esc(c.recorded_instance_id||'not recorded')} Â· Catalog instance candidate: ${esc(c.catalog_instance_id||'not identified')} Â· Basis: ${esc((c.basis||'none').replaceAll('_',' '))}.</p>${[...(c.conflicts||[]),...(c.ambiguities||[])].map(v=>`<p>${esc(v)}</p>`).join('')}${(c.npcs||[]).length?table(['Recorded NPC ID','Catalog instance','Category','Tier'],c.npcs.map(r=>`<tr><td>${esc(r.npc_id)}</td><td>${esc(r.instance_id)}</td><td>${esc(r.category||'Unavailable')}</td><td>${esc(r.tier||'Unavailable')}</td></tr>`)):''}${c.omitted_npcs?`<p>${number(c.omitted_npcs)} additional NPC rows omitted.</p>`:''}</details>`;
+      return `<details class="note" ${c.status==='conflict'?'open':''}><summary>Automatic encounter context · ${esc(labels[c.status]||c.status)}${c.basis==='npc_only'?' · NPC-only suggestion':''}</summary><p>${esc(c.note)}</p><p>Recorded map: ${esc(c.recorded_map_id||'not recorded')} · Recorded instance: ${esc(c.recorded_instance_id||'not recorded')} · Catalog instance candidate: ${esc(c.catalog_instance_id||'not identified')} · Basis: ${esc((c.basis||'none').replaceAll('_',' '))}.</p>${[...(c.conflicts||[]),...(c.ambiguities||[])].map(v=>`<p>${esc(v)}</p>`).join('')}${(c.npcs||[]).length?table(['Recorded NPC ID','Catalog instance','Category','Tier'],c.npcs.map(r=>`<tr><td>${esc(r.npc_id)}</td><td>${esc(r.instance_id)}</td><td>${esc(r.category||'Unavailable')}</td><td>${esc(r.tier||'Unavailable')}</td></tr>`)):''}${c.omitted_npcs?`<p>${number(c.omitted_npcs)} additional NPC rows omitted.</p>`:''}</details>`;
     }
 
     function catalogHTML(d) {
@@ -342,14 +345,19 @@ const buildLabel=x=>String(x??'').replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})
         const changedEncounter=['mode','run','segment','followLatest'].includes(key);
         if(key==='mode'){state.run='';state.segment=Math.max(0,doc.segments.findIndex(matchesMode));}
         if(key==='run'){const index=doc.segments.findIndex(s=>matchesMode(s) && (!state.run || (s.run_id || 'legacy')===state.run));state.segment=Math.max(0,index);}
-        if(changedEncounter){state.enemy='';state.actor='';ranks=null;state.timelineStart=0;timelineDetail='';}
+        if(changedEncounter){timelineHidden.clear();timelineCollapsed.clear();state.enemy='';state.actor='';ranks=null;state.timelineStart=0;timelineDetail='';}
         selectLatest();render();if(changedEncounter)requestRanks();
       });
       const mapping=root.querySelector('[data-export-mappings]');if(mapping)mapping.onclick=()=>{const c=doc.encounter_insights.segments.find(s=>s.segment===state.segment).catalog;const url=URL.createObjectURL(new Blob([JSON.stringify(c,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='aion2-mapping-report.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);root.querySelector('[data-mapping-status]').textContent='Mapping report download started.';};
       root.querySelectorAll("[data-recap]").forEach(e=>e.onclick=()=>{state.recap=+e.dataset.recap;render();});
       root.querySelectorAll("[data-metric]").forEach(e=>e.onclick=()=>{state.metric=e.dataset.metric;state.page=0;render();});
       root.querySelectorAll("[data-view]").forEach(e=>e.onclick=()=>{state.view=e.dataset.view;if(state.view==="timeline")state.timeline=true;render();});
-      root.querySelectorAll('[data-attempt-segment]').forEach(e=>e.onclick=()=>{state.segment=+e.dataset.attemptSegment;state.timelineStart=0;timelineDetail="";state.enemy='';state.actor='';ranks=null;requestRanks();render();});
+      root.querySelectorAll('[data-timeline-collapse]').forEach(b=>b.onclick=()=>{const id=b.dataset.timelineCollapse;timelineCollapsed.has(id)?timelineCollapsed.delete(id):timelineCollapsed.add(id);render();});
+      root.querySelectorAll('[data-timeline-hide]').forEach(b=>b.onclick=()=>{timelineHidden.add(b.dataset.timelineHide);render();});
+      root.querySelectorAll('[data-timeline-visible]').forEach(b=>b.onchange=()=>{b.checked?timelineHidden.delete(b.dataset.timelineVisible):timelineHidden.add(b.dataset.timelineVisible);render();});
+      const showTimelines=root.querySelector('[data-timeline-show-all]');if(showTimelines)showTimelines.onclick=()=>{timelineHidden.clear();render();};
+      const expandTimelines=root.querySelector('[data-timeline-expand-all]');if(expandTimelines)expandTimelines.onclick=()=>{timelineCollapsed.clear();render();};
+      root.querySelectorAll('[data-attempt-segment]').forEach(e=>e.onclick=()=>{timelineHidden.clear();timelineCollapsed.clear();state.segment=+e.dataset.attemptSegment;state.timelineStart=0;timelineDetail="";state.enemy='';state.actor='';ranks=null;requestRanks();render();});
       root.querySelectorAll("[data-enemy-filter]").forEach(e=>e.onclick=()=>{state.enemy=e.dataset.enemyFilter;render();});
       root.querySelector("[data-clear-enemy]").onclick=()=>{state.enemy="";render();};
       root.querySelectorAll("[data-series]").forEach(e=>e.onclick=()=>{state.hidden.add(e.dataset.series);render();});

@@ -1,0 +1,5 @@
+html2canvas 1.4.1 — MIT license (html2canvas.LICENSE.txt)
+Source: https://github.com/niklasvh/html2canvas/releases/tag/v1.4.1
+Asset: https://github.com/niklasvh/html2canvas/releases/download/v1.4.1/html2canvas.min.js
+SHA256: e87e550794322e574a1fda0c1549a3c70dae5a93d9113417a429016838eab8cb
+No runtime CDN download is used.
