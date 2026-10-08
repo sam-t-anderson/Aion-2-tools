@@ -235,7 +235,7 @@ def plan_request(plan: dict | None = None, visibility: str = "unlisted", plan_id
 def community_request(path: str, body: dict | None = None) -> dict:
     """Read community reports or preview local ranks through the configured server."""
     import re
-    allowed = re.fullmatch(r"/api/v1/(news|run-leaderboard|encounter-progression|progression|report-facets|performance|records|logs|logs/[A-Za-z0-9]{6,16}/(raw|rankings|reports)|rankings)(\?[^#]*)?", path)
+    allowed = re.fullmatch(r"/api/v1/(news|boss-status|run-leaderboard|encounter-progression|progression|report-facets|performance|records|logs|logs/[A-Za-z0-9]{6,16}/(raw|rankings|reports)|rankings)(\?[^#]*)?", path)
     if not allowed or (body is not None and path not in ("/api/v1/rankings", "/api/v1/progression") and not re.fullmatch(r"/api/v1/logs/[A-Za-z0-9]{6,16}/reports",path)):
         raise ValueError("Invalid community API path")
     settings = effective()

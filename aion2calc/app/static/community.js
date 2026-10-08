@@ -15,10 +15,57 @@ function encounterIcons(log,mode){
 }
 function mount(root,options){
  let page=1,recordPage=1,loadRequest=0,query={combat_mode:"pve",metric:"dps"},identity={},consistencyRequest=0;
- root.innerHTML=`<h3>Community combat logs</h3><p class="small muted">Public submissions only. Filters also apply to class performance and personal records. Build numbers are recorded or submitted metadata; the latest submitted build may differ from the currently installed build.</p><div class="row" data-filters></div><p data-message class="small muted"></p><div data-logs></div><div class="row"><button class="btn small" data-prev>Previous</button><span data-page></span><button class="btn small" data-next>Next</button></div><h3>Completed-run speed</h3><div data-run-ranks></div><h3>Boss progression</h3><div data-encounter-progression></div><h3>Class performance</h3><p class="small muted">Recorded rates, separate PvE/PvP distributions for each boss, difficulty, encounter type and build. Sample size and gear can affect these comparisons.</p><div data-performance></div><h3>Highest observed build points</h3><div data-progression></div><h3>Personal records</h3><div class="row"><input data-name placeholder="Character name" aria-label="Character name"><input data-server placeholder="Character server ID" aria-label="Character server ID"><input data-character placeholder="Database character ID (optional)" aria-label="Database character ID"><button class="btn small" data-record-search>Find records</button></div><p data-record-note class="small muted"></p><div data-records></div><div data-history></div><h3>Character consistency and trends</h3><div data-consistency>Search a character above to compare matched recordings.</div><div class="row"><button class="btn small" data-record-prev>Previous records</button><span data-record-page></span><button class="btn small" data-record-next>Next records</button></div>`;
+ root.innerHTML=`<h3>Community combat logs</h3><p class="small muted">Public submissions only. Filters also apply to class performance and personal records. Build numbers are recorded or submitted metadata; the latest submitted build may differ from the currently installed build.</p><div class="row" data-filters></div><p data-message class="small muted"></p><div data-logs></div><div class="row"><button class="btn small" data-prev>Previous</button><span data-page></span><button class="btn small" data-next>Next</button></div><details data-boss-panel style="margin:8px 0"><summary>Recorded boss defeats</summary><p class="small muted">Public defeat observations, filtered by game build and region. Other combat-log filters do not apply here. A recorded defeat does not establish whether a boss is currently available.</p><div class="row"><label class="small">Search displayed bosses <input data-boss-search placeholder="Boss name or NPC ID" aria-label="Search displayed boss observations"></label><button class="btn small" data-boss-refresh>Refresh boss observations</button></div><p class="small muted" data-boss-message role="status">Expand to load recorded defeats.</p><div data-boss-rows></div></details><h3>Completed-run speed</h3><div data-run-ranks></div><h3>Boss progression</h3><div data-encounter-progression></div><h3>Class performance</h3><p class="small muted">Recorded rates, separate PvE/PvP distributions for each boss, difficulty, encounter type and build. Sample size and gear can affect these comparisons.</p><div data-performance></div><h3>Highest observed build points</h3><div data-progression></div><h3>Personal records</h3><div class="row"><input data-name placeholder="Character name" aria-label="Character name"><input data-server placeholder="Character server ID" aria-label="Character server ID"><input data-character placeholder="Database character ID (optional)" aria-label="Database character ID"><button class="btn small" data-record-search>Find records</button></div><p data-record-note class="small muted"></p><div data-records></div><div data-history></div><h3>Character consistency and trends</h3><div data-consistency>Search a character above to compare matched recordings.</div><div class="row"><button class="btn small" data-record-prev>Previous records</button><span data-record-page></span><button class="btn small" data-record-next>Next records</button></div>`;
  const $=s=>root.querySelector(s),params=()=>new URLSearchParams(Object.entries(query).filter(([,v])=>v));
+ let bossRequest=0,bossData=null;
+ const bossPanel=$('[data-boss-panel]');
+ const validTime=x=>typeof x==='number'&&Number.isFinite(x);
+ const localTime=x=>validTime(x)?new Date(x*1000).toLocaleString():'Timestamp unavailable';
+ const age=x=>!validTime(x)?'Age unavailable':x<60?'Less than a minute ago':x<3600?Math.floor(x/60)+' minutes ago':x<86400?Math.floor(x/3600)+' hours ago':Math.floor(x/86400)+' days ago';
+ function renderBosses(){
+  if(!bossData)return;
+  const term=$('[data-boss-search]').value.trim().toLocaleLowerCase();
+  const rows=(bossData.groups||[]).filter(x=>(String(x.boss||'')+' '+String(x.npc_id||'')).toLocaleLowerCase().includes(term));
+  $('[data-boss-message]').textContent=`${rows.length} displayed boss/context groups. Snapshot ${localTime(bossData.generated_at)} (local time).${bossData.truncated?' Results capped; search filters only the displayed groups.':''}`;
+  $('[data-boss-rows]').innerHTML=table(['Boss / NPC ID','Region · build','Map / instance','Last recorded defeat (local time)','Defeat / party observations','Latest engagement / roster','Current availability','Source log'],rows.map(x=>{
+   const last=x.latest_observation||{};
+   const id=String(x.last_log_id||'');
+   const source=/^[A-Za-z0-9]{6,16}$/.test(id)?`<button class="btn small" data-boss-open="${esc(id)}">Open log${Number.isInteger(x.last_segment)?' · encounter '+(x.last_segment+1):''}</button>`:'Source unavailable';
+   return `<tr><td>${esc(x.boss||'Unnamed boss')}<br><span class="small muted">${esc(x.npc_id||'ID unavailable')}</span></td><td>${esc(x.region||'Unknown region')}<br>${esc(buildLabel(x.game_patch||'Unknown build'))}</td><td>${esc(x.map_id||'Unknown')} / ${esc(x.instance_id||'Unknown')}</td><td>${esc(localTime(x.last_defeat_at))}<br><span class="small muted">${esc(age(x.seconds_since_defeat))}</span>${last.timing_basis&&last.timing_basis!=='recorded_clock'?'<br><span class="small muted">'+esc(last.timing_basis.replaceAll('_',' '))+'</span>':''}</td><td>${n(x.observed_defeats)} / ${n(x.party_observations)}</td><td>${n(last.engaged_roster_members)} engaged<br>${last.recorded_roster_members?n(last.recorded_roster_members)+' recorded roster members'+(last.party_roster_complete?' (complete)':' (partial)'):'Party roster unavailable'}</td><td>Unknown<br><span class="small muted">Respawn rule and location scope unverified</span></td><td>${source}</td></tr>`;
+  }));
+  $('[data-boss-rows]').insertAdjacentHTML('beforeend','<p class="small muted">Counts describe submitted observations, not verified unique kills or kill credit. Exact duplicate encounters count once; different perspectives can still repeat a defeat. Defeat times use the recording computer clock. Boss roles may include minibosses. Physical server/channel and respawn times are unavailable.</p>');
+  root.querySelectorAll('[data-boss-open]').forEach(b=>b.onclick=()=>options.open(b.dataset.bossOpen,'pve'));
+ }
+ async function loadBosses(){
+  if(query.combat_mode!=='pve'||!bossPanel.open)return;
+  const request=++bossRequest,q=new URLSearchParams();
+  for(const key of ['game_patch','region'])if(query[key])q.set(key,query[key]);
+  $('[data-boss-message]').textContent='Loading recorded boss defeats…';
+  $('[data-boss-refresh]').disabled=true;
+  try{
+   const result=await options.api('/api/v1/boss-status?'+q);
+   if(request!==bossRequest||!root.isConnected)return;
+   bossData=result;renderBosses();
+  }catch(e){
+   if(request!==bossRequest)return;
+   $('[data-boss-message]').textContent='Boss observations could not be loaded. Refresh to retry; this requires an updated community server.';
+   $('[data-boss-rows]').replaceChildren();bossData=null;
+  }finally{if(request===bossRequest)$('[data-boss-refresh]').disabled=false;}
+ }
+ function syncBosses(){
+  bossRequest++;bossData=null;
+  bossPanel.hidden=query.combat_mode!=='pve';
+  $('[data-boss-rows]').replaceChildren();
+  $('[data-boss-refresh]').disabled=false;
+  $('[data-boss-message]').textContent='Expand to load recorded defeats.';
+  if(!bossPanel.hidden&&bossPanel.open)loadBosses();
+ }
+ bossPanel.ontoggle=()=>{if(bossPanel.open&&!bossData)loadBosses();};
+ $('[data-boss-search]').oninput=renderBosses;
+ $('[data-boss-refresh]').onclick=loadBosses;
  async function load(){
   const request=++loadRequest;
+  syncBosses();
   $('[data-message]').textContent='Loading…';
   try{
    const q=params();q.set('page',page);q.set('limit',30);
