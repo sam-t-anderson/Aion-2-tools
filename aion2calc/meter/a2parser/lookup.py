@@ -63,7 +63,10 @@ def decode_spec_flags(raw_skill_id: int) -> tuple[bool, bool, bool, bool, bool]:
 
 def npc_info(mob_code: int, locale: str = "en") -> dict:
     info = _table("npcs", locale).get(str(mob_code), {})
-    return info if isinstance(info, dict) else {}
+    if not isinstance(info, dict):
+        return {}
+    portrait = _table("npc-portraits", "en").get(str(mob_code), {})
+    return {**info, "icon": portrait["icon"]} if portrait.get("icon") else info
 
 
 def npc_name(mob_code: int, locale: str = "en") -> str:

@@ -78,7 +78,10 @@ def _validate(remote, cls, mode, scope):
             or summary.get("class") != cls or summary.get("mode") != mode
             or summary.get("scenario") != primary or summary.get("loadout") != f"{cls}_l45_global_median"
             or policy.get("class") != cls or policy.get("mode") != mode or policy.get("scope") != scope
-            or policy.get("version") != 1 or policy.get("budgets") != BUDGETS
+            or policy.get("version") not in (1, 2)
+            or not isinstance(policy.get("budgets"), dict) or set(policy["budgets"]) != set(BUDGETS)
+            or any(type(v) is not int or not 0 <= v <= 10000 for v in policy["budgets"].values())
+            or (policy.get("version") == 1 and policy["budgets"] != BUDGETS)
             or policy.get("weights") != {primary: .5, secondary: .5}
             or policy.get("durations") != {primary: 180, secondary: 30 if mode == "pvp" else 180}
             or policy.get("calibration") != "disabled"):
@@ -107,7 +110,7 @@ def _validate(remote, cls, mode, scope):
             elif field not in Stats.__dataclass_fields__ or not _number(value) or abs(value) > 1e9:
                 raise ValueError("Invalid preset stats")
     parse({"format": "a2preset", "version": 1, "class": cls, "build": legacy_candidate(summary)["build"]},
-          scenario_name=primary, loadout_snapshot=lo)
+          scenario_name=primary, loadout_snapshot=lo, budgets=policy["budgets"])
     if not _number(remote.get("updated_at")):
         raise ValueError("Invalid preset update time")
     return summary

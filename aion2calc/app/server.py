@@ -211,6 +211,25 @@ def act_preset_refresh(body: dict, log) -> dict:
     return {"changed": changed, "checked": checked}
 
 
+def _class_point_budgets(body: dict) -> dict:
+    from ..combat.share import community_request
+    fields = {"skill": "skill_points", "stigma": "stigma_points", "daevanion": "daevanion"}
+    result = {key: body.get(field) for key, field in fields.items()}
+    if any(value is None for value in result.values()):
+        query = urllib.parse.urlencode({"class": body["class"]})
+        observations = community_request("/api/v1/progression?" + query).get("observations", [])
+        rows = [r for r in observations if r.get("class_name") == body["class"]
+                and all(type(r.get(k)) is int and 0 <= r[k] <= 10000 for k in fields)]
+        if not rows:
+            raise ValueError("No server-reported resources available; supply skill, stigma and Daevanion budgets explicitly")
+        for key in result:
+            if result[key] is None:
+                result[key] = max(row[key] for row in rows)
+    if any(type(value) is not int or not 0 <= value <= 10000 for value in result.values()):
+        raise ValueError("Point budgets must be integers from 0 to 10000")
+    return result
+
+
 @_model_action
 def act_optimize_class(body: dict, log) -> dict:
     from ..report import run_report
@@ -222,10 +241,11 @@ def act_optimize_class(body: dict, log) -> dict:
     out = results_dir() / (body.get("out") or (f"{cls}_l45_pvp" if mode == "pvp" else f"{cls}_l45"))
     if not out.resolve().is_relative_to(results_dir().resolve()):
         raise ValueError("out must stay inside the results folder")
+    points = _class_point_budgets(body)
     log(f"optimizing {cls} (this takes several minutes)")
     run_report(cls, str(out), scenario_name=scenario, iterations=int(body.get("iterations", 2)), loadout=body.get("loadout"),
-               sp_budget=body.get("skill_points"), stigma_points=body.get("stigma_points"),
-               daev_budget=int(body.get("daevanion", 360)), verbose=False, progress=log)
+               sp_budget=points["skill"], stigma_points=points["stigma"],
+               daev_budget=points["daevanion"], verbose=False, progress=log)
     summary = _summary_at(str(out))
     from ..combat.preset_sync import submit as submit_canonical
     from ..combat.share import submit_preset

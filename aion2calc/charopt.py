@@ -60,10 +60,9 @@ def crystal_cost(cd: ClassData, nodes) -> int:
 def budgets_of(imp: ImportedCharacter) -> dict:
     """Optimize with at least the resources the character has already spent."""
     cd = ClassData(imp.cls)
-    bud = cd.budget(imp.level or 45)
-    result = {"skill": max(imp.build.sp_spent(), bud["skill"]),
-              "stigma": max(imp.build.stigma_spent(), bud["stigma"]),
-              "daevanion": max(crystal_cost(cd, imp.build.daevanion), 1)}
+    result = {"skill": imp.build.sp_spent(),
+              "stigma": imp.build.stigma_spent(),
+              "daevanion": crystal_cost(cd, imp.build.daevanion)}
     from .paths import read_json
     try:
         saved = read_json("character-points.json").get(imp.key, {})

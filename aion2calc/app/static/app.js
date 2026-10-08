@@ -488,7 +488,7 @@ function renderWindows(v, state, host) {
     case "macro": body = winMacro(v); break;
     default: body = winOverview(v);
   }
-  const comparison=(state.win||'overview')==='overview'?`<section class="win" style="margin-top:12px"><div class="wb"><details><summary>Contribute a community comparison</summary><p class="small muted">Generate a separate ${String(v.scenario||'').startsWith('pvp')?'PvP':'PvE'} example with common gear and 203 Skill / 30 Stigma / 360 crystal Daevanion points. Your personal build, Genus and HP/skill reserves stay saved separately. Seed searches and weighted refinement can take several minutes; completed comparisons are reused until the scoring inputs change. Only anonymous allocations are submitted. Stationary damage comparison, not a survival or win-rate model.</p><div data-common-comparison></div></details></div></section>`:'';
+  const comparison=(state.win||'overview')==='overview'?`<section class="win" style="margin-top:12px"><div class="wb"><details><summary>Contribute a community comparison</summary><p class="small muted">Generate a separate ${String(v.scenario||'').startsWith('pvp')?'PvP':'PvE'} example with common gear and the server’s published point budgets (highest reported totals when available; explicitly labeled example fallback otherwise). Your personal build, Genus and HP/skill reserves stay saved separately. Seed searches and weighted refinement can take several minutes; completed comparisons are reused until the scoring inputs change. Only anonymous allocations are submitted. Stationary damage comparison, not a survival or win-rate model.</p><div data-common-comparison></div></details></div></section>`:'';
   host.innerHTML = `<div class="layout"><div>${side}</div><div>${body}${comparison}</div></div>`;
   const common=host.querySelector('[data-common-comparison]');
   if(common){common.dataset.commonClass=v.class;common.dataset.commonMode=String(v.scenario||'').startsWith('pvp')?'pvp':'pve';renderCommonComparisons();}
@@ -524,8 +524,8 @@ async function pagePlanner() {
   app().innerHTML = welcomeCard() + `<section class="win"><div class="wh"><h2>Build planner</h2><a class="btn small" href="#/history">Saved results</a><span class="sub">optimized builds — copy each window into the game</span></div>
     <div class="wb"><div class="row"><label class="muted small">Build</label><select id="res"></select><button class="btn small" id="refresh-presets">Refresh presets</button>
       <span class="muted small">or optimize:</span><select id="cls"></select><select id="preset-mode" aria-label="Optimization mode"><option value="pve">PvE</option><option value="pvp">PvP damage (experimental)</option></select>
-      <input id="sp" type="number" placeholder="skill pts (203)" title="skill points (default 203)" style="width:150px"><input id="stg" type="number" placeholder="stigma pts (30)" title="stigma points (default 30)" style="width:150px">
-      <input id="dv" type="number" min="0" max="10000" placeholder="Daevanion pts (360 preset)" aria-label="Daevanion point budget" style="width:180px"><button class="btn primary" id="go">Optimize</button><span id="jobmsg" class="small muted"></span></div></div></section><div id="wins"></div>`;
+      <input id="sp" type="number" min="0" max="10000" placeholder="Skill budget" title="Highest server-reported skill points, or enter explicitly" style="width:150px"><input id="stg" type="number" min="0" max="10000" placeholder="Stigma budget" title="Highest server-reported stigma points, or enter explicitly" style="width:150px">
+      <input id="dv" type="number" min="0" max="10000" placeholder="Daevanion budget" aria-label="Daevanion point budget" style="width:180px"><span id="planner-budget-source" class="small muted" role="status"></span><button class="btn primary" id="go">Optimize</button><span id="jobmsg" class="small muted"></span></div></div></section><div id="wins"></div>`;
   if ($("#whide")) $("#whide").onclick = () => { try { localStorage.setItem("welcome-hidden", "1"); } catch (e) {} $("#welcome").remove(); };
   const [results, classes] = await Promise.all([api("/api/planner/presets"), api("/api/classes")]);
   $("#res").innerHTML = results.map((r) => `<option value="${esc(r.path)}">${r.canonical ? "Community · " : "Example · "}${esc(r.preset_label || cap(r.class))} · ${r.scoring_policy?n0(r.score)+" weighted DPS":n0(r.dps?.[r.scenario])+" "+esc(r.scenario||"")+" DPS"}</option>`).join("");
@@ -542,12 +542,24 @@ async function pagePlanner() {
     $("#cls").value = v.class;
     $("#preset-mode").value = String(v.scenario||"").startsWith("pvp")?"pvp":"pve";
     renderWindows(v, st, $("#wins"));
+    loadPointBudgets();
   };
+  let pointRequest=0;
+  const loadPointBudgets=async()=>{
+    const request=++pointRequest,cls=$("#cls").value,fields={skill:$("#sp"),stigma:$("#stg"),daevanion:$("#dv")};
+    Object.values(fields).forEach(e=>e.value='');
+    $("#planner-budget-source").textContent='Loading server-reported budgets…';
+    try{const result=await A2ProgressionBudgets.read(communityAPI,cls);if(request!==pointRequest||!$("#planner-budget-source"))return;for(const [key,e] of Object.entries(fields))if(e.isConnected&&e.value===''&&result.points[key]!==null)e.value=result.points[key];$("#planner-budget-source").textContent=result.note;}
+    catch(e){if(request===pointRequest&&$("#planner-budget-source"))$("#planner-budget-source").textContent='Server budgets unavailable. Enter your available points explicitly.';}
+  };
+  $("#cls").onchange=loadPointBudgets;
+  loadPointBudgets();
   $("#res").onchange = load;
   $("#go").onclick = async () => {
+    if(["#sp","#stg","#dv"].some(id=>$(id).value===""||!Number.isInteger(+$(id).value)||+$(id).value<0||+$(id).value>10000)){$("#jobmsg").textContent="Enter all three available point budgets (0–10000).";return;}
     $("#go").disabled = true;
     try {
-      const v = await runJob("/api/optimize", { class: $("#cls").value, mode:$("#preset-mode").value, skill_points: $("#sp").value===""?null:+$("#sp").value, stigma_points: $("#stg").value===""?null:+$("#stg").value, daevanion: $("#dv").value===""?360:+$("#dv").value },
+      const v = await runJob("/api/optimize", { class: $("#cls").value, mode:$("#preset-mode").value, skill_points: +$("#sp").value, stigma_points: +$("#stg").value, daevanion: +$("#dv").value },
         (log) => ($("#jobmsg").textContent = log[log.length - 1] || "working…"));
       renderWindows(v, st, $("#wins"));
       $("#jobmsg").textContent = v.preset_submission?.reason || "done";
@@ -605,6 +617,9 @@ async function pageCharacter() {
     st.optMeta = { key: v.key, name: v.name, level: v.level, warnings: v.warnings, server: v.server, combat_power: v.combat_power };
     $("#cpointpatch").onchange=()=>localStorage.setItem("point-game-patch",$("#cpointpatch").value.trim());
     document.querySelectorAll("[data-character-budget]").forEach(e=>e.onchange=rememberBudgets);
+    const budgetFields=[...document.querySelectorAll('[data-character-budget]')],before=budgetFields.map(e=>e.value);
+    A2ProgressionBudgets.read(communityAPI,v.class,{region:st.hit?.region||''}).then(result=>{if(S.character.v!==v||!budgetFields.every(e=>e.isConnected))return;budgetFields.forEach((e,i)=>{const total=result.points[e.dataset.characterBudget];if(total!==null&&e.value===before[i])e.value=Math.max(+e.value,total);});const note=document.createElement('p');note.className='small muted';note.textContent=result.note;budgetFields[0]?.closest('.row')?.after(note);}).catch(()=>{});
+
     document.querySelectorAll("[data-opt-mode]").forEach(button => button.onclick = async () => {
       if (S.character.opt?.status === "running") return;
       const mode = button.dataset.optMode;
@@ -830,7 +845,7 @@ async function pageCombatLog() {
 async function pageCombat() {
   const st = S.combat;
   app().innerHTML = `<section class="win"><div class="wh"><h2>Combat logs</h2><span class="sub">per-skill breakdown, timeline, rates, idle time — compared with your optimal rotation</span></div>
-    <div class="wb"><div id="combat-log-tabs"><div class="row" role="tablist" aria-label="Combat log sources"><button class="btn small" role="tab" id="log-tab-saved" data-log-tab="saved" aria-controls="log-panel-saved">Saved Parts</button><button class="btn small" role="tab" id="log-tab-owned" data-log-tab="owned" aria-controls="log-panel-owned">My Uploads</button><button class="btn small" role="tab" id="log-tab-community" data-log-tab="community" aria-controls="log-panel-community">Community Combat Logs</button></div><div id="log-panel-saved" data-log-panel="saved" role="tabpanel" aria-labelledby="log-tab-saved"><div class="row"><input id="ref" type="text" placeholder="AbyssLogs link (abysslogs.com/e/…) or A2DIL link" style="width:400px">
+    <div class="wb"><div id="combat-log-tabs"><div class="row" role="tablist" aria-label="Combat log sources"><button class="btn small" role="tab" id="log-tab-community" data-log-tab="community" aria-controls="log-panel-community">Community Combat Logs</button><button class="btn small" role="tab" id="log-tab-owned" data-log-tab="owned" aria-controls="log-panel-owned">My Uploads</button><button class="btn small" role="tab" id="log-tab-saved" data-log-tab="saved" aria-controls="log-panel-saved">Saved Logs</button></div><div id="log-panel-saved" data-log-panel="saved" role="tabpanel" aria-labelledby="log-tab-saved"><div class="row"><input id="ref" type="text" placeholder="AbyssLogs link (abysslogs.com/e/…) or A2DIL link" style="width:400px">
       <input id="player" type="text" placeholder="player (party logs)" style="width:150px"><button class="btn primary" id="imp">Analyze</button>
       <span class="muted small">or</span><input id="file" type="file" accept=".json,.gz,.csv"><span id="lmsg" class="small muted"></span></div>
       <p class="small faint">Record a fight with the free <a href="https://abysslogs.com" target="_blank" rel="noopener">AbyssLogs meter</a>, press Share, and paste the link here. A party log shows the recorder's damage unless you name a player.
@@ -838,7 +853,7 @@ async function pageCombat() {
       <div class="row small" id="logsdir"></div>
       <div class="row small" id="lsrv"></div>
       <div id="sessions"></div><div id="session-review"></div><h3>Analyzed encounters</h3><div id="hist"></div></div><div id="log-panel-owned" data-log-panel="owned" role="tabpanel" aria-labelledby="log-tab-owned" hidden><div id="owned-logs"></div></div><div id="log-panel-community" data-log-panel="community" role="tabpanel" aria-labelledby="log-tab-community" hidden><div id="community"></div></div></div></div></section><div id="enc"></div>`;
-  A2LogTabs.mount($('#combat-log-tabs'),st.listTab||'saved',value=>{st.listTab=value;});
+  A2LogTabs.mount($('#combat-log-tabs'),st.listTab||'community',value=>{st.listTab=value;});
   api("/api/logs").then((l) => {
     if(!$("#logsdir"))return;
     $("#logsdir").innerHTML = `<span class="muted">Every analyzed log is saved as a file in</span> <code>${esc(l.folder)}</code> <span class="faint">(${l.files} files)</span>

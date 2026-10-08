@@ -1,7 +1,7 @@
 /* Page-local image failures; exports public asset references, never URLs or portraits. */
 (function(){
   'use strict';
-  const hosts=new Set(['metabot.gg','assets.playnccdn.com','profileimg.plaync.com','a2dil.com','gamers4.life']);
+  const hosts=new Set(['metabot.gg','assets.playnccdn.com','profileimg.plaync.com','a2dil.com','gamers4.life','dbaion2.ru']);
   const regions=new Set(['nae','eu','as','la','kr','tw']),kinds=new Set(['item','skill','pet','wing','title','board']);
   const failures=new Map(),limit=200,referenceLimit=8,wait=5*60*1000;
   let evicted=0;
@@ -31,7 +31,7 @@
     note:'References identify the assets requested by rendered views, not verified URL-to-ID mappings. Official IDs stay region-scoped and separate from catalog slugs. Portrait IDs, labels, full URLs and character data are excluded. Counts are image error events, not unique assets.',
     failures:Array.from(failures.values()).map(row=>({...row,references:row.references.map(ref=>({...ref}))}))};}
   window.A2AssetHealth={attributes,report,
-    source(value){const url=resource(value),failure=url&&failures.get(url.href);return failure&&Date.now()-failure.last_failed<wait?placeholder:value;},
+    source(value){const bundled=window.A2BundledAssets;if(bundled?.files[value])return new URL(bundled.files[value],bundled.base).href;const url=resource(value),failure=url&&failures.get(url.href);return failure&&Date.now()-failure.last_failed<wait?placeholder:value;},
     exportReport(){const url=URL.createObjectURL(new Blob([JSON.stringify(report(),null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='aion2-image-failures.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},
     retry(){failures.clear();evicted=0;}
   };

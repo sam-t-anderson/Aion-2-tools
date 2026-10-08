@@ -104,7 +104,7 @@ def normalize(doc):
         elif cost > board_budgets.get(board["name"], 0):
             raise ValueError("Separate board budget exceeded")
     if crystal_cost > budgets["daevanion"]:
-        raise ValueError("Crystal board budget exceeded")
+        raise ValueError("Daevanion budget exceeded")
     loadout = doc.get("loadout")
     if not isinstance(loadout, dict) or not isinstance(loadout.get("components"), list) or len(loadout["components"]) > 64:
         raise ValueError("Supply at most 64 equipment/stat components")
