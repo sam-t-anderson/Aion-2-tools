@@ -365,3 +365,9 @@ New capture run tokens/origin sequences and explicit observed entry/final-boss e
 - Make application screenshots capture the application content from top to bottom without manual scrolling, excluding other monitors, windows and desktop content.
 
 These maintenance/screenshot requests are queued for later; they are not part of the current capture/reconstruction implementation.
+
+## Seven workstreams — encounter classification and catalog coverage
+
+Exact recorded map/instance IDs now use explicit NPC catalog categories and tiers to fill missing context. Unique NPC-only candidates can suggest a zone without fabricating an instance ID or entry; they remain unranked. Shared review, diagnostics and mapping exports explain matches, ambiguities and conflicts. Server metrics group public context evidence by build and retain classification basis in boss HP candidates.
+
+The latest pinned upstream audit contains no NPC/dungeon table changes. Still pending: independently confirmed build applicability and difficulty/scaling labels for HP calibration; supported missing local-identity/spawn records; trusted NPC portraits and explicit miniboss/world-boss roles; verified PURPLE launcher build manifest formats. These require source evidence rather than names or ID-pattern guesses.

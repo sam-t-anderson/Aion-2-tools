@@ -622,3 +622,11 @@ Player totals join only with recorded region, server and database character ID. 
 
 
 New captures also retain a stable submitted run token, original record origin and observed entry/final-boss timestamps across storage rollover. **Run timing across selected parts** uses these fields only when contexts and timestamps agree, the selected range contains the run origin, and the configured final-boss death is present. Contradictory or missing evidence shows unavailable timing. Earlier recordings without this run provenance keep their original boundaries. This restores descriptive timing across supported new parts, not leaderboard eligibility.
+
+## Automatic encounter context
+
+Live capture uses recorded map/instance IDs and explicit fields in the bundled NPC catalog to fill missing category and difficulty. The shared log viewer's **Automatic encounter context** panel lists the supporting NPC IDs, catalog instance candidate, category/tier and any disagreement. Mapping report exports include the same bounded evidence.
+
+If only NPC IDs suggest the instance, the zone can be displayed but the recorded instance ID stays missing, entry is not inferred and the sample stays unranked. Mixed NPC instances or contradictory map evidence are flagged. Multiple tiers remain ambiguous. Post-capture manual corrections are retained. Old uploaded files are preserved; the updated server refreshes their derived context and comparisons in memory/indexes.
+
+The catalog is community data without a verified game-build association. An exact catalog match is not an official difficulty confirmation or a numeric confidence estimate. HP candidates on the server remain evidence for future calibration, not an automatic HP classifier.

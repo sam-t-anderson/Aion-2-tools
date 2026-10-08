@@ -355,3 +355,11 @@ Combined output remains explicitly unranked and non-contributing, including afte
 
 
 New capture-only run provenance contains a stable random token and origin record sequence, observed entry timestamp where supplied, and configured final-boss ID/completion timestamp where observed. Rollover preserves this ledger independently of each part's incomplete entry/quality flags. Descriptive combined run timing requires consistent context/origin, an origin within the selected record range, an entry before the selected combat, and a matching catalog-boss death marker at the recorded completion time in the same instance. Missing or conflicting provenance yields unavailable timing; it does not modify source segment flags or grant ranking eligibility. Older parts cannot be assigned this provenance retroactively.
+
+## Encounter context from catalog records
+
+Context derivation uses stable recorded NPC, map and instance IDs. Explicit community NPC categories map Dungeon to expedition, Transcendence to transcendence, Nightmare to nightmare, Ascension Trial to ascension and Raid to sanctuary. Tier normalization maps Exploration and Conquest labels to the existing difficulty groups; stage/level and named tiers remain distinct. No map suffix, NPC name, damage amount or HP value is used as a classifier.
+
+A recorded instance's NPC records must agree before their shared category/tier is used. Participating NPC records can resolve an otherwise ambiguous tier. Map/NPC candidates never populate a missing recorded instance ID or establish run entry; quality remains unranked without that recorded instance. Conflicts block ranking. Multiple tiers without an exact match leave difficulty unavailable. Submitted manual metadata is preserved and displayed separately from recomputed catalog evidence.
+
+Catalog context is derived again on validation and during server indexing/review. Uploaded context verdicts are not trusted. The server refreshes derived comparison indexes after this rule change while retaining original files, profile snapshots and upload credentials. Its HP signature inventory keeps launcher namespace, classification basis and candidate instance separate; independent difficulty labels and scaling rules are still required before calibrating an HP-based classifier.

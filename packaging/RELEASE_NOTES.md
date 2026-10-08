@@ -1,3 +1,10 @@
+## Automatic encounter catalog context (0.2.95)
+
+- Resolve missing PvE category and difficulty using exact recorded instance/map IDs and explicit NPC catalog category/tier fields. Unique recorded NPC instance matches can suggest a zone when entry metadata is missing, without filling the recorded instance ID or proving entry.
+- Recompute bounded context evidence on import and upload; preserve manual post-capture corrections. Conflicting map/instance/NPC evidence and suggestions without a recorded instance keep samples unranked. Unknown IDs, multiple tiers and missing data remain visible.
+- Add an Automatic encounter context panel shared by desktop, Pages and the server viewer, with recorded IDs, catalog candidates, category/tier records and conflicts. Include this evidence in mapping reports and live diagnostics.
+- Re-audit all 14 localized upstream NPC/dungeon tables at commit 4cc5a513531fb6910f23dc3a7d250fa440125934: no added, removed or changed records. Catalog applicability to individual installed builds and missing NPC portraits remain unverified.
+
 ## Connected recording review (0.2.94)
 
 - Review 2–32 connected stopped recording parts together on desktop and in shared Pages/server review, with mode-specific recording totals, source encounters, provenance and export/back controls.

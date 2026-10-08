@@ -123,6 +123,7 @@ SCHEMA = {
 # Compatible v1 extensions. Older logs without these arrays remain readable.
 _segment_properties = SCHEMA["properties"]["segments"]["items"]["properties"]
 _segment_properties.update({
+    "classification":{"type":"object", "description":"Derived recorded-ID catalog context; recomputed, never trusted from uploads"},
     "recording_run":{"type":"object", "description":"Submitted stable run token, original record origin and observed entry/final-boss evidence across storage parts; not ranking eligibility"},
     "run_id":{"type":"string"}, "run_complete":{"type":"boolean"}, "run_end_reason":{"type":"string"},
     "run_start_observed":{"type":"boolean"}, "run_started_at":{"type":"string"}, "run_ended_at":{"type":"string"},
@@ -384,6 +385,8 @@ def validate(doc) -> dict:
         evidence = clean_meta.setdefault("capture_quality", {})
         evidence["validation_discarded"] = min(2**53-1, evidence.get("validation_discarded", 0) + removed)
     result = {"format": "a2log", "version": VERSION, "meta": clean_meta, "players": out_players, "segments": out_segs}
+    from ..meter.context import enrich
+    enrich(result)
     from .quality import assess
     for segment in out_segs:
         segment["quality"] = assess(result, segment)
@@ -479,7 +482,7 @@ def to_encounter(doc: dict, player_id: str, segment: int = 0) -> dict:
                     seg.get("label"), "duration": seg["duration"], "combat_power": p.get("combat_power")},
            "hits": hits, "buffs": buffs, "specs": {}}
     from .quality import assess
-    excluded = {"partial_capture", "party_roster_late"}.intersection(assess(doc, seg)["reasons"])
+    excluded = {"partial_capture", "party_roster_late", "classification_npc_only", "classification_map_only", "classification_conflict"}.intersection(assess(doc, seg)["reasons"])
     enc["meta"]["learning_excluded"] = bool(excluded)
     enc["meta"]["learning_exclusion_reasons"] = sorted(excluded)
     enc = normalize(enc)
