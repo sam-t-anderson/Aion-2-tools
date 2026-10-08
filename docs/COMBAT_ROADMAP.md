@@ -327,4 +327,4 @@ Automatic view falls back to observed players when local identity is unavailable
 
 ### Shared outgoing clocks and review scopes
 
-Automatic splits use a minimum 120-second outgoing inactivity window; DPS shares the recorded outgoing interval across players, including deaths, and freezes after the last outgoing hit. Graph keys and selected-encounter participant references are shared across desktop/Pages/server review. Soft archive rollover waits during active combat. Remaining: combining archive parts with verified entry/completion provenance and detailed diagnostic causes for the reported capture-error/discard counts.
+Automatic splits use a minimum 120-second outgoing inactivity window; DPS shares active outgoing-damage seconds across players, including deaths, and freezes after the last outgoing hit. Graph keys and selected-encounter participant references are shared across desktop/Pages/server review. Soft archive rollover waits during active combat. Remaining: combining archive parts with verified entry/completion provenance and detailed diagnostic causes for the reported capture-error/discard counts.

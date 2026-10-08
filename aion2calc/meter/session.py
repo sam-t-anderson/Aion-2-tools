@@ -320,7 +320,14 @@ class CombatSession:
 
     def _summary(self, groups, scope, enemy_id=None, combine_pets=True):
         players, enemies = {}, {}
-        durations = sum(max(1.0, (g["last_damage"] - (g["damage_start"] if g["damage_start"] is not None else g["start"])) / 1000) for g in groups)
+        durations = 0
+        for group in groups:
+            first = group["damage_start"] if group["damage_start"] is not None else group["start"]
+            buckets = {int((record.event.timestamp_ms-first)//1000) for record in group["records"]
+                       if isinstance(record.event,DamageEvent)
+                       and record.event.actor_id in self._allowed(record,scope)
+                       and record.event.target_id not in self._allowed(record,scope)}
+            durations += max(1,len(buckets))
         timeline = {}
         offset = 0
         for group in groups:
@@ -427,7 +434,7 @@ class CombatSession:
         summary["combine_pets"] = combine_pets
         summary["paused"] = bool(chosen and time.time() * 1000 - chosen[-1]["last_damage"] >= 2000)
         summary["recorded_pvp"] = bool(chosen and chosen[-1]["pvp"])
-        summary["dps_clock"] = "Shared first-to-last outgoing damage interval; idle time after the last hit does not lower DPS; deaths do not reset players"
+        summary["dps_clock"] = "Shared one-second buckets with outgoing player damage; idle buckets are excluded; deaths do not reset players"
         summary["boss"] = next((row["name"] for row in summary["enemies"] if row["key"] == enemy_id), "All enemies")
         summary["scope"] = scope
         summary["warning"] = ("Waiting for your player identity. Enter your character name before Start; nearby players are excluded until you or party members are identified."

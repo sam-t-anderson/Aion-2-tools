@@ -576,6 +576,6 @@ Partial captures show recorded damage, skill breakdowns, healing and incoming ef
 
 ### Encounter clocks and archive parts
 
-Automatic encounter splits require at least 120 seconds without outgoing player damage. A player death does not reset the encounter: their DPS falls while other players continue damage, using a shared first-to-last outgoing damage interval. Once everyone stops damaging, DPS freezes at the last outgoing hit. Incoming hits and healing do not extend that clock. Map/mode changes and manual splits remain separate boundaries.
+Automatic encounter splits require at least 120 seconds without outgoing player damage. A player death does not reset the encounter: their DPS falls while other players continue damage, using a shared active damage clock (one-second buckets containing outgoing damage). Once everyone stops damaging, DPS freezes at the last value and resumes the same totals when damage restarts, excluding idle seconds. Incoming hits and healing do not extend that clock. Map/mode changes and manual splits remain separate boundaries.
 
 Soft storage rollover waits until combat pauses or the run ends; hard retention limits still create incomplete archive parts. A later part may lack entry evidence recorded earlier even if capture began before the dungeon. TCP diagnostic recording is independent of these eligibility checks. Review shows a graph key; selecting a specific run limits character buttons to the selected encounter's roster/effect references.

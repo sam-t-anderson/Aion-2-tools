@@ -410,17 +410,26 @@ def damage_interval(segment: dict) -> tuple[float, float]:
     return (min(times), max(times)) if times else (0.0, 0.0)
 
 
+def damage_buckets(segment: dict) -> tuple[float, list[int]]:
+    """One-second party-active buckets, anchored to the first outgoing hit."""
+    first, _ = damage_interval(segment)
+    return first, sorted({int(max(0,h["t"]-first)) for h in segment.get("hits", [])})
+
+
 def damage_duration(segment: dict) -> float:
-    first, last = damage_interval(segment)
-    return max(1.0, last - first)
+    _, buckets = damage_buckets(segment)
+    return float(max(1,len(buckets)))
 
 
 def to_encounter(doc: dict, player_id: str, segment: int = 0) -> dict:
     """One player's side of one segment -> an aion2calc encounter (for the analyzer)."""
     from .adapters import normalize
     seg = doc["segments"][segment]
-    first_damage, _ = damage_interval(seg)
+    first_damage, buckets = damage_buckets(seg)
     rate_duration = damage_duration(seg)
+    bucket_index = {bucket:index for index,bucket in enumerate(buckets)}
+    def active_time(t):
+        return sum(max(0.0,min(1.0,t-first_damage-bucket)) for bucket in buckets)
     p = next(x for x in doc["players"] if x["id"] == player_id)
     from .abysslogs import chain_parent, skill_base
     cd = None
@@ -440,13 +449,13 @@ def to_encounter(doc: dict, player_id: str, segment: int = 0) -> dict:
             if base is None and (parent := chain_parent(name, cd)):
                 base, step = parent, step or name
             sid = base or sid
-        hits.append({"t": max(0, h["t"]-first_damage), "skill_id": sid, "skill": name, "damage": h["damage"], "crit": h.get("crit"),
+        hits.append({"t": bucket_index.get(int(max(0,h["t"]-first_damage)),0) + (max(0,h["t"]-first_damage)%1), "skill_id": sid, "skill": name, "damage": h["damage"], "crit": h.get("crit"),
                      "double": h.get("double"), "perfect": h.get("perfect"), "multi": h.get("multi", 0),
                      "dot": h.get("dot"), "back": h.get("back"), "front": h.get("front"), "step": step})
     wins: dict = {}
     for b in seg.get("buffs", []):
         if b["player"] == player_id:
-            wins.setdefault((b.get("name"), b.get("skill_id")), []).append([max(0,b["start"]-first_damage), min(rate_duration,max(0,b["end"]-first_damage))])
+            wins.setdefault((b.get("name"), b.get("skill_id")), []).append([active_time(b["start"]), active_time(b["end"])])
     wins = {key: [[a,z] for a,z in windows if z > a] for key,windows in wins.items()}
     buffs = [{"name": n or str(sid), "skill_id": sid, "windows": w,
               "uptime": min(1.0, sum(max(0,z - a) for a, z in w) / rate_duration)} for (n, sid), w in wins.items()]
