@@ -11,7 +11,8 @@ from .statweights import stat_weights
 
 class WeightedOptimizer(Optimizer):
     def __init__(self, cls, scenarios, **kwargs):
-        self.scenarios = tuple(scenarios)
+        from .survival import with_action_timing
+        self.scenarios = tuple((weight, with_action_timing(scenario, kwargs.get("survival"))) for weight, scenario in scenarios)
         if (not self.scenarios or any(not math.isfinite(w) or w <= 0 for w, _ in self.scenarios)
                 or not math.isclose(sum(w for w, _ in self.scenarios), 1.0)):
             raise ValueError("Scenario weights must be positive and sum to one")

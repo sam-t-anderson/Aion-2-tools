@@ -125,11 +125,56 @@ def cooldown_checks(reductions):
     return result
 
 
+ACTION_NOTE = ("Explicit no-new-offensive-action windows on the rotation clock, starting at zero. "
+               "The same one-fight schedule applies once to each damage scenario, clipped to its duration; overlaps use their union. "
+               "Actions must finish before a pause. Scheduled hits, DoTs, pets, cooldown recovery and regeneration continue. "
+               "No tactical skill is cast, no MP or tactical cooldown is consumed and no defensive success is inferred. "
+               "Pressure scenarios have independent clocks; their windows are not automatically copied. Community baselines remain untimed references.")
+
+
+def prepare_action_windows(options):
+    values = options.get("action_windows", [])
+    if not isinstance(values, list) or len(values) > 8:
+        raise ValueError("Use at most eight outgoing action-time windows")
+    windows = []
+    for row in values:
+        if not isinstance(row, dict):
+            raise ValueError("Invalid outgoing action-time window")
+        start = number(row.get("start_s"), "Action-time start", 3600)
+        duration = number(row.get("duration_s"), "Action-time duration", 120)
+        windows.append({"name": str(row.get("name") or "Tactical time")[:100],
+                        "start_s": start, "duration_s": duration, "end_s": start+duration})
+    return windows
+
+
+def with_action_timing(scenario, plan):
+    from dataclasses import replace
+    from ..sim.engine import action_blocks
+    windows = (plan or {}).get("action_windows", [])
+    if not windows:
+        return scenario
+    blocks = action_blocks(tuple(scenario.config.action_blocks) + tuple((w["start_s"], w["end_s"]) for w in windows),
+                           scenario.config.duration)
+    if sum(end-start for start, end in blocks) >= scenario.config.duration-1e-9:
+        raise ValueError("Action-time windows cover the entire damage scenario; leave time for offensive actions")
+    return replace(scenario, config=replace(scenario.config, action_blocks=blocks))
+
+
+def action_timing_summary(plan, scenarios):
+    if not (plan or {}).get("action_windows"):
+        return None
+    return {"note": ACTION_NOTE, "windows": plan["action_windows"], "cases": {
+        name: {"duration_s": scenario.config.duration, "blocks": list(scenario.config.action_blocks),
+               "paused_s": sum(end-start for start, end in scenario.config.action_blocks)}
+        for name, scenario in scenarios.items()}}
+
+
 def prepare(cd, current, options=None):
     if options is None:
         return None
     if not isinstance(options, dict):
         raise ValueError("Invalid survival options")
+    windows = prepare_action_windows(options)
     preserve = options.get("preserve_hp", True)
     if type(preserve) is not bool:
         raise ValueError("Preserve HP must be true or false")
@@ -180,14 +225,14 @@ def prepare(cd, current, options=None):
                 ("title", "created", "class", "metric", "modeled_dps", "scale", "source_duration_s", "duration_source", "model_note") if k in benchmark}
     if rows and hp is None:
         raise ValueError("Enter your current maximum HP before using incoming-damage scenarios")
-    if not preserve and floor == 0 and not rows:
+    if not preserve and floor == 0 and not rows and not windows:
         return None
     if rows:
         floor = max(floor, reference + max(r["required_hp"] for r in rows) - hp)
     available = node_hp(cd, {nid for nid, (_, node) in cd.node_index.items() if node.get("type") != "Start"})
     if floor > available+1e-6:
         raise ValueError(f"Requested crystal HP reserve {floor:,.0f} exceeds the catalog's total {available:,.0f}, even before point/connectivity costs. Lower the reserve or incoming-damage assumptions.")
-    return {"version": 5, "preserve_hp": preserve, "reference_node_hp": reference,
+    return {"version": 6, "action_windows": windows, "action_timing_note": ACTION_NOTE, "preserve_hp": preserve, "reference_node_hp": reference,
             "minimum_node_hp": max(0, floor), "current_hp": hp, "opponents": rows, "note": NOTE}
 
 

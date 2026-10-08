@@ -75,7 +75,7 @@ def budgets_of(imp: ImportedCharacter) -> dict:
     return result
 
 
-def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus: dict | None = None, objective="primary") -> dict:
+def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus: dict | None = None, objective="primary", survival=None) -> dict:
     """The character as it is (best legal specs for its levels, optimized rotation)."""
     cls = imp.cls
     from .opt.genus import apply as apply_genus
@@ -83,6 +83,8 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus:
     scen = SCENARIOS[scenario_name](frozen_loadout)
     other_name = comparison_scenario(scenario_name)
     other = SCENARIOS[other_name](frozen_loadout)
+    from .opt.survival import with_action_timing, action_timing_summary
+    scen, other = with_action_timing(scen, survival), with_action_timing(other, survival)
     b = imp.build.copy()
     b.bonus = {}                       # gear skill rolls come from the loadout
     bud = budgets_of(imp)
@@ -99,6 +101,8 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus:
     # Weighted rotation returns a composite scalar, not the primary DPS.
     res, _, _ = _sim(b, scen, policy)
     dps = res.dps
+    if (survival or {}).get("action_windows") and (dps <= 0 or res_other.dps <= 0):
+        raise ValueError("No outgoing damage fits the action-time schedule; shorten or move the pauses")
     d = stats.derived()
     from .model.stats import crit_chance
     eff = bg.effective_levels(cd)
@@ -111,6 +115,7 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus:
         "objective": objective_summary(objective, scenario_name, other_name,
                                        {scenario_name: dps, other_name: res_other.dps},
                                        {scenario_name: scen.config.duration, other_name: other.config.duration}),
+        "action_timing": action_timing_summary(survival, {scenario_name: scen, other_name: other}),
         "budgets": bud,
         "stats": {"attack_avg": d.attack(), "crit_stat": d.crit_stat,
                   "crit_chance_vs_target": crit_chance(d.crit_stat, scen.target.crit_resist, midpoint=1024.52 if scen.target.is_player else None),
@@ -149,7 +154,7 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     genus_plan = prepare_genus(inv.get("genus", {}), "pvp" if scenario_name.startswith("pvp") else "pve", genus)
     if progress:
         progress(f"Genus Insight: {len(genus_plan['lines'])} saved lines; {genus_plan['mode'].upper()} damage model")
-    cur = evaluate_current(imp, scenario_name, genus_plan, objective)
+    cur = evaluate_current(imp, scenario_name, genus_plan, objective, survival_plan)
     (out / "current").mkdir(parents=True, exist_ok=True)
     bud = dict(cur["budgets"])
     for key, value in (budgets or {}).items():
@@ -183,6 +188,6 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     gain = optimized_score / current_score - 1 if current_score > 0 else None
     summary = {"character": cur["character"], "current_dps": cur["dps"], "optimized_dps": best["dps"],
                "gain": gain, "scenario": scenario_name,
-               "objective": {**best["objective"], "current_score": current_score, "gain": gain}, "genus": best.get("genus"), "survival": best.get("survival"), "skill_reserves": best.get("skill_reserves"), "budgets": bud, "seconds": time.time() - t0}
+               "objective": {**best["objective"], "current_score": current_score, "gain": gain}, "genus": best.get("genus"), "survival": best.get("survival"), "action_timing": best.get("action_timing"), "skill_reserves": best.get("skill_reserves"), "budgets": bud, "seconds": time.time() - t0}
     (out / "character.json").write_text(json.dumps(summary, indent=1), encoding="utf-8")
     return summary

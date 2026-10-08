@@ -36,6 +36,15 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         w(objective["note"] + "\n")
     if s.get("model_note"):
         w(s["model_note"] + "\n")
+    if s.get("action_timing"):
+        timing = s["action_timing"]
+        w("## Outgoing action-time assumptions\n")
+        w(timing["note"] + "\n")
+        for row in timing["windows"]:
+            name = row["name"].replace("\n", " ")
+            w(f"- {name}: {row['start_s']:g}–{row['end_s']:g}s.\n")
+        for name, case in timing["cases"].items():
+            w(f"- {name}: {case['paused_s']:g}s unavailable for new actions in {case['duration_s']:g}s; clipped interval union {case['blocks']}.\n")
     if s.get("survival"):
         hp = s["survival"]
         w("## HP reserve\n")
@@ -262,10 +271,11 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
       "launch option for damage among common wings. **Pets**: pet collection bonuses are mostly genus-specific "
       "(damage vs that monster genus) plus Accuracy/Crit; level the genus of the content you farm first.\n")
 
-    sens = s.get("sensitivity") or []
+    sens = [x for x in (s.get("sensitivity") or []) if x.get("loss_pct") is not None]
     if sens:
         loss = [x["loss_pct"] for x in sens]
         w("## Robustness\n")
+        w("Samples with no modeled damage are excluded from percentage losses.\n")
         w(f"Every animation time was randomly perturbed by up to ±25% ({len(sens)} samples) and the rotation "
           f"re-optimized each time. Playing the recommended priority instead of the re-optimized one lost on "
           f"average **{sum(loss) / len(loss):.2f}%** (worst {max(loss):.2f}%).\n")

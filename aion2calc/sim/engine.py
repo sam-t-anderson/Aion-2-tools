@@ -58,6 +58,29 @@ class SimConfig:
     tick: float = 0.2625           # server tick
     quantize: bool = False         # round action times up to whole ticks
     chain_window: float = 3.0      # seconds before a chain skill resets
+    action_blocks: tuple = ()     # explicit no-new-action intervals on the rotation clock
+
+
+def action_blocks(values, duration):
+    """Validate, clip and union explicit action-unavailability intervals."""
+    if not isinstance(values, (tuple, list)) or len(values) > 32:
+        raise ValueError("Use a bounded list of action-time intervals")
+    merged = []
+    intervals = []
+    for pair in values:
+        if (not isinstance(pair, (tuple, list)) or len(pair) != 2
+                or any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in pair)
+                or not 0 <= pair[0] <= pair[1] <= 3720):
+            raise ValueError("Invalid action-time interval")
+        start, end = min(duration, pair[0]), min(duration, pair[1])
+        if end > start + EPS:
+            intervals.append((float(start), float(end)))
+    for start, end in sorted(intervals):
+        if merged and start <= merged[-1][1] + EPS:
+            merged[-1] = (merged[-1][0], max(end, merged[-1][1]))
+        else:
+            merged.append((start, end))
+    return tuple(merged)
 
 
 @dataclass
@@ -125,6 +148,7 @@ class Sim:
         self.casts: dict[str, int] = {}
         self.buff_time: dict[str, float] = {}
         self.timeline: list[tuple[float, str]] = []
+        self.action_blocks = action_blocks(self.cfg.action_blocks, self.cfg.duration)
         self.total = 0.0
         self.mp_floor = self.mp
         self._ver = 0
@@ -309,6 +333,10 @@ class Sim:
         return a.mp * max(0.0, 1.0 - self.base.mp_cost_red)
 
     def usable(self, a: Action) -> bool:
+        if self.action_blocks:
+            end = self.t + self.action_time(a)
+            if any(self.t < stop-EPS and end > start+EPS for start, stop in self.action_blocks):
+                return False
         if self.ready.get(a.group(), 0.0) > self.t + EPS:
             return False
         if self.mp + EPS < self.mp_cost(a):
@@ -354,11 +382,24 @@ class Sim:
         T = self.cfg.duration
         idle = 0.0
         while self.t < T - EPS:
+            blocked = next((stop for start, stop in self.action_blocks if start-EPS <= self.t < stop-EPS), None)
+            if blocked is not None:
+                idle += blocked-self.t
+                self._advance_to(blocked)
+                continue
             a = self.choose()
             if a is None:
-                step = 0.05
-                idle += step
-                self._advance_to(min(T, self.t + step))
+                next_start = next((start for start, _ in self.action_blocks if start > self.t+EPS), T)
+                until = min(T, self.t+0.05, next_start)
+                idle += until-self.t if self.action_blocks else 0.05
+                self._advance_to(until)
+                continue
+            # Callable policies may bypass usable(); never start across a pause.
+            conflict = next((stop for start, stop in self.action_blocks
+                             if self.t < stop-EPS and self.t+self.action_time(a) > start+EPS), None)
+            if conflict is not None:
+                idle += conflict-self.t
+                self._advance_to(conflict)
                 continue
             dur = self.cast(a)
             self._advance_to(min(T, self.t + dur))

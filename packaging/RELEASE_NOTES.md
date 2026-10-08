@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.79
+
+- Personal PvE/PvP optimization now accepts explicit outgoing action-time windows for defense or movement. Candidate scoring, rotations, stat weights and the current-character comparison share the entered schedule.
+- Scheduled hits, DoTs and pets continue during pauses; cooldown recovery and regeneration continue. Overlapping pauses count once and each scenario clips the schedule to its duration.
+- Saved advice, exports and reconstructed reports retain the timing assumptions and clipped totals. Community references remain unpaused. Actual defensive casts, tactical MP/cooldowns and CC success are not inferred.
+
 # Aion 2 Calc 0.2.78
 
 - Missing-image reports now include validated displayed asset references where available: region-scoped official IDs, catalog item slugs and skill IDs remain separate.

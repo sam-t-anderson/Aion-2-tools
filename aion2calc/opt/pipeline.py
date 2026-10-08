@@ -136,6 +136,8 @@ class Optimizer:
                  stigma_points: int | None = None, sp_budget: int | None = None,
                  search_duration: float | None = None, verbose: bool = True, gear_bonus: dict | None = None,
                  progress=None, survival=None, skill_reserves=None):
+        from .survival import with_action_timing
+        scenario = with_action_timing(scenario, survival)
         self.survival = survival
         self.cls = cls
         self.cd = ClassData(cls)
