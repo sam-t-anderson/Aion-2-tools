@@ -1675,19 +1675,24 @@ async function pageNews(){
   A2News.mount($('#official-news'),{api:communityAPI});
 }
 
-let eventTimerView=null;
+let eventTimerView=null,workshopView=null;
 async function pageTimers(){
   app().innerHTML='<div id="event-timers"></div>';
   eventTimerView=A2Timers.mount($('#event-timers'),{api:communityAPI,logURL:(id,segment)=>'#/combat-log/shared/'+encodeURIComponent(id)+'?mode=pve'+(Number.isInteger(segment)?'&segment='+segment:'')});
 }
 
 // ------------------------------------------------------------- router
+async function pageWorkshop(kind){
+ app().innerHTML='<div id="workshop"></div>';
+ workshopView=(kind==='maps'?A2Maps:A2Crafting).mount($('#workshop'));
+}
 async function pageBuilds(){
  app().innerHTML='<div id="build-workspace"></div>';
  buildWorkspaceView=A2BuildWorkspace.mount($("#build-workspace"),{api:communityAPI,...(buildWorkspaceContext||{})});
  buildWorkspaceContext=null;
 }
 async function route() {
+  if(workshopView){workshopView.dispose();workshopView=null;}
   if(buildWorkspaceView){buildWorkspaceView.dispose();buildWorkspaceView=null;}
   if(eventTimerView){eventTimerView.dispose();eventTimerView=null;}
   const page = (location.hash.replace(/^#\//, "") || "planner").split("/")[0];
@@ -1703,6 +1708,7 @@ async function route() {
     else if (page === "raid") await pageRaid();
     else if (page === "meter") await pageMeter();
     else if (page === "database") await pageDatabase();
+    else if (page === "maps" || page === "crafting") await pageWorkshop(page);
     else if (page === "builds") await pageBuilds();
     else if (page === "timers") await pageTimers();
     else if (page === "news") await pageNews();

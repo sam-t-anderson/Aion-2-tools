@@ -1,7 +1,7 @@
 /* Page-local image failures; exports public asset references, never URLs or portraits. */
 (function(){
   'use strict';
-  const hosts=new Set(['metabot.gg','assets.playnccdn.com','profileimg.plaync.com','a2dil.com']);
+  const hosts=new Set(['metabot.gg','assets.playnccdn.com','profileimg.plaync.com','a2dil.com','gamers4.life']);
   const regions=new Set(['nae','eu','as','la','kr','tw']),kinds=new Set(['item','skill','pet','wing','title','board']);
   const failures=new Map(),limit=200,referenceLimit=8,wait=5*60*1000;
   let evicted=0;
@@ -10,6 +10,7 @@
   function reference(value){
     if(!value||!kinds.has(value.kind))return null;
     const id=String(value.id??'');
+    if(value.namespace==='gamers4life'&&value.kind==='item'&&/^[0-9]{1,20}$/.test(id))return {namespace:'gamers4life',kind:'item',id};
     if(value.namespace==='official'&&regions.has(value.region)&&/^[0-9]{1,20}$/.test(id))return {namespace:'official',kind:value.kind,id,region:value.region};
     if(value.namespace==='metabot'&&value.kind==='skill'&&/^[0-9]{1,20}$/.test(id))return {namespace:'metabot',kind:'skill',id};
     if(value.namespace==='metabot'&&value.kind==='item'&&/^[a-z0-9][a-z0-9-]{0,119}$/.test(id))return {namespace:'metabot',kind:'item',id};

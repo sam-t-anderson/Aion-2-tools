@@ -409,3 +409,7 @@ Remaining: recalculating editable equipment/Genus and scenario performance throu
 ### Timeline, screenshot and maintenance checkpoint
 
 Implemented encounter-scoped timeline row hiding/collapse/reset controls across shared viewers, full-document application PNG rendering instead of monitor capture, managed storage inventory and age-based disposable cache cleanup, bounded updater helper/log retention with active-process checks and helper self-cleanup. These changes preserve source metrics and persistent application data. Browser-rendering differences and in-game/live-device confirmation remain follow-up validation.
+
+### Maps, crafting and additional asset references checkpoint
+
+Implemented provider-supported interactive map views in desktop/Pages and an offline source-attributed crafting workshop: profession/faction search, mastery/fees/materials, source-linked intermediate expansion, normal/combo icons, explicit effective-rate assumptions, conditional probabilities/seeded scenarios and material-plan export. The snapshot contains 2,442 recipes and 1,466 item references. Crafting image diagnostics retain the publisher namespace. Broader regional news, equipment/Genus draft scoring and verified game/protocol/model evidence remain follow-ups; general success/failure/modifier rules and current-build applicability are still unknown.
