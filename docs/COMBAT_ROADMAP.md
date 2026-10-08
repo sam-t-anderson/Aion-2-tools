@@ -303,3 +303,8 @@ Image coverage export includes process-local approved-host HTTP status/error/cac
 ### Recording part navigation
 
 Saved Parts groups exact archive IDs with part-order pagination on desktop and selected-file grouping on Pages, preserving upload queues. This does not stitch effects, prove completeness or reconcile duplicate captures; those remain pending.
+
+
+### Reproducible encounter-catalog audit
+
+The pinned catalog refresh command stages all localized NPC/dungeon tables with validated schemas, source hashes, counts and bounded added/removed/changed ID summaries for release review. New mapping coverage includes source-commit provenance. The checked upstream snapshot matched the bundled tables, so this audit introduced no mappings. Remaining: independent game-build applicability, verified new IDs/portraits and complete miniboss/world-boss role evidence. Cached official-profile icon re-indexing is available separately in Settings.

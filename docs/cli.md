@@ -59,6 +59,20 @@ Classes: `gladiator templar assassin ranger sorcerer spiritmaster cleric chanter
 The installed desktop app also takes `--port` (default 8765), `--no-browser` and
 `--no-sync` (skip the launch-time database update).
 
+## Encounter catalog refresh
+
+The enemy and dungeon tables come from the community [A2Tools parser](https://github.com/taengu/A2Tools-DPS-Meter). Refresh them independently of item/skill database sync:
+
+```bash
+python -m aion2calc catalog-refresh --revision FULL_40_CHARACTER_COMMIT_SHA --out catalog-staging
+```
+
+Use a reviewed upstream commit and a new output directory. The command downloads only NPC/dungeon JSON from that commit, validates IDs and row types, rejects duplicate keys and mismatched locale ID sets, and stages all 14 localized tables. It leaves installed mappings intact.
+
+`catalog-audit.json` lists added, removed and changed ID counts per table, with up to 100 changes per table and omitted counts. Review the staged tables for complete changes, especially boss/dummy flags, dungeon links and difficulty. `catalog-source.json` records the upstream commit, check date, record counts, normalized table SHA-256 hashes and original download hashes.
+
+For a release, copy the reviewed `i18n/npcs` and `i18n/dungeons` directories and `catalog-source.json` into `aion2calc/meter/a2parser/data/`, then submit the diff through CI. Keep source attribution and license obligations. Mapping coverage shows the source commit on desktop and Pages for new reports; older logs may lack this metadata. A community source revision does not establish its applicable game Build ID. No build association, missing portrait, difficulty or miniboss role is invented.
+
 ## Testing
 
 ```bash

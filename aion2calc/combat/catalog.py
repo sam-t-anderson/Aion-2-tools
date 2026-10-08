@@ -1,6 +1,7 @@
 """Bounded catalog coverage from recorded IDs; never guess names or classifications."""
 from collections import Counter
 from functools import lru_cache
+from importlib.resources import files
 import hashlib
 import json
 
@@ -16,6 +17,20 @@ def revision():
     tables = {key: _table(key, "en") for key in ("npcs", "dungeons")}
     tables.update(open_world_maps=sorted(OPEN_WORLD_MAPS), pvp_maps=PVP_MAPS, coverage_rules=3)
     return hashlib.sha256(json.dumps(tables, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:16]
+
+
+@lru_cache(maxsize=1)
+def source():
+    try:
+        manifest = json.loads(files("aion2calc.meter.a2parser").joinpath("data", "catalog-source.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, ModuleNotFoundError, ValueError):
+        return {}
+    recorded = {row["file"]: row.get("sha256") for row in manifest.get("files", [])}
+    matches = all(recorded.get(f"{category}/en.json") == hashlib.sha256(json.dumps(
+        _table(category, "en"), sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()
+        for category in ("npcs", "dungeons"))
+    return {**{key: manifest.get(key) for key in ("repository", "revision", "checked_at", "game_build", "note")},
+            "english_tables_match_source": matches}
 
 
 def coverage(segment):
@@ -52,7 +67,7 @@ def coverage(segment):
     if map_id and map_id not in OPEN_WORLD_MAPS and map_id not in PVP_MAPS and not (map_id == instance and dungeon):
         rows.append({"kind": "map", "code": map_id, "entity_count": 0, "effects": 0})
     rows.sort(key=lambda r: (r["kind"], r["code"]))
-    return {"catalog_revision": revision(), "map_id": map_id, "instance_id": instance,
+    return {"catalog_revision": revision(), "catalog_source": source(), "map_id": map_id, "instance_id": instance,
             "catalog_zone": dungeon.get("name"), "catalog_difficulty": dungeon.get("difficulty"),
             "unmapped": rows[:LIMIT], "omitted": max(0, len(rows)-LIMIT),
             "npc_entities_without_type": missing,
