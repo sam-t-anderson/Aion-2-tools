@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.80
+
+- Outgoing action-time assumptions can now retain an active skill or stigma, its trained minimum and an optional supporting effect. Links merge with other personal reserves without dropping stricter requirements.
+- Optional effective-cooldown assumptions check reuse separately for each outgoing damage scenario. Saved advice and Markdown show linked requirements, clipped scenario use times and unknown or satisfied reuse status.
+- Timing remains user-entered: actual tactical casts, MP/cooldown consumption, offensive-rotation reuse, CC success and shared cooldown groups are not simulated. Empty schedules preserve the existing damage model.
+
 # Aion 2 Calc 0.2.79
 
 - Personal PvE/PvP optimization now accepts explicit outgoing action-time windows for defense or movement. Candidate scoring, rotations, stat weights and the current-character comparison share the entered schedule.

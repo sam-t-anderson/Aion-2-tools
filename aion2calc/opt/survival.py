@@ -49,6 +49,35 @@ def pressure_deficit(pressure, window, healing, healing_start, healing_end, redu
     return peak, peak_time
 
 
+def window_requirement(cd, item, *, action=False):
+    sid, effect = item.get("skill_id"), item.get("effect_id")
+    requirement = None
+    if sid is not None:
+        if type(sid) is not int or sid not in cd.skills:
+            raise ValueError("Link a known skill from your class to the timing window")
+        skill = cd.skills[sid]
+        if action and skill["kind"] not in ("active", "stigma"):
+            raise ValueError("Outgoing action-time links need an active skill or stigma, not a passive")
+        cap = 20 if skill["kind"] == "stigma" else min(10, skill.get("buyMax",10))
+        trained = item.get("min_trained", 1)
+        if type(trained) is not int or not 1 <= trained <= cap:
+            raise ValueError("Linked skill trained minimum must fit its purchasable range")
+        catalog = {e["id"]: e for e in skill.get("specs", [])}
+        if effect is not None and (type(effect) is not int or skill["kind"] != "active" or effect not in catalog):
+            raise ValueError("Link a supporting effect belonging to the selected active skill")
+        requirement = {"id": sid, "name": skill["name"], "kind": skill["kind"], "minimum": trained,
+                       "effect_id": effect, "effect": catalog[effect]["text"] if effect is not None else None}
+    elif effect is not None:
+        raise ValueError("Choose a skill before linking its supporting effect")
+    cooldown = item.get("cooldown_s")
+    if cooldown is not None:
+        cooldown = number(cooldown, "Assumed effective cooldown", 3600)
+        if sid is None:
+            raise ValueError("Link a skill before entering its cooldown")
+    return {"skill_requirement": requirement, "skill_id": sid, "effect_id": effect,
+            "min_trained": requirement["minimum"] if requirement else 1, "cooldown_s": cooldown}
+
+
 def reduction_windows(cd, row, window):
     values = row.get("reductions", [])
     if not isinstance(values, list) or len(values) > 8:
@@ -60,40 +89,18 @@ def reduction_windows(cd, row, window):
         delay = number(item.get("delay_s", 0), "Reduction delay", 120)
         duration = number(item.get("duration_s", 0), "Reduction duration", 120)
         reduction = number(item.get("reduction_pct", 0), "Assumed pressure reduction percent", 100)
-        sid, effect = item.get("skill_id"), item.get("effect_id")
-        requirement = None
-        if sid is not None:
-            if type(sid) is not int or sid not in cd.skills:
-                raise ValueError("Link a known skill from your class to the pressure window")
-            skill = cd.skills[sid]
-            cap = 20 if skill["kind"] == "stigma" else min(10, skill.get("buyMax",10))
-            trained = item.get("min_trained", 1)
-            if type(trained) is not int or not 1 <= trained <= cap:
-                raise ValueError("Linked skill trained minimum must fit its purchasable range")
-            catalog = {e["id"]: e for e in skill.get("specs", [])}
-            if effect is not None and (type(effect) is not int or skill["kind"] != "active" or effect not in catalog):
-                raise ValueError("Link a supporting effect belonging to the selected active skill")
-            requirement = {"id": sid, "name": skill["name"], "kind": skill["kind"], "minimum": trained,
-                           "effect_id": effect, "effect": catalog[effect]["text"] if effect is not None else None}
-        elif effect is not None:
-            raise ValueError("Choose a skill before linking its supporting effect")
-        cooldown = item.get("cooldown_s")
-        if cooldown is not None:
-            cooldown = number(cooldown, "Assumed effective cooldown", 3600)
-            if sid is None:
-                raise ValueError("Link a skill before entering its cooldown")
+        link = window_requirement(cd, item)
         start = min(window, delay)
         end = min(window, delay+duration)
         result.append({"name": str(item.get("name") or "Assumed reduction")[:100],
                        "kind": item.get("kind", "defensive"), "delay_s": delay,
                        "duration_s": duration, "reduction_pct": reduction,
                        "start_s": start, "end_s": end, "active_s": end-start,
-                       "skill_requirement": requirement, "skill_id": sid, "effect_id": effect,
-                       "min_trained": requirement["minimum"] if requirement else 1, "cooldown_s": cooldown})
+                       **link})
     return result
 
 
-def cooldown_checks(reductions):
+def cooldown_checks(reductions, *, action_duration=None):
     """Validate only user-assumed reuse spacing, separately per encounter.
 
     All linked skills start ready. A shared start represents one activation
@@ -108,7 +115,9 @@ def cooldown_checks(reductions):
                                            "starts": set(), "cooldowns": []})
         if w.get("cooldown_s") is not None:
             row["cooldowns"].append(w["cooldown_s"])
-        if w["active_s"] > 0 and w["reduction_pct"] > 0:
+        active = (w["duration_s"] > 0 and w["start_s"] < action_duration
+                  if action_duration is not None else w["active_s"] > 0 and w["reduction_pct"] > 0)
+        if active:
             row["starts"].add(w["start_s"])
     result = []
     for row in skills.values():
@@ -116,7 +125,8 @@ def cooldown_checks(reductions):
         cooldown = max(row["cooldowns"], default=None)
         gap = min((b-a for a,b in zip(starts, starts[1:])), default=None)
         if cooldown is not None and gap is not None and gap+1e-9 < cooldown:
-            raise ValueError(f"{row['skill']}: pressure windows reuse the skill after {gap:g}s, "
+            label = "action-time windows" if action_duration is not None else "pressure windows"
+            raise ValueError(f"{row['skill']}: {label} reuse the skill after {gap:g}s, "
                              f"before the assumed {cooldown:g}s cooldown. Adjust the starts or assumption.")
         result.append({"skill_id": row["skill_id"], "skill": row["skill"], "activation_starts_s": starts,
                        "cooldown_s": cooldown, "shortest_reuse_gap_s": gap,
@@ -128,11 +138,14 @@ def cooldown_checks(reductions):
 ACTION_NOTE = ("Explicit no-new-offensive-action windows on the rotation clock, starting at zero. "
                "The same one-fight schedule applies once to each damage scenario, clipped to its duration; overlaps use their union. "
                "Actions must finish before a pause. Scheduled hits, DoTs, pets, cooldown recovery and regeneration continue. "
+               "Linked active skills/stigmas and effects are allocation reserves, even for zero-duration or clipped-out windows. "
+               "Entered effective cooldowns check assumed reuse separately in each damage scenario; blank remains unknown. "
+               "Same-start entries represent one assumed use, and the largest entered cooldown for a skill applies. "
                "No tactical skill is cast, no MP or tactical cooldown is consumed and no defensive success is inferred. "
                "Pressure scenarios have independent clocks; their windows are not automatically copied. Community baselines remain untimed references.")
 
 
-def prepare_action_windows(options):
+def prepare_action_windows(cd, options):
     values = options.get("action_windows", [])
     if not isinstance(values, list) or len(values) > 8:
         raise ValueError("Use at most eight outgoing action-time windows")
@@ -143,7 +156,8 @@ def prepare_action_windows(options):
         start = number(row.get("start_s"), "Action-time start", 3600)
         duration = number(row.get("duration_s"), "Action-time duration", 120)
         windows.append({"name": str(row.get("name") or "Tactical time")[:100],
-                        "start_s": start, "duration_s": duration, "end_s": start+duration})
+                        "start_s": start, "duration_s": duration, "end_s": start+duration,
+                        **window_requirement(cd, row, action=True)})
     return windows
 
 
@@ -153,6 +167,7 @@ def with_action_timing(scenario, plan):
     windows = (plan or {}).get("action_windows", [])
     if not windows:
         return scenario
+    cooldown_checks(windows, action_duration=scenario.config.duration)
     blocks = action_blocks(tuple(scenario.config.action_blocks) + tuple((w["start_s"], w["end_s"]) for w in windows),
                            scenario.config.duration)
     if sum(end-start for start, end in blocks) >= scenario.config.duration-1e-9:
@@ -165,7 +180,8 @@ def action_timing_summary(plan, scenarios):
         return None
     return {"note": ACTION_NOTE, "windows": plan["action_windows"], "cases": {
         name: {"duration_s": scenario.config.duration, "blocks": list(scenario.config.action_blocks),
-               "paused_s": sum(end-start for start, end in scenario.config.action_blocks)}
+               "paused_s": sum(end-start for start, end in scenario.config.action_blocks),
+               "cooldown_checks": cooldown_checks(plan["action_windows"], action_duration=scenario.config.duration)}
         for name, scenario in scenarios.items()}}
 
 
@@ -174,7 +190,7 @@ def prepare(cd, current, options=None):
         return None
     if not isinstance(options, dict):
         raise ValueError("Invalid survival options")
-    windows = prepare_action_windows(options)
+    windows = prepare_action_windows(cd, options)
     preserve = options.get("preserve_hp", True)
     if type(preserve) is not bool:
         raise ValueError("Preserve HP must be true or false")
@@ -232,7 +248,7 @@ def prepare(cd, current, options=None):
     available = node_hp(cd, {nid for nid, (_, node) in cd.node_index.items() if node.get("type") != "Start"})
     if floor > available+1e-6:
         raise ValueError(f"Requested crystal HP reserve {floor:,.0f} exceeds the catalog's total {available:,.0f}, even before point/connectivity costs. Lower the reserve or incoming-damage assumptions.")
-    return {"version": 6, "action_windows": windows, "action_timing_note": ACTION_NOTE, "preserve_hp": preserve, "reference_node_hp": reference,
+    return {"version": 7, "action_windows": windows, "action_timing_note": ACTION_NOTE, "preserve_hp": preserve, "reference_node_hp": reference,
             "minimum_node_hp": max(0, floor), "current_hp": hp, "opponents": rows, "note": NOTE}
 
 

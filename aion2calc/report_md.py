@@ -43,8 +43,24 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         for row in timing["windows"]:
             name = row["name"].replace("\n", " ")
             w(f"- {name}: {row['start_s']:g}–{row['end_s']:g}s.\n")
+            req = row.get("skill_requirement")
+            if req:
+                w(f"  Requested retention: {req['name']} (trained minimum {req['minimum']})" +
+                  (f"; supporting effect: {req['effect']}" if req.get("effect") else "") + ".\n")
+            else:
+                w("  Unlinked timing assumption.\n")
         for name, case in timing["cases"].items():
             w(f"- {name}: {case['paused_s']:g}s unavailable for new actions in {case['duration_s']:g}s; clipped interval union {case['blocks']}.\n")
+            for check in case.get("cooldown_checks", []):
+                starts = ", ".join(f"{t:g}s" for t in check["activation_starts_s"]) or "none"
+                cooldown = check["cooldown_s"]
+                gap = check["shortest_reuse_gap_s"]
+                status = ("No active action-time windows in this scenario" if not check["activation_starts_s"] else
+                          "Cooldown unknown; reuse not assessed" if cooldown is None else
+                          f"Assumed effective cooldown {cooldown:g}s; assumed spacing satisfied")
+                reuse = "no repeated assumed use" if gap is None else f"shortest reuse gap {gap:g}s"
+                mixed = "; largest of differing cooldown assumptions used" if check["mixed_assumptions"] else ""
+                w(f"  - {check['skill']}: starts {starts}; {status}; {reuse}{mixed}.\n")
     if s.get("survival"):
         hp = s["survival"]
         w("## HP reserve\n")
