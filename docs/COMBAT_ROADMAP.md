@@ -371,3 +371,10 @@ These maintenance/screenshot requests are queued for later; they are not part of
 Exact recorded map/instance IDs now use explicit NPC catalog categories and tiers to fill missing context. Unique NPC-only candidates can suggest a zone without fabricating an instance ID or entry; they remain unranked. Shared review, diagnostics and mapping exports explain matches, ambiguities and conflicts. Server metrics group public context evidence by build and retain classification basis in boss HP candidates.
 
 The latest pinned upstream audit contains no NPC/dungeon table changes. Still pending: independently confirmed build applicability and difficulty/scaling labels for HP calibration; supported missing local-identity/spawn records; trusted NPC portraits and explicit miniboss/world-boss roles; verified PURPLE launcher build manifest formats. These require source evidence rather than names or ID-pattern guesses.
+
+
+## Seven workstreams — optimizer survival and optimized opponents
+
+Optimized builds now retain timed expected-hit traces for both damage scenarios. Personal optimization can import several optimized PvP opponents together and constrain HP against each opponent's greatest gross-damage window, with explicit healing and defensive/control/movement assumptions. Results identify the strictest incoming requirement and preserve hit schedules and source assumptions. Existing skill/specialty retention and outgoing action/cooldown reservations remain available in PvE and PvP.
+
+Still pending within this workstream: verified defensive/CC/movement coefficients and immunity rules, matchup-specific outgoing and incoming mitigation, worst-case tactical alignment, reactive opponent behavior and representative validation. These are not replaced by a win-rate claim. Next major workstream: Genus and progression coverage.

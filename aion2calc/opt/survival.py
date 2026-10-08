@@ -14,7 +14,7 @@ NOTE = ("Flat crystal-board HP reserve only. Total HP headroom uses entered curr
         "crowd control and movement are not inferred. Timed pressure reductions are explicit user assumptions, "
         "not skill casts, guaranteed control or successful avoidance. Linked skills/effects are retained as allocation constraints. Entered effective cooldowns check repeat spacing only; missing cooldowns remain unknown. Overlap uses the strongest reduction only. "
         "Incoming damage/healing are user assumptions "
-        "after mitigation. Healing timing is assumed, excess healing is not banked and the initial burst remains protected separately. Positive headroom is not a guarantee of survival or a PvP win prediction.")
+        "after mitigation. Healing timing is assumed, excess healing is not banked and the separate initial burst remains protected. Timed expected hits use explicit reduction windows; selected opponent windows maximize gross damage before healing/defense, not the mitigated HP requirement across all possible timings. Expected hits do not model random critical spikes or real opponent reactions. Positive headroom is not a guarantee of survival or a PvP win prediction.")
 
 
 def node_hp(cd, nodes):
@@ -47,6 +47,76 @@ def pressure_deficit(pressure, window, healing, healing_start, healing_end, redu
         if deficit > peak:
             peak, peak_time = deficit, end
     return peak, peak_time
+
+
+def damage_trace(value, *, maximum_duration=3600):
+    """Normalize complete expected hits; never silently truncate imported traces."""
+    if not isinstance(value, dict) or type(value.get("version")) is not int or value["version"] != 1:
+        raise ValueError("Missing or unsupported timed damage trace; re-optimize this opponent or use average pressure")
+    duration = number(value.get("duration_s"), "Trace duration", maximum_duration, .1)
+    total = number(value.get("total"), "Trace total", 1e12)
+    events = value.get("events")
+    if not isinstance(events, list) or not 1 <= len(events) <= 50000:
+        raise ValueError("Timed damage traces need 1 to 50,000 complete hits")
+    clean, previous = [], -1.0
+    for event in events:
+        if not isinstance(event, list) or len(event) != 2:
+            raise ValueError("Invalid timed damage hit")
+        t = number(event[0], "Hit time", duration)
+        amount = number(event[1], "Expected hit damage")
+        if t < previous:
+            raise ValueError("Timed damage hits must be chronological")
+        clean.append([t, amount])
+        previous = t
+    if not math.isclose(sum(e[1] for e in clean), total, rel_tol=1e-8, abs_tol=1e-5):
+        raise ValueError("Timed damage trace total does not match its hits")
+    return {"version": 1, "duration_s": duration, "total": total, "events": clean}
+
+
+def timed_deficit(trace, pressure, window, healing, healing_start, healing_end, reductions=()):
+    """Reflected pressure deficit with instantaneous hits and continuous healing.
+
+    Same-time hits land together; healing cannot pre-pay a hit. Reduction
+    intervals are half-open, so a hit exactly at their end is unprotected.
+    """
+    hits = {}
+    for t, amount in trace["events"]:
+        hits[t] = hits.get(t, 0.0) + amount
+    boundaries = sorted({0.0, window, healing_start, healing_end, *hits,
+                         *(w["start_s"] for w in reductions), *(w["end_s"] for w in reductions)})
+    deficit = peak = peak_time = 0.0
+    previous = 0.0
+    for t in boundaries:
+        reduction = max((w["reduction_pct"]/100 for w in reductions
+                         if w["start_s"] <= previous < w["end_s"]), default=0.0)
+        hps = healing if healing_start <= previous < healing_end else 0.0
+        deficit = max(0.0, deficit + (pressure*(1-reduction)-hps)*(t-previous))
+        if deficit > peak:
+            peak, peak_time = deficit, t
+        hit_reduction = max((w["reduction_pct"]/100 for w in reductions
+                             if w["start_s"] <= t < w["end_s"]), default=0.0)
+        deficit += hits.get(t, 0.0)*(1-hit_reduction)
+        if deficit > peak:
+            peak, peak_time = deficit, t
+        previous = t
+    return peak, peak_time
+
+
+def peak_trace_window(trace, window, factor):
+    """Select the greatest gross-damage window, before user healing/defense."""
+    events = trace["events"]
+    left, running, best, start = 0, 0.0, -1.0, 0.0
+    for t, amount in events:
+        running += amount
+        while events[left][0] < t-window-1e-9:
+            running -= events[left][1]
+            left += 1
+        if running > best:
+            best = running
+            start = min(max(0.0, t-window), trace["duration_s"]-window)
+    selected = [[min(window, max(0.0, t-start)), amount*factor] for t, amount in events if start-1e-9 <= t <= start+window+1e-9]
+    return start, {"version": 1, "duration_s": window,
+                   "total": sum(e[1] for e in selected), "events": selected}
 
 
 def window_requirement(cd, item, *, action=False):
@@ -233,6 +303,13 @@ def prepare(cd, current, options=None):
         timing_checks = cooldown_checks(reductions)
         peak_pressure, peak_time = pressure_deficit(pressure, window, healing, healing_start, healing_end, reductions)
         unprotected_peak, _ = pressure_deficit(pressure, window, healing, healing_start, healing_end)
+        trace = row.get("damage_trace")
+        if trace is not None:
+            trace = damage_trace(trace, maximum_duration=120)
+            if not math.isclose(trace["duration_s"], window, rel_tol=0, abs_tol=1e-8):
+                raise ValueError("Timed scenario duration is fixed by its imported trace; re-import to change the window")
+            peak_pressure, peak_time = timed_deficit(trace, pressure, window, healing, healing_start, healing_end, reductions)
+            unprotected_peak, _ = timed_deficit(trace, pressure, window, healing, healing_start, healing_end)
         reserve = number(row.get("reserve_hp", 1), "HP reserve", minimum=1)
         required = burst + peak_pressure + reserve
         rows.append({"name": str(row.get("name") or "Incoming pressure")[:100], "burst_damage": burst,
@@ -243,6 +320,8 @@ def prepare(cd, current, options=None):
                      "reserve_hp": reserve, "required_hp": required, "source": "user_assumption",
                      "reductions": reductions, "cooldown_checks": timing_checks, "unprotected_required_hp": burst+unprotected_peak+reserve,
                      "assumed_requirement_reduction_hp": max(0, unprotected_peak-peak_pressure)})
+        if trace is not None:
+            rows[-1]["damage_trace"] = trace
         evidence = row.get("recorded_evidence")
         if isinstance(evidence, dict):
             # Provenance is user-imported context, never authenticated telemetry.
@@ -251,7 +330,7 @@ def prepare(cd, current, options=None):
         benchmark = row.get("opponent_benchmark")
         if isinstance(benchmark, dict):
             rows[-1]["opponent_benchmark"] = {k: str(benchmark[k])[:500] for k in
-                ("title", "created", "class", "metric", "modeled_dps", "scale", "source_duration_s", "duration_source", "model_note") if k in benchmark}
+                ("title", "created", "class", "metric", "modeled_dps", "scale", "source_duration_s", "duration_source", "model_note", "method", "source_start_s", "source_end_s", "trace_hits") if k in benchmark}
     if rows and hp is None:
         raise ValueError("Enter your current maximum HP before using incoming-damage scenarios")
     if not preserve and floor == 0 and not rows and not windows:
@@ -261,7 +340,7 @@ def prepare(cd, current, options=None):
     available = node_hp(cd, {nid for nid, (_, node) in cd.node_index.items() if node.get("type") != "Start"})
     if floor > available+1e-6:
         raise ValueError(f"Requested crystal HP reserve {floor:,.0f} exceeds the catalog's total {available:,.0f}, even before point/connectivity costs. Lower the reserve or incoming-damage assumptions.")
-    return {"version": 8, "action_windows": windows, "action_timing_note": ACTION_NOTE, "preserve_hp": preserve, "reference_node_hp": reference,
+    return {"version": 9, "action_windows": windows, "action_timing_note": ACTION_NOTE, "preserve_hp": preserve, "reference_node_hp": reference,
             "minimum_node_hp": max(0, floor), "current_hp": hp, "opponents": rows, "note": NOTE}
 
 
@@ -274,7 +353,8 @@ def assessment(cd, build, plan):
             for r in plan["opponents"]]
     return {**plan, "selected_node_hp": hp, "meets_node_floor": hp+1e-6 >= plan["minimum_node_hp"],
             "estimated_total_hp_proxy": total, "opponents": rows,
-            "worst_headroom_hp": min((r["headroom_hp"] for r in rows), default=None)}
+            "worst_headroom_hp": min((r["headroom_hp"] for r in rows), default=None),
+            "binding_opponents": [r["name"] for r in rows if math.isclose(r["required_hp"], max(x["required_hp"] for x in rows))]}
 
 
 def recorded_pressure(document, segment=None, target=None, window_s=5):
@@ -331,8 +411,8 @@ def recorded_pressure(document, segment=None, target=None, window_s=5):
                          "reserve_hp": 1, "recorded_evidence": evidence}}
 
 
-def opponent_pressure(document, metric, scale, window_s):
-    """Use a saved optimized PvP score as an explicit, user-scaled pressure assumption."""
+def opponent_pressure(document, metric, scale, window_s, method="average"):
+    """Import a bounded saved PvP average or timed expected-hit benchmark."""
     from ..app.history import validate
     from ..combat.a2log import CLASSES
     doc = validate(document)
@@ -358,12 +438,29 @@ def opponent_pressure(document, metric, scale, window_s):
     source_duration = number(durations.get(metric, 30 if metric == "pvp_burst" else 180), "Benchmark duration", 3600, .1)
     if window > source_duration:
         raise ValueError("Pressure window cannot exceed the source benchmark duration")
+    if method not in ("average", "timed"):
+        raise ValueError("Choose average or timed opponent pressure")
     pressure = number(dps * factor, "Scaled incoming damage per second")
+    trace = None
+    start = 0.0
+    if method == "timed":
+        traces = view.get("damage_traces")
+        trace = damage_trace(traces.get(metric) if isinstance(traces, dict) else None)
+        if not math.isclose(trace["duration_s"], source_duration, abs_tol=1e-8):
+            raise ValueError("Trace duration does not match the saved damage scenario")
+        if not math.isclose(trace["total"]/trace["duration_s"], dps, rel_tol=1e-8, abs_tol=1e-5):
+            raise ValueError("Trace damage does not match the saved DPS estimate")
+        start, trace = peak_trace_window(trace, window, factor)
+        trace = damage_trace(trace, maximum_duration=120)
+        pressure = 0.0
     evidence = {"title": doc["title"], "created": doc["created"], "class": view["class"],
                 "metric": metric, "modeled_dps": dps, "scale": factor,
                 "source_duration_s": source_duration,
                 "duration_source": "saved objective" if metric in durations else "legacy scenario default",
                 "model_note": str(view.get("model_note") or "Original model assumptions not recorded")[:500]}
-    return {"scenario": {"name": f"{view['class']} · {metric} benchmark"[:100],
+    evidence.update({"method": method, "source_start_s": start, "source_end_s": start+window,
+                     "trace_hits": len(trace["events"]) if trace else 0})
+    return {"scenario": {**({"damage_trace": trace} if trace else {}),
+                         "name": f"{view['class']} · {metric} {method} benchmark"[:100],
                          "burst_damage": 0, "pressure_dps": pressure, "window_s": window,
                          "healing_hps": 0, "reserve_hp": 1, "opponent_benchmark": evidence}}

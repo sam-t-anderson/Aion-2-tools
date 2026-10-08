@@ -651,7 +651,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"job": start_job("import", act_character_import, body)})
         if path == "/api/character/opponent-pressure":
             from ..opt.survival import opponent_pressure
-            return self._json(opponent_pressure(body.get("result"), body.get("metric"), body.get("scale"), body.get("window_s")))
+            return self._json(opponent_pressure(body.get("result"), body.get("metric"), body.get("scale"), body.get("window_s"), body.get("method", "average")))
         if path == "/api/character/pressure":
             from ..opt.survival import recorded_pressure
             return self._json(recorded_pressure(body.get("log"), body.get("segment"), body.get("target"), body.get("window_s", 5)))
