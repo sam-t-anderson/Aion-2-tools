@@ -108,6 +108,12 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
     with learn.calibrated(imp.cls) as cal:
         say("scoring the character as it is")
         ctx = PlanContext.from_character(imp, inv, evaluation)
+        from .genus import content_mix
+        from ..opt.genus import prepare as prepare_genus, apply as apply_genus
+        fights = fights_of(imp.name, imp.cls)
+        resolved_mix = content_mix(fights, genus_mix)
+        genus_plan = prepare_genus(inv.get("genus", {}), "pvp" if ctx.scenario.startswith("pvp") else "pve", {"mix": resolved_mix})
+        ctx.loadout = apply_genus(ctx.loadout, genus_plan)
         base = ctx.dps(ctx.equipped)
         from ..run import prepare
         from ..scenarios import SCENARIOS
@@ -125,8 +131,7 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
         say("pantheon")
         pan = plan_pantheon(ctx, imp.systems, arc)
         say("genus insight")
-        fights = fights_of(imp.name, imp.cls)
-        gen = plan_genus(ctx, inv.get("genus"), fights, genus_mix)
+        gen = plan_genus(ctx, inv.get("genus"), fights, resolved_mix)
         say("titles")
         tit = plan_titles(ctx, imp.systems, inv.get("titles_owned"))
         say("your fights")
@@ -156,7 +161,7 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
         top.append({"area": "titles", "text": f"collect {c['name']} for its owned bonus ({c['owned_bonus']})",
                     "gain": c["gain"]})
     for c in gen["chase"][:1]:
-        top.append({"area": "genus insight", "text": f"{c['line']} in slot 4 or 7 ({c['value']})", "gain": c["gain"]})
+        top.append({"area": "genus insight", "text": f"{c['genus']} slot {c['slot']}: {c['line']} ({c['value']}); {c['assumption']}", "gain": c["gain"]})
     for r in gen["reroll_first"][:2]:
         top.append({"area": "genus insight", "text": f"reroll {r['genus']} slot {r['slot']} ({r['stat']} {r['value']}: "
                                                      "no damage)", "gain": None})
@@ -225,8 +230,12 @@ def write_markdown(adv: dict, out: Path) -> Path:
     for r in adv["pantheon"]["per_point"]:
         L.append(f"| {r['deity']} | {_pct(r['gain_per_point'] * 10)} | {adv['pantheon']['current'].get(r['deity'], 0):g} |")
     L += ["", "## Genus insight", "", "Fight time by genus: " + ", ".join(f"{g} {100 * v:.0f}%" for g, v in adv["genus"]["mix"].items())]
+    coverage = adv["genus"].get("coverage")
+    if coverage:
+        L.append(f"Recorded levels: {coverage['recorded_genera']}/5; saved lines: {coverage['recorded_lines']}; included damage effects: {coverage['modeled_lines']}.")
+        L.append(coverage["note"])
     for r in adv["genus"]["lines"]:
-        L.append(f"* {r['genus']} slot {r['slot']}: {r['stat']} {r['value']} → {_pct(r['gain'])}")
+        L.append(f"* {r['genus']} slot {r['slot']}: {r['stat']} {r['value']} → {_pct(r['gain']) if r['gain'] is not None else r.get('reason', 'Not modeled')}")
     for r in adv["genus"]["level_order"][:3]:
         L.append(f"* level {r['genus']} (Lv {r['level']}, {100 * r['share']:.0f}% of your fight time)")
     rot = adv["rotation"]

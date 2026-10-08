@@ -206,6 +206,12 @@ PvE scales genus-specific stat lines by a user-assumed enemy mix (equal Cogni/Fe
 
 Optimization holds rolls fixed while selecting other allocations. Reported line contributions remove one line from the final build using its existing rotation; contributions are conditional and not additive. They do not represent reroll probabilities, costs or guaranteed obtainable replacements. Genus-dependent personal builds are not submitted to common-loadout presets.
 
+### Genus coverage and candidate evaluation
+
+Advice and character optimization share effect validation and mode/primary-stat filters. Advice includes saved modeled Genus stats in its base loadout. Per-line contributions remove one modeled line without changing rotation; unsupported/defensive effects have no damage estimate. Single-slot candidates replace the old line in an unlocked catalog damage slot; missing target lines require an explicit empty-slot assumption. No synthetic tenth slot, additive candidate total, ownership, reroll cost or defensive equivalence is inferred. Five-genus coverage retains missing levels/lines distinctly from zero and known locked slots.
+
+Point budget provenance separates observed allocations, selected available totals and assumed unspent balances. Current profile allocations, saved user totals and level-based examples do not establish maximum progression or available unspent points. Personal saved results retain these assumptions alongside the Genus snapshot.
+
 ## Damage optimization with an HP reserve
 
 My Character → **Survivability** preserves the character's imported flat **HPMax** contribution from the four optimized crystal boards by default. The existing DPS objective stays primary inside the set of allocations meeting this floor. Skill, stigma and Daevanion budgets and board connectivity remain enforced. A stricter minimum can trade some modeled DPS for more crystal HP. Disable preservation and leave the minimum/scenarios empty to use the previous damage-only objective. This is an HP-node constraint, not a full survival simulator.

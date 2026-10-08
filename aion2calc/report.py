@@ -305,7 +305,7 @@ def sensitivity(build, scenario, policy, samples: int = 12, spread: float = 0.25
 def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget: int = 360,
                iterations: int = 3, loadout: str | None = None, verbose: bool = True,
                sp_budget: int | None = None, stigma_points: int | None = None,
-               current: object | None = None, progress=None, survival=None, loadout_snapshot: dict | None = None, skill_reserves=None, genus=None, objective="primary") -> dict:
+               current: object | None = None, progress=None, survival=None, loadout_snapshot: dict | None = None, skill_reserves=None, genus=None, objective="primary", progression=None) -> dict:
     """``current``: a Build (e.g. an imported character) to evaluate and diff against.
     ``progress``: optional callback(str) for live phase updates (the app streams these to the UI)."""
     t0 = time.time()
@@ -372,6 +372,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     }
     summary = {
         "class": cls, "level": 45, "scenario": scenario_name, "daevanion_budget": daev_budget,
+        "progression": copy.deepcopy(progression),
         "budgets": {"skill": opt.sp_budget, "stigma": opt.stigma_points, "daevanion": daev_budget},
         "dps": {scenario_name: final.dps, other_name: final_other.dps},
         "damage_traces": {name: {"version": 1, "duration_s": result.duration, "total": result.total,

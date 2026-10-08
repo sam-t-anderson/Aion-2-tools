@@ -34,6 +34,14 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         w(" | ".join(f"{name}: {weight:.0%}, {objective.get('durations', {}).get(name, 'unknown')}s, {objective['components'][name]:,.0f} DPS"
                      for name, weight in objective["weights"].items()) + "\n")
         w(objective["note"] + "\n")
+    if s.get("progression"):
+        progress = s["progression"]
+        w("## Point budget provenance\n")
+        w("| Resource | Observed spent | Assumed available | Assumed unspent | Basis | Verified maximum |")
+        w("|---|---:|---:|---:|---|---|")
+        for row in progress["resources"]:
+            w(f"| {row['resource']} | {row['observed_spent']} | {row['available_assumption']} | {row['assumed_unspent']} | {row['source']} | Unknown |")
+        w("\n" + progress["note"] + "\n")
     if s.get("model_note"):
         w(s["model_note"] + "\n")
     if s.get("action_timing"):
