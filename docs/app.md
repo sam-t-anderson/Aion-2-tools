@@ -561,3 +561,9 @@ These endpoints belong to the local desktop app. See [CLI and development](cli.m
 Use **Export image failures** in a log review or its character build view on desktop or Pages. The JSON contains image-error counts and recorded public asset references where available: official IDs stay paired with their region and asset kind; Metabot item slugs and skill IDs remain separate. These identify the displayed asset, not a verified URL-to-ID relationship. Character portraits have no exported ID. Full URLs, character names, gear stats and credentials are excluded.
 
 The report retains up to 200 failed resources and eight distinct references per resource, with eviction/truncation indicators. Export before reloading, navigating to another website page or using Retry images; this data exists only for the current page lifetime. Browser image errors do not expose HTTP status. Settings' image coverage export includes this report alongside the local index and proxy counters.
+
+### Starting capture during an instance
+
+Combat effects can arrive before the first party roster or your identity record. Party view reconciles earlier retained effects against the first roster observed in the same identity context when actor names match. App and overlay show those readings with a late-roster notice; the affected encounters remain unranked because earlier membership is unverified. Later joins/disbands do not rewrite the initial roster. Players without a matching name remain unresolved.
+
+Self requires a recorded local identity or the optional exact character-name override. If you start mid-instance, enter your character name before Start when automatic identity is unavailable. Nearby damage is never used to guess which actor is you. Raw TCP recording is optional and does not control combat decoding.

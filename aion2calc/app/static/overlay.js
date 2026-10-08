@@ -75,8 +75,8 @@
     $("#ovstatus").title=$("#ovstatus").textContent;
     $("#ovconnection").hidden=!meterUnavailable;
     if(meterUnavailable) $("#ovreason").textContent=refreshError+' · '+(lastSuccess ? Math.floor((Date.now()-lastSuccess)/1000)+'s since last refresh. ' : '')+'Last readings retained; capture status unknown.';
-    const empty = s.error || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app.");
-    $("#ovcontent").innerHTML = rows || `<div class="muted">${esc(empty)}</div>`;
+    const empty = s.error || snap.warning || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app.");
+    $("#ovcontent").innerHTML = (rows && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`);
   }
   function renderPlan() {
     $("#ovconnection").hidden=true;

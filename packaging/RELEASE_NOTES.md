@@ -1,3 +1,10 @@
+# Aion 2 Calc 0.2.85
+
+- Fixed Party filtering for captures started mid-instance: earlier retained effects can be matched to the first roster observed later in the same identity context. Later roster changes do not rewrite that initial roster.
+- App and overlay show the same recovered Party readings and explain late roster evidence. Self still requires an observed identity or an exact name override; unnamed actors are not assigned to you.
+- Late-roster encounters remain reviewable but unranked, and do not establish a complete earlier party roster. Saved logs preserve this evidence.
+- Corrected the empty-meter message when effects were decoded but the selected identity/party view cannot yet show them.
+
 # Aion 2 Calc 0.2.84
 
 - Corrected live capture diagnostics that excluded enemies without recorded NPC types before counting missing identities. Identified players and owned pets remain excluded from NPC coverage.

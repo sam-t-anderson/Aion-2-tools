@@ -1243,7 +1243,7 @@ function renderMeter(s) {
   const view = $("#mview"); if (!view) return;
   if (!snap.players.length) {
     st.lastMeterRender = null;
-    view.innerHTML = win("Meter", "", `<div class="empty">${s.running ? ((s.diagnostics?.packets || 0) ? (s.diagnostics?.forwarded ? "The game stream is reaching the decoder but no combat events have been recognized. Enable TCP recording before Start and export capture diagnostics after fighting briefly." : "Packets are arriving. Waiting for a recognized game stream — enter combat. Enable TCP recording before Start to investigate.") : "No packets yet. Check capture support, adapter permissions and your interface selection, then enter combat.") : "No data yet — choose a source and press Start."}${snap.warning ? "<p>" + esc(snap.warning) + "</p>" : ""}${s.diagnostics?.warnings?.length ? "<p>" + esc(s.diagnostics.warnings.join("; ")) + "</p>" : ""}</div>`);
+    view.innerHTML = win("Meter", "", `<div class="empty">${s.diagnostics?.decoded_events ? "Combat effects were decoded; waiting for a matching player identity or party roster in this view." : s.running ? ((s.diagnostics?.packets || 0) ? (s.diagnostics?.forwarded ? "The game stream is reaching the decoder but no combat events have been recognized. Enable TCP recording before Start and export capture diagnostics after fighting briefly." : "Packets are arriving. Waiting for a recognized game stream — enter combat. Enable TCP recording before Start to investigate.") : "No packets yet. Check capture support, adapter permissions and your interface selection, then enter combat.") : "No data yet — choose a source and press Start."}${snap.warning ? "<p>" + esc(snap.warning) + "</p>" : ""}${s.diagnostics?.warnings?.length ? "<p>" + esc(s.diagnostics.warnings.join("; ")) + "</p>" : ""}</div>`);
     return;
   }
   const mx = Math.max(...snap.players.map((p) => p.dps), 1);
@@ -1257,7 +1257,7 @@ function renderMeter(s) {
       <div class="nmc"><b>${esc(p.name)}</b> <span class="muted small">${esc(cap(p.class || ""))}</span></div>
       <div class="bar"><i style="width:${100 * p.dps / mx}%"></i><span>${kfmt(p.dps)}/s · ${pct(p.share, 0)}</span></div></div>`).join("");
   const enemyTable = snap.enemies?.length ? win("Enemies", "select an enemy to show each player's damage against it", `<table class="t"><tr><th>Enemy</th><th>Party damage dealt</th><th>Party DPS</th></tr>${snap.enemies.map((enemy) => `<tr class="${enemy.key === snap.selected_enemy ? "sel" : ""}"><td><button class="btn small" data-enemy="${esc(enemy.key)}">${esc(enemy.name)}</button></td><td>${kfmt(enemy.damage)}</td><td>${kfmt(enemy.dps)}</td></tr>`).join("")}</table>`) : "";
-  replaceMeterHtml(view, enemyTable + win("Players", `${esc(snap.boss || "")}${snap.boss ? " · " : ""}${(snap.duration || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)} raid DPS`,
+  replaceMeterHtml(view, (snap.warning ? `<p class="note">${esc(snap.warning)}</p>` : "") + enemyTable + win("Players", `${esc(snap.boss || "")}${snap.boss ? " · " : ""}${(snap.duration || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)} raid DPS`,
     `<div class="pmeters">${rows}</div>`) + `<div id="pbd">${renderParse(parseFromMeter(snap, st.sel))}</div>`);
   $$("[data-enemy]").forEach((el) => (el.onclick = async () => { try { renderMeter(await api("/api/meter", {action: "view", enemy: el.dataset.enemy})); } catch (e) { $("#mnotice").textContent = e.message; } }));
   $$("[data-sel]").forEach((el) => (el.onclick = () => {
