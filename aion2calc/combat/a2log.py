@@ -84,6 +84,7 @@ SCHEMA = {
             "game_patch": {"type": "string"}, "game_patch_source": {"type": "string"}, "game_patch_basis": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
             "capture_active": {"type": "boolean"}, "checkpoint_at": {"type": "number"},
             "capture_scope": {"enum": ["party", "self", "all"]},
+            "reconstruction":{"type":"object", "description":"Bounded source-part manifest for unranked descriptive combined review"},
             "archive": {"type":"object", "properties":{"id":{"type":"string"}, "part":{"type":"integer", "minimum":1}, "closed":{"type":"boolean"}, "continuity":{"type":"object", "description":"Submitted retained-record ranges and predecessor token; not verified capture continuity"}}},
             "capture_quality": {"type": "object", "description": "Capture evidence and loss counters; eligibility is computed by the server"},
             "visibility": {"enum": ["public", "unlisted", "private"]},
@@ -122,6 +123,7 @@ SCHEMA = {
 # Compatible v1 extensions. Older logs without these arrays remain readable.
 _segment_properties = SCHEMA["properties"]["segments"]["items"]["properties"]
 _segment_properties.update({
+    "recording_run":{"type":"object", "description":"Submitted stable run token, original record origin and observed entry/final-boss evidence across storage parts; not ranking eligibility"},
     "run_id":{"type":"string"}, "run_complete":{"type":"boolean"}, "run_end_reason":{"type":"string"},
     "run_start_observed":{"type":"boolean"}, "run_started_at":{"type":"string"}, "run_ended_at":{"type":"string"},
     "party_members":{"type":"array", "maxItems":64, "items":{"type":"string"}}, "party_roster_complete":{"type":"boolean"}, "party_roster_late":{"type":"boolean"}, "partial_capture":{"type":"boolean"},
@@ -191,10 +193,17 @@ def validate(doc) -> dict:
         for k in (*COUNTERS, "shutdown_drained_payloads", "tcp_pending_bytes", "pcap_received", "pcap_stats_reads"):
             if isinstance(capture.get(k), int) and not isinstance(capture[k], bool) and 0 <= capture[k] <= 2**53-1:
                 evidence[k] = capture[k]
-        for flag in ("transport_monitored", "pcap_stats_sampled", "pcap_stats_partial", "storage_boundary"):
+        for flag in ("transport_monitored", "pcap_stats_sampled", "pcap_stats_partial", "storage_boundary", "reconstructed"):
             if isinstance(capture.get(flag), bool):
                 evidence[flag] = capture[flag]
         clean_meta["capture_quality"] = evidence
+    from .reconstruction import clean_manifest
+    manifest = clean_manifest(meta.get("reconstruction"))
+    if "reconstruction" in meta and not manifest:
+        raise Invalid("Invalid combined recording source manifest")
+    if manifest:
+        clean_meta["reconstruction"] = manifest
+        clean_meta.setdefault("capture_quality", {})["reconstructed"] = True
     archive = meta.get("archive")
     if isinstance(archive, dict) and isinstance(archive.get("id"), str) and isinstance(archive.get("part"), int) and not isinstance(archive["part"], bool) and 1 <= archive["part"] <= 2**53-1:
         clean_meta["archive"] = {"id": archive["id"][:100], "part": archive["part"], "closed": archive.get("closed") is True}
@@ -342,6 +351,10 @@ def validate(doc) -> dict:
                          "start": _text(s.get("start"), "segment start"), "duration": float(s["duration"]),
                          "killed": s.get("killed") is True, "hits": out_hits, "buffs": buffs, "hp": hp,
                          "entities": entities, "events": events, "health": health, "positions": positions})
+        from .reconstruction import clean_run
+        run_evidence = clean_run(s.get("recording_run"))
+        if run_evidence:
+            out_segs[-1]["recording_run"] = run_evidence
         for key in ("run_id", "run_end_reason", "zone", "zone_source", "encounter_type_source", "difficulty_source", "run_started_at", "run_ended_at"):
             if isinstance(s.get(key),str):
                 out_segs[-1][key] = s[key][:200]
@@ -380,6 +393,11 @@ def validate(doc) -> dict:
     result["death_analysis"] = death_recaps(result)
     from .insights import summarize as encounter_insights
     result["encounter_insights"] = encounter_insights(result)
+    if clean_meta.get("reconstruction"):
+        from .reconstruction import summarize as recording_summary
+        result["recording_summary"] = recording_summary(result)
+        from .reconstruction import run_summary
+        result["recording_runs"] = run_summary(result)
     return result
 
 

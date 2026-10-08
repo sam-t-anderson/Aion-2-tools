@@ -101,3 +101,30 @@ def recent_page(offset: int = 0, limit: int = 25, archive: str = "") -> dict:
 
 def recent() -> list[dict]:
     return recent_page(limit=100)["rows"]
+
+
+def reconstruct(name, first, last):
+    from .reconstruction import combine, part_range, MAX_BYTES
+    selected = set(part_range(first, last))
+    anchor = _row(path(name))
+    archive = anchor.get("archive")
+    if not archive:
+        raise ValueError("This recording has no archive-part metadata")
+    rows = recent_page(limit=100, archive=archive["id"])
+    if rows["has_more"]:
+        raise ValueError("Recording has too many files for an unambiguous combined review")
+    chosen = [r for r in rows["rows"] if r["archive"]["part"] in selected]
+    if len(chosen) != len(selected) or len({r["archive"]["part"] for r in chosen}) != len(selected):
+        raise ValueError("Selected parts are missing or duplicated on this computer")
+    sources, total = [], 0
+    for row in chosen:
+        with path(row["file"]).open("rb") as stream:
+            raw = stream.read(MAX_BYTES-total+1)
+        total += len(raw)
+        if total > MAX_BYTES:
+            raise ValueError("Combined review exceeds 64 MiB; choose a shorter range")
+        doc = json.loads(raw)
+        if (doc.get("meta", {}).get("archive", {}).get("id") != archive["id"] or doc.get("meta", {}).get("archive", {}).get("part") != row["archive"]["part"]):
+            raise ValueError("A recording changed while loading; refresh and try again")
+        sources.append(({"file":row["file"]}, doc))
+    return combine(sources)

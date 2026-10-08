@@ -610,3 +610,15 @@ Each overlay tab hides actors with no recorded amount in that metric. A damage-o
 
 
 At an observed idle zone transition, live actor IDs and pet ownership are reset before the new zone's identity records are read. Earlier encounters retain their own identities. A name-only pet owner field must match exactly one current actor; ambiguous matches remain unresolved. If the new zone has not yet supplied your identity or roster, its metrics show partial-capture status until those records arrive. Already saved logs retain their recorded attribution.
+
+
+### Review connected recording parts
+
+Open a stopped saved part, expand **Other parts of this recording**, choose the first and last part, then select **Review connected parts**. Desktop uses available local files; shared desktop/Pages/server review uses public, available uploads only. The recording totals follow the PvE/PvP filter, while the encounter selector preserves each original fight. **Back to source part**, source-part buttons and **Export combined review** retain access to originals.
+
+The selected range must contain 2–32 consecutive unambiguous parts, no more than 64 MiB of source JSON, and fit the combat review's player/encounter/effect limits. Continuity metadata, matching scopes, closed predecessors and ordered timestamps are required. Missing ranges, duplicates, overlaps or changed scope cause a visible refusal instead of silently dropping data. Legacy files without ranges cannot be combined. A range can start after part 1, but cannot establish what occurred before it.
+
+Player totals join only with recorded region, server and database character ID. Missing identities remain separate. Conflicting classes block review; differing profiles/stats are not presented as one encounter-time build. Open an original source part for its profile. Capture counters use their highest submitted value, not a sum of cumulative samples. Original encounters and run boundaries remain separate; this view does not restore lost packets, infer missing entry/completion or grant ranking eligibility. Exported combined reviews remain unranked and cannot be uploaded as additional samples; share the original source parts.
+
+
+New captures also retain a stable submitted run token, original record origin and observed entry/final-boss timestamps across storage rollover. **Run timing across selected parts** uses these fields only when contexts and timestamps agree, the selected range contains the run origin, and the configured final-boss death is present. Contradictory or missing evidence shows unavailable timing. Earlier recordings without this run provenance keep their original boundaries. This restores descriptive timing across supported new parts, not leaderboard eligibility.

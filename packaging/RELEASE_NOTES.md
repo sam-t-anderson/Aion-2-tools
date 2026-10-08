@@ -1,3 +1,12 @@
+## Connected recording review (0.2.94)
+
+- Review 2–32 connected stopped recording parts together on desktop and in shared Pages/server review, with mode-specific recording totals, source encounters, provenance and export/back controls.
+- Require consistent recording IDs/scopes, unique parts/tokens, exact predecessor ranges and ordered non-overlapping encounter timestamps. Reject ambiguous, missing, active, incompatible or oversized chains without changing source files.
+- Join player totals only by recorded region/server/database character identity; preserve unresolved actors separately and namespace entity/run references by part. Keep source encounter/run boundaries and original entry/completion evidence.
+- Retain stable run tokens, origin record sequences and observed entry/final-boss evidence in new captures. Show combined run timing only when the selected chain contains consistent origin/entry and corroborating configured boss-death evidence; older captures remain unavailable.
+- Combined reviews remain unranked, excluded from contribution and blocked from server upload. Source parts retain their own rankings/profiles; no completion or eligibility is inherited.
+- Fix oversized graph legend SVGs that caused large blank areas above the plot on desktop and Pages.
+
 ## Zone actor identity and pet ownership (0.2.93)
 
 - Reset zone-scoped player IDs, names, roster, NPC state and pet ownership at an observed idle zone transition before decoding the new zone's identities. Preserve earlier encounters in session history.

@@ -344,3 +344,19 @@ Saved desktop logs, shared desktop logs, Pages and server-hosted review can navi
 ## Recording-part sequence metadata
 
 New archives retain sequence ranges, context ranges and predecessor tokens. Local/public navigation shows submitted consistency and ambiguity across pagination. No reconstruction is performed. Next: define reconstruction rules for selected scopes, identity contexts, overlap handling and entry/completion provenance; keep unknown or contradictory chains unranked.
+
+
+## Seven workstreams — capture reliability and reconstruction
+
+Connected stopped parts can now be reviewed together with mode-specific recording totals, original encounters, strict submitted-chain checks, source provenance and export/back navigation. Source fights/runs stay separate and output remains unranked; this does not establish verified full-run reconstruction. Follow-up within this workstream: explicit per-run provenance to reconcile storage-rollover boundaries, supported local-identity/entry variants and live confirmation of the zone actor/ownership fix. Missing capture evidence is not inferred from damage or names.
+
+## Later maintenance and application screenshots
+
+- Inventory leftover PowerShell (.ps1) updater helpers and upgrade/update logs. Define cleanup after successful updates and bounded failure-log retention without deleting active helpers or needed diagnostics.
+- Inspect cache categories, ownership, size and age before defining safe cleanup controls. Preserve credentials, imported characters, saved results, combat logs and recoverable upload queues.
+- Make application screenshots capture the application content from top to bottom without manual scrolling, excluding other monitors, windows and desktop content.
+
+These maintenance/screenshot requests are queued for later; they are not part of the current capture/reconstruction implementation.
+
+
+New capture run tokens/origin sequences and explicit observed entry/final-boss evidence now survive rollover separately from each part's quality flags. Combined review can calculate descriptive entry-to-finish timing when the complete selected chain contains the origin and corroborating configured boss death with consistent context. Older parts cannot gain this provenance retroactively. Ranking-quality inheritance and cross-part boss-attempt stitching remain separate follow-ups; unknown local-identity/entry protocol variants still need representative captures.
