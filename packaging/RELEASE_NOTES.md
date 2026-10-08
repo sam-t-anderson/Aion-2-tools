@@ -1,3 +1,10 @@
+## Recording-part navigation (0.2.89)
+
+- Add **Other parts of this recording** to saved desktop logs and shared desktop/Pages review, with paged results and direct part opening.
+- Show part numbers, titles, recorded spans, encounter counts and saved/checkpoint state; preserve the PvE/PvP filter while navigating.
+- Shared discovery lists public available uploads only. Private view tokens stay with the current log and are not forwarded to siblings.
+- Parts keep separate totals and quality. Matching archive IDs are unverified metadata; gaps/duplicates do not establish a complete run.
+
 ## Capture shutdown retention (0.2.88)
 
 - Stop drains queued game payloads for up to five seconds before final saving, rather than immediately discarding them. An executing decoder call cannot be forcibly interrupted.

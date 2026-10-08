@@ -332,3 +332,7 @@ Automatic splits use a minimum 120-second outgoing inactivity window; DPS shares
 ### Stop-time queue retention
 
 Stop drains queued payloads within a bounded shutdown window, reports decoded/discarded shutdown payloads separately from decoder failures, and serializes Start/Stop/Clear so an unfinished worker cannot be replaced. Separate counters are preserved in saved logs, diagnostics and shared capture-quality review. Remaining: verified archive-part reconstruction and real captures confirming whether earlier combined error/discard counts came from the Stop queue. Historical lost data is not restored.
+
+### Recording-part discovery
+
+Saved desktop logs, shared desktop logs, Pages and server-hosted review can navigate matching archive parts with pagination. Server discovery indexes archive metadata and lists public available uploads only, honoring visibility/deletion/moderation. Matching IDs are unverified; totals and quality stay per part. Remaining: capture continuity provenance, safe part reconstruction and verified entry/completion inheritance.

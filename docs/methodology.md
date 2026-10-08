@@ -333,3 +333,9 @@ Optimizer analysis retains original elapsed hit times, buff windows and encounte
 Stopping intake does not mean queued payloads have already been decoded. The worker drains its ordered queue for up to five seconds after observing the stop signal, consuming final transport statistics before saving. A failed decoder call or an exceeded drain budget can still leave discarded payloads; those counts keep the report incomplete. A currently executing decoder call cannot be preempted by that budget. Successfully drained payloads do not count as loss.
 
 `capture_errors` is the legacy combined count of processing/capture errors and abandoned queue payloads. New logs also record `decoder_errors`, `shutdown_discarded_payloads` and `shutdown_drained_payloads`. These counters overlap; they are not independent packet-loss totals. A capture-adapter shutdown that has not finished blocks replacement/clearing and delays final archival until Stop succeeds. Previously exported logs cannot recover discarded payloads or distinguish the causes inside a legacy combined count.
+
+## Navigating long-recording parts
+
+Archive part discovery matches the submitted archive ID and sorts by part number, with pagination. Local views search locally saved files. Shared views expose public, available uploads only; hidden or removed siblings are not counted. A token authorizing the current private log is not forwarded when opening another part.
+
+Matching archive IDs are not verified provenance: users can supply or copy metadata, and duplicate part numbers or gaps can occur. Each part retains its own timing, totals, quality and ranking status. Storage flags describe a saved boundary or checkpoint, not encounter completion. Verified continuity, combined reports and entry/completion reconstruction remain separate work.
