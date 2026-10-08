@@ -84,6 +84,11 @@ class CombatSession:
                 or frozenset(name.casefold() for name in engine.roster) != attempt["roster"]):
             self._boss_attempt = None
             return
+        if any(sample["entity"] in attempt["bosses"] and
+               (sample["kind"] == "death" or sample["kind"] == "hp" and sample["current"] == 0)
+               for sample in engine.telemetry):
+            self._boss_attempt = None
+            return
         if (timestamp_ms is not None and attempt["members"] <= attempt["dead"]
                 and any(hp > 0 for hp in attempt["boss_hp"].values())
                 and timestamp_ms - max(attempt["last_activity"], attempt["last_death"]) >= 2000):
@@ -101,6 +106,8 @@ class CombatSession:
         context = (record.epoch, self.manual_split, self.run)
         attempt = self._boss_attempt
         if attempt and attempt["context"] != context:
+            self._boss_attempt = attempt = None
+        if attempt and event.timestamp_ms - attempt["last_activity"] > self.gap_seconds * 1000:
             self._boss_attempt = attempt = None
         roster = frozenset(name.casefold() for name in engine.roster)
         names = Counter(name.casefold() for name in identity["names"].values())
