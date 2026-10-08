@@ -193,3 +193,61 @@ def _neighbours(pol, others, hell, fillers, allow_conditions):
                 if cname != cur:
                     ne = (k, cname) if cname else k
                     yield body[:i] + [ne] + body[i + 1:] + [filler]
+
+
+def bounded_search(derived, kit, target, config, *, maximum=96, seconds=15):
+    """Full-horizon local priority search for a fixed allocation, with bounded evaluations and a between-simulation deadline.
+
+    Only evaluated policies are compared; timeout never substitutes a shortened
+    combat window. The ordinary class priority is always an eligible baseline.
+    """
+    import time
+    deadline = time.monotonic() + seconds
+    def evaluate_policy(policy):
+        return Sim(derived, kit.actions, materialize(policy), target, config,
+                   hooks=kit.hooks, cond_mods=kit.cond_mods).run()
+    baseline = list(kit.policy)
+    best_policy = baseline
+    best_result = evaluate_policy(baseline)
+    baseline_dps = best_result.dps
+    # Retain numeric scores, not dozens of complete hit/buff traces.
+    cache = {tuple(baseline): baseline_dps}
+    evaluations = 1
+    best = baseline_dps
+    others, hell, fillers = candidate_keys(kit)
+    reason = "local_neighborhood_exhausted"
+    if not fillers:
+        reason = "no_filler_candidates"
+    else:
+        # Deterministic first-improvement traversal; at most six accepted passes.
+        for _ in range(6):
+            improved = False
+            for candidate in _neighbours(best_policy, others, hell, fillers, True):
+                if evaluations >= maximum or time.monotonic() >= deadline:
+                    reason = "evaluation_limit" if evaluations >= maximum else "time_limit"
+                    break
+                key = tuple(candidate)
+                if key in cache:
+                    continue  # Already compared against a nondecreasing best.
+                result = evaluate_policy(candidate)
+                evaluations += 1
+                score = result.dps
+                cache[key] = score
+                if score > best * (1 + 1e-6):
+                    best_policy, best, best_result = candidate, score, result
+                    improved = True
+                    break
+            if reason in ("evaluation_limit", "time_limit") or not improved:
+                break
+        else:
+            reason = "pass_limit"
+    return RotationResult(best_policy, best, best_result), {
+        "baseline_dps": baseline_dps, "evaluations": evaluations,
+        "maximum_evaluations": maximum, "search_deadline_seconds": seconds,
+        "deadline_checked_between_simulations": True,
+        "stop_reason": reason, "duration_s": config.duration,
+        "policy": describe(best_policy),
+        "actions": [{"key": _key(e), "name": kit.actions[_key(e)].name,
+                     "condition": e[1] if isinstance(e, tuple) else None} for e in best_policy],
+        "note": "Best evaluated priority in a bounded local search, not a global optimum or reactive PvP strategy. Allocations, gear and Genus lines were held fixed."
+    }

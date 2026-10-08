@@ -1,4 +1,4 @@
-"""Bounded evaluation of local allocation drafts, without publication or optimization."""
+"""Bounded evaluation of local allocation drafts, with optional fixed-allocation priority search; nothing is published."""
 from __future__ import annotations
 
 from dataclasses import fields
@@ -19,6 +19,46 @@ NOTE = ("Entered equipment/stat contributions and Genus lines are assumptions. S
 
 def integer(value, low, high):
     return type(value) is int and low <= value <= high
+
+
+def arcana_bonuses(doc, cd):
+    """Validate explicit card options against the same bundled browser catalog."""
+    from pathlib import Path
+    catalog = json.loads((Path(__file__).parent / "app/static/build-catalog.json").read_bytes())
+    pools = catalog.get("arcana_pools", {}).get(cd.cls, {})
+    items = {item["slug"]: item for item in catalog.get("items", [])}
+    out, seen = {}, set()
+    loadout = doc.get("loadout")
+    if not isinstance(loadout, dict):
+        raise ValueError("Supply an equipment loadout")
+    components = loadout.get("components", [])
+    if not isinstance(components, list) or len(components) > 64:
+        raise ValueError("Supply at most 64 equipment components")
+    for component in components:
+        if not isinstance(component, dict):
+            raise ValueError("Invalid equipment component")
+        values = component.get("arcana_skills", {})
+        if not isinstance(values, dict):
+            raise ValueError("Arcana options must be a skill-level map")
+        if not values:
+            continue
+        slot = component.get("slot")
+        if not isinstance(slot, str) or slot not in pools or slot in seen:
+            raise ValueError("Unknown or duplicate arcana slot")
+        seen.add(slot)
+        item = items.get(component.get("catalog_slug")) if isinstance(component.get("catalog_slug"), str) else None
+        enchant = component.get("enchant")
+        if not item or item["category"] not in catalog["equipment_slots"][slot] or item["required_level"] > doc["level"] or not integer(enchant, 0, len(item["levels"])-1):
+            raise ValueError("Choose a compatible catalog arcana and enhancement")
+        pool = pools[slot]
+        allowed = {str(sk["id"]) for sk in pool["skills"]}
+        base = catalog["arcana_base_rolls"].get(item["grade"])
+        if base is None or any(key not in allowed or not integer(value, 0, pool["max_level"]) for key,value in values.items()) or sum(values.values()) > base + enchant:
+            raise ValueError("Arcana options exceed the bundled pool, per-skill cap or grade/enhancement budget")
+        for key,value in values.items():
+            sid = int(key)
+            out[sid] = out.get(sid, 0) + value
+    return out
 
 
 def normalize(doc):
@@ -63,6 +103,10 @@ def normalize(doc):
     if not isinstance(nodes, list) or len(nodes) > 2048 or any(type(n) is not int or n not in cd.node_index for n in nodes) or len(set(nodes)) != len(nodes):
         raise ValueError("Unknown or duplicate board nodes")
     build.daevanion = set(nodes)
+    for sid,value in arcana_bonuses(doc, cd).items():
+        build.bonus[sid] = build.bonus.get(sid, 0) + value
+        if build.bonus[sid] > 30:
+            raise ValueError("Combined manual and arcana skill bonuses exceed the input bound")
     levels = build.effective_levels(cd)
     if build.sp_spent() > budgets["skill"] or build.stigma_spent() > budgets["stigma"] or len(build.stigmas) > cd.budget(build.level)["slots"]:
         raise ValueError("Allocation exceeds entered budgets or equipped stigma slots")
@@ -135,6 +179,9 @@ def evaluate(doc):
 
 def _evaluate(doc):
     build, loadout, genus = normalize(doc)
+    search = doc.get("search_priority", False)
+    if type(search) is not bool:
+        raise ValueError("Priority search must be true or false")
     from .opt.genus import apply
     from .run import simulate
     from .scenarios import SCENARIOS
@@ -143,16 +190,29 @@ def _evaluate(doc):
     names = ("pvp", "pvp_burst") if doc["mode"] == "pvp" else ("boss", "dummy")
     scores = {}
     for name in names:
-        result = simulate(build, SCENARIOS[name](loadout))
+        scenario = SCENARIOS[name](loadout)
+        detail = None
+        if search:
+            from .run import prepare
+            from .opt.rotation import bounded_search
+            _, _, kit, stats = prepare(build, scenario)
+            searched, detail = bounded_search(stats.derived(), kit, scenario.target, scenario.config)
+            result = searched.result
+        else:
+            result = simulate(build, scenario)
         if not math.isfinite(result.dps):
             raise ValueError("Evaluation produced non-finite damage")
         scores[name] = {"dps": result.dps, "shares": result.shares()}
+        if detail is not None:
+            scores[name]["priority_search"] = detail
     from .model.stats import CALIBRATION, CRIT_X0
     from .sim.engine import SKILL_MULT
     calibration = {"rates": dict(CALIBRATION), "crit_midpoint": CRIT_X0, "skill_multipliers": dict(SKILL_MULT),
                    "basis": "Neutral model; personal/community learned calibration excluded"}
-    identity = {"calibration": calibration, "class": build.cls, "level": build.level, "mode": doc["mode"], "build": doc["build"], "budgets": doc["budgets"], "loadout": loadout, "genus": genus}
+    identity = {"calibration": calibration, "class": build.cls, "level": build.level, "mode": doc["mode"], "build": doc["build"], "budgets": doc["budgets"], "effective_bonus": build.bonus, "loadout": loadout, "genus": genus, "search_priority": search, "selected_priorities": {k:v.get("priority_search", {}).get("policy") for k,v in scores.items()}}
     digest = hashlib.sha256(json.dumps(identity, sort_keys=True, allow_nan=False).encode()).hexdigest()
     return {"format": "a2build-evaluation", "version": 1, "evaluator": __version__, "input_sha256": digest,
             "class": build.cls, "level": build.level, "mode": doc["mode"], "scenarios": scores, "calibration": calibration,
-            "genus": genus, "note": NOTE}
+            "genus": genus, "arcana_options_supported": True, "search_priority": search,
+            "note": (NOTE.replace("with its default class priority; no allocation, supporting effect or rotation is optimized.",
+                    "with bounded priority search; allocations and supporting effects are held fixed.") if search else NOTE)}

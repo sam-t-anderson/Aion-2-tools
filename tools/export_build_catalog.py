@@ -55,6 +55,18 @@ for entry in json.loads(gzip.decompress((root/'aion2calc/data/seed/items.json.gz
                 'unit':{k:v for k,v in unit.items() if k in allowed and v>=0}})
  items.append({'roll_count':min(20,I.roll_count(item)),'roll_options':rolls,'slug':item['slug'],'name':item.get('name',item['slug']),'icon':item.get('icon',''),'category':category,'grade':item.get('grade',''),'required_level':int((I._numbers(item.get('meta',{}).get('Required Level','0')) or [0])[0]),'levels':levels})
 payload['items']=sorted(items,key=lambda x:x['slug'])
+from aion2calc.plan.arcana import BASE_ROLLS
+pools=json.loads((root/'aion2calc/data/global/arcana_skill_pools.json').read_text(encoding='utf-8'))
+payload['arcana_base_rolls']=BASE_ROLLS
+payload['arcana_pools']={}
+for name,cd in classes.items():
+ mapped={}
+ for slot in I.ARCANA_SLOTS:
+  category=I.SLOTS[slot][0]
+  pool=next((p[name] for slug,p in pools.items() if slug.startswith(category.lower()) and name in p),None)
+  if pool:
+   mapped[slot]={'max_level':pool.get('max_level',4),'skills':[{'id':sk['id'],'name':sk['name'],'icon':sk['icon']} for sk in cd['skills'] if sk['name'] in pool.get('skills',[]) and sk['kind']!='stigma']}
+ payload['arcana_pools'][name]=mapped
 payload['equipment_slots']=I.SLOTS
 payload['class_weapons']=I.WEAPON
 payload['deities']=[{'name':name,'field':field,'profile_type':next((key for key,value in PROFILE_TYPES.items() if value==name),None)} for name,field in DEITIES]

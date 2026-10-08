@@ -722,3 +722,9 @@ An observed build is collection context, not proof that a community database app
 Build budgets appear with their skill, stigma or Daevanion allocations. Equipment and arcana use inventory-slot selection with catalog icons and enhancement choices. Catalog selections apply fixed stats and listed enchantment bonuses. Select random-roll lines and enter their values in the item panel, then Apply rolls; duplicate lines and values outside the bundled source ranges are rejected. Unsupported effects are retained but unscored. Imported aggregate contributions need explicit review to avoid overlap. Pantheon tiles edit modeled deity contributions, while recorded profile totals remain read-only. The current catalog does not reconstruct the in-game Pantheon node board.
 
 The Maps, Crafting and Build Workspace views expand with the available browser/window width.
+
+### Draft priority search and arcana options
+
+Choose a catalog arcana card, select skill levels from its class/slot pool, and Apply item options. The bundled grade/enhancement rule limits the total, with a separate per-skill cap. Card bonuses add to manual bonuses, so remove overlapping imported contributions. These controls do not verify ownership or current-build rules.
+
+In Evaluation / advanced inputs, optionally enable Search skill priority. The model keeps gear, Genus, allocations and supporting effects fixed and compares complete-window priorities, keeping the default priority as a baseline. Results show the best evaluated order and the stopping limit (96 evaluations, six improving passes or 15 seconds per scenario). This does not establish a global optimum or simulate reactive PvP behavior.
