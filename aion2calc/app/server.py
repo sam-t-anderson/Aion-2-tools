@@ -454,6 +454,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/community":
             from ..combat.share import community_request
             return self._json(community_request(q.get("path", "")))
+        if path == "/api/sessions/reconstruction":
+            from ..combat.sessions import reconstruct
+            return self._json(reconstruct(q.get("file", ""), int(q.get("first", 1)), int(q.get("last", 1))))
         if path == "/api/sessions":
             from ..combat.sessions import recent, recent_page, path as session_path
             if q.get("fingerprint"):

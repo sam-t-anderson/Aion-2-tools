@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import time
 import copy
+import uuid
 
 from .a2parser.lookup import job_from_skill, npc_info, npc_name, skill_name
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
@@ -38,6 +39,8 @@ class CombatSession:
         result.capture_evidence = dict(self.capture_evidence)
         result.identities = {self.epoch: copy.deepcopy(self.identities[self.epoch])} if self.epoch in self.identities else {}
         result.runs = {self.run: {**self.runs[self.run], "start_observed": False}}
+        if self.runs[self.run].get("start_observed") and self.runs[self.run].get("started_at") is not None:
+            result.runs[self.run]["recorded_entry"] = self.runs[self.run]["started_at"]
         result.runs[self.run].pop("started_at", None)
         result._boss_attempt = copy.deepcopy(self._boss_attempt)
         result.wipe_splits = self.wipe_splits
@@ -60,7 +63,7 @@ class CombatSession:
         self._dead = set()
         self.sequence = 0
         self.run = 1
-        self.runs = {1: {"complete":False}}
+        self.runs = {1: {"complete":False, "recording_token":uuid.uuid4().hex, "origin_sequence":1}}
         self.run_closed = False
         self.final_boss_ids = set()
         self.auto_finish = True
@@ -146,7 +149,7 @@ class CombatSession:
 
     def _next_run(self):
         self.run += 1
-        self.runs[self.run] = {"complete":False}
+        self.runs[self.run] = {"complete":False, "recording_token":uuid.uuid4().hex, "origin_sequence":self.sequence+1}
         if self._pending_run_start is not None:
             self.runs[self.run].update(start_observed=True, started_at=self._pending_run_start)
             self._pending_run_start = None
@@ -277,6 +280,7 @@ class CombatSession:
                     and code in self.final_boss_ids and npc_info(code).get("isBoss")
                     and engine.dungeon_id == npc_info(code).get("dungeonId") and engine.dungeon_id
                     and any(r.run == self.run and isinstance(r.event,DamageEvent) and r.event.target_id == sample["entity"] and r.event.actor_id in self._allowed(r,"party") for r in self.records)):
+                self.runs[self.run]["recorded_final_boss"] = code
                 self.finish_run("configured_final_boss_death", timestamp_ms=sample["timestamp_ms"])
         # Remove identity contexts when their bounded event history expires.
         if len(self.identities) > 250:
@@ -699,7 +703,14 @@ class CombatSession:
                 from .context import classify
                 context = classify(run.get("map_id"), run.get("instance_id"), group["pvp"])
                 category = context.get("encounter_type", category)
-                segments.append({**context, "run_id":str(group["run"]), "run_complete":run["complete"],
+                entry = run.get("started_at") if run.get("start_observed") else run.get("recorded_entry")
+                run_evidence = {"version":1, "token":run["recording_token"], "origin_sequence":run["origin_sequence"]}
+                if entry is not None:
+                    run_evidence["entry_at"] = datetime.fromtimestamp(entry/1000,timezone.utc).isoformat()
+                if run.get("complete") and run.get("end_reason") == "configured_final_boss_death" and run.get("recorded_final_boss"):
+                    run_evidence.update(final_boss_id=run["recorded_final_boss"],
+                        finished_at=datetime.fromtimestamp(run["ended_at"]/1000,timezone.utc).isoformat())
+                segments.append({**context, "recording_run":run_evidence, "run_id":str(group["run"]), "run_complete":run["complete"],
                     "run_start_observed":run.get("start_observed",False),
                     "run_started_at":datetime.fromtimestamp(run["started_at"]/1000,timezone.utc).isoformat() if run.get("started_at") is not None else None,
                     "run_ended_at":datetime.fromtimestamp(run["ended_at"]/1000,timezone.utc).isoformat() if run.get("ended_at") is not None else None,
