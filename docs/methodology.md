@@ -212,6 +212,12 @@ Advice and character optimization share effect validation and mode/primary-stat 
 
 Point budget provenance separates observed allocations, selected available totals and assumed unspent balances. Current profile allocations, saved user totals and level-based examples do not establish maximum progression or available unspent points. Personal saved results retain these assumptions alongside the Genus snapshot.
 
+## Recorded combat pressure
+
+Encounter insights use normalized retained effects. For each friendly source/recipient and metric, a rolling window finds the greatest gross amount over 1, 3 and 5 seconds, including both endpoints; equal maxima keep the earliest ending window. Window starts are clipped to encounter start or the latest recorded actor death. Effects exactly at that actor's death timestamp are excluded from windows because same-time ordering is unknown. Missing death markers can join lives; missing packets or attribution can understate amounts. Incoming ability totals include all retained in-range damage, including death-time effects, and do not infer killing blows or avoidability.
+
+Incoming windows report recorded healing received separately, without subtraction or effective-healing claims. Imported buff intervals are clipped and unioned per recipient/buff; overlapping damage includes that recipient's own outgoing effects in half-open intervals `[start, end)`. Pets remain separate, and overlapping buffs can each contain the same damage. This establishes temporal overlap rather than causal buff contribution. Each detailed section is capped at 100 rows before display filters and exposes omissions. Evidence coverage reports retained counts and unsupported protocol fields; zero records do not prove absence. Derived summaries do not change ranking eligibility, comparisons or optimizer learning.
+
 ## Damage optimization with an HP reserve
 
 My Character → **Survivability** preserves the character's imported flat **HPMax** contribution from the four optimized crystal boards by default. The existing DPS objective stays primary inside the set of allocations meeting this floor. Skill, stigma and Daevanion budgets and board connectivity remain enforced. A stricter minimum can trade some modeled DPS for more crystal HP. Disable preservation and leave the minimum/scenarios empty to use the previous damage-only objective. This is an HP-node constraint, not a full survival simulator.

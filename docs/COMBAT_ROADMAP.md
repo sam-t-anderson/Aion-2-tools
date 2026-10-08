@@ -385,3 +385,10 @@ Still pending within this workstream: verified defensive/CC/movement coefficient
 Advice and optimization now share Genus damage-effect filtering, and saved modeled lines participate in the advice loadout. Coverage reports all five levels, saved/unlocked/missing slots and next catalog milestones. Advice candidates replace a specific unlocked slot rather than adding a synthetic line; unsupported/defensive effects are preserved without damage-free reroll recommendations. Saved advice retains its Genus snapshot. My Character/optimized results record budget provenance and distinguish assumed unspent balances from observed spend and unknown progression maxima.
 
 Remaining evidence-dependent work: official Genus allocation/collection retrieval, verified owned-effect and defensive coefficients, current-build roll chances/costs, and independently verified progression maxima. Current catalog caps and user totals are labeled as such. Next major workstream: richer combat protocol analytics.
+
+
+## Seven workstreams — richer combat analytics
+
+Shared encounter review now includes bounded peak damage/healing/incoming windows, incoming ability breakdowns and an evidence coverage table. Recorded actor deaths separate pressure windows; healing remains gross recorded amount. Imported buff windows expose recipient damage overlap without assigning causal buff credit. Updated servers recompute these summaries for retained historical evidence.
+
+Still pending: verified live cast starts/ends, buff sources/applications/removals, resources, shields/overheal, CC success and PvP match/objective outcomes. Representative packets and encounter definitions are required. Next major workstream: regional timers and timed-boss history, including reliable scope and respawn evidence.

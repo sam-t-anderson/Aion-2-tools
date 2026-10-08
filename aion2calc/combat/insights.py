@@ -1,5 +1,8 @@
 """Descriptive encounter evidence; effects are never treated as cast records."""
 from collections import defaultdict
+from bisect import bisect_left
+
+from .pressure import friendly_ids, summarize as pressure_summary
 
 from .catalog import coverage
 
@@ -22,7 +25,7 @@ def summarize(doc):
              "target":h.get("target"), "skill":h.get("skill"), "skill_id":h.get("skill_id"), "amount":h["damage"]}
             for h in segment.get("hits", [])]
         entities = {e["id"]:e for e in segment.get("entities", [])}
-        friendly = players | {key for key, e in entities.items() if e.get("owner") in players}
+        friendly = friendly_ids(players, entities)
         healing, skills, opening = {}, {}, []
         opening_counts = defaultdict(int)
         omitted_opening = 0
@@ -69,6 +72,17 @@ def summarize(doc):
             key = (buff["player"],identity)
             windows[key].append((start,end))
             buff_labels.setdefault(key, (buff.get("skill_id"),buff.get("name")))
+        damage = defaultdict(list)
+        for event in events:
+            if event["kind"] == "damage" and event.get("source") in friendly and 0 <= event["t"] <= duration:
+                damage[event["source"]].append(event)
+        damage_totals = {}
+        for actor, rows in damage.items():
+            times, amounts = [], [0.0]
+            for event in sorted(rows, key=lambda e: e["t"]):
+                times.append(event["t"])
+                amounts.append(amounts[-1]+event["amount"])
+            damage_totals[actor] = times, amounts
         buffs = []
         for key, spans in windows.items():
             player = key[0]
@@ -80,7 +94,14 @@ def summarize(doc):
                 else:
                     merged.append([start,end])
             seconds = sum(end-start for start,end in merged)
-            buffs.append({"player":player,"skill_id":skill_id,"name":name,"seconds":seconds,
+            times, amounts = damage_totals.get(player, ([], [0.0]))
+            overlap_damage = overlap_effects = 0
+            for start, end in merged:
+                a, b = bisect_left(times, start), bisect_left(times, end)
+                overlap_damage += amounts[b]-amounts[a]
+                overlap_effects += b-a
+            buffs.append({"overlap_damage": overlap_damage, "overlap_effects": overlap_effects,
+                          "recipient_damage_total": amounts[-1], "player":player,"skill_id":skill_id,"name":name,"seconds":seconds,
                           "uptime_pct":100*seconds/duration if duration > 0 else None,"windows":len(merged)})
         milestones, seen = [], set()
         for sample in sorted(segment.get("health", []), key=lambda h:h["t"]):
@@ -98,8 +119,18 @@ def summarize(doc):
         ordered = {"healing":sorted(healing.values(),key=lambda r:-r["amount"]),
                    "skills":sorted(skills.values(),key=lambda r:-r["amount"]),
                    "buffs":sorted(buffs,key=lambda r:-r["seconds"]),"milestones":milestones}
-        segments.append({"segment":index, "catalog":coverage(segment), **{key:rows[:LIMIT] for key,rows in ordered.items()},
+        capabilities = [
+            {"feature": "Outgoing damage hits", "records": len(segment.get("hits", [])), "basis": "Recorded hits; not cast starts"},
+            {"feature": "Damage effects", "records": sum(e["kind"] == "damage" for e in events), "basis": "Source/recipient attribution can be incomplete"},
+            {"feature": "Healing effects", "records": sum(e["kind"] == "heal" for e in events), "basis": "Recorded amounts; effective healing/overheal unavailable"},
+            {"feature": "Death markers", "records": sum(e["kind"] == "death" for e in events), "basis": "Missing markers do not establish survival"},
+            {"feature": "HP samples", "records": len(segment.get("health", [])), "basis": "Samples; not continuous HP or inferred shields"},
+            {"feature": "Imported buff windows", "records": len(segment.get("buffs", [])), "basis": "Imported intervals; live decoding unavailable"},
+            {"feature": "Normalized replay positions", "records": len(segment.get("positions", [])), "basis": "Imported positions; live decoding unavailable"},
+            {"feature": "Cast starts/ends, resources, shields, CC outcomes", "records": None, "basis": "Verified live decoding unavailable"}]
+        segments.append({"segment":index, "catalog":coverage(segment), "capabilities": capabilities,
+            "pressure": pressure_summary(segment, events, friendly), **{key:rows[:LIMIT] for key,rows in ordered.items()},
             "omitted":{key:max(0,len(rows)-LIMIT) for key,rows in ordered.items()},
             "opening":opening,"omitted_opening":omitted_opening,"invalid_buff_windows":invalid_windows,
             "healing_without_source":missing_heal_source,"healing_without_target":missing_heal_target})
-    return {"note":NOTE,"segments":segments}
+    return {"version": 2, "note":NOTE,"segments":segments}
