@@ -759,10 +759,10 @@ def scan_summon_links(data: bytes, names: dict[int, str], known_summons: set[int
                 owner_name, cursor = candidate, end
                 break
         if kind in (0x5F, 0x1F, 0x1D, 0x5D, 0x1C) and owner_name:
-            for owner_id, name in names.items():
-                if name == owner_name and owner_id != real_id:
-                    links[real_id] = owner_id
-                    break
+            candidates = [owner_id for owner_id, name in names.items()
+                          if name == owner_name and owner_id != real_id]
+            if len(candidates) == 1:
+                links[real_id] = candidates[0]
         if kind == 0x5F and mask & 0x10:
             search_end = min(len(data) - 12, cursor + 512)
             for at in range(max(cursor, after_id + 4), search_end):

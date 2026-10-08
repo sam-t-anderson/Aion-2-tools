@@ -131,6 +131,13 @@ class MeterEngine:
         client_to_server = (stream_id.lower().startswith("client:") or
                             stream_id.rsplit("->", 1)[-1].endswith(f":{self.server_port}"))
         self.ping_tracker.observe(complete, client_to_server=client_to_server, captured_at_ms=timestamp_ms)
+        zone_change, map_id = scan_zone_state(complete)
+        if (zone_change
+                and (self.last_damage_time_ms is None or timestamp_ms - self.last_damage_time_ms >= 1_500)
+                and (self.last_zone_reset_ms is None or timestamp_ms - self.last_zone_reset_ms >= 4_000)):
+            # Actor IDs and summon ownership belong to the loaded zone. Reset
+            # before reading this packet's new identities, not after them.
+            self._reset_zone(timestamp_ms)
         for actor_id, name, is_self, job in scan_identity(complete):
             self.names[actor_id] = name
             self.known_players.add(actor_id)
@@ -159,7 +166,6 @@ class MeterEngine:
         self.known_entities.update(self.spawn_info)
         self.known_entities.update(links)
         self.known_entities.update(links.values())
-        zone_change, map_id = scan_zone_state(complete)
         if map_id is not None:
             self.map_id = map_id
             if map_id in OPEN_WORLD_MAPS:
@@ -290,23 +296,33 @@ class MeterEngine:
                 if key not in self._saved_encounters:
                     self.completed_fights.append(self._fight_record(target))
                     self._saved_encounters.add(key)
-        if zone_change and (self.last_damage_time_ms is None or timestamp_ms - self.last_damage_time_ms >= 1_500):
-            if self.last_zone_reset_ms is None or timestamp_ms - self.last_zone_reset_ms >= 4_000:
-                for target in self.targets.values():
-                    if npc_info(target.mob_code).get("isBoss", False):
-                        key = (target.target_id, target.first_hit_ms)
-                        if key not in self._saved_encounters:
-                            self.completed_fights.append(self._fight_record(target))
-                            self._saved_encounters.add(key)
-                self.targets.clear()
-                self.healers.clear()
-                self.live_hp.clear()
-                for info in self.spawn_info.values():
-                    info.pop("currentHp", None)
-                    info.pop("maxHp", None)
-                    info.pop("reportedMaxHp", None)
-                self.last_zone_reset_ms = timestamp_ms
         return events
+
+    def _reset_zone(self, timestamp_ms: int) -> None:
+        for target in self.targets.values():
+            if npc_info(target.mob_code).get("isBoss", False):
+                key = (target.target_id, target.first_hit_ms)
+                if key not in self._saved_encounters:
+                    self.completed_fights.append(self._fight_record(target))
+                    self._saved_encounters.add(key)
+        self.targets.clear()
+        self.healers.clear()
+        self.live_hp.clear()
+        self.spawn_info.clear()
+        self.names.clear()
+        self.jobs.clear()
+        self.known_players.clear()
+        self.known_entities.clear()
+        self.summons.clear()
+        self.summon_owners.clear()
+        self.power_scalars.clear()
+        self.roster.clear()
+        self.roster_complete = False
+        self.local_player_id = None
+        self.local_identity_from_game = False
+        self.local_profile.clear()
+        self.dungeon_id = 0
+        self.last_zone_reset_ms = timestamp_ms
 
     def drain_completed_fights(self) -> list[dict]:
         with self._lock:
