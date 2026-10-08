@@ -720,6 +720,11 @@ class Handler(BaseHTTPRequestHandler):
             if action == "stop":
                 r.stop()
                 return self._json(r.status())
+            if action == "diagnostics-folder":
+                if self.client_address[0] not in ("127.0.0.1", "::1"):
+                    raise PermissionError("diagnostics folders open only on this computer")
+                from ..meter.diagnostics import open_folder
+                return self._json(open_folder())
             if action == "diagnostics":
                 if self.client_address[0] not in ("127.0.0.1", "::1"):
                     raise PermissionError("diagnostics run only on this computer")

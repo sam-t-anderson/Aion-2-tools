@@ -1,3 +1,11 @@
+# Aion 2 Calc 0.2.81
+
+- Capture diagnostics now auto-save a metadata ZIP on Stop even when raw TCP recording is unchecked. Added a readable summary, ZIP size/counter feedback and **Open diagnostics folder** so metadata-only exports are easy to locate. Raw payloads remain intentionally absent when not recorded.
+
+- Added optional **Reserve cooldown in rotation** for linked outgoing tactical windows. An entered cooldown keeps matching modeled skill IDs and explicit cooldown groups available before the assumed use, then excludes them for the entered cooldown afterward.
+- Saved current/optimized results and Markdown identify matched actions/groups and report unavailable kit matches. Conflicting assumed uses within an explicit shared group are rejected.
+- Existing schedules keep their previous behavior unless enabled. Tactical MP, damage, shields, CC success, charges and unrecorded shared cooldown groups remain unmodeled; fixed exclusions do not benefit from reset hooks.
+
 # Aion 2 Calc 0.2.80
 
 - Outgoing action-time assumptions can now retain an active skill or stigma, its trained minimum and an optional supporting effect. Links merge with other personal reserves without dropping stricter requirements.
