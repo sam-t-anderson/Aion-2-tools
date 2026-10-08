@@ -719,6 +719,6 @@ An observed build is collection context, not proof that a community database app
 
 ### Visual build editing
 
-Build budgets appear with their skill, stigma or Daevanion allocations. Equipment and arcana use inventory-slot selection with catalog icons and enhancement choices. Catalog selections apply fixed stats and listed enchantment bonuses; imported aggregate contributions and random rolls need explicit review to avoid overlap. Pantheon tiles edit modeled deity contributions, while recorded profile totals remain read-only. The current catalog does not reconstruct the in-game Pantheon node board.
+Build budgets appear with their skill, stigma or Daevanion allocations. Equipment and arcana use inventory-slot selection with catalog icons and enhancement choices. Catalog selections apply fixed stats and listed enchantment bonuses. Select random-roll lines and enter their values in the item panel, then Apply rolls; duplicate lines and values outside the bundled source ranges are rejected. Unsupported effects are retained but unscored. Imported aggregate contributions need explicit review to avoid overlap. Pantheon tiles edit modeled deity contributions, while recorded profile totals remain read-only. The current catalog does not reconstruct the in-game Pantheon node board.
 
 The Maps, Crafting and Build Workspace views expand with the available browser/window width.

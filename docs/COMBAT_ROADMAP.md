@@ -42,7 +42,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 - Model verified defensive skills, shields, percentage HP, healing, CC duration/success/immunity and movement effects with explicit action/cooldown costs.
 - Model matchup-specific incoming/outgoing mitigation, worst-case timing alignment and reactive optimized opponents.
 - Validate model predictions against representative encounters and matchups. Gross expected damage and entered pressure reductions are assumptions, not effective HP, guaranteed survival or win probability.
-- Add catalog-backed item selection, legal gear-roll constraints and optimized tactical rotation search to the entered-contribution editor. Explicit draft evaluation now uses bounded manual equipment/Genus inputs; it does not verify actual equipment rolls or optimize the draft.
+- Verify current-build gear-roll legality and add optimized tactical rotation search to the contribution editor. Catalog item selection, enhancements and distinct source-pool roll entry are available. Explicit draft evaluation now uses bounded manual equipment/Genus inputs; it does not verify actual equipment rolls or optimize the draft.
 
 **Completion evidence:** current-build coefficients, mechanics and validation captures. Competitive PvP claims require more than a damage ranking.
 
@@ -54,7 +54,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 - Retrieve official Genus allocations and owned collection effects when a supported source provides them. Current public profiles do not supply those allocations; blank slots are not invented.
 - Verify defensive/owned-effect coefficients, current-build roll probabilities, costs and progression maxima.
-- Replace advanced JSON contribution entry with richer slot/Genus controls while preserving entered assumptions and reference snapshots. The standalone workspace now retains and evaluates manual equipment/Genus inputs.
+- Extend the existing visual slot and Genus controls with verified collection/progression rules while preserving entered assumptions and reference snapshots. The standalone workspace now retains and evaluates manual equipment/Genus inputs.
 
 **Completion evidence:** allocation payloads or user-entered in-game data, plus source-backed formulas and limits.
 
@@ -90,7 +90,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 **Remaining:**
 
-- Expand the bounded equipment/Genus contribution editor into catalog-backed item selection and richer controls as described in workstreams 3–4. Explicit draft rescoring is available without publishing or changing source profiles.
+- Extend the visual catalog equipment/Genus editor with verified arcana skill-roll and Pantheon node controls as described in workstreams 3–4. Explicit draft rescoring is available without publishing or changing source profiles.
 - Obtain permitted native map coordinates, layers and assets if replacing the provider viewer with local map tools. Cross-origin provider account/checklist state remains with the provider.
 - Verify crafting general success/failure rewards, refunds, combo quantity/replacement rules, modifier formulas and build/region applicability. Current combo simulations are conditional completed-craft checks, not guaranteed item yields.
 - Add further feeds only after confirming their official source, API/RSS availability and reuse constraints. Do not embed arbitrary article HTML or invent summaries/images absent from a supported feed.
@@ -123,6 +123,6 @@ Highest available server-reported skill, stigma and Daevanion totals supply pers
 
 Scheduled collection tracks source-ID image mappings, revisions and hashes. Community source slugs remain separate from numeric game IDs. Unknown NPC IDs and role changes are staged in a catalog audit; collection context does not establish current-build applicability. New snapshots open review PRs. Automatic merging remains disabled pending explicit repository-wide authorization.
 
-**Remaining:** verified in-game Pantheon node/allocation data and artwork, official Genus allocations, current-build item rules and fresh optimization under new comparison scopes. Catalog equipment selection currently includes fixed stats and listed enhancement bonuses; random rolls require separately entered contributions. Imported aggregate contributions must be removed when replacing them with individual gear to avoid overlap.
+**Remaining:** verified in-game Pantheon node/allocation data and artwork, official Genus allocations, current-build item rules and fresh optimization under new comparison scopes. Catalog equipment selection includes fixed stats, listed enhancement bonuses and entered random-roll lines bounded by the source pool, count and ranges. Unsupported effects remain unscored; source ranges do not establish current-build legality. Imported aggregate contributions must be removed when replacing them with individual gear to avoid overlap.
 
 Crafting, Build Workspace and embedded maps use the available horizontal display space, with layouts that collapse on smaller screens.

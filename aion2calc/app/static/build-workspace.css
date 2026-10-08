@@ -13,3 +13,5 @@
 .site.build-workspace-page,main.workspace-wide{max-width:none;width:100%;box-sizing:border-box}
 
 .bw-item-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;max-height:480px;overflow:auto;margin:12px 0}.bw-item-choice{display:flex;align-items:center;gap:10px;padding:10px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:5px;text-align:left;cursor:pointer}.bw-item-choice img{width:48px;height:48px;object-fit:contain;flex:none}.bw-item-choice small{display:block;color:var(--muted);margin-top:4px}.bw-item-choice:hover{border-color:var(--gold)}.bw-arcana{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.bw-doll .icon>img{width:100%;height:100%;object-fit:contain}.dtile input[data-deity]{width:100%;max-width:120px;margin:8px auto}
+
+.bw-rolls{margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:5px}.bw-rolls .row{gap:10px;margin:8px 0;flex-wrap:wrap}.bw-rolls select{max-width:100%}.bw-rolls input{width:100px}
