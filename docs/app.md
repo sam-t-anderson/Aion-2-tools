@@ -434,7 +434,7 @@ Publish stores a unique owner credential locally. Update published plan keeps th
 
 ## Official news
 
-**News** on desktop and Pages lists official English/global notice and update headlines. Filter Notices/Updates and open the original article on NCSoft's site. Publication and retrieval dates are separate; cached headlines can be stale when a source is unavailable. The source-list links remain available when the configured community server cannot serve the feed. All Pages tabs share the same banner and News option.
+**News** on desktop and Pages lists official Global (English), Korean and Taiwan (Traditional Chinese) notice and update headlines. Choose a news region, then filter Notices/Updates and open the original article on NCSoft's site. Publication and retrieval dates are separate; cached headlines can be stale when a source is unavailable. The source-list links remain available when the configured community server cannot serve the feed. News region is stored in this browser and does not change capture region. Regional feeds require a server that supports the region selector. All Pages tabs share the same banner and News option.
 
 Announcement dates do not prove the build installed on your computer or used by an older combat log. Korean/Taiwan feeds remain unavailable.
 
@@ -678,3 +678,13 @@ Timeline rows have **Hide** and **Collapse** controls. Open **Player timeline vi
 Settings → **Storage maintenance** inspects managed cache/update files before cleanup. Disposable web/comparison cache older than seven days and images older than thirty days can be removed. Images may need downloading again. Unknown files, symlinks/junctions, external cache locations, credentials, imports, results, logs, diagnostics and upload receipts are preserved. Each folder scan is bounded and reports truncation.
 
 Updater maintenance retains two recognized release packages, helpers for seven days, and at least the latest five helper logs plus all logs from the last thirty days. Active helper processes are excluded; inability to inspect Windows processes preserves legacy helpers. New helpers remove their own script/readiness marker after completing. Partial downloads remain because another app may be writing them. Cleanup also runs at launch.
+
+## Maps and crafting
+
+**Maps** embeds the provider-supported InteractiveMap.app viewer for Verteron, Altgard, Poeta and Ishalgen. Use its marker filters, zoom and route controls, or **Open provider** if embedding/storage restrictions prevent use. Shugo.GG/A2DB links provide additional regional references. This online view does not transfer application profiles, combat logs or credentials; account/checklist state and data belong to the provider. It does not classify encounters or verify marker/build applicability.
+
+**Crafting** provides a dated Gamers4Life recipe snapshot with profession/faction search, mastery gates, materials, normal/combo product icons and listed fees. Enter the number of planned completed crafts. Optionally expand source-linked same-faction intermediates without combo outcomes. Each branch rounds to whole crafts; surplus is not credited. Owned quantities subtract from final material rows only. Export the plan as JSON.
+
+Source combo rates use its 10,000-point scale. The effective combo rate can be overridden as an explicit assumption; no modifier formula is claimed. Expected combo checks and probability of at least one assume independent, constant-rate completed-craft checks. A repeatable seeded scenario illustrates variation. General success/failure/refund rules, combo output quantities/replacement behavior and current-build/region applicability are unavailable, so the tool does not promise final item yields or guaranteed material requirements.
+
+Recipe data loads offline; source images and maps require connectivity. Missing images keep item names/IDs. Image-failure exports preserve the Gamers4Life catalog namespace instead of equating these IDs with an official or NPC namespace. Refresh the bounded recipe snapshot with `python tools/export_crafting_catalog.py` and review its source hash/schema before release.

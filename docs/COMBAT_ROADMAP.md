@@ -1,411 +1,116 @@
-# Combat logging iterations
+# Roadmap and completion criteria
 
-## Capture driver evidence (0.2.37)
+This page describes current capabilities and remaining work. Release-by-release changes belong in [GitHub Releases](https://github.com/sam-t-anderson/Aion-2-tools/releases). See [the app guide](app.md), [user guide](user-guide.md) and [methodology](methodology.md) for behavior and limits.
 
-Live Meter capture diagnostics and shared combat-review quality panels show received packets, capture-buffer drops and interface/driver drops when the active Npcap/libpcap backend provides statistics. Unsupported backends are labeled unavailable; partial adapter coverage is labeled. Counters are retained in saved/exported logs and diagnostic ZIPs, including the final sample after capture stops and cumulative evidence across capture restarts in a retained session.
+The seven requested workstreams have delivered their implementation checkpoints. Some follow-ups depend on game data or protocol evidence that is not available yet; they remain open below. A display, proxy or entered assumption is not a verified game mechanic.
 
-A positive reported drop counter conservatively makes the recording unranked. It does not identify which game effects were lost: counters cover the capture handle and may include other traffic. Zero does not prove loss-free capture, and missing counters are not zero. These counts must not be added to TCP discards to estimate unique lost game packets. Native capture backends without a libpcap handle remain usable, with driver statistics unavailable. Other capture-quality rules remain in effect; driver support alone neither grants eligibility nor blocks older logs.
+## 1. Capture reliability and recording reconstruction
 
-Statistics are sampled before capture, in that adapter's packet callback and after its thread exits. Optional statistics failures do not interrupt packet decoding. See the [libpcap counter documentation](https://www.tcpdump.org/manpages/pcap_stats.3pcap.html) for platform-specific meanings and availability.
+**Available:** continuous bounded-part archival, periodic recovery snapshots, saved-part pagination and upload queues, durable upload request retries, part discovery, combined stopped-part review and original-source navigation. Shared outgoing-damage clocks freeze during inactivity, resume without resetting player totals and use a minimum 120-second automatic split gap. Partial mid-instance captures remain visible and unranked. Supported late roster and summon-owner evidence reconciles retained effects within its identity context. Overlay DPS/HPS/incoming metrics, grouping, text colors and foreground behavior are configurable.
 
-The pet review filter now follows a selected pet to its owner when enabling **Combine pets with owner**, instead of leaving a selection that disappears from grouped rows.
+**Remaining:**
 
+- Support additional local-player, spawn, roster, death and instance-entry protocol variants using representative captures. Do not assign an unnamed actor from class, name similarity, proximity or damage.
+- Confirm the zone/ownership and repeat-encounter fixes on affected devices and game sessions, with TCP recording both enabled and disabled.
+- Stitch boss attempts crossing archive parts, reconcile overlaps and retain contradictory/ambiguous source evidence. Promote complete chains to rankings only after explicit entry/completion, stable identity and loss evidence pass independently defined rules.
+- Improve matching of incomplete views from multiple uploaders without merging unrelated fights. Lost upload responses retain ownership-recovery limits even when request retries prevent duplicate creation.
+- Add additional supported OS/driver loss evidence. Missing or zero counters cannot prove loss-free capture, and driver/TCP counters must not be added as unique packet loss.
 
-## Pet and spirit grouping
+**Completion evidence:** entry-to-completion captures, partial captures, party/zone changes, reconnects, stops and rollovers with known participants/outcomes. Historical missing packets cannot be restored.
 
-In desktop/website combat review, **Combine pets with owner** is checked by default above the graph. Uncheck it for separate pet rows/lanes. **Pets** controls pet effect visibility in the graph/timeline; it does not remove pet damage from the recorded table totals. Encounter insights retain separate source labels. Pet deaths are not counted as owner deaths.
+## 2. Encounter classification, installed builds and catalog coverage
 
-Live Meter and the overlay now both have **Combine pets with owner**, enabled by default and synchronized for the active capture. The overlay includes recorded linked-pet damage in the owner row. Uncheck either control to inspect separate live pet rows. Grouping requires a recorded ownership link; unknown spirits are not assigned by name, proximity or class. Saved logs keep separate pet source IDs so grouping does not destroy detail.
+**Available:** validated Steam/registered-install discovery and local selection, launcher Build IDs, recorded regional server identity, automatic exact map/instance/NPC catalog matching, post-recording corrections, evidence explanations, unresolved-ID exports and a reproducible pinned upstream catalog audit. Public boss HP candidate signatures retain build, region, context, roster size and source provenance. Reported maximum HP stays separate from peak observed current HP.
 
+**Remaining:**
 
-## Encounter catalog coverage (0.2.36)
+- Discover unregistered PURPLE installs from verified registration/configuration formats and retain distinct launcher build namespaces.
+- Establish independent build/region applicability for catalog records and boss signatures, including party scaling and encounter modifiers.
+- Obtain independently confirmed difficulty labels, explicit difficulty flags and comparable boss HP/ability signatures. Received damage varies with mitigation, gear and buffs and cannot establish difficulty by itself.
+- Calibrate probabilistic classification on independently labeled, held-out builds/regions. Target at least 99% measured precision before automatic promotion; abstain when evidence conflicts or coverage is insufficient. No such precision guarantee is currently established.
+- Resolve supported missing NPC identity variants, new stable type IDs and exact area names from source evidence. Map 200003 and the exact arena name for map 61 remain unresolved where evidence is insufficient.
+- Obtain explicit major/miniboss/world-boss roles and trusted portraits. Reindex derived progression after reviewed role changes; the broad catalog boss flag does not distinguish every miniboss.
 
-Live Meter fills difficulty only when the recorded PvE instance ID has an explicit difficulty in the bundled dungeon table. It does not infer difficulty from ID suffixes, damage, names or gear. Manual difficulty overrides remain available and their source is recorded. Content categories without a known mapping and the ranking game build still require confirmation.
+**Completion evidence:** source-backed mappings and labeled captures by build, region, difficulty and scaling conditions. A current website announcement cannot retroactively identify an old log's build.
 
-Combat review on desktop and Pages includes **Mapping coverage** with recorded map/instance IDs, a catalog revision, unresolved NPC types and enemy references missing their type. **Export mapping report** downloads this bounded ID report without character names or raw traffic. Diagnostic ZIPs include current-view catalog coverage as well; the full combat log contains coverage per retained encounter. A supplied creature name does not automatically become a trusted catalog entry.
+## 3. Optimizer damage, survival and optimized opponents
 
-Reports keep at most 100 unresolved IDs per encounter and show omitted counts. Entity references and effects are counts of retained evidence, not kills; player opponents and owned pets are excluded from NPC coverage. A missing type cannot be resolved from an actor ID, which changes between instances. An unmapped ID means absent from the installed catalog, not proof of new content.
+**Available:** separate PvE/PvP objectives and saved results, weighted damage scenarios, flat crystal-HP reserves, entered hit/sustained-pressure assumptions, trained-skill/stigma reservations and timed expected-hit traces. Imported optimized PvP opponents can supply gross-damage windows; the strictest entered incoming scenario constrains the personal build. Canonical community presets use comparable budgets/objectives and generic class/level/region/mode labels; personal constraints are excluded from damage-only preset comparisons.
 
+**Remaining:**
 
-## Automatic capture metadata and idle DPS (0.2.35)
+- Model verified defensive skills, shields, percentage HP, healing, CC duration/success/immunity and movement effects with explicit action/cooldown costs.
+- Model matchup-specific incoming/outgoing mitigation, worst-case timing alignment and reactive optimized opponents.
+- Validate model predictions against representative encounters and matchups. Gross expected damage and entered pressure reductions are assumptions, not effective HP, guaranteed survival or win probability.
+- Extend the standalone build workspace to edit equipment/Genus and recalculate through a bounded, versioned simulation interface. Source profile totals and stale optimizer scores must remain separate from edited-build results.
 
-Live Meter detects the installed game build for registered Windows installs and resolves recorded server IDs against official regional metadata in the background. Installation paths are not exported. New Steam captures use the selected installation’s Build ID for comparisons; executable versions alone are insufficient. Optional classification overrides take precedence within the recorded PvE/PvP mode.
+**Completion evidence:** current-build coefficients, mechanics and validation captures. Competitive PvP claims require more than a damage ranking.
 
-Recorded map/instance IDs identify known open-world categories, Fire Temple Arena and available dungeon names. Unmapped content, difficulty, build and match outcomes remain unknown. Detection provenance is visible in shared log review. Opponents without their own server ID are not assigned your server.
+## 4. Genus Insight and progression
 
-Live DPS uses the recorded damage interval and pauses after two seconds without damage while capture continues. Healing after the last damage no longer lowers live DPS. Actual new damage resumes it. Saved logs preserve the full event interval, including healing/deaths, so report rates can differ from the live rate. This does not establish a kill or match result.
+**Available:** manual five-genus/nine-slot editor, unlocked-slot validation, saved inventory/advice snapshots, in-game-inspired radial presentation, per-slot damage contribution and supported-slot replacement advice. Saved modeled lines participate in PvE/PvP optimization. Coverage distinguishes saved, unlocked and missing slots; progression budgets retain observed-versus-entered provenance.
 
+**Remaining:**
 
-## Insights roadmap — checkpoint 1 (0.2.23)
+- Retrieve official Genus allocations and owned collection effects when a supported source provides them. Current public profiles do not supply those allocations; blank slots are not invented.
+- Verify defensive/owned-effect coefficients, current-build roll probabilities, costs and progression maxima.
+- Extend editable Genus and equipment planning across the standalone build workspace, preserving entered assumptions and reference snapshots.
 
-Implemented capture-quality reasons, Party encounter ranking eligibility, bounded-history/validation/TCP loss evidence, public cross-uploader duplicate grouping and operator counts. Incomplete and legacy captures stay reviewable; PvP boundaries remain unverified and unranked. Duplicate matching requires identical outgoing damage, stable player identities and anchored encounter time; partial/ambiguous matches are intentionally not merged. Quality uses submitted telemetry, not authenticated game records.
+**Completion evidence:** allocation payloads or user-entered in-game data, plus source-backed formulas and limits.
 
-## Insights roadmap — checkpoint 2 (0.2.24)
+## 5. Combat analytics and protocol enrichment
 
-Implemented per-run timing/progression, conservative observed wipes, best wipe HP, recovery gaps and matched public run speed rankings. Unknown attempts remain separate; manual chunks sharing an unresolved boss actor are joined. Speed eligibility requires observed entry, configured final-boss completion, stable identified party and no known capture loss. Public duplicate run/attempt samples count once. Existing bounded-history limits still apply; no unlimited archive or verified PvP match boundaries are claimed.
+**Available:** shared desktop/Pages/server review with focused log pages, run/encounter/participant scopes, graph keys, hover/click detail, timeline hide/collapse controls, damage/healing/incoming breakdowns, peak windows, explicit death recaps, imported buff overlap and evidence coverage. Linked pets can be combined without destroying source IDs. Partial/unknown evidence remains reviewable. Normalized imported positions can be handed to Raid Planner.
 
-## Insights roadmap — checkpoint 3 (0.2.25)
+**Remaining:**
 
-Implemented observed party-size/instance cohorts for player comparisons, class distributions and personal bests; current same-build and reconstructed at-upload standings for players and run speed; minimum sample/distinct identity gates, cap warnings, tie-aware empirical percentiles and provisional labels. Community and Pages filters expose party size. Historical reconstruction uses currently public retained uploads, not immutable snapshots. Gear brackets remain unavailable until encounter-time gear is reliable; upload-time profiles are insufficient. No cross-build normalization is inferred.
+- Verify live cast starts/ends, buff sources/applications/removals, resources, shields, effective healing/overheal, interrupts, mitigation, misses and CC success.
+- Verify live position coordinates, map transforms and movement decoding. Recognizing an opcode is insufficient to decode coordinates.
+- Verify PvP team/round/match boundaries, objectives and kill credit. The reported RaZoR 0–3 arena loss has incomplete decoded death evidence and cannot establish match detection.
+- Define encounter mechanics before assigning phase names, avoidable damage or causal support/rotation advice.
+- Resolve per-effect mode when a single segment contains mixed PvE/PvP activity. Currently mixed uploads appear in both mode lists using their recorded matching segments.
 
-## Insights roadmap — checkpoint 4 (0.2.26)
+**Completion evidence:** representative packets with independently known actions, targets, timing and outcomes.
 
-Implemented bounded explicit-player-death recaps with observed damage/healing/HP, relative timestamps, missing-evidence/short-window notices and no inferred killing blows. Pet deaths no longer count as owner deaths; identical markers are deduplicated. Shared desktop/Pages personal search shows matched public completed-boss consistency and recent-five/previous-five trends, minimum sample gates, capped history and descriptive caveats. Wipes remain reviewable with recaps but unranked for these public rate trends. Avoidable damage, defensives and causal improvement require further protocol/encounter evidence.
+## 6. Regional timers and timed-boss history
 
-## Insights roadmap — checkpoint 5 (0.2.27)
+**Available:** regional event pages, named-zone/local countdowns, dated community schedule provenance, conflict/staleness notices and public observed boss-defeat histories with party engagement and source-log links. Schedule windows and last defeats remain separate from availability.
 
-Implemented optional shared Encounter insights: healing source/recipient relationships and missing attribution, merged/clipped imported buff uptime, ability effect counts and first/last times, bounded opening effect sequences and first sampled boss HP thresholds. Local validation/saved sessions and protected server/raw views recompute from retained evidence. Details and omissions are bounded and visible; pets retain distinct sources. No effect count is labeled a cast, no HP threshold is named a mechanic phase, and no effective-healing/support-credit or optimal-rotation verdict is inferred.
+**Remaining:**
 
-Pending evidence for phase/support/rotation enrichment: verified cast-start/end, buff source/application/removal, resources, shields/overheal and encounter mechanic definitions. Live movement and richer PvP protocol evidence remain pending. Imported windows do not establish live decoding support.
+- Verify regional schedules and current-build applicability independently; copied community forecasts are not official schedules.
+- Record physical server/channel scope and verify timed/world-boss roles and respawn rules.
+- Deduplicate perspectives of the same defeat before estimating respawn or availability. Exact encounter duplicates alone do not solve this.
 
-## Insights roadmap — checkpoint 6 (0.2.28)
+**Completion evidence:** independently confirmed schedule/respawn rules and sufficiently scoped observations. A last observed defeat does not show whether a boss is alive now.
 
-Implemented per-upload ownership retention on desktop/CLI, shared My uploads management on desktop/Pages/server views, current status, visibility changes, private-link rotation, deletion, private credential backups/import and recovery with original delete tokens. Shared upload keys no longer read private combat logs or delete logs. Privacy changes reindex reports and exclude private calibration; mutable responses use no-store. This is upload ownership, not proof of character identity. Existing downloads/caches cannot be recalled, and lost unique credentials cannot be inferred.
+## 7. Website and shared player tools
 
-Remaining ownership/community work: verified character claims, opt-out of appearances in other uploaders' logs, account/device recovery and individual moderator identities/appeals workflows. Those need an explicit trustworthy identity/authentication design. Richer PvP scoring still requires representative match/kill/objective evidence; user will gather PvP captures later. Live protocol enrichment remains dependent on verified packet evidence.
+**Available:** consistent Pages navigation, focused logs and character pages with Back to log, recorded images/equipment/stats/skills/boards, local build allocation drafts, catalog validation, saved drafts/import/export and community preset seeding. Maps use the provider's published embed mode for four supported maps. Crafting has a source-attributed recipe snapshot, profession/faction search, icons/rarity, mastery/fees/materials, supported intermediate expansion, conditional combo scenarios and material-plan export. Official Global/Korean/Taiwan headline cards preserve region, publication/retrieval dates and original links.
 
-## Insights roadmap — checkpoint 7 (0.2.30)
+**Remaining:**
 
-Implemented private anonymous reports from shared desktop/Pages/server combat review, bounded/rate-limited intake and receipts, private LAN dashboard review/dismiss/quarantine/release, required decision notes and audit history. Reports never automatically hide uploads. Quarantine rotates shared access, excludes public/calibration samples and pauses owner visibility changes; original unique credentials retain review/deletion. Release leaves the upload private. No report contents are exposed publicly.
+- Complete editable equipment/Genus and scenario rescoring as described in workstreams 3–4.
+- Obtain permitted native map coordinates, layers and assets if replacing the provider viewer with local map tools. Cross-origin provider account/checklist state remains with the provider.
+- Verify crafting general success/failure rewards, refunds, combo quantity/replacement rules, modifier formulas and build/region applicability. Current combo simulations are conditional completed-craft checks, not guaranteed item yields.
+- Add further feeds only after confirming their official source, API/RSS availability and reuse constraints. Do not embed arbitrary article HTML or invent summaries/images absent from a supported feed.
 
-Remaining: verified character claims and opt-out across other uploaders' logs, account/device recovery, individual moderator identities/roles and an authenticated appeals/status workflow. Shared admin-token audit establishes credential use, not the identity of a person. Protocol-dependent metrics (live positions, casts, buffs, resources, effective healing and PvP outcomes/objectives) still require representative evidence. Further work should begin with verified character authentication design or new protocol captures.
+## Maintenance, screenshots and assets
 
-Pending capture-quality follow-ups: additional OS/driver packet-drop counters, verified match boundaries, robust matching of incomplete perspectives, trusted game-version mapping and unlimited disk archival beyond bounded retention. These are not inferred from missing events.
+**Available:** application-content screenshots include below-fold content without monitor capture; storage inventory and explicit cleanup cover recognized disposable caches; updater helpers self-clean and bounded retention preserves recent logs, releases and active helpers. Saved logs, imports, credentials, results and upload queues are preserved. Asset diagnostics distinguish browser failures, proxy status, official same-region/item-ID references and publisher-specific item namespaces. Pinned catalog audits and profile image re-indexing are available.
 
-## Iteration 1 — 0.2.16
+**Remaining:**
 
-- Show verified automatic local identity. The optional name override is for captures started after the identity packet. Combat entity IDs change between instances; roster database character IDs and server IDs are retained separately when observed.
-- Add **Split now** and **Automatic splits**. Automatic grouping uses the configurable idle gap; manual splits take effect on the next damage event.
-- Add **Hide overlay**; Open overlay restores it.
-- Save full decoded party sessions locally on Stop/normal Quit and show **Combat Logs → Recent full sessions**. TCP ZIPs remain bounded troubleshooting captures, not full dungeon recordings.
-- Use one desktop, Pages and server viewer: Summary, Damage Done, Damage Taken and Healing; Table default, Timeline and Events; visibility toggles; actor/server labels; enemies below the graph; effect/death markers; recorded HP lines; class color controls; supported pet ownership; basic local/public log comparisons.
-- Retain healing recipients only when explicitly decoded. Deaths use explicit death markers; absent markers do not prove survival. Skills on the timeline are recorded effects, not inferred cast starts.
-- Accept verified normalized positions in imported a2logs, play those back and export a raid-plan file. **Live movement decoding remains unimplemented.**
-- Keep the Pages banner, navigation links and theme button consistent on every page. Open public Logs and Leaderboard entries in the Pages viewer.
-- Retain optional a2log event fields when uploading.
+- Confirm full-page rendering on target devices and handle browser/CORS limitations for remote images.
+- Reconcile additional item/title/NPC/passive assets using stable source IDs and reviewed namespaces. Do not derive NPC portraits from names or equate third-party item IDs with official IDs.
+- Review newly encountered cache/update file types before making them eligible for cleanup; unknown files remain preserved.
 
-## Iteration 2 — 0.2.17 — community comparison and ownership
+## Community identity and operations
 
-- Encounter-type filters: Transcendence dungeon, daily dungeon, expedition, ascension trials, nightmare and sanctuary raids, plus Unknown for logs without reliable classification. Record type, difficulty and game build on upload; preserve them in local history and server indexes.
-- A class-performance summary on desktop Combat Logs and Pages: distributions/box plots, median, quartiles, range and parse counts for the selected build and encounter category. Expose data coverage; do not combine unrelated bosses, difficulties or builds into a misleading balance ranking.
+**Available:** owned upload management, credential backups/import, privacy changes, request retry receipts, moderation reports/audit history, private authenticated server dashboard, public PvE/PvP class/player samples and an updater that checks successful main CI before installing/restarting. Existing-host deployment must be confirmed separately from repository publication.
 
-- Player/run ranks by server, region and all submitted public community logs. Match boss, difficulty and build, and report sample sizes; do not claim the dataset covers every player worldwide.
-- Personal-record search/history using verified database character ID or name plus server.
-- A dedicated comparison workflow with selectable matching players, encounter filters and multiple runs. Iteration 1 provides basic recorded-DPS comparisons.
-- Edit published raid plans using locally stored owner credentials and authenticated updates that preserve the shared link. Add credential backup/import; author names must not grant ownership.
+**Remaining:** verified character claims, opt-out of appearances in others' uploads, account/device recovery and named moderator roles/appeals need a trustworthy authentication design. Shared admin credentials establish credential use, not the identity of a person. Previously downloaded public data cannot be recalled.
 
-Implemented: encounter metadata and local filters; shared community browser; separate class distributions and public rankings; personal record search; explicit multi-run comparison; authenticated plan updates with ownership backups. Classification is manually supplied when the capture cannot verify it. Rankings are recorded DPS, not gear-adjusted, and World covers community submissions.
+## How to supply the remaining evidence
 
-Build-point follow-up: correct the imported Daevanion denominator, remove the invented extra stigma point, expose all character point budgets as editable totals, and label imported resources as observed lower bounds. Automatic verification of unspent points remains dependent on profile/capture evidence. Edited totals persist per character; anonymous observations update highest-observed resources by class/region/build/source. Saved Results preserves optimizer and advice snapshots with export/import.
-
-## Iteration 3 — protocol and replay enrichment
-
-- Decode verified boss positions/movement and connect directly to Raid Planner import. Establish coordinates, map and arena transform first.
-- Extend healing-recipient, pet-ownership and player-death coverage against representative captures.
-- Refresh trusted creature metadata, retain observed type IDs and review unknown IDs. Future game/protocol updates cannot be guaranteed to supply names.
-- Add supported casts, buffs, debuffs and resources as evidence permits. Unobserved threat, interrupts, mitigation and misses remain unavailable.
-- Add periodic disk checkpoints and crash recovery. Iteration 1 saves on Stop/normal Quit; forced termination can lose the active session.
-
-### Checkpoint 3A — retained sessions and replay handoff
-
-Implemented: atomic periodic session snapshots every 15 seconds, final save on Stop, unfinished-session labels and reopening from Combat Logs; direct local Raid Planner import for recorded normalized movement on desktop and Pages; incoming healing retains explicit recipient references across scope filtering; healing does not bridge automatic or manual encounter splits; pet-reference cycle protection during export. README developer/author/license sections now follow player documentation.
-
-Still pending in checkpoint 3:
-- Verified live positions, coordinate encoding, map IDs and arena transforms. Upstream recognizes the position opcode for zone changes but does not decode its coordinates. Imported normalized replay support does not establish live movement support.
-- Additional representative healing, pets and player-death evidence, especially full decoded sessions rather than bounded TCP diagnostics.
-- Trusted creature metadata refresh and a review workflow for unknown type IDs.
-- Verified cast/buff/debuff/resource packet formats. Recorded damage/healing effects are not cast-start records.
-
-Recovery reopens the last saved a2log as a historical session; it does not resume a lost TCP stream or concatenate a new capture into that historical session. Save errors remain visible under capture diagnostics. The selected scope applies to snapshots, and existing event/identity limits still apply.
-
-## Last priority — only after iterations 1–3 are complete
-
-- PvP tracking with the same supported combat metrics and dedicated leaderboards for battlegrounds, arenas, Abyss, rifts and other verified modes. Separate PvP from PvE datasets and rankings.
-- A server-local dashboard/domain for service health, capture/upload/error counts, logs by encounter/PvP type, storage and job metrics, build performance, class/player insights and data-quality coverage. Keep administrative operations authenticated and local/private by default; choose the host/domain when implementing it.
-
-## PvP and server metrics — started at user request before protocol follow-ups
-
-Implemented: explicit PvP categories, roster-based capture scope, known-player combat filtering, separate public PvE/PvP DPS/HPS/DTPS comparisons and records, and exclusion from PvE calibration. Existing supported combat review metrics remain available. New PvP packet formats, match results/objectives/kill credit and automatic mode detection remain unverified.
-
-Server: authenticated private LAN dashboard on port 24662, persistent UTC-day request/error/latency and preset-outcome counters, storage/process health, retained upload counts by type/visibility/day, missing-metadata coverage, simulated presets and public class/player insights. See the server README for access and administration. Client capture errors and actual build-to-combat-performance attribution remain unavailable.
-
-### Upload-time character builds (0.2.20)
-
-Shared desktop/Pages combat review opens saved character profiles for friendlies and identified PvP opponents. Server enrichment uses fresh official public profiles, with immutable upload/fetch timestamps and explicit unavailable states. Current local previews are separate. Actual PvP packet coverage, automatic mode/team/objective detection and accurate encounter-time gear require further evidence; upload-time profiles cannot establish exact gear used in earlier combat.
-
-### Run boundaries (0.2.21)
-
-Implemented retained run groups, configured final-boss death completion, manual Finish run, map/dungeon transition boundaries and source-specific open-world/unverified categories. Shared viewer selects individual runs. Missing final-boss order and arena/battleground match-end protocol evidence prevents guessing automatic completion. Long-capture archival/rollover beyond the existing bounded history limits remains pending.
-
-### PvP optimizer checkpoint (0.2.33)
-
-Separate PvE and experimental PvP damage actions, isolated saved results and explicit model limits. Live Meter actions now provide progress and completion feedback. A full arena capture against RaZoR was supplied with a reported 0–3 loss and three local deaths; replay currently observes only two local zero-HP transitions and no explicit local death markers. Death and round/match detection therefore remain incomplete. Next: reconcile this capture with death/round signals, then verify automatic arena completion and classification. Verified PvP coefficients, opponent defenses and defensive/CC objectives remain future work.
-
-## Long live sessions (0.2.38)
-
-Live capture automatically saves a numbered archive part before the current history reaches its effect, telemetry, encounter or observed-party identity budget. Each part has a shared archive ID and appears separately in **Combat Logs**. Capture continues with the same decoder and current identity context; the live meter and its export/upload buttons cover the current part. Open an earlier part from Combat Logs to review or upload it. There is no fixed total part count or automatic deletion; available disk space is the practical storage limit. The recent list shows the newest 100 files; older parts remain in the user logs folder and can be imported.
-
-A storage boundary is not a boss kill, instance finish or arena result. Parts crossing a storage boundary are conservatively unranked, and a continued run does not inherit observed entry. Parts are not automatically stitched into a combined report or uploaded as a batch. A failed rollover save stops capture visibly and retains the in-memory history instead of clearing it. Periodic recovery is still every 15 seconds; abrupt termination can lose newer unsaved effects.
-
-Per-file format/validation limits still apply. In unusually large All-observed rosters, a part can exceed the 64-player validation limit; the app reports a save error rather than silently clearing it. Party/Self scope is recommended. This is automatic bounded-part archival, not an unlimited single JSON document. Raw TCP diagnostics remain a separate opt-in recording.
-
-Implementation: rollover is checked between decoded packet batches at 100,000 retained effects, 20,000 telemetry samples, 100 conservative candidate encounter boundaries or 48 observed party actor references. Saves use atomic replacement and fsync before releasing the old part. Thresholds leave headroom for normal packet batches. Counters remain conservative cumulative capture evidence across parts. No live TCP stream is reopened, historical identity epochs are not merged, and recorded pet links remain available.
-
-## Review and upload saved parts (0.2.39)
-
-**Combat Logs → Saved parts** browses local files in pages of 25, including files older than the newest 100. Open a part to review it, filter the current page by encounter type, name or archive ID, and select up to 100 saved files across pages. Choose Public, Unlisted or Private, then **Upload selected / retry remaining**. The default is Unlisted. Each file creates an independent report; archive parts are not stitched into one timeline or combined score.
-
-The same queue is available on the Pages **Logs** page: choose saved a2log v1 JSON files (up to 50 MiB each), review locally and select the parts to upload. Uploads use the community server configured for the site or the visitor's saved Raid Planner server settings. Reading a file does not upload it. The browser compresses uploads when CompressionStream is available; server size/rate limits still apply.
-
-The queue shows progress, uploaded report links, errors and ownership-save warnings for each file. Cancel stops before the next upload; an in-flight request can finish. Successful entries are skipped when retrying within the same queue. Network/authentication/rate-limit failures stop the queue with remaining files pending. A lost response can be ambiguous: retry can create another upload if the server already accepted the first. Clearing the queue or leaving/reloading the page loses this queue's retry state, but saved ownership credentials remain available under My uploads. Navigating away stops before the next request, not necessarily the current one.
-
-Active or unfinished checkpoints are excluded from batch upload; stop capture first. An unfinished crash-recovery checkpoint can still be reviewed and published individually as partial evidence. Local pagination is a live file listing: concurrent new checkpoints can shift page boundaries, so selection is tracked by filename and should be reviewed before upload. Filters apply to the current page, not every file on disk. Changing server/visibility requires clearing the queue; desktop requests reject a server change during a batch.
-
-**Export upload results** saves a manifest of selected files, archive/part labels, statuses and report IDs. Public/unlisted links may be included, so unlisted links should be shared deliberately. Private links, upload keys and ownership credentials are excluded. Keep using My uploads → Export private credentials for an ownership backup. A manifest is a list of outcomes, not a combined combat log, permanent privacy snapshot or automatic import/resume credential.
-
-## Focused log review (0.2.39)
-
-- Open saved, analyzed and shared logs in a focused detail view with **Back to combat logs**. History, upload queues and server settings stay on the list screen. Pages local previews use a temporary focused browser view; refresh requires reopening the file.
-- Reconstructed rate graphs now offer live-style bars with a trailing 10-second average, player series and time inspection. Timeline adds a seconds ruler, sticky player labels, skill icons, zoom windows and navigation; hover, focus or click shows effect details. Markers represent observed effects, not inferred cast durations. Crowded markers are labeled and remain available in Events.
-
-Skill images use the desktop icon cache or metabot.gg on the website; unavailable images retain labeled tiles. Local previews and queue state are temporary; saved files and server reports remain available.
-
-## Recovering an upload queue (0.2.40)
-
-**Combat Logs → Saved parts → Restore saved queue** restores the last queue saved on this computer. On Pages, it restores the last queue in this browser/site storage; reselect the original JSON files before resuming. Recovery metadata is saved after selections and before/after each request. Keep only one active queue per computer/browser; concurrent windows are not coordinated. A local-storage or disk write failure stops further uploads.
-
-**Export recovery file** / **Import recovery file** moves a queue checkpoint between launches or computers. It stores filenames, titles, SHA-256 fingerprints, original server/visibility, statuses and report IDs. It does not include combat documents, upload keys, owner credentials or private links. Select the same server and supply any required key through ordinary settings. Keep **My uploads → Export private credentials** as a separate ownership backup. The older results manifest is for reporting outcomes, not recovery.
-
-The file fingerprint must match before a successful entry is skipped or another request is sent. A changed file stops the queue; remove it or clear/review a new queue. A missing file must be restored or removed. Pages can reattach uniquely named files after copying; fingerprints still verify content. Recovery files are user-editable local records, not authenticated server receipts or upload ownership.
-
-Requests interrupted during upload restore as **unknown**. Check **My uploads**/the original server before checking the explicit uncertain-retry option. The server may already have accepted a request even if the response was lost. Matching saved request IDs now support durable duplicate prevention on updated servers; legacy requests/servers can still duplicate. Known successful uploads are skipped. No automatic upload starts when restoring or importing. Private report links must be reopened through My uploads, since recovery files intentionally omit them. Clearing a queue also clears its saved checkpoint, without deleting logs or uploads.
-
-## Planned optimizer objective update
-
-User priority: maximize PvE damage while meeting configurable survivability constraints, including avoidable one-shot thresholds and sustained trash pressure. Expose the assumed incoming hit/pressure, defenses and mitigation support instead of promising survival. Defensive benefits unsupported by skill data remain unavailable; no invented damage reduction or healing coefficients.
-
-For PvP, evaluate damage/burst, crowd control, mobility and survival across an ensemble of optimized opponent builds/archetypes. Use official current profiles or recorded profile snapshots when identities resolve, with timestamps and provenance. Include average and adverse matchup results and sensitivity to uncertain coefficients; avoid optimizing against one stationary target or claiming verified win probabilities. User-provided profiles/scenario inputs should remain editable. Current experimental PvP optimizer is still a damage-only proxy until this separate modeling checkpoint is implemented and validated.
-
-Saved-part request retries now have durable server mappings; archive navigation/stitching remains next, while optimizer scenario/constraint implementation is a separate substantial checkpoint. Representative PvP round/death, CC/movement and mitigation evidence remains needed to validate mechanical predictions.
-
-## Damage with an HP reserve (0.2.41)
-
-My Character → **Survivability** preserves the character's imported flat **HPMax** contribution from the four optimized crystal boards by default. The existing DPS objective stays primary inside the set of allocations meeting this floor. Skill, stigma and Daevanion budgets and board connectivity remain enforced. A stricter minimum can trade some modeled DPS for more crystal HP. Disable preservation and leave the minimum/scenarios empty to use the previous damage-only objective. This is an HP-node constraint, not a full survival simulator.
-
-Optional scenarios describe one hit followed by sustained pressure. Enter current in-game maximum HP and up to eight encounter/opponent assumptions: **hit damage after mitigation + max(0, incoming DPS − assumed sustained HPS) × seconds + positive HP reserve**. The largest requirement sets the floor. HPS never absorbs the initial hit. Estimated total HP is entered current HP plus the flat node-HP change; percentage modifiers and passive/gear changes are not modeled. Headroom is a scenario proxy, not verified effective HP, guaranteed survival or win probability. Confirm final HP in game.
-
-Settings persist per selected character in this browser. Saved Results/build JSON/Markdown retain assumptions and the assessment. Infeasible requests report an error without publishing a lower-HP fallback. Solver limits can prevent finding an allocation even when one exists. Damage-only stat priorities, baseline comparisons and Gear & Advice do not validate survival; constrained builds are not submitted as community damage presets.
-
-PvP supports a manual multi-opponent **incoming-pressure** envelope, not optimized opponent-build combat. Next modeling work: resolve official current/historical opponent gear with provenance; evaluate outgoing damage and adverse matchups; include verified defensive skill, CC, mobility and coefficient rules before scoring them. Those metrics are explicitly unavailable here. This checkpoint does not invent mitigation or tactical coefficients.
-
-Mapping coverage also recognizes a known dungeon ID repeated in the map field. The submitted 600021 report already identifies Fire Temple; it is no longer separately flagged as an unknown map. Distinct unknown map IDs and missing difficulty remain unresolved.
-
-### Catalog follow-up
-
-Map 61 is categorized as Arena only when identified player combat is recorded, based on a user-confirmed arena capture. The exact arena name remains unverified. Map 600021 with matching known instance 600021 resolves to Fire Temple. Map 200003 remains unresolved: NPC dungeon references alone do not establish the recorded map's name or difficulty. Unknown build/difficulty are retained rather than guessed.
-
-## Combat log navigation and recovered builds (0.2.42)
-
-Combat Logs separates **Saved Parts**, **My Uploads** and **Community Combat Logs** on desktop and Pages. Desktop remembers the selected list tab while opening a focused log and returning; Pages preserves it while opening a local preview. Tabs hide their panels without resetting upload queues. Website Saved Parts means files selected from your computer, not direct access to the desktop archive directory. Arrow keys, Home and End navigate tabs.
-
-Completed-run speed and Boss progression are now permitted read-only community endpoints in the desktop proxy. Boss progression requires catalog-confirmed bosses with observed engagement and excludes players, pets, dummies and catalog non-bosses. Unmapped NPCs do not establish boss roles. The current catalog does not separate every miniboss from a major or world boss; comprehensive miniboss exclusion remains pending verified role metadata. Unknown build/difficulty and ranking eligibility rules are unchanged.
-
-**My Character → Imported before** lists the newest eight imports as buttons that fetch the current official profile. Macro/hotbar suggestions reserve **Right-click** instead of F. This is guidance; the app does not change game bindings.
-
-Recovered old build titles show PvE/PvP and use the saved character sidecar name when available. Generic class titles remain when identity is unavailable. Existing generic recovered titles are upgraded without replacing their result snapshot or timestamp. Recovery entries and explicit run snapshots remain separate historical records.
-
-## Next checkpoints and requested expansion (2026-10-07)
-
-### Next: build presentation and asset identity
-
-- Gear & Advice: inventory-slot layout with item icons, rarity, equipped/recommended comparison and accessible fallbacks.
-- Daevanion: skill/passive icons in level-up nodes while retaining each node's current border color; resolve affected skills from actual board effects.
-- Pet Genus: show imported allocations, benefits and an in-game-style panel across optimizer/advice/build views. Gather public screenshots or user references before copying the interaction model; do not invent pet allocation data absent from the official profile.
-- Focused character build pages from combat logs on desktop and Pages: character, stats, equipment, skills/passives, specializations, Daevanion, pets/genus and available images, with Back to log. Preserve historical/current-profile provenance and timestamps. Eventually share rendering with a build viewer, planner and editor.
-- Asset audit: current bundled English NPC catalog has 9,780 name/ID records and no icon/image field. Equipment icon lookup currently includes name-based matching. Prefer stable game/item/skill IDs and recorded official image URLs; record missing IDs, HTTP errors and fallback usage. Review additional NPC/enemy/item/title/passive assets and sources before importing mappings; do not derive URLs from a name or assume numeric namespaces match. Missing images must keep readable labels. External asset availability and reuse terms need review at implementation.
-- Planner presets: one canonical PvE and one PvP selection per class, server-side. Define versioned comparable budgets/objectives and a weighted rating, retain candidates/audit history, then regenerate canonical builds. Do not rank incomparable gear/budgets or personal HP constraints solely by DPS. Current server preset schema/objective is PvE damage-only; no competitive PvP preset is claimed yet.
-- Verified major/miniboss/world-boss role catalog. Current isBoss flag does not distinguish all roles; preserve world bosses and exclude minibosses only from verified role evidence. Reindex derived progression after role updates.
-
-### Later: Pages tools and feeds
-
-- Regional event timers with server/local timezone, DST handling, provenance and editable corrections. References: https://shugo.gg/timers , https://a2db.ru/en/events , https://gamers4.life/aion-2/database/en/events/ . Shugo's page explicitly labels Global event schedules as not officially published; do not present copied times as verified official schedules.
-- Build viewer/planner/editor with profile links and return-to-log navigation. References: https://gamers4.life/aion-2/database/en/builds/ and https://questlog.gg/aion-2/en/character-builder . Reuse the focused character view and validate legal allocations before optimization/export.
-- News cards from permitted RSS/API feeds, showing publisher, timestamp, preview and source link; sanitize embedded content and avoid arbitrary iframe/HTML injection. Reference https://shugo.gg/news . Feed availability/reuse must be confirmed, not assumed from a news listing.
-- Interactive maps: verified zone/coordinate data, search/filters, provenance and permitted tile/icon assets. References https://a2db.ru/en/maps , https://shugo.gg/map , https://interactivemap.app/aion2/maps/ . These are references, not licensed datasets automatically available for copying.
-- Crafting simulator resembling the game: materials/quantities, output/rarity, chances/modifiers, explicit recipe/build/region provenance and unknown values. Research database/wiki formulas and permitted images before modeling; keep deterministic costs distinct from probability estimates and do not invent chances.
-
-Existing priorities remain: verified defensive/CC/mobility/opponent modeling, request reconciliation/archive stitching, combat protocol gaps and evidence-based catalog/build/difficulty mapping. PvP analytics and operations dashboard continue in parallel with those user-requested checkpoints; expansions above do not imply already-completed features.
-
-### Installation and encounter inference follow-up
-
-Fix Steam-library discovery in v0.2.42; this machine has AION 2 app3393110 in the primary Steam manifest, build25719316, with a newer target update recorded. The installed manifest is evidence of installed build, not proof of the latest live build or completed pending update.
-
-Next metadata checkpoint: enumerate validated Steam/PURPLE installations, provide a persistent local install/region selector when ambiguous, investigate launcher game registration/config/version files and official regional published build feeds. Keep paths local and installed/published build provenance separate; a newer website announcement cannot prove an old installation or historical log ran that build. Move manual encounter corrections to post-recording once automatic classification is adequately supported.
-
-Classify zone, content and difficulty independently using exact versioned map/instance/NPC IDs, explicit server difficulty flags, verified boss roles, boss sequence and reported maximum HP signatures. Damage/received damage are weak supporting signals due to gear/buffs/mitigation. Evaluate confidence calibration using independently labeled captures, held-out regions/builds and conflicting/missing evidence. Target >=99% measured precision before enabling probabilistic automatic labels; abstain where unsupported rather than inventing a percentage. No such classifier or confidence guarantee ships yet. User requests confidence-based classification without pre-recording manual choices; this remains a priority after discovery fixes.
-
-### Build-versioned boss signature collection (before difficulty inference)
-
-Collect candidate signatures server-side from retained reported HP samples, grouped by region, installed build/verified build, instance/map, NPC type, independently confirmed difficulty, party size and scaling/modifier conditions. Preserve source evidence, sample counts and catalog provenance. Separate explicit reported max HP from maximum observed current HP and incomplete captures. Derive ability-specific raw boss damage only when mitigation/buff/ability metadata makes it comparable; received damage alone is not a stable fingerprint.
-
-Promote candidates with verified game tables or repeated independently labeled recordings; do not use the classifier's own predicted labels as confirmation. Track ambiguity and collisions, detect build shifts, retain old mappings for historical reports, and abstain on new/unverified builds until evidence supports a label. A unique verified maximum-HP signature plus boss/instance identity can be sufficient; overlapping/scaled values need explicit flags or additional evidence. Confidence thresholds need labeled held-out validation, not an invented certainty percentage. Candidate collection and promotion are planned server work, not enabled in v0.2.26.
-
-### Preset naming
-
-Keep homepage/build-planner preset labels generic: `<class>_<level>_<region>_<PvE|PvP>`, for example `sorcerer_45_global_PvE`. Do not expose contributor or character names as preset titles. Keep performance, provenance and loadout variants as separate details. Saved personal optimizer history can retain character names. Apply this when publishing the canonical per-class/mode presets.
-
-### Installation selection checkpoint
-
-Implemented local persistent selection among detected Steam/registered Windows game copies, explicit multiple-copy and missing-copy states, recording-region dropdown, retained-session installation lock and writable first-use official region cache. Follow-up: unregistered PURPLE configuration discovery, verified official regional build feed and build-specific encounter signatures. Use exact launcher Build IDs and keep namespaces separate. Current installation evidence must not be applied retrospectively to older logs.
-
-### Community log presentation and mixed modes
-
-Implemented the community list's Type/build/difficulty cell replacement with event count, build and catalog boss placeholders (PvE) or distinct opponent-class icons (PvP). The bundled AION 2 emblem is the fallback; verified boss portraits remain pending because the NPC catalog lacks image URLs. Mixed uploads with recorded segments of both modes appear in both lists with matching-segment totals, and open a mode-filtered viewer preserving original ranking indices. Follow-up: verified boss portraits and unambiguous per-effect mode evidence when one segment contains mixed activity.
-
-### Build visualization checkpoint
-
-Implemented focused character pages shared by desktop/Pages with Back to log, recorded official images/stats/equipment slots/skills/pets/boards and complete expandable source sections. Added skill/passive images to Daevanion nodes preserving rarity rings, and generic Planner selection labels. Remaining: stable-ID catalog icon recovery, game-style Pet Genus using verified data, canonical weighted PvE/PvP presets per class, and richer editable build boards. These display changes do not add survival/CC/movement formulas or change optimizer scores.
-
-### Retained gear and asset provenance
-
-New imported loadouts preserve official equipment IDs/slots/icons/grades/enchants, and new optimizer raw reports freeze their simulation loadout for future review/rerender. Missing/broken equipment images show a placeholder; name fallback requires a unique match and does not choose one member of a grouped family. Follow-up: catalog stable-ID reconciliation and verified NPC/item/title asset coverage. Old reports without gear snapshots cannot be reconstructed retroactively.
-
-Server candidate collection now groups publicly retained engaged boss HP evidence by build/build/region/NPC/map/instance and submitted difficulty/source/recorded complete roster size, keeping reported max HP separate from peak current HP. Dashboard/export flags changing or inconsistent maxima. Independent labels, scaling/modifiers, promotion and held-out precision validation remain pending; candidates do not classify difficulty or alter ranking eligibility.
-
-### Durable saved-part request retries
-
-Saved Parts desktop/Pages queues persist/export random request IDs before sending. Supporting servers atomically retain request-to-report mappings scoped by upload-key identity (or anonymous), compare normalized content/visibility, replay accepted IDs, reject conflicts and retain deletion tombstones. Retry IDs do not grant ownership; receipts never reissue private links/tokens. Explicit uncertain retries and file fingerprint verification remain. Legacy requests/servers and separately started queues can duplicate; full content-based duplicate reconciliation, archive stitching and ownership recovery after a lost first response remain follow-up work.
-
-### Official news foundation
-
-Desktop/Pages provide official English/global notice/update headline cards with publication/retrieval dates, category filters and original source links, backed by a fixed-source server cache. No article HTML or inferred installed/historical build is used. Follow-up: verified regional build/build matching, Korean/Taiwan sources, permitted additional feeds and regional event timers. News is included consistently in Pages navigation.
-
-### Official asset-reference coverage
-
-Fresh official imports retain sanitized public image references scoped by region, kind and ID. Equipment missing a recorded icon can use an unchanged same-region/item-ID reference before slug/unique-name fallback. Settings exports counts and up to 200 missing/changed reference IDs without character identities, stats or credentials. Runtime HTTP-failure counters are available in image coverage exports. Follow-up: verified NPC portraits, stable-ID reconciliation with third-party catalog slugs and broader title/item coverage. URL changes disable ID fallback until reviewed; this does not establish an identity conflict or map numeric namespaces.
-
-### Manual Genus Insight editor
-
-Gear & Advice provides five genus tabs, nine analysis-slot cards, level/stat/value controls, draft retention across tabs, per-slot clearing and save feedback. Validate allocations before replacing inventory; retain malformed legacy entries in Advanced JSON for repair. Saving requires recalculation instead of displaying stale advice. Remaining: official allocation retrieval (not supplied by current profiles), verified in-game reference art/interaction details, richer genus presentation across build views and defensive-effect modeling.
-
-### Session image-failure diagnostics
-
-Desktop/Pages remember up to 200 failed image resources for five minutes and show stable placeholders during rerenders. Explicit Retry images clears the session list; desktop coverage export includes source-host/count/time and recognized public skill IDs without URLs, query strings or portrait paths. Browser HTTP status is unavailable; no automatic upload. Bundled item audit: 2,081 image references, no explicit official item-ID fields. Local image-proxy HTTP response counters are now available. Remaining: verified NPC portrait sources, broader catalog reconciliation and permitted missing-asset retrieval.
-
-### Trained skill reserves
-
-Implemented optional active/passive trained-level floors and minimum levels for reserved equipped stigmas, with budget validation, solver constraints, local persistence and saved-result assessments. This supplements HP-node constraints; verified tactical skill use, CC/mobility modeling and optimized opponent matchups remain pending.
-
-### Desktop image HTTP diagnostics
-
-Image coverage export includes process-local approved-host HTTP status/error/cache counters without full URLs or character paths. These are attempt counts, not resource identity reconciliation. Browser-direct failures remain status-unavailable. Missing NPC portrait sources and third-party stable-ID catalog matching remain pending.
-
-### Recording part navigation
-
-Saved Parts groups exact archive IDs with part-order pagination on desktop and selected-file grouping on Pages, preserving upload queues. This does not stitch effects, prove completeness or reconcile duplicate captures; those remain pending.
-
-
-### Reproducible encounter-catalog audit
-
-The pinned catalog refresh command stages all localized NPC/dungeon tables with validated schemas, source hashes, counts and bounded added/removed/changed ID summaries for release review. New mapping coverage includes source-commit provenance. The checked upstream snapshot matched the bundled tables, so this audit introduced no mappings. Remaining: independent game-build applicability, verified new IDs/portraits and complete miniboss/world-boss role evidence. Cached official-profile icon re-indexing is available separately in Settings.
-
-### Community timed-boss observations
-
-Server uploads index observed catalog-boss defeat markers after recorded roster engagement, with build, region, map/instance and timestamp evidence. The private dashboard and public feed show latest observations. Desktop/Pages now share a collapsible PvE feed with build/region filters, local boss search and source-log links. Exact indexed encounter duplicates count once; separate perspectives can still repeat a fight. Remaining: verified timed/world-boss roles, physical server/channel scope, independent regional respawn rules, perspective-level deduplication and meaningful availability estimates. Current availability and respawn time remain unknown; a last recorded defeat does not establish that a boss is currently alive.
-
-### Missing NPC identity diagnostics
-
-Live status retains enemy references without NPC types and excludes identified players/owned pets. Mapping exports and reviewed logs list bounded session actor references and retained effect counts separately from unmapped catalog IDs. This corrects the previous misleading zero count; it adds no inferred NPC names or roles. Remaining: supported spawn variants or earlier capture evidence for these actors, verified NPC type mappings, boss roles and portraits. Updated server processing is needed for new detail fields in online reports.
-
-### Mid-instance late party roster
-
-Party view now reconciles earlier retained effects with uniquely named members of the first roster observed within the same identity epoch. Later roster changes do not rewrite it. App/overlay explain this evidence, and affected saved encounters remain unranked with incomplete earlier roster coverage. Self and unnamed members still require supported identity/name records; no actor is inferred from damage or class. Missing identity variants and representative early-entry captures remain pending.
-
-### Automatic partial mid-instance metrics
-
-Automatic view falls back to observed players when local identity is unavailable, preserving unnamed actor metrics without assigning a character or party. Partial evidence is exported and blocks ranking and server learning. Instance entry remains required for a complete run. Remaining: supported local-identity variants and representative entry-to-completion captures.
-
-### Shared outgoing clocks and review scopes
-
-Automatic splits use a minimum 120-second outgoing inactivity window; DPS shares active outgoing-damage seconds across players, including deaths, and freezes after the last outgoing hit. Graph keys and selected-encounter participant references are shared across desktop/Pages/server review. Soft archive rollover waits during active combat. Remaining: combining archive parts with verified entry/completion provenance and detailed diagnostic causes for the reported capture-error/discard counts.
-
-### Stop-time queue retention
-
-Stop drains queued payloads within a bounded shutdown window, reports decoded/discarded shutdown payloads separately from decoder failures, and serializes Start/Stop/Clear so an unfinished worker cannot be replaced. Separate counters are preserved in saved logs, diagnostics and shared capture-quality review. Remaining: verified archive-part reconstruction and real captures confirming whether earlier combined error/discard counts came from the Stop queue. Historical lost data is not restored.
-
-### Recording-part discovery
-
-Saved desktop logs, shared desktop logs, Pages and server-hosted review can navigate matching archive parts with pagination. Server discovery indexes archive metadata and lists public available uploads only, honoring visibility/deletion/moderation. Matching IDs are unverified; totals and quality stay per part. Remaining: capture continuity provenance, safe part reconstruction and verified entry/completion inheritance.
-### Overlay metrics and partial-capture ownership
-
-- Added DPS/HPS/incoming-damage overlay selection with per-metric sorting and totals, plus unresolved identity/link status.
-- Scan explicit summon-owner links inside compressed packets as well as outer messages. Missing player identity or owner packets still need a diagnostic capture; no actor is assigned to Self or an owner from class, damage or proximity.
-
-## Recording-part sequence metadata
-
-New archives retain sequence ranges, context ranges and predecessor tokens. Local/public navigation shows submitted consistency and ambiguity across pagination. No reconstruction is performed. Next: define reconstruction rules for selected scopes, identity contexts, overlap handling and entry/completion provenance; keep unknown or contradictory chains unranked.
-
-
-## Seven workstreams — capture reliability and reconstruction
-
-Connected stopped parts can now be reviewed together with mode-specific recording totals, original encounters, strict submitted-chain checks, source provenance and export/back navigation. Source fights/runs stay separate and output remains unranked; this does not establish verified full-run reconstruction. Follow-up within this workstream: ranking-quality inheritance, cross-part boss-attempt stitching, supported local-identity/entry variants and live confirmation of the zone actor/ownership fix. Missing capture evidence is not inferred from damage or names.
-
-New capture run tokens/origin sequences and explicit observed entry/final-boss evidence now survive rollover separately from each part's quality flags. Combined review can calculate descriptive entry-to-finish timing when the complete selected chain contains the origin and corroborating configured boss death with consistent context. Older parts cannot gain this provenance retroactively. Ranking-quality inheritance and cross-part boss-attempt stitching remain separate follow-ups; unknown local-identity/entry protocol variants still need representative captures.
-
-## Later timeline controls
-
-- Allow individual players to be hidden from the timeline view.
-- Allow individual player timelines to be collapsed and expanded without hiding other players.
-- Treat these controls as display preferences; preserve the recorded events and metrics.
-
-## Later maintenance and application screenshots
-
-- Inventory leftover PowerShell (.ps1) updater helpers and upgrade/update logs. Define cleanup after successful updates and bounded failure-log retention without deleting active helpers or needed diagnostics.
-- Inspect cache categories, ownership, size and age before defining safe cleanup controls. Preserve credentials, imported characters, saved results, combat logs and recoverable upload queues.
-- Make application screenshots capture the application content from top to bottom without manual scrolling, excluding other monitors, windows and desktop content.
-
-These maintenance/screenshot requests are queued for later; they are not part of the current capture/reconstruction implementation.
-
-## Seven workstreams — encounter classification and catalog coverage
-
-Exact recorded map/instance IDs now use explicit NPC catalog categories and tiers to fill missing context. Unique NPC-only candidates can suggest a zone without fabricating an instance ID or entry; they remain unranked. Shared review, diagnostics and mapping exports explain matches, ambiguities and conflicts. Server metrics group public context evidence by build and retain classification basis in boss HP candidates.
-
-The latest pinned upstream audit contains no NPC/dungeon table changes. Still pending: independently confirmed build applicability and difficulty/scaling labels for HP calibration; supported missing local-identity/spawn records; trusted NPC portraits and explicit miniboss/world-boss roles; verified PURPLE launcher build manifest formats. These require source evidence rather than names or ID-pattern guesses.
-
-
-## Seven workstreams — optimizer survival and optimized opponents
-
-Optimized builds now retain timed expected-hit traces for both damage scenarios. Personal optimization can import several optimized PvP opponents together and constrain HP against each opponent's greatest gross-damage window, with explicit healing and defensive/control/movement assumptions. Results identify the strictest incoming requirement and preserve hit schedules and source assumptions. Existing skill/specialty retention and outgoing action/cooldown reservations remain available in PvE and PvP.
-
-Still pending within this workstream: verified defensive/CC/movement coefficients and immunity rules, matchup-specific outgoing and incoming mitigation, worst-case tactical alignment, reactive opponent behavior and representative validation. These are not replaced by a win-rate claim. Next major workstream: Genus and progression coverage.
-
-
-## Seven workstreams — Genus and progression coverage
-
-Advice and optimization now share Genus damage-effect filtering, and saved modeled lines participate in the advice loadout. Coverage reports all five levels, saved/unlocked/missing slots and next catalog milestones. Advice candidates replace a specific unlocked slot rather than adding a synthetic line; unsupported/defensive effects are preserved without damage-free reroll recommendations. Saved advice retains its Genus snapshot. My Character/optimized results record budget provenance and distinguish assumed unspent balances from observed spend and unknown progression maxima.
-
-Remaining evidence-dependent work: official Genus allocation/collection retrieval, verified owned-effect and defensive coefficients, current-build roll chances/costs, and independently verified progression maxima. Current catalog caps and user totals are labeled as such. Next major workstream: richer combat protocol analytics.
-
-
-## Seven workstreams — richer combat analytics
-
-Shared encounter review now includes bounded peak damage/healing/incoming windows, incoming ability breakdowns and an evidence coverage table. Recorded actor deaths separate pressure windows; healing remains gross recorded amount. Imported buff windows expose recipient damage overlap without assigning causal buff credit. Updated servers recompute these summaries for retained historical evidence.
-
-Still pending: verified live cast starts/ends, buff sources/applications/removals, resources, shields/overheal, CC success and PvP match/objective outcomes. Representative packets and encounter definitions are required. Next major workstream: regional timers and timed-boss history, including reliable scope and respawn evidence.
-
-
-## Seven workstreams — timers and boss history
-
-Desktop/Pages provide a dedicated Timers page with explicit regional selection, Korean matching groups, named-zone/local countdowns, rift entry forecasts and dated community-source provenance. Conflicting rift reports and stale review dates are visible. Public boss observations remain separate and include bounded recent histories, party engagement, source encounters and omission counts. Source links can select a specific encounter.
-
-Remaining: independently verified regional schedules/current-build applicability, physical server/channel evidence, trusted timed/world-boss NPC roles, respawn rules and perspective-level deduplication. Schedule windows are not live availability. Next major workstream: expanded website build tools, maps and crafting.
-
-### Expanded website tools: build workspace checkpoint
-
-Implemented a standalone local allocation workspace in desktop and Pages, shared recorded-character presentation, log return navigation, skill/specialty/stigma and connected board planning, entered-budget validation, local drafts and JSON import/export. Current server presets can seed a draft; edited builds are not scored.
-
-Remaining: recalculating editable equipment/Genus and scenario performance through the optimizer; verified map coordinates and layers; crafting recipes, probabilities and modifiers with source/build provenance; broader regional news sources. Timeline player visibility/collapse and application cleanup/full-page screenshot work remain separate follow-ups.
-
-### Timeline, screenshot and maintenance checkpoint
-
-Implemented encounter-scoped timeline row hiding/collapse/reset controls across shared viewers, full-document application PNG rendering instead of monitor capture, managed storage inventory and age-based disposable cache cleanup, bounded updater helper/log retention with active-process checks and helper self-cleanup. These changes preserve source metrics and persistent application data. Browser-rendering differences and in-game/live-device confirmation remain follow-up validation.
+Record from before entering the instance when possible; include the full encounter and completion. Preserve the ordinary saved combat log as well as a diagnostic ZIP, the app version, selected installation/build, character/server, known difficulty and observed outcome. For protocol investigations, enable TCP payload recording before Start; for checkbox-specific issues, provide a separate unchecked capture with its capture counters. Partial captures are still useful when labeled accurately. Supply explicit in-game observations or source records for new boss roles, Genus lines, crafting rules and timer scope.
