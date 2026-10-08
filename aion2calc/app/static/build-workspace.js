@@ -119,7 +119,7 @@
       $('[data-class]').onchange=e=>{if((dirty||pendingInputs())&&!confirm('Replace unsaved allocations with an empty draft for this class?')){e.target.value=draft.class;return;}componentBuffer=null;genusEditor=null;inputBuffer=null;serial++;draft=fresh(e.target.value,draft.mode);reference=null;source={};serial++;$('[data-canonical]').disabled=false;dirty=true;boardName='';render();serverBudgets();};
       $('[data-new]').onclick=()=>{if((dirty||pendingInputs())&&!confirm('Replace the unsaved draft with an empty draft?'))return;componentBuffer=null;genusEditor=null;inputBuffer=null;serial++;draft=fresh(draft.class,draft.mode,draft.level);reference=null;source={};serial++;$('[data-canonical]').disabled=false;dirty=true;render();serverBudgets();};
       $('[data-import]').onchange=importFile;$('[data-canonical]').onclick=canonical;$('[data-save]').onclick=save;$('[data-export]').onclick=download;
-      root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{if(componentBuffer||genusEditor?.isDirty()){message('Apply component edits or save Genus lines before changing build sections.');return;}tab=b.dataset.tab;genusEditor=null;render();});renderSaved();body();
+      root.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{if(pendingInputs()){message('Apply component edits or save Genus lines before changing build sections.');return;}tab=b.dataset.tab;genusEditor=null;render();});renderSaved();body();
     }
     function body(){
       if(tab==='inputs'){inputs();return;}
