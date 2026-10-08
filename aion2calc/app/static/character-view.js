@@ -3,7 +3,7 @@
 'use strict';
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const profileImage=value=>{try{const u=new URL(value);return u.protocol==='https:' && !u.username && !u.password && ['assets.playnccdn.com','profileimg.plaync.com','metabot.gg','a2dil.com'].includes(u.hostname)?u.href:'';}catch(_){return '';}};
-    const profileIcon=(value,label,reference)=>{const url=profileImage(value);return url?`<img${window.A2AssetHealth?.attributes(reference)||''} src="${esc(window.A2AssetHealth?A2AssetHealth.source(url):url)}" alt="${esc(label)}" loading="lazy" onerror="this.hidden=true">`:'<span class="cr-profile-empty" aria-label="Image unavailable">◇</span>';};
+    const profileIcon=(value,label,reference)=>{const url=profileImage(value);return url?`<img${window.A2AssetHealth?.attributes(reference)||''} src="${esc(window.A2AssetHealth?A2AssetHealth.source(url):url)}" alt="${esc(label)}" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null;this.src='static/logo.png';this.title='Source image unavailable'">`:'<span class="cr-profile-empty" aria-label="Image unavailable">◇</span>';};
     const profileList=value=>Array.isArray(value)?value.filter(x=>x!==null&&x!==undefined).slice(0,1000):[];
     const statLabel=row=>({아이템레벨:'Gear score (item level)'}[String(row.name||'').replace(/\s/g,'')] || row.name || row.type || 'Unnamed stat');
     const secondaryStat=row=>typeof row==='string'?row.trim():row && typeof row==='object' && (row.name||row.type) && row.value!==undefined && row.value!==null && row.value!==''?`${statLabel(row)}: ${row.value}`:'';

@@ -7,7 +7,7 @@
  function mount(root,io={}){
   let catalog=null,selected='',search='',profession='',faction='',count=1,effective=null,seed=1,expand=false,result='',disposed=false;
   const stock={},$=s=>root.querySelector(s),item=id=>catalog.items[id]||{name:id},recipe=()=>catalog.recipes[selected];
-  const image=id=>{const entry=item(id),url=String(entry.icon||'');const safe=/^https:\/\/gamers4\.life\/aion-2\/database\/icons\/assets\/Game\/[A-Za-z0-9_/-]+\.webp$/.test(url);return safe?`<img ${window.A2AssetHealth?A2AssetHealth.attributes({namespace:'gamers4life',kind:'item',id}):''} src="${esc(window.A2AssetHealth?A2AssetHealth.source(url):url)}" alt="" loading="lazy" onerror="this.hidden=true">`:'<span class="cr-profile-empty">◇</span>';};
+  const image=id=>{const entry=item(id),url=String(entry.icon||'');const safe=/^https:\/\/gamers4\.life\/aion-2\/database\/icons\/assets\/Game\/[A-Za-z0-9_/-]+\.webp$/.test(url);return safe?`<img ${window.A2AssetHealth?A2AssetHealth.attributes({namespace:'gamers4life',kind:'item',id}):''} src="${esc(window.A2AssetHealth?A2AssetHealth.source(url):url)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null;this.src='static/logo.png';this.title='Source image unavailable'">`:'<span class="cr-profile-empty">◇</span>';};
   function card(id,detail){return `<article class="cr-profile-card" data-grade="${grades[item(id).grade]||''}">${image(id)}<div><strong>${esc(item(id).name)}</strong><span>${esc(detail)}</span><small>Source item ${esc(id)}</small></div></article>`;}
   function plan(){
    const leaves=new Map(),steps=[],warnings=new Set();let fee=0,visits=0;

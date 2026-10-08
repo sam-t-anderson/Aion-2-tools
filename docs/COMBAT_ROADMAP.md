@@ -114,3 +114,12 @@ The seven requested workstreams have delivered their implementation checkpoints.
 ## How to supply the remaining evidence
 
 Record from before entering the instance when possible; include the full encounter and completion. Preserve the ordinary saved combat log as well as a diagnostic ZIP, the app version, selected installation/build, character/server, known difficulty and observed outcome. For protocol investigations, enable TCP payload recording before Start; for checkbox-specific issues, provide a separate unchecked capture with its capture counters. Partial captures are still useful when labeled accurately. Supply explicit in-game observations or source records for new boss roles, Genus lines, crafting rules and timer scope.
+
+## Latest workspace and asset agenda
+
+- Separate active skills, passives, stigmas, Daevanion, equipment, arcana, pantheon and Genus into build section tabs. Preserve imported source details separately from entered model contributions.
+- Display source-backed game assets in builds, crafting and community boss/class summaries, with visible placeholders and source attribution when unavailable.
+- Use highest available server-reported skill, stigma and Daevanion totals, show observation scope, and remove silent personal-planner budget presets. Audit the common comparison policy separately before regenerating shared presets.
+- Order combat-log tabs: Community Combat Logs, My Uploads, Saved Logs; put boss icons immediately before boss names.
+
+Delivered in the current workspace iteration: section tabs and manual Genus editor; bounded component input sections; 702 catalog-referenced icons bundled with provenance; personal planner/server-observation budget wiring; Community/My Uploads/Saved Logs order. Still pending: official-source Pantheon/arcana allocation editors, NPC-ID-backed boss portrait catalog, and shared preset comparison-scope migration to observed server budgets.

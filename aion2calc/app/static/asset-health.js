@@ -31,7 +31,7 @@
     note:'References identify the assets requested by rendered views, not verified URL-to-ID mappings. Official IDs stay region-scoped and separate from catalog slugs. Portrait IDs, labels, full URLs and character data are excluded. Counts are image error events, not unique assets.',
     failures:Array.from(failures.values()).map(row=>({...row,references:row.references.map(ref=>({...ref}))}))};}
   window.A2AssetHealth={attributes,report,
-    source(value){const url=resource(value),failure=url&&failures.get(url.href);return failure&&Date.now()-failure.last_failed<wait?placeholder:value;},
+    source(value){const bundled=window.A2BundledAssets;if(bundled?.files[value])return new URL(bundled.files[value],bundled.base).href;const url=resource(value),failure=url&&failures.get(url.href);return failure&&Date.now()-failure.last_failed<wait?placeholder:value;},
     exportReport(){const url=URL.createObjectURL(new Blob([JSON.stringify(report(),null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='aion2-image-failures.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},
     retry(){failures.clear();evicted=0;}
   };

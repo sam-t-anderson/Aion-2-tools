@@ -700,3 +700,11 @@ Desktop evaluates locally and refuses while another model calculation is running
 Draft scoring currently supports level 45, matching the model's base-resource assumptions. Lower-level allocation drafts remain editable and exportable; no lower-level score is supplied.
 
 Draft evaluation excludes learned personal/community calibration and records neutral proc-rate, critical-midpoint and skill-multiplier parameters. Desktop and server serialize this model context against their other model calculations.
+
+### Build sections and image sources
+
+The build workspace separates budgets, active skills, passives, stigmas, Daevanion, equipment, arcana, Pantheon, Genus Insight, evaluation and source references. Equipment/arcana/Pantheon contributions are explicit simulator inputs; imported profile totals remain references. Genus uses the manual nine-slot editor. Changes must be applied before changing sections or saving/exporting.
+
+Fresh draft and personal planner budgets load the highest available server-reported resources for the class. Character optimization also preserves the profile lower bound and larger saved totals. The source label explains whether region/build contexts are pooled. Missing observations require explicit input rather than silent 203/30/360 defaults. Shared comparison presets retain their published versioned policy until the server comparison migration is complete.
+
+Skill, class and crafting icons are bundled from the URLs already referenced by their catalogs. `game-assets.json` records source URLs and retrieval metadata; game artwork belongs to its owners. Official character portraits/items use their recorded source URLs. Unmapped boss portraits use the AION emblem beside the recorded boss name until an ID-backed portrait is available.

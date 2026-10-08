@@ -1,7 +1,7 @@
 /* Shared combat-log list navigation; hides panels without resetting queues. */
-window.A2LogTabs={mount(root,initial='saved',onChange=()=>{}){
+window.A2LogTabs={mount(root,initial='community',onChange=()=>{}){
   const buttons=[...root.querySelectorAll('[data-log-tab]')],panels=[...root.querySelectorAll('[data-log-panel]')];
-  function select(value){if(!buttons.some(b=>b.dataset.logTab===value))value='saved';
+  function select(value){if(!buttons.some(b=>b.dataset.logTab===value))value='community';
     for(const b of buttons){const active=b.dataset.logTab===value;b.classList.toggle('primary',active);b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;}
     for(const p of panels)p.hidden=p.dataset.logPanel!==value;
     onChange(value);
