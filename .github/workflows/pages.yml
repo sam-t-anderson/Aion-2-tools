@@ -14,6 +14,8 @@ on:
       - "aion2calc/app/static/asset-health.js"
       - "aion2calc/app/static/community.js"
       - "aion2calc/app/static/news.js"
+      - "aion2calc/app/static/build-*"
+      - "aion2calc/app/static/character-view.js"
       - "aion2calc/app/static/timers.js"
       - "aion2calc/app/static/event-schedules.json"
       - "aion2calc/app/static/archive-upload.js"
@@ -44,7 +46,7 @@ jobs:
           mkdir -p _site/static/fonts _site/screenshots
           cp site/*.html _site/
           cp site/*.css site/*.js _site/
-          cp aion2calc/app/static/raid.js aion2calc/app/static/asset-health.js aion2calc/app/static/combat-review.js aion2calc/app/static/combat-review.css aion2calc/app/static/community.js aion2calc/app/static/log-ownership.js aion2calc/app/static/archive-upload.js aion2calc/app/static/log-tabs.js aion2calc/app/static/news.js aion2calc/app/static/timers.js aion2calc/app/static/event-schedules.json _site/static/
+          cp aion2calc/app/static/raid.js aion2calc/app/static/asset-health.js aion2calc/app/static/combat-review.js aion2calc/app/static/combat-review.css aion2calc/app/static/community.js aion2calc/app/static/log-ownership.js aion2calc/app/static/archive-upload.js aion2calc/app/static/log-tabs.js aion2calc/app/static/news.js aion2calc/app/static/timers.js aion2calc/app/static/event-schedules.json aion2calc/app/static/character-view.js aion2calc/app/static/build-workspace.js aion2calc/app/static/build-workspace.css aion2calc/app/static/build-catalog.json _site/static/
           cp aion2calc/app/static/logo.png _site/static/ 2>/dev/null || true
           cp aion2calc/app/static/fonts/cinzel-latin.woff2 _site/static/fonts/ 2>/dev/null || true
           # the stylesheet's font URL is absolute (/static/...) for the app; make it relative for the Pages subpath

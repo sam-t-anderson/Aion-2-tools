@@ -791,7 +791,9 @@ function parseFromMeter(snap, idx) {
 }
 
 const communityAPI=(path,body)=>body?api('/api/community',{path,body}):api('/api/community?path='+encodeURIComponent(path));
+let buildWorkspaceView=null,buildWorkspaceContext=null;
 const localReviewOptions=file=>({
+ openBuildWorkspace:(actor)=>{buildWorkspaceContext={reference:{snapshot:actor.profile_snapshot},className:actor.class,level:actor.profile_snapshot?.data?.profile?.characterLevel,source:{actor:actor.id,basis:"Saved profile from combat log; reference only."},backURL:location.hash};location.hash="/builds";},
  skillIcon,
  lookupProfile:(player,region)=>api("/api/character/profile",{player,region}),
  importPlan:plan=>{window.A2Raid.importPlan(plan);location.hash="/raid";},
@@ -1666,7 +1668,13 @@ async function pageTimers(){
 }
 
 // ------------------------------------------------------------- router
+async function pageBuilds(){
+ app().innerHTML='<div id="build-workspace"></div>';
+ buildWorkspaceView=A2BuildWorkspace.mount($("#build-workspace"),{api:communityAPI,...(buildWorkspaceContext||{})});
+ buildWorkspaceContext=null;
+}
 async function route() {
+  if(buildWorkspaceView){buildWorkspaceView.dispose();buildWorkspaceView=null;}
   if(eventTimerView){eventTimerView.dispose();eventTimerView=null;}
   const page = (location.hash.replace(/^#\//, "") || "planner").split("/")[0];
   $$(".nav a").forEach((a) => a.classList.toggle("on", a.dataset.page === (page === "combat-log" ? "combat" : page)));
@@ -1681,6 +1689,7 @@ async function route() {
     else if (page === "raid") await pageRaid();
     else if (page === "meter") await pageMeter();
     else if (page === "database") await pageDatabase();
+    else if (page === "builds") await pageBuilds();
     else if (page === "timers") await pageTimers();
     else if (page === "news") await pageNews();
     else await pagePlanner();

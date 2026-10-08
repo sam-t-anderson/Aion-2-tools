@@ -264,3 +264,13 @@ Requests interrupted during upload restore as **unknown**. Check **My uploads**/
 ### Request retry receipts
 
 Saved-part recovery files include random request IDs, which are not ownership credentials. A matching retry on a supporting server returns the accepted report ID, with a link only when its current visibility permits it. Private links and management tokens are not reissued. Use the original My Uploads entry or ownership backup; if the first response and credentials were lost, retry alone cannot recover management access. Conflicting content/visibility stops with HTTP 409; a deleted original stops with HTTP 410. Review before clearing the queue and deliberately creating a new request. Changing upload-key identity uses a separate request scope. Separate manually started queues and live-meter uploads are not deduplicated by this feature.
+
+## Build workspace
+
+Open **Builds** in the desktop app or website to create a local PvE/PvP allocation draft. A saved character profile in log review has **Open saved character in Builds**, with a return link to its log. Character reference shows recorded stats, equipment slots, skill icons, pets/wings and boards; the full supplied profile remains available as JSON.
+
+Drafts support trained skill/passive levels, bonus levels, supporting effects, stigma levels and connected Daevanion paths. Enter the point budgets appropriate to the character. The editor checks the bundled catalog's level gates, effect unlocks, slot limits, board paths and entered budgets. Its defaults are example progression assumptions, not verified ownership or current game-build rules.
+
+Import an exported official profile as a read-only reference, an optimizer `build.json` as allocations, or an `.a2build.json` draft. **Load current community preset** copies the server's current evaluated allocation. Editing does not rerun the optimizer or recalculate source stats, DPS or survivability. Profile totals are not automatically converted to trained points.
+
+Save up to ten drafts / 2 MiB in this browser, or export a draft that passes the listed checks. References may contain character information. Nothing is uploaded automatically; browser storage can be cleared and unsaved edits are lost when leaving the page. The draft format is for this workspace, not a simulator configuration. Return URLs can carry private-log view access; these tokens are not stored in draft source metadata.

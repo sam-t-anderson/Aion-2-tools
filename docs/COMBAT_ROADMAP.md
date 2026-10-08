@@ -399,3 +399,9 @@ Still pending: verified live cast starts/ends, buff sources/applications/removal
 Desktop/Pages provide a dedicated Timers page with explicit regional selection, Korean matching groups, named-zone/local countdowns, rift entry forecasts and dated community-source provenance. Conflicting rift reports and stale review dates are visible. Public boss observations remain separate and include bounded recent histories, party engagement, source encounters and omission counts. Source links can select a specific encounter.
 
 Remaining: independently verified regional schedules/current-build applicability, physical server/channel evidence, trusted timed/world-boss NPC roles, respawn rules and perspective-level deduplication. Schedule windows are not live availability. Next major workstream: expanded website build tools, maps and crafting.
+
+### Expanded website tools: build workspace checkpoint
+
+Implemented a standalone local allocation workspace in desktop and Pages, shared recorded-character presentation, log return navigation, skill/specialty/stigma and connected board planning, entered-budget validation, local drafts and JSON import/export. Current server presets can seed a draft; edited builds are not scored.
+
+Remaining: recalculating editable equipment/Genus and scenario performance through the optimizer; verified map coordinates and layers; crafting recipes, probabilities and modifiers with source/build provenance; broader regional news sources. Timeline player visibility/collapse and application cleanup/full-page screenshot work remain separate follow-ups.
