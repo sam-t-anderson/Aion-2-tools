@@ -308,3 +308,7 @@ Saved Parts groups exact archive IDs with part-order pagination on desktop and s
 ### Reproducible encounter-catalog audit
 
 The pinned catalog refresh command stages all localized NPC/dungeon tables with validated schemas, source hashes, counts and bounded added/removed/changed ID summaries for release review. New mapping coverage includes source-commit provenance. The checked upstream snapshot matched the bundled tables, so this audit introduced no mappings. Remaining: independent game-build applicability, verified new IDs/portraits and complete miniboss/world-boss role evidence. Cached official-profile icon re-indexing is available separately in Settings.
+
+### Community timed-boss status (requested)
+
+Collect observed world-boss defeat timestamps, boss/map/instance identity, build and recorded party participation from eligible uploaded encounters. Aggregate deduplicated observations server-side with last-seen time and source coverage. Use independently verified regional/instance respawn rules for estimates; display unknown or stale status when evidence is insufficient. A last recorded kill does not establish that a boss is currently alive, and duplicate party uploads must not count as separate kills. Add public desktop/Pages status views after the observation and timer evidence is validated.

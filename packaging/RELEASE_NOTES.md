@@ -1,3 +1,8 @@
+# Aion 2 Calc 0.2.82
+
+- Fixed premature live-meter archive splits caused by unrelated nearby combat. The storage encounter counter now follows Self, Party and All-player relevance separately, preserving the existing archive size limits.
+- Investigated a supplied capture that produced 12 premature parts despite only a few visible encounters. Raw TCP recording remains optional; it does not control combat decoding.
+
 # Aion 2 Calc 0.2.81
 
 - Capture diagnostics now auto-save a metadata ZIP on Stop even when raw TCP recording is unchecked. Added a readable summary, ZIP size/counter feedback and **Open diagnostics folder** so metadata-only exports are easy to locate. Raw payloads remain intentionally absent when not recorded.

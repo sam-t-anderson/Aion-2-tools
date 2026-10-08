@@ -65,7 +65,8 @@ class CombatSession:
         self._context = None
         self._pending_run_start = None
         self.storage_groups = 0
-        self._storage_last = None
+        self._storage_last = {}
+        self._storage_groups = {}
         self.storage_players = set()
 
     def finish_run(self, reason="manual", complete=True, timestamp_ms=None):
@@ -148,11 +149,23 @@ class CombatSession:
             allowed = self._allowed(record, "party")
             self.storage_players.update((self.epoch, actor) for actor in allowed if actor not in identity["owners"])
             if isinstance(event, DamageEvent):
-                context_key = (self.epoch, self.manual_split, self._pvp_damage(record, allowed))
-                if (self._storage_last is None or context_key != self._storage_last[0]
-                        or self.automatic_splits and event.timestamp_ms - self._storage_last[1] > self.gap_seconds * 1000):
-                    self.storage_groups += 1
-                self._storage_last = (context_key, event.timestamp_ms)
+                # Count the same relevant damage groups as groups(), separately
+                # for every selectable scope. Nearby NPC-only effects must not
+                # force storage rollovers that clear the player's live view.
+                for scope in ("self", "party", "all"):
+                    selected = self._allowed(record, scope)
+                    pvp = self._pvp_damage(record, selected)
+                    if (self.pvp and not pvp
+                            or event.actor_id not in selected and event.target_id not in selected):
+                        continue
+                    context_key = (self.epoch, self.manual_split, pvp)
+                    previous = self._storage_last.get(scope)
+                    if (previous is None or context_key != previous[0]
+                            or self.automatic_splits and event.timestamp_ms - previous[1] > self.gap_seconds * 1000):
+                        self._storage_groups[scope] = self._storage_groups.get(scope, 0) + 1
+                    self._storage_last[scope] = (context_key, max(event.timestamp_ms, previous[1])
+                                               if previous and context_key == previous[0] else event.timestamp_ms)
+                self.storage_groups = max(self._storage_groups.values(), default=0)
             if len(self.records) == self.records.maxlen:
                 self.discarded += 1
             self.sequence += 1
