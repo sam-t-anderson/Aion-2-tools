@@ -5,6 +5,7 @@ No downloaded code is executed. Gameplay catalogs are audited, never promoted he
 from __future__ import annotations
 
 import argparse
+import hashlib
 from datetime import datetime, timezone
 import json
 import os
@@ -104,6 +105,8 @@ def main():
             audit_path.write_text(json.dumps(audit, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     manifest_path = STATIC / "game-assets.json"
     manifest = json.loads(manifest_path.read_bytes())
+    manifest["asset_sha256"] = {url: hashlib.sha256((STATIC / path).read_bytes()).hexdigest()
+                                for url, path in sorted(manifest["assets"].items())}
     manifest["collection_context"] = {
         "observed_build": args.observed_build or None,
         "source_build_mapping_verified": False,

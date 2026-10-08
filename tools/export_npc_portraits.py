@@ -42,7 +42,8 @@ target=root/'aion2calc/meter/a2parser/data/i18n/npc-portraits';target.mkdir(exis
 manifest=json.loads((static/'game-assets.json').read_text(encoding='utf-8'))
 manifest['assets'].update(assets);manifest['npc_portrait_source']={'url':'https://dbaion2.ru/data-en/npcs.json','sha256':hashlib.sha256(raw).hexdigest(),'retrieved_at':datetime.now(timezone.utc).isoformat(),'matched_npcs':len(portraits),'rule':'Only existing boss-category NPC IDs with exact case-insensitive English name agreement. Portraits do not alter NPC roles, zone, difficulty or game build.'}
 manifest['missing']+=missing
-manifest['npc_portraits']={k:r['icon'] for k,r in portraits.items()}
+manifest['assets']=dict(sorted(manifest['assets'].items()))
+manifest['npc_portraits']={k:portraits[k]['icon'] for k in sorted(portraits)}
 for key,row in portraits.items():manifest.setdefault('references',{})['parser:npc:'+key]={'namespace':'parser','kind':'npc','id':key,'url':row['icon'],'matched_name':row['name']}
 (static/'game-assets.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
 (static/'game-assets.js').write_text('/* Unmodified game icons. Sources and exact NPC ID/name agreement: game-assets.json. */\nwindow.A2BundledAssets={base:new URL(".",document.currentScript.src).href,files:'+json.dumps(manifest['assets'],separators=(',',':'))+',npcs:'+json.dumps(manifest['npc_portraits'],separators=(',',':'))+'};\n',encoding='utf-8')
