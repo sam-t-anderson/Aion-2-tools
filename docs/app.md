@@ -336,6 +336,12 @@ Community lists show recorded-event count, build and encounter icons. PvP classe
 
 Click a character to open its focused build page, then **Back to log** to restore the same review selections. Saved official profiles display the available portrait, stats, equipment slots, skills, passives, stigmas, pet/wings and boards. Full recorded build information retains all source sections, including rolls and specialties. Current official lookups remain previews and never replace historical profiles. Missing assets and pet genus stay unavailable when not supplied.
 
+### Recorded pressure and evidence coverage
+
+Enable **Encounter insights** in a selected encounter on desktop or the website. Evidence coverage distinguishes recorded counts, absent records and unsupported decoding. Peak windows show each source's greatest recorded damage/healing and each recipient's incoming damage over 1, 3 and 5 seconds, with encounter-relative times and effect counts. Incoming windows also show recorded healing received, separately from damage. Incoming abilities list sources, recipients, totals and largest recorded hits. Player/pet filters apply after the bounded summaries; pets retain separate sources.
+
+Windows stop at explicit actor deaths and exclude effects sharing a death timestamp because their order is unknown. Missing deaths can join separate lives. Healing is not verified effective healing; short captures and missing attribution limit interpretation. Imported buff windows show the recipient's own outgoing damage overlapping the intervals, not damage caused by the buff. Older online logs gain these summaries after the sharing server is updated; retained source records are required.
+
 ## Importing external logs
 
 Import a log in any of these ways:
