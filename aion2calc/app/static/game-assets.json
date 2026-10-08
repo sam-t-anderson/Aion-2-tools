@@ -1,5 +1,5 @@
 {
-  "retrieved_at": "2026-10-08T18:28:11.263840+00:00",
+  "retrieved_at": "2026-10-08T19:02:26.764220+00:00",
   "sources": [
     "https://metabot.gg/",
     "https://gamers4.life/aion-2/database/en/crafting-calculator/"
@@ -34110,7 +34110,7 @@
   "npc_portrait_source": {
     "url": "https://dbaion2.ru/data-en/npcs.json",
     "sha256": "1246870fb7c9fe2da94e153b794f0898bb691a3b3c45a7d24050f312a0bd4fe7",
-    "retrieved_at": "2026-10-08T18:28:11.502009+00:00",
+    "retrieved_at": "2026-10-08T19:02:24.549177+00:00",
     "matched_npcs": 1321,
     "rule": "Only existing boss-category NPC IDs with exact case-insensitive English name agreement. Portraits do not alter NPC roles, zone, difficulty or game build."
   },
@@ -37678,6 +37678,6 @@
   "collection_context": {
     "observed_build": null,
     "source_build_mapping_verified": false,
-    "note": "Bundled source-ID and source-slug item references; collection does not establish current-build applicability."
+    "note": "Published source IDs; collection time/context does not establish game-build applicability."
   }
 }
