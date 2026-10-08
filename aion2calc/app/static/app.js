@@ -9,6 +9,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const n0 = (x) => (x == null || isNaN(x) ? "—" : Math.round(x).toLocaleString("en-US"));
 const pct = (x, d = 1) => (x == null || isNaN(x) ? "—" : (100 * x).toFixed(d) + "%");
 const icon = u => {const source=u?"/api/icon?u="+encodeURIComponent(u.startsWith("/")?"https://metabot.gg"+u:u):"";return window.A2AssetHealth?A2AssetHealth.source(source):source;};
+const assetAttrs = (kind, item) => window.A2AssetHealth?.attributes(item?.item_id ? {namespace:'official',kind,id:item.item_id,region:item.item_region} : {namespace:'metabot',kind,id:item?.item_slug || item?.slug}) || '';
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "");
 const app = () => $("#app");
 
@@ -169,7 +170,7 @@ function slotTile(s) {
   (s.skills || []).forEach(([k, lv]) => extras.push(`<span class="chip" style="color:var(--gold)">${esc(k)} +${lv}</span>`));
   const st = (s.stats || []).slice(0, 4).map((x) => `<b>${esc(x.text)}</b> ${esc(x.label)}`).join(" · ");
   return `<div class="slot" data-grade="${esc(s.grade || "")}">
-      <div class="icon sm with-fallback"><span class="asset-placeholder" aria-hidden="true">◇</span>${s.icon ? `<img src="${icon(s.icon)}" alt="${esc(s.item || s.name || s.slot)}" loading="lazy" onerror="this.hidden=true">` : ""}${s.enchant ? `<span class="lv">+${s.enchant}</span>` : ""}</div>
+      <div class="icon sm with-fallback"><span class="asset-placeholder" aria-hidden="true">◇</span>${s.icon ? `<img${assetAttrs("item",s)} src="${icon(s.icon)}" alt="${esc(s.item || s.name || s.slot)}" loading="lazy" onerror="this.hidden=true">` : ""}${s.enchant ? `<span class="lv">+${s.enchant}</span>` : ""}</div>
       <div><div class="sl">${esc(s.slot)}</div><div class="gname">${esc(s.item || s.name || "")}</div>
         <div class="st">${st}</div>${extras.length ? `<div>${extras.join("")}</div>` : ""}${s.source ? `<div class="faint small">${esc(s.source)}</div>` : ""}</div>
     </div>`;
@@ -920,7 +921,7 @@ async function pageDatabase() {
   $("#srch").onclick = async () => {
     const items = await api(`/api/items?search=${encodeURIComponent($("#q").value)}&category=${encodeURIComponent($("#cat").value)}`);
     $("#items").innerHTML = `<table class="t"><tr><th></th><th>Item</th><th>Category</th><th class="r">Item level</th></tr>${items.map((it) =>
-      `<tr data-item="${esc(it.slug)}" style="cursor:pointer"><td>${it.icon ? `<span class="icon xs"><img src="${icon(it.icon)}"></span>` : ""}</td><td class="gname" data-grade="${esc(it.grade)}">${esc(it.name)}</td>
+      `<tr data-item="${esc(it.slug)}" style="cursor:pointer"><td>${it.icon ? `<span class="icon xs"><img${assetAttrs("item",it)} src="${icon(it.icon)}"></span>` : ""}</td><td class="gname" data-grade="${esc(it.grade)}">${esc(it.name)}</td>
        <td>${esc(it.category)}</td><td class="r">${it.item_level ?? ""}</td></tr>`).join("")}</table>`;
     $$("[data-item]").forEach((tr) => (tr.onclick = async () => {
       const it = await api("/api/items/" + tr.dataset.item);
@@ -1351,7 +1352,7 @@ const DOLL_LEFT = ["MainHand", "SubHand", "Helmet", "Shoulder", "Torso", "Pants"
 const DOLL_RIGHT = ["Necklace", "Earring1", "Earring2", "Ring1", "Ring2", "Bracelet1", "Bracelet2", "Amulet", "Rune1", "Rune2"];
 const SLOT_NAME = { MainHand: "Main hand", SubHand: "Off-hand", Torso: "Chest", Pants: "Legs", Cape: "Cloak", Earring1: "Earring", Earring2: "Earring",
   Ring1: "Ring", Ring2: "Ring", Bracelet1: "Bracelet", Bracelet2: "Bracelet", Rune1: "Rune", Rune2: "Rune" };
-const itemIcon = (it, cls = "") => `<div class="icon with-fallback ${cls}" data-grade="${esc(it?.grade || "")}"><span class="asset-placeholder" aria-hidden="true">◇</span>${it?.icon ? `<img src="${icon(it.icon)}" alt="${esc(it.name || "Equipment")}" loading="lazy" onerror="this.hidden=true">` : ""}${it?.enchant ? `<span class="lv">+${it.enchant}</span>` : ""}</div>`;
+const itemIcon = (it, cls = "") => `<div class="icon with-fallback ${cls}" data-grade="${esc(it?.grade || "")}"><span class="asset-placeholder" aria-hidden="true">◇</span>${it?.icon ? `<img${assetAttrs("item",it)} src="${icon(it.icon)}" alt="${esc(it.name || "Equipment")}" loading="lazy" onerror="this.hidden=true">` : ""}${it?.enchant ? `<span class="lv">+${it.enchant}</span>` : ""}</div>`;
 function itemCard(it, label, gain, extra = "") {
   if (!it) return `<div class="icard empty"><div class="ilabel">${esc(label)}</div><div class="faint small">—</div></div>`;
   return `<div class="icard" data-grade="${esc(it.grade || "")}"><div class="ilabel">${esc(label)}</div>${itemIcon(it, "lg")}

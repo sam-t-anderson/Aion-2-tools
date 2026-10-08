@@ -527,3 +527,10 @@ or `{"text": file contents, "name": file name, "player": name}`), `/api/encounte
 Long requests return a job id; poll `/api/jobs/<id>` until its status is `done`.
 
 These endpoints belong to the local desktop app. See [CLI and development](cli.md) for source usage; the community server has its own API.
+
+
+### Reporting missing images from a log
+
+Use **Export image failures** in a log review or its character build view on desktop or Pages. The JSON contains image-error counts and recorded public asset references where available: official IDs stay paired with their region and asset kind; Metabot item slugs and skill IDs remain separate. These identify the displayed asset, not a verified URL-to-ID relationship. Character portraits have no exported ID. Full URLs, character names, gear stats and credentials are excluded.
+
+The report retains up to 200 failed resources and eight distinct references per resource, with eviction/truncation indicators. Export before reloading, navigating to another website page or using Retry images; this data exists only for the current page lifetime. Browser image errors do not expose HTTP status. Settings' image coverage export includes this report alongside the local index and proxy counters.
