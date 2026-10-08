@@ -313,7 +313,9 @@ class CombatSession:
                     target_key = f"{record.epoch}:{event.target_id}"
                     enemy = enemies.setdefault(target_key, {"key": target_key, "id": str(event.target_id),
                         "name": self.name(record.epoch, event.target_id, True), "damage": 0, "hits": 0,
-                        "mob_code": identity["spawns"].get(event.target_id, {}).get("mobCode"), "players": {}})
+                        "mob_code": identity["spawns"].get(event.target_id, {}).get("mobCode"),
+                        "is_player": group["pvp"] or event.target_id in identity["names"],
+                        "owner": identity["owners"].get(event.target_id), "players": {}})
                     enemy["damage"] += event.total_damage; enemy["hits"] += 1
                     enemy["players"][str(event.actor_id)] = enemy["players"].get(str(event.actor_id), 0) + event.total_damage
                     if enemy_id and target_key != enemy_id:

@@ -495,7 +495,7 @@ Files are in the user data folder’s `diagnostics` directory (`%LOCALAPPDATA%\a
 
 Windows capture requests an 8 MiB Npcap buffer per adapter before recording. Diagnostics include the accepted buffer size or a warning if the backend retains its default. Capture uses non-promiscuous mode. Driver counters show received packets and supported buffer/interface drops. Unsupported or partial coverage is labeled; zero or missing counters does not prove loss-free capture. Positive drops conservatively exclude rankings. See [capture evidence](methodology.md#capture-driver-counters).
 
-Expand **Mapping coverage** in a reviewed log and use **Export mapping report** for unresolved NPC/map/instance IDs. A session actor ID is not a stable NPC type or official character ID. Reports contain bounded retained counts, not kill totals. See [catalog interpretation](methodology.md#encounter-catalog-and-boss-roles).
+Expand **Mapping coverage** in a reviewed log and use **Export mapping report** for unresolved NPC/map/instance IDs. A session actor ID is not a stable NPC type or official character ID. Reports contain bounded retained counts, not kill totals. Missing NPC types are listed separately by session actor reference and recorded effect count. Live diagnostics include these references even when the NPC type is absent; live hit counts cover outgoing damage in the selected view, while reviewed effect counts include either side of retained effects. An absent effect count is unavailable, not zero. See [catalog interpretation](methodology.md#encounter-catalog-and-boss-roles).
 
 ## External services and privacy
 

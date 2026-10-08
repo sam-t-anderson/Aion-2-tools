@@ -15,7 +15,7 @@ LIMIT = 100
 def revision():
     from ..meter.a2parser.engine import OPEN_WORLD_MAPS
     tables = {key: _table(key, "en") for key in ("npcs", "dungeons")}
-    tables.update(open_world_maps=sorted(OPEN_WORLD_MAPS), pvp_maps=PVP_MAPS, coverage_rules=3)
+    tables.update(open_world_maps=sorted(OPEN_WORLD_MAPS), pvp_maps=PVP_MAPS, coverage_rules=4)
     return hashlib.sha256(json.dumps(tables, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:16]
 
 
@@ -42,11 +42,14 @@ def coverage(segment):
     candidates = [e for e in segment.get("entities", [])
                   if e.get("kind") == "enemy" and not e.get("is_player") and not e.get("owner")]
     unresolved = {}
-    missing = 0
+    unidentified = {}
     for entity in candidates:
         code = entity.get("mob_code")
         if not valid_id(code):
-            missing += 1
+            actor = entity.get("id")
+            if actor is not None:
+                unidentified.setdefault(actor, {"entity": actor, "effects": None,
+                    "recorded_damage_hits": entity.get("hits")})
             continue
         if npc_info(code).get("name"):
             continue
@@ -57,6 +60,10 @@ def coverage(segment):
     for event in events:
         # Count each recorded effect once per involved entity, including self effects.
         counts.update({event.get(k) for k in ("source", "target")} - {None})
+    if "events" in segment or "hits" in segment:
+        for actor, row in unidentified.items():
+            row["effects"] = counts[actor]
+    missing_rows = sorted(unidentified.values(), key=lambda row: str(row["entity"]))
     rows = []
     for row in unresolved.values():
         ids = row.pop("entities")
@@ -70,7 +77,10 @@ def coverage(segment):
     return {"catalog_revision": revision(), "catalog_source": source(), "map_id": map_id, "instance_id": instance,
             "catalog_zone": dungeon.get("name"), "catalog_difficulty": dungeon.get("difficulty"),
             "unmapped": rows[:LIMIT], "omitted": max(0, len(rows)-LIMIT),
-            "npc_entities_without_type": missing,
+            "npc_entities_without_type": len(missing_rows),
+            "unidentified_entities": missing_rows[:LIMIT],
+            "unidentified_omitted": max(0, len(missing_rows)-LIMIT),
             "note": "Unmapped means absent from this bundled catalog, not a verified new creature or zone. "
-                    "IDs without an NPC type cannot be named reliably. Counts describe retained records, not unique kills. "
+                    "Actor references without an NPC type are session-local, not reusable NPC catalog IDs. "
+                    "They cannot be named reliably. Counts describe retained records, not unique kills. "
                     "Names, difficulty, category and game build are never guessed from damage or ID patterns."}

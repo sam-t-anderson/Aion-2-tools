@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.84
+
+- Corrected live capture diagnostics that excluded enemies without recorded NPC types before counting missing identities. Identified players and owned pets remain excluded from NPC coverage.
+- Reviewed logs and mapping exports now list bounded session actor references with missing NPC types and their recorded effect counts, separately from unmapped catalog IDs. Desktop and Pages show both totals.
+- Actor references do not establish a reusable NPC ID, name or boss role. Existing logs need to be reopened locally or reprocessed by an updated server to populate the new detail fields.
+
 # Aion 2 Calc 0.2.83
 
 - Desktop and GitHub Pages community combat logs now include a collapsible PvE **Recorded boss defeats** feed, with local boss/NPC search, build/region filtering, recorded defeat times, roster engagement and source-log links.
