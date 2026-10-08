@@ -1,7 +1,7 @@
 /* Page-local image failures; exports public asset references, never URLs or portraits. */
 (function(){
   'use strict';
-  const hosts=new Set(['metabot.gg','assets.playnccdn.com','profileimg.plaync.com','a2dil.com','gamers4.life']);
+  const hosts=new Set(['metabot.gg','assets.playnccdn.com','profileimg.plaync.com','a2dil.com','gamers4.life','dbaion2.ru']);
   const regions=new Set(['nae','eu','as','la','kr','tw']),kinds=new Set(['item','skill','pet','wing','title','board']);
   const failures=new Map(),limit=200,referenceLimit=8,wait=5*60*1000;
   let evicted=0;
