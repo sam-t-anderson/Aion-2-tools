@@ -79,6 +79,13 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
             for row in hp["opponents"]:
                 name = row["name"].replace("|", " / ").replace("\n", " ")
                 w(f"| {name} | {row['required_hp']:,.0f} | {row['headroom_hp']:,.0f} |")
+            if hp.get("binding_opponents"):
+                w("\nStrictest incoming requirement: " + ", ".join(str(x).replace("\n", " ") for x in hp["binding_opponents"]) + ".\n")
+            for row in hp["opponents"]:
+                trace = row.get("damage_trace")
+                if trace:
+                    evidence = row.get("opponent_benchmark", {})
+                    w(f"- Timed expected hits: {len(trace['events'])}; scaled damage {trace['total']:,.0f}; source {evidence.get('source_start_s', '?')}–{evidence.get('source_end_s', '?')}s. Complete hit schedule retained in build JSON.\n")
             w("\nHealing timing assumptions (blank duration means the rest of the pressure window):\n")
             for row in hp["opponents"]:
                 if "peak_pressure_hp" not in row:

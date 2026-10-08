@@ -23,10 +23,10 @@ from .scenarios import SCENARIOS, typical_build, comparison_scenario
 from .sim.engine import Sim
 
 
-def _sim(build, scenario, policy):
+def _sim(build, scenario, policy, *, record_damage=False):
     cd, b, kit, stats = prepare(build, scenario)
     pol = [e for e in policy if (e[0] if isinstance(e, tuple) else e) in kit.actions]
-    sim = Sim(stats.derived(), kit.actions, materialize(pol), scenario.target, scenario.config,
+    sim = Sim(stats.derived(), kit.actions, materialize(pol), scenario.target, replace(scenario.config, record_damage=record_damage),
               hooks=kit.hooks, cond_mods=kit.cond_mods)
     return sim.run(), kit, stats
 
@@ -343,8 +343,8 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
                 hooks=ckit.hooks, cond_mods=ckit.cond_mods).run()
     comm_rot = optimize_rotation(cstats.derived(), ckit, baseline_scen.target, baseline_scen.config, restarts=2)
 
-    final, kit, stats = _sim(build, scen, policy)
-    final_other, _, _ = _sim(build, other, policy)
+    final, kit, stats = _sim(build, scen, policy, record_damage=True)
+    final_other, _, _ = _sim(build, other, policy, record_damage=True)
     comm_other, _, _ = _sim(comm, baseline_other, comm_rot.policy)
     if (survival or {}).get("action_windows") and (final.dps <= 0 or final_other.dps <= 0):
         raise ValueError("No outgoing damage fits the action-time schedule; shorten or move the pauses")
@@ -374,6 +374,9 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
         "class": cls, "level": 45, "scenario": scenario_name, "daevanion_budget": daev_budget,
         "budgets": {"skill": opt.sp_budget, "stigma": opt.stigma_points, "daevanion": daev_budget},
         "dps": {scenario_name: final.dps, other_name: final_other.dps},
+        "damage_traces": {name: {"version": 1, "duration_s": result.duration, "total": result.total,
+                                  "events": result.damage_events}
+                          for name, result in ((scenario_name, final), (other_name, final_other))},
         "baseline": {"community_naive": naive.dps, "community_optimized_rotation": comm_rot.dps,
                      "community_other_scenario": comm_other.dps},
         "build": {"sp": {cd.skills[k]["name"]: v for k, v in sorted(build.sp.items())},

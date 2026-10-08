@@ -60,6 +60,7 @@ class SimConfig:
     chain_window: float = 3.0      # seconds before a chain skill resets
     action_blocks: tuple = ()     # explicit no-new-action intervals on the rotation clock
     tactical_uses: tuple = ()     # (skill ID, assumed use start, effective cooldown)
+    record_damage: bool = False   # final reports only; no hit trace allocation during scoring
 
 
 def action_blocks(values, duration):
@@ -165,6 +166,7 @@ class Sim:
         self.casts: dict[str, int] = {}
         self.buff_time: dict[str, float] = {}
         self.timeline: list[tuple[float, str]] = []
+        self.damage_events: list = []
         self.action_blocks = action_blocks(self.cfg.action_blocks, self.cfg.duration)
         self.tactical_uses = tactical_uses(self.cfg.tactical_uses, self.cfg.duration)
         self._tactical_groups = {}
@@ -329,6 +331,10 @@ class Sim:
                 mods[k] = mods.get(k, 0.0) + v
         ctx = HitContext(flat=flat, coef=coef, element=element, tags=tags, mult=mult)
         dmg = expected_hit(self.base, mods, self.target, ctx)
+        if self.cfg.record_damage:
+            if len(self.damage_events) >= 50000:
+                raise ValueError("Final simulation damage trace exceeds 50,000 hits")
+            self.damage_events.append([t, dmg])
         self.total += dmg
         self.damage_by[source] = self.damage_by.get(source, 0.0) + dmg
         self.hits_by[source] = self.hits_by.get(source, 0) + 1
@@ -465,7 +471,8 @@ class Sim:
         self._advance_to(T)
         return SimResult(self.total, T, dict(self.damage_by), dict(self.hits_by),
                          dict(self.casts), {k: v / T for k, v in self.buff_time.items()},
-                         idle, self.mp_floor, list(self.timeline), list(self._reservation_report))
+                         idle, self.mp_floor, list(self.timeline), list(self._reservation_report),
+                         sorted([[min(T, max(0.0, t)), amount] for t, amount in self.damage_events]))
 
 
 @dataclass
@@ -480,6 +487,7 @@ class SimResult:
     mp_floor: float
     timeline: list
     action_reservations: list = field(default_factory=list)
+    damage_events: list = field(default_factory=list)
 
     @property
     def dps(self) -> float:
