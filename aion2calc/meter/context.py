@@ -12,7 +12,7 @@ CATEGORIES = {"Dungeon":"expedition", "Transcendence":"transcendence", "Nightmar
               "Ascension Trial":"ascension", "Raid":"sanctuary"}
 AUTO = "Automatic catalog: "
 NOTE = ("Community catalog matches use recorded IDs, not names, HP or damage patterns. "
-        "NPC-only instance candidates do not establish instance entry or complete capture. "
+        "Map/NPC instance candidates do not establish a missing recorded instance, entry or complete capture. "
         "Catalog applicability to this installed build is not independently verified. "
         "Unmapped NPCs are listed separately and cannot corroborate a match.")
 

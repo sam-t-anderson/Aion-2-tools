@@ -11,6 +11,7 @@ COUNTERS = ("discarded_effects", "discarded_segments", "discarded_telemetry",
             "validation_discarded", "tcp_discarded_payloads", "tcp_unresolved_flows", "capture_errors", "decoder_errors", "shutdown_discarded_payloads", "pcap_dropped", "pcap_if_dropped")
 LABELS = {
     "classification_conflict": "Recorded map/instance and catalog evidence conflict; review encounter classification.",
+    "classification_map_only": "A catalog map match suggests an instance, but its instance/entry evidence was not recorded; metrics remain descriptive.",
     "classification_npc_only": "NPC catalog matches suggest an instance, but its map/entry was not recorded; metrics remain descriptive.",
     "reconstructed": "Combined recording review: source-part completeness and ranking eligibility are not inherited.",
     "partial_capture": "Partial capture: instance entry or player membership was not established; metrics are descriptive only.",
@@ -41,6 +42,8 @@ def assess(doc, segment):
     classification = segment.get("classification") or {}
     if classification.get("status") == "conflict":
         reasons.append("classification_conflict")
+    if classification.get("basis") == "recorded_map" and classification.get("catalog_instance_id") and not classification.get("recorded_instance_id"):
+        reasons.append("classification_map_only")
     if classification.get("basis") == "npc_only":
         reasons.append("classification_npc_only")
     if capture.get("reconstructed") is True or meta.get("reconstruction"):

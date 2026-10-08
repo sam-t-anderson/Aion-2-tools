@@ -482,7 +482,7 @@ def to_encounter(doc: dict, player_id: str, segment: int = 0) -> dict:
                     seg.get("label"), "duration": seg["duration"], "combat_power": p.get("combat_power")},
            "hits": hits, "buffs": buffs, "specs": {}}
     from .quality import assess
-    excluded = {"partial_capture", "party_roster_late", "classification_npc_only", "classification_conflict"}.intersection(assess(doc, seg)["reasons"])
+    excluded = {"partial_capture", "party_roster_late", "classification_npc_only", "classification_map_only", "classification_conflict"}.intersection(assess(doc, seg)["reasons"])
     enc["meta"]["learning_excluded"] = bool(excluded)
     enc["meta"]["learning_exclusion_reasons"] = sorted(excluded)
     enc = normalize(enc)
