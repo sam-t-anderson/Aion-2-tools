@@ -36,7 +36,7 @@ import gzip
 from dataclasses import fields
 from aion2calc.model.stats import Stats
 from aion2calc.plan import items as I
-from aion2calc.plan.pantheon import DEITIES
+from aion2calc.plan.pantheon import DEITIES, PROFILE_TYPES
 allowed={f.name for f in fields(Stats)}-{'level','pvp','skill_bonus'}
 items=[]
 for entry in json.loads(gzip.decompress((root/'aion2calc/data/seed/items.json.gz').read_bytes())):
@@ -57,8 +57,8 @@ for entry in json.loads(gzip.decompress((root/'aion2calc/data/seed/items.json.gz
 payload['items']=sorted(items,key=lambda x:x['slug'])
 payload['equipment_slots']=I.SLOTS
 payload['class_weapons']=I.WEAPON
-payload['deities']=[{'name':name,'field':field} for name,field in DEITIES]
-payload['item_note']='Bundled catalog fixed stats and listed cumulative enchant bonuses only; Random roll choices use the bundled source pool/ranges and entered values; ownership, current-build applicability and unsupported defensive effects are not inferred. Source slugs remain separate from numeric game IDs.'
+payload['deities']=[{'name':name,'field':field,'profile_type':next((key for key,value in PROFILE_TYPES.items() if value==name),None)} for name,field in DEITIES]
+payload['item_note']='Bundled catalog fixed stats and listed cumulative enchant bonuses. Random roll choices use the bundled source pool/ranges and entered values; ownership, current-build applicability and unsupported defensive effects are not inferred. Source slugs remain separate from numeric game IDs.'
 payload['revision']=hashlib.sha256(json.dumps(payload,sort_keys=True).encode()).hexdigest()
 (root/'aion2calc/app/static/build-catalog.json').write_text(json.dumps(payload,ensure_ascii=False,separators=(',',':'))+'\n',encoding='utf-8')
 

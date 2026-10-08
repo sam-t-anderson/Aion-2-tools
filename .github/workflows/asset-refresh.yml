@@ -9,6 +9,8 @@ on:
       - "aion2calc/data/global/classes/*.json"
       - "aion2calc/data/seed/items.json.gz"
       - "aion2calc/data/global/arcana_skill_pools.json"
+      - "aion2calc/plan/items.py"
+      - "aion2calc/plan/pantheon.py"
       - "tools/export_build_catalog.py"
       - "tools/export_crafting_catalog.py"
       - "tools/export_game_assets.py"
