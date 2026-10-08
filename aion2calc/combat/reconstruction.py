@@ -235,6 +235,7 @@ def clean_run(value):
 
 def run_summary(doc):
     from ..meter.a2parser.lookup import npc_info
+    from .a2log import combat_mode
     sources = doc["meta"]["reconstruction"]["sources"]
     first_seq, last_seq = sources[0].get("first_sequence"), sources[-1].get("last_sequence")
     groups, legacy = {}, 0
