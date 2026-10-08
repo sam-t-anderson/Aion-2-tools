@@ -75,6 +75,29 @@ def budgets_of(imp: ImportedCharacter) -> dict:
     return result
 
 
+def progression_of(imp, budgets, *, entered=()):
+    """Explain resource assumptions without promoting them to progression maxima."""
+    cd = ClassData(imp.cls)
+    spent = {"skill": imp.build.sp_spent(), "stigma": imp.build.stigma_spent(),
+             "daevanion": crystal_cost(cd, imp.build.daevanion)}
+    try:
+        from .paths import read_json
+        saved = read_json("character-points.json").get(imp.key, {})
+    except (OSError, ValueError):
+        saved = {}
+    rows = []
+    for key in spent:
+        saved_value = saved.get(key)
+        valid_saved = type(saved_value) is int and 0 <= saved_value <= 10000
+        source = ("Entered for this optimization" if key in entered else
+                  "Saved user total / observed minimum" if valid_saved and saved_value >= budgets[key] else
+                  "Observed allocation minimum" if budgets[key] == spent[key] else
+                  "Level-based example / observed minimum" if key != "daevanion" else "Minimum optimizer budget")
+        rows.append({"resource": key, "observed_spent": spent[key], "available_assumption": budgets[key],
+                     "assumed_unspent": max(0, budgets[key]-spent[key]), "source": source, "verified_maximum": None})
+    return {"resources": rows, "note": "Official profiles provide allocations, not verified unspent totals or progression maxima. Remaining points are the selected budget minus observed spend; confirm total points in game. Genus levels are recorded separately and do not grant these point budgets."}
+
+
 def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus: dict | None = None, objective="primary", survival=None) -> dict:
     """The character as it is (best legal specs for its levels, optimized rotation)."""
     cls = imp.cls
@@ -116,7 +139,7 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus:
                                        {scenario_name: dps, other_name: res_other.dps},
                                        {scenario_name: scen.config.duration, other_name: other.config.duration}),
         "action_timing": action_timing_summary(survival, {scenario_name: scen, other_name: other}, {scenario_name: res, other_name: res_other}),
-        "budgets": bud,
+        "budgets": bud, "progression": progression_of(imp, bud),
         "stats": {"attack_avg": d.attack(), "crit_stat": d.crit_stat,
                   "crit_chance_vs_target": crit_chance(d.crit_stat, scen.target.crit_resist, midpoint=1024.52 if scen.target.is_player else None),
                   "cdr": d.cdr, "combat_speed": d.combat_speed, "boost_bucket": d.amp,
@@ -179,10 +202,11 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     if reserve_plan and progress:
         progress(f"Retaining trained minimums for {sum(len(reserve_plan[k]) for k in ('sp', 'stigmas'))} skills/stigmas")
     cur["budgets"] = bud
+    cur["progression"] = progression_of(imp, bud, entered=budgets or {})
     (out / "current" / "build.json").write_text(json.dumps(cur, indent=1, default=str), encoding="utf-8")
     best = run_report(imp.cls, str(out), scenario_name=scenario_name, daev_budget=bud["daevanion"],
                       iterations=iterations, loadout=imp.loadout_name(), sp_budget=bud["skill"],
-                      stigma_points=bud["stigma"], progress=progress, survival=survival_plan, loadout_snapshot=imp.loadout, skill_reserves=reserve_plan, genus=genus_plan, objective=objective)
+                      stigma_points=bud["stigma"], progress=progress, survival=survival_plan, loadout_snapshot=imp.loadout, skill_reserves=reserve_plan, genus=genus_plan, objective=objective, progression=cur["progression"])
     write_diff(str(out / "current"), str(out), str(out / "DIFF.md"))
     current_score, optimized_score = cur["objective"]["score"], best["objective"]["score"]
     gain = optimized_score / current_score - 1 if current_score > 0 else None

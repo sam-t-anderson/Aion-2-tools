@@ -70,6 +70,30 @@ def validate_state(value):
     return result
 
 
+def coverage(state, lines=()):
+    """Coverage of manually recorded allocations, never inferred ownership."""
+    rows = []
+    for genus in (*MAIN, "Special"):
+        group = state.get(genus)
+        level = group["level"] if group is not None else None
+        unlocked = min(level, 9) if level is not None else None
+        saved = len(group["lines"]) if group is not None else 0
+        modeled = sum(1 for line in lines if line["genus"] == genus and not line.get("reason")
+                      and any(line.get("stats", {}).values()))
+        rows.append({"genus": genus, "level": level, "unlocked_slots": unlocked,
+                     "recorded_lines": saved, "modeled_lines": modeled,
+                     "missing_lines": unlocked-saved if unlocked is not None else None,
+                     "next_slot_level": level+1 if level is not None and level < 9 else None,
+                     "next_grade_level": 10 if level == 9 else None,
+                     "status": "not_recorded" if level is None else "complete" if saved == unlocked else "partial"})
+    return {"genera": rows, "recorded_genera": sum(r["level"] is not None for r in rows),
+            "recorded_lines": sum(r["recorded_lines"] for r in rows),
+            "modeled_lines": sum(r["modeled_lines"] for r in rows),
+            "catalog_max_level": 10, "catalog_slots": 9,
+            "source": data().get("source", "Bundled Genus catalog"),
+            "note": "Missing levels and lines are not zero-valued or empty in-game slots. Catalog limits are not proof of owned progression. Unsupported and defensive effects are preserved, not recommended for reroll based on damage."}
+
+
 def content_mix(encounters: list[dict] | None = None, given: dict | None = None,
                 fetch_missing: bool = True) -> dict:
     """Share of fight time per genus: ``given``, else the saved fights, else even."""
@@ -126,43 +150,62 @@ def genus_component(genus_state: dict, mix: dict) -> dict:
 def plan_genus(ctx: PlanContext, genus_state: dict | None, encounters: list[dict] | None = None,
                mix: dict | None = None, fetch_missing: bool = True) -> dict:
     """Value of every line you have, what to reroll first, and which genus to level."""
-    gd = data()
+    from ..opt.genus import prepare, apply
+    import copy
+    mode = "pvp" if ctx.scenario.startswith("pvp") else "pve"
     mix = content_mix(encounters, mix, fetch_missing)
-    state = genus_state or {}
-    lo_all = ctx.assemble(ctx.equipped)
-    lo_all["components"].append(genus_component(state, mix))
-    with_all = ctx.dps(loadout=lo_all)
+    plan = prepare(genus_state or {}, mode, {"mix": mix})
+    state = plan["state"]
+    base_loadout = ctx.assemble(ctx.equipped)
+    with_all = ctx.dps(loadout=apply(base_loadout, plan))
     lines = []
-    for g, s in state.items():
-        for i, ln in enumerate(s.get("lines") or []):
-            rest = {**state, g: {**s, "lines": [x for j, x in enumerate(s["lines"]) if j != i]}}
-            lo = ctx.assemble(ctx.equipped)
-            lo["components"].append(genus_component(rest, mix))
-            gain = with_all / ctx.dps(loadout=lo) - 1
-            lines.append({"genus": g, "slot": ln.get("slot"), "stat": ln.get("stat"), "value": ln.get("value"),
-                          "gain": gain})
-    lines.sort(key=lambda r: r["gain"])
-    dmg = gd["genus_lines"]["damage_boost"]
-    mid = sum(dmg["range_pct"]) / 2
+    for scored in plan["lines"]:
+        line = copy.deepcopy(scored)
+        line["gain"] = None
+        if not line["reason"] and any(line["stats"].values()):
+            rest = copy.deepcopy(plan)
+            for key, value in line["stats"].items():
+                rest["stats"][key] -= value
+            without = ctx.dps(loadout=apply(base_loadout, rest))
+            line["gain"] = with_all/without-1 if without > 0 else None
+        lines.append(line)
+    lines.sort(key=lambda row: row["gain"] if row["gain"] is not None else float("inf"))
     chase = []
-    for g in MAIN:
-        lo = ctx.assemble(ctx.equipped)
-        lo["components"].append(genus_component({**state, "_": {"lines": [
-            {"stat": f"{g} Damage Boost", "value": f"{mid}%"}]}}, mix))
-        chase.append({"genus": g, "line": f"{g} Damage Boost", "value": f"{mid:.1f}% (range {dmg['range_pct'][0]}-"
-                      f"{dmg['range_pct'][1]}%)", "slots": dmg["slots"], "share": mix.get(g, 0.0),
-                      "gain": ctx.dps(loadout=lo) / with_all - 1})
-    chase.sort(key=lambda r: -r["gain"])
-    levels = []
-    for g in sorted(GENERA, key=lambda g: -mix.get(g, 0.0)):
-        lv = (state.get(g) or {}).get("level", 0)
-        table = {x["level"]: x for x in (gd["genera"].get(g) or {}).get("levels", [])}
-        nxt = table.get(lv + 1)
-        levels.append({"genus": g, "level": lv, "share": mix.get(g, 0.0),
-                       "next": nxt and {"level": nxt["level"], "opens_slot": nxt.get("slot_opened"),
-                                        "grades": nxt.get("grades")}})
-    return {"mix": mix, "dps_with_lines": with_all, "lines": lines,
-            "reroll_first": [r for r in lines if r["gain"] <= 1e-6][:6],
-            "chase": chase, "level_order": levels,
-            "note": "Genus lines that only count against one genus are weighted by that genus's share of "
-                    "your fight time."}
+    gd = data()
+    dmg = gd["genus_lines"]["damage_boost"]
+    mid = sum(dmg["range_pct"])/2
+    if mode == "pve":
+        for genus, group in state.items():
+            if genus not in MAIN:
+                continue
+            for slot in dmg["slots"]:
+                if slot > group["level"]:
+                    continue
+                old = next((line for line in group["lines"] if line["slot"] == slot), None)
+                score = next((line for line in lines if line["genus"] == genus and line["slot"] == slot), None)
+                # A defensive/unsupported line must not be called a damage-free reroll.
+                if score and (score["reason"] or score["gain"] is None):
+                    continue
+                candidate = copy.deepcopy(state)
+                candidate[genus]["lines"] = [line for line in group["lines"] if line["slot"] != slot]
+                candidate[genus]["lines"].append({"slot": slot, "stat": f"{genus} Damage Boost", "value": f"{mid}%"})
+                proposed = prepare(candidate, mode, {"mix": mix})
+                gain = ctx.dps(loadout=apply(base_loadout, proposed))/with_all-1 if with_all > 0 else None
+                if gain is None or gain <= 1e-6:
+                    continue
+                chase.append({"genus": genus, "slot": slot, "slots": [slot], "line": f"{genus} Damage Boost",
+                              "value": f"{mid:g}% (catalog range {dmg['range_pct'][0]}–{dmg['range_pct'][1]}%)",
+                              "share": mix.get(genus, 0), "gain": gain, "replaces": old,
+                              "assumption": "Replaces the recorded line" if old else "Assumes the unrecorded target slot is empty; actual gain unknown"})
+    chase.sort(key=lambda row: -row["gain"])
+    cov = coverage(state, lines)
+    levels = [{"genus": row["genus"], "level": row["level"], "share": mix.get(row["genus"], 0),
+               "next": ({"level": row["next_slot_level"], "opens_slot": row["next_slot_level"]}
+                        if row["next_slot_level"] is not None else
+                        {"level": 10, "opens_slot": None} if row["next_grade_level"] else None)}
+              for row in cov["genera"]]
+    levels.sort(key=lambda row: (row["level"] is None, -row["share"], row["genus"]))
+    return {"mode": mode, "state": state, "mix": plan["mix"], "mix_source": plan["mix_source"],
+            "dps_with_lines": with_all, "lines": lines, "coverage": cov,
+            "reroll_first": [], "chase": chase, "level_order": levels,
+            "note": plan["note"] + " Candidate gains replace a single unlocked slot and are not additive; absent target lines assume an empty slot. No roll probability, cost or defensive tradeoff is optimized."}

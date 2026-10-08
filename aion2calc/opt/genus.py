@@ -4,7 +4,7 @@ from __future__ import annotations
 import copy
 import math
 
-from ..plan.genus import GENUS_STATS, MAIN, line_stats, validate_state
+from ..plan.genus import GENUS_STATS, MAIN, line_stats, validate_state, coverage
 
 SOURCE = "manual-genus-insight"
 NOTE = ("Saved manual analysis lines are held fixed while skills, specialties and boards are optimized. "
@@ -66,7 +66,7 @@ def prepare(state: dict, mode: str, options: dict | None = None) -> dict:
                 stats[key] = stats.get(key, 0.) + value
     return {"enabled": enabled, "mode": mode, "source": "Saved manual Genus Insight", "state": clean,
             "mix": mix if mode == "pve" else {}, "mix_source": source if mode == "pve" else "Not used for player targets",
-            "stats": stats, "lines": rows, "note": NOTE + (" PvE uses a weighted-stat approximation, not separate simulations per genus."
+            "stats": stats, "lines": rows, "coverage": coverage(clean, rows), "note": NOTE + (" PvE uses a weighted-stat approximation, not separate simulations per genus."
             if mode == "pve" else " PvP is a stationary damage proxy, not a survivability or win-rate model.")}
 
 
@@ -104,6 +104,6 @@ def assess(plan: dict | None, build, scenario, policy) -> dict | None:
         without = _sim(build, reduced, policy)[0].dps
         row["gain"] = full / without - 1 if without > 0 else None
     result["review_first"] = sorted(
-        [{"genus": x["genus"], "slot": x["slot"], "gain": x.get("gain")} for x in result["lines"]],
+        [{"genus": x["genus"], "slot": x["slot"], "gain": x.get("gain")} for x in result["lines"] if x.get("gain") is not None],
         key=lambda x: x["gain"] if x["gain"] is not None else 0.)[:6]
     return result

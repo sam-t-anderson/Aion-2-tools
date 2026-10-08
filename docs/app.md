@@ -133,6 +133,17 @@ In **Gear & Advice**, choose a genus tab, enter its in-game Insight level and fi
 
 The official profile does not provide Genus Insight allocations. **Advanced JSON** lets you repair older entries; apply it to the draft before saving. Defensive lines are retained for reference, but current advice evaluates damage effects only. Recovered saved advice shows the allocation snapshot used at calculation time.
 
+
+### Genus coverage and safe candidates
+
+Genus results show all five recorded levels, saved versus unlocked slots, included damage effects and the next catalog milestone. An unrecorded level stays unknown; enter 0 only when that is the actual recorded level. Leave the level blank to remove an empty recorded group. The catalog describes nine slots and level 10 grade changes; it does not prove collection ownership or current-build applicability.
+
+Gear & Advice uses the same Genus effect filters as character optimization, including protection against re-adding primary stats already in official totals. Saved damage lines now participate in the advice loadout. Unsupported/defensive lines remain visible with a reason and are not labeled as damage-free rerolls. Candidate damage-boost swaps replace one unlocked slot, including the loss of its recorded modeled effect. A missing target line is explicitly a hypothetical empty-slot assumption; it cannot establish the actual gain. Candidates do not overwrite your lines or model roll probabilities/costs or defensive tradeoffs. Advice results retain their original Genus snapshot.
+
+### Point budget provenance
+
+My Character and optimized results distinguish observed allocated points, assumed available totals, assumed unspent points and the source of each budget. Saved/entered totals and level-based examples are not verified progression maxima. Confirm spent plus unspent points in game; Genus levels do not grant skill, stigma or crystal-board budgets.
+
 ## Saved Results
 
 Completed character/class optimizations and advice save automatically under the app data folder's `history` directory. Open **Saved Results**, select Open to review a previous run, or Export/Import its result JSON. Import restores a snapshot; it does not run an optimization or change your equipped gear. The latest existing old build/advice files are recovered when available. Keep exported copies to move runs between installations. Advice reflects the saved run, not future game or gear changes.

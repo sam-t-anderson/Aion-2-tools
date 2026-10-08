@@ -315,7 +315,7 @@ def build_view(summary: dict) -> dict:
         "equipment_source": "Saved run loadout" if saved_loadout else "Legacy run: current loadout file; original gear snapshot unavailable",
         "model_note": summary.get("model_note"), "objective": summary.get("objective"), "survival": summary.get("survival"), "action_timing": summary.get("action_timing"),
         "skill_reserves": summary.get("skill_reserves"), "genus": summary.get("genus"),
-        "damage_traces": summary.get("damage_traces"),
+        "damage_traces": summary.get("damage_traces"), "progression": summary.get("progression"),
         "dps": summary.get("dps"), "baseline": summary.get("baseline"), "budgets": budgets,
         "score": summary.get("score"), "scoring_policy": summary.get("scoring_policy"),
         "preset_checked_at": summary.get("preset_checked_at"), "preset_source": summary.get("preset_source"),
@@ -459,7 +459,7 @@ def character_view(imp, evaluation: dict | None = None) -> dict:
         "combat_power": imp.combat_power, "loadout": imp.loadout_name(),
         "warnings": imp.warnings + (["specializations are not on the official profile; the skill window shows the "
                                      "best legal ones for your levels (used for the as-is score)"] if evaluation else []),
-        "dps": (evaluation or {}).get("dps"), "budgets": (evaluation or {}).get("budgets"),
+        "dps": (evaluation or {}).get("dps"), "budgets": (evaluation or {}).get("budgets"), "progression": (evaluation or {}).get("progression"),
         "points": {"skill": build.sp_spent(), "stigma": build.stigma_spent(),
                    "daevanion": daevanion_view(cd, build.daevanion)["used"]},
         "skills": skills_view(cd, build, gear_bonus, levels_override=totals),

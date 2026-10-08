@@ -378,3 +378,10 @@ The latest pinned upstream audit contains no NPC/dungeon table changes. Still pe
 Optimized builds now retain timed expected-hit traces for both damage scenarios. Personal optimization can import several optimized PvP opponents together and constrain HP against each opponent's greatest gross-damage window, with explicit healing and defensive/control/movement assumptions. Results identify the strictest incoming requirement and preserve hit schedules and source assumptions. Existing skill/specialty retention and outgoing action/cooldown reservations remain available in PvE and PvP.
 
 Still pending within this workstream: verified defensive/CC/movement coefficients and immunity rules, matchup-specific outgoing and incoming mitigation, worst-case tactical alignment, reactive opponent behavior and representative validation. These are not replaced by a win-rate claim. Next major workstream: Genus and progression coverage.
+
+
+## Seven workstreams — Genus and progression coverage
+
+Advice and optimization now share Genus damage-effect filtering, and saved modeled lines participate in the advice loadout. Coverage reports all five levels, saved/unlocked/missing slots and next catalog milestones. Advice candidates replace a specific unlocked slot rather than adding a synthetic line; unsupported/defensive effects are preserved without damage-free reroll recommendations. Saved advice retains its Genus snapshot. My Character/optimized results record budget provenance and distinguish assumed unspent balances from observed spend and unknown progression maxima.
+
+Remaining evidence-dependent work: official Genus allocation/collection retrieval, verified owned-effect and defensive coefficients, current-build roll chances/costs, and independently verified progression maxima. Current catalog caps and user totals are labeled as such. Next major workstream: richer combat protocol analytics.
