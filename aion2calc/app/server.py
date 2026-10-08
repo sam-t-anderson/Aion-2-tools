@@ -770,6 +770,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/ui":
             from ..paths import write_user_json
             cur = ui_settings()
+            if "overlay_text_colors" in body:
+                colors = body["overlay_text_colors"]
+                if (not isinstance(colors, dict) or set(colors) != {"rate", "total"}
+                        or any(not isinstance(value, str) or len(value) != 7 or value[0] != "#"
+                               or any(c not in "0123456789abcdefABCDEF" for c in value[1:])
+                               for value in colors.values())):
+                    raise ValueError("Overlay text colors must be six-digit hex colors for rate and total")
+                cur["overlay_text_colors"] = {k:v.lower() for k,v in colors.items()}
             cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update", "combat_colors")})
             write_user_json(cur, "ui.json")
             return self._json(cur)

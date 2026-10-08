@@ -1,3 +1,12 @@
+## Recording-part continuity metadata (0.2.91)
+
+- Default overlay rate and total/share numbers to black. Add separate saved color pickers in Settings, shared by DPS/HPS/D.Taken, with a reset button and automatic overlay refresh.
+
+- Record retained decoded-effect ranges, capture/identity contexts and predecessor tokens for new archive parts. Preserve metadata through imports/uploads.
+- Show continuity details in recording-part navigation: gaps, overlaps, duplicate parts, changed contexts, unavailable predecessors and connecting submitted ranges.
+- Compare all available local parts before paging. Server comparisons use public available parts only, including predecessor checks across pages.
+- Counters and tokens are submitted metadata, not verified packet continuity. Parts stay separate; no totals, run completion or ranking eligibility are inherited. Older logs remain unavailable rather than receiving invented ranges.
+
 ## Overlay metrics and partial-capture links (0.2.90)
 
 - Add persistent DPS, HPS and D.Taken overlay buttons below Meter/Plan/Hide, with metric-specific sorting, rate, total and share.

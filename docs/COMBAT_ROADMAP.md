@@ -340,3 +340,7 @@ Saved desktop logs, shared desktop logs, Pages and server-hosted review can navi
 
 - Added DPS/HPS/incoming-damage overlay selection with per-metric sorting and totals, plus unresolved identity/link status.
 - Scan explicit summon-owner links inside compressed packets as well as outer messages. Missing player identity or owner packets still need a diagnostic capture; no actor is assigned to Self or an owner from class, damage or proximity.
+
+## Recording-part sequence metadata
+
+New archives retain sequence ranges, context ranges and predecessor tokens. Local/public navigation shows submitted consistency and ambiguity across pagination. No reconstruction is performed. Next: define reconstruction rules for selected scopes, identity contexts, overlap handling and entry/completion provenance; keep unknown or contradictory chains unranked.

@@ -339,3 +339,9 @@ Stopping intake does not mean queued payloads have already been decoded. The wor
 Archive part discovery matches the submitted archive ID and sorts by part number, with pagination. Local views search locally saved files. Shared views expose public, available uploads only; hidden or removed siblings are not counted. A token authorizing the current private log is not forwarded when opening another part.
 
 Matching archive IDs are not verified provenance: users can supply or copy metadata, and duplicate part numbers or gaps can occur. Each part retains its own timing, totals, quality and ranking status. Storage flags describe a saved boundary or checkpoint, not encounter completion. Verified continuity, combined reports and entry/completion reconstruction remain separate work.
+
+### Submitted archive sequence evidence
+
+New live archives retain a per-part random token, the preceding closed storage part's token and final decoded-record counter, a first/last sequence range, retained record count and first/last identity context. The sequence increments for retained damage/healing effects across storage continuation. Clearing the session starts a new archive; restarting capture or observing identity-context changes advances context. Checkpoint saves retain their token and can extend their range. A predecessor is advanced only after its atomic disk save succeeds.
+
+These are submitted consistency checks, not signatures or proof of packet continuity. Counters cover decoded effects before scope filtering; undecoded/lost packets and capture downtime cannot be ruled out by adjacent counters. Multiple uploads for the same part are ambiguous even when their tokens match. Only available local files or current public, unmoderated uploads are compared, including neighbors outside the current page. Missing/private/held predecessors are unavailable. No report merging, quality inheritance or retrospective completion is performed.
