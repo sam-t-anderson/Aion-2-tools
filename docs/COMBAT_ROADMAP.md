@@ -336,3 +336,7 @@ Stop drains queued payloads within a bounded shutdown window, reports decoded/di
 ### Recording-part discovery
 
 Saved desktop logs, shared desktop logs, Pages and server-hosted review can navigate matching archive parts with pagination. Server discovery indexes archive metadata and lists public available uploads only, honoring visibility/deletion/moderation. Matching IDs are unverified; totals and quality stay per part. Remaining: capture continuity provenance, safe part reconstruction and verified entry/completion inheritance.
+### Overlay metrics and partial-capture ownership
+
+- Added DPS/HPS/incoming-damage overlay selection with per-metric sorting and totals, plus unresolved identity/link status.
+- Scan explicit summon-owner links inside compressed packets as well as outer messages. Missing player identity or owner packets still need a diagnostic capture; no actor is assigned to Self or an owner from class, damage or proximity.

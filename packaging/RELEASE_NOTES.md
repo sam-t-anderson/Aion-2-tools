@@ -1,3 +1,10 @@
+## Overlay metrics and partial-capture links (0.2.90)
+
+- Add persistent DPS, HPS and D.Taken overlay buttons below Meter/Plan/Hide, with metric-specific sorting, rate, total and share.
+- Use recorded encounter spans for healing/incoming rates while retaining the active outgoing DPS clock. Healing alone does not start an encounter.
+- Decode explicit summon-owner links in compressed inner packets, improving pet grouping when these records arrive during a partial capture.
+- Show Self identity, unnamed actor and linked-pet status in Live Meter and the overlay. Missing identity/ownership packets remain unresolved; diagnostics are still needed to identify unsupported variants.
+
 ## Recording-part navigation (0.2.89)
 
 - Add **Other parts of this recording** to saved desktop logs and shared desktop/Pages review, with paged results and direct part opening.

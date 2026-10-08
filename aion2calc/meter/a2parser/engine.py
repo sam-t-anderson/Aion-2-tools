@@ -214,6 +214,13 @@ class MeterEngine:
             roster = scan_party_roster(packet)
             if roster:
                 self._update_roster(*roster)
+            # Owner links can be bundled with combat/identity messages. Scanning
+            # only the compressed outer bytes misses these explicit links.
+            summons, links = scan_summon_links(packet, self.names, self.summons)
+            self.summons.update(summons)
+            self.summon_owners.update(links)
+            self.known_entities.update(summons)
+            self.known_entities.update(links.values())
         self._bind_named_character()
         events = list(decode_stream(complete, timestamp_ms, self.known_entities,
                                    self.seen_embedded_damage, self.seen_embedded_order,

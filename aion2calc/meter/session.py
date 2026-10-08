@@ -398,8 +398,15 @@ class CombatSession:
                     incoming["sources"][source] = incoming["sources"].get(source, 0) + event.total_damage
             offset += max(1, int((group["end"] - group["start"]) / 1000) + 1)
         total = sum(row["damage"] for row in players.values())
+        elapsed = sum(max(1, (group["end"] - group["start"]) / 1000) for group in groups)
+        healing = sum(row["healing"] for row in players.values())
+        incoming = sum(row["incoming"]["damage"] for row in players.values())
         for row in players.values():
             row["dps"] = row["damage"] / max(1, durations)
+            # Healing and incoming rates use recorded encounter spans, not the
+            # outgoing-only active DPS clock. Idle refreshes retain this span.
+            row["hps"] = row["healing"] / max(1, elapsed)
+            row["dtps"] = row["incoming"]["damage"] / max(1, elapsed)
             row["share"] = row["damage"] / total if total else 0
             for key, value in row.pop("counts").items():
                 row[key] = value / row["hits"] if row["hits"] else None
@@ -413,7 +420,9 @@ class CombatSession:
             enemy["dps"] = enemy["damage"] / max(1, durations)
         return {"players": sorted(players.values(), key=lambda row: (-row["damage"], -row["incoming"]["damage"], row["key"])),
                 "enemies": sorted(enemies.values(), key=lambda row: -row["damage"]), "duration": durations,
-                "total": total, "dps": total / max(1, durations)}
+                "total": total, "dps": total / max(1, durations),
+                "recorded_duration": elapsed, "healing": healing, "hps": healing / max(1, elapsed),
+                "damage_taken": incoming, "dtps": incoming / max(1, elapsed)}
 
     def snapshot(self, scope="party", segment_id=None, enemy_id=None, combine_pets=True):
         groups = self.groups(scope)
@@ -432,6 +441,15 @@ class CombatSession:
         summary["viewing_historical"] = bool(segment_id not in (None, "all") and chosen and chosen[-1]["id"] != groups[-1]["id"])
         summary["selected_enemy"] = enemy_id
         summary["combine_pets"] = combine_pets
+        epochs = {g["epoch"] for g in chosen}
+        actors = {(g["epoch"], actor) for g in chosen for r in g["records"]
+                  for actor in (r.event.actor_id, r.event.target_id) if actor in self._allowed(r, scope)}
+        summary["identity_status"] = {
+            "self_identified": bool(epochs) and all(self.identities[e]["local_id"] is not None for e in epochs),
+            "unnamed_actors": sum(actor not in self.identities[e]["names"] for e, actor in actors
+                                  if actor not in self.identities[e]["owners"]),
+            "linked_pets": sum(actor in self.identities[e]["owners"] for e, actor in actors),
+        }
         summary["paused"] = bool(chosen and time.time() * 1000 - chosen[-1]["last_damage"] >= 2000)
         summary["recorded_pvp"] = bool(chosen and chosen[-1]["pvp"])
         summary["dps_clock"] = "Shared one-second buckets with outgoing player damage; idle buckets are excluded; deaths do not reset players"

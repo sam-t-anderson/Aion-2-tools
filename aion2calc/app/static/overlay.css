@@ -14,6 +14,12 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovtabs button.on { color: #e8cf8e; }
 .ovsub { color: #9aa3b5; font-weight: 400; font-size: 11px; min-width: 0; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
 .ovtabs { flex-shrink: 0; }
+.ovmetrics { display: flex; gap: 4px; margin: 2px 0 6px; cursor: default; }
+.ovmetrics[hidden], .ovidentity[hidden] { display: none; }
+.ovmetrics button { padding: 3px 7px; border: 1px solid #b9984f55; border-radius: 4px; background: #1c2438; }
+.ovmetrics button.on { border-color: #e8cf8e; background: #493e25; }
+.ovmetrics button:focus-visible { outline: 2px solid #e8cf8e; outline-offset: 1px; }
+.ovidentity { color: #e8cf8e; font-size: 10px; margin: 3px 0 6px; cursor: default; }
 .ovrow { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: center; padding: 2px 0; }
 .ovname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ovbar { position: relative; height: 16px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
