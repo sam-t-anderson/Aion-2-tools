@@ -401,3 +401,11 @@ Crafting uses a source-attributed recipe graph with exact recipe/item references
 For N completed, independent checks with a constant assumed combo probability p, expected triggers are Np and probability of at least one is 1−(1−p)^N. Seeded Bernoulli examples illustrate this assumption, not game RNG or guaranteed outputs. Material expansion uses only explicit source-linked same-faction recipes without combo outcomes, rounds each branch separately and rejects cycles or excessive expansion. Owned amounts subtract only from final material rows. Historical/current-build applicability is not inferred from retrieval time.
 
 Interactive maps run in the publisher's supported embed mode in a sandboxed cross-origin frame. Application data and tokens are not passed to it. External marker positions never become capture positions, NPC mappings, region evidence or encounter classification inputs. Source asset references retain their publisher namespace rather than asserting cross-catalog numeric-ID equivalence.
+
+## Edited build evaluation
+
+Standalone drafts can supply manual per-component stat contributions and Genus lines to the existing damage simulator. Class base stats, selected board stats and passive effects are added separately; source profile totals and prior optimizer scores are not recomputed. Gear skill bonuses are represented once in draft bonus levels. The evaluator validates allocations against catalog gates/paths and entered budgets, then runs fixed-duration boss/dummy or experimental player-target/burst scenarios with the default class priority. It does not search allocations, supporting effects or rotation.
+
+Responses record evaluator version, calibration, input hash, modeled DPS/ability shares and Genus coverage. This hash identifies submitted model inputs, not authentic game equipment. Unsupported defensive and collection effects remain unsupported. Edited drafts do not become public samples or canonical presets. Percentage inputs use fractions, and bounded finite inputs limit request work rather than establish game caps.
+
+Draft scoring currently supports level 45, matching the model's base-resource assumptions. Lower-level allocation drafts remain editable and exportable; no lower-level score is supplied.

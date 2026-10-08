@@ -434,7 +434,7 @@ Publish stores a unique owner credential locally. Update published plan keeps th
 
 ## Official news
 
-**News** on desktop and Pages lists official Global (English), Korean and Taiwan (Traditional Chinese) notice and update headlines. Choose a news region, then filter Notices/Updates and open the original article on NCSoft's site. Publication and retrieval dates are separate; cached headlines can be stale when a source is unavailable. The source-list links remain available when the configured community server cannot serve the feed. News region is stored in this browser and does not change capture region. Regional feeds require a server that supports the region selector. All Pages tabs share the same banner and News option.
+**News** on desktop and Pages lists official Global (English), Korean and Taiwan (Traditional Chinese) notice and update cards with source-provided short previews and approved official thumbnails when available. Choose a news region, then filter Notices/Updates and open the original article on NCSoft's site. Publication and retrieval dates are separate; cached headlines can be stale when a source is unavailable. The source-list links remain available when the configured community server cannot serve the feed. News region is stored in this browser and does not change capture region. Regional feeds require a server that supports the region selector. All Pages tabs share the same banner and News option.
 
 Announcement dates do not prove the build installed on your computer or used by an older combat log. Korean/Taiwan feeds remain unavailable.
 
@@ -665,9 +665,9 @@ Open **Builds** in the desktop app or website to create a local PvE/PvP allocati
 
 Drafts support trained skill/passive levels, bonus levels, supporting effects, stigma levels and connected Daevanion paths. Enter the point budgets appropriate to the character. The editor checks the bundled catalog's level gates, effect unlocks, slot limits, board paths and entered budgets. Its defaults are example progression assumptions, not verified ownership or current game-build rules.
 
-Import an exported official profile as a read-only reference, an optimizer `build.json` as allocations, or an `.a2build.json` draft. **Load current community preset** copies the server's current evaluated allocation. Editing does not rerun the optimizer or recalculate source stats, DPS or survivability. Profile totals are not automatically converted to trained points.
+Import an exported official profile as a read-only reference, an optimizer `build.json` as allocations, or an `.a2build.json` draft. **Load current community preset** copies the server's current evaluated allocation. Editing does not rerun the optimizer or recalculate source stats. Open **Equipment, Genus & evaluation** to explicitly score the draft with entered contributions. Profile totals are not automatically converted to trained points.
 
-Save up to ten drafts / 2 MiB in this browser, or export a draft that passes the listed checks. References may contain character information. Nothing is uploaded automatically; browser storage can be cleared and unsaved edits are lost when leaving the page. The draft format is for this workspace, not a simulator configuration. Return URLs can carry private-log view access; these tokens are not stored in draft source metadata.
+Save up to ten drafts / 2 MiB in this browser, or export a draft that passes the listed checks. References may contain character information. Nothing is uploaded automatically; browser storage can be cleared and unsaved edits are lost when leaving the page. The draft format is for this workspace; its allocation and entered model inputs can be evaluated explicitly. Return URLs can carry private-log view access; these tokens are not stored in draft source metadata.
 
 ## Timeline display and application storage
 
@@ -688,3 +688,13 @@ Updater maintenance retains two recognized release packages, helpers for seven d
 Source combo rates use its 10,000-point scale. The effective combo rate can be overridden as an explicit assumption; no modifier formula is claimed. Expected combo checks and probability of at least one assume independent, constant-rate completed-craft checks. A repeatable seeded scenario illustrates variation. General success/failure/refund rules, combo output quantities/replacement behavior and current-build/region applicability are unavailable, so the tool does not promise final item yields or guaranteed material requirements.
 
 Recipe data loads offline; source images and maps require connectivity. Missing images keep item names/IDs. Image-failure exports preserve the Gamers4Life catalog namespace instead of equating these IDs with an official or NPC namespace. Refresh the bounded recipe snapshot with `python tools/export_crafting_catalog.py` and review its source hash/schema before release.
+
+## Evaluating edited builds
+
+In **Builds → Equipment, Genus & evaluation**, import an optimizer build with a frozen loadout or enter component contributions by slot/name in JSON. Percentage stats use fractions: 5% is `0.05`. The model adds class base stats, board stats and passive effects, so final character totals must not be entered again as equipment. Skill bonus levels remain in the Allocation draft to avoid double counting. Names/slots are descriptive; the editor does not validate item ownership or legal rolls.
+
+Enter manual Genus levels/lines and a PvE enemy mix, then **Apply inputs to this draft**. Save/export retains these inputs. **Evaluate this draft** uses the current selected allocation and default class priority in the existing boss/dummy or experimental player-target/burst scenarios. It does not optimize allocations, specialties or rotation, infer survival, or recalculate combat power/gear score. Results carry evaluator/calibration and input hash; changing a draft makes its earlier evaluation stale. Source character profiles and scores remain references.
+
+Desktop evaluates locally and refuses while another model calculation is running. Pages sends the allocation, entered budgets and modeled equipment/Genus inputs to a supporting configured server; names, notes, profile references and private log links are excluded. No draft is published or added to rankings. Server request logs may record normal connection metadata. Inputs are limited to 128 KiB/64 components and bounded finite nonnegative stats; these are safety limits, not verified gear caps. Older servers show an evaluation error while local planning/export remain available.
+
+Draft scoring currently supports level 45, matching the model's base-resource assumptions. Lower-level allocation drafts remain editable and exportable; no lower-level score is supplied.

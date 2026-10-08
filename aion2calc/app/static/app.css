@@ -612,3 +612,5 @@ details[open] > summary { margin-bottom:2px; }
 #gout{scroll-margin-top:72px;}
 
 @media (max-width: 700px) { .topbar > .nav { order: 3; flex-basis: 100%; } .topbar .nav a { padding: 6px 9px; } .topbar .brand { flex-wrap: wrap; } }
+
+.news-preview-image { display:block; width:100%; max-height:180px; object-fit:cover; border-radius:5px; margin-bottom:12px; }
