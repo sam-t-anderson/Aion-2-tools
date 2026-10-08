@@ -188,7 +188,7 @@ def validate(doc) -> dict:
     capture = meta.get("capture_quality")
     if isinstance(capture, dict):
         evidence = {k: capture[k][:100] for k in ("decoder", "app_version") if isinstance(capture.get(k), str)}
-        for k in (*COUNTERS, "tcp_pending_bytes", "pcap_received", "pcap_stats_reads"):
+        for k in (*COUNTERS, "shutdown_drained_payloads", "tcp_pending_bytes", "pcap_received", "pcap_stats_reads"):
             if isinstance(capture.get(k), int) and not isinstance(capture[k], bool) and 0 <= capture[k] <= 2**53-1:
                 evidence[k] = capture[k]
         for flag in ("transport_monitored", "pcap_stats_sampled", "pcap_stats_partial", "storage_boundary"):

@@ -487,6 +487,10 @@ folders.
 
 ## Troubleshooting and diagnostic exports
 
+**Stop** first stops packet intake, then gives queued game payloads up to five seconds to decode before saving the final log. The status shows **Stopping capture** during this drain. A decoder call already in progress cannot be forcibly interrupted. If shutdown remains stuck, Start and Clear stay blocked; wait and press Stop again, or export capture diagnostics. Diagnostic ZIP compression can take additional time for long raw recordings.
+
+Capture diagnostics separate decoder failures, shutdown payload discards and payloads successfully decoded during shutdown. Only failures/discards are loss evidence. The legacy combined error/discard count overlaps those fields; do not sum them. Older logs without separate fields show **not recorded**. TCP payload recording is optional for this behavior.
+
 If capture sees no combat, inspect the selected interface/host/port and dependency permissions. Under **Capture diagnostics**, enable TCP recording before starting, record the problem, then stop or export diagnostics. The ZIP includes raw TCP diagnostics and metadata; ordinary app logs do not contain TCP payloads.
 
 TCP diagnostics record the entire session to disk with no record-count or size cap. Writes use a bounded buffer to reduce capture-thread disk traffic, flushed during recording and before export; a sudden process exit can lose the unflushed raw diagnostic tail. Available disk space is the limit; the UI shows recording size and write errors. Long sessions take longer to compress on Stop or export. Export during capture takes a fixed snapshot while recording continues. Raw `tcp-session-*.jsonl` files stay recoverable after a crash or failed export; successful stopped-session exports remove their raw temporary copy. ZIPs remain until you delete them. Raw traffic can contain character names and network addresses; review before sharing. This changes raw diagnostic retention, not the separate decoded combat-history limits.

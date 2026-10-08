@@ -327,3 +327,9 @@ DPS uses the same clock for every recorded player in an encounter. Starting at t
 DPS holds during a pause and resumes with the existing damage totals and active seconds. If a player dies while others keep damaging, active seconds continue for everyone and that player's DPS falls without resetting. Automatic inactivity splits require at least 120 seconds since the last outgoing hit; manual splits and map/mode boundaries are independent. Normal gaps between skills can leave empty buckets too, so active-time DPS can exceed an elapsed-time DPS calculation. This measures recorded damage activity, not verified combat state or time spent pressing skills.
 
 Optimizer analysis retains original elapsed hit times, buff windows and encounter duration for cooldown and uptime modeling. Active-time DPS is a combat-meter/report measure; it does not compress optimizer inputs.
+
+## Capture shutdown evidence
+
+Stopping intake does not mean queued payloads have already been decoded. The worker drains its ordered queue for up to five seconds after observing the stop signal, consuming final transport statistics before saving. A failed decoder call or an exceeded drain budget can still leave discarded payloads; those counts keep the report incomplete. A currently executing decoder call cannot be preempted by that budget. Successfully drained payloads do not count as loss.
+
+`capture_errors` is the legacy combined count of processing/capture errors and abandoned queue payloads. New logs also record `decoder_errors`, `shutdown_discarded_payloads` and `shutdown_drained_payloads`. These counters overlap; they are not independent packet-loss totals. A capture-adapter shutdown that has not finished blocks replacement/clearing and delays final archival until Stop succeeds. Previously exported logs cannot recover discarded payloads or distinguish the causes inside a legacy combined count.

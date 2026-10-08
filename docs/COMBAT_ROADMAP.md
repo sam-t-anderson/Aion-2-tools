@@ -328,3 +328,7 @@ Automatic view falls back to observed players when local identity is unavailable
 ### Shared outgoing clocks and review scopes
 
 Automatic splits use a minimum 120-second outgoing inactivity window; DPS shares active outgoing-damage seconds across players, including deaths, and freezes after the last outgoing hit. Graph keys and selected-encounter participant references are shared across desktop/Pages/server review. Soft archive rollover waits during active combat. Remaining: combining archive parts with verified entry/completion provenance and detailed diagnostic causes for the reported capture-error/discard counts.
+
+### Stop-time queue retention
+
+Stop drains queued payloads within a bounded shutdown window, reports decoded/discarded shutdown payloads separately from decoder failures, and serializes Start/Stop/Clear so an unfinished worker cannot be replaced. Separate counters are preserved in saved logs, diagnostics and shared capture-quality review. Remaining: verified archive-part reconstruction and real captures confirming whether earlier combined error/discard counts came from the Stop queue. Historical lost data is not restored.

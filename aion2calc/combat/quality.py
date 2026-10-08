@@ -8,7 +8,7 @@ import re
 
 DECODER = "a2tools-python-v1"
 COUNTERS = ("discarded_effects", "discarded_segments", "discarded_telemetry",
-            "validation_discarded", "tcp_discarded_payloads", "tcp_unresolved_flows", "capture_errors", "pcap_dropped", "pcap_if_dropped")
+            "validation_discarded", "tcp_discarded_payloads", "tcp_unresolved_flows", "capture_errors", "decoder_errors", "shutdown_discarded_payloads", "pcap_dropped", "pcap_if_dropped")
 LABELS = {
     "partial_capture": "Partial capture: instance entry or player membership was not established; metrics are descriptive only.",
     "party_roster_late": "The first party roster arrived after combat; earlier party membership is unverified.",
@@ -91,7 +91,8 @@ def assess(doc, segment):
                   "partial":capture.get("pcap_stats_partial") is True,
                   **{k:capture.get(k) for k in ("pcap_received", "pcap_dropped", "pcap_if_dropped", "pcap_stats_reads")},
                   "note":NOTE}
-    return {"policy_version": 1, "driver_monitoring":monitoring, "eligible": not reasons,
+    return {"policy_version": 1, "driver_monitoring":monitoring,
+            "capture_processing": {k:capture.get(k) for k in ("capture_errors", "decoder_errors", "shutdown_discarded_payloads", "shutdown_drained_payloads")}, "eligible": not reasons,
             "status": "eligible" if not reasons else "unranked",
             "reasons": reasons, "messages": [LABELS[k] for k in reasons],
             "note": "Completeness checks use submitted telemetry; they do not verify authenticity or prove that every packet was captured."}

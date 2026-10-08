@@ -1,3 +1,10 @@
+## Capture shutdown retention (0.2.88)
+
+- Stop drains queued game payloads for up to five seconds before final saving, rather than immediately discarding them. An executing decoder call cannot be forcibly interrupted.
+- Show stopping progress, decoder failures, shutdown discards and successfully drained payload counts in diagnostics and reviewed logs. Successful drains do not count as capture loss; actual errors/discards still do.
+- Serialize capture Start/Stop/Clear and block replacement while an old worker or adapter is still stopping. Long diagnostic ZIP compression can take additional time.
+- Preserve the legacy combined error/discard counter for compatibility. Older logs cannot separate its causes or recover lost data.
+
 ## Encounter clocks and review clarity (0.2.87)
 
 - Automatic inactivity splits wait at least 120 seconds without outgoing player damage. Map/mode changes and manual splits remain explicit boundaries.
