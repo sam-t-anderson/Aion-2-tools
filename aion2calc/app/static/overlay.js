@@ -76,19 +76,22 @@
     const rate=p=>Number(metric==="hps"?p.hps:metric==="taken"?p.dtps:p.dps)||0;
     const total=players.reduce((n,p)=>n+amount(p),0), mx=Math.max(...players.map(rate),1);
     const label=metric==="hps"?"HPS":metric==="taken"?"Damage taken/s":"DPS";
-    const rows = [...players].sort((a,b)=>rate(b)-rate(a)||amount(b)-amount(a)).slice(0, 8).map((p) => `<div class="ovrow"><span class="ovname" title="${esc(p.name)}${p.includes_pets?" · Includes linked pets":""}">${esc(p.name)}</span>
+    const visible=players.filter(p=>amount(p)>0), names=new Map();
+    visible.forEach(p=>{const name=String(p.name||'').toLocaleLowerCase();names.set(name,(names.get(name)||0)+1);});
+    const duplicate=p=>(names.get(String(p.name||'').toLocaleLowerCase())||0)>1;
+    const rows = [...visible].sort((a,b)=>rate(b)-rate(a)||amount(b)-amount(a)).slice(0, 8).map((p) => `<div class="ovrow"><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}">${esc(p.name)}${duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}</span>
         <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i style="width:${100 * rate(p) / mx}%;background:${A2CombatReview.color(p.class)}"></i><span>${kfmt(rate(p))}/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div></div>`).join("");
     const duration=metric==="dps"?snap.duration:snap.recorded_duration;
     $("#ovstatus").textContent = `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
-    const identity=snap.identity_status, missing=players.length>0&&identity&&(!identity.self_identified||identity.unnamed_actors>0);
-    $("#ovidentity").hidden=!missing;
-    $("#ovidentity").textContent=missing?`${identity.self_identified?"Self identified":"Self identity not received"} · ${identity.unnamed_actors} unnamed actors · ${identity.linked_pets} linked pets. Grouping needs recorded owner links.`:"";
+    const identity=snap.identity_status, missing=players.length>0&&identity&&(!identity.self_identified||identity.unnamed_actors>0), repeated=visible.some(duplicate);
+    $("#ovidentity").hidden=!missing&&!repeated;
+    $("#ovidentity").textContent=[missing?`${identity.self_identified?"Self identified":"Self identity not received"} · ${identity.unnamed_actors} unnamed actors · ${identity.linked_pets} linked pets. Grouping needs recorded owner links.`:'',repeated?'Matching names have separate combat actor IDs; identity/ownership is not confirmed.':''].filter(Boolean).join(' ');
     if(s.error) $("#ovstatus").textContent='Capture stopped: '+s.error;
     if(meterUnavailable) $("#ovstatus").textContent='Refresh failed · retrying';
     $("#ovstatus").title=$("#ovstatus").textContent;
     $("#ovconnection").hidden=!meterUnavailable;
     if(meterUnavailable) $("#ovreason").textContent=refreshError+' · '+(lastSuccess ? Math.floor((Date.now()-lastSuccess)/1000)+'s since last refresh. ' : '')+'Last readings retained; capture status unknown.';
-    const empty = s.error || snap.warning || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app.");
+    const empty = s.error || snap.warning || (players.length?`No recorded ${metric==='hps'?'healing':metric==='taken'?'incoming damage':'outgoing damage'} in this combat.`:s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app.");
     $("#ovcontent").innerHTML = (rows && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`);
   }
   function renderPlan() {

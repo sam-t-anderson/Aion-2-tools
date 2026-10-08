@@ -22,6 +22,7 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovidentity { color: #e8cf8e; font-size: 10px; margin: 3px 0 6px; cursor: default; }
 .ovrow { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: center; padding: 2px 0; }
 .ovname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ovactor { display: block; color: #c8d0e2; font-size: 9px; font-weight: 400; }
 .ovbar { position: relative; height: 16px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
 .ovbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, #ecd79f, #b9984f); }
 .ovbar span { position: relative; padding: 0 6px; line-height: 16px; font-weight: 700; color: var(--ov-rate-text, #000000); font-variant-numeric: tabular-nums; }

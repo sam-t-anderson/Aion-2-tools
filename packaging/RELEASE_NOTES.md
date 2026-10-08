@@ -1,3 +1,9 @@
+## Overlay metric rows (0.2.92)
+
+- Hide overlay rows with zero recorded amount in the selected DPS, HPS or D.Taken metric. Retain their effects in other tabs and saved logs.
+- Show actor IDs below repeated names and explain that their identity/ownership is unresolved. Do not merge different actors solely by matching names.
+- Show an explicit empty-metric message when combat exists but the selected metric has no recorded effects.
+
 ## Recording-part continuity metadata (0.2.91)
 
 - Default overlay rate and total/share numbers to black. Add separate saved color pickers in Settings, shared by DPS/HPS/D.Taken, with a reset button and automatic overlay refresh.

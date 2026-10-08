@@ -603,3 +603,7 @@ Soft storage rollover waits until combat pauses or the run ends; hard retention 
 **Other parts of this recording** shows retained decoded-effect ranges and predecessor checks for new recordings. Ranges cover all retained damage/healing records before view filtering; their counts can differ from the selected report's event count. Gaps, overlaps, duplicate files/uploads, unavailable predecessors and changed capture/identity contexts are shown. Each refresh compares available parts across pagination. Older recordings show metadata not recorded.
 
 Connecting submitted ranges do not establish authentic or loss-free packet capture. The counters cannot detect packets that never decoded, and matching tokens do not prove a common uploader. Storage continuation does not restore entry evidence or combine totals. Reports and ranking eligibility remain per part.
+
+### Overlay rows with matching names
+
+Each overlay tab hides actors with no recorded amount in that metric. A damage-only actor can disappear on HPS and reappear on DPS; this does not remove recorded effects. If different combat actor IDs share a name, the overlay displays their IDs below the name. They remain separate until supported identity or ownership records resolve them. Include a diagnostic ZIP from that capture when reporting repeated nonzero rows.
