@@ -23,6 +23,7 @@ A task-oriented guide to the desktop app and shared review controls. Detailed co
 - [Community comparisons](#community-comparisons)
 - [Editing shared raid plans](#editing-shared-raid-plans)
 - [Official news](#official-news)
+- [Regional event timers](#regional-event-timers)
 - [Settings](#settings)
 - [Application updates](#application-updates)
 - [Database and data sync](#database-and-data-sync)
@@ -436,6 +437,14 @@ Publish stores a unique owner credential locally. Update published plan keeps th
 **News** on desktop and Pages lists official English/global notice and update headlines. Filter Notices/Updates and open the original article on NCSoft's site. Publication and retrieval dates are separate; cached headlines can be stale when a source is unavailable. The source-list links remain available when the configured community server cannot serve the feed. All Pages tabs share the same banner and News option.
 
 Announcement dates do not prove the build installed on your computer or used by an older combat log. Korean/Taiwan feeds remain unavailable.
+
+## Regional event timers
+
+Open **Timers** in desktop or GitHub Pages. Select the game region explicitly; device location does not identify the game server. Korea also requires a matching group for group-specific forecasts. The selected region/group is saved in this browser. Cards show the schedule zone, next local/server time, countdown and three upcoming local starts. Rift cards distinguish the entry deadline from the longer event window.
+
+The bundled schedule is a dated community snapshot from [Shugo.GG](https://shugo.gg/timers), with a review date. It is not verified against the installed build or maintenance changes. Rift anchors conflict with [another community report](https://aion2codex.wiki/tools/rift-timer); confirm them in game. Countdown windows are forecasts, not observed live availability. Device clock accuracy matters. Daylight saving uses the named schedule zone; nonexistent wall times are skipped and repeated wall times retain both occurrences.
+
+**Load / refresh observations** retrieves public recorded boss defeats separately. Filter by recorded log region and search the returned bosses. Up to 25 context groups are displayed; updated servers include the latest 20 retained observations per group with source-log links and omitted-history counts. Source links open the recorded encounter. Exact indexed duplicates count once; different perspectives can repeat a defeat. Physical server/channel, reliable respawn rules and current availability remain unknown. Schedules work without the community server; observations require it.
 
 ## Settings
 

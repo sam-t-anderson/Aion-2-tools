@@ -1,0 +1,316 @@
+{
+  "version": 1,
+  "checked_at": "2026-10-08",
+  "source_updated_at": "2026-10-05",
+  "review_after": "2026-10-19",
+  "source_url": "https://shugo.gg/timers",
+  "source_name": "Shugo.GG community schedule",
+  "status": "community_unverified",
+  "conflict_url": "https://aion2codex.wiki/tools/rift-timer",
+  "note": "Community schedule estimates. Confirm times in game, especially after maintenance or a build update. Rift anchor times conflict across community sources. Scheduled windows do not establish live event, boss availability or respawn state.",
+  "regions": [
+    {
+      "id": "na-east",
+      "name": "Global · North America East",
+      "timezone": "America/New_York"
+    },
+    {
+      "id": "na-west",
+      "name": "Global · North America West",
+      "timezone": "America/Los_Angeles"
+    },
+    {
+      "id": "eu",
+      "name": "Global · Europe",
+      "timezone": "Europe/Berlin"
+    },
+    {
+      "id": "sa",
+      "name": "Global · South America",
+      "timezone": "America/Sao_Paulo"
+    },
+    {
+      "id": "asia",
+      "name": "Global · Asia",
+      "timezone": "Asia/Seoul"
+    },
+    {
+      "id": "kr",
+      "name": "Korea",
+      "timezone": "Asia/Seoul"
+    },
+    {
+      "id": "tw",
+      "name": "Taiwan",
+      "timezone": "Asia/Taipei"
+    }
+  ],
+  "events": [
+    {
+      "id": "rift",
+      "name": "Spacetime Rift",
+      "hours": [
+        2,
+        5,
+        8,
+        11,
+        14,
+        17,
+        20,
+        23
+      ],
+      "minute": 0,
+      "duration_minutes": 60,
+      "entry_minutes": 10,
+      "disputed": true
+    },
+    {
+      "id": "festival",
+      "name": "Shugo Festival",
+      "hours": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "minute": 0,
+      "duration_minutes": 10
+    },
+    {
+      "id": "invasion",
+      "name": "Dimensional Invasion",
+      "hours": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "minute": 30,
+      "duration_minutes": 15
+    },
+    {
+      "id": "siege",
+      "name": "Artifact Siege",
+      "hours": [
+        21
+      ],
+      "minute": 0,
+      "days": [
+        1,
+        4,
+        6
+      ],
+      "duration_minutes": 30
+    },
+    {
+      "id": "siege-bosses",
+      "name": "Siege Bosses",
+      "hours": [
+        21
+      ],
+      "minute": 30,
+      "days": [
+        1,
+        4,
+        6
+      ],
+      "duration_minutes": 30
+    },
+    {
+      "id": "nahma",
+      "name": "Guardian General Nahma",
+      "hours": [
+        21
+      ],
+      "minute": 0,
+      "days": [
+        0,
+        5
+      ],
+      "duration_minutes": 30
+    },
+    {
+      "id": "kaira",
+      "name": "Watcher Kaira",
+      "hours": [
+        1,
+        4,
+        7,
+        10,
+        13,
+        16,
+        19,
+        22
+      ],
+      "minute": 0,
+      "duration_minutes": 30
+    },
+    {
+      "id": "daily",
+      "name": "Daily reset",
+      "hours": [
+        7
+      ],
+      "minute": 0,
+      "duration_minutes": 0,
+      "timezone": "UTC"
+    },
+    {
+      "id": "weekly",
+      "name": "Weekly reset",
+      "hours": [
+        7
+      ],
+      "minute": 0,
+      "days": [
+        3
+      ],
+      "duration_minutes": 0,
+      "timezone": "UTC"
+    }
+  ],
+  "overrides": {
+    "kr": {
+      "siege": {
+        "days": [
+          3,
+          6
+        ],
+        "group_times": [
+          "21:20",
+          "21:50",
+          "22:20"
+        ]
+      },
+      "siege-bosses": {
+        "days": [
+          3,
+          6
+        ],
+        "group_times": [
+          "21:45",
+          "22:15",
+          "22:45"
+        ]
+      },
+      "nahma": {
+        "group_times": [
+          "22:00",
+          "22:30",
+          "23:00"
+        ]
+      },
+      "kaira": {
+        "hours": [
+          0,
+          4,
+          8,
+          12,
+          16,
+          20
+        ]
+      },
+      "daily": {
+        "hours": [
+          5
+        ],
+        "timezone": "Asia/Seoul"
+      },
+      "weekly": {
+        "hours": [
+          5
+        ],
+        "timezone": "Asia/Seoul"
+      }
+    },
+    "tw": {
+      "siege": {
+        "hours": [
+          21
+        ],
+        "minute": 30,
+        "days": [
+          3,
+          6
+        ]
+      },
+      "siege-bosses": {
+        "hours": [
+          21
+        ],
+        "minute": 45,
+        "days": [
+          3,
+          6
+        ]
+      },
+      "nahma": {
+        "hours": [
+          22
+        ]
+      },
+      "kaira": {
+        "hours": [
+          0,
+          4,
+          8,
+          12,
+          16,
+          20
+        ]
+      },
+      "daily": {
+        "hours": [
+          5
+        ],
+        "timezone": "Asia/Taipei"
+      },
+      "weekly": {
+        "hours": [
+          5
+        ],
+        "timezone": "Asia/Taipei"
+      }
+    }
+  }
+}

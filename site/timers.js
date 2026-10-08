@@ -1,0 +1,1 @@
+A2Timers.mount(document.getElementById('event-timers'),{catalogURL:'static/event-schedules.json',api:path=>A2.api(path),logsURL:'logs.html',logURL:(id,segment)=>'log.html?id='+encodeURIComponent(id)+'&mode=pve'+(Number.isInteger(segment)?'&segment='+segment:'')});
