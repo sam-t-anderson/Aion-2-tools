@@ -820,6 +820,8 @@ async function pageCombatLog() {
   }else if(kind==='opened' && S.combat.openedLog)doc=S.combat.openedLog;
   else {target.textContent='This temporary preview is no longer available. Return to combat logs to open it again.';return;}
   if(location.hash!==routeHash || !target.isConnected)return;
+  const initialSegment=new URLSearchParams(routeParts[1]||'').get('segment');
+  if(/^\d{1,6}$/.test(initialSegment||'')&&Number(initialSegment)<doc.segments.length)options.state={segment:Number(initialSegment)};
   S.combat.review=A2CombatReview.mount(target,doc,options);
   window.scrollTo(0,0);
 }
@@ -1657,8 +1659,15 @@ async function pageNews(){
   A2News.mount($('#official-news'),{api:communityAPI});
 }
 
+let eventTimerView=null;
+async function pageTimers(){
+  app().innerHTML='<div id="event-timers"></div>';
+  eventTimerView=A2Timers.mount($('#event-timers'),{api:communityAPI,logURL:(id,segment)=>'#/combat-log/shared/'+encodeURIComponent(id)+'?mode=pve'+(Number.isInteger(segment)?'&segment='+segment:'')});
+}
+
 // ------------------------------------------------------------- router
 async function route() {
+  if(eventTimerView){eventTimerView.dispose();eventTimerView=null;}
   const page = (location.hash.replace(/^#\//, "") || "planner").split("/")[0];
   $$(".nav a").forEach((a) => a.classList.toggle("on", a.dataset.page === (page === "combat-log" ? "combat" : page)));
   if(page!=="combat-log" && S.combat.review){S.combat.review.dispose();S.combat.review=null;}
@@ -1672,6 +1681,7 @@ async function route() {
     else if (page === "raid") await pageRaid();
     else if (page === "meter") await pageMeter();
     else if (page === "database") await pageDatabase();
+    else if (page === "timers") await pageTimers();
     else if (page === "news") await pageNews();
     else await pagePlanner();
   } catch (e) { app().innerHTML = `${page==="combat-log"?'<p><a class="btn small" href="#/combat">← Back to combat logs</a></p>':""}<div class="note">${esc(e.message)}</div>`; }

@@ -310,6 +310,12 @@ Live DPS uses the recorded damage interval and pauses after two seconds without 
 
 Unknown difficulty is not guessed from boss damage or observed current HP. Build-specific maximum-HP signatures and corroborating evidence require independently labeled collection and validation before automatic inference. Current installation evidence is never applied retrospectively to historical logs.
 
+## Event forecasts and boss observations
+
+Event schedules are a bundled, dated community snapshot with source, review date and explicit conflicting rift reports. Region and Korean matching group are selected by the user. Recurrences are resolved in IANA schedule time zones, then displayed in device-local time. Global reset forecasts use UTC; regional reset forecasts use their specified local clock. The horizon includes the previous day and eight upcoming calendar days; nonexistent daylight-saving wall times are omitted and ambiguous repeated times retain both real instants. Countdown calculations use the device clock and refresh after backgrounding. No build applicability, maintenance override or actual event activation is inferred.
+
+Recorded boss history is independent of event forecasts. Existing NPC IDs, engagement, defeat markers, recorder-clock timestamps and submitted context determine observation groups. Up to 20 observations per group are retained in the response after exact indexed duplicate removal; omissions and scan/group limits remain explicit. Public reads exclude active moderation holds as well as non-public/deleted logs. Different perspectives can still duplicate a fight. Source-log links identify the recorded encounter, not verified kill credit. Schedules are not mapped to NPC IDs by name, and no physical server/channel, respawn estimate or live availability is inferred.
+
 ## Encounter catalog and boss roles
 
 Live Meter fills difficulty only when the recorded PvE instance ID has an explicit difficulty in the bundled dungeon table. It does not infer difficulty from ID suffixes, damage, names or gear. Manual difficulty overrides remain available and their source is recorded. Content categories without a known mapping still require confirmation. Missing unique launcher build evidence stays unavailable.

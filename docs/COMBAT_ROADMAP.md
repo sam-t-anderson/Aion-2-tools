@@ -392,3 +392,10 @@ Remaining evidence-dependent work: official Genus allocation/collection retrieva
 Shared encounter review now includes bounded peak damage/healing/incoming windows, incoming ability breakdowns and an evidence coverage table. Recorded actor deaths separate pressure windows; healing remains gross recorded amount. Imported buff windows expose recipient damage overlap without assigning causal buff credit. Updated servers recompute these summaries for retained historical evidence.
 
 Still pending: verified live cast starts/ends, buff sources/applications/removals, resources, shields/overheal, CC success and PvP match/objective outcomes. Representative packets and encounter definitions are required. Next major workstream: regional timers and timed-boss history, including reliable scope and respawn evidence.
+
+
+## Seven workstreams — timers and boss history
+
+Desktop/Pages provide a dedicated Timers page with explicit regional selection, Korean matching groups, named-zone/local countdowns, rift entry forecasts and dated community-source provenance. Conflicting rift reports and stale review dates are visible. Public boss observations remain separate and include bounded recent histories, party engagement, source encounters and omission counts. Source links can select a specific encounter.
+
+Remaining: independently verified regional schedules/current-build applicability, physical server/channel evidence, trusted timed/world-boss NPC roles, respawn rules and perspective-level deduplication. Schedule windows are not live availability. Next major workstream: expanded website build tools, maps and crafting.
