@@ -434,7 +434,7 @@ Publish stores a unique owner credential locally. Update published plan keeps th
 
 ## Official news
 
-**News** on desktop and Pages lists official English/global notice and update headlines. Filter Notices/Updates and open the original article on NCSoft's site. Publication and retrieval dates are separate; cached headlines can be stale when a source is unavailable. The source-list links remain available when the configured community server cannot serve the feed. All Pages tabs share the same banner and News option.
+**News** on desktop and Pages lists official Global (English), Korean and Taiwan (Traditional Chinese) notice and update headlines. Choose a news region, then filter Notices/Updates and open the original article on NCSoft's site. Publication and retrieval dates are separate; cached headlines can be stale when a source is unavailable. The source-list links remain available when the configured community server cannot serve the feed. News region is stored in this browser and does not change capture region. Regional feeds require a server that supports the region selector. All Pages tabs share the same banner and News option.
 
 Announcement dates do not prove the build installed on your computer or used by an older combat log. Korean/Taiwan feeds remain unavailable.
 
