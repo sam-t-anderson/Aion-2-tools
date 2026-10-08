@@ -667,6 +667,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/character/profile":
             from ..sources.profile_snapshot import lookup
             return self._json(lookup(body.get("player") or {},body.get("region")))
+        if path == "/api/build/evaluate":
+            from ..build_drafts import evaluate
+            if not _MODEL_LOCK.acquire(blocking=False):
+                raise ValueError("Another model calculation is running; try evaluation again when it finishes")
+            try:
+                return self._json(evaluate(body))
+            finally:
+                _MODEL_LOCK.release()
         if path == "/api/character/import":
             return self._json({"job": start_job("import", act_character_import, body)})
         if path == "/api/character/opponent-pressure":

@@ -1,7 +1,7 @@
 (async function(){
   'use strict';
   const root=document.getElementById('build-workspace'),p=new URLSearchParams(location.search),id=p.get('log'),token=p.get('t');
-  const options={catalogURL:'static/build-catalog.json',api:path=>A2.api(path),mode:p.get('mode')};
+  const options={catalogURL:'static/build-catalog.json',api:path=>A2.api(path),evaluate:async doc=>{const base=await A2.api('/.well-known/a2log.json').then(()=>A2.base());const r=await fetch(base+'/api/v1/build-evaluate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(doc)});const value=await r.json();if(!r.ok||value.error)throw Error(value.error||'Evaluation unavailable; update the community server.');return value;},mode:p.get('mode')};
   if(id){
     try{
       if(!/^[a-z0-9]{6,16}$/i.test(id))throw Error('Invalid log ID');

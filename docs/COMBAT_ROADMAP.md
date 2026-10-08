@@ -42,7 +42,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 - Model verified defensive skills, shields, percentage HP, healing, CC duration/success/immunity and movement effects with explicit action/cooldown costs.
 - Model matchup-specific incoming/outgoing mitigation, worst-case timing alignment and reactive optimized opponents.
 - Validate model predictions against representative encounters and matchups. Gross expected damage and entered pressure reductions are assumptions, not effective HP, guaranteed survival or win probability.
-- Extend the standalone build workspace to edit equipment/Genus and recalculate through a bounded, versioned simulation interface. Source profile totals and stale optimizer scores must remain separate from edited-build results.
+- Add catalog-backed item selection, legal gear-roll constraints and optimized tactical rotation search to the entered-contribution editor. Explicit draft evaluation now uses bounded manual equipment/Genus inputs; it does not verify actual equipment rolls or optimize the draft.
 
 **Completion evidence:** current-build coefficients, mechanics and validation captures. Competitive PvP claims require more than a damage ranking.
 
@@ -54,7 +54,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 - Retrieve official Genus allocations and owned collection effects when a supported source provides them. Current public profiles do not supply those allocations; blank slots are not invented.
 - Verify defensive/owned-effect coefficients, current-build roll probabilities, costs and progression maxima.
-- Extend editable Genus and equipment planning across the standalone build workspace, preserving entered assumptions and reference snapshots.
+- Replace advanced JSON contribution entry with richer slot/Genus controls while preserving entered assumptions and reference snapshots. The standalone workspace now retains and evaluates manual equipment/Genus inputs.
 
 **Completion evidence:** allocation payloads or user-entered in-game data, plus source-backed formulas and limits.
 
@@ -90,7 +90,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 **Remaining:**
 
-- Complete editable equipment/Genus and scenario rescoring as described in workstreams 3–4.
+- Expand the bounded equipment/Genus contribution editor into catalog-backed item selection and richer controls as described in workstreams 3–4. Explicit draft rescoring is available without publishing or changing source profiles.
 - Obtain permitted native map coordinates, layers and assets if replacing the provider viewer with local map tools. Cross-origin provider account/checklist state remains with the provider.
 - Verify crafting general success/failure rewards, refunds, combo quantity/replacement rules, modifier formulas and build/region applicability. Current combo simulations are conditional completed-craft checks, not guaranteed item yields.
 - Add further feeds only after confirming their official source, API/RSS availability and reuse constraints. Do not embed arbitrary article HTML or invent summaries/images absent from a supported feed.
