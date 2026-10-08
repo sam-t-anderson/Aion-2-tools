@@ -409,3 +409,5 @@ Standalone drafts can supply manual per-component stat contributions and Genus l
 Responses record evaluator version, calibration, input hash, modeled DPS/ability shares and Genus coverage. This hash identifies submitted model inputs, not authentic game equipment. Unsupported defensive and collection effects remain unsupported. Edited drafts do not become public samples or canonical presets. Percentage inputs use fractions, and bounded finite inputs limit request work rather than establish game caps.
 
 Draft scoring currently supports level 45, matching the model's base-resource assumptions. Lower-level allocation drafts remain editable and exportable; no lower-level score is supplied.
+
+Draft evaluation excludes learned personal/community calibration and records neutral proc-rate, critical-midpoint and skill-multiplier parameters. Desktop and server serialize this model context against their other model calculations.

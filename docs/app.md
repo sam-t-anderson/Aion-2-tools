@@ -698,3 +698,5 @@ Enter manual Genus levels/lines and a PvE enemy mix, then **Apply inputs to this
 Desktop evaluates locally and refuses while another model calculation is running. Pages sends the allocation, entered budgets and modeled equipment/Genus inputs to a supporting configured server; names, notes, profile references and private log links are excluded. No draft is published or added to rankings. Server request logs may record normal connection metadata. Inputs are limited to 128 KiB/64 components and bounded finite nonnegative stats; these are safety limits, not verified gear caps. Older servers show an evaluation error while local planning/export remain available.
 
 Draft scoring currently supports level 45, matching the model's base-resource assumptions. Lower-level allocation drafts remain editable and exportable; no lower-level score is supplied.
+
+Draft evaluation excludes learned personal/community calibration and records neutral proc-rate, critical-midpoint and skill-multiplier parameters. Desktop and server serialize this model context against their other model calculations.
