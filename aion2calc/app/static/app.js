@@ -984,7 +984,7 @@ async function pageMeter() {
         <label class="small muted"><input id="mautoport" type="checkbox" checked> Detect game port</label><label class="small muted">Fixed port <input id="mport" type="number" value="50349" aria-label="Game server port" style="width:80px"></label>
 
         <label class="small muted">Name override (optional) <input id="mchar" type="text" placeholder="Auto-detect" style="width:120px"></label></div>
-      <div class="row" style="margin-top:8px"><label class="small muted">Players <select id="mscope"><option value="auto">Automatic · allow partial metrics</option><option value="party">Self + Party</option><option value="self">Self only</option><option value="all">All observed players</option></select></label><label class="small muted"><input id="mcombinepets" type="checkbox" checked> Combine pets with owner</label><label class="small muted"><input id="mautosplit" type="checkbox" checked> Automatic splits</label><label class="small muted">Group combat within <input id="msegap" type="number" min="3" max="120" value="10" style="width:60px"> seconds</label><label class="small muted">Combat <select id="msegments"><option value="">Latest combat</option><option value="all">Whole session</option></select></label><button class="btn small" id="mallenemies">All enemies</button><button class="btn small" id="mfollow" hidden>Follow latest combat</button><span id="mviewstate" class="small muted" role="status"></span></div>
+      <div class="row" style="margin-top:8px"><label class="small muted">Players <select id="mscope"><option value="auto">Automatic · allow partial metrics</option><option value="party">Self + Party</option><option value="self">Self only</option><option value="all">All observed players</option></select></label><label class="small muted"><input id="mcombinepets" type="checkbox" checked> Combine pets with owner</label><label class="small muted"><input id="mautosplit" type="checkbox" checked> Automatic splits</label><label class="small muted">Split after no outgoing damage for <input id="msegap" type="number" min="120" max="3600" value="120" style="width:60px"> seconds</label><label class="small muted">Combat <select id="msegments"><option value="">Latest combat</option><option value="all">Whole session</option></select></label><button class="btn small" id="mallenemies">All enemies</button><button class="btn small" id="mfollow" hidden>Follow latest combat</button><span id="mviewstate" class="small muted" role="status"></span></div>
       <div class="row"><label class="small">Game installation <select id="minstall"><option value="">Auto (one installed copy)</option></select></label><button class="btn small" id="minstallrefresh">Refresh installations</button><span class="small muted" id="minstallstatus" role="status"></span></div><div class="note small" id="mautometa" role="status"></div><div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
       <div class="note" style="margin-top:10px"><b>Capture diagnostics</b><div id="mdriverstats" class="small muted" role="status"></div>
         <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads for diagnostics (optional; enable before Start)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><button class="btn small" id="mdiagfolder">Open diagnostics folder</button><span id="mrecordstatus" class="small muted"></span></div>
@@ -1006,7 +1006,7 @@ async function pageMeter() {
   $("#mchar").onchange = () => { try { localStorage.setItem("meter-character", $("#mchar").value.trim()); } catch (e) {} updateView({character_name: $("#mchar").value.trim()}); };
   $("#mcombinepets").onchange = () => updateView({combine_pets: $("#mcombinepets").checked});
   $("#mscope").onchange = () => updateView({scope: $("#mscope").value});
-  $("#msegap").onchange = () => updateView({segment_gap: +$("#msegap").value || 10});
+  $("#msegap").onchange = () => updateView({segment_gap: +$("#msegap").value || 120});
   $("#msplit").onclick = async()=>{st.pinnedSegment="";renderMeter(await api("/api/meter",{action:"split"}));$("#mnotice").textContent="Next combat event starts a new split.";};
   $("#mautosplit").onchange=()=>updateView({automatic_splits:$("#mautosplit").checked});
   $("#mhide").onclick=async()=>{await api("/api/overlay",{action:"hide"});if(st.overlayPopup)st.overlayPopup.close();$("#mnotice").textContent="Overlay hidden. Open overlay to show it again.";};
@@ -1105,7 +1105,7 @@ async function pageMeter() {
         }
       } catch (e) { $("#mnotice").textContent = "Could not check Npcap: " + e.message; return; }
     }
-    const body = { action: "start", source, scope: $("#mscope").value, segment_gap: +$("#msegap").value || 10, decoder: source === "live" ? decoderPath : null,
+    const body = { action: "start", source, scope: $("#mscope").value, segment_gap: +$("#msegap").value || 120, decoder: source === "live" ? decoderPath : null,
       auto_port: source === "a2tools" && $("#mautoport").checked,
       automatic_splits: $("#mautosplit").checked,
       auto_finish:$('#mautofinish').checked,

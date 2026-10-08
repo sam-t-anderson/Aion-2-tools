@@ -1,3 +1,12 @@
+## Encounter clocks and review clarity (0.2.87)
+
+- Automatic inactivity splits wait at least 120 seconds without outgoing player damage. Map/mode changes and manual splits remain explicit boundaries.
+- All players share a one-second active damage clock; empty outgoing-damage buckets are excluded. Incoming hits, healing, idle time and deaths do not extend or reset DPS; surviving players continuing to damage increase the shared denominator.
+- Add a graph key for total rate bars, trailing 10-second average, player-series line styles and boss HP on the right axis.
+- Scope character buttons to the selected encounter timeframe when a specific run is selected. All runs retains the upload-wide character list; plotted events already use the selected encounter.
+- Defer soft archive rollover during active combat; hard retention limits still produce labeled incomplete parts. Soft segment limits follow the selected player scope.
+- Explain that an archive continuation may lack entry evidence recorded in an earlier part, independently of raw TCP diagnostic recording. The reported public log was Part 3 with a storage boundary and 43 capture-error/discard counts; earlier evidence cannot be reconstructed from that part alone.
+
 ## Partial mid-dungeon metrics (0.2.86)
 
 - Default live view automatically shows observed players when local identity is missing, including numbered unnamed actors; nearby players may be included. Self and party membership are never guessed.

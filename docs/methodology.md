@@ -319,3 +319,11 @@ A storage boundary is not a boss kill, instance finish or arena result. Parts cr
 Per-file format/validation limits still apply. In unusually large All-observed rosters, a part can exceed the 64-player validation limit; the app reports a save error rather than silently clearing it. Party/Self scope is recommended. This is automatic bounded-part archival, not an unlimited single JSON document. Raw TCP diagnostics remain a separate opt-in recording.
 
 Implementation: rollover is checked between decoded packet batches at 100,000 retained effects, 20,000 telemetry samples, 100 conservative candidate encounter boundaries or 48 observed party actor references. Saves use atomic replacement and fsync before releasing the old part. Thresholds leave headroom for normal packet batches. Counters remain conservative cumulative capture evidence across parts. No live TCP stream is reopened, historical identity epochs are not merged, and recorded pet links remain available.
+
+## Active damage time for combat metrics
+
+DPS uses the same clock for every recorded player in an encounter. Starting at the first outgoing hit, count one-second buckets containing any outgoing player or linked-pet damage. Empty buckets do not count. A minimum one second prevents division by zero for a single hit. Graph bars and their trailing average remain rates over elapsed encounter time, so they can differ from the active-time DPS summary.
+
+DPS holds during a pause and resumes with the existing damage totals and active seconds. If a player dies while others keep damaging, active seconds continue for everyone and that player's DPS falls without resetting. Automatic inactivity splits require at least 120 seconds since the last outgoing hit; manual splits and map/mode boundaries are independent. Normal gaps between skills can leave empty buckets too, so active-time DPS can exceed an elapsed-time DPS calculation. This measures recorded damage activity, not verified combat state or time spent pressing skills.
+
+Optimizer analysis retains original elapsed hit times, buff windows and encounter duration for cooldown and uptime modeling. Active-time DPS is a combat-meter/report measure; it does not compress optimizer inputs.

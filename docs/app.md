@@ -573,3 +573,9 @@ Self requires a recorded local identity or the optional exact character-name ove
 You can start Live Meter inside a dungeon. The default **Automatic · allow partial metrics** view shows observed players when your local identity is missing. Unknown names remain actor numbers; nearby players may be included, and this does not identify you or confirm party membership. Self + Party and Self only remain available as stricter filters.
 
 Partial captures show recorded damage, skill breakdowns, healing and incoming effects where their actors can be resolved, in both the app and overlay. Missing packets cannot be reconstructed. Runs without observed entry, or captures using observed-player fallback, stay unranked and are excluded from community learning on the updated server. Saving, reviewing and uploading these logs remains available.
+
+### Encounter clocks and archive parts
+
+Automatic encounter splits require at least 120 seconds without outgoing player damage. A player death does not reset the encounter: their DPS falls while other players continue damage, using a shared active damage clock (one-second buckets containing outgoing damage). Once everyone stops damaging, DPS freezes at the last value and resumes the same totals when damage restarts, excluding idle seconds. Incoming hits and healing do not extend that clock. Map/mode changes and manual splits remain separate boundaries.
+
+Soft storage rollover waits until combat pauses or the run ends; hard retention limits still create incomplete archive parts. A later part may lack entry evidence recorded earlier even if capture began before the dungeon. TCP diagnostic recording is independent of these eligibility checks. Review shows a graph key; selecting a specific run limits character buttons to the selected encounter's roster/effect references.

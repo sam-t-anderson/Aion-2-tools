@@ -12,6 +12,7 @@ from ..meter import Meter, load_decoder, replay_source
 from ..meter.a2parser.engine import MeterEngine as PacketMeterEngine
 from ..meter.a2parser.capture import capture_packets
 from ..meter.session import CombatSession, NoIdentifiedPlayerData
+from ..meter.a2parser.models import DamageEvent
 from ..meter.a2parser.capture_stats import FIELDS as PCAP_FIELDS, FLAGS as PCAP_FLAGS
 
 CAPTURE_COUNTERS = ("tcp_discarded_payloads", "tcp_unresolved_flows", *PCAP_FIELDS)
@@ -98,7 +99,7 @@ class Runner:
         if self.session.pvp and self.scope == "all":
             self.error = "PvP capture requires Self or Party scope; opposing teams cannot be inferred from All observed players."
             return self.status()
-        self.session.gap_seconds = min(120, max(3, int(opts.get("segment_gap") or 10)))
+        self.session.gap_seconds = min(3600, max(120, int(opts.get("segment_gap") or 120)))
         self.session.automatic_splits = bool(opts.get("automatic_splits", True))
         self.session.final_boss_ids = {int(x) for x in opts.get("final_boss_ids",[]) if str(x).isdigit()}
         self.session.auto_finish = bool(opts.get("auto_finish",True))
@@ -293,7 +294,20 @@ class Runner:
             if not self.session.records:
                 return  # Idle telemetry alone cannot form an identified combat log.
             due = (len(self.session.records) >= 100_000 or len(self.session.telemetry) >= 20_000
-                   or self.session.storage_groups >= 100 or len(self.session.storage_players) >= 48)
+                   or self.session._storage_groups.get(self.scope, self.session.storage_groups) >= 100
+                   or len(self.session.storage_players) >= 48)
+            if not due:
+                return
+            hard = (len(self.session.records) >= 350_000 or len(self.session.telemetry) >= 40_000
+                    or self.session._storage_groups.get(self.scope, self.session.storage_groups) >= 180
+                    or len(self.session.storage_players) >= 60)
+            last_hit = next((r.event.timestamp_ms for r in reversed(self.session.records)
+                            if isinstance(r.event, DamageEvent) and r.event.actor_id in self.session._allowed(r, self.scope)
+                            and r.event.target_id not in self.session._allowed(r, self.scope)), 0)
+            active = last_hit and time.time() * 1000 - last_hit < 120_000
+            if due and active and not hard and not self.session.run_closed:
+                self.diagnostics["archive_deferred"] = "Archive part will be saved after combat pauses; live totals continue."
+                return
         if not due or time.monotonic() < self._rollover_retry_at:
             return
         from ..combat.sessions import save
@@ -518,7 +532,7 @@ class Runner:
             if "automatic_splits" in body:
                 self.session.automatic_splits = bool(body["automatic_splits"])
             if body.get("segment_gap") is not None:
-                self.session.gap_seconds = min(120, max(3, int(body["segment_gap"])))
+                self.session.gap_seconds = min(3600, max(120, int(body["segment_gap"])))
             if body.get("scope") == "all" and self.session.pvp:
                 raise ValueError("Use Self or Party scope for PvP capture.")
             if body.get("scope") in ("party", "self", "all", "auto"):

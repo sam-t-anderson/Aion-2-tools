@@ -404,6 +404,23 @@ def from_encounter(enc: dict, source: str = "aion2calc", stats: dict | None = No
                           "partial_capture":m.get("learning_excluded") is True}]}
 
 
+def damage_interval(segment: dict) -> tuple[float, float]:
+    """Shared outgoing damage clock; individual deaths never shorten it."""
+    times = [h["t"] for h in segment.get("hits", [])]
+    return (min(times), max(times)) if times else (0.0, 0.0)
+
+
+def damage_buckets(segment: dict) -> tuple[float, list[int]]:
+    """One-second party-active buckets, anchored to the first outgoing hit."""
+    first, _ = damage_interval(segment)
+    return first, sorted({int(max(0,h["t"]-first)) for h in segment.get("hits", [])})
+
+
+def damage_duration(segment: dict) -> float:
+    _, buckets = damage_buckets(segment)
+    return float(max(1,len(buckets)))
+
+
 def to_encounter(doc: dict, player_id: str, segment: int = 0) -> dict:
     """One player's side of one segment -> an aion2calc encounter (for the analyzer)."""
     from .adapters import normalize
