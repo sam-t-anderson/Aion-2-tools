@@ -658,3 +658,13 @@ Live capture uses recorded map/instance IDs and explicit fields in the bundled N
 If only NPC IDs suggest the instance, the zone can be displayed but the recorded instance ID stays missing, entry is not inferred and the sample stays unranked. Mixed NPC instances or contradictory map evidence are flagged. Multiple tiers remain ambiguous. Post-capture manual corrections are retained. Old uploaded files are preserved; the updated server refreshes their derived context and comparisons in memory/indexes.
 
 The catalog is community data without a verified game-build association. An exact catalog match is not an official difficulty confirmation or a numeric confidence estimate. HP candidates on the server remain evidence for future calibration, not an automatic HP classifier.
+
+## Build workspace
+
+Open **Builds** in the desktop app or website to create a local PvE/PvP allocation draft. A saved character profile in log review has **Open saved character in Builds**, with a return link to its log. Character reference shows recorded stats, equipment slots, skill icons, pets/wings and boards; the full supplied profile remains available as JSON.
+
+Drafts support trained skill/passive levels, bonus levels, supporting effects, stigma levels and connected Daevanion paths. Enter the point budgets appropriate to the character. The editor checks the bundled catalog's level gates, effect unlocks, slot limits, board paths and entered budgets. Its defaults are example progression assumptions, not verified ownership or current game-build rules.
+
+Import an exported official profile as a read-only reference, an optimizer `build.json` as allocations, or an `.a2build.json` draft. **Load current community preset** copies the server's current evaluated allocation. Editing does not rerun the optimizer or recalculate source stats, DPS or survivability. Profile totals are not automatically converted to trained points.
+
+Save up to ten drafts / 2 MiB in this browser, or export a draft that passes the listed checks. References may contain character information. Nothing is uploaded automatically; browser storage can be cleared and unsaved edits are lost when leaving the page. The draft format is for this workspace, not a simulator configuration. Return URLs can carry private-log view access; these tokens are not stored in draft source metadata.
