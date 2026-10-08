@@ -174,6 +174,14 @@ These are editable assumptions about successful tactical use, not decoded skill 
 
 Optional **assumed effective cooldown** checks reuse of a linked skill within each scenario. Blank means unknown, not verified available; zero imposes no reuse gap. All skills start ready. Positive-duration, positive-reduction windows count as activations; entries sharing the same start count once. The largest entered cooldown for that skill applies when assumptions differ. Reuse before that cooldown is rejected. Scenarios are alternative encounters and are checked separately. Saved Results and Markdown retain starts, the shortest reuse gap and the assessment. These are user-entered effective values: review them after gear or cooldown-reduction changes. Charges, resets and shared cooldown groups are not modeled. Explicit outgoing action-time assumptions are entered separately.
 
+### Outgoing action-time assumptions
+
+Personal PvE and PvP optimization accepts up to eight explicit pauses for defense or movement. Enter starts (0–3600 seconds) and durations (0–120 seconds) on one fight’s outgoing rotation clock. Each damage scenario applies the schedule once, clipped to its duration; overlaps use their union. A schedule covering an entire scenario is rejected. Incoming pressure scenarios have independent clocks and are never automatically copied.
+
+The simulator chooses actions that finish before each pause and waits through it. Previously scheduled hits, DoTs and pet damage still resolve, and cooldowns and regeneration continue. Candidate builds, rotation search, stat weights, macros and the current-character comparison use this schedule. Community damage references remain unpaused; they are not equivalent tactical comparisons. Saved Results, exports and reconstructed reports preserve the assumptions.
+
+These pauses model unavailable offensive time, not an actual defensive skill: tactical MP, cooldowns, shields, crowd-control success and movement outcomes still need verified rules. Empty schedules preserve the default damage model.
+
 ### Trained skill and stigma reserves
 
 Under **Retain trained skills and equipped stigmas → Choose effects**, reserve supporting effects on active skills. The optimizer keeps those effects while searching the remaining choices. The optimizer jointly allocates trained points and connected Daevanion nodes to cover catalog effect unlocks and selection-slot gates, including fixed gear bonuses. This can cost skill points, Daevanion points and damage. Requests that cannot fit the budgets and any HP reserve are rejected explicitly. Saved results also show the effective-level requirement and its trained, Daevanion and fixed-bonus contributions. Stigma effects remain automatic. Saved results and Markdown list the retained effects. These choices preserve your utility setup; their defensive, control or movement efficacy is not scored.
@@ -534,11 +542,3 @@ These endpoints belong to the local desktop app. See [CLI and development](cli.m
 Use **Export image failures** in a log review or its character build view on desktop or Pages. The JSON contains image-error counts and recorded public asset references where available: official IDs stay paired with their region and asset kind; Metabot item slugs and skill IDs remain separate. These identify the displayed asset, not a verified URL-to-ID relationship. Character portraits have no exported ID. Full URLs, character names, gear stats and credentials are excluded.
 
 The report retains up to 200 failed resources and eight distinct references per resource, with eviction/truncation indicators. Export before reloading, navigating to another website page or using Retry images; this data exists only for the current page lifetime. Browser image errors do not expose HTTP status. Settings' image coverage export includes this report alongside the local index and proxy counters.
-
-### Outgoing action-time assumptions
-
-Personal PvE and PvP optimization accepts up to eight explicit pauses for defense or movement. Enter starts (0–3600 seconds) and durations (0–120 seconds) on one fight’s outgoing rotation clock. Each damage scenario applies the schedule once, clipped to its duration; overlaps use their union. A schedule covering an entire scenario is rejected. Incoming pressure scenarios have independent clocks and are never automatically copied.
-
-The simulator chooses actions that finish before each pause and waits through it. Previously scheduled hits, DoTs and pet damage still resolve, and cooldowns and regeneration continue. Candidate builds, rotation search, stat weights, macros and the current-character comparison use this schedule. Community damage references remain unpaused; they are not equivalent tactical comparisons. Saved Results, exports and reconstructed reports preserve the assumptions.
-
-These pauses model unavailable offensive time, not an actual defensive skill: tactical MP, cooldowns, shields, crowd-control success and movement outcomes still need verified rules. Empty schedules preserve the default damage model.

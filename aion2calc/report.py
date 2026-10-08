@@ -179,7 +179,7 @@ def _build_card(cd, summary: dict, build, policy, out: Path) -> None:
                       f"Combat Speed: {100 * st['combat_speed']:.1f}%   Cooldown Red.: {100 * st['cdr']:.1f}%",
                       f"DPS  {scen_name}: {dps[scen_name]:,.0f}   {other}: {dps[other]:,.0f}",
                       f"vs typical top build: {100 * (dps[scen_name] / base['community_optimized_rotation'] - 1):+.1f}%"
-                      " (same rotation optimizer)",
+                      + (" (unpaused reference)" if summary.get("action_timing") else " (same rotation optimizer)"),
                       f"macro execution: {100 * m['dps_macro'] / m['dps_priority']:.1f}% of ideal priority"]
         links = summary["links"]
         render_build_card(
