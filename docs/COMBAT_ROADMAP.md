@@ -42,7 +42,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 - Model verified defensive skills, shields, percentage HP, healing, CC duration/success/immunity and movement effects with explicit action/cooldown costs.
 - Model matchup-specific incoming/outgoing mitigation, worst-case timing alignment and reactive optimized opponents.
 - Validate model predictions against representative encounters and matchups. Gross expected damage and entered pressure reductions are assumptions, not effective HP, guaranteed survival or win probability.
-- Verify current-build gear-roll legality and add optimized tactical rotation search to the contribution editor. Catalog item selection, enhancements and distinct source-pool roll entry are available. Explicit draft evaluation now uses bounded manual equipment/Genus inputs; it does not verify actual equipment rolls or optimize the draft.
+- Verify current-build gear-roll legality and model reactive tactical decisions from verified mechanics. Catalog item selection, enhancements, distinct source-pool roll entry and bounded full-window priority search for fixed draft allocations are available. This local search does not optimize allocations or establish a globally optimal or competitive PvP strategy.
 
 **Completion evidence:** current-build coefficients, mechanics and validation captures. Competitive PvP claims require more than a damage ranking.
 
@@ -90,7 +90,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 **Remaining:**
 
-- Extend the visual catalog equipment/Genus editor with verified arcana skill-roll and Pantheon node controls as described in workstreams 3–4. Explicit draft rescoring is available without publishing or changing source profiles.
+- Verify current-build arcana rules and obtain Pantheon node controls/artwork from source data as described in workstreams 3–4. Catalog card skill selectors now use bundled class/slot pools and grade/enhancement bounds, separate from manual skill bonuses. Explicit draft rescoring is available without publishing or changing source profiles.
 - Obtain permitted native map coordinates, layers and assets if replacing the provider viewer with local map tools. Cross-origin provider account/checklist state remains with the provider.
 - Verify crafting general success/failure rewards, refunds, combo quantity/replacement rules, modifier formulas and build/region applicability. Current combo simulations are conditional completed-craft checks, not guaranteed item yields.
 - Add further feeds only after confirming their official source, API/RSS availability and reuse constraints. Do not embed arbitrary article HTML or invent summaries/images absent from a supported feed.
@@ -111,13 +111,23 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 **Remaining:** verified character claims, opt-out of appearances in others' uploads, account/device recovery and named moderator roles/appeals need a trustworthy authentication design. Shared admin credentials establish credential use, not the identity of a person. Previously downloaded public data cannot be recalled.
 
+## Pending user-supplied evidence
+
+The user will supply the following later; these are pending inputs, not completed verification:
+
+- A current-build diagnostic capture with independently known character/server, difficulty, boss and outcome. This is required for additional identity/protocol variants and classification validation.
+- PURPLE install registration/configuration metadata, when available, for formats not covered by installed-game discovery.
+- Any available in-game Genus/Pantheon allocation export or independently recorded allocation data for source-backed import and board reconstruction.
+
+No new issue reports were added in this iteration. Repository-wide automatic merging also remains pending the specific authorization previously requested.
+
 ## How to supply the remaining evidence
 
 Record from before entering the instance when possible; include the full encounter and completion. Preserve the ordinary saved combat log as well as a diagnostic ZIP, the app version, selected installation/build, character/server, known difficulty and observed outcome. For protocol investigations, enable TCP payload recording before Start; for checkbox-specific issues, provide a separate unchecked capture with its capture counters. Partial captures are still useful when labeled accurately. Supply explicit in-game observations or source records for new boss roles, Genus lines, crafting rules and timer scope.
 
 ## Build workspace and asset collection
 
-**Available:** section tabs for skills, passives, stigmas, Daevanion, equipment, arcana, Pantheon and Genus. Budgets appear in the relevant allocation sections. Equipment uses inventory-slot tiles with source-linked catalog item images and enhancement choices; arcana uses separate card slots. Pantheon shows editable modeled deity contributions and read-only recorded totals. Model inputs and official source snapshots remain distinct.
+**Available:** section tabs for skills, passives, stigmas, Daevanion, equipment, arcana, Pantheon and Genus. Budgets appear in the relevant allocation sections. Equipment uses inventory-slot tiles with source-linked catalog item images and enhancement choices; arcana uses separate card slots with skill icons and level selectors. Pantheon shows editable modeled deity contributions and read-only recorded totals. Model inputs and official source snapshots remain distinct.
 
 Highest available server-reported skill, stigma and Daevanion totals supply personal planning and comparison scopes; reports are observations, not verified progression maxima. Combat log tabs are Community Combat Logs, My Uploads and Saved Logs. Boss portraits accompany boss names and progression; repeated portraits beside session-opening buttons are omitted.
 
