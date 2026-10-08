@@ -31,21 +31,31 @@ def _digest(value) -> str:
                                      ensure_ascii=False, allow_nan=False).encode()).hexdigest()
 
 
-def _context(cls: str, mode: str):
+def _context(cls: str, mode: str, budgets: dict | None = None):
     if not isinstance(cls, str) or cls not in list_names("global", "classes"):
         raise InvalidPreset("unknown class")
     if not isinstance(mode, str) or mode not in MODES:
         raise InvalidPreset("choose pve or pvp")
+    observed = budgets is not None
+    budgets = dict(BUDGETS) if budgets is None else budgets
+    if (not isinstance(budgets, dict) or set(budgets) != set(BUDGETS)
+            or any(type(v) is not int or not 0 <= v <= 10000 for v in budgets.values())):
+        raise InvalidPreset("invalid comparison point budgets")
     cd = ClassData(cls)
     loadout_name = f"{cls}_l45_global_median"
     lo = copy.deepcopy(load_loadout(loadout_name))
-    policy = {"version": POLICY_VERSION, "model": MODEL_VERSION, "class": cls, "mode": mode,
-              "budgets": dict(BUDGETS), "loadout": loadout_name,
+    policy = {"version": 2 if observed else POLICY_VERSION, "model": MODEL_VERSION, "class": cls, "mode": mode,
+              "budgets": dict(budgets), "loadout": loadout_name,
               "loadout_fingerprint": _digest(lo),
               "data_fingerprint": _digest({"class": cd.raw, "hit_profiles": cd.hit_profiles}),
               "score_kind": "weighted_modeled_dps", "weights": {s: .5 for s in MODES[mode]},
               "durations": {s: 30 if s == "pvp_burst" else 180 for s in MODES[mode]},
               "calibration": "disabled", "note": NOTE}
+    if observed:
+        policy["note"] = ("Common-loadout comparison using the highest server-reported resources for this class, "
+                          "pooled across available region/build contexts. Reports and allocated lower bounds are not verified game caps. "
+                          "Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. "
+                          "Personal gear, Genus and survival constraints are excluded. Best evaluated eligible candidate, not proof of a global optimum.")
     if mode == "pvp":
         from .scenarios import PVP_NOTE
         policy["model_note"] = PVP_NOTE
@@ -53,9 +63,9 @@ def _context(cls: str, mode: str):
     return policy, lo
 
 
-def scoring_policy(cls: str, mode: str) -> dict:
+def scoring_policy(cls: str, mode: str, budgets: dict | None = None) -> dict:
     """Publish the exact comparison scope without exposing local inventory."""
-    return _context(cls, mode)[0]
+    return _context(cls, mode, budgets)[0]
 
 
 def candidate(summary: dict, policy: dict | None = None) -> dict:
@@ -80,13 +90,13 @@ def candidate(summary: dict, policy: dict | None = None) -> dict:
             "scope": policy["scope"], "build": build}
 
 
-def evaluate(document: dict) -> dict:
+def evaluate(document: dict, budgets: dict | None = None) -> dict:
     """Recompute the weighted score using only the server's current policy."""
     from .learn import uncalibrated
     if not isinstance(document, dict) or document.get("format") != "a2preset" or document.get("version") != VERSION:
         raise InvalidPreset("not an a2preset v2 document")
     cls, mode = document.get("class"), document.get("mode")
-    policy, lo = _context(cls, mode)
+    policy, lo = _context(cls, mode, budgets)
     if document.get("scope") != policy["scope"]:
         raise InvalidPreset("preset scoring scope changed; fetch the current policy and resubmit")
     with uncalibrated():
@@ -103,7 +113,7 @@ def _evaluate(document: dict, policy: dict, lo: dict) -> dict:
 
     primary, secondary = MODES[policy["mode"]]
     legacy = {"format": "a2preset", "version": 1, "class": document["class"], "build": document.get("build")}
-    build, rotation = parse(legacy, scenario_name=primary, loadout_snapshot=lo)
+    build, rotation = parse(legacy, scenario_name=primary, loadout_snapshot=lo, budgets=policy["budgets"])
     scen = SCENARIOS[primary](lo)
     first, _, _ = _sim(build, scen, rotation)
     second, _, _ = _sim(build, SCENARIOS[secondary](lo), rotation)
@@ -132,4 +142,4 @@ def _evaluate(document: dict, policy: dict, lo: dict) -> dict:
                                                        midpoint=1024.52 if scen.target.is_player else None),
                       "cdr": d.cdr, "combat_speed": d.combat_speed, "boost_bucket": d.amp,
                       "double": d.double, "perfect": d.perfect, "multihit": d.multihit, "weapon_amp": d.weapon_amp},
-            "evaluation": {"model": MODEL_VERSION, "scope": policy["scope"], "policy_version": POLICY_VERSION}}
+            "evaluation": {"model": MODEL_VERSION, "scope": policy["scope"], "policy_version": policy["version"]}}

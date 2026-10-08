@@ -25,7 +25,7 @@ def candidate(summary: dict) -> dict:
                       "policy": copy.deepcopy(summary.get("policy", []))}}
 
 
-def parse(doc: dict, *, scenario_name: str = "boss", loadout_snapshot: dict | None = None):
+def parse(doc: dict, *, scenario_name: str = "boss", loadout_snapshot: dict | None = None, budgets: dict | None = None):
     """Accept only known skills, legal levels, connected boards and bounded policies."""
     from .opt.daevanion import CRYSTAL_BOARDS, connected
     from .opt.rotation import CONDITIONS
@@ -33,6 +33,10 @@ def parse(doc: dict, *, scenario_name: str = "boss", loadout_snapshot: dict | No
     from .run import prepare
     from .scenarios import SCENARIOS
 
+    budgets = BUDGETS if budgets is None else budgets
+    if (not isinstance(budgets, dict) or set(budgets) != set(BUDGETS)
+            or any(type(v) is not int or not 0 <= v <= 10000 for v in budgets.values())):
+        raise InvalidPreset("invalid comparison point budgets")
     if scenario_name not in ("boss", "pvp"):
         raise InvalidPreset("unsupported preset scenario")
     if not isinstance(doc, dict) or doc.get("format") != "a2preset" or doc.get("version") != 1:
@@ -82,8 +86,8 @@ def parse(doc: dict, *, scenario_name: str = "boss", loadout_snapshot: dict | No
         raise InvalidPreset("invalid rotation")
     clean = candidate(summary)["build"]
     build, rotation = build_from_summary(clean)
-    if build.sp_spent() > BUDGETS["skill"] or build.stigma_spent() > BUDGETS["stigma"] or build.daevanion_cost(cd) > BUDGETS["daevanion"]:
-        raise InvalidPreset("build exceeds the shared Planner budget (203 skill / 30 stigma / 360 Daevanion)")
+    if build.sp_spent() > budgets["skill"] or build.stigma_spent() > budgets["stigma"] or build.daevanion_cost(cd) > budgets["daevanion"]:
+        raise InvalidPreset("build exceeds the current comparison skill / stigma / Daevanion budgets")
     scen = SCENARIOS[scenario_name](loadout_snapshot if loadout_snapshot is not None else f"{cls}_l45_global_median")
     _, geared, kit, _ = prepare(build, scen)
     # A real character may unlock more specializations through gear. Keep only those

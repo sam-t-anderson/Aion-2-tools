@@ -23,14 +23,26 @@ def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
     from ..report import _spec_text
     from ..scenarios import SCENARIOS
 
+    from ..combat.preset_sync import _base, _request
     policy = scoring_policy(cls, mode)
+    base = _base()
+    if base:
+        remote = _request(base, f"/api/v2/presets/{cls}/{mode}/policy")
+        selected = remote.get("budgets") if remote.get("version") == 2 else None
+        expected = scoring_policy(cls, mode, selected)
+        if remote.get("scope") != expected["scope"]:
+            raise ValueError("Community comparison policy differs from this evaluator; update the client/server")
+        policy = expected
+    observed_budgets = policy["budgets"] if policy["version"] == 2 else None
+    def score(document):
+        return evaluate(document, observed_budgets)
     cache = home() / "cache" / "community-comparisons" / (policy["scope"] + ".json")
     try:
         if cache.stat().st_size <= MAX_BYTES:
             summary = json.loads(cache.read_text(encoding="utf-8"))
             if (summary["scoring_policy"]["scope"] == policy["scope"]
                     and summary.get("candidate_generation", {}).get("search_revision") == 2):
-                scored = evaluate(candidate(summary))
+                scored = score(candidate(summary, policy))
                 scored["candidate_generation"] = summary.get("candidate_generation", {})
                 if progress:
                     progress("Reusing the saved common comparison for this scoring scope")
@@ -56,14 +68,14 @@ def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
                                  "specs": {cd.skills[k]["name"]: [_spec_text(cd, k, x) for x in v]
                                            for k, v in build.specs.items()},
                                  "daevanion_nodes": sorted(build.daevanion)}}
-            scored = evaluate(candidate(summary, policy))
+            scored = score(candidate(summary, policy))
             scored["candidate_generation"] = {"objective": objective, "iterations": 1, "calibration": "disabled"}
             scores.append(scored)
         seed = max(scores, key=lambda item: item["score"])
         primary = MODES[mode][0]
         document = candidate(seed, policy)
         build, rotation = parse({"format": "a2preset", "version": 1, "class": cls,
-                                 "build": document["build"]}, scenario_name=primary, loadout_snapshot=lo)
+                                 "build": document["build"]}, scenario_name=primary, loadout_snapshot=lo, budgets=policy["budgets"])
         if progress:
             progress("Common comparison refinement: optimizing the weighted objective across both scenarios")
         scenarios = [(policy["weights"][name], SCENARIOS[name](lo, duration=policy["durations"][name])) for name in MODES[mode]]
@@ -77,7 +89,7 @@ def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
                              "specs": {cd.skills[k]["name"]: [_spec_text(cd, k, x) for x in v]
                                        for k, v in result.build.specs.items()},
                              "daevanion_nodes": sorted(result.build.daevanion)}}
-        scored = evaluate(candidate(refined, policy))
+        scored = score(candidate(refined, policy))
         scored["candidate_generation"] = {"objective": "weighted", "iterations": 1, "calibration": "disabled"}
         scores.append(scored)
     winner = max(scores, key=lambda item: item["score"])
