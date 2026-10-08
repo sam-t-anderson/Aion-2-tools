@@ -7,7 +7,7 @@ NOTE = ("User-selected and linked-window trained skill/stigma minimums. Reserved
         "Reserved supporting effects stay selected; their effective-level unlock and slot requirements constrain trained points, fixed gear bonuses and connected Daevanion nodes. Other bonuses and specialties may change. "
         "Use utility skills manually when they are absent from the damage rotation. These constraints "
         "do not simulate CC, mobility, shields, opponent defenses or win probability. Damage baselines "
-        "and stat priorities remain unconstrained references.")
+        "remain unconstrained references; personal stat priorities use the selected damage scenarios and explicit action-time pauses.")
 
 
 def prepare(cd, options, budgets, gear_bonus=None):
@@ -91,6 +91,8 @@ def include_survival(cd, plan, survival, budgets, gear_bonus=None):
     """
     linked = [w["skill_requirement"] for row in (survival or {}).get("opponents", [])
               for w in row.get("reductions", []) if w.get("skill_requirement")]
+    linked += [w["skill_requirement"] for w in (survival or {}).get("action_windows", [])
+               if w.get("skill_requirement")]
     if not linked:
         return plan
     raw = {field: dict((plan or {}).get(field, {})) for field in ("sp", "stigmas")}
