@@ -37,6 +37,7 @@ class MeterEngine:
         self.known_players: set[int] = set()
         self.jobs: dict[int, str] = {}
         self.roster: dict[str, dict] = {}
+        self.roster_complete = False
         self.dungeon_id = 0
         self.healers: dict[int, ActorStats] = {}
         self.summons: set[int] = set()
@@ -338,6 +339,7 @@ class MeterEngine:
     def _update_roster(self, members: dict[str, dict], complete: bool, dungeon_id: int) -> None:
         """Apply a complete roster or merge the members from a partial decode."""
         self.dungeon_id = dungeon_id
+        self.roster_complete = complete
         if complete:
             self.roster = members
         else:

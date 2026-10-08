@@ -39,6 +39,8 @@ class CombatSession:
         result.identities = {self.epoch: copy.deepcopy(self.identities[self.epoch])} if self.epoch in self.identities else {}
         result.runs = {self.run: {**self.runs[self.run], "start_observed": False}}
         result.runs[self.run].pop("started_at", None)
+        result._boss_attempt = copy.deepcopy(self._boss_attempt)
+        result.wipe_splits = self.wipe_splits
         return result
 
     def __init__(self):
@@ -68,6 +70,61 @@ class CombatSession:
         self._storage_last = {}
         self._storage_groups = {}
         self.storage_players = set()
+        self._boss_attempt = None
+        self.wipe_splits = 0
+
+    def _check_boss_wipe(self, timestamp_ms, engine):
+        attempt = self._boss_attempt
+        if not attempt:
+            return
+        if attempt["context"] != (self.epoch, self.manual_split, self.run):
+            self._boss_attempt = None
+            return
+        if (not getattr(engine, "roster_complete", False)
+                or frozenset(name.casefold() for name in engine.roster) != attempt["roster"]):
+            self._boss_attempt = None
+            return
+        if (timestamp_ms is not None and attempt["members"] <= attempt["dead"]
+                and any(hp > 0 for hp in attempt["boss_hp"].values())
+                and timestamp_ms - max(attempt["last_activity"], attempt["last_death"]) >= 2000):
+            # Keep the completed attempt's records. Only the next combat gets a
+            # new clock; an individual death never resets the party's damage.
+            self.manual_split += 1
+            self.wipe_splits += 1
+            self._boss_attempt = None
+
+    def _track_boss_attempt(self, engine, record, allowed):
+        event = record.event
+        if not isinstance(event, DamageEvent) or self.pvp:
+            return
+        identity = self.identities[record.epoch]
+        context = (record.epoch, self.manual_split, self.run)
+        attempt = self._boss_attempt
+        if attempt and attempt["context"] != context:
+            self._boss_attempt = attempt = None
+        roster = frozenset(name.casefold() for name in engine.roster)
+        names = Counter(name.casefold() for name in identity["names"].values())
+        members = {actor for actor, name in identity["names"].items()
+                   if name.casefold() in roster and names[name.casefold()] == 1
+                   and actor not in identity["owners"]}
+        complete = (getattr(engine, "roster_complete", False) and bool(roster)
+                    and identity["local_id"] in members
+                    and {identity["names"][a].casefold() for a in members} == roster)
+        if not complete or attempt and (attempt["roster"] != roster or attempt["members"] != members):
+            self._boss_attempt = None
+            return
+        boss = (event.target_id if event.actor_id in allowed and event.target_id not in allowed
+                and npc_info(identity["spawns"].get(event.target_id, {}).get("mobCode")).get("isBoss") else None)
+        if not attempt and boss is not None:
+            attempt = {"context":context, "roster":roster, "members":members,
+                       "dead":set(), "boss_hp":{}, "bosses":set(),
+                       "last_activity":event.timestamp_ms, "last_death":event.timestamp_ms}
+            self._boss_attempt = attempt
+        if attempt:
+            if boss is not None:
+                attempt["bosses"].add(boss)
+            if event.actor_id in allowed or event.target_id in allowed:
+                attempt["last_activity"] = event.timestamp_ms
 
     def finish_run(self, reason="manual", complete=True, timestamp_ms=None):
         if not any(r.run == self.run for r in self.records) or self.run_closed:
@@ -146,6 +203,7 @@ class CombatSession:
         identity["profile"] = dict(engine.local_profile)
         if engine.local_player_id is not None:
             identity["local_id"] = engine.local_player_id
+        self._check_boss_wipe(timestamp_ms, engine)
         party = frozenset(name.casefold() for name in engine.roster)
         if party and "initial_roster" not in identity:
             # A capture can start before its first roster message. Reconcile only
@@ -156,6 +214,7 @@ class CombatSession:
         for event in events:
             record = Record(self.epoch, event, party, engine.local_player_id, sequence=self.sequence+1)
             allowed = self._allowed(record, "party")
+            self._track_boss_attempt(engine, record, allowed)
             self.storage_players.update((self.epoch, actor) for actor in allowed if actor not in identity["owners"])
             if isinstance(event, DamageEvent):
                 # Count the same relevant damage groups as groups(), separately
@@ -180,6 +239,20 @@ class CombatSession:
             self.sequence += 1
             self.records.append(Record(self.epoch, event, party, engine.local_player_id, self.manual_split, self.run, self.sequence))
         for sample in engine.telemetry:
+            attempt = self._boss_attempt
+            if attempt:
+                actor = sample["entity"]
+                if actor in attempt["bosses"]:
+                    if sample["kind"] == "death" or sample["kind"] == "hp" and sample["current"] == 0:
+                        self._boss_attempt = None  # Boss death is not a wipe.
+                    elif sample["kind"] == "hp":
+                        attempt["boss_hp"][actor] = sample["current"]
+                if actor in attempt["members"]:
+                    if sample["kind"] == "death":
+                        attempt["dead"].add(actor)
+                        attempt["last_death"] = max(attempt["last_death"], sample["timestamp_ms"])
+                    elif sample["kind"] == "hp" and sample["current"] > 0:
+                        attempt["dead"].discard(actor)
             key = (self.epoch, sample["entity"])
             if sample["kind"] == "hp" and sample["current"] > 0:
                 self._dead.discard(key)
@@ -258,6 +331,21 @@ class CombatSession:
             allowed.update(linked)
         return allowed
 
+    def _allowances(self, scope):
+        """Reuse membership sets within one locked read, never across updates."""
+        cache = {}
+        def allowed(record):
+            effective = self._effective_scope(scope, record.epoch)
+            actor = (record.event.actor_id if effective == "all"
+                     and isinstance(record.event, DamageEvent)
+                     and job_from_skill(record.event.skill_code) else None)
+            key = (record.epoch, record.local_id, record.party,
+                   self._late_roster(record) if effective == "party" else False, actor)
+            if key not in cache:
+                cache[key] = self._allowed(record, scope)
+            return cache[key]
+        return allowed
+
     def _pvp_damage(self, record, allowed):
         event = record.event
         if not isinstance(event,DamageEvent):
@@ -269,11 +357,12 @@ class CombatSession:
                 and opponent in identity.get("player_ids",set())
                 and not identity["spawns"].get(opponent,{}).get("mobCode"))
 
-    def groups(self, scope="party"):
+    def groups(self, scope="party", allowed_for=None):
+        allowed_for = allowed_for or self._allowances(scope)
         groups = []
         for record in self.records:
             event = record.event
-            allowed = self._allowed(record, scope)
+            allowed = allowed_for(record)
             pvp = self._pvp_damage(record,allowed)
             if self.pvp and isinstance(event,DamageEvent) and not pvp:
                 continue  # Explicit PvP mode excludes unknown NPC/player opponents.
@@ -318,22 +407,23 @@ class CombatSession:
                 "damage": 0, "hits": 0, "healing": 0, "skills": {}, "incoming": {"damage": 0, "hits": 0, "parries": 0, "sources": {}},
                 "counts": {key: 0 for key in ("crit", "back", "front", "double", "perfect", "multi", "parry")}}
 
-    def _summary(self, groups, scope, enemy_id=None, combine_pets=True):
+    def _summary(self, groups, scope, enemy_id=None, combine_pets=True, allowed_for=None):
+        allowed_for = allowed_for or self._allowances(scope)
         players, enemies = {}, {}
         durations = 0
         for group in groups:
             first = group["damage_start"] if group["damage_start"] is not None else group["start"]
             buckets = {int((record.event.timestamp_ms-first)//1000) for record in group["records"]
                        if isinstance(record.event,DamageEvent)
-                       and record.event.actor_id in self._allowed(record,scope)
-                       and record.event.target_id not in self._allowed(record,scope)}
+                       and record.event.actor_id in allowed_for(record)
+                       and record.event.target_id not in allowed_for(record)}
             durations += max(1,len(buckets))
         timeline = {}
         offset = 0
         for group in groups:
             identity = self.identities[group["epoch"]]
             for record in group["records"]:
-                event, allowed = record.event, self._allowed(record, scope)
+                event, allowed = record.event, allowed_for(record)
                 def player(actor_id):
                     # IDs may be reused after a zone/socket change: don't merge
                     # unnamed actors from unrelated contexts into one person.
@@ -425,12 +515,13 @@ class CombatSession:
                 "damage_taken": incoming, "dtps": incoming / max(1, elapsed)}
 
     def snapshot(self, scope="party", segment_id=None, enemy_id=None, combine_pets=True):
-        groups = self.groups(scope)
+        allowed_for = self._allowances(scope)
+        groups = self.groups(scope, allowed_for)
         chosen = groups if segment_id == "all" else [next((g for g in groups if g["id"] == segment_id), groups[-1])] if groups else []
-        summary = self._summary(chosen, scope, None, combine_pets)
+        summary = self._summary(chosen, scope, None, combine_pets, allowed_for)
         if enemy_id is not None:
             if any(row["key"] == enemy_id for row in summary["enemies"]):
-                summary = self._summary(chosen, scope, enemy_id, combine_pets)
+                summary = self._summary(chosen, scope, enemy_id, combine_pets, allowed_for)
             else:
                 enemy_id = None  # A previous encounter's filter must not hide a new pull.
         summary["segments"] = [{"id": group["id"], "label": f"Combat {index + 1}", "start": group["start"],
@@ -441,9 +532,10 @@ class CombatSession:
         summary["viewing_historical"] = bool(segment_id not in (None, "all") and chosen and chosen[-1]["id"] != groups[-1]["id"])
         summary["selected_enemy"] = enemy_id
         summary["combine_pets"] = combine_pets
+        summary["wipe_splits"] = self.wipe_splits
         epochs = {g["epoch"] for g in chosen}
         actors = {(g["epoch"], actor) for g in chosen for r in g["records"]
-                  for actor in (r.event.actor_id, r.event.target_id) if actor in self._allowed(r, scope)}
+                  for actor in (r.event.actor_id, r.event.target_id) if actor in allowed_for(r)}
         summary["identity_status"] = {
             "self_identified": bool(epochs) and all(self.identities[e]["local_id"] is not None for e in epochs),
             "unnamed_actors": sum(actor not in self.identities[e]["names"] for e, actor in actors
@@ -472,7 +564,8 @@ class CombatSession:
 
     def to_a2log(self, scope="party", title=None, segment_id="all"):
         from ..combat import a2log
-        groups = self.groups(scope)
+        allowed_for = self._allowances(scope)
+        groups = self.groups(scope, allowed_for)
         if segment_id != "all":
             groups = [g for g in groups if g["id"] == segment_id] if segment_id else groups[-1:]
         players, segments = {}, []
@@ -482,11 +575,11 @@ class CombatSession:
             resolving = set()
             actor_refs = {}
             opponents = set()
-            roster_allowed = set().union(*(self._allowed(r, scope) for r in group["records"]))
+            roster_allowed = set().union(*(allowed_for(r) for r in group["records"]))
             if group["pvp"]:
                 for record in group["records"]:
                     if isinstance(record.event, DamageEvent):
-                        allowed_now = self._allowed(record, scope)
+                        allowed_now = allowed_for(record)
                         other = record.event.target_id if record.event.actor_id in allowed_now else record.event.actor_id
                         opponents.add(identity["owners"].get(other, other))
             def reference(actor_id):
@@ -524,7 +617,7 @@ class CombatSession:
                 actor_refs[actor_id] = pid
                 return pid
             for record in group["records"]:
-                event, allowed = record.event, self._allowed(record, scope)
+                event, allowed = record.event, allowed_for(record)
                 source = reference(event.actor_id)
                 target = reference(event.target_id)
                 t = max(0, event.timestamp_ms - group["start"]) / 1000

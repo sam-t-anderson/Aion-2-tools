@@ -4,6 +4,9 @@
 - Use recorded encounter spans for healing/incoming rates while retaining the active outgoing DPS clock. Healing alone does not start an encounter.
 - Decode explicit summon-owner links in compressed inner packets, improving pet grouping when these records arrive during a partial capture.
 - Show Self identity, unnamed actor and linked-pet status in Live Meter and the overlay. Missing identity/ownership packets remain unresolved; diagnostics are still needed to identify unsupported variants.
+- Reuse roster/ownership membership sets within each locked snapshot/export to reduce refresh contention in long partial captures; rebuild them for every read.
+- Hide the Windows overlay when no supported game window is found or another app has focus; style/opacity initialization failures no longer disable foreground tracking.
+- Split the next pull after an observed boss wipe: complete unchanged identified party, all recorded deaths, positive boss HP and two seconds without incoming/outgoing damage. Preserve prior metrics; uncertain/partial death evidence retains normal split rules.
 
 ## Recording-part navigation (0.2.89)
 

@@ -242,6 +242,10 @@ With **Record TCP payloads** unchecked, `tcp-payloads.jsonl` is intentionally em
 
 Use **DPS**, **HPS** or **D.Taken** below Meter/Plan/Hide to choose the overlay metric. Each view sorts its own bars and shows the rate, total and percentage for that metric. The selection is saved on this computer. DPS uses the shared active outgoing-damage clock; HPS and incoming damage per second use recorded encounter spans, which hold steady between effects. Healing-only activity does not create a combat encounter.
 
+On Windows the overlay hides when another application has focus, when the game is minimized, or when no supported game window can be found. It returns when the game is foreground again. If the game process cannot be recognized, the meter remains available in Live Meter.
+
+Boss wipes create a new encounter boundary before the next pull when a complete, unchanged party roster is resolved (including Self), every member has a recorded death during the attempt, the known boss has recorded positive HP, and incoming/outgoing damage has been quiet for at least two seconds. Positive player HP cancels that player's death state; boss death cancels wipe detection. Missing identities, partial rosters, unknown bosses or missing death/HP evidence retain the normal inactivity/manual split rules. A wipe split preserves prior metrics and does not mark a partial run complete or ranked.
+
 If a partial capture lacks identity or pet-owner packets, the overlay and Live Meter show unresolved actor and linked-pet counts. An unnamed row may include your damage, but the tool cannot identify it as your character without a supported identity record. Pet grouping applies only to recorded owner links, including links carried inside compressed packets. Send capture diagnostics with TCP recording enabled before Start when reporting missing identity or grouping.
 
 **Live Meter → Open overlay** opens one compact overlay that shows the live meter and plays your most
