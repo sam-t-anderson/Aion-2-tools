@@ -125,3 +125,7 @@ Record from before entering the instance when possible; include the full encount
 Delivered in the current workspace iteration: section tabs and manual Genus editor; bounded component input sections; 702 catalog-referenced icons bundled with provenance; personal planner/server-observation budget wiring; Community/My Uploads/Saved Logs order. Still pending: official-source Pantheon/arcana allocation editors, NPC-ID-backed boss portrait catalog, and shared preset comparison-scope migration to observed server budgets.
 
 Asset follow-up: 1,321 existing boss-category NPC IDs now have portraits from 197 unmodified source icons, accepted only when ID and English name both match the bundled catalog. This does not change boss roles, difficulty or version inference. Shared presets now support server-observed budget scopes; existing seeds are reevaluated, while fresh optimization uses the matching published policy.
+
+## Automatic asset refresh agenda
+
+Collect new skill, item, class and NPC image references from their published source IDs when catalogs change and on scheduled refresh. Keep namespaces separate, record source revisions/hashes and observation context, and refresh the website/application snapshot through a reviewable pull request. Unknown/new NPC IDs and role changes remain staged in the upstream catalog audit until reviewed. A collection triggered by an installed build does not prove that a community source snapshot applies to that build.

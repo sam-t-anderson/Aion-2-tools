@@ -1,4 +1,5 @@
 """Bundle portraits only for existing catalog IDs with exact English name agreement."""
+from datetime import datetime, timezone
 import concurrent.futures
 import hashlib
 import json
@@ -10,8 +11,12 @@ static=root/'aion2calc/app/static'
 import argparse
 parser=argparse.ArgumentParser()
 parser.add_argument('source',type=Path,help='Downloaded https://dbaion2.ru/data-en/npcs.json')
-raw=parser.parse_args().source.read_bytes()
+parser.add_argument('--refresh-existing',action='store_true')
+args=parser.parse_args()
+raw=args.source.read_bytes()
+if len(raw)>8*1024*1024:raise ValueError('NPC source exceeds 8 MiB')
 source=json.loads(raw.decode('utf-8-sig'))
+if not isinstance(source,list) or not 1<=len(source)<=20000 or any(not isinstance(r,dict) for r in source):raise ValueError('Unexpected NPC source schema')
 catalog=json.loads((root/'aion2calc/meter/a2parser/data/i18n/npcs/en.json').read_text(encoding='utf-8'))
 rows={str(r['id']):r for r in source if catalog.get(str(r.get('id')),{}).get('isBoss')
       and catalog[str(r['id'])]['name'].casefold()==str(r.get('name','')).casefold()
@@ -19,7 +24,7 @@ rows={str(r['id']):r for r in source if catalog.get(str(r.get('id')),{}).get('is
 urls={'https://dbaion2.ru/icons/'+r['icon']+'.webp' for r in rows.values()}
 def fetch(url):
  name=hashlib.sha256(url.encode()).hexdigest()[:24]+'.webp';p=static/'game-assets'/name
- if not p.exists():
+ if args.refresh_existing or not p.exists():
   with urlopen(Request(url,headers={'User-Agent':'Aion2Calc asset snapshot'}),timeout=25) as r:
    data=r.read(256*1024+1)
    if len(data)>256*1024 or not data.startswith(b'RIFF') or data[8:12]!=b'WEBP':raise ValueError('Not bounded WebP')
@@ -35,9 +40,11 @@ portraits={k:{'name':r['name'],'icon':'https://dbaion2.ru/icons/'+r['icon']+'.we
 target=root/'aion2calc/meter/a2parser/data/i18n/npc-portraits';target.mkdir(exist_ok=True)
 (target/'en.json').write_text(json.dumps(portraits,ensure_ascii=False,separators=(',',':'))+'\n',encoding='utf-8')
 manifest=json.loads((static/'game-assets.json').read_text(encoding='utf-8'))
-manifest['assets'].update(assets);manifest['npc_portrait_source']={'url':'https://dbaion2.ru/data-en/npcs.json','sha256':hashlib.sha256(raw).hexdigest(),'retrieved_at':'2026-10-08','matched_npcs':len(portraits),'rule':'Only existing boss-category NPC IDs with exact case-insensitive English name agreement. Portraits do not alter NPC roles, zone, difficulty or game build.'}
+manifest['assets'].update(assets);manifest['npc_portrait_source']={'url':'https://dbaion2.ru/data-en/npcs.json','sha256':hashlib.sha256(raw).hexdigest(),'retrieved_at':datetime.now(timezone.utc).isoformat(),'matched_npcs':len(portraits),'rule':'Only existing boss-category NPC IDs with exact case-insensitive English name agreement. Portraits do not alter NPC roles, zone, difficulty or game build.'}
 manifest['missing']+=missing
-manifest['npc_portraits']={k:r['icon'] for k,r in portraits.items()}
+manifest['assets']=dict(sorted(manifest['assets'].items()))
+manifest['npc_portraits']={k:portraits[k]['icon'] for k in sorted(portraits)}
+for key,row in portraits.items():manifest.setdefault('references',{})['parser:npc:'+key]={'namespace':'parser','kind':'npc','id':key,'url':row['icon'],'matched_name':row['name']}
 (static/'game-assets.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
 (static/'game-assets.js').write_text('/* Unmodified game icons. Sources and exact NPC ID/name agreement: game-assets.json. */\nwindow.A2BundledAssets={base:new URL(".",document.currentScript.src).href,files:'+json.dumps(manifest['assets'],separators=(',',':'))+',npcs:'+json.dumps(manifest['npc_portraits'],separators=(',',':'))+'};\n',encoding='utf-8')
 print('NPC references',len(portraits),'portraits',len(assets),'missing',len(missing))
