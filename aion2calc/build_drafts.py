@@ -28,6 +28,8 @@ def normalize(doc):
         raise ValueError("Choose an a2build v1 draft with a known class")
     if not isinstance(doc.get("mode"), str) or doc["mode"] not in {"pve", "pvp"} or not integer(doc.get("level"), 1, 45):
         raise ValueError("Choose PvE/PvP and character level 1–45")
+    if doc["level"] != 45:
+        raise ValueError("Draft evaluation currently supports level 45; lower-level drafts can still be edited and exported")
     cd = ClassData(doc["class"])
     raw, budgets = doc.get("build"), doc.get("budgets")
     if not isinstance(raw, dict) or not isinstance(budgets, dict):
