@@ -668,3 +668,13 @@ Drafts support trained skill/passive levels, bonus levels, supporting effects, s
 Import an exported official profile as a read-only reference, an optimizer `build.json` as allocations, or an `.a2build.json` draft. **Load current community preset** copies the server's current evaluated allocation. Editing does not rerun the optimizer or recalculate source stats, DPS or survivability. Profile totals are not automatically converted to trained points.
 
 Save up to ten drafts / 2 MiB in this browser, or export a draft that passes the listed checks. References may contain character information. Nothing is uploaded automatically; browser storage can be cleared and unsaved edits are lost when leaving the page. The draft format is for this workspace, not a simulator configuration. Return URLs can carry private-log view access; these tokens are not stored in draft source metadata.
+
+## Timeline display and application storage
+
+Timeline rows have **Hide** and **Collapse** controls. Open **Player timeline visibility** to restore individual rows, **Show all**, or **Expand all**. These are encounter-scoped display preferences; they do not change graph/table totals or saved events.
+
+**Application screenshot** in the header renders the current page from top to bottom into the local screenshots folder. The Live Meter screenshot button uses the same renderer. It includes application content below the fold, excludes other monitors/windows, and does not use desktop capture. Collapsed sections and internally scrolling panels keep their current display state. Very large pages are scaled within PNG limits or require shorter visible sections. This DOM renderer may differ slightly from the browser and may omit unavailable/cross-origin images. Password inputs are blanked in the render.
+
+Settings → **Storage maintenance** inspects managed cache/update files before cleanup. Disposable web/comparison cache older than seven days and images older than thirty days can be removed. Images may need downloading again. Unknown files, symlinks/junctions, external cache locations, credentials, imports, results, logs, diagnostics and upload receipts are preserved. Each folder scan is bounded and reports truncation.
+
+Updater maintenance retains two recognized release packages, helpers for seven days, and at least the latest five helper logs plus all logs from the last thirty days. Active helper processes are excluded; inability to inspect Windows processes preserves legacy helpers. New helpers remove their own script/readiness marker after completing. Partial downloads remain because another app may be writing them. Cleanup also runs at launch.

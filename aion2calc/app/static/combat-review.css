@@ -29,3 +29,7 @@
 .cr-profile-json {max-height:400px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 
 .cr-graph .cr-legend > span{display:inline-flex;align-items:center;gap:6px}.cr-graph .cr-legend svg{display:inline-block;flex:none;width:24px;height:12px}
+
+.cr-lane .cr-lane-name{flex-wrap:wrap;gap:4px;align-content:center}
+.cr-lane-controls{display:flex;gap:4px;flex-wrap:wrap}.cr-lane-controls .btn{font-size:10px;padding:2px 5px}
+.cr-lane-collapsed .cr-lane-controls{padding:5px 10px;min-height:36px}

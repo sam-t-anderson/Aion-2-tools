@@ -405,3 +405,7 @@ Remaining: independently verified regional schedules/current-build applicability
 Implemented a standalone local allocation workspace in desktop and Pages, shared recorded-character presentation, log return navigation, skill/specialty/stigma and connected board planning, entered-budget validation, local drafts and JSON import/export. Current server presets can seed a draft; edited builds are not scored.
 
 Remaining: recalculating editable equipment/Genus and scenario performance through the optimizer; verified map coordinates and layers; crafting recipes, probabilities and modifiers with source/build provenance; broader regional news sources. Timeline player visibility/collapse and application cleanup/full-page screenshot work remain separate follow-ups.
+
+### Timeline, screenshot and maintenance checkpoint
+
+Implemented encounter-scoped timeline row hiding/collapse/reset controls across shared viewers, full-document application PNG rendering instead of monitor capture, managed storage inventory and age-based disposable cache cleanup, bounded updater helper/log retention with active-process checks and helper self-cleanup. These changes preserve source metrics and persistent application data. Browser-rendering differences and in-game/live-device confirmation remain follow-up validation.

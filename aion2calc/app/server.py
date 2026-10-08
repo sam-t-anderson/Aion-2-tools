@@ -388,6 +388,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _body(self) -> dict:
         n = int(self.headers.get("Content-Length") or 0)
+        if self.path.split("?", 1)[0] == "/api/screenshot" and not 0 <= n <= 28 * 1024 * 1024:
+            raise ValueError("Application PNG request exceeds 28 MiB.")
         return json.loads(self.rfile.read(n) or b"{}") if n else {}
 
     def do_GET(self):
@@ -552,6 +554,9 @@ class Handler(BaseHTTPRequestHandler):
             from .. import learn
             cal = learn.calibration(q.get("class", ""))
             return self._json({"calibration": cal, "summary": learn.summary(cal)})
+        if path == "/api/maintenance":
+            from ..maintenance import inventory
+            return self._json(inventory())
         if path == "/api/logs":
             return self._json({"folder": str(logs_dir()), "files": len(list(logs_dir().glob("*.json")))})
         if path.startswith("/api/encounters/"):
@@ -583,6 +588,21 @@ class Handler(BaseHTTPRequestHandler):
 
     # --------------------------------------------------------------- POST
     def route_post(self, path: str, body: dict):
+        if path in ("/api/screenshot", "/api/maintenance"):
+            port = self.server.server_address[1]
+            allowed = {f"http://127.0.0.1:{port}", f"http://localhost:{port}", f"http://[::1]:{port}"}
+            if self.client_address[0] not in ("127.0.0.1", "::1") or self.headers.get("Origin") not in allowed:
+                raise PermissionError("This action requires the local application origin.")
+            if path == "/api/screenshot":
+                from .screenshots import save
+                return self._json(save(body))
+            if body.get("action") == "caches":
+                from ..maintenance import clean_caches
+                return self._json(clean_caches())
+            if body.get("action") == "updates":
+                from ..update import cleanup_updates
+                return self._json(cleanup_updates())
+            raise ValueError("Choose caches or updates cleanup.")
         if path == "/api/upload-queue":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Upload recovery is local to this computer")
@@ -758,14 +778,7 @@ class Handler(BaseHTTPRequestHandler):
                     return share.upload(doc, visibility=body.get("visibility"))
                 return self._json({"job": start_job("meter-upload", upload_snapshot)})
             if action == "screenshot":
-                if self.client_address[0] not in ("127.0.0.1", "::1"):
-                    raise PermissionError("screenshots run only on this computer")
-                from PIL import ImageGrab
-                folder = home() / "screenshots"
-                folder.mkdir(exist_ok=True)
-                path = folder / f"live-meter-{time.strftime('%Y%m%d-%H%M%S')}.png"
-                ImageGrab.grab(all_screens=True).save(path, "PNG")
-                return self._json({"file": str(path)})
+                raise ValueError("Use Application screenshot in the app to render its full page; desktop capture is disabled.")
             raise ValueError("action must be start, stop, diagnostics, save, export, upload or screenshot")
         if path == "/api/ping":
             PING["at"] = time.time()

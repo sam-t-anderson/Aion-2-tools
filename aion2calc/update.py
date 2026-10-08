@@ -1,11 +1,8 @@
-"""Self-update from GitHub Releases.
+"""Check and stage GitHub releases; launch Windows installation on user request.
 
-The desktop app checks the latest release on launch and, when a newer one exists,
-updates itself. The **Windows installer** build is applied silently (the new
-setup.exe runs with ``/VERYSILENT``, replaces the files and relaunches). The
-portable, macOS and Linux builds are downloaded and offered for the user to copy
-over, because silently self-replacing a running app is not reliable there. Auto
-apply can be turned off in Settings; a manual "Install update" always works.
+Portable/macOS/Linux downloads are offered for copying. Windows helpers wait for
+the app to close, then open the installer. Disposable updater files have bounded
+retention; active or uninspectable helpers and recent failure logs are preserved.
 """
 from __future__ import annotations
 
@@ -146,6 +143,9 @@ def apply_installer(path: Path, silent: bool = True) -> bool:
               "  ($_ | Out-String) | Set-Content -LiteralPath $log\n"
               "  Add-Type -AssemblyName System.Windows.Forms\n"
               "  [System.Windows.Forms.MessageBox]::Show('Could not open the update installer. See ' + $log, 'Aion 2 Calc update') | Out-Null\n"
+              "} finally {\n"
+              f"  Remove-Item -LiteralPath '{ready_path}' -Force -ErrorAction SilentlyContinue\n"
+              "  Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue\n"
               "}\n")
     try:
         helper.write_text(script, encoding="utf-8-sig")
@@ -169,23 +169,18 @@ def apply_installer(path: Path, silent: bool = True) -> bool:
     return False
 
 
-def cleanup_updates(current: Path | None = None) -> None:
-    """Retain two downloaded release packages; preserve helper scripts and logs."""
-    folder = home() / "updates"
-    if not folder.is_dir():
-        return
-    try:
-        packages = [p for p in folder.iterdir() if not p.is_symlink() and p.is_file()
-                    and p.name.startswith("aion2calc-")
-                    and (p.name.endswith(".exe") or p.name.endswith(".zip") or p.name.endswith(".tar.gz"))]
-        packages.sort(key=lambda p: (p == current, p.stat().st_mtime), reverse=True)
-        for path in packages[2:]:
-            try:
-                path.unlink()
-            except OSError:
-                pass  # An installer still open or locked by Windows is retained.
-    except OSError:
-        pass
+def cleanup_updates(current: Path | None = None) -> dict:
+    """Retain two packages and bounded helper history; preserve active/unknown files."""
+    from .maintenance import _files, _remove, clean_update_files, PACKAGE
+    import re
+    rows, _ = _files("updates")
+    packages = [(p, info) for p, info in rows if re.fullmatch(PACKAGE, p.name)]
+    current = current.resolve() if current else None
+    packages.sort(key=lambda row: (row[0] == current, row[1].st_mtime), reverse=True)
+    result = clean_update_files()
+    for path, info in packages[2:]:
+        result["deleted" if _remove(path, info) else "skipped"] += 1
+    return result
 
 
 def fetch(info: dict) -> Path | None:
