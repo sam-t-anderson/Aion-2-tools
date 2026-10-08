@@ -316,3 +316,7 @@ Server uploads index observed catalog-boss defeat markers after recorded roster 
 ### Missing NPC identity diagnostics
 
 Live status retains enemy references without NPC types and excludes identified players/owned pets. Mapping exports and reviewed logs list bounded session actor references and retained effect counts separately from unmapped catalog IDs. This corrects the previous misleading zero count; it adds no inferred NPC names or roles. Remaining: supported spawn variants or earlier capture evidence for these actors, verified NPC type mappings, boss roles and portraits. Updated server processing is needed for new detail fields in online reports.
+
+### Mid-instance late party roster
+
+Party view now reconciles earlier retained effects with uniquely named members of the first roster observed within the same identity epoch. Later roster changes do not rewrite it. App/overlay explain this evidence, and affected saved encounters remain unranked with incomplete earlier roster coverage. Self and unnamed members still require supported identity/name records; no actor is inferred from damage or class. Missing identity variants and representative early-entry captures remain pending.

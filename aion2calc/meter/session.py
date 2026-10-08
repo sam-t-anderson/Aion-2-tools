@@ -1,7 +1,7 @@
 """Retained live combat history, independent of the protocol meter's idle resets."""
 from __future__ import annotations
 
-from collections import deque
+from collections import Counter, deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import time
@@ -144,8 +144,14 @@ class CombatSession:
         if engine.local_player_id is not None:
             identity["local_id"] = engine.local_player_id
         party = frozenset(name.casefold() for name in engine.roster)
+        if party and "initial_roster" not in identity:
+            # A capture can start before its first roster message. Reconcile only
+            # those earlier records, within this identity epoch, against this
+            # first observed roster; later joins/disbands must not rewrite it.
+            identity["initial_roster"] = party
+            identity["initial_roster_sequence"] = self.sequence
         for event in events:
-            record = Record(self.epoch, event, party, engine.local_player_id)
+            record = Record(self.epoch, event, party, engine.local_player_id, sequence=self.sequence+1)
             allowed = self._allowed(record, "party")
             self.storage_players.update((self.epoch, actor) for actor in allowed if actor not in identity["owners"])
             if isinstance(event, DamageEvent):
@@ -204,13 +210,21 @@ class CombatSession:
             return name if not name.startswith("#") else f"Enemy #{actor_id} (type {code})"
         return f"{'Enemy' if enemy else 'Player'} #{actor_id}"
 
+    def _late_roster(self, record):
+        identity = self.identities[record.epoch]
+        return (not record.party and bool(identity.get("initial_roster"))
+                and 0 < record.sequence <= identity.get("initial_roster_sequence", 0))
+
     def _allowed(self, record, scope):
         identity = self.identities[record.epoch]
         local = record.local_id if record.local_id is not None else identity["local_id"]
         allowed = {local} if local is not None else set()
         if scope == "party":
+            late = self._late_roster(record)
+            party = identity["initial_roster"] if late else record.party
+            counts = Counter(name.casefold() for name in identity["names"].values()) if late else {}
             allowed.update(actor_id for actor_id, name in identity["names"].items()
-                           if name.casefold() in record.party)
+                           if name.casefold() in party and (not late or counts[name.casefold()] == 1))
         elif scope == "all":
             allowed.update(identity["names"])
             event = record.event
@@ -389,6 +403,9 @@ class CombatSession:
         summary["scope"] = scope
         summary["warning"] = ("Waiting for your player identity. Enter your character name before Start; nearby players are excluded until you or party members are identified."
                               if self.records and not groups and scope != "all" else None)
+        summary["party_roster_late"] = scope == "party" and any(self._late_roster(r) for g in chosen for r in g["records"])
+        if summary["party_roster_late"]:
+            summary["warning"] = "Party roster arrived late; earlier matching effects are included. Earlier membership is unverified; Self still requires your player identity."
         summary["history_discarded"] = self.discarded
         return summary
 
@@ -475,7 +492,8 @@ class CombatSession:
             party_members = [reference(a) for a in sorted(members)]
             expected = set().union(*(set(r.party) for r in group["records"]))
             known = {identity["names"].get(a, "").casefold() for a in members}
-            roster_complete = (scope == "party" and expected <= known and bool(members)
+            roster_late = scope == "party" and any(self._late_roster(r) for r in group["records"])
+            roster_complete = (scope == "party" and expected <= known and bool(expected) and bool(members) and not roster_late
                                and len({r.party for r in group["records"]}) == 1)
             health = []
             # Preserve the latest pre-pull HP evidence, bounded to 30 seconds.
@@ -516,7 +534,7 @@ class CombatSession:
                     "run_start_observed":run.get("start_observed",False),
                     "run_started_at":datetime.fromtimestamp(run["started_at"]/1000,timezone.utc).isoformat() if run.get("started_at") is not None else None,
                     "run_ended_at":datetime.fromtimestamp(run["ended_at"]/1000,timezone.utc).isoformat() if run.get("ended_at") is not None else None,
-                    "party_members":party_members, "party_roster_complete":roster_complete,
+                    "party_members":party_members, "party_roster_complete":roster_complete, "party_roster_late":roster_late,
                     "run_end_reason":run.get("end_reason", ""), "map_id":run.get("map_id",0),
                     "instance_id":run.get("instance_id",0), "encounter_type":category,
                     "id": group["id"], "label": bosses[0]["name"] if bosses else f"Combat {index+1}",

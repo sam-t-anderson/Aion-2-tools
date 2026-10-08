@@ -10,6 +10,7 @@ DECODER = "a2tools-python-v1"
 COUNTERS = ("discarded_effects", "discarded_segments", "discarded_telemetry",
             "validation_discarded", "tcp_discarded_payloads", "tcp_unresolved_flows", "capture_errors", "pcap_dropped", "pcap_if_dropped")
 LABELS = {
+    "party_roster_late": "The first party roster arrived after combat; earlier party membership is unverified.",
     "storage_boundary": "This archive part crosses a storage boundary; full fight/run completeness is not established.",
     "missing_metadata": "Record the game build, difficulty and encounter category.",
     "unverified_category": "The encounter category has not been identified.",
@@ -35,6 +36,8 @@ def assess(doc, segment):
     reasons = []
     if capture.get("storage_boundary") is True:
         reasons.append("storage_boundary")
+    if segment.get("party_roster_late") is True:
+        reasons.append("party_roster_late")
     kind = segment.get("encounter_type") or meta.get("encounter_type") or "unknown"
     if not all(segment.get(k) or meta.get(k) for k in ("game_patch", "difficulty")):
         reasons.append("missing_metadata")
