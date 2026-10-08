@@ -13,7 +13,7 @@ CLASSES = {"gladiator", "templar", "assassin", "ranger", "sorcerer", "spiritmast
 CRYSTALS = {"Nezekan", "Zikel", "Vaizel", "Triniel"}
 MAX_BYTES = 128 * 1024
 NOTE = ("Entered equipment/stat contributions and Genus lines are assumptions. Source profile stats are not recalculated or verified. "
-        "The existing damage model evaluates the selected allocation with its default class priority; no allocation, supporting effect or rotation is optimized. "
+        "The neutral, uncalibrated damage model evaluates the selected allocation with its default class priority; no allocation, supporting effect or rotation is optimized. "
         "This is not a community ranking, survival guarantee or competitive PvP prediction.")
 
 
@@ -128,6 +128,12 @@ def normalize(doc):
 
 
 def evaluate(doc):
+    from .learn import uncalibrated
+    with uncalibrated():
+        return _evaluate(doc)
+
+
+def _evaluate(doc):
     build, loadout, genus = normalize(doc)
     from .opt.genus import apply
     from .run import simulate
@@ -141,8 +147,10 @@ def evaluate(doc):
         if not math.isfinite(result.dps):
             raise ValueError("Evaluation produced non-finite damage")
         scores[name] = {"dps": result.dps, "shares": result.shares()}
-    from .model.stats import CALIBRATION
-    calibration = dict(CALIBRATION)
+    from .model.stats import CALIBRATION, CRIT_X0
+    from .sim.engine import SKILL_MULT
+    calibration = {"rates": dict(CALIBRATION), "crit_midpoint": CRIT_X0, "skill_multipliers": dict(SKILL_MULT),
+                   "basis": "Neutral model; personal/community learned calibration excluded"}
     identity = {"calibration": calibration, "class": build.cls, "level": build.level, "mode": doc["mode"], "build": doc["build"], "budgets": doc["budgets"], "loadout": loadout, "genus": genus}
     digest = hashlib.sha256(json.dumps(identity, sort_keys=True, allow_nan=False).encode()).hexdigest()
     return {"format": "a2build-evaluation", "version": 1, "evaluator": __version__, "input_sha256": digest,
