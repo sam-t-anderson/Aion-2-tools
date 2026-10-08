@@ -15,7 +15,7 @@ LIMIT = 100
 def revision():
     from ..meter.a2parser.engine import OPEN_WORLD_MAPS
     tables = {key: _table(key, "en") for key in ("npcs", "dungeons")}
-    tables.update(open_world_maps=sorted(OPEN_WORLD_MAPS), pvp_maps=PVP_MAPS, coverage_rules=4)
+    tables.update(open_world_maps=sorted(OPEN_WORLD_MAPS), pvp_maps=PVP_MAPS, coverage_rules=5)
     return hashlib.sha256(json.dumps(tables, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:16]
 
 
@@ -74,7 +74,9 @@ def coverage(segment):
     if map_id and map_id not in OPEN_WORLD_MAPS and map_id not in PVP_MAPS and not (map_id == instance and dungeon):
         rows.append({"kind": "map", "code": map_id, "entity_count": 0, "effects": 0})
     rows.sort(key=lambda r: (r["kind"], r["code"]))
-    return {"catalog_revision": revision(), "catalog_source": source(), "map_id": map_id, "instance_id": instance,
+    from ..meter.context import classify
+    classification = segment.get("classification") or classify(map_id, instance, str(segment.get("encounter_type") or "").startswith("pvp_"), candidates)["classification"]
+    return {"classification":classification, "catalog_revision": revision(), "catalog_source": source(), "map_id": map_id, "instance_id": instance,
             "catalog_zone": dungeon.get("name"), "catalog_difficulty": dungeon.get("difficulty"),
             "unmapped": rows[:LIMIT], "omitted": max(0, len(rows)-LIMIT),
             "npc_entities_without_type": len(missing_rows),
@@ -83,4 +85,4 @@ def coverage(segment):
             "note": "Unmapped means absent from this bundled catalog, not a verified new creature or zone. "
                     "Actor references without an NPC type are session-local, not reusable NPC catalog IDs. "
                     "They cannot be named reliably. Counts describe retained records, not unique kills. "
-                    "Names, difficulty, category and game build are never guessed from damage or ID patterns."}
+                    "Context suggestions use explicit NPC catalog category/tier fields only. Names, difficulty, category and game build are never guessed from damage or ID patterns."}

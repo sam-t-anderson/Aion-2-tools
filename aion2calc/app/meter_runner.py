@@ -380,7 +380,7 @@ class Runner:
                 scope, collector = self.scope, self.capture_metadata
             detached.capture_evidence["storage_boundary"] = True
             detached.finish_run("storage_rollover", complete=False)
-            title = f"Live combat session {self.archive_id[:8]} · Part {self.archive_part}"
+            title = f"Live combat session {self.archive_id[:8]} Â· Part {self.archive_part}"
             try:
                 document = detached.to_a2log(scope, title)
             except NoIdentifiedPlayerData:
@@ -564,8 +564,9 @@ class Runner:
             diagnostic["elapsed"] = round(time.monotonic() - self.started_at, 1) if self.started_at else 0
         from ..meter.context import classify
         from ..combat.catalog import coverage
-        catalog = coverage({**current, "entities": [dict(e, id=e["key"], kind="enemy") for e in snap.get("enemies", [])]})
-        context = classify(current.get("map_id"), current.get("instance_id"), snap.get("recorded_pvp", False))
+        context = classify(current.get("map_id"), current.get("instance_id"), snap.get("recorded_pvp", False),
+                           [dict(e, kind="enemy") for e in snap.get("enemies", [])])
+        catalog = coverage({**current, **context, "entities": [dict(e, id=e["key"], kind="enemy") for e in snap.get("enemies", [])]})
         self._last_display_diagnostics = {"automatic_context": context, "catalog_coverage": catalog, "at": time.time()}
         return {"running": self.running, "finalizing": finalizing, "source": self.source_name, "error": self.error,
                 "combine_pets": self.combine_pets, "installation_locked": installation_locked,
@@ -664,7 +665,7 @@ class Runner:
             archive = (self._archive_metadata(session) if isinstance(session, CombatSession)
                        else {"id":self.archive_id, "part":self.archive_part, "closed":False})
         if isinstance(session, CombatSession) and not title:
-            title = f"Live combat session {archive['id'][:8]} · Part {archive['part']}"
+            title = f"Live combat session {archive['id'][:8]} Â· Part {archive['part']}"
         doc = session.to_a2log(scope, title) if isinstance(session, CombatSession) else session.to_a2log(title=title)
         if isinstance(session, CombatSession):
             doc["meta"]["archive"] = archive

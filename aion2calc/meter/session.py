@@ -701,7 +701,7 @@ class CombatSession:
                 if run.get("map_id") not in OPEN_WORLD_MAPS:
                     category = "pvp_other" if group["pvp"] else "pve_unverified"
                 from .context import classify
-                context = classify(run.get("map_id"), run.get("instance_id"), group["pvp"])
+                context = classify(run.get("map_id"), run.get("instance_id"), group["pvp"], entities.values())
                 category = context.get("encounter_type", category)
                 entry = run.get("started_at") if run.get("start_observed") else run.get("recorded_entry")
                 run_evidence = {"version":1, "token":run["recording_token"], "origin_sequence":run["origin_sequence"]}
