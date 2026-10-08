@@ -710,3 +710,9 @@ Fresh draft and personal planner budgets load the highest available server-repor
 Skill, class and crafting icons are bundled from the URLs already referenced by their catalogs. `game-assets.json` records source URLs and retrieval metadata; game artwork belongs to its owners. Official character portraits/items use their recorded source URLs. Unmapped boss portraits use the AION emblem beside the recorded boss name until an ID-backed portrait is available.
 
 Boss portraits are independently joined by numeric NPC ID and exact English name agreement against the existing catalog. The snapshot adds 197 portraits for 1,321 known boss-category NPC IDs. Role classification is unchanged, and unknown portraits keep the emblem placeholder. Provenance is recorded in game-assets.json.
+
+### Automatic image collection
+
+The repository asset-refresh workflow checks published source references daily and after class/NPC catalog changes. It can also be dispatched for an observed build, optionally refetching existing image URLs. Skill and item references retain their source namespaces and IDs; NPC portraits require agreement with the reviewed catalog. Collection produces a pull request and explicitly dispatches the existing CI gates. It does not merge itself or execute downloaded scripts. Upstream NPC/dungeon changes are staged as a diff audit, so new IDs and gameplay roles can be reviewed before promotion. Timestamp-only changes do not create another snapshot.
+
+An observed build is collection context, not proof that a community database applies to that build. If a provider changes its schema, an image fails, the pending collection branch conflicts, or repository permissions forbid automated pull requests, the workflow fails and preserves the published snapshot. GitHub Actions must be allowed to create pull requests for automatic publication of the review branch.
