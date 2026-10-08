@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.78
+
+- Missing-image reports now include validated displayed asset references where available: region-scoped official IDs, catalog item slugs and skill IDs remain separate.
+- Added **Export image failures** to desktop/Pages log and character-build views, with download feedback.
+- Reports expose retention/truncation limits and omit full URLs, portraits, character names, stats and credentials. This identifies failures for investigation; it does not create trusted mappings or retrieve missing artwork.
+
 # Aion 2 Calc 0.2.77
 
 - Added a pinned encounter-catalog refresh command that stages NPC/dungeon tables with schema checks, hashes and an ID-change audit for release review.
