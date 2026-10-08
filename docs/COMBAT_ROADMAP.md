@@ -320,3 +320,7 @@ Live status retains enemy references without NPC types and excludes identified p
 ### Mid-instance late party roster
 
 Party view now reconciles earlier retained effects with uniquely named members of the first roster observed within the same identity epoch. Later roster changes do not rewrite it. App/overlay explain this evidence, and affected saved encounters remain unranked with incomplete earlier roster coverage. Self and unnamed members still require supported identity/name records; no actor is inferred from damage or class. Missing identity variants and representative early-entry captures remain pending.
+
+### Automatic partial mid-instance metrics
+
+Automatic view falls back to observed players when local identity is unavailable, preserving unnamed actor metrics without assigning a character or party. Partial evidence is exported and blocks ranking and server learning. Instance entry remains required for a complete run. Remaining: supported local-identity variants and representative entry-to-completion captures.

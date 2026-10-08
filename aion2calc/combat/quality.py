@@ -10,6 +10,7 @@ DECODER = "a2tools-python-v1"
 COUNTERS = ("discarded_effects", "discarded_segments", "discarded_telemetry",
             "validation_discarded", "tcp_discarded_payloads", "tcp_unresolved_flows", "capture_errors", "pcap_dropped", "pcap_if_dropped")
 LABELS = {
+    "partial_capture": "Partial capture: instance entry or player membership was not established; metrics are descriptive only.",
     "party_roster_late": "The first party roster arrived after combat; earlier party membership is unverified.",
     "storage_boundary": "This archive part crosses a storage boundary; full fight/run completeness is not established.",
     "missing_metadata": "Record the game build, difficulty and encounter category.",
@@ -34,6 +35,10 @@ def assess(doc, segment):
     meta = doc.get("meta") or {}
     capture = meta.get("capture_quality") or {}
     reasons = []
+    if (segment.get("partial_capture") is True
+            or bool(segment.get("instance_id")) and segment.get("run_start_observed") is False
+            or meta.get("capture_scope") == "all"):
+        reasons.append("partial_capture")
     if capture.get("storage_boundary") is True:
         reasons.append("storage_boundary")
     if segment.get("party_roster_late") is True:

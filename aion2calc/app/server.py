@@ -275,6 +275,8 @@ def act_encounter_import(body: dict, log) -> dict:
     try:
         from .. import learn
         learn.update(eid)
+        if enc.get("meta", {}).get("learning_excluded"):
+            log("Partial capture saved for review; excluded from optimizer calibration.")
     except Exception as err:                  # learning never blocks an import
         log(f"not used for calibration: {err}")
     log("analyzing")
@@ -701,7 +703,7 @@ class Handler(BaseHTTPRequestHandler):
                                           auto_port=body.get("auto_port", body.get("source", "a2tools") == "a2tools"),
                                           record_packets=bool(body.get("record_packets")),
                                           character_name=body.get("character_name"),
-                                          scope=body.get("scope", "party"), segment_gap=body.get("segment_gap", 10),
+                                          scope=body.get("scope", "auto"), segment_gap=body.get("segment_gap", 10),
                                           automatic_splits=body.get("automatic_splits", True),
                                           auto_finish=body.get("auto_finish",True), final_boss_ids=body.get("final_boss_ids",[]),
                                           target_mode=body.get("target_mode", "bossTargets")))

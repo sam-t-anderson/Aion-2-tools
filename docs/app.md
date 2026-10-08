@@ -567,3 +567,9 @@ The report retains up to 200 failed resources and eight distinct references per 
 Combat effects can arrive before the first party roster or your identity record. Party view reconciles earlier retained effects against the first roster observed in the same identity context when actor names match. App and overlay show those readings with a late-roster notice; the affected encounters remain unranked because earlier membership is unverified. Later joins/disbands do not rewrite the initial roster. Players without a matching name remain unresolved.
 
 Self requires a recorded local identity or the optional exact character-name override. If you start mid-instance, enter your character name before Start when automatic identity is unavailable. Nearby damage is never used to guess which actor is you. Raw TCP recording is optional and does not control combat decoding.
+
+### Partial mid-dungeon metrics
+
+You can start Live Meter inside a dungeon. The default **Automatic · allow partial metrics** view shows observed players when your local identity is missing. Unknown names remain actor numbers; nearby players may be included, and this does not identify you or confirm party membership. Self + Party and Self only remain available as stricter filters.
+
+Partial captures show recorded damage, skill breakdowns, healing and incoming effects where their actors can be resolved, in both the app and overlay. Missing packets cannot be reconstructed. Runs without observed entry, or captures using observed-player fallback, stay unranked and are excluded from community learning on the updated server. Saving, reviewing and uploading these logs remains available.

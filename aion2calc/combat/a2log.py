@@ -124,7 +124,7 @@ _segment_properties = SCHEMA["properties"]["segments"]["items"]["properties"]
 _segment_properties.update({
     "run_id":{"type":"string"}, "run_complete":{"type":"boolean"}, "run_end_reason":{"type":"string"},
     "run_start_observed":{"type":"boolean"}, "run_started_at":{"type":"string"}, "run_ended_at":{"type":"string"},
-    "party_members":{"type":"array", "maxItems":64, "items":{"type":"string"}}, "party_roster_complete":{"type":"boolean"}, "party_roster_late":{"type":"boolean"},
+    "party_members":{"type":"array", "maxItems":64, "items":{"type":"string"}}, "party_roster_complete":{"type":"boolean"}, "party_roster_late":{"type":"boolean"}, "partial_capture":{"type":"boolean"},
     "instance_id":{"type":"integer"}, "map_id":{"type":"integer"},
     "zone_source":{"type":"string"}, "encounter_type_source":{"type":"string"}, "difficulty_source":{"type":"string"},
     "game_patch": {"type": "string"}, "game_patch_source": {"type": "string"}, "game_patch_basis": {"type": "string"}, "difficulty": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
@@ -343,7 +343,7 @@ def validate(doc) -> dict:
                 out_segs[-1][key] = s[key][:200]
         if isinstance(s.get("run_complete"),bool):
             out_segs[-1]["run_complete"] = s["run_complete"]
-        for key in ("run_start_observed", "party_roster_complete", "party_roster_late"):
+        for key in ("run_start_observed", "party_roster_complete", "party_roster_late", "partial_capture"):
             if isinstance(s.get(key),bool):
                 out_segs[-1][key] = s[key]
         if isinstance(s.get("party_members"),list):
@@ -400,7 +400,8 @@ def from_encounter(enc: dict, source: str = "aion2calc", stats: dict | None = No
             "players": [{"id": pid, "name": m.get("player") or "player", "class": m.get("class"),
                          "combat_power": m.get("combat_power"), "specs": specs, "stats": stats or {}}],
             "segments": [{"label": m.get("target"), "boss": m.get("target"), "duration": m.get("duration") or 1.0,
-                          "killed": bool(m.get("boss_killed")), "hits": hits, "buffs": buffs}]}
+                          "killed": bool(m.get("boss_killed")), "hits": hits, "buffs": buffs,
+                          "partial_capture":m.get("learning_excluded") is True}]}
 
 
 def to_encounter(doc: dict, player_id: str, segment: int = 0) -> dict:
@@ -438,6 +439,10 @@ def to_encounter(doc: dict, player_id: str, segment: int = 0) -> dict:
     enc = {"meta": {"source": "a2log", "player": p["name"], "class": p.get("class"), "target": seg.get("boss") or
                     seg.get("label"), "duration": seg["duration"], "combat_power": p.get("combat_power")},
            "hits": hits, "buffs": buffs, "specs": {}}
+    from .quality import assess
+    excluded = {"partial_capture", "party_roster_late"}.intersection(assess(doc, seg)["reasons"])
+    enc["meta"]["learning_excluded"] = bool(excluded)
+    enc["meta"]["learning_exclusion_reasons"] = sorted(excluded)
     enc = normalize(enc)
     enc["specs"] = {k: ", ".join(map(str, v)) for k, v in (p.get("specs") or {}).items() if v}
     return enc
