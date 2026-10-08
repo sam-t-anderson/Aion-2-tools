@@ -1711,7 +1711,7 @@ async function route() {
   if(buildWorkspaceView){buildWorkspaceView.dispose();buildWorkspaceView=null;}
   if(eventTimerView){eventTimerView.dispose();eventTimerView=null;}
   const page = (location.hash.replace(/^#\//, "") || "planner").split("/")[0];
-  app().classList.toggle("workspace-wide", page === "crafting" || page === "builds");
+  app().classList.toggle("workspace-wide", page === "crafting" || page === "builds" || page === "maps");
   $$(".nav a").forEach((a) => a.classList.toggle("on", a.dataset.page === (page === "combat-log" ? "combat" : page)));
   if(page!=="combat-log" && S.combat.review){S.combat.review.dispose();S.combat.review=null;}
   try {

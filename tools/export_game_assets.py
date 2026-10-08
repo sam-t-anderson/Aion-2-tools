@@ -16,6 +16,7 @@ build=json.loads((root/'build-catalog.json').read_text(encoding='utf-8'))
 craft=json.loads((root/'crafting-catalog.json').read_text(encoding='utf-8'))
 urls={s['icon'] for c in build['classes'].values() for s in c['skills'] if s['icon']}
 urls|={s['icon'] for s in craft['items'].values() if s['icon']}
+urls|={s['icon'] for s in build.get('items',[]) if s.get('icon','').startswith('https://metabot.gg/web/aion2/items/')}
 urls|={'https://metabot.gg/web/aion2/classes/'+c+'.webp' for c in build['classes']}
 references={}
 for c in build['classes'].values():
@@ -23,6 +24,9 @@ for c in build['classes'].values():
   if skill['icon']:references['metabot:skill:'+str(skill['id'])]={'namespace':'metabot','kind':'skill','id':str(skill['id']),'url':skill['icon']}
 for key,item in craft['items'].items():
  if item['icon']:references['gamers4life:item:'+key]={'namespace':'gamers4life','kind':'item','id':key,'url':item['icon']}
+for item in build.get('items',[]):
+ if item.get('icon','').startswith('https://metabot.gg/web/aion2/items/'):
+  references['metabot:item-slug:'+item['slug']]={'namespace':'metabot','kind':'item-slug','id':item['slug'],'url':item['icon']}
 if args.additional:
  import re
  extra=json.loads(args.additional.read_text(encoding='utf-8'))

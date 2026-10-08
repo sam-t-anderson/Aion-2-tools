@@ -115,17 +115,14 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 Record from before entering the instance when possible; include the full encounter and completion. Preserve the ordinary saved combat log as well as a diagnostic ZIP, the app version, selected installation/build, character/server, known difficulty and observed outcome. For protocol investigations, enable TCP payload recording before Start; for checkbox-specific issues, provide a separate unchecked capture with its capture counters. Partial captures are still useful when labeled accurately. Supply explicit in-game observations or source records for new boss roles, Genus lines, crafting rules and timer scope.
 
-## Latest workspace and asset agenda
+## Build workspace and asset collection
 
-- Separate active skills, passives, stigmas, Daevanion, equipment, arcana, pantheon and Genus into build section tabs. Preserve imported source details separately from entered model contributions.
-- Display source-backed game assets in builds, crafting and community boss/class summaries, with visible placeholders and source attribution when unavailable.
-- Use highest available server-reported skill, stigma and Daevanion totals, show observation scope, and remove silent personal-planner budget presets. Audit the common comparison policy separately before regenerating shared presets.
-- Order combat-log tabs: Community Combat Logs, My Uploads, Saved Logs; put boss icons immediately before boss names.
+**Available:** section tabs for skills, passives, stigmas, Daevanion, equipment, arcana, Pantheon and Genus. Budgets appear in the relevant allocation sections. Equipment uses inventory-slot tiles with source-linked catalog item images and enhancement choices; arcana uses separate card slots. Pantheon shows editable modeled deity contributions and read-only recorded totals. Model inputs and official source snapshots remain distinct.
 
-Delivered in the current workspace iteration: section tabs and manual Genus editor; bounded component input sections; 702 catalog-referenced icons bundled with provenance; personal planner/server-observation budget wiring; Community/My Uploads/Saved Logs order. Still pending: official-source Pantheon/arcana allocation editors, NPC-ID-backed boss portrait catalog, and shared preset comparison-scope migration to observed server budgets.
+Highest available server-reported skill, stigma and Daevanion totals supply personal planning and comparison scopes; reports are observations, not verified progression maxima. Combat log tabs are Community Combat Logs, My Uploads and Saved Logs. Boss portraits accompany boss names and progression; repeated portraits beside session-opening buttons are omitted.
 
-Asset follow-up: 1,321 existing boss-category NPC IDs now have portraits from 197 unmodified source icons, accepted only when ID and English name both match the bundled catalog. This does not change boss roles, difficulty or version inference. Shared presets now support server-observed budget scopes; existing seeds are reevaluated, while fresh optimization uses the matching published policy.
+Scheduled collection tracks source-ID image mappings, revisions and hashes. Community source slugs remain separate from numeric game IDs. Unknown NPC IDs and role changes are staged in a catalog audit; collection context does not establish current-build applicability. New snapshots open review PRs. Automatic merging remains disabled pending explicit repository-wide authorization.
 
-## Automatic asset refresh agenda
+**Remaining:** verified in-game Pantheon node/allocation data and artwork, official Genus allocations, current-build item rules and fresh optimization under new comparison scopes. Catalog equipment selection currently includes fixed stats and listed enhancement bonuses; random rolls require separately entered contributions. Imported aggregate contributions must be removed when replacing them with individual gear to avoid overlap.
 
-Collect new skill, item, class and NPC image references from their published source IDs when catalogs change and on scheduled refresh. Keep namespaces separate, record source revisions/hashes and observation context, and refresh the website/application snapshot through a reviewable pull request. Unknown/new NPC IDs and role changes remain staged in the upstream catalog audit until reviewed. A collection triggered by an installed build does not prove that a community source snapshot applies to that build.
+Crafting, Build Workspace and embedded maps use the available horizontal display space, with layouts that collapse on smaller screens.

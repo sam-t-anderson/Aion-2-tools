@@ -716,3 +716,9 @@ Boss portraits are independently joined by numeric NPC ID and exact English name
 The repository asset-refresh workflow checks published source references daily and after class/NPC catalog changes. It can also be dispatched for an observed build, optionally refetching existing image URLs. Skill and item references retain their source namespaces and IDs; NPC portraits require agreement with the reviewed catalog. Collection produces a pull request and explicitly dispatches the existing CI gates. It does not merge itself or execute downloaded scripts. Upstream NPC/dungeon changes are staged as a diff audit, so new IDs and gameplay roles can be reviewed before promotion. Timestamp-only changes do not create another snapshot.
 
 An observed build is collection context, not proof that a community database applies to that build. If a provider changes its schema, an image fails, the pending collection branch conflicts, or repository permissions forbid automated pull requests, the workflow fails and preserves the published snapshot. GitHub Actions must be allowed to create pull requests for automatic publication of the review branch.
+
+### Visual build editing
+
+Build budgets appear with their skill, stigma or Daevanion allocations. Equipment and arcana use inventory-slot selection with catalog icons and enhancement choices. Catalog selections apply fixed stats and listed enchantment bonuses; imported aggregate contributions and random rolls need explicit review to avoid overlap. Pantheon tiles edit modeled deity contributions, while recorded profile totals remain read-only. The current catalog does not reconstruct the in-game Pantheon node board.
+
+The Maps, Crafting and Build Workspace views expand with the available browser/window width.

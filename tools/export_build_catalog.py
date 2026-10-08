@@ -31,6 +31,27 @@ for p in sorted((root/'aion2calc/data/global/classes').glob('*.json')):
 payload={'version':1,'classes':classes,'skill_cost':SP_COST,'stigma_cost':STIGMA_COST,
  'spec_slot_levels':SPEC_SLOT_LEVELS,'crystal_boards':['Nezekan','Zikel','Vaizel','Triniel'],
  'note':'Bundled class catalog and planner rules; not independently verified against the current installed game build. Entered point totals and bonus levels are assumptions. Catalog validation is not server/game verification.'}
+# Reuse the simulator's bundled item rules; source slugs are not numeric game IDs.
+import gzip
+from dataclasses import fields
+from aion2calc.model.stats import Stats
+from aion2calc.plan import items as I
+from aion2calc.plan.pantheon import DEITIES
+allowed={f.name for f in fields(Stats)}-{'level','pvp','skill_bonus'}
+items=[]
+for entry in json.loads(gzip.decompress((root/'aion2calc/data/seed/items.json.gz').read_bytes())):
+ item=entry['data'];category=item.get('category')
+ if category not in {v for values in I.SLOTS.values() for v in values}|set(I.WEAPON.values()):continue
+ levels=[]
+ for level in range(min(20,I.max_enchant(item))+1):
+  stats=I.item_stats(item,level,mode='none')
+  levels.append({k:v for k,v in stats.items() if k in allowed and v>=0})
+ items.append({'slug':item['slug'],'name':item.get('name',item['slug']),'icon':item.get('icon',''),'category':category,'grade':item.get('grade',''),'required_level':int((I._numbers(item.get('meta',{}).get('Required Level','0')) or [0])[0]),'levels':levels})
+payload['items']=sorted(items,key=lambda x:x['slug'])
+payload['equipment_slots']=I.SLOTS
+payload['class_weapons']=I.WEAPON
+payload['deities']=[{'name':name,'field':field} for name,field in DEITIES]
+payload['item_note']='Bundled catalog fixed stats and listed cumulative enchant bonuses only; random rolls, ownership, current-build applicability and unsupported defensive effects are not inferred. Source slugs remain separate from numeric game IDs.'
 payload['revision']=hashlib.sha256(json.dumps(payload,sort_keys=True).encode()).hexdigest()
 (root/'aion2calc/app/static/build-catalog.json').write_text(json.dumps(payload,ensure_ascii=False,separators=(',',':'))+'\n',encoding='utf-8')
 
