@@ -1,3 +1,9 @@
+## Zone actor identity and pet ownership (0.2.93)
+
+- Reset zone-scoped player IDs, names, roster, NPC state and pet ownership at an observed idle zone transition before decoding the new zone's identities. Preserve earlier encounters in session history.
+- Resolve name-based pet owner fields only when one current actor matches. Explicit owner IDs remain supported; ambiguous names are not merged.
+- Prevent old player IDs from attracting pets in a later dungeon and appearing as extra team-member rows. Previously saved logs are not rewritten.
+
 ## Overlay metric rows (0.2.92)
 
 - Hide overlay rows with zero recorded amount in the selected DPS, HPS or D.Taken metric. Retain their effects in other tabs and saved logs.

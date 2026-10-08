@@ -607,3 +607,6 @@ Connecting submitted ranges do not establish authentic or loss-free packet captu
 ### Overlay rows with matching names
 
 Each overlay tab hides actors with no recorded amount in that metric. A damage-only actor can disappear on HPS and reappear on DPS; this does not remove recorded effects. If different combat actor IDs share a name, the overlay displays their IDs below the name. They remain separate until supported identity or ownership records resolve them. Include a diagnostic ZIP from that capture when reporting repeated nonzero rows.
+
+
+At an observed idle zone transition, live actor IDs and pet ownership are reset before the new zone's identity records are read. Earlier encounters retain their own identities. A name-only pet owner field must match exactly one current actor; ambiguous matches remain unresolved. If the new zone has not yet supplied your identity or roster, its metrics show partial-capture status until those records arrive. Already saved logs retain their recorded attribution.
