@@ -130,8 +130,10 @@ class CombatSession:
         if attempt:
             if boss is not None:
                 attempt["bosses"].add(boss)
+            if event.actor_id in members and not event.is_dot:
+                attempt["dead"].discard(event.actor_id)
             if event.actor_id in allowed or event.target_id in allowed:
-                attempt["last_activity"] = event.timestamp_ms
+                attempt["last_activity"] = max(attempt["last_activity"], event.timestamp_ms)
 
     def finish_run(self, reason="manual", complete=True, timestamp_ms=None):
         if not any(r.run == self.run for r in self.records) or self.run_closed:
