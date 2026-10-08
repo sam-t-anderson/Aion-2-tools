@@ -312,3 +312,7 @@ The pinned catalog refresh command stages all localized NPC/dungeon tables with 
 ### Community timed-boss observations
 
 Server uploads index observed catalog-boss defeat markers after recorded roster engagement, with build, region, map/instance and timestamp evidence. The private dashboard and public feed show latest observations. Desktop/Pages now share a collapsible PvE feed with build/region filters, local boss search and source-log links. Exact indexed encounter duplicates count once; separate perspectives can still repeat a fight. Remaining: verified timed/world-boss roles, physical server/channel scope, independent regional respawn rules, perspective-level deduplication and meaningful availability estimates. Current availability and respawn time remain unknown; a last recorded defeat does not establish that a boss is currently alive.
+
+### Missing NPC identity diagnostics
+
+Live status retains enemy references without NPC types and excludes identified players/owned pets. Mapping exports and reviewed logs list bounded session actor references and retained effect counts separately from unmapped catalog IDs. This corrects the previous misleading zero count; it adds no inferred NPC names or roles. Remaining: supported spawn variants or earlier capture evidence for these actors, verified NPC type mappings, boss roles and portraits. Updated server processing is needed for new detail fields in online reports.

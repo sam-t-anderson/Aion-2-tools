@@ -485,7 +485,7 @@ class Runner:
             diagnostic["elapsed"] = round(time.monotonic() - self.started_at, 1) if self.started_at else 0
         from ..meter.context import classify
         from ..combat.catalog import coverage
-        catalog = coverage({**current, "entities": [dict(e, id=e["key"], kind="enemy") for e in snap.get("enemies", []) if e.get("mob_code")]})
+        catalog = coverage({**current, "entities": [dict(e, id=e["key"], kind="enemy") for e in snap.get("enemies", [])]})
         context = classify(current.get("map_id"), current.get("instance_id"), snap.get("recorded_pvp", False))
         self._last_display_diagnostics = {"automatic_context": context, "catalog_coverage": catalog, "at": time.time()}
         return {"running": self.running, "source": self.source_name, "error": self.error,
