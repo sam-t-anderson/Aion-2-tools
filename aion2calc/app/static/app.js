@@ -1081,11 +1081,12 @@ async function pageMeter() {
   refreshNpcap();
   $("#mstart").onclick = async () => {
     const button = $("#mstart");
+    if(st.captureBusy || st.finalizing)return;
     if (st.running) {
-      button.disabled = true;
+      st.captureBusy = true; button.disabled = true;
       try { $("#mnotice").textContent = "Stopping capture and saving logs…"; const result = await api("/api/meter", {action: "stop"}); renderMeter(result); $("#mnotice").textContent = result.diagnostics?.log_save_error ? "Capture stopped, but log saving failed: " + result.diagnostics.log_save_error : result.saved_log ? "Capture stopped. Session saved to " + result.saved_log : "Capture stopped. No session file was saved; check Combat Logs and capture diagnostics."; toast($("#mnotice").textContent, 6000); }
       catch (e) { $("#mnotice").textContent = e.message; }
-      finally { button.disabled = false; }
+      finally { st.captureBusy = false; button.disabled = !!st.finalizing; }
       return;
     }
     const source = $("#msrc").value;
@@ -1116,9 +1117,9 @@ async function pageMeter() {
       port: source !== "replay" ? (+$("#mport").value || 50349) : null,
       target_mode: "allTargets",
       character_name: source === "a2tools" ? ($("#mchar").value || null) : null };
-    button.disabled = true;
+    st.captureBusy = true; button.disabled = true;
     try { st.pinnedSegment = ""; renderMeter(await api("/api/meter", body)); $("#mnotice").textContent = "Capture started. Waiting for combat data."; toast("Capture started"); } catch (e) { $("#mnotice").textContent = e.message; }
-    finally { button.disabled = false; }
+    finally { st.captureBusy = false; button.disabled = !!st.finalizing; }
   };
   renderDiagnosticExport(st.diagnosticExport);
   $("#mdiagfolder").onclick = async () => {
@@ -1199,14 +1200,15 @@ function renderMeter(s) {
   if($("#mcombinepets")) $("#mcombinepets").checked=s.combine_pets!==false;
   if($('#minstall')) $('#minstall').disabled = !!s.installation_locked;
   if($("#mautometa")) { const m=s.automatic_metadata || {}; $("#mautometa").textContent = `Installed game build: ${m.installed_build || m.status || "unavailable"}${m.installed_build_source ? " ("+m.installed_build_source+")" : ""}. Comparison build: ${m.game_patch ? (m.installed_build || m.game_patch) : "unavailable"}. Automatic region: ${m.region || (m.region_status === "ready" ? "waiting for recorded server ID" : m.region_status) || "unavailable"}. Zone: ${(s.automatic_context || {}).zone || "not identified"}. Content: ${(s.automatic_context || {}).encounter_type || "not identified"}. Difficulty: ${(s.automatic_context || {}).difficulty || "not identified"}. Map / instance IDs: ${s.catalog_coverage?.map_id || "not recorded"} / ${s.catalog_coverage?.instance_id || "not recorded"}. ${s.catalog_coverage?.unmapped?.length || 0} unmapped catalog IDs and ${s.catalog_coverage?.npc_entities_without_type || 0} enemy references without an NPC type in this view (included in diagnostics). ${m.reason ? m.reason+" " : ""}Build numbers identify comparison groups; launcher namespaces remain separate.`; }
-  const st = S.meter; st.running = !!s.running;
+  const st = S.meter; st.running = !!s.running; st.finalizing = !!s.finalizing;
   if($("#mrun") && s.run)$("#mrun").textContent=`Run ${s.run.id} · ${s.run.closed?"finished/boundary recorded; waiting for next fight":"recording"}${s.run.end_reason?" · "+s.run.end_reason:""}`;
   if (s.diagnostic_export) st.diagnosticExport = s.diagnostic_export;
   renderDiagnosticExport(st.diagnosticExport);
   if ($("#mdiagerror")) $("#mdiagerror").textContent = [s.recording?.error ? `TCP recording stopped writing: ${s.recording.error}. ${s.recording.discarded_records || 0} records were not saved. Free disk space and export the retained data.` : "", s.diagnostics?.archive_deferred || "", s.diagnostics?.archive_error ? `Could not save diagnostic ZIP: ${s.diagnostics.archive_error}. Use Export capture diagnostics to retry before starting another capture.` : "", s.diagnostics?.recording_cleanup_error ? `Raw diagnostic cleanup failed: ${s.diagnostics.recording_cleanup_error}. The raw file remains in the diagnostics folder.` : ""].filter(Boolean).join(" ");
   const button = $("#mstart");
   if (button) {
-    button.textContent = st.running ? "Stop" : "Start";
+    button.disabled = !!st.captureBusy || !!s.finalizing;
+    button.textContent = s.finalizing ? "Saving…" : st.running ? "Stop" : "Start";
     button.classList.toggle("danger", st.running);
     button.classList.toggle("primary", !st.running);
     button.setAttribute("aria-pressed", String(st.running));
@@ -1218,8 +1220,8 @@ function renderMeter(s) {
     st.reviewLoading=true;st.reviewAt=Date.now();
     api("/api/meter/log").then(doc=>{const target=$("#mlog-review");if(!target)return;if(st.liveReviewRoot!==target){if(st.liveReview)st.liveReview.dispose();st.liveReview=A2CombatReview.mount(target,doc,{...localReviewOptions(),live:true});st.liveReviewRoot=target;}else st.liveReview.update(doc);}).catch(()=>{}).finally(()=>{st.reviewLoading=false;});
   }
-  const record = $("#mrecord"); if (record) record.disabled = st.running;
-  if ($("#mclear")) $("#mclear").disabled = st.running;
+  const record = $("#mrecord"); if (record) record.disabled = st.running || !!s.finalizing;
+  if ($("#mclear")) $("#mclear").disabled = st.running || !!s.finalizing;
   const recordStatus = $("#mrecordstatus");
   if (recordStatus) recordStatus.textContent = s.recording?.enabled ? `${s.recording.records || 0} TCP payload records · ${((s.recording.disk_bytes || 0)/1048576).toFixed(1)} MiB on disk · no record limit` : "Raw TCP recording is off · not required for live combat capture";
   const snap = s.snapshot || { players: [] }, msg = $("#mmsg");
@@ -1233,13 +1235,14 @@ function renderMeter(s) {
     $('#mdriverstats').textContent+=` Capture stage: ${stages[d.pipeline.stage]||d.pipeline.stage}. Payload packets ${d.payload_packets||0}; forwarded chunks ${d.forwarded||0}; decoded effects ${d.decoded_events||0}; visible players ${d.pipeline.visible_players||0}. This summarizes retained counters, not proof of current activity. Raw payload recording is optional.`;
   }
   if($('#mdriverstats')) $('#mdriverstats').textContent+=` Last forwarded game data: ${d.last_packet_age_seconds==null?'not observed':d.last_packet_age_seconds.toFixed(1)+'s ago'}. Last decoded effect: ${d.last_combat_age_seconds==null?'not observed':d.last_combat_age_seconds.toFixed(1)+'s ago'}. Idle time alone does not establish a capture failure.`;
+  if($('#mdriverstats') && d.capture_processing){const p=d.capture_processing,n=k=>p[k]==null?'not recorded':n0(p[k]);$('#mdriverstats').textContent+=` Session processing: ${n('decoder_errors')} decoder failures; ${n('shutdown_discarded_payloads')} shutdown payload discards; ${n('shutdown_drained_payloads')} payloads retained during shutdown. Legacy error/discard count ${n('capture_errors')} overlaps these counters.`;}
   const selector = $("#msegments");
   if (selector && snap.segments && document.activeElement !== selector) {
     const options = `<option value="">Latest combat</option><option value="all">Whole session</option>` + snap.segments.map((segment) => `<option value="${esc(segment.id)}">${esc(segment.label)} · ${new Date(segment.start).toLocaleTimeString()} · ${segment.duration.toFixed(1)}s</option>`).join("");
     if (selector.innerHTML !== options) selector.innerHTML = options;
     selector.value = st.pinnedSegment || (snap.selected_segment === "all" ? "all" : "");
   }
-  if (msg) { if (s.error) msg.textContent = s.error; else { const d = s.diagnostics || {}; msg.textContent = s.running ? `${s.snapshot?.paused ? "Paused DPS · capture continues" : "Recording"} · ${d.packets || 0} TCP packets · ${d.decoded_events || 0} combat events${d.tcp_stream_resets ? ' · '+d.tcp_stream_resets+' lossy TCP recovery boundaries (capture incomplete)' : ''}${d.port ? " · port " + d.port : d.auto_port ? " · detecting game port" : ""}${d.pcap_dropped || d.pcap_if_dropped ? " · Capture drops detected; data may be incomplete (see diagnostics)" : ""}` : "Stopped"; } }
+  if (msg) { if (s.error) msg.textContent = s.error; else { const d = s.diagnostics || {}; msg.textContent = s.finalizing ? "Saving stopped capture and diagnostics…" : s.running && d.state==='stopping' ? "Stopping capture · decoding queued payloads before saving…" : s.running ? `${s.snapshot?.paused ? "Paused DPS · capture continues" : "Recording"} · ${d.packets || 0} TCP packets · ${d.decoded_events || 0} combat events${d.tcp_stream_resets ? ' · '+d.tcp_stream_resets+' lossy TCP recovery boundaries (capture incomplete)' : ''}${d.port ? " · port " + d.port : d.auto_port ? " · detecting game port" : ""}${d.pcap_dropped || d.pcap_if_dropped ? " · Capture drops detected; data may be incomplete (see diagnostics)" : ""}` : "Stopped"; } }
   const view = $("#mview"); if (!view) return;
   if (!snap.players.length) {
     st.lastMeterRender = null;

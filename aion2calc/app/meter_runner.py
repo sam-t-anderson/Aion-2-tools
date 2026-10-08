@@ -49,6 +49,7 @@ class Runner:
         self._stop = False
         self.replay_stop = threading.Event()
         self.lock = threading.Lock()
+        self._lifecycle_lock = threading.RLock()
         self.session = CombatSession()
         self.metadata = {}
         self.capture_metadata = None
@@ -62,6 +63,10 @@ class Runner:
         self.archive_part = 1
 
     def start(self, source: str = "replay", **opts) -> dict:
+        with self._lifecycle_lock:
+            return self._start(source, **opts)
+
+    def _start(self, source: str, **opts) -> dict:
         self.stop()
         with self.lock:
             self.meter = Meter()
@@ -140,6 +145,8 @@ class Runner:
             return self.status()
         decoder = opts.get("custom_decoder")
         self.packet_engine = None if decoder else PacketMeterEngine()
+        for key in ("capture_errors", "decoder_errors", "shutdown_discarded_payloads", "shutdown_drained_payloads"):
+            self.session.capture_evidence.setdefault(key, 0)
         self._capture_loss_baseline = {k:self.session.capture_evidence.get(k, 0) for k in CAPTURE_COUNTERS}
         if self.session.capture_evidence.get("tcp_pending_bytes", 0):
             self._capture_loss_baseline["tcp_unresolved_flows"] += 1
@@ -157,7 +164,8 @@ class Runner:
         self.packet_queue = queue.Queue()
         self.running = True
         self.diagnostics = {"state": "starting", "packets": 0, "bytes": 0, "decoded_events": 0,
-                            "auto_port": bool(opts.get("auto_port", decoder is None)), "port": None}
+                            "auto_port": bool(opts.get("auto_port", decoder is None)), "port": None,
+                            "shutdown_drained_payloads": 0, "shutdown_discarded_payloads": 0, "decoder_errors": 0}
         self.thread = threading.Thread(target=self._run_a2tools,
                                        args=(iface, port, host, decoder, self.diagnostics["auto_port"]),
                                        daemon=True, name="a2tools-meter")
@@ -171,12 +179,23 @@ class Runner:
             target=capture_packets, args=(stop_event, packets, iface, port, None, host, auto_port, self.recorder),
             daemon=True, name="a2tools-capture")
         self.packet_capture_thread.start()
+        shutdown_deadline = None
         try:
-            while not stop_event.is_set():
+            while True:
+                if stop_event.is_set():
+                    if shutdown_deadline is None:
+                        shutdown_deadline = time.monotonic() + 5.0
+                        self.diagnostics["state"] = "stopping"
+                    if time.monotonic() >= shutdown_deadline:
+                        self.diagnostics["shutdown_drain_timed_out"] = True
+                        break
                 try:
-                    item = packets.get(timeout=0.5)
+                    item = packets.get(timeout=0.25 if shutdown_deadline is not None else 0.5)
                 except queue.Empty:
-                    self._checkpoint_session()
+                    if stop_event.is_set() and not self.packet_capture_thread.is_alive():
+                        break
+                    if shutdown_deadline is None:
+                        self._checkpoint_session()
                     continue
                 kind, *data = item
                 if kind == "packet":
@@ -184,19 +203,16 @@ class Runner:
                     before_run = (self.session.run, self.session.run_closed)
                     with self.lock:
                         self._last_packet_at = time.monotonic()
-                        if engine is not None:
-                            events = engine.consume(payload, timestamp_ms, stream)
-                            self.session.observe(engine, events, timestamp_ms=timestamp_ms)
-                        else:
-                            events = list(decoder.feed(payload))
-                            for event in events:
-                                self.meter.add(event)
+                        events = self._decode_packet(engine, decoder, stream, payload, timestamp_ms)
                         self.diagnostics["decoded_events"] += len(events)
+                        if stop_event.is_set():
+                            self.diagnostics["shutdown_drained_payloads"] += 1
+                            self.session.capture_evidence["shutdown_drained_payloads"] = self.session.capture_evidence.get("shutdown_drained_payloads", 0) + 1
                         if events:
                             self._last_combat_at = time.monotonic()
-                    if before_run != (self.session.run, self.session.run_closed):
+                    if not stop_event.is_set() and before_run != (self.session.run, self.session.run_closed):
                         self._save_session(active=True)
-                    if engine is not None:
+                    if engine is not None and not stop_event.is_set():
                         self._rollover_session()
                 elif kind == "stream_reset":
                     with self.lock:
@@ -206,19 +222,22 @@ class Runner:
                             self.segment_id = self.enemy_id = None
                 elif kind == "error":
                     self.error = str(data[0])
-                    break
+                    stop_event.set()
                 elif kind == "capture_started":
-                    self.diagnostics["state"] = "capturing"
+                    self.diagnostics["state"] = "stopping" if stop_event.is_set() else "capturing"
                 elif kind == "capture_stats":
                     with self.lock:
                         self._record_capture_stats(data[0])
+                        if stop_event.is_set():
+                            self.diagnostics["state"] = "stopping"
                         if engine is not None and data[0].get("port"):
                             engine.set_server_port(int(data[0]["port"]))
                 elif kind == "capture_stopped":
                     break
-                self._checkpoint_session()
+                if not stop_event.is_set():
+                    self._checkpoint_session()
         except Exception as exc:
-            self.error = f"Decoder failed: {type(exc).__name__}: {exc}"
+            self.error = self.error or f"Capture processing failed: {type(exc).__name__}: {exc}"
         finally:
             stop_event.set()
             if self.packet_capture_thread:
@@ -227,16 +246,45 @@ class Runner:
             with self.lock:
                 if self.error:
                     self.session.capture_evidence["capture_errors"] = self.session.capture_evidence.get("capture_errors", 0) + 1
-                # Drain final counters after the capture thread has stopped.
-                while not packets.empty():
-                    final = packets.get_nowait()
-                    if final[0] == "packet":
-                        self.session.capture_evidence["capture_errors"] = self.session.capture_evidence.get("capture_errors", 0) + 1
-                    if final[0] == "capture_stats":
-                        self._record_capture_stats(final[1])
-                self.diagnostics["state"] = "error" if self.error else "stopped"
-            self.running = False
-            self._archive_diagnostics()
+                self._discard_final_capture_items(packets)
+                self.running = bool(self.packet_capture_thread and self.packet_capture_thread.is_alive())
+                self.diagnostics["state"] = "stopping" if self.running else "error" if self.error else "stopped"
+            if not self.running:
+                self._archive_diagnostics()
+
+    def _decode_packet(self, engine, decoder, stream, payload, timestamp_ms):
+        # Caller holds the data lock; archive/save failures are not decoder errors.
+        try:
+            if engine is not None:
+                events = engine.consume(payload, timestamp_ms, stream)
+                self.session.observe(engine, events, timestamp_ms=timestamp_ms)
+            else:
+                events = list(decoder.feed(payload))
+                for event in events:
+                    self.meter.add(event)
+            return events
+        except Exception as exc:
+            self.error = f"Decoder failed: {type(exc).__name__}: {exc}"
+            self.diagnostics["decoder_errors"] += 1
+            self.session.capture_evidence["decoder_errors"] = self.session.capture_evidence.get("decoder_errors", 0) + 1
+            raise
+
+    def _discard_final_capture_items(self, packets):
+        # Caller holds the data lock. After an error/deadline, count actual
+        # abandoned payloads separately from decoder exceptions. The legacy
+        # capture_errors counter includes both, for older server versions.
+        while True:
+            try:
+                final = packets.get_nowait()
+            except queue.Empty:
+                break
+            if final[0] == "packet":
+                self.diagnostics["shutdown_discarded_payloads"] = self.diagnostics.get("shutdown_discarded_payloads", 0) + 1
+                for key in ("capture_errors", "shutdown_discarded_payloads"):
+                    self.session.capture_evidence[key] = self.session.capture_evidence.get(key, 0) + 1
+            elif final[0] == "capture_stats":
+                self._record_capture_stats(final[1])
+        self.diagnostics["capture_errors"] = self.session.capture_evidence.get("capture_errors", 0)
 
     def _record_capture_stats(self, stats):
         # Caller holds self.lock; final counters must also reach the visible diagnostics.
@@ -264,19 +312,30 @@ class Runner:
             self.running = False
 
     def stop(self) -> None:
+        with self._lifecycle_lock:
+            self._stop_capture()
+
+    def _stop_capture(self) -> None:
         self._stop = True
         self.replay_stop.set()
         if self.packet_stop:
             self.packet_stop.set()
         t = self.thread
         if t and t.is_alive():
-            t.join(timeout=3.0)
+            t.join(timeout=8.0)
         capture = self.packet_capture_thread
         if capture and capture.is_alive():
             capture.join(timeout=3.0)
+        unfinished = bool(t and t.is_alive() or capture and capture.is_alive())
+        if unfinished:
+            self.diagnostics["state"] = "stopping" if self.running else "saving"
+            raise TimeoutError("Capture is still shutting down. Wait, then press Stop again; export diagnostics if it remains stuck. A new capture cannot replace this worker.")
         self.running = False
+        with self.lock:
+            if self.packet_queue is not None:
+                self._discard_final_capture_items(self.packet_queue)
         if self.diagnostics:
-            self.diagnostics["state"] = "stopped"
+            self.diagnostics["state"] = "error" if self.error else "stopped"
         # Preserve the opted-in buffer before the next Start replaces it.
         # Repeated Stop/Quit calls must not create duplicate archives.
         self._archive_diagnostics()
@@ -413,6 +472,7 @@ class Runner:
             diagnostic["export_consistency"] = "locked" if acquired else "best_effort_decoder_busy"
             diagnostic["raw_recording_enabled"] = self.recorder is not None
             diagnostic["scope"] = self.scope
+            diagnostic["capture_processing"] = {k:self.session.capture_evidence.get(k) for k in ("capture_errors", "decoder_errors", "shutdown_discarded_payloads", "shutdown_drained_payloads")}
             diagnostic["retained_effects"] = len(self.session.records)
             diagnostic["retained_telemetry"] = len(self.session.telemetry)
             engine, collector = self.packet_engine, self.capture_metadata
@@ -448,13 +508,14 @@ class Runner:
         if not self.lock.acquire(timeout=0.5):
             raise TimeoutError("Capture data is busy; refresh will retry. Capture diagnostics can still be exported.")
         try:
+            finalizing = bool(not self.running and self.thread and self.thread.is_alive())
             snap = (self.session.snapshot(self.scope, None if follow_latest else self.segment_id,
                                           None if follow_latest else self.enemy_id, self.combine_pets)
                     if self.packet_engine is not None else self.meter.snapshot())
             if self.packet_engine is not None and not follow_latest:
                 self.enemy_id = snap.get("selected_enemy")
             if compact:
-                return {"running": self.running, "error": self.error,
+                return {"running": self.running, "finalizing": finalizing, "error": self.error,
                         "combine_pets": self.combine_pets, "snapshot": snap}
             current = dict(self.session.runs[self.session.run])
             run = {"id": self.session.run, "closed": self.session.run_closed, **current}
@@ -466,6 +527,7 @@ class Runner:
             collector = self.capture_metadata
             installation_locked = self.running or bool(self.session.records) or bool(self.meter.players)
             diagnostic = dict(self.diagnostics)
+            diagnostic["capture_processing"] = {k:self.session.capture_evidence.get(k) for k in ("capture_errors", "decoder_errors", "shutdown_discarded_payloads", "shutdown_drained_payloads")}
             now = time.monotonic()
             if self.source_name in ("a2tools", "live"):
                 if self.error:
@@ -502,7 +564,7 @@ class Runner:
         catalog = coverage({**current, "entities": [dict(e, id=e["key"], kind="enemy") for e in snap.get("enemies", [])]})
         context = classify(current.get("map_id"), current.get("instance_id"), snap.get("recorded_pvp", False))
         self._last_display_diagnostics = {"automatic_context": context, "catalog_coverage": catalog, "at": time.time()}
-        return {"running": self.running, "source": self.source_name, "error": self.error,
+        return {"running": self.running, "finalizing": finalizing, "source": self.source_name, "error": self.error,
                 "combine_pets": self.combine_pets, "installation_locked": installation_locked,
                 "automatic_context": context, "catalog_coverage": catalog,
                 "snapshot": snap, "diagnostics": diagnostic,
@@ -554,7 +616,11 @@ class Runner:
         return self.status()
 
     def clear_session(self) -> dict:
-        if self.running:
+        with self._lifecycle_lock:
+            return self._clear_session()
+
+    def _clear_session(self) -> dict:
+        if self.running or any(t and t.is_alive() for t in (self.thread, self.packet_capture_thread)):
             raise ValueError("Stop capture before clearing session history.")
         with self.lock:
             self.session = CombatSession()
