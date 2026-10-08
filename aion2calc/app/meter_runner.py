@@ -39,6 +39,8 @@ class Runner:
         self.recorder = None
         self.diagnostic_export = None
         self._exported_recorder = None
+        self._capture_generation = 0
+        self._exported_generation = -1
         self._diagnostic_lock = threading.Lock()
         self._session_save_lock = threading.Lock()
         self._last_checkpoint = 0.0
@@ -66,6 +68,8 @@ class Runner:
         self.error = None
         self._last_display_diagnostics = {}
         self.diagnostics = {}
+        self._capture_generation += 1
+        self.diagnostic_export = None
         from ..meter.diagnostics import Recorder
         if self.recorder is not None:
             try:
@@ -352,22 +356,23 @@ class Runner:
 
     def _archive_diagnostics(self) -> None:
         self._save_session(active=False)
-        if self.recorder is not None and self.recorder is not self._exported_recorder:
-            if self.recorder.snapshot(include_rows=False)[0]["records"]:
-                try:
-                    self.export_diagnostics()
-                except OSError as exc:
-                    self.diagnostics["archive_error"] = str(exc)
+        if self.started_at is not None:
+            try:
+                self.export_diagnostics()
+            except (OSError, ValueError, TypeError) as exc:
+                self.diagnostics["archive_error"] = f"{type(exc).__name__}: {exc}"
 
     def export_diagnostics(self) -> dict:
         with self._diagnostic_lock:
-            if self.recorder is not None and self.recorder is self._exported_recorder and self.diagnostic_export and not self.running:
+            if (self._exported_generation == self._capture_generation and self.diagnostic_export and not self.running
+                    and Path(self.diagnostic_export["file"]).is_file()):
                 return self.diagnostic_export
             from ..meter.diagnostics import export
             result = export(self.diagnostic_status(), self.recorder)
             self.diagnostic_export = result
             if not self.running:
                 self._exported_recorder = self.recorder
+                self._exported_generation = self._capture_generation
                 if self.recorder is not None:
                     try:
                         self.recorder.release(remove=True)

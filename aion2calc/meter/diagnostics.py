@@ -142,18 +142,34 @@ def export(status: dict, recorder: Recorder | None):
     # remain raw and may themselves contain identifying game/network information.
     metadata = {"app_version": __version__, "source": status.get("source"),
                 "running": status.get("running"), "error": status.get("error"),
-                "capture": status.get("diagnostics"),
+                "capture": status.get("diagnostics") or {},
                 "catalog_coverage": status.get("catalog_coverage"),
                 "automatic_context": status.get("automatic_context"),
                 "automatic_metadata": status.get("automatic_metadata")}
+    capture = metadata.get("capture") or {}
+    summary = (f"Aion 2 Calc {__version__} capture diagnostics\n"
+               f"Source: {metadata['source']}\nRunning: {metadata['running']}\n"
+               f"Capture state: {capture.get('state', 'unavailable')}\n"
+               f"Packets observed: {capture.get('packets', 'unavailable')}\n"
+               f"Payload packets: {capture.get('payload_packets', 'unavailable')}\n"
+               f"Decoded events: {capture.get('decoded_events', 'unavailable')}\n"
+               f"Retained effects: {capture.get('retained_effects', 'unavailable')}\n"
+               f"Retained telemetry: {capture.get('retained_telemetry', 'unavailable')}\n"
+               f"Capture error: {metadata['error'] or 'none reported'}\n"
+               f"Display error: {capture.get('status_error') or 'none reported'}\n"
+               f"Raw TCP recording: {'enabled' if recorder is not None else 'disabled; tcp-payloads.jsonl is intentionally empty'}\n"
+               "Read diagnostics.json for full counters and pipeline/status details.\n"
+               "This ZIP does not contain a decoded combat session or character-build snapshot.\n")
     partial = path.with_suffix(".zip.part")
     with zipfile.ZipFile(partial, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         if recorder:
             recording = recorder.archive_payloads(archive)
         else:
-            recording = {"records": 0}
+            recording = {"records": 0, "raw_recording_enabled": False}
             archive.writestr("tcp-payloads.jsonl", "")
+        recording["raw_recording_enabled"] = recorder is not None
         metadata["recording"] = recording
+        archive.writestr("capture-summary.txt", summary)
         archive.writestr("diagnostics.json", json.dumps(metadata, indent=2))
         archive.writestr("README.txt", "TCP payloads were recorded only if explicitly enabled before Start.\n"
                          "Live capture records the full session to disk without a record or size cap.\n"
@@ -161,7 +177,34 @@ def export(status: dict, recorder: Recorder | None):
                          "Raw payloads may contain character names, IP addresses and other network traffic.\n"
                          "Review before sharing. Nothing is uploaded automatically.\n"
                          "These are original TCP segments: use sequence numbers to reassemble each direction.\n")
+    # Verify small metadata entries before publishing; do not reread a potentially
+    # unlimited raw recording just to validate these required diagnostic files.
+    with zipfile.ZipFile(partial, "r") as archive:
+        for name in ("capture-summary.txt", "diagnostics.json", "README.txt"):
+            if archive.getinfo(name).file_size <= 0 or not archive.read(name):
+                raise OSError(f"Diagnostic export is missing nonempty {name}")
+        written = json.loads(archive.read("diagnostics.json"))
+        if not written.get("app_version") or not isinstance(written.get("capture"), dict):
+            raise OSError("Diagnostic export metadata validation failed")
     os.replace(partial, path)
     from urllib.parse import quote
-    return {"file": str(path), **recording,
+    return {"file": str(path), **recording, "size_bytes": path.stat().st_size,
+            "capture_packets": capture.get("packets"), "decoded_events": capture.get("decoded_events"),
+            "retained_effects": capture.get("retained_effects"),
+            "contents": ["capture-summary.txt", "diagnostics.json", "tcp-payloads.jsonl", "README.txt"],
             "download_url": "/api/meter/diagnostics?name=" + quote(path.name)}
+
+
+def open_folder():
+    """Open only the fixed local diagnostics folder; no user-supplied path."""
+    import subprocess
+    import sys
+    from ..paths import home
+    folder = home() / "diagnostics"
+    folder.mkdir(parents=True, exist_ok=True)
+    if sys.platform == "win32":
+        os.startfile(str(folder))
+    else:
+        subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(folder)],
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return {"folder": str(folder)}

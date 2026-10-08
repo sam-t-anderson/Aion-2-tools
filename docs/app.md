@@ -231,6 +231,13 @@ Use **Split now** for a manual encounter boundary or configure automatic splits.
 
 Raw TCP payload recording is optional and controls only the diagnostic payload file; leave it off for ordinary live combat capture. **Export capture diagnostics** still includes counters without raw data. The live capture details show payload packets, forwarded chunks, decoded effects and players visible under the selected filters. The ZIP also includes scope, retained-effect count, roster count and whether a local identity was observed. These cumulative indicators distinguish capture, flow detection, decoding and view filtering; idle time or zero visible players alone does not prove capture failed. When reporting an empty meter, export immediately after combat with the original settings.
 
+
+### Finding capture diagnostics
+
+**Export capture diagnostics** saves a ZIP on this computer while capture runs or after Stop. **Open diagnostics folder** opens its saved location. The ZIP always includes `capture-summary.txt` and `diagnostics.json` with capture state, counters and errors; the UI reports its size and observed/decoded counts. Required metadata entries are checked before publishing the ZIP. Stop also saves a metadata ZIP when TCP recording is off.
+
+With **Record TCP payloads** unchecked, `tcp-payloads.jsonl` is intentionally empty. The checkbox controls raw network recording, not capture counters or decoded combat processing. Diagnostic ZIPs do not contain a decoded combat session; use Combat Logs/export for that. Raw traffic, when enabled, may identify characters or network endpoints; review files before sharing.
+
 ## Overlay
 
 **Live Meter → Open overlay** opens one compact overlay that shows the live meter and plays your most
