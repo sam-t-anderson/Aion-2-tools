@@ -179,7 +179,7 @@ def _build_card(cd, summary: dict, build, policy, out: Path) -> None:
                       f"Combat Speed: {100 * st['combat_speed']:.1f}%   Cooldown Red.: {100 * st['cdr']:.1f}%",
                       f"DPS  {scen_name}: {dps[scen_name]:,.0f}   {other}: {dps[other]:,.0f}",
                       f"vs typical top build: {100 * (dps[scen_name] / base['community_optimized_rotation'] - 1):+.1f}%"
-                      " (same rotation optimizer)",
+                      + (" (unpaused reference)" if summary.get("action_timing") else " (same rotation optimizer)"),
                       f"macro execution: {100 * m['dps_macro'] / m['dps_priority']:.1f}% of ideal priority"]
         links = summary["links"]
         render_build_card(
@@ -229,16 +229,19 @@ def rerender(out_dir: str) -> str:
     summary["loadout"] = loadout
     lo = summary.get("loadout_snapshot") or load_loadout(loadout)
     build, policy = build_from_summary(summary)
+    from .opt.survival import with_action_timing
+    def saved_scenario(name):
+        return with_action_timing(SCENARIOS[name](lo), summary.get("survival"))
     (Path(out_dir) / "images").mkdir(parents=True, exist_ok=True)
     if "crit_sensitivity" not in summary:
-        summary["crit_sensitivity"] = crit_sensitivity(build, SCENARIOS[summary["scenario"]](lo), policy)
+        summary["crit_sensitivity"] = crit_sensitivity(build, saved_scenario(summary["scenario"]), policy)
         path.write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
     if ("kr_fidelity" not in summary or "arcana_rolls" not in summary
             or summary.get("macro", {}).get("model_version") != MODEL_VERSION):
-        dummy = SCENARIOS["dummy"](lo)
-        scen = SCENARIOS[summary["scenario"]](lo)
+        dummy = saved_scenario("dummy")
+        scen = saved_scenario(summary["scenario"])
         summary.setdefault("kr_fidelity", kr_share_overlap(cls, _sim(build, dummy, policy)[0].shares()))
-        summary.setdefault("arcana_rolls", arcana_roll_values(cls, build, SCENARIOS[summary["scenario"]](lo), policy))
+        summary.setdefault("arcana_rolls", arcana_roll_values(cls, build, saved_scenario(summary["scenario"]), policy))
         summary.pop("arcana_skill_values", None)
         if summary.get("macro", {}).get("model_version") != MODEL_VERSION:
             _, _, kit, stats = prepare(build, scen)
@@ -292,7 +295,7 @@ def sensitivity(build, scenario, policy, samples: int = 12, spread: float = 0.25
             r = optimize_rotation(stats.derived(), kit, scenario.target, scenario.config,
                                   start=[e for e in policy if not kit.actions[e[0] if isinstance(e, tuple) else e].is_filler],
                                   restarts=0, max_passes=3)
-            out.append({"fixed": fixed, "reoptimized": r.dps, "loss_pct": 100 * (1 - fixed / r.dps)})
+            out.append({"fixed": fixed, "reoptimized": r.dps, "loss_pct": 100 * (1 - fixed / r.dps) if r.dps > 0 else None})
     finally:
         if base_timing:
             mod.TIMING.update(base_timing)
@@ -316,6 +319,9 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     scen = SCENARIOS[scenario_name](frozen_loadout)
     other_name = comparison_scenario(scenario_name)
     other = SCENARIOS[other_name](frozen_loadout)
+    from .opt.survival import with_action_timing, action_timing_summary
+    baseline_scen, baseline_other = scen, other
+    scen, other = with_action_timing(scen, survival), with_action_timing(other, survival)
     cd = ClassData(cls)
 
     from .opt.weighted import optimizer_for, objective_summary
@@ -329,17 +335,19 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     # baseline: the typical top global build (live statistics) with the best legal
     # specs for its levels, played with the default priority and with an optimized rotation
     comm = typical_build(cls, sp_budget=opt.sp_budget, stigma_points=opt.stigma_points)
-    baseline_opt = (optimizer_for(cls, scen, other, objective, verbose=False)
-                    if (skill_reserves or {}).get("specs") else opt)
+    baseline_opt = (optimizer_for(cls, baseline_scen, baseline_other, objective, verbose=False)
+                    if (skill_reserves or {}).get("specs") or (survival or {}).get("action_windows") else opt)
     comm = baseline_opt.optimize_specs(comm, list(kit_module(cls, pvp=scen.target.is_player).build_kit(baseline_opt._with_gear(comm), cd).policy))
-    cd_, cb, ckit, cstats = prepare(comm, scen)
-    naive = Sim(cstats.derived(), ckit.actions, ckit.policy, scen.target, scen.config,
+    cd_, cb, ckit, cstats = prepare(comm, baseline_scen)
+    naive = Sim(cstats.derived(), ckit.actions, ckit.policy, baseline_scen.target, baseline_scen.config,
                 hooks=ckit.hooks, cond_mods=ckit.cond_mods).run()
-    comm_rot = optimize_rotation(cstats.derived(), ckit, scen.target, scen.config, restarts=2)
+    comm_rot = optimize_rotation(cstats.derived(), ckit, baseline_scen.target, baseline_scen.config, restarts=2)
 
     final, kit, stats = _sim(build, scen, policy)
     final_other, _, _ = _sim(build, other, policy)
-    comm_other, _, _ = _sim(comm, other, comm_rot.policy)
+    comm_other, _, _ = _sim(comm, baseline_other, comm_rot.policy)
+    if (survival or {}).get("action_windows") and (final.dps <= 0 or final_other.dps <= 0):
+        raise ValueError("No outgoing damage fits the action-time schedule; shorten or move the pauses")
     d = stats.derived()
     macro = plan_macro(d, kit, policy, scen.target, scen.config)
     sens = sensitivity(build, scen, policy, samples=8)
@@ -399,6 +407,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     summary["genus"] = assess_genus(genus, build, scen, policy)
     from .opt.survival import assessment
     summary["survival"] = assessment(cd, build, survival)
+    summary["action_timing"] = action_timing_summary(survival, {scenario_name: scen, other_name: other})
     from .opt.reserves import describe as describe_reserves
     summary["skill_reserves"] = describe_reserves(cd, opt._with_gear(build), skill_reserves)
     summary["arcana_rolls"] = arcana_roll_values(cls, build, scen, policy)
