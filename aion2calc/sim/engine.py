@@ -59,6 +59,7 @@ class SimConfig:
     quantize: bool = False         # round action times up to whole ticks
     chain_window: float = 3.0      # seconds before a chain skill resets
     action_blocks: tuple = ()     # explicit no-new-action intervals on the rotation clock
+    tactical_uses: tuple = ()     # (skill ID, assumed use start, effective cooldown)
 
 
 def action_blocks(values, duration):
@@ -81,6 +82,22 @@ def action_blocks(values, duration):
         else:
             merged.append((start, end))
     return tuple(merged)
+
+
+def tactical_uses(values, duration):
+    """Bounded explicit uses; repeated skill/start entries use the largest CD."""
+    if not isinstance(values, (tuple, list)) or len(values) > 32:
+        raise ValueError("Use a bounded list of tactical cooldown reservations")
+    uses = {}
+    for row in values:
+        if (not isinstance(row, (tuple, list)) or len(row) != 3 or type(row[0]) is not int or row[0] <= 0
+                or any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v)
+                       or not 0 <= v <= 3600 for v in row[1:])):
+            raise ValueError("Invalid tactical cooldown reservation")
+        sid, start, cooldown = row
+        if start < duration:
+            uses[(sid, float(start))] = max(uses.get((sid, float(start)), 0), float(cooldown))
+    return tuple((sid, start, cooldown) for (sid, start), cooldown in sorted(uses.items()))
 
 
 @dataclass
@@ -149,6 +166,22 @@ class Sim:
         self.buff_time: dict[str, float] = {}
         self.timeline: list[tuple[float, str]] = []
         self.action_blocks = action_blocks(self.cfg.action_blocks, self.cfg.duration)
+        self.tactical_uses = tactical_uses(self.cfg.tactical_uses, self.cfg.duration)
+        self._tactical_groups = {}
+        self._reservation_report = []
+        for sid, start, cooldown in self.tactical_uses:
+            matches = sorted(key for key, action in self.actions.items() if action.skill_id == sid)
+            groups = sorted({self.actions[key].group() for key in matches})
+            for group in groups:
+                uses = self._tactical_groups.setdefault(group, {})
+                uses[start] = max(uses.get(start, 0), cooldown)
+            self._reservation_report.append({"skill_id": sid, "start_s": start, "cooldown_s": cooldown,
+                                             "matched_actions": matches, "cooldown_groups": groups,
+                                             "status": "reserved" if groups else "no_modeled_action"})
+        for group, uses in self._tactical_groups.items():
+            ordered = sorted(uses.items())
+            if any(next_start+EPS < start+cooldown for (start, cooldown), (next_start, _) in zip(ordered, ordered[1:])):
+                raise ValueError(f"Tactical uses conflict in modeled cooldown group {group}; adjust starts or assumed cooldowns")
         self.total = 0.0
         self.mp_floor = self.mp
         self._ver = 0
@@ -332,7 +365,27 @@ class Sim:
     def mp_cost(self, a: Action) -> float:
         return a.mp * max(0.0, 1.0 - self.base.mp_cost_red)
 
+    def tactical_blocked(self, a: Action) -> bool:
+        """Keep a modeled cooldown group available for explicit assumed uses.
+
+        Fixed post-use exclusions are not shortened by modeled reset hooks.
+        Tactical damage, MP and on_cast callbacks are deliberately absent.
+        """
+        uses = self._tactical_groups.get(a.group(), {})
+        if not uses:
+            return False
+        modeled_cd = a.cooldown * max(0.0, 1.0 - (self.base.cdr if a.affected_by_cdr else 0.0))
+        for start, cooldown in uses.items():
+            if self.t < start-EPS:
+                if self.t + max(modeled_cd, cooldown) > start+EPS:
+                    return True
+            elif self.t < start+cooldown-EPS:
+                return True
+        return False
+
     def usable(self, a: Action) -> bool:
+        if self.tactical_blocked(a):
+            return False
         if self.action_blocks:
             end = self.t + self.action_time(a)
             if any(self.t < stop-EPS and end > start+EPS for start, stop in self.action_blocks):
@@ -401,13 +454,18 @@ class Sim:
                 idle += conflict-self.t
                 self._advance_to(conflict)
                 continue
+            if self.tactical_blocked(a):
+                until = min(T, self.t+0.05)
+                idle += until-self.t
+                self._advance_to(until)
+                continue
             dur = self.cast(a)
             self._advance_to(min(T, self.t + dur))
         # let already-scheduled damage inside the window land, ignore the rest
         self._advance_to(T)
         return SimResult(self.total, T, dict(self.damage_by), dict(self.hits_by),
                          dict(self.casts), {k: v / T for k, v in self.buff_time.items()},
-                         idle, self.mp_floor, list(self.timeline))
+                         idle, self.mp_floor, list(self.timeline), list(self._reservation_report))
 
 
 @dataclass
@@ -421,6 +479,7 @@ class SimResult:
     idle: float
     mp_floor: float
     timeline: list
+    action_reservations: list = field(default_factory=list)
 
     @property
     def dps(self) -> float:

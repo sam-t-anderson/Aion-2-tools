@@ -115,7 +115,7 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus:
         "objective": objective_summary(objective, scenario_name, other_name,
                                        {scenario_name: dps, other_name: res_other.dps},
                                        {scenario_name: scen.config.duration, other_name: other.config.duration}),
-        "action_timing": action_timing_summary(survival, {scenario_name: scen, other_name: other}),
+        "action_timing": action_timing_summary(survival, {scenario_name: scen, other_name: other}, {scenario_name: res, other_name: res_other}),
         "budgets": bud,
         "stats": {"attack_avg": d.attack(), "crit_stat": d.crit_stat,
                   "crit_chance_vs_target": crit_chance(d.crit_stat, scen.target.crit_resist, midpoint=1024.52 if scen.target.is_player else None),

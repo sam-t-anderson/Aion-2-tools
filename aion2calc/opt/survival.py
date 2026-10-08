@@ -141,7 +141,8 @@ ACTION_NOTE = ("Explicit no-new-offensive-action windows on the rotation clock, 
                "Linked active skills/stigmas and effects are allocation reserves, even for zero-duration or clipped-out windows. "
                "Entered effective cooldowns check assumed reuse separately in each damage scenario; blank remains unknown. "
                "Same-start entries represent one assumed use, and the largest entered cooldown for a skill applies. "
-               "No tactical skill is cast, no MP or tactical cooldown is consumed and no defensive success is inferred. "
+               "Reserve cooldown in rotation is optional and requires an entered cooldown. Matching modeled skill IDs and explicit cooldown groups are held before the assumed use, using the larger of modeled offensive cooldown and entered cooldown, and excluded until the entered cooldown expires afterward. "
+               "Modeled resets do not shorten this fixed exclusion; unmatched skills are reported. Cross-skill hooks and resource readiness are not verified, so an exclusion is not proof of tactical availability. No tactical damage, MP, shields, CC or success is inferred. "
                "Pressure scenarios have independent clocks; their windows are not automatically copied. Community baselines remain untimed references.")
 
 
@@ -155,9 +156,15 @@ def prepare_action_windows(cd, options):
             raise ValueError("Invalid outgoing action-time window")
         start = number(row.get("start_s"), "Action-time start", 3600)
         duration = number(row.get("duration_s"), "Action-time duration", 120)
+        link = window_requirement(cd, row, action=True)
+        reserve = row.get("reserve_cooldown", False)
+        if type(reserve) is not bool:
+            raise ValueError("Reserve cooldown in rotation must be true or false")
+        if reserve and (link["skill_id"] is None or link["cooldown_s"] is None):
+            raise ValueError("Link a skill and enter an assumed effective cooldown before reserving it in rotation")
         windows.append({"name": str(row.get("name") or "Tactical time")[:100],
                         "start_s": start, "duration_s": duration, "end_s": start+duration,
-                        **window_requirement(cd, row, action=True)})
+                        **link, "reserve_cooldown": reserve})
     return windows
 
 
@@ -167,21 +174,27 @@ def with_action_timing(scenario, plan):
     windows = (plan or {}).get("action_windows", [])
     if not windows:
         return scenario
-    cooldown_checks(windows, action_duration=scenario.config.duration)
+    checks = cooldown_checks(windows, action_duration=scenario.config.duration)
     blocks = action_blocks(tuple(scenario.config.action_blocks) + tuple((w["start_s"], w["end_s"]) for w in windows),
                            scenario.config.duration)
     if sum(end-start for start, end in blocks) >= scenario.config.duration-1e-9:
         raise ValueError("Action-time windows cover the entire damage scenario; leave time for offensive actions")
-    return replace(scenario, config=replace(scenario.config, action_blocks=blocks))
+    from ..sim.engine import tactical_uses
+    cooldowns = {c["skill_id"]: c["cooldown_s"] for c in checks}
+    uses = tactical_uses(tuple(scenario.config.tactical_uses) + tuple(
+        (w["skill_id"], w["start_s"], cooldowns[w["skill_id"]]) for w in windows
+        if w.get("reserve_cooldown") and w["duration_s"] > 0), scenario.config.duration)
+    return replace(scenario, config=replace(scenario.config, action_blocks=blocks, tactical_uses=uses))
 
 
-def action_timing_summary(plan, scenarios):
+def action_timing_summary(plan, scenarios, results=None):
     if not (plan or {}).get("action_windows"):
         return None
     return {"note": ACTION_NOTE, "windows": plan["action_windows"], "cases": {
         name: {"duration_s": scenario.config.duration, "blocks": list(scenario.config.action_blocks),
                "paused_s": sum(end-start for start, end in scenario.config.action_blocks),
-               "cooldown_checks": cooldown_checks(plan["action_windows"], action_duration=scenario.config.duration)}
+               "cooldown_checks": cooldown_checks(plan["action_windows"], action_duration=scenario.config.duration),
+               "rotation_reservations": getattr((results or {}).get(name), "action_reservations", [])}
         for name, scenario in scenarios.items()}}
 
 
@@ -248,7 +261,7 @@ def prepare(cd, current, options=None):
     available = node_hp(cd, {nid for nid, (_, node) in cd.node_index.items() if node.get("type") != "Start"})
     if floor > available+1e-6:
         raise ValueError(f"Requested crystal HP reserve {floor:,.0f} exceeds the catalog's total {available:,.0f}, even before point/connectivity costs. Lower the reserve or incoming-damage assumptions.")
-    return {"version": 7, "action_windows": windows, "action_timing_note": ACTION_NOTE, "preserve_hp": preserve, "reference_node_hp": reference,
+    return {"version": 8, "action_windows": windows, "action_timing_note": ACTION_NOTE, "preserve_hp": preserve, "reference_node_hp": reference,
             "minimum_node_hp": max(0, floor), "current_hp": hp, "opponents": rows, "note": NOTE}
 
 

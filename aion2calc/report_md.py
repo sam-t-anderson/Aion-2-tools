@@ -43,6 +43,8 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         for row in timing["windows"]:
             name = row["name"].replace("\n", " ")
             w(f"- {name}: {row['start_s']:g}–{row['end_s']:g}s.\n")
+            if row.get("reserve_cooldown"):
+                w("  Rotation cooldown reservation requested.\n")
             req = row.get("skill_requirement")
             if req:
                 w(f"  Requested retention: {req['name']} (trained minimum {req['minimum']})" +
@@ -61,6 +63,11 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
                 reuse = "no repeated assumed use" if gap is None else f"shortest reuse gap {gap:g}s"
                 mixed = "; largest of differing cooldown assumptions used" if check["mixed_assumptions"] else ""
                 w(f"  - {check['skill']}: starts {starts}; {status}; {reuse}{mixed}.\n")
+            for row in case.get("rotation_reservations", []):
+                status = ("Reserved in modeled groups " + ", ".join(row["cooldown_groups"]) +
+                          "; matching actions: " + ", ".join(row["matched_actions"]) if row["status"] == "reserved" else
+                          "Unavailable: no matching modeled action; no rotation cooldown reserved")
+                w(f"  - Skill #{row['skill_id']}: assumed use {row['start_s']:g}s; entered cooldown {row['cooldown_s']:g}s; {status}.\n")
     if s.get("survival"):
         hp = s["survival"]
         w("## HP reserve\n")
