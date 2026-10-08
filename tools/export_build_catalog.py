@@ -46,12 +46,19 @@ for entry in json.loads(gzip.decompress((root/'aion2calc/data/seed/items.json.gz
  for level in range(min(20,I.max_enchant(item))+1):
   stats=I.item_stats(item,level,mode='none')
   levels.append({k:v for k,v in stats.items() if k in allowed and v>=0})
- items.append({'slug':item['slug'],'name':item.get('name',item['slug']),'icon':item.get('icon',''),'category':category,'grade':item.get('grade',''),'required_level':int((I._numbers(item.get('meta',{}).get('Required Level','0')) or [0])[0]),'levels':levels})
+ rolls=[]
+ for option in I.roll_options(item) if I.roll_count(item) else []:
+  numbers=[abs(n) for n in I._numbers(option['range'])]
+  low,high=min(numbers),max(numbers)
+  unit=I._label_value(option['stat'],'1'+('%' if '%' in option['range'] else ''),False)
+  rolls.append({'stat':option['stat'],'range':option['range'],'min':low,'max':high,
+                'unit':{k:v for k,v in unit.items() if k in allowed and v>=0}})
+ items.append({'roll_count':min(20,I.roll_count(item)),'roll_options':rolls,'slug':item['slug'],'name':item.get('name',item['slug']),'icon':item.get('icon',''),'category':category,'grade':item.get('grade',''),'required_level':int((I._numbers(item.get('meta',{}).get('Required Level','0')) or [0])[0]),'levels':levels})
 payload['items']=sorted(items,key=lambda x:x['slug'])
 payload['equipment_slots']=I.SLOTS
 payload['class_weapons']=I.WEAPON
 payload['deities']=[{'name':name,'field':field} for name,field in DEITIES]
-payload['item_note']='Bundled catalog fixed stats and listed cumulative enchant bonuses only; random rolls, ownership, current-build applicability and unsupported defensive effects are not inferred. Source slugs remain separate from numeric game IDs.'
+payload['item_note']='Bundled catalog fixed stats and listed cumulative enchant bonuses only; Random roll choices use the bundled source pool/ranges and entered values; ownership, current-build applicability and unsupported defensive effects are not inferred. Source slugs remain separate from numeric game IDs.'
 payload['revision']=hashlib.sha256(json.dumps(payload,sort_keys=True).encode()).hexdigest()
 (root/'aion2calc/app/static/build-catalog.json').write_text(json.dumps(payload,ensure_ascii=False,separators=(',',':'))+'\n',encoding='utf-8')
 
