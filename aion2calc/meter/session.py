@@ -49,7 +49,7 @@ class CombatSession:
         self.discarded_telemetry = 0
         self.discarded_segments = 0
         self.capture_evidence = {}
-        self.gap_seconds = 10
+        self.gap_seconds = 120
         self._zone_reset = None
         self.automatic_splits = True
         self.pvp = False
@@ -289,13 +289,17 @@ class CombatSession:
                     groups[-1]["records"].append(record)
                     groups[-1]["end"] = max(groups[-1]["end"], event.timestamp_ms)
                 continue
+            outgoing = event.actor_id in allowed and event.target_id not in allowed
             if (not groups or groups[-1]["epoch"] != record.epoch or groups[-1]["split"] != record.split
                     or groups[-1]["pvp"] != pvp
-                    or (self.automatic_splits and event.timestamp_ms - groups[-1]["last_damage"] > self.gap_seconds * 1000)):
+                    or (self.automatic_splits and outgoing and event.timestamp_ms - groups[-1]["last_damage"] > self.gap_seconds * 1000)):
                 groups.append({"id": f"{record.epoch}-{event.timestamp_ms}-{record.sequence}", "epoch": record.epoch,
-                               "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "split": record.split, "run":record.run, "pvp":pvp, "records": []})
+                               "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "damage_start": None, "split": record.split, "run":record.run, "pvp":pvp, "records": []})
             group = groups[-1]
-            group["last_damage"] = max(group["last_damage"], event.timestamp_ms)
+            if outgoing:
+                if group["damage_start"] is None:
+                    group["damage_start"] = event.timestamp_ms
+                group["last_damage"] = max(group["last_damage"], event.timestamp_ms)
             group["end"] = max(group["end"], event.timestamp_ms)
             group["records"].append(record)
         deaths = [s for s in self.telemetry if s["kind"] == "death"]
@@ -316,7 +320,7 @@ class CombatSession:
 
     def _summary(self, groups, scope, enemy_id=None, combine_pets=True):
         players, enemies = {}, {}
-        durations = sum(max(1.0, (g["last_damage"] - g["start"]) / 1000) for g in groups)
+        durations = sum(max(1.0, (g["last_damage"] - (g["damage_start"] if g["damage_start"] is not None else g["start"])) / 1000) for g in groups)
         timeline = {}
         offset = 0
         for group in groups:
@@ -423,7 +427,7 @@ class CombatSession:
         summary["combine_pets"] = combine_pets
         summary["paused"] = bool(chosen and time.time() * 1000 - chosen[-1]["last_damage"] >= 2000)
         summary["recorded_pvp"] = bool(chosen and chosen[-1]["pvp"])
-        summary["dps_clock"] = "Recorded damage interval; healing after damage does not extend DPS time"
+        summary["dps_clock"] = "Shared first-to-last outgoing damage interval; idle time after the last hit does not lower DPS; deaths do not reset players"
         summary["boss"] = next((row["name"] for row in summary["enemies"] if row["key"] == enemy_id), "All enemies")
         summary["scope"] = scope
         summary["warning"] = ("Waiting for your player identity. Enter your character name before Start; nearby players are excluded until you or party members are identified."
