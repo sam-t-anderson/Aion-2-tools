@@ -388,6 +388,12 @@ Completed-run speed and Boss progression require supported evidence. Boss progre
 
 Planner's **Contribute community comparison** action generates an anonymous build with common gear and fixed comparison budgets for the selected class and mode. It first searches the two comparison scenarios, then refines their weighted objective and retains the highest independently evaluated score. The extra refinement takes longer; phase progress remains visible. Completed contributions are cached for the same scoring scope and search revision. They do not replace your personal saved build or use its Genus, HP or skill reserves. PvP comparisons remain experimental damage proxies.
 
+### Recorded boss defeats
+
+Expand **Recorded boss defeats** under **Combat Logs → Community Combat Logs** in PvE mode to view public defeat observations. Desktop and GitHub Pages share the same panel. The game-build and region filters apply; other combat-log filters do not. Search filters the displayed boss names/NPC IDs, and **Refresh boss observations** retrieves a new snapshot. **Open log** shows the source combat report.
+
+Rows show recorded defeat time in your local timezone, submitted defeat/party-observation counts, and how many recorded roster members engaged the boss. Exact duplicate encounters count once; separate perspectives can still repeat a defeat. Roster engagement is not kill credit. Broad catalog boss roles can include minibosses. Current availability, physical server/channel and respawn estimates remain unknown until independently verified; missing identity or death evidence cannot form an observation.
+
 ## Editing shared raid plans
 
 Publish stores a unique owner credential locally. Update published plan keeps the shared link; Publish new copy creates a separate publication. Export a Private ownership backup and keep it private. Import file restores that backup on another device. Refresh published plan obtains the current revision and replaces local edits, so export those first. Old publications without a saved ownership/delete credential need a new publication; author names do not grant editing access.

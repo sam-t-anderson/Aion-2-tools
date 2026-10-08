@@ -1,3 +1,9 @@
+# Aion 2 Calc 0.2.83
+
+- Desktop and GitHub Pages community combat logs now include a collapsible PvE **Recorded boss defeats** feed, with local boss/NPC search, build/region filtering, recorded defeat times, roster engagement and source-log links.
+- Loads on expansion, supports explicit refresh and rejects stale responses after filter or mode changes. Older/unavailable servers show a retry message without blocking other combat-log views.
+- Observations do not establish current availability, verified unique kills or timed-boss roles. Respawn times and physical server/channel remain unknown pending verified evidence. Requires a community server with the boss observation feed.
+
 # Aion 2 Calc 0.2.82
 
 - Fixed premature live-meter archive splits caused by unrelated nearby combat. The storage encounter counter now follows Self, Party and All-player relevance separately, preserving the existing archive size limits.
