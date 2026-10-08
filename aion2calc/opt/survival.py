@@ -108,13 +108,13 @@ def peak_trace_window(trace, window, factor):
     left, running, best, start = 0, 0.0, -1.0, 0.0
     for t, amount in events:
         running += amount
-        while events[left][0] < t-window:
+        while events[left][0] < t-window-1e-9:
             running -= events[left][1]
             left += 1
         if running > best:
             best = running
             start = min(max(0.0, t-window), trace["duration_s"]-window)
-    selected = [[min(window, max(0.0, t-start)), amount*factor] for t, amount in events if start <= t <= start+window]
+    selected = [[min(window, max(0.0, t-start)), amount*factor] for t, amount in events if start-1e-9 <= t <= start+window+1e-9]
     return start, {"version": 1, "duration_s": window,
                    "total": sum(e[1] for e in selected), "events": selected}
 
