@@ -185,20 +185,25 @@ def _run_overlay(window, api) -> None:
     if sys.platform == "win32":
         try:
             api._configure_windows()
-            win32 = _Windows()
         except Exception:
             _LOG.exception("Could not configure the native Windows overlay")
+        # Opacity/style setup must not disable foreground tracking.
+        try:
+            win32 = _Windows()
+        except Exception:
+            _LOG.exception("Could not initialize overlay foreground tracking")
     window.show()
     previous = None
     previous_hwnd = None
     visible = True
-    while not closed.wait(0.5):
+    while not closed.wait(0.25):
         if not win32:
             continue
         game = win32.game_window()
         hwnd = window.native.Handle.ToInt64()
-        # Wait visibly before the game starts; once attached, follow only the game.
-        should_show = game is None or (not game.minimized and
+        # Missing/inaccessible game windows must not leave a topmost meter on
+        # unrelated apps. Resume automatically once the game is recognized.
+        should_show = game is not None and (not game.minimized and
                       win32.user32.GetForegroundWindow() in (game.hwnd, hwnd))
         if visible != should_show:
             win32.user32.ShowWindow(hwnd, 4 if should_show else 0)  # no activation

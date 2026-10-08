@@ -37,6 +37,7 @@ class MeterEngine:
         self.known_players: set[int] = set()
         self.jobs: dict[int, str] = {}
         self.roster: dict[str, dict] = {}
+        self.roster_complete = False
         self.dungeon_id = 0
         self.healers: dict[int, ActorStats] = {}
         self.summons: set[int] = set()
@@ -214,6 +215,13 @@ class MeterEngine:
             roster = scan_party_roster(packet)
             if roster:
                 self._update_roster(*roster)
+            # Owner links can be bundled with combat/identity messages. Scanning
+            # only the compressed outer bytes misses these explicit links.
+            summons, links = scan_summon_links(packet, self.names, self.summons)
+            self.summons.update(summons)
+            self.summon_owners.update(links)
+            self.known_entities.update(summons)
+            self.known_entities.update(links.values())
         self._bind_named_character()
         events = list(decode_stream(complete, timestamp_ms, self.known_entities,
                                    self.seen_embedded_damage, self.seen_embedded_order,
@@ -331,6 +339,7 @@ class MeterEngine:
     def _update_roster(self, members: dict[str, dict], complete: bool, dungeon_id: int) -> None:
         """Apply a complete roster or merge the members from a partial decode."""
         self.dungeon_id = dungeon_id
+        self.roster_complete = complete
         if complete:
             self.roster = members
         else:

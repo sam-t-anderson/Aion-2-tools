@@ -1215,6 +1215,7 @@ function renderMeter(s) {
   }
   const who=s.identity;
   if($("#midentity"))$("#midentity").textContent=who?.id ? `${who.verified ? "Detected automatically" : "Matched name override"}: ${who.name || "Player #"+who.id}${who.serverId ? " · server "+who.serverId : ""} · combat entity #${who.id} (changes between instances)` : "Auto-detecting your character. Start before entering an instance or use the optional name override.";
+  if($("#midentity") && s.snapshot?.identity_status){const i=s.snapshot.identity_status;$("#midentity").textContent+=` Selected combat: ${i.self_identified?'Self identified':'Self identity not received'} · ${i.unnamed_actors} unnamed actors · ${i.linked_pets} linked pets. Unknown actors remain separate until identity/owner links arrive.`;}
   if($("#msaved"))$("#msaved").textContent=s.diagnostics?.log_save_error || ((s.diagnostics?.archive_parts_saved ? `${s.diagnostics.archive_parts_saved} earlier archive part(s) saved in Combat Logs. Live view/export contains the current part. ` : "") + (s.saved_log ? "Latest saved part: "+s.saved_log : "Current part checkpoints every 15 seconds and saves on Stop."));
   if(s.snapshot?.players?.length && $("#mlog-review") && !st.reviewLoading && Date.now()-(st.reviewAt || 0)>4000) {
     st.reviewLoading=true;st.reviewAt=Date.now();

@@ -4,7 +4,8 @@
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const kfmt = (x) => { if (x == null || isNaN(x)) return "—"; const a = Math.abs(x); return a >= 1e6 ? (x / 1e6).toFixed(2) + "M" : a >= 1e3 ? (x / 1e3).toFixed(2) + "K" : Math.round(x).toString(); };
-  let tab = "meter", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false, meterUnavailable = false, refreshError = "", lastSuccess = null;
+  let tab = "meter", metric = "dps", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false, meterUnavailable = false, refreshError = "", lastSuccess = null;
+  try { const saved=localStorage.getItem("ovmetric"); if(["dps","hps","taken"].includes(saved))metric=saved; } catch(e) { /* optional storage */ }
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
   const syncColors=()=>fetch("/api/ui").then(r=>r.json()).then(ui=>{if(ui.combat_colors)localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));}).catch(()=>{});
   syncColors();setInterval(syncColors,10000);
@@ -65,11 +66,20 @@
   }
   function renderMeter() {
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
+    $("#ovmetrics").hidden=false;
+    document.querySelectorAll("[data-metric]").forEach(b=>{b.classList.toggle("on",b.dataset.metric===metric);b.setAttribute("aria-pressed",String(b.dataset.metric===metric));});
     if(!$("#ovcombine").disabled) $("#ovcombine").checked=s.combine_pets!==false;
-    const mx = Math.max(...players.map((p) => p.dps || 0), 1);
-    const rows = players.slice(0, 8).map((p) => `<div class="ovrow"><span class="ovname" title="${esc(p.name)}${p.includes_pets?" · Includes linked pets":""}">${esc(p.name)}</span>
-        <div class="ovbar"><i style="width:${100 * (p.dps || 0) / mx}%;background:${A2CombatReview.color(p.class)}"></i><span>${kfmt(p.dps)}/s <span class="sub">${kfmt(p.damage)} · ${Math.round(100 * (p.share || 0))}%</span></span></div></div>`).join("");
-    $("#ovstatus").textContent = `Latest combat · ${snap.paused ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(snap.duration) || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)}/s`;
+    const amount=p=>Number(metric==="hps"?p.healing:metric==="taken"?p.incoming?.damage:p.damage)||0;
+    const rate=p=>Number(metric==="hps"?p.hps:metric==="taken"?p.dtps:p.dps)||0;
+    const total=players.reduce((n,p)=>n+amount(p),0), mx=Math.max(...players.map(rate),1);
+    const label=metric==="hps"?"HPS":metric==="taken"?"Damage taken/s":"DPS";
+    const rows = [...players].sort((a,b)=>rate(b)-rate(a)||amount(b)-amount(a)).slice(0, 8).map((p) => `<div class="ovrow"><span class="ovname" title="${esc(p.name)}${p.includes_pets?" · Includes linked pets":""}">${esc(p.name)}</span>
+        <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i style="width:${100 * rate(p) / mx}%;background:${A2CombatReview.color(p.class)}"></i><span>${kfmt(rate(p))}/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div></div>`).join("");
+    const duration=metric==="dps"?snap.duration:snap.recorded_duration;
+    $("#ovstatus").textContent = `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
+    const identity=snap.identity_status, missing=players.length>0&&identity&&(!identity.self_identified||identity.unnamed_actors>0);
+    $("#ovidentity").hidden=!missing;
+    $("#ovidentity").textContent=missing?`${identity.self_identified?"Self identified":"Self identity not received"} · ${identity.unnamed_actors} unnamed actors · ${identity.linked_pets} linked pets. Grouping needs recorded owner links.`:"";
     if(s.error) $("#ovstatus").textContent='Capture stopped: '+s.error;
     if(meterUnavailable) $("#ovstatus").textContent='Refresh failed · retrying';
     $("#ovstatus").title=$("#ovstatus").textContent;
@@ -79,6 +89,7 @@
     $("#ovcontent").innerHTML = (rows && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`);
   }
   function renderPlan() {
+    $("#ovmetrics").hidden=true;$("#ovidentity").hidden=true;
     $("#ovconnection").hidden=true;
     const p = latestPlan();
     if (!p) {
@@ -110,6 +121,11 @@
       if (tab === "meter") { renderMeter(); pollMeter(); } else renderPlan();
     };
   });
+  document.querySelectorAll("[data-metric]").forEach(button=>{button.onclick=()=>{
+    metric=button.dataset.metric;
+    try{localStorage.setItem("ovmetric",metric);}catch(e){/* optional storage */}
+    renderMeter();
+  };});
   async function pollMeter() {
     if (polling) return;
     polling = true;
