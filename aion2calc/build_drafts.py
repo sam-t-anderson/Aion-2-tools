@@ -24,7 +24,7 @@ def integer(value, low, high):
 def normalize(doc):
     if not isinstance(doc, dict) or len(json.dumps(doc, allow_nan=False).encode()) > MAX_BYTES:
         raise ValueError("Evaluation input must be an object under 128 KiB")
-    if doc.get("format") != "a2build" or doc.get("version") != 1 or (not isinstance(doc.get("class"), str) or doc["class"] not in CLASSES):
+    if doc.get("format") != "a2build" or not integer(doc.get("version"), 1, 1) or (not isinstance(doc.get("class"), str) or doc["class"] not in CLASSES):
         raise ValueError("Choose an a2build v1 draft with a known class")
     if not isinstance(doc.get("mode"), str) or doc["mode"] not in {"pve", "pvp"} or not integer(doc.get("level"), 1, 45):
         raise ValueError("Choose PvE/PvP and character level 1–45")
@@ -113,6 +113,8 @@ def normalize(doc):
     for component in loadout["components"]:
         if not isinstance(component, dict) or not isinstance(component.get("stats"), dict):
             raise ValueError("Each equipment component needs a stats object")
+        if component.get("source") == "manual-genus-insight":
+            continue  # Reapply the explicit Genus state once below.
         stats = component["stats"]
         if any(k not in numeric or type(v) not in (int, float) or not math.isfinite(v) or not 0 <= v <= (10 if k not in {"weapon_min", "weapon_max", "attack", "crit", "crit_atk", "pvp_atk", "pve_atk", "boss_atk", "front_atk", "back_atk", "pen", "accuracy", "mp_max", "mp_regen", "might", "precision", "destruction", "death", "wisdom", "justice", "time", "illusion", "freedom"} else 1000000) for k, v in stats.items()):
             raise ValueError("Unknown, negative or out-of-range stat; percentage stats use fractions")
