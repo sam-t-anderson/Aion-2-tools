@@ -296,6 +296,10 @@ In Saved Parts, **Show recording** groups the exact recorded archive ID. Desktop
 
 ## Combat-log review
 
+For a saved log with an archive ID, expand **Other parts of this recording** and select **Find recording parts**. The desktop searches saved parts on this computer; shared views list public available uploads on the selected server. Browse with Previous/Next and open a part on its own log page. The current PvE/PvP filter is retained. Private and unlisted sibling uploads require their own saved links or upload credentials.
+
+Part numbers may have gaps or duplicates, and archive IDs are submitted metadata. The browser does not merge totals, recover missing entry evidence or make incomplete parts eligible for rankings. **Recording checkpoint**, **Storage boundary saved** and **Saved part** describe storage state, not a verified clear.
+
 Combat Logs separates **Saved Parts**, **My Uploads** and **Community Combat Logs** on desktop and Pages. Desktop remembers the selected list tab while opening a focused log and returning; Pages preserves it while opening a local preview. Tabs hide their panels without resetting upload queues. Website Saved Parts means files selected from your computer, not direct access to the desktop archive directory. Arrow keys, Home and End navigate tabs.
 
 - Open saved, analyzed and shared logs in a focused detail view with **Back to combat logs**. History, upload queues and server settings stay on the list screen. Pages local previews use a temporary focused browser view; refresh requires reopening the file.

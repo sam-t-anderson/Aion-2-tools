@@ -786,7 +786,7 @@ const localReviewOptions=file=>({
  importPlan:plan=>{window.A2Raid.importPlan(plan);location.hash="/raid";},
  compare:id=>communityAPI('/api/v1/logs/'+encodeURIComponent(id)+'/raw'),
  rankings:(segment,log)=>communityAPI('/api/v1/rankings',{segment,log}),
- ...(file?{saveMetadata:log=>api('/api/sessions',{file,log}),publish:visibility=>api('/api/sessions/share',{file,visibility})}:{})
+ ...(file?{archiveCurrent:file,archiveParts:(offset,limit,archive)=>api('/api/sessions?paged=1&offset='+offset+'&limit='+limit+'&archive='+encodeURIComponent(archive)),openArchivePart:(row,mode)=>{location.hash='/combat-log/local/'+encodeURIComponent(row.file)+'?mode='+encodeURIComponent(mode||'');},saveMetadata:log=>api('/api/sessions',{file,log}),publish:visibility=>api('/api/sessions/share',{file,visibility})}:{})
 });
 async function pageCombatLog() {
   const routeHash=location.hash, routeParts=routeHash.split('?'), parts=routeParts[0].split('/'), kind=parts[2], value=decodeURIComponent(parts.slice(3).join('/')), mode=new URLSearchParams(routeParts[1]||'').get('mode');
@@ -802,10 +802,10 @@ async function pageCombatLog() {
     target.querySelectorAll('[data-player]').forEach(button=>button.onclick=async()=>{try{button.disabled=true;const next=await runJob('/api/encounters/import',{ref:analysis.meta.url,player:button.dataset.player},lines=>toast(lines.at(-1)||'Analyzing…'));location.hash='/combat-log/analysis/'+next.id;}catch(e){toast(e.message);button.disabled=false;}});
     window.scrollTo(0,0);return;
   }
-  if(kind==='local'){doc=await api('/api/sessions?file='+encodeURIComponent(value));options=localReviewOptions(value);}
+  if(kind==='local'){doc=await api('/api/sessions?file='+encodeURIComponent(value));options={...localReviewOptions(value),mode};}
   else if(kind==='shared'){
     doc=await communityAPI('/api/v1/logs/'+encodeURIComponent(value)+'/raw');
-    options={...options,report:body=>communityAPI('/api/v1/logs/'+encodeURIComponent(value)+'/reports',body),rankings:segment=>communityAPI('/api/v1/logs/'+encodeURIComponent(value)+'/rankings?segment='+segment)};
+    options={...options,archiveCurrent:value,archiveParts:(offset,limit)=>communityAPI('/api/v1/logs/'+encodeURIComponent(value)+'/parts?offset='+offset+'&limit='+limit),openArchivePart:(row,mode)=>{location.hash='/combat-log/shared/'+encodeURIComponent(row.id)+'?mode='+encodeURIComponent(mode||'');},report:body=>communityAPI('/api/v1/logs/'+encodeURIComponent(value)+'/reports',body),rankings:segment=>communityAPI('/api/v1/logs/'+encodeURIComponent(value)+'/rankings?segment='+segment)};
   }else if(kind==='opened' && S.combat.openedLog)doc=S.combat.openedLog;
   else {target.textContent='This temporary preview is no longer available. Return to combat logs to open it again.';return;}
   if(location.hash!==routeHash || !target.isConnected)return;
