@@ -243,9 +243,9 @@ def run_summary(doc):
         if not ledger:
             legacy += 1
             continue
-        groups.setdefault(ledger["token"], []).append((segment, ledger))
+        groups.setdefault((ledger["token"], combat_mode(doc, segment)), []).append((segment, ledger))
     rows = []
-    for token, selected in groups.items():
+    for (token, mode), selected in groups.items():
         segments = [s for s, _ in selected]
         ledger = [r for _, r in selected]
         contexts = {(s.get("map_id"), s.get("instance_id"), s.get("game_patch"), s.get("difficulty"), s.get("encounter_type")) for s in segments}
@@ -255,7 +255,7 @@ def run_summary(doc):
         times = [(stamp(s.get("start")), s["duration"]) for s in segments]
         if any(t is None for t, _ in times):
             rows.append({"token":token, "encounters":len(segments), "recorded_span":None, "entry_to_finish":None,
-                         "status":"Run timestamps are missing", "eligible":False, "mode":"pve"})
+                         "status":"Run timestamps are missing", "eligible":False, "mode":mode})
             continue
         earliest = min(t for t, _ in times)
         latest = max(t+duration for t, duration in times)
@@ -285,6 +285,6 @@ def run_summary(doc):
         rows.append({"token":token, "encounters":len(segments), "recorded_span":latest-earliest,
                      "entry_at":entry, "finished_at":ended, "entry_to_finish":elapsed,
                      "status":"Submitted entry and final-boss evidence connect" if elapsed is not None else "; ".join(reasons),
-                     "eligible":False, "mode":"pvp" if all(str(s.get("encounter_type", "")).startswith("pvp_") for s in segments) else "pve"})
+                     "eligible":False, "mode":mode})
     return {"runs":rows, "legacy_encounters":legacy,
             "note":"Run tokens and timing are submitted evidence. Combined runs remain unranked; source fights and quality are unchanged."}
