@@ -24,7 +24,7 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ovbar { position: relative; height: 16px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
 .ovbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, #ecd79f, #b9984f); }
-.ovbar span { position: relative; padding: 0 6px; line-height: 16px; font-weight: 700; color: #0b0f18; font-variant-numeric: tabular-nums; }
+.ovbar span { position: relative; padding: 0 6px; line-height: 16px; font-weight: 700; color: var(--ov-rate-text, #000000); font-variant-numeric: tabular-nums; }
 .muted { color: #9aa3b5; }
 .ovarena { position: relative; width: 200px; height: 200px; margin: 2px auto; border: 1px solid rgba(233,203,128,.3);
   border-radius: 6px; background: rgba(6,9,15,.5); }
@@ -33,7 +33,7 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
   border-top: 1px solid rgba(255,255,255,.08); color: #9aa3b5; font-size: 10px; }
 .ovfoot input[type=range] { flex: 1; min-width: 0; height: 14px; accent-color: #e8cf8e; cursor: pointer; }
 .ovbrand { color: #b9984f; font-weight: 700; letter-spacing: .3px; }
-.ovrow .sub { color: #9aa3b5; font-weight: 400; font-variant-numeric: tabular-nums; }
+.ovrow .sub { color: var(--ov-total-text, #000000); font-weight: 400; font-variant-numeric: tabular-nums; }
 
 /* Match the desktop's compact framed buttons without changing the transparent page. */
 #ovhide { flex-shrink: 0; margin: 0 6px; padding: 3px 8px; border-radius: 4px;

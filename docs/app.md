@@ -240,6 +240,8 @@ With **Record TCP payloads** unchecked, `tcp-payloads.jsonl` is intentionally em
 
 ## Overlay
 
+Under **Settings → Overlay number colors**, choose separate colors for rate text and total/share text. Both default to black. The same choices apply to DPS, HPS and D.Taken; an open overlay refreshes them within ten seconds. **Reset to black** restores both defaults.
+
 Use **DPS**, **HPS** or **D.Taken** below Meter/Plan/Hide to choose the overlay metric. Each view sorts its own bars and shows the rate, total and percentage for that metric. The selection is saved on this computer. DPS uses the shared active outgoing-damage clock; HPS and incoming damage per second use recorded encounter spans, which hold steady between effects. Healing-only activity does not create a combat encounter.
 
 On Windows the overlay hides when another application has focus, when the game is minimized, or when no supported game window can be found. It returns when the game is foreground again. If the game process cannot be recognized, the meter remains available in Live Meter.
@@ -595,3 +597,9 @@ Partial captures show recorded damage, skill breakdowns, healing and incoming ef
 Automatic encounter splits require at least 120 seconds without outgoing player damage. A player death does not reset the encounter: their DPS falls while other players continue damage, using a shared active damage clock (one-second buckets containing outgoing damage). Once everyone stops damaging, DPS freezes at the last value and resumes the same totals when damage restarts, excluding idle seconds. Incoming hits and healing do not extend that clock. Map/mode changes and manual splits remain separate boundaries.
 
 Soft storage rollover waits until combat pauses or the run ends; hard retention limits still create incomplete archive parts. A later part may lack entry evidence recorded earlier even if capture began before the dungeon. TCP diagnostic recording is independent of these eligibility checks. Review shows a graph key; selecting a specific run limits character buttons to the selected encounter's roster/effect references.
+
+### Recording-part continuity details
+
+**Other parts of this recording** shows retained decoded-effect ranges and predecessor checks for new recordings. Ranges cover all retained damage/healing records before view filtering; their counts can differ from the selected report's event count. Gaps, overlaps, duplicate files/uploads, unavailable predecessors and changed capture/identity contexts are shown. Each refresh compares available parts across pagination. Older recordings show metadata not recorded.
+
+Connecting submitted ranges do not establish authentic or loss-free packet capture. The counters cannot detect packets that never decoded, and matching tokens do not prove a common uploader. Storage continuation does not restore entry evidence or combine totals. Reports and ranking eligibility remain per part.

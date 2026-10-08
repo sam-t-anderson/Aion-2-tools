@@ -61,6 +61,8 @@ class Runner:
         self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
         self.archive_id = uuid.uuid4().hex
         self.archive_part = 1
+        self.archive_part_token = uuid.uuid4().hex
+        self.archive_previous = None
 
     def start(self, source: str = "replay", **opts) -> dict:
         with self._lifecycle_lock:
@@ -393,7 +395,7 @@ class Runner:
                 return
             doc = self._metadata(document, metadata=metadata, profile=profile, collector=collector)
             doc["meta"].update(capture_active=False, checkpoint_at=time.time(),
-                               archive={"id":self.archive_id, "part":self.archive_part, "closed":True})
+                               archive=self._archive_metadata(detached, closed=True))
             # Never clear the memory part unless its atomic disk save succeeded.
             # A failed save propagates to the runner and stops capture visibly.
             saved = str(save(doc, self.session_file))
@@ -401,6 +403,8 @@ class Runner:
                 self.session = self.session.continuation()
                 self.session.capture_evidence["storage_boundary"] = True
                 self.archive_part += 1
+                self.archive_previous = doc["meta"]["archive"].get("continuity")
+                self.archive_part_token = uuid.uuid4().hex
                 self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
                 self.segment_id = self.enemy_id = None
                 self.saved_log = saved
@@ -420,8 +424,7 @@ class Runner:
                 from ..combat.sessions import save
                 doc = self.to_a2log()
                 doc["meta"].update(capture_active=bool(active and self.running),
-                                   checkpoint_at=time.time(), capture_scope=self.scope,
-                                   archive={"id":self.archive_id, "part":self.archive_part, "closed":False})
+                                   checkpoint_at=time.time(), capture_scope=self.scope)
                 self.saved_log = str(save(doc, self.session_file))
                 self.diagnostics.pop("log_save_error", None)
             except (ValueError, OSError) as exc:
@@ -628,6 +631,8 @@ class Runner:
             self.capture_metadata = None
             self.archive_id = uuid.uuid4().hex
             self.archive_part = 1
+            self.archive_part_token = uuid.uuid4().hex
+            self.archive_previous = None
             self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
             self.saved_log = None
             self.segment_id = self.enemy_id = None
@@ -639,6 +644,14 @@ class Runner:
         self._save_session(active=True)
         return self.status()
 
+    def _archive_metadata(self, session, closed=False):
+        from ..combat.archive import retained_range
+        archive = {"id":self.archive_id, "part":self.archive_part, "closed":closed}
+        continuity = retained_range(session, self.archive_part_token, self.archive_previous)
+        if continuity:
+            archive["continuity"] = continuity
+        return archive
+
     def to_a2log(self, title: str | None = None) -> dict:
         # Detach quickly under the capture lock. Validation, summaries and upload
         # must never hold that lock while the decoder is receiving new packets.
@@ -648,7 +661,8 @@ class Runner:
             profile = dict(self.packet_engine.local_profile) if self.packet_engine else {}
             scope = self.scope
             collector = self.capture_metadata
-            archive = {"id":self.archive_id, "part":self.archive_part, "closed":False}
+            archive = (self._archive_metadata(session) if isinstance(session, CombatSession)
+                       else {"id":self.archive_id, "part":self.archive_part, "closed":False})
         if isinstance(session, CombatSession) and not title:
             title = f"Live combat session {archive['id'][:8]} · Part {archive['part']}"
         doc = session.to_a2log(scope, title) if isinstance(session, CombatSession) else session.to_a2log(title=title)

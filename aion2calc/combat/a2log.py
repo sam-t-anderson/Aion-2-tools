@@ -84,7 +84,7 @@ SCHEMA = {
             "game_patch": {"type": "string"}, "game_patch_source": {"type": "string"}, "game_patch_basis": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
             "capture_active": {"type": "boolean"}, "checkpoint_at": {"type": "number"},
             "capture_scope": {"enum": ["party", "self", "all"]},
-            "archive": {"type":"object", "properties":{"id":{"type":"string"}, "part":{"type":"integer", "minimum":1}, "closed":{"type":"boolean"}}},
+            "archive": {"type":"object", "properties":{"id":{"type":"string"}, "part":{"type":"integer", "minimum":1}, "closed":{"type":"boolean"}, "continuity":{"type":"object", "description":"Submitted retained-record ranges and predecessor token; not verified capture continuity"}}},
             "capture_quality": {"type": "object", "description": "Capture evidence and loss counters; eligibility is computed by the server"},
             "visibility": {"enum": ["public", "unlisted", "private"]},
             "contribute": {"enum": ["yes", "no"], "description": "use this fight in the anonymous class "
@@ -198,6 +198,10 @@ def validate(doc) -> dict:
     archive = meta.get("archive")
     if isinstance(archive, dict) and isinstance(archive.get("id"), str) and isinstance(archive.get("part"), int) and not isinstance(archive["part"], bool) and 1 <= archive["part"] <= 2**53-1:
         clean_meta["archive"] = {"id": archive["id"][:100], "part": archive["part"], "closed": archive.get("closed") is True}
+        from .archive import clean_continuity
+        continuity = clean_continuity(archive.get("continuity"))
+        if continuity:
+            clean_meta["archive"]["continuity"] = continuity
     if clean_meta.get("encounter_type") not in (None, *ENCOUNTER_TYPES):
         raise Invalid("Unknown encounter_type")
     if clean_meta.get("visibility") not in (None, "public", "unlisted", "private"):

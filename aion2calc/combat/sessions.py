@@ -82,6 +82,14 @@ def recent_page(offset: int = 0, limit: int = 25, archive: str = "") -> dict:
         except (OSError, ValueError, KeyError, TypeError, AttributeError):
             continue
     if archive:
+        from .archive import describe
+        parts = {}
+        for row in rows:
+            parts.setdefault(row["archive"]["part"], []).append(row)
+        rows = [{**row, "continuity_status":describe(row["archive"],
+                 parts[row["archive"]["part"]-1][0]["archive"]
+                 if len(parts.get(row["archive"]["part"]-1, [])) == 1 else None,
+                 len(parts[row["archive"]["part"]]) > 1)} for row in rows]
         rows.sort(key=lambda row:(row["archive"].get("part",0), row["file"]))
         count = len(rows)
         rows = rows[offset:offset+limit]

@@ -7,7 +7,10 @@
   let tab = "meter", metric = "dps", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false, meterUnavailable = false, refreshError = "", lastSuccess = null;
   try { const saved=localStorage.getItem("ovmetric"); if(["dps","hps","taken"].includes(saved))metric=saved; } catch(e) { /* optional storage */ }
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
-  const syncColors=()=>fetch("/api/ui").then(r=>r.json()).then(ui=>{if(ui.combat_colors)localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));}).catch(()=>{});
+  const syncColors=()=>fetch("/api/ui").then(r=>r.json()).then(ui=>{
+    if(ui.combat_colors){try{localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));}catch(e){/* optional storage */}}
+    for(const key of ['rate','total']){const color=ui.overlay_text_colors?.[key];document.documentElement.style.setProperty(`--ov-${key}-text`,/^#[0-9a-f]{6}$/i.test(color||'')?color:'#000000');}
+  }).catch(()=>{});
   syncColors();setInterval(syncColors,10000);
   const slider = $("#ovop");
   $("#ovhide").onclick = () => fetch("/api/overlay", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"hide"})}).then(()=>window.close());

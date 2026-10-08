@@ -1565,6 +1565,7 @@ setTheme(getTheme());
 async function pageSettings() {
   const [s, srv, ui] = await Promise.all([api("/api/status"), api("/api/logserver").catch(() => ({})), api("/api/ui").catch(() => ({}))]);
   const t = getTheme();
+  const overlayColors=ui.overlay_text_colors || {}, overlayText=key=>/^#[0-9a-f]{6}$/i.test(overlayColors[key] || '')?overlayColors[key]:'#000000';
   app().innerHTML = win("Settings", "", `
     <div class="setrow"><div class="lbl">Theme</div><div><div class="seg">${THEMES.map((x) => `<button data-th="${x}" class="${x === t ? "on" : ""}">${{ system: "Follow computer", light: "Light", dark: "Dark" }[x]}</button>`).join("")}</div></div></div>
     <div class="setrow"><div class="lbl">Open as its own window</div><div><label><input type="checkbox" id="appwin" ${ui.app_window !== false ? "checked" : ""}> start in a separate app window (Edge or Chrome) instead of a browser tab; closing it stops the app</label></div></div>
@@ -1574,6 +1575,7 @@ async function pageSettings() {
       <select id="svis">${["unlisted", "public", "private"].map((v) => `<option ${v === (srv.visibility || "unlisted") ? "selected" : ""}>${v}</option>`).join("")}</select>
       <button class="btn small" id="ssave">Save</button><span id="smsg" class="small muted"></span></div>
       ${srv.is_default && srv.url ? '<div class="small muted" style="margin-top:4px">Using the community default server. Enter your own above to override it.</div>' : ""}</div></div>
+    <div class="setrow"><div class="lbl">Overlay number colors</div><div><div class="row"><label>Rate text <input type="color" id="ov-rate-color" value="${esc(overlayText('rate'))}"></label><label>Total / share text <input type="color" id="ov-total-color" value="${esc(overlayText('total'))}"></label><button class="btn small" id="ov-color-reset">Reset to black</button><span class="small muted" id="ov-color-msg" role="status"></span></div><p class="small muted">Applies to DPS, HPS and D.Taken. Changes reach an open overlay within 10 seconds.</p></div></div>
     <div class="setrow"><div class="lbl">Combat class colors</div><div id="class-colors"></div></div><div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button> <button class="btn small" id="asset-reindex">Re-index cached icons</button> <button class="btn small" id="asset-report">Export image coverage</button> <button class="btn small" id="retry-images">Retry images</button><span id="asset-msg" class="small muted" role="status" aria-live="polite"></span></div></div>
     <div class="setrow"><div class="lbl">Updates</div><div><label><input type="checkbox" id="autoupd" ${ui.auto_update !== false ? "checked" : ""}> check and prompt for updates on launch</label></div></div>
     <div class="setrow"><div class="lbl">Version</div><div>Aion 2 Calc ${esc(s.version)} ${s.update ? `· version ${esc(s.update.version)} available <button class="btn small" id="instupd">Install now</button> <a href="${esc(s.update.url)}" target="_blank" rel="noopener">release notes</a>` : '<span class="muted">· up to date</span>'} <span id="updmsg" class="small muted"></span></div></div>
@@ -1582,6 +1584,14 @@ async function pageSettings() {
     <div class="setrow" style="border-top:1px solid var(--line);margin-top:8px;padding-top:10px"><div class="lbl">Author</div><div class="muted">Spirited - Zikel : Asmodian&nbsp;&nbsp;|&nbsp;&nbsp;Legion: WhaleWatch</div></div>`);
   if(ui.combat_colors)localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));
   A2CombatReview.settings($("#class-colors"),pref=>api("/api/ui",{combat_colors:pref}));
+  const saveOverlayColors=async()=>{
+    const controls=[$('#ov-rate-color'),$('#ov-total-color'),$('#ov-color-reset')];controls.forEach(c=>c.disabled=true);$('#ov-color-msg').textContent='Saving…';
+    try{await api('/api/ui',{overlay_text_colors:{rate:controls[0].value,total:controls[1].value}});$('#ov-color-msg').textContent='Saved';}
+    catch(e){$('#ov-color-msg').textContent=e.message;}
+    finally{controls.forEach(c=>c.disabled=false);}
+  };
+  $('#ov-rate-color').onchange=saveOverlayColors;$('#ov-total-color').onchange=saveOverlayColors;
+  $('#ov-color-reset').onclick=()=>{$('#ov-rate-color').value=$('#ov-total-color').value='#000000';saveOverlayColors();};
   $$("[data-th]").forEach((b) => (b.onclick = () => { setTheme(b.dataset.th); pageSettings(); }));
   $("#appwin").onchange = () => api("/api/ui", { app_window: $("#appwin").checked }).then(() => toast("Saved"));
   $("#autoupd").onchange = () => api("/api/ui", { auto_update: $("#autoupd").checked }).then(() => toast("Saved"));
