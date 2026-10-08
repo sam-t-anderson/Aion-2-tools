@@ -51,7 +51,7 @@ class Runner:
         self.session = CombatSession()
         self.metadata = {}
         self.capture_metadata = None
-        self.scope = "party"
+        self.scope = "auto"
         self.combine_pets = True
         self.segment_id = None
         self.enemy_id = None
@@ -90,9 +90,9 @@ class Runner:
                 self.capture_metadata = CaptureMetadata()
         else:
             self.capture_metadata = None
-        self.scope = str(opts.get("scope") or "party")
-        if self.scope not in ("party", "self", "all"):
-            self.scope = "party"
+        self.scope = str(opts.get("scope") or "auto")
+        if self.scope not in ("party", "self", "all", "auto"):
+            self.scope = "auto"
         from ..combat.a2log import combat_mode
         self.session.pvp = combat_mode({"meta": self.metadata}) == "pvp"
         if self.session.pvp and self.scope == "all":
@@ -521,7 +521,7 @@ class Runner:
                 self.session.gap_seconds = min(120, max(3, int(body["segment_gap"])))
             if body.get("scope") == "all" and self.session.pvp:
                 raise ValueError("Use Self or Party scope for PvP capture.")
-            if body.get("scope") in ("party", "self", "all"):
+            if body.get("scope") in ("party", "self", "all", "auto"):
                 self.scope = body["scope"]
             if "segment" in body:
                 self.segment_id = body["segment"] or None

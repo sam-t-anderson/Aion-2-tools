@@ -124,7 +124,7 @@ _segment_properties = SCHEMA["properties"]["segments"]["items"]["properties"]
 _segment_properties.update({
     "run_id":{"type":"string"}, "run_complete":{"type":"boolean"}, "run_end_reason":{"type":"string"},
     "run_start_observed":{"type":"boolean"}, "run_started_at":{"type":"string"}, "run_ended_at":{"type":"string"},
-    "party_members":{"type":"array", "maxItems":64, "items":{"type":"string"}}, "party_roster_complete":{"type":"boolean"}, "party_roster_late":{"type":"boolean"},
+    "party_members":{"type":"array", "maxItems":64, "items":{"type":"string"}}, "party_roster_complete":{"type":"boolean"}, "party_roster_late":{"type":"boolean"}, "partial_capture":{"type":"boolean"},
     "instance_id":{"type":"integer"}, "map_id":{"type":"integer"},
     "zone_source":{"type":"string"}, "encounter_type_source":{"type":"string"}, "difficulty_source":{"type":"string"},
     "game_patch": {"type": "string"}, "game_patch_source": {"type": "string"}, "game_patch_basis": {"type": "string"}, "difficulty": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
@@ -343,7 +343,7 @@ def validate(doc) -> dict:
                 out_segs[-1][key] = s[key][:200]
         if isinstance(s.get("run_complete"),bool):
             out_segs[-1]["run_complete"] = s["run_complete"]
-        for key in ("run_start_observed", "party_roster_complete", "party_roster_late"):
+        for key in ("run_start_observed", "party_roster_complete", "party_roster_late", "partial_capture"):
             if isinstance(s.get(key),bool):
                 out_segs[-1][key] = s[key]
         if isinstance(s.get("party_members"),list):

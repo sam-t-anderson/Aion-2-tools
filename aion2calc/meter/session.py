@@ -135,6 +135,9 @@ class CombatSession:
             self._zone_reset = engine.last_zone_reset_ms
         identity = self.identities.setdefault(self.epoch, {"names": {}, "spawns": {}, "jobs": {}, "local_id": None, "roster": {}, "owners": {}})
         identity["player_ids"] = set(engine.known_players)
+        observed = identity.setdefault("observed_players", set())
+        observed.update(engine.known_players)
+        observed.update(e.actor_id for e in events if isinstance(e, DamageEvent) and job_from_skill(e.skill_code))
         identity["names"].update(engine.names)
         identity["jobs"].update(engine.jobs)
         identity["spawns"].update({key: dict(value) for key, value in engine.spawn_info.items()})
@@ -158,7 +161,7 @@ class CombatSession:
                 # Count the same relevant damage groups as groups(), separately
                 # for every selectable scope. Nearby NPC-only effects must not
                 # force storage rollovers that clear the player's live view.
-                for scope in ("self", "party", "all"):
+                for scope in ("self", "party", "all", "auto"):
                     selected = self._allowed(record, scope)
                     pvp = self._pvp_damage(record, selected)
                     if (self.pvp and not pvp
@@ -215,8 +218,15 @@ class CombatSession:
         return (not record.party and bool(identity.get("initial_roster"))
                 and 0 < record.sequence <= identity.get("initial_roster_sequence", 0))
 
+    def _effective_scope(self, scope, epoch):
+        if scope != "auto":
+            return scope
+        # Observed actors are descriptive only; never infer PvP teams or Self.
+        return "party" if self.pvp or self.identities[epoch]["local_id"] is not None else "all"
+
     def _allowed(self, record, scope):
         identity = self.identities[record.epoch]
+        scope = self._effective_scope(scope, record.epoch)
         local = record.local_id if record.local_id is not None else identity["local_id"]
         allowed = {local} if local is not None else set()
         if scope == "party":
@@ -227,10 +237,25 @@ class CombatSession:
                            if name.casefold() in party and (not late or counts[name.casefold()] == 1))
         elif scope == "all":
             allowed.update(identity["names"])
+            allowed.update(a for a in identity.get("observed_players", ())
+                           if not identity["spawns"].get(a, {}).get("mobCode"))
             event = record.event
             if isinstance(event, DamageEvent) and job_from_skill(event.skill_code):
                 allowed.add(event.actor_id)
-        allowed.update(pet for pet, owner in identity["owners"].items() if owner in allowed)
+        if scope == "all":
+            for actor in tuple(allowed):
+                seen = set()
+                while actor in identity["owners"] and actor not in seen:
+                    seen.add(actor)
+                    actor = identity["owners"][actor]
+                    if not identity["spawns"].get(actor, {}).get("mobCode"):
+                        allowed.add(actor)
+        # Include nested linked summons without depending on dictionary order.
+        for _ in range(len(identity["owners"])):
+            linked = {pet for pet, owner in identity["owners"].items() if owner in allowed}
+            if linked <= allowed:
+                break
+            allowed.update(linked)
         return allowed
 
     def _pvp_damage(self, record, allowed):
@@ -403,9 +428,16 @@ class CombatSession:
         summary["scope"] = scope
         summary["warning"] = ("Waiting for your player identity. Enter your character name before Start; nearby players are excluded until you or party members are identified."
                               if self.records and not groups and scope != "all" else None)
-        summary["party_roster_late"] = scope == "party" and any(self._late_roster(r) for g in chosen for r in g["records"])
+        summary["party_roster_late"] = scope in ("party", "auto") and any(self._late_roster(r) for g in chosen for r in g["records"])
         if summary["party_roster_late"]:
             summary["warning"] = "Party roster arrived late; earlier matching effects are included. Earlier membership is unverified; Self still requires your player identity."
+        summary["partial_capture"] = any(self._effective_scope(scope, g["epoch"]) == "all"
+                                         or bool(self.runs[g["run"]].get("instance_id")) and not self.runs[g["run"]].get("start_observed") for g in chosen)
+        if summary["partial_capture"]:
+            observed = any(self._effective_scope(scope, g["epoch"]) == "all" for g in chosen)
+            summary["warning"] = ("Partial capture · unranked; excluded from community learning. "
+                                  + ("Showing observed players; Self and party membership are unverified. Nearby players may be included. " if observed else "Instance entry was not observed. ")
+                                  + "Metrics cover recorded effects only; missing names stay as actor numbers.")
         summary["history_discarded"] = self.discarded
         return summary
 
@@ -475,8 +507,13 @@ class CombatSession:
                     "skill_id": event.skill_code, "skill": skill_name(event.skill_code), "amount": event.total_damage})
                 if event.actor_id not in allowed or event.target_id in allowed:
                     continue
-                owner_id = identity["owners"].get(event.actor_id, event.actor_id)
+                owner_id, seen = event.actor_id, set()
+                while owner_id in identity["owners"] and owner_id not in seen:
+                    seen.add(owner_id)
+                    owner_id = identity["owners"][owner_id]
                 pid = reference(owner_id)
+                if pid not in players:
+                    continue  # Keep observed events when an owner chain is unresolved/cyclic.
                 players[pid]["class"] = players[pid].get("class") or job_from_skill(event.skill_code)
                 hit = {"t": t, "player": pid, "source": source, "target": target,
                     "damage": event.total_damage, "skill_id": event.skill_code, "skill": skill_name(event.skill_code)}
@@ -492,8 +529,9 @@ class CombatSession:
             party_members = [reference(a) for a in sorted(members)]
             expected = set().union(*(set(r.party) for r in group["records"]))
             known = {identity["names"].get(a, "").casefold() for a in members}
-            roster_late = scope == "party" and any(self._late_roster(r) for r in group["records"])
-            roster_complete = (scope == "party" and expected <= known and bool(expected) and bool(members) and not roster_late
+            group_scope = self._effective_scope(scope, group["epoch"])
+            roster_late = group_scope == "party" and any(self._late_roster(r) for r in group["records"])
+            roster_complete = (group_scope == "party" and expected <= known and bool(expected) and bool(members) and not roster_late
                                and len({r.party for r in group["records"]}) == 1)
             health = []
             # Preserve the latest pre-pull HP evidence, bounded to 30 seconds.
@@ -534,6 +572,7 @@ class CombatSession:
                     "run_start_observed":run.get("start_observed",False),
                     "run_started_at":datetime.fromtimestamp(run["started_at"]/1000,timezone.utc).isoformat() if run.get("started_at") is not None else None,
                     "run_ended_at":datetime.fromtimestamp(run["ended_at"]/1000,timezone.utc).isoformat() if run.get("ended_at") is not None else None,
+                    "partial_capture":group_scope == "all" or bool(run.get("instance_id")) and not run.get("start_observed"),
                     "party_members":party_members, "party_roster_complete":roster_complete, "party_roster_late":roster_late,
                     "run_end_reason":run.get("end_reason", ""), "map_id":run.get("map_id",0),
                     "instance_id":run.get("instance_id",0), "encounter_type":category,
@@ -552,5 +591,8 @@ class CombatSession:
         evidence = {**self.capture_evidence, "decoder":DECODER, "app_version":__version__,
                     "discarded_effects":self.discarded, "discarded_segments":self.discarded_segments,
                     "discarded_telemetry":self.discarded_telemetry}
-        return a2log.validate({"format":"a2log","version":1,"meta":{"source":"Aion 2 Calc live session","title":title or "Live combat session", "capture_scope":scope, "capture_quality":evidence},
+        exported_scope = scope
+        if scope == "auto":
+            exported_scope = "all" if any(self._effective_scope(scope, g["epoch"]) == "all" for g in groups) else "party"
+        return a2log.validate({"format":"a2log","version":1,"meta":{"source":"Aion 2 Calc live session","title":title or "Live combat session", "capture_scope":exported_scope, "capture_quality":evidence},
                                "players":list(players.values()),"segments":segments})
