@@ -14,7 +14,8 @@ class CombatEvent:
     """
 
     t: float
-    kind: str = "damage"            # damage | buff | death | info
+    kind: str = "damage"            # damage | buff | death | info | ping
+    ping_ms: float = 0.0            # for kind == "ping": round-trip latency in milliseconds
     source: str = ""                # attacker id (stable key)
     source_name: str = ""           # display name (defaults to source)
     source_class: str | None = None

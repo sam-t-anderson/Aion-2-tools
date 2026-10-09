@@ -9,7 +9,7 @@ import time
 import uuid
 from pathlib import Path
 
-from ..meter import Meter, load_decoder, replay_source
+from ..meter import CombatEvent, Meter, load_decoder, replay_source
 from ..meter.a2parser.engine import MeterEngine as PacketMeterEngine
 from ..meter.a2parser.capture import capture_packets
 from ..meter.session import CombatSession, NoIdentifiedPlayerData
@@ -235,6 +235,9 @@ class Runner:
                             self.diagnostics["state"] = "stopping"
                         if engine is not None and data[0].get("port"):
                             engine.set_server_port(int(data[0]["port"]))
+                elif kind == "ping":
+                    with self.lock:
+                        self.meter.add(CombatEvent(kind="ping", t=float(data[1]) / 1000.0, ping_ms=float(data[0])))
                 elif kind == "capture_stopped":
                     break
                 if not stop_event.is_set():
@@ -537,6 +540,8 @@ class Runner:
             snap = (self.session.snapshot(self.scope, None if follow_latest else self.segment_id,
                                           None if follow_latest else self.enemy_id, self.combine_pets)
                     if self.packet_engine is not None else self.meter.snapshot())
+            if self.packet_engine is not None:
+                snap["ping"] = self.meter.ping_summary()   # the session snapshot carries no latency
             if self.packet_engine is not None and not follow_latest:
                 self.enemy_id = snap.get("selected_enemy")
             if compact:
@@ -744,6 +749,21 @@ class Runner:
             profile = self.packet_engine.local_profile if self.packet_engine else {}
         if profile.get("serverId"):
             doc["meta"]["server"] = str(profile["serverId"])
+        # Latency rides the same meter; record the series on the active segment (the
+        # session builder has none) plus a document-level summary for display.
+        summary = self.meter.ping_summary()
+        if summary:
+            doc["meta"]["ping"] = summary
+            segments = doc.get("segments", [])
+            pings = list(self.meter.pings)
+            if segments and not segments[-1].get("ping") and pings:
+                seg = segments[-1]
+                dur = float(seg.get("duration") or 0.0)
+                end = max(t for t, _ in pings)
+                series = [[round(min(dur, max(0.0, t - (end - dur))), 3), round(ms, 1)]
+                          for t, ms in pings if t >= end - dur - 1.0]
+                if series:
+                    seg["ping"] = series
         from ..combat.quality import assess
         for segment in doc.get("segments", []):
             segment["quality"] = assess(doc, segment)
