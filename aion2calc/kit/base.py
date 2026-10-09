@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -30,10 +31,38 @@ def spec_slots(level: int) -> int:
     return sum(1 for lv in SPEC_SLOT_LEVELS if level >= lv)
 
 
+def valid_base_stats(rows, level_cap=45) -> bool:
+    """Require finite source rows covering the supported character levels."""
+    if not isinstance(rows, dict) or not rows:
+        return False
+    try:
+        levels = []
+        for key, row in rows.items():
+            if not str(key).isascii() or not str(key).isdigit() or int(key) < 1:
+                return False
+            levels.append(int(key))
+            for stat in ("hp", "defense", "attack"):
+                value = row[stat]
+                if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+                    return False
+            if row["hp"] <= 0 or row["attack"] <= 0:
+                return False
+        return min(levels) == 1 and max(levels) >= int(level_cap)
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return False
+
+
 @lru_cache(maxsize=None)
 def load_class(cls: str) -> dict:
-    from ..paths import read_json
-    return read_json("global", "classes", f"{cls}.json")
+    from ..paths import PKG_DATA, read_json
+    raw = read_json("global", "classes", f"{cls}.json")
+    if not valid_base_stats(raw.get("base_stats"), raw.get("level_cap", 45)):
+        # Recover already-synced empty tables without deleting the user's data.
+        bundled = json.loads((PKG_DATA / "global" / "classes" / f"{cls}.json").read_text(encoding="utf-8"))
+        if not valid_base_stats(bundled.get("base_stats"), raw.get("level_cap", 45)):
+            raise ValueError(f"Base stats unavailable for {cls}; no complete bundled table covers this level cap")
+        raw = {**raw, "base_stats": bundled["base_stats"], "base_stats_source": "bundled fallback"}
+    return raw
 
 
 @lru_cache(maxsize=None)
@@ -75,6 +104,8 @@ class ClassData:
         rows = {int(k): v for k, v in self.raw["base_stats"].items()}
         if level in rows:
             return rows[level]
+        if not rows or level < min(rows) or level > max(rows):
+            raise ValueError(f"Base stats unavailable for {self.cls} at level {level}")
         lo = max(k for k in rows if k <= level)
         hi = min(k for k in rows if k >= level)
         if lo == hi:
