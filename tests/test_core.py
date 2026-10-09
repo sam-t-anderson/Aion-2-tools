@@ -161,6 +161,20 @@ def test_every_class_simulates(cls):
     assert sum(res.casts.values()) > 30
 
 
+@pytest.mark.parametrize("cls", ["gladiator", "templar", "assassin", "ranger",
+                                 "sorcerer", "spiritmaster", "cleric", "chanter"])
+def test_every_class_has_a_hand_written_kit(cls):
+    """Each class dispatches to its own hand-written kit, not the generic model."""
+    from aion2calc.run import kit_module
+    assert kit_module(cls).__name__ == f"aion2calc.kit.{cls}"
+    # a hand-written kit models bespoke skills by hand; only unmodeled ones carry
+    # the generic "simulated from its tooltip" note, so most skills are not generic.
+    from aion2calc.scenarios import typical_build
+    kit = kit_module(cls).build_kit(typical_build(cls), ClassData(cls))
+    generic_notes = [n for n in kit.notes if "simulated from its tooltip" in n]
+    assert len(generic_notes) < len(kit.actions)
+
+
 def test_arcana_pools_by_slot():
     """Chalice/Parchment/Compass roll actives, Bell/Mirror passives (official guide)."""
     from pathlib import Path
