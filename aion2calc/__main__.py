@@ -311,11 +311,12 @@ def main(argv: list[str] | None = None) -> int:
               f"iteration{'s' if args.iterations != 1 else ''} per class)\n",
               "Each class is optimized with the same budgets (203 SP, 30 stigma points, 360 Daevanion) on its own "
               "median global loadout. **Gain** (optimized vs the typical top global build of that class, same "
-              "rotation optimizer) is the reliable number. Absolute DPS across classes is only as good as each class "
-              "kit: Sorcerer has a hand-written kit; the others use the generic tooltip-driven kit, whose fidelity "
-              "is shown as the share overlap with Korean A2DIL dummy logs. **This is not a class tier "
-              "list**: below ~60% overlap the kit is missing class mechanics, and its absolute DPS can be far off "
-              "in either direction.\n",
+              "rotation optimizer) is the reliable number. Every class now has a hand-written kit (see "
+              "`aion2calc/kit/`) that models its chains, crowd-control combos, pet and damage-amp buffs, so absolute "
+              "DPS across classes is far more comparable than before; the kits' fidelity is still shown as the share "
+              "overlap with Korean A2DIL dummy logs where available. **This is not a class tier list**: absolute "
+              "numbers depend on each kit's audited assumptions (pet cadence, boss-break uptime, DoT spread) and "
+              "await calibration against real combat-log captures.\n",
               "| Class | Optimized DPS | Typical top build DPS | Gain | KR share overlap | Report |",
               "|---|---:|---:|---:|---:|---|"]
         for cls, dps, comm, fid in rows:
