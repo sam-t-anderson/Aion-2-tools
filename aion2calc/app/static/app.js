@@ -1018,11 +1018,13 @@ async function pageRaid() {
 // ------------------------------------------------------------- live meter
 async function pageMeter() {
   const st = S.meter;
+  const ui = await api('/api/ui');
   st.lastMeterRender = null; // The previous DOM was removed when leaving this page.
   app().innerHTML = `<section class="win"><div class="wh"><h2>Live damage meter</h2><span class="sub">built-in A2Tools packet capture, live analysis and a2log sharing</span></div>
     <div class="wb"><div class="row"><label class="muted small">Source</label>
         <select id="msrc"><option value="a2tools" selected>Live Capture</option><option value="replay">Demo replay</option><option value="live">Custom decoder</option></select>
         <button class="btn primary" id="mstart" aria-pressed="false">Start</button>
+        <label class="small muted"><input id="mautooverlay" type="checkbox" ${ui.overlay_on_start !== false?'checked':''}> Show overlay when starting</label>
         <button class="btn small" id="mclear">Clear session</button><button class="btn small" id="msave">Save to Combat Logs</button><button class="btn small" id="mexport">Export a2log</button>
         <button class="btn small" id="mupload">Upload</button><button class="btn small" id="mshot">Screenshot</button>
         <button class="btn small" id="mhide">Hide overlay</button><button class="btn small" id="msplit">Split now</button><button class="btn small" id="mfinishrun">Finish run</button><button class="btn small" id="movl" title="Open the compact overlay in a separate window">Open overlay</button><span id="mmsg" class="small muted"></span></div>
@@ -1128,6 +1130,22 @@ async function pageMeter() {
     } catch (e) { node.textContent = "Could not check Npcap: " + e.message; }
   };
   refreshNpcap();
+  $('#mautooverlay').onchange = async () => {
+    const control=$('#mautooverlay'), selected=control.checked;
+    try { await api('/api/ui',{overlay_on_start:selected}); }
+    catch(e) { control.checked=!selected; $('#mnotice').textContent='Could not save overlay preference: '+e.message; }
+  };
+  async function openMeterOverlay() {
+    if(!st.nativeOverlayUnavailable) {
+      try {
+        const result=await api('/api/overlay',{});
+        if(result.native)return result.already_open?'Overlay is already open.':'Overlay opened.';
+        st.nativeOverlayUnavailable=true;
+      } catch(e) { /* Browser fallback remains available. */ }
+    }
+    st.overlayPopup=window.open('/overlay','a2overlay','width=300,height=430');
+    return st.overlayPopup?'Overlay opened in a window.':'Overlay popup was blocked. Click Open overlay to retry.';
+  }
   $("#mstart").onclick = async () => {
     const button = $("#mstart");
     if(st.captureBusy || st.finalizing)return;
@@ -1166,8 +1184,18 @@ async function pageMeter() {
       port: source !== "replay" ? (+$("#mport").value || 50349) : null,
       target_mode: "allTargets",
       character_name: source === "a2tools" ? ($("#mchar").value || null) : null };
+    const showOverlay=$('#mautooverlay').checked;
     st.captureBusy = true; button.disabled = true;
-    try { st.pinnedSegment = ""; renderMeter(await api("/api/meter", body)); $("#mnotice").textContent = "Capture started. Waiting for combat data."; toast("Capture started"); } catch (e) { $("#mnotice").textContent = e.message; }
+    try {
+      st.pinnedSegment = "";
+      const started=await api("/api/meter", body); renderMeter(started);
+      if(!started.running) { $('#mnotice').textContent=started.error || 'Capture did not start. Check capture diagnostics.'; return; }
+      $("#mnotice").textContent = "Capture started. Waiting for combat data."; toast("Capture started");
+      if(showOverlay) {
+        try { $('#mnotice').textContent='Capture started. '+await openMeterOverlay(); }
+        catch(e) { $('#mnotice').textContent='Capture started. Could not open overlay: '+e.message; }
+      }
+    } catch (e) { $("#mnotice").textContent = e.message; }
     finally { st.captureBusy = false; button.disabled = !!st.finalizing; }
   };
   renderDiagnosticExport(st.diagnosticExport);
@@ -1181,12 +1209,8 @@ async function pageMeter() {
   };
   $("#movl").onclick = async () => {
     $("#mnotice").textContent = "opening overlay…";
-    try {
-      const r = await api("/api/overlay", {});          // native transparent window (bundled on Windows)
-      if (r.native) { $("#mnotice").textContent = r.already_open ? "overlay is already open" : "overlay opened in a transparent window"; return; }
-    } catch (e) { /* fall through to a plain browser window */ }
-    st.overlayPopup=window.open("/overlay", "a2overlay", "width=300,height=430");
-    $("#mnotice").textContent = "overlay opened in a window";
+    try { $('#mnotice').textContent=await openMeterOverlay(); }
+    catch(e) { $('#mnotice').textContent='Could not open overlay: '+e.message; }
   };
   $("#msave").onclick = async () => {
     $("#mnotice").textContent = "saving…";
@@ -1631,6 +1655,7 @@ async function pageSettings() {
       <select id="svis">${["unlisted", "public", "private"].map((v) => `<option ${v === (srv.visibility || "unlisted") ? "selected" : ""}>${v}</option>`).join("")}</select>
       <button class="btn small" id="ssave">Save</button><button class="btn small" id="scheck">Check saved server</button><span id="smsg" class="small muted"></span></div>
       ${srv.is_default && srv.url ? '<div class="small muted" style="margin-top:4px">Using the community default server. Enter your own above to override it.</div>' : ""}</div></div>
+    <div class="setrow"><div class="lbl">Live meter overlay</div><div><label><input type="checkbox" id="ov-on-start" ${ui.overlay_on_start !== false?'checked':''}> Show overlay when starting the live meter</label><p class="small muted">Also available beside Start on the Live Meter page.</p></div></div>
     <div class="setrow"><div class="lbl">Overlay number colors</div><div><div class="row"><label>Rate text <input type="color" id="ov-rate-color" value="${esc(overlayText('rate'))}"></label><label>Total / share text <input type="color" id="ov-total-color" value="${esc(overlayText('total'))}"></label><button class="btn small" id="ov-color-reset">Reset to black</button><span class="small muted" id="ov-color-msg" role="status"></span></div><p class="small muted">Applies to DPS, HPS and D.Taken. Changes reach an open overlay within 10 seconds.</p></div></div>
     <div class="setrow"><div class="lbl">Combat class colors</div><div id="class-colors"></div></div><div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button> <button class="btn small" id="asset-reindex">Re-index cached icons</button> <button class="btn small" id="asset-report">Export image coverage</button> <button class="btn small" id="retry-images">Retry images</button><span id="asset-msg" class="small muted" role="status" aria-live="polite"></span></div></div>
     <div class="setrow"><div class="lbl">Storage maintenance</div><div><div class="row"><button class="btn small" id="storage-inspect">Inspect cache / updates</button><button class="btn small" id="storage-cache">Clean old disposable cache</button><button class="btn small" id="storage-updates">Clean old update files</button></div><p class="small muted">Web/comparison cache: 7 days; images: 30 days. Updates retain two packages, helpers for 7 days, and at least five logs / 30 days. Active or uninspectable helpers are preserved. Cache images may need downloading again.</p><p id="storage-message" role="status"></p><div id="maintenance-details"></div></div></div>
@@ -1656,6 +1681,11 @@ async function pageSettings() {
   $('#ov-rate-color').onchange=saveOverlayColors;$('#ov-total-color').onchange=saveOverlayColors;
   $('#ov-color-reset').onclick=()=>{$('#ov-rate-color').value=$('#ov-total-color').value='#000000';saveOverlayColors();};
   $$("[data-th]").forEach((b) => (b.onclick = () => { setTheme(b.dataset.th); pageSettings(); }));
+  $('#ov-on-start').onchange = async () => {
+    const control=$('#ov-on-start'), selected=control.checked;
+    try { await api('/api/ui',{overlay_on_start:selected}); toast('Saved'); }
+    catch(e) { control.checked=!selected; toast('Could not save overlay preference: '+e.message); }
+  };
   $("#appwin").onchange = () => api("/api/ui", { app_window: $("#appwin").checked }).then(() => toast("Saved"));
   $("#autoupd").onchange = () => api("/api/ui", { auto_update: $("#autoupd").checked }).then(() => toast("Saved"));
   if ($("#instupd")) $("#instupd").onclick = async () => {

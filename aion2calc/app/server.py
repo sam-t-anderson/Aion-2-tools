@@ -844,6 +844,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/ui":
             from ..paths import write_user_json
             cur = ui_settings()
+            if "overlay_on_start" in body:
+                if type(body["overlay_on_start"]) is not bool:
+                    raise ValueError("Show overlay when starting must be true or false")
+                cur["overlay_on_start"] = body["overlay_on_start"]
             if "overlay_text_colors" in body:
                 colors = body["overlay_text_colors"]
                 if (not isinstance(colors, dict) or set(colors) != {"rate", "total"}
@@ -954,7 +958,7 @@ def schedule_shutdown() -> None:
 
 def ui_settings() -> dict:
     from ..paths import data_file, read_json
-    defaults = {"app_window": True, "auto_update": True}
+    defaults = {"app_window": True, "auto_update": True, "overlay_on_start": True}
     return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}
 
 
