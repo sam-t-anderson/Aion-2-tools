@@ -1624,7 +1624,7 @@ async function pageSettings() {
     <div class="setrow"><div class="lbl">Log server</div><div class="row"><input id="surl" type="text" placeholder="${srv.is_default && srv.url ? esc(srv.url) + " (default)" : "https://logs.example.com"}" value="${srv.is_default ? "" : esc(srv.url || "")}" style="width:280px">
       <input id="skey" type="password" placeholder="${srv.has_key ? "key saved" : "upload key (optional)"}" style="width:200px">
       <select id="svis">${["unlisted", "public", "private"].map((v) => `<option ${v === (srv.visibility || "unlisted") ? "selected" : ""}>${v}</option>`).join("")}</select>
-      <button class="btn small" id="ssave">Save</button><span id="smsg" class="small muted"></span></div>
+      <button class="btn small" id="ssave">Save</button><button class="btn small" id="scheck">Check saved server</button><span id="smsg" class="small muted"></span></div>
       ${srv.is_default && srv.url ? '<div class="small muted" style="margin-top:4px">Using the community default server. Enter your own above to override it.</div>' : ""}</div></div>
     <div class="setrow"><div class="lbl">Overlay number colors</div><div><div class="row"><label>Rate text <input type="color" id="ov-rate-color" value="${esc(overlayText('rate'))}"></label><label>Total / share text <input type="color" id="ov-total-color" value="${esc(overlayText('total'))}"></label><button class="btn small" id="ov-color-reset">Reset to black</button><span class="small muted" id="ov-color-msg" role="status"></span></div><p class="small muted">Applies to DPS, HPS and D.Taken. Changes reach an open overlay within 10 seconds.</p></div></div>
     <div class="setrow"><div class="lbl">Combat class colors</div><div id="class-colors"></div></div><div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button> <button class="btn small" id="asset-reindex">Re-index cached icons</button> <button class="btn small" id="asset-report">Export image coverage</button> <button class="btn small" id="retry-images">Retry images</button><span id="asset-msg" class="small muted" role="status" aria-live="polite"></span></div></div>
@@ -1667,6 +1667,8 @@ async function pageSettings() {
     } catch (e) { if ($("#updmsg")) $("#updmsg").textContent = e.message; if ($("#instupd")) $("#instupd").disabled = false; }
   };
   $$("[data-open]").forEach((b) => (b.onclick = () => api("/api/open", { what: b.dataset.open }).catch((e) => toast(e.message))));
+  const serverVersionText=r=>r.software?.server||r.software?.analyzer?` · server ${r.software?.server||'not reported'} · analyzer ${r.software?.analyzer||'not reported'}`:' · runtime versions not reported by this server';
+  $('#scheck').onclick=async()=>{const button=$('#scheck'),message=$('#smsg');button.disabled=true;message.textContent='Checking saved server runtime…';try{const r=await api('/api/logserver/check');if(message.isConnected)message.textContent=r.ok?'Server reachable'+serverVersionText(r):'Check failed: '+(r.detail||'unavailable');}catch(e){if(message.isConnected)message.textContent=e.message;}finally{if(button.isConnected)button.disabled=false;}};
   $("#ssave").onclick = async () => {
     await api("/api/logserver", { url: $("#surl").value, key: $("#skey").value || null, visibility: $("#svis").value });
     $("#smsg").textContent = "saved · checking…";
@@ -1674,7 +1676,7 @@ async function pageSettings() {
     try {
       const r = await api("/api/logserver/check");
       $("#smsg").textContent = r.ok
-        ? "saved · server reachable" + (r.name ? " — " + esc(r.name) : "")
+        ? "saved · server reachable" + (r.name ? " — " + esc(r.name) : "") + serverVersionText(r)
         : "saved · can't reach the server" + (r.detail ? " (" + esc(r.detail) + ")" : "");
     } catch (e) { $("#smsg").textContent = "saved · could not check: " + e.message; }
   };

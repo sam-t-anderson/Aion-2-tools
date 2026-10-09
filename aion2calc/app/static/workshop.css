@@ -5,3 +5,5 @@
 .map-frame{margin-top:12px;border:1px solid var(--line);border-radius:6px;overflow:hidden}.map-frame iframe{display:block;border:0;width:100%;height:75vh;min-height:500px}
 @container(min-width:1050px){.craft-detail-columns{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.craft-materials>h3{margin-top:0}}
 @media(max-width:800px){.craft-workspace,.craft-output{grid-template-columns:1fr}.craft-workspace [data-recipe-list]{flex:none;height:340px;min-height:0;max-height:340px}}
+
+.craft-item-stats{margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:5px;min-width:0}.craft-item-stats h4{margin:0 0 8px}.craft-item-stats details{margin-top:10px}.craft-stat-scroll{overflow:auto;max-width:100%;margin-top:8px}.craft-item-stats .t{width:100%;font-size:12px}.craft-item-stats .t th,.craft-item-stats .t td{padding:6px;text-align:left}.craft-item-stats .t td{white-space:nowrap}

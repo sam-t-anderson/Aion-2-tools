@@ -86,14 +86,14 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 ## 7. Website and shared player tools
 
-**Available:** consistent Pages navigation, focused logs and character pages with Back to log, recorded images/equipment/stats/skills/boards, local build allocation drafts, catalog validation, saved drafts/import/export and community preset seeding. Maps use the provider's published embed mode for four supported maps. Crafting has a source-attributed recipe snapshot, profession/faction search, icons/rarity, mastery/fees/materials, supported intermediate expansion, conditional combo scenarios and material-plan export. Official Global/Korean/Taiwan headline/preview cards preserve region, publication/retrieval dates, source-provided summaries, approved official thumbnails and original links.
+**Available:** consistent Pages navigation, focused logs and character pages with Back to log, recorded images/equipment/stats/skills/boards, local build allocation drafts, catalog validation, saved drafts/import/export and community preset seeding. Maps use the provider's published embed mode for four supported maps. Crafting has a source-attributed recipe snapshot, profession/faction search, icons/rarity, crafted-product base stats, enhancement previews and possible random-roll ranges from ID-matched publisher records, mastery/fees/materials, supported intermediate expansion, conditional combo scenarios and material-plan export. Official Global/Korean/Taiwan headline/preview cards preserve region, publication/retrieval dates, source-provided summaries, approved official thumbnails and original links.
 
 **Remaining:**
 
 - Verify current-build arcana rules and obtain Pantheon node controls/artwork from source data as described in workstreams 3–4. Catalog card skill selectors now use bundled class/slot pools and grade/enhancement bounds, separate from manual skill bonuses. Explicit draft rescoring is available without publishing or changing source profiles.
 - Obtain permitted native map coordinates, layers and assets if replacing the provider viewer with local map tools. Cross-origin provider account/checklist state remains with the provider.
 - Verify crafting general success/failure rewards, refunds, combo quantity/replacement rules, modifier formulas and build/region applicability. Current combo simulations are conditional completed-craft checks, not guaranteed item yields.
-- Show source-backed stats for crafted output items when they have stats, alongside the product preview. Preserve units, ranges and enhancement or variant context when available; distinguish unavailable data from items without stats.
+- Confirm item-stat and recipe applicability to current Product versions/regions. The detailed snapshot supplies stats for 1,162 of 1,288 output records; the other 126 retain unavailable status. These counts describe source coverage, not verified live-game completeness.
 - Add further feeds only after confirming their official source, API/RSS availability and reuse constraints. Do not embed arbitrary article HTML or invent summaries/images absent from a supported feed.
 
 ## Maintenance, screenshots and assets
@@ -108,7 +108,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 ## Community identity and operations
 
-**Available:** owned upload management, credential backups/import, privacy changes, request retry receipts, moderation reports/audit history, private authenticated server dashboard, public PvE/PvP class/player samples and an updater that checks successful main CI before installing/restarting. Existing-host deployment must be confirmed separately from repository publication.
+**Available:** owned upload management, credential backups/import, privacy changes, request retry receipts, moderation reports/audit history, private authenticated server dashboard, public PvE/PvP class/player samples and an updater that checks successful main CI before installing/restarting. Existing-host deployment must be confirmed separately from repository publication. Settings can query the configured server’s discovery response for its running server/analyzer package versions; older servers that omit these fields remain explicitly unverified.
 
 **Remaining:** verified character claims, opt-out of appearances in others' uploads, account/device recovery and named moderator roles/appeals need a trustworthy authentication design. Shared admin credentials establish credential use, not the identity of a person. Previously downloaded public data cannot be recalled.
 
@@ -120,7 +120,7 @@ The user will supply the following later; these are pending inputs, not complete
 - PURPLE install registration/configuration metadata, when available, for formats not covered by installed-game discovery. A KR/Taiwan installation is optional and is not a prerequisite for independent work.
 - Any available in-game Genus/Pantheon allocation export or independently recorded allocation data for source-backed import and board reconstruction.
 
-New capture data and a registered Global PURPLE installation are available for review. Additional independently known capture labels remain pending. Repository-wide automatic merging also remains pending the specific authorization previously requested.
+New capture data and a registered Global PURPLE installation are available for review. Additional independently known capture labels remain pending. Repository-wide auto-merge capability is enabled for the public client repository after explicit authorization. GitHub does not enable it for the private server repository on the current account plan; that requires a plan supporting private-repository auto-merge.
 
 ## How to supply the remaining evidence
 
@@ -132,7 +132,7 @@ Record from before entering the instance when possible; include the full encount
 
 Highest available server-reported skill, stigma and Daevanion totals supply personal planning and comparison scopes; reports are observations, not verified progression maxima. Combat log tabs are Community Combat Logs, My Uploads and Saved Logs. Boss portraits accompany boss names and progression; repeated portraits beside session-opening buttons are omitted.
 
-Scheduled collection tracks source-ID image mappings, revisions and hashes. Community source slugs remain separate from numeric game IDs. Unknown NPC IDs and role changes are staged in a catalog audit; collection context does not establish current-build applicability. New snapshots open review PRs. Automatic merging remains disabled pending explicit repository-wide authorization.
+Scheduled collection tracks source-ID image mappings, revisions and hashes. Community source slugs remain separate from numeric game IDs. Unknown NPC IDs and role changes are staged in a catalog audit; collection context does not establish current-build applicability. New snapshots open review PRs. Auto-merge capability is enabled on the client repository; GitHub plan support is still required for the private server repository. Individual PRs require a separate opt-in.
 
 **Remaining:** verified in-game Pantheon node/allocation data and artwork, official Genus allocations, current-build item rules and verification of the installed production package. Fresh anonymous comparison candidates can reach the server through its preset API or the explicit regeneration CLI; their receipt is separate from confirming the installed package version. Catalog equipment selection includes fixed stats, listed enhancement bonuses and entered random-roll lines bounded by the source pool, count and ranges. Unsupported effects remain unscored; source ranges do not establish current-build legality. Imported aggregate contributions must be removed when replacing them with individual gear to avoid overlap.
 
@@ -156,7 +156,7 @@ Crafting, Build Workspace and embedded maps use the available horizontal display
 | Device screenshot/cache verification | Affected-device checks and examples of additional file types before expanding cleanup. Unknown files remain preserved. |
 | Character claims, opt-out, recovery and moderator identity | A trustworthy account/character ownership source and recovery policy; shared upload/admin keys do not establish a person's identity. |
 | Production deployment verification | Confirm the installed server version through authenticated host access. Successful preset API receipts confirm candidate evaluation and replacement outcomes, but do not confirm the installed package version or execution of the native regeneration CLI. |
-| Repository-wide auto-merge capability | The specific authorization requested after automatic approval review rejected the broader setting change. Asset PR creation and review continue. |
+| Server repository auto-merge capability | Explicit authorization is received and the client setting is enabled. GitHub rejects private-repository protection/auto-merge on the current plan; a supporting account plan is required to keep the server repository private. |
 
 These items are still open. The postponed captures and metadata are required inputs for their dependent implementation and validation, not new bug reports or a completed roadmap.
 

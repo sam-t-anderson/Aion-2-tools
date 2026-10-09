@@ -595,7 +595,9 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 info = share.discover(url)
                 return self._json({"ok": True, "name": info.get("name"),
-                                   "auth_required": bool((info.get("auth") or {}).get("required"))})
+                                   "auth_required": bool((info.get("auth") or {}).get("required")),
+                                   "software": {k:v for k,v in (info.get("software") or {}).items()
+                                                if k in ("server", "analyzer") and isinstance(v,str) and len(v)<80}})
             except Exception as err:           # noqa: BLE001 - report the reason to the user
                 return self._json({"ok": False, "url": url, "detail": f"{type(err).__name__}: {err}"})
         if path == "/api/calibration":
