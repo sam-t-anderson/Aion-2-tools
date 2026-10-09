@@ -543,12 +543,12 @@ async function pagePlanner() {
     $("#preset-mode").value = String(v.scenario||"").startsWith("pvp")?"pvp":"pve";
     renderWindows(v, st, $("#wins"));
     if(v.weight_job){
-      const path=st.path,jobId=v.weight_job;
+      const path=st.path,jobId=v.weight_job,weightTarget=$('#wins');
       const pollWeights=async()=>{
-        if(st.path!==path || !location.hash.startsWith('#/planner') || !$('#wins'))return;
+        if(st.path!==path || (location.hash && !location.hash.startsWith('#/planner')) || !weightTarget.isConnected)return;
         try{
           const job=await api('/api/jobs/'+encodeURIComponent(jobId));
-          if(st.path!==path)return;
+          if(st.path!==path || !weightTarget.isConnected)return;
           if(job.status==='done'){v.weights=job.result.slice(0,12);delete v.weight_job;renderWindows(v,st,$('#wins'));return;}
           const status=$('[data-weight-status]');if(status)status.textContent=job.status==='error'?'Stat priority failed: '+job.error:(job.log?.at(-1)||'Calculating stat priority…');
           if(job.status==='error')return;
