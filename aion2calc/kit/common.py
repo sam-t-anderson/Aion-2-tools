@@ -33,15 +33,17 @@ def ms(v) -> float:
 
 
 def fallback_to_generic(A: dict, policy: list, build, cd: ClassData, notes: list,
-                        *, pvp: bool = False) -> None:
+                        *, pvp: bool = False, exclude: set | None = None) -> None:
     """Fill in any active/stigma the hand-written kit does not model.
 
     Mutates ``A`` and ``policy`` in place.  Only skills the build actually has
     (all actives, plus equipped stigmas) that are not already modeled by hand
     are added, each from its generic tooltip reading, inserted just before the
-    filler so bespoke skills keep priority.
+    filler so bespoke skills keep priority.  ``exclude`` lists skill ids the
+    hand-written kit accounts for elsewhere (e.g. a pet's damage folded into a
+    background stream) so the generic reading does not double-count them.
     """
-    known = {a.skill_id for a in A.values()}
+    known = {a.skill_id for a in A.values()} | (exclude or set())
     unknown = {sid for sid, s in cd.skills.items()
                if sid not in known and s["kind"] in ("active", "stigma")
                and (s["kind"] != "stigma" or sid in build.stigmas)}
