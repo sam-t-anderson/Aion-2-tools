@@ -254,6 +254,11 @@ With **Record TCP payloads** unchecked, `tcp-payloads.jsonl` is intentionally em
 
 ## Overlay
 
+### Show the overlay when starting
+
+**Show overlay when starting** is checked by default beside Live Meter's Start button and saved as a preference. It is also available in Settings. Starting capture opens or reuses the overlay when enabled. Unchecking it skips automatic opening; Open overlay and Hide overlay remain available. An overlay-launch failure does not stop capture. Browser-only fallback may require clicking Open overlay if popup blocking prevents automatic opening.
+
+
 Under **Settings → Overlay number colors**, choose separate colors for rate text and total/share text. Both default to black. The same choices apply to DPS, HPS and D.Taken; an open overlay refreshes them within ten seconds. **Reset to black** restores both defaults.
 
 Use **DPS**, **HPS** or **D.Taken** below Meter/Plan/Hide to choose the overlay metric. Each view sorts its own bars and shows the rate, total and percentage for that metric. The selection is saved on this computer. DPS uses the shared active outgoing-damage clock; HPS and incoming damage per second use recorded encounter spans, which hold steady between effects. Healing-only activity does not create a combat encounter.
@@ -728,8 +733,3 @@ The Maps, Crafting and Build Workspace views expand with the available browser/w
 Choose a catalog arcana card, select skill levels from its class/slot pool, and Apply item options. The bundled grade/enhancement rule limits the total, with a separate per-skill cap. Card bonuses add to manual bonuses, so remove overlapping imported contributions. These controls do not verify ownership or current-build rules.
 
 In Evaluation / advanced inputs, optionally enable Search skill priority. The model keeps gear, Genus, allocations and supporting effects fixed and compares complete-window priorities, keeping the default priority as a baseline. Results show the best evaluated order and the stopping limit (96 evaluations, six improving passes or 15 seconds per scenario). This does not establish a global optimum or simulate reactive PvP behavior.
-
-
-### Show the overlay when starting
-
-**Show overlay when starting** is checked by default beside Live Meter's Start button and saved as a preference. It is also available in Settings. Starting capture opens or reuses the overlay when enabled. Unchecking it skips automatic opening; Open overlay and Hide overlay remain available. An overlay-launch failure does not stop capture. Browser-only fallback may require clicking Open overlay if popup blocking prevents automatic opening.
