@@ -508,6 +508,8 @@ class Runner:
         try:
             diagnostic = dict(self.diagnostics)
             diagnostic["export_consistency"] = "locked" if acquired else "best_effort_decoder_busy"
+            if acquired:
+                diagnostic["npc_diagnostics"] = self.session.npc_diagnostics()
             diagnostic["raw_recording_enabled"] = self.recorder is not None
             diagnostic["scope"] = self.scope
             diagnostic["capture_processing"] = {k:self.session.capture_evidence.get(k) for k in ("capture_errors", "decoder_errors", "shutdown_discarded_payloads", "shutdown_drained_payloads")}

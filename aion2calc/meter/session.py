@@ -210,6 +210,9 @@ class CombatSession:
         identity["names"].update(engine.names)
         identity["jobs"].update(engine.jobs)
         identity["spawns"].update({key: dict(value) for key, value in engine.spawn_info.items()})
+        identity["npc_diagnostics"] = {"epoch": self.epoch, "scan_calls": engine.npc_scan_calls,
+                                       "omitted": engine.npc_trace_omitted, "candidates_seen": engine.npc_candidates_seen,
+                                       "records": [dict(row) for row in engine.npc_trace]}
         identity["roster"].update({name.casefold(): dict(value) for name, value in engine.roster.items()})
         identity["owners"].update(engine.summon_owners)
         identity["profile"] = dict(engine.local_profile)
@@ -575,6 +578,14 @@ class CombatSession:
         summary["history_discarded"] = self.discarded
         return summary
 
+    def npc_diagnostics(self, epochs=None):
+        from ..combat.npc_diagnostics import clean
+        selected = set(self.identities) if epochs is None else set(epochs)
+        rows = [self.identities[key].get("npc_diagnostics") for key in sorted(selected)
+                if key in self.identities]
+        rows = [row for row in rows if row]
+        return clean({"version": 1, "epochs": rows[-32:], "omitted_epochs": max(0, len(rows)-32)})
+
     def to_a2log(self, scope="party", title=None, segment_id="all"):
         from ..combat import a2log
         allowed_for = self._allowances(scope)
@@ -734,8 +745,9 @@ class CombatSession:
         evidence = {**self.capture_evidence, "decoder":DECODER, "app_version":__version__,
                     "discarded_effects":self.discarded, "discarded_segments":self.discarded_segments,
                     "discarded_telemetry":self.discarded_telemetry}
+        npc_diagnostics = self.npc_diagnostics(g["epoch"] for g in groups)
         exported_scope = scope
         if scope == "auto":
             exported_scope = "all" if any(self._effective_scope(scope, g["epoch"]) == "all" for g in groups) else "party"
-        return a2log.validate({"format":"a2log","version":1,"meta":{"source":"Aion 2 Calc live session","title":title or "Live combat session", "capture_scope":exported_scope, "capture_quality":evidence},
+        return a2log.validate({"format":"a2log","version":1,"meta":{"source":"Aion 2 Calc live session","title":title or "Live combat session", "capture_scope":exported_scope, "capture_quality":evidence, "npc_diagnostics":npc_diagnostics},
                                "players":list(players.values()),"segments":segments})

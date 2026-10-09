@@ -185,3 +185,10 @@ Kit ASSUME calibration remains pending independently labeled A2Parser captures w
 ## Compressed-frame recovery and graph review
 
 Malformed LZ4 blocks observed in four local diagnostic archives previously escaped decoder recovery and stopped capture. Bundle decompression is cached within each received batch with shared byte/depth limits; rejected compressed frames retain loss/error evidence while valid neighboring frames and subsequent encounters continue. Run completion never ends the capture adapter. Device confirmation remains pending. Graph hover detail uses player/metric and boss-HP tables; player series are ordered together. Overlay ping has its own wrapping row beneath the controls, with current/average/minimum/maximum or a no-samples message. Missing community-preset weights are calculated and cached locally for display, using the common weighted scenarios and fixed saved rotation.
+
+
+## Automatic NPC troubleshooting evidence
+
+New live-session logs and diagnostic exports retain bounded numeric spawn-decoder observations without enabling TCP payload recording. Each identity epoch includes scan/candidate counters, omitted-observation counts and up to 128 recognized spawn observations (32 epochs maximum), with actor ID, timestamp, opcode, decoded NPC code or missing-type-marker status. Scan counts include outer and decompressed scans and are not unique packet counts. Evidence is validated on import and upload; packet bytes, text and connection addresses are excluded. A missing observation does not prove no packet arrived, particularly after truncation or an unsupported opcode. This helps diagnose missing NPC links but cannot reconstruct an unfamiliar packet format; optional raw capture can still be needed. Historical logs do not gain missing evidence retroactively.
+
+The user confirmed continuous capture, cleanup, partial runs and character imports work again. Ascension missing NPC-type identities remain a new pending report; catalog boss portraits already exist. Responding production packages were verified as server 0.2.65 and analyzer 0.2.115 before this update.

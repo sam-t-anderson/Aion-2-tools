@@ -413,3 +413,10 @@ Responses record evaluator version, calibration, input hash, modeled DPS/ability
 Draft scoring currently supports level 45, matching the model's base-resource assumptions. Lower-level allocation drafts remain editable and exportable; no lower-level score is supplied.
 
 Draft evaluation excludes learned personal/community calibration and records neutral proc-rate, critical-midpoint and skill-multiplier parameters. Desktop and server serialize this model context against their other model calculations.
+
+
+## Automatic NPC troubleshooting evidence
+
+New live-session logs and diagnostic exports retain bounded numeric spawn-decoder observations without enabling TCP payload recording. Each identity epoch includes scan/candidate counters, omitted-observation counts and up to 128 recognized spawn observations (32 epochs maximum), with actor ID, timestamp, opcode, decoded NPC code or missing-type-marker status. Scan counts include outer and decompressed scans and are not unique packet counts. Evidence is validated on import and upload; packet bytes, text and connection addresses are excluded. A missing observation does not prove no packet arrived, particularly after truncation or an unsupported opcode. This helps diagnose missing NPC links but cannot reconstruct an unfamiliar packet format; optional raw capture can still be needed. Historical logs do not gain missing evidence retroactively.
+
+The user confirmed continuous capture, cleanup, partial runs and character imports work again. Ascension missing NPC-type identities remain a new pending report; catalog boss portraits already exist. Responding production packages were verified as server 0.2.65 and analyzer 0.2.115 before this update.
