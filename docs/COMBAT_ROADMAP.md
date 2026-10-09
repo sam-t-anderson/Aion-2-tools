@@ -120,7 +120,7 @@ The user will supply the following later; these are pending inputs, not complete
 - PURPLE install registration/configuration metadata, when available, for formats not covered by installed-game discovery. A KR/Taiwan installation is optional and is not a prerequisite for independent work.
 - Any available in-game Genus/Pantheon allocation export or independently recorded allocation data for source-backed import and board reconstruction.
 
-New capture data and a registered Global PURPLE installation are available for review. Additional independently known capture labels remain pending. Repository-wide automatic merging also remains pending the specific authorization previously requested.
+New capture data and a registered Global PURPLE installation are available for review. Additional independently known capture labels remain pending. Repository-wide auto-merge capability is enabled for the public client repository after explicit authorization. GitHub does not enable it for the private server repository on the current account plan; that requires a plan supporting private-repository auto-merge.
 
 ## How to supply the remaining evidence
 
@@ -132,7 +132,7 @@ Record from before entering the instance when possible; include the full encount
 
 Highest available server-reported skill, stigma and Daevanion totals supply personal planning and comparison scopes; reports are observations, not verified progression maxima. Combat log tabs are Community Combat Logs, My Uploads and Saved Logs. Boss portraits accompany boss names and progression; repeated portraits beside session-opening buttons are omitted.
 
-Scheduled collection tracks source-ID image mappings, revisions and hashes. Community source slugs remain separate from numeric game IDs. Unknown NPC IDs and role changes are staged in a catalog audit; collection context does not establish current-build applicability. New snapshots open review PRs. Automatic merging remains disabled pending explicit repository-wide authorization.
+Scheduled collection tracks source-ID image mappings, revisions and hashes. Community source slugs remain separate from numeric game IDs. Unknown NPC IDs and role changes are staged in a catalog audit; collection context does not establish current-build applicability. New snapshots open review PRs. Auto-merge capability is enabled on the client repository; GitHub plan support is still required for the private server repository. Individual PRs require a separate opt-in.
 
 **Remaining:** verified in-game Pantheon node/allocation data and artwork, official Genus allocations, current-build item rules and verification of the installed production package. Fresh anonymous comparison candidates can reach the server through its preset API or the explicit regeneration CLI; their receipt is separate from confirming the installed package version. Catalog equipment selection includes fixed stats, listed enhancement bonuses and entered random-roll lines bounded by the source pool, count and ranges. Unsupported effects remain unscored; source ranges do not establish current-build legality. Imported aggregate contributions must be removed when replacing them with individual gear to avoid overlap.
 
@@ -156,7 +156,7 @@ Crafting, Build Workspace and embedded maps use the available horizontal display
 | Device screenshot/cache verification | Affected-device checks and examples of additional file types before expanding cleanup. Unknown files remain preserved. |
 | Character claims, opt-out, recovery and moderator identity | A trustworthy account/character ownership source and recovery policy; shared upload/admin keys do not establish a person's identity. |
 | Production deployment verification | Confirm the installed server version through authenticated host access. Successful preset API receipts confirm candidate evaluation and replacement outcomes, but do not confirm the installed package version or execution of the native regeneration CLI. |
-| Repository-wide auto-merge capability | The specific authorization requested after automatic approval review rejected the broader setting change. Asset PR creation and review continue. |
+| Server repository auto-merge capability | Explicit authorization is received and the client setting is enabled. GitHub rejects private-repository protection/auto-merge on the current plan; a supporting account plan is required to keep the server repository private. |
 
 These items are still open. The postponed captures and metadata are required inputs for their dependent implementation and validation, not new bug reports or a completed roadmap.
 

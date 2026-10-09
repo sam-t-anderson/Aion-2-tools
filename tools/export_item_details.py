@@ -8,6 +8,7 @@ import json
 import math
 from pathlib import Path
 import re
+import threading
 from urllib.request import Request, urlopen
 
 BASE = "https://gamers4.life/aion-2/database"
@@ -108,8 +109,18 @@ def normalize(key, raw):
 
 def enrich(catalog, cache: Path | None = None, format_source: Path | None = None):
     ids = sorted({row[field] for row in catalog["recipes"].values() for field in ("output", "combo") if row[field]})
+    if len(ids) > 2500:
+        raise ValueError("Output count exceeds the reviewed collection limit")
+    budget, lock = [0], threading.Lock()
     def collect(key):
+        with lock:
+            if budget[0] > 32 * 1024 * 1024:
+                raise ValueError("Aggregate item detail source exceeds 32 MiB")
         raw = (cache / (key + ".json")).read_bytes() if cache is not None else download(DETAIL.format(id=key))
+        with lock:
+            budget[0] += len(raw)
+            if budget[0] > 32 * 1024 * 1024:
+                raise ValueError("Aggregate item detail source exceeds 32 MiB")
         return key, normalize(key, raw)
     with ThreadPoolExecutor(max_workers=4) as pool:
         details = dict(pool.map(collect, ids))
