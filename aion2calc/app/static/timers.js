@@ -3,7 +3,7 @@
   'use strict';
   const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const build=x=>String(x||'Unknown build').replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})/g,'Build $1 · Steam').replace(/build:purple:A2_[A-Z0-9_]{1,80}_PURPLE:([0-9]{1,20})/g,'Build $1 · PURPLE');
+  const build=x=>String(x||'Unknown game version').replace(/version:product:([0-9.]+)/g,'Product version $1').replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})/g,'Legacy build $1 · Steam').replace(/build:purple:A2_[A-Z0-9_]{1,80}_PURPLE:([0-9]{1,20})/g,'Legacy build $1 · PURPLE');
   const local=t=>new Date(t).toLocaleString();
   const countdown=ms=>{const s=Math.max(0,Math.ceil(ms/1000));return `${Math.floor(s/86400)?Math.floor(s/86400)+'d ':''}${String(Math.floor(s/3600)%24).padStart(2,'0')}:${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;};
   function occurrences(event,zone,now,cache){

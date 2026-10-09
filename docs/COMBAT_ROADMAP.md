@@ -18,9 +18,9 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 **Completion evidence:** entry-to-completion captures, partial captures, party/zone changes, reconnects, stops and rollovers with known participants/outcomes. Historical missing packets cannot be restored.
 
-## 2. Encounter classification, installed builds and catalog coverage
+## 2. Encounter classification, game versions and catalog coverage
 
-**Available:** validated Steam/registered-install discovery and local selection, launcher Build IDs, recorded regional server identity, automatic exact map/instance/NPC catalog matching, post-recording corrections, evidence explanations, unresolved-ID exports and a reproducible pinned upstream catalog audit. Public boss HP candidate signatures retain build, region, context, roster size and source provenance. Reported maximum HP stays separate from peak observed current HP.
+**Available:** validated Steam/registered-install discovery and local selection, executable Product versions with diagnostic launcher IDs, recorded regional server identity, automatic exact map/instance/NPC catalog matching, post-recording corrections, evidence explanations, unresolved-ID exports and a reproducible pinned upstream catalog audit. Public boss HP candidate signatures retain build, region, context, roster size and source provenance. Reported maximum HP stays separate from peak observed current HP.
 
 **Remaining:**
 
@@ -168,6 +168,10 @@ A newly reported database-lock error exposed catalog transactions spanning netwo
 
 A new character import error was traced to empty base-stat tables in all eight local class overlays. Loading recovers the bundled table with an import warning; sync rejects incomplete tables before replacing class data. Source-page extraction now accepts the observed CSS classes and Lv. labels rather than depending on an undefined CSS class and bare level numbers.
 
-## Optimizer and PURPLE metadata follow-up
+## Optimizer, Product version and continuous capture follow-up
 
-Dedicated PvE kits now cover all eight classes; PvP still uses the generic mode-specific kit. Spiritmaster pet and Gladiator stack state are isolated per simulation so repeated rotation and stat-weight evaluations do not carry state between runs. Assumed animation, chain/proc, pet and boss-control timings still require capture calibration. Registered PURPLE installs can report completed VersionInfo launcher revisions under a separate service namespace; Global revision 27 maps to the Steam 25767555 comparison cohort after matching 505 gameplay index/signature files and all 1,010 gameplay package lengths. Original launcher numbers remain recorded; this does not identify a physical region or verify full payload integrity. New revisions can be matched from installed content evidence rather than assumed equal. Unregistered PURPLE discovery remains pending.
+Dedicated PvE kits now cover all eight classes; PvP still uses the generic mode-specific kit. Spiritmaster pet and Gladiator stack state are isolated per simulation. Assumed animation, chain/proc, pet and boss-control timings still require capture calibration.
+
+The full executable ProductVersion string identifies new comparison groups across Steam and PURPLE, with engine file versions and launcher IDs retained as diagnostics. Both observed installations report 1.0.21.0.2026031801. Legacy logs retain their recorded identifiers; no missing historical Product version is guessed. Registered PURPLE discovery is supported; unregistered discovery remains pending.
+
+Encounter completion does not request capture shutdown. Recoverable malformed-packet decoder exceptions reset affected stream framing and continue capture with explicit loss/error evidence. Fatal adapter/programming/storage errors still stop visibly. Affected-device confirmation and independently labeled capture details remain pending.

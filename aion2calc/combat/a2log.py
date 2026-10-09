@@ -80,7 +80,7 @@ SCHEMA = {
             "title": {"type": "string"}, "region": {"type": "string"}, "server": {"type": "string"},
             "recorded_at": {"type": "string", "format": "date-time"},
             "zone": {"type": "string"}, "difficulty": {"type": "string"},
-            "installed_build": {"type": "string"}, "installed_build_namespace": {"type": "string"}, "installed_build_cohort": {"type": "string"}, "installed_build_fingerprint": {"type": "string"}, "installed_build_source": {"type": "string"}, "region_source": {"type": "string"},
+            "installed_build": {"type": "string"}, "installed_build_namespace": {"type": "string"}, "installed_build_cohort": {"type": "string"}, "launcher_build": {"type": "string"}, "launcher_build_namespace": {"type": "string"}, "launcher_build_source": {"type": "string"}, "file_version": {"type": "string"}, "installed_build_source": {"type": "string"}, "region_source": {"type": "string"},
             "game_patch": {"type": "string"}, "game_patch_source": {"type": "string"}, "game_patch_basis": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
             "capture_active": {"type": "boolean"}, "checkpoint_at": {"type": "number"},
             "capture_scope": {"enum": ["party", "self", "all"]},
