@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from ..sim.engine import Sim
 from .rotation import CONDITIONS
 
-MODEL_VERSION = 2
+MODEL_VERSION = 3
 
 
 @dataclass
@@ -25,6 +25,7 @@ class MacroPlan:
     alt_steps: list | None = None       # the other layout (one-button or macro + manual keys)
     alt_manual: list | None = None
     dps_alt: float = 0.0
+    auto_attack: str | None = None      # left mouse button: the basic auto-attack (the kit filler)
 
 
 class MacroPolicy:
@@ -95,7 +96,12 @@ def plan_macro(derived, kit, policy: list, target, config, macro_cd_limit: float
     split = (best_steps, manual, best)
     single = (one, charged, one_v)
     first, second = (single, split) if one_v >= best else (split, single)
-    return MacroPlan(first[0], first[1], first[2], dps_pri, second[0], second[1], second[2])
+    # Left mouse button is the basic auto-attack: the kit's designated filler, never an
+    # arbitrary skill. Fall back to a filler that appears in the chosen layout.
+    auto = kit.filler if kit.filler in kit.actions and kit.actions[kit.filler].is_filler else None
+    if auto is None:
+        auto = next((keyf(e) for e in first[0] if kit.actions[keyf(e)].is_filler), None)
+    return MacroPlan(first[0], first[1], first[2], dps_pri, second[0], second[1], second[2], auto_attack=auto)
 
 
 def describe_plan(plan: MacroPlan) -> dict:
@@ -104,4 +110,4 @@ def describe_plan(plan: MacroPlan) -> dict:
     return {"model_version": MODEL_VERSION, "steps": plan.macro_steps, "manual": describe(plan.manual),
             "dps_macro": plan.dps_macro, "dps_priority": plan.dps_priority,
             "alt_steps": plan.alt_steps, "alt_manual": describe(plan.alt_manual or []),
-            "dps_alt": plan.dps_alt}
+            "dps_alt": plan.dps_alt, "auto_attack": plan.auto_attack}

@@ -264,16 +264,24 @@ def rotation_view(cd: ClassData, build, gear: dict, summary: dict) -> dict:
             "charged": action.requires_charge, "charge_level": action.charge_level,
         }
     # Reserve right-click for the macro itself. Names/icons/key bindings are shared by both tabs.
-    bindings = ["1", "2", "3", "4", "5", "6", "7", "8", "Q", "E", "LMB", "="]
+    # The left mouse button (LMB) is the basic auto-attack, so it is reserved for the kit's
+    # filler and kept out of the positional pool — never assigned to an arbitrary skill.
+    bindings = ["1", "2", "3", "4", "5", "6", "7", "8", "Q", "E", "="]
     bindings += [f"F{i}" for i in range(1, 13)]
-    slots, seen = [], set()
+    auto_key = macro.get("auto_attack") or kit.filler
+    auto_sid = actions.get(auto_key, {}).get("skill_id")
+    slots, seen, pool = [], set(), 0
     for entry in manual + steps:
         action = actions.get(key(entry))
         if not action or action["skill_id"] in seen:
             continue
         seen.add(action["skill_id"])
-        index = len(slots)
-        slots.append({**action, "binding": bindings[index] if index < len(bindings) else "Assign key",
+        if action["skill_id"] == auto_sid:
+            binding = "LMB"
+        else:
+            binding = bindings[pool] if pool < len(bindings) else "Assign key"
+            pool += 1
+        slots.append({**action, "binding": binding,
                       "manual": any(key(e) == action["key"] for e in manual)})
     bound = {slot["skill_id"]: slot["binding"] for slot in slots}
     for action in actions.values():

@@ -189,6 +189,9 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
       "`[mp_hi]` = only while MP is at least 60% (weave it in, keep MP for Grace of Enhancement).\n")
     m = s["macro"]
     w("### In-game Skill Macro\n")
+    if m.get("auto_attack"):
+        w(f"**Left mouse button** is the basic auto-attack: `{m['auto_attack']}`. Hold it for continuous attacks; "
+          "the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.\n")
     w("Settings → Key Settings → General → Skill Macro. Skill Queue (스킬 예약) **ON**, 10 ms delay on every step, hold the macro key; "
       "manual presses always take priority over the macro.\n")
     w("| Step | Skill |")
