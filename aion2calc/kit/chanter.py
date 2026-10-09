@@ -24,6 +24,8 @@ from ..sim.engine import Action
 from .base import Build, ClassData
 from .common import Kit, fallback_to_generic, ms, spec_options  # noqa: F401
 
+__all__ = ["build_kit", "spec_options"]
+
 SID = dict(
     ONS=18010000, INCAND=18040000, RSMASH=18090000, ICRUSH=18060000, DCRUSH=18100000,
     GUST=18300000, HEATWAVE=18150000, RECUP=18120000, TREMOR=18210000, WAVEBLOW=18080000,

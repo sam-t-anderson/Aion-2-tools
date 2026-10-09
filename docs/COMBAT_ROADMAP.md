@@ -93,6 +93,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 - Verify current-build arcana rules and obtain Pantheon node controls/artwork from source data as described in workstreams 3–4. Catalog card skill selectors now use bundled class/slot pools and grade/enhancement bounds, separate from manual skill bonuses. Explicit draft rescoring is available without publishing or changing source profiles.
 - Obtain permitted native map coordinates, layers and assets if replacing the provider viewer with local map tools. Cross-origin provider account/checklist state remains with the provider.
 - Verify crafting general success/failure rewards, refunds, combo quantity/replacement rules, modifier formulas and build/region applicability. Current combo simulations are conditional completed-craft checks, not guaranteed item yields.
+- Show source-backed stats for crafted output items when they have stats, alongside the product preview. Preserve units, ranges and enhancement or variant context when available; distinguish unavailable data from items without stats.
 - Add further feeds only after confirming their official source, API/RSS availability and reuse constraints. Do not embed arbitrary article HTML or invent summaries/images absent from a supported feed.
 
 ## Maintenance, screenshots and assets
@@ -119,7 +120,7 @@ The user will supply the following later; these are pending inputs, not complete
 - PURPLE install registration/configuration metadata, when available, for formats not covered by installed-game discovery. A KR/Taiwan installation is optional and is not a prerequisite for independent work.
 - Any available in-game Genus/Pantheon allocation export or independently recorded allocation data for source-backed import and board reconstruction.
 
-No new issue reports were added in this iteration. Repository-wide automatic merging also remains pending the specific authorization previously requested.
+New capture data and a registered Global PURPLE installation are available for review. Additional independently known capture labels remain pending. Repository-wide automatic merging also remains pending the specific authorization previously requested.
 
 ## How to supply the remaining evidence
 
@@ -166,3 +167,7 @@ A newly reported database-lock error exposed catalog transactions spanning netwo
 ## Empty base-stat tables after sync
 
 A new character import error was traced to empty base-stat tables in all eight local class overlays. Loading recovers the bundled table with an import warning; sync rejects incomplete tables before replacing class data. Source-page extraction now accepts the observed CSS classes and Lv. labels rather than depending on an undefined CSS class and bare level numbers.
+
+## Optimizer and PURPLE metadata follow-up
+
+Dedicated PvE kits now cover all eight classes; PvP still uses the generic mode-specific kit. Spiritmaster pet and Gladiator stack state are isolated per simulation so repeated rotation and stat-weight evaluations do not carry state between runs. Assumed animation, chain/proc, pet and boss-control timings still require capture calibration. Registered PURPLE installs can report completed VersionInfo launcher revisions under a separate service namespace; Global revision 27 is not Steam build 25767555 and does not identify a physical region. Unregistered PURPLE discovery remains pending.

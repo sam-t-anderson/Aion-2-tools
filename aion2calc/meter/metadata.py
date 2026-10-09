@@ -10,6 +10,7 @@ import sys
 import threading
 import time
 import urllib.request
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from ..paths import user_data, write_user_json
@@ -111,6 +112,35 @@ def _file_version(path):
     return None if version in ("0.0.0.0", "1.0.0.0") else version
 
 
+def _purple_build_evidence(root):
+    """Read the observed PURPLE launcher revision, not the engine executable version."""
+    manifests = sorted(root.glob("VersionInfo_A2_*_PURPLE.xml"))
+    if not manifests:
+        return None
+    revisions = set()
+    try:
+        if len(manifests) > 8:
+            raise ValueError("Too many launcher manifests")
+        for path in manifests:
+            if not re.fullmatch(r"VersionInfo_(A2_[A-Z0-9_]+_PURPLE)\.xml", path.name):
+                raise ValueError("Unrecognized launcher namespace")
+            if path.stat().st_size > 16384:
+                raise ValueError("Launcher manifest too large")
+            tree = ET.fromstring(path.read_bytes())
+            version = (tree.findtext("Version") or "").strip()
+            if tree.tag != "VersionInfo" or tree.findtext("Updated") != "1" or not re.fullmatch(r"[0-9]{1,20}", version) or int(version) <= 0:
+                raise ValueError("Incomplete launcher revision")
+            namespace = "purple:" + path.stem.removeprefix("VersionInfo_")
+            revisions.add((namespace, version))
+        if len(revisions) != 1:
+            raise ValueError("Conflicting launcher revisions")
+        namespace, version = revisions.pop()
+        return {"installed_build": version, "installed_build_source": "PURPLE VersionInfo launcher revision",
+                "installed_build_namespace": namespace, "status": "ready"}
+    except (OSError, ValueError, ET.ParseError):
+        return {"status": "unavailable", "reason": "PURPLE launcher revision is incomplete, conflicting or unreadable."}
+
+
 def _build_evidence(root):
     """Return public build evidence only; paths remain local."""
     # Steam common/<installdir> is discovered through the registry, not a fixed drive.
@@ -125,6 +155,9 @@ def _build_evidence(root):
                             "installed_build_namespace": "steam:" + fields.get("appid", ""), "status": "ready"}
             except (OSError, UnicodeError):
                 continue
+    purple = _purple_build_evidence(root)
+    if purple is not None:
+        return purple
     for binary in (root / "Aion2/Binaries/Win64/AION2.exe", root / "AION2.exe"):
         version = _file_version(binary)
         if version:
@@ -149,7 +182,9 @@ def installation_options():
     rows = []
     for root in _installed_roots():
         evidence = _build_evidence(root)
-        launcher = "Steam" if root.parent.name.casefold() == "common" else "Registered Windows install"
+        launcher = ("Steam" if root.parent.name.casefold() == "common" else
+                    "PURPLE" if evidence.get("installed_build_namespace", "").startswith("purple:") else
+                    "Registered Windows install")
         label = f"{launcher} · {root.name} · {root.drive or 'local'}"
         if evidence.get("installed_build"):
             label += " · build " + evidence["installed_build"]
