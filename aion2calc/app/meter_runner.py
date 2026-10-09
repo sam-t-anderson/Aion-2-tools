@@ -754,7 +754,7 @@ class Runner:
         from ..combat.latency import summarize
         for segment in doc.get("segments", []):
             try:
-                stamp = datetime.fromisoformat(segment.get("start", "").replace("Z", "+00:00"))
+                stamp = datetime.fromisoformat((segment.get("start") or "").replace("Z", "+00:00"))
                 origin = stamp.timestamp() if stamp.tzinfo else None
             except (ValueError, TypeError):
                 origin = None
