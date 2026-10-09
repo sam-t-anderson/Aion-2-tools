@@ -184,6 +184,8 @@ Personal character search can use its primary scenario or an equal-weight pair w
 
 ## Canonical preset comparison policy
 
+Community comparison policies, generation and server evaluation use bundled class, hit-profile and common-loadout data. Local synchronized copies continue to supply personal planning. Their loader caches are separated, and comparison scope is restored after each call; user settings and storage remain available. Actual model/data mismatches still reject submission and identify the differing policy fields.
+
 The versioned canonical preset evaluator compares allocations within one class, combat mode and scoring scope. It uses a common median loadout and fixed example budgets of 203 Skill, 30 Stigma and 360 crystal-board Daevanion points. These are comparison resources, not verified game maxima. Over-budget submissions need a separate optimization under these resources; they are not silently trimmed into a different build.
 
 PvE weights the 180-second boss and dummy damage scenarios equally. PvP weights the 180-second stationary player proxy and 30-second burst proxy equally. The score is the arithmetic mean of the two modeled DPS values, not a percentile, user rating or win probability. Personal gear, Genus, HP reserves and trained skill constraints are not shared comparison inputs. Learned calibration is disabled.

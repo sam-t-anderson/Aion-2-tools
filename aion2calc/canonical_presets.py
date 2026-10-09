@@ -13,7 +13,7 @@ import math
 
 from .kit.base import ClassData
 from .model.character import load_loadout
-from .paths import list_names
+from .paths import list_names, bundled_model_data
 from .presets import BUDGETS, InvalidPreset, candidate as legacy_candidate, parse
 
 MODEL_VERSION = "0.3.2"  # Bump for evaluator/model changes, not capture/UI releases.
@@ -33,6 +33,7 @@ def _digest(value) -> str:
                                      ensure_ascii=False, allow_nan=False).encode()).hexdigest()
 
 
+@bundled_model_data
 def _context(cls: str, mode: str, budgets: dict | None = None):
     if not isinstance(cls, str) or cls not in list_names("global", "classes"):
         raise InvalidPreset("unknown class")
@@ -70,6 +71,7 @@ def scoring_policy(cls: str, mode: str, budgets: dict | None = None) -> dict:
     return _context(cls, mode, budgets)[0]
 
 
+@bundled_model_data
 def candidate(summary: dict, policy: dict | None = None) -> dict:
     """Only allocations and priority leave the source character's report."""
     if not isinstance(summary, dict):
@@ -92,6 +94,7 @@ def candidate(summary: dict, policy: dict | None = None) -> dict:
             "scope": policy["scope"], "build": build}
 
 
+@bundled_model_data
 def evaluate(document: dict, budgets: dict | None = None) -> dict:
     """Recompute the weighted score using only the server's current policy."""
     from .learn import uncalibrated
