@@ -35,7 +35,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 ## 3. Optimizer damage, survival and optimized opponents
 
-**Available:** separate PvE/PvP objectives and saved results, weighted damage scenarios, flat crystal-HP reserves, entered hit/sustained-pressure assumptions, trained-skill/stigma reservations and timed expected-hit traces. Imported optimized PvP opponents can supply gross-damage windows; the strictest entered incoming scenario constrains the personal build. Canonical community presets use comparable budgets/objectives and generic class/level/region/mode labels; personal constraints are excluded from damage-only preset comparisons.
+**Available:** separate PvE/PvP objectives and saved results, weighted damage scenarios, flat crystal-HP reserves, entered hit/sustained-pressure assumptions, trained-skill/stigma reservations and timed expected-hit traces. Imported optimized PvP opponents can supply gross-damage windows; the strictest entered incoming scenario constrains the personal build. Canonical community presets use comparable budgets/objectives and generic class/level/region/mode labels; explicit server regeneration searches both scenario seeds and their weighted objective using current reported budgets, retaining a stronger concurrent winner; personal constraints are excluded from damage-only preset comparisons.
 
 **Remaining:**
 
@@ -116,7 +116,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 The user will supply the following later; these are pending inputs, not completed verification:
 
 - A current-build diagnostic capture with independently known character/server, difficulty, boss and outcome. This is required for additional identity/protocol variants and classification validation.
-- PURPLE install registration/configuration metadata, when available, for formats not covered by installed-game discovery.
+- PURPLE install registration/configuration metadata, when available, for formats not covered by installed-game discovery. A KR/Taiwan installation is optional and is not a prerequisite for independent work.
 - Any available in-game Genus/Pantheon allocation export or independently recorded allocation data for source-backed import and board reconstruction.
 
 No new issue reports were added in this iteration. Repository-wide automatic merging also remains pending the specific authorization previously requested.
@@ -133,6 +133,28 @@ Highest available server-reported skill, stigma and Daevanion totals supply pers
 
 Scheduled collection tracks source-ID image mappings, revisions and hashes. Community source slugs remain separate from numeric game IDs. Unknown NPC IDs and role changes are staged in a catalog audit; collection context does not establish current-build applicability. New snapshots open review PRs. Automatic merging remains disabled pending explicit repository-wide authorization.
 
-**Remaining:** verified in-game Pantheon node/allocation data and artwork, official Genus allocations, current-build item rules and fresh optimization under new comparison scopes. Catalog equipment selection includes fixed stats, listed enhancement bonuses and entered random-roll lines bounded by the source pool, count and ranges. Unsupported effects remain unscored; source ranges do not establish current-build legality. Imported aggregate contributions must be removed when replacing them with individual gear to avoid overlap.
+**Remaining:** verified in-game Pantheon node/allocation data and artwork, official Genus allocations, current-build item rules and confirmation that fresh comparison regeneration has run on the deployed host. Catalog equipment selection includes fixed stats, listed enhancement bonuses and entered random-roll lines bounded by the source pool, count and ranges. Unsupported effects remain unscored; source ranges do not establish current-build legality. Imported aggregate contributions must be removed when replacing them with individual gear to avoid overlap.
 
 Crafting, Build Workspace and embedded maps use the available horizontal display space, with layouts that collapse on smaller screens.
+
+
+## Remaining work and its prerequisites
+
+| Open item | Prerequisite / next action |
+| --- | --- |
+| Local identity, pet ownership, repeated encounters and partial-instance capture validation | Current-build diagnostics with known participants and outcomes, including separate TCP-checkbox states. The user is collecting these. |
+| Cross-part boss attempts and ranking promotion | A stable boss lifetime/attempt identifier, plus captured entry, completion and loss evidence. Existing part/run tokens support descriptive review; they do not distinguish reused actor IDs or restore missing packets. |
+| Cross-uploader fight matching and defeat deduplication | Independently labeled simultaneous perspectives with physical server/channel scope; define conservative ambiguity/rejection rules before fusing records. |
+| PURPLE discovery and regional build metadata | Verified registration/configuration samples; preserve launcher namespaces. KR/Taiwan is optional. |
+| Difficulty, encounter roles and calibrated automatic classification | Independent labels, modifier/party-scaling context and held-out captures by build/region. Catalog or HP similarity alone does not establish the requested precision. |
+| Defensive PvE/PvP mechanics and reactive matchups | Verified effect coefficients, cooldown/action costs, mitigation and representative matchup validation. Stationary gross damage remains a proxy. |
+| Official Genus/Pantheon import and board artwork | Supported allocation payloads, stable node IDs and source-backed rules/assets. Manual controls remain available. |
+| Casts, buffs, movement, PvP teams/rounds/objectives and mixed-segment mode | Representative packets with known actions, coordinates, targets and outcomes. Preserve unknown effects rather than assigning them from damage patterns. |
+| Timers, crafting and native maps | Verified scoped schedules/respawns, crafting failure/refund/modifier rules and permitted map coordinates/layers/assets. Existing source-attributed tools remain usable. |
+| Further NPC/item/title images and namespaces | Source-ID records and reviewed asset mappings. Scheduled collection already stages new source snapshots for review. |
+| Device screenshot/cache verification | Affected-device checks and examples of additional file types before expanding cleanup. Unknown files remain preserved. |
+| Character claims, opt-out, recovery and moderator identity | A trustworthy account/character ownership source and recovery policy; shared upload/admin keys do not establish a person's identity. |
+| Fresh presets on the production host | Install the compatible server and run its documented `presets regenerate` command. Repository CI and releases do not prove that this CPU-intensive job ran on the host. |
+| Repository-wide auto-merge capability | The specific authorization requested after automatic approval review rejected the broader setting change. Asset PR creation and review continue. |
+
+These items are still open. The postponed captures and metadata are required inputs for their dependent implementation and validation, not new bug reports or a completed roadmap.
