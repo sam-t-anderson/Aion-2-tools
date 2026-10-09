@@ -88,7 +88,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
 
     add_static("PBEN", {0: ("crit", 1.0)})               # Punishing Benediction: +Critical Hit
     add_static("IMPACT", {1: ("double", 0.01)})
-    add_static("FURY", {0: ("amp_pve", 0.01)})            # Front Attack Boost; dummy is frontal
+    add_static("FURY", {0: ("front_amp", 0.01)})          # Front Attack Damage Boost (its own bucket)
     # Insulting Roar: +Attack% on a front attack with a short internal cooldown that is
     # shorter than the buff, so on a frontal boss it is effectively always up.
     add_static("ROAR", {1: ("attack_pct", 0.01)})

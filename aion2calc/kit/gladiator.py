@@ -105,7 +105,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
     add_static("IDENT", {0: ("crit", 1.0), 1: ("perfect", 0.01)})
     add_static("ATKPREP", {0: ("amp_pve", 0.01), 3: ("accuracy", 1.0)})
     add_static("IMPACT", {1: ("double", 0.01)})
-    add_static("EXPCOUNTER", {0: ("amp_pve", 0.01)})  # Front Attack Boost; the dummy is frontal
+    add_static("EXPCOUNTER", {0: ("front_amp", 0.01)})  # Front Attack Damage Boost (its own bucket)
 
     # on-hit passives ------------------------------------------------- hooks
     di_f = di_c = 0.0

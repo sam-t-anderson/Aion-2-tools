@@ -131,7 +131,7 @@ class Stats:
             perfect=(self.perfect + p * self.justice) * (1.0 if self.pvp else CALIBRATION["perfect"]),
             multihit=self.multihit * (1.0 if self.pvp else CALIBRATION["multihit"]),
             amp=self.amp_all + (self.amp_pvp if self.pvp else self.amp_pve + self.amp_boss),
-            weapon_amp=self.weapon_amp, front_amp=self.front_amp,
+            weapon_amp=self.weapon_amp, front_amp=self.front_amp, back_amp=self.back_amp,
             fire_amp=self.fire_amp, water_amp=self.water_amp,
             flat_add=(self.pvp_atk if self.pvp else self.pve_atk + self.boss_atk) + PEN_FLAT * self.pen,
             front_atk=self.front_atk,
@@ -159,6 +159,7 @@ class Derived:
     amp: float
     weapon_amp: float
     front_amp: float
+    back_amp: float
     fire_amp: float
     water_amp: float
     flat_add: float

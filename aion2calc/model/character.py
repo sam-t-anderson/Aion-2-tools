@@ -23,6 +23,7 @@ LABEL_MAP = {
     "PvP Damage Boost": ("amp_pvp", 0.01), "PvP Attack": ("pvp_atk", 1),
     "PvE Attack": ("pve_atk", 1), "Boss Attack": ("boss_atk", 1),
     "Front Attack": ("front_atk", 1), "Back Attack": ("back_atk", 1),
+    "Front Attack Damage Boost": ("front_amp", 0.01), "Back Attack Damage Boost": ("back_amp", 0.01),
     "Might": ("might", 1), "Precision": ("precision", 1), "MP": ("mp_max", 1),
     "Attack increase": ("attack_pct", 0.01), "Natural MP Regen": ("mp_regen", 1 / 3),
     "Combat Natural MP Regen": ("mp_regen", 1 / 3),

@@ -63,6 +63,10 @@ def expected_hit(d: Derived, mods: dict, target, ctx: HitContext) -> float:
     vuln = 1.0 + g("vuln", 0.0)
     if ctx.element == "fire":
         vuln += g("vuln_fire", 0.0)
+    # Front / Back Attack Damage Boost is its own multiplicative bucket (it does not
+    # share the Damage Boost bucket); it applies to direct hits by facing, not DoTs.
+    positional = 1.0 + (d.front_amp + g("front_amp", 0.0) if target.frontal
+                        else d.back_amp + g("back_amp", 0.0))
     if dot:
         return base_avg * boost * elem * vuln * ctx.mult
 
@@ -82,4 +86,4 @@ def expected_hit(d: Derived, mods: dict, target, ctx: HitContext) -> float:
     parry = 1.0
     if target.parry > 0 and "crit" not in ctx.tags and "noparry" not in ctx.tags:
         parry = 1.0 - 0.5 * target.parry
-    return crit * boost * elem * vuln * weapon * (1 + p_m * MULTIHIT_BONUS) * parry * ctx.mult
+    return crit * boost * elem * vuln * weapon * positional * (1 + p_m * MULTIHIT_BONUS) * parry * ctx.mult
