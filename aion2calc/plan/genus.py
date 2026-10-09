@@ -207,5 +207,35 @@ def plan_genus(ctx: PlanContext, genus_state: dict | None, encounters: list[dict
     levels.sort(key=lambda row: (row["level"] is None, -row["share"], row["genus"]))
     return {"mode": mode, "state": state, "mix": plan["mix"], "mix_source": plan["mix_source"],
             "dps_with_lines": with_all, "lines": lines, "coverage": cov,
-            "reroll_first": [], "chase": chase, "level_order": levels,
+            "reroll_first": [], "chase": chase, "level_order": levels, "targets": target_values(state, mode, mix),
             "note": plan["note"] + " Candidate gains replace a single unlocked slot and are not additive; absent target lines assume an empty slot. No roll probability, cost or defensive tradeoff is optimized."}
+
+
+def target_values(state, mode, mix):
+    """Catalog-backed planning goals, independent of whether any lines were entered."""
+    catalog = data()
+    damage = catalog["genus_lines"]["damage_boost"]
+    low, high = damage["range_pct"]
+    rows = []
+    if mode == "pve":
+        for genus in MAIN:
+            group = state.get(genus)
+            level = group.get("level") if group else None
+            for slot in damage["slots"]:
+                line = next((x for x in group.get("lines", []) if x["slot"] == slot), None) if group else None
+                stat = f"{genus} Damage Boost"
+                current = None
+                if line and line["stat"] in (stat, f"{genus} Damage Amplification") and "%" in line["value"]:
+                    current = float(line["value"].replace("%", "").replace(",", ""))
+                rows.append({"genus": genus, "level": level, "slot": slot, "stat": stat,
+                             "current": line, "target": f"{high:g}%", "range": f"{low:g}–{high:g}%",
+                             "share": mix.get(genus, 0), "unlocked": level is not None and level >= slot,
+                             "status": "Enter level" if level is None else f"Unlock at Lv {slot}" if level < slot
+                             else "No share of enemy mix" if not mix.get(genus, 0)
+                             else "Target met" if current is not None and current >= high
+                             else "Compare defensive tradeoff" if line and any(word in line["stat"] for word in DEFENSIVE)
+                             else "Target roll; current line not recorded" if not line else "Target roll"})
+        rows.sort(key=lambda row: (-row["share"], row["genus"], row["slot"]))
+    return {"rows": rows, "source": catalog["source"],
+            "note": "Catalog upper-range targets, not expected reroll results. Current Product-version applicability, roll odds and costs are unverified. Levels unlock slots; they do not determine your rolled values. Other stat ranges and Special targets are not supplied by this catalog. Defensive tradeoffs are not scored."
+            if mode == "pve" else "Numeric PvP targets are unavailable: genus-specific applicability to players is unverified, and this catalog supplies no verified ranges for unconditional PvP lines. Entered supported lines can still be scored; their values are held fixed."}
