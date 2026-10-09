@@ -120,7 +120,8 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,'Product 
         const i=Math.max(0,Math.min(count-1,Math.floor(e.t/step)));
         line.values[i]+=(e.amount||0)/Math.max(.001,Math.min(step,duration-i*step));
       }
-      const lines=Object.entries(series),total=Array(count).fill(0);
+      const kinds=['Damage done','Healing','Damage taken'];
+      const lines=Object.entries(series).sort(([,a],[,b])=>label(d.r[a.actor]).localeCompare(label(d.r[b.actor])) || String(a.actor).localeCompare(String(b.actor)) || kinds.indexOf(a.kind)-kinds.indexOf(b.kind)),total=Array(count).fill(0);
       for(const [,line] of lines)if(line.kind===primary)line.values.forEach((v,i)=>total[i]+=v);
       const roll=total.map((_,i)=>{let amount=0,seconds=0;for(let j=i;j>=0 && (i-j)*step<10;j--){const span=Math.min(step,duration-j*step,10-(i-j)*step);amount+=total[j]*span;seconds+=span;}return amount/Math.max(.001,seconds);});
       let maximum=1;for(const v of [...total,...roll])maximum=Math.max(maximum,v);
@@ -433,11 +434,13 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,'Product 
       if(hit && graphModel){
         let inspected=0;
         const inspect=t=>{const m=graphModel;inspected=Math.max(0,Math.min(m.duration,t));const i=Math.min(m.count-1,Math.floor(inspected/m.step));
-          const parts=[clock(inspected,true),m.primary+': '+number(m.total[i])+'/s','10 s average: '+number(m.roll[i])+'/s'];
-          for(const [,s] of m.lines.slice(0,8))parts.push(label(d.r[s.actor])+' · '+s.kind+': '+number(s.values[i])+'/s');
-          if(m.lines.length>8)parts.push((m.lines.length-8)+' additional series; select a player for detail');
-          for(const id of new Set(m.health.map(s=>s.entity))){const sample=m.health.filter(s=>s.entity===id && s.t<=inspected).at(-1);if(sample)parts.push(label(d.r[id])+' HP: '+number(sample.current)+' (sample '+clock(sample.t,true)+')');}
-          root.querySelector('[data-graph-detail]').textContent=parts.join(' · ');const cursor=root.querySelector('[data-graph-cursor]');cursor.setAttribute('d','M'+(60+880*inspected/m.duration)+' 20V180');cursor.setAttribute('visibility','visible');};
+          const rates=new Map();for(const [,series] of m.lines){const row=rates.get(series.actor)||{};row[series.kind]=series.values[i];rates.set(series.actor,row);}
+          const rate=x=>x==null?'—':number(x)+'/s';
+          const rows=[...rates].map(([actor,row])=>`<tr><td style="color:${color(d.r[actor]?.class)}">${esc(label(d.r[actor]))}</td><td>${rate(row['Damage done'])}</td><td>${rate(row.Healing)}</td><td>${rate(row['Damage taken'])}</td></tr>`);
+          let html=`<p><b>${clock(inspected,true)}</b> · Total ${esc(m.primary.toLowerCase())}: ${rate(m.total[i])} · 10 s average: ${rate(m.roll[i])}</p>`+table(['Player','Damage done','Healing','Damage taken'],rows);
+          const hpRows=[];for(const id of new Set(m.health.map(s=>s.entity))){const sample=m.health.filter(s=>s.entity===id && s.t<=inspected).sort((a,b)=>b.t-a.t)[0];if(sample)hpRows.push(`<tr><td>${esc(label(d.r[id]))}</td><td>${number(sample.current)}</td><td>${sample.max?number(sample.max):'Unavailable'}</td><td>${clock(sample.t,true)}</td></tr>`);}
+          if(hpRows.length)html+=table(['Boss','Remaining HP','Observed maximum','Sample time'],hpRows);
+          root.querySelector('[data-graph-detail]').innerHTML=html;const cursor=root.querySelector('[data-graph-cursor]');cursor.setAttribute('d','M'+(60+880*inspected/m.duration)+' 20V180');cursor.setAttribute('visibility','visible');};
         const time=e=>{const box=hit.getBoundingClientRect();return (e.clientX-box.left)/Math.max(1,box.width)*graphModel.duration;};
         hit.onpointermove=e=>inspect(time(e));hit.onfocus=()=>inspect(inspected);
         hit.onclick=e=>{inspect(time(e));if(state.view==='timeline'){state.timelineStart=Math.max(0,inspected-(Number(state.timelineWindow)||graphModel.duration)/2);render();}};

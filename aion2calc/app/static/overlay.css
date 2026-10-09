@@ -52,3 +52,5 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
   padding: 5px 0; cursor: default; }
 #ovretry { margin: 2px; border: 1px solid #b9984f66; border-radius: 4px;
   background: #1c2438; color: #e9e6df; cursor: pointer; }
+
+.ovping{font-size:10px;color:#9aa3b5;line-height:1.5;margin:4px 0 6px;white-space:normal;overflow-wrap:anywhere;cursor:default}
