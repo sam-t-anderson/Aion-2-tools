@@ -38,7 +38,7 @@ def download(url, limit, *, github=False):
 
 def stable(value):
     if isinstance(value, dict):
-        return {k: stable(v) for k, v in value.items() if k not in ("retrieved_at", "checked_at")}
+        return {k: stable(v) for k, v in value.items() if k not in ("retrieved_at", "checked_at", "item_details_retrieved_at")}
     if isinstance(value, list):
         return [stable(v) for v in value]
     return value

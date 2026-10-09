@@ -77,13 +77,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, help="Previously downloaded public recipe graph; otherwise fetch the fixed source")
     parser.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[1] / "aion2calc/app/static/crafting-catalog.json")
+    parser.add_argument("--details-cache", type=Path, help="Offline ID-named JSON item details; otherwise fetch publisher records")
+    parser.add_argument("--format-source", type=Path, help="Offline publisher stat display metadata")
     args = parser.parse_args()
     if args.source:
         raw = args.source.read_bytes()
     else:
         with urlopen(Request(SOURCE, headers={"User-Agent": "aion2calc-catalog"}), timeout=30) as response:
             raw = response.read(MAX + 1)
-    data = export(raw)
+    from export_item_details import enrich
+    data = enrich(export(raw), args.details_cache, args.format_source)
     args.output.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
     print(f"Exported {len(data['recipes'])} recipes / {len(data['items'])} item references; build applicability unverified.")
 
