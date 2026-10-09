@@ -43,10 +43,12 @@ def class_data(cls: str, fresh: bool = False) -> dict:
 
 
 def _base_stats(data: str) -> dict:
-    i = data.find('"children":"Level"}]')
-    seg = data[max(0, i - 200): i + 12000]
+    i = data.find('"children":"Level"')
+    if i < 0:
+        return {}
+    seg = data[i: i + 12000]
     pat = (r'\["\$","tr","\d+",\{"children":\[\["\$","th","0",\{"scope":"row",'
-           r'"className":"\$undefined","children":"(\d+)"\}\],'
+           r'[^}]*"children":"(?:Lv\.\s*)?(\d+)"\}\],'
            r'\["\$","td","1",\{[^}]*"children":"([\d,]+)"\}\],'
            r'\["\$","td","2",\{[^}]*"children":"([\d,]+)"\}\],'
            r'\["\$","td","3",\{[^}]*"children":"([\d,]+)"\}\]')

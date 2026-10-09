@@ -91,6 +91,8 @@ def from_profile(ch: dict) -> ImportedCharacter:
     cls = CLASS_KEYS.get(p.get("className"), (p.get("className") or "").lower())
     cd = ClassData(cls)
     warnings = []
+    if cd.raw.get("base_stats_source") == "bundled fallback":
+        warnings.append("Synced base stats were incomplete; scoring uses the bundled class base-stat table.")
     comps, systems = [], {"equipment": [], "arcana": [], "manastones": [], "titles": [], "skills": [],
                           "stigmas": [], "daevanion": {}, "pet": None, "wings": None, "profile_stats": {}}
     gear_bonus: dict[int, int] = {}

@@ -25,6 +25,7 @@ import time
 import traceback
 from dataclasses import dataclass, field
 
+from ..kit.base import valid_base_stats
 from ..paths import read_json, write_user_json
 from ..scrape import metabot
 from ..scrape.http import NotFound
@@ -161,6 +162,8 @@ class Sync:
                 data = metabot.class_data(cls, fresh=True)
                 if len(data.get("skills", [])) < 10 or len(data.get("boards", [])) < 4:
                     raise ValueError("page layout changed (too few skills or boards); keeping old data")
+                if not valid_base_stats(data.get("base_stats"), data.get("level_cap", 45)):
+                    raise ValueError("incomplete base-stat table; keeping previous class data")
                 write_user_json(data, "global", "classes", f"{cls}.json")
                 self._mark(conn, url, lastmod)
                 changed.append(cls)

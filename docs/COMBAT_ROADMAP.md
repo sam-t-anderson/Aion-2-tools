@@ -162,3 +162,7 @@ These items are still open. The postponed captures and metadata are required inp
 ## Character import during catalog updates
 
 A newly reported database-lock error exposed catalog transactions spanning network fetches. Catalog page and item writes now commit before the next remote request, failed sync transactions roll back, and failed connection initialization closes without caching the connection. Character/profile asset writes commit or roll back together. Validation on the affected device remains pending.
+
+## Empty base-stat tables after sync
+
+A new character import error was traced to empty base-stat tables in all eight local class overlays. Loading recovers the bundled table with an import warning; sync rejects incomplete tables before replacing class data. Source-page extraction now accepts the observed CSS classes and Lv. labels rather than depending on an undefined CSS class and bare level numbers.
