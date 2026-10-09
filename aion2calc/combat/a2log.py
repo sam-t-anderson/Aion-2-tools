@@ -87,6 +87,7 @@ SCHEMA = {
             "reconstruction":{"type":"object", "description":"Bounded source-part manifest for unranked descriptive combined review"},
             "archive": {"type":"object", "properties":{"id":{"type":"string"}, "part":{"type":"integer", "minimum":1}, "closed":{"type":"boolean"}, "continuity":{"type":"object", "description":"Submitted retained-record ranges and predecessor token; not verified capture continuity"}}},
             "capture_quality": {"type": "object", "description": "Capture evidence and loss counters; eligibility is computed by the server"},
+            "npc_diagnostics": {"type": "object", "description": "Bounded numeric spawn-decoder evidence; no raw packet bytes"},
             "visibility": {"enum": ["public", "unlisted", "private"]},
             "contribute": {"enum": ["yes", "no"], "description": "use this fight in the anonymous class "
                            "statistics (default yes; private logs never are)"}}},
@@ -190,6 +191,10 @@ def validate(doc) -> dict:
     if meta.get("capture_scope") in ("party", "self", "all"):
         clean_meta["capture_scope"] = meta["capture_scope"]
     from .quality import COUNTERS
+    from .npc_diagnostics import clean as clean_npc_diagnostics
+    npc_diagnostics = clean_npc_diagnostics(meta.get("npc_diagnostics"))
+    if npc_diagnostics:
+        clean_meta["npc_diagnostics"] = npc_diagnostics
     capture = meta.get("capture_quality")
     if isinstance(capture, dict):
         evidence = {k: capture[k][:100] for k in ("decoder", "app_version") if isinstance(capture.get(k), str)}

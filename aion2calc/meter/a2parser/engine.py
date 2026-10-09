@@ -46,6 +46,10 @@ class MeterEngine:
         self.power_scalars: dict[int, set[int]] = defaultdict(set)
         self.known_entities: set[int] = set()
         self.spawn_info: dict[int, dict[str, int]] = {}
+        self.npc_scan_calls = 0
+        self.npc_candidates_seen = 0
+        self.npc_trace = deque(maxlen=128)
+        self.npc_trace_omitted = 0
         self.live_hp: dict[int, int] = {}
         self.all_targets_window_ms = ALL_TARGETS_WINDOW_MS
         self.completed_fights: list[dict] = []
@@ -163,7 +167,7 @@ class MeterEngine:
         for actor_id, name in scan_legacy_nicknames(complete):
             if actor_id not in self.summons:
                 self.names.setdefault(actor_id, name)
-        for entity_id, info in scan_spawn_metadata(complete).items():
+        for entity_id, info in self._scan_spawns(complete, timestamp_ms).items():
             self.spawn_info.setdefault(entity_id, {}).update(info)
             if info.get("maxHp"):
                 self.spawn_info[entity_id]["reportedMaxHp"] = info["maxHp"]
@@ -192,7 +196,7 @@ class MeterEngine:
         for packet in _damage_frames(complete, inner=False):
             # Spawn/HP records inside compressed bundles were previously
             # scanned only as compressed bytes, losing the NPC database key.
-            for entity_id, info in scan_spawn_metadata(packet).items():
+            for entity_id, info in self._scan_spawns(packet, timestamp_ms).items():
                 self.spawn_info.setdefault(entity_id, {}).update(info)
                 if info.get("maxHp"):
                     self.spawn_info[entity_id]["reportedMaxHp"] = info["maxHp"]
@@ -303,6 +307,24 @@ class MeterEngine:
                     self._saved_encounters.add(key)
         return events
 
+    def _scan_spawns(self, data: bytes, timestamp_ms: int) -> dict:
+        scan = {"records": [], "candidates": 0}
+        found = scan_spawn_metadata(data, scan)
+        rows = scan["records"]
+        self.npc_scan_calls += 1
+        self.npc_candidates_seen += scan["candidates"]
+        self.npc_trace_omitted += scan["candidates"]-len(rows)
+        for row in rows:
+            # Numeric protocol fields only: no packet bytes, text, paths or addresses.
+            row["timestamp_ms"] = timestamp_ms
+            if self.npc_trace and all(self.npc_trace[-1].get(k) == row.get(k)
+                                      for k in ("entity", "mob_code", "status", "timestamp_ms")):
+                continue
+            if len(self.npc_trace) == self.npc_trace.maxlen:
+                self.npc_trace_omitted += 1
+            self.npc_trace.append(row)
+        return found
+
     def _reset_zone(self, timestamp_ms: int) -> None:
         for target in self.targets.values():
             if npc_info(target.mob_code).get("isBoss", False):
@@ -314,6 +336,10 @@ class MeterEngine:
         self.healers.clear()
         self.live_hp.clear()
         self.spawn_info.clear()
+        self.npc_trace.clear()
+        self.npc_scan_calls = 0
+        self.npc_candidates_seen = 0
+        self.npc_trace_omitted = 0
         self.names.clear()
         self.jobs.clear()
         self.known_players.clear()
