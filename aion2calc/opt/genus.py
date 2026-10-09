@@ -4,7 +4,7 @@ from __future__ import annotations
 import copy
 import math
 
-from ..plan.genus import GENUS_STATS, MAIN, line_stats, validate_state, coverage
+from ..plan.genus import GENUS_STATS, MAIN, line_stats, validate_state, coverage, target_values
 
 SOURCE = "manual-genus-insight"
 NOTE = ("Saved manual analysis lines are held fixed while skills, specialties and boards are optimized. "
@@ -66,7 +66,7 @@ def prepare(state: dict, mode: str, options: dict | None = None) -> dict:
                 stats[key] = stats.get(key, 0.) + value
     return {"enabled": enabled, "mode": mode, "source": "Saved manual Genus Insight", "state": clean,
             "mix": mix if mode == "pve" else {}, "mix_source": source if mode == "pve" else "Not used for player targets",
-            "stats": stats, "lines": rows, "coverage": coverage(clean, rows), "note": NOTE + (" PvE uses a weighted-stat approximation, not separate simulations per genus."
+            "stats": stats, "lines": rows, "coverage": coverage(clean, rows), "targets": target_values(clean, mode, mix), "note": NOTE + (" PvE uses a weighted-stat approximation, not separate simulations per genus."
             if mode == "pve" else " PvP is a stationary damage proxy, not a survivability or win-rate model.")}
 
 
