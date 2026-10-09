@@ -749,21 +749,27 @@ class Runner:
             profile = self.packet_engine.local_profile if self.packet_engine else {}
         if profile.get("serverId"):
             doc["meta"]["server"] = str(profile["serverId"])
-        # Latency rides the same meter; record the series on the active segment (the
-        # session builder has none) plus a document-level summary for display.
-        summary = self.meter.ping_summary()
+        # Slice by actual encounter origin, never by the time of the newest ping.
+        from datetime import datetime
+        from ..combat.latency import summarize
+        for segment in doc.get("segments", []):
+            try:
+                stamp = datetime.fromisoformat(segment.get("start", "").replace("Z", "+00:00"))
+                origin = stamp.timestamp() if stamp.tzinfo else None
+            except (ValueError, TypeError):
+                origin = None
+            if origin is None and self.packet_engine is None:
+                origin = self.meter.t0
+            if origin is not None:
+                duration = float(segment["duration"])
+                segment["ping"] = [[round(t-origin, 3), round(ms, 2)] for t, ms in self.meter.pings
+                                   if 0 <= t-origin <= duration]
+                if segment["ping"]:
+                    segment["ping_source"] = "passive_tcp_ack"
+        samples = [row for segment in doc.get("segments", []) for row in segment.get("ping", [])]
+        summary = summarize(samples)
         if summary:
             doc["meta"]["ping"] = summary
-            segments = doc.get("segments", [])
-            pings = list(self.meter.pings)
-            if segments and not segments[-1].get("ping") and pings:
-                seg = segments[-1]
-                dur = float(seg.get("duration") or 0.0)
-                end = max(t for t, _ in pings)
-                series = [[round(min(dur, max(0.0, t - (end - dur))), 3), round(ms, 1)]
-                          for t, ms in pings if t >= end - dur - 1.0]
-                if series:
-                    seg["ping"] = series
         from ..combat.quality import assess
         for segment in doc.get("segments", []):
             segment["quality"] = assess(doc, segment)

@@ -153,6 +153,8 @@ def combine(sources):
                     for field in fields:
                         if field in event:
                             event[field] = ref(event[field])
+            if segment.get("ping_recorder"):
+                segment["ping_recorder"] = ref(segment["ping_recorder"])
             segment["party_members"] = [ref(p) for p in segment.get("party_members", [])]
             segment["id"] = prefix+str(segment.get("id", len(segments)))
             segment["run_id"] = prefix+str(segment.get("run_id", "legacy"))
@@ -167,7 +169,7 @@ def combine(sources):
             "sha256":hashlib.sha256(json.dumps(doc, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()})
     if len(segments) > LIMITS["segments"]:
         raise ValueError("Combined review exceeds 200 encounters; choose a shorter range")
-    for key, limit in (("hits", LIMITS["hits"]), ("events", LIMITS["hits"]), ("health", LIMITS["hp"]), ("positions", LIMITS["hp"])):
+    for key, limit in (("hits", LIMITS["hits"]), ("events", LIMITS["hits"]), ("health", LIMITS["hp"]), ("positions", LIMITS["hp"]), ("ping", LIMITS["hp"])):
         if sum(len(s.get(key, [])) for s in segments) > limit:
             raise ValueError(f"Combined {key} exceeds review limits; choose a shorter range")
     captures = [d["meta"].get("capture_quality", {}) for _, d, _, _ in loaded]

@@ -49,6 +49,9 @@ class Meter:
     def add(self, ev: CombatEvent) -> None:
         if ev.kind == "ping":
             # Latency samples ride the same stream but never move the combat clock.
+            import math
+            if not math.isfinite(ev.t) or not math.isfinite(ev.ping_ms) or not 0 <= ev.ping_ms <= 60000:
+                return
             self.pings.append((ev.t, float(ev.ping_ms)))
             if len(self.pings) > 200_000:
                 self.pings = self.pings[-150_000:]
@@ -186,6 +189,9 @@ class Meter:
             seg["entities"] = entities
         if ping:
             seg["ping"] = ping
+            seg["ping_source"] = "passive_tcp_ack"
+            if self.local_player in ids:
+                seg["ping_recorder"] = ids[self.local_player]
         meta = {"source": source}
         if title:
             meta["title"] = title

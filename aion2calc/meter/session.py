@@ -718,6 +718,7 @@ class CombatSession:
                     "party_members":party_members, "party_roster_complete":roster_complete, "party_roster_late":roster_late,
                     "run_end_reason":run.get("end_reason", ""), "map_id":run.get("map_id",0),
                     "instance_id":run.get("instance_id",0), "encounter_type":category,
+                    "ping_recorder": actor_refs.get(identity.get("local_id")),
                     "id": group["id"], "label": bosses[0]["name"] if bosses else f"Combat {index+1}",
                     "boss": bosses[0]["name"] if bosses else None,
                     "killed": any(e["kind"] == "death" and e["target"] in {b["id"] for b in bosses} for e in events),

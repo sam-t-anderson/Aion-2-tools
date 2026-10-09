@@ -134,6 +134,7 @@ _segment_properties.update({
     "entities": {"type": "array", "maxItems": 2000, "description": "Observed enemies and pets: id, name, kind, mob_code, is_boss, owner"},
     "events": {"type": "array", "maxItems": LIMITS["hits"], "description": "Recorded damage/heal/death effects: t, kind, source, target, skill, skill_id, amount; unknown recipients omitted"},
     "health": {"type": "array", "maxItems": LIMITS["hp"], "description": "Entity HP samples: t, entity, current, optional max"},
+    "ping_source": {"type": "string"}, "ping_recorder": {"type": "string"},
     "ping": {"type": "array", "maxItems": LIMITS["hp"], "description": "Round-trip latency over time: [t seconds, milliseconds] pairs"},
     "positions": {"type": "array", "maxItems": LIMITS["hp"], "description": "Verified arena-normalized replay positions: t, entity, x and y in [0,1]"},
 })
@@ -348,14 +349,17 @@ def validate(doc) -> dict:
                     and all(_num(sample.get(k)) for k in ("t", "x", "y"))
                     and 0 <= sample["t"] <= s["duration"] and 0 <= sample["x"] <= 1 and 0 <= sample["y"] <= 1):
                 positions.append({k: sample[k] for k in ("t", "entity", "x", "y")})
-        ping = [[float(a), float(b)] for a, b in (x for x in (s.get("ping") or [])[:LIMITS["hp"]]
-                                                  if isinstance(x, list) and len(x) == 2 and _num(x[0]) and _num(x[1])
-                                                  and 0 <= x[0] <= s["duration"] + 1 and x[1] >= 0)]
+        from .latency import clean as clean_ping
+        ping = clean_ping(s.get("ping"), s["duration"], LIMITS["hp"])
         out_segs.append({"id": _text(s.get("id"), "segment id") or str(i + 1),
                          "label": _text(s.get("label"), "segment label"), "boss": _text(s.get("boss"), "segment boss"),
                          "start": _text(s.get("start"), "segment start"), "duration": float(s["duration"]),
                          "killed": s.get("killed") is True, "hits": out_hits, "buffs": buffs, "hp": hp,
                          "entities": entities, "events": events, "health": health, "positions": positions, "ping": ping})
+        if s.get("ping_source") == "passive_tcp_ack":
+            out_segs[-1]["ping_source"] = "passive_tcp_ack"
+        if isinstance(s.get("ping_recorder"), str) and s["ping_recorder"] in ids:
+            out_segs[-1]["ping_recorder"] = s["ping_recorder"]
         from .reconstruction import clean_run
         run_evidence = clean_run(s.get("recording_run"))
         if run_evidence:

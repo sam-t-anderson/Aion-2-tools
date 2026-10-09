@@ -175,3 +175,9 @@ Dedicated PvE kits now cover all eight classes, modeling each class's chains, cr
 The full executable ProductVersion string identifies new comparison groups across Steam and PURPLE, with engine file versions and launcher IDs retained as diagnostics. Both observed installations report 1.0.21.0.2026031801. Legacy logs retain their recorded identifiers; no missing historical Product version is guessed. Registered PURPLE discovery is supported; unregistered discovery remains pending.
 
 Encounter completion does not request capture shutdown. Recoverable malformed-packet decoder exceptions reset affected stream framing and continue capture with explicit loss/error evidence. Fatal adapter/programming/storage errors still stop visibly. Affected-device confirmation and independently labeled capture details remain pending.
+
+## Recorder latency and remaining boss HP
+
+Ping samples are aligned to each encounter's actual origin and uploaded with the log. Desktop, Pages and server review show recorder-side ping over time and sample average/minimum/maximum. Passive TCP acknowledgement RTT is not a measurement of every party member or game action latency. Recorder identity is shown only when recorded; otherwise the connection remains unattributed. Remaining boss HP uses the latest observed sample and its timestamp, with percentages only when a maximum was recorded. Live overlay HP presentation and affected-device confirmation remain follow-ups.
+
+Kit ASSUME calibration remains pending independently labeled A2Parser captures with class, equipment, skill levels, selected pet, timings and boss-control context. Damage-effect spacing does not identify animation/cast duration or CC success. No assumed coefficients were changed from unlabeled capture data.
