@@ -13,10 +13,12 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from ..paths import user_data, write_user_json
+from ..paths import PKG_DATA, user_data, write_user_json
 
 REGIONS = ("nae", "eu", "as", "la")
 _COLLECTION_LOCK = threading.Lock()
+_CONTENT_LOCK = threading.Lock()
+_CONTENT_CACHE = {}
 
 
 
@@ -165,6 +167,65 @@ def _build_evidence(root):
     return {"status": "unavailable", "reason": "No usable version resource or Steam build ID was found."}
 
 
+def _content_fingerprint(root):
+    """Expected gameplay content: index/signature bytes and payload lengths, excluding L10N."""
+    folder = root / "Aion2/Content/Paks"
+    try:
+        files = sorted(p for p in folder.iterdir() if p.is_file() and p.suffix in (".utoc", ".sig", ".pak", ".ucas"))
+        if not files or len(files) > 4096 or not any(p.suffix == ".utoc" for p in files):
+            return None
+        stats = [(p.name, p.stat().st_size, p.stat().st_mtime_ns) for p in files]
+        if sum(size for name, size, _ in stats if Path(name).suffix in (".utoc", ".sig")) > 512 * 1024 * 1024:
+            return None
+        key = str(folder.resolve())
+        with _CONTENT_LOCK:
+            cached = _CONTENT_CACHE.get(key)
+            if cached and cached[0] == stats:
+                return cached[1]
+            rows = [[p.name, size, hashlib.sha256(p.read_bytes()).hexdigest() if p.suffix in (".utoc", ".sig") else None]
+                    for p, (_, size, _) in zip(files, stats)]
+            if stats != [(p.name, p.stat().st_size, p.stat().st_mtime_ns) for p in files]:
+                return None
+            digest = hashlib.sha256(json.dumps(rows, separators=(",", ":")).encode()).hexdigest()
+            if len(_CONTENT_CACHE) >= 8:
+                _CONTENT_CACHE.clear()
+            _CONTENT_CACHE[key] = (stats, digest)
+            return digest
+    except (OSError, ValueError):
+        return None
+
+
+def _comparison_build_evidence(root, evidence):
+    if evidence.get("status") != "ready":
+        return evidence
+    fingerprint = _content_fingerprint(root)
+    if not fingerprint:
+        return evidence
+    candidates = []
+    try:
+        catalog = json.loads((PKG_DATA / "global/build_equivalence.json").read_text(encoding="utf-8"))
+        for row in catalog.get("aliases", []):
+            if row.get("fingerprint") == fingerprint:
+                candidates.append((row.get("comparison_namespace"), row.get("comparison_build")))
+    except (OSError, ValueError, TypeError):
+        pass
+    # New builds can be compared directly when both launchers are installed.
+    if not candidates and str(evidence.get("installed_build_namespace", "")).startswith("purple:"):
+        for steam_root in _steam_game_roots():
+            other = _build_evidence(steam_root)
+            if other.get("status") == "ready" and _content_fingerprint(steam_root) == fingerprint:
+                candidates.append((other.get("installed_build_namespace"), other.get("installed_build")))
+    candidates = {(ns, build) for ns, build in candidates
+                  if isinstance(ns, str) and re.fullmatch(r"steam:[0-9]{1,12}", ns)
+                  and isinstance(build, str) and re.fullmatch(r"[0-9]{1,20}", build)}
+    if len(candidates) != 1:
+        return evidence
+    namespace, build = candidates.pop()
+    return {**evidence, "comparison_build_namespace": namespace, "comparison_build": build,
+            "installed_build_fingerprint": fingerprint,
+            "comparison_build_source": "Matching gameplay content indexes, signatures and package lengths across launcher installs"}
+
+
 def _installation_id(root):
     return hashlib.sha256(os.path.normcase(str(root.resolve())).encode("utf-8")).hexdigest()[:24]
 
@@ -181,7 +242,7 @@ def selected_installation():
 def installation_options():
     rows = []
     for root in _installed_roots():
-        evidence = _build_evidence(root)
+        evidence = _comparison_build_evidence(root, _build_evidence(root))
         launcher = ("Steam" if root.parent.name.casefold() == "common" else
                     "PURPLE" if evidence.get("installed_build_namespace", "").startswith("purple:") else
                     "Registered Windows install")
@@ -211,7 +272,7 @@ def installation(selected=None):
     elif len(roots) > 1:
         return {"status": "selection_required", "reason": "Multiple game installations were found. Select one before starting a new session."}
     if roots:
-        return _build_evidence(roots[0])
+        return _comparison_build_evidence(roots[0], _build_evidence(roots[0]))
     return {"status": "unavailable", "reason": "No registered game installation was found. Detection supports Steam libraries and recognized Windows game registrations, including PURPLE."}
 
 

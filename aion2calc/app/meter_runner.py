@@ -686,7 +686,7 @@ class Runner:
         doc.setdefault("meta", {}).update(metadata)
         if collector:
             detected = collector.snapshot((profile or {}).get("serverId"))
-            for key in ("installed_build", "installed_build_source", "installed_build_namespace", "installed_build_cohort"):
+            for key in ("installed_build", "installed_build_source", "installed_build_namespace", "installed_build_cohort", "installed_build_fingerprint"):
                 if detected.get(key):
                     doc["meta"][key] = detected[key]
             if not doc["meta"].get("game_patch") and detected.get("game_patch"):
