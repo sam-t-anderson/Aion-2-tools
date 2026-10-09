@@ -858,7 +858,7 @@ def scan_summon_links(data: bytes, names: dict[int, str], known_summons: set[int
     return summon_ids, links
 
 
-def scan_spawn_metadata(data: bytes, diagnostics: list | None = None) -> dict[int, dict[str, int]]:
+def scan_spawn_metadata(data: bytes, diagnostics: dict | None = None) -> dict[int, dict[str, int]]:
     """Extract entity-to-NPC-code and spawn-time HP anchors from spawn bytes."""
     found: dict[int, dict[str, int]] = {}
     i = 0
@@ -892,10 +892,12 @@ def scan_spawn_metadata(data: bytes, diagnostics: list | None = None) -> dict[in
                     info["currentHp"], info["maxHp"] = current[0], maximum[0]
                     break
             break
-        if diagnostics is not None and len(diagnostics) < 128:
-            diagnostics.append({"entity": entity_id, "opcode": data[i],
-                                "mob_code": info.get("mobCode", 0),
-                                "status": "type_decoded" if info.get("mobCode") else "type_marker_missing"})
+        if diagnostics is not None:
+            diagnostics["candidates"] += 1
+            if len(diagnostics["records"]) < 128:
+                diagnostics["records"].append({"entity": entity_id, "opcode": data[i],
+                                               "mob_code": info.get("mobCode", 0),
+                                               "status": "type_decoded" if info.get("mobCode") else "type_marker_missing"})
         i = pos + 1
     return found
 

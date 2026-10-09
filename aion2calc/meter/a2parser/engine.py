@@ -308,11 +308,12 @@ class MeterEngine:
         return events
 
     def _scan_spawns(self, data: bytes, timestamp_ms: int) -> dict:
-        rows = []
-        found = scan_spawn_metadata(data, rows)
+        scan = {"records": [], "candidates": 0}
+        found = scan_spawn_metadata(data, scan)
+        rows = scan["records"]
         self.npc_scan_calls += 1
-        self.npc_candidates_seen += len(found)
-        self.npc_trace_omitted += max(0, len(found)-len(rows))
+        self.npc_candidates_seen += scan["candidates"]
+        self.npc_trace_omitted += scan["candidates"]-len(rows)
         for row in rows:
             # Numeric protocol fields only: no packet bytes, text, paths or addresses.
             row["timestamp_ms"] = timestamp_ms
