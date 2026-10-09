@@ -70,6 +70,9 @@
   function renderMeter() {
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
     $("#ovmetrics").hidden=false;
+    const ping=snap.ping;$('#ovping').hidden=false;
+    $('#ovping').textContent=ping?`Ping ${Number(ping.current).toFixed(0)} ms · Avg ${Number(ping.avg).toFixed(0)} ms · Min ${Number(ping.min).toFixed(0)} / Max ${Number(ping.max).toFixed(0)} ms`:'Ping: no recorded samples';
+    $('#ovping').title='Passive TCP RTT for this recording connection; average/minimum/maximum across the capture';
     document.querySelectorAll("[data-metric]").forEach(b=>{b.classList.toggle("on",b.dataset.metric===metric);b.setAttribute("aria-pressed",String(b.dataset.metric===metric));});
     if(!$("#ovcombine").disabled) $("#ovcombine").checked=s.combine_pets!==false;
     const amount=p=>Number(metric==="hps"?p.healing:metric==="taken"?p.incoming?.damage:p.damage)||0;
@@ -95,7 +98,7 @@
     $("#ovcontent").innerHTML = (players.length && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`);
   }
   function renderPlan() {
-    $("#ovmetrics").hidden=true;$("#ovidentity").hidden=true;
+    $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovidentity").hidden=true;
     $("#ovconnection").hidden=true;
     const p = latestPlan();
     if (!p) {

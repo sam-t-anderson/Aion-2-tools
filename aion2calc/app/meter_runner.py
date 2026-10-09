@@ -263,6 +263,16 @@ class Runner:
         try:
             if engine is not None:
                 events = engine.consume(payload, timestamp_ms, stream)
+                rejected = getattr(engine, "last_framing_errors", 0)
+                if rejected:
+                    warning = f"Skipped {rejected} malformed or over-limit compressed frames; capture continues"
+                    self.diagnostics["decoder_warning"] = warning
+                    for key in ("decoder_errors", "capture_errors"):
+                        self.session.capture_evidence[key] = self.session.capture_evidence.get(key, 0) + rejected
+                        self.diagnostics[key] = self.session.capture_evidence[key]
+                    history = self.diagnostics.setdefault("processing_errors", [])
+                    history.append({"at":timestamp_ms, "type":"CompressedFrameRejected", "message":warning, "recoverable":True, "frames":rejected})
+                    del history[:-20]
                 self.session.observe(engine, events, timestamp_ms=timestamp_ms)
             else:
                 events = list(decoder.feed(payload))

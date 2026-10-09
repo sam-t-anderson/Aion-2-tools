@@ -97,6 +97,34 @@ def start_sync(force: bool = False, budget_s: float | None = 900) -> None:
 
 
 # -------------------------------------------------------------------- actions
+_PRIORITY_JOBS: dict[str, str] = {}
+
+@_model_action
+def _priority_job(summary, log):
+    from .stat_priority import for_summary
+    log("Calculating weighted upgrade gains with the saved rotation")
+    return for_summary(summary)
+
+def build_view_at(path):
+    summary = _summary_at(path)
+    job_id = None
+    if not summary.get("weights"):
+        key = hashlib.sha256(json.dumps(summary, sort_keys=True, default=str).encode()).hexdigest()
+        with _jobs_lock:
+            job_id = _PRIORITY_JOBS.get(key)
+            job = JOBS.get(job_id, {})
+            if job.get("status") == "done":
+                summary = {**summary, "weights":job["result"]}
+                job_id = None
+            elif not job:
+                job_id = start_job("stat-priority", _priority_job, summary)
+                _PRIORITY_JOBS[key] = job_id
+    view = views.build_view(summary)
+    if job_id:
+        view["weight_job"] = job_id
+    return view
+
+
 def _summary_at(path: str) -> dict:
     if path.startswith("community-v2:"):
         from ..combat.preset_sync import cached_presets
@@ -463,7 +491,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/results":
             return self._json(views.list_results())
         if path == "/api/build":
-            return self._json(views.build_view(_summary_at(q["path"])))
+            return self._json(build_view_at(q["path"]))
         if path == "/api/character/search":
             from ..sources import official
             return self._json(official.search(q["name"], region=q.get("region", "nae")))

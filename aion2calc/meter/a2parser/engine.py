@@ -11,7 +11,7 @@ import time
 
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
 from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, _damage_frames
-from .framing import walk
+from .framing import walk, bundle_batch
 from .lookup import job_from_skill, skill_name, npc_info, npc_name
 from .ping import PingTracker
 import json
@@ -33,6 +33,7 @@ class MeterEngine:
         self.local_identity_from_game = False
         self.local_profile: dict[str, int | str] = {}
         self.telemetry: list[dict] = []
+        self.last_framing_errors = 0
         self.names: dict[int, str] = {}
         self.known_players: set[int] = set()
         self.jobs: dict[int, str] = {}
@@ -115,11 +116,15 @@ class MeterEngine:
             self._pending.pop(stream_id, None)
 
     def consume(self, buffer: bytes, timestamp_ms: int | None = None, stream_id: str = "default") -> list[DamageEvent | HealEvent]:
-        with self._lock:
-            return self._consume_locked(buffer, timestamp_ms, stream_id)
+        with self._lock, bundle_batch() as batch:
+            try:
+                return self._consume_locked(buffer, timestamp_ms, stream_id)
+            finally:
+                self.last_framing_errors = batch.rejected
 
     def _consume_locked(self, buffer: bytes, timestamp_ms: int | None, stream_id: str) -> list[DamageEvent | HealEvent]:
         self.telemetry = []
+        self.last_framing_errors = 0
         pending = self._pending[stream_id]
         pending.extend(buffer)
         framing = walk(bytes(pending))

@@ -6,7 +6,9 @@ payload. Bundles contain an LZ4 block with further framed packets.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from enum import Enum
 
 MAX_PACKET_BYTES = 65_535
@@ -143,20 +145,56 @@ def walk_inner(data: bytes) -> Framing:
     return _walk(data, inner=True)
 
 
-def decompress_bundle(payload: bytes) -> bytes | None:
-    """Decompress an FF FF bundle payload, returning None on malformed input."""
-    if len(payload) < 7:
-        return None
-    size = int.from_bytes(payload[2:6], "little")
-    if size == 0 or size > MAX_DECOMPRESSED_BYTES:
-        return None
-    try:
-        from lz4.block import decompress
+@dataclass
+class BundleBatch:
+    cache: dict[bytes, bytes | None] = field(default_factory=dict)
+    expanded_bytes: int = 0
+    rejected: int = 0
 
-        result = decompress(payload[6:], uncompressed_size=size)
-    except (ImportError, ValueError, RuntimeError):
-        return None
-    return result if len(result) == size else None
+
+_BUNDLE_BATCH: ContextVar[BundleBatch | None] = ContextVar("bundle_batch", default=None)
+
+
+@contextmanager
+def bundle_batch():
+    """Share bounded decompression across scanners without changing frame context."""
+    batch = BundleBatch()
+    token = _BUNDLE_BATCH.set(batch)
+    try:
+        yield batch
+    finally:
+        _BUNDLE_BATCH.reset(token)
+
+
+def decompress_bundle(payload: bytes) -> bytes | None:
+    """Decompress a bundle; retain valid siblings when a compressed block is corrupt."""
+    batch = _BUNDLE_BATCH.get()
+    if batch is not None and payload in batch.cache:
+        return batch.cache[payload]
+    result = None
+    size = int.from_bytes(payload[2:6], "little") if len(payload) >= 7 else 0
+    allowed = 0 < size <= MAX_DECOMPRESSED_BYTES
+    if batch is not None:
+        allowed = allowed and batch.expanded_bytes + size <= 4_000_000
+    if allowed:
+        if batch is not None:
+            batch.expanded_bytes += size
+        try:
+            from lz4.block import decompress, LZ4BlockError
+        except ImportError:
+            pass
+        else:
+            try:
+                expanded = decompress(payload[6:], uncompressed_size=size)
+                if len(expanded) == size:
+                    result = expanded
+            except (ValueError, RuntimeError, LZ4BlockError):
+                pass
+    if batch is not None:
+        batch.cache[payload] = result
+        if result is None:
+            batch.rejected += 1
+    return result
 
 
 def iter_packets(data: bytes, *, max_depth: int = 8):
