@@ -1187,7 +1187,9 @@ async function pageMeter() {
     const showOverlay=$('#mautooverlay').checked;
     st.captureBusy = true; button.disabled = true;
     try {
-      st.pinnedSegment = ""; renderMeter(await api("/api/meter", body));
+      st.pinnedSegment = "";
+      const started=await api("/api/meter", body); renderMeter(started);
+      if(!started.running) { $('#mnotice').textContent=started.error || 'Capture did not start. Check capture diagnostics.'; return; }
       $("#mnotice").textContent = "Capture started. Waiting for combat data."; toast("Capture started");
       if(showOverlay) {
         try { $('#mnotice').textContent='Capture started. '+await openMeterOverlay(); }
