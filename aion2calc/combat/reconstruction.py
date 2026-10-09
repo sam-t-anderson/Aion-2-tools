@@ -177,7 +177,7 @@ def combine(sources):
     meta = {"source":"Aion 2 Calc combined recording review", "title":f"Recording parts {first}–{last}",
             "capture_scope":next(iter(scopes)), "capture_quality":evidence, "contribute":"no",
             "reconstruction":{"version":1, "sources":provenance}}
-    for key in ("region", "game_patch", "installed_build", "installed_build_namespace", "installed_build_cohort", "installed_build_source"):
+    for key in ("region", "game_patch", "installed_build", "installed_build_namespace", "installed_build_cohort", "installed_build_source", "launcher_build", "launcher_build_namespace", "launcher_build_source", "file_version"):
         values = {d["meta"].get(key) for _, d, _, _ in loaded}
         if len(values) == 1 and next(iter(values)):
             meta[key] = next(iter(values))

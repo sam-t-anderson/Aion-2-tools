@@ -4,6 +4,7 @@ from __future__ import annotations
 import threading
 import copy
 import queue
+import struct
 import time
 import uuid
 from pathlib import Path
@@ -265,7 +266,24 @@ class Runner:
                 for event in events:
                     self.meter.add(event)
             return events
+        except (ValueError, IndexError, KeyError, UnicodeError, struct.error) as exc:
+            # A malformed/unsupported packet must not end the entire live recording.
+            # Keep loss evidence so recovered sessions cannot appear complete.
+            warning = f"Packet decode skipped: {type(exc).__name__}: {exc}"
+            self.diagnostics["decoder_warning"] = warning[:500]
+            self.diagnostics["decoder_errors"] += 1
+            for key in ("decoder_errors", "capture_errors"):
+                self.session.capture_evidence[key] = self.session.capture_evidence.get(key, 0) + 1
+            history = self.diagnostics.setdefault("processing_errors", [])
+            history.append({"at": timestamp_ms, "type": type(exc).__name__, "message": str(exc)[:500], "recoverable": True})
+            del history[:-20]
+            if engine is not None:
+                engine.reset_stream(stream)
+            return []
         except Exception as exc:
+            history = self.diagnostics.setdefault("processing_errors", [])
+            history.append({"at": timestamp_ms, "type": type(exc).__name__, "message": str(exc)[:500], "recoverable": False})
+            del history[:-20]
             self.error = f"Decoder failed: {type(exc).__name__}: {exc}"
             self.diagnostics["decoder_errors"] += 1
             self.session.capture_evidence["decoder_errors"] = self.session.capture_evidence.get("decoder_errors", 0) + 1
@@ -291,6 +309,10 @@ class Runner:
     def _record_capture_stats(self, stats):
         # Caller holds self.lock; final counters must also reach the visible diagnostics.
         self.diagnostics.update(stats)
+        # Packet-source counters do not replace processing counters from this runner.
+        for key in ("decoder_errors", "shutdown_discarded_payloads", "shutdown_drained_payloads", "capture_errors"):
+            if key in self.session.capture_evidence:
+                self.diagnostics[key] = self.session.capture_evidence[key]
         for key in ("transport_monitored", *CAPTURE_COUNTERS, *PCAP_FLAGS, "tcp_pending_bytes"):
             if key not in stats:
                 continue
@@ -686,7 +708,7 @@ class Runner:
         doc.setdefault("meta", {}).update(metadata)
         if collector:
             detected = collector.snapshot((profile or {}).get("serverId"))
-            for key in ("installed_build", "installed_build_source", "installed_build_namespace", "installed_build_cohort"):
+            for key in ("installed_build", "installed_build_source", "installed_build_namespace", "installed_build_cohort", "launcher_build", "launcher_build_namespace", "launcher_build_source", "file_version"):
                 if detected.get(key):
                     doc["meta"][key] = detected[key]
             if not doc["meta"].get("game_patch") and detected.get("game_patch"):

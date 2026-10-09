@@ -23,6 +23,8 @@ from ..sim.engine import EPS, Action
 from .base import Build, ClassData
 from .common import Kit, fallback_to_generic, ms, spec_options  # noqa: F401
 
+__all__ = ["build_kit", "spec_options"]
+
 SID = dict(
     COLD=16010000, COMB=16040000, FIRESP=16100000, WATERSP=16110000, CURSE=16140000,
     SCATTER=16340000, EARTHSP=16130000, DIMCTRL=16330000, WINDSP=16120000, SOULCRY=16070000,
@@ -100,13 +102,13 @@ def build_kit(build: Build, cd: ClassData, filler: str = "cold_shock") -> Kit:
     sp_f, sp_c = (dmg(spk) if lv(spk) > 0 else (0.0, 0.0))
     dc_f, dc_c = (dmg("DIMCTRL") if lv("DIMCTRL") > 0 else (0.0, 0.0))
     fu_f, fu_c = (dmg("FUSION") if lv("FUSION") > 0 else (0.0, 0.0))
-    pet = {"started": False, "fusion": 0}
 
     # crit procs / DoT-rider passives (hooks)
     corrode = _proc(cd, lv, "CORRODE", 1, 2, None)
     counter = _proc(cd, lv, "COUNTER", 0, 1, None)
 
     def start_pet(sim):
+        pet = sim.kit_state.setdefault("spiritmaster_pet", {"started": False, "fusion": 0})
         if pet["started"] or sp_f <= 0:
             return
         pet["started"] = True

@@ -17,7 +17,7 @@ LABELS = {
     "partial_capture": "Partial capture: instance entry or player membership was not established; metrics are descriptive only.",
     "party_roster_late": "The first party roster arrived after combat; earlier party membership is unverified.",
     "storage_boundary": "This archive part crosses a storage boundary; full fight/run completeness is not established.",
-    "missing_metadata": "Record the game build, difficulty and encounter category.",
+    "missing_metadata": "Record the game version, difficulty and encounter category.",
     "unverified_category": "The encounter category has not been identified.",
     "start_unverified": "A boss at full health was not observed at the start of this encounter.",
     "end_unverified": "The deaths of all recorded bosses were not observed.",

@@ -10,6 +10,7 @@ import sys
 import threading
 import time
 import urllib.request
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from ..paths import user_data, write_user_json
@@ -86,7 +87,7 @@ def _installed_roots():
     return roots
 
 
-def _file_version(path):
+def _file_version(path, *, product=False):
     if sys.platform != "win32" or not path.is_file():
         return None
     from ctypes import wintypes
@@ -104,6 +105,24 @@ def _file_version(path):
         return None
     if not api.VerQueryValueW(buffer, "\\", ctypes.byref(pointer), ctypes.byref(length)) or length.value < 52:
         return None
+    if product:
+        # Explorer's Product version is StringFileInfo, not the engine's fixed DWORD version.
+        translations = ctypes.c_void_p()
+        translation_length = wintypes.UINT()
+        if not api.VerQueryValueW(buffer, "\\VarFileInfo\\Translation", ctypes.byref(translations), ctypes.byref(translation_length)):
+            return None
+        if not translations.value or not 4 <= translation_length.value <= 256 or translation_length.value % 4:
+            return None
+        words = ctypes.cast(translations, ctypes.POINTER(wintypes.WORD))
+        versions = set()
+        for index in range(translation_length.value // 4):
+            block = f"\\StringFileInfo\\{words[2*index]:04x}{words[2*index+1]:04x}\\ProductVersion"
+            value, value_length = ctypes.c_void_p(), wintypes.UINT()
+            if api.VerQueryValueW(buffer, block, ctypes.byref(value), ctypes.byref(value_length)) and value.value and 1 <= value_length.value <= 128:
+                text = ctypes.wstring_at(value, value_length.value).rstrip("\0").strip()
+                if re.fullmatch(r"[0-9]{1,12}(?:\.[0-9]{1,12}){1,7}", text) and text != "0.0.0.0":
+                    versions.add(text)
+        return versions.pop() if len(versions) == 1 else None
     values = ctypes.cast(pointer, ctypes.POINTER(wintypes.DWORD))
     if values[0] != 0xFEEF04BD:
         return None
@@ -111,25 +130,57 @@ def _file_version(path):
     return None if version in ("0.0.0.0", "1.0.0.0") else version
 
 
+def _purple_build_evidence(root):
+    """Read the observed PURPLE launcher revision, not the engine executable version."""
+    manifests = sorted(root.glob("VersionInfo_A2_*_PURPLE.xml"))
+    if not manifests:
+        return None
+    revisions = set()
+    try:
+        if len(manifests) > 8:
+            raise ValueError("Too many launcher manifests")
+        for path in manifests:
+            if not re.fullmatch(r"VersionInfo_(A2_[A-Z0-9_]+_PURPLE)\.xml", path.name):
+                raise ValueError("Unrecognized launcher namespace")
+            if path.stat().st_size > 16384:
+                raise ValueError("Launcher manifest too large")
+            tree = ET.fromstring(path.read_bytes())
+            version = (tree.findtext("Version") or "").strip()
+            if tree.tag != "VersionInfo" or tree.findtext("Updated") != "1" or not re.fullmatch(r"[0-9]{1,20}", version) or int(version) <= 0:
+                raise ValueError("Incomplete launcher revision")
+            namespace = "purple:" + path.stem.removeprefix("VersionInfo_")
+            revisions.add((namespace, version))
+        if len(revisions) != 1:
+            raise ValueError("Conflicting launcher revisions")
+        namespace, version = revisions.pop()
+        return {"installed_build": version, "installed_build_source": "PURPLE VersionInfo launcher revision",
+                "installed_build_namespace": namespace, "status": "ready"}
+    except (OSError, ValueError, ET.ParseError):
+        return {"status": "unavailable", "reason": "PURPLE launcher revision is incomplete, conflicting or unreadable."}
+
+
 def _build_evidence(root):
-    """Return public build evidence only; paths remain local."""
-    # Steam common/<installdir> is discovered through the registry, not a fixed drive.
+    """Use the game's ProductVersion string; retain launcher IDs only as diagnostic evidence."""
+    launcher = _purple_build_evidence(root) or {}
     if root.parent.name.casefold() == "common":
         for manifest in sorted(root.parent.parent.glob("appmanifest_*.acf")):
             try:
                 fields = dict(re.findall(r'"([^"\n]+)"\s+"([^"\n]*)"', manifest.read_text(encoding="utf-8")))
-                if fields.get("installdir", "").casefold() != root.name.casefold():
-                    continue
-                if fields.get("buildid", "").isdigit():
-                    return {"installed_build": fields["buildid"], "installed_build_source": "Steam app manifest",
-                            "installed_build_namespace": "steam:" + fields.get("appid", ""), "status": "ready"}
+                if fields.get("installdir", "").casefold() == root.name.casefold() and fields.get("buildid", "").isdigit():
+                    launcher = {"installed_build": fields["buildid"], "installed_build_namespace": "steam:" + fields.get("appid", ""),
+                                "installed_build_source": "Steam app manifest"}
+                    break
             except (OSError, UnicodeError):
                 continue
+    evidence = {"launcher_build": launcher.get("installed_build"), "launcher_build_namespace": launcher.get("installed_build_namespace"),
+                "launcher_build_source": launcher.get("installed_build_source")}
+    evidence = {key: value for key, value in evidence.items() if value}
     for binary in (root / "Aion2/Binaries/Win64/AION2.exe", root / "AION2.exe"):
-        version = _file_version(binary)
+        version = _file_version(binary, product=True)
         if version:
-            return {"installed_build": version, "installed_build_source": "Game executable version resource", "status": "ready"}
-    return {"status": "unavailable", "reason": "No usable version resource or Steam build ID was found."}
+            return {**evidence, "installed_build": version, "installed_build_source": "Game executable ProductVersion string",
+                    "installed_build_namespace": "aion2:product", "file_version": _file_version(binary), "status": "ready"}
+    return {**evidence, "status": "unavailable", "reason": "No unambiguous game executable ProductVersion string was found. Launcher IDs and engine file versions are diagnostic evidence only."}
 
 
 def _installation_id(root):
@@ -149,10 +200,12 @@ def installation_options():
     rows = []
     for root in _installed_roots():
         evidence = _build_evidence(root)
-        launcher = "Steam" if root.parent.name.casefold() == "common" else "Registered Windows install"
+        launcher = ("Steam" if root.parent.name.casefold() == "common" else
+                    "PURPLE" if evidence.get("launcher_build_namespace", "").startswith("purple:") else
+                    "Registered Windows install")
         label = f"{launcher} · {root.name} · {root.drive or 'local'}"
         if evidence.get("installed_build"):
-            label += " · build " + evidence["installed_build"]
+            label += " · Product version " + evidence["installed_build"]
         rows.append({"id": _installation_id(root), "label": label, **evidence})
     selected = selected_installation()
     return {"installations": rows, "selected": selected,

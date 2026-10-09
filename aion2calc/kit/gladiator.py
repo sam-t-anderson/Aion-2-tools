@@ -27,7 +27,9 @@ from __future__ import annotations
 
 from ..sim.engine import Action
 from .base import Build, ClassData
-from .common import Kit, fallback_to_generic, ms, spec_options  # noqa: F401 (spec_options is the module API)
+from .common import Kit, fallback_to_generic, spec_options  # noqa: F401 (spec_options is the module API)
+
+__all__ = ["build_kit", "spec_options"]
 
 SID = dict(
     KEEN=11020000, REND=11010000, LEAP=11190000, MOCK=11290000, OVER=11170000,
@@ -114,9 +116,9 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
     if lv("MURDER") > 0:
         mv = cd.vals(SID["MURDER"], lv("MURDER"))
         mb_f, mb_c, mb_cd = float(mv[1][0]), float(mv[1][1]) / 100.0, mv[3] / 100.0
-    state = {"menace": 0}
 
     def hook(sim, t, info):
+        state = sim.kit_state.setdefault("gladiator", {"menace": 0})
         if "proc" in info["tags"] or "dot" in info["tags"]:
             return
         # Destructive Impulse: extra damage while the target carries Stagger/Impact.

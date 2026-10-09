@@ -302,7 +302,7 @@ See the [user guide](user-guide.md) for matched comparison cohorts, ranking elig
 
 ## Installation, identity and live rate evidence
 
-Live Meter reads installed build evidence from Steam library manifests and recognized Windows game registrations, including PURPLE registrations. It resolves recorded server IDs against official regional metadata in the background. Installation paths are not exported. New Steam captures use the exact selected-installation Build ID, qualified by the Steam app namespace, as their technical build comparison key. Executable resources can contain engine versions and are not promoted to game build identifiers. Unrecognized PURPLE build metadata remains unavailable; launcher namespaces are not merged without verified equivalence. Capture records this evidence for its session and never retrospectively applies a current install build to historical logs. Optional classification overrides take precedence within the recorded PvE/PvP mode.
+Live Meter discovers Steam libraries and registered Windows/PURPLE game installations, then reads the selected executable's full **Product version** string for comparison groups across launchers. The engine file version and launcher build IDs are diagnostic evidence only. Installation paths are not exported. Recorded home server IDs are matched against official regional metadata; the installation language does not establish a physical region.
 
 Recorded map/instance IDs identify known open-world categories, Fire Temple Arena and available dungeon names. Unmapped content, difficulty, build and match outcomes remain unknown. Detection provenance is visible in shared log review. Opponents without their own server ID are not assigned your server.
 

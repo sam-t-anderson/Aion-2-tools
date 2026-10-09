@@ -161,6 +161,7 @@ class Sim:
         self.chain: dict[str, tuple[int, float]] = {}
         self.icd: dict[str, float] = {}
         self.proc_acc: dict[str, float] = {}
+        self.kit_state: dict[str, dict] = {}  # Mutable kit state belongs to this run, never shared closures.
         self.damage_by: dict[str, float] = {}
         self.hits_by: dict[str, int] = {}
         self.casts: dict[str, int] = {}
