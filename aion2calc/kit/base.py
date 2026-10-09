@@ -62,7 +62,7 @@ def _load_class(cls: str, bundled: bool) -> dict:
         fallback = json.loads((PKG_DATA / "global" / "classes" / f"{cls}.json").read_text(encoding="utf-8"))
         if not valid_base_stats(fallback.get("base_stats"), raw.get("level_cap", 45)):
             raise ValueError(f"Base stats unavailable for {cls}; no complete bundled table covers this level cap")
-        raw = {**raw, "base_stats": bundled["base_stats"], "base_stats_source": "bundled fallback"}
+        raw = {**raw, "base_stats": fallback["base_stats"], "base_stats_source": "bundled fallback"}
     return raw
 
 
