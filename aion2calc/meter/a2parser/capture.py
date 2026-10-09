@@ -224,6 +224,11 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
     flows: dict[tuple, TCPReassembler] = {}
     detector = CombatFlowDetector()
     callback_lock = threading.Lock()
+    rtt_sent: dict = {}          # connection -> [(expected ack, send monotonic)] for passive RTT
+    last_ping = [0.0]            # throttle ping emission to roughly one sample per second
+
+    def _seq_le(a: int, b: int) -> bool:   # a <= b in 32-bit sequence space (handles wraparound)
+        return ((b - a) & 0xFFFFFFFF) < 0x80000000
     stats = {"packets": 0, "payload_packets": 0, "bytes": 0, "forwarded": 0,
              "auto_port": auto_port, "port": None if auto_port else server_port,
              "interface": interface or "Auto", "interfaces": interfaces, "warnings": [],
@@ -247,6 +252,31 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
         syn = bool(int(tcp.flags) & 0x02)
         if recorder is not None:
             recorder.record(key, int(tcp.seq), int(tcp.flags), payload, time.time_ns() // 1_000_000)
+        # Passive round-trip latency: time a client->server data segment against the
+        # server's ACK of it. Uses the packets already captured, so no probe traffic.
+        srv_port = detector.selected[2] if (auto_port and detector.selected) else server_port
+        if srv_port and not syn:
+            now = time.monotonic()
+            conn = frozenset(((source, int(tcp.sport)), (destination, int(tcp.dport))))
+            if int(tcp.dport) == srv_port and payload:
+                pend = rtt_sent.setdefault(conn, [])
+                pend.append(((int(tcp.seq) + len(payload)) & 0xFFFFFFFF, now))
+                if len(pend) > 64:
+                    del pend[:-64]
+            elif int(tcp.sport) == srv_port and int(tcp.flags) & 0x10:   # ACK from the server
+                pend = rtt_sent.get(conn)
+                if pend:
+                    ack, matched, keep = int(tcp.ack), None, []
+                    for exp, sent in pend:
+                        if _seq_le(exp, ack):
+                            matched = sent if matched is None or sent > matched else matched
+                        else:
+                            keep.append((exp, sent))
+                    rtt_sent[conn] = keep
+                    rtt_ms = (now - matched) * 1000.0 if matched is not None else -1.0
+                    if 0.0 <= rtt_ms <= 60_000.0 and now - last_ping[0] >= 1.0:
+                        last_ping[0] = now
+                        emit("ping", round(rtt_ms, 2), time.time_ns() // 1_000_000)
         with callback_lock:
             stats["packets"] += 1
             stats["payload_packets"] += bool(payload)

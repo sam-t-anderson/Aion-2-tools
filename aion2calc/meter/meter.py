@@ -22,6 +22,7 @@ class Meter:
         self.boss: str | None = None
         self.local_player: str | None = None       # the local recording player's id, once known
         self.pets: dict = {}                        # pet id -> {"owner": id, "name": str}
+        self.pings: list = []                       # (absolute t, round-trip ms) latency samples
 
     def owner_of(self, ev: CombatEvent) -> str:
         """Who a damage event belongs to: a pet's damage goes to its owner; in a partial
@@ -46,6 +47,12 @@ class Meter:
         return max(0.0, (self.last_damage if self.last_damage is not None else self.t0) - self.t0)
 
     def add(self, ev: CombatEvent) -> None:
+        if ev.kind == "ping":
+            # Latency samples ride the same stream but never move the combat clock.
+            self.pings.append((ev.t, float(ev.ping_ms)))
+            if len(self.pings) > 200_000:
+                self.pings = self.pings[-150_000:]
+            return
         if self.t0 is None:
             self.t0 = ev.t
         if self.last is None or ev.t > self.last:
@@ -105,7 +112,17 @@ class Meter:
         rows.sort(key=lambda r: -r["damage"])
         return {"duration": round(self.duration, 2), "boss": self.boss, "total": total,
                 "paused": self.damage_seen_at is not None and time.monotonic() - self.damage_seen_at >= 2,
-                "dps": total / dur, "players": rows}
+                "dps": total / dur, "players": rows, "ping": self.ping_summary()}
+
+    def ping_summary(self) -> dict | None:
+        """Current and aggregate round-trip latency for the live display, or None."""
+        if not self.pings:
+            return None
+        ms = [m for _, m in self.pings]
+        recent = ms[-30:]
+        return {"current": round(ms[-1], 1), "avg": round(sum(ms) / len(ms), 1),
+                "recent_avg": round(sum(recent) / len(recent), 1),
+                "min": round(min(ms), 1), "max": round(max(ms), 1), "samples": len(ms)}
 
     def to_a2log(self, source: str = "aion2calc-meter", title: str | None = None, region: str | None = None) -> dict:
         """Build and validate an a2log document for the session, so it can be saved, analyzed and
@@ -157,6 +174,8 @@ class Meter:
                           "end": round((ev.buff_end if ev.buff_end is not None else (self.last or ev.t)) - (self.t0 or 0.0), 3)})
         entities = [{"id": pid, "name": info["name"], "kind": "pet", "owner": ids[info["owner"]]}
                     for pid, info in self.pets.items() if info["owner"] in ids]
+        t0 = self.t0 or 0.0
+        ping = [[round(max(0.0, t - t0), 3), round(ms, 1)] for t, ms in self.pings if t - t0 >= -1.0]
         seg = {"label": self.boss or "Live session", "duration": round(max(0, (self.last or 0) - (self.t0 or 0)), 3) or 0.001,
                "killed": False, "hits": hits}
         if self.boss:
@@ -165,6 +184,8 @@ class Meter:
             seg["buffs"] = buffs
         if entities:
             seg["entities"] = entities
+        if ping:
+            seg["ping"] = ping
         meta = {"source": source}
         if title:
             meta["title"] = title

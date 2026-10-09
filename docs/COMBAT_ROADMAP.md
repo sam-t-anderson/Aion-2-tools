@@ -6,11 +6,11 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 ## 1. Capture reliability and recording reconstruction
 
-**Available:** continuous bounded-part archival, periodic recovery snapshots, saved-part pagination and upload queues, durable upload request retries, part discovery, combined stopped-part review and original-source navigation. Shared outgoing-damage clocks freeze during inactivity, resume without resetting player totals and use a minimum 120-second automatic split gap. Partial mid-instance captures remain visible and unranked. Supported late roster and summon-owner evidence reconciles retained effects within its identity context. Overlay DPS/HPS/incoming metrics, grouping, text colors and foreground behavior are configurable.
+**Available:** continuous bounded-part archival, periodic recovery snapshots, saved-part pagination and upload queues, durable upload request retries, part discovery, combined stopped-part review and original-source navigation. Shared outgoing-damage clocks freeze during inactivity, resume without resetting player totals and use a minimum 120-second automatic split gap. Partial mid-instance captures remain visible and unranked. Supported late roster and summon-owner evidence reconciles retained effects within its identity context. A combat event carries explicit owner, pet and local-player markers, so the meter folds a pet's damage into its owner instead of counting a phantom player, tracks the local recording player, and in a solo partial capture attributes an unowned pet to the sole local player; saved a2log documents record pet hits under their owner with a pet entity link. Overlay DPS/HPS/incoming metrics, grouping, text colors and foreground behavior are configurable.
 
 **Remaining:**
 
-- Support additional local-player, spawn, roster, death and instance-entry protocol variants using representative captures. Do not assign an unnamed actor from class, name similarity, proximity or damage.
+- Support additional local-player, spawn, roster, death and instance-entry protocol variants using representative captures. The owner/pet/local markers and the solo-capture pet fallback are in place, but the decoder must set them from verified protocol evidence; in a multi-player capture an unowned pet is still left with its own identity rather than guessed. Do not assign an unnamed actor from class, name similarity, proximity or damage.
 - Confirm the zone/ownership and repeat-encounter fixes on affected devices and game sessions, with TCP recording both enabled and disabled.
 - Stitch boss attempts crossing archive parts, reconcile overlaps and retain contradictory/ambiguous source evidence. Promote complete chains to rankings only after explicit entry/completion, stable identity and loss evidence pass independently defined rules.
 - Improve matching of incomplete views from multiple uploaders without merging unrelated fights. Lost upload responses retain ownership-recovery limits even when request retries prevent duplicate creation.
@@ -143,7 +143,7 @@ Crafting, Build Workspace and embedded maps use the available horizontal display
 
 | Open item | Prerequisite / next action |
 | --- | --- |
-| Local identity, pet ownership, repeated encounters and partial-instance capture validation | Current-build diagnostics with known participants and outcomes, including separate TCP-checkbox states. The user is collecting these. |
+| Local identity, pet ownership, repeated encounters and partial-instance capture validation | The meter now folds pet damage into its owner, tracks the local player and attributes an unowned pet to the sole local player in a solo capture (owner/pet/local event markers). Remaining: multi-player protocol variants and validation against current-build diagnostics with known participants and outcomes, including separate TCP-checkbox states. The user is collecting these. |
 | Cross-part boss attempts and ranking promotion | A stable boss lifetime/attempt identifier, plus captured entry, completion and loss evidence. Existing part/run tokens support descriptive review; they do not distinguish reused actor IDs or restore missing packets. |
 | Cross-uploader fight matching and defeat deduplication | Independently labeled simultaneous perspectives with physical server/channel scope; define conservative ambiguity/rejection rules before fusing records. |
 | PURPLE discovery and regional build metadata | Verified registration/configuration samples; preserve launcher namespaces. KR/Taiwan is optional. |
@@ -170,7 +170,7 @@ A new character import error was traced to empty base-stat tables in all eight l
 
 ## Optimizer, Product version and continuous capture follow-up
 
-Dedicated PvE kits now cover all eight classes; PvP still uses the generic mode-specific kit. Spiritmaster pet and Gladiator stack state are isolated per simulation. Assumed animation, chain/proc, pet and boss-control timings still require capture calibration.
+Dedicated PvE kits now cover all eight classes, modeling each class's chains, crowd-control combos, damage-amp buffs and (Spiritmaster) its summoned pet; the Spiritmaster kit now models the Ancient Spirit stigma as the real endgame pet, which the allocation optimizer levels accordingly. PvP still uses the generic mode-specific kit, which now also models chain follow-ups and extra-damage spec riders. Front and Back Attack Damage Boost are applied as their own damage bucket. The macro layout reserves the left mouse button for the class's basic auto-attack rather than an arbitrary skill. Spiritmaster pet and Gladiator stack state are isolated per simulation. Assumed animation, chain/proc, pet and boss-control timings still require capture calibration, which is the main open item for the kits.
 
 The full executable ProductVersion string identifies new comparison groups across Steam and PURPLE, with engine file versions and launcher IDs retained as diagnostics. Both observed installations report 1.0.21.0.2026031801. Legacy logs retain their recorded identifiers; no missing historical Product version is guessed. Registered PURPLE discovery is supported; unregistered discovery remains pending.
 

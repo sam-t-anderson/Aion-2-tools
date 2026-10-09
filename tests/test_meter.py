@@ -58,6 +58,20 @@ def test_pet_damage_folds_into_owner_and_local_player():
     assert analyze(enc)["summary"]["total"] == 190                             # owner's total includes the pet
 
 
+def test_ping_rides_the_meter_into_snapshot_and_log():
+    m = Meter()
+    m.add(CombatEvent(t=0.0, source="p1", source_name="Me", source_class="sorcerer",
+                      damage=100, skill="Flame Arrow", target="Boss", target_boss=True))
+    for i, ms in enumerate([42, 55, 48, 60, 51]):
+        m.add(CombatEvent(t=float(i + 1), kind="ping", ping_ms=ms))
+    m.add(CombatEvent(t=6.0, source="p1", damage=100, skill="Flame Arrow"))
+    snap = m.snapshot()
+    assert snap["ping"]["current"] == 51 and snap["ping"]["min"] == 42 and snap["ping"]["max"] == 60
+    assert snap["players"][0]["damage"] == 200 and snap["duration"] == 6.0   # ping never moved the clock
+    seg = m.to_a2log(title="Ping")["segments"][0]
+    assert seg["ping"] == [[1.0, 42.0], [2.0, 55.0], [3.0, 48.0], [4.0, 60.0], [5.0, 51.0]]
+
+
 def test_jsonlines_decoder_and_capture_source():
     dec = load_decoder("jsonlines")
     assert isinstance(dec, JsonLinesDecoder)
