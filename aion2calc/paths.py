@@ -22,7 +22,33 @@ import os
 import shutil
 import sys
 import tempfile
+from contextvars import ContextVar
+from functools import wraps
 from pathlib import Path
+
+_BUNDLED_MODEL_DATA = ContextVar("bundled_model_data", default=False)
+
+
+def bundled_model_data_enabled():
+    return _BUNDLED_MODEL_DATA.get()
+
+
+def bundled_model_data(function):
+    """Isolate common scoring data per call/thread, preserving user settings/storage."""
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        token = _BUNDLED_MODEL_DATA.set(True)
+        try:
+            return function(*args, **kwargs)
+        finally:
+            _BUNDLED_MODEL_DATA.reset(token)
+    return wrapped
+
+
+def _model_parts(parts):
+    return (len(parts) >= 2 and parts[0] in ("global", "kr", "tw")
+            and parts[1] in ("classes", "loadouts", "hit_profiles"))
+
 
 PKG_DATA = Path(__file__).resolve().parent / "data"
 
@@ -80,6 +106,8 @@ def user_data() -> Path:
 
 def data_file(*parts: str) -> Path:
     """User overlay copy if present, else the bundled file."""
+    if bundled_model_data_enabled() and _model_parts(parts):
+        return PKG_DATA.joinpath(*parts)
     u = user_data().joinpath(*parts)
     return u if u.exists() else PKG_DATA.joinpath(*parts)
 
@@ -102,7 +130,8 @@ def write_user_json(obj, *parts: str) -> Path:
 def list_names(*parts: str, suffix: str = ".json") -> list[str]:
     """File stems in a data folder, bundled and user overlay combined."""
     names = set()
-    for root in (PKG_DATA, user_data()):
+    roots = (PKG_DATA,) if bundled_model_data_enabled() and _model_parts(parts) else (PKG_DATA, user_data())
+    for root in roots:
         d = root.joinpath(*parts)
         if d.is_dir():
             names |= {p.stem for p in d.glob(f"*{suffix}")}

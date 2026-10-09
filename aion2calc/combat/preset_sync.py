@@ -10,7 +10,7 @@ import time
 import urllib.error
 import urllib.request
 
-from ..paths import list_names, read_json, write_user_json
+from ..paths import list_names, read_json, write_user_json, bundled_model_data
 from ..presets import BUDGETS, MAX_BYTES, InvalidPreset, candidate as legacy_candidate, parse
 from .share import effective
 
@@ -69,6 +69,7 @@ def _number(value):
         return False
 
 
+@bundled_model_data
 def _validate(remote, cls, mode, scope):
     from ..model.stats import Stats
     primary, secondary = ("pvp", "pvp_burst") if mode == "pvp" else ("boss", "dummy")

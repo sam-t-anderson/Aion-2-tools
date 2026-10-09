@@ -7,10 +7,11 @@ import tempfile
 from pathlib import Path
 
 from ..canonical_presets import MODES, candidate, evaluate, scoring_policy
-from ..paths import home
+from ..paths import home, bundled_model_data
 from ..presets import MAX_BYTES
 
 
+@bundled_model_data
 def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
     """Seed from both scenarios, then refine the exact common weighted objective."""
     from ..kit.base import ClassData
@@ -31,7 +32,10 @@ def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
         selected = remote.get("budgets") if remote.get("version") == 2 else None
         expected = scoring_policy(cls, mode, selected)
         if remote.get("scope") != expected["scope"]:
-            raise ValueError("Community comparison policy differs from this evaluator; update the client/server")
+            different = [key for key in ("model", "version", "class", "mode", "budgets", "loadout_fingerprint", "data_fingerprint", "weights", "durations")
+                         if remote.get(key) != expected.get(key)]
+            raise ValueError("Community comparison policy differs from this evaluator (" + ", ".join(different or ["scope"]) +
+                             "); check client/server releases and their bundled game data")
         policy = expected
     observed_budgets = policy["budgets"] if policy["version"] == 2 else None
     def score(document):

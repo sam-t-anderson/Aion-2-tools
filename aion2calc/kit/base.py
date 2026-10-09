@@ -53,23 +53,38 @@ def valid_base_stats(rows, level_cap=45) -> bool:
 
 
 @lru_cache(maxsize=None)
-def load_class(cls: str) -> dict:
+def _load_class(cls: str, bundled: bool) -> dict:
     from ..paths import PKG_DATA, read_json
-    raw = read_json("global", "classes", f"{cls}.json")
+    raw = (json.loads((PKG_DATA / "global" / "classes" / f"{cls}.json").read_text(encoding="utf-8"))
+           if bundled else read_json("global", "classes", f"{cls}.json"))
     if not valid_base_stats(raw.get("base_stats"), raw.get("level_cap", 45)):
         # Recover already-synced empty tables without deleting the user's data.
-        bundled = json.loads((PKG_DATA / "global" / "classes" / f"{cls}.json").read_text(encoding="utf-8"))
-        if not valid_base_stats(bundled.get("base_stats"), raw.get("level_cap", 45)):
+        fallback = json.loads((PKG_DATA / "global" / "classes" / f"{cls}.json").read_text(encoding="utf-8"))
+        if not valid_base_stats(fallback.get("base_stats"), raw.get("level_cap", 45)):
             raise ValueError(f"Base stats unavailable for {cls}; no complete bundled table covers this level cap")
         raw = {**raw, "base_stats": bundled["base_stats"], "base_stats_source": "bundled fallback"}
     return raw
 
 
 @lru_cache(maxsize=None)
-def load_hit_profiles(cls: str) -> dict:
-    from ..paths import data_file
-    p = data_file("kr", "hit_profiles", f"{cls}.json")
+def _load_hit_profiles(cls: str, bundled: bool) -> dict:
+    from ..paths import PKG_DATA, data_file
+    p = PKG_DATA / "kr" / "hit_profiles" / f"{cls}.json" if bundled else data_file("kr", "hit_profiles", f"{cls}.json")
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+
+
+def load_class(cls: str) -> dict:
+    from ..paths import bundled_model_data_enabled
+    return _load_class(cls, bundled_model_data_enabled())
+
+
+def load_hit_profiles(cls: str) -> dict:
+    from ..paths import bundled_model_data_enabled
+    return _load_hit_profiles(cls, bundled_model_data_enabled())
+
+
+load_class.cache_clear = _load_class.cache_clear
+load_hit_profiles.cache_clear = _load_hit_profiles.cache_clear
 
 
 def clear_caches() -> None:
