@@ -158,3 +158,7 @@ Crafting, Build Workspace and embedded maps use the available horizontal display
 | Repository-wide auto-merge capability | The specific authorization requested after automatic approval review rejected the broader setting change. Asset PR creation and review continue. |
 
 These items are still open. The postponed captures and metadata are required inputs for their dependent implementation and validation, not new bug reports or a completed roadmap.
+
+## Character import during catalog updates
+
+A newly reported database-lock error exposed catalog transactions spanning network fetches. Catalog page and item writes now commit before the next remote request, failed sync transactions roll back, and failed connection initialization closes without caching the connection. Character/profile asset writes commit or roll back together. Validation on the affected device remains pending.

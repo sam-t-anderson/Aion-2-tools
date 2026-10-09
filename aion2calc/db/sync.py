@@ -78,8 +78,9 @@ class Sync:
     def run(self) -> SyncState:
         st = self.state
         st.running, st.started, st.errors, st.changed = True, time.time(), [], {}
-        conn = store.connect(self.db_path)
+        conn = None
         try:
+            conn = store.connect(self.db_path)
             pages = self._sitemaps(conn)
             changed_classes = self._classes(conn, pages)
             changed_items = self._items(conn, pages)
@@ -101,6 +102,9 @@ class Sync:
             self.log(traceback.format_exc())
             self._say("error", str(err))
         finally:
+            # A failed phase must never leave a cached connection holding a writer lock.
+            if conn is not None and conn.in_transaction:
+                conn.rollback()
             st.running, st.finished = False, time.time()
         return st
 
@@ -131,9 +135,12 @@ class Sync:
         return (row[0], row[1] or 0) if row else (None, 0)
 
     def _mark(self, conn, url: str, lastmod: str | None, status: str = "ok"):
-        conn.execute("INSERT INTO pages(url, fetched_lastmod, fetched_at, status) VALUES (?,?,?,?) "
-                     "ON CONFLICT(url) DO UPDATE SET fetched_lastmod=excluded.fetched_lastmod, "
-                     "fetched_at=excluded.fetched_at, status=excluded.status", (url, lastmod, time.time(), status))
+        # Commit before another page is fetched: network requests can take minutes.
+        with conn:
+            conn.execute("INSERT INTO pages(url, fetched_lastmod, fetched_at, status) VALUES (?,?,?,?) "
+                         "ON CONFLICT(url) DO UPDATE SET fetched_lastmod=excluded.fetched_lastmod, "
+                         "fetched_at=excluded.fetched_at, status=excluded.status",
+                         (url, lastmod, time.time(), status))
 
     def _classes(self, conn, pages: dict[str, str]) -> list[str]:
         urls = {u: m for u, m in pages.items() if re.fullmatch(r".*/en/aion-2/classes/[a-z]+", u)}
@@ -183,15 +190,14 @@ class Sync:
                 break
             try:
                 it = metabot.item_full(slug, cache=False)
-                store.upsert_item(conn, it, lastmod)
+                with conn:
+                    store.upsert_item(conn, it, lastmod)
                 changed.append(slug)
             except NotFound:
                 pass
             except Exception as err:
                 self.state.errors.append(f"item {slug}: {err}")
-            if i % 25 == 0:
-                conn.commit()
-                self._say("items", slug, i + 1, len(todo))
+            self._say("items", slug, i + 1, len(todo))
         conn.commit()
         self.state.changed["items"] = len(changed)
         self.state.changed["items_total"] = conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]

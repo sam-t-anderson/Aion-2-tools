@@ -61,12 +61,18 @@ def connect(path: str | Path | None = None) -> sqlite3.Connection:
     if key in cache:
         return cache[key]
     conn = sqlite3.connect(key, timeout=30)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.executescript(SCHEMA)
+    try:
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.executescript(SCHEMA)
+        if conn.execute("SELECT COUNT(*) FROM items").fetchone()[0] == 0 and SEED.exists():
+            with conn:
+                import_seed(conn)
+    except BaseException:
+        # Failed initialization must not poison the thread cache or retain a lock.
+        conn.close()
+        raise
     cache[key] = conn
-    if conn.execute("SELECT COUNT(*) FROM items").fetchone()[0] == 0 and SEED.exists():
-        import_seed(conn)
     return conn
 
 
@@ -151,21 +157,22 @@ def put_official_item(conn, item_id: int, enchant: int, data: dict) -> None:
 # -------------------------------------------------------------- characters
 def put_character(conn, key: str, ch: dict) -> None:
     p = ch.get("profile", {})
-    conn.execute(
-        "INSERT OR REPLACE INTO characters(key, region, server_id, character_id, name, class_name, level, "
-        "combat_power, data, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-        (key, ch.get("region"), p.get("serverId"), p.get("characterId"), p.get("characterName"),
-         p.get("className"), p.get("characterLevel"), p.get("combatPower"),
-         json.dumps(ch, ensure_ascii=False), time.time()))
-    from .assets import record
-    conn.execute("SAVEPOINT asset_import")
-    try:
-        record(conn, ch)
-    except (sqlite3.Error, TypeError, ValueError, AttributeError):
-        conn.execute("ROLLBACK TO asset_import")
-    finally:
-        conn.execute("RELEASE asset_import")
-    conn.commit()
+    with conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO characters(key, region, server_id, character_id, name, class_name, level, "
+            "combat_power, data, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (key, ch.get("region"), p.get("serverId"), p.get("characterId"), p.get("characterName"),
+             p.get("className"), p.get("characterLevel"), p.get("combatPower"),
+             json.dumps(ch, ensure_ascii=False), time.time()))
+        from .assets import record
+        conn.execute("SAVEPOINT asset_import")
+        try:
+            record(conn, ch)
+        except (sqlite3.Error, TypeError, ValueError, AttributeError):
+            conn.execute("ROLLBACK TO asset_import")
+        finally:
+            conn.execute("RELEASE asset_import")
+
 
 
 def character(conn, key: str) -> dict | None:
