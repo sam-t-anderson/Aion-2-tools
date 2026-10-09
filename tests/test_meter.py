@@ -37,6 +37,27 @@ def test_meter_to_a2log_validates_and_analyzes():
     assert a["summary"]["dps"] > 0
 
 
+def test_pet_damage_folds_into_owner_and_local_player():
+    m = Meter()
+    m.add(CombatEvent(t=0.0, source="p1", source_name="Me", source_class="spiritmaster", local=True,
+                      damage=100, skill="Cold Shock", target="Boss", target_boss=True))
+    m.add(CombatEvent(t=1.0, source="pet9", source_name="Water Spirit", is_pet=True, owner="p1",
+                      damage=50, skill="Spirit Skill"))
+    m.add(CombatEvent(t=2.0, source="pet9", source_name="Water Spirit", is_pet=True,   # owner omitted
+                      damage=40, skill="Spirit Skill"))                                # -> solo fallback to local
+    snap = m.snapshot()
+    assert len(snap["players"]) == 1 and snap["players"][0]["damage"] == 190   # pet folded into its owner
+    assert m.local_player == "p1"
+    doc = m.to_a2log(title="Pets")
+    seg = doc["segments"][0]
+    pet_hits = [h for h in seg["hits"] if h.get("pet")]
+    assert len(pet_hits) == 2 and all(h["player"] == "p1" for h in pet_hits)   # credited to the owner
+    assert any(e["kind"] == "pet" and e["owner"] == "p1" for e in seg["entities"])
+    from aion2calc.combat.analyze import analyze
+    enc = F.to_encounter(doc, "p1", 0)
+    assert analyze(enc)["summary"]["total"] == 190                             # owner's total includes the pet
+
+
 def test_jsonlines_decoder_and_capture_source():
     dec = load_decoder("jsonlines")
     assert isinstance(dec, JsonLinesDecoder)

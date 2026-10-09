@@ -18,6 +18,9 @@ class CombatEvent:
     source: str = ""                # attacker id (stable key)
     source_name: str = ""           # display name (defaults to source)
     source_class: str | None = None
+    owner: str = ""                 # for a pet/summon: its owner's id (empty if the source is a player)
+    is_pet: bool = False            # the source is a pet/summon, not a player
+    local: bool = False             # the source (or its owner) is the local recording player
     target: str = ""
     skill: str = ""
     skill_id: int | None = None

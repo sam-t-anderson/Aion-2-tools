@@ -20,6 +20,24 @@ class Meter:
         self.buffs: list[CombatEvent] = []
         self.events: list[CombatEvent] = []
         self.boss: str | None = None
+        self.local_player: str | None = None       # the local recording player's id, once known
+        self.pets: dict = {}                        # pet id -> {"owner": id, "name": str}
+
+    def owner_of(self, ev: CombatEvent) -> str:
+        """Who a damage event belongs to: a pet's damage goes to its owner; in a partial
+        capture where the summon was never seen, an unowned pet falls back to the local
+        player; otherwise the source is itself a player."""
+        if ev.owner:
+            owner = ev.owner
+        elif ev.is_pet and self.local_player:
+            owner = self.local_player
+        else:
+            owner = ev.source
+        if ev.local:
+            self.local_player = owner
+        if (ev.is_pet or ev.owner) and ev.source:
+            self.pets[ev.source] = {"owner": owner, "name": ev.source_name or ev.source}
+        return owner
 
     @property
     def duration(self) -> float:
@@ -43,11 +61,14 @@ class Meter:
         import time
         self.last_damage = max(self.last_damage if self.last_damage is not None else ev.t, ev.t)
         self.damage_seen_at = time.monotonic()
-        p = self.players.get(ev.source)
+        actor = self.owner_of(ev)                   # fold a pet's damage into its owner
+        is_pet = actor != ev.source
+        p = self.players.get(actor)
         if p is None:
-            p = self.players[ev.source] = {"name": ev.source_name or ev.source, "class": ev.source_class,
-                                           "damage": 0.0, "hits": 0, "crit": 0, "double": 0, "perfect": 0, "skills": {}}
-        if ev.source_class and not p["class"]:
+            name = ev.source_name or actor if not is_pet else actor
+            p = self.players[actor] = {"name": name, "class": None if is_pet else ev.source_class,
+                                       "damage": 0.0, "hits": 0, "crit": 0, "double": 0, "perfect": 0, "skills": {}}
+        if ev.source_class and not p["class"] and not is_pet:
             p["class"] = ev.source_class
         p["damage"] += ev.damage
         p["hits"] += 1
@@ -90,19 +111,34 @@ class Meter:
         """Build and validate an a2log document for the session, so it can be saved, analyzed and
         shared through the existing pipeline."""
         from ..combat import a2log as F
+        # In a solo partial capture the recorder is unambiguous even if no event was flagged local.
+        local = self.local_player
+        if local is None and len(self.players) == 1:
+            local = next(iter(self.players))
         ids = {}
         players = []
-        for i, (pid, p) in enumerate(self.players.items()):
+        for i, (pid, p) in enumerate(sorted(self.players.items(), key=lambda kv: kv[0] != local)):
             ids[pid] = pid or f"p{i}"
             pl = {"id": ids[pid], "name": p["name"]}
             if p.get("class"):
                 pl["class"] = str(p["class"]).lower()
             players.append(pl)
+
+        def resolve(ev):
+            """(owner id, pet name or None) without mutating meter state."""
+            if ev.owner:
+                return ev.owner, (ev.source_name or ev.source)
+            if ev.is_pet and local:
+                return local, (ev.source_name or ev.source)
+            return ev.source, None
         hits = []
         for ev in self.events:
             if ev.kind != "damage":
                 continue
-            h = {"t": round(ev.t - (self.t0 or 0.0), 3), "player": ids.get(ev.source, ev.source), "damage": ev.damage}
+            owner, pet = resolve(ev)
+            h = {"t": round(ev.t - (self.t0 or 0.0), 3), "player": ids.get(owner, owner), "damage": ev.damage}
+            if pet and ids.get(owner, owner) != pet:
+                h["pet"] = pet
             if ev.skill:
                 h["skill"] = ev.skill
             if ev.skill_id:
@@ -115,15 +151,20 @@ class Meter:
             hits.append(h)
         buffs = []
         for ev in self.buffs:
-            buffs.append({"player": ids.get(ev.source, ev.source), "name": ev.buff or ev.skill or "buff",
+            owner, _ = resolve(ev)
+            buffs.append({"player": ids.get(owner, owner), "name": ev.buff or ev.skill or "buff",
                           "start": round(ev.t - (self.t0 or 0.0), 3),
                           "end": round((ev.buff_end if ev.buff_end is not None else (self.last or ev.t)) - (self.t0 or 0.0), 3)})
+        entities = [{"id": pid, "name": info["name"], "kind": "pet", "owner": ids[info["owner"]]}
+                    for pid, info in self.pets.items() if info["owner"] in ids]
         seg = {"label": self.boss or "Live session", "duration": round(max(0, (self.last or 0) - (self.t0 or 0)), 3) or 0.001,
                "killed": False, "hits": hits}
         if self.boss:
             seg["boss"] = self.boss
         if buffs:
             seg["buffs"] = buffs
+        if entities:
+            seg["entities"] = entities
         meta = {"source": source}
         if title:
             meta["title"] = title

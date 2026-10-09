@@ -32,7 +32,7 @@ SID = dict(
     SSTRIKE=16710000, SPROT=16720000, SDESCENT=16730000, CORRODE=16740000, SREVITAL=16750000,
     MFOCUS=16760000, COUNTER=16800000, SCOMMUNION=16770000, REVITAL=16790000, EUNIFY=16780000,
     KAISINEL=16360000, MAGICBLK=16260000, JDESTRUCT=16240000, ENHANCE=16190000,
-    ATERROR=16700000, SIPHON=16060000,
+    ATERROR=16700000, SIPHON=16060000, ANCIENT=16250000,
 )
 
 TIMING = {
@@ -47,6 +47,7 @@ ASSUME = {
     "pet_basic_frac": 0.35,       # a Spirit basic attack vs its skill (not in the client data)
     "fusion_every": 4,            # Spirit skills per Four Elements -> Elemental Fusion
     "eunify_stacks": 5,           # Element Unification Critical Damage stacks maintained
+    "ancient_duration": 30.0,     # Ancient Spirit stigma: a 30s window of a much stronger pet
     "crit_rate": 0.60,
     "chain_frac": 0.60,
 }
@@ -102,6 +103,12 @@ def build_kit(build: Build, cd: ClassData, filler: str = "cold_shock") -> Kit:
     sp_f, sp_c = (dmg(spk) if lv(spk) > 0 else (0.0, 0.0))
     dc_f, dc_c = (dmg("DIMCTRL") if lv("DIMCTRL") > 0 else (0.0, 0.0))
     fu_f, fu_c = (dmg("FUSION") if lv("FUSION") > 0 else (0.0, 0.0))
+    # Ancient Spirit (stigma) is the real endgame pet: a much stronger summon for 30s.
+    # While its window is up the pet stream uses its damage instead of the base Spirit's.
+    anc_f = anc_c = 0.0
+    if stig("ANCIENT"):
+        av = cd.vals(SID["ANCIENT"], build.stigmas[SID["ANCIENT"]])
+        anc_f, anc_c = float(av[0][0]), float(av[0][1]) / 100.0
 
     # crit procs / DoT-rider passives (hooks)
     corrode = _proc(cd, lv, "CORRODE", 1, 2, None)
@@ -118,7 +125,10 @@ def build_kit(build: Build, cd: ClassData, filler: str = "cold_shock") -> Kit:
         def pet_skill(t):
             if t > sim.cfg.duration + EPS:
                 return
-            sim.hit("Spirit Skill", sp_f, sp_c, element="water")
+            if anc_f and t < pet.get("ancient_until", -1.0):
+                sim.hit("Ancient Spirit Skill", anc_f, anc_c)
+            else:
+                sim.hit("Spirit Skill", sp_f, sp_c, element="water")
             if dc_f:
                 sim.hit("Dimensional Control", dc_f, dc_c)
             pet["fusion"] += 1
@@ -193,13 +203,22 @@ def build_kit(build: Build, cd: ClassData, filler: str = "cold_shock") -> Kit:
                            cooldown=cd.cd(SID["SOULCRY"], lv("SOULCRY")) - (10 if has("SOULCRY", 4) else 0),
                            mp=cd.mp(SID["SOULCRY"], lv("SOULCRY")), on_cast=soulcry_cast)
 
+    # Ancient Spirit (stigma): summon the stronger pet; opens the 30s window used above.
+    if stig("ANCIENT"):
+        def ancient_cast(sim, a):
+            pet = sim.kit_state.setdefault("spiritmaster_pet", {"started": False, "fusion": 0})
+            pet["ancient_until"] = sim.t + ASSUME["ancient_duration"]
+        A["ancient_spirit"] = Action("ancient_spirit", cd.skills[SID["ANCIENT"]]["name"], SID["ANCIENT"],
+                                     TIMING["stigma"], cooldown=cd.cd(SID["ANCIENT"], build.stigmas[SID["ANCIENT"]]),
+                                     mp=cd.mp(SID["ANCIENT"], build.stigmas[SID["ANCIENT"]]), on_cast=ancient_cast)
+
     # ------------------------------------------------------------- stigmas
     _build_stigmas(A, build, cd, stig, st, notes)
 
     policy = _policy(A, filler)
-    # The Spirit stream (summons), Dimensional Control and Elemental Fusion are
-    # accounted for in the pet loop, so the generic reading must not re-add them.
-    pet_ids = {SID[k] for k in ("FIRESP", "WATERSP", "EARTHSP", "WINDSP", "DIMCTRL", "FUSION")}
+    # The Spirit stream (summons), Dimensional Control, Elemental Fusion and the Ancient
+    # Spirit's own hits are accounted for in the pet loop; the generic reading must not re-add them.
+    pet_ids = {SID[k] for k in ("FIRESP", "WATERSP", "EARTHSP", "WINDSP", "DIMCTRL", "FUSION", "ANCIENT")}
     fallback_to_generic(A, policy, build, cd, notes, exclude=pet_ids)
     return Kit(actions=A, hooks=[hook], cond_mods=[], static=static, policy=policy,
                filler=filler, notes=notes, levels=L)
@@ -249,8 +268,8 @@ def _build_stigmas(A, build, cd, stig, st, notes):
 
 
 def _policy(actions: dict, filler: str) -> list:
-    order = ["enhance", "siphon", "magicblk", "jdestruct", "aterror", "jointstrike_curse",
-             "soul_cry", "combustion"]
+    order = ["ancient_spirit", "enhance", "siphon", "magicblk", "jdestruct", "aterror",
+             "jointstrike_curse", "soul_cry", "combustion"]
     pol = [k for k in order if k in actions]
     pol.append(filler)
     return pol

@@ -16,7 +16,7 @@ from .model.character import load_loadout
 from .paths import list_names
 from .presets import BUDGETS, InvalidPreset, candidate as legacy_candidate, parse
 
-MODEL_VERSION = "0.3.1"  # Bump for evaluator/model changes, not capture/UI releases.
+MODEL_VERSION = "0.3.2"  # Bump for evaluator/model changes, not capture/UI releases.
 # 0.3.0: hand-written kits for all eight classes (was sorcerer only) — see aion2calc/kit/.
 # Changes every class's modeled rotation, so the server re-scores all presets under it.
 VERSION = 2
