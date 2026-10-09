@@ -18,6 +18,8 @@ from .sorcerer import Kit
 DEFAULT_CAST = 0.95
 BUFF_CAST = 0.60
 FILLER_CAST = 0.80
+CHAIN_FRAC = 0.60          # a chain follow-up hit vs the base hit (see the hand-written kits)
+EXTRA_FRAC = 0.30          # an "Extra damage on hit" spec that gives no number
 
 
 def _ms(v) -> float:
@@ -112,6 +114,7 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bo
         mult, skill_speed, tags = 1.0, 0.0, []
         on_hit_cd, on_cast_cd, resets, buffs = [], [], [], []
         dur_buff = None
+        chain = False
         if s["kind"] == "stigma":
             active_specs = [x["text"] for x in s.get("specs", []) if x["unlock"] <= lvl]
         else:
@@ -145,6 +148,12 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bo
                 mult *= 1 + float(m.group(1)) / 100
             elif m := re.search(r"\+(\d+)% damage", t):
                 mult *= 1 + float(m.group(1)) / 100
+            elif m := re.search(r"(\d+)% more damage", t, re.I):
+                mult *= 1 + float(m.group(1)) / 100
+            elif re.search(r"[Aa]dds \[.+?\] Chain Skill", t):
+                chain = True                          # a follow-up hit the generic model otherwise drops
+            elif re.search(r"[Ee]xtra damage on hit", t):
+                mult *= 1 + EXTRA_FRAC                 # "Extra damage on hit": size not in the client data
             elif m := re.search(r"-(\d+)% MP (?:Cost|consumed)", t):
                 mp *= 1 - float(m.group(1)) / 100
             elif m := re.search(r"\+(\d+)% Attack for (\d+)s on hit", t):
@@ -192,7 +201,7 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bo
 
         def on_cast(sim, a, dmg=dmg, hits=hits, mult=mult, tags=tuple(tags), on_hit_cd=tuple(on_hit_cd),
                     resets=tuple(resets), buffs=tuple(buffs), buff_stats=buff_stats, dur_buff=dur_buff,
-                    on_cast_cd=tuple(on_cast_cd)):
+                    on_cast_cd=tuple(on_cast_cd), chain=chain):
             for g, sec in on_cast_cd:
                 if g != a.key:
                     sim.reduce_cd(g, sec)
@@ -208,6 +217,9 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bo
                             sim.reduce_cd(g, sec)
                 sim.hit(a.name, dmg[0], dmg[1] / 100.0, n=hits, spread=0.3 * (hits - 1),
                         mult=mult, tags=htags, mods=mods, on_each=each if on_hit_cd else None)
+                if chain:
+                    sim.hit(f"{a.name} (chain)", dmg[0] * CHAIN_FRAC, dmg[1] / 100.0 * CHAIN_FRAC,
+                            mult=mult, tags=htags, delay=0.55)
             for g in resets:
                 sim.reset_cd(g)
             sim.debuff(a.key, apply_dur_by.get(a.key, 10.0))
