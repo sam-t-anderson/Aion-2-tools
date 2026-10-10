@@ -243,3 +243,8 @@ def test_calibration_consumes_a_saved_capture(tmp_path):
     assert cls == "sorcerer" and target and all(v >= 0 for v in target.values())
     r = C.from_capture(str(tmp))
     assert r["class"] == "sorcerer" and "vs_sim" in r
+
+    mt = C.measured_timings(str(tmp))
+    assert mt["class"] == "sorcerer" and "error" not in mt
+    assert all({"skill", "count", "min", "median"} <= set(s) for s in mt["skills"])
+    assert all(s["min"] <= s["median"] and s["count"] >= 4 for s in mt["skills"])  # measured, well-formed
