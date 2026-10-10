@@ -304,7 +304,7 @@ See the [user guide](user-guide.md) for matched comparison cohorts, ranking elig
 
 ## Installation, identity and live rate evidence
 
-Live Meter discovers Steam libraries and registered Windows/PURPLE game installations, then reads the selected executable's first four components of the **Product version** string for comparison groups across launchers. The engine file version and launcher build IDs are diagnostic evidence only. Installation paths are not exported. Recorded home server IDs are matched against official regional metadata; the installation language does not establish a physical region.
+Live Meter discovers Steam libraries and registered Windows/PURPLE game installations, then reads the first four **Product version** components of the selected executable for comparison groups across launchers. The engine file version and launcher build IDs are diagnostic evidence only. Installation paths are not exported. Recorded home server IDs are matched against official regional metadata; the installation language does not establish a physical region.
 
 Numeric Product version suffixes after the fourth component are diagnostic revisions and share a metric group. For example, `2.0.6.0.2026100701` groups as `2.0.6.0`; `2.0.7.0` stays separate. The full executable version remains recorded. Server derived indexes normalize historical product-version keys without rewriting uploaded files; other cohort requirements remain unchanged.
 
