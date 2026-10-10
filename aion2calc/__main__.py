@@ -152,6 +152,10 @@ def main(argv: list[str] | None = None) -> int:
     lg = sub.add_parser("logs", help="show the combat logs folder (one file per analyzed log)")
     lg.add_argument("--open", action="store_true", help="open the folder in Explorer / Finder")
 
+    dr = sub.add_parser("doctor", help="operator self-check: install, updater, paths, log server and catalog")
+    dr.add_argument("--offline", action="store_true", help="skip network checks (updater and server discovery)")
+    dr.add_argument("--json", action="store_true", help="print the full report as JSON")
+
     rr = sub.add_parser("render", help="rewrite README.md of a result folder from build.json")
     rr.add_argument("dir")
 
@@ -466,6 +470,19 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {str(g['boss'])[:30]:30s} {str(g['region'] or '?'):4s} {g['duration']:>8.1f}s  "
                   f"party {g['party_size']}  {tag}")
         print("\n" + r["note"])
+    elif args.cmd == "doctor":
+        from . import ops
+        report = ops.checkup(network=not args.offline)
+        if args.json:
+            print(json.dumps(report, indent=1))
+            return 0
+        mark = {"ok": "OK  ", "warn": "WARN", "unavailable": "n/a "}
+        for c in report["checks"]:
+            print(f"  [{mark.get(c['status'], '????')}] {c['name']:12s} {c['detail']}")
+        s = report["summary"]
+        print(f"\n{s['ok']} ok · {s['warn']} warn · {s['unavailable']} unavailable")
+        print(report["note"])
+        return 1 if s["warn"] or s["unavailable"] else 0
     elif args.cmd == "logs":
         from .combat.logs import backfill, open_folder
         from .paths import home, logs_dir
