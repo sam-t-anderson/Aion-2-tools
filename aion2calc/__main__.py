@@ -484,7 +484,8 @@ def main(argv: list[str] | None = None) -> int:
               f"({r['duplicate_logs']} duplicate perspectives folded; {r['total_logs']} uploads total)")
         for g in r["groups"]:
             tag = f"{g['perspectives']} perspectives" if g["perspectives"] > 1 else "single"
-            print(f"  {str(g['boss'])[:30]:30s} {str(g['region'] or '?'):4s} {g['duration']:>8.1f}s  "
+            diff = str(g.get("difficulty") or "-")
+            print(f"  {str(g['boss'])[:30]:30s} {str(g['region'] or '?'):4s} {diff:10s} {g['duration']:>8.1f}s  "
                   f"party {g['party_size']}  {tag}")
         print("\n" + r["note"])
     elif args.cmd == "doctor":
