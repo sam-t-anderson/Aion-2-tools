@@ -89,6 +89,35 @@ def dedupe_defeats(logs, *, min_overlap: float = 0.5, duration_tol: float = 0.1)
                      "separate only by duration, and non-overlapping rosters are never merged.")}
 
 
+def rows_from_docs(docs) -> list:
+    """Flatten saved a2log documents into the same bounded listing rows the
+    server returns, one per fight segment, so an operator can dedupe their own
+    local corpus offline exactly as :func:`from_server` feeds the server's.
+
+    Each segment becomes one defeat perspective carrying that segment's boss,
+    region and duration and the document's recorded player identities; only
+    these fields are read. A document holding several fights contributes one
+    row per fight, so a single multi-segment upload never looks like duplicate
+    perspectives of one defeat (the segment id keeps them distinct)."""
+    rows = []
+    for doc in docs:
+        if not isinstance(doc, dict):
+            continue
+        players = [p for p in (doc.get("players") or []) if isinstance(p, dict) and p.get("id")]
+        title = (doc.get("meta") or {}).get("title") if isinstance(doc.get("meta"), dict) else None
+        for seg in (doc.get("segments") or []):
+            if not isinstance(seg, dict):
+                continue
+            rows.append({
+                "id": f"{title or 'local'}#{seg.get('id')}",
+                "boss": seg.get("boss"),
+                "region": seg.get("region"),
+                "duration": seg.get("duration"),
+                "players": players,
+            })
+    return rows
+
+
 def from_server(limit: int = 500, *, base_url: str | None = None):
     """The public log listing from the configured community server, for dedup."""
     import json

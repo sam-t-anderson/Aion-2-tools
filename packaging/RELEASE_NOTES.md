@@ -1,3 +1,8 @@
+## Dedupe boss defeats from your own saved logs (0.2.123)
+
+- `aion2calc defeats` now accepts local a2log files or folders of them, not only the community server: point it at your own saved `.a2log.json` corpus to collapse the same boss kill recorded from several party members' perspectives into one defeat, so offline respawn/availability and clear counts are not inflated by duplicate uploads. Each saved fight segment becomes one perspective; grouping still uses boss, region, shared party identities and matching duration, and never merges non-overlapping rosters. No change to the server path or the dedupe heuristic.
+- Fix a latent `UnboundLocalError` in the CLI: a redundant function-local `Path` import in the `render` branch shadowed the module import, so subcommands that build a filesystem path (e.g. `render`, `character --export`, local-file `npc-evidence`) could crash. The module import is now used throughout.
+
 ## Release pipeline guard (0.2.122)
 
 - Run the release CI's lint (`pyflakes`) inside the test suite so a lint error that would block the release job is caught by a normal `pytest` run, not only after a merge. A stray f-string had blocked 0.2.121 from being cut until it was fixed; this prevents that class of regression recurring. No behavior change to the app.

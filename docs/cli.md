@@ -52,6 +52,14 @@ python -m aion2calc calibrate gladiator --tune      # per-skill share gaps + sug
 python -m aion2calc calibrate --capture fight.a2log.json --tune   # calibrate against your own capture
 python -m aion2calc calibrate --capture fight.a2log.json --timings # measure skill cadence + pet swing periods
 
+# aggregate the NPC decoder evidence across uploaded logs (candidate NPC type IDs, packet variants, missing art)
+python -m aion2calc npc-evidence                     # from the configured community log server
+python -m aion2calc npc-evidence fight1.a2log.json fight2.a2log.json   # from local a2log files
+
+# group the same boss defeat recorded by several party members into one distinct defeat
+python -m aion2calc defeats                           # from the community log server
+python -m aion2calc defeats ./logs                    # from your own saved a2log files or a folder of them
+
 # gear / arcana / pantheon / genus / rotation advice for a character, and its inventory
 python -m aion2calc advise "Name" --server Zikel
 python -m aion2calc inventory "Name" --add aulamus-ring --enchant 8

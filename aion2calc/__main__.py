@@ -145,6 +145,8 @@ def main(argv: list[str] | None = None) -> int:
 
     df2 = sub.add_parser("defeats", help="deduplicate the same boss defeat across uploader perspectives on the "
                                          "log server, so respawn/availability counts are not inflated by duplicates")
+    df2.add_argument("logs", nargs="*", help="local a2log JSON files or folders of them; default: fetch public "
+                                             "uploads from the log server")
     df2.add_argument("--server", help="log server base URL (default: the configured community server)")
     df2.add_argument("--limit", type=int, default=500, help="max uploads to fetch")
     df2.add_argument("--json", action="store_true", help="print the full grouping as JSON")
@@ -458,8 +460,23 @@ def main(argv: list[str] | None = None) -> int:
         print("\nNames are only ever taken from the catalog; unnamed codes are reported, never guessed.")
     elif args.cmd == "defeats":
         from .combat import defeats as DF
-        rows = DF.from_server(limit=args.limit, base_url=args.server)
+        if args.logs:
+            docs = []
+            for path in args.logs:
+                p = Path(path)
+                files = sorted(f for f in p.glob("*.json")) if p.is_dir() else [p]
+                for f in files:
+                    try:
+                        docs.append(json.loads(f.read_text(encoding="utf-8")))
+                    except (OSError, ValueError) as e:
+                        print(f"skipped {f}: {e}")
+            rows = DF.rows_from_docs(docs)
+            source = f"{len(docs)} local file(s)"
+        else:
+            rows = DF.from_server(limit=args.limit, base_url=args.server)
+            source = (args.server or "the configured community log server")
         r = DF.dedupe_defeats(rows)
+        print(f"Source: {source}")
         if args.json:
             print(json.dumps(r, indent=1))
             return 0
@@ -527,7 +544,6 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{cls:14s} {dps:12,.0f} {comm:12,.0f} {100 * (dps / comm - 1):6.1f}%")
             md.append(f"| {cls} | {dps:,.0f} | {comm:,.0f} | {100 * (dps / comm - 1):+.1f}% | "
                       f"{'—' if fid is None else f'{100 * fid:.0f}%'} | [{cls}]({cls}/README.md) |")
-        from pathlib import Path
         Path(args.out, "README.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     return 0
 
