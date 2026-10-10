@@ -437,8 +437,14 @@ class CombatSession:
                 "damage": 0, "hits": 0, "healing": 0, "skills": {}, "incoming": {"damage": 0, "hits": 0, "parries": 0, "sources": {}},
                 "counts": {key: 0 for key in ("crit", "back", "front", "double", "perfect", "multi", "parry")}}
 
-    def _summary(self, groups, scope, enemy_id=None, combine_pets=True, allowed_for=None):
+    def _summary(self, groups, scope, enemy_id=None, combine_pets=True, allowed_for=None, merge_epochs=False):
         allowed_for = allowed_for or self._allowances(scope)
+        # The live view may merge the trailing groups of one continuing run that a
+        # mid-fight self zone-transition (a mechanic teleport/phase) split into new
+        # epochs. Within one run an actor ID is the same entity, so key by the ID
+        # alone there, letting a player's totals carry across the split instead of
+        # resetting. Saved logs and specific-segment views keep epoch-scoped keys.
+        key_of = (lambda epoch, actor: str(actor)) if merge_epochs else (lambda epoch, actor: f"{epoch}:{actor}")
         players, enemies = {}, {}
         durations = 0
         for group in groups:
@@ -466,7 +472,7 @@ class CombatSession:
                         if actor_id in seen:
                             actor_id = original  # Never collapse a cyclic owner reference.
                     name = self.name(record.epoch, actor_id)
-                    key = f"{record.epoch}:{actor_id}"
+                    key = key_of(record.epoch, actor_id)
                     job = identity["jobs"].get(actor_id) or identity["jobs"].get(identity["owners"].get(actor_id))
                     row = players.setdefault(key, self._actor(actor_id, name, job))
                     if original != actor_id:
@@ -480,7 +486,7 @@ class CombatSession:
                         player(event.actor_id)["healing"] += event.amount
                     continue
                 if event.actor_id in allowed and event.target_id not in allowed:
-                    target_key = f"{record.epoch}:{event.target_id}"
+                    target_key = key_of(record.epoch, event.target_id)
                     enemy = enemies.setdefault(target_key, {"key": target_key, "id": str(event.target_id),
                         "name": self.name(record.epoch, event.target_id, True), "damage": 0, "hits": 0,
                         "mob_code": identity["spawns"].get(event.target_id, {}).get("mobCode"),
@@ -508,7 +514,7 @@ class CombatSession:
                     # A whole-session graph joins combat intervals without counting idle gaps.
                     points[second + offset] = points.get(second + offset, 0) + event.total_damage
                 elif event.target_id in allowed:
-                    if enemy_id and f"{record.epoch}:{event.actor_id}" != enemy_id:
+                    if enemy_id and key_of(record.epoch, event.actor_id) != enemy_id:
                         continue
                     row = player(event.target_id)
                     incoming = row["incoming"]
@@ -544,14 +550,40 @@ class CombatSession:
                 "recorded_duration": elapsed, "healing": healing, "hps": healing / max(1, elapsed),
                 "damage_taken": incoming, "dtps": incoming / max(1, elapsed)}
 
+    def _live_encounter(self, groups):
+        """The trailing groups of the current continuing run, re-joined across
+        mid-fight epoch splits. Stops at a run change or a real combat gap wider
+        than ``gap_seconds`` (a genuinely separate pull), so only a mechanic's
+        same-run zone transition is merged — never two distinct fights."""
+        if not groups:
+            return []
+        chosen = [groups[-1]]
+        for group in reversed(groups[:-1]):
+            nxt = chosen[0]
+            if group["run"] == nxt["run"] and 0 <= nxt["start"] - group["last_damage"] <= self.gap_seconds * 1000:
+                chosen.insert(0, group)
+            else:
+                break
+        return chosen
+
     def snapshot(self, scope="party", segment_id=None, enemy_id=None, combine_pets=True):
         allowed_for = self._allowances(scope)
         groups = self.groups(scope, allowed_for)
-        chosen = groups if segment_id == "all" else [next((g for g in groups if g["id"] == segment_id), groups[-1])] if groups else []
-        summary = self._summary(chosen, scope, None, combine_pets, allowed_for)
+        # Latest-encounter view (segment_id is None): follow the whole continuing
+        # run, re-joining the trailing groups a mid-fight self zone-transition split
+        # into new epochs (no real >gap_seconds combat break), so a mechanic that
+        # pauses DPS does not reset the live meter/overlay. Explicit segment and
+        # whole-session selections are unchanged.
+        if segment_id == "all":
+            chosen, merge = groups, False
+        elif segment_id is not None:
+            chosen, merge = ([next((g for g in groups if g["id"] == segment_id), groups[-1])] if groups else []), False
+        else:
+            chosen, merge = self._live_encounter(groups), True
+        summary = self._summary(chosen, scope, None, combine_pets, allowed_for, merge)
         if enemy_id is not None:
             if any(row["key"] == enemy_id for row in summary["enemies"]):
-                summary = self._summary(chosen, scope, enemy_id, combine_pets, allowed_for)
+                summary = self._summary(chosen, scope, enemy_id, combine_pets, allowed_for, merge)
             else:
                 enemy_id = None  # A previous encounter's filter must not hide a new pull.
         summary["segments"] = [{"id": group["id"], "label": f"Combat {index + 1}", "start": group["start"],
