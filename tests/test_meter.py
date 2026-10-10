@@ -112,3 +112,53 @@ def test_runner_live_without_decoder_reports_error():
     from aion2calc.app.meter_runner import Runner
     st = Runner().start("live")
     assert not st["running"] and "decoder" in (st["error"] or "")
+
+
+def _make_install(root, paks, *, purple_rev=None, steam_build=None, appid="123"):
+    """A synthetic AION 2 install tree: shared content, launcher-specific metadata."""
+    paks_dir = root / "Aion2" / "Content" / "Paks"
+    paks_dir.mkdir(parents=True, exist_ok=True)
+    for name, size in paks.items():
+        (paks_dir / name).write_bytes(b"\0" * size)
+    if purple_rev is not None:
+        (root / f"VersionInfo_A2_LIVE_PURPLE.xml").write_text(
+            f"<VersionInfo><Version>{purple_rev}</Version><Updated>1</Updated></VersionInfo>", encoding="utf-8")
+    if steam_build is not None:
+        (root.parent.parent / f"appmanifest_{appid}.acf").write_text(
+            f'"AppState"\n{{\n"appid" "{appid}"\n"installdir" "{root.name}"\n"buildid" "{steam_build}"\n}}\n',
+            encoding="utf-8")
+    return root
+
+
+def test_shared_content_fingerprint_aligns_steam_and_purple(tmp_path):
+    """The shipped-package fingerprint matches across launchers of the same patch,
+    even though their launcher build ids differ; the comparator names it the
+    shared version key."""
+    from aion2calc.meter.metadata import _build_evidence
+    from aion2calc.meter.builds import compare_installs, version_signals
+    content = {"global.pak": 4096, "pakchunk0-WindowsClient.utoc": 2048, "pakchunk0-WindowsClient.ucas": 8192}
+    steam_root = _make_install(tmp_path / "steamapps" / "common" / "AION2", content, steam_build="900100")
+    purple_root = _make_install(tmp_path / "Purple" / "AION2", content, purple_rev="20250101")
+
+    steam = _build_evidence(steam_root)
+    purple = _build_evidence(purple_root)
+    assert steam["installed_content_build"] == purple["installed_content_build"]       # same content -> same key
+    assert steam["installed_content_build"].startswith("content:")
+    assert steam["launcher_build"] == "900100" and purple["launcher_build"] == "20250101"   # launcher ids differ
+    assert steam["launcher_build_namespace"] == "steam:123"
+    assert purple["launcher_build_namespace"].startswith("purple:")
+
+    cmp = compare_installs([{**steam, "launcher": "Steam"}, {**purple, "launcher": "PURPLE"}])
+    assert cmp["shared_version_key"] == "installed_content_build"
+    content_row = next(r for r in cmp["signals"] if r["key"] == "installed_content_build")
+    launcher_row = next(r for r in cmp["signals"] if r["key"] == "launcher_build")
+    assert content_row["agrees"] is True and launcher_row["agrees"] is False
+    assert any(s["cross_launcher"] is True for s in version_signals(steam))
+
+
+def test_content_fingerprint_changes_when_content_patches(tmp_path):
+    """A content patch (a pak changes size) yields a different fingerprint."""
+    from aion2calc.meter.metadata import _build_evidence
+    a = _build_evidence(_make_install(tmp_path / "a" / "AION2", {"global.pak": 4096}))
+    b = _build_evidence(_make_install(tmp_path / "b" / "AION2", {"global.pak": 5000}))
+    assert a["installed_content_build"] != b["installed_content_build"]

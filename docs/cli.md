@@ -40,6 +40,9 @@ python -m aion2calc analyze https://abysslogs.com/e/<id> --player "Name"   # one
 # show or open the folder where every analyzed log is saved
 python -m aion2calc logs --open
 
+# show each detected install's version signals and, across Steam + PURPLE, the shared game-version key
+python -m aion2calc install-version          # add --json for raw evidence and the signal comparison
+
 # check how closely each class kit matches real logs, and suggest tuned TIMING/ASSUME knobs
 python -m aion2calc calibrate                       # every class vs the KR aggregate, worst fidelity first
 python -m aion2calc calibrate gladiator --tune      # per-skill share gaps + suggested knob values

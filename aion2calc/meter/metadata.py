@@ -159,6 +159,52 @@ def _purple_build_evidence(root):
         return {"status": "unavailable", "reason": "PURPLE launcher revision is incomplete, conflicting or unreadable."}
 
 
+#: Where Unreal ships the game content packages, relative to an install root.
+_PAK_DIRS = ("Aion2/Content/Paks", "Content/Paks")
+#: Package extensions that hold shipped game content (the same across launchers
+#: for one patch). Signatures (.sig) and launcher chunk manifests are excluded
+#: because a store can re-sign or re-chunk identical content.
+_PAK_SUFFIXES = (".pak", ".utoc", ".ucas")
+
+
+def _content_fingerprint(root):
+    """A launcher-independent content signal from the shipped package set.
+
+    The executable's ProductVersion resource is stamped per launcher, so Steam
+    and PURPLE installs of the same patch disagree on it. The Unreal content
+    packages, however, are the same bytes on both; their sorted ``(name, size)``
+    manifest is a cheap, store-independent fingerprint of the installed content.
+    Full file hashing is avoided (paks are gigabytes); name+size already changes
+    on any content patch. Read-only and bounded; returns ``{}`` when no package
+    directory is present.
+    """
+    files = []
+    try:
+        for relative in _PAK_DIRS:
+            directory = root / relative
+            if not directory.is_dir():
+                continue
+            for entry in sorted(directory.iterdir(), key=lambda p: p.name.casefold()):
+                if entry.suffix.casefold() in _PAK_SUFFIXES and entry.is_file():
+                    files.append((f"{relative}/{entry.name}", entry.stat().st_size))
+                if len(files) >= 1024:                       # bounded: AION 2 ships far fewer
+                    break
+            if files:
+                break
+    except OSError:
+        return {}
+    if not files:
+        return {}
+    files.sort()
+    manifest = [[name, size] for name, size in files]
+    digest = hashlib.sha256(json.dumps(manifest, separators=(",", ":")).encode("utf-8")).hexdigest()[:16]
+    return {"installed_content_build": "content:" + digest,
+            "installed_content_namespace": "aion2:content",
+            "installed_content_source": f"Shipped package set ({len(files)} files, "
+                                        f"{sum(s for _, s in files):,} bytes) name+size fingerprint",
+            "installed_content_manifest": manifest}
+
+
 def _build_evidence(root):
     """Use the game's ProductVersion string; retain launcher IDs only as diagnostic evidence."""
     launcher = _purple_build_evidence(root) or {}
@@ -175,11 +221,14 @@ def _build_evidence(root):
     evidence = {"launcher_build": launcher.get("installed_build"), "launcher_build_namespace": launcher.get("installed_build_namespace"),
                 "launcher_build_source": launcher.get("installed_build_source")}
     evidence = {key: value for key, value in evidence.items() if value}
+    evidence.update(_content_fingerprint(root))              # launcher-independent content signal (diagnostic)
     for binary in (root / "Aion2/Binaries/Win64/AION2.exe", root / "AION2.exe"):
         version = _file_version(binary, product=True)
         if version:
             return {**evidence, "installed_build": version, "installed_build_source": "Game executable ProductVersion string",
                     "installed_build_namespace": "aion2:product", "file_version": _file_version(binary), "status": "ready"}
+    if evidence.get("installed_content_build"):              # no executable version, but content is identifiable
+        return {**evidence, "status": "ready", "installed_build_source": "Shipped content fingerprint (executable ProductVersion unavailable)"}
     return {**evidence, "status": "unavailable", "reason": "No unambiguous game executable ProductVersion string was found. Launcher IDs and engine file versions are diagnostic evidence only."}
 
 
@@ -206,6 +255,8 @@ def installation_options():
         label = f"{launcher} · {root.name} · {root.drive or 'local'}"
         if evidence.get("installed_build"):
             label += " · Product version " + evidence["installed_build"]
+        if evidence.get("installed_content_build"):
+            label += " · content " + evidence["installed_content_build"].removeprefix("content:")[:8]
         rows.append({"id": _installation_id(root), "label": label, **evidence})
     selected = selected_installation()
     return {"installations": rows, "selected": selected,

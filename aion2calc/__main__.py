@@ -127,6 +127,11 @@ def main(argv: list[str] | None = None) -> int:
     cb.add_argument("--tune", action="store_true", help="also suggest bounded TIMING/ASSUME values that raise the "
                                                         "share overlap (reported only; kits are not modified)")
 
+    iv2 = sub.add_parser("install-version", help="show each detected game install's version signals and, with "
+                                                 "two or more (e.g. Steam and PURPLE), which signal is the shared "
+                                                 "launcher-independent game version")
+    iv2.add_argument("--json", action="store_true", help="print the raw evidence and comparison as JSON")
+
     lg = sub.add_parser("logs", help="show the combat logs folder (one file per analyzed log)")
     lg.add_argument("--open", action="store_true", help="open the folder in Explorer / Finder")
 
@@ -330,6 +335,45 @@ def main(argv: list[str] | None = None) -> int:
             print("\nKR logs run higher-level with skills the global build lacks, so overlap cannot reach 1.0; "
                   "'ceiling' is the reachable maximum and 'fidelity' = overlap / ceiling. Share a capture with "
                   "--capture to calibrate against your own fight.")
+    elif args.cmd == "install-version":
+        from .meter.builds import compare_installs, resolve, version_signals
+        from .meter.metadata import _build_evidence, _installed_roots, _installation_id
+        installs = []
+        for root in _installed_roots():
+            evidence = _build_evidence(root)
+            launcher = ("Steam" if root.parent.name.casefold() == "common" else
+                        "PURPLE" if str(evidence.get("launcher_build_namespace", "")).startswith("purple:") else
+                        "Registered Windows install")
+            installs.append({**evidence, "launcher": launcher, "root": str(root),
+                             "id": _installation_id(root), **resolve(evidence)})
+        comparison = compare_installs(installs) if len(installs) >= 2 else None
+        if args.json:
+            print(json.dumps({"installs": installs, "comparison": comparison}, indent=1))
+            return 0
+        if not installs:
+            print("No game installation was detected. Detection supports Steam libraries and recognized "
+                  "Windows registrations, including PURPLE. Run this on the machine with the game installed.")
+            return 0
+        for i in installs:
+            print(f"\n{i['launcher']} · {i['root']}")
+            print(f"  comparison cohort (game_patch): {i.get('game_patch') or 'unavailable'} "
+                  f"· {i.get('game_patch_source') or i.get('patch_reason', '')}")
+            for s in version_signals(i):
+                tag = {True: "same across launchers", False: "launcher-specific", None: "launcher-dependent"}[s["cross_launcher"]]
+                print(f"  - {s['label']:30s} {s['value']}  ({tag})")
+        if comparison:
+            print("\nAcross the detected installs:")
+            for r in comparison["signals"]:
+                state = ("agrees" if r["agrees"] else "differs" if r["present_in"] == r["total"] else
+                         f"only {r['present_in']}/{r['total']} installs")
+                print(f"  - {r['label']:30s} {state}" + ("" if r["agrees"] else "  " + " | ".join(r["values"])))
+            if comparison["shared_version_key"]:
+                print(f"\nShared launcher-independent version: {comparison['shared_version_label']}. {comparison['note']}")
+            else:
+                print(f"\n{comparison['note']}")
+        else:
+            print("\nInstall one copy from each launcher (Steam and PURPLE) to compare which signal is the shared "
+                  "game version.")
     elif args.cmd == "logs":
         from .combat.logs import backfill, open_folder
         from .paths import home, logs_dir
