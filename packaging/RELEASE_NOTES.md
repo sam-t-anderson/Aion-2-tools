@@ -1,3 +1,7 @@
+## npc-evidence reads a folder of logs too (0.2.126)
+
+- `aion2calc npc-evidence` now accepts a folder of a2log files, not only individual files, matching how `defeats` already works — point either at a directory to analyze your whole local corpus offline. Both commands now share one loader that skips a missing or malformed file with a note instead of failing the run, so one bad capture never loses the rest. No change to the server path or to the evidence aggregation.
+
 ## Defeat dedup also separates balance patches (0.2.125)
 
 - `aion2calc defeats` no longer folds together two clears of the same boss recorded on **different game patches** — a kill under one balance patch and a kill under a later one are different balance contexts, so merging them misrepresented clear history across a patch boundary. Grouping now reads `game_patch` too (from the a2log segment locally and the server's per-segment `contexts` for uploads), on the same footing as difficulty and recorded instance: when the field is absent on one side it is not used as a separator, so nothing that matched before stops matching except a real patch disagreement. Group records carry `game_patch`.
