@@ -1,3 +1,7 @@
+## Defeat dedup respects difficulty and recorded instance (0.2.124)
+
+- `aion2calc defeats` no longer merges two clears of the same boss that were recorded at different difficulties (e.g. a normal run and a nightmare run) or in distinct recorded instances — they are genuinely different defeats, and folding them together under-counted clears. Grouping now also reads `difficulty` and `instance_id`, from the a2log segment locally and from the server's per-segment `contexts` block for uploads; when a field is absent on one side it is simply not used as a separator, so nothing that matched before stops matching except a real difficulty/instance disagreement. The text output gains a difficulty column.
+
 ## Dedupe boss defeats from your own saved logs (0.2.123)
 
 - `aion2calc defeats` now accepts local a2log files or folders of them, not only the community server: point it at your own saved `.a2log.json` corpus to collapse the same boss kill recorded from several party members' perspectives into one defeat, so offline respawn/availability and clear counts are not inflated by duplicate uploads. Each saved fight segment becomes one perspective; grouping still uses boss, region, shared party identities and matching duration, and never merges non-overlapping rosters. No change to the server path or the dedupe heuristic.

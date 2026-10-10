@@ -2,9 +2,9 @@
 from aion2calc.combat import defeats as D
 
 
-def _log(i, boss, players, duration, region="nae"):
+def _log(i, boss, players, duration, region="nae", **extra):
     return {"id": i, "boss": boss, "region": region, "duration": duration,
-            "players": [{"id": p} for p in players]}
+            "players": [{"id": p} for p in players], **extra}
 
 
 def test_same_defeat_groups_shared_roster_and_duration():
@@ -62,3 +62,31 @@ def test_local_docs_dedupe_two_uploaders_of_one_defeat():
 
 def test_rows_from_docs_ignores_junk_entries():
     assert D.rows_from_docs(["nope", 5, {"segments": "bad"}, {}]) == []
+
+
+def test_defeats_never_merge_across_difficulty_or_instance():
+    base = ["p1", "p2", "p3", "p4"]
+    logs = [
+        _log("a", "Fortress Guardian Notun", base, 300.0, difficulty="normal"),
+        _log("b", "Fortress Guardian Notun", base, 301.0, difficulty="nightmare"),   # same party, harder mode
+        _log("c", "Fortress Guardian Notun", base, 300.5, difficulty="normal"),      # merges with (a)
+        _log("d", "Talisra of the Void", base, 120.0, instance_id=600072),
+        _log("e", "Talisra of the Void", base, 120.5, instance_id=600073),           # a distinct recorded instance
+    ]
+    r = D.dedupe_defeats(logs)
+    notun = [g for g in r["groups"] if g["boss"] == "Fortress Guardian Notun"]
+    assert len(notun) == 2                                             # normal (a+c) stays apart from nightmare (b)
+    normal = next(g for g in notun if g["difficulty"] == "normal")
+    assert normal["perspectives"] == 2 and sorted(l["id"] for l in normal["logs"]) == ["a", "c"]
+    talisra = [g for g in r["groups"] if g["boss"] == "Talisra of the Void"]
+    assert len(talisra) == 2                                           # two different instances never merge
+
+
+def test_defeats_reads_difficulty_and_instance_from_server_contexts():
+    base = ["p1", "p2", "p3", "p4"]
+    def row(i, dur, diff, iid):
+        return {"id": i, "boss": "Tiere", "region": "nae", "duration": dur,
+                "players": [{"id": p} for p in base],
+                "contexts": [{"segment": 0, "difficulty": diff, "instance_id": iid}]}
+    r = D.dedupe_defeats([row("a", 147.0, "normal", 600072), row("b", 147.5, "hard", 600072)])
+    assert r["distinct_defeats"] == 2                                  # difficulty lifted from contexts blocks the merge

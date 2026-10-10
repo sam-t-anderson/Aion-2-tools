@@ -24,6 +24,30 @@ def _roster(row) -> frozenset:
     return frozenset(p.get("id") for p in (row.get("players") or []) if isinstance(p, dict) and p.get("id"))
 
 
+def _ctx(row, key):
+    """Read a bounded context field from a listing row, falling back to the
+    first per-segment context block the server attaches (``contexts``)."""
+    if row.get(key) not in (None, ""):
+        return row.get(key)
+    contexts = row.get("contexts")
+    if isinstance(contexts, list) and contexts and isinstance(contexts[0], dict):
+        return contexts[0].get(key)
+    return None
+
+
+def _difficulty(row):
+    d = _ctx(row, "difficulty")
+    return str(d).strip().casefold() if d not in (None, "") else None
+
+
+def _instance(row):
+    try:
+        iid = int(_ctx(row, "instance_id") or 0)
+    except (TypeError, ValueError):
+        return 0
+    return iid
+
+
 def _named(row) -> bool:
     boss = str(row.get("boss") or "").strip().casefold()
     return bool(boss) and not any(boss.startswith(g) for g in _GENERIC)
@@ -33,6 +57,12 @@ def _same_defeat(a, b, *, min_overlap: float, duration_tol: float) -> bool:
     if str(a.get("boss") or "").casefold() != str(b.get("boss") or "").casefold():
         return False
     if (a.get("region") or None) != (b.get("region") or None):
+        return False
+    da_diff, db_diff = _difficulty(a), _difficulty(b)
+    if da_diff and db_diff and da_diff != db_diff:         # a normal and a nightmare clear are different defeats
+        return False
+    ia, ib = _instance(a), _instance(b)
+    if ia and ib and ia != ib:                             # distinct recorded instances are different defeats
         return False
     ra, rb = _roster(a), _roster(b)
     if not ra or not rb:
@@ -73,6 +103,8 @@ def dedupe_defeats(logs, *, min_overlap: float = 0.5, duration_tol: float = 0.1)
         union = frozenset().union(*rosters) if rosters else frozenset()
         groups.append({
             "boss": rows[0].get("boss"), "region": rows[0].get("region"),
+            "difficulty": next((_difficulty(r) for r in rows if _difficulty(r)), None),
+            "instance_id": next((_instance(r) for r in rows if _instance(r)), 0) or None,
             "perspectives": len(rows),
             "duration": round(float(rows[0].get("duration") or 0), 1),
             "party_size": max((len(r) for r in rosters), default=0),
@@ -84,9 +116,11 @@ def dedupe_defeats(logs, *, min_overlap: float = 0.5, duration_tol: float = 0.1)
     groups.sort(key=lambda g: (-g["perspectives"], str(g["boss"])))
     return {"total_logs": len(logs), "named_logs": len(named), "distinct_defeats": len(groups),
             "duplicate_logs": len(named) - len(groups), "groups": groups,
-            "note": ("Same-defeat grouping uses boss, region, shared party identities and matching duration. "
-                     "It is a heuristic for respawn/availability counting, not proof; repeat clears by one party "
-                     "separate only by duration, and non-overlapping rosters are never merged.")}
+            "note": ("Same-defeat grouping uses boss, region, difficulty, recorded instance, shared party "
+                     "identities and matching duration. It is a heuristic for respawn/availability counting, not "
+                     "proof; clears at different difficulties or distinct recorded instances are never merged, "
+                     "repeat clears by one party separate only by duration, and non-overlapping rosters are "
+                     "never merged.")}
 
 
 def rows_from_docs(docs) -> list:
@@ -113,6 +147,8 @@ def rows_from_docs(docs) -> list:
                 "boss": seg.get("boss"),
                 "region": seg.get("region"),
                 "duration": seg.get("duration"),
+                "difficulty": seg.get("difficulty"),
+                "instance_id": seg.get("instance_id"),
                 "players": players,
             })
     return rows
