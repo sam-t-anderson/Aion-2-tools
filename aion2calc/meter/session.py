@@ -73,6 +73,7 @@ class CombatSession:
         self._storage_last = {}
         self._storage_groups = {}
         self.storage_players = set()
+        self._storage_players = {}
         self._boss_attempt = None
         self.wipe_splits = 0
 
@@ -231,6 +232,19 @@ class CombatSession:
             allowed = self._allowed(record, "party")
             self._track_boss_attempt(engine, record, allowed)
             self.storage_players.update((self.epoch, actor) for actor in allowed if actor not in identity["owners"])
+            for scope in ("self", "party", "all", "auto"):
+                selected = self._allowed(record, scope)
+                actors = set(selected) if self._effective_scope(scope, self.epoch) == "party" else set()
+                for actor in (event.actor_id, event.target_id):
+                    if actor not in selected:
+                        continue
+                    seen = set()
+                    while actor in identity["owners"] and actor not in seen:
+                        seen.add(actor)
+                        actor = identity["owners"][actor]
+                    if actor in selected and actor not in identity["owners"]:
+                        actors.add(actor)
+                self._storage_players.setdefault(scope, set()).update((self.epoch, actor) for actor in actors)
             if isinstance(event, DamageEvent):
                 # Count the same relevant damage groups as groups(), separately
                 # for every selectable scope. Nearby NPC-only effects must not
@@ -671,8 +685,13 @@ class CombatSession:
                         hit[key] = True
                 hits.append(hit)
             # Include the observed roster, not only players who dealt damage.
+            group_scope = self._effective_scope(scope, group["epoch"])
             members = {a for a in roster_allowed if a not in identity["owners"]}
-            party_members = [reference(a) for a in sorted(members)]
+            if group_scope == "all":
+                # Nearby named actors are not an observed party. Keep only actors
+                # actually referenced by this segment; never invent roster membership.
+                members = {a for a, ref in actor_refs.items() if ref in players and a not in identity["owners"]}
+            party_members = [reference(a) for a in sorted(members)] if group_scope != "all" else []
             expected = set().union(*(set(r.party) for r in group["records"]))
             known = {identity["names"].get(a, "").casefold() for a in members}
             group_scope = self._effective_scope(scope, group["epoch"])
@@ -738,8 +757,8 @@ class CombatSession:
                     "duration": max(0.001, (group["end"] - group["start"]) / 1000)})
         if not players:
             raise NoIdentifiedPlayerData("No identified player data is available under the selected party filter.")
-        if len(players) > 64:
-            raise ValueError("This session contains more than 64 player identities. Export a shorter session or use Party / Self filtering.")
+        if len(players) > a2log.LIMITS["players"]:
+            raise ValueError(f"This session exceeds the {a2log.LIMITS['players']}-identity export safety limit. Export a shorter session or use Party / Self filtering.")
         from .. import __version__
         from ..combat.quality import DECODER
         evidence = {**self.capture_evidence, "decoder":DECODER, "app_version":__version__,
