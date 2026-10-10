@@ -128,6 +128,36 @@ Fight scenarios (`aion2calc/scenarios.py`):
   HP-threshold passives), three 8 s stagger windows.
 * **dummy**: 180 s, 10 % Damage Tolerance (TW measurement), 100 % HP.
 
+## Kit knob calibration against real logs
+
+Every damage *number* a hand-written kit uses is read from the global client's
+skill tables.  The only free parameters are the handful of values the client
+never exposes — animation/recovery lengths (`TIMING`) and chain fractions,
+proc/break uptimes and pet windows (`ASSUME`) — collected in each kit so they
+can be audited and calibrated.  `aion2calc/calibrate.py` (CLI: `python -m
+aion2calc calibrate [cls] [--capture LOG] [--tune]`) measures how well a kit's
+simulated per-skill damage-share distribution matches real logs, and can fit
+those knobs to them.
+
+Ground truth is the public KR A2DIL aggregate training-dummy share distribution
+(`data/kr/a2dil/<cls>.json`), and/or the player's own A2Parser capture (any
+saved `.a2log.json`, or an A2DIL / AbyssLogs reference).  The KR logs run at a
+higher level with specializations and skills the global build does not have, so
+a share of their damage can never be matched; `calibrate` reports that
+unreachable mass, the reachable ceiling (`1 − unreachable`) and a `fidelity`
+ratio (`overlap / ceiling`) so the score is read against what is achievable, not
+against 100 %.  Fidelity is a diagnostic for the class kit, not a target.
+
+Tuning is a bounded coordinate descent: only float knobs move, each within a
+multiple of its authored value (probabilities/fractions/uptimes also clamp to
+`[0, 1]`); integer mechanics (stack counts, knockdown uses) and boolean
+mechanic flags are never touched, so the fit never invents a game rule.  It is
+evaluated against the tool's optimized rotation (frozen once) and reports
+suggested values rather than rewriting the kits — the KR gains are modest and
+come mostly from slowing fillers to match KR's higher-level rotation, so the
+remaining divergence is structural and the honest path is calibrating against
+the player's own captures.
+
 ## Optimization and macro planning
 
 `aion2calc/opt/pipeline.py` alternates, accepting only improvements:
@@ -307,6 +337,8 @@ See the [user guide](user-guide.md) for matched comparison cohorts, ranking elig
 Live Meter discovers Steam libraries and registered Windows/PURPLE game installations, then reads the first four **Product version** components of the selected executable for comparison groups across launchers. The engine file version and launcher build IDs are diagnostic evidence only. Installation paths are not exported. Recorded home server IDs are matched against official regional metadata; the installation language does not establish a physical region.
 
 Numeric Product version suffixes after the fourth component are diagnostic revisions and share a metric group. For example, `2.0.6.0.2026100701` groups as `2.0.6.0`; `2.0.7.0` stays separate. The full executable version remains recorded. Server derived indexes normalize historical product-version keys without rewriting uploaded files; other cohort requirements remain unchanged.
+
+The executable's ProductVersion resource is stamped by the launcher, so a Steam and a PURPLE install of the same patch can disagree on it. The shipped Unreal content packages are identical on both, so Live Meter also records a launcher-independent **content fingerprint**: the sha256 of the sorted `(name, size)` list of the `.pak`/`.utoc`/`.ucas` files under `Aion2/Content/Paks` (name+size, not a full-file hash, since the packages are gigabytes; the fingerprint still changes on any content patch). `python -m aion2calc install-version` prints every version signal for each detected install and, when two or more are present (e.g. Steam and PURPLE), reports which signal agrees across them — identifying the shared game-version key by observation rather than assumption. The content fingerprint is currently recorded as diagnostic evidence alongside the Product-version cohort; promoting it to the authoritative comparison group is gated on confirming, on real dual-launcher installs, that it agrees where the Product version does not.
 
 Recorded map/instance IDs identify known open-world categories, Fire Temple Arena and available dungeon names. Unmapped content, difficulty, build and match outcomes remain unknown. Detection provenance is visible in shared log review. Opponents without their own server ID are not assigned your server.
 

@@ -20,10 +20,11 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 ## 2. Encounter classification, game versions and catalog coverage
 
-**Available:** validated Steam/registered-install discovery and local selection, executable Product versions with diagnostic launcher IDs, recorded regional server identity, automatic exact map/instance/NPC catalog matching, post-recording corrections, evidence explanations, unresolved-ID exports and a reproducible pinned upstream catalog audit. Public boss HP candidate signatures retain build, region, context, roster size and source provenance. Reported maximum HP stays separate from peak observed current HP.
+**Available:** validated Steam/registered-install discovery and local selection, executable Product versions with diagnostic launcher IDs, recorded regional server identity, automatic exact map/instance/NPC catalog matching, post-recording corrections, evidence explanations, unresolved-ID exports and a reproducible pinned upstream catalog audit. Public boss HP candidate signatures retain build, region, context, roster size and source provenance. Reported maximum HP stays separate from peak observed current HP. A launcher-independent shipped-content fingerprint (sha256 of the sorted `.pak`/`.utoc`/`.ucas` name+size manifest) is recorded alongside the Product version, and `python -m aion2calc install-version` compares the version signals across detected installs.
 
 **Remaining:**
 
+- Confirm, on real dual-launcher installs, that the shipped-content fingerprint agrees between Steam and PURPLE for the same patch where the executable Product version does not, then promote it from diagnostic evidence to the authoritative cross-launcher comparison group. The Product version resource is launcher-stamped and is not a reliable shared game version on its own.
 - Discover unregistered PURPLE installs from verified registration/configuration formats and retain distinct launcher build namespaces.
 - Establish independent build/region applicability for catalog records and boss signatures, including party scaling and encounter modifiers.
 - Obtain independently confirmed difficulty labels, explicit difficulty flags and comparable boss HP/ability signatures. Received damage varies with mitigation, gear and buffs and cannot establish difficulty by itself.
