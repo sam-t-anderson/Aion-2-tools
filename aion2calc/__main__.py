@@ -132,6 +132,15 @@ def main(argv: list[str] | None = None) -> int:
                                                  "launcher-independent game version")
     iv2.add_argument("--json", action="store_true", help="print the raw evidence and comparison as JSON")
 
+    ne = sub.add_parser("npc-evidence", help="aggregate the NPC decoder evidence across uploaded logs: candidate "
+                                             "NPC type IDs (named, needs-name, abstained) and identity/packet variants")
+    ne.add_argument("logs", nargs="*", help="local a2log JSON files; default: fetch public uploads from the log server")
+    ne.add_argument("--server", help="log server base URL (default: the configured community server)")
+    ne.add_argument("--limit", type=int, default=500, help="max uploads to fetch from the server")
+    ne.add_argument("--min-logs", type=int, default=2, help="distinct uploads a code needs before it is promoted")
+    ne.add_argument("--min-records", type=int, default=5, help="records a code needs before it is promoted")
+    ne.add_argument("--json", action="store_true", help="print the full aggregate, candidates and variants as JSON")
+
     lg = sub.add_parser("logs", help="show the combat logs folder (one file per analyzed log)")
     lg.add_argument("--open", action="store_true", help="open the folder in Explorer / Finder")
 
@@ -374,6 +383,46 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print("\nInstall one copy from each launcher (Steam and PURPLE) to compare which signal is the shared "
                   "game version.")
+    elif args.cmd == "npc-evidence":
+        from .combat import npc_aggregate as NA
+        if args.logs:
+            docs = []
+            for path in args.logs:
+                try:
+                    docs.append(json.loads(Path(path).read_text(encoding="utf-8")))
+                except (OSError, ValueError) as e:
+                    print(f"skipped {path}: {e}")
+            source = f"{len(docs)} local file(s)"
+        else:
+            docs = NA.from_server(limit=args.limit, base_url=args.server)
+            source = (args.server or "the configured community log server")
+        agg = NA.aggregate(docs)
+        cand = NA.candidates(agg, min_logs=args.min_logs, min_records=args.min_records)
+        var = NA.variants(agg)
+        if args.json:
+            print(json.dumps({"source": source, "aggregate": agg, "candidates": cand, "variants": var}, indent=1))
+            return 0
+        print(f"Source: {source}")
+        print(f"{agg['uploads_with_diagnostics']}/{agg['uploads']} uploads carry NPC decoder evidence · "
+              f"{agg['distinct_mob_codes']} distinct mob codes · {agg['total_records']} records")
+        if not agg["total_records"]:
+            print("No NPC decoder evidence yet. It accumulates as clients that record it upload fights.")
+            return 0
+        print(f"\nStable observed NPC types the catalog cannot name ({len(cand['needs_name'])}) "
+              f"— candidates to identify from source evidence:")
+        for c in cand["needs_name"]:
+            print(f"  {c['mob_code']:>9}  {c['logs']} uploads · {c['records']} records · "
+                  f"{c['decoded_fraction']:.0%} decoded · catalog: {c['name'] or 'unknown'}")
+        print(f"\nDecoder-confirmed catalog NPCs ({len(cand['named'])}): " +
+              (", ".join(f"{c['mob_code']}={c['name']}" for c in cand['named'][:8]) + ("…" if len(cand['named']) > 8 else "")
+               or "none promoted yet"))
+        print(f"Abstained for low support ({len(cand['abstain'])}; need "
+              f"≥{args.min_logs} uploads and ≥{args.min_records} records).")
+        print("\nIdentity / packet variants by opcode (a low decoded rate = an unclassified variant):")
+        for r in var["opcodes"]:
+            print(f"  opcode {r['opcode']}: {r['decoded_fraction']:.0%} decoded over {r['records']} records · {r['statuses']}")
+        print(f"  type-marker-missing observations: {var['marker_missing_observations']}")
+        print("\nNames are only ever taken from the catalog; unnamed codes are reported, never guessed.")
     elif args.cmd == "logs":
         from .combat.logs import backfill, open_folder
         from .paths import home, logs_dir

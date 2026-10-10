@@ -187,7 +187,7 @@ def _content_fingerprint(root):
             for entry in sorted(directory.iterdir(), key=lambda p: p.name.casefold()):
                 if entry.suffix.casefold() in _PAK_SUFFIXES and entry.is_file():
                     files.append((f"{relative}/{entry.name}", entry.stat().st_size))
-                if len(files) >= 1024:                       # bounded: AION 2 ships far fewer
+                if len(files) >= 16384:                      # bounded; a full AION 2 install is ~1k package files
                     break
             if files:
                 break
