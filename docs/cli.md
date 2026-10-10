@@ -45,6 +45,8 @@ python -m aion2calc doctor            # add --offline to skip network checks, --
 
 # show each detected install's version signals and, across Steam + PURPLE, the shared game-version key
 python -m aion2calc install-version          # add --json for raw evidence and the signal comparison
+python -m aion2calc install-version --add-path "C:\Program Files (x86)\NC\AION 2"   # add an install folder auto-detection missed
+python -m aion2calc install-version --remove-path "C:\Program Files (x86)\NC\AION 2"  # remove a manual install folder
 
 # check how closely each class kit matches real logs, and suggest tuned TIMING/ASSUME knobs
 python -m aion2calc calibrate                       # every class vs the KR aggregate, worst fidelity first

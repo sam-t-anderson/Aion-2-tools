@@ -61,29 +61,56 @@ def _steam_game_roots():
     return found
 
 
-def _installed_roots():
-    if sys.platform != "win32":
+def _manual_roots():
+    """Install folders the user added by hand, for copies auto-detection misses."""
+    try:
+        saved = json.loads((user_data() / "capture-manual-installs.json").read_text(encoding="utf-8"))
+        paths = saved.get("paths") if isinstance(saved, dict) else None
+    except (OSError, ValueError):
         return []
-    import winreg
-    roots = _steam_game_roots()
-    key_path = r"Software\Microsoft\Windows\CurrentVersion\Uninstall"
-    for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
-        for view in (winreg.KEY_WOW64_64KEY, winreg.KEY_WOW64_32KEY):
-            try:
-                with winreg.OpenKey(hive, key_path, 0, winreg.KEY_READ | view) as key:
-                    for index in range(winreg.QueryInfoKey(key)[0]):
-                        try:
-                            with winreg.OpenKey(key, winreg.EnumKey(key, index)) as entry:
-                                name = str(winreg.QueryValueEx(entry, "DisplayName")[0]).strip().casefold()
-                                if not re.fullmatch(r"aion\s*2(?:\s*[-(].*)?|아이온\s*2|永恆之塔\s*2", name):
-                                    continue
-                                root = Path(winreg.QueryValueEx(entry, "InstallLocation")[0])
-                                if root.is_dir() and root not in roots:
-                                    roots.append(root)
-                        except OSError:
-                            continue
-            except OSError:
-                continue
+    roots = []
+    for value in (paths or []):
+        if isinstance(value, str):
+            root = Path(value)
+            if root.is_dir() and root not in roots:
+                roots.append(root)
+    return roots
+
+
+def _looks_like_install(root) -> bool:
+    """A folder is a usable install when it yields a game version or content fingerprint."""
+    try:
+        return _build_evidence(root).get("status") == "ready"
+    except OSError:
+        return False
+
+
+def _installed_roots():
+    roots = []
+    if sys.platform == "win32":
+        import winreg
+        roots = _steam_game_roots()
+        key_path = r"Software\Microsoft\Windows\CurrentVersion\Uninstall"
+        for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+            for view in (winreg.KEY_WOW64_64KEY, winreg.KEY_WOW64_32KEY):
+                try:
+                    with winreg.OpenKey(hive, key_path, 0, winreg.KEY_READ | view) as key:
+                        for index in range(winreg.QueryInfoKey(key)[0]):
+                            try:
+                                with winreg.OpenKey(key, winreg.EnumKey(key, index)) as entry:
+                                    name = str(winreg.QueryValueEx(entry, "DisplayName")[0]).strip().casefold()
+                                    if not re.fullmatch(r"aion\s*2(?:\s*[-(].*)?|아이온\s*2|永恆之塔\s*2", name):
+                                        continue
+                                    root = Path(winreg.QueryValueEx(entry, "InstallLocation")[0])
+                                    if root.is_dir() and root not in roots:
+                                        roots.append(root)
+                            except OSError:
+                                continue
+                except OSError:
+                    continue
+    for root in _manual_roots():                    # user-added paths, on every platform
+        if root not in roots:
+            roots.append(root)
     return roots
 
 
@@ -307,11 +334,42 @@ def selected_installation():
         return ""
 
 
+def set_manual_installation(path, *, remove=False):
+    """Add (or remove) a game install folder the user points at by hand, for a
+    copy auto-detection misses. Validates that it looks like an AION 2 install
+    and, on add, selects it. Raises ``ValueError`` with guidance otherwise."""
+    root = Path(str(path or "").strip().strip('"'))
+    try:
+        saved = json.loads((user_data() / "capture-manual-installs.json").read_text(encoding="utf-8"))
+        paths = [p for p in (saved.get("paths") or []) if isinstance(p, str)] if isinstance(saved, dict) else []
+    except (OSError, ValueError):
+        paths = []
+    norm = {os.path.normcase(p): p for p in paths}
+    if remove:
+        norm.pop(os.path.normcase(str(root)), None)
+        write_user_json({"paths": list(norm.values())}, "capture-manual-installs.json")
+        if selected_installation() == _installation_id(root):
+            write_user_json({"id": ""}, "capture-installation.json")   # fall back to Auto
+        return installation_options()
+    if not str(root) or not root.is_dir():
+        raise ValueError("That folder does not exist. Enter the AION 2 install folder "
+                         r"(the one that contains AION2.exe or Content\Paks).")
+    if not _looks_like_install(root):
+        raise ValueError("That folder does not look like an AION 2 install: no game executable or shipped "
+                         r"content (Content\Paks) was found in it. Choose the game's install folder.")
+    norm[os.path.normcase(str(root))] = str(root)
+    write_user_json({"paths": list(norm.values())}, "capture-manual-installs.json")
+    return choose_installation(_installation_id(root))        # select the copy just added
+
+
 def installation_options():
     rows = []
+    manual = {_installation_id(root) for root in _manual_roots()}
     for root in _installed_roots():
         evidence = _build_evidence(root)
-        launcher = ("Steam" if root.parent.name.casefold() == "common" else
+        iid = _installation_id(root)
+        launcher = ("Manual" if iid in manual else
+                    "Steam" if root.parent.name.casefold() == "common" else
                     "PURPLE" if evidence.get("launcher_build_namespace", "").startswith("purple:") else
                     "Registered Windows install")
         label = f"{launcher} · {root.name} · {root.drive or 'local'}"
@@ -319,7 +377,7 @@ def installation_options():
             label += " · Product version " + evidence["installed_build"]
         if evidence.get("installed_content_build"):
             label += " · content " + evidence["installed_content_build"].removeprefix("content:")[:8]
-        rows.append({"id": _installation_id(root), "label": label, **evidence})
+        rows.append({"id": iid, "label": label, **evidence})
     selected = selected_installation()
     return {"installations": rows, "selected": selected,
             "selection_required": not selected and len(rows) > 1}

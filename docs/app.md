@@ -36,7 +36,7 @@ A task-oriented guide to the desktop app and shared review controls. Detailed co
 
 ## Start here
 
-Install a desktop build using the [installation guide](install.md). Start with **My Character** to import and optimize a character, **Planner** for an example class build, or **Live Meter** to record combat. Open **Saved Results** for previous optimizations and advice.
+Install a desktop build using the [installation guide](install.md). The app opens to **Live Meter** (the first tab) so you can record combat right away; **My Character** imports and optimizes a character, **Planner** shows an example class build, and **Saved Results** holds previous optimizations and advice.
 
 Combat Logs has separate Saved Parts, My Uploads and Community Combat Logs lists. Open a log for a focused detail page and use Back to return. Settings controls the theme, data folders, community server and game-data sync.
 
@@ -285,7 +285,7 @@ Use **Export capture diagnostics** even if the meter display cannot refresh or T
 
 ## Automatic metadata and idle DPS
 
-Live Meter discovers Steam libraries and registered Windows/PURPLE game installations, then reads the selected executable's first four **Product version** components for comparison groups across launchers. The engine file version and launcher build IDs are diagnostic evidence only. Installation paths are not exported. Recorded home server IDs are matched against official regional metadata; the installation language does not establish a physical region.
+Live Meter discovers Steam libraries and registered Windows/PURPLE game installations, then reads the selected executable's first four **Product version** components for comparison groups across launchers. If a copy is not detected automatically, use **Settings → Add install folder manually** (or `install-version --add-path`) to point at the game's install folder; it is accepted only when it contains the game executable or shipped `Content\Paks`, and is then selectable like a detected copy. The engine file version and launcher build IDs are diagnostic evidence only. Installation paths are not exported. Recorded home server IDs are matched against official regional metadata; the installation language does not establish a physical region.
 
 Recognized map/instance IDs supply supported zone and content metadata. Difficulty is filled only when the recorded PvE instance has an explicit catalog value. Live capture has no manual classification overrides. Correct completed saved logs by encounter or recorded run; manual corrections retain their source. Unknown game version, difficulty and match outcomes remain unknown. New captures group by the selected executable’s first four Product version components, while retaining its full version in diagnostics. Engine file versions and launcher IDs do not substitute for it, and current installation evidence is never applied to historical logs. Choose a detected installation when multiple copies are present. Unregistered PURPLE installation discovery, launcher namespace equivalence and verified difficulty-signature inference remain planned work.
 
