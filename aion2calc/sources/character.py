@@ -38,6 +38,14 @@ SKIP_ON_ITEMS = {"STR", "DEX", "INT", "CON", "AGI", "WIS", "Justice", "Freedom",
 #: collection effects are in no supported source, but each deity's total and its
 #: self-describing effect strings are, so they are recorded from the profile.
 DEITY_TYPES = {"Justice", "Freedom", "Illusion", "Life", "Time", "Destruction", "Death", "Wisdom", "Destiny", "Space"}
+#: Each Pantheon effect category's deity proper name, as the in-game Pantheon
+#: screen labels it ("Justice [Nezekan]"). Transcribed from the live Global
+#: client's Pantheon UI (2026-10-10); the official character API carries only
+#: the effect-category totals, not these names. "Destruction" is in DEITY_TYPES
+#: from the API but was not present on the observed Pantheon board, so its deity
+#: name is left unrecorded rather than guessed.
+DEITY_NAMES = {"Illusion": "Kaisinel", "Life": "Yustiel", "Wisdom": "Lumiel", "Destiny": "Marchutan",
+               "Freedom": "Vaizel", "Death": "Triniel", "Space": "Israphel", "Justice": "Nezekan", "Time": "Siel"}
 #: effect phrases that move outgoing damage; everything else (HP, MP, Defense,
 #: Block, Move Speed, Regeneration, Endurance, any Resist/Reduction) is survival
 #: or utility and is recorded but never added to the damage model.
@@ -190,8 +198,8 @@ def from_profile(ch: dict) -> ImportedCharacter:
                                                    "effects": s.get("statSecondList")}
         if s.get("type") in DEITY_TYPES:
             effects = [_deity_effect(t) for t in (s.get("statSecondList") or []) if isinstance(t, str)]
-            systems["deities"].append({"type": s.get("type"), "name": s.get("name"), "value": s.get("value"),
-                                       "effects": effects,
+            systems["deities"].append({"type": s.get("type"), "deity": DEITY_NAMES.get(s.get("type")),
+                                       "name": s.get("name"), "value": s.get("value"), "effects": effects,
                                        "damage_relevant": any(e["damage_relevant"] for e in effects)})
         if s.get("type") in PROFILE_STATS:
             prof[PROFILE_STATS[s["type"]]] = s.get("value", 0)
