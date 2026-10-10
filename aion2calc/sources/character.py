@@ -34,6 +34,23 @@ PROFILE_STATS = {"STR": "might", "AGI": "precision", "Justice": "justice", "Free
 #: these ids are part of the profile totals; counting them on items would double count
 SKIP_ON_ITEMS = {"STR", "DEX", "INT", "CON", "AGI", "WIS", "Justice", "Freedom", "Illusion", "Life", "Time",
                  "Destruction", "Death", "Wisdom", "Destiny", "Space"}
+#: The Pantheon deity stats the official profile reports. Node allocations and
+#: collection effects are in no supported source, but each deity's total and its
+#: self-describing effect strings are, so they are recorded from the profile.
+DEITY_TYPES = {"Justice", "Freedom", "Illusion", "Life", "Time", "Destruction", "Death", "Wisdom", "Destiny", "Space"}
+#: effect phrases that move outgoing damage; everything else (HP, MP, Defense,
+#: Block, Move Speed, Regeneration, Endurance, any Resist/Reduction) is survival
+#: or utility and is recorded but never added to the damage model.
+_DAMAGE_EFFECTS = ("attack", "perfect chance", "critical hit", "critical damage", "penetration", "accuracy",
+                   "damage boost", "damage amplification", "damage increase")
+
+
+def _deity_effect(text: str) -> dict:
+    """One deity effect string ('Attack increase +0.5%') -> recorded effect row."""
+    value, pct = _num(text)
+    low = text.lower()
+    damage = any(k in low for k in _DAMAGE_EFFECTS) and "resist" not in low and "reduction" not in low
+    return {"text": text, "value": value, "percent": pct, "damage_relevant": damage}
 WINGS = {"Ultimate Daeva Wings": {"accuracy": 40, "pen": 500}}
 OWNED_TITLES_ESTIMATE = {"crit": 20, "accuracy": 30, "attack": 4}
 
@@ -94,7 +111,8 @@ def from_profile(ch: dict) -> ImportedCharacter:
     if cd.raw.get("base_stats_source") == "bundled fallback":
         warnings.append("Synced base stats were incomplete; scoring uses the bundled class base-stat table.")
     comps, systems = [], {"equipment": [], "arcana": [], "manastones": [], "titles": [], "skills": [],
-                          "stigmas": [], "daevanion": {}, "pet": None, "wings": None, "profile_stats": {}}
+                          "stigmas": [], "daevanion": {}, "pet": None, "wings": None, "profile_stats": {},
+                          "deities": []}
     gear_bonus: dict[int, int] = {}
 
     for e in (ch.get("equipment") or {}).get("equipmentList", []):
@@ -170,9 +188,19 @@ def from_profile(ch: dict) -> ImportedCharacter:
     for s in (ch.get("stat") or {}).get("statList", []):
         systems["profile_stats"][s.get("type")] = {"name": s.get("name"), "value": s.get("value"),
                                                    "effects": s.get("statSecondList")}
+        if s.get("type") in DEITY_TYPES:
+            effects = [_deity_effect(t) for t in (s.get("statSecondList") or []) if isinstance(t, str)]
+            systems["deities"].append({"type": s.get("type"), "name": s.get("name"), "value": s.get("value"),
+                                       "effects": effects,
+                                       "damage_relevant": any(e["damage_relevant"] for e in effects)})
         if s.get("type") in PROFILE_STATS:
             prof[PROFILE_STATS[s["type"]]] = s.get("value", 0)
     comps.append({"slot": "Primary/deity stats", "item": "official profile totals", "stats": prof})
+    if systems["deities"]:
+        # Source-attributed Pantheon context from the profile's own effect strings;
+        # the damage model uses the mapped deity totals above, so this is not re-added.
+        warnings.append(f"Pantheon: recorded {len(systems['deities'])} deity stats and their effects from the "
+                        "profile. Deity node allocations and collection effects are not in a supported source.")
     if gear_bonus:
         comps.append({"slot": "Gear skill rolls", "item": "arcana, accessories and armor skill options",
                       "stats": {"skill_bonus": {str(k): v for k, v in gear_bonus.items()}}})
