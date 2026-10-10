@@ -1,3 +1,9 @@
+## Live meter stays through DPS-stop mechanics (0.2.121)
+
+- Keep the live meter and overlay from resetting when a mechanic stops your DPS. A mid-fight self zone-transition (a teleport or phase) no longer blanks the latest view: the continuing run's segments are re-joined and each player's totals carry across the pause. A genuinely separate pull (a real combat gap or a new run/instance) still starts its own encounter, and explicit segment, whole-session and saved-log views are unchanged.
+- Keep live capture running across an instance/zone transition: a transient error handling one capture packet during the transition is recorded in diagnostics instead of stopping the meter.
+- Record a launcher-independent shipped-content fingerprint alongside the executable Product version, and add `aion2calc install-version`, `calibrate`, `npc-evidence`, `defeats` and `doctor` helper commands (see the docs). Record Pantheon deity stat effects from the official profile.
+
 ## Automatic encounter catalog context (0.2.95)
 
 - Resolve missing PvE category and difficulty using exact recorded instance/map IDs and explicit NPC catalog category/tier fields. Unique recorded NPC instance matches can suggest a zone when entry metadata is missing, without filling the recorded instance ID or proving entry.
