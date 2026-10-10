@@ -146,9 +146,12 @@ def test_capture_survives_a_failing_item(monkeypatch, tmp_path):
     assert "zone transition hiccup" in r.diagnostics.get("processing_error", "")
 
 
-def _make_install(root, paks, *, purple_rev=None, steam_build=None, appid="123"):
-    """A synthetic AION 2 install tree: shared content, launcher-specific metadata."""
-    paks_dir = root / "Aion2" / "Content" / "Paks"
+def _make_install(root, paks, *, purple_rev=None, steam_build=None, appid="123", paks_rel="Aion2/Content/Paks"):
+    """A synthetic AION 2 install tree: shared content, launcher-specific metadata.
+
+    ``paks_rel`` is where the content packages sit under the root; launchers
+    differ (PURPLE nests under ``Aion2/``, Steam puts ``Content/Paks`` at root)."""
+    paks_dir = root.joinpath(*paks_rel.split("/"))
     paks_dir.mkdir(parents=True, exist_ok=True)
     for name, size in paks.items():
         (paks_dir / name).write_bytes(b"\0" * size)
@@ -186,6 +189,19 @@ def test_shared_content_fingerprint_aligns_steam_and_purple(tmp_path):
     launcher_row = next(r for r in cmp["signals"] if r["key"] == "launcher_build")
     assert content_row["agrees"] is True and launcher_row["agrees"] is False
     assert any(s["cross_launcher"] is True for s in version_signals(steam))
+
+
+def test_content_fingerprint_is_independent_of_the_paks_parent_folder(tmp_path):
+    """Identical content hashes the same whether Paks sits under Aion2/ (PURPLE)
+    or at the install root (Steam); the fingerprint keys on the file name, not
+    its parent path, or the two launchers would never agree."""
+    from aion2calc.meter.metadata import _build_evidence
+    content = {"global.ucas": 4096, "pakchunk0-Windows.pak": 2048, "pakchunk0-Windows.utoc": 8192}
+    purple = _build_evidence(_make_install(tmp_path / "NC" / "AION 2", content, paks_rel="Aion2/Content/Paks"))
+    steam = _build_evidence(_make_install(tmp_path / "steam" / "AION2", content, paks_rel="Content/Paks"))
+    assert purple["installed_content_build"] == steam["installed_content_build"]       # same files, different nesting
+    assert [m[0] for m in steam["installed_content_manifest"]] == ["global.ucas", "pakchunk0-Windows.pak",
+                                                                    "pakchunk0-Windows.utoc"]   # names, no path prefix
 
 
 def test_content_fingerprint_changes_when_content_patches(tmp_path):

@@ -1,3 +1,7 @@
+## Launcher-independent content fingerprint (0.2.127)
+
+- The installed-content fingerprint now keys on each package's **file name only**, not its folder path. The launchers nest the content differently — PURPLE under `Aion2/Content/Paks`, Steam with `Content/Paks` at the install root — so including the parent path made identical game content hash differently across launchers, defeating the fingerprint's whole purpose as a store-independent version signal. Verified against a real Steam install's package listing (the recursive sweep there also surfaced Chromium-webview `.pak` resources outside `Content/Paks`, which the non-recursive scan already excludes). Whether a given Steam and PURPLE install of the same patch share one fingerprint is confirmed per install; the comparator reports agreement or the specific difference rather than assuming it.
+
 ## npc-evidence reads a folder of logs too (0.2.126)
 
 - `aion2calc npc-evidence` now accepts a folder of a2log files, not only individual files, matching how `defeats` already works — point either at a directory to analyze your whole local corpus offline. Both commands now share one loader that skips a missing or malformed file with a note instead of failing the run, so one bad capture never loses the rest. No change to the server path or to the evidence aggregation.

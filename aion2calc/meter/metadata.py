@@ -174,9 +174,12 @@ def _content_fingerprint(root):
     and PURPLE installs of the same patch disagree on it. The Unreal content
     packages, however, are the same bytes on both; their sorted ``(name, size)``
     manifest is a cheap, store-independent fingerprint of the installed content.
-    Full file hashing is avoided (paks are gigabytes); name+size already changes
-    on any content patch. Read-only and bounded; returns ``{}`` when no package
-    directory is present.
+    The file name alone is used, never its parent folder, because the launchers
+    nest ``Content/Paks`` differently (PURPLE under ``Aion2/``, Steam at the
+    root) — keying on the path would make identical content hash differently
+    across launchers, defeating the purpose. Full file hashing is avoided (paks
+    are gigabytes); name+size already changes on any content patch. Read-only
+    and bounded; returns ``{}`` when no package directory is present.
     """
     files = []
     try:
@@ -186,9 +189,9 @@ def _content_fingerprint(root):
                 continue
             for entry in sorted(directory.iterdir(), key=lambda p: p.name.casefold()):
                 if entry.suffix.casefold() in _PAK_SUFFIXES and entry.is_file():
-                    files.append((f"{relative}/{entry.name}", entry.stat().st_size))
-                if len(files) >= 16384:                      # bounded; a full AION 2 install is ~1k package files
-                    break
+                    files.append((entry.name, entry.stat().st_size))   # name only: the parent folder differs by
+                if len(files) >= 16384:                      # launcher (Aion2/Content/Paks vs Content/Paks), and
+                    break                                    # a full AION 2 install is ~1k package files (bounded)
             if files:
                 break
     except OSError:
