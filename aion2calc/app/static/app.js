@@ -1036,7 +1036,7 @@ async function pageMeter() {
 
         <label class="small muted">Name override (optional) <input id="mchar" type="text" placeholder="Auto-detect" style="width:120px"></label></div>
       <div class="row" style="margin-top:8px"><label class="small muted">Players <select id="mscope"><option value="auto">Automatic · allow partial metrics</option><option value="party">Self + Party</option><option value="self">Self only</option><option value="all">All observed players</option></select></label><label class="small muted"><input id="mcombinepets" type="checkbox" checked> Combine pets with owner</label><label class="small muted"><input id="mautosplit" type="checkbox" checked> Automatic splits</label><label class="small muted">Split after no outgoing damage for <input id="msegap" type="number" min="120" max="3600" value="120" style="width:60px"> seconds</label><label class="small muted">Combat <select id="msegments"><option value="">Latest combat</option><option value="all">Whole session</option></select></label><button class="btn small" id="mallenemies">All enemies</button><button class="btn small" id="mfollow" hidden>Follow latest combat</button><span id="mviewstate" class="small muted" role="status"></span></div>
-      <div class="row"><label class="small">Game installation <select id="minstall"><option value="">Auto (one installed copy)</option></select></label><button class="btn small" id="minstallrefresh">Refresh installations</button><span class="small muted" id="minstallstatus" role="status"></span></div><div class="note small" id="mautometa" role="status"></div><div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
+      <div class="row"><label class="small">Game installation <select id="minstall"><option value="">Auto (one installed copy)</option></select></label><button class="btn small" id="minstallrefresh">Refresh installations</button><span class="small muted" id="minstallstatus" role="status"></span></div><div class="row" style="margin-top:6px"><label class="small">Add install folder manually <input id="minstallpath" type="text" placeholder="C:\\Program Files (x86)\\NC\\AION 2" style="min-width:320px"></label><button class="btn small" id="minstalladd">Add path</button><span class="small muted" id="minstalladdstatus" role="status"></span></div><div class="note small" id="mautometa" role="status"></div><div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
       <div class="note" style="margin-top:10px"><b>Capture diagnostics</b><div id="mdriverstats" class="small muted" role="status"></div>
         <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads for diagnostics (optional; enable before Start)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><button class="btn small" id="mdiagfolder">Open diagnostics folder</button><span id="mrecordstatus" class="small muted"></span></div>
         <p class="small faint">Diagnostic ZIPs include capture counters, status errors and a readable summary even with TCP recording off. Open diagnostics folder to find saved ZIPs. Enabling TCP recording additionally writes raw payloads without a record or size limit, even when no combat events are decoded. Available disk space limits recording. Saves a diagnostic ZIP automatically when capture stops; long recordings take longer to compress. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></div><div id="npcap" class="small faint" style="margin-top:8px"></div>
@@ -1092,6 +1092,12 @@ async function pageMeter() {
   const refreshInstallations = async()=>{try{renderInstallations(await api('/api/meter/installations'));}catch(e){$('#minstallstatus').textContent=e.message;}};
   $('#minstallrefresh').onclick=refreshInstallations;
   $('#minstall').onchange=async()=>{try{renderInstallations(await api('/api/meter',{action:'installation',id:$('#minstall').value}));}catch(e){await refreshInstallations();$('#minstallstatus').textContent=e.message;}};
+  $('#minstalladd').onclick=async()=>{
+    const path=$('#minstallpath').value.trim(); if(!path){$('#minstalladdstatus').textContent='Enter the game’s install folder.';return;}
+    $('#minstalladdstatus').textContent='Checking…';
+    try{renderInstallations(await api('/api/meter',{action:'install-path',path}));$('#minstallpath').value='';$('#minstalladdstatus').textContent='Added and selected.';}
+    catch(e){$('#minstalladdstatus').textContent=e.message;}
+  };
   refreshInstallations();
   const refreshInterfaces = async () => {
     try {
@@ -1761,7 +1767,7 @@ async function route() {
   if(workshopView){workshopView.dispose();workshopView=null;}
   if(buildWorkspaceView){buildWorkspaceView.dispose();buildWorkspaceView=null;}
   if(eventTimerView){eventTimerView.dispose();eventTimerView=null;}
-  const page = (location.hash.replace(/^#\//, "") || "planner").split("/")[0];
+  const page = (location.hash.replace(/^#\//, "") || "meter").split("/")[0];
   app().classList.toggle("workspace-wide", page === "crafting" || page === "builds" || page === "maps");
   $$(".nav a").forEach((a) => a.classList.toggle("on", a.dataset.page === (page === "combat-log" ? "combat" : page)));
   if(page!=="combat-log" && S.combat.review){S.combat.review.dispose();S.combat.review=null;}

@@ -1,3 +1,8 @@
+## Manual install path and Live Meter as the first tab (0.2.131)
+
+- Add a game install folder by hand when auto-detection misses your copy: **Settings → Add install folder manually** (or `install-version --add-path "<folder>"`). The folder is accepted only when it actually looks like an AION 2 install (it contains `AION2.exe` or the shipped `Content\Paks`), then it is stored, selected and behaves exactly like a detected install for capture and version signals; remove it with the same control or `--remove-path`. This covers PURPLE and any other copy whose Windows registration is missing.
+- **Live Meter is now the first tab** and the app's landing page, so recording combat is one step away on launch. The other tabs are unchanged, just reordered after it.
+
 ## PURPLE launcher version detection (0.2.130)
 
 - `install-version` now reads the NCSOFT (PURPLE) launcher's own run record for AION 2 Global (`%LOCALAPPDATA%\NCSOFT\NccrData\com.ncsoft.aion2global\*.execution.json`) and reports the game version and build it logged (`appVersion` 2.0.6, `appBuildNumber`). This confirms a PURPLE AION 2 Global install and cross-checks its version independently of the launcher-stamped executable ProductVersion — and still surfaces the version even when the game's install folder was not located automatically (the Windows uninstall entry is the only machine-readable path source found on a real install; the launcher breadcrumb carries the version but no path). Only the two version fields are read; the account ids in the sibling `extra.json` are never touched. Verified against a real PURPLE install.

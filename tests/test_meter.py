@@ -255,6 +255,30 @@ def test_purple_launcher_breadcrumb_gives_a_version_not_a_path(tmp_path):
     assert purple_launcher_evidence(local_appdata=str(tmp_path / "nope")) is None
 
 
+def test_manual_install_path_can_be_added_validated_and_removed(tmp_path, monkeypatch):
+    """A user can point at an install folder auto-detection missed; it is
+    validated, stored, selected and surfaced, and a bogus folder is rejected."""
+    import pytest
+    monkeypatch.setenv("AION2CALC_HOME", str(tmp_path / "home"))
+    from aion2calc.meter import metadata as M
+    root = _make_install(tmp_path / "custom" / "AION2", {"global.ucas": 4096, "pakchunk0-Windows.pak": 2048})
+
+    with pytest.raises(ValueError):                              # an empty folder is not an install
+        bogus = tmp_path / "empty"; bogus.mkdir(); M.set_manual_installation(str(bogus))
+    with pytest.raises(ValueError):                              # a missing folder is rejected
+        M.set_manual_installation(str(tmp_path / "nope"))
+
+    opts = M.set_manual_installation(str(root))                  # a real install validates, stores and selects
+    iid = M._installation_id(root)
+    assert opts["selected"] == iid
+    row = next(r for r in opts["installations"] if r["id"] == iid)
+    assert row["label"].startswith("Manual ·") and row["status"] == "ready"
+    assert M.installation(iid).get("status") == "ready"         # resolves for a capture
+
+    opts2 = M.set_manual_installation(str(root), remove=True)    # removing falls back to Auto
+    assert opts2["selected"] == "" and not any(r["id"] == iid for r in opts2["installations"])
+
+
 def test_content_fingerprint_changes_when_content_patches(tmp_path):
     """A content patch (a pak changes size) yields a different fingerprint."""
     from aion2calc.meter.metadata import _build_evidence

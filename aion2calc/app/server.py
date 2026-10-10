@@ -792,6 +792,10 @@ class Handler(BaseHTTPRequestHandler):
                 if self.client_address[0] not in ("127.0.0.1", "::1"):
                     raise PermissionError("Game installation selection is local to this computer")
                 return self._json(r.select_installation(body.get("id", "")))
+            if action == "install-path":
+                if self.client_address[0] not in ("127.0.0.1", "::1"):
+                    raise PermissionError("Game installation selection is local to this computer")
+                return self._json(r.set_installation_path(body.get("path", ""), remove=bool(body.get("remove"))))
             if action == "view":
                 return self._json(r.configure_view(body))
             if action == "finish-run":

@@ -151,6 +151,9 @@ def main(argv: list[str] | None = None) -> int:
                                                  "two or more (e.g. Steam and PURPLE), which signal is the shared "
                                                  "launcher-independent game version")
     iv2.add_argument("--json", action="store_true", help="print the raw evidence and comparison as JSON")
+    iv2.add_argument("--add-path", metavar="FOLDER", help="add a game install folder by hand (for a copy auto-detection "
+                                                         "misses) and select it; must contain AION2.exe or Content/Paks")
+    iv2.add_argument("--remove-path", metavar="FOLDER", help="remove a previously added manual install folder")
 
     ne = sub.add_parser("npc-evidence", help="aggregate the NPC decoder evidence across uploaded logs: candidate "
                                              "NPC type IDs (named, needs-name, abstained) and identity/packet variants")
@@ -395,15 +398,28 @@ def main(argv: list[str] | None = None) -> int:
                   "--capture to calibrate against your own fight.")
     elif args.cmd == "install-version":
         from .meter.builds import compare_installs, resolve, version_signals
-        from .meter.metadata import _build_evidence, _installed_roots, _installation_id, purple_launcher_evidence
+        from .meter.metadata import (_build_evidence, _installed_roots, _installation_id, _manual_roots,
+                                     purple_launcher_evidence)
+        if args.add_path or args.remove_path:
+            from .meter.metadata import set_manual_installation
+            try:
+                set_manual_installation(args.remove_path or args.add_path, remove=bool(args.remove_path))
+                print(("Removed" if args.remove_path else "Added and selected") + " manual install: "
+                      + (args.remove_path or args.add_path))
+            except ValueError as e:
+                print(f"error: {e}")
+                return 1
         installs = []
+        manual_ids = {_installation_id(r) for r in _manual_roots()}
         for root in _installed_roots():
             evidence = _build_evidence(root)
-            launcher = ("Steam" if root.parent.name.casefold() == "common" else
+            iid = _installation_id(root)
+            launcher = ("Manual" if iid in manual_ids else
+                        "Steam" if root.parent.name.casefold() == "common" else
                         "PURPLE" if str(evidence.get("launcher_build_namespace", "")).startswith("purple:") else
                         "Registered Windows install")
             installs.append({**evidence, "launcher": launcher, "root": str(root),
-                             "id": _installation_id(root), **resolve(evidence)})
+                             "id": iid, **resolve(evidence)})
         purple = purple_launcher_evidence()
         comparison = compare_installs(installs) if len(installs) >= 2 else None
         if args.json:

@@ -638,6 +638,15 @@ class Runner:
             self.capture_metadata = None
         return result
 
+    def set_installation_path(self, path, *, remove=False):
+        from ..meter.metadata import set_manual_installation
+        with self.lock:
+            if self.running or self.session.records or self.meter.players:
+                raise ValueError("Stop capture, save/export retained combat, and clear the session before changing installation.")
+            result = set_manual_installation(path, remove=remove)
+            self.capture_metadata = None
+        return result
+
     def configure_view(self, body: dict) -> dict:
         with self.lock:
             if "metadata" in body:
