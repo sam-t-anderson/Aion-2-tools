@@ -33,6 +33,17 @@ def test_aggregate_promotes_cross_upload_codes_and_flags_variants():
     assert v["marker_missing_observations"] >= 2
 
 
+def test_missing_portraits_lists_observed_ids_without_art():
+    # 2920655 is observed but has no bundled portrait; it should surface as a gap.
+    agg = A.aggregate([_doc("A", [(10, 65, 2920655, "type_decoded")] * 6),
+                       _doc("B", [(20, 65, 2920655, "type_decoded")] * 6)])
+    art = A.missing_portraits(agg)
+    assert art["observed_without_portrait"] >= 1
+    assert any(r["mob_code"] == 2920655 for r in art["rows"])
+    top = art["rows"][0]
+    assert {"mob_code", "name", "logs", "records"} <= set(top)
+
+
 def test_aggregate_abstains_without_support_and_ignores_untrusted_shapes():
     # one upload, one record: not enough support to promote anything
     agg = A.aggregate([_doc("solo", [(1, 65, 2300802, "type_decoded")]),

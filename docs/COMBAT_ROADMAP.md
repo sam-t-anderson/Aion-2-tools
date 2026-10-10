@@ -97,6 +97,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 - Verify crafting general success/failure rewards, refunds, combo quantity/replacement rules, modifier formulas and build/region applicability. Current combo simulations are conditional completed-craft checks, not guaranteed item yields.
 - Confirm item-stat and recipe applicability to current Product versions/regions. The detailed snapshot supplies stats for 1,162 of 1,288 output records; the other 126 retain unavailable status. These counts describe source coverage, not verified live-game completeness.
 - Add further feeds only after confirming their official source, API/RSS availability and reuse constraints. Do not embed arbitrary article HTML or invent summaries/images absent from a supported feed.
+- Supply the remaining NPC ID-to-image mappings. The catalog has portrait art for 1,321 of 9,780 NPCs; `python -m aion2calc npc-evidence` now ranks the observed NPC type IDs with no bundled portrait by how often uploads hit them, so art is sourced for the NPCs players actually encounter first. Skill/item icon URLs are derived from IDs and checked at runtime by the asset-health report; only art genuinely absent from a supported source is reported, never invented.
 
 ## Maintenance, screenshots and assets
 
