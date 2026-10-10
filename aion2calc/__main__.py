@@ -423,8 +423,10 @@ def main(argv: list[str] | None = None) -> int:
         agg = NA.aggregate(docs)
         cand = NA.candidates(agg, min_logs=args.min_logs, min_records=args.min_records)
         var = NA.variants(agg)
+        art = NA.missing_portraits(agg)
         if args.json:
-            print(json.dumps({"source": source, "aggregate": agg, "candidates": cand, "variants": var}, indent=1))
+            print(json.dumps({"source": source, "aggregate": agg, "candidates": cand, "variants": var,
+                              "missing_portraits": art}, indent=1))
             return 0
         print(f"Source: {source}")
         print(f"{agg['uploads_with_diagnostics']}/{agg['uploads']} uploads carry NPC decoder evidence · "
@@ -446,6 +448,9 @@ def main(argv: list[str] | None = None) -> int:
         for r in var["opcodes"]:
             print(f"  opcode {r['opcode']}: {r['decoded_fraction']:.0%} decoded over {r['records']} records · {r['statuses']}")
         print(f"  type-marker-missing observations: {var['marker_missing_observations']}")
+        print(f"\nObserved NPCs without portrait art ({art['observed_without_portrait']}) — remaining ID-to-image mappings:")
+        for r in art["rows"][:12]:
+            print(f"  {r['mob_code']:>9}  {r['logs']} uploads · {r['records']} records · catalog: {r['name'] or 'unknown'}")
         print("\nNames are only ever taken from the catalog; unnamed codes are reported, never guessed.")
     elif args.cmd == "defeats":
         from .combat import defeats as DF

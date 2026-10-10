@@ -141,6 +141,30 @@ def candidates(agg: dict, *, min_logs: int = 2, min_records: int = 5, min_decode
                      "'abstain' lack support yet and grow as more uploads arrive.")}
 
 
+def missing_portraits(agg: dict, *, limit: int = 40) -> dict:
+    """Observed NPC type IDs that have no portrait image in the bundled catalog.
+
+    The catalog knows thousands of NPCs but has art for only a fraction; the
+    ones worth sourcing art for are those players actually encounter. This ranks
+    the observed ``mob_code``s with no ``npc-portraits`` icon by how much they
+    were seen, with the catalog name when known — the remaining ID-to-image
+    mappings, prioritised by real observation rather than by catalog order."""
+    from ..meter.a2parser.lookup import _table
+    portraits = _table("npc-portraits", "en")
+    rows = []
+    for c in agg.get("codes", []):
+        code = c["mob_code"]
+        if not code:
+            continue
+        art = portraits.get(str(code))
+        if not (isinstance(art, dict) and art.get("icon")):
+            rows.append({"mob_code": code, "name": c.get("name"), "logs": c["logs"], "records": c["records"]})
+    rows.sort(key=lambda r: (-r["logs"], -r["records"], r["mob_code"]))
+    return {"observed_without_portrait": len(rows), "rows": rows[:limit],
+            "note": "Observed NPC type IDs with no bundled portrait art, most-seen first. Supplying art for these "
+                    "(or a source that provides it) closes the ID-to-image gaps players actually hit."}
+
+
 def variants(agg: dict) -> dict:
     """Identity / packet-variant evidence from the aggregate.
 
