@@ -395,7 +395,7 @@ def main(argv: list[str] | None = None) -> int:
                   "--capture to calibrate against your own fight.")
     elif args.cmd == "install-version":
         from .meter.builds import compare_installs, resolve, version_signals
-        from .meter.metadata import _build_evidence, _installed_roots, _installation_id
+        from .meter.metadata import _build_evidence, _installed_roots, _installation_id, purple_launcher_evidence
         installs = []
         for root in _installed_roots():
             evidence = _build_evidence(root)
@@ -404,13 +404,19 @@ def main(argv: list[str] | None = None) -> int:
                         "Registered Windows install")
             installs.append({**evidence, "launcher": launcher, "root": str(root),
                              "id": _installation_id(root), **resolve(evidence)})
+        purple = purple_launcher_evidence()
         comparison = compare_installs(installs) if len(installs) >= 2 else None
         if args.json:
-            print(json.dumps({"installs": installs, "comparison": comparison}, indent=1))
+            print(json.dumps({"installs": installs, "comparison": comparison, "purple_launcher": purple}, indent=1))
             return 0
         if not installs:
             print("No game installation was detected. Detection supports Steam libraries and recognized "
                   "Windows registrations, including PURPLE. Run this on the machine with the game installed.")
+            if purple:
+                print(f"\nHowever, the PURPLE launcher recorded running AION 2 Global "
+                      f"(version {purple['purple_app_core_version']}, build {purple['purple_build_number'] or '?'}) "
+                      "on this machine. Its install folder was not located automatically — select it in the app, "
+                      "or re-run where the Windows uninstall entry is present.")
             return 0
         for i in installs:
             print(f"\n{i['launcher']} · {i['root']}")
@@ -440,6 +446,11 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print("\nInstall one copy from each launcher (Steam and PURPLE) to compare which signal is the shared "
                   "game version.")
+        if purple:
+            print(f"\nPURPLE launcher: AION 2 Global version {purple['purple_app_version']} "
+                  f"(build {purple['purple_build_number'] or '?'}), from the launcher's own run record. "
+                  "This confirms the PURPLE game version independently of the executable; it does not carry an "
+                  "install path.")
     elif args.cmd == "npc-evidence":
         from .combat import npc_aggregate as NA
         if args.logs:

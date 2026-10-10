@@ -225,6 +225,36 @@ def test_content_fingerprint_is_independent_of_the_paks_parent_folder(tmp_path):
                                                                     "pakchunk0-Windows.utoc"]   # names, no path prefix
 
 
+def test_purple_launcher_breadcrumb_gives_a_version_not_a_path(tmp_path):
+    """The NCSOFT launcher execution breadcrumb yields the PURPLE game version
+    and build (a presence + version signal), reads only those two fields, and
+    picks the newest record; account ids in extra.json are never touched."""
+    import json as _json
+    import os as _os
+    from aion2calc.meter.metadata import _parse_purple_execution, purple_launcher_evidence
+
+    assert _parse_purple_execution({"appVersion": "2.0.6-Rev1424533.020d67", "appBuildNumber": "1424533"}) == {
+        "purple_app": "com.ncsoft.aion2global", "purple_app_version": "2.0.6-Rev1424533.020d67",
+        "purple_app_core_version": "2.0.6", "purple_build_number": "1424533",
+        "purple_launcher_source": r"NCSOFT launcher execution breadcrumb (%LOCALAPPDATA%\NCSOFT\NccrData)"}
+    assert _parse_purple_execution({"appVersion": "garbage"}) is None            # malformed -> not guessed
+    assert _parse_purple_execution({}) is None
+
+    folder = tmp_path / "NCSOFT" / "NccrData" / "com.ncsoft.aion2global"
+    folder.mkdir(parents=True)
+    (folder / "old.execution.json").write_text(_json.dumps({"appVersion": "2.0.5-Rev1", "appBuildNumber": "1"}))
+    newest = folder / "new.execution.json"
+    newest.write_text(_json.dumps({"appVersion": "2.0.6-Rev1424533.020d67", "appBuildNumber": "1424533"}))
+    (folder / "AA.extra.json").write_text(_json.dumps({"ncGameAccountId": "SECRET", "ncUniqueId": "SECRET"}))
+    _os.utime(folder / "old.execution.json", (1000, 1000))
+    _os.utime(newest, (2000, 2000))
+
+    ev = purple_launcher_evidence(local_appdata=str(tmp_path))
+    assert ev["purple_app_core_version"] == "2.0.6" and ev["purple_build_number"] == "1424533"   # newest wins
+    assert "SECRET" not in _json.dumps(ev)                                       # account ids never read
+    assert purple_launcher_evidence(local_appdata=str(tmp_path / "nope")) is None
+
+
 def test_content_fingerprint_changes_when_content_patches(tmp_path):
     """A content patch (a pak changes size) yields a different fingerprint."""
     from aion2calc.meter.metadata import _build_evidence

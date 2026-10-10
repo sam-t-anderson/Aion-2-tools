@@ -159,6 +159,65 @@ def _purple_build_evidence(root):
         return {"status": "unavailable", "reason": "PURPLE launcher revision is incomplete, conflicting or unreadable."}
 
 
+#: The PURPLE (NCSOFT launcher) application id for AION 2 Global, as it names
+#: its per-app data folder under %LOCALAPPDATA%\NCSOFT\NccrData.
+_PURPLE_APP = "com.ncsoft.aion2global"
+
+
+def _parse_purple_execution(data) -> dict | None:
+    """One launcher execution breadcrumb -> a bounded PURPLE version signal.
+
+    The NCSOFT launcher writes an ``<id>.execution.json`` per game launch with
+    the game's ``appVersion`` ("2.0.6-Rev1424533.020d67") and ``appBuildNumber``.
+    It carries the game's own version and build, independent of the executable's
+    launcher-stamped ProductVersion, so it is a cross-check and a presence
+    signal. Only these two bounded fields are read; account ids in the sibling
+    ``extra.json`` are never touched. Returns ``None`` when the fields are
+    missing or malformed rather than guessing."""
+    if not isinstance(data, dict):
+        return None
+    version = str(data.get("appVersion") or "").strip()
+    build = str(data.get("appBuildNumber") or "").strip()
+    core = re.match(r"[0-9]{1,4}(?:\.[0-9]{1,4}){1,3}", version)
+    if not core or len(version) > 64 or (build and not re.fullmatch(r"[0-9]{1,12}", build)):
+        return None
+    return {"purple_app": _PURPLE_APP, "purple_app_version": version,
+            "purple_app_core_version": core.group(0), "purple_build_number": build or None,
+            "purple_launcher_source": r"NCSOFT launcher execution breadcrumb (%LOCALAPPDATA%\NCSOFT\NccrData)"}
+
+
+def purple_launcher_evidence(local_appdata=None) -> dict | None:
+    """The newest PURPLE launcher version breadcrumb for AION 2 Global, if present.
+
+    Reads the most recent ``*.execution.json`` under
+    ``%LOCALAPPDATA%\\NCSOFT\\NccrData\\com.ncsoft.aion2global``. Its presence
+    confirms a PURPLE AION 2 Global install on this machine even when the
+    Windows uninstall entry that locates the folder is missing; the breadcrumb
+    gives the game version but not the install path. Read-only and bounded;
+    returns ``None`` when absent or unreadable."""
+    base = local_appdata or (os.environ.get("LOCALAPPDATA") if sys.platform == "win32" else None)
+    if not base:
+        return None
+    folder = Path(base) / "NCSOFT" / "NccrData" / _PURPLE_APP
+    if not folder.is_dir():
+        return None
+    try:
+        files = sorted((p for p in folder.glob("*.execution.json") if p.is_file()),
+                       key=lambda p: p.stat().st_mtime, reverse=True)[:8]
+    except OSError:
+        return None
+    for path in files:
+        try:
+            if path.stat().st_size > 16384:
+                continue
+            parsed = _parse_purple_execution(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            continue
+        if parsed:
+            return parsed
+    return None
+
+
 #: Where Unreal ships the game content packages, relative to an install root.
 _PAK_DIRS = ("Aion2/Content/Paks", "Content/Paks")
 #: Package extensions that hold shipped game content (the same across launchers
