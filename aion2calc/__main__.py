@@ -143,6 +143,12 @@ def main(argv: list[str] | None = None) -> int:
     ne.add_argument("--min-records", type=int, default=5, help="records a code needs before it is promoted")
     ne.add_argument("--json", action="store_true", help="print the full aggregate, candidates and variants as JSON")
 
+    df2 = sub.add_parser("defeats", help="deduplicate the same boss defeat across uploader perspectives on the "
+                                         "log server, so respawn/availability counts are not inflated by duplicates")
+    df2.add_argument("--server", help="log server base URL (default: the configured community server)")
+    df2.add_argument("--limit", type=int, default=500, help="max uploads to fetch")
+    df2.add_argument("--json", action="store_true", help="print the full grouping as JSON")
+
     lg = sub.add_parser("logs", help="show the combat logs folder (one file per analyzed log)")
     lg.add_argument("--open", action="store_true", help="open the folder in Explorer / Finder")
 
@@ -441,6 +447,20 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  opcode {r['opcode']}: {r['decoded_fraction']:.0%} decoded over {r['records']} records · {r['statuses']}")
         print(f"  type-marker-missing observations: {var['marker_missing_observations']}")
         print("\nNames are only ever taken from the catalog; unnamed codes are reported, never guessed.")
+    elif args.cmd == "defeats":
+        from .combat import defeats as DF
+        rows = DF.from_server(limit=args.limit, base_url=args.server)
+        r = DF.dedupe_defeats(rows)
+        if args.json:
+            print(json.dumps(r, indent=1))
+            return 0
+        print(f"{r['named_logs']} named uploads -> {r['distinct_defeats']} distinct defeats "
+              f"({r['duplicate_logs']} duplicate perspectives folded; {r['total_logs']} uploads total)")
+        for g in r["groups"]:
+            tag = f"{g['perspectives']} perspectives" if g["perspectives"] > 1 else "single"
+            print(f"  {str(g['boss'])[:30]:30s} {str(g['region'] or '?'):4s} {g['duration']:>8.1f}s  "
+                  f"party {g['party_size']}  {tag}")
+        print("\n" + r["note"])
     elif args.cmd == "logs":
         from .combat.logs import backfill, open_folder
         from .paths import home, logs_dir
