@@ -54,7 +54,7 @@ python -m aion2calc calibrate --capture fight.a2log.json --timings # measure ski
 
 # aggregate the NPC decoder evidence across uploaded logs (candidate NPC type IDs, packet variants, missing art)
 python -m aion2calc npc-evidence                     # from the configured community log server
-python -m aion2calc npc-evidence fight1.a2log.json fight2.a2log.json   # from local a2log files
+python -m aion2calc npc-evidence ./logs              # from local a2log files or a folder of them
 
 # group the same boss defeat recorded by several party members into one distinct defeat
 python -m aion2calc defeats                           # from the community log server

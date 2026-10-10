@@ -26,6 +26,24 @@ import sys
 from pathlib import Path
 
 
+def _load_local_docs(paths, on_skip=print):
+    """Load a2log JSON documents from the given files and folders.
+
+    Each path is a file, or a folder whose ``*.json`` files are each loaded.
+    A file that is missing or not valid JSON is skipped with a note, never
+    fatal, so one bad file does not lose the rest of a corpus."""
+    docs = []
+    for path in paths:
+        p = Path(path)
+        files = sorted(f for f in p.glob("*.json")) if p.is_dir() else [p]
+        for f in files:
+            try:
+                docs.append(json.loads(f.read_text(encoding="utf-8")))
+            except (OSError, ValueError) as e:
+                on_skip(f"skipped {f}: {e}")
+    return docs
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="aion2calc", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -136,7 +154,8 @@ def main(argv: list[str] | None = None) -> int:
 
     ne = sub.add_parser("npc-evidence", help="aggregate the NPC decoder evidence across uploaded logs: candidate "
                                              "NPC type IDs (named, needs-name, abstained) and identity/packet variants")
-    ne.add_argument("logs", nargs="*", help="local a2log JSON files; default: fetch public uploads from the log server")
+    ne.add_argument("logs", nargs="*", help="local a2log JSON files or folders of them; default: fetch public "
+                                            "uploads from the log server")
     ne.add_argument("--server", help="log server base URL (default: the configured community server)")
     ne.add_argument("--limit", type=int, default=500, help="max uploads to fetch from the server")
     ne.add_argument("--min-logs", type=int, default=2, help="distinct uploads a code needs before it is promoted")
@@ -416,12 +435,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "npc-evidence":
         from .combat import npc_aggregate as NA
         if args.logs:
-            docs = []
-            for path in args.logs:
-                try:
-                    docs.append(json.loads(Path(path).read_text(encoding="utf-8")))
-                except (OSError, ValueError) as e:
-                    print(f"skipped {path}: {e}")
+            docs = _load_local_docs(args.logs)
             source = f"{len(docs)} local file(s)"
         else:
             docs = NA.from_server(limit=args.limit, base_url=args.server)
@@ -461,15 +475,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "defeats":
         from .combat import defeats as DF
         if args.logs:
-            docs = []
-            for path in args.logs:
-                p = Path(path)
-                files = sorted(f for f in p.glob("*.json")) if p.is_dir() else [p]
-                for f in files:
-                    try:
-                        docs.append(json.loads(f.read_text(encoding="utf-8")))
-                    except (OSError, ValueError) as e:
-                        print(f"skipped {f}: {e}")
+            docs = _load_local_docs(args.logs)
             rows = DF.rows_from_docs(docs)
             source = f"{len(docs)} local file(s)"
         else:
