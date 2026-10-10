@@ -425,6 +425,14 @@ def main(argv: list[str] | None = None) -> int:
                 state = ("agrees" if r["agrees"] else "differs" if r["present_in"] == r["total"] else
                          f"only {r['present_in']}/{r['total']} installs")
                 print(f"  - {r['label']:30s} {state}" + ("" if r["agrees"] else "  " + " | ".join(r["values"])))
+            overlap = comparison.get("content_overlap")
+            if overlap:
+                print(f"  - {'Shipped content overlap':30s} {overlap['identical']}/{overlap['packages']} identical "
+                      f"({overlap['identical_fraction']:.1%}) · {overlap['drifted']} drifted · "
+                      f"{overlap['only_some']} in only some")
+                if overlap["drifted_sample"]:
+                    print(f"      drifted packages: {', '.join(overlap['drifted_sample'][:8])}"
+                          + ("…" if overlap["drifted"] > 8 else ""))
             if comparison["shared_version_key"]:
                 print(f"\nShared launcher-independent version: {comparison['shared_version_label']}. {comparison['note']}")
             else:

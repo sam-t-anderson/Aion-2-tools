@@ -71,6 +71,50 @@ def version_signals(evidence: dict) -> list[dict]:
     return out
 
 
+def content_overlap(installs: list[dict]) -> dict | None:
+    """Per-package agreement across installs that carry a content manifest.
+
+    The shipped-content fingerprint is an all-or-nothing digest, but real
+    Steam vs PURPLE installs of nominally the same game are overwhelmingly
+    byte-identical with only a few content chunks drifted a patch/hotfix tick
+    apart (observed: ~743 of 758 packages identical, ~15 drifted, none added
+    or removed). This reports how many shipped packages are present in every
+    install at an identical size, present in every install but at differing
+    sizes (drifted), or present in only some (added/removed), plus the
+    identical fraction of the union. It measures drift; it never asserts two
+    installs are the same version. Returns ``None`` with fewer than two
+    manifests to compare."""
+    manifests = []
+    for i in installs:
+        m = i.get("installed_content_manifest")
+        if isinstance(m, list) and m:
+            manifests.append({str(name): size for name, size in m if isinstance(name, str)})
+    if len(manifests) < 2:
+        return None
+    names = sorted(set().union(*(set(m) for m in manifests)))
+    identical = drifted = only_some = 0
+    drifted_sample = []
+    for name in names:
+        sizes = [m[name] for m in manifests if name in m]
+        if len(sizes) < len(manifests):
+            only_some += 1
+        elif len(set(sizes)) == 1:
+            identical += 1
+        else:
+            drifted += 1
+            if len(drifted_sample) < 25:
+                drifted_sample.append(name)
+    total = len(names)
+    return {"installs": len(manifests), "packages": total, "identical": identical,
+            "drifted": drifted, "only_some": only_some,
+            "identical_fraction": round(identical / total, 6) if total else 0.0,
+            "drifted_sample": drifted_sample,
+            "note": "Packages present in every install at an identical size, vs a differing size (drifted), vs "
+                    "present in only some (added/removed). A high identical fraction with a few drifted chunks is "
+                    "consistent with the same content base at a different patch/hotfix level; it does not assert an "
+                    "identical version. A low identical fraction indicates genuinely different builds."}
+
+
 def compare_installs(installs: list[dict]) -> dict:
     """Compare version signals across two or more installs' evidence.
 
@@ -93,9 +137,18 @@ def compare_installs(installs: list[dict]) -> dict:
                      "values": sorted(values)})
     agreeing = [r for r in rows if r["agrees"]]
     shared = next((r for r in agreeing if r["key"] == "installed_content_build"), agreeing[0] if agreeing else None)
+    overlap = content_overlap(installs)
+    if shared and shared["key"] == "installed_content_build":
+        note = ("The shipped content fingerprint matches across these installs; it is the launcher-independent "
+                "game-version key.")
+    elif overlap is not None:
+        note = (f"The shipped content fingerprints differ, but {overlap['identical']}/{overlap['packages']} packages "
+                f"are byte-identical ({overlap['identical_fraction']:.1%}), {overlap['drifted']} drifted and "
+                f"{overlap['only_some']} present in only some. A high identical fraction with a few drifted chunks is "
+                "consistent with the same content base at a different patch/hotfix level, not a launcher-independent "
+                "exact version; see per-signal agreement below.")
+    else:
+        note = "No launcher-independent content fingerprint matched; see per-signal agreement below."
     return {"signals": rows, "shared_version_key": shared["key"] if shared else None,
             "shared_version_label": labels.get(shared["key"]) if shared else None,
-            "note": ("The shipped content fingerprint matches across these installs; it is the launcher-independent "
-                     "game-version key." if shared and shared["key"] == "installed_content_build" else
-                     "No launcher-independent content fingerprint matched; see per-signal agreement below."
-                     if not shared or shared["key"] != "installed_content_build" else "")}
+            "content_overlap": overlap, "note": note}
