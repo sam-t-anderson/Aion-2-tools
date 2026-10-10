@@ -40,6 +40,9 @@ python -m aion2calc analyze https://abysslogs.com/e/<id> --player "Name"   # one
 # show or open the folder where every analyzed log is saved
 python -m aion2calc logs --open
 
+# operator self-check: install, updater (CI-gated), paths, log server and catalog
+python -m aion2calc doctor            # add --offline to skip network checks, --json for the raw report
+
 # show each detected install's version signals and, across Steam + PURPLE, the shared game-version key
 python -m aion2calc install-version          # add --json for raw evidence and the signal comparison
 
