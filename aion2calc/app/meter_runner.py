@@ -391,12 +391,12 @@ class Runner:
                 return  # Idle telemetry alone cannot form an identified combat log.
             due = (len(self.session.records) >= 100_000 or len(self.session.telemetry) >= 20_000
                    or self.session._storage_groups.get(self.scope, self.session.storage_groups) >= 100
-                   or len(self.session.storage_players) >= 48)
+                   or len(self.session._storage_players.get(self.scope, self.session.storage_players)) >= 48)
             if not due:
                 return
             hard = (len(self.session.records) >= 350_000 or len(self.session.telemetry) >= 40_000
                     or self.session._storage_groups.get(self.scope, self.session.storage_groups) >= 180
-                    or len(self.session.storage_players) >= 60)
+                    or len(self.session._storage_players.get(self.scope, self.session.storage_players)) >= 60)
             last_hit = next((r.event.timestamp_ms for r in reversed(self.session.records)
                             if isinstance(r.event, DamageEvent) and r.event.actor_id in self.session._allowed(r, self.scope)
                             and r.event.target_id not in self.session._allowed(r, self.scope)), 0)

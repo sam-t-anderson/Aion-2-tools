@@ -63,6 +63,8 @@ def _boss_attempt(segment, boss, quality):
 
 
 def summarize(doc):
+    from ..meter.builds import comparison_document
+    doc = comparison_document(doc)
     groups = {}
     for index, segment in enumerate(doc.get("segments", [])):
         key = segment.get("run_id") or "legacy"

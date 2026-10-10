@@ -41,7 +41,7 @@ CLASS_ALIASES = {"elementalist": "spiritmaster", "brawler": "brawler"}
 #: optional players[].stats keys (percent values as numbers)
 PLAYER_STATS = ("critical_hit", "attack", "double_pct", "perfect_pct", "multihit_pct", "combat_speed_pct",
                 "cooldown_pct", "accuracy")
-LIMITS = {"players": 64, "segments": 200, "hits": 400_000, "buffs": 100_000, "hp": 50_000, "text": 200}
+LIMITS = {"players": 1024, "segments": 200, "hits": 400_000, "buffs": 100_000, "hp": 50_000, "text": 200}
 
 
 def profile_snapshot(value):

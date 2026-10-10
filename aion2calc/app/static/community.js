@@ -1,7 +1,7 @@
 /* Public community reports, shared by desktop and Pages. */
 (function(){
 "use strict";
-const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,'Product version $1').replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})/g,'Legacy build $1 · Steam').replace(/build:purple:A2_[A-Z0-9_]{1,80}_PURPLE:([0-9]{1,20})/g,'Legacy build $1 · PURPLE');
+const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'Product version '+v.split('.').slice(0,4).join('.')).replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})/g,'Legacy build $1 · Steam').replace(/build:purple:A2_[A-Z0-9_]{1,80}_PURPLE:([0-9]{1,20})/g,'Legacy build $1 · PURPLE');
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const types={unknown:"Unknown",pve_open_world:"PvE · Open world",pve_unverified:"PvE · Unverified source",transcendence:"Transcendence dungeon",daily:"Daily dungeon",expedition:"Expedition",ascension:"Ascension trials",nightmare:"Nightmare",sanctuary:"Sanctuary raids",pvp_battleground:"PvP · Battleground",pvp_arena:"PvP · Arena",pvp_abyss:"PvP · Abyss",pvp_rift:"PvP · Rift",pvp_open_world:"PvP · Open world",pvp_other:"PvP · Unverified / other"};
 const n=x=>Math.round(x||0).toLocaleString();
