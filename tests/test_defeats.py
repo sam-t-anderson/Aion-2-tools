@@ -32,3 +32,33 @@ def test_defeats_never_merge_across_region_or_disjoint_roster():
     ]
     r = D.dedupe_defeats(logs)
     assert r["distinct_defeats"] == 3 and r["duplicate_logs"] == 0      # none merged
+
+
+def _doc(title, segments, players):
+    return {"format": "a2log", "meta": {"title": title},
+            "players": [{"id": p} for p in players],
+            "segments": [{"id": sid, "boss": boss, "region": region, "duration": dur}
+                         for (sid, boss, region, dur) in segments]}
+
+
+def test_local_docs_flatten_to_rows_one_per_fight_segment():
+    doc = _doc("myrun", [(0, "Talisra of the Void", "nae", 258.0),
+                         (1, "Combat 2", "nae", 40.0)], ["p1", "p2", "p3"])
+    rows = D.rows_from_docs([doc])
+    assert len(rows) == 2                                               # one row per segment
+    boss_row = next(r for r in rows if r["boss"] == "Talisra of the Void")
+    assert boss_row["duration"] == 258.0 and boss_row["region"] == "nae"
+    assert sorted(p["id"] for p in boss_row["players"]) == ["p1", "p2", "p3"]
+    assert boss_row["id"] == "myrun#0"
+
+
+def test_local_docs_dedupe_two_uploaders_of_one_defeat():
+    a = _doc("alice", [(0, "Talisra of the Void", "nae", 258.0)], ["p1", "p2", "p3", "p4"])
+    b = _doc("bob", [(0, "Talisra of the Void", "nae", 259.0)], ["p1", "p2", "p3", "p4"])
+    r = D.dedupe_defeats(D.rows_from_docs([a, b]))
+    assert r["named_logs"] == 2 and r["distinct_defeats"] == 1          # two local uploads, one defeat
+    assert r["groups"][0]["perspectives"] == 2 and r["groups"][0]["confidence"] == "corroborated"
+
+
+def test_rows_from_docs_ignores_junk_entries():
+    assert D.rows_from_docs(["nope", 5, {"segments": "bad"}, {}]) == []
