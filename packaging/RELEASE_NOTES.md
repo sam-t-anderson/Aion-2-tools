@@ -1,3 +1,7 @@
+## PURPLE launcher version detection (0.2.130)
+
+- `install-version` now reads the NCSOFT (PURPLE) launcher's own run record for AION 2 Global (`%LOCALAPPDATA%\NCSOFT\NccrData\com.ncsoft.aion2global\*.execution.json`) and reports the game version and build it logged (`appVersion` 2.0.6, `appBuildNumber`). This confirms a PURPLE AION 2 Global install and cross-checks its version independently of the launcher-stamped executable ProductVersion — and still surfaces the version even when the game's install folder was not located automatically (the Windows uninstall entry is the only machine-readable path source found on a real install; the launcher breadcrumb carries the version but no path). Only the two version fields are read; the account ids in the sibling `extra.json` are never touched. Verified against a real PURPLE install.
+
 ## Pantheon deity names and a ground-truth Genus/Pantheon capture (0.2.129)
 
 - Character import now labels each Pantheon deity with its proper name (Justice → Nezekan, Time → Siel, Illusion → Kaisinel, …), transcribed from the in-game Pantheon screen — the official API carries only the effect-category totals. "Destruction" was not on the observed board, so its deity name is left unrecorded rather than guessed.
