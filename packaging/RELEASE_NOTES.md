@@ -1,3 +1,7 @@
+## Release pipeline guard (0.2.122)
+
+- Run the release CI's lint (`pyflakes`) inside the test suite so a lint error that would block the release job is caught by a normal `pytest` run, not only after a merge. A stray f-string had blocked 0.2.121 from being cut until it was fixed; this prevents that class of regression recurring. No behavior change to the app.
+
 ## Live meter stays through DPS-stop mechanics (0.2.121)
 
 - Keep the live meter and overlay from resetting when a mechanic stops your DPS. A mid-fight self zone-transition (a teleport or phase) no longer blanks the latest view: the continuing run's segments are re-joined and each player's totals carry across the pause. A genuinely separate pull (a real combat gap or a new run/instance) still starts its own encounter, and explicit segment, whole-session and saved-log views are unchanged.
