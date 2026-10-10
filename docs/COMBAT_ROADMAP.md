@@ -50,11 +50,11 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 ## 4. Genus Insight and progression
 
-**Available:** manual five-genus/nine-slot editor, unlocked-slot validation, saved inventory/advice snapshots, in-game-inspired radial presentation, per-slot damage contribution and supported-slot replacement advice. Saved modeled lines participate in PvE/PvP optimization. Coverage distinguishes saved, unlocked and missing slots; progression budgets retain observed-versus-entered provenance.
+**Available:** manual five-genus/nine-slot editor, unlocked-slot validation, saved inventory/advice snapshots, in-game-inspired radial presentation, per-slot damage contribution and supported-slot replacement advice. Saved modeled lines participate in PvE/PvP optimization. Coverage distinguishes saved, unlocked and missing slots; progression budgets retain observed-versus-entered provenance. The official profile import records each Pantheon deity stat's total and its self-describing effect strings (e.g. Justice → Defense +4%, Perfect Chance +4%), splitting damage effects from survival/utility ones, with source attribution.
 
 **Remaining:**
 
-- Retrieve official Genus allocations and owned collection effects when a supported source provides them. Current public profiles do not supply those allocations; blank slots are not invented.
+- Retrieve official Genus allocations and owned collection effects when a supported source provides them. Verified against the live official character API (`/api/character/info` + `/equipment`): it exposes no Genus Insight allocations, Pantheon node allocations or collection data — only deity stat totals with effect strings (now recorded) and a cosmetic pet summary. Blank Genus/collection slots are not invented and stay manual-entry until a supported source carries them.
 - Verify defensive/owned-effect coefficients, current-build roll probabilities, costs and progression maxima.
 - Extend the existing visual slot and Genus controls with verified collection/progression rules while preserving entered assumptions and reference snapshots. The standalone workspace now retains and evaluates manual equipment/Genus inputs.
 

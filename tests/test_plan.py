@@ -121,6 +121,21 @@ def test_pantheon_ranks_damage_deities(home):
     assert p["choices"][-1]["source"].startswith("Bracelet")
 
 
+def test_official_deity_effects_are_recorded_and_classified():
+    """The official profile's deity (Pantheon) effect strings are parsed into
+    source-backed rows, splitting damage effects from survival/utility ones."""
+    from aion2calc.sources.character import _deity_effect, DEITY_TYPES
+    attack = _deity_effect("Attack increase +0.5%")
+    assert attack["percent"] and attack["value"] == 0.5 and attack["damage_relevant"]
+    assert _deity_effect("Perfect Chance +4%")["damage_relevant"]
+    assert _deity_effect("Critical Hit increase +3.2%")["damage_relevant"]
+    # survival / utility and resist effects are recorded but never damage-relevant
+    assert not _deity_effect("HP increase +0.5%")["damage_relevant"]
+    assert not _deity_effect("Block increase +0.5%")["damage_relevant"]
+    assert not _deity_effect("Perfect Resist +0.5%")["damage_relevant"]
+    assert {"Life", "Destiny", "Space", "Justice", "Destruction"} <= DEITY_TYPES
+
+
 def test_learning_fit_is_bounded_and_applies(home):
     from aion2calc import learn
     from aion2calc.db import store
