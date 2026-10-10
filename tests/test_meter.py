@@ -114,6 +114,38 @@ def test_runner_live_without_decoder_reports_error():
     assert not st["running"] and "decoder" in (st["error"] or "")
 
 
+def test_capture_survives_a_failing_item(monkeypatch, tmp_path):
+    """A transient error handling one capture item (as on a zone/instance change)
+    is recorded but does not stop live capture; a terminal 'error' still does."""
+    import queue as _queue
+    import threading
+    from aion2calc.app import meter_runner as MR
+    from aion2calc.meter.session import CombatSession
+
+    monkeypatch.setenv("AION2CALC_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(MR, "capture_packets", lambda *a, **k: None)   # no real sniffer
+    r = MR.Runner()
+    r.packet_engine = object()                                        # truthy; not used by these items
+    r.session = CombatSession()
+    r.diagnostics = {"state": "starting", "decoded_events": 0}
+    r.packet_stop = threading.Event()
+    r.packet_queue = _queue.Queue()
+    monkeypatch.setattr(r, "_checkpoint_session", lambda: None)
+
+    def boom(_data):
+        raise RuntimeError("zone transition hiccup")
+    monkeypatch.setattr(r, "_record_capture_stats", boom)
+
+    r.packet_queue.put(("capture_stats", {"packets": 1}))             # handler raises -> must not stop
+    r.packet_queue.put(("capture_stats", {"packets": 2}))             # still processing the next item
+    r.packet_queue.put(("capture_stopped",))                          # clean end
+    r._run_a2tools(None, 0, None, None, True)
+
+    assert r.error is None                                            # a per-item error never becomes fatal
+    assert r.diagnostics.get("processing_errors") == 2                # both failures recorded
+    assert "zone transition hiccup" in r.diagnostics.get("processing_error", "")
+
+
 def _make_install(root, paks, *, purple_rev=None, steam_build=None, appid="123"):
     """A synthetic AION 2 install tree: shared content, launcher-specific metadata."""
     paks_dir = root / "Aion2" / "Content" / "Paks"

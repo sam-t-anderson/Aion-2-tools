@@ -201,47 +201,57 @@ class Runner:
                         self._checkpoint_session()
                     continue
                 kind, *data = item
-                if kind == "packet":
-                    stream, payload, timestamp_ms = data
-                    before_run = (self.session.run, self.session.run_closed)
+                try:
+                    if kind == "packet":
+                        stream, payload, timestamp_ms = data
+                        before_run = (self.session.run, self.session.run_closed)
+                        with self.lock:
+                            self._last_packet_at = time.monotonic()
+                            events = self._decode_packet(engine, decoder, stream, payload, timestamp_ms)
+                            self.diagnostics["decoded_events"] += len(events)
+                            if stop_event.is_set():
+                                self.diagnostics["shutdown_drained_payloads"] += 1
+                                self.session.capture_evidence["shutdown_drained_payloads"] = self.session.capture_evidence.get("shutdown_drained_payloads", 0) + 1
+                            if events:
+                                self._last_combat_at = time.monotonic()
+                        if not stop_event.is_set() and before_run != (self.session.run, self.session.run_closed):
+                            self._save_session(active=True)
+                        if engine is not None and not stop_event.is_set():
+                            self._rollover_session()
+                    elif kind == "stream_reset":
+                        with self.lock:
+                            if engine is not None:
+                                engine.reset_stream(data[0])
+                                self.session.split_now()
+                                self.segment_id = self.enemy_id = None
+                    elif kind == "error":
+                        self.error = str(data[0])
+                        stop_event.set()
+                    elif kind == "capture_started":
+                        self.diagnostics["state"] = "stopping" if stop_event.is_set() else "capturing"
+                    elif kind == "capture_stats":
+                        with self.lock:
+                            self._record_capture_stats(data[0])
+                            if stop_event.is_set():
+                                self.diagnostics["state"] = "stopping"
+                            if engine is not None and data[0].get("port"):
+                                engine.set_server_port(int(data[0]["port"]))
+                    elif kind == "ping":
+                        with self.lock:
+                            self.meter.add(CombatEvent(kind="ping", t=float(data[1]) / 1000.0, ping_ms=float(data[0])))
+                    elif kind == "capture_stopped":
+                        break
+                    if not stop_event.is_set():
+                        self._checkpoint_session()
+                except Exception as exc:
+                    # A transient failure handling one item (e.g. a zone/instance
+                    # transition that resets identities and splits the session mid-save)
+                    # must not tear down live capture. Record it and keep going; genuine
+                    # adapter failures still arrive as a terminal "error" item above.
+                    self.diagnostics["processing_error"] = f"{kind}: {type(exc).__name__}: {exc}"[:300]
+                    self.diagnostics["processing_errors"] = self.diagnostics.get("processing_errors", 0) + 1
                     with self.lock:
-                        self._last_packet_at = time.monotonic()
-                        events = self._decode_packet(engine, decoder, stream, payload, timestamp_ms)
-                        self.diagnostics["decoded_events"] += len(events)
-                        if stop_event.is_set():
-                            self.diagnostics["shutdown_drained_payloads"] += 1
-                            self.session.capture_evidence["shutdown_drained_payloads"] = self.session.capture_evidence.get("shutdown_drained_payloads", 0) + 1
-                        if events:
-                            self._last_combat_at = time.monotonic()
-                    if not stop_event.is_set() and before_run != (self.session.run, self.session.run_closed):
-                        self._save_session(active=True)
-                    if engine is not None and not stop_event.is_set():
-                        self._rollover_session()
-                elif kind == "stream_reset":
-                    with self.lock:
-                        if engine is not None:
-                            engine.reset_stream(data[0])
-                            self.session.split_now()
-                            self.segment_id = self.enemy_id = None
-                elif kind == "error":
-                    self.error = str(data[0])
-                    stop_event.set()
-                elif kind == "capture_started":
-                    self.diagnostics["state"] = "stopping" if stop_event.is_set() else "capturing"
-                elif kind == "capture_stats":
-                    with self.lock:
-                        self._record_capture_stats(data[0])
-                        if stop_event.is_set():
-                            self.diagnostics["state"] = "stopping"
-                        if engine is not None and data[0].get("port"):
-                            engine.set_server_port(int(data[0]["port"]))
-                elif kind == "ping":
-                    with self.lock:
-                        self.meter.add(CombatEvent(kind="ping", t=float(data[1]) / 1000.0, ping_ms=float(data[0])))
-                elif kind == "capture_stopped":
-                    break
-                if not stop_event.is_set():
-                    self._checkpoint_session()
+                        self.session.capture_evidence["processing_errors"] = self.session.capture_evidence.get("processing_errors", 0) + 1
         except Exception as exc:
             self.error = self.error or f"Capture processing failed: {type(exc).__name__}: {exc}"
         finally:
