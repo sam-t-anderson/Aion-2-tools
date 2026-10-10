@@ -76,7 +76,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 ## 6. Regional timers and timed-boss history
 
-**Available:** regional event pages, named-zone/local countdowns, dated community schedule provenance, conflict/staleness notices and public observed boss-defeat histories with party engagement and source-log links. Schedule windows and last defeats remain separate from availability. Uploads of one defeat recorded by several party members are grouped into a single distinct defeat (`python -m aion2calc defeats`, over the community server or a local a2log folder) by boss, region, difficulty, recorded instance, shared party identities and matching duration, so repeated perspectives do not inflate counts while clears at different difficulties or in distinct recorded instances stay separate.
+**Available:** regional event pages, named-zone/local countdowns, dated community schedule provenance, conflict/staleness notices and public observed boss-defeat histories with party engagement and source-log links. Schedule windows and last defeats remain separate from availability. Uploads of one defeat recorded by several party members are grouped into a single distinct defeat (`python -m aion2calc defeats`, over the community server or a local a2log folder) by boss, region, difficulty, recorded instance, game patch, shared party identities and matching duration, so repeated perspectives do not inflate counts while clears at different difficulties, in distinct recorded instances or under different balance patches stay separate.
 
 **Remaining:**
 

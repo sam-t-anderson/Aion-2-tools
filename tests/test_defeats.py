@@ -82,6 +82,19 @@ def test_defeats_never_merge_across_difficulty_or_instance():
     assert len(talisra) == 2                                           # two different instances never merge
 
 
+def test_defeats_never_merge_across_game_patch():
+    base = ["p1", "p2", "p3", "p4"]
+    logs = [
+        _log("a", "Tiere", base, 150.0, game_patch="version:product:2.0.6.0"),
+        _log("b", "Tiere", base, 150.5, game_patch="version:product:2.1.0.0"),   # a later balance patch
+        _log("c", "Tiere", base, 150.2, game_patch="version:product:2.0.6.0"),   # merges with (a)
+    ]
+    r = D.dedupe_defeats(logs)
+    assert r["distinct_defeats"] == 2
+    old = next(g for g in r["groups"] if g["game_patch"] == "version:product:2.0.6.0")
+    assert old["perspectives"] == 2 and sorted(l["id"] for l in old["logs"]) == ["a", "c"]
+
+
 def test_defeats_reads_difficulty_and_instance_from_server_contexts():
     base = ["p1", "p2", "p3", "p4"]
     def row(i, dur, diff, iid):
