@@ -47,6 +47,7 @@ python -m aion2calc install-version          # add --json for raw evidence and t
 python -m aion2calc calibrate                       # every class vs the KR aggregate, worst fidelity first
 python -m aion2calc calibrate gladiator --tune      # per-skill share gaps + suggested knob values
 python -m aion2calc calibrate --capture fight.a2log.json --tune   # calibrate against your own capture
+python -m aion2calc calibrate --capture fight.a2log.json --timings # measure skill cadence + pet swing periods
 
 # gear / arcana / pantheon / genus / rotation advice for a character, and its inventory
 python -m aion2calc advise "Name" --server Zikel

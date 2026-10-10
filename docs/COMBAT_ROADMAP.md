@@ -40,6 +40,7 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 **Remaining:**
 
+- Replace the kits' estimated animation/pet `TIMING` with measured values. `python -m aion2calc calibrate --capture LOG --timings` now measures per-skill cast cadence (the shortest filler interval bounds its action time) and pet swing periods directly from a capture, reported against the kit so timings are fitted to real logs rather than community estimates. Measured evidence only; defensive/healing/CC mechanics below still need verified coefficients.
 - Model verified defensive skills, shields, percentage HP, healing, CC duration/success/immunity and movement effects with explicit action/cooldown costs.
 - Model matchup-specific incoming/outgoing mitigation, worst-case timing alignment and reactive optimized opponents.
 - Validate model predictions against representative encounters and matchups. Gross expected damage and entered pressure reductions are assumptions, not effective HP, guaranteed survival or win probability.

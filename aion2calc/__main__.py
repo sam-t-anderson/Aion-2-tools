@@ -126,6 +126,8 @@ def main(argv: list[str] | None = None) -> int:
     cb.add_argument("--player", help="whose damage to read in a party capture (default: the recording player)")
     cb.add_argument("--tune", action="store_true", help="also suggest bounded TIMING/ASSUME values that raise the "
                                                         "share overlap (reported only; kits are not modified)")
+    cb.add_argument("--timings", action="store_true", help="with --capture: measure per-skill cast cadence and pet "
+                                                           "swing periods from the capture and compare to the kit")
 
     iv2 = sub.add_parser("install-version", help="show each detected game install's version signals and, with "
                                                  "two or more (e.g. Steam and PURPLE), which signal is the shared "
@@ -319,6 +321,22 @@ def main(argv: list[str] | None = None) -> int:
                           f"{s['casts']:4d}/{s['sim_casts']:<4d}")
                 if r["vs_top"].get("overlap") is not None:
                     print(f"  overlap with the KR top logs: {100 * r['vs_top']['overlap']:.0f}%")
+            if args.timings:
+                mt = C.measured_timings(args.capture, player=args.player)
+                if "error" in mt:
+                    print("\n  " + mt["error"])
+                else:
+                    kit = mt.get("kit") or {}
+                    print(f"\n  measured skill cast cadence (filler: {kit.get('filler') or '?'}, "
+                          f"kit action time {kit.get('filler_action_time')}):")
+                    for s in mt["skills"][:14]:
+                        print(f"    {s['skill'][:24]:24s} casts {s['count']:3d}  min {s['min']:.2f}s  median {s['median']:.2f}s")
+                    if mt["pets"]:
+                        print("  measured pet swing periods:")
+                        for pet in mt["pets"]:
+                            print(f"    {str(pet['pet'])[:24]:24s} hits {pet['count']:3d}  swing {pet['swing_period']:.2f}s")
+                    else:
+                        print("  no pet hits with enough timing in this capture.")
             if args.tune:
                 cls, target = C.capture_target(args.capture, player=args.player)
                 t = C.tune(cls, target=target)

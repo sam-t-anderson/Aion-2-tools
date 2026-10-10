@@ -220,36 +220,120 @@ def encounter_from_capture(path_or_ref: str, *, player: str | None = None, segme
     else (A2DIL records, AbyssLogs references, canonical JSON/CSV) goes through
     :func:`aion2calc.combat.adapters.load`.
     """
-    from pathlib import Path
-    p = Path(path_or_ref)
-    if p.exists() and p.suffix.lower() in (".json", ".a2log") or str(path_or_ref).endswith(".a2log.json"):
-        try:
-            doc = json.loads(p.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            doc = None
-        if isinstance(doc, dict) and doc.get("format") == "a2log":
-            from .combat import a2log as F
-            players = doc.get("players") or []
-            segs = doc.get("segments") or []
-            idx = segment if segment is not None else max(
-                range(len(segs)), key=lambda i: len(segs[i].get("hits") or []), default=0)
-            pid = player
-            if pid is None:                                    # the recording (local) player, else the top damage
-                pid = next((p["id"] for p in players if p.get("local")), None)
-                if pid is None and segs:
-                    dmg: dict = {}
-                    for h in segs[idx].get("hits") or []:
-                        who = h.get("player") or h.get("source")
-                        if who:
-                            dmg[who] = dmg.get(who, 0.0) + (h.get("damage") or 0.0)
-                    ids = {p["id"] for p in players}
-                    ranked = sorted((k for k in dmg if not ids or k in ids), key=lambda k: -dmg[k])
-                    pid = ranked[0] if ranked else (players[0]["id"] if players else None)
-                elif pid is None and players:
-                    pid = players[0]["id"]
-            return F.to_encounter(doc, pid, idx)
+    picked = _select_a2log(path_or_ref, player=player, segment=segment)
+    if picked is not None:
+        from .combat import a2log as F
+        doc, pid, idx = picked
+        return F.to_encounter(doc, pid, idx)
     from .combat.adapters import load
     return load(path_or_ref, player=player)
+
+
+def _select_a2log(path_or_ref, *, player=None, segment=None):
+    """``(doc, player_id, segment_index)`` for a saved a2log, else ``None``.
+
+    Picks the recording (local) player — meter order puts them first — else the
+    top-damage player, and the segment with the most recorded hits.
+    """
+    from pathlib import Path
+    p = Path(path_or_ref)
+    if not (p.exists() and p.suffix.lower() in (".json", ".a2log") or str(path_or_ref).endswith(".a2log.json")):
+        return None
+    try:
+        doc = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(doc, dict) or doc.get("format") != "a2log":
+        return None
+    players = doc.get("players") or []
+    segs = doc.get("segments") or []
+    idx = segment if segment is not None else max(
+        range(len(segs)), key=lambda i: len(segs[i].get("hits") or []), default=0)
+    pid = player
+    if pid is None:
+        pid = next((pl["id"] for pl in players if pl.get("local")), None)
+        if pid is None and segs:
+            dmg: dict = {}
+            for h in segs[idx].get("hits") or []:
+                who = h.get("player") or h.get("source")
+                if who:
+                    dmg[who] = dmg.get(who, 0.0) + (h.get("damage") or 0.0)
+            ids = {pl["id"] for pl in players}
+            ranked = sorted((k for k in dmg if not ids or k in ids), key=lambda k: -dmg[k])
+            pid = ranked[0] if ranked else (players[0]["id"] if players else None)
+        elif pid is None and players:
+            pid = players[0]["id"]
+    return doc, pid, idx
+
+
+def _intervals(times):
+    times = sorted(t for t in times if isinstance(t, (int, float)))
+    deltas = sorted(b - a for a, b in zip(times, times[1:]) if b > a)
+    if not deltas:
+        return None
+    mid = len(deltas) // 2
+    median = deltas[mid] if len(deltas) % 2 else (deltas[mid - 1] + deltas[mid]) / 2
+    return {"count": len(times), "min": round(deltas[0], 3), "median": round(median, 3)}
+
+
+def measured_timings(path_or_ref, *, player=None, segment=None) -> dict:
+    """Measure per-skill cast cadence and pet swing periods from a real capture.
+
+    Animation/recovery (``TIMING``) and pet swing/skill periods are the kit's
+    estimated knobs. A capture measures them directly: the shortest observed
+    interval between successive casts of a spammed filler bounds its action time,
+    and the median interval between a pet's successive hits is its swing period.
+    Cadence for a cooldown skill mostly reflects its cooldown, so it is reported
+    as cross-check, not as an action time. Pet hits keep the segment ``pet`` flag
+    here (they fold into the owner in a normalized encounter), so pets are
+    measured per summon. Nothing is assumed; skills/pets without enough hits are
+    simply absent.
+    """
+    picked = _select_a2log(path_or_ref, player=player, segment=segment)
+    if picked is None:
+        return {"error": "Measured timings need a saved .a2log capture with per-hit timing."}
+    doc, pid, idx = picked
+    seg = (doc.get("segments") or [])[idx]
+    cls = next((pl.get("class") for pl in doc.get("players") or [] if pl["id"] == pid), None)
+    cd = None
+    if cls:
+        try:
+            cd = ClassData(cls)
+        except Exception:
+            cd = None
+    mine = [h for h in seg.get("hits") or [] if h.get("player") == pid]
+    own = [{"t": h["t"], "skill": h.get("skill") or str(h.get("skill_id") or "?"), "skill_id": h.get("skill_id"),
+            "dot": h.get("dot"), "step": h.get("step")} for h in mine if not h.get("pet")]
+    from .combat.analyze import casts_of
+    casts = casts_of(own, cd, 45)
+    by_skill: dict = {}
+    for c in casts:
+        by_skill.setdefault(c["skill"], []).append(c["t"])
+    skills = []
+    for name, times in by_skill.items():
+        iv = _intervals(times)
+        if iv and iv["count"] >= 4:                            # need a few presses to time anything
+            skills.append({"skill": name, **iv})
+    skills.sort(key=lambda r: -r["count"])
+    pets: dict = {}
+    for h in mine:
+        if h.get("pet"):
+            pets.setdefault(h.get("source") or h.get("pet_name") or "pet", []).append(h["t"])
+    pet_rows = [{"pet": k, "swing_period": iv["median"], **iv}
+                for k, times in pets.items() if (iv := _intervals(times)) and iv["count"] >= 4]
+    kit_timing = {}
+    if cls:
+        try:
+            from .run import kit_module
+            kit = kit_module(cls).build_kit(typical_build(cls), ClassData(cls))
+            kit_timing = {"filler": kit.filler, "filler_action_time":
+                          getattr(kit_module(cls), "TIMING", {}).get(kit.filler)}
+        except Exception:
+            kit_timing = {}
+    return {"class": cls, "player": pid, "segment": idx, "skills": skills, "pets": pet_rows, "kit": kit_timing,
+            "note": ("Shortest filler cadence bounds its action time; cooldown-skill cadence reflects cooldown. "
+                     "Pet swing_period is the median interval between a summon's hits. Measured evidence, not an "
+                     "assumption; feed it into the kit's TIMING knobs rather than guessing.")}
 
 
 def from_capture(path_or_ref: str, *, player: str | None = None, segment: int | None = None) -> dict:
