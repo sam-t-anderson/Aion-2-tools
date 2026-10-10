@@ -1,0 +1,62 @@
+{
+  "source": "In-game Genus Insight and Pantheon screens, Global (PURPLE) client, transcribed 2026-10-10",
+  "note": "A single character's observed in-game state, recorded by hand from the game UI. The official character API exposes no Genus Insight allocations, Pantheon node allocations or collection data, so this is the only ground-truth capture of them. Analysis Effect and Pantheon Display Effect values are specific to this character's levels and placed nodes; they are a reference to validate the modeled structure against, never general per-level rules, and are not fed into the damage model. The character is left anonymous.",
+  "client": "Global PURPLE",
+  "genus_insight": {
+    "note": "Five genera, each with its level, experience toward the next level, the Analysis Effect stat lines shown, and the observed re-analysis cost. 'genus-scoped' stats (e.g. 'Cogni Evasion') act only against that genus; shared stats (HP, MP, PvE Attack, Penetration, etc.) are general. Levels run to 10 (Special is at MAX here).",
+    "genera": [
+      {"name": "Cogni", "level": 7, "exp": 7200, "exp_to_next": 40000,
+       "analysis_effect": [
+         {"stat": "Cogni Defense", "value": 54}, {"stat": "Cogni Accuracy", "value": 13},
+         {"stat": "Cogni Evasion", "value": 8}, {"stat": "Cogni Critical Hit Resist", "value": 10},
+         {"stat": "PvE Attack", "value": 11}, {"stat": "HP", "value": 45}, {"stat": "Cogni Evasion", "value": 9}],
+       "analyze_cost": {"soul_crystals": 28, "kinah": 7000}},
+      {"name": "Fera", "level": 7, "exp": 4650, "exp_to_next": 40000,
+       "analysis_effect": [
+         {"stat": "HP", "value": 10}, {"stat": "Fera Accuracy", "value": 15}, {"stat": "MP", "value": 14},
+         {"stat": "Fera Critical Hit Resist", "value": 10}, {"stat": "Fera Evasion", "value": 7},
+         {"stat": "Fera Defense", "value": 47}, {"stat": "HP", "value": 16}],
+       "analyze_cost": {"honor_tokens": 4, "soul_crystals": 24, "kinah": 7000}},
+      {"name": "Natura", "level": 6, "exp": 4900, "exp_to_next": 20000,
+       "analysis_effect": [
+         {"stat": "MP", "value": 9}, {"stat": "Natura Critical Hit Resist", "value": 6},
+         {"stat": "Natura Critical Hit", "value": 13}, {"stat": "HP", "value": 32}, {"stat": "Natura Evasion", "value": 6}],
+       "analyze_cost": {"soul_crystals": 24, "kinah": 6000}},
+      {"name": "Varian", "level": 6, "exp": 11200, "exp_to_next": 20000,
+       "analysis_effect": [
+         {"stat": "HP", "value": 60}, {"stat": "Varian Critical Hit Resist", "value": 8},
+         {"stat": "Front Attack Critical Hit", "value": 15}, {"stat": "PvE Defense", "value": 77},
+         {"stat": "Varian Attack", "value": 9}, {"stat": "MP", "value": 8}],
+       "analyze_cost": {"soul_crystals": 24, "kinah": 6000}},
+      {"name": "Special", "level": 10, "max": true,
+       "analysis_effect": [
+         {"stat": "Penetration", "value": 151}, {"stat": "HP increase", "value": 0.7, "percent": true},
+         {"stat": "Accuracy Bonus", "value": 31}, {"stat": "Critical Hit", "value": 17},
+         {"stat": "Penetration", "value": 191}, {"stat": "Front Attack Critical Hit", "value": 38},
+         {"stat": "Accuracy Bonus", "value": 13}, {"stat": "Critical Hit Resist", "value": 10}, {"stat": "Block", "value": 37}],
+       "analyze_cost": {"soul_crystals": 248, "kinah": 62000}}
+    ]
+  },
+  "pantheon": {
+    "note": "Pantheon Display Effect values for the nine placed deities, each labelled by its effect category and deity proper name. Collection progress was 15 of 94 owned. These are this character's current totals, not per-tier rules.",
+    "collection_owned": 15,
+    "collection_total": 94,
+    "deities": [
+      {"category": "Illusion", "deity": "Kaisinel", "display_value": 6},
+      {"category": "Life", "deity": "Yustiel", "display_value": 13},
+      {"category": "Wisdom", "deity": "Lumiel", "display_value": 10},
+      {"category": "Destiny", "deity": "Marchutan", "display_value": 9},
+      {"category": "Freedom", "deity": "Vaizel", "display_value": 32},
+      {"category": "Death", "deity": "Triniel", "display_value": 32},
+      {"category": "Space", "deity": "Israphel", "display_value": 32},
+      {"category": "Justice", "deity": "Nezekan", "display_value": 35},
+      {"category": "Time", "deity": "Siel", "display_value": 35}
+    ]
+  },
+  "reconciliation": [
+    "Confirms the five modelled genera (Cogni, Fera, Natura, Varian, Special) and the level-to-10 progression (Special observed at MAX).",
+    "Observed re-analysis cost scales with genus level (Special at Lv.10 costs 248 soul crystals / 62,000 kinah), so the modelled flat 'analysis_cost' is a base/early-level figure, not the current-level cost.",
+    "Pantheon showed nine deities; 'Destruction' (present in the API's DEITY_TYPES) was not on this board, so its deity proper name is still unobserved.",
+    "Genus analysis lines include genus-scoped stats (e.g. 'Cogni Evasion', 'Fera Defense', 'Natura Critical Hit', 'Varian Attack') alongside shared stats, consistent with the modelled slot pools; exact per-slot grades are not readable from the screens."
+  ]
+}

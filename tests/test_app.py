@@ -79,7 +79,9 @@ def _profile():
         "region": "nae",
         "profile": {"characterId": "test=", "characterName": "TestSorc", "className": "Sorcerer",
                     "characterLevel": 45, "combatPower": 50000, "serverId": 1101, "serverName": "Siel"},
-        "stat": {"statList": [{"type": "STR", "name": "Might", "value": 20}, {"type": "Death", "value": 30}]},
+        "stat": {"statList": [{"type": "STR", "name": "Might", "value": 20}, {"type": "Death", "value": 30},
+                              {"type": "Justice", "name": "Justice", "value": 35,
+                               "statSecondList": ["Defense +4%", "Perfect Chance +4%"]}]},
         "title": {"titleList": [{"equipCategory": "Attack", "name": "T", "grade": "Epic",
                                  "equipStatList": [{"desc": "PvE Damage Boost +3%"}]}]},
         "petwing": {"wing": {"name": "Ultimate Daeva Wings"}, "pet": {"name": "P", "level": 1}},
@@ -119,6 +121,14 @@ def test_profile_to_build_and_loadout():
     assert abs(st.combat_speed - 0.032) < 1e-9
     assert st.skill_bonus == {fa: 1}
     assert st.might == 20 and st.death == 30 and abs(st.amp_pve - 0.03) < 1e-9
+
+
+def test_imported_deities_carry_their_proper_names():
+    from aion2calc.sources.character import from_profile
+    deities = {d["type"]: d for d in from_profile(_profile()).systems["deities"]}
+    assert deities["Justice"]["deity"] == "Nezekan"           # proper name from the in-game Pantheon UI
+    assert deities["Death"]["deity"] == "Triniel"
+    assert deities["Justice"]["value"] == 35 and deities["Justice"]["effects"]   # totals + effect strings still recorded
 
 
 def test_combat_csv_breakdown():
