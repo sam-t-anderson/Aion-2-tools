@@ -48,6 +48,11 @@ def _instance(row):
     return iid
 
 
+def _patch(row):
+    p = _ctx(row, "game_patch")
+    return str(p).strip().casefold() if p not in (None, "") else None
+
+
 def _named(row) -> bool:
     boss = str(row.get("boss") or "").strip().casefold()
     return bool(boss) and not any(boss.startswith(g) for g in _GENERIC)
@@ -63,6 +68,9 @@ def _same_defeat(a, b, *, min_overlap: float, duration_tol: float) -> bool:
         return False
     ia, ib = _instance(a), _instance(b)
     if ia and ib and ia != ib:                             # distinct recorded instances are different defeats
+        return False
+    pa, pb = _patch(a), _patch(b)
+    if pa and pb and pa != pb:                             # clears under different balance patches are not one defeat
         return False
     ra, rb = _roster(a), _roster(b)
     if not ra or not rb:
@@ -105,6 +113,7 @@ def dedupe_defeats(logs, *, min_overlap: float = 0.5, duration_tol: float = 0.1)
             "boss": rows[0].get("boss"), "region": rows[0].get("region"),
             "difficulty": next((_difficulty(r) for r in rows if _difficulty(r)), None),
             "instance_id": next((_instance(r) for r in rows if _instance(r)), 0) or None,
+            "game_patch": next((_patch(r) for r in rows if _patch(r)), None),
             "perspectives": len(rows),
             "duration": round(float(rows[0].get("duration") or 0), 1),
             "party_size": max((len(r) for r in rosters), default=0),
@@ -116,11 +125,11 @@ def dedupe_defeats(logs, *, min_overlap: float = 0.5, duration_tol: float = 0.1)
     groups.sort(key=lambda g: (-g["perspectives"], str(g["boss"])))
     return {"total_logs": len(logs), "named_logs": len(named), "distinct_defeats": len(groups),
             "duplicate_logs": len(named) - len(groups), "groups": groups,
-            "note": ("Same-defeat grouping uses boss, region, difficulty, recorded instance, shared party "
-                     "identities and matching duration. It is a heuristic for respawn/availability counting, not "
-                     "proof; clears at different difficulties or distinct recorded instances are never merged, "
-                     "repeat clears by one party separate only by duration, and non-overlapping rosters are "
-                     "never merged.")}
+            "note": ("Same-defeat grouping uses boss, region, difficulty, recorded instance, game patch, shared "
+                     "party identities and matching duration. It is a heuristic for respawn/availability counting, "
+                     "not proof; clears at different difficulties, distinct recorded instances or different balance "
+                     "patches are never merged, repeat clears by one party separate only by duration, and "
+                     "non-overlapping rosters are never merged.")}
 
 
 def rows_from_docs(docs) -> list:
@@ -149,6 +158,7 @@ def rows_from_docs(docs) -> list:
                 "duration": seg.get("duration"),
                 "difficulty": seg.get("difficulty"),
                 "instance_id": seg.get("instance_id"),
+                "game_patch": seg.get("game_patch"),
                 "players": players,
             })
     return rows

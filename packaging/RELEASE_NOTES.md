@@ -1,3 +1,7 @@
+## Defeat dedup also separates balance patches (0.2.125)
+
+- `aion2calc defeats` no longer folds together two clears of the same boss recorded on **different game patches** — a kill under one balance patch and a kill under a later one are different balance contexts, so merging them misrepresented clear history across a patch boundary. Grouping now reads `game_patch` too (from the a2log segment locally and the server's per-segment `contexts` for uploads), on the same footing as difficulty and recorded instance: when the field is absent on one side it is not used as a separator, so nothing that matched before stops matching except a real patch disagreement. Group records carry `game_patch`.
+
 ## Defeat dedup respects difficulty and recorded instance (0.2.124)
 
 - `aion2calc defeats` no longer merges two clears of the same boss that were recorded at different difficulties (e.g. a normal run and a nightmare run) or in distinct recorded instances — they are genuinely different defeats, and folding them together under-counted clears. Grouping now also reads `difficulty` and `instance_id`, from the a2log segment locally and from the server's per-segment `contexts` block for uploads; when a field is absent on one side it is simply not used as a separator, so nothing that matched before stops matching except a real difficulty/instance disagreement. The text output gains a difficulty column.
