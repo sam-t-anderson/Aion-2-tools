@@ -191,6 +191,27 @@ def test_shared_content_fingerprint_aligns_steam_and_purple(tmp_path):
     assert any(s["cross_launcher"] is True for s in version_signals(steam))
 
 
+def test_compare_reports_content_overlap_when_installs_drift(tmp_path):
+    """Real Steam vs PURPLE installs of the same game are mostly byte-identical
+    with a few content chunks drifted a patch tick apart. The fingerprint then
+    disagrees, but the comparator quantifies the overlap instead of a bare
+    'differs', and never claims a shared version key."""
+    from aion2calc.meter.metadata import _build_evidence
+    from aion2calc.meter.builds import compare_installs, content_overlap
+    shared = {"global.ucas": 4096, "pakchunk0-Windows_0_P.pak": 2048, "pakchunk1-Windows.pak": 8192}
+    steam = _build_evidence(_make_install(tmp_path / "steam" / "AION2", shared, steam_build="900100"))
+    purple = _build_evidence(_make_install(tmp_path / "purple" / "AION2",
+                                           {**shared, "pakchunk0-Windows_0_P.pak": 2050},   # one chunk drifted
+                                           purple_rev="20250101"))
+    assert steam["installed_content_build"] != purple["installed_content_build"]       # not an exact match
+    cmp = compare_installs([{**steam, "launcher": "Steam"}, {**purple, "launcher": "PURPLE"}])
+    assert cmp["shared_version_key"] is None                                           # no shared key claimed
+    ov = cmp["content_overlap"]
+    assert ov["packages"] == 3 and ov["identical"] == 2 and ov["drifted"] == 1 and ov["only_some"] == 0
+    assert ov["drifted_sample"] == ["pakchunk0-Windows_0_P.pak"]
+    assert content_overlap([steam]) is None                                            # needs two manifests
+
+
 def test_content_fingerprint_is_independent_of_the_paks_parent_folder(tmp_path):
     """Identical content hashes the same whether Paks sits under Aion2/ (PURPLE)
     or at the install root (Steam); the fingerprint keys on the file name, not
