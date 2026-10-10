@@ -76,13 +76,13 @@ The seven requested workstreams have delivered their implementation checkpoints.
 
 ## 6. Regional timers and timed-boss history
 
-**Available:** regional event pages, named-zone/local countdowns, dated community schedule provenance, conflict/staleness notices and public observed boss-defeat histories with party engagement and source-log links. Schedule windows and last defeats remain separate from availability.
+**Available:** regional event pages, named-zone/local countdowns, dated community schedule provenance, conflict/staleness notices and public observed boss-defeat histories with party engagement and source-log links. Schedule windows and last defeats remain separate from availability. Uploads of one defeat recorded by several party members are grouped into a single distinct defeat (`python -m aion2calc defeats`) by boss, region, shared party identities and matching duration, so repeated perspectives do not inflate counts.
 
 **Remaining:**
 
 - Verify regional schedules and current-build applicability independently; copied community forecasts are not official schedules.
 - Record physical server/channel scope and verify timed/world-boss roles and respawn rules.
-- Deduplicate perspectives of the same defeat before estimating respawn or availability. Exact encounter duplicates alone do not solve this.
+- Harden same-defeat grouping toward respawn/availability estimates: the perspective dedup is a heuristic on recorded identities and duration, not proof, and repeat clears by one party are separated only by their duration spread. Physical server/channel scope and verified respawn rules are still required before a last defeat can estimate whether a boss is alive now.
 
 **Completion evidence:** independently confirmed schedule/respawn rules and sufficiently scoped observations. A last observed defeat does not show whether a boss is alive now.
 
