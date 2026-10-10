@@ -229,6 +229,8 @@ Save or export retained combat, stop capture, then clear the session before chan
 
 ## Long live sessions
 
+Open-world All observed captures count participating identities for storage rollover, rather than unrelated nearby names. Archive parts normally roll over before 64 identities; the bounded log format permits up to 1,024 to accommodate a busy packet batch. All observed actors do not establish a party roster or ranked eligibility.
+
 Live capture automatically saves a numbered archive part before the current history reaches its effect, telemetry, encounter or observed-party identity budget. Each part has a shared archive ID and appears separately in **Combat Logs**. Capture continues with the same decoder and current identity context; the live meter and its export/upload buttons cover the current part. Open an earlier part from Combat Logs to review or upload it. There is no fixed total part count or automatic deletion; available disk space is the practical storage limit. The recent list shows the newest 100 files; older parts remain in the user logs folder and can be imported.
 
 A storage boundary is not a boss kill, instance finish or arena result. Parts crossing a storage boundary are conservatively unranked, and a continued run does not inherit observed entry. Parts are not automatically stitched into a combined report or uploaded as a batch. A failed rollover save stops capture visibly and retains the in-memory history instead of clearing it. Periodic recovery is still every 15 seconds; abrupt termination can lose newer unsaved effects.
@@ -295,4 +297,3 @@ Source combo rates use its 10,000-point scale. The effective combo rate can be o
 
 Recipe data loads offline; source images and maps require connectivity. Missing images keep item names/IDs. Image-failure exports preserve the Gamers4Life catalog namespace instead of equating these IDs with an official or NPC namespace. Refresh the bounded recipe snapshot with `python tools/export_crafting_catalog.py` and review its source hash/schema before release.
 
-Open-world All observed captures count participating identities for storage rollover, rather than unrelated nearby names. Archive parts normally roll over before 64 identities; the bounded log format permits up to 1,024 to accommodate a busy packet batch. All observed actors do not establish a party roster or ranked eligibility.

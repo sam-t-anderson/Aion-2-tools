@@ -306,6 +306,8 @@ See the [user guide](user-guide.md) for matched comparison cohorts, ranking elig
 
 Live Meter discovers Steam libraries and registered Windows/PURPLE game installations, then reads the selected executable's first four components of the **Product version** string for comparison groups across launchers. The engine file version and launcher build IDs are diagnostic evidence only. Installation paths are not exported. Recorded home server IDs are matched against official regional metadata; the installation language does not establish a physical region.
 
+Numeric Product version suffixes after the fourth component are diagnostic revisions and share a metric group. For example, `2.0.6.0.2026100701` groups as `2.0.6.0`; `2.0.7.0` stays separate. The full executable version remains recorded. Server derived indexes normalize historical product-version keys without rewriting uploaded files; other cohort requirements remain unchanged.
+
 Recorded map/instance IDs identify known open-world categories, Fire Temple Arena and available dungeon names. Unmapped content, difficulty, build and match outcomes remain unknown. Detection provenance is visible in shared log review. Opponents without their own server ID are not assigned your server.
 
 Live DPS uses the recorded damage interval and pauses after two seconds without damage while capture continues. Healing after the last damage does not extend the live damage interval. Actual new damage resumes it. Saved logs preserve the full event interval, including healing/deaths, so report rates can differ from the live rate. This does not establish a kill or match result.
@@ -428,4 +430,3 @@ The user confirmed continuous capture, cleanup, partial runs and character impor
 
 Optimizer results and Gear & Advice show catalog upper-range targets even when only levels are entered. PvE targets cover the catalog's genus Damage Boost slots with saved-line comparison, unlock level and assumed enemy-share ordering. Levels do not supply rolled values. Targets are aspirations, not expected reroll outcomes; current-version legality, odds, costs and defensive tradeoffs remain unverified. Other slot ranges, Special and numeric PvP targets are unavailable from the supported catalog. Saved lines remain unchanged.
 
-Numeric Product version suffixes after the fourth component are diagnostic revisions and share a metric group. For example, `2.0.6.0.2026100701` groups as `2.0.6.0`; `2.0.7.0` stays separate. The full executable version remains recorded. Server derived indexes normalize historical product-version keys without rewriting uploaded files; other cohort requirements remain unchanged.
