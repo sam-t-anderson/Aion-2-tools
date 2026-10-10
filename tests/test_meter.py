@@ -153,7 +153,7 @@ def _make_install(root, paks, *, purple_rev=None, steam_build=None, appid="123")
     for name, size in paks.items():
         (paks_dir / name).write_bytes(b"\0" * size)
     if purple_rev is not None:
-        (root / f"VersionInfo_A2_LIVE_PURPLE.xml").write_text(
+        (root / "VersionInfo_A2_LIVE_PURPLE.xml").write_text(
             f"<VersionInfo><Version>{purple_rev}</Version><Updated>1</Updated></VersionInfo>", encoding="utf-8")
     if steam_build is not None:
         (root.parent.parent / f"appmanifest_{appid}.acf").write_text(
