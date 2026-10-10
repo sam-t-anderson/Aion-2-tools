@@ -118,6 +118,15 @@ def main(argv: list[str] | None = None) -> int:
     le = sub.add_parser("learn", help="refit the model calibration from your saved fights")
     le.add_argument("cls", nargs="?", help="class (default: every class with fights)")
 
+    cb = sub.add_parser("calibrate", help="check kit fidelity against real logs (KR aggregate or a capture) "
+                                          "and suggest tuned TIMING/ASSUME knobs")
+    cb.add_argument("cls", nargs="?", help="class key (default: every class, worst fidelity first)")
+    cb.add_argument("--capture", metavar="LOG", help="compare to a real A2Parser capture / saved .a2log.json, "
+                                                     "A2DIL record or AbyssLogs reference instead of the KR aggregate")
+    cb.add_argument("--player", help="whose damage to read in a party capture (default: the recording player)")
+    cb.add_argument("--tune", action="store_true", help="also suggest bounded TIMING/ASSUME values that raise the "
+                                                        "share overlap (reported only; kits are not modified)")
+
     lg = sub.add_parser("logs", help="show the combat logs folder (one file per analyzed log)")
     lg.add_argument("--open", action="store_true", help="open the folder in Explorer / Finder")
 
@@ -279,6 +288,48 @@ def main(argv: list[str] | None = None) -> int:
                 learn.observe(e["id"], conn)
         for c in classes:
             print(c + ":", "; ".join(learn.summary(learn.fit(c, conn))))
+    elif args.cmd == "calibrate":
+        from . import calibrate as C
+        if args.capture:
+            r = C.from_capture(args.capture, player=args.player)
+            vs = r["vs_sim"]
+            print(f"{r['class']}  {r['duration']:.0f}s  capture DPS {r.get('dps') or 0:,.0f}  "
+                  f"sim DPS {vs.get('sim_dps', 0):,.0f}  ({r['source']})")
+            if "error" in vs:
+                print("  " + vs["error"])
+            else:
+                print(f"  share overlap with the optimal rotation: {100 * vs['share_overlap']:.0f}%")
+                print(f"  {'skill':24s} {'capture':>8s} {'sim':>8s}  casts cap/sim")
+                for s in vs["skills"][:14]:
+                    print(f"  {s['skill'][:24]:24s} {100 * s['share']:7.1f}% {100 * s['sim_share']:7.1f}%  "
+                          f"{s['casts']:4d}/{s['sim_casts']:<4d}")
+                if r["vs_top"].get("overlap") is not None:
+                    print(f"  overlap with the KR top logs: {100 * r['vs_top']['overlap']:.0f}%")
+            if args.tune:
+                cls, target = C.capture_target(args.capture, player=args.player)
+                t = C.tune(cls, target=target)
+                print(f"\n  tuned to this capture: overlap {t['overlap_before']:.3f} -> {t['overlap_after']:.3f} "
+                      f"(+{t['gain']:.3f})")
+                print("  suggested:", json.dumps(t["suggested"]) if t["suggested"] else "no change improves the fit")
+        else:
+            classes = [args.cls] if args.cls else list(C.CLASSES)
+            print(f"{'class':13s} {'overlap':>8s} {'ceiling':>8s} {'fidelity':>9s}  biggest sim-vs-KR share gaps")
+            for cls in (sorted(classes, key=lambda c: C.gaps(c)['fidelity']) if not args.cls else classes):
+                g = C.gaps(cls)
+                tops = "  ".join(f"{x['skill'][:14]} {x['delta']:+.2f}" for x in g["gaps"][:3])
+                print(f"{cls:13s} {g['overlap']:8.3f} {g['ceiling']:8.3f} {g['fidelity']:9.3f}  {tops}")
+                if args.cls:
+                    for x in g["gaps"]:
+                        print(f"    {x['skill'][:28]:28s} sim {100 * x['sim']:5.1f}%  KR {100 * x['kr']:5.1f}%  "
+                              f"{x['delta']:+.3f}")
+                if args.tune:
+                    t = C.tune(cls, target=None)
+                    print(f"    tune: overlap {t['overlap_before']:.3f} -> {t['overlap_after']:.3f} "
+                          f"(+{t['gain']:.3f})  suggested " +
+                          (json.dumps(t["suggested"]) if t["suggested"] else "no change"))
+            print("\nKR logs run higher-level with skills the global build lacks, so overlap cannot reach 1.0; "
+                  "'ceiling' is the reachable maximum and 'fidelity' = overlap / ceiling. Share a capture with "
+                  "--capture to calibrate against your own fight.")
     elif args.cmd == "logs":
         from .combat.logs import backfill, open_folder
         from .paths import home, logs_dir

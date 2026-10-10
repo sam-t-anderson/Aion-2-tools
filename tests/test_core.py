@@ -208,3 +208,38 @@ def test_stat_weights_tolerate_foreign_policy_entries():
     pol = ["not_a_skill", ("also_missing", "mp_hi")] + list(kit.policy)
     w = stat_weights(stats, kit, pol, scen.target, scen.config)
     assert any(x["stat"] == "cdr" for x in w)
+
+
+def test_calibration_gaps_and_side_effect_free_tune():
+    """gaps() scores a kit against the KR logs; tune() suggests bounded knobs
+    without mutating the kit module."""
+    from aion2calc import calibrate as C
+    from aion2calc.run import kit_module
+    from aion2calc.scenarios import typical_build
+    fast = kit_module("sorcerer").build_kit(typical_build("sorcerer"), ClassData("sorcerer")).policy
+    g = C.gaps("sorcerer", policy=fast)                         # default priority keeps the test fast
+    assert 0.0 <= g["overlap"] <= 1.0 and 0.0 < g["ceiling"] <= 1.0
+    assert g["gaps"] and {"skill", "sim", "kr", "delta"} <= set(g["gaps"][0])
+    mod = kit_module("sorcerer")
+    before = {name: dict(getattr(mod, name)) for name in ("TIMING", "ASSUME")}
+    t = C.tune("sorcerer", rounds=1, grid=3)
+    assert t["overlap_after"] >= t["overlap_before"] - 1e-9     # never makes the fit worse
+    for name, snap in before.items():
+        assert getattr(mod, name) == snap                       # tune leaves the kit untouched
+
+
+def test_calibration_consumes_a_saved_capture(tmp_path):
+    """A saved a2log (what the meter writes) feeds the same comparison as the KR logs."""
+    from aion2calc import calibrate as C
+    from aion2calc.meter import Meter, replay_source
+    from pathlib import Path
+    demo = Path(__file__).resolve().parent.parent / "aion2calc" / "meter" / "demo_session.jsonl"
+    m = Meter()
+    for ev in replay_source(demo):
+        m.add(ev)
+    tmp = tmp_path / "capture.a2log.json"
+    tmp.write_text(json.dumps(m.to_a2log(title="Capture")), encoding="utf-8")
+    cls, target = C.capture_target(str(tmp))
+    assert cls == "sorcerer" and target and all(v >= 0 for v in target.values())
+    r = C.from_capture(str(tmp))
+    assert r["class"] == "sorcerer" and "vs_sim" in r

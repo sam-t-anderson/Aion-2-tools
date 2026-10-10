@@ -128,6 +128,36 @@ Fight scenarios (`aion2calc/scenarios.py`):
   HP-threshold passives), three 8 s stagger windows.
 * **dummy**: 180 s, 10 % Damage Tolerance (TW measurement), 100 % HP.
 
+## Kit knob calibration against real logs
+
+Every damage *number* a hand-written kit uses is read from the global client's
+skill tables.  The only free parameters are the handful of values the client
+never exposes — animation/recovery lengths (`TIMING`) and chain fractions,
+proc/break uptimes and pet windows (`ASSUME`) — collected in each kit so they
+can be audited and calibrated.  `aion2calc/calibrate.py` (CLI: `python -m
+aion2calc calibrate [cls] [--capture LOG] [--tune]`) measures how well a kit's
+simulated per-skill damage-share distribution matches real logs, and can fit
+those knobs to them.
+
+Ground truth is the public KR A2DIL aggregate training-dummy share distribution
+(`data/kr/a2dil/<cls>.json`), and/or the player's own A2Parser capture (any
+saved `.a2log.json`, or an A2DIL / AbyssLogs reference).  The KR logs run at a
+higher level with specializations and skills the global build does not have, so
+a share of their damage can never be matched; `calibrate` reports that
+unreachable mass, the reachable ceiling (`1 − unreachable`) and a `fidelity`
+ratio (`overlap / ceiling`) so the score is read against what is achievable, not
+against 100 %.  Fidelity is a diagnostic for the class kit, not a target.
+
+Tuning is a bounded coordinate descent: only float knobs move, each within a
+multiple of its authored value (probabilities/fractions/uptimes also clamp to
+`[0, 1]`); integer mechanics (stack counts, knockdown uses) and boolean
+mechanic flags are never touched, so the fit never invents a game rule.  It is
+evaluated against the tool's optimized rotation (frozen once) and reports
+suggested values rather than rewriting the kits — the KR gains are modest and
+come mostly from slowing fillers to match KR's higher-level rotation, so the
+remaining divergence is structural and the honest path is calibrating against
+the player's own captures.
+
 ## Optimization and macro planning
 
 `aion2calc/opt/pipeline.py` alternates, accepting only improvements:
