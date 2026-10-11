@@ -1,0 +1,39 @@
+# Dependency update automation.
+# Covers the Python client/library dependencies and the GitHub Actions used by
+# the workflows in this repository. Updates are grouped and rate-limited so the
+# maintainer sees a small, reviewable set of PRs rather than a flood.
+version: 2
+updates:
+  # Python dependencies declared in pyproject.toml (pip ecosystem).
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "deps"
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+
+  # GitHub Actions used by the workflows in .github/workflows.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

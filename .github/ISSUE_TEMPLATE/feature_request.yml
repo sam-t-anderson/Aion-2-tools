@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest a new feature or an improvement.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the [roadmap](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/COMBAT_ROADMAP.md)
+        first — your idea may already be planned or explain why something is
+        gated on verified data.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the need, not just the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Does this depend on game data we would need to verify?
+      description: >
+        This project never invents game values. If your request involves timers,
+        coefficients, boss roles, difficulty, rankings or any displayed number,
+        note where verifiable data would come from. Requests that would require
+        guessing are kept blank/unavailable until a trustworthy source exists.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: hygiene
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and the roadmap and this is not a duplicate.
+          required: true

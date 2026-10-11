@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discord community
+    url: https://discord.gg/9y6zkUyvBv
+    about: Questions, help getting started, and general discussion.
+  - name: Security vulnerability
+    url: https://github.com/sam-t-anderson/Aion-2-tools/security/advisories/new
+    about: Report a security issue privately. Please do not open a public issue.
+  - name: Documentation & guides
+    url: https://github.com/sam-t-anderson/Aion-2-tools/tree/main/docs
+    about: App guide, user guide, methodology and roadmap.

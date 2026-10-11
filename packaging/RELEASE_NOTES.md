@@ -1,3 +1,13 @@
+## Community health files, accessibility statement and dependency automation (0.2.145)
+
+Repository/project documentation only — no app change.
+
+- Added a **Code of Conduct** (Contributor Covenant 2.1), **Contributing guide**, **Security policy** (private vulnerability reporting via GitHub Security Advisories), and **issue/pull-request templates**, so the project meets GitHub's community-standards checklist.
+- Added an **[accessibility statement](docs/accessibility.md)** describing the current state (semantic roles, ARIA labels and live regions, keyboard operation, adjustable overlay fonts/sizes/colours, system light/dark theming), known gaps (no formal audit, `prefers-reduced-motion`, some contrast/focus items, no skip-link), and how to send feedback — written honestly from the actual app/website and roadmap.
+- Added a **Dependabot** configuration to keep Python dependencies and GitHub Actions up to date with weekly, grouped, rate-limited update PRs.
+- README now links the new Community and Accessibility docs.
+- Roadmap (§8): added raid-plan import into an in-app library that opens in the overlay, and auto-starting plan playback when a verified encounter begins.
+
 ## Live DPS interpolation, screenshot-lock, overlay FPS + asset-refresh reliability (0.2.144)
 
 Three client-side overlay options, all **off by default** so the overlay is unchanged until you turn one on (Settings → Overlay layout):

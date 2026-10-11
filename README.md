@@ -33,12 +33,20 @@ Enter your actual available point totals; imported profiles may omit unspent poi
 | [Planner](docs/planner.md) | Build planning and advice |
 | [Methodology](docs/methodology.md) | Simulation formulas, data sources and assumptions |
 | [Roadmap](docs/COMBAT_ROADMAP.md) | Remaining work and current limitations |
+| [Accessibility](docs/accessibility.md) | Accessibility statement, current state and known gaps |
 
 Feature history and version-specific fixes are kept in [Releases](https://github.com/sam-t-anderson/Aion-2-tools/releases).
 
 ## For developers
 
 See [CLI and development](docs/cli.md) for running from source, architecture, packaging and contributing. This repository contains the client and GitHub Pages website; server operation belongs in the [server repository](https://github.com/sam-t-anderson/Aion-2-tools-server).
+
+## Community
+
+- [Contributing guide](CONTRIBUTING.md) — how to report bugs, request features, and submit changes.
+- [Code of Conduct](CODE_OF_CONDUCT.md) — our community standards.
+- [Security policy](SECURITY.md) — how to report a vulnerability privately.
+- [Accessibility statement](docs/accessibility.md) — current state and how to give feedback.
 
 ## Author
 
