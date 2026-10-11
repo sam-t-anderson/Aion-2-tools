@@ -1669,6 +1669,10 @@ async function pageSettings() {
       <label><input type="checkbox" id="ov-enemy-hp" ${ui.overlay_show_enemy_hp === true?'checked':''}> Show the current target's remaining HP (only when the game reports it)</label>
       <label><input type="checkbox" id="ov-ttk" ${ui.overlay_show_ttk === true?'checked':''}> Show estimated time-to-kill for the current target (from the party's current DPS)</label>
       <label><input type="checkbox" id="ov-cp" ${ui.overlay_show_combat_power !== false?'checked':''}> Show your combat power beside your name (when the game reports it)</label></div></div>
+    <div class="setrow"><div class="lbl">Overlay layout</div><div><div class="row"><label>Players shown <input type="number" id="ov-maxp" min="1" max="24" value="${Number(ui.overlay_max_players)||8}" style="width:64px"></label><label>Width <input type="number" id="ov-width" min="260" max="800" value="${Number(ui.overlay_width)||340}" style="width:70px"> px</label><label>Row height <input type="number" id="ov-rowh" min="14" max="48" value="${Number(ui.overlay_row_height)||22}" style="width:64px"> px</label><span id="ov-layout-msg" class="small muted" role="status"></span></div>
+      <label><input type="checkbox" id="ov-autoexp" ${ui.overlay_auto_expand === true?'checked':''}> Auto-expand to show every captured player (beyond the limit above)</label>
+      <label><input type="checkbox" id="ov-onlycombat" ${ui.overlay_only_in_combat === true?'checked':''}> Show the meter only during combat (collapse between pulls)</label>
+      <p class="small muted">Applies to the live overlay; changes reach an open overlay within 10 seconds.</p></div></div>
     <div class="setrow"><div class="lbl">Combat records</div><div><label><input type="checkbox" id="rec-reset" ${ui.meter_reset_after_battle !== false?'checked':''}> Clear the live meter after a battle ends</label>
       <div class="row" style="margin-top:4px"><label>Reset delay <input type="number" id="rec-delay" min="1" max="120" value="${Number(ui.meter_reset_delay)||5}" style="width:64px"> s</label><label>Keep up to <input type="number" id="rec-max" min="1" max="500" value="${Number(ui.meter_max_records)||20}" style="width:70px"> past combats</label><span id="rec-msg" class="small muted" role="status"></span></div>
       <label style="margin-top:4px"><input type="checkbox" id="rec-dummy" ${ui.meter_show_dummy_parse !== false?'checked':''}> Show a training-dummy parse readout when hitting a dummy</label>
@@ -1713,6 +1717,17 @@ async function pageSettings() {
   $("#ov-enemy-hp").onchange = () => api("/api/ui", { overlay_show_enemy_hp: $("#ov-enemy-hp").checked }).then(() => toast("Saved"));
   $("#ov-ttk").onchange = () => api("/api/ui", { overlay_show_ttk: $("#ov-ttk").checked }).then(() => toast("Saved"));
   $("#ov-cp").onchange = () => api("/api/ui", { overlay_show_combat_power: $("#ov-cp").checked }).then(() => toast("Saved"));
+  $("#ov-autoexp").onchange = () => api("/api/ui", { overlay_auto_expand: $("#ov-autoexp").checked }).then(() => toast("Saved"));
+  $("#ov-onlycombat").onchange = () => api("/api/ui", { overlay_only_in_combat: $("#ov-onlycombat").checked }).then(() => toast("Saved"));
+  const saveLayoutNum = async (id, key, lo, hi) => {
+    const el = $("#" + id), msg = $("#ov-layout-msg"), n = parseInt(el.value, 10);
+    if (!Number.isInteger(n) || n < lo || n > hi) { msg.textContent = `Enter a whole number from ${lo} to ${hi}.`; return; }
+    try { await api("/api/ui", { [key]: n }); msg.textContent = "Saved"; }
+    catch (e) { msg.textContent = e.message; }
+  };
+  $("#ov-maxp").onchange = () => saveLayoutNum("ov-maxp", "overlay_max_players", 1, 24);
+  $("#ov-width").onchange = () => saveLayoutNum("ov-width", "overlay_width", 260, 800);
+  $("#ov-rowh").onchange = () => saveLayoutNum("ov-rowh", "overlay_row_height", 14, 48);
   $("#rec-reset").onchange = () => api("/api/ui", { meter_reset_after_battle: $("#rec-reset").checked }).then(() => toast("Saved"));
   const saveRecNum = async (id, key, lo, hi) => {
     const el = $("#" + id), msg = $("#rec-msg"), n = parseInt(el.value, 10);

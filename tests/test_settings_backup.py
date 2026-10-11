@@ -58,6 +58,19 @@ def test_whole_number_settings_round_trip_and_range_check(isolated_home):
         settings_backup.import_settings({"meter_max_records": True})     # bool is not a count
 
 
+def test_overlay_layout_settings_round_trip(isolated_home):
+    result = settings_backup.import_settings({"overlay_max_players": 12, "overlay_width": 420,
+                                              "overlay_row_height": 28, "overlay_only_in_combat": True,
+                                              "overlay_auto_expand": True})
+    s = result["settings"]
+    assert (s["overlay_max_players"], s["overlay_width"], s["overlay_row_height"]) == (12, 420, 28)
+    assert s["overlay_only_in_combat"] is True and s["overlay_auto_expand"] is True
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_max_players": 99})     # above range (max 24)
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_width": 100})          # below range (min 260)
+
+
 def test_import_ignores_unknown_keys_and_applies_known_ones(isolated_home):
     result = settings_backup.import_settings({"app_window": False, "evil_key": {"x": 1}, "rm": "rf"})
     assert result["settings"]["app_window"] is False

@@ -1,3 +1,13 @@
+## Overlay layout settings (0.2.140)
+
+- First batch of the overlay visual-settings pass, under **Settings → Overlay layout**:
+  - **Players shown** (1–24, default 8) — how many rows the overlay lists.
+  - **Width** (260–800 px, default 340) and **row height** (14–48 px, default 22) — resize the card and row density.
+  - **Auto-expand to show every captured player** (off by default) — raise past the limit when more players are in the fight.
+  - **Show the meter only during combat** (off by default) — collapse the overlay to its header between pulls.
+- All apply to an open overlay within ~10 seconds and ride the settings backup/restore file.
+- Still to come in the visual group (they need native window work, best verified on a desktop): expand-upwards, snap-to-edge, drag-to-resize, per-element fonts/colors, background photo, glow effects, a separate Party-DPS overlay, and long-name scrolling.
+
 ## Combat power on the overlay (0.2.139)
 
 - The overlay now shows **your combat power** beside your name ("You: Name · CP 48.2K") when the game reports it, read from the same recorded character info the saved log uses. Blank when not captured; on by default, toggle in **Settings → Live meter overlay**.

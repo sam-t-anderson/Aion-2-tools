@@ -866,12 +866,15 @@ class Handler(BaseHTTPRequestHandler):
                 cur["overlay_text_colors"] = {k:v.lower() for k,v in colors.items()}
             _ui_bool_flags = ("tray_on_close", "overlay_show_contribution", "overlay_show_target",
                               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
-                              "meter_reset_after_battle", "meter_show_dummy_parse", "overlay_show_combat_power")
+                              "meter_reset_after_battle", "meter_show_dummy_parse", "overlay_show_combat_power",
+                              "overlay_only_in_combat", "overlay_auto_expand")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
             _ui_int_ranges = (("meter_reset_delay", 1, 120), ("meter_max_records", 1, 500),
-                              ("meter_dummy_record_seconds", 5, 3600))
+                              ("meter_dummy_record_seconds", 5, 3600),
+                              ("overlay_max_players", 1, 24), ("overlay_width", 260, 800),
+                              ("overlay_row_height", 14, 48))
             for key, lo, hi in _ui_int_ranges:
                 if key in body:
                     if not isinstance(body[key], int) or isinstance(body[key], bool) or not lo <= body[key] <= hi:
@@ -1000,7 +1003,9 @@ def ui_settings() -> dict:
                 "overlay_show_deaths": True, "overlay_show_enemy_hp": False, "overlay_show_ttk": False,
                 "meter_reset_after_battle": True, "meter_reset_delay": 5, "meter_max_records": 20,
                 "meter_show_dummy_parse": True, "meter_dummy_record_seconds": 60,
-                "overlay_show_combat_power": True}
+                "overlay_show_combat_power": True,
+                "overlay_max_players": 8, "overlay_width": 340, "overlay_row_height": 22,
+                "overlay_only_in_combat": False, "overlay_auto_expand": False}
     return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}
 
 
