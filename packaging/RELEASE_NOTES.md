@@ -1,3 +1,8 @@
+## Shining Mau Totem no longer shows as a boss on the logs page (0.2.137)
+
+- The public logs viewer (and the in-app combat review) could still list the **Shining Mau Totem** — a miniboss — in the boss list and boss progression, because older logs (and logs classified by a server that predates the catalog fix) carry a stale `is_boss` flag baked in. The viewer now applies the same verified miniboss override client-side (`combat-review.js`): the totem is never marked "(boss)", never appears in the Remaining-boss-HP table or the boss-HP graph line, and is filtered out of the boss-attempt progression and attempts tables — regardless of what a stale log or server said.
+- Newly saved logs were already correct at the source (the client bakes `is_boss` from `npc_info`, which carries the 0.2.132 override); this release fixes the display for logs recorded or classified before that. Covered by `tests/test_boss_display.py`.
+
 ## Combat-records settings: reset-after-battle and record cap (0.2.136)
 
 - **Clear the live meter after a battle ends** (on by default): once combat has been idle past a **reset delay** (default 5s, 1–120), the live meter and overlay clear to a "Ready — waiting for the next fight" state instead of leaving the last pull pinned. **Settings → Combat records.**

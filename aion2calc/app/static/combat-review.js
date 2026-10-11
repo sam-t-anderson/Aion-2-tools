@@ -5,6 +5,13 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
   const defaults = {gladiator:"#c69b6d",templar:"#f58cba",assassin:"#fff468",ranger:"#aad372",sorcerer:"#3fc7eb",spiritmaster:"#8788ee",cleric:"#ffffff",chanter:"#ff7c0a"};
   const esc = x => String(x ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const number = x => Math.round(x || 0).toLocaleString();
+  // Verified local NPC-role corrections, mirroring the client's
+  // meter/a2parser/data/npc_role_overrides.json. A log may carry a stale
+  // is_boss flag (recorded or server-classified before the catalog fix), so the
+  // viewer suppresses these minibosses everywhere it marks or counts a boss.
+  const MINIBOSS_CODES = new Set(["2300907","2310907","2320907"]);   // Shining Mau Totem
+  const bossEntity = e => !!(e && e.is_boss && !MINIBOSS_CODES.has(String(e.mob_code)));
+  const bossKeyIsMiniboss = key => MINIBOSS_CODES.has(String(key || "").replace(/^npc:/, ""));
   function preferences() { try {return JSON.parse(localStorage.getItem("a2-combat-colors")) || {};} catch (_) {return {}; } }
   function color(cls) { const pref=preferences(); const candidate=(pref.colors || {})[cls] || defaults[cls] || "#e8cf8e"; return pref.enabled === false ? "#e8cf8e" : /^#[0-9a-f]{6}$/i.test(candidate) ? candidate : "#e8cf8e"; }
   function settings(root,onSave) {
@@ -132,7 +139,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       const bars=total.map((v,i)=>`<rect x="${x(i*step)}" y="${y(v)}" width="${Math.max(.5,880*Math.min(step,duration-i*step)/duration-1)}" height="${180-y(v)}" style="fill:var(--chart-bar,#39c2e047)"/>`).join('');
       const average=`<polyline points="${roll.map((v,i)=>`${x(Math.min(duration,(i+.5)*step))},${y(v)}`).join(' ')}" fill="none" style="stroke:var(--chart-line,#e8cf8e)" stroke-width="2"/>`;
       const paths=state.graphMode==='players'?lines.map(([,s])=>`<polyline fill="none" stroke="${color(d.r[s.actor]?.class)}" stroke-width="2" ${s.kind==='Damage taken'?'stroke-dasharray="7 4"':s.kind==='Healing'?'stroke-dasharray="2 3"':''} points="${s.values.map((v,i)=>`${x(Math.min(duration,(i+.5)*step))},${y(v)}`).join(' ')}"/>`).join(''):bars+average;
-      const health=(d.segment.health||[]).filter(s=>s.t>=0 && s.t<=duration && (state.enemy?s.entity===state.enemy:d.r[s.entity]?.is_boss));
+      const health=(d.segment.health||[]).filter(s=>s.t>=0 && s.t<=duration && (state.enemy?s.entity===state.enemy:bossEntity(d.r[s.entity])));
       let hpMax=1;for(const s of health)hpMax=Math.max(hpMax,s.max||s.current);
       const hp=[...new Set(health.map(s=>s.entity))].map(id=>`<polyline fill="none" stroke="#ef6262" stroke-width="1.5" points="${health.filter(s=>s.entity===id).map(s=>`${x(s.t)},${180-s.current*160/hpMax}`).join(' ')}"><title>${esc(label(d.r[id]))} HP (right scale)</title></polyline>`).join('');
       graphModel={duration,step,count,total,roll,lines,health,primary};
@@ -152,7 +159,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       return `<section class="cr-graph"><h3>Recorder ping${recorder?' · '+esc(label(recorder)):''}</h3><p>Average ${avg.toFixed(1)} ms · Minimum ${min.toFixed(1)} ms · Maximum ${max.toFixed(1)} ms · ${number(samples.length)} samples</p><p class="small muted">${d.segment.ping_source==='passive_tcp_ack'?'Passive TCP acknowledgement RTT':'Recorded latency; measurement source unavailable'}. These samples describe the recording connection, not every party member or game action latency. Gaps have no samples; the average weights recorded samples equally.</p><svg viewBox="0 0 1000 160" role="img" aria-label="Recorder ping over encounter time"><text x="5" y="25" fill="currentColor" font-size="12">${scale.toFixed(1)} ms</text><text x="10" y="130" fill="currentColor" font-size="12">0 ms</text><path d="M60 20V130H940" fill="none" stroke="currentColor" opacity=".3"/>${plotted.map(p=>`<circle cx="${x(p[0])}" cy="${y(p[1])}" r="2.5" fill="#6bd7ef"><title>${clock(p[0],true)} · ${p[1].toFixed(1)} ms</title></circle>`).join('')}<text x="60" y="150" fill="currentColor" font-size="12">0:00</text><text x="900" y="150" fill="currentColor" font-size="12">${clock(duration)}</text></svg></section>`;
     }
     function bossHPHTML(d) {
-      const bosses=(d.segment.entities || []).filter(e=>e.is_boss && (!state.enemy || e.id===state.enemy));
+      const bosses=(d.segment.entities || []).filter(e=>bossEntity(e) && (!state.enemy || e.id===state.enemy));
       if(!bosses.length)return '';
       return '<h3>Remaining boss HP · latest recorded sample</h3>'+table(['Boss','Remaining HP','Observed maximum','Remaining %','Sample time'],bosses.map(b=>{
         const hp=(d.segment.health || []).filter(h=>h.entity===b.id && h.t<=d.segment.duration).sort((a,b)=>b.t-a.t)[0];
@@ -163,7 +170,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       const enemies=(d.segment.entities || []).filter(e=>e.kind==="enemy");
       return `<h3>Enemy encounters</h3>${table(["Enemy","Creature type","Damage received","Observed lifespan"],enemies.map(e=>{
         const ee=d.events.filter(x=>x.source===e.id || x.target===e.id),damage=ee.filter(x=>x.kind==="damage" && x.target===e.id).reduce((n,x)=>n+x.amount,0);
-        return `<tr><td>${e.is_player?actorHTML(e):esc(e.name || e.id)} <button class="btn small" data-enemy-filter="${esc(e.id)}">Filter${e.is_player?" (opponent)":e.is_boss?" (boss)":""}</button></td><td>${esc(e.mob_code ?? "Unknown")}</td><td>${number(damage)}</td><td>${ee.length?ee[0].t.toFixed(1)+"–"+ee[ee.length-1].t.toFixed(1)+"s":"—"}</td></tr>`;}))}<button class="btn small" data-clear-enemy>All enemies</button>`;
+        return `<tr><td>${e.is_player?actorHTML(e):esc(e.name || e.id)} <button class="btn small" data-enemy-filter="${esc(e.id)}">Filter${e.is_player?" (opponent)":bossEntity(e)?" (boss)":""}</button></td><td>${esc(e.mob_code ?? "Unknown")}</td><td>${number(damage)}</td><td>${ee.length?ee[0].t.toFixed(1)+"–"+ee[ee.length-1].t.toFixed(1)+"s":"—"}</td></tr>`;}))}<button class="btn small" data-clear-enemy>All enemies</button>`;
     }
     function timeline(d, events) {
       const duration=Math.max(1,d.segment.duration),span=Math.min(duration,Number(state.timelineWindow)||duration);
@@ -255,9 +262,12 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       const analysis=doc.run_analysis, all=analysis?.runs || (ranks?.run_detail?[ranks.run_detail]:[]);
       if(!all.length)return '<p class="small muted">Run timing and progression are unavailable in this older recording.</p>';
       const shown=all.filter(r=>!state.run || r.id===state.run), current=all.find(r=>r.id===(d.segment.run_id || 'legacy'));
+      // Drop minibosses a stale server classification may have counted as bosses.
+      const progression=(current?.progression || []).filter(p=>!bossKeyIsMiniboss(p.boss_key));
+      const battempts=(current?.attempts || []).filter(a=>!bossKeyIsMiniboss(a.boss_key));
       if(String(d.segment.encounter_type || doc.meta?.encounter_type || '').startsWith('pvp_'))return `<details open class="note"><summary>PvP recorded timing</summary><p class="small muted">These intervals contain observed combat effects. They are not verified rounds or complete matches. Match score, round boundaries and player death coverage remain unverified.</p>${table(['Run','Recorded span','Recorded combat','Gaps / downtime'],shown.map(r=>`<tr><td>${esc(r.id)}</td><td>${seconds(r.recorded_span_seconds)}</td><td>${seconds(r.combat_seconds)}</td><td>${seconds(r.downtime_seconds)}</td></tr>`))}</details>`;
       return `<details open class="note"><summary>Run timing and boss progression</summary><p class="small muted">${esc(analysis?.note || '')}</p>${table(['Run','Recorded span','Entry → finish','Recorded combat','Gaps / downtime','Speed status'],shown.map(r=>`<tr><td>${esc(r.id)}</td><td>${seconds(r.recorded_span_seconds)}</td><td>${seconds(r.elapsed_seconds)}</td><td>${seconds(r.combat_seconds)}</td><td>${seconds(r.downtime_seconds)}</td><td>${r.speed_eligible?'Eligible':esc((r.speed_reasons || []).join(' '))}</td></tr>`))}
-      ${current?`<h4>Run ${esc(current.id)} · boss attempts</h4>${table(['Boss','Recorded attempts','Kills','Observed wipes','Unknown','Attempts to first recorded clear','Best observed wipe HP','Wipe → next pull'],(current.progression || []).map(p=>`<tr><td>${esc(p.boss)}</td><td>${p.attempts}</td><td>${p.kills}</td><td>${p.wipes}</td><td>${p.unknown}</td><td>${p.attempts_to_first_clear??'Unavailable'}</td><td>${p.best_wipe_hp_pct===null?'Unavailable':p.best_wipe_hp_pct.toFixed(1)+'%'}</td><td>${(p.wipe_recovery_seconds || []).map(seconds).join(', ') || 'Unavailable'}</td></tr>`))}${table(['Attempt','Boss','Outcome','Recorded span','Lowest observed HP','Encounters'],(current.attempts || []).map(a=>`<tr><td>${a.attempt}</td><td>${esc(a.boss)}</td><td>${esc(a.outcome)}</td><td>${seconds(a.recorded_seconds)}</td><td>${a.best_remaining_hp_pct===null?'Unavailable':a.best_remaining_hp_pct.toFixed(1)+'%'}</td><td>${a.segments.map(i=>`<button class="btn small" data-attempt-segment="${i}">${esc(doc.segments[i]?.label || i+1)}</button>`).join(' ')}</td></tr>`))}`:''}</details>`;
+      ${current && progression.length?`<h4>Run ${esc(current.id)} · boss attempts</h4>${table(['Boss','Recorded attempts','Kills','Observed wipes','Unknown','Attempts to first recorded clear','Best observed wipe HP','Wipe → next pull'],progression.map(p=>`<tr><td>${esc(p.boss)}</td><td>${p.attempts}</td><td>${p.kills}</td><td>${p.wipes}</td><td>${p.unknown}</td><td>${p.attempts_to_first_clear??'Unavailable'}</td><td>${p.best_wipe_hp_pct===null?'Unavailable':p.best_wipe_hp_pct.toFixed(1)+'%'}</td><td>${(p.wipe_recovery_seconds || []).map(seconds).join(', ') || 'Unavailable'}</td></tr>`))}${table(['Attempt','Boss','Outcome','Recorded span','Lowest observed HP','Encounters'],battempts.map(a=>`<tr><td>${a.attempt}</td><td>${esc(a.boss)}</td><td>${esc(a.outcome)}</td><td>${seconds(a.recorded_seconds)}</td><td>${a.best_remaining_hp_pct===null?'Unavailable':a.best_remaining_hp_pct.toFixed(1)+'%'}</td><td>${a.segments.map(i=>`<button class="btn small" data-attempt-segment="${i}">${esc(doc.segments[i]?.label || i+1)}</button>`).join(' ')}</td></tr>`))}`:''}</details>`;
     }
     function combinedHTML() {
       const m=doc.meta?.reconstruction;if(!m)return '';
