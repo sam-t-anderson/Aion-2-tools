@@ -30,10 +30,15 @@ html.native-windows .ovcard { max-width: none; }
 @keyframes ovnamescroll { 0%, 15% { transform: translateX(0); } 100% { transform: translateX(calc(60px - 100%)); } }
 html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovcard:active { cursor: grabbing; }
-.ovhd { display: flex; justify-content: space-between; align-items: center; color: var(--ov-header-color, #e8cf8e); font-weight: 700; margin-bottom: 5px; }
+/* Group the view tabs and the Lock/Hide buttons together on the left; the status
+   text takes the remaining space on the right (margin-left:auto). Using an explicit
+   gap instead of justify-content:space-between keeps the buttons grouped and stops
+   Lock/Hide from floating into the middle (and visually overlapping the tabs) at
+   narrow widths or larger fonts. */
+.ovhd { display: flex; align-items: center; gap: 2px; color: var(--ov-header-color, #e8cf8e); font-weight: 700; margin-bottom: 5px; }
 .ovtabs button { background: transparent; border: 0; color: #9aa3b5; cursor: pointer; font-weight: 700; padding: 0 4px; font-size: 11px; }
 .ovtabs button.on { color: #e8cf8e; }
-.ovsub { color: #9aa3b5; font-weight: 400; font-size: 11px; min-width: 0; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+.ovsub { color: #9aa3b5; font-weight: 400; font-size: 11px; min-width: 0; margin-left: auto; text-align: right; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
 .ovtabs { flex-shrink: 0; }
 .ovmetrics { display: flex; gap: 4px; margin: 2px 0 6px; cursor: default; }
 .ovmetrics[hidden], .ovidentity[hidden], .ovtarget[hidden], .ovcontribution[hidden] { display: none; }
