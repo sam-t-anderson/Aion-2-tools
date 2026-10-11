@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import time
 import copy
+import math
 import uuid
 
 from .a2parser.lookup import job_from_skill, npc_info, npc_name, skill_name
@@ -800,13 +801,21 @@ class CombatSession:
                 ttk = current_hp / party_dps
             else:
                 ttk = None
+            # Fraction of the estimated whole kill that has elapsed, for the optional
+            # time-based TTK bar: seconds engaged so far over (engaged + remaining).
+            # Distinct from the HP bar (health remaining) — it can run ahead of or
+            # behind the HP bar when the fight starts slow or finishes fast. Blank
+            # whenever TTK itself is blank (never guessed).
+            ttk_fraction = None
+            if ttk is not None and math.isfinite(ttk) and ttk > 0:
+                ttk_fraction = max(0.0, min(1.0, target_secs / (target_secs + ttk)))
             mob_code = target.get("mob_code")
             is_dummy = bool(mob_code and npc_info(mob_code).get("isDummy"))
             current_target = {
                 "name": target["name"], "key": target["key"], "damage": target["damage"],
                 "is_player": target.get("is_player", False), "contributors": contributors,
                 "current_hp": current_hp, "max_hp": max_hp, "hp_pct": hp_pct, "ttk": ttk,
-                "is_dummy": is_dummy,
+                "ttk_fraction": ttk_fraction, "is_dummy": is_dummy,
             }
         summary["current_target"] = current_target
         for _enemy in summary["enemies"]:   # drop internal recency bookkeeping from the output

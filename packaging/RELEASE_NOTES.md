@@ -1,3 +1,8 @@
+## Overlay time-to-kill bar (0.2.163)
+
+- The overlay can now draw a **time-to-kill bar** under the target line, alongside the existing TTK number. It shows how far through the estimated **whole kill** you are **by time** — engaged time so far versus the time-to-kill still remaining — so you get an at-a-glance "almost done" without reading the seconds. It is deliberately distinct from the enemy-HP bar (which shows health remaining): the TTK bar can run ahead of or behind the HP bar when a fight starts slow or finishes fast. It appears with the TTK readout (the "Show estimated time-to-kill for the current target" toggle in Settings) whenever a TTK is available, and stays blank when TTK can't be measured — never guessed.
+- New **TTK bar color** picker (Settings → Overlay colors & fonts; `overlay_ttk_color`, default a muted blue `#8fb3d0`). It rides the settings backup/restore file and overlay look presets like the other overlay colors.
+
 ## Boss progression: fastest-kill column with a log link (0.2.162)
 
 - The **Boss progression** table (community view on the website and in the app's Combat Logs) now has a **"Fastest kill · log"** column: the quickest recorded clear time for each boss, with an **Open log** button that jumps to that log so you can review the run. It shows "Unavailable" until the server reports the fastest kill for a boss. *(Client side is live now; the server needs to start reporting the fastest-kill time and log id per boss for the times to appear — tracked on the roadmap.)*

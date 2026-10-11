@@ -890,6 +890,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not _is_hex(body["overlay_hp_color"]):
                     raise ValueError("overlay_hp_color must be a six-digit hex color")
                 cur["overlay_hp_color"] = body["overlay_hp_color"].lower()
+            if "overlay_ttk_color" in body:
+                if not _is_hex(body["overlay_ttk_color"]):
+                    raise ValueError("overlay_ttk_color must be a six-digit hex color")
+                cur["overlay_ttk_color"] = body["overlay_ttk_color"].lower()
             if "overlay_presets" in body:
                 from .settings_backup import clean_presets
                 cur["overlay_presets"] = clean_presets(body["overlay_presets"])
@@ -1065,6 +1069,7 @@ def ui_settings() -> dict:
                 "overlay_always_visible": True, "overlay_remember_position": False,
                 "overlay_font_scale": 100, "overlay_font_weight": 600, "overlay_font_family": "",
                 "overlay_glow": False, "overlay_glow_color": "#e8cf8e", "overlay_hp_color": "#e05a5a",
+                "overlay_ttk_color": "#8fb3d0",
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
                 "meter_save_records": True, "overlay_name_mode": "name",

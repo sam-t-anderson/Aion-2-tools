@@ -55,6 +55,7 @@
     const glow=ui.overlay_glow===true, glowColor=/^#[0-9a-f]{6}$/i.test(ui.overlay_glow_color||'')?ui.overlay_glow_color:'#e8cf8e';
     document.documentElement.style.setProperty('--ov-glow',glow?`0 0 4px ${glowColor}, 0 0 8px ${glowColor}`:'none');
     document.documentElement.style.setProperty('--ov-hp-color',/^#[0-9a-f]{6}$/i.test(ui.overlay_hp_color||'')?ui.overlay_hp_color:'#e05a5a');
+    document.documentElement.style.setProperty('--ov-ttk-color',/^#[0-9a-f]{6}$/i.test(ui.overlay_ttk_color||'')?ui.overlay_ttk_color:'#8fb3d0');
     // Long-name scrolling
     document.getElementById('ov').classList.toggle('ov-scroll-names',ui.overlay_long_names_scroll===true);
     // Background photo (opacity 0 = none). The image load errors are swallowed.
@@ -144,7 +145,7 @@
   function renderParty() {
     // The separate Party-DPS overlay: raid-wide aggregates, not per-player rows.
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
-    for(const id of ["#ovmetrics","#ovping","#ovidentity","#ovtarget","#ovhpbar","#ovcontribution","#ovdummy","#ovconnection"])$(id).hidden=true;
+    for(const id of ["#ovmetrics","#ovping","#ovidentity","#ovtarget","#ovhpbar","#ovttkbar","#ovcontribution","#ovdummy","#ovconnection"])$(id).hidden=true;
     const totalDps=players.reduce((n,p)=>n+(Number(p.dps)||0),0);
     const totalHps=players.reduce((n,p)=>n+(Number(p.hps)||0),0);
     const totalTaken=players.reduce((n,p)=>n+(Number(p.dtps)||0),0);
@@ -219,6 +220,15 @@
     const showBar=showT&&showEnemyHp&&target&&target.hp_pct!=null;
     $("#ovhpbar").hidden=!showBar;
     if(showBar)$("#ovhpbar").firstElementChild.style.width=Math.max(0,Math.min(100,target.hp_pct*100))+"%";
+    // Drawn time-to-kill bar: how far through the estimated whole kill we are by time
+    // (seconds engaged so far over engaged + remaining). Shown with the TTK readout
+    // when a TTK is available; distinct from the HP bar (health remaining).
+    const showTtkBar=showT&&showTtk&&target&&target.ttk_fraction!=null&&isFinite(target.ttk_fraction);
+    $("#ovttkbar").hidden=!showTtkBar;
+    if(showTtkBar){
+      $("#ovttkbar").firstElementChild.style.width=Math.max(0,Math.min(100,target.ttk_fraction*100))+"%";
+      $("#ovttkbar").title=`Estimated kill progress by time — how much of the whole kill has elapsed (engaged time so far vs the time-to-kill still remaining). Packet-sourced; it can run ahead of or behind the HP bar when the fight starts slow or finishes fast.`;
+    }
     // Training-dummy parse: elapsed vs the standard window, your DPS and the total.
     const dummy=snap.dummy_parse;
     const showD=showDummy&&!over&&dummy&&metric==='dps';
@@ -239,14 +249,14 @@
     // then shrinks via fit), so the overlay is unobtrusive between pulls.
     if(onlyInCombat && (!s.running || snap.paused || over)){
       $("#ovcontent").innerHTML='';
-      for(const id of ["#ovmetrics","#ovping","#ovtarget","#ovhpbar","#ovcontribution","#ovdummy","#ovidentity"])$(id).hidden=true;
+      for(const id of ["#ovmetrics","#ovping","#ovtarget","#ovhpbar","#ovttkbar","#ovcontribution","#ovdummy","#ovidentity"])$(id).hidden=true;
       $("#ovstatus").textContent=s.running?'Idle · waiting for combat':'Idle';
       $("#ovstatus").title=$("#ovstatus").textContent;
     }
   }
   function renderPlan() {
     $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovidentity").hidden=true;
-    $("#ovtarget").hidden=true;$("#ovhpbar").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
+    $("#ovtarget").hidden=true;$("#ovhpbar").hidden=true;$("#ovttkbar").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
     $("#ovconnection").hidden=true;
     const p = latestPlan();
     if (!p) {

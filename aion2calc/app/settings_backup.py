@@ -39,6 +39,7 @@ _FONT_FAMILIES = ("", "Segoe UI", "Arial", "Verdana", "Georgia", "Trebuchet MS",
 # The look-and-feel settings a named overlay preset may carry (the overlay's
 # visual appearance only; never the background image, layout counts or behaviour).
 _VISUAL_KEYS = ("overlay_text_colors", "overlay_glow", "overlay_glow_color", "overlay_hp_color",
+                "overlay_ttk_color",
                 "overlay_font_family", "overlay_font_scale", "overlay_font_weight",
                 "overlay_bg_opacity", "overlay_bg_zoom", "overlay_bg_darken",
                 "overlay_name_mode", "overlay_long_names_scroll", "combat_colors")
@@ -68,7 +69,7 @@ def _clean(data: dict) -> dict:
                     and all(_is_hex(v) for v in value.values())):
                 raise ValueError("overlay_text_colors must be six-digit hex colors for rate, total, name or header")
             clean[key] = {k: v.lower() for k, v in value.items()}
-        elif key in ("overlay_glow_color", "overlay_hp_color"):
+        elif key in ("overlay_glow_color", "overlay_hp_color", "overlay_ttk_color"):
             if not _is_hex(value):
                 raise ValueError(f"{key} must be a six-digit hex color")
             clean[key] = value.lower()

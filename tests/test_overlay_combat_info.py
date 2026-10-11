@@ -117,6 +117,24 @@ def test_target_hp_and_ttk_blank_without_observed_hp():
     assert target["current_hp"] is None       # never captured -> never guessed
     assert target["hp_pct"] is None
     assert target["ttk"] is None
+    assert target["ttk_fraction"] is None     # the TTK bar stays blank with no TTK
+
+
+def test_ttk_fraction_tracks_elapsed_over_estimated_whole_kill():
+    # The time-based TTK bar fills by engaged time so far over (engaged + remaining).
+    # Same scenario as the HP-decline TTK test: 50000 HP left, dropping 10000/s ->
+    # TTK 5s; we are engaged ~2 one-second buckets (hits at t=1000 and t=6000), so
+    # the fraction is ~2/(2+5) and must stay in (0, 1) — never guessed, never out of range.
+    s, engine = _session()
+    engine.telemetry = [
+        {"kind": "hp", "entity": 9001, "current": 100000, "max": 100000, "timestamp_ms": 1000},
+        {"kind": "hp", "entity": 9001, "current": 50000, "max": 100000, "timestamp_ms": 6000},
+    ]
+    s.observe(engine, [_hit(5001, 9001, 1000, 1000), _hit(5001, 9001, 6000, 1000)], timestamp_ms=6000)
+    target = s.snapshot(scope="auto", segment_id=None)["current_target"]
+    assert target["ttk"] is not None and target["ttk_fraction"] is not None
+    assert 0.0 < target["ttk_fraction"] < 1.0
+    assert abs(target["ttk_fraction"] - 2.0 / (2.0 + 5.0)) < 0.1
 
 
 def test_local_combat_power_is_surfaced_when_captured():

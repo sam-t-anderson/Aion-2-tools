@@ -97,6 +97,14 @@ def test_overlay_always_visible_round_trips(isolated_home):
         settings_backup.import_settings({"overlay_always_visible": "yes"})
 
 
+def test_overlay_ttk_color_round_trips_and_validates(isolated_home):
+    # The TTK bar colour rides the backup like the other overlay colours.
+    s = settings_backup.import_settings({"overlay_ttk_color": "#36D1A0"})["settings"]
+    assert s["overlay_ttk_color"] == "#36d1a0"   # normalised to lower-case
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_ttk_color": "nope"})
+
+
 def test_import_ignores_unknown_keys_and_applies_known_ones(isolated_home):
     result = settings_backup.import_settings({"app_window": False, "evil_key": {"x": 1}, "rm": "rf"})
     assert result["settings"]["app_window"] is False
