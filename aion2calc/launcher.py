@@ -258,6 +258,9 @@ def main(argv=None) -> int:
             if not args.no_browser:
                 threading.Timer(0.8, open_app_window).start()
             icon = tray_mod.Tray(on_open=open_app_window, on_quit=server.schedule_shutdown)
+            # Publish the icon so a programmatic Quit/update (schedule_shutdown) can stop
+            # the tray and let the process exit, instead of hanging it alive in the tray.
+            server.TRAY["icon"] = icon
             if icon.run():
                 # Tray "Quit" was chosen (schedule_shutdown is already tearing down):
                 # make sure capture and the separate overlay process are down too,

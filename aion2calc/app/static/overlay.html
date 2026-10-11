@@ -12,11 +12,12 @@
   <div class="ovhd"><div class="ovtabs" role="tablist" aria-label="Overlay view">
     <button id="meter-tab" role="tab" data-tab="meter" aria-controls="ovcontent" aria-selected="true" class="on">Meter</button>
     <button id="plan-tab" role="tab" data-tab="plan" aria-controls="ovcontent" aria-selected="false">Plan</button>
-  </div><button id="ovlock" title="Freeze the overlay in place for a screenshot">Lock</button><button id="ovsplit" title="Start a new fight — the next combat event begins a fresh encounter (same as Split now in the app)">New</button><button id="ovcopy" title="Copy the current meter as text, to paste in chat or Discord">Copy</button><button id="ovhide" title="Hide overlay">Hide</button><span class="ovsub" id="ovstatus"></span><button id="ovcapture" title="Start or stop capturing combat (same as Start/Stop in the app)">Start</button></div>
+  </div><button id="ovlock" title="Freeze the overlay in place for a screenshot">Lock</button><button id="ovsplit" title="Start a new fight — the next combat event begins a fresh encounter (same as Split now in the app)">New</button><button id="ovcopy" title="Copy the current meter as text, to paste in chat or Discord">Copy</button><button id="ovhide" title="Hide overlay">Hide</button><button id="ovcapture" title="Start or stop capturing combat (same as Start/Stop in the app)">Start</button></div>
   <div id="ovmetrics" class="ovtabs ovmetrics" role="group" aria-label="Meter metric">
     <button type="button" data-metric="dps" aria-pressed="true" class="on">DPS</button>
     <button type="button" data-metric="hps" aria-pressed="false">HPS</button>
     <button type="button" data-metric="taken" aria-pressed="false">D.Taken</button>
+    <span class="ovsub" id="ovstatus"></span>
   </div>
   <div id="ovconnection" class="ovconnection" role="alert" hidden><span id="ovreason"></span> <button id="ovretry" type="button">Retry</button></div>
   <div class="ovoptions"><label title="Group recorded pet damage and healing into the linked owner"><input id="ovcombine" type="checkbox" checked> Combine pets with owner</label><span id="ovpetstatus" role="status"></span></div>

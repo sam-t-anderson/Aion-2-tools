@@ -1278,7 +1278,7 @@ async function pageMeter() {
     if (!location.hash.startsWith("#/meter")) return;
     try { const result=await meterStatus(); if(location.hash.startsWith("#/meter")) renderMeter(result); }
     catch (e) { if($('#mmsg')) $('#mmsg').textContent='Could not refresh the meter: '+e.message+'. Last readings retained; capture status is unknown. Export capture diagnostics, or wait for automatic retry.'; }
-    setTimeout(poll, st.running ? 700 : 2500);
+    setTimeout(poll, st.running ? 700 : 1200);   // poll briskly while idle too, so the button reflects an auto-started meter quickly
   };
   const initial = await meterStatus().catch(() => ({snapshot: {players: []}}));
   if (initial.source) { $("#msrc").value = initial.source; live(); }

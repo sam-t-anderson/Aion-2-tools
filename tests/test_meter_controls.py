@@ -68,6 +68,18 @@ def test_app_has_the_autostart_toggle():
     assert "meter_autostart" in APP_JS
 
 
+def test_status_text_sits_in_the_metric_row_right_of_dtaken():
+    # The "Latest combat" status moved out of the header into the metric row, after
+    # the D.Taken button (right-aligned via .ovsub margin-left:auto).
+    metrics = OVERLAY_HTML.split('id="ovmetrics"', 1)[1].split("</div>", 1)[0]
+    assert 'data-metric="taken"' in metrics
+    assert 'id="ovstatus"' in metrics
+    assert metrics.index('data-metric="taken"') < metrics.index('id="ovstatus"')
+    # And it is no longer in the header block.
+    header = OVERLAY_HTML.split('class="ovhd"', 1)[1].split("ovmetrics", 1)[0]
+    assert 'id="ovstatus"' not in header
+
+
 def test_resize_coalesces_and_suspends_the_observer():
     # The drag path drives sizing directly and the ResizeObserver stands down.
     assert "fitSuspended" in OVERLAY_JS

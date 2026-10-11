@@ -972,7 +972,7 @@ class Handler(BaseHTTPRequestHandler):
             from .. import update
             status = update.install_now()
             if status == "launching":
-                schedule_shutdown()
+                schedule_shutdown(upload=False)   # exit promptly for the installer helper
             return self._json({"status": status})
         if path == "/api/npcap":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
@@ -1041,6 +1041,8 @@ class Handler(BaseHTTPRequestHandler):
 HTTPD: dict = {}
 PING: dict = {"at": time.time()}
 APP_WINDOW: dict = {}
+TRAY: dict = {}   # the launcher stores a running collapse-to-tray icon here, so a
+# programmatic shutdown (Quit / update) can stop it and let the process exit.
 
 
 def _auto_upload_on_quit() -> None:
@@ -1062,11 +1064,15 @@ def _auto_upload_on_quit() -> None:
             traceback.print_exc()
     worker = threading.Thread(target=_do, daemon=True, name="quit-upload")
     worker.start()
-    worker.join(timeout=20)   # don't let a hung upload delay shutdown beyond this
+    worker.join(timeout=8)   # bounded so quit/close never feels hung; a slow upload is dropped
 
 
-def schedule_shutdown() -> None:
-    """Let the response finish, stop capture, close native windows, then stop serving."""
+def schedule_shutdown(upload: bool = True) -> None:
+    """Let the response finish, stop capture, close native windows, then stop serving.
+
+    ``upload`` controls the best-effort auto-upload of the running session on the way
+    out; the update path passes ``upload=False`` so applying an update exits promptly
+    (the installer helper waits only ~30s for this process to exit)."""
     HTTPD["closing"] = True
     def stop():
         time.sleep(0.5)
@@ -1082,7 +1088,7 @@ def schedule_shutdown() -> None:
                 close()
             except Exception:
                 traceback.print_exc()
-        if was_running:
+        if upload and was_running:
             try:
                 _auto_upload_on_quit()
             except Exception:
@@ -1099,6 +1105,15 @@ def schedule_shutdown() -> None:
                 pass
         if HTTPD.get("server"):
             HTTPD["server"].shutdown()
+        # Collapse-to-tray keeps the process alive on the main thread (icon.run()),
+        # so a programmatic Quit/update must stop the tray too or the process never
+        # exits — which hung the auto-updater until a manual tray Quit.
+        icon = TRAY.get("icon")
+        if icon is not None:
+            try:
+                icon.stop()
+            except Exception:
+                traceback.print_exc()
     threading.Thread(target=stop, daemon=True, name="desktop-shutdown").start()
 
 
