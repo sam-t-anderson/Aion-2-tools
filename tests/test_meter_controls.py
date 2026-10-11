@@ -86,6 +86,17 @@ def test_resize_coalesces_and_suspends_the_observer():
     assert "fitNow(" in OVERLAY_JS
 
 
+def test_fps_frame_loop_runs_only_when_the_readout_is_enabled():
+    # A continuous requestAnimationFrame loop keeps the layered always-on-top overlay
+    # compositing every frame, which flickers a black edge over a borderless game on
+    # some Win10/DWM setups. The loop must be gated on the (default-off) FPS readout.
+    assert "fpsRunning" in OVERLAY_JS
+    assert "function fpsTick" in OVERLAY_JS
+    assert "setFpsLoop(showFps" in OVERLAY_JS
+    # The tick bails out when not running, instead of self-perpetuating unconditionally.
+    assert "if(!fpsRunning)return;" in OVERLAY_JS
+
+
 def test_meters_today_sits_left_of_the_colour_switcher():
     # dau is inserted before the accent (colour) button, not just before the theme toggle.
     assert 'document.getElementById("accent") || theme' in NAV_JS

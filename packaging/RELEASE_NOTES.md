@@ -1,3 +1,7 @@
+## Overlay no longer flickers a black edge over the game (0.2.209)
+
+- **Fixed: a black band could flash at the top of the screen whenever the overlay was open** (reported on Windows 10, borderless-windowed, regardless of where the overlay sat). The overlay was running a continuous per-frame loop just to measure its own render FPS — even though the FPS readout is off by default — which kept the always-on-top, semi-transparent window compositing every frame and made the desktop compositor flicker over a borderless game. The frame loop now runs **only while the FPS readout is enabled**, so a normal overlay sits idle between its twice-a-second updates and no longer drives constant repaints.
+
 ## Update-on-close no longer hangs; accurate Start/Stop; overlay tidy-ups (0.2.208)
 
 - **Fixed: applying an update could hang on close until you quit from the tray icon.** With "keep running in the system tray" enabled, closing the window only *collapses to the tray* — the process stays alive — so the updater (which waits for the app to exit before swapping files) never proceeded. A programmatic Quit or update now also stops the tray icon so the process actually exits, and the update path no longer waits on the on-quit upload. (The tray setting is **off by default**, so most installs were never affected — this fixes it for anyone who turned it on.)

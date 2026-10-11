@@ -106,6 +106,7 @@
     interpolateMs=clampInt(ui.overlay_interpolate_ms,50,1000,50);
     showFps=ui.overlay_show_fps===true;
     $("#ovfps").hidden=!showFps||partyMode;
+    setFpsLoop(showFps&&!partyMode);   // only drive a per-frame loop while the FPS readout is shown
     // Layout
     maxPlayers=clampInt(ui.overlay_max_players,1,24,8);
     onlyInCombat=ui.overlay_only_in_combat===true;
@@ -581,16 +582,26 @@
   },interpolateMs);
 
   // Overlay render FPS (the overlay's own frame rate, not the game's — packet
-  // capture cannot see game FPS). Off by default.
-  let frames=0, fpsAt=performance.now();
-  (function fpsLoop(now){
+  // capture cannot see game FPS). Off by default. The frame loop runs ONLY while
+  // the FPS readout is enabled: a continuous requestAnimationFrame loop keeps the
+  // always-on-top, semi-transparent overlay compositing every frame, which on some
+  // GPU/DWM setups flickers a black band at the screen edge over a borderless game.
+  // Idle/default overlays must not drive a 60fps repaint for nothing.
+  let frames=0, fpsAt=performance.now(), fpsRunning=false;
+  function fpsTick(now){
+    if(!fpsRunning)return;
     frames++;
     if(now-fpsAt>=1000){
       if(showFps&&!partyMode){const el=$("#ovfps");if(el)el.textContent="Overlay "+Math.round(frames*1000/(now-fpsAt))+" FPS";}
       frames=0; fpsAt=now;
     }
-    requestAnimationFrame(fpsLoop);
-  })(performance.now());
+    requestAnimationFrame(fpsTick);
+  }
+  function setFpsLoop(on){
+    if(on&&!fpsRunning){fpsRunning=true;frames=0;fpsAt=performance.now();requestAnimationFrame(fpsTick);}
+    else if(!on){fpsRunning=false;}
+  }
+  setFpsLoop(showFps&&!partyMode);
 
   applyOpacity(); renderMeter(); pollMeter();
 })();
