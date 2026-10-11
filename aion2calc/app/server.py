@@ -1058,7 +1058,7 @@ def ui_settings() -> dict:
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
                 "meter_save_records": True, "overlay_name_mode": "name",
-                "overlay_dps_interpolate": True, "overlay_interpolate_ms": 100, "overlay_show_fps": False}
+                "overlay_dps_interpolate": True, "overlay_interpolate_ms": 50, "overlay_show_fps": False}
     return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}
 
 

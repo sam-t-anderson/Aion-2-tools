@@ -69,7 +69,7 @@
     showCombatPower=ui.overlay_show_combat_power!==false;
     nameMode=["name","class_number","number"].includes(ui.overlay_name_mode)?ui.overlay_name_mode:"name";
     interpolate=ui.overlay_dps_interpolate===true;
-    interpolateMs=clampInt(ui.overlay_interpolate_ms,50,1000,100);
+    interpolateMs=clampInt(ui.overlay_interpolate_ms,50,1000,50);
     showFps=ui.overlay_show_fps===true;
     $("#ovfps").hidden=!showFps||partyMode;
     // Layout
@@ -301,7 +301,7 @@
     if (tab === "meter") renderMeter();
   }
   $("#ovretry").onclick=()=>pollMeter();
-  setInterval(() => { if (tab === "meter") pollMeter(); }, 800);
+  setInterval(() => { if (tab === "meter") pollMeter(); }, 500);
   setInterval(() => { t += 0.1; if (tab === "plan") renderPlan(); }, 100);
   window.addEventListener("storage", (event) => { if (event.key === "aion2calc-closing") window.close(); });
 
@@ -353,7 +353,7 @@
       // no new damage arrives, snaps back up on the next poll's fresh amount/target.
       const live=(dt>0&&amt>0&&target>0)?(amt*target)/(amt+target*dt):target;
       const cur=shownRates.has(key)?shownRates.get(key):live;
-      const next=cur+(live-cur)*0.25;   // ease toward the live value
+      const next=cur+(live-cur)*0.4;   // ease toward the live value (snappier at the higher frame rate)
       const shown=Math.abs(next-live)<0.5?live:next;
       shownRates.set(key,shown);
       el.textContent=kfmt(shown);

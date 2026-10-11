@@ -1,3 +1,9 @@
+## Smoother, more real-time DPS ticking (0.2.150)
+
+Follow-up to the live-ticking DPS from 0.2.149, to make the numbers visibly change in real time:
+
+- The overlay now **polls the meter about twice a second** (was ~once) for more frequent genuine updates, and the between-poll animation runs at a **higher default frame rate** (the live-ticking refresh defaults to 50 ms, was 100 ms) with snappier easing — so the DPS/HPS numbers move continuously and read as live. Still packet-sourced, and you can slow or disable it under Settings → Overlay layout.
+
 ## Live-ticking DPS numbers (0.2.149)
 
 - The overlay's DPS/HPS numbers now **keep moving in real time between polls** instead of freezing on the last value. Between updates the overlay recomputes each row's true average rate against the elapsing clock (`amount / (elapsed + time-since-poll)`), so the number ticks down smoothly while you're not landing hits and snaps back up on the next hit — the lively, real-time feel of a mature meter. It stays **packet-sourced**: only the time denominator advances; the damage/healing amount is always the recorded value, and projection runs only while combat is actually running (not when paused/idle).
