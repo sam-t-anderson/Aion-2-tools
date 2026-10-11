@@ -56,6 +56,29 @@
   --g-epic: #c75516; --g-mythic: #b52a2a; --g-special: #1d8f78;
 }
 
+/* Accent-colour presets (Settings → Accent colour). They recolour the brand
+   accent (--gold family), the link/indicator accent and the note text, on top
+   of whichever light/dark theme is active. No data-accent = the default gold.
+   Each accent gives dark values first, then a light override that mirrors the
+   theme's own light rules (OS-light-and-not-forced-dark, or forced light). */
+:root[data-accent=crimson] { --gold:#e98a8a; --gold-dim:#b85c5c; --accent:#ff7a7a; --note-fg:#f3c0c0; --chart-line:#e98a8a; }
+:root[data-accent=emerald] { --gold:#8fe0a8; --gold-dim:#5ab47a; --accent:#3fe0b0; --note-fg:#bdeccb; --chart-line:#8fe0a8; }
+:root[data-accent=azure]   { --gold:#8fc3e8; --gold-dim:#5c93b4; --accent:#49c8ff; --note-fg:#c0dcf3; --chart-line:#8fc3e8; }
+:root[data-accent=amethyst]{ --gold:#c6a8f0; --gold-dim:#8f7cc3; --accent:#b07cff; --note-fg:#ddc0f3; --chart-line:#c6a8f0; }
+:root[data-accent=rose]    { --gold:#f0a8c6; --gold-dim:#c37c9b; --accent:#ff7cae; --note-fg:#f3c0d6; --chart-line:#f0a8c6; }
+@media (prefers-color-scheme: light) {
+  :root[data-accent=crimson]:not([data-theme=dark])  { --gold:#a12b2b; --gold-dim:#b85c5c; --accent:#c0392b; --note-fg:#7a1f1f; --chart-line:#a12b2b; }
+  :root[data-accent=emerald]:not([data-theme=dark])  { --gold:#1f7a44; --gold-dim:#3f8a5c; --accent:#0f986a; --note-fg:#0b5a30; --chart-line:#1f7a44; }
+  :root[data-accent=azure]:not([data-theme=dark])    { --gold:#1f5a8a; --gold-dim:#3f6f98; --accent:#0f7898; --note-fg:#0b3a5a; --chart-line:#1f5a8a; }
+  :root[data-accent=amethyst]:not([data-theme=dark]) { --gold:#5a3a9e; --gold-dim:#6f5cb4; --accent:#7a3fe0; --note-fg:#3a1f7a; --chart-line:#5a3a9e; }
+  :root[data-accent=rose]:not([data-theme=dark])     { --gold:#9e2a6a; --gold-dim:#b45c8a; --accent:#c03972; --note-fg:#7a1f4a; --chart-line:#9e2a6a; }
+}
+:root[data-accent=crimson][data-theme=light]  { --gold:#a12b2b; --gold-dim:#b85c5c; --accent:#c0392b; --note-fg:#7a1f1f; --chart-line:#a12b2b; }
+:root[data-accent=emerald][data-theme=light]  { --gold:#1f7a44; --gold-dim:#3f8a5c; --accent:#0f986a; --note-fg:#0b5a30; --chart-line:#1f7a44; }
+:root[data-accent=azure][data-theme=light]    { --gold:#1f5a8a; --gold-dim:#3f6f98; --accent:#0f7898; --note-fg:#0b3a5a; --chart-line:#1f5a8a; }
+:root[data-accent=amethyst][data-theme=light] { --gold:#5a3a9e; --gold-dim:#6f5cb4; --accent:#7a3fe0; --note-fg:#3a1f7a; --chart-line:#5a3a9e; }
+:root[data-accent=rose][data-theme=light]     { --gold:#9e2a6a; --gold-dim:#b45c8a; --accent:#c03972; --note-fg:#7a1f4a; --chart-line:#9e2a6a; }
+
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 html { background: var(--bg0); }

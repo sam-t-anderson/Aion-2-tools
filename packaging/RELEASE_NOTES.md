@@ -1,3 +1,7 @@
+## App accent-colour themes (0.2.185)
+
+- New **Accent colour** setting (Settings → Appearance, right under Theme) recolours the whole app's accent — the brand text, nav highlight, section headers, links and the live indicator — in one click. Choose **Gold** (the default), **Crimson**, **Emerald**, **Azure**, **Amethyst** or **Rose**. It layers on top of your light/dark theme (each accent has tuned light and dark shades) and is remembered across launches, applied before the first paint so there's no flash.
+
 ## Class-colour palette presets (0.2.184)
 
 - The app's **class colours** (used across the Live Meter, combat review, charts and the overlay bars) now have one-click **palette presets**: in **Settings → Combat class colors**, pick a palette and **Apply** to set all eight classes at once. Palettes are **Default**, **Colourblind-friendly** (the Okabe–Ito set, chosen to stay distinct for red/green colour-vision deficiencies), **High contrast**, **Pastel** and **Vivid**. You can still fine-tune any class afterwards, and the picker appears everywhere class colours are edited — the app and the public site's combat review.

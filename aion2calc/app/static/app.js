@@ -1641,6 +1641,18 @@ function setTheme(t) {
 $("#theme").onclick = () => setTheme(THEMES[(THEMES.indexOf(getTheme()) + 1) % THEMES.length]);
 setTheme(getTheme());
 
+// Accent-colour preset for the whole app UI (works alongside the light/dark
+// theme). "gold" is the default and sets no attribute; others map to the
+// data-accent CSS rules in app.css.
+const ACCENTS = ["gold", "crimson", "emerald", "azure", "amethyst", "rose"];
+function getAccent() { try { const a = localStorage.getItem("accent") || "gold"; return ACCENTS.includes(a) ? a : "gold"; } catch (e) { return "gold"; } }
+function setAccent(a) {
+  if (!ACCENTS.includes(a)) a = "gold";
+  try { localStorage.setItem("accent", a); } catch (e) {}
+  if (a === "gold") delete document.documentElement.dataset.accent; else document.documentElement.dataset.accent = a;
+}
+setAccent(getAccent());
+
 async function showMaintenance(){
  const target=$('#maintenance-details');if(!target)return;
  target.textContent='Inspecting managed cache and update files…';
@@ -1692,6 +1704,7 @@ async function pageSettings() {
   const overlayColors=ui.overlay_text_colors || {}, overlayText=key=>/^#[0-9a-f]{6}$/i.test(overlayColors[key] || '')?overlayColors[key]:'#000000';
   app().innerHTML = win("Settings", "", `
     <div class="setrow"><div class="lbl">Theme</div><div><div class="seg">${THEMES.map((x) => `<button data-th="${x}" class="${x === t ? "on" : ""}">${{ system: "Follow computer", light: "Light", dark: "Dark" }[x]}</button>`).join("")}</div></div></div>
+    <div class="setrow"><div class="lbl">Accent colour</div><div><div class="seg">${ACCENTS.map((x) => `<button data-accent-btn="${x}" class="${x === getAccent() ? "on" : ""}">${x[0].toUpperCase() + x.slice(1)}</button>`).join("")}</div><p class="small muted">Recolours the app's accent on top of your light/dark theme.</p></div></div>
     <div class="setrow"><div class="lbl">Open as its own window</div><div><label><input type="checkbox" id="appwin" ${ui.app_window !== false ? "checked" : ""}> start in a separate app window (Edge or Chrome) instead of a browser tab; closing it stops the app</label></div></div>
     <div class="setrow"><div class="lbl">Collapse to tray</div><div><label><input type="checkbox" id="trayclose" ${ui.tray_on_close ? "checked" : ""}> keep running in the system tray when the window is closed (Windows, macOS, Linux); Quit from the tray icon. Takes effect on next launch.</label></div></div>
     <div class="setrow"><div class="lbl">Your data</div><div><code>${esc(s.home)}</code> <button class="btn small" data-open="data">Open folder</button> <button class="btn small" data-open="logs">Combat logs</button> <button class="btn small" data-open="results">Advice &amp; results</button></div></div>
@@ -1856,6 +1869,7 @@ async function pageSettings() {
   $('#ov-bg-clear').onclick=async()=>{const msg=$('#ov-bg-msg');try{await api('/api/overlay/background',{clear:true});msg.textContent='Removed.';}catch(e){msg.textContent=e.message;}};
   $('#ov-bg-file').onchange=async(ev)=>{const file=ev.target.files&&ev.target.files[0],msg=$('#ov-bg-msg');if(!file)return;if(file.size>8*1024*1024){msg.textContent='Image must be 8 MB or smaller.';ev.target.value='';return;}msg.textContent='Uploading…';try{const data=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(Error('Could not read the file'));r.readAsDataURL(file);});await api('/api/overlay/background',{data});msg.textContent='Image set. Set Visibility above 0 to show it.';}catch(e){msg.textContent=e.message;}finally{ev.target.value='';}};
   $$("[data-th]").forEach((b) => (b.onclick = () => { setTheme(b.dataset.th); pageSettings(); }));
+  $$("[data-accent-btn]").forEach((b) => (b.onclick = () => { setAccent(b.dataset.accentBtn); pageSettings(); }));
   $('#ov-on-start').onchange = async () => {
     const control=$('#ov-on-start'), selected=control.checked;
     try { await api('/api/ui',{overlay_on_start:selected}); toast('Saved'); }
