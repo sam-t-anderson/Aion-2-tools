@@ -1791,6 +1791,8 @@ async function pageSettings() {
       <div class="row" style="margin-top:4px"><label>Reset delay <input type="number" id="rec-delay" min="1" max="120" value="${Number(ui.meter_reset_delay)||5}" style="width:64px"> s</label><label>Keep up to <input type="number" id="rec-max" min="1" max="500" value="${Number(ui.meter_max_records)||20}" style="width:70px"> past combats</label><span id="rec-msg" class="small muted" role="status"></span></div>
       <label><input type="checkbox" id="rec-save" ${ui.meter_save_records !== false?'checked':''}> Save combat records automatically (write each session to the logs folder)</label>
       <label><input type="checkbox" id="rec-autoupload" ${ui.meter_auto_upload !== false?'checked':''}> Upload the log to the configured server when you stop the meter (on by default)</label>
+      <label style="margin-top:4px"><input type="checkbox" id="rec-report-boss" ${ui.meter_report_boss_kills === true?'checked':''}> Report open-world boss kills to the community world-boss feed (off by default)</label>
+      <p class="small muted" style="margin:2px 0 6px 14px">Anonymous and opt-in: sends only the boss, server and kill time (no account, character, log or IP). Two different installs must report the same kill before it shows, so the public world-boss availability feed stays corroborated.</p>
       <label style="margin-top:4px"><input type="checkbox" id="rec-dummy" ${ui.meter_show_dummy_parse !== false?'checked':''}> Show a training-dummy parse readout when hitting a dummy</label>
       <div class="row"><label>Training-dummy parse window <input type="number" id="rec-dummy-secs" min="5" max="3600" value="${Number(ui.meter_dummy_record_seconds)||60}" style="width:70px"> s</label></div>
       <p class="small muted">Applies to the live meter and overlay. A cleared battle's details stay available in the segment list until replaced.</p></div></div>
@@ -2047,6 +2049,7 @@ async function pageSettings() {
   $("#rec-max").onchange = () => saveRecNum("rec-max", "meter_max_records", 1, 500);
   $("#rec-save").onchange = () => api("/api/ui", { meter_save_records: $("#rec-save").checked }).then(() => toast("Saved · applies to the next capture"));
   $("#rec-autoupload").onchange = () => api("/api/ui", { meter_auto_upload: $("#rec-autoupload").checked }).then(() => toast("Saved"));
+  $("#rec-report-boss").onchange = () => api("/api/ui", { meter_report_boss_kills: $("#rec-report-boss").checked }).then(() => toast("Saved"));
   $("#rec-dummy").onchange = () => api("/api/ui", { meter_show_dummy_parse: $("#rec-dummy").checked }).then(() => toast("Saved"));
   $("#rec-dummy-secs").onchange = () => saveRecNum("rec-dummy-secs", "meter_dummy_record_seconds", 5, 3600);
   $("#settings-export").onclick = async () => {

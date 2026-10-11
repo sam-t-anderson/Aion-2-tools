@@ -1,3 +1,9 @@
+## Report world-boss kills to the community feed (0.2.203)
+
+- New **opt-in** setting under **Settings → Combat records → "Report open-world boss kills to the community world-boss feed"** (off by default). When on, finishing a fight that contains a confirmed **open-world boss defeat** posts one tiny, anonymous kill event to your configured community server's new `/api/v1/boss-kill` endpoint — so world-boss respawn/availability tracking and the Discord bot update promptly **without uploading the whole combat log**.
+- **Anonymous by design.** The report carries only what the kill feed needs to place and merge it — boss NPC id and name, physical server, kill time, and map/instance/region/difficulty/patch — plus a **stable per-install reporter key** derived from the same random, local-only salt the daily heartbeat uses (the salt is never sent, and this key is distinct from the heartbeat token). No account, character, IP or capture data is sent.
+- **Corroborated, not one-click.** A world-boss kill seen only by these standalone reports surfaces on the public feed **only once two different installs report it** — the server decides the threshold; your client only ever reports its own verified defeat and never moves a timer alone. Only real, packet-confirmed open-world boss deaths qualify, and each distinct kill is reported at most once (a local marker dedupes repeated auto-saves of the same fight). The toggle rides the settings backup.
+
 ## Accessibility: "Skip to content" link (0.2.202)
 
 - Every page — the desktop app and all website pages — now starts with a **"Skip to content"** link as the first focusable element. It's hidden until a keyboard user presses Tab, then appears at the top-left and jumps past the navigation straight to the main content. Mouse users never see it. This closes the last gap listed in the accessibility statement.

@@ -483,6 +483,15 @@ class Runner:
                 self.diagnostics.pop("log_save_error", None)
             except (ValueError, OSError) as exc:
                 self.diagnostics["log_save_error"] = str(exc)
+                return
+            # Opt-in, anonymous world-boss-kill community report (off by default).
+            # Best-effort and deduped per kill, so repeated checkpoint saves of the
+            # same fight report it at most once; never blocks or raises here.
+            try:
+                from ..combat import boss_report
+                boss_report.report_async(doc)
+            except Exception:
+                pass
 
     def _archive_diagnostics(self) -> None:
         self._save_session(active=False)
