@@ -1,3 +1,13 @@
+## Overlay stays visible when the game isn't focused (0.2.155)
+
+Fixes the overlays hiding each other and flicking away during play.
+
+- New **"Keep the overlay visible even when the game is not in focus"** toggle (Settings → Overlay layout, **on by default**). With it on, the live-meter and party overlays stay on top even when the game window isn't the foreground window — so **clicking one overlay no longer hides the other**, focusing the app window doesn't hide the overlay, and a game loot/reward popup after a kill doesn't make the meter flick away.
+- Before this, the overlay was shown only while the game (or the overlay itself) was the foreground window, so anything else taking focus — including our own second overlay — hid it. That was behind the reports of the overlay disappearing when switching between the meter and party overlays and dropping right after defeating an enemy.
+- With the toggle on, the overlay still hides when the game is **minimised or closed** (so it never sits over unrelated apps); turn the toggle off to restore the old "hide whenever the game loses focus" behaviour. The screenshot **Lock** pin still overrides both. Takes effect when the overlay is reopened. `overlay_always_visible` rides the settings backup file.
+
+Note: if your live DPS numbers themselves freeze or drop during very heavy fights (not the whole overlay hiding), that's a separate capture-under-load issue being investigated — please mention it if you still see it after this update.
+
 ## Overlay toolbar: Lock/Hide grouped with the tabs (0.2.154)
 
 - Fixed the overlay header so the **Meter/Plan tabs and the Lock/Hide buttons sit grouped together on the left**, with the status text right-aligned. They were spread apart with `justify-content: space-between`, which let Lock/Hide float into the middle and, at narrower widths or larger fonts, visually crowd the Meter/Plan tabs. The layout is now deterministic regardless of width or font.

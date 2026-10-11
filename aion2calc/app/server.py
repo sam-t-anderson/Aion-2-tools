@@ -908,7 +908,8 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_only_in_combat", "overlay_auto_expand",
                               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
                               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
-                              "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps")
+                              "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
+                              "overlay_always_visible")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1057,6 +1058,7 @@ def ui_settings() -> dict:
                 "overlay_only_in_combat": False, "overlay_auto_expand": False,
                 # Visual group (all inert by default so the overlay looks unchanged until enabled).
                 "overlay_resizable": False, "overlay_snap_edge": False, "overlay_expand_up": False,
+                "overlay_always_visible": True,
                 "overlay_font_scale": 100, "overlay_font_weight": 600, "overlay_font_family": "",
                 "overlay_glow": False, "overlay_glow_color": "#e8cf8e", "overlay_hp_color": "#e05a5a",
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,

@@ -1692,6 +1692,7 @@ async function pageSettings() {
       <label><input type="checkbox" id="ov-fps" ${ui.overlay_show_fps === true?'checked':''}> Show the overlay's own render FPS (the game's FPS can't be read from capture)</label>
       <label><input type="checkbox" id="ov-party" ${ui.overlay_party_enabled === true?'checked':''}> Open a separate Party-DPS overlay (raid totals) alongside the meter</label>
       <p class="small muted" style="margin-top:6px">These need the overlay reopened to apply:</p>
+      <label><input type="checkbox" id="ov-always" ${ui.overlay_always_visible !== false?'checked':''}> Keep the overlay visible even when the game is not in focus (on by default; so clicking another overlay, the app window or a game popup never hides it)</label>
       <label><input type="checkbox" id="ov-resizable" ${ui.overlay_resizable === true?'checked':''}> Resize the overlay by dragging its edges/corners</label>
       <label><input type="checkbox" id="ov-snap" ${ui.overlay_snap_edge === true?'checked':''}> Snap to the game window's edges</label>
       <label><input type="checkbox" id="ov-expandup" ${ui.overlay_expand_up === true?'checked':''}> Expand upward (anchor the overlay near the bottom of the game window)</label>
@@ -1797,6 +1798,7 @@ async function pageSettings() {
   $("#ov-scrollnames").onchange = () => api("/api/ui", { overlay_long_names_scroll: $("#ov-scrollnames").checked }).then(() => toast("Saved"));
   $("#ov-namemode").onchange = () => api("/api/ui", { overlay_name_mode: $("#ov-namemode").value }).then(() => toast("Saved"));
   $("#ov-party").onchange = () => api("/api/ui", { overlay_party_enabled: $("#ov-party").checked }).then(() => toast("Saved · reopen the overlay to apply"));
+  $("#ov-always").onchange = () => api("/api/ui", { overlay_always_visible: $("#ov-always").checked }).then(() => toast("Saved · reopen the overlay to apply"));
   $("#ov-resizable").onchange = () => api("/api/ui", { overlay_resizable: $("#ov-resizable").checked }).then(() => toast("Saved · reopen the overlay to apply"));
   $("#ov-snap").onchange = () => api("/api/ui", { overlay_snap_edge: $("#ov-snap").checked }).then(() => toast("Saved · reopen the overlay to apply"));
   $("#ov-expandup").onchange = () => api("/api/ui", { overlay_expand_up: $("#ov-expandup").checked }).then(() => toast("Saved · reopen the overlay to apply"));

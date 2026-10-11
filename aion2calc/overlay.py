@@ -141,7 +141,11 @@ def _follow_position(previous, bounds, current, snap=False, expand_up=False):
 def _overlay_prefs() -> dict:
     """Native overlay preferences read from the user's settings (defaults keep the
     historical behaviour). Read once at launch, so changes apply on reopen."""
-    prefs = {"resizable": False, "snap_edge": False, "expand_up": False}
+    # always_visible defaults to True: the overlay stays on top even when the game
+    # is not the foreground window, so focusing another overlay, the app window, or
+    # a game loot/reward popup never hides it. The read below uses each key's own
+    # default, so an absent key keeps True here and False for the others.
+    prefs = {"resizable": False, "snap_edge": False, "expand_up": False, "always_visible": True}
     try:
         from .paths import data_file, read_json
         if data_file("ui.json").exists():
@@ -267,6 +271,7 @@ def _run_overlay(window, api, app_base: str | None = None) -> None:
     window.show()
     prefs = _overlay_prefs()
     snap, expand_up = prefs["snap_edge"], prefs["expand_up"]
+    always_visible = prefs["always_visible"]
     previous = None
     previous_hwnd = None
     visible = True
@@ -275,10 +280,14 @@ def _run_overlay(window, api, app_base: str | None = None) -> None:
             continue
         game = win32.game_window()
         hwnd = window.native.Handle.ToInt64()
-        # Missing/inaccessible game windows must not leave a topmost meter on
-        # unrelated apps. Resume automatically once the game is recognized.
-        should_show = game is not None and (not game.minimized and
-                      win32.user32.GetForegroundWindow() in (game.hwnd, hwnd))
+        # Keep the overlay shown whenever the game is running and not minimized. By
+        # default (always_visible) it stays up even when the game is not the
+        # foreground window, so focusing another overlay window, the app, or a game
+        # loot/reward popup never hides it. With always_visible off, it is shown only
+        # while the game (or the overlay itself) is the foreground window. Either way
+        # a missing or minimized game hides it, so it never sits over unrelated apps.
+        should_show = game is not None and not game.minimized and (
+                      always_visible or win32.user32.GetForegroundWindow() in (game.hwnd, hwnd))
         if api._locked:
             # Keep the overlay shown and in place so it can be screenshotted even
             # when the game is not the foreground window.

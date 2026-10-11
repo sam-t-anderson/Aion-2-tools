@@ -89,6 +89,14 @@ def test_overlay_client_render_settings_round_trip(isolated_home):
         settings_backup.import_settings({"overlay_interpolate_ms": 5000})  # above range (max 1000)
 
 
+def test_overlay_always_visible_round_trips(isolated_home):
+    # Default-on boolean: both true and false survive an import round-trip.
+    assert settings_backup.import_settings({"overlay_always_visible": False})["settings"]["overlay_always_visible"] is False
+    assert settings_backup.import_settings({"overlay_always_visible": True})["settings"]["overlay_always_visible"] is True
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_always_visible": "yes"})
+
+
 def test_import_ignores_unknown_keys_and_applies_known_ones(isolated_home):
     result = settings_backup.import_settings({"app_window": False, "evil_key": {"x": 1}, "rm": "rf"})
     assert result["settings"]["app_window"] is False
