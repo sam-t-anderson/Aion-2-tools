@@ -128,6 +128,21 @@
     try{await navigator.clipboard.writeText(copyText);done(true);}
     catch(_){try{const ta=document.createElement("textarea");ta.value=copyText;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();done(true);}catch(e){done(false);}}
   };
+  // New fight: start a fresh encounter split without alt-tabbing to the app. The
+  // next combat event begins a new segment (same server action as "Split now").
+  const splitBtn=$("#ovsplit");
+  if(splitBtn)splitBtn.onclick=async()=>{
+    const orig=splitBtn.textContent; splitBtn.disabled=true;
+    try{
+      const r=await fetch("/api/meter",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"split"})});
+      if(!r.ok)throw Error("split failed");
+      await r.json();
+      graphHist=[];   // the live graph starts clean for the new fight
+      splitBtn.textContent="New ✓";
+      await pollMeter();
+    }catch(_){splitBtn.textContent="Error";}
+    finally{setTimeout(()=>{if(splitBtn.isConnected){splitBtn.textContent=orig;splitBtn.disabled=false;}},1200);}
+  };
   $("#ovcombine").onchange = async () => {
     const input=$("#ovcombine"), message=$("#ovpetstatus"); input.disabled=true;
     try { const response=await fetch("/api/meter",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"view",combine_pets:input.checked})});if(!response.ok)throw Error("Could not change pet grouping");await response.json();message.textContent="";await pollMeter(); }

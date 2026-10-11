@@ -1,3 +1,7 @@
+## "New fight" button on the overlay (0.2.194)
+
+- The overlay header has a new **New** button that **starts a fresh encounter** — the next combat event begins a new split — so you can reset the meter between pulls without alt-tabbing back to the app (it's the same action as **Split now** on the Live Meter page). It briefly confirms with **New ✓** and clears the live graph so the next fight starts clean. The header's **Copy** button is now styled to match **Lock**, **New** and **Hide** instead of showing as a plain browser button.
+
 ## Live DPS/HPS graph on the overlay (0.2.193)
 
 - The overlay can now show a **live DPS/HPS graph** — a sparkline of the party total over the current fight, like NotMeter's trend line. Turn it on under **Settings → Overlay → Overlay layout → "Show a live DPS/HPS graph"**. It follows the active metric tab (DPS, HPS or damage taken), labels the current and peak value, and resets when a new fight starts. Every point is a **real reading** taken each refresh (the summed live party rate at that moment) — nothing is interpolated or invented — and it rides your overlay look presets and the settings backup. Off by default.
