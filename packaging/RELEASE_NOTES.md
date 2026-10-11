@@ -1,3 +1,7 @@
+## Podium colours on the top three ranks (0.2.195)
+
+- When overlay **rank numbers** are shown, the top three places are now tinted **gold, silver and bronze**, so the leaders stand out at a glance like a mature meter's leaderboard. It's pure styling of the existing ranking — nothing below third place changes, and it's only visible with rank numbers turned on (Settings → Overlay → Overlay layout).
+
 ## "New fight" button on the overlay (0.2.194)
 
 - The overlay header has a new **New** button that **starts a fresh encounter** — the next combat event begins a new split — so you can reset the meter between pulls without alt-tabbing back to the app (it's the same action as **Split now** on the Live Meter page). It briefly confirms with **New ✓** and clears the live graph so the next fight starts clean. The header's **Copy** button is now styled to match **Lock**, **New** and **Hide** instead of showing as a plain browser button.

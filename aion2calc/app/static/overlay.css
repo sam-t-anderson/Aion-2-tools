@@ -164,3 +164,8 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 #ovresize-c:hover{background:linear-gradient(315deg,rgba(233,203,128,.8),transparent 60%)}
 /* Optional rank/position numbers before each player name (Settings → Overlay layout). */
 .ovrank { color: var(--ov-total-text, #9aa3b5); opacity: .7; margin-right: 4px; font-variant-numeric: tabular-nums; }
+/* Podium colours on the top three rank numbers (gold / silver / bronze), like a
+   mature meter's leaderboard. Only applies when rank numbers are shown. */
+.ovrank-1 { color: #f2c84b; opacity: 1; font-weight: 700; }
+.ovrank-2 { color: #cfd4dc; opacity: 1; font-weight: 700; }
+.ovrank-3 { color: #d08a52; opacity: 1; font-weight: 700; }
