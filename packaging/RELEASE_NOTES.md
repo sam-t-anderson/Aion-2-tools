@@ -1,3 +1,7 @@
+## Overlay rank numbers (0.2.175)
+
+- New **"Show rank numbers"** toggle (Settings → Overlay layout, **off by default**) prefixes each player row with its position — **1.**, **2.**, **3.** … — so you can see standings at a glance. Rides the settings backup and your saved look presets.
+
 ## Overlay compact rows (0.2.174)
 
 - New **"Compact rows"** toggle (Settings → Overlay layout, **off by default**) hides each player row's trailing **total · percent**, leaving just the big per-second rate — tidier on a narrow overlay. Rides the settings backup and your saved look presets.

@@ -143,3 +143,5 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 #ovresize-b:hover{background:linear-gradient(0deg,rgba(233,203,128,.45),transparent)}
 #ovresize-c{right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;border-radius:0 0 8px 0;background:linear-gradient(315deg,rgba(233,203,128,.5),transparent 60%)}
 #ovresize-c:hover{background:linear-gradient(315deg,rgba(233,203,128,.8),transparent 60%)}
+/* Optional rank/position numbers before each player name (Settings → Overlay layout). */
+.ovrank { color: var(--ov-total-text, #9aa3b5); opacity: .7; margin-right: 4px; font-variant-numeric: tabular-nums; }
