@@ -53,6 +53,21 @@ def test_current_target_is_the_enemy_the_local_player_hits_most():
     assert me["damage"] == 5000 and me["dps"] > 0
 
 
+def test_players_get_a_stable_party_number():
+    s, engine = _session()
+    engine.names = {5001: "Me", 5002: "Ally", 5003: "Bob"}
+    engine.roster = {"Me": {}, "Ally": {}, "Bob": {}}
+    s.observe(engine, [_hit(5001, 9001, 1000, 300), _hit(5002, 9001, 1000, 900), _hit(5003, 9001, 1000, 100)],
+              timestamp_ms=1000)
+    rows = s.snapshot(scope="auto", segment_id=None)["players"]
+    numbers = {row["name"]: row["party_number"] for row in rows}
+    # Numbered by key (stable), not by damage rank; every player gets a distinct 1..N.
+    assert sorted(numbers.values()) == [1, 2, 3]
+    # Re-snapshotting keeps the same assignment.
+    again = {r["name"]: r["party_number"] for r in s.snapshot(scope="auto", segment_id=None)["players"]}
+    assert numbers == again
+
+
 def test_no_target_or_contribution_before_any_damage():
     s, engine = _session()
     s.observe(engine, [], timestamp_ms=1000)

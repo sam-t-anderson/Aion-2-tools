@@ -886,12 +886,17 @@ class Handler(BaseHTTPRequestHandler):
                 if body["overlay_font_family"] not in fonts:
                     raise ValueError("overlay_font_family must be one of the available fonts")
                 cur["overlay_font_family"] = body["overlay_font_family"]
+            if "overlay_name_mode" in body:
+                if body["overlay_name_mode"] not in ("name", "class_number", "number"):
+                    raise ValueError("overlay_name_mode must be name, class_number or number")
+                cur["overlay_name_mode"] = body["overlay_name_mode"]
             _ui_bool_flags = ("tray_on_close", "overlay_show_contribution", "overlay_show_target",
                               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
                               "meter_reset_after_battle", "meter_show_dummy_parse", "overlay_show_combat_power",
                               "overlay_only_in_combat", "overlay_auto_expand",
                               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
-                              "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled")
+                              "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
+                              "meter_save_records")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1037,7 +1042,8 @@ def ui_settings() -> dict:
                 "overlay_font_scale": 100, "overlay_font_weight": 600, "overlay_font_family": "",
                 "overlay_glow": False, "overlay_glow_color": "#e8cf8e",
                 "overlay_bg_opacity": 0, "overlay_bg_zoom": 100, "overlay_bg_darken": 40, "overlay_bg_set": False,
-                "overlay_long_names_scroll": False, "overlay_party_enabled": False}
+                "overlay_long_names_scroll": False, "overlay_party_enabled": False,
+                "meter_save_records": True, "overlay_name_mode": "name"}
     return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}
 
 

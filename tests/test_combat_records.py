@@ -49,6 +49,17 @@ def test_battle_not_over_within_the_delay_or_when_disabled():
     assert s.snapshot(scope="auto", segment_id=None)["battle_over"] is False   # disabled entirely
 
 
+def test_save_records_flag_follows_the_setting(tmp_path, monkeypatch):
+    monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
+    from aion2calc.paths import write_user_json
+    from aion2calc.app.meter_runner import Runner
+    r = Runner()
+    assert r.save_records is True                       # default: auto-save on
+    write_user_json({"meter_save_records": False}, "ui.json")
+    r.apply_record_settings()
+    assert r.save_records is False                       # the runner honors the setting
+
+
 def test_segment_list_is_capped_to_max_records():
     s, engine = _session()
     s.gap_seconds = 1                       # force each pull into its own segment

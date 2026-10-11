@@ -1,3 +1,9 @@
+## Save-records toggle and overlay name display modes (0.2.143)
+
+- **Save combat records** (Settings → Combat records, on by default): when off, the live meter no longer auto-writes each session to the logs folder. You can still Save/Export/Upload a session explicitly. Applies to the next capture.
+- **Overlay name display** (Settings → Overlay layout): show **character names** (default), **class + party number** (e.g. "Sorcerer 2"), or **party number only** ("P2"). Party numbers are assigned stably (independent of damage order). Useful for streaming or when you'd rather not show names.
+- Both ride the settings backup/restore file.
+
 ## Roadmap: Daily active meters (0.2.142)
 
 - Documentation only — no app change. Added a roadmap item (§7) for a privacy-scoped "Daily active meters" community-size signal: an anonymous, per-install, date-rotating daily heartbeat the server counts into an aggregate-only daily tally, with no PII and an opt-out. To be designed and verified before any implementation.

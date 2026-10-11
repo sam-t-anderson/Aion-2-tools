@@ -702,6 +702,10 @@ class CombatSession:
         # contributor's damage/DPS to it. Both are derived from the same recorded
         # damage as the player/enemy tables — nothing is invented.
         name_by_id = {row["id"]: row["name"] for row in summary["players"]}
+        # Stable 1-based party number per player (by key, independent of damage
+        # order) so the overlay can show "P1"/class+number instead of names.
+        for index, row in enumerate(sorted(summary["players"], key=lambda r: r.get("key") or ""), start=1):
+            row["party_number"] = index
         duration = max(1, summary.get("duration") or 0)
         contribution = None
         if local_id is not None:

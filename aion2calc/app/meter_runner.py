@@ -59,6 +59,7 @@ class Runner:
         self.segment_id = None
         self.enemy_id = None
         self.saved_log = None
+        self.save_records = True   # auto-save finished/periodic session logs (Settings: Save combat records)
         self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
         self.archive_id = uuid.uuid4().hex
         self.archive_part = 1
@@ -461,7 +462,9 @@ class Runner:
             self._last_checkpoint = time.monotonic()
 
     def _save_session(self, active: bool) -> None:
-        if self.packet_engine is None or not self.session.records:
+        # "Save combat records" off: never auto-write the session log to disk.
+        # The user can still Save/Export/Upload a session explicitly.
+        if not self.save_records or self.packet_engine is None or not self.session.records:
             return
         # Serialize snapshot and replacement together so an older periodic save
         # cannot overwrite the final snapshot after Stop.
@@ -661,6 +664,7 @@ class Runner:
         self.session.reset_delay_seconds = min(120, max(1, int(ui.get("meter_reset_delay", 5) or 5)))
         self.session.max_records = min(500, max(0, int(ui.get("meter_max_records", 20) or 0)))
         self.session.dummy_record_seconds = min(3600, max(5, int(ui.get("meter_dummy_record_seconds", 60) or 60)))
+        self.save_records = bool(ui.get("meter_save_records", True))
 
     def configure_view(self, body: dict) -> dict:
         with self.lock:

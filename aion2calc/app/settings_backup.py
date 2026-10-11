@@ -21,7 +21,8 @@ _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close",
               "meter_reset_after_battle", "meter_show_dummy_parse", "overlay_show_combat_power",
               "overlay_only_in_combat", "overlay_auto_expand",
               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
-              "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled")
+              "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
+              "meter_save_records")
 
 # key -> (min, max) for whole-number settings.
 _INT_KEYS = {"meter_reset_delay": (1, 120), "meter_max_records": (1, 500),
@@ -64,6 +65,10 @@ def _clean(data: dict) -> dict:
         elif key == "overlay_font_family":
             if value not in _FONT_FAMILIES:
                 raise ValueError("overlay_font_family must be one of the available fonts")
+            clean[key] = value
+        elif key == "overlay_name_mode":
+            if value not in ("name", "class_number", "number"):
+                raise ValueError("overlay_name_mode must be name, class_number or number")
             clean[key] = value
         elif key == "combat_colors":
             if not (isinstance(value, dict) and all(isinstance(k, str) and _is_hex(v) for k, v in value.items())):

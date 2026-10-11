@@ -1672,6 +1672,7 @@ async function pageSettings() {
     <div class="setrow"><div class="lbl">Overlay layout</div><div><div class="row"><label>Players shown <input type="number" id="ov-maxp" min="1" max="24" value="${Number(ui.overlay_max_players)||8}" style="width:64px"></label><label>Width <input type="number" id="ov-width" min="260" max="800" value="${Number(ui.overlay_width)||340}" style="width:70px"> px</label><label>Row height <input type="number" id="ov-rowh" min="14" max="48" value="${Number(ui.overlay_row_height)||22}" style="width:64px"> px</label><span id="ov-layout-msg" class="small muted" role="status"></span></div>
       <label><input type="checkbox" id="ov-autoexp" ${ui.overlay_auto_expand === true?'checked':''}> Auto-expand to show every captured player (beyond the limit above)</label>
       <label><input type="checkbox" id="ov-onlycombat" ${ui.overlay_only_in_combat === true?'checked':''}> Show the meter only during combat (collapse between pulls)</label>
+      <label>Name display <select id="ov-namemode">${[["name","Character names"],["class_number","Class + party number"],["number","Party number only"]].map(([v,l])=>`<option value="${v}" ${v===(ui.overlay_name_mode||'name')?'selected':''}>${l}</option>`).join('')}</select></label>
       <label><input type="checkbox" id="ov-scrollnames" ${ui.overlay_long_names_scroll === true?'checked':''}> Scroll long names on hover</label>
       <label><input type="checkbox" id="ov-party" ${ui.overlay_party_enabled === true?'checked':''}> Open a separate Party-DPS overlay (raid totals) alongside the meter</label>
       <p class="small muted" style="margin-top:6px">These need the overlay reopened to apply:</p>
@@ -1681,6 +1682,7 @@ async function pageSettings() {
       <p class="small muted">Applies to the live overlay; changes reach an open overlay within 10 seconds.</p></div></div>
     <div class="setrow"><div class="lbl">Combat records</div><div><label><input type="checkbox" id="rec-reset" ${ui.meter_reset_after_battle !== false?'checked':''}> Clear the live meter after a battle ends</label>
       <div class="row" style="margin-top:4px"><label>Reset delay <input type="number" id="rec-delay" min="1" max="120" value="${Number(ui.meter_reset_delay)||5}" style="width:64px"> s</label><label>Keep up to <input type="number" id="rec-max" min="1" max="500" value="${Number(ui.meter_max_records)||20}" style="width:70px"> past combats</label><span id="rec-msg" class="small muted" role="status"></span></div>
+      <label><input type="checkbox" id="rec-save" ${ui.meter_save_records !== false?'checked':''}> Save combat records automatically (write each session to the logs folder)</label>
       <label style="margin-top:4px"><input type="checkbox" id="rec-dummy" ${ui.meter_show_dummy_parse !== false?'checked':''}> Show a training-dummy parse readout when hitting a dummy</label>
       <div class="row"><label>Training-dummy parse window <input type="number" id="rec-dummy-secs" min="5" max="3600" value="${Number(ui.meter_dummy_record_seconds)||60}" style="width:70px"> s</label></div>
       <p class="small muted">Applies to the live meter and overlay. A cleared battle's details stay available in the segment list until replaced.</p></div></div>
@@ -1742,6 +1744,7 @@ async function pageSettings() {
   $("#ov-autoexp").onchange = () => api("/api/ui", { overlay_auto_expand: $("#ov-autoexp").checked }).then(() => toast("Saved"));
   $("#ov-onlycombat").onchange = () => api("/api/ui", { overlay_only_in_combat: $("#ov-onlycombat").checked }).then(() => toast("Saved"));
   $("#ov-scrollnames").onchange = () => api("/api/ui", { overlay_long_names_scroll: $("#ov-scrollnames").checked }).then(() => toast("Saved"));
+  $("#ov-namemode").onchange = () => api("/api/ui", { overlay_name_mode: $("#ov-namemode").value }).then(() => toast("Saved"));
   $("#ov-party").onchange = () => api("/api/ui", { overlay_party_enabled: $("#ov-party").checked }).then(() => toast("Saved · reopen the overlay to apply"));
   $("#ov-resizable").onchange = () => api("/api/ui", { overlay_resizable: $("#ov-resizable").checked }).then(() => toast("Saved · reopen the overlay to apply"));
   $("#ov-snap").onchange = () => api("/api/ui", { overlay_snap_edge: $("#ov-snap").checked }).then(() => toast("Saved · reopen the overlay to apply"));
@@ -1764,6 +1767,7 @@ async function pageSettings() {
   };
   $("#rec-delay").onchange = () => saveRecNum("rec-delay", "meter_reset_delay", 1, 120);
   $("#rec-max").onchange = () => saveRecNum("rec-max", "meter_max_records", 1, 500);
+  $("#rec-save").onchange = () => api("/api/ui", { meter_save_records: $("#rec-save").checked }).then(() => toast("Saved · applies to the next capture"));
   $("#rec-dummy").onchange = () => api("/api/ui", { meter_show_dummy_parse: $("#rec-dummy").checked }).then(() => toast("Saved"));
   $("#rec-dummy-secs").onchange = () => saveRecNum("rec-dummy-secs", "meter_dummy_record_seconds", 5, 3600);
   $("#settings-export").onclick = async () => {

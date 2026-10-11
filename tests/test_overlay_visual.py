@@ -79,6 +79,14 @@ def test_visual_settings_round_trip(home):
     assert s["overlay_party_enabled"] is True
 
 
+def test_name_mode_and_save_records_round_trip(home):
+    result = settings_backup.import_settings({"overlay_name_mode": "number", "meter_save_records": False})
+    assert result["settings"]["overlay_name_mode"] == "number"
+    assert result["settings"]["meter_save_records"] is False
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_name_mode": "nicknames"})   # not a valid mode
+
+
 def test_visual_settings_reject_bad_values(home):
     with pytest.raises(ValueError):
         settings_backup.import_settings({"overlay_font_family": "Comic Sans"})   # not in the allowlist
