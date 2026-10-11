@@ -915,6 +915,7 @@ class Handler(BaseHTTPRequestHandler):
             _ui_int_ranges = (("meter_reset_delay", 1, 120), ("meter_max_records", 1, 500),
                               ("meter_dummy_record_seconds", 5, 3600),
                               ("overlay_max_players", 1, 24), ("overlay_width", 260, 800),
+                              ("overlay_height", 0, 800),
                               ("overlay_row_height", 14, 48), ("overlay_font_scale", 80, 160),
                               ("overlay_font_weight", 400, 800), ("overlay_bg_opacity", 0, 100),
                               ("overlay_bg_zoom", 50, 200), ("overlay_bg_darken", 0, 100),
@@ -1052,7 +1053,7 @@ def ui_settings() -> dict:
                 "meter_reset_after_battle": True, "meter_reset_delay": 5, "meter_max_records": 20,
                 "meter_show_dummy_parse": True, "meter_dummy_record_seconds": 60,
                 "overlay_show_combat_power": True,
-                "overlay_max_players": 8, "overlay_width": 340, "overlay_row_height": 22,
+                "overlay_max_players": 8, "overlay_width": 340, "overlay_height": 0, "overlay_row_height": 22,
                 "overlay_only_in_combat": False, "overlay_auto_expand": False,
                 # Visual group (all inert by default so the overlay looks unchanged until enabled).
                 "overlay_resizable": False, "overlay_snap_edge": False, "overlay_expand_up": False,

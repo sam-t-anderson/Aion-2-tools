@@ -27,7 +27,8 @@ _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close",
 # key -> (min, max) for whole-number settings.
 _INT_KEYS = {"meter_reset_delay": (1, 120), "meter_max_records": (1, 500),
              "meter_dummy_record_seconds": (5, 3600),
-             "overlay_max_players": (1, 24), "overlay_width": (260, 800), "overlay_row_height": (14, 48),
+             "overlay_max_players": (1, 24), "overlay_width": (260, 800), "overlay_height": (0, 800),
+             "overlay_row_height": (14, 48),
              "overlay_font_scale": (80, 160), "overlay_font_weight": (400, 800),
              "overlay_bg_opacity": (0, 100), "overlay_bg_zoom": (50, 200), "overlay_bg_darken": (0, 100),
              "overlay_interpolate_ms": (50, 1000)}

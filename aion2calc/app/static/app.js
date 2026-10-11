@@ -1683,7 +1683,7 @@ async function pageSettings() {
       <label><input type="checkbox" id="ov-enemy-hp" ${ui.overlay_show_enemy_hp === true?'checked':''}> Show the current target's remaining HP (only when the game reports it)</label>
       <label><input type="checkbox" id="ov-ttk" ${ui.overlay_show_ttk === true?'checked':''}> Show estimated time-to-kill for the current target (from the party's current DPS)</label>
       <label><input type="checkbox" id="ov-cp" ${ui.overlay_show_combat_power !== false?'checked':''}> Show your combat power beside your name (when the game reports it)</label></div></div>
-    <div class="setrow"><div class="lbl">Overlay layout</div><div><div class="row"><label>Players shown <input type="number" id="ov-maxp" min="1" max="24" value="${Number(ui.overlay_max_players)||8}" style="width:64px"></label><label>Width <input type="number" id="ov-width" min="260" max="800" value="${Number(ui.overlay_width)||340}" style="width:70px"> px</label><label>Row height <input type="number" id="ov-rowh" min="14" max="48" value="${Number(ui.overlay_row_height)||22}" style="width:64px"> px</label><span id="ov-layout-msg" class="small muted" role="status"></span></div>
+    <div class="setrow"><div class="lbl">Overlay layout</div><div><div class="row"><label>Players shown <input type="number" id="ov-maxp" min="1" max="24" value="${Number(ui.overlay_max_players)||8}" style="width:64px"></label><label>Width <input type="number" id="ov-width" min="260" max="800" value="${Number(ui.overlay_width)||340}" style="width:70px"> px</label><label>Height <input type="number" id="ov-height" min="0" max="800" value="${Number(ui.overlay_height)||0}" style="width:64px"> px <span class="muted small">(0 = fit to contents)</span></label><label>Row height <input type="number" id="ov-rowh" min="14" max="48" value="${Number(ui.overlay_row_height)||22}" style="width:64px"> px</label><span id="ov-layout-msg" class="small muted" role="status"></span></div>
       <label><input type="checkbox" id="ov-autoexp" ${ui.overlay_auto_expand === true?'checked':''}> Auto-expand to show every captured player (beyond the limit above)</label>
       <label><input type="checkbox" id="ov-onlycombat" ${ui.overlay_only_in_combat === true?'checked':''}> Show the meter only during combat (collapse between pulls)</label>
       <label>Name display <select id="ov-namemode">${[["name","Character names"],["class_number","Class + party number"],["number","Party number only"]].map(([v,l])=>`<option value="${v}" ${v===(ui.overlay_name_mode||'name')?'selected':''}>${l}</option>`).join('')}</select></label>
@@ -1808,6 +1808,7 @@ async function pageSettings() {
   };
   $("#ov-maxp").onchange = () => saveLayoutNum("ov-maxp", "overlay_max_players", 1, 24);
   $("#ov-width").onchange = () => saveLayoutNum("ov-width", "overlay_width", 260, 800);
+  $("#ov-height").onchange = () => saveLayoutNum("ov-height", "overlay_height", 0, 800);
   $("#ov-rowh").onchange = () => saveLayoutNum("ov-rowh", "overlay_row_height", 14, 48);
   $("#ov-interp").onchange = () => api("/api/ui", { overlay_dps_interpolate: $("#ov-interp").checked }).then(() => toast("Saved"));
   $("#ov-interp-ms").onchange = () => saveLayoutNum("ov-interp-ms", "overlay_interpolate_ms", 50, 1000);

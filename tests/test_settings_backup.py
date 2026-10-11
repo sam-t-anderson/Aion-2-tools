@@ -60,15 +60,20 @@ def test_whole_number_settings_round_trip_and_range_check(isolated_home):
 
 def test_overlay_layout_settings_round_trip(isolated_home):
     result = settings_backup.import_settings({"overlay_max_players": 12, "overlay_width": 420,
-                                              "overlay_row_height": 28, "overlay_only_in_combat": True,
-                                              "overlay_auto_expand": True})
+                                              "overlay_height": 260, "overlay_row_height": 28,
+                                              "overlay_only_in_combat": True, "overlay_auto_expand": True})
     s = result["settings"]
     assert (s["overlay_max_players"], s["overlay_width"], s["overlay_row_height"]) == (12, 420, 28)
+    assert s["overlay_height"] == 260
     assert s["overlay_only_in_combat"] is True and s["overlay_auto_expand"] is True
+    # overlay_height 0 means "fit to contents" and is a valid value.
+    assert settings_backup.import_settings({"overlay_height": 0})["settings"]["overlay_height"] == 0
     with pytest.raises(ValueError):
         settings_backup.import_settings({"overlay_max_players": 99})     # above range (max 24)
     with pytest.raises(ValueError):
         settings_backup.import_settings({"overlay_width": 100})          # below range (min 260)
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_height": 900})         # above range (max 800)
 
 
 def test_overlay_client_render_settings_round_trip(isolated_home):

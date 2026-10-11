@@ -1,3 +1,12 @@
+## Overlay resize: grow width, drag height, px fields (0.2.152)
+
+Fixes the long-standing overlay resize problems and adds height sizing.
+
+- **Drag-to-resize now grows, not just shrinks.** With "Resize the overlay by dragging its edges/corners" enabled (Settings → Overlay layout), the overlay can now be made **bigger**, not only smaller. The card was clamped to the window's current width, so dragging the edge outward could never grow it — only inward (shrink) worked. In the native overlay window the card is now free to grow past the window's current size and the window follows it.
+- **Drag the height too.** There are now three grips when resizing is on: the **right edge** resizes width, the **bottom edge** resizes height, and the **bottom-right corner** resizes both. Previously there was no height handle at all.
+- **Width and height px fields.** Settings → Overlay layout now has a **Height** field next to Width (`overlay_height`, `0` = fit to contents). Changing either value updates an open overlay within ~10 seconds — the width field no longer appears to "do nothing" when you increase it (same clamp fix as the drag).
+- `overlay_height` rides the settings backup/restore file.
+
 ## Overlay look presets (0.2.151)
 
 Switch your whole overlay theme in one click.

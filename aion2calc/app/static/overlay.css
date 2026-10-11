@@ -7,7 +7,13 @@ html, body { overflow: hidden; }
 #ov { padding: 4px; width: max-content; max-width: 100vw; position: relative;
   font-size: calc(12px * var(--ov-font-scale, 1)); font-family: var(--ov-font-family, "Segoe UI", "Noto Sans", system-ui, sans-serif); }
 .ovcard { background: rgba(10, 14, 22, var(--ovbg, .72)); border: 1px solid rgba(233, 203, 128, .40); border-radius: 8px;
-  padding: 8px 10px; width: var(--ov-width, 340px); max-width: 100%; cursor: grab; position: relative; text-shadow: var(--ov-glow, none); }
+  padding: 8px 10px; width: var(--ov-width, 340px); max-width: 100%; min-height: var(--ov-height, 0);
+  cursor: grab; position: relative; text-shadow: var(--ov-glow, none); }
+/* In the native overlay window the card IS the window, so it must be free to grow
+   wider/taller than the window's current size — the window then follows it (fit()).
+   The viewport clamps are kept only for the in-browser preview. */
+html.native-windows #ov { max-width: none; }
+html.native-windows .ovcard { max-width: none; }
 /* User background photo layer (behind the content). */
 #ovbg { position: absolute; inset: 0; border-radius: 8px; z-index: 0; background-repeat: no-repeat; pointer-events: none; }
 #ovbg[hidden] { display: none; }
@@ -92,8 +98,15 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 
 .ovping{font-size:10px;color:#9aa3b5;line-height:1.5;margin:4px 0 6px;white-space:normal;overflow-wrap:anywhere;cursor:default}
 
-/* Right-edge grip for drag-to-resize (shown only when the resize setting is on).
-   The frameless window auto-fits the card, so resizing drives the card width. */
-#ovresize{position:absolute;top:4px;right:0;width:12px;height:calc(100% - 8px);z-index:5;cursor:ew-resize;display:none;border-radius:0 8px 8px 0;touch-action:none}
-#ov.ov-resizable #ovresize{display:block;background:linear-gradient(90deg,transparent,rgba(233,203,128,.18))}
-#ov.ov-resizable #ovresize:hover{background:linear-gradient(90deg,transparent,rgba(233,203,128,.45))}
+/* Drag-to-resize grips (shown only when the resize setting is on). The frameless
+   window auto-fits the card, so resizing drives the card width/height and the
+   window follows. A right-edge grip resizes width, a bottom-edge grip resizes
+   height, and a bottom-right corner grip resizes both. */
+.ovgrip{position:absolute;z-index:5;display:none;touch-action:none}
+#ov.ov-resizable .ovgrip{display:block}
+#ovresize{top:4px;right:0;width:12px;height:calc(100% - 20px);cursor:ew-resize;border-radius:0 8px 8px 0;background:linear-gradient(90deg,transparent,rgba(233,203,128,.18))}
+#ovresize:hover{background:linear-gradient(90deg,transparent,rgba(233,203,128,.45))}
+#ovresize-b{left:4px;bottom:0;height:12px;width:calc(100% - 20px);cursor:ns-resize;border-radius:0 0 8px 8px;background:linear-gradient(0deg,rgba(233,203,128,.18),transparent)}
+#ovresize-b:hover{background:linear-gradient(0deg,rgba(233,203,128,.45),transparent)}
+#ovresize-c{right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;border-radius:0 0 8px 0;background:linear-gradient(315deg,rgba(233,203,128,.5),transparent 60%)}
+#ovresize-c:hover{background:linear-gradient(315deg,rgba(233,203,128,.8),transparent 60%)}

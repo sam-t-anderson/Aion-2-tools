@@ -11,7 +11,7 @@
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
   let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false, showDummy=true, showCombatPower=true;
   let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name";
-  let interpolate=false, interpolateMs=100, showFps=false, locked=false, userWidth=null;
+  let interpolate=false, interpolateMs=100, showFps=false, locked=false, userWidth=null, userHeight=null;
   let lastRenderAt=performance.now(), projecting=false;   // for live-ticking DPS between polls
   const shownRates=new Map();   // row key -> currently displayed (eased) rate
   const cap=s=>String(s||'').charAt(0).toUpperCase()+String(s||'').slice(1);
@@ -77,6 +77,8 @@
     onlyInCombat=ui.overlay_only_in_combat===true;
     autoExpand=ui.overlay_auto_expand===true;
     document.documentElement.style.setProperty('--ov-width',(userWidth??clampInt(ui.overlay_width,260,800,340))+'px');
+    const h=userHeight??clampInt(ui.overlay_height,0,800,0);
+    document.documentElement.style.setProperty('--ov-height',h>0?h+'px':'0px');
     document.documentElement.style.setProperty('--ov-row-h',clampInt(ui.overlay_row_height,14,48,22)+'px');
     document.getElementById("ov").classList.toggle("ov-resizable",ui.overlay_resizable===true&&!partyMode);
     if(lastSnap)renderMeter();
@@ -305,23 +307,40 @@
   setInterval(() => { t += 0.1; if (tab === "plan") renderPlan(); }, 100);
   window.addEventListener("storage", (event) => { if (event.key === "aion2calc-closing") window.close(); });
 
-  // Drag-to-resize: the frameless window auto-fits the card, so a right-edge grip
-  // drives the card width (the window follows). The new width persists as the
-  // overlay_width setting. Off unless Settings → Overlay layout enables it.
-  const grip=$("#ovresize");
-  if(grip)grip.addEventListener("pointerdown",e=>{
-    e.preventDefault(); e.stopPropagation();
-    const startX=e.clientX, card=document.querySelector("#ov .ovcard");
-    const startW=card?card.getBoundingClientRect().width:340;
-    try{grip.setPointerCapture(e.pointerId);}catch(_){}
-    const move=ev=>{userWidth=Math.max(260,Math.min(800,Math.round(startW+(ev.clientX-startX))));
-      document.documentElement.style.setProperty('--ov-width',userWidth+'px');};
-    const up=()=>{
-      document.removeEventListener("pointermove",move); document.removeEventListener("pointerup",up);
-      if(userWidth!=null)fetch("/api/ui",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({overlay_width:userWidth})}).catch(()=>{});
-    };
-    document.addEventListener("pointermove",move); document.addEventListener("pointerup",up);
-  });
+  // Drag-to-resize: the frameless window auto-fits the card, so the grips drive the
+  // card width/height and the window follows (fit()). A right-edge grip resizes
+  // width, a bottom-edge grip resizes height, and a bottom-right corner does both.
+  // The new size persists as overlay_width / overlay_height. The grips sit outside
+  // the card's drag region so dragging them resizes instead of moving the window.
+  // Off unless Settings → Overlay layout enables it.
+  const attachResize=(grip,horiz,vert)=>{
+    if(!grip)return;
+    grip.addEventListener("pointerdown",e=>{
+      e.preventDefault(); e.stopPropagation();
+      const startX=e.clientX, startY=e.clientY, card=document.querySelector("#ov .ovcard");
+      const rect=card?card.getBoundingClientRect():{width:340,height:120};
+      const startW=rect.width, startH=rect.height;
+      try{grip.setPointerCapture(e.pointerId);}catch(_){}
+      const move=ev=>{
+        if(horiz){userWidth=Math.max(260,Math.min(800,Math.round(startW+(ev.clientX-startX))));
+          document.documentElement.style.setProperty('--ov-width',userWidth+'px');}
+        if(vert){userHeight=Math.max(70,Math.min(800,Math.round(startH+(ev.clientY-startY))));
+          document.documentElement.style.setProperty('--ov-height',userHeight+'px');}
+        fit();
+      };
+      const up=()=>{
+        document.removeEventListener("pointermove",move); document.removeEventListener("pointerup",up);
+        const body={};
+        if(horiz&&userWidth!=null)body.overlay_width=userWidth;
+        if(vert&&userHeight!=null)body.overlay_height=userHeight;
+        if(Object.keys(body).length)fetch("/api/ui",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).catch(()=>{});
+      };
+      document.addEventListener("pointermove",move); document.addEventListener("pointerup",up);
+    });
+  };
+  attachResize($("#ovresize"),true,false);
+  attachResize($("#ovresize-b"),false,true);
+  attachResize($("#ovresize-c"),true,true);
 
   // Screenshot & lock: freeze the display and keep the overlay pinned (even when
   // the game loses focus) so it can be captured; a second click resumes.
