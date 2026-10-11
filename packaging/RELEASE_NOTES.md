@@ -1,3 +1,7 @@
+## Settings page: consistent left padding (0.2.153)
+
+- Fixed a layout bug on the **Settings** page where every section from **Live meter overlay** downward (Overlay layout, Combat records, backups, colors, presets, class colors, etc.) was missing the left gutter that the top rows (Theme … Log server) had, so the newer settings looked flush against the panel edge and out of line with the rest. The Log server row closed the settings body container one tag early; now all rows share the same left padding.
+
 ## Overlay resize: grow width, drag height, px fields (0.2.152)
 
 Fixes the long-standing overlay resize problems and adds height sizing.
