@@ -36,6 +36,7 @@
   function mount(root,io={}){
     let catalog=null,fieldCatalog=null,region='',group='',prepared=[],timer=null,disposed=false,serial=0,bossSerial=0,bossData=null,preparedDay='',killSerial=0,killData=null,killServer='';
     const dur=m=>m==null?'':m>=60?(m%60?Math.floor(m/60)+'h '+(m%60)+'m':Math.floor(m/60)+'h'):m+'m';
+    let fieldQuery='';
     try{const pref=JSON.parse(localStorage.getItem('a2-event-region')||'{}');region=pref.region||'';group=pref.group||'';killServer=String(pref.killServer||'');}catch(_){}
     const $=s=>root.querySelector(s);
     function save(){try{localStorage.setItem('a2-event-region',JSON.stringify({region,group,killServer}));}catch(_){}}
@@ -54,10 +55,21 @@
     function renderFieldBosses(){
       const host=$('[data-field]');
       if(!host||disposed||!root.isConnected||!fieldCatalog)return;
-      const fc=fieldCatalog,groups=[['elyos','Verteron · Elyos'],['asmodian','Altgard · Asmodian'],['abyss','Abyss · Chaotic Lower Reshanta']];
-      const rows=f=>fc.bosses.filter(b=>b.faction===f);
-      const body=groups.filter(([f])=>rows(f).length).map(([f,label])=>`<details ${f==='abyss'?'open':''} style="margin:6px 0"><summary>${esc(label)} · ${rows(f).length} bosses</summary><ul class="boss-list">${rows(f).map(b=>`<li><strong>${esc(b.name)}</strong> · <span class="small muted">${esc(b.zone)} · Lv ${esc(b.level)}</span><br><span class="small">${b.respawn_minutes!=null?'Respawn ~'+esc(dur(b.respawn_minutes))+' after kill':esc(b.schedule||'Schedule unknown')}${b.checked_in_game?' · <span class="small muted">checked in game</span>':''}</span></li>`).join('')}</ul></details>`).join('');
-      host.innerHTML=`<h2>Field boss respawn reference</h2><p class="small muted">${esc(fc.note)}</p>${body}<p class="small muted">${(fc.sources||[]).map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.name)} ↗</a>`).join(' · ')}${fc.sources&&fc.sources.length?' · ':''}checked ${esc(fc.checked_at)} · review after ${esc(fc.review_after)}.</p>`;
+      const fc=fieldCatalog;
+      host.innerHTML=`<h2>Field boss respawn reference</h2><p class="small muted">${esc(fc.note)}</p><div class="row" style="gap:8px"><label>Search bosses <input data-field-search placeholder="Boss name or zone" value="${esc(fieldQuery)}"></label></div><div data-field-rows></div><p class="small muted">${(fc.sources||[]).map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.name)} ↗</a>`).join(' · ')}${fc.sources&&fc.sources.length?' · ':''}checked ${esc(fc.checked_at)} · review after ${esc(fc.review_after)}.</p>`;
+      const input=host.querySelector('[data-field-search]');
+      if(input)input.oninput=()=>{fieldQuery=input.value;renderFieldRows();};
+      renderFieldRows();
+    }
+    function renderFieldRows(){
+      const box=$('[data-field-rows]');
+      if(!box||disposed||!root.isConnected||!fieldCatalog)return;
+      const fc=fieldCatalog,q=fieldQuery.trim().toLocaleLowerCase();
+      const groups=[['elyos','Verteron · Elyos'],['asmodian','Altgard · Asmodian'],['abyss','Abyss · Chaotic Lower Reshanta']];
+      const match=b=>!q||(b.name+' '+b.zone).toLocaleLowerCase().includes(q);
+      const rows=f=>fc.bosses.filter(b=>b.faction===f&&match(b));
+      const body=groups.filter(([f])=>rows(f).length).map(([f,label])=>`<details ${(f==='abyss'||q)?'open':''} style="margin:6px 0"><summary>${esc(label)} · ${rows(f).length} boss${rows(f).length===1?'':'es'}</summary><ul class="boss-list">${rows(f).map(b=>`<li><strong>${esc(b.name)}</strong> · <span class="small muted">${esc(b.zone)} · Lv ${esc(b.level)}</span><br><span class="small">${b.respawn_minutes!=null?'Respawn ~'+esc(dur(b.respawn_minutes))+' after kill':esc(b.schedule||'Schedule unknown')}${b.checked_in_game?' · <span class="small muted">checked in game</span>':''}</span></li>`).join('')}</ul></details>`).join('');
+      box.innerHTML=body||'<p class="small muted">No field boss matches your search.</p>';
     }
     function prepare(){
       const r=catalog.regions.find(r=>r.id===region),now=Date.now(),cache=new Map();

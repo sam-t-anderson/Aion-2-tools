@@ -1,3 +1,7 @@
+## Search the field boss respawn reference (0.2.181)
+
+- The **Timers** page's field-boss respawn reference gains a **search box** — type a boss name or zone to filter the 54-boss catalogue instantly (matching groups auto-expand, and each shows its live match count). Makes finding one boss among the Verteron, Altgard and Abyss lists quick.
+
 ## Your rank on the overlay's "You" line (0.2.180)
 
 - The overlay's **You: <name>** line now shows your **live standing** on the current metric — e.g. **You: Nyx · #2 of 8** — so you can see where you place without scanning the rows. It tracks whichever metric is shown (DPS, HPS or damage taken), uses your re-acquired identity (so it follows you across teleports and instance changes), and only appears once there are at least two players.
