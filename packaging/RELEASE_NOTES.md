@@ -1,3 +1,7 @@
+## Overlay text outline for legibility (0.2.165)
+
+- New **"Text outline"** toggle (Settings → Overlay colors & fonts, **off by default**) draws a crisp outline around the overlay text so it stays readable over busy or bright backgrounds — a game scene behind a transparent overlay, or a light background photo. It's separate from the existing soft **Text glow**: the outline is a sharp edge drawn *behind* the letters (so glyphs aren't eaten into), and you can use either, both, or neither. A dedicated **Outline color** picker (`overlay_outline_color`, default black) sets the edge color. Both ride the settings backup/restore file and the overlay look presets like the other overlay colors.
+
 ## Overlay names multiple targets during AOE (0.2.164)
 
 - When you're hitting **several enemies at the same instant** (AOE/cleave), the overlay's **Target** line now names the extra enemies too — e.g. `Target Mob A +2 (Mob B, Mob C)` — instead of showing only the single "most-hit" one. It triggers only when the extra enemies are struck in the **same ~1-second window** as the main target, so simply **switching** from one enemy to another (a moment apart) still shows just the new single target, exactly as before. Up to three extra names are listed; the full list is in the line's tooltip. Packet-sourced from the recorded hits — nothing guessed.

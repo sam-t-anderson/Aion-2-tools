@@ -894,6 +894,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not _is_hex(body["overlay_ttk_color"]):
                     raise ValueError("overlay_ttk_color must be a six-digit hex color")
                 cur["overlay_ttk_color"] = body["overlay_ttk_color"].lower()
+            if "overlay_outline_color" in body:
+                if not _is_hex(body["overlay_outline_color"]):
+                    raise ValueError("overlay_outline_color must be a six-digit hex color")
+                cur["overlay_outline_color"] = body["overlay_outline_color"].lower()
             if "overlay_presets" in body:
                 from .settings_backup import clean_presets
                 cur["overlay_presets"] = clean_presets(body["overlay_presets"])
@@ -913,7 +917,8 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
                               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
                               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
-                              "overlay_always_visible", "overlay_remember_position")
+                              "overlay_always_visible", "overlay_remember_position",
+                              "overlay_text_outline")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1070,6 +1075,7 @@ def ui_settings() -> dict:
                 "overlay_font_scale": 100, "overlay_font_weight": 600, "overlay_font_family": "",
                 "overlay_glow": False, "overlay_glow_color": "#e8cf8e", "overlay_hp_color": "#e05a5a",
                 "overlay_ttk_color": "#8fb3d0",
+                "overlay_text_outline": False, "overlay_outline_color": "#000000",
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
                 "meter_save_records": True, "overlay_name_mode": "name",

@@ -105,6 +105,19 @@ def test_overlay_ttk_color_round_trips_and_validates(isolated_home):
         settings_backup.import_settings({"overlay_ttk_color": "nope"})
 
 
+def test_overlay_text_outline_round_trips_and_validates(isolated_home):
+    # The text-outline toggle (bool) and its colour both ride the backup.
+    s = settings_backup.import_settings({"overlay_text_outline": True,
+                                         "overlay_outline_color": "#1A2B3C"})["settings"]
+    assert s["overlay_text_outline"] is True
+    assert s["overlay_outline_color"] == "#1a2b3c"
+    assert settings_backup.import_settings({"overlay_text_outline": False})["settings"]["overlay_text_outline"] is False
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_text_outline": "on"})
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_outline_color": "black"})
+
+
 def test_import_ignores_unknown_keys_and_applies_known_ones(isolated_home):
     result = settings_backup.import_settings({"app_window": False, "evil_key": {"x": 1}, "rm": "rf"})
     assert result["settings"]["app_window"] is False

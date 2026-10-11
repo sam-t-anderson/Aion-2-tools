@@ -56,6 +56,10 @@
     document.documentElement.style.setProperty('--ov-glow',glow?`0 0 4px ${glowColor}, 0 0 8px ${glowColor}`:'none');
     document.documentElement.style.setProperty('--ov-hp-color',/^#[0-9a-f]{6}$/i.test(ui.overlay_hp_color||'')?ui.overlay_hp_color:'#e05a5a');
     document.documentElement.style.setProperty('--ov-ttk-color',/^#[0-9a-f]{6}$/i.test(ui.overlay_ttk_color||'')?ui.overlay_ttk_color:'#8fb3d0');
+    // Crisp text outline for legibility over busy backgrounds (independent of the
+    // soft glow; strokes behind the fill). Off by default.
+    document.documentElement.style.setProperty('--ov-outline-color',/^#[0-9a-f]{6}$/i.test(ui.overlay_outline_color||'')?ui.overlay_outline_color:'#000000');
+    document.getElementById('ov').classList.toggle('ov-outline',ui.overlay_text_outline===true);
     // Long-name scrolling
     document.getElementById('ov').classList.toggle('ov-scroll-names',ui.overlay_long_names_scroll===true);
     // Background photo (opacity 0 = none). The image load errors are swallowed.

@@ -14,6 +14,11 @@ html, body { overflow: hidden; }
    The viewport clamps are kept only for the in-browser preview. */
 html.native-windows #ov { max-width: none; }
 html.native-windows .ovcard { max-width: none; }
+/* Optional crisp text outline for legibility over busy backgrounds. Independent
+   of the soft glow (text-shadow): -webkit-text-stroke with paint-order draws the
+   stroke behind the fill so glyphs stay readable, not eaten into. Inherited, so
+   setting it on the card cascades to every text element. Off by default. */
+#ov.ov-outline .ovcard { -webkit-text-stroke: var(--ov-outline-width, .6px) var(--ov-outline-color, #000000); paint-order: stroke fill; }
 /* User background photo layer (behind the content). */
 #ovbg { position: absolute; inset: 0; border-radius: 8px; z-index: 0; background-repeat: no-repeat; pointer-events: none; }
 #ovbg[hidden] { display: none; }
