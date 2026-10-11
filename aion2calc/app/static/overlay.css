@@ -81,6 +81,13 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovdummy .ovtlabel { color: #e8cf8e; font-weight: 600; margin-right: 3px; }
 .ovdummy[hidden] { display: none; }
 .ovrow { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: center; padding: 2px 0; min-height: var(--ov-row-h, 22px); }
+/* Expandable per-skill breakdown (click a row in the DPS view). */
+.ovrow-x { cursor: pointer; }
+.ovskills { grid-column: 1 / -1; margin: 1px 0 3px 8px; display: grid; gap: 1px; }
+.ovskills[hidden] { display: none; }
+.ovskrow { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; opacity: .92; }
+.ovskname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ovskval { color: var(--ov-total-text, inherit); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* Optional zebra striping on the player rows (Settings → Overlay layout). */
 #ov.ov-stripes .ovrow:nth-child(even) { background: rgba(255,255,255,.05); border-radius: 3px; }
 /* Optional highlight of your own row so you can find yourself instantly. The

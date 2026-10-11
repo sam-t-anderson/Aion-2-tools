@@ -12,6 +12,7 @@
   let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false, showDummy=true, showCombatPower=true;
   let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name", classColorNames=false, classSwatch=false, rankNumbers=false, highlightMe=false;
   let copyText="";   // plain-text leaderboard of the current view, for the Copy button
+  const expanded=new Set();   // row keys whose per-skill breakdown is expanded (DPS view)
   let interpolate=false, interpolateMs=100, showFps=false, locked=false, userWidth=null, userHeight=null;
   let lastRenderAt=performance.now(), projecting=false, curMax=1;   // for live-ticking DPS between polls
   const shownRates=new Map();   // row key -> currently displayed (eased) rate
@@ -216,8 +217,15 @@
     const meName = highlightMe && snap.identity_status && snap.identity_status.local_name ? String(snap.identity_status.local_name).toLocaleLowerCase() : "";
     const isMe = p => meName && String(p.name||'').toLocaleLowerCase() === meName;
     const ranked = [...visible].sort((a,b)=>rate(b)-rate(a)||amount(b)-amount(a));
-    const rows = ranked.slice(0, shownCount).map((p, i) => `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}${isMe(p)?' ovrow-me':''}"><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}">${rankNumbers?`<span class="ovrank">${i+1}.</span>`:''}${classSwatch?`<i class="ovclass" style="background:${A2CombatReview.color(p.class)}" title="${esc(p.class||'')}"></i>`:''}<span class="ovnametext"${classColorNames?` style="color:${A2CombatReview.color(p.class)}"`:''}>${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}</span>
-        <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i data-k="${esc(p.key||p.id)}" style="width:${100 * rate(p) / mx}%;--bar:${A2CombatReview.color(p.class)}"></i><span><span class="ovrate" data-k="${esc(p.key||p.id)}" data-target="${rate(p)}" data-amt="${amount(p)}">${kfmt(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div></div>`).join("");
+    const rows = ranked.slice(0, shownCount).map((p, i) => {
+      const key=String(p.key||p.id);
+      // Per-skill damage breakdown (DPS view only — the snapshot's skills list is
+      // damage). Click a row to expand it; the open rows are remembered in `expanded`.
+      const hasSkills=metric==="dps"&&Array.isArray(p.skills)&&p.skills.length;
+      const skills=hasSkills?`<div class="ovskills"${expanded.has(key)?'':' hidden'}>${p.skills.slice(0,6).map(sk=>`<div class="ovskrow"><span class="ovskname">${esc(sk.skill||sk.skill_id)}</span><span class="ovskval">${kfmt(sk.damage)} · ${Math.round((sk.share||0)*100)}%</span></div>`).join("")}</div>`:"";
+      return `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}${isMe(p)?' ovrow-me':''}${hasSkills?' ovrow-x':''}"${hasSkills?` data-exk="${esc(key)}"`:''}><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}">${rankNumbers?`<span class="ovrank">${i+1}.</span>`:''}${classSwatch?`<i class="ovclass" style="background:${A2CombatReview.color(p.class)}" title="${esc(p.class||'')}"></i>`:''}<span class="ovnametext"${classColorNames?` style="color:${A2CombatReview.color(p.class)}"`:''}>${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}</span>
+        <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i data-k="${esc(key)}" style="width:${100 * rate(p) / mx}%;--bar:${A2CombatReview.color(p.class)}"></i><span><span class="ovrate" data-k="${esc(key)}" data-target="${rate(p)}" data-amt="${amount(p)}">${kfmt(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div>${skills}</div>`;
+    }).join("");
     const duration=metric==="dps"?snap.duration:snap.recorded_duration;
     // Plain-text leaderboard of the current view, ready to paste into chat/Discord.
     copyText=`${label} · ${snap.boss||'combat'} · ${(Number(duration)||0).toFixed(0)}s\n`+
@@ -342,6 +350,16 @@
     try{localStorage.setItem("ovmetric",metric);}catch(e){/* optional storage */}
     renderMeter();
   };});
+  // Click a player row to toggle its per-skill breakdown (delegated, since rows
+  // are rebuilt each poll; the open set is re-applied on render).
+  const ovc=$("#ovcontent");
+  if(ovc)ovc.addEventListener("click",e=>{
+    const row=e.target.closest(".ovrow[data-exk]");
+    if(!row||!ovc.contains(row))return;
+    const k=row.getAttribute("data-exk"),panel=row.querySelector(".ovskills");
+    if(!panel)return;
+    if(expanded.has(k)){expanded.delete(k);panel.hidden=true;}else{expanded.add(k);panel.hidden=false;}
+  });
   async function pollMeter() {
     if (polling || locked) return;   // frozen for a screenshot
     polling = true;
