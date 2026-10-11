@@ -1,3 +1,8 @@
+## Accessibility: reduce-motion and visible keyboard focus (0.2.201)
+
+- The app and website now honor your operating system's **"reduce motion"** setting (`prefers-reduced-motion`): animations and transitions collapse to near-instant and smooth scrolling is turned off, for a still interface — in addition to the existing per-feature motion controls.
+- **Keyboard focus is always visible.** Every interactive control shows a clear focus outline when you reach it by keyboard, including the form fields that previously showed only a border change. Mouse clicks keep the quiet style, so the outline is there for keyboard users without adding clutter for pointer users.
+
 ## Class-coloured player trend sparklines (0.2.200)
 
 - The per-player DPS trend sparkline (shown when you expand a row with the DPS graph on) is now drawn in that **player's class colour**, with a faint matching fill, so it reads at a glance and lines up with their bar colour instead of a generic gold line.

@@ -1,6 +1,6 @@
 # Accessibility statement
 
-_Last updated: 2026-10-11 · applies to Aion 2 Calc 0.2.144 and the current
+_Last updated: 2026-10-11 · applies to Aion 2 Calc 0.2.201 and the current
 GitHub Pages website._
 
 Aion 2 Calc aims to be usable by as many people as possible, including people
@@ -59,6 +59,15 @@ content may not yet fully meet every criterion.
   long-name scroll is **hover-activated only** (names that fit never move), and
   the live-millisecond DPS interpolation is **off by default** with a user
   refresh-rate control to slow or disable it.
+- **Honors "reduce motion".** The app and website now detect the operating
+  system's **`prefers-reduced-motion`** setting: when it is on, animations and
+  transitions collapse to near-instant and smooth scrolling is disabled across
+  every page, so motion-sensitive users get a still interface (in addition to the
+  per-feature controls above).
+- **Visible keyboard focus.** Every interactive control shows a clear focus
+  outline when reached by keyboard (`:focus-visible`), including the form fields
+  that previously replaced the outline with only a border change. Pointer clicks
+  keep the quiet border style, so the outline appears for keyboard use.
 
 ## Known limitations
 
@@ -66,17 +75,9 @@ We are aware of the following gaps and are working on them:
 
 - **No formal audit.** Conformance has not been independently verified, and we
   have not completed systematic screen-reader testing across platforms.
-- **Reduced-motion preference.** The app does not yet detect the operating
-  system's "reduce motion" setting (`prefers-reduced-motion`). The affected
-  animations are limited and user-controllable as noted above, but automatic
-  honoring of the system preference is planned.
 - **Color contrast.** The game-styled dark theme has not been fully audited for
   WCAG AA contrast ratios across every element; some secondary/muted text and
   chart colors may fall short.
-- **Focus visibility.** Focus indicators are strong in some areas (e.g. the
-  overlay) but a few form controls in the main app substitute a border/stroke
-  change for a focus outline; consistent, high-visibility focus styling across
-  every control is in progress.
 - **No skip-link.** The pages do not yet provide a "skip to content" link for
   keyboard users to bypass repeated navigation.
 - **Data-dense visuals.** Combat graphs, timelines and the planner board are
