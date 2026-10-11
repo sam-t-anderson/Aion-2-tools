@@ -35,6 +35,11 @@ class Runner:
         self.target_mode = "bossTargets"
         self.diagnostics: dict = {}
         self._last_display_diagnostics: dict = {}
+        # Last successfully built status() result, keyed by (compact, follow_latest).
+        # Served (marked stale) when the data lock is momentarily held by the capture
+        # thread during a heavy-combat burst, so the overlay/meter keeps showing the
+        # most recent reading instead of a "capture busy" error that freezes it.
+        self._status_cache: dict = {}
         self.started_at: float | None = None
         self._last_packet_at: float | None = None
         self._last_combat_at: float | None = None
@@ -560,6 +565,12 @@ class Runner:
 
     def status(self, *, follow_latest: bool = False, compact: bool = False) -> dict:
         if not self.lock.acquire(timeout=0.5):
+            # The capture thread is mid-burst. Rather than failing (which freezes the
+            # overlay on a "refresh failed" message during the busiest moments of a
+            # fight), serve the most recent reading, flagged stale, if we have one.
+            cached = self._status_cache.get((compact, follow_latest))
+            if cached is not None:
+                return {**cached, "stale": True}
             raise TimeoutError("Capture data is busy; refresh will retry. Capture diagnostics can still be exported.")
         try:
             finalizing = bool(not self.running and self.thread and self.thread.is_alive())
@@ -571,8 +582,10 @@ class Runner:
             if self.packet_engine is not None and not follow_latest:
                 self.enemy_id = snap.get("selected_enemy")
             if compact:
-                return {"running": self.running, "finalizing": finalizing, "error": self.error,
-                        "combine_pets": self.combine_pets, "snapshot": snap}
+                result = {"running": self.running, "finalizing": finalizing, "error": self.error,
+                          "combine_pets": self.combine_pets, "snapshot": snap}
+                self._status_cache[(True, follow_latest)] = result
+                return result
             current = dict(self.session.runs[self.session.run])
             run = {"id": self.session.run, "closed": self.session.run_closed, **current}
             engine = self.packet_engine
@@ -621,7 +634,7 @@ class Runner:
                            [dict(e, kind="enemy") for e in snap.get("enemies", [])])
         catalog = coverage({**current, **context, "entities": [dict(e, id=e["key"], kind="enemy") for e in snap.get("enemies", [])]})
         self._last_display_diagnostics = {"automatic_context": context, "catalog_coverage": catalog, "at": time.time()}
-        return {"running": self.running, "finalizing": finalizing, "source": self.source_name, "error": self.error,
+        result = {"running": self.running, "finalizing": finalizing, "source": self.source_name, "error": self.error,
                 "combine_pets": self.combine_pets, "installation_locked": installation_locked,
                 "automatic_context": context, "catalog_coverage": catalog,
                 "snapshot": snap, "diagnostics": diagnostic,
@@ -632,6 +645,8 @@ class Runner:
                 "run": run, "identity": identity,
                 "recording": {"enabled": self.recorder is not None,
                               **(self.recorder.snapshot(include_rows=False)[0] if self.recorder is not None else {"records": 0})}}
+        self._status_cache[(False, follow_latest)] = result
+        return result
 
     def select_installation(self, value):
         from ..meter.metadata import choose_installation

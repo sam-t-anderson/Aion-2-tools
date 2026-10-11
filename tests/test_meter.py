@@ -114,6 +114,41 @@ def test_runner_live_without_decoder_reports_error():
     assert not st["running"] and "decoder" in (st["error"] or "")
 
 
+def test_status_serves_cached_reading_when_data_lock_is_busy(monkeypatch, tmp_path):
+    """When the capture thread holds the data lock during a burst, status() returns
+    the most recent reading (flagged stale) instead of raising, so the overlay keeps
+    showing data rather than freezing on a 'capture busy' error."""
+    monkeypatch.setenv("AION2CALC_HOME", str(tmp_path / "home"))
+    import threading
+    from aion2calc.app.meter_runner import Runner
+    r = Runner()
+    # Populate the cache with a successful reading for both shapes the overlay uses.
+    first = r.status(follow_latest=True)
+    assert first.get("stale") is not True and "snapshot" in first
+    r.status(follow_latest=True, compact=True)
+
+    # Hold the data lock from another thread so status() cannot acquire it in 0.5s.
+    holding = threading.Event()
+    release = threading.Event()
+
+    def hog():
+        with r.lock:
+            holding.set()
+            release.wait(5)
+
+    t = threading.Thread(target=hog)
+    t.start()
+    try:
+        assert holding.wait(2)
+        busy = r.status(follow_latest=True)
+        assert busy.get("stale") is True and "snapshot" in busy
+        busy_compact = r.status(follow_latest=True, compact=True)
+        assert busy_compact.get("stale") is True and "snapshot" in busy_compact
+    finally:
+        release.set()
+        t.join(2)
+
+
 def test_capture_survives_a_failing_item(monkeypatch, tmp_path):
     """A transient error handling one capture item (as on a zone/instance change)
     is recorded but does not stop live capture; a terminal 'error' still does."""

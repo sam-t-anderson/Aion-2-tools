@@ -1,3 +1,7 @@
+## Overlay keeps its numbers during heavy-combat bursts (0.2.156)
+
+- During the busiest moments of a fight the capture thread can briefly hold the meter's data lock, which made a meter/overlay refresh **fail with "capture busy / refresh failed"** and freeze until the next successful poll (the `TimeoutError: Capture data is busy` seen in exported diagnostics). Now, when a refresh can't grab the lock in time, the meter **serves the most recent reading** (flagged internally as stale) instead of failing — so the overlay and the app's Live Meter keep showing the last numbers and recover smoothly on the next poll, rather than flashing an error mid-fight. The next successful read replaces it as usual.
+
 ## Overlay stays visible when the game isn't focused (0.2.155)
 
 Fixes the overlays hiding each other and flicking away during play.
