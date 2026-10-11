@@ -1051,7 +1051,7 @@ def ui_settings() -> dict:
     defaults = {"app_window": True, "auto_update": True, "overlay_on_start": True, "tray_on_close": False,
                 "overlay_show_contribution": True, "overlay_show_target": True,
                 "overlay_show_deaths": True, "overlay_show_enemy_hp": False, "overlay_show_ttk": False,
-                "meter_reset_after_battle": True, "meter_reset_delay": 5, "meter_max_records": 20,
+                "meter_reset_after_battle": False, "meter_reset_delay": 5, "meter_max_records": 20,
                 "meter_show_dummy_parse": True, "meter_dummy_record_seconds": 60,
                 "overlay_show_combat_power": True,
                 "overlay_max_players": 8, "overlay_width": 340, "overlay_height": 0, "overlay_row_height": 22,

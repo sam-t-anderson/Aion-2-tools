@@ -1,3 +1,10 @@
+## Live meter no longer clears itself after a fight by default (0.2.158)
+
+Fixes the overlay losing its numbers shortly after combat ends.
+
+- **"Clear the live meter after a battle ends" is now OFF by default.** It was on, with a 5-second delay, so a few seconds after you stopped hitting something the overlay/Live Meter blanked to "Ready — waiting for the next fight." Confirmed from your diagnostics: the fight's numbers stay in the session, but `battle_over` flipped at the reset delay and the overlay cleared the display. Now the **last fight's numbers stay on the overlay** until the next fight begins, a party wipe, or you clear it manually — which is what most people expect.
+- If you liked the auto-clear, re-enable it under **Settings → Combat records → "Clear the live meter after a battle ends"** (the reset delay still applies). Existing installs that never changed this setting pick up the new off-by-default; anyone who explicitly turned it on keeps it on.
+
 ## Boss progression hides unknown-only bosses (0.2.157)
 
 - The **Boss progression** table (community view on the website and in the app's Combat Logs) no longer lists bosses whose every recorded attempt is **"unknown."** A boss like *Execution Nua* that only ever appears from partial captures — where the kill or a complete wipe was never recorded — carries no progression signal, so it's now hidden; only bosses with at least one **recorded kill or observed wipe** are shown. When a filter leaves nothing with a known outcome, the table shows a short "nothing yet" note instead of a wall of unknown rows.
