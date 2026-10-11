@@ -194,6 +194,20 @@ def test_meter_auto_upload_round_trips(isolated_home):
         settings_backup.import_settings({"meter_auto_upload": "yes"})
 
 
+def test_overlay_dps_graph_round_trips(isolated_home):
+    assert settings_backup.import_settings({"overlay_dps_graph": True})["settings"]["overlay_dps_graph"] is True
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_dps_graph": 1})
+
+
+def test_overlay_dps_graph_rides_overlay_presets(isolated_home):
+    # The live-graph toggle is a visual key, so a named overlay look preset carries it.
+    saved = settings_backup.import_settings(
+        {"overlay_presets": [{"name": "Graphed", "settings": {"overlay_dps_graph": True}}]}
+    )["settings"]
+    assert saved["overlay_presets"][0]["settings"]["overlay_dps_graph"] is True
+
+
 def test_overlay_class_swatch_round_trips(isolated_home):
     assert settings_backup.import_settings({"overlay_class_swatch": True})["settings"]["overlay_class_swatch"] is True
     with pytest.raises(ValueError):

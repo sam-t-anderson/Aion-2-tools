@@ -26,7 +26,7 @@ _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close", 
               "overlay_always_visible", "overlay_remember_position", "overlay_text_outline",
               "overlay_bar_rounded", "overlay_class_color_names", "overlay_color_cycle",
               "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers",
-              "overlay_highlight_me", "meter_auto_upload")
+              "overlay_highlight_me", "overlay_dps_graph", "meter_auto_upload")
 
 # key -> (min, max) for whole-number settings.
 _INT_KEYS = {"meter_reset_delay": (1, 120), "meter_max_records": (1, 500),
@@ -43,7 +43,7 @@ _FONT_FAMILIES = ("", "Segoe UI", "Arial", "Verdana", "Georgia", "Trebuchet MS",
 # visual appearance only; never the background image, layout counts or behaviour).
 _VISUAL_KEYS = ("overlay_text_colors", "overlay_glow", "overlay_glow_color", "overlay_hp_color",
                 "overlay_ttk_color", "overlay_text_outline", "overlay_outline_color",
-                "overlay_bar_style", "overlay_bar_rounded", "overlay_class_color_names", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me",
+                "overlay_bar_style", "overlay_bar_rounded", "overlay_class_color_names", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph",
                 "overlay_font_family", "overlay_font_scale", "overlay_font_weight",
                 "overlay_bg_opacity", "overlay_bg_zoom", "overlay_bg_darken",
                 "overlay_name_mode", "overlay_long_names_scroll", "combat_colors")

@@ -10,6 +10,8 @@
   try { const saved=localStorage.getItem("ovmetric"); if(["dps","hps","taken"].includes(saved))metric=saved; } catch(e) { /* optional storage */ }
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
   let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false, showDummy=true, showCombatPower=true;
+  let showGraph=false;
+  let graphHist=[], graphDur=-1;   // per-poll party-total samples for the live DPS/HPS sparkline, and the last seen fight duration
   let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name", classColorNames=false, classSwatch=false, rankNumbers=false, highlightMe=false;
   let copyText="";   // plain-text leaderboard of the current view, for the Copy button
   const expanded=new Set();   // row keys whose per-skill breakdown is expanded (DPS view)
@@ -77,6 +79,9 @@
     rankNumbers=ui.overlay_rank_numbers===true;
     // Highlight your own row so you can find yourself instantly in a party list.
     highlightMe=ui.overlay_highlight_me===true;
+    // Live DPS/HPS sparkline of the party total over the fight. Off by default.
+    showGraph=ui.overlay_dps_graph===true;
+    if(!showGraph){graphHist=[];const g=$("#ovgraph");if(g)g.hidden=true;}
     // Zebra striping: a subtle alternating background on the player rows for a
     // clearer list at a glance. Off by default.
     document.getElementById('ov').classList.toggle('ov-stripes',ui.overlay_row_stripes===true);
@@ -190,6 +195,38 @@
     $("#ovcontent").innerHTML = players.length
       ? stat("Party DPS",totalDps,"/s")+stat("Party HPS",totalHps,"/s")+stat("Damage taken/s",totalTaken,"/s")+stat("Total damage",total,"")
       : `<div class="muted">${esc(s.running?"Waiting for combat data…":"No fight yet. Start the meter in the app.")}</div>`;
+    recordGraph(s, snap, players);
+  }
+  // Live DPS/HPS graph: accumulate one real reading of the party total per poll
+  // for the current fight and draw it as a sparkline. Each point is packet-sourced
+  // (the summed live rate at that moment) — nothing is invented. The history clears
+  // when a new fight starts (the fight clock resets) and is capped so memory is bounded.
+  function recordGraph(s, snap, players){
+    const g=$("#ovgraph"); if(!g)return;
+    if(!showGraph){g.hidden=true;return;}
+    const running=!!(s&&s.running), paused=snap.paused===true, over=snap.battle_over===true;
+    const duration=Number(snap.duration)||0;
+    if(duration+0.001<graphDur) graphHist=[];   // the fight clock went backwards → a new fight began
+    graphDur=duration;
+    if(running&&!paused&&!over){
+      graphHist.push({
+        d: players.reduce((n,p)=>n+(Number(p.dps)||0),0),
+        h: players.reduce((n,p)=>n+(Number(p.hps)||0),0),
+        k: players.reduce((n,p)=>n+(Number(p.dtps)||0),0),
+      });
+      if(graphHist.length>300) graphHist.shift();
+    }
+    drawGraph();
+  }
+  function drawGraph(){
+    const g=$("#ovgraph"); if(!g)return;
+    const series=graphHist.map(p=>metric==="hps"?p.h:metric==="taken"?p.k:p.d);
+    if(!showGraph||series.length<2){g.hidden=true;return;}
+    const mx=Math.max(...series,1), n=series.length, W=100, H=30;
+    const pts=series.map((v,i)=>`${(i/(n-1)*W).toFixed(2)},${(H-(v/mx)*H).toFixed(2)}`);
+    const label=metric==="hps"?"HPS":metric==="taken"?"Taken":"DPS";
+    g.hidden=false;
+    g.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polygon class="ovgarea" points="0,${H} ${pts.join(" ")} ${W},${H}"/><polyline class="ovgline" points="${pts.join(" ")}"/></svg><span class="ovglabel">${label} · now ${kfmt(series[series.length-1])} · peak ${kfmt(mx)}</span>`;
   }
   function renderMeter() {
     if(partyMode)return renderParty();
@@ -302,11 +339,12 @@
     const showC=showContribution&&!over&&c&&c.damage>0&&metric==='dps';
     $("#ovcontribution").hidden=!showC;
     if(showC) $("#ovcontribution").textContent=`Your contribution: ${Math.round((c.share||0)*100)}% · ${kfmt(c.damage)} (${kfmt(c.dps)}/s)`;
+    recordGraph(s, snap, players);
     // Show meter only during combat: collapse to the header when idle (the window
     // then shrinks via fit), so the overlay is unobtrusive between pulls.
     if(onlyInCombat && (!s.running || snap.paused || over)){
       $("#ovcontent").innerHTML='';
-      for(const id of ["#ovmetrics","#ovping","#ovtarget","#ovhpbar","#ovttkbar","#ovcontribution","#ovdummy","#ovidentity"])$(id).hidden=true;
+      for(const id of ["#ovmetrics","#ovping","#ovtarget","#ovhpbar","#ovttkbar","#ovcontribution","#ovdummy","#ovidentity","#ovgraph"])$(id).hidden=true;
       $("#ovstatus").textContent=s.running?'Idle · waiting for combat':'Idle';
       $("#ovstatus").title=$("#ovstatus").textContent;
     }
@@ -314,6 +352,7 @@
   function renderPlan() {
     $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovidentity").hidden=true;
     $("#ovtarget").hidden=true;$("#ovhpbar").hidden=true;$("#ovttkbar").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
+    $("#ovgraph").hidden=true;
     $("#ovconnection").hidden=true;
     const p = latestPlan();
     if (!p) {

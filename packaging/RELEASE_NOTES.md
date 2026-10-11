@@ -1,3 +1,7 @@
+## Live DPS/HPS graph on the overlay (0.2.193)
+
+- The overlay can now show a **live DPS/HPS graph** — a sparkline of the party total over the current fight, like NotMeter's trend line. Turn it on under **Settings → Overlay → Overlay layout → "Show a live DPS/HPS graph"**. It follows the active metric tab (DPS, HPS or damage taken), labels the current and peak value, and resets when a new fight starts. Every point is a **real reading** taken each refresh (the summed live party rate at that moment) — nothing is interpolated or invented — and it rides your overlay look presets and the settings backup. Off by default.
+
 ## Share customization profiles by code (0.2.192)
 
 - Customization profiles can now be **shared**. In Settings → Profiles & backup, **Copy share code** turns the selected profile into a short code to send a friend; **Paste a shared code** saves one they sent you. The code carries only the look — theme, accent, class colours and overlay look — and is re-validated on import (unknown theme/accent fall back to defaults; only recognised look settings are kept), so a bad or tampered code is rejected rather than applied.
