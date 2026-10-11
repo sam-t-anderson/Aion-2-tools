@@ -170,6 +170,12 @@ def test_overlay_bar_style_settings_round_trip_and_validate(isolated_home):
         settings_backup.import_settings({"overlay_bar_rounded": "yes"})
 
 
+def test_overlay_row_stripes_round_trips(isolated_home):
+    assert settings_backup.import_settings({"overlay_row_stripes": True})["settings"]["overlay_row_stripes"] is True
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_row_stripes": "yes"})
+
+
 def test_overlay_color_cycle_round_trips(isolated_home):
     assert settings_backup.import_settings({"overlay_color_cycle": True})["settings"]["overlay_color_cycle"] is True
     assert settings_backup.import_settings({"overlay_color_cycle": False})["settings"]["overlay_color_cycle"] is False

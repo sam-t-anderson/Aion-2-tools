@@ -1,3 +1,7 @@
+## Overlay zebra striping (0.2.172)
+
+- New **"Zebra-stripe the player rows"** toggle (Settings → Overlay layout, **off by default**) gives alternating rows a subtle background tint, so a long party list is easier to read at a glance. Rides the settings backup and your saved look presets.
+
 ## Anonymous daily-active-meters count (0.2.171)
 
 - The app now contributes to a **community "daily active meters"** count: once per day a packaged install tells the configured log server that *a* meter ran, so the public stats can show how many are active. It's **on by default (opt-out)** and **fully anonymous** — it sends only a token that **rotates every UTC day** (generated from a random local salt that never leaves your PC, so it can't be traced to you or linked across days), the date, and the app version. **No** name, character, server, IP or combat data is ever sent. Turn it off anytime under **Settings → Community stats**. It's best-effort and only runs from the installed desktop app (never from dev runs or tests).

@@ -70,6 +70,9 @@
     document.getElementById('ov').classList.toggle('ov-bars-gradient',ui.overlay_bar_style==='gradient');
     document.getElementById('ov').classList.toggle('ov-bars-rounded',ui.overlay_bar_rounded===true);
     classColorNames=ui.overlay_class_color_names===true;
+    // Zebra striping: a subtle alternating background on the player rows for a
+    // clearer list at a glance. Off by default.
+    document.getElementById('ov').classList.toggle('ov-stripes',ui.overlay_row_stripes===true);
     // Long-name scrolling
     document.getElementById('ov').classList.toggle('ov-scroll-names',ui.overlay_long_names_scroll===true);
     // Background photo (opacity 0 = none). The image load errors are swallowed.

@@ -81,6 +81,8 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovdummy .ovtlabel { color: #e8cf8e; font-weight: 600; margin-right: 3px; }
 .ovdummy[hidden] { display: none; }
 .ovrow { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: center; padding: 2px 0; min-height: var(--ov-row-h, 22px); }
+/* Optional zebra striping on the player rows (Settings → Overlay layout). */
+#ov.ov-stripes .ovrow:nth-child(even) { background: rgba(255,255,255,.05); border-radius: 3px; }
 .ovname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ov-name-color, inherit); font-weight: var(--ov-font-weight, 400); }
 .ovactor { display: block; color: #c8d0e2; font-size: 9px; font-weight: 400; }
 .ovbar { position: relative; height: 16px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
