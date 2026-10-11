@@ -1,3 +1,7 @@
+## Clearer "partial capture" message (0.2.159)
+
+- When the overlay/meter shows **"Partial capture · unranked"** because it joined an instance without seeing the entry, the message now adds that **this may not be a real partial capture** — if you didn't start the meter mid-instance, **teleport or change instances (zone out and back)** so the meter observes a fresh entry and can rank the run. (The open-world maps like the Abyss are still never flagged partial.)
+
 ## Live meter no longer clears itself after a fight by default (0.2.158)
 
 Fixes the overlay losing its numbers shortly after combat ends.

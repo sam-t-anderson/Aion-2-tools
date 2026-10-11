@@ -705,7 +705,8 @@ class CombatSession:
         if summary["partial_capture"]:
             observed = any(self._effective_scope(scope, g["epoch"]) == "all" for g in chosen)
             summary["warning"] = ("Partial capture · unranked; excluded from community learning. "
-                                  + ("Showing observed players; Self and party membership are unverified. Nearby players may be included. " if observed else "Instance entry was not observed. ")
+                                  + ("Showing observed players; Self and party membership are unverified. Nearby players may be included. " if observed
+                                     else "Instance entry was not observed. If you did not start the meter mid-instance, this may not be a real partial capture — teleport or change instances (zone out and back) so the meter observes a fresh entry and can rank the run. ")
                                   + "Metrics cover recorded effects only; missing names stay as actor numbers.")
         # Packet-sourced combat info for the overlay: the local player's share of
         # the shown encounter, and the enemy they are hitting most with each
