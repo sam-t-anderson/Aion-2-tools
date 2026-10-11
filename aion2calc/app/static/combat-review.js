@@ -3,6 +3,17 @@
   "use strict";
 const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'Product version '+v.split('.').slice(0,4).join('.')).replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})/g,'Legacy build $1 · Steam').replace(/build:purple:A2_[A-Z0-9_]{1,80}_PURPLE:([0-9]{1,20})/g,'Legacy build $1 · PURPLE');
   const defaults = {gladiator:"#c69b6d",templar:"#f58cba",assassin:"#fff468",ranger:"#aad372",sorcerer:"#3fc7eb",spiritmaster:"#8788ee",cleric:"#ffffff",chanter:"#ff7c0a"};
+  // Named class-colour palettes (app customization presets). Each sets all eight
+  // classes at once wherever class colours are used — the meter, combat review,
+  // charts and the overlay bars. "Colourblind-friendly" uses the Okabe–Ito set,
+  // chosen to stay distinct for the common red/green colour-vision deficiencies.
+  const PALETTES = {
+    "Default (class colours)": defaults,
+    "Colourblind-friendly": {gladiator:"#e69f00",templar:"#cc79a7",assassin:"#f0e442",ranger:"#009e73",sorcerer:"#56b4e9",spiritmaster:"#0072b2",cleric:"#bbbbbb",chanter:"#d55e00"},
+    "High contrast": {gladiator:"#ff9f1c",templar:"#ff5dd2",assassin:"#ffe600",ranger:"#4cff4c",sorcerer:"#36d6ff",spiritmaster:"#7c6cff",cleric:"#ffffff",chanter:"#ff5a2a"},
+    "Pastel": {gladiator:"#e6c79c",templar:"#f5b8d6",assassin:"#fff3a3",ranger:"#c3e6a3",sorcerer:"#a7dcef",spiritmaster:"#bcbdf0",cleric:"#eaeaea",chanter:"#ffc49c"},
+    "Vivid": {gladiator:"#ff8c00",templar:"#ff2fae",assassin:"#ffe000",ranger:"#2ecc40",sorcerer:"#00bfff",spiritmaster:"#6a5cff",cleric:"#f5f5f5",chanter:"#ff4500"}
+  };
   const esc = x => String(x ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const number = x => Math.round(x || 0).toLocaleString();
   // Verified local NPC-role corrections, mirroring the client's
@@ -16,9 +27,10 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
   function color(cls) { const pref=preferences(); const candidate=(pref.colors || {})[cls] || defaults[cls] || "#e8cf8e"; return pref.enabled === false ? "#e8cf8e" : /^#[0-9a-f]{6}$/i.test(candidate) ? candidate : "#e8cf8e"; }
   function settings(root,onSave) {
     const pref=preferences();
-    root.innerHTML=`<label><input type="checkbox" data-enable ${pref.enabled!==false?"checked":""}> Use class colors</label><div class="cr-colors">${Object.keys(defaults).map(c=>`<label>${esc(c)} <input type="color" data-color="${c}" value="${color(c)}"></label>`).join("")}</div><button class="btn small" data-reset>Reset class colors</button>`;
+    root.innerHTML=`<label><input type="checkbox" data-enable ${pref.enabled!==false?"checked":""}> Use class colors</label><div class="row" style="gap:6px;margin:6px 0"><label>Palette <select data-palette><option value="">Choose a palette…</option>${Object.keys(PALETTES).map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("")}</select></label><button class="btn small" data-apply-palette>Apply</button></div><div class="cr-colors">${Object.keys(defaults).map(c=>`<label>${esc(c)} <input type="color" data-color="${c}" value="${color(c)}"></label>`).join("")}</div><button class="btn small" data-reset>Reset class colors</button>`;
     const save=()=>{const pref={enabled:root.querySelector("[data-enable]").checked,colors:Object.fromEntries([...root.querySelectorAll("[data-color]")].map(e=>[e.dataset.color,e.value]))};localStorage.setItem("a2-combat-colors",JSON.stringify(pref));if(onSave)onSave(pref);};
     root.onchange=save;root.querySelector("[data-reset]").onclick=()=>{localStorage.removeItem("a2-combat-colors");settings(root,onSave);if(onSave)onSave({});};
+    root.querySelector("[data-apply-palette]").onclick=()=>{const pal=PALETTES[root.querySelector("[data-palette]").value];if(!pal)return;root.querySelector("[data-enable]").checked=true;[...root.querySelectorAll("[data-color]")].forEach(e=>{if(pal[e.dataset.color])e.value=pal[e.dataset.color];});save();};
   }
   const table = (headers,rows) => `<div class="cr-scroll"><table class="t"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.join("") || `<tr><td colspan="${headers.length}">No recorded events.</td></tr>`}</tbody></table></div>`;
   function mount(root, doc, options={}) {
@@ -503,5 +515,5 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     const api={update(next){doc=next;state.segment=Math.min(state.segment,doc.segments.length-1);const changed=selectLatest();render();if(changed)requestRanks();},state,dispose(){disposed=true;archiveRequest++;rankRequest++;profileRequest++;if(replayFrame)cancelAnimationFrame(replayFrame);}};
     selectLatest();render();requestRanks();return api;
   }
-  window.A2CombatReview={mount,color,settings};
+  window.A2CombatReview={mount,color,settings,palettes:PALETTES};
 })();

@@ -1,3 +1,7 @@
+## Class-colour palette presets (0.2.184)
+
+- The app's **class colours** (used across the Live Meter, combat review, charts and the overlay bars) now have one-click **palette presets**: in **Settings → Combat class colors**, pick a palette and **Apply** to set all eight classes at once. Palettes are **Default**, **Colourblind-friendly** (the Okabe–Ito set, chosen to stay distinct for red/green colour-vision deficiencies), **High contrast**, **Pastel** and **Vivid**. You can still fine-tune any class afterwards, and the picker appears everywhere class colours are edited — the app and the public site's combat review.
+
 ## Documented the overlay look & presets (0.2.183)
 
 - The user guide now has an **"Overlay look and look presets"** section covering the overlay appearance settings (rank numbers, compact rows, class swatch, class-coloured names, zebra striping, bar style, text outline, colour-cycle, highlight-my-row, the self-rank line and the smooth bar animation) and how to save, apply and **share** look presets by code — so the features added across 0.2.172–0.2.182 are discoverable.
