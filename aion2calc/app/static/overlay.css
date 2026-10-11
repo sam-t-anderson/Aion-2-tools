@@ -33,6 +33,12 @@ html.native-windows .ovcard { max-width: none; }
 #ov.ov-scroll-names .ovname { overflow: hidden; }
 #ov.ov-scroll-names .ovname:hover .ovnametext { animation: ovnamescroll 4s linear infinite alternate; }
 @keyframes ovnamescroll { 0%, 15% { transform: translateX(0); } 100% { transform: translateX(calc(60px - 100%)); } }
+/* Animated colour-cycling (palette-shift) on the header and names. Opt-in, and
+   only when the viewer hasn't asked for reduced motion. */
+@keyframes ovhue { to { filter: hue-rotate(360deg); } }
+@media (prefers-reduced-motion: no-preference) {
+  #ov.ov-cycle .ovhd, #ov.ov-cycle .ovname { animation: ovhue 12s linear infinite; }
+}
 html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovcard:active { cursor: grabbing; }
 /* Group the view tabs and the Lock/Hide buttons together on the left; the status

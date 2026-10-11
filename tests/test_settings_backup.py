@@ -170,6 +170,13 @@ def test_overlay_bar_style_settings_round_trip_and_validate(isolated_home):
         settings_backup.import_settings({"overlay_bar_rounded": "yes"})
 
 
+def test_overlay_color_cycle_round_trips(isolated_home):
+    assert settings_backup.import_settings({"overlay_color_cycle": True})["settings"]["overlay_color_cycle"] is True
+    assert settings_backup.import_settings({"overlay_color_cycle": False})["settings"]["overlay_color_cycle"] is False
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_color_cycle": "on"})
+
+
 def test_overlay_text_outline_round_trips_and_validates(isolated_home):
     # The text-outline toggle (bool) and its colour both ride the backup.
     s = settings_backup.import_settings({"overlay_text_outline": True,

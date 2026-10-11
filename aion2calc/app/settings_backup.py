@@ -24,7 +24,7 @@ _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close",
               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
               "overlay_always_visible", "overlay_remember_position", "overlay_text_outline",
-              "overlay_bar_rounded", "overlay_class_color_names")
+              "overlay_bar_rounded", "overlay_class_color_names", "overlay_color_cycle")
 
 # key -> (min, max) for whole-number settings.
 _INT_KEYS = {"meter_reset_delay": (1, 120), "meter_max_records": (1, 500),

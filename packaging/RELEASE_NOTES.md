@@ -1,3 +1,7 @@
+## Overlay colour-cycle effect (0.2.170)
+
+- New **"Colour-cycle"** toggle (Settings → Overlay colors & fonts, **off by default**) slowly animates the overlay's **header and player names** through the colour spectrum — a lively palette-shift flourish. It's opt-in and honours your system **reduced-motion** preference (no animation if you've asked for less motion). Rides the settings backup and your saved look presets.
+
 ## Overlay themes now style the bars too, plus Aurora & Sunset (0.2.169)
 
 - The overlay starter themes now set the **bar style** as part of their look, so they apply in one click: **Neon, Midnight blue, Ember** gain rounded **gradient** bars, **Minimal** gets soft rounded flat bars, and **Default (gold)** / **High contrast** stay flat (as before). Two new themes join the set — **Aurora** (teal-and-green with gradient rounded bars and class-coloured names) and **Sunset** (pink-to-orange warmth) — bringing the starter themes to **nine**. Your own saved presets are unaffected, and the per-theme description notes the bar look.

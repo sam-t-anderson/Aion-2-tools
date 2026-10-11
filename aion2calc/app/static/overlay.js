@@ -62,6 +62,9 @@
     // soft glow; strokes behind the fill). Off by default.
     document.documentElement.style.setProperty('--ov-outline-color',/^#[0-9a-f]{6}$/i.test(ui.overlay_outline_color||'')?ui.overlay_outline_color:'#000000');
     document.getElementById('ov').classList.toggle('ov-outline',ui.overlay_text_outline===true);
+    // Animated colour-cycling (palette-shift) on the header and player names.
+    // Off by default; respects prefers-reduced-motion (handled in CSS).
+    document.getElementById('ov').classList.toggle('ov-cycle',ui.overlay_color_cycle===true);
     // Bar visual styles: gradient fill and rounded corners (per-class bar colour
     // stays, set per row as --bar), and optionally colour player names by class.
     document.getElementById('ov').classList.toggle('ov-bars-gradient',ui.overlay_bar_style==='gradient');
