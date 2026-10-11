@@ -1,3 +1,7 @@
+## Auto-upload the log when you stop the meter (0.2.191)
+
+- When you **stop the meter**, the saved session is now **uploaded to your configured log server automatically** — **on by default**. The notice shows the shared-log link when it's done, and if the upload fails the session is still saved locally and you can Upload manually. Turn it off any time under **Settings → Meter → "Upload the log to the configured server when you stop the meter"**. It respects your configured server and visibility (unlisted/public/private) and only runs when a session was actually saved.
+
 ## Customization profiles (0.2.190)
 
 - Save your whole look as a named **customization profile** and switch between them in one click (Settings → **Profiles & backup**). A profile bundles your **theme**, **accent colour**, **class colours** and the **overlay look**, so you can keep, say, a bright "Streaming" set and a muted "Raiding" set and flip between them instantly. **Save current as…**, **Apply** and **Delete** manage them; profiles are stored in your browser.

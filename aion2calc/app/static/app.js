@@ -1157,7 +1157,24 @@ async function pageMeter() {
     if(st.captureBusy || st.finalizing)return;
     if (st.running) {
       st.captureBusy = true; button.disabled = true;
-      try { $("#mnotice").textContent = "Stopping capture and saving logs…"; const result = await api("/api/meter", {action: "stop"}); renderMeter(result); $("#mnotice").textContent = result.diagnostics?.log_save_error ? "Capture stopped, but log saving failed: " + result.diagnostics.log_save_error : result.saved_log ? "Capture stopped. Session saved to " + result.saved_log : "Capture stopped. No session file was saved; check Combat Logs and capture diagnostics."; toast($("#mnotice").textContent, 6000); }
+      try {
+        $("#mnotice").textContent = "Stopping capture and saving logs…";
+        const result = await api("/api/meter", {action: "stop"});
+        renderMeter(result);
+        $("#mnotice").textContent = result.diagnostics?.log_save_error ? "Capture stopped, but log saving failed: " + result.diagnostics.log_save_error : result.saved_log ? "Capture stopped. Session saved to " + result.saved_log : "Capture stopped. No session file was saved; check Combat Logs and capture diagnostics.";
+        toast($("#mnotice").textContent, 6000);
+        // Auto-upload the saved session to the configured server (on by default).
+        if (result.saved_log) {
+          let autoUp = true; try { const u = await api('/api/ui'); autoUp = u.meter_auto_upload !== false; } catch (_) {}
+          if (autoUp) {
+            $("#mnotice").textContent = "Capture stopped. Uploading the log to the server…";
+            try {
+              const r = await runJob("/api/meter", {action: "upload"}, lines => { if (lines.length && $("#mnotice")) $("#mnotice").textContent = lines[lines.length - 1]; });
+              if ($("#mnotice")) $("#mnotice").innerHTML = r.url ? `Capture stopped and uploaded — <a href="${esc(r.url)}" target="_blank" rel="noopener">open shared log</a>` : "Capture stopped and uploaded.";
+            } catch (e) { if ($("#mnotice")) $("#mnotice").textContent = "Capture stopped and saved. Auto-upload failed: " + e.message + " (you can still Upload manually)."; }
+          }
+        }
+      }
       catch (e) { $("#mnotice").textContent = e.message; }
       finally { st.captureBusy = false; button.disabled = !!st.finalizing; }
       return;
@@ -1758,6 +1775,7 @@ async function pageSettings() {
     <div class="setrow" data-g="meter"><div class="lbl">Combat records</div><div><label><input type="checkbox" id="rec-reset" ${ui.meter_reset_after_battle === true?'checked':''}> Clear the live meter after a battle ends (off by default — the last fight's numbers stay on the overlay until the next fight, a wipe or a manual clear)</label>
       <div class="row" style="margin-top:4px"><label>Reset delay <input type="number" id="rec-delay" min="1" max="120" value="${Number(ui.meter_reset_delay)||5}" style="width:64px"> s</label><label>Keep up to <input type="number" id="rec-max" min="1" max="500" value="${Number(ui.meter_max_records)||20}" style="width:70px"> past combats</label><span id="rec-msg" class="small muted" role="status"></span></div>
       <label><input type="checkbox" id="rec-save" ${ui.meter_save_records !== false?'checked':''}> Save combat records automatically (write each session to the logs folder)</label>
+      <label><input type="checkbox" id="rec-autoupload" ${ui.meter_auto_upload !== false?'checked':''}> Upload the log to the configured server when you stop the meter (on by default)</label>
       <label style="margin-top:4px"><input type="checkbox" id="rec-dummy" ${ui.meter_show_dummy_parse !== false?'checked':''}> Show a training-dummy parse readout when hitting a dummy</label>
       <div class="row"><label>Training-dummy parse window <input type="number" id="rec-dummy-secs" min="5" max="3600" value="${Number(ui.meter_dummy_record_seconds)||60}" style="width:70px"> s</label></div>
       <p class="small muted">Applies to the live meter and overlay. A cleared battle's details stay available in the segment list until replaced.</p></div></div>
@@ -1979,6 +1997,7 @@ async function pageSettings() {
   $("#rec-delay").onchange = () => saveRecNum("rec-delay", "meter_reset_delay", 1, 120);
   $("#rec-max").onchange = () => saveRecNum("rec-max", "meter_max_records", 1, 500);
   $("#rec-save").onchange = () => api("/api/ui", { meter_save_records: $("#rec-save").checked }).then(() => toast("Saved · applies to the next capture"));
+  $("#rec-autoupload").onchange = () => api("/api/ui", { meter_auto_upload: $("#rec-autoupload").checked }).then(() => toast("Saved"));
   $("#rec-dummy").onchange = () => api("/api/ui", { meter_show_dummy_parse: $("#rec-dummy").checked }).then(() => toast("Saved"));
   $("#rec-dummy-secs").onchange = () => saveRecNum("rec-dummy-secs", "meter_dummy_record_seconds", 5, 3600);
   $("#settings-export").onclick = async () => {

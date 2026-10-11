@@ -924,7 +924,7 @@ class Handler(BaseHTTPRequestHandler):
                               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
                               "overlay_always_visible", "overlay_remember_position",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me")
+                              "overlay_color_cycle", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "meter_auto_upload")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1087,7 +1087,7 @@ def ui_settings() -> dict:
                 "overlay_color_cycle": False, "overlay_row_stripes": False, "overlay_class_swatch": False, "overlay_compact_rows": False, "overlay_rank_numbers": False, "overlay_highlight_me": False,
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
-                "meter_save_records": True, "overlay_name_mode": "name",
+                "meter_save_records": True, "meter_auto_upload": True, "overlay_name_mode": "name",
                 "overlay_dps_interpolate": True, "overlay_interpolate_ms": 50, "overlay_show_fps": False,
                 "overlay_presets": []}
     return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}

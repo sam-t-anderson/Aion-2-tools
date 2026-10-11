@@ -188,6 +188,12 @@ def test_overlay_highlight_me_round_trips(isolated_home):
         settings_backup.import_settings({"overlay_highlight_me": 1})
 
 
+def test_meter_auto_upload_round_trips(isolated_home):
+    assert settings_backup.import_settings({"meter_auto_upload": False})["settings"]["meter_auto_upload"] is False
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"meter_auto_upload": "yes"})
+
+
 def test_overlay_class_swatch_round_trips(isolated_home):
     assert settings_backup.import_settings({"overlay_class_swatch": True})["settings"]["overlay_class_swatch"] is True
     with pytest.raises(ValueError):
