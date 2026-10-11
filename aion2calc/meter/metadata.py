@@ -13,7 +13,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from ..paths import user_data, write_user_json
+from ..paths import user_data, within, write_user_json
 
 REGIONS = ("nae", "eu", "as", "la")
 _COLLECTION_LOCK = threading.Lock()
@@ -322,7 +322,7 @@ def _build_evidence(root):
 
 
 def _installation_id(root):
-    return hashlib.sha256(os.path.normcase(str(root.resolve())).encode("utf-8")).hexdigest()[:24]
+    return hashlib.sha256(os.path.normcase(str(within(root))).encode("utf-8")).hexdigest()[:24]
 
 
 def selected_installation():

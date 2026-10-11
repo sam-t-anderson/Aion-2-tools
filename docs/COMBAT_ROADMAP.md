@@ -111,6 +111,7 @@ Most of this pass has shipped (0.2.133–0.2.144): run segmentation and the part
 
 **Overlay visual settings & layout:**
 - Per-element font family, size, weight and colour pickers for **every** text element, colour pickers for every non-text element, and the fancier font glow/halo/retroreflection/colour-cycling/palette-shift effects. Shipped so far: font family/size/weight, colour pickers for rate/total/name/header text, a text-glow toggle with its own colour, and a user-chosen background photo with zoom/visibility/darken. Remaining is the per-element pickers for *every* element and the richer effects.
+- **Presets for the overlay look** — named, savable presets that capture the overlay's colours, fonts, background (image + sliders) and per-class bar colours together, so a user can switch between whole themes in one click, and export/import or share a preset (building on the settings backup/restore file). Include a few bundled starter presets. **Per-class bar colours** are part of this: today class colours come from the shared `A2CombatReview.color(class)` palette; a preset should let the user override the colour used for each class's bar/row, and those overrides ride the preset.
 
 **Combat information on the overlay:**
 - A drawn remaining-over-max enemy-HP bar and dedicated enemy-HP colour pickers (the HP %/current/max numbers already ship).

@@ -11,7 +11,7 @@
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
   let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false, showDummy=true, showCombatPower=true;
   let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name";
-  let interpolate=false, interpolateMs=100, showFps=false, locked=false;
+  let interpolate=false, interpolateMs=100, showFps=false, locked=false, userWidth=null;
   const shownRates=new Map();   // row key -> currently displayed (eased) rate
   const cap=s=>String(s||'').charAt(0).toUpperCase()+String(s||'').slice(1);
   const displayName=p=>{
@@ -56,7 +56,7 @@
     // Long-name scrolling
     document.getElementById('ov').classList.toggle('ov-scroll-names',ui.overlay_long_names_scroll===true);
     // Background photo (opacity 0 = none). The image load errors are swallowed.
-    const bgOp=clampInt(ui.overlay_bg_opacity,0,100,0), bgZoom=clampInt(ui.overlay_bg_zoom,50,200,100), bgDark=clampInt(ui.overlay_bg_darken,0,100,40);
+    const bgOp=clampInt(ui.overlay_bg_opacity,0,100,100), bgZoom=clampInt(ui.overlay_bg_zoom,50,200,100), bgDark=clampInt(ui.overlay_bg_darken,0,100,20);
     applyBackground(ui.overlay_bg_set===true && bgOp>0, bgOp, bgZoom, bgDark);
     showContribution=ui.overlay_show_contribution!==false;
     showTarget=ui.overlay_show_target!==false;
@@ -74,8 +74,9 @@
     maxPlayers=clampInt(ui.overlay_max_players,1,24,8);
     onlyInCombat=ui.overlay_only_in_combat===true;
     autoExpand=ui.overlay_auto_expand===true;
-    document.documentElement.style.setProperty('--ov-width',clampInt(ui.overlay_width,260,800,340)+'px');
+    document.documentElement.style.setProperty('--ov-width',(userWidth??clampInt(ui.overlay_width,260,800,340))+'px');
     document.documentElement.style.setProperty('--ov-row-h',clampInt(ui.overlay_row_height,14,48,22)+'px');
+    document.getElementById("ov").classList.toggle("ov-resizable",ui.overlay_resizable===true&&!partyMode);
     if(lastSnap)renderMeter();
     fit();
   }).catch(()=>{});
@@ -293,6 +294,24 @@
   setInterval(() => { if (tab === "meter") pollMeter(); }, 800);
   setInterval(() => { t += 0.1; if (tab === "plan") renderPlan(); }, 100);
   window.addEventListener("storage", (event) => { if (event.key === "aion2calc-closing") window.close(); });
+
+  // Drag-to-resize: the frameless window auto-fits the card, so a right-edge grip
+  // drives the card width (the window follows). The new width persists as the
+  // overlay_width setting. Off unless Settings → Overlay layout enables it.
+  const grip=$("#ovresize");
+  if(grip)grip.addEventListener("pointerdown",e=>{
+    e.preventDefault(); e.stopPropagation();
+    const startX=e.clientX, card=document.querySelector("#ov .ovcard");
+    const startW=card?card.getBoundingClientRect().width:340;
+    try{grip.setPointerCapture(e.pointerId);}catch(_){}
+    const move=ev=>{userWidth=Math.max(260,Math.min(800,Math.round(startW+(ev.clientX-startX))));
+      document.documentElement.style.setProperty('--ov-width',userWidth+'px');};
+    const up=()=>{
+      document.removeEventListener("pointermove",move); document.removeEventListener("pointerup",up);
+      if(userWidth!=null)fetch("/api/ui",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({overlay_width:userWidth})}).catch(()=>{});
+    };
+    document.addEventListener("pointermove",move); document.addEventListener("pointerup",up);
+  });
 
   // Screenshot & lock: freeze the display and keep the overlay pinned (even when
   // the game loses focus) so it can be captured; a second click resumes.

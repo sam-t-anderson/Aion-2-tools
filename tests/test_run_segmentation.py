@@ -104,3 +104,36 @@ def test_in_instance_phase_teleport_keeps_one_run():
     assert s.run == before                               # still one run, not split
     live = s.snapshot(scope="auto", segment_id=None)
     assert sum(row["damage"] for row in live["players"]) == 2000  # totals carry across the pause
+
+
+def test_open_world_combat_is_not_flagged_partial_capture():
+    # Open-world zones have no instance entry to "join mid-way", so a run there must
+    # never read as partial capture -- even without a witnessed entry or a known local
+    # identity (which would otherwise force the all-players scope that marks partial).
+    s = CombatSession()
+    s.pvp = False
+    engine = MeterEngine()
+    engine.map_id = 100001            # an overworld map in the bundled open-world table
+    engine.dungeon_id = 0
+    engine.last_zone_reset_ms = None
+    engine.local_player_id = None
+    engine.names = {}
+    engine.roster = {}
+    s.observe(engine, [_hit(5001, 9001, 1000), _hit(5002, 9001, 1200)], timestamp_ms=1200)
+    snap = s.snapshot(scope="auto", segment_id=None)
+    assert snap["partial_capture"] is False
+
+
+def test_instance_join_without_entry_is_still_partial_capture():
+    # Contrast: the same mid-join inside an instance stays flagged partial.
+    s = CombatSession()
+    s.pvp = False
+    engine = MeterEngine()
+    engine.map_id = engine.dungeon_id = 600002
+    engine.last_zone_reset_ms = None
+    engine.local_player_id = None
+    engine.names = {}
+    engine.roster = {}
+    s.observe(engine, [_hit(5001, 9001, 1000), _hit(5002, 9001, 1200)], timestamp_ms=1200)
+    snap = s.snapshot(scope="auto", segment_id=None)
+    assert snap["partial_capture"] is True

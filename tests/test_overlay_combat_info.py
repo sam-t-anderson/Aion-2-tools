@@ -36,21 +36,23 @@ def test_contribution_is_the_local_players_share():
     assert round(c["share"], 2) == 0.75
 
 
-def test_current_target_is_the_enemy_the_local_player_hits_most():
+def test_current_target_follows_the_most_recently_hit_enemy():
+    # The overlay target must follow a target switch — not stick to whichever enemy
+    # accumulated the most damage earlier (e.g. a boss you just left or killed).
     s, engine = _session()
-    # Me hits boss 9001 harder than trash 9002; Ally also hits the boss.
-    s.observe(engine, [_hit(5001, 9001, 1000, 5000), _hit(5001, 9002, 1500, 200),
-                       _hit(5002, 9001, 2000, 2000)], timestamp_ms=2000)
+    s.observe(engine, [_hit(5001, 9001, 1000, 5000),   # me → boss, earlier, huge damage
+                       _hit(5001, 9002, 1500, 200),    # me → new mob, most recent
+                       _hit(5002, 9002, 1600, 100)],   # ally → the new mob too
+              timestamp_ms=2000)
     snap = s.snapshot(scope="auto", segment_id=None)
     target = snap["current_target"]
     assert target is not None
-    assert str(9001) in target["key"]                 # the boss, not the trash mob
+    assert str(9002) in target["key"]                 # the enemy hit most recently, not 9001
     assert target["is_player"] is False
     names = [c["name"] for c in target["contributors"]]
-    assert names[0] == "Me"                            # ranked by damage to that target
-    assert "Ally" in names
+    assert "Me" in names and "Ally" in names           # contributors to that target
     me = next(c for c in target["contributors"] if c["name"] == "Me")
-    assert me["damage"] == 5000 and me["dps"] > 0
+    assert me["damage"] == 200 and me["dps"] > 0
 
 
 def test_players_get_a_stable_party_number():

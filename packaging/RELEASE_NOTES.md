@@ -1,3 +1,21 @@
+## Overlay & meter fixes: target tracking, open-world capture, resize, background defaults (0.2.147)
+
+Overlay / live-meter fixes and settings:
+
+- **Current target now follows a target switch.** The overlay's Target readout used to stick to whichever enemy had taken the most damage (e.g. a boss you just killed); it now follows the enemy you hit most recently, so it updates when you move to a new mob.
+- **No more "Partial Capture" in the open world.** Open-world zones (abyss, the overworld/starter maps, etc.) have no instance entry to "join mid-way", so a run there is no longer flagged as a partial capture. Instanced content is unchanged.
+- **Drag-to-resize actually works.** The frameless overlay auto-fits its card, which defeated native edge-resizing; there is now a right-edge grip (shown when *Resize the overlay by dragging its edges* is enabled in Settings → Overlay layout) that resizes the overlay width and remembers it.
+- **Overlay background defaults:** visibility now defaults to **100%** and darken to **20%** — but the background still shows nothing until you actually choose an image.
+- **Wider saved-session review.** Opening a previous combat session from Combat Logs now uses the full window width (like the build/craft workspaces) instead of the narrower default column.
+
+Security / code scanning:
+
+- Cleared 6 more CodeQL alerts with real fixes: the 4 remaining `xss-through-dom` findings (the raid-planner imported-notes/owner-revision fields and the community metric column headers are now escaped or set as DOM text), plus the custom-decoder loader is constrained to the app's managed decoders folder (a localhost request can no longer execute an arbitrary `.py` by path) and the install-id path is canonicalized.
+
+Roadmap:
+
+- Added overlay **look presets** (colours + fonts + background + per-class bar colours, savable/shareable) under §8.
+
 ## Security hardening: code-scanning fixes (0.2.146)
 
 Addressed the repository's CodeQL code-scanning findings, verified by running the same default query suite (remote threat model) locally. No user-facing behavior changes; these are security hardening and defensive validation.

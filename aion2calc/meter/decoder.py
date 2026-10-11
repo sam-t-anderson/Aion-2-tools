@@ -37,7 +37,14 @@ def load_decoder(spec: str):
     """Resolve a decoder from a registered name, ``module:attr``, or a module exposing
     ``make_decoder`` / ``Decoder``."""
     if Path(spec).suffix.lower() == ".py":
-        path = Path(spec).resolve(strict=True)
+        # Custom decoder files are imported through import_decoder, which stores them
+        # in the app's managed decoders folder. Load only from there (containment via
+        # realpath + commonpath), so a request cannot execute an arbitrary .py by path.
+        from ..paths import home, within
+        try:
+            path = within(home() / "decoders", Path(spec).name).resolve(strict=True)
+        except (ValueError, OSError):
+            raise ValueError("Import the decoder first; custom decoders load from the app's decoders folder")
         name = "aion2calc_user_decoder_" + hashlib.sha256(str(path).encode()).hexdigest()[:16]
         module_spec = importlib.util.spec_from_file_location(name, path)
         if module_spec is None or module_spec.loader is None:

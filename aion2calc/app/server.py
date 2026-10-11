@@ -1051,7 +1051,7 @@ def ui_settings() -> dict:
                 "overlay_resizable": False, "overlay_snap_edge": False, "overlay_expand_up": False,
                 "overlay_font_scale": 100, "overlay_font_weight": 600, "overlay_font_family": "",
                 "overlay_glow": False, "overlay_glow_color": "#e8cf8e",
-                "overlay_bg_opacity": 0, "overlay_bg_zoom": 100, "overlay_bg_darken": 40, "overlay_bg_set": False,
+                "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
                 "meter_save_records": True, "overlay_name_mode": "name",
                 "overlay_dps_interpolate": False, "overlay_interpolate_ms": 100, "overlay_show_fps": False}

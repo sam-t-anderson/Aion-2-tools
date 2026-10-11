@@ -534,9 +534,14 @@ class CombatSession:
                         "name": self.name(record.epoch, event.target_id, True), "damage": 0, "hits": 0,
                         "mob_code": identity["spawns"].get(event.target_id, {}).get("mobCode"),
                         "is_player": group["pvp"] or event.target_id in identity["names"],
-                        "owner": identity["owners"].get(event.target_id), "players": {}})
+                        "owner": identity["owners"].get(event.target_id), "players": {},
+                        "last_ms": 0, "players_last": {}})
                     enemy["damage"] += event.total_damage; enemy["hits"] += 1
                     enemy["players"][str(event.actor_id)] = enemy["players"].get(str(event.actor_id), 0) + event.total_damage
+                    # Track recency so the overlay's "current target" follows the enemy
+                    # being hit now, not whichever accumulated the most damage earlier.
+                    enemy["last_ms"] = max(enemy["last_ms"], event.timestamp_ms)
+                    enemy["players_last"][str(event.actor_id)] = event.timestamp_ms
                     if enemy_id and target_key != enemy_id:
                         continue
                     row = player(event.actor_id)
@@ -690,8 +695,13 @@ class CombatSession:
         summary["party_roster_late"] = scope in ("party", "auto") and any(self._late_roster(r) for g in chosen for r in g["records"])
         if summary["party_roster_late"]:
             summary["warning"] = "Party roster arrived late; earlier matching effects are included. Earlier membership is unverified; Self still requires your player identity."
-        summary["partial_capture"] = any(self._effective_scope(scope, g["epoch"]) == "all"
-                                         or bool(self.runs[g["run"]].get("instance_id")) and not self.runs[g["run"]].get("start_observed") for g in chosen)
+        # "Partial capture" only applies to instanced content with a defined entry.
+        # Open-world zones (abyss, the starter/overworld maps, etc.) have no encounter
+        # boundary to join mid-way, so they are never flagged partial.
+        from .a2parser.engine import OPEN_WORLD_MAPS
+        summary["partial_capture"] = any(self.runs[g["run"]].get("map_id") not in OPEN_WORLD_MAPS
+                                         and (self._effective_scope(scope, g["epoch"]) == "all"
+                                              or bool(self.runs[g["run"]].get("instance_id")) and not self.runs[g["run"]].get("start_observed")) for g in chosen)
         if summary["partial_capture"]:
             observed = any(self._effective_scope(scope, g["epoch"]) == "all" for g in chosen)
             summary["warning"] = ("Partial capture · unranked; excluded from community learning. "
@@ -718,10 +728,15 @@ class CombatSession:
         if summary["enemies"]:
             target = None
             if local_id is not None:
-                target = max(summary["enemies"], key=lambda e: e["players"].get(str(local_id), 0))
-                if target["players"].get(str(local_id), 0) <= 0:
-                    target = None
-            target = target or summary["enemies"][0]
+                # The enemy the local player hit most recently (then by total damage),
+                # so the readout follows a target switch instead of sticking to a
+                # just-killed mob with the highest accumulated damage.
+                hit = [e for e in summary["enemies"] if e["players"].get(str(local_id), 0) > 0]
+                if hit:
+                    target = max(hit, key=lambda e: (e.get("players_last", {}).get(str(local_id), 0),
+                                                      e["players"].get(str(local_id), 0)))
+            # Fall back to the most recently damaged enemy overall, else the top one.
+            target = target or max(summary["enemies"], key=lambda e: e.get("last_ms", 0)) or summary["enemies"][0]
             contributors = sorted(
                 [{"id": actor, "name": name_by_id.get(actor, f"Player #{actor}"),
                   "damage": dmg, "dps": dmg / duration} for actor, dmg in target["players"].items()],
@@ -746,6 +761,8 @@ class CombatSession:
                 "is_dummy": is_dummy,
             }
         summary["current_target"] = current_target
+        for _enemy in summary["enemies"]:   # drop internal recency bookkeeping from the output
+            _enemy.pop("last_ms", None); _enemy.pop("players_last", None)
         # Training-dummy parse: when the current target is a dummy, surface a parse
         # readout (your DPS and the party's against it, elapsed vs the standard
         # window). Packet-sourced from the recorded damage; blank off a dummy.
@@ -920,7 +937,7 @@ class CombatSession:
                     "run_start_observed":run.get("start_observed",False),
                     "run_started_at":datetime.fromtimestamp(run["started_at"]/1000,timezone.utc).isoformat() if run.get("started_at") is not None else None,
                     "run_ended_at":datetime.fromtimestamp(run["ended_at"]/1000,timezone.utc).isoformat() if run.get("ended_at") is not None else None,
-                    "partial_capture":group_scope == "all" or bool(run.get("instance_id")) and not run.get("start_observed"),
+                    "partial_capture":run.get("map_id") not in OPEN_WORLD_MAPS and (group_scope == "all" or bool(run.get("instance_id")) and not run.get("start_observed")),
                     "party_members":party_members, "party_roster_complete":roster_complete, "party_roster_late":roster_late,
                     "run_end_reason":run.get("end_reason", ""), "map_id":run.get("map_id",0),
                     "instance_id":run.get("instance_id",0), "encounter_type":category,

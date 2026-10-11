@@ -117,7 +117,7 @@
       <div class="row" style="margin-top:8px"><button class="btn small" id="rexport">Export file</button>
         <label class="btn small" style="cursor:pointer">Import file<input id="rimport" type="file" accept=".json,.a2plan" hidden></label>
         <button class="btn small" id="rcode">Copy share code</button><button class="btn small" id="rload">Load from code</button>${shareBtns}${hint}</div>
-      <div class="row small" id="rpubmsg">${owner()?`Published link: <a href="${esc(owner().url)}" target="_blank" rel="noopener">${esc(owner().url)}</a> · revision ${owner().revision}`:""}</div>`;
+      <div class="row small" id="rpubmsg">${owner()?`Published link: <a href="${esc(owner().url)}" target="_blank" rel="noopener">${esc(owner().url)}</a> · revision ${esc(owner().revision)}`:""}</div>`;
 
     const tokensHtml = p.tokens.map((tk) => {
       const s = tk.id === st.sel ? " sel" : "";
@@ -175,10 +175,12 @@
         <div class="row small" style="margin-top:6px"><input id="bfname" placeholder="Buff name" style="width:110px"><select id="bfby" style="width:90px"><option value="">source…</option>${players.map((pl) => { const nm = pl.label || pl.cls; return `<option>${esc(nm)}</option>`; }).join("")}</select>
           <input id="bfstart" type="number" min="0" value="0" style="width:52px"><span class="faint">–</span><input id="bfend" type="number" min="0" value="10" style="width:52px"><button class="btn small" id="bfadd">Add</button></div>
         ${fightRow}
-        <h4 class="gold small">NOTES</h4><textarea id="rnotes" rows="4" style="width:100%" placeholder="Callouts, phases, assignments…">${esc(p.meta?.notes || "")}</textarea></div>`;
+        <h4 class="gold small">NOTES</h4><textarea id="rnotes" rows="4" style="width:100%" placeholder="Callouts, phases, assignments…"></textarea></div>`;
 
     st.root.innerHTML = win("Raid & boss planner", "drag player tokens on the map and scrub the timeline to plan movement, cooldowns and party buffs",
       header + `<div class="raidwrap"><div>${left}</div>${side}</div>`);
+    // Set the imported notes as DOM text (never through innerHTML) so a note can't be reinterpreted as markup.
+    const notesField = $("#rnotes", st.root); if (notesField) notesField.value = p.meta?.notes || "";
     bind();
   }
 
