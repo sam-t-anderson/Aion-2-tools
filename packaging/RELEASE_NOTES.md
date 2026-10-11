@@ -1,3 +1,8 @@
+## Anonymous daily-active-meters count (0.2.171)
+
+- The app now contributes to a **community "daily active meters"** count: once per day a packaged install tells the configured log server that *a* meter ran, so the public stats can show how many are active. It's **on by default (opt-out)** and **fully anonymous** — it sends only a token that **rotates every UTC day** (generated from a random local salt that never leaves your PC, so it can't be traced to you or linked across days), the date, and the app version. **No** name, character, server, IP or combat data is ever sent. Turn it off anytime under **Settings → Community stats**. It's best-effort and only runs from the installed desktop app (never from dev runs or tests).
+- **Server side (separate repo) — pending:** a lightweight `/api/v1/heartbeat` endpoint that counts distinct daily tokens into a retention-bounded aggregate and exposes only the count. Until it exists the beacon is harmlessly ignored; once it does, the site can show the daily/trend number.
+
 ## Overlay colour-cycle effect (0.2.170)
 
 - New **"Colour-cycle"** toggle (Settings → Overlay colors & fonts, **off by default**) slowly animates the overlay's **header and player names** through the colour spectrum — a lively palette-shift flourish. It's opt-in and honours your system **reduced-motion** preference (no animation if you've asked for less motion). Rides the settings backup and your saved look presets.

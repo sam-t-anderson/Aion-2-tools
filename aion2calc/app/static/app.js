@@ -1694,6 +1694,8 @@ async function pageSettings() {
       <select id="svis">${["unlisted", "public", "private"].map((v) => `<option ${v === (srv.visibility || "unlisted") ? "selected" : ""}>${v}</option>`).join("")}</select>
       <button class="btn small" id="ssave">Save</button><button class="btn small" id="scheck">Check saved server</button><span id="smsg" class="small muted"></span></div>
       ${srv.is_default && srv.url ? '<div class="small muted" style="margin-top:4px">Using the community default server. Enter your own above to override it.</div>' : ""}</div></div>
+    <div class="setrow"><div class="lbl">Community stats</div><div><label><input type="checkbox" id="community-heartbeat" ${ui.community_heartbeat !== false?'checked':''}> Contribute to the anonymous daily-active-meters count (on by default)</label>
+      <p class="small muted">Once a day the app tells the configured log server that a meter ran, so the community can see how many are active. It sends only an anonymous token that rotates every day (it can't be traced to you or linked across days), the date, and the app version — never your name, character, server, IP or any combat data. Uncheck to opt out.</p></div></div>
     <div class="setrow"><div class="lbl">Live meter overlay</div><div><label><input type="checkbox" id="ov-on-start" ${ui.overlay_on_start !== false?'checked':''}> Show overlay when starting the live meter</label><p class="small muted">Also available beside Start on the Live Meter page.</p>
       <label><input type="checkbox" id="ov-contribution" ${ui.overlay_show_contribution !== false?'checked':''}> Show your contribution (your share of the encounter's damage)</label>
       <label><input type="checkbox" id="ov-target" ${ui.overlay_show_target !== false?'checked':''}> Show the current target and each player's DPS to it</label>
@@ -1816,6 +1818,7 @@ async function pageSettings() {
     catch(e) { control.checked=!selected; toast('Could not save overlay preference: '+e.message); }
   };
   $("#appwin").onchange = () => api("/api/ui", { app_window: $("#appwin").checked }).then(() => toast("Saved"));
+  $("#community-heartbeat").onchange = () => api("/api/ui", { community_heartbeat: $("#community-heartbeat").checked }).then(() => toast("Saved"));
   $("#trayclose").onchange = () => api("/api/ui", { tray_on_close: $("#trayclose").checked }).then(() => toast("Saved · applies on next launch"));
   $("#ov-contribution").onchange = () => api("/api/ui", { overlay_show_contribution: $("#ov-contribution").checked }).then(() => toast("Saved"));
   $("#ov-target").onchange = () => api("/api/ui", { overlay_show_target: $("#ov-target").checked }).then(() => toast("Saved"));

@@ -924,7 +924,7 @@ class Handler(BaseHTTPRequestHandler):
                               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
                               "overlay_always_visible", "overlay_remember_position",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle")
+                              "overlay_color_cycle", "community_heartbeat")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1068,6 +1068,7 @@ def schedule_shutdown() -> None:
 def ui_settings() -> dict:
     from ..paths import data_file, read_json
     defaults = {"app_window": True, "auto_update": True, "overlay_on_start": True, "tray_on_close": False,
+                "community_heartbeat": True,
                 "overlay_show_contribution": True, "overlay_show_target": True,
                 "overlay_show_deaths": True, "overlay_show_enemy_hp": False, "overlay_show_ttk": False,
                 "meter_reset_after_battle": False, "meter_reset_delay": 5, "meter_max_records": 20,

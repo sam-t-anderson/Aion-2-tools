@@ -229,6 +229,14 @@ def main(argv=None) -> int:
                 status = update.auto_update(httpd.shutdown)
                 print("update:", status)
             threading.Thread(target=updater, daemon=True).start()
+        if _frozen():
+            # Anonymous daily "a meter ran today" beacon (opt-out; no PII). Best-effort
+            # and off the main thread so it can never delay or break startup. Only from
+            # packaged installs — dev runs and tests go through other entry points.
+            def beacon():
+                from .combat import heartbeat
+                print("heartbeat:", heartbeat.send())
+            threading.Thread(target=beacon, daemon=True).start()
         url = f"http://127.0.0.1:{port}/"
         def open_app_window():
             proc = open_window(url, prefer_app)
