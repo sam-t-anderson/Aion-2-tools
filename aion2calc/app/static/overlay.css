@@ -56,6 +56,7 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovhpbar[hidden] { display: none; }
 .ovhpbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ov-hp-color, #e05a5a); transition: width .2s linear; }
 .ovtarget .ovttk { color: #8fb3d0; font-weight: 600; }
+.ovtarget .ovalso { color: #c9a86a; font-weight: 600; font-size: .92em; }
 /* Drawn time-to-kill progress bar (shown with the TTK readout). Thinner than the
    HP bar so the two read as distinct. */
 .ovttkbar { position: relative; height: 4px; margin: 0 0 5px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; cursor: default; }

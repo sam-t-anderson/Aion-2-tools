@@ -1,3 +1,7 @@
+## Overlay names multiple targets during AOE (0.2.164)
+
+- When you're hitting **several enemies at the same instant** (AOE/cleave), the overlay's **Target** line now names the extra enemies too — e.g. `Target Mob A +2 (Mob B, Mob C)` — instead of showing only the single "most-hit" one. It triggers only when the extra enemies are struck in the **same ~1-second window** as the main target, so simply **switching** from one enemy to another (a moment apart) still shows just the new single target, exactly as before. Up to three extra names are listed; the full list is in the line's tooltip. Packet-sourced from the recorded hits — nothing guessed.
+
 ## Overlay time-to-kill bar (0.2.163)
 
 - The overlay can now draw a **time-to-kill bar** under the target line, alongside the existing TTK number. It shows how far through the estimated **whole kill** you are **by time** — engaged time so far versus the time-to-kill still remaining — so you get an at-a-glance "almost done" without reading the seconds. It is deliberately distinct from the enemy-HP bar (which shows health remaining): the TTK bar can run ahead of or behind the HP bar when a fight starts slow or finishes fast. It appears with the TTK readout (the "Show estimated time-to-kill for the current target" toggle in Settings) whenever a TTK is available, and stays blank when TTK can't be measured — never guessed.

@@ -120,6 +120,31 @@ def test_target_hp_and_ttk_blank_without_observed_hp():
     assert target["ttk_fraction"] is None     # the TTK bar stays blank with no TTK
 
 
+def test_also_targets_names_enemies_struck_in_the_same_instant():
+    # AOE/cleave: the local player hits two enemies within the same ~1s bucket, so
+    # the single "most-hit" target is genuinely one of several — name the other too.
+    s, engine = _session()
+    s.observe(engine, [_hit(5001, 9001, 2000, 500),    # me -> mob A, bucket 2
+                       _hit(5001, 9002, 2100, 400)],   # me -> mob B, same bucket 2, most recent
+              timestamp_ms=2100)
+    target = s.snapshot(scope="auto", segment_id=None)["current_target"]
+    assert target is not None
+    assert "9002" in target["key"]                     # primary is the most-recently hit
+    assert target["also_targets"] == ["Enemy #9001"]   # the other one struck in the same instant
+
+
+def test_also_targets_empty_on_a_sequential_target_switch():
+    # Hitting mob A, then switching to mob B a few seconds later, is not simultaneous:
+    # A's last hit is in an earlier second, so it must not be listed as also-target.
+    s, engine = _session()
+    s.observe(engine, [_hit(5001, 9001, 2000, 500),    # me -> mob A, bucket 2
+                       _hit(5001, 9002, 5000, 400)],   # me -> mob B, bucket 5 (switch)
+              timestamp_ms=5000)
+    target = s.snapshot(scope="auto", segment_id=None)["current_target"]
+    assert target is not None and "9002" in target["key"]
+    assert target["also_targets"] == []
+
+
 def test_ttk_fraction_tracks_elapsed_over_estimated_whole_kill():
     # The time-based TTK bar fills by engaged time so far over (engaged + remaining).
     # Same scenario as the HP-decline TTK test: 50000 HP left, dropping 10000/s ->

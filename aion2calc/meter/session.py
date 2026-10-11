@@ -809,13 +809,30 @@ class CombatSession:
             ttk_fraction = None
             if ttk is not None and math.isfinite(ttk) and ttk > 0:
                 ttk_fraction = max(0.0, min(1.0, target_secs / (target_secs + ttk)))
+            # When the local player is striking several enemies at once — AOE/cleave
+            # landing in the same ~1-second bucket as the current target's latest hit —
+            # the single "most-hit" target is genuinely one of several, so name the
+            # others too. A sequential target switch does NOT trigger this: the mob you
+            # left was last hit in an earlier second, so its bucket won't match. Scoped
+            # to the local player when known (else the most recent enemies overall).
+            def _recency(enemy):
+                return (enemy.get("players_last", {}).get(str(local_id), 0)
+                        if local_id is not None else enemy.get("last_ms", 0))
+            also_targets = []
+            primary_last = _recency(target)
+            if primary_last:
+                primary_bucket = int(primary_last // 1000)
+                cohort = [e for e in summary["enemies"]
+                          if e is not target and not e.get("is_player")
+                          and _recency(e) and int(_recency(e) // 1000) == primary_bucket]
+                also_targets = [e["name"] for e in sorted(cohort, key=lambda e: -_recency(e))][:3]
             mob_code = target.get("mob_code")
             is_dummy = bool(mob_code and npc_info(mob_code).get("isDummy"))
             current_target = {
                 "name": target["name"], "key": target["key"], "damage": target["damage"],
                 "is_player": target.get("is_player", False), "contributors": contributors,
                 "current_hp": current_hp, "max_hp": max_hp, "hp_pct": hp_pct, "ttk": ttk,
-                "ttk_fraction": ttk_fraction, "is_dummy": is_dummy,
+                "ttk_fraction": ttk_fraction, "is_dummy": is_dummy, "also_targets": also_targets,
             }
         summary["current_target"] = current_target
         for _enemy in summary["enemies"]:   # drop internal recency bookkeeping from the output
