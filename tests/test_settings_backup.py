@@ -170,6 +170,12 @@ def test_overlay_bar_style_settings_round_trip_and_validate(isolated_home):
         settings_backup.import_settings({"overlay_bar_rounded": "yes"})
 
 
+def test_overlay_compact_rows_round_trips(isolated_home):
+    assert settings_backup.import_settings({"overlay_compact_rows": True})["settings"]["overlay_compact_rows"] is True
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_compact_rows": "x"})
+
+
 def test_overlay_class_swatch_round_trips(isolated_home):
     assert settings_backup.import_settings({"overlay_class_swatch": True})["settings"]["overlay_class_swatch"] is True
     with pytest.raises(ValueError):

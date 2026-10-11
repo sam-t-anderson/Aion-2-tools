@@ -1650,7 +1650,7 @@ async function showMaintenance(){
 }
 // Overlay look presets: a named bundle of the overlay's visual settings. These are
 // the keys a preset may carry (mirrors settings_backup._VISUAL_KEYS).
-const OVERLAY_VISUAL_KEYS=["overlay_text_colors","overlay_glow","overlay_glow_color","overlay_hp_color","overlay_ttk_color","overlay_text_outline","overlay_outline_color","overlay_color_cycle","overlay_bar_style","overlay_bar_rounded","overlay_class_color_names","overlay_row_stripes","overlay_class_swatch","overlay_font_family","overlay_font_scale","overlay_font_weight","overlay_bg_opacity","overlay_bg_zoom","overlay_bg_darken","overlay_name_mode","overlay_long_names_scroll","combat_colors"];
+const OVERLAY_VISUAL_KEYS=["overlay_text_colors","overlay_glow","overlay_glow_color","overlay_hp_color","overlay_ttk_color","overlay_text_outline","overlay_outline_color","overlay_color_cycle","overlay_bar_style","overlay_bar_rounded","overlay_class_color_names","overlay_row_stripes","overlay_class_swatch","overlay_compact_rows","overlay_font_family","overlay_font_scale","overlay_font_weight","overlay_bg_opacity","overlay_bg_zoom","overlay_bg_darken","overlay_name_mode","overlay_long_names_scroll","combat_colors"];
 const BUNDLED_PRESETS={
   "Default (gold)":{overlay_text_colors:{rate:"#000000",total:"#000000",name:"#eceae3",header:"#e8cf8e",target:"#cdd6e6",hp:"#e58f8f",ttk:"#8fb3d0"},overlay_glow:false,overlay_glow_color:"#e8cf8e",overlay_hp_color:"#e05a5a",overlay_ttk_color:"#8fb3d0",overlay_text_outline:false,overlay_outline_color:"#000000",overlay_bar_style:"flat",overlay_bar_rounded:false,overlay_class_color_names:false,overlay_font_family:"",overlay_font_scale:100,overlay_font_weight:600,overlay_bg_opacity:100,overlay_bg_zoom:100,overlay_bg_darken:20,overlay_name_mode:"name",overlay_long_names_scroll:false,combat_colors:{}},
   "Bold & large":{overlay_font_family:"Segoe UI",overlay_font_scale:130,overlay_font_weight:800,overlay_glow:true,overlay_glow_color:"#000000"},
@@ -1713,6 +1713,7 @@ async function pageSettings() {
       <label><input type="checkbox" id="ov-classnames" ${ui.overlay_class_color_names === true?'checked':''}> Colour player names by class</label>
       <label><input type="checkbox" id="ov-stripes" ${ui.overlay_row_stripes === true?'checked':''}> Zebra-stripe the player rows</label>
       <label><input type="checkbox" id="ov-classswatch" ${ui.overlay_class_swatch === true?'checked':''}> Show a class-colour swatch before each name</label>
+      <label><input type="checkbox" id="ov-compact" ${ui.overlay_compact_rows === true?'checked':''}> Compact rows (hide the total &amp; percent, keep the per-second rate)</label>
       <label><input type="checkbox" id="ov-interp" ${ui.overlay_dps_interpolate === true?'checked':''}> Live-ticking DPS numbers (recompute between polls for a real-time feel; on by default) <input type="number" id="ov-interp-ms" min="50" max="1000" value="${Number(ui.overlay_interpolate_ms)||50}" style="width:64px"> ms</label>
       <label><input type="checkbox" id="ov-fps" ${ui.overlay_show_fps === true?'checked':''}> Show the overlay's own render FPS (the game's FPS can't be read from capture)</label>
       <label><input type="checkbox" id="ov-party" ${ui.overlay_party_enabled === true?'checked':''}> Open a separate Party-DPS overlay (raid totals) alongside the meter</label>
@@ -1837,6 +1838,7 @@ async function pageSettings() {
   $("#ov-classnames").onchange = () => api("/api/ui", { overlay_class_color_names: $("#ov-classnames").checked }).then(() => toast("Saved"));
   $("#ov-stripes").onchange = () => api("/api/ui", { overlay_row_stripes: $("#ov-stripes").checked }).then(() => toast("Saved"));
   $("#ov-classswatch").onchange = () => api("/api/ui", { overlay_class_swatch: $("#ov-classswatch").checked }).then(() => toast("Saved"));
+  $("#ov-compact").onchange = () => api("/api/ui", { overlay_compact_rows: $("#ov-compact").checked }).then(() => toast("Saved"));
   $("#ov-party").onchange = () => api("/api/ui", { overlay_party_enabled: $("#ov-party").checked }).then(() => toast("Saved · reopen the overlay to apply"));
   $("#ov-always").onchange = () => api("/api/ui", { overlay_always_visible: $("#ov-always").checked }).then(() => toast("Saved · reopen the overlay to apply"));
   $("#ov-remember-pos").onchange = () => api("/api/ui", { overlay_remember_position: $("#ov-remember-pos").checked }).then(() => toast("Saved · reopen the overlay to apply"));

@@ -74,6 +74,9 @@
     // Zebra striping: a subtle alternating background on the player rows for a
     // clearer list at a glance. Off by default.
     document.getElementById('ov').classList.toggle('ov-stripes',ui.overlay_row_stripes===true);
+    // Compact rows: hide each row's trailing total · percent, leaving just the
+    // per-second rate — tidier on a narrow overlay. Off by default.
+    document.getElementById('ov').classList.toggle('ov-compact',ui.overlay_compact_rows===true);
     // Long-name scrolling
     document.getElementById('ov').classList.toggle('ov-scroll-names',ui.overlay_long_names_scroll===true);
     // Background photo (opacity 0 = none). The image load errors are swallowed.

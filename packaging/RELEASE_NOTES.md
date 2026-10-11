@@ -1,3 +1,7 @@
+## Overlay compact rows (0.2.174)
+
+- New **"Compact rows"** toggle (Settings → Overlay layout, **off by default**) hides each player row's trailing **total · percent**, leaving just the big per-second rate — tidier on a narrow overlay. Rides the settings backup and your saved look presets.
+
 ## Overlay class-colour swatch (0.2.173)
 
 - New **"Show a class-colour swatch before each name"** toggle (Settings → Overlay layout, **off by default**) puts a small class-coloured square before each player's name — an at-a-glance class indicator, like the class colouring in mature meters, without recolouring the name text. Rides the settings backup and your saved look presets.
