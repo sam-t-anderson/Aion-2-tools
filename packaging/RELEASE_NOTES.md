@@ -1,3 +1,9 @@
+## Training-dummy parse readout (0.2.138)
+
+- When you're hitting a **training dummy** (a Punching Bag / balance-test NPC), the live meter and overlay now show a dedicated **dummy parse** line: elapsed time vs the standard parse window, your DPS, and the party total to the dummy — with a ✓ once the window is reached. Detected from the dummy's catalog flag (`isDummy`); shown only on a dummy, never estimated.
+- **Settings → Combat records:** a toggle (on by default) and a **parse window** value (default 60s, 5–3600) that defines the standard dummy-parse length. Both apply live and ride the settings backup/restore file.
+- Completes the combat-records group alongside 0.2.136's reset-after-battle and record cap. (Save-combat-records on/off remains the one deferred item there, as it touches the autosave path.)
+
 ## Shining Mau Totem no longer shows as a boss on the logs page (0.2.137)
 
 - The public logs viewer (and the in-app combat review) could still list the **Shining Mau Totem** — a miniboss — in the boss list and boss progression, because older logs (and logs classified by a server that predates the catalog fix) carry a stale `is_boss` flag baked in. The viewer now applies the same verified miniboss override client-side (`combat-review.js`): the totem is never marked "(boss)", never appears in the Remaining-boss-HP table or the boss-HP graph line, and is filtered out of the boss-attempt progression and attempts tables — regardless of what a stale log or server said.

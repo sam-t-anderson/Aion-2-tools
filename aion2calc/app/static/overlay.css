@@ -29,6 +29,10 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovrow-dead { opacity: 0.55; }
 .ovdead { color: #e5706e; font-weight: 700; margin-left: 4px; font-size: 9px; letter-spacing: 0.5px; }
 .ovcontribution { color: #8fd0a0; font-size: 11px; margin: 5px 0 1px; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ovdummy { color: #cdd6e6; font-size: 11px; margin: 2px 0 5px; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ovdummy.ok { color: #8fd0a0; }
+.ovdummy .ovtlabel { color: #e8cf8e; font-weight: 600; margin-right: 3px; }
+.ovdummy[hidden] { display: none; }
 .ovrow { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: center; padding: 2px 0; }
 .ovname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ovactor { display: block; color: #c8d0e2; font-size: 9px; font-weight: 400; }

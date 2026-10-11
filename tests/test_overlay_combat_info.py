@@ -83,6 +83,30 @@ def test_target_hp_and_ttk_blank_without_observed_hp():
     assert target["ttk"] is None
 
 
+def test_dummy_parse_appears_only_against_a_training_dummy():
+    s, engine = _session()
+    s.dummy_record_seconds = 60
+    # 2000000 (Punching Bag) is a training dummy in the catalog; isDummy is true.
+    engine.spawn_info = {9001: {"mobCode": 2000000}}
+    s.observe(engine, [_hit(5001, 9001, 1000, 1000), _hit(5001, 9001, 2000, 1000)], timestamp_ms=2000)
+    snap = s.snapshot(scope="auto", segment_id=None)
+    parse = snap["dummy_parse"]
+    assert parse is not None
+    assert snap["current_target"]["is_dummy"] is True
+    assert parse["window_seconds"] == 60
+    assert parse["window_reached"] is False          # only ~1s of parse so far
+    assert parse["your_dps"] and parse["your_dps"] > 0
+
+
+def test_dummy_parse_absent_against_a_normal_enemy():
+    s, engine = _session()
+    engine.spawn_info = {9001: {"mobCode": 2702071}}   # a plain mob, not a dummy
+    s.observe(engine, [_hit(5001, 9001, 1000, 1000)], timestamp_ms=1000)
+    snap = s.snapshot(scope="auto", segment_id=None)
+    assert snap["dummy_parse"] is None
+    assert snap["current_target"]["is_dummy"] is False
+
+
 def test_party_member_death_indicator():
     s, engine = _session()
     # Both party members fight the boss; Ally (5002) then dies with no recovery.

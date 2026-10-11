@@ -866,16 +866,18 @@ class Handler(BaseHTTPRequestHandler):
                 cur["overlay_text_colors"] = {k:v.lower() for k,v in colors.items()}
             _ui_bool_flags = ("tray_on_close", "overlay_show_contribution", "overlay_show_target",
                               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
-                              "meter_reset_after_battle")
+                              "meter_reset_after_battle", "meter_show_dummy_parse")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
-            for key, lo, hi in (("meter_reset_delay", 1, 120), ("meter_max_records", 1, 500)):
+            _ui_int_ranges = (("meter_reset_delay", 1, 120), ("meter_max_records", 1, 500),
+                              ("meter_dummy_record_seconds", 5, 3600))
+            for key, lo, hi in _ui_int_ranges:
                 if key in body:
                     if not isinstance(body[key], int) or isinstance(body[key], bool) or not lo <= body[key] <= hi:
                         raise ValueError(f"{key} must be a whole number from {lo} to {hi}")
             cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update", "combat_colors",
-                                                               "meter_reset_delay", "meter_max_records", *_ui_bool_flags)})
+                                                               *(k for k, _, _ in _ui_int_ranges), *_ui_bool_flags)})
             write_user_json(cur, "ui.json")
             if any(k.startswith("meter_") for k in body):
                 try:
@@ -996,7 +998,8 @@ def ui_settings() -> dict:
     defaults = {"app_window": True, "auto_update": True, "overlay_on_start": True, "tray_on_close": False,
                 "overlay_show_contribution": True, "overlay_show_target": True,
                 "overlay_show_deaths": True, "overlay_show_enemy_hp": False, "overlay_show_ttk": False,
-                "meter_reset_after_battle": True, "meter_reset_delay": 5, "meter_max_records": 20}
+                "meter_reset_after_battle": True, "meter_reset_delay": 5, "meter_max_records": 20,
+                "meter_show_dummy_parse": True, "meter_dummy_record_seconds": 60}
     return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}
 
 

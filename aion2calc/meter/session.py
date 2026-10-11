@@ -33,7 +33,7 @@ class CombatSession:
         result = CombatSession()
         for key in ("epoch", "gap_seconds", "automatic_splits", "pvp", "manual_split",
                     "sequence", "run", "run_closed", "auto_finish", "_zone_reset", "_context",
-                    "reset_after_battle", "reset_delay_seconds", "max_records"):
+                    "reset_after_battle", "reset_delay_seconds", "max_records", "dummy_record_seconds"):
             setattr(result, key, getattr(self, key))
         result.final_boss_ids = set(self.final_boss_ids)
         result._dead = set(self._dead)
@@ -64,6 +64,7 @@ class CombatSession:
         self.reset_after_battle = False
         self.reset_delay_seconds = 5
         self.max_records = 0
+        self.dummy_record_seconds = 60   # standard training-dummy parse window
         self._zone_reset = None
         self.automatic_splits = True
         self.pvp = False
@@ -728,12 +729,26 @@ class CombatSession:
             hp_pct = (current_hp / max_hp) if (current_hp is not None and max_hp) else None
             party_dps = sum(c["dps"] for c in contributors)
             ttk = (current_hp / party_dps) if (current_hp and party_dps > 0) else None
+            mob_code = target.get("mob_code")
+            is_dummy = bool(mob_code and npc_info(mob_code).get("isDummy"))
             current_target = {
                 "name": target["name"], "key": target["key"], "damage": target["damage"],
                 "is_player": target.get("is_player", False), "contributors": contributors,
                 "current_hp": current_hp, "max_hp": max_hp, "hp_pct": hp_pct, "ttk": ttk,
+                "is_dummy": is_dummy,
             }
         summary["current_target"] = current_target
+        # Training-dummy parse: when the current target is a dummy, surface a parse
+        # readout (your DPS and the party's against it, elapsed vs the standard
+        # window). Packet-sourced from the recorded damage; blank off a dummy.
+        dummy_parse = None
+        if current_target and current_target.get("is_dummy"):
+            your_dps = contribution["dps"] if contribution else None
+            dummy_parse = {"name": current_target["name"], "duration": summary.get("duration") or 0,
+                           "your_dps": your_dps, "target_dps": current_target["damage"] / duration,
+                           "damage": current_target["damage"], "window_seconds": self.dummy_record_seconds,
+                           "window_reached": (summary.get("duration") or 0) >= self.dummy_record_seconds}
+        summary["dummy_parse"] = dummy_parse
         # Party-member death indicator: an actor whose latest telemetry in the shown
         # epochs is a death with no later revival (tracked live in ``_dead``).
         dead_ids = {actor for (ep, actor) in self._dead if ep in epochs}

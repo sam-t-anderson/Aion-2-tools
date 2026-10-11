@@ -7,7 +7,7 @@
   let tab = "meter", metric = "dps", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false, meterUnavailable = false, refreshError = "", lastSuccess = null;
   try { const saved=localStorage.getItem("ovmetric"); if(["dps","hps","taken"].includes(saved))metric=saved; } catch(e) { /* optional storage */ }
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
-  let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false;
+  let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false, showDummy=true;
   const syncColors=()=>fetch("/api/ui").then(r=>r.json()).then(ui=>{
     if(ui.combat_colors){try{localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));}catch(e){/* optional storage */}}
     for(const key of ['rate','total']){const color=ui.overlay_text_colors?.[key];document.documentElement.style.setProperty(`--ov-${key}-text`,/^#[0-9a-f]{6}$/i.test(color||'')?color:'#000000');}
@@ -16,6 +16,7 @@
     showDeaths=ui.overlay_show_deaths!==false;
     showEnemyHp=ui.overlay_show_enemy_hp===true;
     showTtk=ui.overlay_show_ttk===true;
+    showDummy=ui.meter_show_dummy_parse!==false;
     if(lastSnap)renderMeter();
   }).catch(()=>{});
   const fmtTtk=(s)=>{s=Math.round(s);return s>=3600?`${Math.floor(s/3600)}h${Math.floor(s%3600/60)}m`:s>=60?`${Math.floor(s/60)}m${String(s%60).padStart(2,'0')}s`:`${s}s`;};
@@ -126,6 +127,17 @@
       $("#ovtarget").innerHTML=`<span class="ovtlabel">Target</span> ${esc(target.name)}${hp}${ttk} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}`;
       $("#ovtarget").title=`Most-hit enemy this encounter, its remaining HP and time-to-kill at the party's current DPS, and each contributor's DPS to it`;
     }
+    // Training-dummy parse: elapsed vs the standard window, your DPS and the total.
+    const dummy=snap.dummy_parse;
+    const showD=showDummy&&!over&&dummy&&metric==='dps';
+    $("#ovdummy").hidden=!showD;
+    if(showD){
+      const dur=Math.round(dummy.duration||0), win=Math.round(dummy.window_seconds||0);
+      const you=dummy.your_dps!=null?` · You ${kfmt(dummy.your_dps)}/s`:'';
+      $("#ovdummy").classList.toggle("ok",!!dummy.window_reached);
+      $("#ovdummy").innerHTML=`<span class="ovtlabel">Dummy parse</span> ${dur}s / ${win}s${dummy.window_reached?' ✓':''}${you} · Total ${kfmt(dummy.target_dps)}/s`;
+      $("#ovdummy").title=`Training-dummy parse: elapsed vs the standard window (Settings), your DPS and the party total to the dummy`;
+    }
     // Your contribution: your share of the shown encounter's damage.
     const c=snap.contribution;
     const showC=showContribution&&!over&&c&&c.damage>0&&metric==='dps';
@@ -134,7 +146,7 @@
   }
   function renderPlan() {
     $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovidentity").hidden=true;
-    $("#ovtarget").hidden=true;$("#ovcontribution").hidden=true;
+    $("#ovtarget").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;
     $("#ovconnection").hidden=true;
     const p = latestPlan();
     if (!p) {
