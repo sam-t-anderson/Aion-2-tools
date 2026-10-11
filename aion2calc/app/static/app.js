@@ -1668,6 +1668,9 @@ async function pageSettings() {
       <label><input type="checkbox" id="ov-deaths" ${ui.overlay_show_deaths !== false?'checked':''}> Mark party members who are dead (row shows DEAD until they recover)</label>
       <label><input type="checkbox" id="ov-enemy-hp" ${ui.overlay_show_enemy_hp === true?'checked':''}> Show the current target's remaining HP (only when the game reports it)</label>
       <label><input type="checkbox" id="ov-ttk" ${ui.overlay_show_ttk === true?'checked':''}> Show estimated time-to-kill for the current target (from the party's current DPS)</label></div></div>
+    <div class="setrow"><div class="lbl">Combat records</div><div><label><input type="checkbox" id="rec-reset" ${ui.meter_reset_after_battle !== false?'checked':''}> Clear the live meter after a battle ends</label>
+      <div class="row" style="margin-top:4px"><label>Reset delay <input type="number" id="rec-delay" min="1" max="120" value="${Number(ui.meter_reset_delay)||5}" style="width:64px"> s</label><label>Keep up to <input type="number" id="rec-max" min="1" max="500" value="${Number(ui.meter_max_records)||20}" style="width:70px"> past combats</label><span id="rec-msg" class="small muted" role="status"></span></div>
+      <p class="small muted">Applies to the live meter and overlay. A cleared battle's details stay available in the segment list until replaced.</p></div></div>
     <div class="setrow"><div class="lbl">Settings backup</div><div><div class="row"><button class="btn small" id="settings-export">Export settings</button><label class="btn small" for="settings-import-file">Import settings</label><input type="file" id="settings-import-file" accept="application/json,.json" style="display:none"><span id="settings-backup-msg" class="small muted" role="status"></span></div><p class="small muted">Save all overlay and app settings to a file you can restore or share, then import it back.</p></div></div>
     <div class="setrow"><div class="lbl">Overlay number colors</div><div><div class="row"><label>Rate text <input type="color" id="ov-rate-color" value="${esc(overlayText('rate'))}"></label><label>Total / share text <input type="color" id="ov-total-color" value="${esc(overlayText('total'))}"></label><button class="btn small" id="ov-color-reset">Reset to black</button><span class="small muted" id="ov-color-msg" role="status"></span></div><p class="small muted">Applies to DPS, HPS and D.Taken. Changes reach an open overlay within 10 seconds.</p></div></div>
     <div class="setrow"><div class="lbl">Combat class colors</div><div id="class-colors"></div></div><div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button> <button class="btn small" id="asset-reindex">Re-index cached icons</button> <button class="btn small" id="asset-report">Export image coverage</button> <button class="btn small" id="retry-images">Retry images</button><span id="asset-msg" class="small muted" role="status" aria-live="polite"></span></div></div>
@@ -1706,6 +1709,15 @@ async function pageSettings() {
   $("#ov-deaths").onchange = () => api("/api/ui", { overlay_show_deaths: $("#ov-deaths").checked }).then(() => toast("Saved"));
   $("#ov-enemy-hp").onchange = () => api("/api/ui", { overlay_show_enemy_hp: $("#ov-enemy-hp").checked }).then(() => toast("Saved"));
   $("#ov-ttk").onchange = () => api("/api/ui", { overlay_show_ttk: $("#ov-ttk").checked }).then(() => toast("Saved"));
+  $("#rec-reset").onchange = () => api("/api/ui", { meter_reset_after_battle: $("#rec-reset").checked }).then(() => toast("Saved"));
+  const saveRecNum = async (id, key, lo, hi) => {
+    const el = $("#" + id), msg = $("#rec-msg"), n = parseInt(el.value, 10);
+    if (!Number.isInteger(n) || n < lo || n > hi) { msg.textContent = `Enter a whole number from ${lo} to ${hi}.`; return; }
+    try { await api("/api/ui", { [key]: n }); msg.textContent = "Saved"; }
+    catch (e) { msg.textContent = e.message; }
+  };
+  $("#rec-delay").onchange = () => saveRecNum("rec-delay", "meter_reset_delay", 1, 120);
+  $("#rec-max").onchange = () => saveRecNum("rec-max", "meter_max_records", 1, 500);
   $("#settings-export").onclick = async () => {
     const msg = $("#settings-backup-msg"); $("#settings-export").disabled = true; msg.textContent = "Exporting…";
     try { const r = await api("/api/ui/export", {}); msg.textContent = "Saved to " + r.file; }

@@ -17,7 +17,11 @@ VERSION = 1
 
 _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close",
               "overlay_show_contribution", "overlay_show_target",
-              "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk")
+              "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
+              "meter_reset_after_battle")
+
+# key -> (min, max) for whole-number settings.
+_INT_KEYS = {"meter_reset_delay": (1, 120), "meter_max_records": (1, 500)}
 
 
 def _is_hex(value) -> bool:
@@ -33,6 +37,11 @@ def _clean(data: dict) -> dict:
         if key in _BOOL_KEYS:
             if not isinstance(value, bool):
                 raise ValueError(f"{key} must be true or false")
+            clean[key] = value
+        elif key in _INT_KEYS:
+            lo, hi = _INT_KEYS[key]
+            if not isinstance(value, int) or isinstance(value, bool) or not lo <= value <= hi:
+                raise ValueError(f"{key} must be a whole number from {lo} to {hi}")
             clean[key] = value
         elif key == "overlay_text_colors":
             if not (isinstance(value, dict) and set(value) == {"rate", "total"}

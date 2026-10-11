@@ -32,7 +32,8 @@ class CombatSession:
         """A storage part continues decoding, but cannot establish run entry."""
         result = CombatSession()
         for key in ("epoch", "gap_seconds", "automatic_splits", "pvp", "manual_split",
-                    "sequence", "run", "run_closed", "auto_finish", "_zone_reset", "_context"):
+                    "sequence", "run", "run_closed", "auto_finish", "_zone_reset", "_context",
+                    "reset_after_battle", "reset_delay_seconds", "max_records"):
             setattr(result, key, getattr(self, key))
         result.final_boss_ids = set(self.final_boss_ids)
         result._dead = set(self._dead)
@@ -56,6 +57,13 @@ class CombatSession:
         self.discarded_segments = 0
         self.capture_evidence = {}
         self.gap_seconds = 120
+        # Combat-records settings (set by the live runner from the user's UI):
+        # clear the live view once combat has been idle this long, and cap how
+        # many past encounters the segment list keeps. Defaults are inert so the
+        # replay/offline paths and tests are unaffected until a runner opts in.
+        self.reset_after_battle = False
+        self.reset_delay_seconds = 5
+        self.max_records = 0
         self._zone_reset = None
         self.automatic_splits = True
         self.pvp = False
@@ -633,9 +641,11 @@ class CombatSession:
                 summary = self._summary(chosen, scope, enemy_id, combine_pets, allowed_for, merge)
             else:
                 enemy_id = None  # A previous encounter's filter must not hide a new pull.
-        summary["segments"] = [{"id": group["id"], "label": f"Combat {index + 1}", "start": group["start"],
-                                "duration": max(1, (group["end"] - group["start"]) / 1000),
-                                "events": len(group["records"])} for index, group in enumerate(groups)]
+        segments = [{"id": group["id"], "label": f"Combat {index + 1}", "start": group["start"],
+                     "duration": max(1, (group["end"] - group["start"]) / 1000),
+                     "events": len(group["records"])} for index, group in enumerate(groups)]
+        # Keep only the most recent records when the user caps the history.
+        summary["segments"] = segments[-self.max_records:] if self.max_records else segments
         summary["selected_segment"] = "all" if segment_id == "all" else chosen[-1]["id"] if chosen else None
         summary["selection_mode"] = "whole" if segment_id == "all" else "encounter" if segment_id else "latest"
         summary["viewing_historical"] = bool(segment_id not in (None, "all") and chosen and chosen[-1]["id"] != groups[-1]["id"])
@@ -658,6 +668,13 @@ class CombatSession:
             "local_id": local_id,
             "local_name": self.name(current_epoch, local_id) if local_id is not None else None,
         }
+        idle_ms = (time.time() * 1000 - chosen[-1]["last_damage"]) if chosen else None
+        summary["idle_ms"] = idle_ms
+        # Reset-after-battle: once combat has been idle past the delay, signal that
+        # the fight is over so the live view can clear to a ready state. The data is
+        # unchanged — a selected segment or the whole-session view still shows it.
+        summary["battle_over"] = bool(self.reset_after_battle and segment_id is None
+                                      and idle_ms is not None and idle_ms >= self.reset_delay_seconds * 1000)
         summary["paused"] = bool(chosen and time.time() * 1000 - chosen[-1]["last_damage"] >= 2000)
         summary["recorded_pvp"] = bool(chosen and chosen[-1]["pvp"])
         summary["dps_clock"] = "Shared one-second buckets with outgoing player damage; idle buckets are excluded; deaths do not reset players"

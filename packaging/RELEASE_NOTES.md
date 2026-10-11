@@ -1,3 +1,10 @@
+## Combat-records settings: reset-after-battle and record cap (0.2.136)
+
+- **Clear the live meter after a battle ends** (on by default): once combat has been idle past a **reset delay** (default 5s, 1–120), the live meter and overlay clear to a "Ready — waiting for the next fight" state instead of leaving the last pull pinned. **Settings → Combat records.**
+- **Keep up to N past combats** (default 20, 1–500): caps how many finished encounters the segment list retains.
+- The recorded data is never discarded by these — a cleared battle's details stay available in the segment list (and in the whole-session view) until replaced. Changes apply live to a running meter and carry in the settings backup/restore file.
+- Still to come in this group: save-combat-records on/off and the training-dummy record-time tracking.
+
 ## Overlay target HP, time-to-kill, and death indicator (0.2.135)
 
 - **Current target remaining HP** on the overlay (opt-in): shows the target's HP % and current/max when the game reports it — e.g. "Target Boss 42% (420K/1.0M)". Off by default (respecting the earlier overlay-HP preference); enable in **Settings → Live meter overlay**. Shown only when real HP was captured; never estimated.

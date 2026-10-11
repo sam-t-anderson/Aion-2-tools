@@ -106,12 +106,15 @@
     $("#ovstatus").title=$("#ovstatus").textContent;
     $("#ovconnection").hidden=!meterUnavailable;
     if(meterUnavailable) $("#ovreason").textContent=refreshError+' · '+(lastSuccess ? Math.floor((Date.now()-lastSuccess)/1000)+'s since last refresh. ' : '')+'Last readings retained; capture status unknown.';
-    const empty = s.error || (players.length?`No recorded ${metric==='hps'?'healing':metric==='taken'?'incoming damage':'outgoing damage'} in this combat.`:snap.warning || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app."));
-    $("#ovcontent").innerHTML = (players.length && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`);
+    // Reset after battle: once combat has been idle past the delay, clear the live
+    // view to a ready state (the data is kept; a selected segment still shows it).
+    const over=snap.battle_over===true;
+    const empty = s.error || (over ? "Ready — waiting for the next fight." : players.length?`No recorded ${metric==='hps'?'healing':metric==='taken'?'incoming damage':'outgoing damage'} in this combat.`:snap.warning || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app."));
+    $("#ovcontent").innerHTML = over ? `<div class="muted">${esc(empty)}</div>` : (players.length && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`);
     // Current target (the enemy you are hitting most) with each contributor's DPS
     // to it; packet-sourced, shown when there is recorded damage and enabled.
     const target=snap.current_target;
-    const showT=showTarget&&target&&!target.is_player&&(target.contributors||[]).length;
+    const showT=showTarget&&!over&&target&&!target.is_player&&(target.contributors||[]).length;
     $("#ovtarget").hidden=!showT;
     if(showT){
       const top=(target.contributors||[]).slice(0,3)
@@ -125,7 +128,7 @@
     }
     // Your contribution: your share of the shown encounter's damage.
     const c=snap.contribution;
-    const showC=showContribution&&c&&c.damage>0&&metric==='dps';
+    const showC=showContribution&&!over&&c&&c.damage>0&&metric==='dps';
     $("#ovcontribution").hidden=!showC;
     if(showC) $("#ovcontribution").textContent=`Your contribution: ${Math.round((c.share||0)*100)}% · ${kfmt(c.damage)} (${kfmt(c.dps)}/s)`;
   }

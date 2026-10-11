@@ -111,6 +111,7 @@ class Runner:
         self.session.automatic_splits = bool(opts.get("automatic_splits", True))
         self.session.final_boss_ids = {int(x) for x in opts.get("final_boss_ids",[]) if str(x).isdigit()}
         self.session.auto_finish = bool(opts.get("auto_finish",True))
+        self.apply_record_settings()
         self.segment_id = None
         self.enemy_id = None
         try:
@@ -646,6 +647,19 @@ class Runner:
             result = set_manual_installation(path, remove=remove)
             self.capture_metadata = None
         return result
+
+    def apply_record_settings(self) -> None:
+        """Copy the user's combat-records preferences onto the live session so the
+        snapshot reflects them. Safe to call while running; defaults hold if the
+        settings file is unavailable."""
+        try:
+            from .server import ui_settings
+            ui = ui_settings()
+        except Exception:
+            return
+        self.session.reset_after_battle = bool(ui.get("meter_reset_after_battle", True))
+        self.session.reset_delay_seconds = min(120, max(1, int(ui.get("meter_reset_delay", 5) or 5)))
+        self.session.max_records = min(500, max(0, int(ui.get("meter_max_records", 20) or 0)))
 
     def configure_view(self, body: dict) -> dict:
         with self.lock:

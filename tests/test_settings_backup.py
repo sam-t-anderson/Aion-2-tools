@@ -48,6 +48,16 @@ def test_import_rejects_a_bad_type(isolated_home):
         settings_backup.import_settings({"tray_on_close": "yes please"})
 
 
+def test_whole_number_settings_round_trip_and_range_check(isolated_home):
+    result = settings_backup.import_settings({"meter_reset_delay": 8, "meter_max_records": 30})
+    assert result["settings"]["meter_reset_delay"] == 8
+    assert result["settings"]["meter_max_records"] == 30
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"meter_reset_delay": 0})        # below range
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"meter_max_records": True})     # bool is not a count
+
+
 def test_import_ignores_unknown_keys_and_applies_known_ones(isolated_home):
     result = settings_backup.import_settings({"app_window": False, "evil_key": {"x": 1}, "rm": "rf"})
     assert result["settings"]["app_window"] is False
