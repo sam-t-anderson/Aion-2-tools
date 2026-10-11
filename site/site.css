@@ -29,3 +29,10 @@
 details { margin-block:2px; }
 details > summary { padding-block:2px; }
 details[open] > summary { margin-bottom:2px; }
+
+/* Daily-active-meters count in the top-right header (Pages site only). */
+.topbar .dau {
+  font-size: 12px; font-weight: 600; color: #4bbf87;
+  white-space: nowrap; margin-right: 4px; letter-spacing: .2px;
+}
+@media (max-width: 640px) { .topbar .dau { display: none; } }
