@@ -924,7 +924,7 @@ class Handler(BaseHTTPRequestHandler):
                               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
                               "overlay_always_visible", "overlay_remember_position",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle", "community_heartbeat", "overlay_row_stripes")
+                              "overlay_color_cycle", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1084,7 +1084,7 @@ def ui_settings() -> dict:
                 "overlay_ttk_color": "#8fb3d0",
                 "overlay_text_outline": False, "overlay_outline_color": "#000000",
                 "overlay_bar_style": "flat", "overlay_bar_rounded": False, "overlay_class_color_names": False,
-                "overlay_color_cycle": False, "overlay_row_stripes": False,
+                "overlay_color_cycle": False, "overlay_row_stripes": False, "overlay_class_swatch": False,
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
                 "meter_save_records": True, "overlay_name_mode": "name",
