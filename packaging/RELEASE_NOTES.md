@@ -1,3 +1,7 @@
+## Accent colours on the website too (0.2.187)
+
+- The public site (aion2calc GitHub Pages) now has the same **accent-colour** picker as the app: a small ◉ button in the top-right header, beside the light/dark toggle, cycles **Gold → Crimson → Emerald → Azure → Amethyst → Rose**. Your choice is remembered per browser and applied before the page paints, so the whole site recolours to match the look you set in the app.
+
 ## Copy the meter to the clipboard (0.2.186)
 
 - New **Copy** button in the overlay header (beside Lock) copies the current view as a tidy text leaderboard — metric, boss and duration, then each player's rank, per-second rate and share — ready to paste into party chat or Discord, e.g. `1. Nyx  6.00K/s  (44%)`. It follows whichever metric tab is active (DPS, HPS or damage taken) and confirms with a brief "Copied".

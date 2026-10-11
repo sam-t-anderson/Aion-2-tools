@@ -39,3 +39,22 @@ def test_appjs_exposes_the_same_accents():
     assert m, "ACCENTS list not found in app.js"
     listed = set(re.findall(r'"(\w+)"', m.group(1)))
     assert listed == {"gold", *ACCENTS}
+
+
+SITE = pathlib.Path(__file__).resolve().parents[1] / "site"
+
+
+def test_site_navigation_offers_the_same_accents():
+    nav = (SITE / "navigation.js").read_text(encoding="utf-8")
+    m = re.search(r'const accents=\[([^\]]*)\]', nav)
+    assert m, "accents list not found in site navigation.js"
+    listed = set(re.findall(r'"(\w+)"', m.group(1)))
+    assert listed == {"gold", *ACCENTS}
+
+
+def test_site_pages_bootstrap_accent_without_flash():
+    pages = list(SITE.glob("*.html"))
+    with_theme = [p for p in pages if 'localStorage.getItem("theme")' in p.read_text(encoding="utf-8")]
+    assert with_theme, "no site pages with a theme bootstrap"
+    for p in with_theme:
+        assert 'localStorage.getItem("accent")' in p.read_text(encoding="utf-8"), f"{p.name} missing accent bootstrap"

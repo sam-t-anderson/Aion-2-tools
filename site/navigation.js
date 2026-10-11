@@ -10,6 +10,27 @@
   if(button)button.onclick=()=>{current=themes[(themes.indexOf(current)+1)%themes.length];try{localStorage.setItem("theme",current);}catch(_){}apply(current);};
 })();
 
+// Accent-colour picker for the public site (matches the app's Settings → Accent
+// colour). Cycles gold → crimson → emerald → azure → amethyst → rose, persisted
+// in localStorage and applied via data-accent (the rules live in app.css). The
+// head bootstrap applies it before paint; this only adds the toggle button.
+(function () {
+  const accents=["gold","crimson","emerald","azure","amethyst","rose"];
+  const theme=document.getElementById("theme");
+  if(!theme||!theme.parentNode)return;
+  let current="gold";try{const a=localStorage.getItem("accent");if(accents.includes(a))current=a;}catch(_){}
+  const btn=document.createElement("button");
+  btn.id="accent";btn.className=theme.className||"iconbtn";btn.type="button";btn.textContent="◉";
+  function apply(v){
+    if(v==="gold")delete document.documentElement.dataset.accent;else document.documentElement.dataset.accent=v;
+    btn.title="Accent colour: "+v+" (click to change)";
+    btn.style.color=v==="gold"?"":{crimson:"#d05a5a",emerald:"#3fb37a",azure:"#49b8e0",amethyst:"#a07ce0",rose:"#e06aa0"}[v];
+  }
+  apply(current);
+  theme.parentNode.insertBefore(btn,theme);
+  btn.onclick=()=>{current=accents[(accents.indexOf(current)+1)%accents.length];try{localStorage.setItem("accent",current);}catch(_){}apply(current);};
+})();
+
 // Daily-active-meters count in the top-right header (the public Pages site only —
 // never the desktop app, which does not load this script). Anonymous aggregate
 // from the configured log server: the number of unique meters that reported in

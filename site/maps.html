@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" href="static/logo.png">
-<script>try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<script>try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; const a = localStorage.getItem("accent"); if (["crimson","emerald","azure","amethyst","rose"].includes(a)) document.documentElement.dataset.accent = a; } catch (e) {}</script>
 <link rel="stylesheet" href="static/app.css">
 <link rel="stylesheet" href="site.css"><link rel="stylesheet" href="static/combat-review.css"><link rel="stylesheet" href="static/workshop.css">
 </head>
