@@ -1745,8 +1745,8 @@ async function pageSettings() {
     <div class="setrow"><div class="lbl">Overlay background</div><div><div class="row"><label class="btn small" for="ov-bg-file">Choose image</label><input type="file" id="ov-bg-file" accept="image/png,image/jpeg" style="display:none"><button class="btn small" id="ov-bg-clear">Remove</button><span id="ov-bg-msg" class="small muted" role="status">${ui.overlay_bg_set?'An image is set.':'No image set.'}</span></div>
       <div class="row"><label>Visibility <input type="number" id="ov-bg-opacity" min="0" max="100" value="${ui.overlay_bg_opacity ?? 100}" style="width:64px"> %</label><label>Zoom <input type="number" id="ov-bg-zoom" min="50" max="200" value="${Number(ui.overlay_bg_zoom)||100}" style="width:64px"> %</label><label>Darken <input type="number" id="ov-bg-darken" min="0" max="100" value="${ui.overlay_bg_darken ?? 20}" style="width:64px"> %</label></div>
       <p class="small muted">A PNG or JPEG (8 MB max) shown behind the overlay card. Set Visibility above 0 to show it. The image is stored locally, not in the settings backup.</p></div></div>
-    <div class="setrow"><div class="lbl">Overlay look presets</div><div><div class="row"><select id="ov-preset" style="min-width:200px">${overlayPresetOptions(ui)}</select><button class="btn small" id="ov-preset-apply">Apply</button><button class="btn small" id="ov-preset-save">Save current look as…</button><button class="btn small" id="ov-preset-delete">Delete</button><span id="ov-preset-msg" class="small muted" role="status"></span></div>
-      <p class="small muted">A preset bundles the overlay's colors, fonts, glow, enemy-HP color, background sliders, name display and per-class bar colors (not the background image). Saved presets ride the settings backup file.</p></div></div>
+    <div class="setrow"><div class="lbl">Overlay look presets</div><div><div class="row"><select id="ov-preset" style="min-width:200px">${overlayPresetOptions(ui)}</select><button class="btn small" id="ov-preset-apply">Apply</button><button class="btn small" id="ov-preset-save">Save current look as…</button><button class="btn small" id="ov-preset-delete">Delete</button><button class="btn small" id="ov-preset-copy">Copy share code</button><button class="btn small" id="ov-preset-import">Paste a shared code…</button><span id="ov-preset-msg" class="small muted" role="status"></span></div>
+      <p class="small muted">A preset bundles the overlay's colors, fonts, glow, enemy-HP color, background sliders, name display and per-class bar colors (not the background image). Saved presets ride the settings backup file. <strong>Copy share code</strong> turns the selected preset into a short code to send a friend; <strong>Paste a shared code</strong> saves one they sent you.</p></div></div>
     <div class="setrow"><div class="lbl">Combat class colors</div><div id="class-colors"></div></div><div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button> <button class="btn small" id="asset-reindex">Re-index cached icons</button> <button class="btn small" id="asset-report">Export image coverage</button> <button class="btn small" id="retry-images">Retry images</button><span id="asset-msg" class="small muted" role="status" aria-live="polite"></span></div></div>
     <div class="setrow"><div class="lbl">Storage maintenance</div><div><div class="row"><button class="btn small" id="storage-inspect">Inspect cache / updates</button><button class="btn small" id="storage-cache">Clean old disposable cache</button><button class="btn small" id="storage-updates">Clean old update files</button></div><p class="small muted">Web/comparison cache: 7 days; images: 30 days. Updates retain two packages, helpers for 7 days, and at least five logs / 30 days. Active or uninspectable helpers are preserved. Cache images may need downloading again.</p><p id="storage-message" role="status"></p><div id="maintenance-details"></div></div></div>
     <div class="setrow"><div class="lbl">Updates</div><div><label><input type="checkbox" id="autoupd" ${ui.auto_update !== false ? "checked" : ""}> check and prompt for updates on launch</label></div></div>
@@ -1797,6 +1797,39 @@ async function pageSettings() {
       const list=(Array.isArray(fresh.overlay_presets)?fresh.overlay_presets:[]).filter(p=>p.name!==name);
       await api('/api/ui',{overlay_presets:list});toast('Preset deleted');pageSettings();
     }catch(e){msg.textContent=e.message;}
+  };
+  const PRESET_CODE_PREFIX='A2P1:';
+  const encodePreset=(name,settings)=>PRESET_CODE_PREFIX+btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify({name,settings}))));
+  const decodePreset=code=>{
+    const raw=String(code||'').trim(),b64=raw.startsWith(PRESET_CODE_PREFIX)?raw.slice(PRESET_CODE_PREFIX.length):raw;
+    const obj=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b64),c=>c.charCodeAt(0))));
+    if(!obj||typeof obj!=='object'||typeof obj.name!=='string'||!obj.settings||typeof obj.settings!=='object')throw Error('not a preset');
+    const settings={};for(const k of OVERLAY_VISUAL_KEYS)if(obj.settings[k]!==undefined)settings[k]=obj.settings[k];
+    if(!Object.keys(settings).length)throw Error('no recognised look settings');
+    return {name:String(obj.name).slice(0,40)||'Shared preset',settings};
+  };
+  $('#ov-preset-copy').onclick=async()=>{
+    const sel=$('#ov-preset').value,msg=$('#ov-preset-msg');
+    let name,settings;
+    if(sel){const kind=sel.slice(0,1);name=sel.slice(3);settings=kind==='b'?BUNDLED_PRESETS[name]:(Array.isArray(ui.overlay_presets)?ui.overlay_presets:[]).find(p=>p.name===name)?.settings;}
+    if(!settings){try{const fresh=await api('/api/ui');settings={};for(const k of OVERLAY_VISUAL_KEYS)if(fresh[k]!==undefined)settings[k]=fresh[k];name='My overlay look';}catch(e){msg.textContent=e.message;return;}}
+    const code=encodePreset(name,settings);
+    try{await navigator.clipboard.writeText(code);msg.textContent='Share code copied — send it to a friend.';}
+    catch(_){prompt('Copy this preset share code:',code);msg.textContent='Share code ready.';}
+  };
+  $('#ov-preset-import').onclick=async()=>{
+    const code=(prompt('Paste a preset share code:')||'').trim();if(!code)return;
+    const msg=$('#ov-preset-msg');
+    let preset;try{preset=decodePreset(code);}catch(_){msg.textContent='That is not a valid preset share code.';return;}
+    const name=(prompt('Save the shared preset as:',preset.name)||'').trim();if(!name)return;
+    if(name.length>40){msg.textContent='Name must be 40 characters or fewer.';return;}
+    msg.textContent='Saving…';
+    try{
+      const fresh=await api('/api/ui');
+      const list=(Array.isArray(fresh.overlay_presets)?fresh.overlay_presets:[]).filter(p=>p.name.toLowerCase()!==name.toLowerCase());
+      list.push({name,settings:preset.settings});
+      await api('/api/ui',{overlay_presets:list});toast('Shared preset saved');pageSettings();
+    }catch(e){msg.textContent='Could not save: '+e.message;}
   };
   const saveOverlayColors=async()=>{
     const msg=$('#ov-color-msg');msg.textContent='Saving…';

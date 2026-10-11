@@ -1,3 +1,7 @@
+## Share overlay look presets by code (0.2.182)
+
+- Overlay look presets can now be **shared between players**. In Settings → Overlay look presets, **Copy share code** turns the selected preset (or your current live look) into a short code you can send a friend; **Paste a shared code** saves one they sent you as a new named preset. Only overlay look settings travel in the code — never your server, keys, background image or any personal data — and every imported preset is re-validated before it's saved, so a bad or tampered code is rejected rather than applied.
+
 ## Search the field boss respawn reference (0.2.181)
 
 - The **Timers** page's field-boss respawn reference gains a **search box** — type a boss name or zone to filter the 54-boss catalogue instantly (matching groups auto-expand, and each shows its live match count). Makes finding one boss among the Verteron, Altgard and Abyss lists quick.
