@@ -150,6 +150,27 @@ jobs:
           path: assets
           pattern: aion2calc-*
           merge-multiple: true
+      - name: Release notes for this version
+        # packaging/RELEASE_NOTES.md is the full accumulated changelog and grows past
+        # GitHub's 125000-char release-body limit; publish only this version's section.
+        if: steps.exists.outputs.yes != '1'
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          import os, re, pathlib
+          version = os.environ["VERSION"]
+          src = pathlib.Path("packaging/RELEASE_NOTES.md").read_text(encoding="utf-8")
+          sections = [p for p in re.split(r"(?m)^(?=## )", src) if p.strip()]
+          chosen = next(
+              (s for s in sections if f"({version})" in s.splitlines()[0]),
+              sections[0] if sections else src,
+          )
+          if len(chosen) > 125000:  # GitHub release-body hard limit
+              chosen = chosen[:124900].rstrip() + "\n\n…\n"
+          pathlib.Path("release-notes.md").write_text(chosen, encoding="utf-8")
+          print(f"Release notes: {len(chosen)} chars for v{version}")
+          PY
       - name: Create the release
         if: steps.exists.outputs.yes != '1'
         env:
@@ -157,4 +178,4 @@ jobs:
         run: |
           gh release create "v${{ steps.v.outputs.version }}" assets/* \
             --title "aion2calc ${{ steps.v.outputs.version }}" \
-            --notes-file packaging/RELEASE_NOTES.md --target "$GITHUB_SHA"
+            --notes-file release-notes.md --target "$GITHUB_SHA"
