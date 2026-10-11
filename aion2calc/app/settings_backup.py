@@ -22,14 +22,15 @@ _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close",
               "overlay_only_in_combat", "overlay_auto_expand",
               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
-              "meter_save_records")
+              "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps")
 
 # key -> (min, max) for whole-number settings.
 _INT_KEYS = {"meter_reset_delay": (1, 120), "meter_max_records": (1, 500),
              "meter_dummy_record_seconds": (5, 3600),
              "overlay_max_players": (1, 24), "overlay_width": (260, 800), "overlay_row_height": (14, 48),
              "overlay_font_scale": (80, 160), "overlay_font_weight": (400, 800),
-             "overlay_bg_opacity": (0, 100), "overlay_bg_zoom": (50, 200), "overlay_bg_darken": (0, 100)}
+             "overlay_bg_opacity": (0, 100), "overlay_bg_zoom": (50, 200), "overlay_bg_darken": (0, 100),
+             "overlay_interpolate_ms": (50, 1000)}
 
 _FONT_FAMILIES = ("", "Segoe UI", "Arial", "Verdana", "Georgia", "Trebuchet MS", "Consolas", "Tahoma")
 

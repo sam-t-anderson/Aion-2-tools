@@ -71,6 +71,19 @@ def test_overlay_layout_settings_round_trip(isolated_home):
         settings_backup.import_settings({"overlay_width": 100})          # below range (min 260)
 
 
+def test_overlay_client_render_settings_round_trip(isolated_home):
+    result = settings_backup.import_settings({"overlay_dps_interpolate": True,
+                                              "overlay_interpolate_ms": 150,
+                                              "overlay_show_fps": True})
+    s = result["settings"]
+    assert s["overlay_dps_interpolate"] is True and s["overlay_show_fps"] is True
+    assert s["overlay_interpolate_ms"] == 150
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_interpolate_ms": 10})    # below range (min 50)
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_interpolate_ms": 5000})  # above range (max 1000)
+
+
 def test_import_ignores_unknown_keys_and_applies_known_ones(isolated_home):
     result = settings_backup.import_settings({"app_window": False, "evil_key": {"x": 1}, "rm": "rf"})
     assert result["settings"]["app_window"] is False

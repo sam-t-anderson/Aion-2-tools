@@ -9,6 +9,8 @@ import math
 from pathlib import Path
 import re
 import threading
+import time
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 BASE = "https://gamers4.life/aion-2/database"
@@ -16,11 +18,28 @@ DETAIL = BASE + "/db/item/en/{id}.json"
 FORMAT_PAGE = BASE + "/en/equipment-comparison/"
 LIMIT = 256 * 1024
 STAT = re.compile(r"[a-z][a-z0-9_]{0,79}")
+# Retry only transient network failures (read timeouts, dropped connections,
+# rate limiting, 5xx), so one blip against the external source does not abort
+# the whole scheduled refresh. Validation and size errors still fail fast.
+RETRIES = 4
+
+
+def _transient(error):
+    if isinstance(error, HTTPError):
+        return error.code == 429 or 500 <= error.code < 600
+    return isinstance(error, (URLError, TimeoutError, ConnectionError, OSError))
 
 
 def download(url, limit=LIMIT):
-    with urlopen(Request(url, headers={"User-Agent": "aion2calc-catalog"}), timeout=30) as response:
-        raw = response.read(limit + 1)
+    for attempt in range(RETRIES):
+        try:
+            with urlopen(Request(url, headers={"User-Agent": "aion2calc-catalog"}), timeout=30) as response:
+                raw = response.read(limit + 1)
+            break
+        except Exception as error:  # noqa: BLE001 - re-raised below unless transient
+            if attempt + 1 >= RETRIES or not _transient(error):
+                raise
+            time.sleep(2 ** attempt)  # 1s, 2s, 4s backoff
     if len(raw) > limit:
         raise ValueError("Item detail source exceeds its collection limit")
     return raw

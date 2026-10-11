@@ -159,6 +159,11 @@ class _OverlayAPI:
         self._opacity = 0.72
         self._size = None
         self._windows_ready = False
+        self._locked = False
+
+    def set_locked(self, value):
+        # Screenshot lock: keep the overlay visible and stationary while locked.
+        self._locked = bool(value)
 
     def _on_ui(self, callback):
         from System import Action
@@ -274,6 +279,13 @@ def _run_overlay(window, api, app_base: str | None = None) -> None:
         # unrelated apps. Resume automatically once the game is recognized.
         should_show = game is not None and (not game.minimized and
                       win32.user32.GetForegroundWindow() in (game.hwnd, hwnd))
+        if api._locked:
+            # Keep the overlay shown and in place so it can be screenshotted even
+            # when the game is not the foreground window.
+            if not visible:
+                win32.user32.ShowWindow(hwnd, 4)
+                visible = True
+            continue
         if visible != should_show:
             win32.user32.ShowWindow(hwnd, 4 if should_show else 0)  # no activation
             visible = should_show

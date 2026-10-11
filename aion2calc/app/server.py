@@ -896,7 +896,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_only_in_combat", "overlay_auto_expand",
                               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
                               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
-                              "meter_save_records")
+                              "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -905,7 +905,8 @@ class Handler(BaseHTTPRequestHandler):
                               ("overlay_max_players", 1, 24), ("overlay_width", 260, 800),
                               ("overlay_row_height", 14, 48), ("overlay_font_scale", 80, 160),
                               ("overlay_font_weight", 400, 800), ("overlay_bg_opacity", 0, 100),
-                              ("overlay_bg_zoom", 50, 200), ("overlay_bg_darken", 0, 100))
+                              ("overlay_bg_zoom", 50, 200), ("overlay_bg_darken", 0, 100),
+                              ("overlay_interpolate_ms", 50, 1000))
             for key, lo, hi in _ui_int_ranges:
                 if key in body:
                     if not isinstance(body[key], int) or isinstance(body[key], bool) or not lo <= body[key] <= hi:
@@ -1043,7 +1044,8 @@ def ui_settings() -> dict:
                 "overlay_glow": False, "overlay_glow_color": "#e8cf8e",
                 "overlay_bg_opacity": 0, "overlay_bg_zoom": 100, "overlay_bg_darken": 40, "overlay_bg_set": False,
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
-                "meter_save_records": True, "overlay_name_mode": "name"}
+                "meter_save_records": True, "overlay_name_mode": "name",
+                "overlay_dps_interpolate": False, "overlay_interpolate_ms": 100, "overlay_show_fps": False}
     return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}
 
 

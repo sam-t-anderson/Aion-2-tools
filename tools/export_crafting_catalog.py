@@ -7,7 +7,6 @@ import hashlib
 import json
 from pathlib import Path
 import re
-from urllib.request import Request, urlopen
 
 SOURCE = "https://gamers4.life/aion-2/database/crafting-graph.json"
 PAGE = "https://gamers4.life/aion-2/database/en/crafting-calculator/"
@@ -80,12 +79,11 @@ def main():
     parser.add_argument("--details-cache", type=Path, help="Offline ID-named JSON item details; otherwise fetch publisher records")
     parser.add_argument("--format-source", type=Path, help="Offline publisher stat display metadata")
     args = parser.parse_args()
+    from export_item_details import download, enrich
     if args.source:
         raw = args.source.read_bytes()
     else:
-        with urlopen(Request(SOURCE, headers={"User-Agent": "aion2calc-catalog"}), timeout=30) as response:
-            raw = response.read(MAX + 1)
-    from export_item_details import enrich
+        raw = download(SOURCE, MAX)
     data = enrich(export(raw), args.details_cache, args.format_source)
     args.output.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
     print(f"Exported {len(data['recipes'])} recipes / {len(data['items'])} item references; build applicability unverified.")

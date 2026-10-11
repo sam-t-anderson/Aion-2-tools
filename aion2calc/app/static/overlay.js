@@ -11,6 +11,8 @@
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
   let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false, showDummy=true, showCombatPower=true;
   let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name";
+  let interpolate=false, interpolateMs=100, showFps=false, locked=false;
+  const shownRates=new Map();   // row key -> currently displayed (eased) rate
   const cap=s=>String(s||'').charAt(0).toUpperCase()+String(s||'').slice(1);
   const displayName=p=>{
     if(nameMode==="number")return "P"+(p.party_number||"?");
@@ -64,6 +66,10 @@
     showDummy=ui.meter_show_dummy_parse!==false;
     showCombatPower=ui.overlay_show_combat_power!==false;
     nameMode=["name","class_number","number"].includes(ui.overlay_name_mode)?ui.overlay_name_mode:"name";
+    interpolate=ui.overlay_dps_interpolate===true;
+    interpolateMs=clampInt(ui.overlay_interpolate_ms,50,1000,100);
+    showFps=ui.overlay_show_fps===true;
+    $("#ovfps").hidden=!showFps||partyMode;
     // Layout
     maxPlayers=clampInt(ui.overlay_max_players,1,24,8);
     onlyInCombat=ui.overlay_only_in_combat===true;
@@ -163,7 +169,7 @@
     const duplicate=p=>(names.get(String(p.name||'').toLocaleLowerCase())||0)>1;
     const shownCount = autoExpand ? Math.min(24, Math.max(maxPlayers, visible.length)) : maxPlayers;
     const rows = [...visible].sort((a,b)=>rate(b)-rate(a)||amount(b)-amount(a)).slice(0, shownCount).map((p) => `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}"><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}"><span class="ovnametext">${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}</span>
-        <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i style="width:${100 * rate(p) / mx}%;background:${A2CombatReview.color(p.class)}"></i><span>${kfmt(rate(p))}/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div></div>`).join("");
+        <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i style="width:${100 * rate(p) / mx}%;background:${A2CombatReview.color(p.class)}"></i><span><span class="ovrate" data-k="${esc(p.key||p.id)}" data-target="${rate(p)}">${kfmt(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div></div>`).join("");
     const duration=metric==="dps"?snap.duration:snap.recorded_duration;
     $("#ovstatus").textContent = `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
     const identity=snap.identity_status, missing=players.length>0&&identity&&(!identity.self_identified||identity.unnamed_actors>0), repeated=visible.some(duplicate);
@@ -227,7 +233,7 @@
   }
   function renderPlan() {
     $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovidentity").hidden=true;
-    $("#ovtarget").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;
+    $("#ovtarget").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
     $("#ovconnection").hidden=true;
     const p = latestPlan();
     if (!p) {
@@ -265,7 +271,7 @@
     renderMeter();
   };});
   async function pollMeter() {
-    if (polling) return;
+    if (polling || locked) return;   // frozen for a screenshot
     polling = true;
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 4000);
     try {
@@ -287,5 +293,48 @@
   setInterval(() => { if (tab === "meter") pollMeter(); }, 800);
   setInterval(() => { t += 0.1; if (tab === "plan") renderPlan(); }, 100);
   window.addEventListener("storage", (event) => { if (event.key === "aion2calc-closing") window.close(); });
+
+  // Screenshot & lock: freeze the display and keep the overlay pinned (even when
+  // the game loses focus) so it can be captured; a second click resumes.
+  const lockBtn=$("#ovlock");
+  if(lockBtn)lockBtn.onclick=()=>{
+    locked=!locked;
+    lockBtn.textContent=locked?"Unlock":"Lock";
+    lockBtn.classList.toggle("on",locked);
+    document.getElementById("ov").classList.toggle("ov-locked",locked);
+    nativeCall("set_locked",locked);
+    if(!locked)pollMeter();
+  };
+
+  // Live-ms DPS interpolation: ease each row's displayed rate toward the latest
+  // packet-backed value between polls. Off by default; the refresh interval is
+  // user-set so weaker machines can slow or disable it.
+  setInterval(()=>{
+    if(!interpolate||tab!=="meter"||locked)return;
+    const seen=new Set();
+    document.querySelectorAll("#ovcontent .ovrate").forEach(el=>{
+      const key=el.getAttribute("data-k"), target=parseFloat(el.getAttribute("data-target"))||0;
+      seen.add(key);
+      const cur=shownRates.has(key)?shownRates.get(key):target;
+      const next=cur+(target-cur)*0.25;   // ease toward target
+      const shown=Math.abs(next-target)<0.5?target:next;
+      shownRates.set(key,shown);
+      el.textContent=kfmt(shown);
+    });
+    for(const k of [...shownRates.keys()])if(!seen.has(k))shownRates.delete(k);
+  },interpolateMs);
+
+  // Overlay render FPS (the overlay's own frame rate, not the game's — packet
+  // capture cannot see game FPS). Off by default.
+  let frames=0, fpsAt=performance.now();
+  (function fpsLoop(now){
+    frames++;
+    if(now-fpsAt>=1000){
+      if(showFps&&!partyMode){const el=$("#ovfps");if(el)el.textContent="Overlay "+Math.round(frames*1000/(now-fpsAt))+" FPS";}
+      frames=0; fpsAt=now;
+    }
+    requestAnimationFrame(fpsLoop);
+  })(performance.now());
+
   applyOpacity(); renderMeter(); pollMeter();
 })();

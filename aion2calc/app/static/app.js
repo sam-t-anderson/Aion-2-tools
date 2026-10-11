@@ -1674,6 +1674,8 @@ async function pageSettings() {
       <label><input type="checkbox" id="ov-onlycombat" ${ui.overlay_only_in_combat === true?'checked':''}> Show the meter only during combat (collapse between pulls)</label>
       <label>Name display <select id="ov-namemode">${[["name","Character names"],["class_number","Class + party number"],["number","Party number only"]].map(([v,l])=>`<option value="${v}" ${v===(ui.overlay_name_mode||'name')?'selected':''}>${l}</option>`).join('')}</select></label>
       <label><input type="checkbox" id="ov-scrollnames" ${ui.overlay_long_names_scroll === true?'checked':''}> Scroll long names on hover</label>
+      <label><input type="checkbox" id="ov-interp" ${ui.overlay_dps_interpolate === true?'checked':''}> Smoothly animate DPS numbers between updates <input type="number" id="ov-interp-ms" min="50" max="1000" value="${Number(ui.overlay_interpolate_ms)||100}" style="width:64px"> ms</label>
+      <label><input type="checkbox" id="ov-fps" ${ui.overlay_show_fps === true?'checked':''}> Show the overlay's own render FPS (the game's FPS can't be read from capture)</label>
       <label><input type="checkbox" id="ov-party" ${ui.overlay_party_enabled === true?'checked':''}> Open a separate Party-DPS overlay (raid totals) alongside the meter</label>
       <p class="small muted" style="margin-top:6px">These need the overlay reopened to apply:</p>
       <label><input type="checkbox" id="ov-resizable" ${ui.overlay_resizable === true?'checked':''}> Resize the overlay by dragging its edges/corners</label>
@@ -1758,6 +1760,9 @@ async function pageSettings() {
   $("#ov-maxp").onchange = () => saveLayoutNum("ov-maxp", "overlay_max_players", 1, 24);
   $("#ov-width").onchange = () => saveLayoutNum("ov-width", "overlay_width", 260, 800);
   $("#ov-rowh").onchange = () => saveLayoutNum("ov-rowh", "overlay_row_height", 14, 48);
+  $("#ov-interp").onchange = () => api("/api/ui", { overlay_dps_interpolate: $("#ov-interp").checked }).then(() => toast("Saved"));
+  $("#ov-interp-ms").onchange = () => saveLayoutNum("ov-interp-ms", "overlay_interpolate_ms", 50, 1000);
+  $("#ov-fps").onchange = () => api("/api/ui", { overlay_show_fps: $("#ov-fps").checked }).then(() => toast("Saved"));
   $("#rec-reset").onchange = () => api("/api/ui", { meter_reset_after_battle: $("#rec-reset").checked }).then(() => toast("Saved"));
   const saveRecNum = async (id, key, lo, hi) => {
     const el = $("#" + id), msg = $("#rec-msg"), n = parseInt(el.value, 10);

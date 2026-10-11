@@ -1,3 +1,16 @@
+## Live DPS interpolation, screenshot-lock, overlay FPS + asset-refresh reliability (0.2.144)
+
+Three client-side overlay options, all **off by default** so the overlay is unchanged until you turn one on (Settings → Overlay layout):
+
+- **Smoothly animate DPS numbers between updates** — between packets, each row's DPS eases toward the latest packet-backed value for a "live" feel, with a refresh-rate (ms) control (50–1000) so weaker machines can slow or disable it. The underlying numbers are still packet-sourced; only the on-screen tweening is interpolated.
+- **Screenshot & lock** — a **Lock** button on the overlay freezes the display and pins the window in place (even if the game loses focus) so you can capture it cleanly; click again to resume.
+- **Overlay FPS** — shows the overlay's *own* render frame rate ("Overlay N FPS"). The game's FPS cannot be read from packet capture, so this is deliberately the overlay's rate, not the game's.
+- All three ride the settings backup/restore file.
+
+Reliability:
+
+- The scheduled **Refresh game asset references** workflow no longer aborts on a single transient network blip: the external item-detail/catalog downloads now retry transient failures (read timeouts, dropped connections, HTTP 429/5xx) with backoff, while validation and size limits still fail fast.
+
 ## Save-records toggle and overlay name display modes (0.2.143)
 
 - **Save combat records** (Settings → Combat records, on by default): when off, the live meter no longer auto-writes each session to the logs folder. You can still Save/Export/Upload a session explicitly. Applies to the next capture.
