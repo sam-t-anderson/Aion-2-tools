@@ -600,6 +600,19 @@ class CombatSession:
                 break
         return chosen
 
+    def _latest_hp(self, entity_id, epochs):
+        """The entity's most recent observed current HP and the largest max HP seen,
+        within the shown epochs. Either may be None when HP was never captured."""
+        current, maximum, latest = None, 0, -1
+        for sample in self.telemetry:
+            if sample.get("kind") != "hp" or sample.get("entity") != entity_id or sample.get("epoch") not in epochs:
+                continue
+            if sample["timestamp_ms"] >= latest:
+                latest, current = sample["timestamp_ms"], sample.get("current")
+            if sample.get("max"):
+                maximum = max(maximum, sample["max"])
+        return current, (maximum or None)
+
     def snapshot(self, scope="party", segment_id=None, enemy_id=None, combine_pets=True):
         allowed_for = self._allowances(scope)
         groups = self.groups(scope, allowed_for)
@@ -683,15 +696,35 @@ class CombatSession:
                 if target["players"].get(str(local_id), 0) <= 0:
                     target = None
             target = target or summary["enemies"][0]
+            contributors = sorted(
+                [{"id": actor, "name": name_by_id.get(actor, f"Player #{actor}"),
+                  "damage": dmg, "dps": dmg / duration} for actor, dmg in target["players"].items()],
+                key=lambda c: -c["damage"])[:8]
+            # Enemy HP (latest observed current, and the largest max seen) drives the
+            # remaining-HP readout and the time-to-kill estimate. Both stay blank when
+            # no HP was captured for this target — never guessed.
+            try:
+                entity = int(target["id"])
+            except (TypeError, ValueError):
+                entity = None
+            current_hp, max_hp = self._latest_hp(entity, epochs) if entity is not None else (None, None)
+            hp_pct = (current_hp / max_hp) if (current_hp is not None and max_hp) else None
+            party_dps = sum(c["dps"] for c in contributors)
+            ttk = (current_hp / party_dps) if (current_hp and party_dps > 0) else None
             current_target = {
                 "name": target["name"], "key": target["key"], "damage": target["damage"],
-                "is_player": target.get("is_player", False),
-                "contributors": sorted(
-                    [{"id": actor, "name": name_by_id.get(actor, f"Player #{actor}"),
-                      "damage": dmg, "dps": dmg / duration} for actor, dmg in target["players"].items()],
-                    key=lambda c: -c["damage"])[:8],
+                "is_player": target.get("is_player", False), "contributors": contributors,
+                "current_hp": current_hp, "max_hp": max_hp, "hp_pct": hp_pct, "ttk": ttk,
             }
         summary["current_target"] = current_target
+        # Party-member death indicator: an actor whose latest telemetry in the shown
+        # epochs is a death with no later revival (tracked live in ``_dead``).
+        dead_ids = {actor for (ep, actor) in self._dead if ep in epochs}
+        for row in summary["players"]:
+            try:
+                row["dead"] = int(row["id"]) in dead_ids
+            except (TypeError, ValueError):
+                row["dead"] = False
         summary["history_discarded"] = self.discarded
         return summary
 

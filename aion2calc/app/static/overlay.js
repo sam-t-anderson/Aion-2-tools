@@ -7,14 +7,18 @@
   let tab = "meter", metric = "dps", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false, meterUnavailable = false, refreshError = "", lastSuccess = null;
   try { const saved=localStorage.getItem("ovmetric"); if(["dps","hps","taken"].includes(saved))metric=saved; } catch(e) { /* optional storage */ }
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
-  let showContribution=true, showTarget=true;
+  let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false;
   const syncColors=()=>fetch("/api/ui").then(r=>r.json()).then(ui=>{
     if(ui.combat_colors){try{localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));}catch(e){/* optional storage */}}
     for(const key of ['rate','total']){const color=ui.overlay_text_colors?.[key];document.documentElement.style.setProperty(`--ov-${key}-text`,/^#[0-9a-f]{6}$/i.test(color||'')?color:'#000000');}
     showContribution=ui.overlay_show_contribution!==false;
     showTarget=ui.overlay_show_target!==false;
+    showDeaths=ui.overlay_show_deaths!==false;
+    showEnemyHp=ui.overlay_show_enemy_hp===true;
+    showTtk=ui.overlay_show_ttk===true;
     if(lastSnap)renderMeter();
   }).catch(()=>{});
+  const fmtTtk=(s)=>{s=Math.round(s);return s>=3600?`${Math.floor(s/3600)}h${Math.floor(s%3600/60)}m`:s>=60?`${Math.floor(s/60)}m${String(s%60).padStart(2,'0')}s`:`${s}s`;};
   syncColors();setInterval(syncColors,10000);
   const slider = $("#ovop");
   $("#ovhide").onclick = () => fetch("/api/overlay", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"hide"})}).then(()=>window.close());
@@ -86,7 +90,7 @@
     const visible=players.filter(p=>amount(p)>0), names=new Map();
     visible.forEach(p=>{const name=String(p.name||'').toLocaleLowerCase();names.set(name,(names.get(name)||0)+1);});
     const duplicate=p=>(names.get(String(p.name||'').toLocaleLowerCase())||0)>1;
-    const rows = [...visible].sort((a,b)=>rate(b)-rate(a)||amount(b)-amount(a)).slice(0, 8).map((p) => `<div class="ovrow"><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}">${esc(p.name)}${duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}</span>
+    const rows = [...visible].sort((a,b)=>rate(b)-rate(a)||amount(b)-amount(a)).slice(0, 8).map((p) => `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}"><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}">${esc(p.name)}${duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}</span>
         <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i style="width:${100 * rate(p) / mx}%;background:${A2CombatReview.color(p.class)}"></i><span>${kfmt(rate(p))}/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div></div>`).join("");
     const duration=metric==="dps"?snap.duration:snap.recorded_duration;
     $("#ovstatus").textContent = `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
@@ -112,8 +116,12 @@
     if(showT){
       const top=(target.contributors||[]).slice(0,3)
         .map(c=>`${esc(c.name)} ${kfmt(c.dps)}/s`).join(' · ');
-      $("#ovtarget").innerHTML=`<span class="ovtlabel">Target</span> ${esc(target.name)} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}`;
-      $("#ovtarget").title=`Most-hit enemy this encounter and each contributor's DPS to it`;
+      const hp=showEnemyHp&&target.hp_pct!=null
+        ? ` <span class="ovhp">${Math.round(target.hp_pct*100)}%${target.current_hp!=null?` (${kfmt(target.current_hp)}${target.max_hp?'/'+kfmt(target.max_hp):''})`:''}</span>` : '';
+      const ttk=showTtk&&target.ttk!=null&&isFinite(target.ttk)
+        ? ` <span class="ovttk">TTK ${fmtTtk(target.ttk)}</span>` : '';
+      $("#ovtarget").innerHTML=`<span class="ovtlabel">Target</span> ${esc(target.name)}${hp}${ttk} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}`;
+      $("#ovtarget").title=`Most-hit enemy this encounter, its remaining HP and time-to-kill at the party's current DPS, and each contributor's DPS to it`;
     }
     // Your contribution: your share of the shown encounter's damage.
     const c=snap.contribution;

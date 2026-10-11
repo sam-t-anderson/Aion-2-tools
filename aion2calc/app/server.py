@@ -864,11 +864,12 @@ class Handler(BaseHTTPRequestHandler):
                                for value in colors.values())):
                     raise ValueError("Overlay text colors must be six-digit hex colors for rate and total")
                 cur["overlay_text_colors"] = {k:v.lower() for k,v in colors.items()}
-            for flag in ("tray_on_close", "overlay_show_contribution", "overlay_show_target"):
+            _ui_bool_flags = ("tray_on_close", "overlay_show_contribution", "overlay_show_target",
+                              "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk")
+            for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
-            cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update", "combat_colors",
-                                                               "tray_on_close", "overlay_show_contribution", "overlay_show_target")})
+            cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update", "combat_colors", *_ui_bool_flags)})
             write_user_json(cur, "ui.json")
             return self._json(cur)
         if path == "/api/ui/export":
@@ -981,7 +982,8 @@ def schedule_shutdown() -> None:
 def ui_settings() -> dict:
     from ..paths import data_file, read_json
     defaults = {"app_window": True, "auto_update": True, "overlay_on_start": True, "tray_on_close": False,
-                "overlay_show_contribution": True, "overlay_show_target": True}
+                "overlay_show_contribution": True, "overlay_show_target": True,
+                "overlay_show_deaths": True, "overlay_show_enemy_hp": False, "overlay_show_ttk": False}
     return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}
 
 

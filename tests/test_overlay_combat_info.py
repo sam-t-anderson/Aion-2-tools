@@ -59,3 +59,44 @@ def test_no_target_or_contribution_before_any_damage():
     snap = s.snapshot(scope="auto", segment_id=None)
     assert snap["current_target"] is None
     assert snap["contribution"] is None
+
+
+def test_enemy_hp_and_ttk_from_observed_hp():
+    s, engine = _session()
+    # The game reports the boss at 5000/10000 HP; Me lands one 5000 hit in one
+    # second → DPS 5000 → remaining 5000 → TTK 1s, HP 50%.
+    engine.telemetry = [{"kind": "hp", "entity": 9001, "current": 5000, "max": 10000, "timestamp_ms": 2000}]
+    s.observe(engine, [_hit(5001, 9001, 2000, 5000)], timestamp_ms=2000)
+    target = s.snapshot(scope="auto", segment_id=None)["current_target"]
+    assert target["current_hp"] == 5000
+    assert target["max_hp"] == 10000
+    assert target["hp_pct"] == 0.5
+    assert round(target["ttk"], 2) == 1.0
+
+
+def test_target_hp_and_ttk_blank_without_observed_hp():
+    s, engine = _session()
+    s.observe(engine, [_hit(5001, 9001, 2000, 5000)], timestamp_ms=2000)
+    target = s.snapshot(scope="auto", segment_id=None)["current_target"]
+    assert target["current_hp"] is None       # never captured -> never guessed
+    assert target["hp_pct"] is None
+    assert target["ttk"] is None
+
+
+def test_party_member_death_indicator():
+    s, engine = _session()
+    # Both party members fight the boss; Ally (5002) then dies with no recovery.
+    engine.telemetry = [{"kind": "death", "entity": 5002, "timestamp_ms": 3000}]
+    s.observe(engine, [_hit(5001, 9001, 2000, 1000), _hit(5002, 9001, 2000, 1000)], timestamp_ms=3000)
+    players = {row["name"]: row for row in s.snapshot(scope="auto", segment_id=None)["players"]}
+    assert players["Ally"]["dead"] is True
+    assert players["Me"]["dead"] is False
+
+
+def test_death_indicator_clears_when_the_member_recovers():
+    s, engine = _session()
+    engine.telemetry = [{"kind": "death", "entity": 5002, "timestamp_ms": 3000},
+                        {"kind": "hp", "entity": 5002, "current": 1200, "max": 4000, "timestamp_ms": 4000}]
+    s.observe(engine, [_hit(5001, 9001, 2000, 1000), _hit(5002, 9001, 2000, 1000)], timestamp_ms=4000)
+    players = {row["name"]: row for row in s.snapshot(scope="auto", segment_id=None)["players"]}
+    assert players["Ally"]["dead"] is False   # a later HP>0 sample revives the row

@@ -1,3 +1,10 @@
+## Overlay target HP, time-to-kill, and death indicator (0.2.135)
+
+- **Current target remaining HP** on the overlay (opt-in): shows the target's HP % and current/max when the game reports it — e.g. "Target Boss 42% (420K/1.0M)". Off by default (respecting the earlier overlay-HP preference); enable in **Settings → Live meter overlay**. Shown only when real HP was captured; never estimated.
+- **Time-to-kill (TTK)** for the current target (opt-in, off by default): the target's remaining HP ÷ the party's current DPS to it. Blank unless HP was observed, so it is never a guess.
+- **Party-member death indicator** (on by default): a player who has died shows a DEAD badge and dims until a later HP>0 sample revives the row, tracked live from recorded death/HP telemetry.
+- All three are packet-sourced and ride the settings backup/restore added in 0.2.134.
+
 ## Overlay combat info and settings backup (0.2.134)
 
 - **Your contribution on the overlay.** The meter now shows your share of the current encounter's damage — "Your contribution: 42% · 1.2M (18.3K/s)" — computed from the same recorded damage as the player table, not invented. On by default; toggle in **Settings → Live meter overlay**.
