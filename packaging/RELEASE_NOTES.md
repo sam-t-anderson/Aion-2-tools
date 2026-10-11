@@ -1,3 +1,7 @@
+## Overlay: color pickers for the target-line readouts (0.2.166)
+
+- Settings → Overlay colors & fonts now has color pickers for the **target line** too: **Target text**, **Enemy-HP text** and **TTK text**, alongside the existing rate/total/name/header pickers. So you can recolor the current-target readout to taste (or for contrast over a background photo), not just the damage numbers. Each defaults to its current look and, like the other overlay colors, rides the settings backup/restore file and the overlay look presets.
+
 ## Overlay text outline for legibility (0.2.165)
 
 - New **"Text outline"** toggle (Settings → Overlay colors & fonts, **off by default**) draws a crisp outline around the overlay text so it stays readable over busy or bright backgrounds — a game scene behind a transparent overlay, or a light background photo. It's separate from the existing soft **Text glow**: the outline is a sharp edge drawn *behind* the letters (so glyphs aren't eaten into), and you can use either, both, or neither. A dedicated **Outline color** picker (`overlay_outline_color`, default black) sets the edge color. Both ride the settings backup/restore file and the overlay look presets like the other overlay colors.

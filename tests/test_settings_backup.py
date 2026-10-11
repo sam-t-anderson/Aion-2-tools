@@ -105,6 +105,18 @@ def test_overlay_ttk_color_round_trips_and_validates(isolated_home):
         settings_backup.import_settings({"overlay_ttk_color": "nope"})
 
 
+def test_overlay_text_colors_accepts_target_line_elements(isolated_home):
+    # The per-element pickers extend overlay_text_colors with the target-line
+    # readouts (target text, enemy-HP text, TTK text); unknown keys are rejected.
+    s = settings_backup.import_settings({"overlay_text_colors":
+                                         {"target": "#CDd6E6", "hp": "#E58F8F", "ttk": "#8FB3D0"}})["settings"]
+    assert s["overlay_text_colors"] == {"target": "#cdd6e6", "hp": "#e58f8f", "ttk": "#8fb3d0"}
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_text_colors": {"bogus": "#000000"}})
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_text_colors": {"target": "not-a-hex"}})
+
+
 def test_overlay_text_outline_round_trips_and_validates(isolated_home):
     # The text-outline toggle (bool) and its colour both ride the backup.
     s = settings_backup.import_settings({"overlay_text_outline": True,

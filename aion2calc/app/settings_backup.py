@@ -65,9 +65,9 @@ def _clean(data: dict) -> dict:
                 raise ValueError(f"{key} must be a whole number from {lo} to {hi}")
             clean[key] = value
         elif key == "overlay_text_colors":
-            if not (isinstance(value, dict) and set(value) <= {"rate", "total", "name", "header"}
+            if not (isinstance(value, dict) and set(value) <= {"rate", "total", "name", "header", "target", "hp", "ttk"}
                     and all(_is_hex(v) for v in value.values())):
-                raise ValueError("overlay_text_colors must be six-digit hex colors for rate, total, name or header")
+                raise ValueError("overlay_text_colors must be six-digit hex colors for rate, total, name, header, target, hp or ttk")
             clean[key] = {k: v.lower() for k, v in value.items()}
         elif key in ("overlay_glow_color", "overlay_hp_color", "overlay_ttk_color", "overlay_outline_color"):
             if not _is_hex(value):
