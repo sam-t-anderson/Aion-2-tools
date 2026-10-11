@@ -924,7 +924,7 @@ class Handler(BaseHTTPRequestHandler):
                               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
                               "overlay_always_visible", "overlay_remember_position",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "meter_auto_upload")
+                              "overlay_color_cycle", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "meter_auto_upload")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1068,6 +1068,7 @@ def schedule_shutdown() -> None:
 def ui_settings() -> dict:
     from ..paths import data_file, read_json
     defaults = {"app_window": True, "auto_update": True, "overlay_on_start": True, "tray_on_close": False,
+                "overlay_open_on_app_start": True,
                 "community_heartbeat": True,
                 "overlay_show_contribution": True, "overlay_show_target": True,
                 "overlay_show_deaths": True, "overlay_show_enemy_hp": False, "overlay_show_ttk": False,
@@ -1134,7 +1135,7 @@ def make_server(host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServe
 
 
 def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: str = "127.0.0.1",
-          httpd: ThreadingHTTPServer | None = None):
+          httpd: ThreadingHTTPServer | None = None, open_overlay: bool = True):
     if sync:
         start_sync()
     # This is independent of the game-data sync: it is fast, optional, and never delays the UI.
@@ -1159,6 +1160,19 @@ def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: 
     print(f"data folder: {home()}   combat logs: {logs_dir()}")
     if open_browser:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+    # Open the transparent overlay alongside the app on launch (on by default). It
+    # waits for the game and still follows the AION 2 window when that appears. Only
+    # on a real user-facing launch — never a headless/render/CI server — and a no-op
+    # where the native overlay (pywebview) is not available.
+    if open_overlay and ui_settings().get("overlay_open_on_app_start", True):
+        def _overlay_on_app_start():
+            try:
+                from . import overlay_launch
+                if overlay_launch.available():
+                    overlay_launch.launch(f"http://{host}:{port}/overlay")
+            except Exception:
+                pass
+        threading.Timer(1.2, _overlay_on_app_start).start()
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

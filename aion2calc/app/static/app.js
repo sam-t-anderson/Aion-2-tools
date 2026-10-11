@@ -1752,7 +1752,8 @@ async function pageSettings() {
       ${srv.is_default && srv.url ? '<div class="small muted" style="margin-top:4px">Using the community default server. Enter your own above to override it.</div>' : ""}</div></div>
     <div class="setrow" data-g="server"><div class="lbl">Community stats</div><div><label><input type="checkbox" id="community-heartbeat" ${ui.community_heartbeat !== false?'checked':''}> Contribute to the anonymous daily-active-meters count (on by default)</label>
       <p class="small muted">Once a day the app tells the configured log server that a meter ran, so the community can see how many are active. It sends only an anonymous token that rotates every day (it can't be traced to you or linked across days), the date, and the app version — never your name, character, server, IP or any combat data. Uncheck to opt out.</p></div></div>
-    <div class="setrow" data-g="overlay"><div class="lbl">Live meter overlay</div><div><label><input type="checkbox" id="ov-on-start" ${ui.overlay_on_start !== false?'checked':''}> Show overlay when starting the live meter</label><p class="small muted">Also available beside Start on the Live Meter page.</p>
+    <div class="setrow" data-g="overlay"><div class="lbl">Live meter overlay</div><div><label><input type="checkbox" id="ov-open-on-app" ${ui.overlay_open_on_app_start !== false?'checked':''}> Open the overlay when the app starts (on by default)</label><p class="small muted">The overlay opens with the app and waits for the game; it still follows the AION 2 window when that appears.</p>
+      <label><input type="checkbox" id="ov-on-start" ${ui.overlay_on_start !== false?'checked':''}> Show overlay when starting the live meter</label><p class="small muted">Also available beside Start on the Live Meter page.</p>
       <label><input type="checkbox" id="ov-contribution" ${ui.overlay_show_contribution !== false?'checked':''}> Show your contribution (your share of the encounter's damage)</label>
       <label><input type="checkbox" id="ov-target" ${ui.overlay_show_target !== false?'checked':''}> Show the current target and each player's DPS to it</label>
       <label><input type="checkbox" id="ov-deaths" ${ui.overlay_show_deaths !== false?'checked':''}> Mark party members who are dead (row shows DEAD until they recover)</label>
@@ -1989,6 +1990,7 @@ async function pageSettings() {
     try { await api('/api/ui',{overlay_on_start:selected}); toast('Saved'); }
     catch(e) { control.checked=!selected; toast('Could not save overlay preference: '+e.message); }
   };
+  $('#ov-open-on-app').onchange = () => api('/api/ui', { overlay_open_on_app_start: $('#ov-open-on-app').checked }).then(() => toast('Saved · applies on next launch'));
   $("#appwin").onchange = () => api("/api/ui", { app_window: $("#appwin").checked }).then(() => toast("Saved"));
   $("#community-heartbeat").onchange = () => api("/api/ui", { community_heartbeat: $("#community-heartbeat").checked }).then(() => toast("Saved"));
   $("#trayclose").onchange = () => api("/api/ui", { tray_on_close: $("#trayclose").checked }).then(() => toast("Saved · applies on next launch"));

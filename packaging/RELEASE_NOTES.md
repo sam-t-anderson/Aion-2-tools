@@ -1,3 +1,7 @@
+## Open the overlay when the app starts (0.2.197)
+
+- The transparent overlay now **opens together with the app**, on by default, so it's ready the moment you launch — it waits for the game and still follows the AION 2 window when that appears. Turn it off under **Settings → Overlay → "Open the overlay when the app starts"**. This is separate from **"Show overlay when starting the live meter"** (which opens it when you press Start): leave both on to always have the overlay up, or keep only the meter-start one if you'd rather it appear with capture. The setting rides the settings backup.
+
 ## Accent-matched overlay presets (0.2.196)
 
 - Five new starter **overlay look presets** named to match the app's **accent colours** — **Crimson, Emerald, Azure, Amethyst** and **Rose** — each with a header and glow in that accent on rounded gradient bars. Pick the same name as your app accent (Settings → Appearance) for a coordinated look in one click, under Settings → Overlay → Overlay look presets. Like all presets, they carry only overlay look settings and are re-validated on import.

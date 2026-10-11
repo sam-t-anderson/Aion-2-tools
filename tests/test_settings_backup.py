@@ -194,6 +194,12 @@ def test_meter_auto_upload_round_trips(isolated_home):
         settings_backup.import_settings({"meter_auto_upload": "yes"})
 
 
+def test_overlay_open_on_app_start_round_trips(isolated_home):
+    assert settings_backup.import_settings({"overlay_open_on_app_start": False})["settings"]["overlay_open_on_app_start"] is False
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_open_on_app_start": "yes"})
+
+
 def test_overlay_dps_graph_round_trips(isolated_home):
     assert settings_backup.import_settings({"overlay_dps_graph": True})["settings"]["overlay_dps_graph"] is True
     with pytest.raises(ValueError):

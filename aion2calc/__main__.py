@@ -556,7 +556,8 @@ def main(argv: list[str] | None = None) -> int:
         print(rerender(args.dir))
     elif args.cmd == "app":
         from .app.server import serve
-        serve(port=args.port, open_browser=not args.no_browser, sync=not args.no_sync)
+        serve(port=args.port, open_browser=not args.no_browser, sync=not args.no_sync,
+              open_overlay=not args.no_browser)
     elif args.cmd == "diff":
         from .diff import write_diff
         print(write_diff(args.a, args.b, args.out))
