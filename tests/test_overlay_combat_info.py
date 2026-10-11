@@ -55,6 +55,25 @@ def test_current_target_follows_the_most_recently_hit_enemy():
     assert me["damage"] == 200 and me["dps"] > 0
 
 
+def test_ttk_uses_the_observed_hp_decline_rate_not_only_our_dps():
+    # Time-to-kill must reflect how fast the enemy is really dying (all damage
+    # sources), not just the observed party's DPS. A mob we only tag for a little
+    # damage, but whose HP drops fast because others are hitting it, should show a
+    # short TTK — not the long one our small DPS alone would imply.
+    s, engine = _session()
+    engine.telemetry = [
+        {"kind": "hp", "entity": 9001, "current": 100000, "max": 100000, "timestamp_ms": 1000},
+        {"kind": "hp", "entity": 9001, "current": 50000, "max": 100000, "timestamp_ms": 6000},
+    ]
+    # We deal only 2000 total to 9001 across the 5 seconds (others do the rest).
+    s.observe(engine, [_hit(5001, 9001, 1000, 1000), _hit(5001, 9001, 6000, 1000)], timestamp_ms=6000)
+    target = s.snapshot(scope="auto", segment_id=None)["current_target"]
+    assert target is not None and target["current_hp"] == 50000
+    # Observed decline: 50000 HP over 5s = 10000 HP/s -> TTK = 50000/10000 = 5s.
+    # The party-DPS-only estimate (2000 dmg over the duration) would be far larger.
+    assert target["ttk"] is not None and abs(target["ttk"] - 5.0) < 0.6
+
+
 def test_players_get_a_stable_party_number():
     s, engine = _session()
     engine.names = {5001: "Me", 5002: "Ally", 5003: "Bob"}

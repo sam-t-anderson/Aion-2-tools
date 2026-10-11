@@ -627,6 +627,27 @@ class CombatSession:
                 maximum = max(maximum, sample["max"])
         return current, (maximum or None)
 
+    def _hp_decline_rate(self, entity_id, epochs, window_ms=20000):
+        """How fast the entity's observed HP is dropping, in HP per second, measured
+        from its recorded HP samples over a recent window. This reflects the *real*
+        rate the enemy is dying at — all damage sources, not just the observed party —
+        so a time-to-kill built on it is accurate even when other players (whose
+        damage the meter never sees) are also hitting it. Returns None when HP wasn't
+        sampled enough to measure a drop, or when HP is flat/rising (healed/reset)."""
+        samples = sorted((s["timestamp_ms"], s["current"]) for s in self.telemetry
+                         if s.get("kind") == "hp" and s.get("entity") == entity_id
+                         and s.get("epoch") in epochs and s.get("current") is not None)
+        if len(samples) < 2:
+            return None
+        last_t, last_hp = samples[-1]
+        window = [(t, hp) for t, hp in samples if last_t - t <= window_ms] or samples[-5:]
+        first_t, first_hp = window[0]
+        elapsed = (last_t - first_t) / 1000.0
+        drop = first_hp - last_hp
+        if elapsed <= 0 or drop <= 0:
+            return None
+        return drop / elapsed
+
     def snapshot(self, scope="party", segment_id=None, enemy_id=None, combine_pets=True):
         allowed_for = self._allowances(scope)
         groups = self.groups(scope, allowed_for)
@@ -738,21 +759,47 @@ class CombatSession:
                                                       e["players"].get(str(local_id), 0)))
             # Fall back to the most recently damaged enemy overall, else the top one.
             target = target or max(summary["enemies"], key=lambda e: e.get("last_ms", 0)) or summary["enemies"][0]
-            contributors = sorted(
-                [{"id": actor, "name": name_by_id.get(actor, f"Player #{actor}"),
-                  "damage": dmg, "dps": dmg / duration} for actor, dmg in target["players"].items()],
-                key=lambda c: -c["damage"])[:8]
-            # Enemy HP (latest observed current, and the largest max seen) drives the
-            # remaining-HP readout and the time-to-kill estimate. Both stay blank when
-            # no HP was captured for this target — never guessed.
             try:
                 entity = int(target["id"])
             except (TypeError, ValueError):
                 entity = None
+            # Seconds this target was actually being hit, counted in one-second buckets
+            # per group (the same way the meter measures DPS) and summed across the
+            # merged live encounter. Scoping to the target — not the whole encounter —
+            # keeps time spent on other enemies, and earlier pulls the live view merged
+            # in, from diluting the rate and inflating time-to-kill.
+            target_secs = 0
+            if entity is not None:
+                for group in groups:
+                    base = group["damage_start"] if group["damage_start"] is not None else group["start"]
+                    hit_seconds = {int((record.event.timestamp_ms - base) // 1000)
+                                   for record in group["records"]
+                                   if isinstance(record.event, DamageEvent) and record.event.target_id == entity
+                                   and record.event.actor_id in allowed_for(record)}
+                    target_secs += len(hit_seconds)
+            target_secs = max(1, target_secs)
+            contributors = sorted(
+                [{"id": actor, "name": name_by_id.get(actor, f"Player #{actor}"),
+                  "damage": dmg, "dps": dmg / target_secs} for actor, dmg in target["players"].items()],
+                key=lambda c: -c["damage"])[:8]
+            # Enemy HP (latest observed current, and the largest max seen) drives the
+            # remaining-HP readout and the time-to-kill estimate. Both stay blank when
+            # no HP was captured for this target — never guessed.
             current_hp, max_hp = self._latest_hp(entity, epochs) if entity is not None else (None, None)
             hp_pct = (current_hp / max_hp) if (current_hp is not None and max_hp) else None
             party_dps = sum(c["dps"] for c in contributors)
-            ttk = (current_hp / party_dps) if (current_hp and party_dps > 0) else None
+            # Time-to-kill from the enemy's actual observed HP-decline rate when we have
+            # enough HP samples — this counts every damage source (including other
+            # players we can't see, e.g. in the open world), so it matches how fast the
+            # mob is really dying. Fall back to the party's DPS to this target only when
+            # the HP drop can't be measured yet.
+            hp_rate = self._hp_decline_rate(entity, epochs) if entity is not None else None
+            if current_hp and hp_rate and hp_rate > 0:
+                ttk = current_hp / hp_rate
+            elif current_hp and party_dps > 0:
+                ttk = current_hp / party_dps
+            else:
+                ttk = None
             mob_code = target.get("mob_code")
             is_dummy = bool(mob_code and npc_info(mob_code).get("isDummy"))
             current_target = {

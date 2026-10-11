@@ -1,3 +1,10 @@
+## More accurate overlay time-to-kill (0.2.160)
+
+Fixes TTK reading far too high (e.g. "5 min" at half HP on a mob that dies in under a minute).
+
+- **Time-to-kill is now based on the enemy's observed HP-decline rate** — how fast its HP is actually dropping, from recorded HP samples — instead of dividing remaining HP by *your party's* DPS. The old method couldn't see damage from other players (open-world tagging) or account for a slow start, so it badly over-estimated how long a mob would take. The new method counts **every** damage source, so TTK matches how fast the mob is really dying and lines up with its average kill time. Verified against a real capture: a mob that died in ~8s now reads ~8s TTK at half HP (was tens of seconds / minutes).
+- It stays packet-sourced — computed only from recorded HP observations, never guessed — and falls back to the party's DPS to that target only when there aren't yet enough HP samples to measure the drop. The per-target DPS fallback is also no longer diluted by time spent on other enemies in the same encounter.
+
 ## Clearer "partial capture" message (0.2.159)
 
 - When the overlay/meter shows **"Partial capture · unranked"** because it joined an instance without seeing the entry, the message now adds that **this may not be a real partial capture** — if you didn't start the meter mid-instance, **teleport or change instances (zone out and back)** so the meter observes a fresh entry and can rank the run. (The open-world maps like the Abyss are still never flagged partial.)
