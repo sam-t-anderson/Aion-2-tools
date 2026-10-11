@@ -1667,7 +1667,8 @@ async function pageSettings() {
       <label><input type="checkbox" id="ov-target" ${ui.overlay_show_target !== false?'checked':''}> Show the current target and each player's DPS to it</label>
       <label><input type="checkbox" id="ov-deaths" ${ui.overlay_show_deaths !== false?'checked':''}> Mark party members who are dead (row shows DEAD until they recover)</label>
       <label><input type="checkbox" id="ov-enemy-hp" ${ui.overlay_show_enemy_hp === true?'checked':''}> Show the current target's remaining HP (only when the game reports it)</label>
-      <label><input type="checkbox" id="ov-ttk" ${ui.overlay_show_ttk === true?'checked':''}> Show estimated time-to-kill for the current target (from the party's current DPS)</label></div></div>
+      <label><input type="checkbox" id="ov-ttk" ${ui.overlay_show_ttk === true?'checked':''}> Show estimated time-to-kill for the current target (from the party's current DPS)</label>
+      <label><input type="checkbox" id="ov-cp" ${ui.overlay_show_combat_power !== false?'checked':''}> Show your combat power beside your name (when the game reports it)</label></div></div>
     <div class="setrow"><div class="lbl">Combat records</div><div><label><input type="checkbox" id="rec-reset" ${ui.meter_reset_after_battle !== false?'checked':''}> Clear the live meter after a battle ends</label>
       <div class="row" style="margin-top:4px"><label>Reset delay <input type="number" id="rec-delay" min="1" max="120" value="${Number(ui.meter_reset_delay)||5}" style="width:64px"> s</label><label>Keep up to <input type="number" id="rec-max" min="1" max="500" value="${Number(ui.meter_max_records)||20}" style="width:70px"> past combats</label><span id="rec-msg" class="small muted" role="status"></span></div>
       <label style="margin-top:4px"><input type="checkbox" id="rec-dummy" ${ui.meter_show_dummy_parse !== false?'checked':''}> Show a training-dummy parse readout when hitting a dummy</label>
@@ -1711,6 +1712,7 @@ async function pageSettings() {
   $("#ov-deaths").onchange = () => api("/api/ui", { overlay_show_deaths: $("#ov-deaths").checked }).then(() => toast("Saved"));
   $("#ov-enemy-hp").onchange = () => api("/api/ui", { overlay_show_enemy_hp: $("#ov-enemy-hp").checked }).then(() => toast("Saved"));
   $("#ov-ttk").onchange = () => api("/api/ui", { overlay_show_ttk: $("#ov-ttk").checked }).then(() => toast("Saved"));
+  $("#ov-cp").onchange = () => api("/api/ui", { overlay_show_combat_power: $("#ov-cp").checked }).then(() => toast("Saved"));
   $("#rec-reset").onchange = () => api("/api/ui", { meter_reset_after_battle: $("#rec-reset").checked }).then(() => toast("Saved"));
   const saveRecNum = async (id, key, lo, hi) => {
     const el = $("#" + id), msg = $("#rec-msg"), n = parseInt(el.value, 10);

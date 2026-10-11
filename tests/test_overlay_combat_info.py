@@ -83,6 +83,20 @@ def test_target_hp_and_ttk_blank_without_observed_hp():
     assert target["ttk"] is None
 
 
+def test_local_combat_power_is_surfaced_when_captured():
+    s, engine = _session()
+    # The game's character-info scan records combat power in the local player's spawn.
+    engine.spawn_info = {5001: {"combatPower": 48213}}
+    s.observe(engine, [_hit(5001, 9001, 1000, 500)], timestamp_ms=1000)
+    assert s.snapshot(scope="auto", segment_id=None)["identity_status"]["local_combat_power"] == 48213
+
+
+def test_local_combat_power_is_none_without_data():
+    s, engine = _session()
+    s.observe(engine, [_hit(5001, 9001, 1000, 500)], timestamp_ms=1000)
+    assert s.snapshot(scope="auto", segment_id=None)["identity_status"]["local_combat_power"] is None
+
+
 def test_dummy_parse_appears_only_against_a_training_dummy():
     s, engine = _session()
     s.dummy_record_seconds = 60

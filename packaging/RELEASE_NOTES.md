@@ -1,3 +1,7 @@
+## Combat power on the overlay (0.2.139)
+
+- The overlay now shows **your combat power** beside your name ("You: Name · CP 48.2K") when the game reports it, read from the same recorded character info the saved log uses. Blank when not captured; on by default, toggle in **Settings → Live meter overlay**.
+
 ## Training-dummy parse readout (0.2.138)
 
 - When you're hitting a **training dummy** (a Punching Bag / balance-test NPC), the live meter and overlay now show a dedicated **dummy parse** line: elapsed time vs the standard parse window, your DPS, and the party total to the dummy — with a ✓ once the window is reached. Detected from the dummy's catalog flag (`isDummy`); shown only on a dummy, never estimated.

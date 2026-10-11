@@ -668,6 +668,10 @@ class CombatSession:
             # confirm who it is tracking once identity is picked up again.
             "local_id": local_id,
             "local_name": self.name(current_epoch, local_id) if local_id is not None else None,
+            # Combat power from the same recorded character info the saved log uses
+            # (identity spawns), so the overlay can show it; None when not captured.
+            "local_combat_power": (self.identities[current_epoch]["spawns"].get(local_id, {}).get("combatPower")
+                                   if current_epoch is not None and local_id is not None else None) or None,
         }
         idle_ms = (time.time() * 1000 - chosen[-1]["last_damage"]) if chosen else None
         summary["idle_ms"] = idle_ms

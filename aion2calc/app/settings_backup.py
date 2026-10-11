@@ -18,7 +18,7 @@ VERSION = 1
 _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close",
               "overlay_show_contribution", "overlay_show_target",
               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
-              "meter_reset_after_battle", "meter_show_dummy_parse")
+              "meter_reset_after_battle", "meter_show_dummy_parse", "overlay_show_combat_power")
 
 # key -> (min, max) for whole-number settings.
 _INT_KEYS = {"meter_reset_delay": (1, 120), "meter_max_records": (1, 500),
