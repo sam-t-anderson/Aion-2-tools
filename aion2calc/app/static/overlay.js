@@ -243,11 +243,13 @@
   }
   // A compact DPS trend sparkline for one player's expanded row (shown only when
   // the DPS graph is enabled). Each point is a real per-poll reading.
-  function sparkLine(series){
+  function sparkLine(series, color){
     if(!Array.isArray(series)||series.length<2)return "";
+    const c=/^#[0-9a-f]{6}$/i.test(color||'')?color:'#e8cf8e';
     const mx=Math.max(...series,1), n=series.length, W=100, H=16;
     const pts=series.map((v,i)=>`${(i/(n-1)*W).toFixed(1)},${(H-(v/mx)*H).toFixed(1)}`).join(" ");
-    return `<div class="ovpspark"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${pts}"/></svg></div>`;
+    // Tinted to the player's class colour so the trend matches their bar.
+    return `<div class="ovpspark"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polygon class="ovparea" points="0,${H} ${pts} ${W},${H}" style="fill:${c}"/><polyline points="${pts}" style="stroke:${c}"/></svg></div>`;
   }
   function drawGraph(){
     const g=$("#ovgraph"); if(!g)return;
@@ -291,7 +293,7 @@
       // damage). Click a row to expand it; the open rows are remembered in `expanded`.
       const hasSkills=metric==="dps"&&Array.isArray(p.skills)&&p.skills.length;
       // When the DPS graph is on, an expanded row also shows that player's DPS trend.
-      const spark=(hasSkills&&showGraph&&expanded.has(key))?sparkLine(playerHist.get(key)):"";
+      const spark=(hasSkills&&showGraph&&expanded.has(key))?sparkLine(playerHist.get(key),A2CombatReview.color(p.class)):"";
       const skills=hasSkills?`<div class="ovskills"${expanded.has(key)?'':' hidden'}>${spark}${p.skills.slice(0,6).map(sk=>`<div class="ovskrow"><span class="ovskname">${esc(sk.skill||sk.skill_id)}</span><span class="ovskval">${kfmt(sk.damage)} · ${Math.round((sk.share||0)*100)}%</span></div>`).join("")}</div>`:"";
       return `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}${isMe(p)?' ovrow-me':''}${hasSkills?' ovrow-x':''}"${hasSkills?` data-exk="${esc(key)}"`:''}><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}">${rankNumbers?`<span class="ovrank${i<3?' ovrank-'+(i+1):''}">${i+1}.</span>`:''}${classSwatch?`<i class="ovclass" style="background:${A2CombatReview.color(p.class)}" title="${esc(p.class||'')}"></i>`:''}<span class="ovnametext"${classColorNames?` style="color:${A2CombatReview.color(p.class)}"`:''}>${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}</span>
         <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i data-k="${esc(key)}" style="width:${100 * rate(p) / mx}%;--bar:${A2CombatReview.color(p.class)}"></i><span><span class="ovrate" data-k="${esc(key)}" data-target="${rate(p)}" data-amt="${amount(p)}">${kfmt(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div>${skills}</div>`;

@@ -22,3 +22,10 @@ def test_sparkline_is_gated_by_the_graph_toggle_and_expansion():
 
 def test_sparkline_is_styled():
     assert ".ovpspark" in CSS
+
+
+def test_sparkline_is_tinted_to_the_players_class_colour():
+    # sparkLine takes a colour and the row passes the player's class colour.
+    assert "function sparkLine(series, color)" in JS
+    assert "sparkLine(playerHist.get(key),A2CombatReview.color(p.class))" in JS
+    assert ".ovparea" in CSS  # faint class-tinted fill under the line
