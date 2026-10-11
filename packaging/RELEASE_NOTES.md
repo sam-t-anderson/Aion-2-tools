@@ -1,3 +1,7 @@
+## Share customization profiles by code (0.2.192)
+
+- Customization profiles can now be **shared**. In Settings → Profiles & backup, **Copy share code** turns the selected profile into a short code to send a friend; **Paste a shared code** saves one they sent you. The code carries only the look — theme, accent, class colours and overlay look — and is re-validated on import (unknown theme/accent fall back to defaults; only recognised look settings are kept), so a bad or tampered code is rejected rather than applied.
+
 ## Auto-upload the log when you stop the meter (0.2.191)
 
 - When you **stop the meter**, the saved session is now **uploaded to your configured log server automatically** — **on by default**. The notice shows the shared-log link when it's done, and if the upload fails the session is still saved locally and you can Upload manually. Turn it off any time under **Settings → Meter → "Upload the log to the configured server when you stop the meter"**. It respects your configured server and visibility (unlisted/public/private) and only runs when a session was actually saved.

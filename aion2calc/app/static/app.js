@@ -1779,7 +1779,7 @@ async function pageSettings() {
       <label style="margin-top:4px"><input type="checkbox" id="rec-dummy" ${ui.meter_show_dummy_parse !== false?'checked':''}> Show a training-dummy parse readout when hitting a dummy</label>
       <div class="row"><label>Training-dummy parse window <input type="number" id="rec-dummy-secs" min="5" max="3600" value="${Number(ui.meter_dummy_record_seconds)||60}" style="width:70px"> s</label></div>
       <p class="small muted">Applies to the live meter and overlay. A cleared battle's details stay available in the segment list until replaced.</p></div></div>
-    <div class="setrow" data-g="backup"><div class="lbl">Customization profiles</div><div><div class="row"><select id="cust-profile" style="min-width:200px">${customProfileOptions()}</select><button class="btn small" id="cust-apply">Apply</button><button class="btn small" id="cust-save">Save current as…</button><button class="btn small" id="cust-delete">Delete</button><span id="cust-msg" class="small muted" role="status"></span></div>
+    <div class="setrow" data-g="backup"><div class="lbl">Customization profiles</div><div><div class="row"><select id="cust-profile" style="min-width:200px">${customProfileOptions()}</select><button class="btn small" id="cust-apply">Apply</button><button class="btn small" id="cust-save">Save current as…</button><button class="btn small" id="cust-delete">Delete</button><button class="btn small" id="cust-copy">Copy share code</button><button class="btn small" id="cust-import">Paste a shared code…</button><span id="cust-msg" class="small muted" role="status"></span></div>
       <p class="small muted">A profile bundles your whole look — <strong>theme</strong>, <strong>accent colour</strong>, <strong>class colours</strong> and the <strong>overlay look</strong> — into one named set you can switch between in a click. Stored in this browser.</p></div></div>
     <div class="setrow" data-g="backup"><div class="lbl">Settings backup</div><div><div class="row"><button class="btn small" id="settings-export">Export settings</button><label class="btn small" for="settings-import-file">Import settings</label><input type="file" id="settings-import-file" accept="application/json,.json" style="display:none"><span id="settings-backup-msg" class="small muted" role="status"></span></div><p class="small muted">Save all overlay and app settings to a file you can restore or share, then import it back.</p></div></div>
     <div class="setrow" data-g="overlay"><div class="lbl">Overlay colors &amp; fonts</div><div><div class="row"><label>Rate text <input type="color" id="ov-rate-color" value="${esc(overlayText('rate'))}"></label><label>Total / share text <input type="color" id="ov-total-color" value="${esc(overlayText('total'))}"></label><label>Player name <input type="color" id="ov-name-color" value="${esc(/^#[0-9a-f]{6}$/i.test(overlayColors.name||'')?overlayColors.name:'#eceae3')}"></label><label>Header <input type="color" id="ov-header-color" value="${esc(/^#[0-9a-f]{6}$/i.test(overlayColors.header||'')?overlayColors.header:'#e8cf8e')}"></label><label>Target text <input type="color" id="ov-target-color" value="${esc(/^#[0-9a-f]{6}$/i.test(overlayColors.target||'')?overlayColors.target:'#cdd6e6')}"></label><label>Enemy-HP text <input type="color" id="ov-hptext-color" value="${esc(/^#[0-9a-f]{6}$/i.test(overlayColors.hp||'')?overlayColors.hp:'#e58f8f')}"></label><label>TTK text <input type="color" id="ov-ttktext-color" value="${esc(/^#[0-9a-f]{6}$/i.test(overlayColors.ttk||'')?overlayColors.ttk:'#8fb3d0')}"></label><button class="btn small" id="ov-color-reset">Reset numbers to black</button><span class="small muted" id="ov-color-msg" role="status"></span></div>
@@ -1915,6 +1915,37 @@ async function pageSettings() {
   $('#cust-delete').onclick=()=>{
     const sel=$('#cust-profile').value,msg=$('#cust-msg');if(!sel){msg.textContent='Pick a profile to delete.';return;}
     saveCustomProfiles(getCustomProfiles().filter(p=>p.name!==sel));toast('Profile deleted');pageSettings();
+  };
+  // Share a whole customization profile as a portable code (theme + accent + look).
+  const PROFILE_CODE_PREFIX='A2PROF1:';
+  const encodeProfile=prof=>PROFILE_CODE_PREFIX+btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(prof))));
+  const decodeProfile=code=>{
+    const raw=String(code||'').trim(),b64=raw.startsWith(PROFILE_CODE_PREFIX)?raw.slice(PROFILE_CODE_PREFIX.length):raw;
+    const obj=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b64),c=>c.charCodeAt(0))));
+    if(!obj||typeof obj!=='object')throw Error('not a profile');
+    const theme=THEMES.includes(obj.theme)?obj.theme:'system';
+    const accent=ACCENTS.includes(obj.accent)?obj.accent:'gold';
+    const src=(obj.ui&&typeof obj.ui==='object')?obj.ui:{};
+    const ui={};for(const k of OVERLAY_VISUAL_KEYS)if(src[k]!==undefined)ui[k]=src[k];
+    if(src.combat_colors!==undefined)ui.combat_colors=src.combat_colors;
+    return {name:String(obj.name||'').slice(0,40)||'Shared profile',theme,accent,ui};
+  };
+  $('#cust-copy').onclick=async()=>{
+    const sel=$('#cust-profile').value,msg=$('#cust-msg');if(!sel){msg.textContent='Pick a profile to copy.';return;}
+    const prof=getCustomProfiles().find(p=>p.name===sel);if(!prof){msg.textContent='Profile not found.';return;}
+    const code=encodeProfile(prof);
+    try{await navigator.clipboard.writeText(code);msg.textContent='Share code copied — send it to a friend.';}
+    catch(_){prompt('Copy this profile share code:',code);msg.textContent='Share code ready.';}
+  };
+  $('#cust-import').onclick=()=>{
+    const code=(prompt('Paste a profile share code:')||'').trim();if(!code)return;
+    const msg=$('#cust-msg');
+    let prof;try{prof=decodeProfile(code);}catch(_){msg.textContent='That is not a valid profile share code.';return;}
+    const name=(prompt('Save the shared profile as:',prof.name)||'').trim();if(!name)return;
+    if(name.length>40){msg.textContent='Name must be 40 characters or fewer.';return;}
+    const list=getCustomProfiles().filter(p=>p.name.toLowerCase()!==name.toLowerCase());
+    list.push({name,theme:prof.theme,accent:prof.accent,ui:prof.ui});
+    saveCustomProfiles(list);toast('Shared profile saved');pageSettings();
   };
   const saveOverlayColors=async()=>{
     const msg=$('#ov-color-msg');msg.textContent='Saving…';
