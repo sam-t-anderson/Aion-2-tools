@@ -1,3 +1,7 @@
+## Accent-matched overlay presets (0.2.196)
+
+- Five new starter **overlay look presets** named to match the app's **accent colours** — **Crimson, Emerald, Azure, Amethyst** and **Rose** — each with a header and glow in that accent on rounded gradient bars. Pick the same name as your app accent (Settings → Appearance) for a coordinated look in one click, under Settings → Overlay → Overlay look presets. Like all presets, they carry only overlay look settings and are re-validated on import.
+
 ## Podium colours on the top three ranks (0.2.195)
 
 - When overlay **rank numbers** are shown, the top three places are now tinted **gold, silver and bronze**, so the leaders stand out at a glance like a mature meter's leaderboard. It's pure styling of the existing ranking — nothing below third place changes, and it's only visible with rank numbers turned on (Settings → Overlay → Overlay layout).
