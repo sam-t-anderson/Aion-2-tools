@@ -93,6 +93,10 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovrow-x { cursor: pointer; }
 .ovskills { grid-column: 1 / -1; margin: 1px 0 3px 8px; display: grid; gap: 1px; }
 .ovskills[hidden] { display: none; }
+/* Per-player DPS trend sparkline at the top of an expanded row (with the DPS graph on). */
+.ovpspark { margin: 1px 0 3px; height: 16px; background: rgba(255,255,255,.05); border-radius: 3px; overflow: hidden; }
+.ovpspark svg { display: block; width: 100%; height: 100%; }
+.ovpspark polyline { fill: none; stroke: var(--ov-glow-color, #e8cf8e); stroke-width: 1.2px; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
 .ovskrow { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; opacity: .92; }
 .ovskname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ovskval { color: var(--ov-total-text, inherit); font-variant-numeric: tabular-nums; white-space: nowrap; }

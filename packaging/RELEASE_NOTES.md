@@ -1,3 +1,7 @@
+## Per-player DPS trend when you expand a row (0.2.199)
+
+- With the live DPS graph enabled, **clicking a player's row** (which already shows their per-skill breakdown) now also shows a small **sparkline of that player's DPS over the fight**, right above their skills — so you can see who's ramping, bursting or dropping off at a glance. Each point is a real per-poll reading, kept per player and reset when a new fight starts. It's tied to the same **Settings → Overlay → "Show a live DPS/HPS graph"** toggle, so if you don't use graphs, expanding a row looks exactly as before.
+
 ## Stream the overlay to Discord / OBS (0.2.198)
 
 - New **Settings → Overlay → Streaming (OBS / Discord)** helper with the overlay's **browser-source URL** and a **Copy URL** button. Add it as an **OBS/Streamlabs Browser Source** (it renders transparent), composite it over your game scene, and stream that to Discord — the overlay shows on your stream. For Discord **Go Live** directly, share your **whole screen** so the always-on-top overlay is included.
