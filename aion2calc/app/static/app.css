@@ -572,6 +572,8 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; backgrou
 .news-card { background:var(--panel2); border:1px solid var(--frame); border-radius:8px; padding:16px; overflow-wrap:anywhere; }
 .news-card h3 { margin:12px 0; }
 .news-card .row { justify-content:space-between; }
+.boss-list { margin:6px 0 0; padding:0; list-style:none; display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:8px; }
+.boss-list li { background:var(--panel2); border:1px solid var(--frame); border-radius:6px; padding:8px 10px; line-height:1.3; }
 
 /* Manual Pet Genus Insight allocations. */
 .genus-editor-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0;}

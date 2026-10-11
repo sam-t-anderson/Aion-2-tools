@@ -1,3 +1,9 @@
+## Field boss respawn reference (0.2.176)
+
+- The **Timers** page gains a **"Field boss respawn reference"** section: a staged, searchable catalogue of **54 named field bosses** across Verteron (Elyos), Altgard (Asmodian) and the Abyss, each with its zone, level, and the community-reported respawn — a kill-based cycle (e.g. *~2h after kill*) for open-world field bosses, or a fixed schedule for the Abyss bosses (Watcher Kaira, the three Executors, Guardian Lord Nahma). This covers the field bosses that had **no staged timer** in the schedule before.
+- Everything here is **community-sourced and clearly flagged**: the section carries a *community_unverified* note, a *"confirm in game"* reminder, a *disputed* flag (sources disagree on whether these cycles are fixed at all), dated source links, and a *"checked in game"* marker on the Altgard set that was reported verified. Nothing here establishes live spawn state — it's a planning reference, kept beside the live schedule and the log-driven kill tracker.
+- Groundwork for the Fera Discord bot: the staged values live in a dedicated `field-bosses.json` the bot can later surface in `/setup timers` for the bosses missing from it today.
+
 ## Overlay rank numbers (0.2.175)
 
 - New **"Show rank numbers"** toggle (Settings → Overlay layout, **off by default**) prefixes each player row with its position — **1.**, **2.**, **3.** … — so you can see standings at a glance. Rides the settings backup and your saved look presets.

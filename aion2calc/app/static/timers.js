@@ -34,21 +34,30 @@
     return [...new Set(result)].sort((a,b)=>a-b);
   }
   function mount(root,io={}){
-    let catalog=null,region='',group='',prepared=[],timer=null,disposed=false,serial=0,bossSerial=0,bossData=null,preparedDay='',killSerial=0,killData=null,killServer='';
+    let catalog=null,fieldCatalog=null,region='',group='',prepared=[],timer=null,disposed=false,serial=0,bossSerial=0,bossData=null,preparedDay='',killSerial=0,killData=null,killServer='';
+    const dur=m=>m==null?'':m>=60?(m%60?Math.floor(m/60)+'h '+(m%60)+'m':Math.floor(m/60)+'h'):m+'m';
     try{const pref=JSON.parse(localStorage.getItem('a2-event-region')||'{}');region=pref.region||'';group=pref.group||'';killServer=String(pref.killServer||'');}catch(_){}
     const $=s=>root.querySelector(s);
     function save(){try{localStorage.setItem('a2-event-region',JSON.stringify({region,group,killServer}));}catch(_){}}
     function render(){
       if(disposed||!root.isConnected)return;
       bossSerial++;bossData=null;killSerial++;killData=null;
-      root.innerHTML=`<section class="note"><h2>Regional event timers</h2><p>${esc(catalog.note)}</p><div class="row" style="gap:8px"><label>Game region <select data-region><option value="">Choose a region</option>${catalog.regions.map(r=>`<option value="${esc(r.id)}" ${r.id===region?'selected':''}>${esc(r.name)}</option>`).join('')}</select></label><label data-group-label ${region==='kr'?'':'hidden'}>Korean matching group <select data-group><option value="">Unknown — hide group-specific forecasts</option>${[1,2,3].map(n=>`<option value="${n}" ${group===String(n)?'selected':''}>Group ${n}</option>`).join('')}</select></label></div><p class="small muted">${esc(catalog.source_name)} · source updated ${esc(catalog.source_updated_at)} · checked ${esc(catalog.checked_at)} · review after ${esc(catalog.review_after)}. <a href="https://shugo.gg/timers" target="_blank" rel="noopener noreferrer">Schedule source ↗</a> · <a href="https://aion2codex.wiki/tools/rift-timer" target="_blank" rel="noopener noreferrer">Conflicting rift report ↗</a></p><p data-clock class="small muted"></p><div data-schedule></div></section><section class="note"><h2>Field boss kills by server</h2><p class="small muted">Kills found in public combat logs, placed on the home server of the recorded characters who fought the boss. A kill appears when its log is uploaded, not when the boss dies. A visitor from another server reports its own server, so trust a kill more when several uploaders recorded it. The expected return uses a respawn length measured from repeated kills and is the latest it should be back.</p><div class="row" style="gap:8px"><label>Game server <select data-kill-server><option value="">Load kills to choose a server</option></select></label><button class="btn small" data-kill-refresh>Load / refresh kills</button></div><p data-kill-status role="status">Load to retrieve recent kills from the community server.</p><div data-kill-rows></div></section><section class="note"><h2>Recorded boss defeats</h2><p class="small muted">Submitted observations are separate from schedule forecasts. Region is recorded log metadata; it does not establish physical server or channel. Availability and respawn time remain unknown.</p><div class="row" style="gap:8px"><label>Recorded region <input data-boss-region placeholder="All regions" maxlength="32"></label><label>Search displayed bosses <input data-boss-search placeholder="Boss name or NPC ID"></label><button class="btn small" data-boss-refresh>Load / refresh observations</button></div><p data-boss-status role="status">Load to retrieve public observations from the community server.</p><div data-boss-rows></div><p><a href="${io.logsURL||'#/combat'}">Browse combat logs →</a></p></section>`;
+      root.innerHTML=`<section class="note"><h2>Regional event timers</h2><p>${esc(catalog.note)}</p><div class="row" style="gap:8px"><label>Game region <select data-region><option value="">Choose a region</option>${catalog.regions.map(r=>`<option value="${esc(r.id)}" ${r.id===region?'selected':''}>${esc(r.name)}</option>`).join('')}</select></label><label data-group-label ${region==='kr'?'':'hidden'}>Korean matching group <select data-group><option value="">Unknown — hide group-specific forecasts</option>${[1,2,3].map(n=>`<option value="${n}" ${group===String(n)?'selected':''}>Group ${n}</option>`).join('')}</select></label></div><p class="small muted">${esc(catalog.source_name)} · source updated ${esc(catalog.source_updated_at)} · checked ${esc(catalog.checked_at)} · review after ${esc(catalog.review_after)}. <a href="https://shugo.gg/timers" target="_blank" rel="noopener noreferrer">Schedule source ↗</a> · <a href="https://aion2codex.wiki/tools/rift-timer" target="_blank" rel="noopener noreferrer">Conflicting rift report ↗</a></p><p data-clock class="small muted"></p><div data-schedule></div></section><section class="note" data-field><h2>Field boss respawn reference</h2><p class="small muted">Loading community respawn reference…</p></section><section class="note"><h2>Field boss kills by server</h2><p class="small muted">Kills found in public combat logs, placed on the home server of the recorded characters who fought the boss. A kill appears when its log is uploaded, not when the boss dies. A visitor from another server reports its own server, so trust a kill more when several uploaders recorded it. The expected return uses a respawn length measured from repeated kills and is the latest it should be back.</p><div class="row" style="gap:8px"><label>Game server <select data-kill-server><option value="">Load kills to choose a server</option></select></label><button class="btn small" data-kill-refresh>Load / refresh kills</button></div><p data-kill-status role="status">Load to retrieve recent kills from the community server.</p><div data-kill-rows></div></section><section class="note"><h2>Recorded boss defeats</h2><p class="small muted">Submitted observations are separate from schedule forecasts. Region is recorded log metadata; it does not establish physical server or channel. Availability and respawn time remain unknown.</p><div class="row" style="gap:8px"><label>Recorded region <input data-boss-region placeholder="All regions" maxlength="32"></label><label>Search displayed bosses <input data-boss-search placeholder="Boss name or NPC ID"></label><button class="btn small" data-boss-refresh>Load / refresh observations</button></div><p data-boss-status role="status">Load to retrieve public observations from the community server.</p><div data-boss-rows></div><p><a href="${io.logsURL||'#/combat'}">Browse combat logs →</a></p></section>`;
       $('[data-region]').onchange=e=>{region=e.target.value;save();render();};
       $('[data-group]').onchange=e=>{group=e.target.value;save();prepare();};
       $('[data-boss-refresh]').onclick=loadBosses;
       $('[data-boss-search]').oninput=renderBosses;
       $('[data-kill-refresh]').onclick=loadKills;
       $('[data-kill-server]').onchange=e=>{killServer=e.target.value;save();renderKills();};
-      prepare();
+      prepare();renderFieldBosses();
+    }
+    function renderFieldBosses(){
+      const host=$('[data-field]');
+      if(!host||disposed||!root.isConnected||!fieldCatalog)return;
+      const fc=fieldCatalog,groups=[['elyos','Verteron · Elyos'],['asmodian','Altgard · Asmodian'],['abyss','Abyss · Chaotic Lower Reshanta']];
+      const rows=f=>fc.bosses.filter(b=>b.faction===f);
+      const body=groups.filter(([f])=>rows(f).length).map(([f,label])=>`<details ${f==='abyss'?'open':''} style="margin:6px 0"><summary>${esc(label)} · ${rows(f).length} bosses</summary><ul class="boss-list">${rows(f).map(b=>`<li><strong>${esc(b.name)}</strong> · <span class="small muted">${esc(b.zone)} · Lv ${esc(b.level)}</span><br><span class="small">${b.respawn_minutes!=null?'Respawn ~'+esc(dur(b.respawn_minutes))+' after kill':esc(b.schedule||'Schedule unknown')}${b.checked_in_game?' · <span class="small muted">checked in game</span>':''}</span></li>`).join('')}</ul></details>`).join('');
+      host.innerHTML=`<h2>Field boss respawn reference</h2><p class="small muted">${esc(fc.note)}</p>${body}<p class="small muted">${(fc.sources||[]).map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.name)} ↗</a>`).join(' · ')}${fc.sources&&fc.sources.length?' · ':''}checked ${esc(fc.checked_at)} · review after ${esc(fc.review_after)}.</p>`;
     }
     function prepare(){
       const r=catalog.regions.find(r=>r.id===region),now=Date.now(),cache=new Map();
@@ -128,8 +137,17 @@
     function dispose(){disposed=true;serial++;bossSerial++;killSerial++;if(timer)clearInterval(timer);}
     async function load(){
       const n=++serial;root.textContent='Loading event schedules…';
-      try{const response=await fetch(io.catalogURL||'/static/event-schedules.json');if(!response.ok)throw Error('Schedule file unavailable');const data=await response.json();if(n!==serial||disposed||!root.isConnected)return;if(data.version!==1)throw Error('Unsupported schedule format');catalog=data;render();timer=setInterval(tick,1000);}
+      try{const response=await fetch(io.catalogURL||'/static/event-schedules.json');if(!response.ok)throw Error('Schedule file unavailable');const data=await response.json();if(n!==serial||disposed||!root.isConnected)return;if(data.version!==1)throw Error('Unsupported schedule format');catalog=data;render();timer=setInterval(tick,1000);loadFieldBosses();}
       catch(e){if(n===serial&&!disposed&&root.isConnected)root.textContent='Could not load schedules: '+e.message;}
+    }
+    async function loadFieldBosses(){
+      const n=serial;
+      try{
+        const url=io.fieldBossURL||(io.catalogURL?io.catalogURL.replace(/event-schedules\.json(\?.*)?$/,'field-bosses.json'):'/static/field-bosses.json');
+        const r=await fetch(url);if(!r.ok)return;const d=await r.json();
+        if(n!==serial||disposed||!root.isConnected||!d||d.version!==1||!Array.isArray(d.bosses))return;
+        fieldCatalog=d;renderFieldBosses();
+      }catch(_){/* the respawn reference is optional; leave the placeholder */}
     }
     load();return {dispose};
   }
