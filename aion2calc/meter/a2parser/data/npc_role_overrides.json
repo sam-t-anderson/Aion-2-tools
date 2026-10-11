@@ -4,6 +4,7 @@
   "overrides": {
     "2300907": {"name": "Shining Mau Totem", "isBoss": false, "role": "miniboss"},
     "2310907": {"name": "Shining Mau Totem", "isBoss": false, "role": "miniboss"},
-    "2320907": {"name": "Shining Mau Totem", "isBoss": false, "role": "miniboss"}
+    "2320907": {"name": "Shining Mau Totem", "isBoss": false, "role": "miniboss"},
+    "2700242": {"name": "Dream Guardian Eonos", "isBoss": false, "role": "leveling", "note": "Solo story/leveling encounter boss, not a world/field or ranked community boss; must not headline the community boss list."}
   }
 }

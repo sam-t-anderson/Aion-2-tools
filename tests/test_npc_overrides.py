@@ -12,6 +12,14 @@ def test_shining_mau_totem_is_a_miniboss_not_a_boss():
         assert info["role"] == "miniboss"             # intended role recorded
 
 
+def test_dream_guardian_eonos_is_a_leveling_boss_not_a_world_boss():
+    _npc_overrides.cache_clear()
+    info = npc_info(2700242)
+    assert info["name"] == "Dream Guardian Eonos"      # name preserved from the catalog
+    assert info["isBoss"] is False                     # overridden: a solo story/leveling boss, not a community boss
+    assert info["role"] == "leveling"                  # so it never headlines the community boss list
+
+
 def test_override_leaves_other_npcs_untouched():
     _npc_overrides.cache_clear()
     assert npc_info(2702071)["isBoss"] is False        # a plain mob, no override, unchanged

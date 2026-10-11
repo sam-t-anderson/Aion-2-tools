@@ -1,3 +1,7 @@
+## Dream Guardian Eonos no longer counts as a boss (0.2.204)
+
+- **"Dream Guardian Eonos"** (the solo story/leveling encounter) was flagged as a boss in the upstream NPC catalog, so it showed up in the community **boss lists** (boss progression, recorded defeats and boss kills). It's now corrected to **not a boss** via the verified local NPC-role override, so it no longer headlines an encounter or appears in any boss list. The correction lives outside the generated catalog, so a catalog refresh won't re-introduce it.
+
 ## Report world-boss kills to the community feed (0.2.203)
 
 - New **opt-in** setting under **Settings → Combat records → "Report open-world boss kills to the community world-boss feed"** (off by default). When on, finishing a fight that contains a confirmed **open-world boss defeat** posts one tiny, anonymous kill event to your configured community server's new `/api/v1/boss-kill` endpoint — so world-boss respawn/availability tracking and the Discord bot update promptly **without uploading the whole combat log**.
