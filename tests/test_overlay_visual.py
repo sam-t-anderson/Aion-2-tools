@@ -99,3 +99,37 @@ def test_visual_settings_reject_bad_values(home):
         settings_backup.import_settings({"overlay_glow_color": "#xyzxyz"})
     with pytest.raises(ValueError):
         settings_backup.import_settings({"overlay_hp_color": "not-a-color"})
+
+
+# ---- Remember overlay position ----------------------------------------------
+
+def test_overlay_remember_position_round_trips(home):
+    # The toggle rides the settings backup (it is a user preference), on and off.
+    assert settings_backup.import_settings({"overlay_remember_position": True})["settings"]["overlay_remember_position"] is True
+    assert settings_backup.import_settings({"overlay_remember_position": False})["settings"]["overlay_remember_position"] is False
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_remember_position": "sometimes"})
+
+
+def test_overlay_positions_are_machine_local_not_in_backup(home):
+    # The actual screen positions are per-machine/monitor and must never travel in
+    # the shareable settings backup, so a foreign file cannot move someone's overlay.
+    result = settings_backup.import_settings({"overlay_pos_x": 1000, "overlay_pos_y": 20,
+                                              "overlay_party_pos_x": 50, "overlay_party_pos_y": 600,
+                                              "overlay_remember_position": True})
+    for key in ("overlay_pos_x", "overlay_pos_y", "overlay_party_pos_x", "overlay_party_pos_y"):
+        assert key not in result["settings"]
+    assert result["settings"]["overlay_remember_position"] is True
+
+
+def test_overlay_prefs_reads_remembered_positions(home):
+    from aion2calc.paths import write_user_json
+    assert overlay._overlay_prefs()["positions"] == {"meter": None, "party": None}
+    write_user_json({"overlay_remember_position": True, "overlay_pos_x": 1200, "overlay_pos_y": -40,
+                     "overlay_party_pos_x": 50, "overlay_party_pos_y": 600}, "ui.json")
+    prefs = overlay._overlay_prefs()
+    assert prefs["remember_position"] is True
+    assert prefs["positions"] == {"meter": (1200, -40), "party": (50, 600)}
+    # A bool must not be read as a coordinate.
+    write_user_json({"overlay_pos_x": True, "overlay_pos_y": 10}, "ui.json")
+    assert overlay._overlay_prefs()["positions"]["meter"] is None

@@ -49,6 +49,7 @@ class _Windows:
             "SetWindowPos": ([w.HWND, w.HWND, ctypes.c_int, ctypes.c_int,
                               ctypes.c_int, ctypes.c_int, w.UINT], w.BOOL),
             "ShowWindow": ([w.HWND, ctypes.c_int], w.BOOL),
+            "GetSystemMetrics": ([ctypes.c_int], ctypes.c_int),
         }
         for name, (args, result) in signatures.items():
             fn = getattr(self.user32, name)
@@ -106,6 +107,12 @@ class _Windows:
         # Physical pixels avoid inconsistent pywebview DPI conversions across versions.
         self.user32.SetWindowPos(hwnd, None, x, y, 0, 0, 0x0001 | 0x0004 | 0x0010)
 
+    def virtual_screen(self) -> tuple[int, int, int, int]:
+        """The bounding box of all monitors (SM_*VIRTUALSCREEN), for validating a
+        remembered overlay position still lands on a connected screen."""
+        g = self.user32.GetSystemMetrics
+        return g(76), g(77), g(78), g(79)   # x, y, width, height
+
 
 def _follow_position(previous, bounds, current, snap=False, expand_up=False):
     """Preserve the user's dragged offset as the game moves/resizes.
@@ -145,15 +152,28 @@ def _overlay_prefs() -> dict:
     # is not the foreground window, so focusing another overlay, the app window, or
     # a game loot/reward popup never hides it. The read below uses each key's own
     # default, so an absent key keeps True here and False for the others.
-    prefs = {"resizable": False, "snap_edge": False, "expand_up": False, "always_visible": True}
+    prefs = {"resizable": False, "snap_edge": False, "expand_up": False, "always_visible": True,
+             "remember_position": False}
+    # Remembered drag positions (per overlay), restored at launch instead of
+    # re-anchoring to the game window. Machine/monitor-specific, so they live only
+    # in ui.json (never the shareable settings backup).
+    positions = {"meter": None, "party": None}
     try:
         from .paths import data_file, read_json
         if data_file("ui.json").exists():
             ui = read_json("ui.json")
             for key in prefs:
                 prefs[key] = ui.get("overlay_" + key, prefs[key]) is True
+
+            def _pos(px, py):
+                x, y = ui.get(px), ui.get(py)
+                return (int(x), int(y)) if isinstance(x, int) and not isinstance(x, bool) \
+                    and isinstance(y, int) and not isinstance(y, bool) else None
+            positions["meter"] = _pos("overlay_pos_x", "overlay_pos_y")
+            positions["party"] = _pos("overlay_party_pos_x", "overlay_party_pos_y")
     except Exception:
         pass
+    prefs["positions"] = positions
     return prefs
 
 
@@ -246,7 +266,25 @@ def _watch_parent(app_base: str, closed: threading.Event, window) -> None:
                 return
 
 
-def _run_overlay(window, api, app_base: str | None = None) -> None:
+def _save_overlay_position(app_base, party, pos) -> None:
+    """Persist a dragged overlay position to the app (ui.json) via its local API,
+    keyed per overlay, so it is restored next launch. Best-effort; failures are
+    swallowed so a transient app hiccup never disturbs the overlay."""
+    if not app_base:
+        return
+    import json as _json, urllib.request
+    keys = ("overlay_party_pos_x", "overlay_party_pos_y") if party else ("overlay_pos_x", "overlay_pos_y")
+    body = _json.dumps({keys[0]: int(pos[0]), keys[1]: int(pos[1])}).encode("utf-8")
+    try:
+        req = urllib.request.Request(app_base.rstrip("/") + "/api/ui", body,
+                                     {"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=2) as response:
+            response.read(1)
+    except Exception:
+        pass
+
+
+def _run_overlay(window, api, app_base: str | None = None, party: bool = False) -> None:
     closed = threading.Event()
     window.events.closed += closed.set
     if app_base:
@@ -272,6 +310,24 @@ def _run_overlay(window, api, app_base: str | None = None) -> None:
     prefs = _overlay_prefs()
     snap, expand_up = prefs["snap_edge"], prefs["expand_up"]
     always_visible = prefs["always_visible"]
+    # Remember-position: restore the overlay where the user last dragged it instead
+    # of following the game window. Off by default (the game-follow behaviour below
+    # is unchanged). Windows-only (needs the native window rect).
+    remember_position = prefs["remember_position"]
+    saved_pos = prefs["positions"].get("party" if party else "meter")
+    last_pos, pending_pos, pending_ticks = None, None, 0
+    if win32 and remember_position and saved_pos:
+        try:
+            hwnd0 = window.native.Handle.ToInt64()
+            vx, vy, vw, vh = win32.virtual_screen()
+            sx, sy = saved_pos
+            # Only restore when the saved top-left still lands on a connected screen
+            # (leave a small grabbable margin); otherwise fall back to game-anchoring.
+            if vw > 0 and vh > 0 and vx <= sx <= vx + vw - 40 and vy <= sy <= vy + vh - 40:
+                win32.move(hwnd0, sx, sy)
+                last_pos = (sx, sy)
+        except Exception:
+            _LOG.exception("Could not restore the remembered overlay position")
     previous = None
     previous_hwnd = None
     visible = True
@@ -302,6 +358,20 @@ def _run_overlay(window, api, app_base: str | None = None) -> None:
             previous = previous_hwnd = None
             continue
         if game.minimized:
+            continue
+        if remember_position:
+            # Don't follow the game; keep the overlay where the user put it and save
+            # the new spot once a drag settles (~1s stable), so it returns there next
+            # launch. Persisted per overlay (meter vs party).
+            cur = win32.rect(hwnd)[:2]
+            if cur != last_pos:
+                if cur == pending_pos:
+                    pending_ticks += 1
+                else:
+                    pending_pos, pending_ticks = cur, 0
+                if pending_ticks >= 4:
+                    _save_overlay_position(app_base, party, cur)
+                    last_pos, pending_pos, pending_ticks = cur, None, 0
             continue
         if game.hwnd != previous_hwnd:
             previous = None
@@ -353,7 +423,7 @@ def main(argv=None) -> int:
                                        width=a.width, height=a.height, min_size=(260, 70),
                                        resizable=bool(prefs["resizable"]), js_api=api)
         api._window = window
-        webview.start(_run_overlay, args=(window, api, app_base),
+        webview.start(_run_overlay, args=(window, api, app_base, party),
                       gui="edgechromium" if sys.platform == "win32" else None)
     except Exception as err:
         print(f"Could not open the overlay ({type(err).__name__}: {err}); using the browser instead.")

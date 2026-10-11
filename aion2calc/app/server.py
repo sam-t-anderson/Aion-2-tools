@@ -909,7 +909,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
                               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
                               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
-                              "overlay_always_visible")
+                              "overlay_always_visible", "overlay_remember_position")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -920,7 +920,11 @@ class Handler(BaseHTTPRequestHandler):
                               ("overlay_row_height", 14, 48), ("overlay_font_scale", 80, 160),
                               ("overlay_font_weight", 400, 800), ("overlay_bg_opacity", 0, 100),
                               ("overlay_bg_zoom", 50, 200), ("overlay_bg_darken", 0, 100),
-                              ("overlay_interpolate_ms", 50, 1000))
+                              ("overlay_interpolate_ms", 50, 1000),
+                              # Remembered overlay screen positions (per overlay). Wide
+                              # bounds cover multi-monitor layouts (can be negative).
+                              ("overlay_pos_x", -30000, 30000), ("overlay_pos_y", -30000, 30000),
+                              ("overlay_party_pos_x", -30000, 30000), ("overlay_party_pos_y", -30000, 30000))
             for key, lo, hi in _ui_int_ranges:
                 if key in body:
                     if not isinstance(body[key], int) or isinstance(body[key], bool) or not lo <= body[key] <= hi:
@@ -1058,7 +1062,7 @@ def ui_settings() -> dict:
                 "overlay_only_in_combat": False, "overlay_auto_expand": False,
                 # Visual group (all inert by default so the overlay looks unchanged until enabled).
                 "overlay_resizable": False, "overlay_snap_edge": False, "overlay_expand_up": False,
-                "overlay_always_visible": True,
+                "overlay_always_visible": True, "overlay_remember_position": False,
                 "overlay_font_scale": 100, "overlay_font_weight": 600, "overlay_font_family": "",
                 "overlay_glow": False, "overlay_glow_color": "#e8cf8e", "overlay_hp_color": "#e05a5a",
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,

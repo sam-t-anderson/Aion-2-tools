@@ -1,3 +1,7 @@
+## Remember where you drag the overlay (0.2.161)
+
+- New **"Remember where I drag the overlay"** toggle (Settings → Overlay layout, **off by default**, Windows). With it on, the live-meter and party overlays **reopen where you last put them** instead of snapping back to follow the game window. Each overlay remembers its own spot; a drag is saved about a second after it settles, and on next launch the position is restored only if it still lands on a connected screen (otherwise it falls back to anchoring near the game). The saved positions are machine-specific — they stay on your PC and never travel in the shareable settings backup (only the toggle does). With the toggle off, the overlay follows the game window exactly as before.
+
 ## More accurate overlay time-to-kill (0.2.160)
 
 Fixes TTK reading far too high (e.g. "5 min" at half HP on a mob that dies in under a minute).
