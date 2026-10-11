@@ -4,7 +4,7 @@
 html, body, #ov { width: 100%; margin: 0; background: transparent !important; color: #eceae3;
   font: 12px/1.35 "Segoe UI", "Noto Sans", system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
 html, body { overflow: hidden; }
-#ov { padding: 4px; width: max-content; max-width: 100vw;
+#ov { padding: 4px; width: max-content; max-width: 100vw; position: relative;
   font-size: calc(12px * var(--ov-font-scale, 1)); font-family: var(--ov-font-family, "Segoe UI", "Noto Sans", system-ui, sans-serif); }
 .ovcard { background: rgba(10, 14, 22, var(--ovbg, .72)); border: 1px solid rgba(233, 203, 128, .40); border-radius: 8px;
   padding: 8px 10px; width: var(--ov-width, 340px); max-width: 100%; cursor: grab; position: relative; text-shadow: var(--ov-glow, none); }
@@ -94,6 +94,6 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 
 /* Right-edge grip for drag-to-resize (shown only when the resize setting is on).
    The frameless window auto-fits the card, so resizing drives the card width. */
-#ovresize{position:absolute;top:0;right:0;width:9px;height:100%;z-index:3;cursor:ew-resize;display:none;border-radius:0 8px 8px 0}
-#ov.ov-resizable #ovresize{display:block}
-#ov.ov-resizable #ovresize:hover{background:linear-gradient(90deg,transparent,rgba(233,203,128,.35))}
+#ovresize{position:absolute;top:4px;right:0;width:12px;height:calc(100% - 8px);z-index:5;cursor:ew-resize;display:none;border-radius:0 8px 8px 0;touch-action:none}
+#ov.ov-resizable #ovresize{display:block;background:linear-gradient(90deg,transparent,rgba(233,203,128,.18))}
+#ov.ov-resizable #ovresize:hover{background:linear-gradient(90deg,transparent,rgba(233,203,128,.45))}

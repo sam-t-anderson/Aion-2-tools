@@ -690,7 +690,7 @@ class CombatSession:
         summary["dps_clock"] = "Shared one-second buckets with outgoing player damage; idle buckets are excluded; deaths do not reset players"
         summary["boss"] = next((row["name"] for row in summary["enemies"] if row["key"] == enemy_id), "All enemies")
         summary["scope"] = scope
-        summary["warning"] = ("Waiting for your player identity. Enter your character name before Start; nearby players are excluded until you or party members are identified."
+        summary["warning"] = ("Waiting for your player identity. Teleport or change instances (zone in or out) so the game resends it, or enter your character name before Start; nearby players are excluded until you or party members are identified."
                               if self.records and not groups and scope != "all" else None)
         summary["party_roster_late"] = scope in ("party", "auto") and any(self._late_roster(r) for g in chosen for r in g["records"])
         if summary["party_roster_late"]:

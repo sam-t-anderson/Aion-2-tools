@@ -1,3 +1,13 @@
+## Live-ticking DPS numbers (0.2.149)
+
+- The overlay's DPS/HPS numbers now **keep moving in real time between polls** instead of freezing on the last value. Between updates the overlay recomputes each row's true average rate against the elapsing clock (`amount / (elapsed + time-since-poll)`), so the number ticks down smoothly while you're not landing hits and snaps back up on the next hit — the lively, real-time feel of a mature meter. It stays **packet-sourced**: only the time denominator advances; the damage/healing amount is always the recorded value, and projection runs only while combat is actually running (not when paused/idle).
+- This is **on by default** now (it was the opt-in "animate DPS" toggle); you can still turn it off or change its refresh interval under Settings → Overlay layout ("Live-ticking DPS numbers").
+
+Also:
+
+- **Identity guidance.** When the meter is waiting for your player identity, the message now tells you to **teleport or change instances (zone in or out)** so the game resends it — the same signal the meter uses to re-bind identity — in addition to entering your character name before Start. The overlay's "Self identity not received" line says the same.
+- **Overlay drag-to-resize really works now.** The resize grip was inside the overlay's drag region, so dragging it moved the window instead of resizing. The grip now sits outside the drag region (and is a bit more visible when enabled), so dragging the right edge resizes the overlay width as intended.
+
 ## Overlay enemy-HP bar (0.2.148)
 
 - The overlay now draws the current target's **remaining HP as a bar** under the target line — a filled bar over the max, so you can read the pull at a glance. It shows only when the enemy-HP readout is enabled (Settings → Live meter overlay) and real HP was captured for that target; it's never guessed.

@@ -12,6 +12,7 @@
   let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false, showDummy=true, showCombatPower=true;
   let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name";
   let interpolate=false, interpolateMs=100, showFps=false, locked=false, userWidth=null;
+  let lastRenderAt=performance.now(), projecting=false;   // for live-ticking DPS between polls
   const shownRates=new Map();   // row key -> currently displayed (eased) rate
   const cap=s=>String(s||'').charAt(0).toUpperCase()+String(s||'').slice(1);
   const displayName=p=>{
@@ -156,6 +157,10 @@
   function renderMeter() {
     if(partyMode)return renderParty();
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
+    // Anchor the live-ticking DPS to this snapshot: between polls the displayed
+    // average DPS is recomputed from real damage and the elapsing clock (not
+    // invented), and only while combat is actually running and unpaused.
+    lastRenderAt=performance.now(); projecting=!!(s&&s.running)&&!snap.paused;
     $("#ovmetrics").hidden=false;
     const ping=snap.ping;$('#ovping').hidden=false;
     $('#ovping').textContent=ping?`Ping ${Number(ping.current).toFixed(0)} ms · Avg ${Number(ping.avg).toFixed(0)} ms · Min ${Number(ping.min).toFixed(0)} / Max ${Number(ping.max).toFixed(0)} ms`:'Ping: no recorded samples';
@@ -171,7 +176,7 @@
     const duplicate=p=>(names.get(String(p.name||'').toLocaleLowerCase())||0)>1;
     const shownCount = autoExpand ? Math.min(24, Math.max(maxPlayers, visible.length)) : maxPlayers;
     const rows = [...visible].sort((a,b)=>rate(b)-rate(a)||amount(b)-amount(a)).slice(0, shownCount).map((p) => `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}"><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}"><span class="ovnametext">${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}</span>
-        <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i style="width:${100 * rate(p) / mx}%;background:${A2CombatReview.color(p.class)}"></i><span><span class="ovrate" data-k="${esc(p.key||p.id)}" data-target="${rate(p)}">${kfmt(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div></div>`).join("");
+        <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i style="width:${100 * rate(p) / mx}%;background:${A2CombatReview.color(p.class)}"></i><span><span class="ovrate" data-k="${esc(p.key||p.id)}" data-target="${rate(p)}" data-amt="${amount(p)}">${kfmt(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div></div>`).join("");
     const duration=metric==="dps"?snap.duration:snap.recorded_duration;
     $("#ovstatus").textContent = `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
     const identity=snap.identity_status, missing=players.length>0&&identity&&(!identity.self_identified||identity.unnamed_actors>0), repeated=visible.some(duplicate);
@@ -182,7 +187,7 @@
     const selfLine=selfName?`You: ${selfName}${cp?` · CP ${kfmt(identity.local_combat_power)}`:''}`:'';
     $("#ovidentity").hidden=!missing&&!repeated&&!selfName;
     $("#ovidentity").classList.toggle("ok",!missing&&!repeated&&!!selfName);
-    $("#ovidentity").textContent=[missing?`${identity.self_identified?"Self identified":"Self identity not received"} · ${identity.unnamed_actors} unnamed actors · ${identity.linked_pets} linked pets. Grouping needs recorded owner links.`:selfLine,repeated?'Matching names have separate combat actor IDs; names alone do not establish shared identity or ownership.':''].filter(Boolean).join(' ');
+    $("#ovidentity").textContent=[missing?`${identity.self_identified?"Self identified":"Self identity not received — teleport or change instances to refresh it"} · ${identity.unnamed_actors} unnamed actors · ${identity.linked_pets} linked pets. Grouping needs recorded owner links.`:selfLine,repeated?'Matching names have separate combat actor IDs; names alone do not establish shared identity or ownership.':''].filter(Boolean).join(' ');
     if(s.error) $("#ovstatus").textContent='Capture stopped: '+s.error;
     if(meterUnavailable) $("#ovstatus").textContent='Refresh failed · retrying';
     $("#ovstatus").title=$("#ovstatus").textContent;
@@ -330,18 +335,26 @@
     if(!locked)pollMeter();
   };
 
-  // Live-ms DPS interpolation: ease each row's displayed rate toward the latest
-  // packet-backed value between polls. Off by default; the refresh interval is
-  // user-set so weaker machines can slow or disable it.
+  // Live-ticking DPS: between polls, recompute each row's real average rate with
+  // the elapsing clock (amount / (elapsed + time-since-poll)) so the number keeps
+  // moving in real time instead of freezing on the last poll value, then ease the
+  // displayed number toward it for smoothness. Still packet-sourced: the amount is
+  // the recorded damage/healing, only the time denominator advances. The refresh
+  // interval is user-set so weaker machines can slow or disable it.
   setInterval(()=>{
     if(!interpolate||tab!=="meter"||locked)return;
+    const dt=projecting?Math.max(0,(performance.now()-lastRenderAt)/1000):0;
     const seen=new Set();
     document.querySelectorAll("#ovcontent .ovrate").forEach(el=>{
       const key=el.getAttribute("data-k"), target=parseFloat(el.getAttribute("data-target"))||0;
+      const amt=parseFloat(el.getAttribute("data-amt"))||0;
       seen.add(key);
-      const cur=shownRates.has(key)?shownRates.get(key):target;
-      const next=cur+(target-cur)*0.25;   // ease toward target
-      const shown=Math.abs(next-target)<0.5?target:next;
+      // Project the average rate forward: amount/(amount/target + dt). Decays while
+      // no new damage arrives, snaps back up on the next poll's fresh amount/target.
+      const live=(dt>0&&amt>0&&target>0)?(amt*target)/(amt+target*dt):target;
+      const cur=shownRates.has(key)?shownRates.get(key):live;
+      const next=cur+(live-cur)*0.25;   // ease toward the live value
+      const shown=Math.abs(next-live)<0.5?live:next;
       shownRates.set(key,shown);
       el.textContent=kfmt(shown);
     });

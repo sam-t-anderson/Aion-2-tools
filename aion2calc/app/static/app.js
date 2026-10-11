@@ -1674,7 +1674,7 @@ async function pageSettings() {
       <label><input type="checkbox" id="ov-onlycombat" ${ui.overlay_only_in_combat === true?'checked':''}> Show the meter only during combat (collapse between pulls)</label>
       <label>Name display <select id="ov-namemode">${[["name","Character names"],["class_number","Class + party number"],["number","Party number only"]].map(([v,l])=>`<option value="${v}" ${v===(ui.overlay_name_mode||'name')?'selected':''}>${l}</option>`).join('')}</select></label>
       <label><input type="checkbox" id="ov-scrollnames" ${ui.overlay_long_names_scroll === true?'checked':''}> Scroll long names on hover</label>
-      <label><input type="checkbox" id="ov-interp" ${ui.overlay_dps_interpolate === true?'checked':''}> Smoothly animate DPS numbers between updates <input type="number" id="ov-interp-ms" min="50" max="1000" value="${Number(ui.overlay_interpolate_ms)||100}" style="width:64px"> ms</label>
+      <label><input type="checkbox" id="ov-interp" ${ui.overlay_dps_interpolate === true?'checked':''}> Live-ticking DPS numbers (recompute between polls for a real-time feel; on by default) <input type="number" id="ov-interp-ms" min="50" max="1000" value="${Number(ui.overlay_interpolate_ms)||100}" style="width:64px"> ms</label>
       <label><input type="checkbox" id="ov-fps" ${ui.overlay_show_fps === true?'checked':''}> Show the overlay's own render FPS (the game's FPS can't be read from capture)</label>
       <label><input type="checkbox" id="ov-party" ${ui.overlay_party_enabled === true?'checked':''}> Open a separate Party-DPS overlay (raid totals) alongside the meter</label>
       <p class="small muted" style="margin-top:6px">These need the overlay reopened to apply:</p>
