@@ -1,3 +1,7 @@
+## Settings organised into subtabs (0.2.189)
+
+- The **Settings** page is now split into clear subtabs — **Appearance**, **Overlay**, **Meter**, **Server**, **Profiles & backup** and **App & data** — instead of one long scroll. Click a tab to see just those settings; your last-used tab is remembered. Nothing moved out of Settings, it's only grouped, so every control is where you'd expect under its heading.
+
 ## Per-skill breakdown on the overlay (0.2.188)
 
 - **Click a player's row** in the overlay's DPS view to expand a **per-skill damage breakdown** — their top skills with each skill's damage and share of their total (e.g. *Flame Harpoon 240K · 40%*). Click again to collapse. Expanded rows stay open as the meter keeps updating, and the breakdown uses data the overlay already receives (no extra load). This brings the overlay in line with full meters like NotMeter, where you can drill into who did what.
