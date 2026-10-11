@@ -154,6 +154,17 @@ input[type=text], input[type=number], input[type=password], select, textarea {
   background: var(--inset); border: 1px solid var(--line); border-radius: 4px; padding: 6px 9px; color: var(--text);
 }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--frame-hi); }
+/* Accessibility: "skip to content" link — off-screen until a keyboard user tabs to
+   it, then it appears at the top-left so they can jump past the nav to the main
+   content. Mouse users never see it. */
+.skip-link {
+  position: absolute; left: 8px; top: -48px; z-index: 1000;
+  background: var(--inset, #11151d); color: var(--text, #eceae3);
+  border: 1px solid var(--frame-hi, rgba(233,203,128,.65)); border-radius: 4px;
+  padding: 8px 12px; font-weight: 600; text-decoration: none;
+  transition: top .15s ease;
+}
+.skip-link:focus { top: 8px; outline: 2px solid var(--accent, #39c2e0); outline-offset: 2px; }
 /* Accessibility: keyboard focus must stay visible. A mouse click keeps the quiet
    border-only style above; keyboard focus (:focus-visible) gets a clear outline on
    every interactive control, so keyboard users can always see where they are. */

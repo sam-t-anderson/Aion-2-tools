@@ -68,6 +68,9 @@ content may not yet fully meet every criterion.
   outline when reached by keyboard (`:focus-visible`), including the form fields
   that previously replaced the outline with only a border change. Pointer clicks
   keep the quiet border style, so the outline appears for keyboard use.
+- **Skip to content.** A "Skip to content" link is the first focusable element on
+  every page — hidden until a keyboard user tabs to it, then it jumps past the
+  navigation to the main content (the desktop app and all website pages).
 
 ## Known limitations
 
@@ -78,8 +81,6 @@ We are aware of the following gaps and are working on them:
 - **Color contrast.** The game-styled dark theme has not been fully audited for
   WCAG AA contrast ratios across every element; some secondary/muted text and
   chart colors may fall short.
-- **No skip-link.** The pages do not yet provide a "skip to content" link for
-  keyboard users to bypass repeated navigation.
 - **Data-dense visuals.** Combat graphs, timelines and the planner board are
   highly visual. Underlying numbers are available in accompanying tables, but
   some graphical views do not yet have a complete non-visual equivalent.

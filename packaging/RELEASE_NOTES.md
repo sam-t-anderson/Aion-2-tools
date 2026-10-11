@@ -1,3 +1,7 @@
+## Accessibility: "Skip to content" link (0.2.202)
+
+- Every page — the desktop app and all website pages — now starts with a **"Skip to content"** link as the first focusable element. It's hidden until a keyboard user presses Tab, then appears at the top-left and jumps past the navigation straight to the main content. Mouse users never see it. This closes the last gap listed in the accessibility statement.
+
 ## Accessibility: reduce-motion and visible keyboard focus (0.2.201)
 
 - The app and website now honor your operating system's **"reduce motion"** setting (`prefers-reduced-motion`): animations and transitions collapse to near-instant and smooth scrolling is turned off, for a still interface — in addition to the existing per-feature motion controls.

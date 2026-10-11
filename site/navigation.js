@@ -87,3 +87,20 @@
   }
   fetchCount();
 })();
+
+// Accessibility: a "skip to content" link as the first focusable element on every
+// site page (they all load this script and all have a <main>). Off-screen until a
+// keyboard user tabs to it (styled in app.css); it targets the main landmark.
+(function () {
+  try {
+    if (document.querySelector("a.skip-link")) return;
+    const main = document.querySelector("main");
+    if (!main) return;
+    if (!main.id) main.id = "main-content";
+    const link = document.createElement("a");
+    link.className = "skip-link";
+    link.href = "#" + main.id;
+    link.textContent = "Skip to content";
+    document.body.insertBefore(link, document.body.firstChild);
+  } catch (e) { /* non-critical enhancement */ }
+})();
