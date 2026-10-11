@@ -1,3 +1,7 @@
+## Copy the meter to the clipboard (0.2.186)
+
+- New **Copy** button in the overlay header (beside Lock) copies the current view as a tidy text leaderboard — metric, boss and duration, then each player's rank, per-second rate and share — ready to paste into party chat or Discord, e.g. `1. Nyx  6.00K/s  (44%)`. It follows whichever metric tab is active (DPS, HPS or damage taken) and confirms with a brief "Copied".
+
 ## App accent-colour themes (0.2.185)
 
 - New **Accent colour** setting (Settings → Appearance, right under Theme) recolours the whole app's accent — the brand text, nav highlight, section headers, links and the live indicator — in one click. Choose **Gold** (the default), **Crimson**, **Emerald**, **Azure**, **Amethyst** or **Rose**. It layers on top of your light/dark theme (each accent has tuned light and dark shades) and is remembered across launches, applied before the first paint so there's no flash.

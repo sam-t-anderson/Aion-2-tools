@@ -11,6 +11,7 @@
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
   let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false, showDummy=true, showCombatPower=true;
   let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name", classColorNames=false, classSwatch=false, rankNumbers=false, highlightMe=false;
+  let copyText="";   // plain-text leaderboard of the current view, for the Copy button
   let interpolate=false, interpolateMs=100, showFps=false, locked=false, userWidth=null, userHeight=null;
   let lastRenderAt=performance.now(), projecting=false, curMax=1;   // for live-ticking DPS between polls
   const shownRates=new Map();   // row key -> currently displayed (eased) rate
@@ -114,6 +115,13 @@
   syncColors();setInterval(syncColors,10000);
   const slider = $("#ovop");
   $("#ovhide").onclick = () => fetch("/api/overlay", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"hide"})}).then(()=>window.close());
+  const copyBtn=$("#ovcopy");
+  if(copyBtn)copyBtn.onclick=async()=>{
+    if(!copyText)return;
+    const done=ok=>{const o=copyBtn.textContent;copyBtn.textContent=ok?"Copied":"Blocked";setTimeout(()=>{if(copyBtn.isConnected)copyBtn.textContent=o;},1200);};
+    try{await navigator.clipboard.writeText(copyText);done(true);}
+    catch(_){try{const ta=document.createElement("textarea");ta.value=copyText;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();done(true);}catch(e){done(false);}}
+  };
   $("#ovcombine").onchange = async () => {
     const input=$("#ovcombine"), message=$("#ovpetstatus"); input.disabled=true;
     try { const response=await fetch("/api/meter",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"view",combine_pets:input.checked})});if(!response.ok)throw Error("Could not change pet grouping");await response.json();message.textContent="";await pollMeter(); }
@@ -211,6 +219,10 @@
     const rows = ranked.slice(0, shownCount).map((p, i) => `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}${isMe(p)?' ovrow-me':''}"><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}">${rankNumbers?`<span class="ovrank">${i+1}.</span>`:''}${classSwatch?`<i class="ovclass" style="background:${A2CombatReview.color(p.class)}" title="${esc(p.class||'')}"></i>`:''}<span class="ovnametext"${classColorNames?` style="color:${A2CombatReview.color(p.class)}"`:''}>${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}</span>
         <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i data-k="${esc(p.key||p.id)}" style="width:${100 * rate(p) / mx}%;--bar:${A2CombatReview.color(p.class)}"></i><span><span class="ovrate" data-k="${esc(p.key||p.id)}" data-target="${rate(p)}" data-amt="${amount(p)}">${kfmt(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div></div>`).join("");
     const duration=metric==="dps"?snap.duration:snap.recorded_duration;
+    // Plain-text leaderboard of the current view, ready to paste into chat/Discord.
+    copyText=`${label} · ${snap.boss||'combat'} · ${(Number(duration)||0).toFixed(0)}s\n`+
+      ranked.map((p,i)=>`${i+1}. ${displayName(p)}  ${kfmt(rate(p))}/s  (${Math.round(100*amount(p)/(total||1))}%)`).join("\n")+
+      `\n— Aion 2 Calc`;
     $("#ovstatus").textContent = `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
     const identity=snap.identity_status, missing=players.length>0&&identity&&(!identity.self_identified||identity.unnamed_actors>0), repeated=visible.some(duplicate);
     // A zone load (tele/port/revive/instance) reassigns your actor id; show the
