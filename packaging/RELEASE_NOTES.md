@@ -1,3 +1,7 @@
+## Documented the overlay look & presets (0.2.183)
+
+- The user guide now has an **"Overlay look and look presets"** section covering the overlay appearance settings (rank numbers, compact rows, class swatch, class-coloured names, zebra striping, bar style, text outline, colour-cycle, highlight-my-row, the self-rank line and the smooth bar animation) and how to save, apply and **share** look presets by code — so the features added across 0.2.172–0.2.182 are discoverable.
+
 ## Share overlay look presets by code (0.2.182)
 
 - Overlay look presets can now be **shared between players**. In Settings → Overlay look presets, **Copy share code** turns the selected preset (or your current live look) into a short code you can send a friend; **Paste a shared code** saves one they sent you as a new named preset. Only overlay look settings travel in the code — never your server, keys, background image or any personal data — and every imported preset is re-validated before it's saved, so a bad or tampered code is rejected rather than applied.

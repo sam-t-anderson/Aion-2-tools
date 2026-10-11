@@ -156,6 +156,12 @@ Windows setup selects **Download and install Npcap for Live Capture** by default
 
 The single overlay attaches to the AION 2 process on Windows, preserves its dragged offset, and remains available while waiting for the game. Tabs and the opacity slider are interactive; controls do not initiate dragging. Exclusive fullscreen behavior depends on the game and Windows compositor.
 
+### Overlay look and look presets
+
+**Settings → Overlay layout** and **Overlay colors & fonts** control the overlay's appearance: rank numbers before each name, compact rows (per-second rate only), a class-colour swatch before each name, class-coloured names, zebra striping, a flat or gradient bar fill with optional rounded corners, a crisp text outline, a slow colour-cycle, and **Highlight my own row** (an accent bar on your own row, matched to your re-acquired identity so it follows you across teleports and instance changes). The **You:** line shows your live standing on the current metric (for example `You: Nyx · #2 of 8`). With **Live-ticking DPS numbers** on, the bar fills also ease smoothly between polls instead of snapping. All of these ride the settings backup.
+
+**Settings → Overlay look presets** saves a whole look you can reapply or share. Starter presets include Default, High contrast, Neon, Minimal, Midnight blue, Ember, Aurora, Sunset, and the showcase looks **Streamer**, **Tournament** and **Compact raid** (which wire up rank numbers, swatches, striping and highlight-my-row together). **Save current look as…** stores your own; **Copy share code** turns a preset into a short code to send a friend, and **Paste a shared code** saves one they sent you. Only overlay look settings travel in a preset or code — never your log server, upload key, background image or any personal data — and imported presets and codes are re-validated before they are saved.
+
 **Skills hotbar** shows suggested bindings. **Macro & rotation** shows numbered macro steps with matching keys and 10 ms delays. Charged skills are manual: hold their own key and release after charging. The optimizer fills all legally reachable skill-point allocations; points can remain only when no further purchasable level fits.
 
 After optimization, eligible anonymous builds can improve the class presets used by the Planner. Updated presets are cached for offline use. Character identity and private equipment are not submitted with these build suggestions.
