@@ -1,3 +1,7 @@
+## Highlight my own row (0.2.177)
+
+- New **"Highlight my own row"** toggle (Settings → Overlay layout, **off by default**) marks your own player row in the overlay with an accent bar and a soft tint (matched to your glow colour), so you can find yourself at a glance in a crowded party list — like the self-highlight in mature meters. Uses the re-acquired local identity, so it follows you across teleports and instance changes. Rides the settings backup and your saved look presets.
+
 ## Field boss respawn reference (0.2.176)
 
 - The **Timers** page gains a **"Field boss respawn reference"** section: a staged, searchable catalogue of **54 named field bosses** across Verteron (Elyos), Altgard (Asmodian) and the Abyss, each with its zone, level, and the community-reported respawn — a kill-based cycle (e.g. *~2h after kill*) for open-world field bosses, or a fixed schedule for the Abyss bosses (Watcher Kaira, the three Executors, Guardian Lord Nahma). This covers the field bosses that had **no staged timer** in the schedule before.

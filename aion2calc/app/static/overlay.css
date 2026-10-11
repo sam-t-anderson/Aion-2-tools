@@ -83,6 +83,9 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovrow { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: center; padding: 2px 0; min-height: var(--ov-row-h, 22px); }
 /* Optional zebra striping on the player rows (Settings → Overlay layout). */
 #ov.ov-stripes .ovrow:nth-child(even) { background: rgba(255,255,255,.05); border-radius: 3px; }
+/* Optional highlight of your own row so you can find yourself instantly. The
+   accent follows the glow colour; a left bar keeps it readable on any theme. */
+.ovrow-me { background: color-mix(in srgb, var(--ov-glow-color, #ffcf6b) 16%, transparent); border-radius: 3px; box-shadow: inset 2px 0 0 var(--ov-glow-color, #ffcf6b); padding-left: 4px; }
 .ovname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ov-name-color, inherit); font-weight: var(--ov-font-weight, 400); }
 /* Optional class-colour swatch before the name (Settings → Overlay layout). */
 .ovclass { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: baseline; }
