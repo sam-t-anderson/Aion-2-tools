@@ -118,9 +118,9 @@ A large quality-of-life pass to bring the live meter and overlay toward the dept
 
 **Combat information on the overlay:**
 - Current enemy HP (current and max), remaining-HP bar drawn over the max-HP bar, HP % remaining toggle, color settings for enemy HP.
-- Most-recent target the user hit, with others' DPS to that specific enemy and a toggle (estimate the current target by what the user is hitting most; show multiple names when undecidable).
+- Most-recent target the user hit, with others' DPS to that specific enemy and a toggle — **done (0.2.134):** the overlay shows the enemy the local player damaged most this encounter and each contributor's damage/DPS to it (`snapshot().current_target`, Settings toggle, enemies only, never party members). Remaining nuance: show multiple names when the target is genuinely undecidable.
 - Estimated time-to-kill (TTK, off by default, optional extra bar) from current DPS; estimated time-to-enrage/frenzy (needs verified enrage timers per boss — data-gated).
-- Player combat power; FPS counter (off by default, beside ping); rank indicator (off by default); party-member **death** indicator (row shows "DEAD" until new info); the user's **contribution** to the encounter (on by default).
+- Player combat power; FPS counter (off by default, beside ping); rank indicator (off by default); party-member **death** indicator (row shows "DEAD" until new info); the user's **contribution** to the encounter (on by default) — **contribution done (0.2.134):** the overlay shows the local player's share of the shown encounter's damage (`snapshot().contribution`), on by default with a Settings toggle. Combat power / FPS / rank / death indicator remain.
 - Re-acquire identity after teleport / revive / entering an instance (done — a zone load reassigns the local actor id and the meter re-binds identity per run) and **show that state on the overlay**: the overlay now shows a positive "You: <name>" line that reappears once identity is re-acquired, alongside the existing "self identity not received" warning during the gap.
 - Live millisecond DPS ticking: between packets, interpolate the number up/down toward the packet-backed value for a "live" feel; still starts/stops per encounter as today; a Settings toggle and a refresh-rate (ms) control so users on weaker machines can disable it.
 - Screenshot-the-overlay button that locks it in place and shows a simple saved combat-detail panel.
@@ -131,7 +131,7 @@ A large quality-of-life pass to bring the live meter and overlay toward the dept
 
 **Event notifications (on by default, with a toggle):** rifts, Shugo events, battlefield times and field bosses, sourced from the Fera Discord bot's server timers. The user picks a default server in Settings; when set to Automatic (the default) it uses the server detected when Start is pressed. Verify the feed's official source/availability and reuse constraints before shipping, same bar as workstream 6's schedules.
 
-**Settings backup/restore:** export all overlay/meter settings to a file the user can restore or share with others, and import it back.
+**Settings backup/restore:** export all overlay/meter settings to a file the user can restore or share with others, and import it back. **Done (0.2.134):** Settings → Settings backup exports to a JSON file and imports one back (`aion2calc/app/settings_backup.py`, `/api/ui/export` and `/api/ui/import`); import validates each field by type and ignores unknown or tampered keys, so a foreign file cannot inject arbitrary state.
 
 **Long-term — RivaTuner Statistics Server (RTSS):** draw the meter inside the game via RTSS so the overlay renders in-game rather than as a separate always-on-top window. Investigate RTSS's shared-memory/API, keep it optional and Windows-only, and never ship anything that could resemble game-process injection beyond RTSS's supported overlay API.
 

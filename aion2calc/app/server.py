@@ -864,11 +864,23 @@ class Handler(BaseHTTPRequestHandler):
                                for value in colors.values())):
                     raise ValueError("Overlay text colors must be six-digit hex colors for rate and total")
                 cur["overlay_text_colors"] = {k:v.lower() for k,v in colors.items()}
-            if "tray_on_close" in body and type(body["tray_on_close"]) is not bool:
-                raise ValueError("Collapse to tray must be true or false")
-            cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update", "combat_colors", "tray_on_close")})
+            for flag in ("tray_on_close", "overlay_show_contribution", "overlay_show_target"):
+                if flag in body and type(body[flag]) is not bool:
+                    raise ValueError(f"{flag} must be true or false")
+            cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update", "combat_colors",
+                                                               "tray_on_close", "overlay_show_contribution", "overlay_show_target")})
             write_user_json(cur, "ui.json")
             return self._json(cur)
+        if path == "/api/ui/export":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("settings export runs only on the computer running the app")
+            from .settings_backup import export_settings
+            return self._json(export_settings())
+        if path == "/api/ui/import":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("settings import runs only on the computer running the app")
+            from .settings_backup import import_settings
+            return self._json(import_settings(body.get("document", body)))
         if path == "/api/update":                 # manual "Install update now" (localhost only)
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("updates run only on the computer running the app")
@@ -968,7 +980,8 @@ def schedule_shutdown() -> None:
 
 def ui_settings() -> dict:
     from ..paths import data_file, read_json
-    defaults = {"app_window": True, "auto_update": True, "overlay_on_start": True, "tray_on_close": False}
+    defaults = {"app_window": True, "auto_update": True, "overlay_on_start": True, "tray_on_close": False,
+                "overlay_show_contribution": True, "overlay_show_target": True}
     return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}
 
 

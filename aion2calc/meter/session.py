@@ -662,6 +662,36 @@ class CombatSession:
             summary["warning"] = ("Partial capture · unranked; excluded from community learning. "
                                   + ("Showing observed players; Self and party membership are unverified. Nearby players may be included. " if observed else "Instance entry was not observed. ")
                                   + "Metrics cover recorded effects only; missing names stay as actor numbers.")
+        # Packet-sourced combat info for the overlay: the local player's share of
+        # the shown encounter, and the enemy they are hitting most with each
+        # contributor's damage/DPS to it. Both are derived from the same recorded
+        # damage as the player/enemy tables — nothing is invented.
+        name_by_id = {row["id"]: row["name"] for row in summary["players"]}
+        duration = max(1, summary.get("duration") or 0)
+        contribution = None
+        if local_id is not None:
+            row = next((r for r in summary["players"] if r["id"] == str(local_id)), None)
+            if row is not None:
+                contribution = {"name": row["name"], "share": row["share"],
+                                "damage": row["damage"], "dps": row["dps"]}
+        summary["contribution"] = contribution
+        current_target = None
+        if summary["enemies"]:
+            target = None
+            if local_id is not None:
+                target = max(summary["enemies"], key=lambda e: e["players"].get(str(local_id), 0))
+                if target["players"].get(str(local_id), 0) <= 0:
+                    target = None
+            target = target or summary["enemies"][0]
+            current_target = {
+                "name": target["name"], "key": target["key"], "damage": target["damage"],
+                "is_player": target.get("is_player", False),
+                "contributors": sorted(
+                    [{"id": actor, "name": name_by_id.get(actor, f"Player #{actor}"),
+                      "damage": dmg, "dps": dmg / duration} for actor, dmg in target["players"].items()],
+                    key=lambda c: -c["damage"])[:8],
+            }
+        summary["current_target"] = current_target
         summary["history_discarded"] = self.discarded
         return summary
 

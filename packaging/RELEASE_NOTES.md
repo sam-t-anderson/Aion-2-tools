@@ -1,3 +1,10 @@
+## Overlay combat info and settings backup (0.2.134)
+
+- **Your contribution on the overlay.** The meter now shows your share of the current encounter's damage — "Your contribution: 42% · 1.2M (18.3K/s)" — computed from the same recorded damage as the player table, not invented. On by default; toggle in **Settings → Live meter overlay**.
+- **Current target with per-player DPS.** The overlay shows the enemy you're hitting most and each contributor's DPS to it, so you can see who's actually on the priority target. The target is inferred from your own recorded damage; shown only for enemies (never party members). Toggle in Settings.
+- **Settings backup / restore.** **Settings → Settings backup** exports all overlay and app settings to a JSON file you can keep or share, and imports one back. Import validates every field and ignores unknown or tampered keys, so a hand-edited or foreign file can't inject arbitrary state.
+- Every new number stays packet-sourced; nothing is estimated or invented.
+
 ## Live meter run segmentation, overlay lifecycle, and collapse-to-tray (0.2.133)
 
 - **Multiple runs are no longer collapsed into one "partial" instance.** The decoder reports a stale map id across some zone loads (it stayed on the dungeon id even after a teleport out), so run segmentation — which keyed on the map/instance value changing — never fired, and every re-entry piled into one run. The live view then merged them all and showed every player seen across the session (e.g. **17 "players" in one instance**), with every run flagged partial. Segmentation now keys on the reliable signal a real capture carries: **a genuine zone load (instance re-entry, teleport, revive into a new instance) reassigns your own actor id**, while an in-instance phase teleport keeps it. Replaying a real multi-run diagnostic: one run that the capture joined mid-pull (correctly partial) plus three fully-observed re-entries, each its own run with its own party — not one 17-player blob. An in-instance mechanic phase that only pauses DPS still stays one continuing run, so the live meter does not reset mid-fight.

@@ -7,9 +7,13 @@
   let tab = "meter", metric = "dps", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false, meterUnavailable = false, refreshError = "", lastSuccess = null;
   try { const saved=localStorage.getItem("ovmetric"); if(["dps","hps","taken"].includes(saved))metric=saved; } catch(e) { /* optional storage */ }
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
+  let showContribution=true, showTarget=true;
   const syncColors=()=>fetch("/api/ui").then(r=>r.json()).then(ui=>{
     if(ui.combat_colors){try{localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));}catch(e){/* optional storage */}}
     for(const key of ['rate','total']){const color=ui.overlay_text_colors?.[key];document.documentElement.style.setProperty(`--ov-${key}-text`,/^#[0-9a-f]{6}$/i.test(color||'')?color:'#000000');}
+    showContribution=ui.overlay_show_contribution!==false;
+    showTarget=ui.overlay_show_target!==false;
+    if(lastSnap)renderMeter();
   }).catch(()=>{});
   syncColors();setInterval(syncColors,10000);
   const slider = $("#ovop");
@@ -100,9 +104,26 @@
     if(meterUnavailable) $("#ovreason").textContent=refreshError+' · '+(lastSuccess ? Math.floor((Date.now()-lastSuccess)/1000)+'s since last refresh. ' : '')+'Last readings retained; capture status unknown.';
     const empty = s.error || (players.length?`No recorded ${metric==='hps'?'healing':metric==='taken'?'incoming damage':'outgoing damage'} in this combat.`:snap.warning || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app."));
     $("#ovcontent").innerHTML = (players.length && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`);
+    // Current target (the enemy you are hitting most) with each contributor's DPS
+    // to it; packet-sourced, shown when there is recorded damage and enabled.
+    const target=snap.current_target;
+    const showT=showTarget&&target&&!target.is_player&&(target.contributors||[]).length;
+    $("#ovtarget").hidden=!showT;
+    if(showT){
+      const top=(target.contributors||[]).slice(0,3)
+        .map(c=>`${esc(c.name)} ${kfmt(c.dps)}/s`).join(' · ');
+      $("#ovtarget").innerHTML=`<span class="ovtlabel">Target</span> ${esc(target.name)} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}`;
+      $("#ovtarget").title=`Most-hit enemy this encounter and each contributor's DPS to it`;
+    }
+    // Your contribution: your share of the shown encounter's damage.
+    const c=snap.contribution;
+    const showC=showContribution&&c&&c.damage>0&&metric==='dps';
+    $("#ovcontribution").hidden=!showC;
+    if(showC) $("#ovcontribution").textContent=`Your contribution: ${Math.round((c.share||0)*100)}% · ${kfmt(c.damage)} (${kfmt(c.dps)}/s)`;
   }
   function renderPlan() {
     $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovidentity").hidden=true;
+    $("#ovtarget").hidden=true;$("#ovcontribution").hidden=true;
     $("#ovconnection").hidden=true;
     const p = latestPlan();
     if (!p) {

@@ -1662,7 +1662,10 @@ async function pageSettings() {
       <select id="svis">${["unlisted", "public", "private"].map((v) => `<option ${v === (srv.visibility || "unlisted") ? "selected" : ""}>${v}</option>`).join("")}</select>
       <button class="btn small" id="ssave">Save</button><button class="btn small" id="scheck">Check saved server</button><span id="smsg" class="small muted"></span></div>
       ${srv.is_default && srv.url ? '<div class="small muted" style="margin-top:4px">Using the community default server. Enter your own above to override it.</div>' : ""}</div></div>
-    <div class="setrow"><div class="lbl">Live meter overlay</div><div><label><input type="checkbox" id="ov-on-start" ${ui.overlay_on_start !== false?'checked':''}> Show overlay when starting the live meter</label><p class="small muted">Also available beside Start on the Live Meter page.</p></div></div>
+    <div class="setrow"><div class="lbl">Live meter overlay</div><div><label><input type="checkbox" id="ov-on-start" ${ui.overlay_on_start !== false?'checked':''}> Show overlay when starting the live meter</label><p class="small muted">Also available beside Start on the Live Meter page.</p>
+      <label><input type="checkbox" id="ov-contribution" ${ui.overlay_show_contribution !== false?'checked':''}> Show your contribution (your share of the encounter's damage)</label>
+      <label><input type="checkbox" id="ov-target" ${ui.overlay_show_target !== false?'checked':''}> Show the current target and each player's DPS to it</label></div></div>
+    <div class="setrow"><div class="lbl">Settings backup</div><div><div class="row"><button class="btn small" id="settings-export">Export settings</button><label class="btn small" for="settings-import-file">Import settings</label><input type="file" id="settings-import-file" accept="application/json,.json" style="display:none"><span id="settings-backup-msg" class="small muted" role="status"></span></div><p class="small muted">Save all overlay and app settings to a file you can restore or share, then import it back.</p></div></div>
     <div class="setrow"><div class="lbl">Overlay number colors</div><div><div class="row"><label>Rate text <input type="color" id="ov-rate-color" value="${esc(overlayText('rate'))}"></label><label>Total / share text <input type="color" id="ov-total-color" value="${esc(overlayText('total'))}"></label><button class="btn small" id="ov-color-reset">Reset to black</button><span class="small muted" id="ov-color-msg" role="status"></span></div><p class="small muted">Applies to DPS, HPS and D.Taken. Changes reach an open overlay within 10 seconds.</p></div></div>
     <div class="setrow"><div class="lbl">Combat class colors</div><div id="class-colors"></div></div><div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button> <button class="btn small" id="asset-reindex">Re-index cached icons</button> <button class="btn small" id="asset-report">Export image coverage</button> <button class="btn small" id="retry-images">Retry images</button><span id="asset-msg" class="small muted" role="status" aria-live="polite"></span></div></div>
     <div class="setrow"><div class="lbl">Storage maintenance</div><div><div class="row"><button class="btn small" id="storage-inspect">Inspect cache / updates</button><button class="btn small" id="storage-cache">Clean old disposable cache</button><button class="btn small" id="storage-updates">Clean old update files</button></div><p class="small muted">Web/comparison cache: 7 days; images: 30 days. Updates retain two packages, helpers for 7 days, and at least five logs / 30 days. Active or uninspectable helpers are preserved. Cache images may need downloading again.</p><p id="storage-message" role="status"></p><div id="maintenance-details"></div></div></div>
@@ -1695,6 +1698,26 @@ async function pageSettings() {
   };
   $("#appwin").onchange = () => api("/api/ui", { app_window: $("#appwin").checked }).then(() => toast("Saved"));
   $("#trayclose").onchange = () => api("/api/ui", { tray_on_close: $("#trayclose").checked }).then(() => toast("Saved · applies on next launch"));
+  $("#ov-contribution").onchange = () => api("/api/ui", { overlay_show_contribution: $("#ov-contribution").checked }).then(() => toast("Saved"));
+  $("#ov-target").onchange = () => api("/api/ui", { overlay_show_target: $("#ov-target").checked }).then(() => toast("Saved"));
+  $("#settings-export").onclick = async () => {
+    const msg = $("#settings-backup-msg"); $("#settings-export").disabled = true; msg.textContent = "Exporting…";
+    try { const r = await api("/api/ui/export", {}); msg.textContent = "Saved to " + r.file; }
+    catch (e) { msg.textContent = e.message; }
+    finally { $("#settings-export").disabled = false; }
+  };
+  $("#settings-import-file").onchange = async (ev) => {
+    const file = ev.target.files && ev.target.files[0]; const msg = $("#settings-backup-msg");
+    if (!file) return;
+    msg.textContent = "Importing…";
+    try {
+      const document = JSON.parse(await file.text());
+      const r = await api("/api/ui/import", { document });
+      msg.textContent = "Imported: " + (r.imported || []).join(", ") + ". Reopen the overlay to apply.";
+      pageSettings();
+    } catch (e) { msg.textContent = "Could not import: " + e.message; }
+    finally { ev.target.value = ""; }
+  };
   $("#autoupd").onchange = () => api("/api/ui", { auto_update: $("#autoupd").checked }).then(() => toast("Saved"));
   if ($("#instupd")) $("#instupd").onclick = async () => {
     $("#instupd").disabled = true;
