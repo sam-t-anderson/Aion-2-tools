@@ -1,3 +1,7 @@
+## Customization profiles (0.2.190)
+
+- Save your whole look as a named **customization profile** and switch between them in one click (Settings → **Profiles & backup**). A profile bundles your **theme**, **accent colour**, **class colours** and the **overlay look**, so you can keep, say, a bright "Streaming" set and a muted "Raiding" set and flip between them instantly. **Save current as…**, **Apply** and **Delete** manage them; profiles are stored in your browser.
+
 ## Settings organised into subtabs (0.2.189)
 
 - The **Settings** page is now split into clear subtabs — **Appearance**, **Overlay**, **Meter**, **Server**, **Profiles & backup** and **App & data** — instead of one long scroll. Click a tab to see just those settings; your last-used tab is remembered. Nothing moved out of Settings, it's only grouped, so every control is where you'd expect under its heading.
