@@ -463,6 +463,14 @@ class Handler(BaseHTTPRequestHandler):
             return self._static("index.html")
         if path == "/overlay":
             return self._static("overlay.html")
+        if path == "/overlay-background":
+            # The user's chosen overlay background photo, stored locally (never in ui.json).
+            for name in ("overlay-background.png", "overlay-background.jpg"):
+                f = home() / name
+                if f.exists():
+                    return self._send(200, f.read_bytes(),
+                                      "image/png" if name.endswith(".png") else "image/jpeg", cache=60)
+            return self._send(404, b"", "text/plain")
         if path.startswith("/static/"):
             return self._static(path[len("/static/"):])
         if path == "/api/status":
@@ -766,6 +774,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"job": start_job("advice", act_advice, body)})
         if path.startswith("/api/inventory/"):
             return self._json(inventory_post(path, body))
+        if path == "/api/overlay/background":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("the overlay background is set only on the computer running the app")
+            return self._json(set_overlay_background(body))
         if path == "/api/meter/decoder":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Decoder files can only be imported on this computer")
@@ -856,25 +868,39 @@ class Handler(BaseHTTPRequestHandler):
                 if type(body["overlay_on_start"]) is not bool:
                     raise ValueError("Show overlay when starting must be true or false")
                 cur["overlay_on_start"] = body["overlay_on_start"]
+            def _is_hex(v):
+                return isinstance(v, str) and len(v) == 7 and v[0] == "#" and all(c in "0123456789abcdefABCDEF" for c in v[1:])
             if "overlay_text_colors" in body:
                 colors = body["overlay_text_colors"]
-                if (not isinstance(colors, dict) or set(colors) != {"rate", "total"}
-                        or any(not isinstance(value, str) or len(value) != 7 or value[0] != "#"
-                               or any(c not in "0123456789abcdefABCDEF" for c in value[1:])
-                               for value in colors.values())):
-                    raise ValueError("Overlay text colors must be six-digit hex colors for rate and total")
-                cur["overlay_text_colors"] = {k:v.lower() for k,v in colors.items()}
+                # Any subset of the known overlay text elements, each a six-digit hex.
+                if (not isinstance(colors, dict) or not set(colors) <= {"rate", "total", "name", "header"}
+                        or any(not _is_hex(value) for value in colors.values())):
+                    raise ValueError("Overlay text colors must be six-digit hex colors for rate, total, name or header")
+                cur["overlay_text_colors"] = {k: v.lower() for k, v in colors.items()}
+            if "overlay_glow_color" in body:
+                if not _is_hex(body["overlay_glow_color"]):
+                    raise ValueError("overlay_glow_color must be a six-digit hex color")
+                cur["overlay_glow_color"] = body["overlay_glow_color"].lower()
+            if "overlay_font_family" in body:
+                fonts = ("", "Segoe UI", "Arial", "Verdana", "Georgia", "Trebuchet MS", "Consolas", "Tahoma")
+                if body["overlay_font_family"] not in fonts:
+                    raise ValueError("overlay_font_family must be one of the available fonts")
+                cur["overlay_font_family"] = body["overlay_font_family"]
             _ui_bool_flags = ("tray_on_close", "overlay_show_contribution", "overlay_show_target",
                               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
                               "meter_reset_after_battle", "meter_show_dummy_parse", "overlay_show_combat_power",
-                              "overlay_only_in_combat", "overlay_auto_expand")
+                              "overlay_only_in_combat", "overlay_auto_expand",
+                              "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
+                              "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
             _ui_int_ranges = (("meter_reset_delay", 1, 120), ("meter_max_records", 1, 500),
                               ("meter_dummy_record_seconds", 5, 3600),
                               ("overlay_max_players", 1, 24), ("overlay_width", 260, 800),
-                              ("overlay_row_height", 14, 48))
+                              ("overlay_row_height", 14, 48), ("overlay_font_scale", 80, 160),
+                              ("overlay_font_weight", 400, 800), ("overlay_bg_opacity", 0, 100),
+                              ("overlay_bg_zoom", 50, 200), ("overlay_bg_darken", 0, 100))
             for key, lo, hi in _ui_int_ranges:
                 if key in body:
                     if not isinstance(body[key], int) or isinstance(body[key], bool) or not lo <= body[key] <= hi:
@@ -1005,8 +1031,46 @@ def ui_settings() -> dict:
                 "meter_show_dummy_parse": True, "meter_dummy_record_seconds": 60,
                 "overlay_show_combat_power": True,
                 "overlay_max_players": 8, "overlay_width": 340, "overlay_row_height": 22,
-                "overlay_only_in_combat": False, "overlay_auto_expand": False}
+                "overlay_only_in_combat": False, "overlay_auto_expand": False,
+                # Visual group (all inert by default so the overlay looks unchanged until enabled).
+                "overlay_resizable": False, "overlay_snap_edge": False, "overlay_expand_up": False,
+                "overlay_font_scale": 100, "overlay_font_weight": 600, "overlay_font_family": "",
+                "overlay_glow": False, "overlay_glow_color": "#e8cf8e",
+                "overlay_bg_opacity": 0, "overlay_bg_zoom": 100, "overlay_bg_darken": 40, "overlay_bg_set": False,
+                "overlay_long_names_scroll": False, "overlay_party_enabled": False}
     return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}
+
+
+def set_overlay_background(body: dict) -> dict:
+    """Store (or clear) the user's overlay background photo as a local file, and
+    record whether one is set in ui.json. The image is never put in ui.json or the
+    settings backup — only a flag, so a backup file stays small and shareable."""
+    import base64
+    from ..paths import home, write_user_json
+    png, jpg = home() / "overlay-background.png", home() / "overlay-background.jpg"
+    if body.get("clear"):
+        for f in (png, jpg):
+            f.unlink(missing_ok=True)
+        cur = ui_settings(); cur["overlay_bg_set"] = False; write_user_json(cur, "ui.json")
+        return {"overlay_bg_set": False}
+    data = body.get("data") or ""
+    if not isinstance(data, str) or not data.startswith("data:image/"):
+        raise ValueError("Provide a PNG or JPEG image")
+    header, _, b64 = data.partition(",")
+    kind = "png" if "image/png" in header else "jpeg" if ("image/jpeg" in header or "image/jpg" in header) else None
+    if kind is None or not b64:
+        raise ValueError("The background must be a PNG or JPEG image")
+    try:
+        raw = base64.b64decode(b64, validate=True)
+    except Exception:
+        raise ValueError("The image could not be decoded")
+    if len(raw) > 8 * 1024 * 1024:
+        raise ValueError("The background image must be 8 MB or smaller")
+    target, other = (png, jpg) if kind == "png" else (jpg, png)
+    other.unlink(missing_ok=True)
+    target.write_bytes(raw)
+    cur = ui_settings(); cur["overlay_bg_set"] = True; write_user_json(cur, "ui.json")
+    return {"overlay_bg_set": True}
 
 
 def make_server(host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServer:

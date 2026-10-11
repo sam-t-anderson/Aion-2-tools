@@ -107,14 +107,50 @@ class _Windows:
         self.user32.SetWindowPos(hwnd, None, x, y, 0, 0, 0x0001 | 0x0004 | 0x0010)
 
 
-def _follow_position(previous, bounds, current):
-    """Preserve the user's dragged offset as the game moves/resizes."""
+def _follow_position(previous, bounds, current, snap=False, expand_up=False):
+    """Preserve the user's dragged offset as the game moves/resizes.
+
+    ``snap`` pulls the overlay flush to a game-window edge when it is within a few
+    pixels of it. ``expand_up`` anchors the overlay near the bottom edge so it
+    grows upward as rows are added. With both false this returns exactly the
+    historical position, so the default overlay behaviour is unchanged.
+    """
     left, top, width, height = bounds
     x, y, overlay_width, overlay_height = current
     dx, dy = (x - previous[0], y - previous[1]) if previous else (16, 48)
     dx = max(0, min(dx, max(0, width - overlay_width)))
-    dy = max(0, min(dy, max(0, height - overlay_height)))
-    return left + dx, top + dy
+    if expand_up:
+        ny = top + max(0, height - overlay_height - 48)
+    else:
+        dy = max(0, min(dy, max(0, height - overlay_height)))
+        ny = top + dy
+    nx = left + dx
+    if snap:
+        if abs((nx + overlay_width) - (left + width)) <= 24:
+            nx = left + width - overlay_width
+        if nx - left <= 24:
+            nx = left
+        if not expand_up:
+            if abs((ny + overlay_height) - (top + height)) <= 24:
+                ny = top + height - overlay_height
+            elif ny - top <= 24:
+                ny = top
+    return nx, ny
+
+
+def _overlay_prefs() -> dict:
+    """Native overlay preferences read from the user's settings (defaults keep the
+    historical behaviour). Read once at launch, so changes apply on reopen."""
+    prefs = {"resizable": False, "snap_edge": False, "expand_up": False}
+    try:
+        from .paths import data_file, read_json
+        if data_file("ui.json").exists():
+            ui = read_json("ui.json")
+            for key in prefs:
+                prefs[key] = ui.get("overlay_" + key, prefs[key]) is True
+    except Exception:
+        pass
+    return prefs
 
 
 class _OverlayAPI:
@@ -224,6 +260,8 @@ def _run_overlay(window, api, app_base: str | None = None) -> None:
         except Exception:
             _LOG.exception("Could not initialize overlay foreground tracking")
     window.show()
+    prefs = _overlay_prefs()
+    snap, expand_up = prefs["snap_edge"], prefs["expand_up"]
     previous = None
     previous_hwnd = None
     visible = True
@@ -246,7 +284,7 @@ def _run_overlay(window, api, app_base: str | None = None) -> None:
             continue
         if game.hwnd != previous_hwnd:
             previous = None
-        position = _follow_position(previous, game.bounds, win32.rect(hwnd))
+        position = _follow_position(previous, game.bounds, win32.rect(hwnd), snap=snap, expand_up=expand_up)
         if position != win32.rect(hwnd)[:2]:
             win32.move(hwnd, *position)
         previous, previous_hwnd = game.bounds, game.hwnd
@@ -273,9 +311,11 @@ def main(argv=None) -> int:
     ap.add_argument("--height", type=int, default=120)
     a = ap.parse_args(argv)
     url = a.url or _default_url()
-    # The overlay URL is the app's own /overlay page; its base is the app to watch.
-    _normalized = url.rstrip("/")
-    app_base = _normalized[: -len("/overlay")] if _normalized.endswith("/overlay") else None
+    # The overlay URL is the app's own /overlay page (optionally ?view=party); its
+    # base is the app to watch, derived without the path/query.
+    app_base = url.split("/overlay")[0] if "/overlay" in url else None
+    prefs = _overlay_prefs()
+    party = "view=party" in url
     try:
         import webview
     except Exception:
@@ -285,11 +325,12 @@ def main(argv=None) -> int:
         api = _OverlayAPI()
         # Stable card content is draggable; JS stops events at the tabs and slider.
         webview.settings["DRAG_REGION_DIRECT_TARGET_ONLY"] = False
-        window = webview.create_window("Aion 2 Calc Overlay", url, frameless=True, easy_drag=False,
+        window = webview.create_window("Aion 2 Calc Party Overlay" if party else "Aion 2 Calc Overlay",
+                                       url, frameless=True, easy_drag=False,
                                        shadow=False, on_top=True, hidden=True, focus=False,
                                        transparent=sys.platform != "win32", background_color="#010203",
                                        width=a.width, height=a.height, min_size=(260, 70),
-                                       resizable=False, js_api=api)
+                                       resizable=bool(prefs["resizable"]), js_api=api)
         api._window = window
         webview.start(_run_overlay, args=(window, api, app_base),
                       gui="edgechromium" if sys.platform == "win32" else None)

@@ -1027,7 +1027,7 @@ async function pageMeter() {
         <label class="small muted"><input id="mautooverlay" type="checkbox" ${ui.overlay_on_start !== false?'checked':''}> Show overlay when starting</label>
         <button class="btn small" id="mclear">Clear session</button><button class="btn small" id="msave">Save to Combat Logs</button><button class="btn small" id="mexport">Export a2log</button>
         <button class="btn small" id="mupload">Upload</button><button class="btn small" id="mshot">Screenshot</button>
-        <button class="btn small" id="mhide">Hide overlay</button><button class="btn small" id="msplit">Split now</button><button class="btn small" id="mfinishrun">Finish run</button><button class="btn small" id="movl" title="Open the compact overlay in a separate window">Open overlay</button><span id="mmsg" class="small muted"></span></div>
+        <button class="btn small" id="msplit">Split now</button><button class="btn small" id="mfinishrun">Finish run</button><button class="btn small" id="mhide">Hide overlay</button><button class="btn small" id="movl" title="Open the compact overlay in a separate window">Open overlay</button><span id="mmsg" class="small muted"></span></div>
       <div class="row" id="mlive" style="display:none;margin-top:6px">
         <label class="small muted">Encoder <input id="mdec" type="text" value="Built-in A2Tools decoder" readonly aria-label="Encoder module" style="width:180px"></label>
         <label class="small muted">Interface <select id="miface" aria-label="Capture interface" title="Npcap interface; Auto monitors all available adapters"><option value="auto">Auto</option></select></label><button class="btn small" id="mifacesrefresh">Refresh interfaces</button>
@@ -1672,6 +1672,12 @@ async function pageSettings() {
     <div class="setrow"><div class="lbl">Overlay layout</div><div><div class="row"><label>Players shown <input type="number" id="ov-maxp" min="1" max="24" value="${Number(ui.overlay_max_players)||8}" style="width:64px"></label><label>Width <input type="number" id="ov-width" min="260" max="800" value="${Number(ui.overlay_width)||340}" style="width:70px"> px</label><label>Row height <input type="number" id="ov-rowh" min="14" max="48" value="${Number(ui.overlay_row_height)||22}" style="width:64px"> px</label><span id="ov-layout-msg" class="small muted" role="status"></span></div>
       <label><input type="checkbox" id="ov-autoexp" ${ui.overlay_auto_expand === true?'checked':''}> Auto-expand to show every captured player (beyond the limit above)</label>
       <label><input type="checkbox" id="ov-onlycombat" ${ui.overlay_only_in_combat === true?'checked':''}> Show the meter only during combat (collapse between pulls)</label>
+      <label><input type="checkbox" id="ov-scrollnames" ${ui.overlay_long_names_scroll === true?'checked':''}> Scroll long names on hover</label>
+      <label><input type="checkbox" id="ov-party" ${ui.overlay_party_enabled === true?'checked':''}> Open a separate Party-DPS overlay (raid totals) alongside the meter</label>
+      <p class="small muted" style="margin-top:6px">These need the overlay reopened to apply:</p>
+      <label><input type="checkbox" id="ov-resizable" ${ui.overlay_resizable === true?'checked':''}> Resize the overlay by dragging its edges/corners</label>
+      <label><input type="checkbox" id="ov-snap" ${ui.overlay_snap_edge === true?'checked':''}> Snap to the game window's edges</label>
+      <label><input type="checkbox" id="ov-expandup" ${ui.overlay_expand_up === true?'checked':''}> Expand upward (anchor the overlay near the bottom of the game window)</label>
       <p class="small muted">Applies to the live overlay; changes reach an open overlay within 10 seconds.</p></div></div>
     <div class="setrow"><div class="lbl">Combat records</div><div><label><input type="checkbox" id="rec-reset" ${ui.meter_reset_after_battle !== false?'checked':''}> Clear the live meter after a battle ends</label>
       <div class="row" style="margin-top:4px"><label>Reset delay <input type="number" id="rec-delay" min="1" max="120" value="${Number(ui.meter_reset_delay)||5}" style="width:64px"> s</label><label>Keep up to <input type="number" id="rec-max" min="1" max="500" value="${Number(ui.meter_max_records)||20}" style="width:70px"> past combats</label><span id="rec-msg" class="small muted" role="status"></span></div>
@@ -1679,7 +1685,12 @@ async function pageSettings() {
       <div class="row"><label>Training-dummy parse window <input type="number" id="rec-dummy-secs" min="5" max="3600" value="${Number(ui.meter_dummy_record_seconds)||60}" style="width:70px"> s</label></div>
       <p class="small muted">Applies to the live meter and overlay. A cleared battle's details stay available in the segment list until replaced.</p></div></div>
     <div class="setrow"><div class="lbl">Settings backup</div><div><div class="row"><button class="btn small" id="settings-export">Export settings</button><label class="btn small" for="settings-import-file">Import settings</label><input type="file" id="settings-import-file" accept="application/json,.json" style="display:none"><span id="settings-backup-msg" class="small muted" role="status"></span></div><p class="small muted">Save all overlay and app settings to a file you can restore or share, then import it back.</p></div></div>
-    <div class="setrow"><div class="lbl">Overlay number colors</div><div><div class="row"><label>Rate text <input type="color" id="ov-rate-color" value="${esc(overlayText('rate'))}"></label><label>Total / share text <input type="color" id="ov-total-color" value="${esc(overlayText('total'))}"></label><button class="btn small" id="ov-color-reset">Reset to black</button><span class="small muted" id="ov-color-msg" role="status"></span></div><p class="small muted">Applies to DPS, HPS and D.Taken. Changes reach an open overlay within 10 seconds.</p></div></div>
+    <div class="setrow"><div class="lbl">Overlay colors &amp; fonts</div><div><div class="row"><label>Rate text <input type="color" id="ov-rate-color" value="${esc(overlayText('rate'))}"></label><label>Total / share text <input type="color" id="ov-total-color" value="${esc(overlayText('total'))}"></label><label>Player name <input type="color" id="ov-name-color" value="${esc(/^#[0-9a-f]{6}$/i.test(overlayColors.name||'')?overlayColors.name:'#eceae3')}"></label><label>Header <input type="color" id="ov-header-color" value="${esc(/^#[0-9a-f]{6}$/i.test(overlayColors.header||'')?overlayColors.header:'#e8cf8e')}"></label><button class="btn small" id="ov-color-reset">Reset numbers to black</button><span class="small muted" id="ov-color-msg" role="status"></span></div>
+      <div class="row"><label>Font <select id="ov-font-fam">${["","Segoe UI","Arial","Verdana","Georgia","Trebuchet MS","Consolas","Tahoma"].map(f=>`<option value="${esc(f)}" ${f===(ui.overlay_font_family||'')?'selected':''}>${f||'Default'}</option>`).join('')}</select></label><label>Size <input type="number" id="ov-font-scale" min="80" max="160" value="${Number(ui.overlay_font_scale)||100}" style="width:64px"> %</label><label>Weight <select id="ov-font-weight">${[400,500,600,700,800].map(w=>`<option value="${w}" ${w===(Number(ui.overlay_font_weight)||600)?'selected':''}>${w}</option>`).join('')}</select></label><label><input type="checkbox" id="ov-glow" ${ui.overlay_glow===true?'checked':''}> Text glow</label><label>Glow color <input type="color" id="ov-glow-color" value="${esc(/^#[0-9a-f]{6}$/i.test(ui.overlay_glow_color||'')?ui.overlay_glow_color:'#e8cf8e')}"></label><span class="small muted" id="ov-font-msg" role="status"></span></div>
+      <p class="small muted">Number colors apply to DPS, HPS and D.Taken. Changes reach an open overlay within 10 seconds.</p></div></div>
+    <div class="setrow"><div class="lbl">Overlay background</div><div><div class="row"><label class="btn small" for="ov-bg-file">Choose image</label><input type="file" id="ov-bg-file" accept="image/png,image/jpeg" style="display:none"><button class="btn small" id="ov-bg-clear">Remove</button><span id="ov-bg-msg" class="small muted" role="status">${ui.overlay_bg_set?'An image is set.':'No image set.'}</span></div>
+      <div class="row"><label>Visibility <input type="number" id="ov-bg-opacity" min="0" max="100" value="${Number(ui.overlay_bg_opacity)||0}" style="width:64px"> %</label><label>Zoom <input type="number" id="ov-bg-zoom" min="50" max="200" value="${Number(ui.overlay_bg_zoom)||100}" style="width:64px"> %</label><label>Darken <input type="number" id="ov-bg-darken" min="0" max="100" value="${Number(ui.overlay_bg_darken)||40}" style="width:64px"> %</label></div>
+      <p class="small muted">A PNG or JPEG (8 MB max) shown behind the overlay card. Set Visibility above 0 to show it. The image is stored locally, not in the settings backup.</p></div></div>
     <div class="setrow"><div class="lbl">Combat class colors</div><div id="class-colors"></div></div><div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button> <button class="btn small" id="asset-reindex">Re-index cached icons</button> <button class="btn small" id="asset-report">Export image coverage</button> <button class="btn small" id="retry-images">Retry images</button><span id="asset-msg" class="small muted" role="status" aria-live="polite"></span></div></div>
     <div class="setrow"><div class="lbl">Storage maintenance</div><div><div class="row"><button class="btn small" id="storage-inspect">Inspect cache / updates</button><button class="btn small" id="storage-cache">Clean old disposable cache</button><button class="btn small" id="storage-updates">Clean old update files</button></div><p class="small muted">Web/comparison cache: 7 days; images: 30 days. Updates retain two packages, helpers for 7 days, and at least five logs / 30 days. Active or uninspectable helpers are preserved. Cache images may need downloading again.</p><p id="storage-message" role="status"></p><div id="maintenance-details"></div></div></div>
     <div class="setrow"><div class="lbl">Updates</div><div><label><input type="checkbox" id="autoupd" ${ui.auto_update !== false ? "checked" : ""}> check and prompt for updates on launch</label></div></div>
@@ -1696,13 +1707,24 @@ async function pageSettings() {
   if(ui.combat_colors)localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));
   A2CombatReview.settings($("#class-colors"),pref=>api("/api/ui",{combat_colors:pref}));
   const saveOverlayColors=async()=>{
-    const controls=[$('#ov-rate-color'),$('#ov-total-color'),$('#ov-color-reset')];controls.forEach(c=>c.disabled=true);$('#ov-color-msg').textContent='Saving…';
-    try{await api('/api/ui',{overlay_text_colors:{rate:controls[0].value,total:controls[1].value}});$('#ov-color-msg').textContent='Saved';}
-    catch(e){$('#ov-color-msg').textContent=e.message;}
-    finally{controls.forEach(c=>c.disabled=false);}
+    const msg=$('#ov-color-msg');msg.textContent='Saving…';
+    try{await api('/api/ui',{overlay_text_colors:{rate:$('#ov-rate-color').value,total:$('#ov-total-color').value,name:$('#ov-name-color').value,header:$('#ov-header-color').value}});msg.textContent='Saved';}
+    catch(e){msg.textContent=e.message;}
   };
-  $('#ov-rate-color').onchange=saveOverlayColors;$('#ov-total-color').onchange=saveOverlayColors;
+  for(const id of ['ov-rate-color','ov-total-color','ov-name-color','ov-header-color'])$('#'+id).onchange=saveOverlayColors;
   $('#ov-color-reset').onclick=()=>{$('#ov-rate-color').value=$('#ov-total-color').value='#000000';saveOverlayColors();};
+  const saveFont=async(key,val)=>{const msg=$('#ov-font-msg');msg.textContent='Saving…';try{await api('/api/ui',{[key]:val});msg.textContent='Saved';}catch(e){msg.textContent=e.message;}};
+  $('#ov-font-fam').onchange=()=>saveFont('overlay_font_family',$('#ov-font-fam').value);
+  $('#ov-font-weight').onchange=()=>saveFont('overlay_font_weight',parseInt($('#ov-font-weight').value,10));
+  $('#ov-font-scale').onchange=()=>{const n=parseInt($('#ov-font-scale').value,10);if(n>=80&&n<=160)saveFont('overlay_font_scale',n);else $('#ov-font-msg').textContent='Size must be 80–160%.';};
+  $('#ov-glow').onchange=()=>saveFont('overlay_glow',$('#ov-glow').checked);
+  $('#ov-glow-color').onchange=()=>saveFont('overlay_glow_color',$('#ov-glow-color').value);
+  const saveBgNum=async(id,key,lo,hi)=>{const n=parseInt($('#'+id).value,10),msg=$('#ov-bg-msg');if(!(n>=lo&&n<=hi)){msg.textContent=`Enter ${lo}–${hi}.`;return;}try{await api('/api/ui',{[key]:n});msg.textContent='Saved';}catch(e){msg.textContent=e.message;}};
+  $('#ov-bg-opacity').onchange=()=>saveBgNum('ov-bg-opacity','overlay_bg_opacity',0,100);
+  $('#ov-bg-zoom').onchange=()=>saveBgNum('ov-bg-zoom','overlay_bg_zoom',50,200);
+  $('#ov-bg-darken').onchange=()=>saveBgNum('ov-bg-darken','overlay_bg_darken',0,100);
+  $('#ov-bg-clear').onclick=async()=>{const msg=$('#ov-bg-msg');try{await api('/api/overlay/background',{clear:true});msg.textContent='Removed.';}catch(e){msg.textContent=e.message;}};
+  $('#ov-bg-file').onchange=async(ev)=>{const file=ev.target.files&&ev.target.files[0],msg=$('#ov-bg-msg');if(!file)return;if(file.size>8*1024*1024){msg.textContent='Image must be 8 MB or smaller.';ev.target.value='';return;}msg.textContent='Uploading…';try{const data=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(Error('Could not read the file'));r.readAsDataURL(file);});await api('/api/overlay/background',{data});msg.textContent='Image set. Set Visibility above 0 to show it.';}catch(e){msg.textContent=e.message;}finally{ev.target.value='';}};
   $$("[data-th]").forEach((b) => (b.onclick = () => { setTheme(b.dataset.th); pageSettings(); }));
   $('#ov-on-start').onchange = async () => {
     const control=$('#ov-on-start'), selected=control.checked;
@@ -1719,6 +1741,11 @@ async function pageSettings() {
   $("#ov-cp").onchange = () => api("/api/ui", { overlay_show_combat_power: $("#ov-cp").checked }).then(() => toast("Saved"));
   $("#ov-autoexp").onchange = () => api("/api/ui", { overlay_auto_expand: $("#ov-autoexp").checked }).then(() => toast("Saved"));
   $("#ov-onlycombat").onchange = () => api("/api/ui", { overlay_only_in_combat: $("#ov-onlycombat").checked }).then(() => toast("Saved"));
+  $("#ov-scrollnames").onchange = () => api("/api/ui", { overlay_long_names_scroll: $("#ov-scrollnames").checked }).then(() => toast("Saved"));
+  $("#ov-party").onchange = () => api("/api/ui", { overlay_party_enabled: $("#ov-party").checked }).then(() => toast("Saved · reopen the overlay to apply"));
+  $("#ov-resizable").onchange = () => api("/api/ui", { overlay_resizable: $("#ov-resizable").checked }).then(() => toast("Saved · reopen the overlay to apply"));
+  $("#ov-snap").onchange = () => api("/api/ui", { overlay_snap_edge: $("#ov-snap").checked }).then(() => toast("Saved · reopen the overlay to apply"));
+  $("#ov-expandup").onchange = () => api("/api/ui", { overlay_expand_up: $("#ov-expandup").checked }).then(() => toast("Saved · reopen the overlay to apply"));
   const saveLayoutNum = async (id, key, lo, hi) => {
     const el = $("#" + id), msg = $("#ov-layout-msg"), n = parseInt(el.value, 10);
     if (!Number.isInteger(n) || n < lo || n > hi) { msg.textContent = `Enter a whole number from ${lo} to ${hi}.`; return; }

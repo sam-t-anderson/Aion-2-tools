@@ -4,12 +4,27 @@
 html, body, #ov { width: 100%; margin: 0; background: transparent !important; color: #eceae3;
   font: 12px/1.35 "Segoe UI", "Noto Sans", system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
 html, body { overflow: hidden; }
-#ov { padding: 4px; width: max-content; max-width: 100vw; }
+#ov { padding: 4px; width: max-content; max-width: 100vw;
+  font-size: calc(12px * var(--ov-font-scale, 1)); font-family: var(--ov-font-family, "Segoe UI", "Noto Sans", system-ui, sans-serif); }
 .ovcard { background: rgba(10, 14, 22, var(--ovbg, .72)); border: 1px solid rgba(233, 203, 128, .40); border-radius: 8px;
-  padding: 8px 10px; width: var(--ov-width, 340px); max-width: 100%; cursor: grab; }
+  padding: 8px 10px; width: var(--ov-width, 340px); max-width: 100%; cursor: grab; position: relative; text-shadow: var(--ov-glow, none); }
+/* User background photo layer (behind the content). */
+#ovbg { position: absolute; inset: 0; border-radius: 8px; z-index: 0; background-repeat: no-repeat; pointer-events: none; }
+#ovbg[hidden] { display: none; }
+.ovcard > *:not(#ovbg) { position: relative; z-index: 1; }
+/* Separate Party-DPS overlay view. */
+#ov.ov-party .ovtabs, #ov.ov-party .ovmetrics, #ov.ov-party .ovoptions { display: none; }
+.ovpstat { display: flex; justify-content: space-between; align-items: baseline; padding: 2px 0; }
+.ovpstat .ovplabel { color: #9aa3b5; }
+.ovpstat .ovpval { color: var(--ov-rate-text, #e8cf8e); font-weight: var(--ov-font-weight, 700); font-size: 1.15em; }
+/* Long-name scrolling (hover-activated to avoid moving names that already fit). */
+.ovnametext { display: inline-block; }
+#ov.ov-scroll-names .ovname { overflow: hidden; }
+#ov.ov-scroll-names .ovname:hover .ovnametext { animation: ovnamescroll 4s linear infinite alternate; }
+@keyframes ovnamescroll { 0%, 15% { transform: translateX(0); } 100% { transform: translateX(calc(60px - 100%)); } }
 html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovcard:active { cursor: grabbing; }
-.ovhd { display: flex; justify-content: space-between; align-items: center; color: #e8cf8e; font-weight: 700; margin-bottom: 5px; }
+.ovhd { display: flex; justify-content: space-between; align-items: center; color: var(--ov-header-color, #e8cf8e); font-weight: 700; margin-bottom: 5px; }
 .ovtabs button { background: transparent; border: 0; color: #9aa3b5; cursor: pointer; font-weight: 700; padding: 0 4px; font-size: 11px; }
 .ovtabs button.on { color: #e8cf8e; }
 .ovsub { color: #9aa3b5; font-weight: 400; font-size: 11px; min-width: 0; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
@@ -34,7 +49,7 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovdummy .ovtlabel { color: #e8cf8e; font-weight: 600; margin-right: 3px; }
 .ovdummy[hidden] { display: none; }
 .ovrow { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: center; padding: 2px 0; min-height: var(--ov-row-h, 22px); }
-.ovname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ovname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ov-name-color, inherit); font-weight: var(--ov-font-weight, 400); }
 .ovactor { display: block; color: #c8d0e2; font-size: 9px; font-weight: 400; }
 .ovbar { position: relative; height: 16px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
 .ovbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, #ecd79f, #b9984f); }

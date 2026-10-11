@@ -32,31 +32,54 @@ def available() -> bool:
         return False
 
 
+_PARTY_PROCESS: subprocess.Popen | None = None
+
+
+def _spawn(url: str) -> subprocess.Popen:
+    env = {**os.environ, "AION2CALC_OVERLAY": "1", "AION2CALC_OVERLAY_URL": url}
+    if getattr(sys, "frozen", False):
+        return subprocess.Popen([sys.executable], env=env, close_fds=True)
+    return subprocess.Popen([sys.executable, "-m", "aion2calc.overlay", "--url", url], env=env, close_fds=True)
+
+
+def _party_enabled() -> bool:
+    try:
+        from .server import ui_settings
+        return bool(ui_settings().get("overlay_party_enabled"))
+    except Exception:
+        return False
+
+
 def launch(url: str) -> dict:
-    """Start the native overlay in its own process. Returns ``{"native": bool, "reason": str}``."""
+    """Start the native overlay in its own process. Returns ``{"native": bool, "reason": str}``.
+    When the separate Party-DPS overlay is enabled, a second window is started too."""
     if not available():
         return {"native": False, "reason": "pywebview is not bundled on this platform"}
-    global _PROCESS
+    global _PROCESS, _PARTY_PROCESS
     with _LOCK:
-        if _PROCESS is not None and _PROCESS.poll() is None:
-            return {"native": True, "already_open": True, "reason": ""}
-        env = {**os.environ, "AION2CALC_OVERLAY": "1", "AION2CALC_OVERLAY_URL": url}
+        already = _PROCESS is not None and _PROCESS.poll() is None
         try:
-            if getattr(sys, "frozen", False):
-                _PROCESS = subprocess.Popen([sys.executable], env=env, close_fds=True)
-            else:
-                _PROCESS = subprocess.Popen([sys.executable, "-m", "aion2calc.overlay", "--url", url],
-                                             env=env, close_fds=True)
-            return {"native": True, "already_open": False, "reason": ""}
+            if not already:
+                _PROCESS = _spawn(url)
+            # The optional party overlay is managed alongside the main one.
+            if _party_enabled():
+                if _PARTY_PROCESS is None or _PARTY_PROCESS.poll() is not None:
+                    sep = "&" if "?" in url else "?"
+                    _PARTY_PROCESS = _spawn(f"{url}{sep}view=party")
+            elif _PARTY_PROCESS is not None and _PARTY_PROCESS.poll() is None:
+                _PARTY_PROCESS.terminate()
+                _PARTY_PROCESS = None
+            return {"native": True, "already_open": already, "reason": ""}
         except Exception as err:                                              # noqa: BLE001 - report, keep serving
             _PROCESS = None
             return {"native": False, "reason": f"{type(err).__name__}: {err}"}
 
 
 def close() -> None:
-    """Close the native overlay when the main desktop application exits."""
-    global _PROCESS
+    """Close the native overlay(s) when the main desktop application exits."""
+    global _PROCESS, _PARTY_PROCESS
     with _LOCK:
-        if _PROCESS is not None and _PROCESS.poll() is None:
-            _PROCESS.terminate()
-        _PROCESS = None
+        for proc in (_PROCESS, _PARTY_PROCESS):
+            if proc is not None and proc.poll() is None:
+                proc.terminate()
+        _PROCESS = _PARTY_PROCESS = None

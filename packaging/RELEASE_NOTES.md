@@ -1,3 +1,16 @@
+## Overlay visual settings: colors, fonts, background, native behaviors, Party overlay (0.2.141)
+
+The rest of the overlay visual-settings group. Everything is **off / inert by default**, so the overlay looks and behaves exactly as before until you turn a feature on.
+
+- **Colors & fonts** (Settings → Overlay colors & fonts): color pickers for player-name and header text (added to the existing rate/total number colors); font family, size (80–160%) and weight; and a text **glow** toggle with its own color.
+- **Background photo** (Settings → Overlay background): choose a PNG/JPEG (8 MB max) shown behind the overlay card, with Visibility, Zoom and Darken sliders. Set Visibility above 0 to show it. The image is stored locally and is *not* included in the settings backup (only the sliders are).
+- **Native window behaviors** (apply when the overlay is reopened): resize the overlay by dragging its edges, snap to the game window's edges, and expand upward (anchor near the bottom of the game window).
+- **Separate Party-DPS overlay**: a second always-on-top window showing raid totals (party DPS/HPS/damage-taken/total) instead of per-player rows, sharing the overlay's visual settings. Off by default; it opens alongside the meter overlay and closes with it.
+- **Long-name scrolling**: long player names scroll on hover when enabled.
+- Also moved the **Hide overlay** button next to **Open overlay** on the Live Meter page, and fixed a Settings row alignment issue (labels now top-align with their controls).
+
+All colour/font/background/toggle settings apply to an open overlay within ~10 seconds (native-window options need a reopen) and ride the settings backup/restore file (except the background image itself).
+
 ## Overlay layout settings (0.2.140)
 
 - First batch of the overlay visual-settings pass, under **Settings → Overlay layout**:

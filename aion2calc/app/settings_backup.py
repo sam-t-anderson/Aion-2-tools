@@ -19,12 +19,18 @@ _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close",
               "overlay_show_contribution", "overlay_show_target",
               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
               "meter_reset_after_battle", "meter_show_dummy_parse", "overlay_show_combat_power",
-              "overlay_only_in_combat", "overlay_auto_expand")
+              "overlay_only_in_combat", "overlay_auto_expand",
+              "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
+              "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled")
 
 # key -> (min, max) for whole-number settings.
 _INT_KEYS = {"meter_reset_delay": (1, 120), "meter_max_records": (1, 500),
              "meter_dummy_record_seconds": (5, 3600),
-             "overlay_max_players": (1, 24), "overlay_width": (260, 800), "overlay_row_height": (14, 48)}
+             "overlay_max_players": (1, 24), "overlay_width": (260, 800), "overlay_row_height": (14, 48),
+             "overlay_font_scale": (80, 160), "overlay_font_weight": (400, 800),
+             "overlay_bg_opacity": (0, 100), "overlay_bg_zoom": (50, 200), "overlay_bg_darken": (0, 100)}
+
+_FONT_FAMILIES = ("", "Segoe UI", "Arial", "Verdana", "Georgia", "Trebuchet MS", "Consolas", "Tahoma")
 
 
 def _is_hex(value) -> bool:
@@ -47,10 +53,18 @@ def _clean(data: dict) -> dict:
                 raise ValueError(f"{key} must be a whole number from {lo} to {hi}")
             clean[key] = value
         elif key == "overlay_text_colors":
-            if not (isinstance(value, dict) and set(value) == {"rate", "total"}
+            if not (isinstance(value, dict) and set(value) <= {"rate", "total", "name", "header"}
                     and all(_is_hex(v) for v in value.values())):
-                raise ValueError("overlay_text_colors must be six-digit hex colors for rate and total")
+                raise ValueError("overlay_text_colors must be six-digit hex colors for rate, total, name or header")
             clean[key] = {k: v.lower() for k, v in value.items()}
+        elif key == "overlay_glow_color":
+            if not _is_hex(value):
+                raise ValueError("overlay_glow_color must be a six-digit hex color")
+            clean[key] = value.lower()
+        elif key == "overlay_font_family":
+            if value not in _FONT_FAMILIES:
+                raise ValueError("overlay_font_family must be one of the available fonts")
+            clean[key] = value
         elif key == "combat_colors":
             if not (isinstance(value, dict) and all(isinstance(k, str) and _is_hex(v) for k, v in value.items())):
                 raise ValueError("combat_colors must map class names to six-digit hex colors")

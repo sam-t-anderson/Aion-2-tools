@@ -5,14 +5,51 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const kfmt = (x) => { if (x == null || isNaN(x)) return "—"; const a = Math.abs(x); return a >= 1e6 ? (x / 1e6).toFixed(2) + "M" : a >= 1e3 ? (x / 1e3).toFixed(2) + "K" : Math.round(x).toString(); };
   let tab = "meter", metric = "dps", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false, meterUnavailable = false, refreshError = "", lastSuccess = null;
+  const partyMode = new URLSearchParams(location.search).get("view") === "party";
+  if (partyMode) document.getElementById("ov").classList.add("ov-party");
   try { const saved=localStorage.getItem("ovmetric"); if(["dps","hps","taken"].includes(saved))metric=saved; } catch(e) { /* optional storage */ }
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
   let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false, showDummy=true, showCombatPower=true;
   let maxPlayers=8, onlyInCombat=false, autoExpand=false;
   const clampInt=(v,lo,hi,dflt)=>{v=parseInt(v,10);return Number.isInteger(v)&&v>=lo&&v<=hi?v:dflt;};
+  let bgLoaded=false;
+  function applyBackground(enabled,op,zoom,dark){
+    const el=document.getElementById('ovbg');
+    if(!el)return;
+    if(!enabled){el.hidden=true;el.style.backgroundImage='';bgLoaded=false;return;}
+    if(!bgLoaded){
+      // Verify the image loads before showing it, so a missing file is a no-op.
+      const probe=new Image();
+      probe.onload=()=>{bgLoaded=true;if(lastSnap)renderMeter?.();el.hidden=false;};
+      probe.onerror=()=>{bgLoaded=false;el.hidden=true;};
+      probe.src='/overlay-background?v='+Date.now();
+    }
+    const d=Math.max(0,Math.min(1,dark/100));
+    el.style.backgroundImage=`linear-gradient(rgba(0,0,0,${d}),rgba(0,0,0,${d})), url('/overlay-background')`;
+    el.style.backgroundSize=`auto, ${zoom}%`;
+    el.style.backgroundPosition='center';
+    el.style.opacity=Math.max(0,Math.min(1,op/100));
+    el.hidden=!bgLoaded;
+  }
   const syncColors=()=>fetch("/api/ui").then(r=>r.json()).then(ui=>{
     if(ui.combat_colors){try{localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));}catch(e){/* optional storage */}}
     for(const key of ['rate','total']){const color=ui.overlay_text_colors?.[key];document.documentElement.style.setProperty(`--ov-${key}-text`,/^#[0-9a-f]{6}$/i.test(color||'')?color:'#000000');}
+    // Extra text-element colors: name and header (blank = CSS default).
+    for(const key of ['name','header']){const c=ui.overlay_text_colors?.[key];document.documentElement.style.setProperty(`--ov-${key}-color`,/^#[0-9a-f]{6}$/i.test(c||'')?c:'');}
+    // Fonts
+    const scale=clampInt(ui.overlay_font_scale,80,160,100), weight=clampInt(ui.overlay_font_weight,400,800,600);
+    const fam=typeof ui.overlay_font_family==='string'?ui.overlay_font_family:'';
+    document.documentElement.style.setProperty('--ov-font-scale',scale/100);
+    document.documentElement.style.setProperty('--ov-font-weight',weight);
+    document.documentElement.style.setProperty('--ov-font-family',fam?`"${fam}", "Segoe UI", system-ui, sans-serif`:'');
+    // Glow (text-shadow)
+    const glow=ui.overlay_glow===true, glowColor=/^#[0-9a-f]{6}$/i.test(ui.overlay_glow_color||'')?ui.overlay_glow_color:'#e8cf8e';
+    document.documentElement.style.setProperty('--ov-glow',glow?`0 0 4px ${glowColor}, 0 0 8px ${glowColor}`:'none');
+    // Long-name scrolling
+    document.getElementById('ov').classList.toggle('ov-scroll-names',ui.overlay_long_names_scroll===true);
+    // Background photo (opacity 0 = none). The image load errors are swallowed.
+    const bgOp=clampInt(ui.overlay_bg_opacity,0,100,0), bgZoom=clampInt(ui.overlay_bg_zoom,50,200,100), bgDark=clampInt(ui.overlay_bg_darken,0,100,40);
+    applyBackground(ui.overlay_bg_set===true && bgOp>0, bgOp, bgZoom, bgDark);
     showContribution=ui.overlay_show_contribution!==false;
     showTarget=ui.overlay_show_target!==false;
     showDeaths=ui.overlay_show_deaths!==false;
@@ -86,7 +123,23 @@
     const ids = Object.keys(all).sort((a, b) => (all[b].meta?.updated || 0) - (all[a].meta?.updated || 0));
     return ids.length ? all[ids[0]] : null;
   }
+  function renderParty() {
+    // The separate Party-DPS overlay: raid-wide aggregates, not per-player rows.
+    const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
+    for(const id of ["#ovmetrics","#ovping","#ovidentity","#ovtarget","#ovcontribution","#ovdummy","#ovconnection"])$(id).hidden=true;
+    const totalDps=players.reduce((n,p)=>n+(Number(p.dps)||0),0);
+    const totalHps=players.reduce((n,p)=>n+(Number(p.hps)||0),0);
+    const totalTaken=players.reduce((n,p)=>n+(Number(p.dtps)||0),0);
+    const total=players.reduce((n,p)=>n+(Number(p.damage)||0),0);
+    $("#ovstatus").textContent=`Party · ${snap.boss||(s.running?"recording":"idle")} · ${players.length} players`;
+    $("#ovstatus").title=$("#ovstatus").textContent;
+    const stat=(label,val,unit)=>`<div class="ovpstat"><span class="ovplabel">${label}</span><span class="ovpval">${kfmt(val)}${unit||''}</span></div>`;
+    $("#ovcontent").innerHTML = players.length
+      ? stat("Party DPS",totalDps,"/s")+stat("Party HPS",totalHps,"/s")+stat("Damage taken/s",totalTaken,"/s")+stat("Total damage",total,"")
+      : `<div class="muted">${esc(s.running?"Waiting for combat data…":"No fight yet. Start the meter in the app.")}</div>`;
+  }
   function renderMeter() {
+    if(partyMode)return renderParty();
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
     $("#ovmetrics").hidden=false;
     const ping=snap.ping;$('#ovping').hidden=false;
@@ -102,7 +155,7 @@
     visible.forEach(p=>{const name=String(p.name||'').toLocaleLowerCase();names.set(name,(names.get(name)||0)+1);});
     const duplicate=p=>(names.get(String(p.name||'').toLocaleLowerCase())||0)>1;
     const shownCount = autoExpand ? Math.min(24, Math.max(maxPlayers, visible.length)) : maxPlayers;
-    const rows = [...visible].sort((a,b)=>rate(b)-rate(a)||amount(b)-amount(a)).slice(0, shownCount).map((p) => `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}"><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}">${esc(p.name)}${duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}</span>
+    const rows = [...visible].sort((a,b)=>rate(b)-rate(a)||amount(b)-amount(a)).slice(0, shownCount).map((p) => `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}"><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}"><span class="ovnametext">${esc(p.name)}</span>${duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}</span>
         <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i style="width:${100 * rate(p) / mx}%;background:${A2CombatReview.color(p.class)}"></i><span>${kfmt(rate(p))}/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div></div>`).join("");
     const duration=metric==="dps"?snap.duration:snap.recorded_duration;
     $("#ovstatus").textContent = `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
