@@ -92,7 +92,8 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovactor { display: block; color: #c8d0e2; font-size: 9px; font-weight: 400; }
 .ovbar { position: relative; height: 16px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
 /* Per-class bar colour is set per row as --bar; the fill is flat by default. */
-.ovbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--bar, #b9984f); }
+.ovbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--bar, #b9984f); transition: width .18s linear; }
+@media (prefers-reduced-motion: reduce) { .ovbar i, .ovhpbar i, .ovttkbar i { transition: none; } }
 /* Optional bar styles (Settings → Overlay layout). Gradient darkens toward the
    right; rounded makes the track a pill. Both compose with any class colour. */
 #ov.ov-bars-gradient .ovbar i { background: linear-gradient(90deg, var(--bar, #b9984f), color-mix(in srgb, var(--bar, #b9984f) 52%, #000)); }

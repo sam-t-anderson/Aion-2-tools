@@ -1,3 +1,7 @@
+## Smooth animated DPS bars (0.2.178)
+
+- The overlay's player bars now **glide** to their new length between polls instead of snapping, so a bar that's climbing or being overtaken reads as motion rather than a jump — matching the already-smooth target-HP and TTK bars. It rides the existing **"Smoothly animate the per-second numbers"** toggle (Settings → Overlay), so turning that on now eases the bar fill as well as the number; with it off, bars behave exactly as before. Honours *prefers-reduced-motion*.
+
 ## Highlight my own row (0.2.177)
 
 - New **"Highlight my own row"** toggle (Settings → Overlay layout, **off by default**) marks your own player row in the overlay with an accent bar and a soft tint (matched to your glow colour), so you can find yourself at a glance in a crowded party list — like the self-highlight in mature meters. Uses the re-acquired local identity, so it follows you across teleports and instance changes. Rides the settings backup and your saved look presets.
