@@ -1,3 +1,7 @@
+## Overlay themes now style the bars too, plus Aurora & Sunset (0.2.169)
+
+- The overlay starter themes now set the **bar style** as part of their look, so they apply in one click: **Neon, Midnight blue, Ember** gain rounded **gradient** bars, **Minimal** gets soft rounded flat bars, and **Default (gold)** / **High contrast** stay flat (as before). Two new themes join the set — **Aurora** (teal-and-green with gradient rounded bars and class-coloured names) and **Sunset** (pink-to-orange warmth) — bringing the starter themes to **nine**. Your own saved presets are unaffected, and the per-theme description notes the bar look.
+
 ## Overlay bar styles: gradient, rounded, class-coloured names (0.2.168)
 
 - New overlay **bar styling** (Settings → Overlay layout):

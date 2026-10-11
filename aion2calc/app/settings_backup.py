@@ -41,6 +41,7 @@ _FONT_FAMILIES = ("", "Segoe UI", "Arial", "Verdana", "Georgia", "Trebuchet MS",
 # visual appearance only; never the background image, layout counts or behaviour).
 _VISUAL_KEYS = ("overlay_text_colors", "overlay_glow", "overlay_glow_color", "overlay_hp_color",
                 "overlay_ttk_color", "overlay_text_outline", "overlay_outline_color",
+                "overlay_bar_style", "overlay_bar_rounded", "overlay_class_color_names",
                 "overlay_font_family", "overlay_font_scale", "overlay_font_weight",
                 "overlay_bg_opacity", "overlay_bg_zoom", "overlay_bg_darken",
                 "overlay_name_mode", "overlay_long_names_scroll", "combat_colors")
