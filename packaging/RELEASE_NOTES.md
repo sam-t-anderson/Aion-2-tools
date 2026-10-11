@@ -1,3 +1,11 @@
+## Three new overlay look presets (0.2.179)
+
+- Three ready-made looks in Settings → Overlay presets, each wiring up the full newer feature set in one click:
+  - **Streamer** — a showcase look for stream capture: big outlined gold text, rounded gradient bars, class-colour swatches, rank numbers, zebra rows and your own row highlighted.
+  - **Tournament** — maximum readability for competition: white outlined text on a strongly darkened card, flat bars, zebra rows, rank numbers and your own row highlighted.
+  - **Compact raid** — a dense full-raid view: small class-coloured names, class swatches, rank numbers, compact rows (rate only), zebra striping and your own row highlighted.
+- These are the first bundled presets to carry the rank-number, class-swatch, zebra-stripe, compact-row and highlight-my-row settings, so applying one is a quick way to try them all together.
+
 ## Smooth animated DPS bars (0.2.178)
 
 - The overlay's player bars now **glide** to their new length between polls instead of snapping, so a bar that's climbing or being overtaken reads as motion rather than a jump — matching the already-smooth target-HP and TTK bars. It rides the existing **"Smoothly animate the per-second numbers"** toggle (Settings → Overlay), so turning that on now eases the bar fill as well as the number; with it off, bars behave exactly as before. Honours *prefers-reduced-motion*.
