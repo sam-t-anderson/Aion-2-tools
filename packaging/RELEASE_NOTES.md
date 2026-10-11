@@ -1,3 +1,8 @@
+## Stream the overlay to Discord / OBS (0.2.198)
+
+- New **Settings → Overlay → Streaming (OBS / Discord)** helper with the overlay's **browser-source URL** and a **Copy URL** button. Add it as an **OBS/Streamlabs Browser Source** (it renders transparent), composite it over your game scene, and stream that to Discord — the overlay shows on your stream. For Discord **Go Live** directly, share your **whole screen** so the always-on-top overlay is included.
+- Honest note built in: a game-**window**-only share won't show the overlay, because it's a separate window layered on top rather than part of the game's own frame (the same reason most meter overlays don't appear in window captures). Use a Browser Source or a full-screen share. (We deliberately do **not** inject into the game process to force it into a window capture — that risks an anti-cheat ban.)
+
 ## Open the overlay when the app starts (0.2.197)
 
 - The transparent overlay now **opens together with the app**, on by default, so it's ready the moment you launch — it waits for the game and still follows the AION 2 window when that appears. Turn it off under **Settings → Overlay → "Open the overlay when the app starts"**. This is separate from **"Show overlay when starting the live meter"** (which opens it when you press Start): leave both on to always have the overlay up, or keep only the meter-start one if you'd rather it appear with capture. The setting rides the settings backup.
