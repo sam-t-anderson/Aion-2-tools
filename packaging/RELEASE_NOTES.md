@@ -1,3 +1,7 @@
+## Roadmap: Daily active meters (0.2.142)
+
+- Documentation only — no app change. Added a roadmap item (§7) for a privacy-scoped "Daily active meters" community-size signal: an anonymous, per-install, date-rotating daily heartbeat the server counts into an aggregate-only daily tally, with no PII and an opt-out. To be designed and verified before any implementation.
+
 ## Overlay visual settings: colors, fonts, background, native behaviors, Party overlay (0.2.141)
 
 The rest of the overlay visual-settings group. Everything is **off / inert by default**, so the overlay looks and behaves exactly as before until you turn a feature on.
