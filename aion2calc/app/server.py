@@ -890,6 +890,9 @@ class Handler(BaseHTTPRequestHandler):
                 if not _is_hex(body["overlay_hp_color"]):
                     raise ValueError("overlay_hp_color must be a six-digit hex color")
                 cur["overlay_hp_color"] = body["overlay_hp_color"].lower()
+            if "overlay_presets" in body:
+                from .settings_backup import clean_presets
+                cur["overlay_presets"] = clean_presets(body["overlay_presets"])
             if "overlay_font_family" in body:
                 fonts = ("", "Segoe UI", "Arial", "Verdana", "Georgia", "Trebuchet MS", "Consolas", "Tahoma")
                 if body["overlay_font_family"] not in fonts:
@@ -1058,7 +1061,8 @@ def ui_settings() -> dict:
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
                 "meter_save_records": True, "overlay_name_mode": "name",
-                "overlay_dps_interpolate": True, "overlay_interpolate_ms": 50, "overlay_show_fps": False}
+                "overlay_dps_interpolate": True, "overlay_interpolate_ms": 50, "overlay_show_fps": False,
+                "overlay_presets": []}
     return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}
 
 

@@ -34,6 +34,13 @@ _INT_KEYS = {"meter_reset_delay": (1, 120), "meter_max_records": (1, 500),
 
 _FONT_FAMILIES = ("", "Segoe UI", "Arial", "Verdana", "Georgia", "Trebuchet MS", "Consolas", "Tahoma")
 
+# The look-and-feel settings a named overlay preset may carry (the overlay's
+# visual appearance only; never the background image, layout counts or behaviour).
+_VISUAL_KEYS = ("overlay_text_colors", "overlay_glow", "overlay_glow_color", "overlay_hp_color",
+                "overlay_font_family", "overlay_font_scale", "overlay_font_weight",
+                "overlay_bg_opacity", "overlay_bg_zoom", "overlay_bg_darken",
+                "overlay_name_mode", "overlay_long_names_scroll", "combat_colors")
+
 
 def _is_hex(value) -> bool:
     return (isinstance(value, str) and len(value) == 7 and value[0] == "#"
@@ -75,8 +82,33 @@ def _clean(data: dict) -> dict:
             if not (isinstance(value, dict) and all(isinstance(k, str) and _is_hex(v) for k, v in value.items())):
                 raise ValueError("combat_colors must map class names to six-digit hex colors")
             clean[key] = {k: v.lower() for k, v in value.items()}
+        elif key == "overlay_presets":
+            clean[key] = clean_presets(value)
         # Any other key is ignored rather than trusted.
     return clean
+
+
+def clean_presets(value) -> list:
+    """Validate a list of named overlay look presets. Each preset carries a name
+    and a settings object restricted to the visual keys, type-checked exactly as a
+    normal settings import, so a preset can never inject unexpected or unsafe state."""
+    if not isinstance(value, list) or len(value) > 50:
+        raise ValueError("overlay_presets must be a list of at most 50 presets")
+    out, seen = [], set()
+    for item in value:
+        if not isinstance(item, dict):
+            raise ValueError("each overlay preset must be an object")
+        name = str(item.get("name") or "").strip()
+        if not name or len(name) > 40:
+            raise ValueError("each overlay preset needs a name of 1 to 40 characters")
+        if name.casefold() in seen:
+            raise ValueError("overlay preset names must be unique")
+        seen.add(name.casefold())
+        settings = item.get("settings")
+        if not isinstance(settings, dict):
+            raise ValueError("each overlay preset needs a settings object")
+        out.append({"name": name, "settings": _clean({k: v for k, v in settings.items() if k in _VISUAL_KEYS})})
+    return out
 
 
 def export_settings() -> dict:

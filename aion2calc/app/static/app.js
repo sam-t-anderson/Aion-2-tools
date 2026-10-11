@@ -1648,6 +1648,20 @@ async function showMaintenance(){
  target.innerHTML=`<p class="small muted">${esc(r.note)}</p>${r.external_web_cache?'<p class="note">An external web cache is configured; this tool leaves it untouched.</p>':''}${r.truncated?'<p class="note">Scan limit reached; counts are lower bounds.</p>':''}<table class="t"><thead><tr><th>Category</th><th>Files</th><th>MiB</th><th>Oldest (days)</th><th>Cache cleanup eligible</th></tr></thead><tbody>${r.groups.map(g=>`<tr><td>${esc(g.category)}</td><td>${g.files}</td><td>${(g.bytes/1048576).toFixed(2)}</td><td>${g.oldest_days}</td><td>${g.eligible_files} files / ${(g.eligible_bytes/1048576).toFixed(2)} MiB</td></tr>`).join('')}</tbody></table>`;
  }catch(e){if(target.isConnected)target.textContent=e.message;}
 }
+// Overlay look presets: a named bundle of the overlay's visual settings. These are
+// the keys a preset may carry (mirrors settings_backup._VISUAL_KEYS).
+const OVERLAY_VISUAL_KEYS=["overlay_text_colors","overlay_glow","overlay_glow_color","overlay_hp_color","overlay_font_family","overlay_font_scale","overlay_font_weight","overlay_bg_opacity","overlay_bg_zoom","overlay_bg_darken","overlay_name_mode","overlay_long_names_scroll","combat_colors"];
+const BUNDLED_PRESETS={
+  "Default (gold)":{overlay_text_colors:{rate:"#000000",total:"#000000",name:"#eceae3",header:"#e8cf8e"},overlay_glow:false,overlay_glow_color:"#e8cf8e",overlay_hp_color:"#e05a5a",overlay_font_family:"",overlay_font_scale:100,overlay_font_weight:600,overlay_bg_opacity:100,overlay_bg_zoom:100,overlay_bg_darken:20,overlay_name_mode:"name",overlay_long_names_scroll:false,combat_colors:{}},
+  "Bold & large":{overlay_font_family:"Segoe UI",overlay_font_scale:130,overlay_font_weight:800,overlay_glow:true,overlay_glow_color:"#000000"},
+};
+function overlayPresetOptions(ui){
+  const saved=Array.isArray(ui.overlay_presets)?ui.overlay_presets:[];
+  const opt=(v,l)=>`<option value="${esc(v)}">${esc(l)}</option>`;
+  const bundled=Object.keys(BUNDLED_PRESETS).map(n=>opt('b::'+n,n)).join('');
+  const user=saved.map(p=>opt('s::'+p.name,p.name)).join('');
+  return `<optgroup label="Starter presets">${bundled}</optgroup>`+(user?`<optgroup label="Saved presets">${user}</optgroup>`:'');
+}
 async function pageSettings() {
   const [s, srv, ui] = await Promise.all([api("/api/status"), api("/api/logserver").catch(() => ({})), api("/api/ui").catch(() => ({}))]);
   const t = getTheme();
@@ -1695,6 +1709,8 @@ async function pageSettings() {
     <div class="setrow"><div class="lbl">Overlay background</div><div><div class="row"><label class="btn small" for="ov-bg-file">Choose image</label><input type="file" id="ov-bg-file" accept="image/png,image/jpeg" style="display:none"><button class="btn small" id="ov-bg-clear">Remove</button><span id="ov-bg-msg" class="small muted" role="status">${ui.overlay_bg_set?'An image is set.':'No image set.'}</span></div>
       <div class="row"><label>Visibility <input type="number" id="ov-bg-opacity" min="0" max="100" value="${ui.overlay_bg_opacity ?? 100}" style="width:64px"> %</label><label>Zoom <input type="number" id="ov-bg-zoom" min="50" max="200" value="${Number(ui.overlay_bg_zoom)||100}" style="width:64px"> %</label><label>Darken <input type="number" id="ov-bg-darken" min="0" max="100" value="${ui.overlay_bg_darken ?? 20}" style="width:64px"> %</label></div>
       <p class="small muted">A PNG or JPEG (8 MB max) shown behind the overlay card. Set Visibility above 0 to show it. The image is stored locally, not in the settings backup.</p></div></div>
+    <div class="setrow"><div class="lbl">Overlay look presets</div><div><div class="row"><select id="ov-preset" style="min-width:200px">${overlayPresetOptions(ui)}</select><button class="btn small" id="ov-preset-apply">Apply</button><button class="btn small" id="ov-preset-save">Save current look as…</button><button class="btn small" id="ov-preset-delete">Delete</button><span id="ov-preset-msg" class="small muted" role="status"></span></div>
+      <p class="small muted">A preset bundles the overlay's colors, fonts, glow, enemy-HP color, background sliders, name display and per-class bar colors (not the background image). Saved presets ride the settings backup file.</p></div></div>
     <div class="setrow"><div class="lbl">Combat class colors</div><div id="class-colors"></div></div><div class="setrow"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button> <button class="btn small" id="asset-reindex">Re-index cached icons</button> <button class="btn small" id="asset-report">Export image coverage</button> <button class="btn small" id="retry-images">Retry images</button><span id="asset-msg" class="small muted" role="status" aria-live="polite"></span></div></div>
     <div class="setrow"><div class="lbl">Storage maintenance</div><div><div class="row"><button class="btn small" id="storage-inspect">Inspect cache / updates</button><button class="btn small" id="storage-cache">Clean old disposable cache</button><button class="btn small" id="storage-updates">Clean old update files</button></div><p class="small muted">Web/comparison cache: 7 days; images: 30 days. Updates retain two packages, helpers for 7 days, and at least five logs / 30 days. Active or uninspectable helpers are preserved. Cache images may need downloading again.</p><p id="storage-message" role="status"></p><div id="maintenance-details"></div></div></div>
     <div class="setrow"><div class="lbl">Updates</div><div><label><input type="checkbox" id="autoupd" ${ui.auto_update !== false ? "checked" : ""}> check and prompt for updates on launch</label></div></div>
@@ -1710,6 +1726,38 @@ async function pageSettings() {
   };
   if(ui.combat_colors)localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));
   A2CombatReview.settings($("#class-colors"),pref=>api("/api/ui",{combat_colors:pref}));
+  $('#ov-preset-apply').onclick=async()=>{
+    const sel=$('#ov-preset').value;if(!sel)return;
+    const kind=sel.slice(0,1),name=sel.slice(3);
+    const settings=kind==='b'?BUNDLED_PRESETS[name]:(Array.isArray(ui.overlay_presets)?ui.overlay_presets:[]).find(p=>p.name===name)?.settings;
+    const msg=$('#ov-preset-msg');
+    if(!settings){msg.textContent='Preset not found.';return;}
+    msg.textContent='Applying…';
+    try{await api('/api/ui',settings);toast('Preset applied');pageSettings();}catch(e){msg.textContent=e.message;}
+  };
+  $('#ov-preset-save').onclick=async()=>{
+    const name=(prompt('Name this preset:')||'').trim();if(!name)return;
+    const msg=$('#ov-preset-msg');
+    if(name.length>40){msg.textContent='Name must be 40 characters or fewer.';return;}
+    msg.textContent='Saving…';
+    try{
+      const fresh=await api('/api/ui');
+      const settings={};for(const k of OVERLAY_VISUAL_KEYS)if(fresh[k]!==undefined)settings[k]=fresh[k];
+      const list=(Array.isArray(fresh.overlay_presets)?fresh.overlay_presets:[]).filter(p=>p.name.toLowerCase()!==name.toLowerCase());
+      list.push({name,settings});
+      await api('/api/ui',{overlay_presets:list});toast('Preset saved');pageSettings();
+    }catch(e){msg.textContent=e.message;}
+  };
+  $('#ov-preset-delete').onclick=async()=>{
+    const sel=$('#ov-preset').value,msg=$('#ov-preset-msg');
+    if(!sel||sel.slice(0,1)!=='s'){msg.textContent='Pick a saved preset to delete.';return;}
+    const name=sel.slice(3);msg.textContent='Deleting…';
+    try{
+      const fresh=await api('/api/ui');
+      const list=(Array.isArray(fresh.overlay_presets)?fresh.overlay_presets:[]).filter(p=>p.name!==name);
+      await api('/api/ui',{overlay_presets:list});toast('Preset deleted');pageSettings();
+    }catch(e){msg.textContent=e.message;}
+  };
   const saveOverlayColors=async()=>{
     const msg=$('#ov-color-msg');msg.textContent='Saving…';
     try{await api('/api/ui',{overlay_text_colors:{rate:$('#ov-rate-color').value,total:$('#ov-total-color').value,name:$('#ov-name-color').value,header:$('#ov-header-color').value}});msg.textContent='Saved';}

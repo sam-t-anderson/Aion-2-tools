@@ -1,3 +1,12 @@
+## Overlay look presets (0.2.151)
+
+Switch your whole overlay theme in one click.
+
+- A new **Overlay look presets** picker (Settings → under Overlay background) lets you **apply, save and delete named presets** that capture the overlay's whole look together: text colours, the glow toggle and its colour, the enemy-HP bar colour, font family/size/weight, the background sliders (opacity/zoom/darken), the name display mode, and your per-class bar colour overrides. Pick a preset, click **Apply**, and all of those change at once.
+- Two **bundled starter presets** ship — "Default (gold)" and "Bold & large" — and **Save current look as…** stores your current settings as a named preset you can come back to.
+- Saved presets live in the **settings backup/restore file** (`overlay_presets`), so they export, import and share alongside the rest of your settings. Each preset's settings are validated against the same visual-setting allowlist as a normal import, so a shared or hand-edited preset can only ever carry known, type-checked look settings — never arbitrary state.
+- The background *image* itself isn't part of a preset (it's a local file on your machine, not a shareable value); everything else about the look is.
+
 ## Smoother, more real-time DPS ticking (0.2.150)
 
 Follow-up to the live-ticking DPS from 0.2.149, to make the numbers visibly change in real time:

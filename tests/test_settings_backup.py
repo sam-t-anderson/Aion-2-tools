@@ -94,3 +94,39 @@ def test_import_ignores_unknown_keys_and_applies_known_ones(isolated_home):
 def test_import_rejects_when_nothing_recognised(isolated_home):
     with pytest.raises(ValueError):
         settings_backup.import_settings({"totally_unknown": 1})
+
+
+def test_overlay_presets_round_trip_and_strip_non_visual_keys(isolated_home):
+    presets = [
+        {"name": "Night", "settings": {"overlay_glow": True, "overlay_glow_color": "#112233",
+                                        "overlay_font_scale": 120,
+                                        # non-visual and unknown keys are stripped, not stored:
+                                        "overlay_width": 500, "evil": {"x": 1}}},
+        {"name": "Day", "settings": {"overlay_bg_darken": 10, "overlay_name_mode": "number"}},
+    ]
+    result = settings_backup.import_settings({"overlay_presets": presets})
+    stored = result["settings"]["overlay_presets"]
+    assert [p["name"] for p in stored] == ["Night", "Day"]
+    night = stored[0]["settings"]
+    assert night == {"overlay_glow": True, "overlay_glow_color": "#112233", "overlay_font_scale": 120}
+    assert stored[1]["settings"] == {"overlay_bg_darken": 10, "overlay_name_mode": "number"}
+
+
+def test_overlay_presets_reject_bad_shapes(isolated_home):
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_presets": {"not": "a list"}})
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_presets": [{"settings": {}}]})         # no name
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_presets": [{"name": "x" * 41, "settings": {}}]})  # name too long
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_presets": [{"name": "A", "settings": "nope"}]})   # settings not an object
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_presets": [{"name": "A", "settings": {}},
+                                                             {"name": "a", "settings": {}}]})       # duplicate name
+
+
+def test_overlay_presets_reject_bad_setting_values(isolated_home):
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_presets": [
+            {"name": "A", "settings": {"overlay_glow_color": "not-a-color"}}]})
