@@ -1654,6 +1654,20 @@ const OVERLAY_VISUAL_KEYS=["overlay_text_colors","overlay_glow","overlay_glow_co
 const BUNDLED_PRESETS={
   "Default (gold)":{overlay_text_colors:{rate:"#000000",total:"#000000",name:"#eceae3",header:"#e8cf8e",target:"#cdd6e6",hp:"#e58f8f",ttk:"#8fb3d0"},overlay_glow:false,overlay_glow_color:"#e8cf8e",overlay_hp_color:"#e05a5a",overlay_ttk_color:"#8fb3d0",overlay_text_outline:false,overlay_outline_color:"#000000",overlay_font_family:"",overlay_font_scale:100,overlay_font_weight:600,overlay_bg_opacity:100,overlay_bg_zoom:100,overlay_bg_darken:20,overlay_name_mode:"name",overlay_long_names_scroll:false,combat_colors:{}},
   "Bold & large":{overlay_font_family:"Segoe UI",overlay_font_scale:130,overlay_font_weight:800,overlay_glow:true,overlay_glow_color:"#000000"},
+  "High contrast":{overlay_text_colors:{rate:"#ffffff",total:"#ffffff",name:"#ffffff",header:"#ffd54a",target:"#ffffff",hp:"#ff6b6b",ttk:"#7fd0ff"},overlay_glow:false,overlay_glow_color:"#000000",overlay_hp_color:"#ff5a5a",overlay_ttk_color:"#7fd0ff",overlay_text_outline:true,overlay_outline_color:"#000000",overlay_font_family:"",overlay_font_scale:106,overlay_font_weight:700,overlay_bg_opacity:100,overlay_bg_zoom:100,overlay_bg_darken:50,overlay_name_mode:"name",overlay_long_names_scroll:false,combat_colors:{}},
+  "Neon":{overlay_text_colors:{rate:"#06121a",total:"#9ad8ff",name:"#39ff14",header:"#ff2fe6",target:"#00e5ff",hp:"#ff2d55",ttk:"#00e5ff"},overlay_glow:true,overlay_glow_color:"#00e5ff",overlay_hp_color:"#ff2d55",overlay_ttk_color:"#39ff14",overlay_text_outline:false,overlay_outline_color:"#000000",overlay_font_family:"Consolas",overlay_font_scale:104,overlay_font_weight:700,overlay_bg_opacity:100,overlay_bg_zoom:100,overlay_bg_darken:40,overlay_name_mode:"name",overlay_long_names_scroll:false,combat_colors:{}},
+  "Minimal":{overlay_text_colors:{rate:"#0a0a0a",total:"#0a0a0a",name:"#c8ccd4",header:"#9aa3b5",target:"#aeb6c6",hp:"#c89a9a",ttk:"#9ab3c6"},overlay_glow:false,overlay_glow_color:"#000000",overlay_hp_color:"#b06a6a",overlay_ttk_color:"#7f97aa",overlay_text_outline:false,overlay_outline_color:"#000000",overlay_font_family:"",overlay_font_scale:92,overlay_font_weight:400,overlay_bg_opacity:84,overlay_bg_zoom:100,overlay_bg_darken:14,overlay_name_mode:"name",overlay_long_names_scroll:false,combat_colors:{}},
+  "Midnight blue":{overlay_text_colors:{rate:"#0a0f1a",total:"#0a0f1a",name:"#cfe0ff",header:"#6fa8ff",target:"#a9c4ff",hp:"#ff8fb0",ttk:"#7fe0ff"},overlay_glow:true,overlay_glow_color:"#2b63c7",overlay_hp_color:"#ff6a9a",overlay_ttk_color:"#6fd0ff",overlay_text_outline:false,overlay_outline_color:"#000000",overlay_font_family:"",overlay_font_scale:100,overlay_font_weight:600,overlay_bg_opacity:100,overlay_bg_zoom:100,overlay_bg_darken:32,overlay_name_mode:"name",overlay_long_names_scroll:false,combat_colors:{}},
+  "Ember":{overlay_text_colors:{rate:"#140804",total:"#140804",name:"#ffd9b0",header:"#ff9a3c",target:"#ffc08a",hp:"#ff6a3c",ttk:"#ffd27f"},overlay_glow:true,overlay_glow_color:"#ff6a1a",overlay_hp_color:"#ff5a2a",overlay_ttk_color:"#ffbf5a",overlay_text_outline:false,overlay_outline_color:"#000000",overlay_font_family:"",overlay_font_scale:100,overlay_font_weight:700,overlay_bg_opacity:100,overlay_bg_zoom:100,overlay_bg_darken:36,overlay_name_mode:"name",overlay_long_names_scroll:false,combat_colors:{}},
+};
+const BUNDLED_PRESET_DESC={
+  "Default (gold)":"The classic look — gold header, light names, black numbers on class-coloured bars.",
+  "Bold & large":"Bigger, heavy Segoe UI with a dark glow for readability at a glance (layers onto your current colours).",
+  "High contrast":"White text with a black outline on a darkened card — maximum readability over any scene.",
+  "Neon":"Vivid cyan/green/magenta with a glow and a monospace font — a bright arcade look.",
+  "Minimal":"Muted greys, thin weight, slightly smaller and more transparent — unobtrusive.",
+  "Midnight blue":"Cool blue palette with a soft blue glow.",
+  "Ember":"Warm reds and oranges with a fiery glow.",
 };
 function overlayPresetOptions(ui){
   const saved=Array.isArray(ui.overlay_presets)?ui.overlay_presets:[];
@@ -1728,6 +1742,10 @@ async function pageSettings() {
   };
   if(ui.combat_colors)localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));
   A2CombatReview.settings($("#class-colors"),pref=>api("/api/ui",{combat_colors:pref}));
+  $('#ov-preset').onchange=()=>{
+    const sel=$('#ov-preset').value,msg=$('#ov-preset-msg');
+    if(sel.slice(0,1)==='b'){msg.textContent=BUNDLED_PRESET_DESC[sel.slice(3)]||'';}else{msg.textContent='Your saved preset.';}
+  };
   $('#ov-preset-apply').onclick=async()=>{
     const sel=$('#ov-preset').value;if(!sel)return;
     const kind=sel.slice(0,1),name=sel.slice(3);

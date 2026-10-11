@@ -2,10 +2,37 @@
 settings, and import validates types and ignores unknown or tampered keys so a
 foreign file can never inject arbitrary state."""
 import json
+import re
+from pathlib import Path
 
 import pytest
 
 from aion2calc.app import settings_backup
+
+_APP_JS = Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static" / "app.js"
+
+
+def _extract_bundled_presets() -> dict:
+    """Pull the BUNDLED_PRESETS object literal out of app.js and parse it as JSON.
+    The literal uses bare identifier keys and simple string/number/bool/{} values,
+    so quoting the identifier keys yields valid JSON."""
+    text = _APP_JS.read_text(encoding="utf-8")
+    start = text.index("const BUNDLED_PRESETS=") + len("const BUNDLED_PRESETS=")
+    depth, i = 0, start
+    while i < len(text):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                i += 1
+                break
+        i += 1
+    literal = text[start:i]
+    # Quote bare identifier keys (already-quoted string keys like "Default (gold)" are left alone).
+    literal = re.sub(r'([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:', r'\1"\2":', literal)
+    literal = re.sub(r',(\s*[}\]])', r'\1', literal)  # drop JS trailing commas for JSON
+    return json.loads(literal)
 
 
 @pytest.fixture
@@ -115,6 +142,19 @@ def test_overlay_text_colors_accepts_target_line_elements(isolated_home):
         settings_backup.import_settings({"overlay_text_colors": {"bogus": "#000000"}})
     with pytest.raises(ValueError):
         settings_backup.import_settings({"overlay_text_colors": {"target": "not-a-hex"}})
+
+
+def test_bundled_overlay_presets_are_all_valid(isolated_home):
+    # Every shipped starter theme must pass the same validation as a user preset:
+    # only recognised visual keys, every value well-typed. Catches a typo'd hex or
+    # a stray key before it reaches users.
+    presets = _extract_bundled_presets()
+    assert set(presets) >= {"Default (gold)", "High contrast", "Neon", "Minimal",
+                            "Midnight blue", "Ember"}
+    for name, settings in presets.items():
+        cleaned = settings_backup.clean_presets([{"name": name, "settings": settings}])[0]["settings"]
+        # No key was dropped -> every key in the preset is a recognised visual key.
+        assert set(cleaned) == set(settings), f"{name} carries an unrecognised visual key"
 
 
 def test_overlay_text_outline_round_trips_and_validates(isolated_home):

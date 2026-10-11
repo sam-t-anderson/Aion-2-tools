@@ -1,3 +1,7 @@
+## Five new overlay starter themes (0.2.167)
+
+- The overlay look presets (Settings → Overlay look presets) now ship **seven starter themes** instead of two. New: **High contrast** (white text + black outline on a darkened card, for readability over any scene), **Neon** (vivid cyan/green/magenta with a glow and a monospace font), **Minimal** (muted greys, thin and slightly transparent), **Midnight blue** and **Ember**. Each is a complete look — colours (including the new target/HP/TTK text and bars), glow, outline, font and background sliders — applied in one click. Picking a theme in the dropdown now shows a short description of it. Your own saved presets and per-class bar colours are unaffected.
+
 ## Overlay: color pickers for the target-line readouts (0.2.166)
 
 - Settings → Overlay colors & fonts now has color pickers for the **target line** too: **Target text**, **Enemy-HP text** and **TTK text**, alongside the existing rate/total/name/header pickers. So you can recolor the current-target readout to taste (or for contrast over a background photo), not just the damage numbers. Each defaults to its current look and, like the other overlay colors, rides the settings backup/restore file and the overlay look presets.
