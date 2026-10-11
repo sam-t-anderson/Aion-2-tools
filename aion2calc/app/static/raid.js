@@ -275,7 +275,7 @@
         const original=owner();
         const r = await io.publish(p, vis, original);
         if(r.edit_token || original){saveOwner({...original,id:r.id || original?.id,edit_token:r.edit_token || original?.edit_token,revision:r.revision,server:original?.server || io.server(),url:r.url},localId);if(st.id===localId)render();}
-        if (st.id===localId && $("#rpubmsg",st.root)) { const msg=$("#rpubmsg",st.root); msg.innerHTML = `Published (${vis}): <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a> `;
+        if (st.id===localId && $("#rpubmsg",st.root)) { const msg=$("#rpubmsg",st.root); const safeUrl=/^https?:\/\//i.test(r.url||"")?r.url:"#"; msg.innerHTML = `Published (${vis}): <a href="${esc(safeUrl)}" target="_blank" rel="noopener">${esc(safeUrl)}</a> `;
           const c = document.createElement("button"); c.className = "btn small"; c.textContent = "Copy link"; c.onclick = () => copyText(r.url); msg.appendChild(c); }
       } catch (e) { if (msg) msg.textContent = e.message; }
       finally { button.disabled = false; }

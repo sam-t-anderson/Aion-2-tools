@@ -15,10 +15,32 @@ window.A2 = (function () {
   let resolved = null;            // the base URL we settled on
   let triedLive = false;          // have we already consulted the live default this session?
 
+  // Parse the URL and test the real host, so a string that merely *contains*
+  // "trycloudflare.com" elsewhere (path, query, a look-alike host) is not mistaken
+  // for the retired quick-tunnel endpoint.
+  function isRetired(u) {
+    try {
+      const h = new URL(u).hostname.toLowerCase();
+      return h === RETIRED_QUICK_TUNNEL || h.endsWith("." + RETIRED_QUICK_TUNNEL);
+    } catch (e) { return false; }
+  }
+  // A share-server base is used only if it is a well-formed http(s) URL; anything
+  // else (javascript:, data:, garbage) resolves to no server rather than a fetch.
+  // Return the reparsed origin+path so every request is built from a validated URL.
+  function validBase(u) {
+    const c = clean(u);
+    if (!c) return "";
+    try {
+      const x = new URL(c);
+      if (x.protocol !== "https:" && x.protocol !== "http:") return "";
+      return clean(x.origin + x.pathname);
+    } catch (e) { return ""; }
+  }
+
   function saved() {
     try {
       const s = JSON.parse(localStorage.getItem(LS) || "null");
-      if (s && (s.url || "").toLowerCase().includes(RETIRED_QUICK_TUNNEL)) { localStorage.removeItem(LS); return null; }
+      if (s && isRetired(s.url || "")) { localStorage.removeItem(LS); return null; }
       if (s && (s.url || s.key)) return s;
     } catch (e) { /* ignore */ }
     return null;
@@ -35,19 +57,19 @@ window.A2 = (function () {
     triedLive = true;
     try {
       const r = await fetch(LIVE_DEFAULT_URL, { cache: "no-store" });
-      if (r.ok) { const j = await r.json(); return (j.url || "").toLowerCase().includes(RETIRED_QUICK_TUNNEL) ? "" : clean(j.url || ""); }
+      if (r.ok) { const j = await r.json(); return isRetired(j.url || "") ? "" : validBase(j.url || ""); }
     } catch (e) { /* offline or blocked: nothing to add */ }
     return "";
   }
 
   async function ensureBase() {
     if (resolved) return resolved;
-    resolved = clean(cfg().url);
+    resolved = validBase(cfg().url);
     if (!resolved && !triedLive) resolved = await liveDefault();
     return resolved;
   }
 
-  function base() { return resolved || clean(cfg().url); }
+  function base() { return resolved || validBase(cfg().url); }
 
   async function api(path) {
     let b = await ensureBase();

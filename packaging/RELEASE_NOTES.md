@@ -1,3 +1,16 @@
+## Security hardening: code-scanning fixes (0.2.146)
+
+Addressed the repository's CodeQL code-scanning findings, verified by running the same default query suite (remote threat model) locally. No user-facing behavior changes; these are security hardening and defensive validation.
+
+- **Path traversal (path-injection):** added realpath + commonpath containment (`aion2calc/paths.within`) and single-segment name validation (`safe_component`), applied to session-log file access, bundled class/hit-profile loading, and static-file serving, so a request-controlled name can no longer escape its intended directory.
+- **SSRF (upload management):** the request to manage a shared upload is now built from the server selected in Settings, never from the host carried in a (possibly imported) credential row, so a crafted ownership backup cannot redirect the request (e.g. to a cloud metadata endpoint).
+- **HTTP response splitting:** `_send` now accepts only a well-formed MIME token for `Content-Type`, so a request-derived filename/URL suffix cannot inject CR/LF into a response header.
+- **Incomplete HTML filtering:** the scraper's `<script>` stripping is now case-insensitive and tolerates whitespace/junk in the end tag.
+- **Public site / app JavaScript:** download and release links from the GitHub API are accepted only when they are `http(s)` URLs; the share-server address is validated as an `http(s)` URL and the retired quick-tunnel host is matched by parsed hostname (not a substring); the interactive-map id is constrained to the known set; the publish link is validated before display.
+- Added `tests/test_path_safety.py`.
+
+Some findings are intentionally retained as documented, non-exploitable cases: localhost-only, user-initiated "point at my own local file/folder" features (loading a replay file, a custom decoder, or scanning a chosen game-install folder), and requests to the share server the user themselves configured. These cannot be constrained to a fixed allow-list without removing the feature, and are gated to `127.0.0.1`.
+
 ## Community health files, accessibility statement and dependency automation (0.2.145)
 
 Repository/project documentation only — no app change.

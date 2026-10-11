@@ -62,11 +62,16 @@ def forget(server, log_id):
 def request(row, action, visibility=None):
     from .share import effective
     row = clean(row)
-    if row["server"] != str(effective().get("url") or "").rstrip("/"):
+    # The destination is the server the user selected in Settings, never the host
+    # carried in the (possibly imported) credential row: build the request URL from
+    # the configured base so a crafted ownership backup cannot redirect the request
+    # (e.g. to a cloud metadata endpoint). The row only identifies which upload.
+    configured = str(effective().get("url") or "").rstrip("/")
+    if not configured or row["server"] != configured:
         raise ValueError("Select this upload's original server in Settings before managing it")
     if action not in ("refresh","open","visibility","rotate","delete"):
         raise ValueError("Unknown upload management action")
-    target = row["server"] + "/api/v1/logs/" + row["id"]
+    target = configured + "/api/v1/logs/" + row["id"]
     headers = {"X-Log-Token":row["delete_token"],"User-Agent":"aion2calc"}
     body = None
     method = "GET"

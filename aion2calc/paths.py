@@ -104,6 +104,33 @@ def user_data() -> Path:
     return home() / "data"
 
 
+def safe_component(name: str) -> str:
+    """Return ``name`` only if it is a single path segment with no directory part.
+
+    Rejects empty names, ``.``/``..``, embedded ``/`` or ``\\`` separators and NUL
+    bytes, so a value that reaches a filesystem join cannot traverse out of its
+    intended directory. Use it on any file/segment name that originates outside the
+    program (request fields, imported documents, stored identifiers)."""
+    if not isinstance(name, str) or not name or name in (".", "..") or "\x00" in name:
+        raise ValueError("Invalid file name")
+    if "/" in name or "\\" in name or os.path.basename(name) != name:
+        raise ValueError("Invalid file name")
+    return name
+
+
+def within(base, *parts) -> Path:
+    """Resolve ``base``/``parts`` and confirm the result stays inside ``base``.
+
+    Uses realpath + commonpath containment so symlinks and ``..`` segments cannot
+    escape ``base``; raises :class:`ValueError` otherwise. This is the barrier that
+    makes a user-influenced path safe before it is read or written."""
+    base_real = os.path.realpath(os.fspath(base))
+    candidate = os.path.realpath(os.path.join(base_real, *[os.fspath(p) for p in parts]))
+    if candidate != base_real and os.path.commonpath([base_real, candidate]) != base_real:
+        raise ValueError("Resolved path escapes its base directory")
+    return Path(candidate)
+
+
 def data_file(*parts: str) -> Path:
     """User overlay copy if present, else the bundled file."""
     if bundled_model_data_enabled() and _model_parts(parts):

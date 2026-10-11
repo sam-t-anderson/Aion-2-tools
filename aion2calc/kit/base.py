@@ -54,12 +54,14 @@ def valid_base_stats(rows, level_cap=45) -> bool:
 
 @lru_cache(maxsize=None)
 def _load_class(cls: str, bundled: bool) -> dict:
-    from ..paths import PKG_DATA, read_json
-    raw = (json.loads((PKG_DATA / "global" / "classes" / f"{cls}.json").read_text(encoding="utf-8"))
-           if bundled else read_json("global", "classes", f"{cls}.json"))
+    from ..paths import PKG_DATA, read_json, safe_component, within
+    name = safe_component(f"{cls}.json")   # reject path traversal in the class name
+    bundled_classes = PKG_DATA / "global" / "classes"
+    raw = (json.loads(within(bundled_classes, name).read_text(encoding="utf-8"))
+           if bundled else read_json("global", "classes", name))
     if not valid_base_stats(raw.get("base_stats"), raw.get("level_cap", 45)):
         # Recover already-synced empty tables without deleting the user's data.
-        fallback = json.loads((PKG_DATA / "global" / "classes" / f"{cls}.json").read_text(encoding="utf-8"))
+        fallback = json.loads(within(bundled_classes, name).read_text(encoding="utf-8"))
         if not valid_base_stats(fallback.get("base_stats"), raw.get("level_cap", 45)):
             raise ValueError(f"Base stats unavailable for {cls}; no complete bundled table covers this level cap")
         raw = {**raw, "base_stats": fallback["base_stats"], "base_stats_source": "bundled fallback"}
@@ -68,8 +70,9 @@ def _load_class(cls: str, bundled: bool) -> dict:
 
 @lru_cache(maxsize=None)
 def _load_hit_profiles(cls: str, bundled: bool) -> dict:
-    from ..paths import PKG_DATA, data_file
-    p = PKG_DATA / "kr" / "hit_profiles" / f"{cls}.json" if bundled else data_file("kr", "hit_profiles", f"{cls}.json")
+    from ..paths import PKG_DATA, data_file, safe_component, within
+    name = safe_component(f"{cls}.json")   # reject path traversal in the class name
+    p = within(PKG_DATA / "kr" / "hit_profiles", name) if bundled else data_file("kr", "hit_profiles", name)
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
 
 

@@ -6,13 +6,14 @@ import threading
 from collections import OrderedDict
 from pathlib import Path
 
-from ..paths import logs_dir
+from ..paths import logs_dir, within
 
 
 def path(name: str) -> Path:
     if not name.startswith("session-") or not name.endswith(".a2log.json") or Path(name).name != name:
         raise ValueError("Invalid session filename")
-    return logs_dir() / name
+    # Containment barrier: the resolved file must stay inside the logs folder.
+    return within(logs_dir(), name)
 
 
 def save(doc: dict, name: str) -> Path:

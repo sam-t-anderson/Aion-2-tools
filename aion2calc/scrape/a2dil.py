@@ -35,7 +35,7 @@ def record(rec_id: str) -> dict:
         sp = re.search(r'aria-label="특화 ([^"]*)"', row)
         if sid:
             specs[sid.group(1)] = sp.group(1) if sp else ""
-    txt = htmllib.unescape(re.sub(r"<[^>]+>", "\n", re.sub(r"<script.*?</script>", "", h, flags=re.S)))
+    txt = htmllib.unescape(re.sub(r"<[^>]+>", "\n", re.sub(r"<script\b.*?</script\b[^>]*>", "", h, flags=re.S | re.I)))
     header = {}
     for key in ["타수", "치명", "강타", "완벽", "다단", "DPS", "전방", "후방"]:
         mm = re.search(r"\n" + key + r"\n\s*([\d.,%]+)", txt)
