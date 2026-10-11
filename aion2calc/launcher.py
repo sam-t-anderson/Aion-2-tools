@@ -229,12 +229,55 @@ def main(argv=None) -> int:
                 status = update.auto_update(httpd.shutdown)
                 print("update:", status)
             threading.Thread(target=updater, daemon=True).start()
+        url = f"http://127.0.0.1:{port}/"
+        def open_app_window():
+            proc = open_window(url, prefer_app)
+            if proc is not None:
+                server.APP_WINDOW["process"] = proc
+            return proc
+        from .app import tray as tray_mod
+        # "Collapse to tray": closing the window keeps the app (and meter/overlay)
+        # running behind a tray icon instead of quitting. Only when a tray backend
+        # is actually available; otherwise the normal window-stops-the-app path runs.
+        collapse = bool(server.ui_settings().get("tray_on_close")) and tray_mod.available()
+        if collapse:
+            # pystray's macOS backend must own the main thread, so the HTTP server
+            # moves to a worker and the tray blocks here until the user picks Quit.
+            srv_thread = threading.Thread(
+                target=lambda: server.serve(open_browser=False, sync=not args.no_sync, httpd=httpd),
+                daemon=True, name="desktop-server")
+            srv_thread.start()
+            if not args.no_browser:
+                threading.Timer(0.8, open_app_window).start()
+            icon = tray_mod.Tray(on_open=open_app_window, on_quit=server.schedule_shutdown)
+            if icon.run():
+                # Tray "Quit" was chosen (schedule_shutdown is already tearing down):
+                # make sure capture and the separate overlay process are down too,
+                # since the process exits below before that worker may finish.
+                try:
+                    from .app import overlay_launch
+                    from .app.meter_runner import runner
+                    runner().stop()
+                    overlay_launch.close()
+                except Exception:
+                    pass
+                srv_thread.join(timeout=5)
+            else:
+                # No tray backend could start: fall back to the normal lifetime —
+                # the window, Settings > Quit and idle all still stop the app.
+                if not args.no_browser and _frozen():
+                    watch(server.APP_WINDOW.get("process"), httpd.shutdown)
+                srv_thread.join()
+            if _frozen():
+                for stream in (sys.stdout, sys.stderr):
+                    if stream:
+                        stream.flush()
+                os._exit(0)
+            return 0
         if not args.no_browser:
             def show():
                 time.sleep(0.8)
-                proc = open_window(f"http://127.0.0.1:{port}/", prefer_app)
-                if proc is not None:
-                    server.APP_WINDOW["process"] = proc
+                proc = open_app_window()
                 if _frozen():                     # the installed app stops with its window
                     watch(proc, httpd.shutdown)
             threading.Thread(target=show, daemon=True).start()

@@ -20,6 +20,7 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovmetrics button.on { border-color: #e8cf8e; background: #493e25; }
 .ovmetrics button:focus-visible { outline: 2px solid #e8cf8e; outline-offset: 1px; }
 .ovidentity { color: #e8cf8e; font-size: 10px; margin: 3px 0 6px; cursor: default; }
+.ovidentity.ok { color: #8fd0a0; }
 .ovrow { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: center; padding: 2px 0; }
 .ovname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ovactor { display: block; color: #c8d0e2; font-size: 9px; font-weight: 400; }

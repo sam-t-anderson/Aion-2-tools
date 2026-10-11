@@ -87,8 +87,12 @@
     const duration=metric==="dps"?snap.duration:snap.recorded_duration;
     $("#ovstatus").textContent = `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
     const identity=snap.identity_status, missing=players.length>0&&identity&&(!identity.self_identified||identity.unnamed_actors>0), repeated=visible.some(duplicate);
-    $("#ovidentity").hidden=!missing&&!repeated;
-    $("#ovidentity").textContent=[missing?`${identity.self_identified?"Self identified":"Self identity not received"} · ${identity.unnamed_actors} unnamed actors · ${identity.linked_pets} linked pets. Grouping needs recorded owner links.`:'',repeated?'Matching names have separate combat actor IDs; names alone do not establish shared identity or ownership.':''].filter(Boolean).join(' ');
+    // A zone load (tele/port/revive/instance) reassigns your actor id; show the
+    // re-acquired identity so a brief "not received" gap is visibly recovered.
+    const selfName=identity&&identity.local_name;
+    $("#ovidentity").hidden=!missing&&!repeated&&!selfName;
+    $("#ovidentity").classList.toggle("ok",!missing&&!repeated&&!!selfName);
+    $("#ovidentity").textContent=[missing?`${identity.self_identified?"Self identified":"Self identity not received"} · ${identity.unnamed_actors} unnamed actors · ${identity.linked_pets} linked pets. Grouping needs recorded owner links.`:(selfName?`You: ${selfName}`:''),repeated?'Matching names have separate combat actor IDs; names alone do not establish shared identity or ownership.':''].filter(Boolean).join(' ');
     if(s.error) $("#ovstatus").textContent='Capture stopped: '+s.error;
     if(meterUnavailable) $("#ovstatus").textContent='Refresh failed · retrying';
     $("#ovstatus").title=$("#ovstatus").textContent;

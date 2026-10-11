@@ -26,6 +26,21 @@ if sys.platform == "win32":
         except Exception as err:
             print(f"aion2calc.spec: skipping {pkg} ({err})")
 
+# Bundle pystray (+ its platform backend) so "collapse to tray" works with no extra
+# install. Guarded: a missing package never fails the build; the app then keeps the
+# default "closing the window stops the app" behaviour instead.
+for pkg in ("pystray",):
+    try:
+        d, b, h = collect_all(pkg)
+        datas += d
+        binaries += b
+        hiddenimports += h
+    except Exception as err:
+        print(f"aion2calc.spec: skipping {pkg} ({err})")
+# pystray imports its backend lazily by platform; name them so PyInstaller keeps one.
+hiddenimports += {"win32": ["pystray._win32"], "darwin": ["pystray._darwin"]}.get(
+    sys.platform, ["pystray._xorg", "pystray._appindicator", "pystray._gtk"])
+
 # Bundle the in-process HiGHS solver (highspy) on every platform so the packaged app never falls back
 # to CBC's external subprocess, which hangs in the windowed build at the Daevanion solve.
 try:

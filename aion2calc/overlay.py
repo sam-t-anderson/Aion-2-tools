@@ -173,9 +173,40 @@ class _OverlayAPI:
             self._window.resize(*size)
 
 
-def _run_overlay(window, api) -> None:
+def _watch_parent(app_base: str, closed: threading.Event, window) -> None:
+    """Close the overlay once the app that launched it is gone.
+
+    The overlay is a separate process; if the main window is closed, the app is
+    quit, or its process is killed outright, the normal teardown that terminates
+    this process can be missed and a stale meter would otherwise stay pinned on
+    top forever. Polling the app keeps the overlay's lifetime tied to the app on
+    every platform, independent of process-termination signals.
+    """
+    import urllib.request
+
+    status = f"{app_base.rstrip('/')}/api/status"
+    misses = 0
+    while not closed.wait(2.0):
+        try:
+            with urllib.request.urlopen(status, timeout=2) as response:
+                response.read(1)
+            misses = 0
+        except Exception:
+            misses += 1
+            if misses >= 6:                 # ~12s unreachable: the app is gone, not just busy
+                try:
+                    window.destroy()
+                except Exception:
+                    pass
+                return
+
+
+def _run_overlay(window, api, app_base: str | None = None) -> None:
     closed = threading.Event()
     window.events.closed += closed.set
+    if app_base:
+        threading.Thread(target=_watch_parent, args=(app_base, closed, window),
+                         daemon=True, name="overlay-parent-watch").start()
     # pywebview starts this worker before constructing its native window.
     if not window.events.shown.wait(30):
         _LOG.error("Overlay native window did not initialize")
@@ -242,6 +273,9 @@ def main(argv=None) -> int:
     ap.add_argument("--height", type=int, default=120)
     a = ap.parse_args(argv)
     url = a.url or _default_url()
+    # The overlay URL is the app's own /overlay page; its base is the app to watch.
+    _normalized = url.rstrip("/")
+    app_base = _normalized[: -len("/overlay")] if _normalized.endswith("/overlay") else None
     try:
         import webview
     except Exception:
@@ -257,7 +291,7 @@ def main(argv=None) -> int:
                                        width=a.width, height=a.height, min_size=(260, 70),
                                        resizable=False, js_api=api)
         api._window = window
-        webview.start(_run_overlay, args=(window, api),
+        webview.start(_run_overlay, args=(window, api, app_base),
                       gui="edgechromium" if sys.platform == "win32" else None)
     except Exception as err:
         print(f"Could not open the overlay ({type(err).__name__}: {err}); using the browser instead.")

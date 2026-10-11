@@ -44,6 +44,7 @@ class CombatSession:
         result.runs[self.run].pop("started_at", None)
         result._boss_attempt = copy.deepcopy(self._boss_attempt)
         result.wipe_splits = self.wipe_splits
+        result._zone_reset_seen = False  # A continuation part never captured the run's entry.
         return result
 
     def __init__(self):
@@ -63,8 +64,9 @@ class CombatSession:
         self._dead = set()
         self.sequence = 0
         self.run = 1
-        self.runs = {1: {"complete":False, "recording_token":uuid.uuid4().hex, "origin_sequence":1}}
+        self.runs = {1: {"complete":False, "recording_token":uuid.uuid4().hex, "origin_sequence":1, "open_epoch":0}}
         self.run_closed = False
+        self._zone_reset_seen = False
         self.final_boss_ids = set()
         self.auto_finish = True
         self._context = None
@@ -150,7 +152,7 @@ class CombatSession:
 
     def _next_run(self):
         self.run += 1
-        self.runs[self.run] = {"complete":False, "recording_token":uuid.uuid4().hex, "origin_sequence":self.sequence+1}
+        self.runs[self.run] = {"complete":False, "recording_token":uuid.uuid4().hex, "origin_sequence":self.sequence+1, "open_epoch":self.epoch}
         if self._pending_run_start is not None:
             self.runs[self.run].update(start_observed=True, started_at=self._pending_run_start)
             self._pending_run_start = None
@@ -164,12 +166,15 @@ class CombatSession:
         self._context = None
         self.epoch += 1
         self._zone_reset = None
+        self._zone_reset_seen = False
         self._pending_run_start = None
         if not self.run_closed:
-            self.runs[self.run].update(start_observed=False)
+            self.runs[self.run].update(start_observed=False, open_epoch=self.epoch)
 
     def observe(self, engine, events, timestamp_ms=None):
         context = (engine.map_id, engine.dungeon_id)
+        local_id = engine.local_player_id
+        has_damage = any(isinstance(e, DamageEvent) for e in events)
         if self._context is not None:
             from .a2parser.engine import OPEN_WORLD_MAPS
             old_map, old_instance = self._context
@@ -192,16 +197,45 @@ class CombatSession:
                     else:
                         self.runs[self.run].update(start_observed=True, started_at=observed)
         self._context = context
+        # A genuine zone load reassigns the local player's actor id. When the open
+        # run already recorded combat and a zone reset since then reloaded the
+        # player under a different id, they left and re-entered a zone (re-run, port,
+        # revive into a new instance): close the run so the next damage opens a fresh
+        # one. An in-instance phase teleport keeps the same actor id (and a late
+        # identity resolves within the same epoch), so a mechanic that only pauses
+        # DPS never resets the live view (see 0.2.121); the epoch gate requires a
+        # real zone reset, not merely a first identification, before splitting.
+        if (not self.run_closed and has_damage and local_id is not None
+                and local_id != self.runs[self.run].get("local_id")
+                and self.epoch != self.runs[self.run].get("open_epoch")
+                and any(r.run == self.run for r in self.records)):
+            self.finish_run("zone_reentry", complete=False)
         if self.run_closed and any(isinstance(e,DamageEvent) and
                 (self.runs[self.run].get("end_reason") != "configured_final_boss_death"
                  or (self.epoch,e.target_id) not in self._dead
                  or engine.last_zone_reset_ms != self._zone_reset) for e in events):
             self._next_run()
         if not self.run_closed:
-            self.runs[self.run].update(map_id=engine.map_id, instance_id=engine.dungeon_id)
+            run = self.runs[self.run]
+            run.update(map_id=engine.map_id, instance_id=engine.dungeon_id)
+            if has_damage and local_id is not None and run.get("local_id") is None:
+                # Bind the run to the identity its combat is recorded under, not to
+                # an identity packet that merely arrived before the next zone's
+                # first damage (which belongs to the next run, not this one).
+                run["local_id"] = local_id
+            if has_damage and self._zone_reset_seen and not run.get("start_observed"):
+                # This run's combat began after a zone load we captured, so its
+                # instance entry was observed; the capture did not join mid-run.
+                observed = timestamp_ms
+                if observed is None:
+                    observed = max((e.timestamp_ms for e in events if isinstance(e, DamageEvent)), default=None)
+                run["start_observed"] = True
+                if observed is not None and run.get("started_at") is None:
+                    run["started_at"] = observed
         if engine.last_zone_reset_ms != self._zone_reset:
             if self._zone_reset is not None or engine.last_zone_reset_ms is not None:
                 self.epoch += 1
+                self._zone_reset_seen = True
             self._zone_reset = engine.last_zone_reset_ms
         identity = self.identities.setdefault(self.epoch, {"names": {}, "spawns": {}, "jobs": {}, "local_id": None, "roster": {}, "owners": {}})
         identity["player_ids"] = set(engine.known_players)
@@ -598,11 +632,18 @@ class CombatSession:
         epochs = {g["epoch"] for g in chosen}
         actors = {(g["epoch"], actor) for g in chosen for r in g["records"]
                   for actor in (r.event.actor_id, r.event.target_id) if actor in allowed_for(r)}
+        current_epoch = chosen[-1]["epoch"] if chosen else None
+        local_id = self.identities[current_epoch]["local_id"] if current_epoch is not None else None
         summary["identity_status"] = {
             "self_identified": bool(epochs) and all(self.identities[e]["local_id"] is not None for e in epochs),
             "unnamed_actors": sum(actor not in self.identities[e]["names"] for e, actor in actors
                                   if actor not in self.identities[e]["owners"]),
             "linked_pets": sum(actor in self.identities[e]["owners"] for e, actor in actors),
+            # The current run's local player, re-acquired after each zone load
+            # (tele/port/revive/instance reassigns the actor id), so the overlay can
+            # confirm who it is tracking once identity is picked up again.
+            "local_id": local_id,
+            "local_name": self.name(current_epoch, local_id) if local_id is not None else None,
         }
         summary["paused"] = bool(chosen and time.time() * 1000 - chosen[-1]["last_damage"] >= 2000)
         summary["recorded_pvp"] = bool(chosen and chosen[-1]["pvp"])

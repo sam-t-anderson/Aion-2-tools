@@ -1655,6 +1655,7 @@ async function pageSettings() {
   app().innerHTML = win("Settings", "", `
     <div class="setrow"><div class="lbl">Theme</div><div><div class="seg">${THEMES.map((x) => `<button data-th="${x}" class="${x === t ? "on" : ""}">${{ system: "Follow computer", light: "Light", dark: "Dark" }[x]}</button>`).join("")}</div></div></div>
     <div class="setrow"><div class="lbl">Open as its own window</div><div><label><input type="checkbox" id="appwin" ${ui.app_window !== false ? "checked" : ""}> start in a separate app window (Edge or Chrome) instead of a browser tab; closing it stops the app</label></div></div>
+    <div class="setrow"><div class="lbl">Collapse to tray</div><div><label><input type="checkbox" id="trayclose" ${ui.tray_on_close ? "checked" : ""}> keep running in the system tray when the window is closed (Windows, macOS, Linux); Quit from the tray icon. Takes effect on next launch.</label></div></div>
     <div class="setrow"><div class="lbl">Your data</div><div><code>${esc(s.home)}</code> <button class="btn small" data-open="data">Open folder</button> <button class="btn small" data-open="logs">Combat logs</button> <button class="btn small" data-open="results">Advice &amp; results</button></div></div>
     <div class="setrow"><div class="lbl">Log server</div><div class="row"><input id="surl" type="text" placeholder="${srv.is_default && srv.url ? esc(srv.url) + " (default)" : "https://logs.example.com"}" value="${srv.is_default ? "" : esc(srv.url || "")}" style="width:280px">
       <input id="skey" type="password" placeholder="${srv.has_key ? "key saved" : "upload key (optional)"}" style="width:200px">
@@ -1693,6 +1694,7 @@ async function pageSettings() {
     catch(e) { control.checked=!selected; toast('Could not save overlay preference: '+e.message); }
   };
   $("#appwin").onchange = () => api("/api/ui", { app_window: $("#appwin").checked }).then(() => toast("Saved"));
+  $("#trayclose").onchange = () => api("/api/ui", { tray_on_close: $("#trayclose").checked }).then(() => toast("Saved · applies on next launch"));
   $("#autoupd").onchange = () => api("/api/ui", { auto_update: $("#autoupd").checked }).then(() => toast("Saved"));
   if ($("#instupd")) $("#instupd").onclick = async () => {
     $("#instupd").disabled = true;

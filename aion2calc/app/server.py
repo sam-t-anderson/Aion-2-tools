@@ -806,6 +806,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(r.clear_session())
             if action == "stop":
                 r.stop()
+                # Stopping capture tears down the live view, so the transparent
+                # overlay has nothing left to show: close it with the meter.
+                from .overlay_launch import close as close_overlay
+                close_overlay()
                 return self._json(r.status())
             if action == "diagnostics-folder":
                 if self.client_address[0] not in ("127.0.0.1", "::1"):
@@ -860,7 +864,9 @@ class Handler(BaseHTTPRequestHandler):
                                for value in colors.values())):
                     raise ValueError("Overlay text colors must be six-digit hex colors for rate and total")
                 cur["overlay_text_colors"] = {k:v.lower() for k,v in colors.items()}
-            cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update", "combat_colors")})
+            if "tray_on_close" in body and type(body["tray_on_close"]) is not bool:
+                raise ValueError("Collapse to tray must be true or false")
+            cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update", "combat_colors", "tray_on_close")})
             write_user_json(cur, "ui.json")
             return self._json(cur)
         if path == "/api/update":                 # manual "Install update now" (localhost only)
@@ -962,7 +968,7 @@ def schedule_shutdown() -> None:
 
 def ui_settings() -> dict:
     from ..paths import data_file, read_json
-    defaults = {"app_window": True, "auto_update": True, "overlay_on_start": True}
+    defaults = {"app_window": True, "auto_update": True, "overlay_on_start": True, "tray_on_close": False}
     return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}
 
 
