@@ -1,3 +1,11 @@
+## Overlay bar styles: gradient, rounded, class-coloured names (0.2.168)
+
+- New overlay **bar styling** (Settings → Overlay layout):
+  - **Bar style: Flat or Gradient** — gradient fills shade each player's class-coloured bar from the class colour toward a darker edge, for a richer look (flat is the default, unchanged).
+  - **Rounded bar corners** — makes the DPS/HPS bars pill-shaped.
+  - **Colour player names by class** — tints each row's name with that player's class colour (like many mature meters), instead of the single name colour.
+- All three default off/flat, apply to the live overlay within ~10 seconds, and ride the settings backup and your saved look presets.
+
 ## Five new overlay starter themes (0.2.167)
 
 - The overlay look presets (Settings → Overlay look presets) now ship **seven starter themes** instead of two. New: **High contrast** (white text + black outline on a darkened card, for readability over any scene), **Neon** (vivid cyan/green/magenta with a glow and a monospace font), **Minimal** (muted greys, thin and slightly transparent), **Midnight blue** and **Ember**. Each is a complete look — colours (including the new target/HP/TTK text and bars), glow, outline, font and background sliders — applied in one click. Picking a theme in the dropdown now shows a short description of it. Your own saved presets and per-class bar colours are unaffected.

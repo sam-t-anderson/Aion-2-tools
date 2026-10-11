@@ -23,7 +23,8 @@ _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close",
               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
-              "overlay_always_visible", "overlay_remember_position", "overlay_text_outline")
+              "overlay_always_visible", "overlay_remember_position", "overlay_text_outline",
+              "overlay_bar_rounded", "overlay_class_color_names")
 
 # key -> (min, max) for whole-number settings.
 _INT_KEYS = {"meter_reset_delay": (1, 120), "meter_max_records": (1, 500),
@@ -80,6 +81,10 @@ def _clean(data: dict) -> dict:
         elif key == "overlay_name_mode":
             if value not in ("name", "class_number", "number"):
                 raise ValueError("overlay_name_mode must be name, class_number or number")
+            clean[key] = value
+        elif key == "overlay_bar_style":
+            if value not in ("flat", "gradient"):
+                raise ValueError("overlay_bar_style must be flat or gradient")
             clean[key] = value
         elif key == "combat_colors":
             if not (isinstance(value, dict) and all(isinstance(k, str) and _is_hex(v) for k, v in value.items())):

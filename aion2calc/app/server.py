@@ -911,6 +911,10 @@ class Handler(BaseHTTPRequestHandler):
                 if body["overlay_name_mode"] not in ("name", "class_number", "number"):
                     raise ValueError("overlay_name_mode must be name, class_number or number")
                 cur["overlay_name_mode"] = body["overlay_name_mode"]
+            if "overlay_bar_style" in body:
+                if body["overlay_bar_style"] not in ("flat", "gradient"):
+                    raise ValueError("overlay_bar_style must be flat or gradient")
+                cur["overlay_bar_style"] = body["overlay_bar_style"]
             _ui_bool_flags = ("tray_on_close", "overlay_show_contribution", "overlay_show_target",
                               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
                               "meter_reset_after_battle", "meter_show_dummy_parse", "overlay_show_combat_power",
@@ -919,7 +923,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
                               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
                               "overlay_always_visible", "overlay_remember_position",
-                              "overlay_text_outline")
+                              "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1077,6 +1081,7 @@ def ui_settings() -> dict:
                 "overlay_glow": False, "overlay_glow_color": "#e8cf8e", "overlay_hp_color": "#e05a5a",
                 "overlay_ttk_color": "#8fb3d0",
                 "overlay_text_outline": False, "overlay_outline_color": "#000000",
+                "overlay_bar_style": "flat", "overlay_bar_rounded": False, "overlay_class_color_names": False,
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
                 "meter_save_records": True, "overlay_name_mode": "name",

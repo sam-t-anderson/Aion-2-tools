@@ -157,6 +157,19 @@ def test_bundled_overlay_presets_are_all_valid(isolated_home):
         assert set(cleaned) == set(settings), f"{name} carries an unrecognised visual key"
 
 
+def test_overlay_bar_style_settings_round_trip_and_validate(isolated_home):
+    s = settings_backup.import_settings({"overlay_bar_style": "gradient",
+                                         "overlay_bar_rounded": True,
+                                         "overlay_class_color_names": True})["settings"]
+    assert s["overlay_bar_style"] == "gradient"
+    assert s["overlay_bar_rounded"] is True and s["overlay_class_color_names"] is True
+    assert settings_backup.import_settings({"overlay_bar_style": "flat"})["settings"]["overlay_bar_style"] == "flat"
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_bar_style": "stripes"})
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_bar_rounded": "yes"})
+
+
 def test_overlay_text_outline_round_trips_and_validates(isolated_home):
     # The text-outline toggle (bool) and its colour both ride the backup.
     s = settings_backup.import_settings({"overlay_text_outline": True,
