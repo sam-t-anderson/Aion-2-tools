@@ -61,9 +61,30 @@ def decode_spec_flags(raw_skill_id: int) -> tuple[bool, bool, bool, bool, bool]:
     return tuple(flags)
 
 
+@lru_cache(maxsize=1)
+def _npc_overrides() -> dict:
+    """Verified local corrections to the upstream NPC catalog (boss/role flags),
+    kept outside the generated tables so a catalog refresh does not re-introduce
+    a fixed error. Keyed by mob code string; each value's fields merge over the
+    catalog record (e.g. ``isBoss`` false for an NPC that is a miniboss, not the
+    encounter's boss)."""
+    resource = files(__package__).joinpath("data", "npc_role_overrides.json")
+    try:
+        doc = json.loads(resource.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ModuleNotFoundError, ValueError):
+        return {}
+    overrides = doc.get("overrides") if isinstance(doc, dict) else None
+    return overrides if isinstance(overrides, dict) else {}
+
+
 def npc_info(mob_code: int, locale: str = "en") -> dict:
     info = _table("npcs", locale).get(str(mob_code), {})
     if not isinstance(info, dict):
+        info = {}
+    override = _npc_overrides().get(str(mob_code))
+    if isinstance(override, dict):
+        info = {**info, **{k: v for k, v in override.items() if k not in ("source", "note")}}
+    if not info:
         return {}
     portrait = _table("npc-portraits", "en").get(str(mob_code), {})
     return {**info, "icon": portrait["icon"]} if portrait.get("icon") else info

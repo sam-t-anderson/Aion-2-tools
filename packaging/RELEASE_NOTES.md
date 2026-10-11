@@ -1,3 +1,8 @@
+## Shining Mau Totem is a miniboss, and a verified NPC-role override layer (0.2.132)
+
+- Shining Mau Totem was being treated as an encounter boss; it is a miniboss and no longer headlines a fight as the boss. Added a verified local NPC-role override layer (`meter/a2parser/data/npc_role_overrides.json`, applied in `npc_info`) so corrections to the upstream catalog's boss/role flags survive a catalog refresh, and recording the intended major/miniboss/world-boss role that the catalog itself does not yet carry.
+- Captured a large live-meter & overlay quality-of-life workstream in the roadmap (`docs/COMBAT_ROADMAP.md` §8): the reported capture/overlay bugs with their root causes (several need a current-build diagnostic capture to fix without guessing), plus the full visual/settings/combat-info/notifications/backup vision and a long-term RivaTuner Statistics Server item. No behavior change from the roadmap entry itself.
+
 ## Manual install path and Live Meter as the first tab (0.2.131)
 
 - Add a game install folder by hand when auto-detection misses your copy: **Settings → Add install folder manually** (or `install-version --add-path "<folder>"`). The folder is accepted only when it actually looks like an AION 2 install (it contains `AION2.exe` or the shipped `Content\Paks`), then it is stored, selected and behaves exactly like a detected install for capture and version signals; remove it with the same control or `--remove-path`. This covers PURPLE and any other copy whose Windows registration is missing.

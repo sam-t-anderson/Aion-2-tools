@@ -99,6 +99,44 @@ The seven requested workstreams have delivered their implementation checkpoints.
 - Add further feeds only after confirming their official source, API/RSS availability and reuse constraints. Do not embed arbitrary article HTML or invent summaries/images absent from a supported feed.
 - Supply the remaining NPC ID-to-image mappings. The catalog has portrait art for 1,321 of 9,780 NPCs; `python -m aion2calc npc-evidence` now ranks the observed NPC type IDs with no bundled portrait by how often uploads hit them, so art is sourced for the NPCs players actually encounter first. Skill/item icon URLs are derived from IDs and checked at runtime by the asset-health report; only art genuinely absent from a supported source is reported, never invented.
 
+## 8. Live meter & overlay quality of life
+
+A large quality-of-life pass to bring the live meter and overlay toward the depth of mature community meters (e.g. NotMeter), while keeping every displayed number sourced from real packets — no invented values.
+
+**Open bugs (reported, reproduced on the live build):**
+- **Every run shows "partial capture" even when started from the beginning.** Root cause: the scope falls back to "all" (and instance runs stay `partial`) when the **local player identity / instance-entry** is not established, which depends on the self/zone-transition opcodes being decoded. Needs a current-build diagnostic capture to fix the decoder rather than loosen the heuristic (loosening would mislabel genuinely partial captures). Tied to workstream 1's protocol-variant work and the pending diagnostic capture.
+- **Overlay resets mid-encounter, and on alt-tab / when the game minimizes.** The overlay only polls `/api/meter?view=latest`; it never clears itself on focus/visibility, so the reset is **server-side meter state** restarting a run/epoch on a transient capture gap or a re-detected identity. The 0.2.121 epoch-rejoin fix addressed one trigger; this is a different one and needs a capture that reproduces it to pin the exact event before changing the live capture path.
+- **Stop → start again captures only incomplete information.** Runner/session state is not fully re-initialised on restart (identity/run bootstrap). Needs the same diagnostic capture to confirm which state carries over.
+- **Shining Mau Totem registered as a boss.** Fixed: it is a miniboss. Added a verified local NPC-role override layer (`meter/a2parser/data/npc_role_overrides.json`, applied in `npc_info`) so the correction survives a catalog refresh; this also seeds the major/miniboss/world-boss role distinction workstream 2 still needs.
+- **Overlay outlives the app.** The overlay window should close when the meter is stopped and when the main app exits (today a "closing" signal exists but not on every path), and the app should offer **collapse-to-taskbar/tray** on Windows/macOS/Linux with a Settings toggle.
+
+**Overlay visual settings & layout (reorganise Settings into tabs: Layout · Display fields · Colors & fonts · Background):**
+- Meter length, party-member row height, expand-upwards toggle, number of players to show, auto-expand the overlay when more players are captured (off by default), snap/attach to the monitor edge (on by default), resize by dragging corners (off by default).
+- Show meter only during combat (off by default); a separate Party-DPS overlay (off by default) that shares the visual settings but shows non-redundant information.
+- Per-element font family, size, weight and color pickers for **every** text element; color pickers for every non-text element; font glow/halo/retroreflection/color-cycling/palette-shift effects; a user-chosen overlay background photo with zoom, visibility and darken sliders.
+- Long-name scrolling animation; show either nickname / class + party number (assume and enumerate the number when names collide) or hide names and show party number only.
+
+**Combat information on the overlay:**
+- Current enemy HP (current and max), remaining-HP bar drawn over the max-HP bar, HP % remaining toggle, color settings for enemy HP.
+- Most-recent target the user hit, with others' DPS to that specific enemy and a toggle (estimate the current target by what the user is hitting most; show multiple names when undecidable).
+- Estimated time-to-kill (TTK, off by default, optional extra bar) from current DPS; estimated time-to-enrage/frenzy (needs verified enrage timers per boss — data-gated).
+- Player combat power; FPS counter (off by default, beside ping); rank indicator (off by default); party-member **death** indicator (row shows "DEAD" until new info); the user's **contribution** to the encounter (on by default).
+- Re-acquire identity after teleport / revive / entering an instance (already partly done) and **show that state on the overlay** ("Detecting character — teleport or revive to detect").
+- Live millisecond DPS ticking: between packets, interpolate the number up/down toward the packet-backed value for a "live" feel; still starts/stops per encounter as today; a Settings toggle and a refresh-rate (ms) control so users on weaker machines can disable it.
+- Screenshot-the-overlay button that locks it in place and shows a simple saved combat-detail panel.
+
+**Combat records settings:** reset-after-battle, save combat records, save training-dummy record time (all on by default) with a reset-delay slider; a max-combat-records value (text input); a training-dummy record-time value (text input).
+
+**Hotkeys:** configurable keys for open settings, hide/show meter, show/hide combat-assist UI, battle reset, click-through (pass-through) toggle, exit, restart, show/hide party window, show/hide field-boss status, toggle artifact status, screenshot-and-lock.
+
+**Event notifications (on by default, with a toggle):** rifts, Shugo events, battlefield times and field bosses, sourced from the Fera Discord bot's server timers. The user picks a default server in Settings; when set to Automatic (the default) it uses the server detected when Start is pressed. Verify the feed's official source/availability and reuse constraints before shipping, same bar as workstream 6's schedules.
+
+**Settings backup/restore:** export all overlay/meter settings to a file the user can restore or share with others, and import it back.
+
+**Long-term — RivaTuner Statistics Server (RTSS):** draw the meter inside the game via RTSS so the overlay renders in-game rather than as a separate always-on-top window. Investigate RTSS's shared-memory/API, keep it optional and Windows-only, and never ship anything that could resemble game-process injection beyond RTSS's supported overlay API.
+
+**Standing constraint:** every metric stays packet-sourced. TTK, enrage timers, contribution and current-target are computed from real recorded damage/HP or left blank; none are invented, and mechanics-dependent values (enrage windows) stay data-gated behind verified timers.
+
 ## Maintenance, screenshots and assets
 
 **Available:** application-content screenshots include below-fold content without monitor capture; storage inventory and explicit cleanup cover recognized disposable caches; updater helpers self-clean and bounded retention preserves recent logs, releases and active helpers. Saved logs, imports, credentials, results and upload queues are preserved. Asset diagnostics distinguish browser failures, proxy status, official same-region/item-ID references and publisher-specific item namespaces. Pinned catalog audits and profile image re-indexing are available.

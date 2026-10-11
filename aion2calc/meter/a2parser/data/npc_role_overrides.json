@@ -1,0 +1,9 @@
+{
+  "source": "In-game observation by the project owner (Global PURPLE), 2026-10-11.",
+  "note": "Verified local corrections to the upstream NPC catalog's boss/role flags, kept here so a catalog refresh does not re-introduce the error. Each entry's fields merge over the generated record in data/i18n/npcs. isBoss:false means the NPC must not headline an encounter as its boss; role records the intended major/miniboss/world-boss distinction, which the catalog itself does not yet carry.",
+  "overrides": {
+    "2300907": {"name": "Shining Mau Totem", "isBoss": false, "role": "miniboss"},
+    "2310907": {"name": "Shining Mau Totem", "isBoss": false, "role": "miniboss"},
+    "2320907": {"name": "Shining Mau Totem", "isBoss": false, "role": "miniboss"}
+  }
+}
