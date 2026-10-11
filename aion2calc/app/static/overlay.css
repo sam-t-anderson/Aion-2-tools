@@ -40,6 +40,10 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovtarget .ovtlabel { color: #e8cf8e; font-weight: 600; margin-right: 3px; }
 .ovtarget .sub { color: #9aa3b5; }
 .ovtarget .ovhp { color: #e58f8f; font-weight: 600; }
+/* Drawn remaining-over-max enemy HP bar (shown with the enemy-HP readout). */
+.ovhpbar { position: relative; height: 6px; margin: 0 0 5px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; cursor: default; }
+.ovhpbar[hidden] { display: none; }
+.ovhpbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ov-hp-color, #e05a5a); transition: width .2s linear; }
 .ovtarget .ovttk { color: #8fb3d0; font-weight: 600; }
 .ovrow-dead { opacity: 0.55; }
 .ovdead { color: #e5706e; font-weight: 700; margin-left: 4px; font-size: 9px; letter-spacing: 0.5px; }

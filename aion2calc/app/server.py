@@ -886,6 +886,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not _is_hex(body["overlay_glow_color"]):
                     raise ValueError("overlay_glow_color must be a six-digit hex color")
                 cur["overlay_glow_color"] = body["overlay_glow_color"].lower()
+            if "overlay_hp_color" in body:
+                if not _is_hex(body["overlay_hp_color"]):
+                    raise ValueError("overlay_hp_color must be a six-digit hex color")
+                cur["overlay_hp_color"] = body["overlay_hp_color"].lower()
             if "overlay_font_family" in body:
                 fonts = ("", "Segoe UI", "Arial", "Verdana", "Georgia", "Trebuchet MS", "Consolas", "Tahoma")
                 if body["overlay_font_family"] not in fonts:
@@ -1050,7 +1054,7 @@ def ui_settings() -> dict:
                 # Visual group (all inert by default so the overlay looks unchanged until enabled).
                 "overlay_resizable": False, "overlay_snap_edge": False, "overlay_expand_up": False,
                 "overlay_font_scale": 100, "overlay_font_weight": 600, "overlay_font_family": "",
-                "overlay_glow": False, "overlay_glow_color": "#e8cf8e",
+                "overlay_glow": False, "overlay_glow_color": "#e8cf8e", "overlay_hp_color": "#e05a5a",
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
                 "meter_save_records": True, "overlay_name_mode": "name",

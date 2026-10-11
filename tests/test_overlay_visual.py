@@ -66,7 +66,7 @@ def test_visual_settings_round_trip(home):
     result = settings_backup.import_settings({
         "overlay_text_colors": {"name": "#aabbcc", "header": "#112233"},
         "overlay_font_family": "Verdana", "overlay_font_scale": 120, "overlay_font_weight": 700,
-        "overlay_glow": True, "overlay_glow_color": "#ffcc00",
+        "overlay_glow": True, "overlay_glow_color": "#ffcc00", "overlay_hp_color": "#30ff80",
         "overlay_bg_opacity": 60, "overlay_bg_zoom": 150, "overlay_bg_darken": 30,
         "overlay_resizable": True, "overlay_snap_edge": True, "overlay_expand_up": True,
         "overlay_party_enabled": True, "overlay_long_names_scroll": True,
@@ -75,6 +75,7 @@ def test_visual_settings_round_trip(home):
     assert s["overlay_text_colors"] == {"name": "#aabbcc", "header": "#112233"}
     assert s["overlay_font_family"] == "Verdana" and s["overlay_font_scale"] == 120
     assert s["overlay_glow"] is True and s["overlay_glow_color"] == "#ffcc00"
+    assert s["overlay_hp_color"] == "#30ff80"
     assert (s["overlay_bg_opacity"], s["overlay_bg_zoom"], s["overlay_bg_darken"]) == (60, 150, 30)
     assert s["overlay_party_enabled"] is True
 
@@ -96,3 +97,5 @@ def test_visual_settings_reject_bad_values(home):
         settings_backup.import_settings({"overlay_text_colors": {"rate": "red"}})  # not a hex
     with pytest.raises(ValueError):
         settings_backup.import_settings({"overlay_glow_color": "#xyzxyz"})
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_hp_color": "not-a-color"})

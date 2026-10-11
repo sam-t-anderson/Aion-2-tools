@@ -53,6 +53,7 @@
     // Glow (text-shadow)
     const glow=ui.overlay_glow===true, glowColor=/^#[0-9a-f]{6}$/i.test(ui.overlay_glow_color||'')?ui.overlay_glow_color:'#e8cf8e';
     document.documentElement.style.setProperty('--ov-glow',glow?`0 0 4px ${glowColor}, 0 0 8px ${glowColor}`:'none');
+    document.documentElement.style.setProperty('--ov-hp-color',/^#[0-9a-f]{6}$/i.test(ui.overlay_hp_color||'')?ui.overlay_hp_color:'#e05a5a');
     // Long-name scrolling
     document.getElementById('ov').classList.toggle('ov-scroll-names',ui.overlay_long_names_scroll===true);
     // Background photo (opacity 0 = none). The image load errors are swallowed.
@@ -140,7 +141,7 @@
   function renderParty() {
     // The separate Party-DPS overlay: raid-wide aggregates, not per-player rows.
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
-    for(const id of ["#ovmetrics","#ovping","#ovidentity","#ovtarget","#ovcontribution","#ovdummy","#ovconnection"])$(id).hidden=true;
+    for(const id of ["#ovmetrics","#ovping","#ovidentity","#ovtarget","#ovhpbar","#ovcontribution","#ovdummy","#ovconnection"])$(id).hidden=true;
     const totalDps=players.reduce((n,p)=>n+(Number(p.dps)||0),0);
     const totalHps=players.reduce((n,p)=>n+(Number(p.hps)||0),0);
     const totalTaken=players.reduce((n,p)=>n+(Number(p.dtps)||0),0);
@@ -207,6 +208,10 @@
       $("#ovtarget").innerHTML=`<span class="ovtlabel">Target</span> ${esc(target.name)}${hp}${ttk} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}`;
       $("#ovtarget").title=`Most-hit enemy this encounter, its remaining HP and time-to-kill at the party's current DPS, and each contributor's DPS to it`;
     }
+    // Drawn remaining-over-max enemy HP bar, shown with the enemy-HP readout when real HP was captured.
+    const showBar=showT&&showEnemyHp&&target&&target.hp_pct!=null;
+    $("#ovhpbar").hidden=!showBar;
+    if(showBar)$("#ovhpbar").firstElementChild.style.width=Math.max(0,Math.min(100,target.hp_pct*100))+"%";
     // Training-dummy parse: elapsed vs the standard window, your DPS and the total.
     const dummy=snap.dummy_parse;
     const showD=showDummy&&!over&&dummy&&metric==='dps';
@@ -227,14 +232,14 @@
     // then shrinks via fit), so the overlay is unobtrusive between pulls.
     if(onlyInCombat && (!s.running || snap.paused || over)){
       $("#ovcontent").innerHTML='';
-      for(const id of ["#ovmetrics","#ovping","#ovtarget","#ovcontribution","#ovdummy","#ovidentity"])$(id).hidden=true;
+      for(const id of ["#ovmetrics","#ovping","#ovtarget","#ovhpbar","#ovcontribution","#ovdummy","#ovidentity"])$(id).hidden=true;
       $("#ovstatus").textContent=s.running?'Idle · waiting for combat':'Idle';
       $("#ovstatus").title=$("#ovstatus").textContent;
     }
   }
   function renderPlan() {
     $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovidentity").hidden=true;
-    $("#ovtarget").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
+    $("#ovtarget").hidden=true;$("#ovhpbar").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
     $("#ovconnection").hidden=true;
     const p = latestPlan();
     if (!p) {

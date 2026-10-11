@@ -114,7 +114,7 @@ Most of this pass has shipped (0.2.133–0.2.144): run segmentation and the part
 - **Presets for the overlay look** — named, savable presets that capture the overlay's colours, fonts, background (image + sliders) and per-class bar colours together, so a user can switch between whole themes in one click, and export/import or share a preset (building on the settings backup/restore file). Include a few bundled starter presets. **Per-class bar colours** are part of this: today class colours come from the shared `A2CombatReview.color(class)` palette; a preset should let the user override the colour used for each class's bar/row, and those overrides ride the preset.
 
 **Combat information on the overlay:**
-- A drawn remaining-over-max enemy-HP bar and dedicated enemy-HP colour pickers (the HP %/current/max numbers already ship).
+- A drawn remaining-over-max enemy-HP bar and dedicated enemy-HP colour pickers — **done (0.2.148):** the overlay draws the current target's remaining HP as a bar under the target line when the enemy-HP readout is on and real HP was captured, with a dedicated **Enemy HP bar color** picker (Settings → Overlay colors & fonts; `overlay_hp_color`, default `#e05a5a`, in the settings backup file). The HP %/current/max numbers already shipped.
 - The optional separate TTK bar (the TTK number already ships). Estimated time-to-enrage/frenzy still needs verified per-boss enrage timers — data-gated.
 - **Rank indicator** (off by default). Needs server-supplied ranking data; combat power, contribution, the death indicator and the overlay FPS counter already ship.
 - Most-recent-target nuance: show multiple names when the target is genuinely undecidable (the single-target display already ships).

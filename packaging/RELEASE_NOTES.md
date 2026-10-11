@@ -1,3 +1,8 @@
+## Overlay enemy-HP bar (0.2.148)
+
+- The overlay now draws the current target's **remaining HP as a bar** under the target line — a filled bar over the max, so you can read the pull at a glance. It shows only when the enemy-HP readout is enabled (Settings → Live meter overlay) and real HP was captured for that target; it's never guessed.
+- A dedicated **Enemy HP bar color** picker (Settings → Overlay colors & fonts, `overlay_hp_color`, default red) sets the fill colour, and it rides the settings backup/restore file.
+
 ## Overlay & meter fixes: target tracking, open-world capture, resize, background defaults (0.2.147)
 
 Overlay / live-meter fixes and settings:

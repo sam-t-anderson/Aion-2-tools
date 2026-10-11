@@ -59,9 +59,9 @@ def _clean(data: dict) -> dict:
                     and all(_is_hex(v) for v in value.values())):
                 raise ValueError("overlay_text_colors must be six-digit hex colors for rate, total, name or header")
             clean[key] = {k: v.lower() for k, v in value.items()}
-        elif key == "overlay_glow_color":
+        elif key in ("overlay_glow_color", "overlay_hp_color"):
             if not _is_hex(value):
-                raise ValueError("overlay_glow_color must be a six-digit hex color")
+                raise ValueError(f"{key} must be a six-digit hex color")
             clean[key] = value.lower()
         elif key == "overlay_font_family":
             if value not in _FONT_FAMILIES:
