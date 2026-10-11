@@ -1,3 +1,7 @@
+## Your rank on the overlay's "You" line (0.2.180)
+
+- The overlay's **You: <name>** line now shows your **live standing** on the current metric — e.g. **You: Nyx · #2 of 8** — so you can see where you place without scanning the rows. It tracks whichever metric is shown (DPS, HPS or damage taken), uses your re-acquired identity (so it follows you across teleports and instance changes), and only appears once there are at least two players.
+
 ## Three new overlay look presets (0.2.179)
 
 - Three ready-made looks in Settings → Overlay presets, each wiring up the full newer feature set in one click:
