@@ -33,7 +33,7 @@ def save(doc: dict, name: str) -> Path:
     return target
 
 
-def prune_logs(cap_bytes: int, keep=frozenset()) -> dict:
+def prune_logs(cap_bytes: int, keep=frozenset(), evict=None) -> dict:
     """Keep the combat-logs folder under ``cap_bytes`` by deleting the oldest
     ``session-*.a2log.json`` files first, so a very long or busy capture session
     (which can write hundreds of rollover parts) cannot grow the folder without
@@ -41,8 +41,14 @@ def prune_logs(cap_bytes: int, keep=frozenset()) -> dict:
     never removed. Best-effort: returns what it did and never raises.
 
     Oldest-first by modification time means the oldest recordings (and the oldest
-    archive parts, which share a timestamp) go first; newer recordings stay."""
-    result = {"removed": 0, "freed_bytes": 0, "total_bytes": 0, "cap_bytes": int(cap_bytes)}
+    archive parts, which share a timestamp) go first; newer recordings stay.
+
+    ``evict``, when given, is called with each file's :class:`~pathlib.Path` just
+    before it is deleted — a hook used to upload a recording to the share server so
+    its data (boss kills and all) isn't lost when the size cap reclaims it. It must
+    never raise, must not block for long, and never prevents the delete: the cap is
+    honoured whether or not the hook succeeds."""
+    result = {"removed": 0, "freed_bytes": 0, "total_bytes": 0, "cap_bytes": int(cap_bytes), "evicted": 0}
     if cap_bytes is None or cap_bytes <= 0:
         return result
     files = []
@@ -64,6 +70,14 @@ def prune_logs(cap_bytes: int, keep=frozenset()) -> dict:
             break
         if target.name in keep:
             continue
+        if evict is not None:
+            # Upload before deleting, so the recording survives on the server. Best-effort:
+            # a failure here must never keep the folder over its cap.
+            try:
+                if evict(target):
+                    result["evicted"] += 1
+            except Exception:
+                pass
         try:
             target.unlink()
         except OSError:

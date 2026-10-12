@@ -21,6 +21,38 @@ CAPTURE_COUNTERS = ("tcp_discarded_payloads", "tcp_unresolved_flows", *PCAP_FIEL
 DEMO = Path(__file__).resolve().parent.parent / "meter" / "demo_session.jsonl"
 
 
+def upload_evictor():
+    """A callback for :func:`aion2calc.combat.sessions.prune_logs` that uploads each
+    recording to the configured share server right before the size cap deletes it, so a
+    long session's rolled-over parts (and their boss kills) reach the community before
+    they are reclaimed. Returns ``None`` — meaning "just delete" — when the feature is
+    off (``meter_upload_before_prune``, on by default) or no share server is set.
+
+    The returned callable reads the file, uploads it unlisted, and returns whether the
+    upload succeeded; it never raises and is safe to call from the prune loop."""
+    try:
+        from .server import ui_settings
+        if ui_settings().get("meter_upload_before_prune", True) is False:
+            return None
+        from ..combat import share
+        if not str(share.effective().get("url") or "").strip():
+            return None
+    except Exception:
+        return None
+
+    def _evict(target) -> bool:
+        try:
+            import json
+            from ..combat import share
+            doc = json.loads(Path(target).read_text(encoding="utf-8"))
+            share.upload(doc, visibility="unlisted")
+            return True
+        except Exception:
+            return False
+
+    return _evict
+
+
 class Runner:
     def __init__(self) -> None:
         self.meter = Meter()
@@ -529,7 +561,10 @@ class Runner:
                     cap_mb = _srv.ui_settings().get("meter_log_cache_mb", 1024)
                     if isinstance(cap_mb, int) and not isinstance(cap_mb, bool) and cap_mb > 0:
                         from ..combat.sessions import prune_logs
-                        prune_logs(cap_mb * 1024 * 1024, keep={self.session_file})
+                        # Upload recordings about to be reclaimed by the cap first (on by
+                        # default), so a long session's older parts aren't lost before they
+                        # can be shared; the active file is always kept out of the sweep.
+                        prune_logs(cap_mb * 1024 * 1024, keep={self.session_file}, evict=upload_evictor())
             except Exception:
                 pass
 

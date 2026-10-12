@@ -979,7 +979,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
                               "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart")
+                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1213,7 +1213,7 @@ def ui_settings() -> dict:
                 "overlay_color_cycle": False, "overlay_row_stripes": False, "overlay_class_swatch": False, "overlay_compact_rows": False, "overlay_rank_numbers": False, "overlay_highlight_me": False, "overlay_dps_graph": False,
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
-                "meter_save_records": True, "meter_auto_upload": True, "meter_report_boss_kills": True,
+                "meter_save_records": True, "meter_auto_upload": True, "meter_upload_before_prune": True, "meter_report_boss_kills": True,
                 "meter_report_enemy_hp": True, "overlay_plan_autoplay": True,
                 "meter_autostart": True, "meter_log_cache_mb": 1024,
                 "overlay_name_mode": "name",
@@ -1365,7 +1365,8 @@ def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: 
             cap_mb = ui_settings().get("meter_log_cache_mb", 1024)
             if isinstance(cap_mb, int) and not isinstance(cap_mb, bool) and cap_mb > 0:
                 from ..combat.sessions import prune_logs
-                prune_logs(cap_mb * 1024 * 1024)
+                from .meter_runner import upload_evictor
+                prune_logs(cap_mb * 1024 * 1024, evict=upload_evictor())
         except Exception:
             pass
     threading.Timer(2.0, _prune_logs_on_start).start()
