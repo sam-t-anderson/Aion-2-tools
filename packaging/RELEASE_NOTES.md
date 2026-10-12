@@ -1,3 +1,8 @@
+## World comparison reason + open-world boss-kill reporting on by default (0.2.234)
+
+- Combat review's *Matched public comparisons* now says **why** the **World** scope is Unavailable when it is — "no comparable public cohort yet", naming what World matching groups on (the encounter's boss, game version, difficulty and party size), rather than a generic line. This completes the "why a scope is Unavailable" hint started in 0.2.231 (which covered the Server/Region no-profile case).
+- **Report open-world boss kills to the community world-boss feed is now on by default** (opt-out), matching the enemy-HP reporter. Reporting stays anonymous (a per-install key) and a kill is still surfaced only once two distinct installs agree, so no single install's kill is shown alone. Turn it off in Settings → Combat records.
+
 ## Regional event notifications on the overlay (0.2.233)
 
 - The overlay now shows a compact **event strip** — the next rift, Shugo, battlefield and field-boss windows — when one is active or within 15 minutes. On by default, with a toggle in **Settings → Overlay** ("Show regional event notifications").

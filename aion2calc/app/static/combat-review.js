@@ -283,6 +283,8 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         if(!x){
           if((scope==='server'||scope==='region') && entry && 'character_server' in entry && !entry.character_server)
             return `Unavailable — no verified official profile for this character, so its home ${scope} can’t be matched. World still compares globally.`;
+          if(scope==='world')
+            return 'Unavailable — no comparable public cohort yet. World matching groups logs by the encounter’s boss, game version, difficulty and party size; either this recording lacks that metadata or too few public logs share it so far.';
           return 'Unavailable — no eligible matched comparison yet. Check capture quality and encounter metadata above.';
         }
         return `<span title="${esc((x.reasons || []).join(' '))}">${x.rank===null?'Rank unavailable':`#${x.rank} / ${x.count}`}${x.provisional?' (provisional)':''}<br>${x.percentile===null || x.percentile===undefined?'Percentile unavailable':x.percentile.toFixed(1)+' percentile'}${x.public_samples!==undefined?` · ${x.public_samples} public samples · ${x.identities} distinct identities`:''}${x.reasons?.length?'<br>'+esc(x.reasons.join(' ')):''}</span>`;

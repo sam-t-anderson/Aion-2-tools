@@ -52,14 +52,16 @@ def reporter_key() -> str:
 
 
 def enabled(ui: dict | None = None) -> bool:
-    """Opt-in: report only when the user explicitly turned it on (default off)."""
+    """On by default (opt-out): report unless the user explicitly turned it off.
+    Reporting uses an anonymous per-install key and is surfaced only once two
+    distinct installs agree, so a single install's kill is never shown alone."""
     if ui is None:
         try:
             from ..app import server
             ui = server.ui_settings()
         except Exception:
             ui = {}
-    return ui.get("meter_report_boss_kills", False) is True
+    return ui.get("meter_report_boss_kills", True) is not False
 
 
 def _killed_at(seg: dict) -> float | None:

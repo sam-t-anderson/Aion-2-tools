@@ -1213,7 +1213,7 @@ def ui_settings() -> dict:
                 "overlay_color_cycle": False, "overlay_row_stripes": False, "overlay_class_swatch": False, "overlay_compact_rows": False, "overlay_rank_numbers": False, "overlay_highlight_me": False, "overlay_dps_graph": False,
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
-                "meter_save_records": True, "meter_auto_upload": True, "meter_report_boss_kills": False,
+                "meter_save_records": True, "meter_auto_upload": True, "meter_report_boss_kills": True,
                 "meter_report_enemy_hp": True, "overlay_plan_autoplay": True,
                 "meter_autostart": True, "meter_log_cache_mb": 1024,
                 "overlay_name_mode": "name",

@@ -55,10 +55,10 @@ def test_reporter_key_is_stable_opaque_and_matches_server_shape(isolated_home):
     assert key != heartbeat.daily_token()                   # distinct from the heartbeat token
 
 
-def test_enabled_is_opt_in(isolated_home):
-    assert boss_report.enabled({}) is False                 # default off
+def test_enabled_is_opt_out(isolated_home):
+    assert boss_report.enabled({}) is True                  # default on (opt-out)
     assert boss_report.enabled({"meter_report_boss_kills": True}) is True
-    assert boss_report.enabled({"meter_report_boss_kills": False}) is False
+    assert boss_report.enabled({"meter_report_boss_kills": False}) is False   # explicit opt-out
 
 
 def test_defeats_extracts_open_world_kill_with_placement(isolated_home):
