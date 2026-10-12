@@ -1,3 +1,7 @@
+## Roadmap: per-effect split and dedup hardening marked shipped (0.2.236)
+
+- Documentation only: the combat roadmap now records two server-side items as **shipped** — the **per-effect PvE/PvP split** in community rankings (server 0.2.79; a mixed segment counts only its mode-matching damage) and the **anonymized party-signature hardening** of same-defeat grouping (server 0.2.78; different parties killing near-simultaneously stay distinct). No app behavior change in this release.
+
 ## Two more bindable global hotkeys (0.2.235)
 
 - Added two global-hotkey actions you can bind in Settings → Hotkeys: **Show / hide overlay event notifications** (mute/un-mute the new event strip without opening the app) and **Exit Aion 2 Calc**. Both call the same in-process code the UI does. As with the other hotkeys, binding and dispatch are cross-platform but a key actually firing while the game is focused is Windows-only.
