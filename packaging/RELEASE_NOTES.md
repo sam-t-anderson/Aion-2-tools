@@ -1,3 +1,7 @@
+## Upload recordings before the size cap deletes them (0.2.237)
+
+- A new opt-out setting, **Upload a recording to the server before auto-delete reclaims it** (`meter_upload_before_prune`, on by default), under Settings → Combat records. When the logs folder is over its size cap and the oldest recordings are about to be deleted to make room, each is uploaded (unlisted, like the stop/quit auto-upload) **first**, so a long session's older parts — and the boss kills recorded in them — aren't lost before they can be shared. It only acts while auto-delete is on and a share server is set, is best-effort, and never keeps the folder over its cap if an upload fails. Applies to both the in-capture prune (the active recording is still never deleted) and the launch-time prune.
+
 ## Roadmap: per-effect split and dedup hardening marked shipped (0.2.236)
 
 - Documentation only: the combat roadmap now records two server-side items as **shipped** — the **per-effect PvE/PvP split** in community rankings (server 0.2.79; a mixed segment counts only its mode-matching damage) and the **anonymized party-signature hardening** of same-defeat grouping (server 0.2.78; different parties killing near-simultaneously stay distinct). No app behavior change in this release.
