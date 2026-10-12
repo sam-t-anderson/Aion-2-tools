@@ -71,7 +71,7 @@ def test_upload_before_prune_default_on(home):
 
 def test_prune_evicts_doomed_files_but_never_the_kept_one(home):
     a = _write("session-a.a2log.json", 400, mtime=1000)   # oldest -> deleted
-    b = _write("session-b.a2log.json", 400, mtime=2000)   # deleted
+    _write("session-b.a2log.json", 400, mtime=2000)       # deleted
     active = _write("session-active.a2log.json", 400, mtime=3000)
     evicted = []
     result = sessions.prune_logs(500, keep={"session-active.a2log.json"},
