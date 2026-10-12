@@ -14,7 +14,7 @@
   let showGraph=false;
   let graphHist=[], graphDur=-1;   // per-poll party-total samples for the live DPS/HPS sparkline, and the last seen fight duration
   const playerHist=new Map();      // per-player DPS samples (key -> [dps,…]) for the expanded-row trend sparkline
-  let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name", classColorNames=false, classSwatch=false, rankNumbers=false, highlightMe=false;
+  let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name", classColorNames=false, classSwatch=false, rankNumbers=false, highlightMe=false, showCommunityRank=false;
   let copyText="";   // plain-text leaderboard of the current view, for the Copy button
   const expanded=new Set();   // row keys whose per-skill breakdown is expanded (DPS view)
   let interpolate=false, interpolateMs=100, showFps=false, locked=false, userWidth=null, userHeight=null;
@@ -123,6 +123,7 @@
     showTtk=ui.overlay_show_ttk===true;
     showDummy=ui.meter_show_dummy_parse!==false;
     showCombatPower=ui.overlay_show_combat_power!==false;
+    showCommunityRank=ui.overlay_show_community_rank===true;
     nameMode=["name","class_number","number"].includes(ui.overlay_name_mode)?ui.overlay_name_mode:"name";
     interpolate=ui.overlay_dps_interpolate===true;
     interpolateMs=clampInt(ui.overlay_interpolate_ms,50,1000,50);
@@ -455,7 +456,11 @@
     // Your live standing on the current metric, so you know where you place at a glance.
     const meIdx=selfName?ranked.findIndex(p=>String(p.name||'').toLocaleLowerCase()===String(selfName).toLocaleLowerCase()):-1;
     const rankStr=(meIdx>=0&&ranked.length>1)?` · #${meIdx+1} of ${ranked.length}`:'';
-    const selfLine=selfName?`You: ${selfName}${rankStr}${cp?` · CP ${kfmt(identity.local_combat_power)}`:''}`:'';
+    // Community standing for your most recent auto-uploaded fight (off by default).
+    // The app fills snap.community_rank.text after the upload's rankings resolve; until
+    // then there is nothing to show, so the badge stays absent.
+    const crank=(showCommunityRank&&snap.community_rank&&typeof snap.community_rank.text==='string'&&snap.community_rank.text)?` · ${snap.community_rank.text}`:'';
+    const selfLine=selfName?`You: ${selfName}${rankStr}${cp?` · CP ${kfmt(identity.local_combat_power)}`:''}${crank}`:'';
     $("#ovidentity").hidden=!missing&&!repeated&&!selfName;
     $("#ovidentity").classList.toggle("ok",!missing&&!repeated&&!!selfName);
     $("#ovidentity").textContent=[missing?`${identity.self_identified?"Self identified":"Self identity not received — teleport or change instances to refresh it"} · ${identity.unnamed_actors} unnamed actors · ${identity.linked_pets} linked pets. Grouping needs recorded owner links.`:selfLine,repeated?'Matching names have separate combat actor IDs; names alone do not establish shared identity or ownership.':''].filter(Boolean).join(' ');

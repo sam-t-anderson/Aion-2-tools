@@ -1,3 +1,8 @@
+## Groundwork for the community rank indicator (0.2.229)
+
+- Lays the plumbing for an off-by-default overlay badge showing your community standing (e.g. *"World Top 8%"*) for your most recently auto-uploaded fight: a tested helper that reads a log-server rankings payload into a per-player badge (preferring the most specific populated scope — server → region → world), the `overlay_show_community_rank` setting, and the overlay rendering that appends the badge to your identity line when the data is present.
+- The step that fills the badge after an upload is intentionally left for review (see the roadmap's open design questions), so enabling the setting shows nothing yet. No change to the overlay otherwise.
+
 ## Richer overlay text: per-element fonts, halo and retroreflection (0.2.228)
 
 - **Per-element fonts.** Each labelled overlay text element — the rate (DPS/HPS), total·percent, player name, header, target line, target HP/TTK, target label, also-targets "+N", ping line and identity line — can now take its own **font family, size and weight**, each falling back to the global overlay font when left on Inherit/Auto. Pick an element in Settings → Overlay and set just that one.

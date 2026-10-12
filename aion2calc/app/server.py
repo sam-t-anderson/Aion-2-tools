@@ -963,7 +963,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
                               "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart")
+                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1179,7 +1179,7 @@ def ui_settings() -> dict:
                 "overlay_show_deaths": True, "overlay_show_enemy_hp": False, "overlay_show_ttk": False,
                 "meter_reset_after_battle": False, "meter_reset_delay": 5, "meter_max_records": 20,
                 "meter_show_dummy_parse": True, "meter_dummy_record_seconds": 60,
-                "overlay_show_combat_power": True,
+                "overlay_show_combat_power": True, "overlay_show_community_rank": False,
                 "overlay_max_players": 8, "overlay_width": 340, "overlay_height": 0, "overlay_row_height": 22,
                 "overlay_only_in_combat": False, "overlay_auto_expand": False,
                 # Visual group (all inert by default so the overlay looks unchanged until enabled).
