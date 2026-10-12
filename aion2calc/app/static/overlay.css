@@ -56,10 +56,10 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovmetrics button { padding: 3px 7px; border: 1px solid #b9984f55; border-radius: 4px; background: #1c2438; }
 .ovmetrics button.on { border-color: #e8cf8e; background: #493e25; }
 .ovmetrics button:focus-visible { outline: 2px solid #e8cf8e; outline-offset: 1px; }
-.ovidentity { color: #e8cf8e; font-size: 10px; margin: 3px 0 6px; cursor: default; }
+.ovidentity { color: var(--ov-identity-color, #e8cf8e); font-size: 10px; margin: 3px 0 6px; cursor: default; }
 .ovidentity.ok { color: #8fd0a0; }
 .ovtarget { color: var(--ov-target-color, #cdd6e6); font-size: 11px; margin: 2px 0 5px; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ovtarget .ovtlabel { color: #e8cf8e; font-weight: 600; margin-right: 3px; }
+.ovtarget .ovtlabel { color: var(--ov-label-color, #e8cf8e); font-weight: 600; margin-right: 3px; }
 .ovtarget .sub { color: #9aa3b5; }
 .ovtarget .ovhp { color: var(--ov-hp-text-color, #e58f8f); font-weight: 600; }
 /* Drawn remaining-over-max enemy HP bar (shown with the enemy-HP readout). */
@@ -67,7 +67,7 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovhpbar[hidden] { display: none; }
 .ovhpbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ov-hp-color, #e05a5a); transition: width .2s linear; }
 .ovtarget .ovttk { color: var(--ov-ttk-text-color, #8fb3d0); font-weight: 600; }
-.ovtarget .ovalso { color: #c9a86a; font-weight: 600; font-size: .92em; }
+.ovtarget .ovalso { color: var(--ov-also-color, #c9a86a); font-weight: 600; font-size: .92em; }
 /* Drawn time-to-kill progress bar (shown with the TTK readout). Thinner than the
    HP bar so the two read as distinct. */
 .ovttkbar { position: relative; height: 4px; margin: 0 0 5px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; cursor: default; }
@@ -78,7 +78,7 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovcontribution { color: #8fd0a0; font-size: 11px; margin: 5px 0 1px; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ovdummy { color: #cdd6e6; font-size: 11px; margin: 2px 0 5px; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ovdummy.ok { color: #8fd0a0; }
-.ovdummy .ovtlabel { color: #e8cf8e; font-weight: 600; margin-right: 3px; }
+.ovdummy .ovtlabel { color: var(--ov-label-color, #e8cf8e); font-weight: 600; margin-right: 3px; }
 .ovdummy[hidden] { display: none; }
 /* Live DPS/HPS sparkline (Settings → Overlay layout). Each point is a real
    per-poll reading of the party total; the line stretches to the card width. */
@@ -162,7 +162,7 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 #ovretry { margin: 2px; border: 1px solid #b9984f66; border-radius: 4px;
   background: #1c2438; color: #e9e6df; cursor: pointer; }
 
-.ovping{font-size:10px;color:#9aa3b5;line-height:1.5;margin:4px 0 6px;white-space:normal;overflow-wrap:anywhere;cursor:default}
+.ovping{font-size:10px;color:var(--ov-ping-color, #9aa3b5);line-height:1.5;margin:4px 0 6px;white-space:normal;overflow-wrap:anywhere;cursor:default}
 
 /* Drag-to-resize grips (shown only when the resize setting is on). The frameless
    window auto-fits the card, so resizing drives the card width/height and the

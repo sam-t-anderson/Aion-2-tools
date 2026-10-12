@@ -138,6 +138,12 @@ def test_overlay_text_colors_accepts_target_line_elements(isolated_home):
     s = settings_backup.import_settings({"overlay_text_colors":
                                          {"target": "#CDd6E6", "hp": "#E58F8F", "ttk": "#8FB3D0"}})["settings"]
     assert s["overlay_text_colors"] == {"target": "#cdd6e6", "hp": "#e58f8f", "ttk": "#8fb3d0"}
+    # ...and the secondary text elements (labels, also-targets +N, ping, identity).
+    s2 = settings_backup.import_settings({"overlay_text_colors":
+                                          {"label": "#E8CF8E", "also": "#C9A86A", "ping": "#9AA3B5",
+                                           "identity": "#8FD0A0"}})["settings"]
+    assert s2["overlay_text_colors"] == {"label": "#e8cf8e", "also": "#c9a86a", "ping": "#9aa3b5",
+                                         "identity": "#8fd0a0"}
     with pytest.raises(ValueError):
         settings_backup.import_settings({"overlay_text_colors": {"bogus": "#000000"}})
     with pytest.raises(ValueError):

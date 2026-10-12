@@ -53,6 +53,9 @@
     for(const key of ['name','header']){const c=ui.overlay_text_colors?.[key];document.documentElement.style.setProperty(`--ov-${key}-color`,/^#[0-9a-f]{6}$/i.test(c||'')?c:'');}
     // Target-line readout colors: target text, enemy-HP text, TTK text (blank = CSS default).
     for(const [key,cssvar] of [['target','--ov-target-color'],['hp','--ov-hp-text-color'],['ttk','--ov-ttk-text-color']]){const c=ui.overlay_text_colors?.[key];document.documentElement.style.setProperty(cssvar,/^#[0-9a-f]{6}$/i.test(c||'')?c:'');}
+    // Secondary text colors: the Target/Dummy labels, the also-targets "+N" names,
+    // the ping line and the identity line (blank = CSS default).
+    for(const [key,cssvar] of [['label','--ov-label-color'],['also','--ov-also-color'],['ping','--ov-ping-color'],['identity','--ov-identity-color']]){const c=ui.overlay_text_colors?.[key];document.documentElement.style.setProperty(cssvar,/^#[0-9a-f]{6}$/i.test(c||'')?c:'');}
     // Fonts
     const scale=clampInt(ui.overlay_font_scale,80,160,100), weight=clampInt(ui.overlay_font_weight,400,800,600);
     const fam=typeof ui.overlay_font_family==='string'?ui.overlay_font_family:'';

@@ -886,9 +886,11 @@ class Handler(BaseHTTPRequestHandler):
                 colors = body["overlay_text_colors"]
                 # Any subset of the known overlay text elements, each a six-digit hex.
                 if (not isinstance(colors, dict)
-                        or not set(colors) <= {"rate", "total", "name", "header", "target", "hp", "ttk"}
+                        or not set(colors) <= {"rate", "total", "name", "header", "target", "hp", "ttk",
+                                               "label", "also", "ping", "identity"}
                         or any(not _is_hex(value) for value in colors.values())):
-                    raise ValueError("Overlay text colors must be six-digit hex colors for rate, total, name, header, target, hp or ttk")
+                    raise ValueError("Overlay text colors must be six-digit hex colors for rate, total, name, "
+                                     "header, target, hp, ttk, label, also, ping or identity")
                 cur["overlay_text_colors"] = {k: v.lower() for k, v in colors.items()}
             if "overlay_glow_color" in body:
                 if not _is_hex(body["overlay_glow_color"]):

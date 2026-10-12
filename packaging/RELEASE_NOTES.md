@@ -1,3 +1,7 @@
+## Recolour more of the overlay's text (0.2.225)
+
+- **Colour pickers for the overlay's remaining fixed text.** Settings → Overlay colors & fonts now has pickers for the **"Target"/"Dummy parse" labels**, the **also-targets "+N" names**, the **ping line** and the **identity line** — the last text elements that were stuck on a fixed colour. Each one left at its default keeps today's look, and they ride the settings backup and the overlay look presets alongside the existing colours.
+
 ## Enemy HP learns the true value, without the killing-blow overkill (0.2.224)
 
 - **The community enemy-HP each meter learns is now the enemy's *true* HP, not an inflated one.** When you land the finishing blow, the game records its full hit even though only part of it was needed to kill — so "total damage dealt" overcounts the real HP by that overkill. The meter now reads the enemy's own HP packets to back out the true amount: at the last packet where the enemy was still alive it measures how far its HP% had fallen and scales that to 100%, keeping every point of HP actually removed and dropping only the finisher's overshoot. It falls back to total damage only when no live HP packet was seen. On real fights the correction scales with the enemy: only ~2% on a big boss (one hit is a tiny slice of its HP) up to ~25% on fast-killed trash, and nothing when there was no overkill. Combined with the server's reset, the shared HP values re-gather to accurate numbers.
