@@ -1,3 +1,9 @@
+## Capture your world/server name, and a "retry region detection" button (0.2.242)
+
+- **World/server name is now captured, not just the ID.** The app already resolved your region from your recorded server ID against the official server list; it now also keeps that list's **world name** per server, so recordings carry it (`meta.server_name` and per-player `server_name`). The Live Meter page shows it next to the region and beside your identity (e.g. "server 2102 (Nezekan)"), and the shared combat view shows it beside each player's server ID. It's hotlinked from the official list and omitted cleanly when a server has no published name.
+- **Retry region detection.** Region resolution runs once at launch and can fail if you were offline or the official source was blocked. A **Retry region detection** button now appears on the Live Meter page when that lookup failed; it re-fetches the region and world list immediately (bypassing the cache), and the region/world fill in here when it resolves — no app restart needed. It stays hidden when the lookup succeeded or is still in progress.
+- Because region is derived entirely from the server ID, resolving it here is also what makes the **Region** community-ranking scope available; the recording never needs to carry a region directly.
+
 ## Crafting: proficiency shown as tier + level, correct names and caps (0.2.241)
 
 - **Fixed the proficiency requirement.** A recipe now reads as a **tier plus the level within that tier** instead of a single absolute number. Proficiency runs 50 levels per tier — Novice 1–50, Professional 51–100, Expert 101–150, Master 151–200 — so the *Star Dragon Lord Longsword* (source level 55) now correctly reads **Professional level 5** (55 − 50), not "intermediate mastery 55". The recipe list, the detail header, the "can you craft this" standing and the success-rate line all use this throughout.

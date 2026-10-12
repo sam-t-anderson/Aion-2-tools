@@ -76,7 +76,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       for(const e of Object.values(r))if(e.owner)e.class=r[e.owner]?.class;
       return r;
     };
-    const label=e=>e ? `${e.name || e.id}${e.server ? " · " + e.server : ""}` : "Unknown / not recorded";
+    const label=e=>e ? `${e.name || e.id}${e.server ? " · " + e.server + (e.server_name ? " ("+e.server_name+")" : "") : ""}` : "Unknown / not recorded";
     const character=e=>e && ((doc.players || []).some(p=>p.id===e.id) || e.is_player || e.kind==="player");
     const actorHTML=e=>character(e)?`<button class="btn small" data-character="${esc(e.id)}" style="color:${color(e.class)}">${esc(label(e))}</button>`:esc(label(e));
     function profileHTML() {

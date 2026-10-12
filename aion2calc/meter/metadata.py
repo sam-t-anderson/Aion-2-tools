@@ -410,6 +410,7 @@ class CaptureMetadata:
         self.selected = selected_installation()
         self.build = {"status": "detecting"}
         self.regions = {}
+        self.names = {}            # serverId -> official world/server name, when the source carries it
         self.region_status = "detecting"
         threading.Thread(target=self._collect, daemon=True, name="capture-metadata").start()
 
@@ -423,22 +424,24 @@ class CaptureMetadata:
         with _COLLECTION_LOCK:
             self._collect_regions()
 
-    def _collect_regions(self):
+    def _collect_regions(self, force=False):
         cache = user_data() / "cache" / "capture-server-regions.json"
+        if not force:
+            try:
+                saved = json.loads(cache.read_text(encoding="utf-8"))
+                if (0 <= time.time() - saved["fetched_at"] < 21600
+                        and isinstance(saved["regions"], dict)
+                        and set(saved["regions"]) == set(REGIONS)
+                        and all(isinstance(ids, list) and ids and all(isinstance(sid, str) and sid.isdigit() for sid in ids)
+                                for ids in saved["regions"].values())):
+                    with self.lock:
+                        self.regions, self.region_status = saved["regions"], "ready"
+                        self.names = saved["names"] if isinstance(saved.get("names"), dict) else {}
+                    return
+            except (OSError, ValueError, KeyError, TypeError):
+                pass
         try:
-            saved = json.loads(cache.read_text(encoding="utf-8"))
-            if (0 <= time.time() - saved["fetched_at"] < 21600
-                    and isinstance(saved["regions"], dict)
-                    and set(saved["regions"]) == set(REGIONS)
-                    and all(isinstance(ids, list) and ids and all(isinstance(sid, str) and sid.isdigit() for sid in ids)
-                            for ids in saved["regions"].values())):
-                with self.lock:
-                    self.regions, self.region_status = saved["regions"], "ready"
-                return
-        except (OSError, ValueError, KeyError, TypeError):
-            pass
-        try:
-            regions = {}
+            regions, names = {}, {}
             for region in REGIONS:
                 request = urllib.request.Request("https://aion2.plaync.com/en-us/api/gameinfo/servers?region=" + region,
                                                  headers={"User-Agent": "Mozilla/5.0 Aion2Calc", "Accept": "application/json",
@@ -447,15 +450,28 @@ class CaptureMetadata:
                     rows = json.load(response).get("serverList")
                 if not isinstance(rows, list) or not rows:
                     raise ValueError("Incomplete official server metadata")
-                regions[region] = [str(row["serverId"]) for row in rows if isinstance(row, dict) and str(row.get("serverId", "")).isdigit()]
+                ids = []
+                for row in rows:
+                    if not isinstance(row, dict):
+                        continue
+                    sid = str(row.get("serverId", ""))
+                    if not sid.isdigit():
+                        continue
+                    ids.append(sid)
+                    # The source's human-readable world/server name, when present (key name varies by
+                    # payload version, so try the common spellings and skip quietly if none is given).
+                    name = str(row.get("serverName") or row.get("name") or row.get("worldName") or "").strip()
+                    if name:
+                        names[sid] = name
+                regions[region] = ids
                 if not regions[region]:
                     raise ValueError("No official server IDs")
             with self.lock:
-                self.regions, self.region_status = regions, "ready"
+                self.regions, self.region_status, self.names = regions, "ready", names
             try:
                 cache.parent.mkdir(parents=True, exist_ok=True)
                 temporary = cache.with_suffix(".tmp")
-                temporary.write_text(json.dumps({"fetched_at": time.time(), "regions": regions}), encoding="utf-8")
+                temporary.write_text(json.dumps({"fetched_at": time.time(), "regions": regions, "names": names}), encoding="utf-8")
                 temporary.replace(cache)
             except OSError:
                 pass
@@ -463,11 +479,27 @@ class CaptureMetadata:
             with self.lock:
                 self.region_status = "unavailable"
 
+    def refresh(self):
+        """Re-attempt region and world-name resolution now, ignoring the cache. For the "retry
+        region" action when the first attempt failed at launch (offline or the source blocked).
+        Returns the current snapshot immediately; the fetch runs in the background and the live
+        status reflects it once ready, so the UI can simply re-poll."""
+        with self.lock:
+            self.region_status = "detecting"
+
+        def work():
+            with _COLLECTION_LOCK:
+                self._collect_regions(force=True)
+        threading.Thread(target=work, daemon=True, name="region-refresh").start()
+        return self.snapshot()
+
     def snapshot(self, server=None):
         with self.lock:
             matches = [region for region, servers in self.regions.items() if str(server) in servers]
+            name = self.names.get(str(server)) if server else None
             from .builds import resolve
             region = matches[0] if len(matches) == 1 else None
             return {**self.build, **resolve(self.build), "region": region,
                     "region_status": self.region_status,
-                    "region_source": "Official server metadata + recorded server ID" if len(matches) == 1 else None}
+                    "region_source": "Official server metadata + recorded server ID" if len(matches) == 1 else None,
+                    "server_name": name}

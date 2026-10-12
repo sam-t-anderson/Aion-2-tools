@@ -862,6 +862,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(r.configure_view(body))
             if action == "finish-run":
                 return self._json(r.finish_run())
+            if action == "retry-region":
+                if self.client_address[0] not in ("127.0.0.1", "::1"):
+                    raise PermissionError("Region detection runs only on this computer")
+                return self._json(r.retry_region())
             if action == "split":
                 return self._json(r.split_now())
             if action == "clear":

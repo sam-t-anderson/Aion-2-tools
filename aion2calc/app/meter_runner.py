@@ -840,6 +840,18 @@ class Runner:
             self.capture_metadata = None
         return result
 
+    def retry_region(self):
+        """Re-attempt the official region/world-name lookup now (it runs once at launch and can
+        fail offline or if the source is blocked). Reuses the active capture collector so a live
+        session picks up the result; otherwise makes one so the refreshed cache is ready for the
+        next capture. Returns the metadata snapshot; the fetch completes in the background."""
+        from ..meter.metadata import CaptureMetadata
+        with self.lock:
+            if self.capture_metadata is None:
+                self.capture_metadata = CaptureMetadata()
+            collector = self.capture_metadata
+        return collector.refresh()
+
     def apply_record_settings(self) -> None:
         """Copy the user's combat-records preferences onto the live session so the
         snapshot reflects them. Safe to call while running; defaults hold if the
@@ -965,10 +977,14 @@ class Runner:
                 doc["meta"].update(region=detected["region"], region_source=detected["region_source"])
             elif metadata.get("region"):
                 doc["meta"]["region_source"] = "Manual override"
+            if detected.get("server_name") and not doc["meta"].get("server_name"):
+                doc["meta"]["server_name"] = detected["server_name"]
             for actor in doc.get("players", []):
-                region = collector.snapshot(actor.get("server")).get("region")
-                if region and not actor.get("region"):
-                    actor["region"] = region
+                detected_player = collector.snapshot(actor.get("server"))
+                if detected_player.get("region") and not actor.get("region"):
+                    actor["region"] = detected_player["region"]
+                if detected_player.get("server_name") and not actor.get("server_name"):
+                    actor["server_name"] = detected_player["server_name"]
         for segment in doc.get("segments",[]):
             if (metadata.get("encounter_type") not in (None,"","unknown")
                     and segment.get("encounter_type","").startswith("pvp_") == metadata["encounter_type"].startswith("pvp_")):
