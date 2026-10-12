@@ -87,32 +87,81 @@ def _num(value) -> float | None:
     return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
 
+def _true_hp(timeline: list[tuple[float, float]], samples: list[tuple[float, float, float]]) -> float | None:
+    """Overkill-stripped effective HP for one killed enemy, or None when the HP
+    samples can't support it.
+
+    The total observed damage overcounts true HP by the killing blow's overkill (its
+    full, unclamped damage is recorded, not just the HP that remained). To strip it we
+    use the enemy's own HP packets. At the last packet where the enemy is still ALIVE
+    it is at fraction ``f = current/max`` and we have dealt ``D`` damage, so (seeing all
+    the damage) ``true_HP = D / (1 - f)`` -- the damage over the fraction of HP it
+    removed, in damage units. This keeps every point of HP actually removed and only
+    the finisher's overkill is dropped: we stop before the lethal blow and scale the
+    remaining ``f`` back up, replacing that blow with exactly the HP it needed.
+
+    We anchor on the DEEPEST still-alive sample (smallest positive ``f``): the closer
+    to death, the less we extrapolate and the less an HP-packet error moves the
+    estimate. A ``current == 0`` sample is deliberately NOT used -- the damage summed up
+    to it already includes the lethal blow's overkill, which would defeat the point.
+    Partial visibility makes ``D`` (and so this) an UNDERcount per report -- which is
+    fine: the server anchors on a high percentile across reporters, pushing the
+    community value back up to the true HP.
+
+    ``timeline`` is this enemy's (t, amount) damage events; ``samples`` its
+    (t, current, max) HP packets."""
+    if not timeline or not samples:
+        return None
+    timeline = sorted(timeline)
+    best = None                                   # (fraction, t) of the deepest still-alive sample
+    for t, current, mx in samples:
+        if mx <= 0 or current <= 0 or current >= mx:  # need an alive, below-full packet
+            continue
+        frac = current / mx
+        if best is None or frac < best[0]:
+            best = (frac, t)
+    if best is None:
+        return None
+    frac, t = best
+    dealt = sum(a for et, a in timeline if et <= t + 1e-6)
+    if dealt <= 0:
+        return None
+    return dealt / (1.0 - frac)
+
+
 def _segment_observations(seg: dict, reporter: str, build: str) -> list[dict]:
     """Every killed enemy in one finalised segment, as ready-to-post report bodies.
-    Effective HP is the total *observed* damage the enemy took to die (every damage
-    event, not just our own hits), and we only report enemies that actually died --
-    a live enemy's running total is a meaningless lower bound."""
+    Effective HP is the enemy's true HP in damage units -- the overkill-stripped
+    estimate from its HP packets (see :func:`_true_hp`), falling back to the total
+    observed damage when no usable HP sample exists. We only report enemies that
+    actually died; a live enemy's running total is a meaningless lower bound."""
     entities = {e["id"]: e for e in (seg.get("entities") or []) if isinstance(e, dict) and e.get("id")}
     dead = {ev.get("target") for ev in (seg.get("events") or [])
             if isinstance(ev, dict) and ev.get("kind") == "death"}
     damage: dict[str, float] = {}
+    timeline: dict[str, list] = {}
     for ev in (seg.get("events") or []):
         if not isinstance(ev, dict) or ev.get("kind") != "damage":
             continue
         amount = _num(ev.get("amount"))
         if ev.get("target") is not None and amount and amount > 0:
             damage[ev["target"]] = damage.get(ev["target"], 0.0) + amount
+            timeline.setdefault(ev["target"], []).append((_num(ev.get("t")) or 0.0, amount))
     attackers: dict[str, set] = {}
     for hit in (seg.get("hits") or []):
         if isinstance(hit, dict) and hit.get("target") and hit.get("player"):
             attackers.setdefault(hit["target"], set()).add(hit["player"])
     max_hp: dict[str, float] = {}
+    health_pts: dict[str, list] = {}
     for sample in (seg.get("health") or []):
         if not isinstance(sample, dict):
             continue
-        mx = _num(sample.get("max"))
-        if sample.get("entity") and mx and mx > 0:
-            max_hp[sample["entity"]] = max(max_hp.get(sample["entity"], 0.0), mx)
+        eid, mx, cur = sample.get("entity"), _num(sample.get("max")), _num(sample.get("current"))
+        if not eid or not mx or mx <= 0:
+            continue
+        max_hp[eid] = max(max_hp.get(eid, 0.0), mx)
+        if cur is not None:
+            health_pts.setdefault(eid, []).append((_num(sample.get("t")) or 0.0, cur, mx))
 
     reports = []
     for eid, entity in entities.items():
@@ -127,7 +176,9 @@ def _segment_observations(seg: dict, reporter: str, build: str) -> list[dict]:
             continue
         if not 0 < code < 10 ** 10:
             continue
-        effective = damage.get(eid, 0.0)
+        # Prefer the overkill-stripped true HP; fall back to total observed damage
+        # (overkill-inclusive) only when the HP packets can't support the estimate.
+        effective = _true_hp(timeline.get(eid, []), health_pts.get(eid, [])) or damage.get(eid, 0.0)
         observed = max_hp.get(eid, 0.0)
         if effective <= 0 or observed <= 0:
             continue                       # need both to calibrate the two scales

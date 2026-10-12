@@ -56,9 +56,11 @@ def _doc(**seg):
             {"t": 1.0, "player": "p1", "source": "p1", "target": "e1", "damage": 4000},
             {"t": 2.0, "player": "p2", "source": "p2", "target": "e1", "damage": 2420},
         ],
+        # Full then dead, with no alive mid-HP packet -> the ratio can't be anchored, so
+        # effective_hp falls back to the total observed damage (6420).
         "health": [
             {"t": 0.0, "entity": "e1", "current": 119700, "max": 119700},
-            {"t": 2.0, "entity": "e1", "current": 20000, "max": 119700},
+            {"t": 2.0, "entity": "e1", "current": 0, "max": 119700},
         ],
     }
     base.update(seg)
@@ -88,7 +90,7 @@ def test_extracts_effective_and_observed_hp_for_the_kill(isolated_home):
     assert len(reports) == 1                                 # only the dead enemy, not player/pet
     body = reports[0]
     assert body["npc_id"] == 56968                           # mob_code coerced to int
-    assert body["effective_hp"] == 6420                      # total observed damage it took to die
+    assert body["effective_hp"] == 6420                      # total damage (fallback: no alive mid-HP packet)
     assert body["observed_hp"] == 119700                     # game's raw packet max HP
     assert body["game_build"] == "1.0.21"
     assert body["attackers"] == 2                            # two distinct attackers (party)
@@ -105,6 +107,58 @@ def test_only_confirmed_kills_with_both_scales_qualify(isolated_home):
     doc = _doc(game_patch=None)
     doc["meta"] = {}
     assert hp_report.observations_from_doc(doc) == []
+
+
+def test_true_hp_strips_the_killing_blow_overkill():
+    # Enemy at 10% HP after 900 observed damage; a 500 finisher lands (only 100 needed,
+    # 400 overkill) then it dies. Total damage = 1400, but true HP = 900 / (1 - 0.10) = 1000.
+    timeline = [(1.0, 900.0), (2.5, 500.0)]
+    samples = [(0.0, 1000, 1000), (2.0, 100, 1000)]          # (t, current, max); scales cancel in the ratio
+    assert round(hp_report._true_hp(timeline, samples)) == 1000
+
+
+def test_true_hp_ignores_the_zero_reading_and_uses_the_last_alive_sample():
+    # The current==0 packet is NOT used (its damage sum includes the lethal blow's
+    # overkill). The deepest ALIVE packet (60% after 400 damage) gives 400 / 0.6... no:
+    # 400 removed 40% so true HP = 400 / 0.4 = 1000; the later 600 damage is ignored.
+    timeline = [(1.0, 400.0), (2.0, 600.0)]
+    samples = [(0.0, 500, 500), (1.0, 300, 500), (2.0, 0, 500)]
+    assert hp_report._true_hp(timeline, samples) == 1000.0
+
+
+def test_true_hp_extrapolates_from_a_partial_last_sample():
+    # Deepest packet is 25% remaining after 1500 damage -> true HP = 1500 / 0.75 = 2000.
+    assert hp_report._true_hp([(1.0, 1500.0)], [(1.0, 250, 1000)]) == 2000.0
+
+
+def test_true_hp_is_none_without_usable_samples():
+    assert hp_report._true_hp([(1.0, 500.0)], []) is None            # no HP packets
+    assert hp_report._true_hp([(1.0, 500.0)], [(0.0, 500, 500)]) is None  # only full-HP samples
+    assert hp_report._true_hp([(1.0, 500.0)], [(2.0, 0, 500)]) is None    # only a dead (0 HP) sample
+    assert hp_report._true_hp([], [(1.0, 100, 500)]) is None          # no damage timeline
+
+
+def test_observation_falls_back_to_total_damage_without_max_hp(isolated_home):
+    # No usable packet max -> can't compute the ratio, so effective_hp falls back to the
+    # total observed damage (and the report is skipped anyway when observed_hp is 0).
+    assert hp_report.observations_from_doc(_doc(health=[
+        {"t": 2.0, "entity": "e1", "current": 500, "max": 0}])) == []  # observed_hp 0 -> skipped
+
+
+def test_overkill_is_stripped_end_to_end(isolated_home):
+    # A recorded overkill finisher must not inflate the reported effective HP.
+    reports = hp_report.observations_from_doc(_doc(
+        events=[
+            {"kind": "damage", "t": 1.0, "source": "p1", "target": "e1", "amount": 90000},
+            {"kind": "damage", "t": 2.5, "source": "p1", "target": "e1", "amount": 40000},  # overkill finisher
+            {"kind": "death", "t": 3.0, "target": "e1"},
+        ],
+        health=[
+            {"t": 0.0, "entity": "e1", "current": 119700, "max": 119700},
+            {"t": 2.0, "entity": "e1", "current": 11970, "max": 119700},   # 10% left after 90000 dmg
+        ]))
+    # True HP = 90000 / (1 - 0.10) = 100000, not the 130000 total damage dealt.
+    assert reports[0]["effective_hp"] == 100000.0
 
 
 def test_report_is_opt_out_and_sends_nothing_when_off(isolated_home, monkeypatch):
