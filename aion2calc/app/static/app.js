@@ -1373,7 +1373,7 @@ function renderMeter(s) {
   if (st.lastMeterRender === signature) return;
   st.lastMeterRender = signature;
   const rows = snap.players.map((p, i) => `<div class="pm ${i === st.sel ? "on" : ""}" data-sel="${i}">
-      <div class="nmc"><b>${esc(p.name)}</b> <span class="muted small">${esc(cap(p.class || ""))}</span></div>
+      <div class="nmc"><b>${esc(p.name)}</b>${p.server_name?` <span class="muted small">· ${esc(p.server_name)}</span>`:""} <span class="muted small">${esc(cap(p.class || ""))}</span></div>
       <div class="bar"><i style="width:${100 * p.dps / mx}%"></i><span>${kfmt(p.dps)}/s · ${pct(p.share, 0)}</span></div></div>`).join("");
   const enemyTable = snap.enemies?.length ? win("Enemies", "select an enemy to show each player's damage against it", `<table class="t"><tr><th>Enemy</th><th>Party damage dealt</th><th>Party DPS</th></tr>${snap.enemies.map((enemy) => `<tr class="${enemy.key === snap.selected_enemy ? "sel" : ""}"><td><button class="btn small" data-enemy="${esc(enemy.key)}">${esc(enemy.name)}</button></td><td>${kfmt(enemy.damage)}</td><td>${kfmt(enemy.dps)}</td></tr>`).join("")}</table>`) : "";
   replaceMeterHtml(view, (snap.warning ? `<p class="note">${esc(snap.warning)}</p>` : "") + enemyTable + win("Players", `${esc(snap.boss || "")}${snap.boss ? " · " : ""}${(snap.duration || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)} raid DPS`,
@@ -1865,6 +1865,7 @@ async function pageSettings() {
       <label><input type="checkbox" id="rec-upload-before-prune" ${ui.meter_upload_before_prune !== false?'checked':''}> Upload a recording to the server before auto-delete reclaims it (on by default)</label>
       <p class="small muted" style="margin:2px 0 6px 14px">When the logs folder is over its size cap (above) and a recording is about to be deleted to make room, upload it first so its data — boss kills included — isn't lost. Only matters while auto-delete is on and a share server is set; uploads are unlisted (link-only) like the stop/quit auto-upload.</p>
       <label><input type="checkbox" id="rec-autostart" ${ui.meter_autostart !== false?'checked':''}> Start the meter automatically when the app launches (on by default — it runs in the background and the overlay shows data without pressing Start)</label>
+      <label><input type="checkbox" id="rec-server-name" ${ui.meter_show_server_name === true?'checked':''}> Show each player's server (world) name next to their name on the live meter <span class="muted">(off by default; needs the region/world list — use Retry region detection if it hasn't resolved)</span></label>
       <label><input type="checkbox" id="rec-autoupload" ${ui.meter_auto_upload !== false?'checked':''}> Upload the log to the configured server when you stop the meter or quit the app (on by default)</label>
       <label style="margin-top:4px"><input type="checkbox" id="rec-report-boss" ${ui.meter_report_boss_kills !== false?'checked':''}> Report open-world boss kills to the community world-boss feed <span class="muted">(anonymous per-install; shown only once two installs agree; on by default)</span></label>
       <p class="small muted" style="margin:2px 0 6px 14px">Anonymous and opt-in: sends only the boss, server and kill time (no account, character, log or IP). Two different installs must report the same kill before it shows, so the public world-boss availability feed stays corroborated.</p>
@@ -2223,6 +2224,7 @@ async function pageSettings() {
   $("#rec-logcache").onchange = () => { const v = Math.max(0, Math.min(1048576, Math.round(+$("#rec-logcache").value || 0))); $("#rec-logcache").value = v; api("/api/ui", { meter_log_cache_mb: v }).then(() => { const m = $("#rec-logcache-msg"); if (m) { m.textContent = v ? "Saved · logs kept under " + v + " MB" : "Saved · auto-delete off"; setTimeout(() => { if (m) m.textContent = ""; }, 2500); } }); };
   $("#rec-upload-before-prune").onchange = () => api("/api/ui", { meter_upload_before_prune: $("#rec-upload-before-prune").checked }).then(() => toast("Saved"));
   $("#rec-autostart").onchange = () => api("/api/ui", { meter_autostart: $("#rec-autostart").checked }).then(() => toast("Saved · applies on next launch"));
+  $("#rec-server-name").onchange = () => api("/api/ui", { meter_show_server_name: $("#rec-server-name").checked }).then(() => toast("Saved"));
   $("#rec-autoupload").onchange = () => api("/api/ui", { meter_auto_upload: $("#rec-autoupload").checked }).then(() => toast("Saved"));
   $("#rec-report-boss").onchange = () => api("/api/ui", { meter_report_boss_kills: $("#rec-report-boss").checked }).then(() => toast("Saved"));
   $("#rec-report-enemy-hp").onchange = () => api("/api/ui", { meter_report_enemy_hp: $("#rec-report-enemy-hp").checked }).then(() => toast("Saved"));

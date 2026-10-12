@@ -631,6 +631,14 @@ class CombatSession:
                         row["includes_pets"] = True
                     elif actor_id in identity["owners"]:
                         row["owner"] = str(identity["owners"][actor_id])
+                    if not row.get("server"):
+                        # Carry each player's home server id (from the party roster, or the local
+                        # profile for yourself), so the live view can show the world next to a name.
+                        info = identity["roster"].get(name.casefold(), {})
+                        srv = info.get("serverId") or (identity.get("profile", {}).get("serverId")
+                                                        if actor_id == identity.get("local_id") else None)
+                        if srv:
+                            row["server"] = str(srv)
                     row["key"] = key
                     return row
                 if isinstance(event, HealEvent):

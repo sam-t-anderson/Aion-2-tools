@@ -721,6 +721,18 @@ class Runner:
                     badge = self._community_rank.get(p.get("id"))
                     if badge:
                         p["community_rank"] = badge
+            # When the viewer turns the option on, label each player's home world next to their
+            # name, resolved from their captured server id via the same official server list used
+            # for region. Off by default; best-effort and local (no network in this path).
+            if self.capture_metadata is not None:
+                from .server import ui_settings
+                if ui_settings().get("meter_show_server_name"):
+                    for p in snap.get("players", []):
+                        server = p.get("server")
+                        if server and not p.get("server_name"):
+                            name = self.capture_metadata.snapshot(server).get("server_name")
+                            if name:
+                                p["server_name"] = name
             if self.packet_engine is not None and not follow_latest:
                 self.enemy_id = snap.get("selected_enemy")
             if compact:

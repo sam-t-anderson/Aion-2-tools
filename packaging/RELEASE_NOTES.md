@@ -1,3 +1,8 @@
+## Optional: show each player's server (world) name on the live meter (0.2.244)
+
+- A new Live Meter / Combat records setting — **"Show each player's server (world) name next to their name"**, **off by default** — labels every row (you and party members) with their home world, e.g. `Me · Nezekan`. The id→world name comes from the official server list already used for region detection (0.2.242); if it hasn't resolved, the **Retry region detection** button fills it in.
+- The live snapshot now carries each player's home **server id** (from the party roster, or your profile for yourself), and the name is resolved per row only while the option is on — so turning it off removes the labels immediately and nothing is added when a server can't be matched.
+
 ## Fix the live meter resetting repeatedly during long instance fights (0.2.243)
 
 - **Symptom:** during sustained runs (e.g. a Krao expedition) the live meter kept zeroing itself mid-fight. A capture showed **997 storage rollovers** in one session — each rollover flushes a part and starts a fresh live view, so the totals reset again and again.
