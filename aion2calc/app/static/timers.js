@@ -5,34 +5,9 @@
   const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const build=x=>String(x||'Unknown game version').replace(/version:product:([0-9.]+)/g,(_,v)=>'Product version '+v.split('.').slice(0,4).join('.')).replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})/g,'Legacy build $1 · Steam').replace(/build:purple:A2_[A-Z0-9_]{1,80}_PURPLE:([0-9]{1,20})/g,'Legacy build $1 · PURPLE');
   const local=t=>new Date(t).toLocaleString();
-  const countdown=ms=>{const s=Math.max(0,Math.ceil(ms/1000));return `${Math.floor(s/86400)?Math.floor(s/86400)+'d ':''}${String(Math.floor(s/3600)%24).padStart(2,'0')}:${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;};
-  function occurrences(event,zone,now,cache){
-    const formatter=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
-    const parts=t=>Object.fromEntries(formatter.formatToParts(new Date(t)).filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)]));
-    const here=parts(now),result=[];
-    for(let delta=-1;delta<=8;delta++){
-      const day=new Date(Date.UTC(here.year,here.month-1,here.day+delta));
-      if(event.days&&!event.days.includes(day.getUTCDay()))continue;
-      const base=day.getTime(),key=zone+':'+base;
-      if(!cache.has(key)){
-        const offsets=new Set();
-        for(const h of [-24,0,12,24,48]){
-          const t=base+h*3600000,p=parts(t);
-          offsets.add(Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute)-t);
-        }
-        cache.set(key,[...offsets]);
-      }
-      for(const hour of event.hours){
-        const wall=base+(hour*60+event.minute)*60000;
-        for(const offset of cache.get(key)){
-          const t=wall-offset,p=parts(t);
-          // Skip nonexistent DST wall times; retain both real repeated wall times.
-          if(Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute)===wall)result.push(t);
-        }
-      }
-    }
-    return [...new Set(result)].sort((a,b)=>a-b);
-  }
+  // The DST-aware occurrence calc and countdown live in the shared event-schedule
+  // engine (also used by the overlay), loaded before this script.
+  const {occurrences,countdown}=window.A2EventSchedule;
   function mount(root,io={}){
     let catalog=null,fieldCatalog=null,region='',group='',prepared=[],timer=null,disposed=false,serial=0,bossSerial=0,bossData=null,preparedDay='',killSerial=0,killData=null,killServer='';
     const dur=m=>m==null?'':m>=60?(m%60?Math.floor(m/60)+'h '+(m%60)+'m':Math.floor(m/60)+'h'):m+'m';

@@ -298,3 +298,24 @@ def test_overlay_presets_reject_bad_setting_values(isolated_home):
     with pytest.raises(ValueError):
         settings_backup.import_settings({"overlay_presets": [
             {"name": "A", "settings": {"overlay_glow_color": "not-a-color"}}]})
+
+
+def test_overlay_show_events_is_a_recognised_bool_setting(isolated_home):
+    """The overlay event-notifications toggle round-trips and is validated as a
+    boolean, so it backs up/restores like the other overlay switches and a foreign
+    non-bool value for it is rejected rather than stored."""
+    from aion2calc.paths import write_user_json
+    assert "overlay_show_events" in settings_backup._BOOL_KEYS
+    write_user_json({"overlay_show_events": False}, "ui.json")
+    assert settings_backup.export_settings()["settings"]["overlay_show_events"] is False
+    result = settings_backup.import_settings({"settings": {"overlay_show_events": True}})
+    assert result["settings"]["overlay_show_events"] is True
+    # a non-boolean value for it is ignored (type-validated), not stored
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"settings": {"overlay_show_events": "yes"}})
+
+
+def test_overlay_show_events_defaults_on(isolated_home):
+    """Event notifications ship on by default (a toggle turns them off)."""
+    from aion2calc.app.server import ui_settings
+    assert ui_settings()["overlay_show_events"] is True

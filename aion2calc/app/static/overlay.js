@@ -14,7 +14,11 @@
   let showGraph=false;
   let graphHist=[], graphDur=-1;   // per-poll party-total samples for the live DPS/HPS sparkline, and the last seen fight duration
   const playerHist=new Map();      // per-player DPS samples (key -> [dps,…]) for the expanded-row trend sparkline
-  let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name", classColorNames=false, classSwatch=false, rankNumbers=false, highlightMe=false, showCommunityRank=false;
+  let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name", classColorNames=false, classSwatch=false, rankNumbers=false, highlightMe=false, showCommunityRank=false, showEvents=true;
+  // Regional event-notification strip: next rift/Shugo/battlefield/field-boss windows
+  // from the bundled schedule, for the region the player picked on the Timers page.
+  let eventCatalog=null, eventTimer=null;
+  const EVENT_LEAD_MS=15*60000;   // notify when an event is within 15 minutes
   let copyText="";   // plain-text leaderboard of the current view, for the Copy button
   const expanded=new Set();   // row keys whose per-skill breakdown is expanded (DPS view)
   let interpolate=false, interpolateMs=100, showFps=false, locked=false, userWidth=null, userHeight=null;
@@ -124,6 +128,8 @@
     showDummy=ui.meter_show_dummy_parse!==false;
     showCombatPower=ui.overlay_show_combat_power!==false;
     showCommunityRank=ui.overlay_show_community_rank===true;
+    showEvents=ui.overlay_show_events!==false;   // on by default
+    setupEvents();
     nameMode=["name","class_number","number"].includes(ui.overlay_name_mode)?ui.overlay_name_mode:"name";
     interpolate=ui.overlay_dps_interpolate===true;
     interpolateMs=clampInt(ui.overlay_interpolate_ms,50,1000,50);
@@ -676,6 +682,42 @@
     nativeCall("set_locked",locked);
     if(!locked)pollMeter();
   };
+
+  // Regional event notifications (on by default): a compact strip of the next
+  // rift / Shugo / battlefield / field-boss windows from the bundled schedule, for
+  // the region the player picked on the Timers page (same-origin localStorage). A
+  // scheduled window is a community forecast, never live status — labelled as such.
+  function renderEvents(){
+    const box=$("#ovevents");
+    if(!box)return;
+    if(!showEvents||!eventCatalog||!window.A2EventSchedule){box.hidden=true;return;}
+    const {region,group}=A2EventSchedule.savedRegion();
+    if(!region){box.hidden=true;return;}   // no region chosen on the Timers page yet
+    const now=Date.now();
+    const list=A2EventSchedule.upcoming(eventCatalog,region,group,now)
+      .filter(e=>e.active||(e.startsInMs!=null&&e.startsInMs<=EVENT_LEAD_MS))
+      .slice(0,3);
+    if(!list.length){box.hidden=true;return;}
+    box.hidden=false;
+    box.innerHTML=`<span class="ovelabel">Events</span> `+list.map(e=>{
+      const when=e.active
+        ? (e.entryOpen&&e.endsAt?`entry ${A2EventSchedule.shortCountdown(e.endsAt-now)}`:(e.endsAt?`ends ${A2EventSchedule.shortCountdown(e.endsAt-now)}`:'now'))
+        : `in ${A2EventSchedule.shortCountdown(e.startsInMs)}`;
+      const tip=`${e.name} — community forecast (${e.zone}), not live status${e.disputed?'; conflicting community reports, confirm in game':''}`;
+      return `<span class="ovevent${e.active?' on':''}" title="${esc(tip)}">${esc(e.name)} <b>${when}</b></span>`;
+    }).join(" · ");
+  }
+  function setupEvents(){
+    if(!showEvents){ if(eventTimer){clearInterval(eventTimer);eventTimer=null;} const b=$("#ovevents"); if(b)b.hidden=true; return; }
+    if(!eventCatalog&&window.A2EventSchedule){
+      fetch("/static/event-schedules.json",{cache:"no-store"})
+        .then(r=>r.ok?r.json():null)
+        .then(d=>{ if(d&&d.version===1){eventCatalog=d;renderEvents();} })
+        .catch(()=>{});   // the strip is best-effort; stay silent if the schedule can't load
+    }
+    if(!eventTimer)eventTimer=setInterval(renderEvents,1000);
+    renderEvents();
+  }
 
   // Live-ticking DPS: between polls, recompute each row's real average rate with
   // the elapsing clock (amount / (elapsed + time-since-poll)) so the number keeps
