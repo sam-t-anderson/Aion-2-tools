@@ -138,7 +138,7 @@ def test_boss_returning_to_full_hp_starts_a_fresh_attempt(monkeypatch):
     now = int(time.time() * 1000)
     engine.telemetry = [_hp(9001, 500, 1000, now - 20000)]   # engage, boss to 50%
     s.observe(engine, [_hit(5001, 9001, now - 20000, 500)], timestamp_ms=now - 20000)
-    assert (s.epoch, 9001) in s._boss_below
+    assert (s.epoch, 9001) in s._major_below
     assert s.snapshot(scope="auto", segment_id=None)["boss_alive"] is True
     split_before = s.manual_split
 
@@ -147,7 +147,7 @@ def test_boss_returning_to_full_hp_starts_a_fresh_attempt(monkeypatch):
     s.observe(engine, [], timestamp_ms=now - 8000)
     assert s.manual_split == split_before + 1
     assert s.reset_splits == 1
-    assert (s.epoch, 9001) not in s._boss_below
+    assert (s.epoch, 9001) not in s._major_below
     done = s.snapshot(scope="auto", segment_id=None)
     assert done["boss_alive"] is False                 # reset boss is not a live fight
     assert done["battle_over"] is True                 # so the overlay clears after the delay
@@ -155,6 +155,48 @@ def test_boss_returning_to_full_hp_starts_a_fresh_attempt(monkeypatch):
 
 def _death(entity, t):
     return {"entity": entity, "kind": "death", "current": 0, "timestamp_ms": t}
+
+
+def test_miniboss_held_through_a_lull_by_sustained_engagement(monkeypatch):
+    # A mini-boss is NOT flagged isBoss in the catalog, so it is recognised instead by a
+    # sustained engagement (>= MAJOR_ENGAGE_MS): once that long into the fight, a mechanic
+    # pause must not clear the overlay, just like a boss.
+    import aion2calc.meter.session as session
+    monkeypatch.setattr(session, "npc_info", lambda code: {"isBoss": False})   # nothing is a boss
+    s, engine = _session()
+    engine.spawn_info = {9500: {"mobCode": 4242}}      # a mini-boss, not isBoss
+    s.reset_after_battle = True
+    s.reset_delay_seconds = 5
+    now = int(time.time() * 1000)
+    span = session.MAJOR_ENGAGE_MS
+    # Fight it from -(span+20s) to -(20s): a sustained engagement that crosses the threshold.
+    engine.telemetry = [_hp(9500, 800, 1000, now - span - 20000)]
+    s.observe(engine, [_hit(5001, 9500, now - span - 20000, 500)], timestamp_ms=now - span - 20000)
+    assert (s.epoch, 9500) not in s._engaged_major     # not major on the first hit
+    engine.telemetry = [_hp(9500, 300, 1000, now - 20000)]
+    s.observe(engine, [_hit(5001, 9500, now - 20000, 500)], timestamp_ms=now - 20000)
+    assert (s.epoch, 9500) in s._engaged_major         # sustained -> now a major engagement
+    snap = s.snapshot(scope="auto", segment_id=None)
+    assert snap["boss_alive"] is True                  # held through the 20s mechanic lull
+    assert snap["battle_over"] is False
+
+
+def test_quick_trash_still_clears_after_the_delay(monkeypatch):
+    # A brief trash pull (well under the threshold) never becomes major, so reset-after-
+    # battle still clears the overlay between pulls.
+    import aion2calc.meter.session as session
+    monkeypatch.setattr(session, "npc_info", lambda code: {"isBoss": False})
+    s, engine = _session()
+    engine.spawn_info = {9600: {"mobCode": 123}}
+    s.reset_after_battle = True
+    s.reset_delay_seconds = 5
+    now = int(time.time() * 1000)
+    engine.telemetry = [_hp(9600, 400, 1000, now - 11000), _hp(9600, 100, 1000, now - 9000)]
+    s.observe(engine, [_hit(5001, 9600, now - 11000, 500), _hit(5001, 9600, now - 9000, 500)], timestamp_ms=now - 9000)
+    assert (s.epoch, 9600) not in s._engaged_major     # ~2s fight: never major
+    snap = s.snapshot(scope="auto", segment_id=None)
+    assert snap["boss_alive"] is False
+    assert snap["battle_over"] is True                 # 9s idle > 5s delay -> clears
 
 
 def test_local_respawn_stages_a_reset_that_boss_full_hp_confirms(monkeypatch):
@@ -171,7 +213,7 @@ def test_local_respawn_stages_a_reset_that_boss_full_hp_confirms(monkeypatch):
     engine.telemetry = [_hp(9001, 500, 1000, now - 30000)]
     s.observe(engine, [_hit(5001, 9001, now - 30000, 500)], timestamp_ms=now - 30000)
     split0 = s.manual_split
-    assert (s.epoch, 9001) in s._boss_below
+    assert (s.epoch, 9001) in s._major_below
 
     # Local player dies to the boss then respawns (graveyard release).
     engine.telemetry = [_death(5001, now - 25000), _hp(5001, 300, 300, now - 20000)]
