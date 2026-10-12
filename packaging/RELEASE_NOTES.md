@@ -1,3 +1,10 @@
+## Community rank indicator on the overlay (0.2.230)
+
+- Wires up the off-by-default **community rank** badge: after you upload a session, the overlay shows each player's community standing (e.g. *"World Top 8%"*) for that session's main fight, beside their name. It covers the local player **and resolved party members**, keying each on their own verified standing.
+- It shows the **most specific confident scope** (Server → Region → World) and only when the server's cohort is large enough to rank it — a provisional or too-thin standing shows nothing rather than a number that would swing as more logs arrive.
+- The standing is fetched **once** after the upload and held for that fight (no repeated polling). Enable it under Settings → Overlay ("Show your community rank…"); it stays off until you do, and the fetch only happens when the feature is on.
+- Note: the badge fills when a session is uploaded (the **Upload** button, or any upload). Per-fight auto-upload during play would make it update live after each fight — tracked as a follow-up.
+
 ## Groundwork for the community rank indicator (0.2.229)
 
 - Lays the plumbing for an off-by-default overlay badge showing your community standing (e.g. *"World Top 8%"*) for your most recently auto-uploaded fight: a tested helper that reads a log-server rankings payload into a per-player badge (preferring the most specific populated scope — server → region → world), the `overlay_show_community_rank` setting, and the overlay rendering that appends the badge to your identity line when the data is present.

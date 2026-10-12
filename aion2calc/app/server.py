@@ -865,7 +865,11 @@ class Handler(BaseHTTPRequestHandler):
                     log("Preparing a copy of the session; capture can continue.")
                     doc = r.to_a2log(title=body.get("title"))
                     log("Uploading session snapshot…")
-                    return share.upload(doc, visibility=body.get("visibility"))
+                    result = share.upload(doc, visibility=body.get("visibility"))
+                    # Fill the overlay's community-rank badges from this upload (best-effort,
+                    # off by default; never fails the upload).
+                    r.apply_community_rank(doc, result)
+                    return result
                 return self._json({"job": start_job("meter-upload", upload_snapshot)})
             if action == "screenshot":
                 raise ValueError("Use Application screenshot in the app to render its full page; desktop capture is disabled.")

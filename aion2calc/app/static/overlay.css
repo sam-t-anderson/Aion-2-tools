@@ -75,6 +75,7 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovttkbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ov-ttk-color, #8fb3d0); transition: width .2s linear; }
 .ovrow-dead { opacity: 0.55; }
 .ovdead { color: #e5706e; font-weight: 700; margin-left: 4px; font-size: 9px; letter-spacing: 0.5px; }
+.ovcrank { color: #e8cf8e; font-weight: 700; margin-left: 4px; font-size: 9px; letter-spacing: .3px; opacity: .9; white-space: nowrap; }
 .ovcontribution { color: #8fd0a0; font-size: 11px; margin: 5px 0 1px; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ovdummy { color: #cdd6e6; font-size: 11px; margin: 2px 0 5px; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ovdummy.ok { color: #8fd0a0; }

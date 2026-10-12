@@ -439,7 +439,7 @@
       // When the DPS graph is on, an expanded row also shows that player's DPS trend.
       const spark=(hasSkills&&showGraph&&expanded.has(key))?sparkLine(playerHist.get(key),A2CombatReview.color(p.class)):"";
       const skills=hasSkills?`<div class="ovskills"${expanded.has(key)?'':' hidden'}>${spark}${p.skills.slice(0,6).map(sk=>`<div class="ovskrow"><span class="ovskname">${esc(sk.skill||sk.skill_id)}</span><span class="ovskval">${kfmt(sk.damage)} · ${Math.round((sk.share||0)*100)}%</span></div>`).join("")}</div>`:"";
-      return `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}${isMe(p)?' ovrow-me':''}${hasSkills?' ovrow-x':''}"${hasSkills?` data-exk="${esc(key)}"`:''}><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}">${rankNumbers?`<span class="ovrank${i<3?' ovrank-'+(i+1):''}">${i+1}.</span>`:''}${classSwatch?`<i class="ovclass" style="background:${A2CombatReview.color(p.class)}" title="${esc(p.class||'')}"></i>`:''}<span class="ovnametext"${classColorNames?` style="color:${A2CombatReview.color(p.class)}"`:''}>${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}</span>
+      return `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}${isMe(p)?' ovrow-me':''}${hasSkills?' ovrow-x':''}"${hasSkills?` data-exk="${esc(key)}"`:''}><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}">${rankNumbers?`<span class="ovrank${i<3?' ovrank-'+(i+1):''}">${i+1}.</span>`:''}${classSwatch?`<i class="ovclass" style="background:${A2CombatReview.color(p.class)}" title="${esc(p.class||'')}"></i>`:''}<span class="ovnametext"${classColorNames?` style="color:${A2CombatReview.color(p.class)}"`:''}>${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}${showCommunityRank&&p.community_rank&&p.community_rank.text?`<small class="ovcrank" title="Community standing for your last uploaded fight">${esc(p.community_rank.text)}</small>`:''}</span>
         <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i data-k="${esc(key)}" style="width:${100 * rate(p) / mx}%;--bar:${A2CombatReview.color(p.class)}"></i><span><span class="ovrate" data-k="${esc(key)}" data-target="${rate(p)}" data-amt="${amount(p)}">${kfmt(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div>${skills}</div>`;
     }).join("");
     const duration=metric==="dps"?snap.duration:snap.recorded_duration;
@@ -456,11 +456,7 @@
     // Your live standing on the current metric, so you know where you place at a glance.
     const meIdx=selfName?ranked.findIndex(p=>String(p.name||'').toLocaleLowerCase()===String(selfName).toLocaleLowerCase()):-1;
     const rankStr=(meIdx>=0&&ranked.length>1)?` · #${meIdx+1} of ${ranked.length}`:'';
-    // Community standing for your most recent auto-uploaded fight (off by default).
-    // The app fills snap.community_rank.text after the upload's rankings resolve; until
-    // then there is nothing to show, so the badge stays absent.
-    const crank=(showCommunityRank&&snap.community_rank&&typeof snap.community_rank.text==='string'&&snap.community_rank.text)?` · ${snap.community_rank.text}`:'';
-    const selfLine=selfName?`You: ${selfName}${rankStr}${cp?` · CP ${kfmt(identity.local_combat_power)}`:''}${crank}`:'';
+    const selfLine=selfName?`You: ${selfName}${rankStr}${cp?` · CP ${kfmt(identity.local_combat_power)}`:''}`:'';
     $("#ovidentity").hidden=!missing&&!repeated&&!selfName;
     $("#ovidentity").classList.toggle("ok",!missing&&!repeated&&!!selfName);
     $("#ovidentity").textContent=[missing?`${identity.self_identified?"Self identified":"Self identity not received — teleport or change instances to refresh it"} · ${identity.unnamed_actors} unnamed actors · ${identity.linked_pets} linked pets. Grouping needs recorded owner links.`:selfLine,repeated?'Matching names have separate combat actor IDs; names alone do not establish shared identity or ownership.':''].filter(Boolean).join(' ');

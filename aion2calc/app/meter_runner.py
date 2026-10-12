@@ -47,6 +47,7 @@ class Runner:
         # never recompute more often than the last recompute took — so snapshot work
         # can't exceed ~50% duty no matter how big the fight gets.
         self._snap_cache: tuple | None = None
+        self._community_rank: dict = {}   # player id -> {text, scope, percentile} after an upload
         self._last_snap_cost = 0.0
         self._last_prune = 0.0   # throttle the logs-folder size prune
         self.started_at: float | None = None
@@ -90,6 +91,7 @@ class Runner:
             self.meter = Meter()
             self.packet_engine = None
             self._snap_cache = None          # never show the previous session's snapshot
+            self._community_rank = {}        # a prior session's standings must not leak in
         self.error = None
         self._last_display_diagnostics = {}
         self.diagnostics = {}
@@ -672,6 +674,18 @@ class Runner:
                 hp_db.enrich(snap, build)
             except Exception:
                 pass
+            # Community rank badges (filled after an upload; off by default). Attach to
+            # the snapshot so both the compact overlay view and the full page carry them,
+            # keyed per player so the local player and resolved party members all show.
+            if self._community_rank:
+                engine = self.packet_engine
+                local = engine.local_player_id if engine else None
+                if local is not None and local in self._community_rank:
+                    snap["community_rank"] = self._community_rank[local]
+                for p in snap.get("players", []):
+                    badge = self._community_rank.get(p.get("id"))
+                    if badge:
+                        p["community_rank"] = badge
             if self.packet_engine is not None and not follow_latest:
                 self.enemy_id = snap.get("selected_enemy")
             if compact:
@@ -740,6 +754,38 @@ class Runner:
                               **(self.recorder.snapshot(include_rows=False)[0] if self.recorder is not None else {"records": 0})}}
         self._status_cache[(False, follow_latest)] = result
         return result
+
+    def apply_community_rank(self, doc: dict, upload_result: dict) -> None:
+        """After an upload, cache each player's confident community standing for its
+        main fight so the overlay can badge the local player and resolved party members.
+
+        Best-effort and fully guarded: it makes one read-only call to the configured
+        log server for the just-uploaded log's rankings, and any failure (feature off,
+        no server, old server, network error) simply leaves the badges unset. It never
+        raises and never touches capture."""
+        try:
+            from .server import ui_settings
+            if not ui_settings().get("overlay_show_community_rank"):
+                return   # feature off -> do not call out to the server
+            log_id = (upload_result or {}).get("id")
+            segments = doc.get("segments") or []
+            player_ids = [p["id"] for p in doc.get("players", []) if p.get("id")]
+            if not log_id or not segments or not player_ids:
+                return
+            # The main fight is the segment with the most recorded player damage.
+            main = max(range(len(segments)),
+                       key=lambda i: sum(h.get("damage", 0) for h in segments[i].get("hits", [])))
+            from ..combat import share, community_rank
+            data = share.community_request(f"/api/v1/logs/{log_id}/rankings?segment={main}")
+            mapped = {}
+            for pid, summary in community_rank.badges(data, player_ids).items():
+                text = community_rank.badge_text(summary)
+                if text:
+                    mapped[pid] = {"text": text, "scope": summary["best"]["scope"],
+                                   "percentile": summary["best"]["percentile"]}
+            self._community_rank = mapped
+        except Exception:
+            pass
 
     def select_installation(self, value):
         from ..meter.metadata import choose_installation

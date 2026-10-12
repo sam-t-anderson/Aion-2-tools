@@ -20,8 +20,17 @@ LABELS = {"server": "Server", "region": "Region", "world": "World"}
 
 
 def _percentile(entry):
-    """A 0–100 float from a comparison object, or None when it cannot rank."""
+    """A 0–100 float from a *confident* comparison object, or None.
+
+    Confident means the server itself ranked it: a ``status`` other than
+    ``"available"`` (insufficient samples, dataset cap, incomparable metadata) is
+    treated as no standing, so a provisional or too-thin cohort shows nothing
+    rather than a number that will swing as more logs arrive. A payload without a
+    ``status`` key (older server, or a hand-built one) is accepted on its value."""
     if not isinstance(entry, dict):
+        return None
+    status = entry.get("status")
+    if isinstance(status, str) and status != "available":
         return None
     value = entry.get("percentile")
     if not isinstance(value, (int, float)) or isinstance(value, bool):
@@ -56,6 +65,18 @@ def for_player(rankings, player_id):
     best_scope = next(scope for scope in SCOPES if scope in scopes)
     return {"scopes": scopes,
             "best": {"scope": best_scope, "label": LABELS[best_scope], "percentile": scopes[best_scope]}}
+
+
+def badges(rankings, player_ids):
+    """``{player_id: summary}`` for each id that has a confident standing, so the
+    overlay can badge the local player and resolved party members alike. Ids with no
+    confident scope are omitted."""
+    out = {}
+    for pid in player_ids or []:
+        summary = for_player(rankings, pid)
+        if summary is not None:
+            out[pid] = summary
+    return out
 
 
 def badge_text(summary):
