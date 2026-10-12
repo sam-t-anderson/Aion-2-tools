@@ -24,10 +24,12 @@ class Record:
     sequence: int = 0
 
 
-#: Fighting one enemy for at least this long (ms of engagement span) marks it a "major"
-#: engagement — a mini-boss or elite — so the overlay holds through its mechanic lulls
-#: and segments it like a boss. The catalog does not flag mini-bosses, so this sustained
-#: engagement is the inferred signal; quick trash dies well inside it and never qualifies.
+#: Being engaged with one enemy for at least this long (ms since first contact) marks it
+#: a "major" engagement — a mini-boss or elite — so the overlay holds through its mechanic
+#: lulls and segments it like a boss. The catalog does not flag mini-bosses, so this
+#: sustained engagement is the inferred signal; quick trash dies well inside it and never
+#: qualifies. Measured as elapsed time since first contact (not a hit span), so an early
+#: mechanic pause is still covered once the threshold passes.
 MAJOR_ENGAGE_MS = 12_000
 
 
@@ -55,7 +57,7 @@ class CombatSession:
         result.wipe_splits = self.wipe_splits
         result._engaged_major = set(self._engaged_major)
         result._major_below = set(self._major_below)
-        result._engage_span = {k: list(v) for k, v in self._engage_span.items()}
+        result._engage_span = dict(self._engage_span)
         result.reset_splits = self.reset_splits
         result._pending_reset = self._pending_reset
         result._zone_reset_seen = False  # A continuation part never captured the run's entry.
@@ -111,7 +113,7 @@ class CombatSession:
         # a fresh attempt. ``reset_splits`` counts those, mirroring ``wipe_splits``.
         self._engaged_major = set()
         self._major_below = set()
-        self._engage_span = {}        # (epoch, enemy) -> [first_damage_ms, last_damage_ms]
+        self._engage_span = {}        # (epoch, enemy not yet major) -> first-contact ms
         self.reset_splits = 0
         # Staged ("potential") reset: the local player revived after dying during a boss
         # engagement (a graveyard release / runback). Never resets on its own — a
@@ -332,18 +334,10 @@ class CombatSession:
                 if event.actor_id in allowed and target_code and ekey not in self._engaged_major:
                     if npc_info(target_code).get("isBoss"):
                         self._engaged_major.add(ekey)
-                    else:
-                        span = self._engage_span.get(ekey)
-                        if span is None:
-                            if len(self._engage_span) > 512:   # bound: forget stale trash spans
-                                self._engage_span.clear()
-                            self._engage_span[ekey] = [event.timestamp_ms, event.timestamp_ms]
-                        else:
-                            span[0] = min(span[0], event.timestamp_ms)
-                            span[1] = max(span[1], event.timestamp_ms)
-                            if span[1] - span[0] >= MAJOR_ENGAGE_MS:
-                                self._engaged_major.add(ekey)
-                                self._engage_span.pop(ekey, None)
+                    elif ekey not in self._engage_span:
+                        if len(self._engage_span) > 512:   # bound: forget stale trash contacts
+                            self._engage_span.clear()
+                        self._engage_span[ekey] = event.timestamp_ms   # first-contact time
                 # Count the same relevant damage groups as groups(), separately
                 # for every selectable scope. Nearby NPC-only effects must not
                 # force storage rollovers that clear the player's live view.
@@ -390,22 +384,25 @@ class CombatSession:
                 self._engaged_major.discard(key)
                 self._major_below.discard(key)
                 self._pending_reset = False
-            if sample["kind"] == "hp" and key in self._engaged_major:
-                # Track an engaged boss's HP against its max. Dropping below full marks
-                # the attempt live; climbing back to full confirms a leash/reset, so start
-                # a fresh attempt (a new clock) — the reliable encounter boundary when a
-                # wipe's player deaths are missed out of range, or the party runs back to
-                # a boss with no lockout that healed up. A staged potential reset (local
-                # respawn) also confirms here, never on the respawn alone.
+            if sample["kind"] == "hp" and (key in self._engaged_major or key in self._engage_span):
+                # Track an engaged enemy's HP against its max (for not-yet-major contacts
+                # too, so the below-full evidence is ready the moment a sustained
+                # engagement is promoted mid-lull). Dropping below full marks the attempt
+                # live; a *major* enemy climbing back to full confirms a leash/reset, so
+                # start a fresh attempt — the reliable boundary when a wipe's player deaths
+                # are missed out of range, or the party runs back to a no-lockout boss that
+                # healed up. A staged potential reset (local respawn) also confirms here,
+                # never on the respawn alone.
                 maximum = sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("reportedMaxHp")
                 if maximum and sample["current"] < maximum:
                     self._major_below.add(key)
-                elif maximum and sample["current"] >= maximum and (key in self._major_below or self._pending_reset):
-                    self.manual_split += 1
-                    self.reset_splits += 1
+                elif maximum and sample["current"] >= maximum:
+                    if key in self._engaged_major and (key in self._major_below or self._pending_reset):
+                        self.manual_split += 1
+                        self.reset_splits += 1
+                        self._engaged_major.discard(key)
+                        self._pending_reset = False
                     self._major_below.discard(key)
-                    self._engaged_major.discard(key)
-                    self._pending_reset = False
             if sample["kind"] == "hp" and sample["current"] > 0:
                 # A local-player revive after death, mid boss engagement, stages a
                 # potential reset (graveyard release / runback). It commits only when an
@@ -429,6 +426,16 @@ class CombatSession:
                     and any(r.run == self.run and isinstance(r.event,DamageEvent) and r.event.target_id == sample["entity"] and r.event.actor_id in self._allowed(r,"party") for r in self.records)):
                 self.runs[self.run]["recorded_final_boss"] = code
                 self.finish_run("configured_final_boss_death", timestamp_ms=sample["timestamp_ms"])
+        # Promote a sustained engagement to "major" by elapsed time since first contact,
+        # not just by a hit span — so a mini-boss crosses the threshold and is held even
+        # when its mechanic pause comes early (the crossing lands during the lull, driven
+        # by the HP packets that keep arriving, or the next idle observe).
+        now_ms = timestamp_ms if timestamp_ms is not None else max((e.timestamp_ms for e in events), default=None)
+        if now_ms is not None and self._engage_span:
+            for ekey, first in list(self._engage_span.items()):
+                if ekey[0] == self.epoch and now_ms - first >= MAJOR_ENGAGE_MS:
+                    self._engaged_major.add(ekey)
+                    self._engage_span.pop(ekey, None)
         # Remove identity contexts when their bounded event history expires.
         if len(self.identities) > 250:
             retained = {record.epoch for record in self.records}
@@ -818,6 +825,7 @@ class CombatSession:
         boss_alive = False
         if chosen:
             epoch = chosen[-1]["epoch"]
+            now_ms = time.time() * 1000
             attacker_alive = fight_live = False
             for record in chosen[-1]["records"]:
                 event = record.event
@@ -827,8 +835,12 @@ class CombatSession:
                 if event.actor_id in allowed and (epoch, event.actor_id) not in self._dead:
                     attacker_alive = True
                 ekey = (epoch, event.target_id)
-                if (ekey in self._engaged_major and ekey not in self._dead
-                        and ekey in self._major_below):
+                # Major = a flagged boss / already-promoted engagement, OR a contact that
+                # has been engaged >= MAJOR_ENGAGE_MS (covers an early mechanic lull before
+                # the promotion pass runs). Live only while it is still below full HP.
+                major = ekey in self._engaged_major or (
+                    ekey in self._engage_span and now_ms - self._engage_span[ekey] >= MAJOR_ENGAGE_MS)
+                if major and ekey not in self._dead and ekey in self._major_below:
                     fight_live = True
             boss_alive = fight_live and attacker_alive
         summary["boss_alive"] = boss_alive

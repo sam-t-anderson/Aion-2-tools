@@ -181,6 +181,31 @@ def test_miniboss_held_through_a_lull_by_sustained_engagement(monkeypatch):
     assert snap["battle_over"] is False
 
 
+def test_miniboss_held_when_the_mechanic_pause_comes_early(monkeypatch):
+    # The refinement: "major" is elapsed time since first contact, not a hit span, so a
+    # mini-boss whose mechanic pause lands before 12s of hits is still held — the
+    # threshold is crossed during the lull (driven by HP packets that keep arriving).
+    import aion2calc.meter.session as session
+    monkeypatch.setattr(session, "npc_info", lambda code: {"isBoss": False})
+    s, engine = _session()
+    engine.spawn_info = {9700: {"mobCode": 5151}}      # a mini-boss, not isBoss
+    s.reset_after_battle = True
+    s.reset_delay_seconds = 5
+    now = int(time.time() * 1000)
+    span = session.MAJOR_ENGAGE_MS
+    # First contact, boss wounded, then damage stops (an early mechanic) — only one hit.
+    engine.telemetry = [_hp(9700, 700, 1000, now - span - 3000)]
+    s.observe(engine, [_hit(5001, 9700, now - span - 3000, 500)], timestamp_ms=now - span - 3000)
+    assert (s.epoch, 9700) not in s._engaged_major     # not major yet (span not reached)
+    # During the lull only HP packets arrive (no damage); once >= MAJOR_ENGAGE_MS has
+    # elapsed since first contact, it is promoted mid-lull and the overlay holds.
+    engine.telemetry = [_hp(9700, 700, 1000, now - 1000)]
+    s.observe(engine, [], timestamp_ms=now - 1000)
+    assert (s.epoch, 9700) in s._engaged_major
+    snap = s.snapshot(scope="auto", segment_id=None)
+    assert snap["boss_alive"] is True                  # held through the early mechanic lull
+
+
 def test_quick_trash_still_clears_after_the_delay(monkeypatch):
     # A brief trash pull (well under the threshold) never becomes major, so reset-after-
     # battle still clears the overlay between pulls.
