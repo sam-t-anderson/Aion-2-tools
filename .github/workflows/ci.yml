@@ -164,8 +164,17 @@ jobs:
           sections = [p for p in re.split(r"(?m)^(?=## )", src) if p.strip()]
           chosen = next(
               (s for s in sections if f"({version})" in s.splitlines()[0]),
-              sections[0] if sections else src,
+              None,
           )
+          if chosen is None:
+              # Never fall back to an unrelated (older) section — that silently
+              # publishes the wrong notes. Use a clear generic body instead and
+              # flag the missing changelog entry.
+              print(f"::warning::No RELEASE_NOTES.md section for v{version}; using a generic body")
+              chosen = (
+                  f"## aion2calc {version}\n\n"
+                  "See the commit history for the changes in this release.\n"
+              )
           if len(chosen) > 125000:  # GitHub release-body hard limit
               chosen = chosen[:124900].rstrip() + "\n\n…\n"
           pathlib.Path("release-notes.md").write_text(chosen, encoding="utf-8")

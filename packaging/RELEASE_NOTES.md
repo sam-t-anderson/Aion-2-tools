@@ -1,3 +1,25 @@
+## Accurate per-release notes (0.2.223)
+
+- **The release notes shown on each download now match the version.** Previously, when a version had no section in the changelog the publisher quietly fell back to the newest *existing* section, so several releases showed the wrong (older) notes. It now publishes a correct per-version body — or a clear generic one when a section is genuinely missing — and a test fails the build if a version is bumped without its changelog entry.
+
+## Browse community raid plans by boss (0.2.222)
+
+- **Find the plan for the fight you're in.** The raid planner's *Browse plans* now has a **boss filter**: pick a boss (from the bosses other players have published plans for) to see just those plans, or *All* to clear it. Plan cards show the boss a plan is for.
+
+## Raid plans play themselves on the overlay (0.2.220)
+
+- **Bind a plan to a boss, and the overlay plays it for you.** In the planner, set a plan's **Boss / NPC id** (or inherit it from a compared fight). Then the overlay's **Plan tab** auto-plays that plan for the boss you're actually fighting, synced to the pull's elapsed time, so the token positions match the real encounter. With no match (or auto-play turned off) it loops the latest plan as a preview. New setting: *Auto-play a saved raid plan* (on by default).
+
+## The overlay no longer resets mid-fight — bosses and mini-bosses (0.2.219)
+
+- **Mechanic pauses don't clear the meter.** A boss (or a sustained mini-boss/elite fight) that stops taking damage for a few seconds during a mechanic no longer makes the overlay reset or collapse. The fight is held as long as the enemy is still engaged and below full HP and your party is alive.
+- **Wipes and resets end it reliably.** A full wipe, the enemy leashing back to full HP, or running back and re-pulling correctly starts a fresh attempt — even when deaths weren't captured out of range. A battle-rez mid-fight never falsely resets.
+
+## Community enemy-HP database + accurate HP% (0.2.218)
+
+- **Enemy HP shown as a real, community-calibrated amount.** The meter learns each enemy's effective HP (the damage it takes to die) pooled anonymously across players, and blends it with the game's broadcast HP fraction so the target's HP reads correctly in the same units as your damage. Sharing is anonymous and on by default; turn it off with *Share enemy HP data* in Settings.
+- Also includes the first version of the mid-fight overlay-hold fix for bosses (hardened further in 0.2.219).
+
 ## Enemy HP: effective-HP on hover + sturdier max-HP capture (0.2.216)
 
 - **Hover the target's HP% to see its effective HP in damage terms** — the total recorded damage dealt to it so far (packet-sourced and exact, on the same scale as your damage), alongside the game's raw internal HP for reference. For a completed kill this is the real "HP ≈ damage to kill it."
