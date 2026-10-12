@@ -71,6 +71,34 @@ def test_battle_not_over_while_an_engaged_boss_is_still_alive(monkeypatch):
     assert after["battle_over"] is True
 
 
+def test_battle_over_on_a_wipe_even_though_the_boss_survives(monkeypatch):
+    # A wipe ends the fight even if the boss lives: once every party attacker is dead,
+    # the overlay must clear after the delay instead of holding the stale attempt. A
+    # gradual wipe therefore holds only until the last member dies (one attacker alive
+    # here keeps it live; killing them tips it over).
+    import aion2calc.meter.session as session
+    monkeypatch.setattr(session, "npc_info", lambda code: {"isBoss": code == 777})
+    s, engine = _session()
+    engine.spawn_info = {9001: {"mobCode": 777}}
+    s.reset_after_battle = True
+    s.reset_delay_seconds = 5
+    now = int(time.time() * 1000)
+    s.observe(engine, [_hit(5001, 9001, now - 10000, 500)], timestamp_ms=now - 10000)
+    assert s.snapshot(scope="auto", segment_id=None)["boss_alive"] is True   # attacker alive
+
+    # The sole attacker dies (full wipe): boss still up, but the fight is over.
+    s._dead.add((s.epoch, 5001))
+    wiped = s.snapshot(scope="auto", segment_id=None)
+    assert wiped["boss_alive"] is False
+    assert wiped["battle_over"] is True
+
+    # They respawn and re-engage: the revive (HP > 0 telemetry) clears the death flag,
+    # and their renewed damage makes the pull read live again.
+    s._dead.discard((s.epoch, 5001))
+    s.observe(engine, [_hit(5001, 9001, now - 1000, 500)], timestamp_ms=now - 1000)
+    assert s.snapshot(scope="auto", segment_id=None)["boss_alive"] is True
+
+
 def test_boss_fight_ends_when_truly_abandoned(monkeypatch):
     # A pull left for longer than the pull-gap is genuinely over even if the boss
     # never died (gave up / walked away), so the view is allowed to clear.

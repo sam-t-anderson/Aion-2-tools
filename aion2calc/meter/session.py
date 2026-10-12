@@ -720,21 +720,29 @@ class CombatSession:
         }
         idle_ms = (time.time() * 1000 - chosen[-1]["last_damage"]) if chosen else None
         summary["idle_ms"] = idle_ms
-        # A boss we are engaged with is still alive while it has taken damage this
-        # encounter and has not died — so a multi-second pause in damage is a mechanic
-        # (shield/phase/forced movement), not the end of the fight. Used below to hold
-        # off "battle over" through those lulls so the overlay never resets mid-boss.
+        # A boss fight is still "live" — so a multi-second pause in damage is a mechanic
+        # (shield/phase/forced movement), not the end — only while BOTH an engaged boss
+        # and at least one party attacker are still alive. Requiring a living attacker is
+        # what makes a wipe end the fight: a gradual wipe holds until the last member
+        # dies, then clears; respawning and re-engaging (which revives the attacker in
+        # ``_dead``) makes it live again for the new pull. ``_dead`` is cleared on revive,
+        # so membership in it means currently-dead. Used below to hold off "battle over".
         boss_alive = False
         if chosen:
             epoch = chosen[-1]["epoch"]
             spawns = self.identities[epoch]["spawns"]
+            boss_engaged = attacker_alive = False
             for record in chosen[-1]["records"]:
-                target = record.event.target_id
-                code = spawns.get(target, {}).get("mobCode")
-                if (isinstance(record.event, DamageEvent) and code
-                        and npc_info(code).get("isBoss") and (epoch, target) not in self._dead):
-                    boss_alive = True
-                    break
+                event = record.event
+                if not isinstance(event, DamageEvent):
+                    continue
+                allowed = allowed_for(record)
+                if event.actor_id in allowed and (epoch, event.actor_id) not in self._dead:
+                    attacker_alive = True
+                code = spawns.get(event.target_id, {}).get("mobCode")
+                if code and npc_info(code).get("isBoss") and (epoch, event.target_id) not in self._dead:
+                    boss_engaged = True
+            boss_alive = boss_engaged and attacker_alive
         summary["boss_alive"] = boss_alive
         # Reset-after-battle: once combat has been idle past the delay, signal that
         # the fight is over so the live view can clear to a ready state. The data is
