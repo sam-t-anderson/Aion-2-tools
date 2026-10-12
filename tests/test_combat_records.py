@@ -153,6 +153,73 @@ def test_boss_returning_to_full_hp_starts_a_fresh_attempt(monkeypatch):
     assert done["battle_over"] is True                 # so the overlay clears after the delay
 
 
+def _death(entity, t):
+    return {"entity": entity, "kind": "death", "current": 0, "timestamp_ms": t}
+
+
+def test_local_respawn_stages_a_reset_that_boss_full_hp_confirms(monkeypatch):
+    # A local death+respawn mid boss engagement stages a POTENTIAL reset but never resets
+    # on its own; it commits only once the engaged boss is seen back at full HP. A trash
+    # mob fought on the runback must not confirm or clear it.
+    import aion2calc.meter.session as session
+    monkeypatch.setattr(session, "npc_info", lambda code: {"isBoss": code == 777})
+    s, engine = _session()
+    engine.spawn_info = {9001: {"mobCode": 777}}       # 9001 boss; 8000 is trash (not a boss)
+    s.reset_after_battle = True
+    s.reset_delay_seconds = 5
+    now = int(time.time() * 1000)
+    engine.telemetry = [_hp(9001, 500, 1000, now - 30000)]
+    s.observe(engine, [_hit(5001, 9001, now - 30000, 500)], timestamp_ms=now - 30000)
+    split0 = s.manual_split
+    assert (s.epoch, 9001) in s._boss_below
+
+    # Local player dies to the boss then respawns (graveyard release).
+    engine.telemetry = [_death(5001, now - 25000), _hp(5001, 300, 300, now - 20000)]
+    s.observe(engine, [], timestamp_ms=now - 20000)
+    assert s._pending_reset is True                    # staged, not committed
+    assert s.manual_split == split0
+    assert s.snapshot(scope="auto", segment_id=None)["potential_reset"] is True
+
+    # An enemy hits them on the runback: a non-boss fight neither confirms nor clears it.
+    engine.telemetry = []
+    s.observe(engine, [_hit(5001, 8000, now - 12000, 400)], timestamp_ms=now - 12000)
+    assert s._pending_reset is True
+    assert s.manual_split == split0
+
+    # Back on the boss, it is at full HP (it reset): now the staged reset commits.
+    engine.telemetry = [_hp(9001, 1000, 1000, now - 4000)]
+    s.observe(engine, [], timestamp_ms=now - 4000)
+    assert s.manual_split == split0 + 1
+    assert s.reset_splits == 1
+    assert s._pending_reset is False
+
+
+def test_battle_rez_mid_fight_never_resets(monkeypatch):
+    # A death + combat rez right at the boss (which never returns to full) stages the
+    # reset but must never commit it — the fight continues on the same attempt.
+    import aion2calc.meter.session as session
+    monkeypatch.setattr(session, "npc_info", lambda code: {"isBoss": code == 777})
+    s, engine = _session()
+    engine.spawn_info = {9001: {"mobCode": 777}}
+    s.reset_after_battle = True
+    s.reset_delay_seconds = 5
+    now = int(time.time() * 1000)
+    engine.telemetry = [_hp(9001, 600, 1000, now - 20000)]
+    s.observe(engine, [_hit(5001, 9001, now - 20000, 500)], timestamp_ms=now - 20000)
+    split0 = s.manual_split
+
+    engine.telemetry = [_death(5001, now - 18000), _hp(5001, 300, 300, now - 17000)]  # die + battle rez
+    s.observe(engine, [], timestamp_ms=now - 17000)
+    assert s._pending_reset is True
+
+    # The fight simply continues: the boss keeps taking damage and never hits full.
+    engine.telemetry = [_hp(9001, 200, 1000, now - 3000)]
+    s.observe(engine, [_hit(5001, 9001, now - 3000, 500)], timestamp_ms=now - 3000)
+    assert s.manual_split == split0                    # no reset
+    assert s.reset_splits == 0
+    assert s.snapshot(scope="auto", segment_id=None)["boss_alive"] is True   # overlay still holds
+
+
 def test_save_records_flag_follows_the_setting(tmp_path, monkeypatch):
     monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
     from aion2calc.paths import write_user_json

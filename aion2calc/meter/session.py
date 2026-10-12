@@ -49,6 +49,7 @@ class CombatSession:
         result._engaged_bosses = set(self._engaged_bosses)
         result._boss_below = set(self._boss_below)
         result.reset_splits = self.reset_splits
+        result._pending_reset = self._pending_reset
         result._zone_reset_seen = False  # A continuation part never captured the run's entry.
         return result
 
@@ -99,6 +100,12 @@ class CombatSession:
         self._engaged_bosses = set()
         self._boss_below = set()
         self.reset_splits = 0
+        # Staged ("potential") reset: the local player revived after dying during a boss
+        # engagement (a graveyard release / runback). Never resets on its own — a
+        # battle-rez mid-fight also revives — it only becomes a real reset once an engaged
+        # boss is actually seen back at full HP, which is what confirms the attempt
+        # restarted. Cleared on that confirmation, and on a boss kill (which is not a reset).
+        self._pending_reset = False
 
     def _check_boss_wipe(self, timestamp_ms, engine):
         attempt = self._boss_attempt
@@ -343,21 +350,37 @@ class CombatSession:
                     elif sample["kind"] == "hp" and sample["current"] > 0:
                         attempt["dead"].discard(actor)
             key = (self.epoch, sample["entity"])
+            if sample["kind"] == "death" and key in self._engaged_bosses:
+                # The engaged boss died (a kill, not a reset): forget it, and drop any
+                # staged reset so a later full-HP respawn of a new encounter is not
+                # mistaken for this attempt restarting.
+                self._engaged_bosses.discard(key)
+                self._boss_below.discard(key)
+                self._pending_reset = False
             if sample["kind"] == "hp" and key in self._engaged_bosses:
                 # Track an engaged boss's HP against its max. Dropping below full marks
-                # the attempt live; climbing back to full is a leash/reset, so start a
-                # fresh attempt (a new clock) — this is the reliable encounter boundary
-                # when a wipe's player deaths are missed out of range, or the party runs
-                # back to a boss with no lockout that healed up.
+                # the attempt live; climbing back to full confirms a leash/reset, so start
+                # a fresh attempt (a new clock) — the reliable encounter boundary when a
+                # wipe's player deaths are missed out of range, or the party runs back to
+                # a boss with no lockout that healed up. A staged potential reset (local
+                # respawn) also confirms here, never on the respawn alone.
                 maximum = sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("reportedMaxHp")
                 if maximum and sample["current"] < maximum:
                     self._boss_below.add(key)
-                elif maximum and sample["current"] >= maximum and key in self._boss_below:
+                elif maximum and sample["current"] >= maximum and (key in self._boss_below or self._pending_reset):
                     self.manual_split += 1
                     self.reset_splits += 1
                     self._boss_below.discard(key)
                     self._engaged_bosses.discard(key)
+                    self._pending_reset = False
             if sample["kind"] == "hp" and sample["current"] > 0:
+                # A local-player revive after death, mid boss engagement, stages a
+                # potential reset (graveyard release / runback). It commits only when an
+                # engaged boss is next seen at full HP (above); a battle-rez, where the
+                # boss never returns to full, never resets the meter.
+                if (key in self._dead and sample["entity"] == engine.local_player_id
+                        and self._engaged_bosses):
+                    self._pending_reset = True
                 self._dead.discard(key)
             if sample["kind"] == "death":
                 if key in self._dead:
@@ -779,6 +802,11 @@ class CombatSession:
                     boss_live = True
             boss_alive = boss_live and attacker_alive
         summary["boss_alive"] = boss_alive
+        # A local respawn mid-engagement staged a reset that the boss returning to full
+        # has not yet confirmed (e.g. a battle-rez, or still running back). Surfaced so
+        # the live view can hint "attempt may be resetting" without clearing anything —
+        # the actual reset only lands when boss_alive turns false.
+        summary["potential_reset"] = self._pending_reset
         # Reset-after-battle: once combat has been idle past the delay, signal that
         # the fight is over so the live view can clear to a ready state. The data is
         # unchanged — a selected segment or the whole-session view still shows it. While
