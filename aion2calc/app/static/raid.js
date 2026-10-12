@@ -205,16 +205,30 @@
     bind();
   }
 
-  function renderBrowse(list) {
+  async function doBrowse(filter) {        // (re)fetch the public list, optionally by boss
+    try {
+      const list = await st.io.browse(filter || {});
+      st.browsing = list;
+      renderBrowse(list, filter);
+    } catch (e) { toast(e.message); }
+  }
+  function renderBrowse(list, active) {
+    const menu = st.browseBosses || [];
+    // A filter menu of the bosses plans are bound to, so a player can jump to the plans
+    // for the fight they want; "All" clears it. npc_id is the exact filter key.
+    const filterRow = menu.length ? `<div class="row small" style="gap:6px;flex-wrap:wrap;margin-top:10px"><span class="muted">Boss:</span>
+        <button class="btn small${active ? "" : " primary"}" data-boss="">All</button>
+        ${menu.map((b) => `<button class="btn small${active && String(active.npc_id) === String(b.npc_id) ? " primary" : ""}" data-boss="${esc(b.npc_id || "")}" data-bossname="${esc(b.boss)}">${esc(b.boss)} (${b.plans || 0})</button>`).join("")}</div>` : "";
     const cards = list.length ? list.map((pl) => `<div class="pcard"><div class="gname">${esc(pl.name || "Plan")}</div>
         ${pl.boss ? `<div class="small gold">${esc(pl.boss)}</div>` : ""}
         <div class="small muted">${esc(pl.author || "unknown")} · ${(pl.duration || 0).toFixed(0)}s · ${pl.tokens || 0} tokens${pl.has_fight ? " · with a fight" : ""}</div>
         <div class="small">${(pl.classes || []).map((c) => `<span class="chip">${esc(c)}</span>`).join(" ")}</div>
         <button class="btn small primary" data-open="${esc(pl.id)}" style="margin-top:6px">Open</button></div>`).join("")
-      : '<div class="empty">No public plans yet.</div>';
+      : `<div class="empty">${active ? "No public plans for this boss yet." : "No public plans yet."}</div>`;
     st.root.innerHTML = win("Browse published plans", "open one to copy it into your own plans",
-      `<div class="row"><button class="btn small" id="rback">← Back to the planner</button></div><div class="pcards" style="margin-top:12px">${cards}</div>`);
+      `<div class="row"><button class="btn small" id="rback">← Back to the planner</button></div>${filterRow}<div class="pcards" style="margin-top:12px">${cards}</div>`);
     $("#rback").onclick = () => { st.browsing = null; render(); };
+    $$("[data-boss]").forEach((b) => (b.onclick = () => doBrowse(b.dataset.boss ? { npc: b.dataset.boss, boss: b.dataset.bossname } : null)));
     $$("[data-open]").forEach((b) => (b.onclick = async () => {
       try { const doc = await st.io.fetchPlan(b.dataset.open); importDoc(doc); st.browsing = null; render(); toast("Plan opened"); }
       catch (e) { toast(e.message); }
@@ -323,7 +337,7 @@
     if($('#rrefresh',st.root))$('#rrefresh',st.root).onclick=async()=>{if(!confirm('Replace local changes with the published revision? Export the local plan first if you want to keep those edits.'))return;try{const r=await io.refresh(owner());st.plan=r.plan;saveOwner({...owner(),revision:r.revision});persist();render();}catch(e){toast(e.message);}};
     if ($("#rvisibility", st.root)) $("#rvisibility", st.root).onchange = (e) => { p.meta.visibility = e.target.value; persist(); };
     if ($("#rbrowse", st.root)) $("#rbrowse", st.root).onclick = async () => {
-      try { const list = await io.browse(); st.browsing = list; renderBrowse(list); } catch (e) { toast(e.message); }
+      try { st.browseBosses = io.bosses ? await io.bosses().catch(() => []) : []; await doBrowse(null); } catch (e) { toast(e.message); }
     };
 
     // --- add tokens

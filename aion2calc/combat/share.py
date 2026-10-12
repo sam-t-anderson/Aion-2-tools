@@ -172,9 +172,12 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
         raise RuntimeError(f"upload refused ({e.code}): {msg}") from None
 
 
-def plan_request(plan: dict | None = None, visibility: str = "unlisted", plan_id: str | None = None, owner: dict | None = None) -> dict:
-    """Publish/browse plans using the desktop's configured server and upload key."""
-    from urllib.parse import quote
+def plan_request(plan: dict | None = None, visibility: str = "unlisted", plan_id: str | None = None,
+                 owner: dict | None = None, boss: str | None = None, npc=None, bosses: bool = False) -> dict:
+    """Publish/browse plans using the desktop's configured server and upload key. Browsing
+    can filter by encounter: ``npc`` (exact mob code) or ``boss`` (name substring), and
+    ``bosses=True`` fetches the distinct bound bosses for a filter menu."""
+    from urllib.parse import quote, urlencode
     settings = effective()
     base = (settings.get("url") or "").rstrip("/")
     if not base:
@@ -215,6 +218,19 @@ def plan_request(plan: dict | None = None, visibility: str = "unlisted", plan_id
         target += "/" + quote(plan_id, safe="")
         summary_target = target if owner else None
         target += "/raw"
+    elif bosses:
+        target += "/bosses"
+    else:
+        params = {}
+        try:
+            if npc:
+                params["npc"] = int(npc)
+        except (TypeError, ValueError):
+            pass
+        if not params and boss:
+            params["boss"] = str(boss)[:80]
+        if params:
+            target += "?" + urlencode(params)
     try:
         if owner and plan is None and plan_id:
             with urllib.request.urlopen(urllib.request.Request(summary_target, headers=headers), timeout=30) as response:

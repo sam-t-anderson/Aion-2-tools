@@ -577,9 +577,12 @@ class Handler(BaseHTTPRequestHandler):
             from ..combat import share
             st = share.effective()
             return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
+        if path == "/api/plans/bosses":
+            from ..combat.share import plan_request
+            return self._json(plan_request(bosses=True))
         if path == "/api/plans":
             from ..combat.share import plan_request
-            return self._json(plan_request(plan_id=q.get("id")))
+            return self._json(plan_request(plan_id=q.get("id"), boss=q.get("boss"), npc=q.get("npc")))
         if path == "/api/meter/diagnostics":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("diagnostics are available only on this computer")

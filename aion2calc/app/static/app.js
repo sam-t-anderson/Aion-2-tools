@@ -1010,7 +1010,13 @@ async function pageRaid() {
     server:()=>publicationServer.url.replace(/\/+$/, ""),
     publish: (plan, visibility, owner) => api("/api/plans", {plan, visibility,owner}),
     refresh:owner=>api("/api/plans",{id:owner.id,owner}),
-    browse: async () => (await api("/api/plans")).plans,
+    browse: async (filter) => {
+      const q = [];
+      if (filter && filter.npc) q.push("npc=" + encodeURIComponent(filter.npc));
+      else if (filter && filter.boss) q.push("boss=" + encodeURIComponent(filter.boss));
+      return (await api("/api/plans" + (q.length ? "?" + q.join("&") : ""))).plans;
+    },
+    bosses: async () => (await api("/api/plans/bosses")).bosses || [],
     fetchPlan: (id) => api("/api/plans?id=" + encodeURIComponent(id)),
   });
 }
