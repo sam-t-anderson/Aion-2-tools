@@ -2,7 +2,47 @@
 
 This page describes current capabilities and remaining work. Release-by-release changes belong in [GitHub Releases](https://github.com/sam-t-anderson/Aion-2-tools/releases). See [the app guide](app.md), [user guide](user-guide.md) and [methodology](methodology.md) for behavior and limits.
 
-The seven requested workstreams have delivered their implementation checkpoints. Some follow-ups depend on game data or protocol evidence that is not available yet; they remain open below. A display, proxy or entered assumption is not a verified game mechanic.
+The seven requested workstreams have delivered their implementation checkpoints. Some follow-ups depend on game data or protocol evidence that is not available yet; they remain open. A display, proxy or entered assumption is not a verified game mechanic.
+
+**This page is split into two parts for clarity:**
+
+- **[✅ Shipped — implemented and in the app](#-shipped--implemented-and-in-the-app)** — what already works today.
+- **[🚧 Outstanding — still to build or verify](#-outstanding--still-to-build-or-verify)** — what is left, and what each item is waiting on.
+
+The **[detailed workstream reference](#detailed-workstream-reference)** below keeps the full per-area notes (the "Available" / "Remaining" detail) that the two summaries distill. Many outstanding items are **gated on inputs we do not control yet** — a verified in-game capture, source-confirmed data, or real-hardware validation — not simply unwritten code; each says so.
+
+---
+
+## ✅ Shipped — implemented and in the app
+
+- **Capture & recording** — continuous bounded archival, periodic recovery snapshots, saved-part pagination, durable upload queues/retries, combined stopped-part review; shared DPS/HPS clocks that freeze on inactivity and auto-split after 120s; partial mid-instance captures stay visible and unranked; owner/pet/local-player packet markers fold a pet's damage into its owner and attribute a solo-capture pet to the local player; configurable overlay metrics.
+- **Encounter classification & catalog** — Steam/registered-install discovery and selection, executable Product versions, recorded regional server identity, exact map/instance/NPC matching, post-recording corrections, unresolved-ID exports, a pinned catalog audit, boss-HP candidate signatures with provenance, and a shipped-content fingerprint with `install-version` cross-install comparison.
+- **Optimizer** — separate PvE/PvP objectives and saved results, weighted damage scenarios, crystal-HP reserves, skill/stigma reservations, timed expected-hit traces, imported PvP opponents, canonical community presets with server regeneration, and `calibrate --timings` measuring cast/pet cadence from a capture. Dedicated PvE kits for all eight classes.
+- **Genus & progression** — the five-genus/nine-slot editor with validation, saved snapshots, per-slot contribution and replacement advice; official-profile Pantheon deity totals, effect strings and proper deity names; a hand-transcribed ground-truth reference capture.
+- **Combat analytics** — shared desktop/Pages/server review with run/encounter/participant scopes, graph keys, hover/click detail, damage/healing/incoming breakdowns, peak windows, death recaps, imported buff overlap and evidence coverage; pet combine without destroying source IDs; normalized positions handed to Raid Planner.
+- **Timers & timed bosses** — regional event pages and countdowns with dated provenance and staleness notices, public observed boss-defeat histories, perspective-dedup grouping of one defeat seen by several party members, a field-boss kill auto-report (≥2 reporters) and a community respawn reference, and the **overlay event-notification strip with an optional chime (0.2.233)**.
+- **Website & shared tools** — Pages navigation, focused log/character pages, local build drafts, catalog validation, preset seeding, embedded maps, a source-attributed crafting snapshot, official news cards, **per-verified-profile Server/Region matched comparisons (server 0.2.75)**, the **"why a scope is Unavailable" hint (0.2.231)**, and **community NPC portraits displayed behind the curated table (client 0.2.232, server 0.2.76–0.2.77)**.
+- **Live meter & overlay quality-of-life** — run segmentation and the partial-capture/17-player/mid-reset fixes; overlay lifecycle + collapse-to-tray; layout, colour, font, background and per-element font settings with halo/retroreflection effects; enemy-HP / target / TTK / contribution / combat-power / death readouts; identity re-acquisition; live-millisecond DPS; screenshot-and-lock; FPS counter; settings backup/restore; layout-aware multi-monitor position restore; the **community-rank badge (0.2.230)**; a **target portrait on the overlay (0.2.232)**; OBS Browser-Source + click-through and configurable global hotkeys (Windows).
+- **Maintenance & operations** — application-content screenshots, storage inventory and cleanup, self-cleaning updater with bounded retention, asset diagnostics, owned-upload management, credential backup/restore, a private authenticated dashboard, a CI-gated auto-updater, and `doctor` self-check.
+
+## 🚧 Outstanding — still to build or verify
+
+- **Capture & recording** — more local-player/spawn/roster/death/instance protocol variants from verified captures (multi-player unowned pets stay unguessed); cross-part boss-attempt stitching and ranking promotion; multi-uploader fight matching without false merges; more OS/driver loss evidence. *Gated on current-build diagnostic captures with known participants/outcomes (TCP on and off).*
+- **Encounter classification & catalog** — a reliable cross-launcher version key (fingerprints drift by patch per launcher); unregistered-PURPLE install-path discovery; build/region applicability for catalog records and boss signatures; independently confirmed difficulty labels; calibrated ≥99%-precision auto-classification; remaining NPC identity variants (map 200003, the map-61 arena name); **trusted, id-verified boss roles and portraits** (a community portrait *fallback* now fills art — see Website). *Gated on source-backed mappings and labelled captures.*
+- **Optimizer** — measured defensive/shield/healing/CC coefficients and costs; matchup-specific mitigation, worst-case timing and reactive opponents; validation against representative encounters; current-build gear-roll legality and reactive tactics. *Gated on verified coefficients and validation captures.*
+- **Genus & progression** — official Genus/Pantheon allocation payloads (the live character API exposes none today); verified defensive/owned-effect coefficients, costs and maxima. *Gated on a machine-readable allocation source or user-entered in-game data.*
+- **Combat analytics** — verified casts, buffs, resources, shields, effective healing, interrupts, mitigation, misses and CC success; verified positions/movement decoding; PvP team/round/objective and kill-credit detection; encounter mechanics before phase/avoidable-damage naming; **boss stagger / break-gauge** tracking; per-effect mode for mixed PvE/PvP segments. *Gated on representative packets with independently known actions/targets/timing/outcomes.*
+- **Timers & timed bosses** — independently verified regional schedules and build applicability; physical server/channel scope and verified respawn rules; hardened same-defeat grouping; recognising field bosses the catalog misses; the Fera Discord bot consuming `field-bosses.json` (a server-repo task); a **live-timer feed** to replace the overlay's local forecast. *Timer feed and schedules gated on source/availability/reuse verification; missed bosses gated on captures.*
+- **Website & shared tools** — populating the **World** comparison scope (needs sufficient encounter metadata to match); verified arcana/Pantheon artwork; permitted native map coordinates/layers/assets; verified crafting success/refund/combo rules; item-stat/recipe applicability to current builds; additional source-verified feeds; the **remaining id-verified NPC portraits** (community fallback already shipped). *Gated on source data and cohort/metadata coverage.*
+- **Live meter & overlay** — macOS/Linux **native overlay parity** (always-on-top, click-through, position/monitor read, game-window follow) and macOS/Linux global hotkeys; **real-Windows validation** of the native layer, multi-monitor placement and hotkeys; estimated time-to-enrage; the unwired hotkey actions; **RTSS in-game rendering**. *Device-gated on real Mac/Linux/Windows hardware with the game running (and an RTSS install); the cross-platform logic and blueprints are in place.*
+- **Community identity & auth** — verified character claims, opt-out of appearing in others' uploads, account/device recovery and named moderator roles. *Gated on a trustworthy authentication design; shared keys do not establish a person's identity.*
+- **Deployment & infrastructure** — confirming the installed server version through authenticated host access, and private server-repo auto-merge. *Gated on host access and a GitHub plan that supports private-repo auto-merge.*
+
+---
+
+## Detailed workstream reference
+
+The sections below are the full per-area notes the two summaries above distill. They retain the exact "Available" / "Remaining" wording, evidence requirements and caveats.
 
 ## 1. Capture reliability and recording reconstruction
 

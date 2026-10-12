@@ -174,3 +174,31 @@ def test_overlay_prefs_reads_remembered_positions(home):
     # A bool must not be read as a coordinate.
     write_user_json({"overlay_pos_x": True, "overlay_pos_y": 10}, "ui.json")
     assert overlay._overlay_prefs()["positions"]["meter"] is None
+
+
+_OGG = "data:audio/ogg;base64,T2dnUwABAA=="  # a tiny valid base64 audio data URL
+
+
+def test_set_and_clear_overlay_event_sound(home):
+    from aion2calc.app.server import set_overlay_event_sound, ui_settings
+    assert set_overlay_event_sound({"data": _OGG})["overlay_events_sound_set"] is True
+    assert (home / "overlay-event-sound.ogg").exists()
+    assert ui_settings()["overlay_events_sound_set"] is True
+    # A second upload of a different type replaces the first (only one sound is kept).
+    assert set_overlay_event_sound({"data": "data:audio/wav;base64,UklGRg=="})["overlay_events_sound_set"] is True
+    assert (home / "overlay-event-sound.wav").exists() and not (home / "overlay-event-sound.ogg").exists()
+    assert set_overlay_event_sound({"clear": True})["overlay_events_sound_set"] is False
+    assert not (home / "overlay-event-sound.wav").exists()
+    assert ui_settings()["overlay_events_sound_set"] is False
+
+
+def test_overlay_event_sound_rejects_non_audio_and_oversize(home):
+    from aion2calc.app.server import set_overlay_event_sound
+    import base64
+    with pytest.raises(ValueError):
+        set_overlay_event_sound({"data": "data:image/png;base64,iVBORw0KGgo="})   # not audio
+    with pytest.raises(ValueError):
+        set_overlay_event_sound({"data": "not a data url"})
+    big = "data:audio/mpeg;base64," + base64.b64encode(b"\0" * (1024 * 1024 + 1)).decode()
+    with pytest.raises(ValueError):
+        set_overlay_event_sound({"data": big})                                     # over 1 MB

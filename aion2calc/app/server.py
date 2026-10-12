@@ -476,6 +476,14 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(200, f.read_bytes(),
                                       "image/png" if name.endswith(".png") else "image/jpeg", cache=60)
             return self._send(404, b"", "text/plain")
+        if path == "/overlay-event-sound":
+            # The user's custom event-notification sound, stored locally (never in ui.json).
+            for name, ctype in (("overlay-event-sound.mp3", "audio/mpeg"), ("overlay-event-sound.ogg", "audio/ogg"),
+                                ("overlay-event-sound.wav", "audio/wav"), ("overlay-event-sound.webm", "audio/webm")):
+                f = home() / name
+                if f.exists():
+                    return self._send(200, f.read_bytes(), ctype, cache=60)
+            return self._send(404, b"", "text/plain")
         if path.startswith("/static/"):
             return self._static(path[len("/static/"):])
         if path == "/api/status":
@@ -786,6 +794,10 @@ class Handler(BaseHTTPRequestHandler):
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("the overlay background is set only on the computer running the app")
             return self._json(set_overlay_background(body))
+        if path == "/api/overlay/event-sound":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("the overlay event sound is set only on the computer running the app")
+            return self._json(set_overlay_event_sound(body))
         if path == "/api/meter/decoder":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Decoder files can only be imported on this computer")
@@ -967,7 +979,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
                               "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart")
+                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1184,7 +1196,7 @@ def ui_settings() -> dict:
                 "meter_reset_after_battle": False, "meter_reset_delay": 5, "meter_max_records": 20,
                 "meter_show_dummy_parse": True, "meter_dummy_record_seconds": 60,
                 "overlay_show_combat_power": True, "overlay_show_community_rank": False,
-                "overlay_show_events": True,
+                "overlay_show_events": True, "overlay_events_sound": False, "overlay_events_sound_set": False,
                 "overlay_max_players": 8, "overlay_width": 340, "overlay_height": 0, "overlay_row_height": 22,
                 "overlay_only_in_combat": False, "overlay_auto_expand": False,
                 # Visual group (all inert by default so the overlay looks unchanged until enabled).
@@ -1240,6 +1252,41 @@ def set_overlay_background(body: dict) -> dict:
     target.write_bytes(raw)
     cur = ui_settings(); cur["overlay_bg_set"] = True; write_user_json(cur, "ui.json")
     return {"overlay_bg_set": True}
+
+
+def set_overlay_event_sound(body: dict) -> dict:
+    """Store (or clear) the user's custom overlay event-notification sound as a local
+    file, recording only a flag in ui.json (never the audio itself, so a settings
+    backup stays small and shareable). Without a custom sound the overlay plays a
+    short built-in chime."""
+    import base64
+    from ..paths import home, write_user_json
+    exts = {"audio/mpeg": "mp3", "audio/mp3": "mp3", "audio/ogg": "ogg",
+            "audio/wav": "wav", "audio/x-wav": "wav", "audio/webm": "webm"}
+    files = [home() / ("overlay-event-sound." + e) for e in ("mp3", "ogg", "wav", "webm")]
+    if body.get("clear"):
+        for f in files:
+            f.unlink(missing_ok=True)
+        cur = ui_settings(); cur["overlay_events_sound_set"] = False; write_user_json(cur, "ui.json")
+        return {"overlay_events_sound_set": False}
+    data = body.get("data") or ""
+    if not isinstance(data, str) or not data.startswith("data:audio/"):
+        raise ValueError("Provide an audio file (MP3, OGG, WAV or WebM)")
+    header, _, b64 = data.partition(",")
+    ext = exts.get(header[5:].split(";")[0])        # strip "data:" then take the mime type
+    if not ext or not b64:
+        raise ValueError("The sound must be an MP3, OGG, WAV or WebM audio file")
+    try:
+        raw = base64.b64decode(b64, validate=True)
+    except Exception:
+        raise ValueError("The audio could not be decoded")
+    if len(raw) > 1024 * 1024:
+        raise ValueError("The sound must be 1 MB or smaller — keep it short (about 2 seconds)")
+    for f in files:
+        f.unlink(missing_ok=True)
+    (home() / ("overlay-event-sound." + ext)).write_bytes(raw)
+    cur = ui_settings(); cur["overlay_events_sound_set"] = True; write_user_json(cur, "ui.json")
+    return {"overlay_events_sound_set": True}
 
 
 def make_server(host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServer:

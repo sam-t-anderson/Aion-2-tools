@@ -11,6 +11,13 @@ const pct = (x, d = 1) => (x == null || isNaN(x) ? "—" : (100 * x).toFixed(d) 
 const icon = u => {const source=u?"/api/icon?u="+encodeURIComponent(u.startsWith("/")?"https://metabot.gg"+u:u):"";return window.A2AssetHealth?A2AssetHealth.source(source):source;};
 const assetAttrs = (kind, item) => window.A2AssetHealth?.attributes(item?.item_id ? {namespace:'official',kind,id:item.item_id,region:item.item_region} : {namespace:'metabot',kind,id:item?.item_slug || item?.slug}) || '';
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "");
+// Preview the overlay event-notification sound: the uploaded sound if one is set,
+// otherwise the same built-in two-note chime the overlay plays. Falls back to the
+// chime if the custom file is absent. Called from a Test button (a user gesture).
+function previewEventSound() {
+  const chime = () => { try { const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return; const a = new Ctx(); const t0 = a.currentTime; [[784, 0], [1046.5, 0.13]].forEach(([f, dt]) => { const o = a.createOscillator(), g = a.createGain(); o.type = "sine"; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t0 + dt); g.gain.exponentialRampToValueAtTime(0.22, t0 + dt + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.33); o.connect(g); g.connect(a.destination); o.start(t0 + dt); o.stop(t0 + dt + 0.36); }); } catch (_) {} };
+  try { const audio = new Audio("/overlay-event-sound?v=" + Date.now()); audio.volume = 0.6; audio.onerror = () => chime(); audio.play().catch(() => chime()); } catch (_) { chime(); }
+}
 const app = () => $("#app");
 
 async function api(path, body, signal) {
@@ -1813,6 +1820,8 @@ async function pageSettings() {
       <label><input type="checkbox" id="ov-cp" ${ui.overlay_show_combat_power !== false?'checked':''}> Show your combat power beside your name (when the game reports it)</label>
       <label title="After a fight auto-uploads, show your community standing (e.g. “World Top 8%”) for that encounter beside your name"><input type="checkbox" id="ov-community-rank" ${ui.overlay_show_community_rank === true?'checked':''}> Show your community rank for your last uploaded fight <span class="muted">(needs auto-upload; off by default)</span></label>
       <label title="Shows the next rift / Shugo / battlefield / field-boss windows for your region when one is active or within 15 minutes"><input type="checkbox" id="ov-events" ${ui.overlay_show_events !== false?'checked':''}> Show regional event notifications on the overlay <span class="muted">(uses the region you pick on the Timers page; community forecast, on by default)</span></label>
+      <label title="Play a short chime when an event notification appears on the overlay"><input type="checkbox" id="ov-events-sound" ${ui.overlay_events_sound === true?'checked':''}> Play a sound when an event notification appears <span class="muted">(off by default)</span></label>
+      <div class="row" style="gap:6px;margin:0 0 4px 22px"><label class="btn small" for="ov-events-sound-file">Upload sound</label><input type="file" id="ov-events-sound-file" accept="audio/mpeg,audio/ogg,audio/wav,audio/webm" style="display:none"><button class="btn small" id="ov-events-sound-test" type="button">Test</button><button class="btn small" id="ov-events-sound-clear" type="button">Use default chime</button><span id="ov-events-sound-msg" class="small muted" role="status">${ui.overlay_events_sound_set?'Custom sound set (≤2s recommended).':'Built-in chime.'}</span></div>
       <label><input type="checkbox" id="ov-plan-autoplay" ${ui.overlay_plan_autoplay !== false?'checked':''}> Auto-play a saved raid plan on the overlay's Plan tab when you fight the boss it is bound to, synced to the pull (on by default)</label><p class="small muted">Bind a plan to a boss in the Raid planner (set its Boss / NPC id). When the meter is in that fight, the Plan tab plays that plan at the encounter's elapsed time; otherwise it loops the latest plan as a preview.</p></div></div>
     <div class="setrow" data-g="overlay"><div class="lbl">Streaming (OBS / Discord)</div><div><div class="row"><input id="ov-stream-url" type="text" readonly value="${esc(location.origin)}/overlay" style="width:300px" aria-label="Overlay browser-source URL"><button class="btn small" id="ov-stream-copy">Copy URL</button><span id="ov-stream-msg" class="small muted" role="status"></span></div>
       <p class="small muted">Add this as an <b>OBS / Streamlabs Browser Source</b> (it renders transparent) and composite it over your game-capture scene, then stream that scene to Discord — the overlay shows on your stream. To go through Discord <b>Go&nbsp;Live</b> directly instead, share your <b>whole screen</b> (not just the game window) so the always-on-top overlay is included.</p>
@@ -2143,6 +2152,22 @@ async function pageSettings() {
   $("#ov-cp").onchange = () => api("/api/ui", { overlay_show_combat_power: $("#ov-cp").checked }).then(() => toast("Saved"));
   $("#ov-community-rank") && ($("#ov-community-rank").onchange = () => api("/api/ui", { overlay_show_community_rank: $("#ov-community-rank").checked }).then(() => toast("Saved")));
   $("#ov-events") && ($("#ov-events").onchange = () => api("/api/ui", { overlay_show_events: $("#ov-events").checked }).then(() => toast("Saved")));
+  $("#ov-events-sound") && ($("#ov-events-sound").onchange = () => api("/api/ui", { overlay_events_sound: $("#ov-events-sound").checked }).then(() => toast("Saved")));
+  if ($("#ov-events-sound-file")) {
+    const smsg = $("#ov-events-sound-msg");
+    $("#ov-events-sound-file").onchange = async (ev) => {
+      const file = ev.target.files && ev.target.files[0]; if (!file) return;
+      if (file.size > 1024 * 1024) { smsg.textContent = "Sound must be 1 MB or smaller — keep it short (~2s)."; ev.target.value = ""; return; }
+      smsg.textContent = "Uploading…";
+      try {
+        const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(Error("Could not read the file")); r.readAsDataURL(file); });
+        await api("/api/overlay/event-sound", { data });
+        smsg.textContent = "Custom sound set. Use Test to hear it.";
+      } catch (e) { smsg.textContent = e.message; } finally { ev.target.value = ""; }
+    };
+    $("#ov-events-sound-clear").onclick = async () => { try { await api("/api/overlay/event-sound", { clear: true }); smsg.textContent = "Using the built-in chime."; } catch (e) { smsg.textContent = e.message; } };
+    $("#ov-events-sound-test").onclick = () => previewEventSound();
+  }
   $("#ov-autoexp").onchange = () => api("/api/ui", { overlay_auto_expand: $("#ov-autoexp").checked }).then(() => toast("Saved"));
   $("#ov-onlycombat").onchange = () => api("/api/ui", { overlay_only_in_combat: $("#ov-onlycombat").checked }).then(() => toast("Saved"));
   $("#ov-scrollnames").onchange = () => api("/api/ui", { overlay_long_names_scroll: $("#ov-scrollnames").checked }).then(() => toast("Saved"));

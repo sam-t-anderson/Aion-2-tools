@@ -3,6 +3,7 @@
 - The overlay now shows a compact **event strip** — the next rift, Shugo, battlefield and field-boss windows — when one is active or within 15 minutes. On by default, with a toggle in **Settings → Overlay** ("Show regional event notifications").
 - It uses the region you pick on the **Timers page** (shared between the app and overlay), and the same bundled community schedule the Timers page already uses — a scheduled window is a **community forecast, not live status**, and each entry says so on hover (including a note when community reports conflict). No new data source and no extra network calls.
 - Active events show their remaining window (entry countdown while the entry window is open); upcoming ones show a "in 5m" countdown. The DST-aware schedule math is now a shared engine (`event-schedule.js`) used by both the Timers page and the overlay, so the two never drift.
+- **Optional sound** (off by default): a short built-in two-note chime can play when a new event notification appears, with a toggle in Settings → Overlay. You can **upload your own sound** (MP3/OGG/WAV/WebM, ≤1 MB, ~2 seconds) and a Test button to preview it; the sound is stored locally and never included in a settings backup.
 
 ## Community NPC portraits show in combat review and the overlay (0.2.232)
 
