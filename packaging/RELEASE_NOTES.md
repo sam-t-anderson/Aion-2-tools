@@ -1,3 +1,7 @@
+## Groundwork for the overlay on macOS and Linux (0.2.227)
+
+- **Internal plumbing, no change on Windows.** The overlay's native layer (always-on-top, click-through, remembering its position, following the game window) is now behind a single platform interface, with the Windows implementation unchanged and documented macOS/Linux scaffolds for the native work still to come. macOS and Linux keep today's browser/plain-window overlay for now; this is the structure that lets the native overlay reach them next, with the cross-platform logic unit-tested.
+
 ## Overlay remembers its spot per monitor layout (0.2.226)
 
 - **The remembered overlay position now restores correctly on multi-monitor setups.** Before, the overlay saved one screen position and only checked it against the whole desktop box — so rearranging or renumbering monitors could reopen it on the wrong screen (or just off-view). It now saves the **monitor layout** alongside the position: if your layout is unchanged it reopens exactly where you left it, if a monitor moved it re-seats at the same spot *within that monitor*, and if the screen it was on is gone it falls back to following the game window instead of opening somewhere stale. (Windows; the restore logic is covered by tests, the native monitor read is validated on a real Windows build.)

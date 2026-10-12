@@ -28,8 +28,56 @@ class _GameWindow:
     minimized: bool = False
 
 
-class _Windows:
+class _NativeOverlay:
+    """The platform-specific operations the overlay's tracking loop needs to drive a
+    frameless always-on-top window: find and measure the game window, move the overlay,
+    read the screen/monitor geometry, hit-test the cursor, and toggle click-through.
+
+    ``_Windows`` is the implemented backend. ``_MacOS`` and ``_Linux`` are scaffolds for
+    the parity work (their real API approach is documented inline). Each backend declares
+    ``supported``; the overlay only engages native control when that is true, and
+    otherwise runs in its browser/plain-window fallback, so an unimplemented platform
+    changes nothing. Keeping this one interface means the cross-platform logic (e.g.
+    ``resolve_remembered_position``) stays platform-agnostic and unit-tested."""
+
+    platform = ""
+    supported = False
+
+    def game_window(self):
+        """The foreground AION 2 window as a ``_GameWindow`` (bounds in screen px), or None."""
+        raise NotImplementedError
+
+    def rect(self, handle):
+        """The overlay window's (x, y, width, height) in screen px."""
+        raise NotImplementedError
+
+    def move(self, handle, x, y):
+        """Move the overlay window's top-left to (x, y) in screen px."""
+        raise NotImplementedError
+
+    def virtual_screen(self):
+        """The bounding box (x, y, width, height) of all monitors."""
+        raise NotImplementedError
+
+    def monitors(self):
+        """Each monitor's (left, top, width, height); empty if unavailable."""
+        return []
+
+    def cursor_in_client(self, handle):
+        """The cursor in the overlay's client coordinates (physical px), or None."""
+        return None
+
+    def set_click_through(self, handle, enabled):
+        """Make the overlay window pass mouse input through to the game, or stop."""
+        raise NotImplementedError
+
+
+class _Windows(_NativeOverlay):
     """Win32 calls with pointer-sized signatures (HWND/HANDLE are 64 bit on x64)."""
+
+    platform = "win32"
+    supported = True
+
 
     def __init__(self):
         from ctypes import wintypes as w
@@ -167,6 +215,65 @@ class _Windows:
         new = (style | WS_EX_TRANSPARENT) if enabled else (style & ~WS_EX_TRANSPARENT)
         if new != style:
             self.user32.SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new)
+
+
+class _MacOS(_NativeOverlay):
+    """Scaffold for native overlay control on macOS. Not yet implemented, so
+    ``supported`` is False and the overlay runs in its browser/plain-window fallback.
+
+    To implement (via pyobjc, which pywebview already uses for its Cocoa window):
+      * game_window / monitors / virtual_screen: ``Quartz.CGWindowListCopyWindowInfo``
+        for the AION 2 window bounds, ``AppKit.NSScreen.screens()`` for monitor frames
+        (note Cocoa's bottom-left origin — flip Y to match the Windows top-left frame
+        this interface uses).
+      * move: ``NSWindow.setFrameOrigin_`` (Y-flipped).
+      * always-on-top: ``NSWindow.setLevel_(NSStatusWindowLevel)`` and
+        ``NSWindowCollectionBehaviorCanJoinAllSpaces``.
+      * set_click_through: ``NSWindow.setIgnoresMouseEvents_`` for the whole window, or
+        an AppKit hit-test against the control rects for the dynamic (hover-only) mode.
+      * cursor_in_client: ``NSEvent.mouseLocation`` converted to window coordinates.
+    Flip ``supported = True`` once these are implemented and validated on a real Mac."""
+
+    platform = "darwin"
+    supported = False
+
+
+class _Linux(_NativeOverlay):
+    """Scaffold for native overlay control on Linux (X11; Wayland is more restricted).
+    Not yet implemented, so ``supported`` is False and the overlay uses its fallback.
+
+    To implement (X11, e.g. via python-xlib):
+      * game_window / monitors / virtual_screen: find the AION 2 window and read its
+        geometry; enumerate monitors via the RandR/Xinerama extension.
+      * move: ``XMoveWindow`` / configure the window.
+      * always-on-top: set ``_NET_WM_STATE_ABOVE`` (EWMH).
+      * set_click_through: apply an empty input shape with the XShape extension
+        (``XShapeCombineRectangles`` on ShapeInput), or an input region covering only
+        the control rects for the hover-only mode.
+      * cursor_in_client: ``XQueryPointer`` translated into window coordinates.
+    Wayland generally forbids global always-on-top/input-shape from an app, so this may
+    stay X11-only. Flip ``supported = True`` once implemented and validated on Linux."""
+
+    platform = "linux"
+    supported = False
+
+
+def native_overlay() -> _NativeOverlay | None:
+    """The native overlay backend for this OS, or None when the platform has no
+    implemented backend (the overlay then runs in its browser/plain-window fallback).
+    Single source of truth for platform selection; constructing the Windows backend can
+    still fail (missing user32 symbols), in which case this returns None."""
+    import sys as _sys
+    cls = {"win32": _Windows, "darwin": _MacOS, "linux": _Linux}.get(
+        "linux" if _sys.platform.startswith("linux") else _sys.platform)
+    if cls is None:
+        return None
+    try:
+        backend = cls()
+    except Exception:
+        _LOG.exception("Could not initialize the %s overlay backend", getattr(cls, "platform", "native"))
+        return None
+    return backend if backend.supported else None
 
 
 def _follow_position(previous, bounds, current, snap=False, expand_up=False):
@@ -492,9 +599,11 @@ def _run_overlay(window, api, app_base: str | None = None, party: bool = False) 
             api._configure_windows()
         except Exception:
             _LOG.exception("Could not configure the native Windows overlay")
-        # Opacity/style setup must not disable foreground tracking.
+        # Opacity/style setup must not disable foreground tracking. native_overlay()
+        # is the single platform selector; today only Windows has a supported backend,
+        # so on macOS/Linux this stays None and the overlay keeps its fallback.
         try:
-            win32 = _Windows()
+            win32 = native_overlay()
         except Exception:
             _LOG.exception("Could not initialize overlay foreground tracking")
         if win32 is not None:
