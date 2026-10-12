@@ -46,6 +46,9 @@ class CombatSession:
         result.runs[self.run].pop("started_at", None)
         result._boss_attempt = copy.deepcopy(self._boss_attempt)
         result.wipe_splits = self.wipe_splits
+        result._engaged_bosses = set(self._engaged_bosses)
+        result._boss_below = set(self._boss_below)
+        result.reset_splits = self.reset_splits
         result._zone_reset_seen = False  # A continuation part never captured the run's entry.
         return result
 
@@ -88,6 +91,14 @@ class CombatSession:
         self._storage_players = {}
         self._boss_attempt = None
         self.wipe_splits = 0
+        # Bosses (epoch, entity) a party/self attack has engaged, and the subset seen
+        # currently below full HP. An engaged boss that climbs back to full HP is a
+        # leash/reset (the party wiped or ran out — more reliable than player-death
+        # telemetry, which is missed when the boss zone goes out of packet range), so it
+        # starts a fresh attempt. ``reset_splits`` counts those, mirroring ``wipe_splits``.
+        self._engaged_bosses = set()
+        self._boss_below = set()
+        self.reset_splits = 0
 
     def _check_boss_wipe(self, timestamp_ms, engine):
         attempt = self._boss_attempt
@@ -290,6 +301,11 @@ class CombatSession:
                         actors.add(actor)
                 self._storage_players.setdefault(scope, set()).update((self.epoch, actor) for actor in actors)
             if isinstance(event, DamageEvent):
+                # Remember bosses our party actually engaged, so a later return to full
+                # HP (leash/reset) can be told apart from an unrelated nearby boss.
+                target_code = identity["spawns"].get(event.target_id, {}).get("mobCode")
+                if event.actor_id in allowed and target_code and npc_info(target_code).get("isBoss"):
+                    self._engaged_bosses.add((self.epoch, event.target_id))
                 # Count the same relevant damage groups as groups(), separately
                 # for every selectable scope. Nearby NPC-only effects must not
                 # force storage rollovers that clear the player's live view.
@@ -327,6 +343,20 @@ class CombatSession:
                     elif sample["kind"] == "hp" and sample["current"] > 0:
                         attempt["dead"].discard(actor)
             key = (self.epoch, sample["entity"])
+            if sample["kind"] == "hp" and key in self._engaged_bosses:
+                # Track an engaged boss's HP against its max. Dropping below full marks
+                # the attempt live; climbing back to full is a leash/reset, so start a
+                # fresh attempt (a new clock) — this is the reliable encounter boundary
+                # when a wipe's player deaths are missed out of range, or the party runs
+                # back to a boss with no lockout that healed up.
+                maximum = sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("reportedMaxHp")
+                if maximum and sample["current"] < maximum:
+                    self._boss_below.add(key)
+                elif maximum and sample["current"] >= maximum and key in self._boss_below:
+                    self.manual_split += 1
+                    self.reset_splits += 1
+                    self._boss_below.discard(key)
+                    self._engaged_bosses.discard(key)
             if sample["kind"] == "hp" and sample["current"] > 0:
                 self._dead.discard(key)
             if sample["kind"] == "death":
@@ -731,7 +761,7 @@ class CombatSession:
         if chosen:
             epoch = chosen[-1]["epoch"]
             spawns = self.identities[epoch]["spawns"]
-            boss_engaged = attacker_alive = False
+            boss_live = attacker_alive = False
             for record in chosen[-1]["records"]:
                 event = record.event
                 if not isinstance(event, DamageEvent):
@@ -740,9 +770,14 @@ class CombatSession:
                 if event.actor_id in allowed and (epoch, event.actor_id) not in self._dead:
                     attacker_alive = True
                 code = spawns.get(event.target_id, {}).get("mobCode")
-                if code and npc_info(code).get("isBoss") and (epoch, event.target_id) not in self._dead:
-                    boss_engaged = True
-            boss_alive = boss_engaged and attacker_alive
+                # Live only while the engaged boss is still below full HP: a boss back at
+                # full has leashed/reset (so the attempt is over) even if we never saw the
+                # party's deaths, and a dead boss is likewise not live.
+                if (code and npc_info(code).get("isBoss")
+                        and (epoch, event.target_id) not in self._dead
+                        and (epoch, event.target_id) in self._boss_below):
+                    boss_live = True
+            boss_alive = boss_live and attacker_alive
         summary["boss_alive"] = boss_alive
         # Reset-after-battle: once combat has been idle past the delay, signal that
         # the fight is over so the live view can clear to a ready state. The data is

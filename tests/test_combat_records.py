@@ -12,6 +12,10 @@ def _hit(actor, target, t, dmg=500):
     return DamageEvent(actor_id=actor, target_id=target, skill_code=15210000, damage=dmg, timestamp_ms=t)
 
 
+def _hp(entity, current, maximum, t):
+    return {"entity": entity, "kind": "hp", "current": current, "max": maximum, "timestamp_ms": t}
+
+
 def _session():
     s = CombatSession()
     s.pvp = False
@@ -59,6 +63,7 @@ def test_battle_not_over_while_an_engaged_boss_is_still_alive(monkeypatch):
     s.reset_after_battle = True
     s.reset_delay_seconds = 5
     now = int(time.time() * 1000)
+    engine.telemetry = [_hp(9001, 500, 1000, now - 11000)]   # boss at 50% (below full) = live
     s.observe(engine, [_hit(5001, 9001, now - 12000, 500), _hit(5001, 9001, now - 10000, 500)], timestamp_ms=now - 10000)
     snap = s.snapshot(scope="auto", segment_id=None)
     assert snap["boss_alive"] is True
@@ -83,18 +88,20 @@ def test_battle_over_on_a_wipe_even_though_the_boss_survives(monkeypatch):
     s.reset_after_battle = True
     s.reset_delay_seconds = 5
     now = int(time.time() * 1000)
+    engine.telemetry = [_hp(9001, 500, 1000, now - 11000)]   # boss below full = live
     s.observe(engine, [_hit(5001, 9001, now - 10000, 500)], timestamp_ms=now - 10000)
     assert s.snapshot(scope="auto", segment_id=None)["boss_alive"] is True   # attacker alive
 
-    # The sole attacker dies (full wipe): boss still up, but the fight is over.
+    # The sole attacker dies (full wipe): boss still up (below full), but fight is over.
     s._dead.add((s.epoch, 5001))
     wiped = s.snapshot(scope="auto", segment_id=None)
     assert wiped["boss_alive"] is False
     assert wiped["battle_over"] is True
 
     # They respawn and re-engage: the revive (HP > 0 telemetry) clears the death flag,
-    # and their renewed damage makes the pull read live again.
+    # and their renewed damage on the still-wounded boss makes the pull read live again.
     s._dead.discard((s.epoch, 5001))
+    engine.telemetry = [_hp(9001, 400, 1000, now - 1100)]
     s.observe(engine, [_hit(5001, 9001, now - 1000, 500)], timestamp_ms=now - 1000)
     assert s.snapshot(scope="auto", segment_id=None)["boss_alive"] is True
 
@@ -110,10 +117,40 @@ def test_boss_fight_ends_when_truly_abandoned(monkeypatch):
     s.reset_delay_seconds = 5
     s.gap_seconds = 120
     now = int(time.time() * 1000)
+    engine.telemetry = [_hp(9001, 500, 1000, now - 130000)]
     s.observe(engine, [_hit(5001, 9001, now - 130000, 500)], timestamp_ms=now - 130000)
     snap = s.snapshot(scope="auto", segment_id=None)
-    assert snap["boss_alive"] is True                  # never recorded as dead
+    assert snap["boss_alive"] is True                  # boss below full, attacker alive
     assert snap["battle_over"] is True                 # but 130s idle > 120s pull-gap
+
+
+def test_boss_returning_to_full_hp_starts_a_fresh_attempt(monkeypatch):
+    # The reliable encounter boundary: an engaged boss climbing back to full HP is a
+    # leash/reset (party wiped out of range, or ran back to a no-lockout boss that
+    # healed). It starts a new segment so damage doesn't accumulate across attempts,
+    # and reads as not-live so the overlay clears — without relying on player deaths.
+    import aion2calc.meter.session as session
+    monkeypatch.setattr(session, "npc_info", lambda code: {"isBoss": code == 777})
+    s, engine = _session()
+    engine.spawn_info = {9001: {"mobCode": 777}}
+    s.reset_after_battle = True
+    s.reset_delay_seconds = 5
+    now = int(time.time() * 1000)
+    engine.telemetry = [_hp(9001, 500, 1000, now - 20000)]   # engage, boss to 50%
+    s.observe(engine, [_hit(5001, 9001, now - 20000, 500)], timestamp_ms=now - 20000)
+    assert (s.epoch, 9001) in s._boss_below
+    assert s.snapshot(scope="auto", segment_id=None)["boss_alive"] is True
+    split_before = s.manual_split
+
+    # The boss leashes back to full HP (reset): a fresh attempt begins.
+    engine.telemetry = [_hp(9001, 1000, 1000, now - 8000)]
+    s.observe(engine, [], timestamp_ms=now - 8000)
+    assert s.manual_split == split_before + 1
+    assert s.reset_splits == 1
+    assert (s.epoch, 9001) not in s._boss_below
+    done = s.snapshot(scope="auto", segment_id=None)
+    assert done["boss_alive"] is False                 # reset boss is not a live fight
+    assert done["battle_over"] is True                 # so the overlay clears after the delay
 
 
 def test_save_records_flag_follows_the_setting(tmp_path, monkeypatch):
