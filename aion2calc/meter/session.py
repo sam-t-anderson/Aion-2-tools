@@ -308,7 +308,7 @@ class CombatSession:
             record = Record(self.epoch, event, party, engine.local_player_id, sequence=self.sequence+1)
             allowed = self._allowed(record, "party")
             self._track_boss_attempt(engine, record, allowed)
-            self.storage_players.update((self.epoch, actor) for actor in allowed if actor not in identity["owners"])
+            self.storage_players.update(actor for actor in allowed if actor not in identity["owners"])
             for scope in ("self", "party", "all", "auto"):
                 selected = self._allowed(record, scope)
                 actors = set(selected) if self._effective_scope(scope, self.epoch) == "party" else set()
@@ -321,7 +321,11 @@ class CombatSession:
                         actor = identity["owners"][actor]
                     if actor in selected and actor not in identity["owners"]:
                         actors.add(actor)
-                self._storage_players.setdefault(scope, set()).update((self.epoch, actor) for actor in actors)
+                # Key the rollover memory-bound on the actor alone, not (epoch, actor): a run of
+                # zone-reset signals (phase changes in an instance) churns the epoch, and keying on
+                # it made the same handful of party actors look like dozens of distinct players,
+                # tripping the 48-player rollover again and again and resetting the live view.
+                self._storage_players.setdefault(scope, set()).update(actors)
             if isinstance(event, DamageEvent):
                 # Classify the enemies our party actually engaged, so a later return to
                 # full HP (leash/reset) is told apart from an unrelated nearby enemy. An
@@ -347,7 +351,10 @@ class CombatSession:
                     if (self.pvp and not pvp
                             or event.actor_id not in selected and event.target_id not in selected):
                         continue
-                    context_key = (self.epoch, self.manual_split, pvp)
+                    # Likewise, a storage group is a real combat segment (a manual split, a PvE/PvP
+                    # switch, or a > gap_seconds lull), not an epoch tick: keeping epoch here let a
+                    # zone-reset storm manufacture a new group on every bump and roll the part over.
+                    context_key = (self.manual_split, pvp)
                     previous = self._storage_last.get(scope)
                     if (previous is None or context_key != previous[0]
                             or self.automatic_splits and event.timestamp_ms - previous[1] > self.gap_seconds * 1000):

@@ -1,3 +1,9 @@
+## Fix the live meter resetting repeatedly during long instance fights (0.2.243)
+
+- **Symptom:** during sustained runs (e.g. a Krao expedition) the live meter kept zeroing itself mid-fight. A capture showed **997 storage rollovers** in one session — each rollover flushes a part and starts a fresh live view, so the totals reset again and again.
+- **Cause:** in-instance phase teleports flip the engine's zone-reset signal, which advances the identity *epoch*. The rollover's memory-bound counters — "distinct players" and "segments" retained — were keyed on `(epoch, …)`, so the same small party looked like dozens of new players and hundreds of new segments as the epoch churned, tripping the 48-player rollover over and over.
+- **Fix:** those counters now measure real combat volume — distinct party **actors** and genuine **segments** (a manual split, a PvE/PvP switch, or a lull longer than the segment gap) — independent of epoch. Epoch churn no longer forces rollovers, so the live view holds through a long fight; genuine large fights (many real players / segments) and the hard record/telemetry caps still bound memory and roll over as before. These counters are used only for the rollover decision, so nothing in analysis, segmentation or saved logs changes.
+
 ## Capture your world/server name, and a "retry region detection" button (0.2.242)
 
 - **World/server name is now captured, not just the ID.** The app already resolved your region from your recorded server ID against the official server list; it now also keeps that list's **world name** per server, so recordings carry it (`meta.server_name` and per-player `server_name`). The Live Meter page shows it next to the region and beside your identity (e.g. "server 2102 (Nezekan)"), and the shared combat view shows it beside each player's server ID. It's hotlinked from the official list and omitted cleanly when a server has no published name.
