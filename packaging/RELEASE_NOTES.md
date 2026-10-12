@@ -1,3 +1,7 @@
+## Combat review says *why* a comparison scope is unavailable (0.2.231)
+
+- In the *Matched public comparisons*, a Server or Region scope that shows **Unavailable** now says which of the two reasons it is: **no verified official profile** for that character (so its home server/region can't be matched — World still compares globally), versus **not enough comparable logs yet** (which already lists the specific sample/identity shortfall). Previously both read the same generic line.
+
 ## Community rank indicator on the overlay (0.2.230)
 
 - Wires up the off-by-default **community rank** badge: after you upload a session, the overlay shows each player's community standing (e.g. *"World Top 8%"*) for that session's main fight, beside their name. It covers the local player **and resolved party members**, keying each on their own verified standing.

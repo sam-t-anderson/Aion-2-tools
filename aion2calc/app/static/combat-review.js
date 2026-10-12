@@ -265,8 +265,20 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       if(!options.rankings)return "";
       if(!ranks)return '<div class="small muted">Loading comparisons with public logs…</div>';
       if(ranks.error)return `<div class="small muted">${esc(ranks.error)}</div>`;
-      const values=x=>!x?'Unavailable — no eligible matched comparison is available. Check capture quality and encounter metadata above.':`<span title="${esc((x.reasons || []).join(' '))}">${x.rank===null?'Rank unavailable':`#${x.rank} / ${x.count}`}${x.provisional?' (provisional)':''}<br>${x.percentile===null || x.percentile===undefined?'Percentile unavailable':x.percentile.toFixed(1)+' percentile'}${x.public_samples!==undefined?` · ${x.public_samples} public samples · ${x.identities} distinct identities`:''}${x.reasons?.length?'<br>'+esc(x.reasons.join(' ')):''}</span>`;
-      const scopes=x=>['server','region','world'].map(s=>`${s[0].toUpperCase()+s.slice(1)}: ${values(x?.[s])}`).join('<br>');
+      // A null scope was never keyed; distinguish "no verified official profile" (so this
+      // character's home server/region is unknown and can't be matched) from a plain
+      // missing comparison. A resolved profile with too few peers instead returns an
+      // object carrying reasons (e.g. "Insufficient samples"), handled below — that is the
+      // "no eligible cohort" case, as opposed to the "no matched profile" case here.
+      const values=(x,scope,entry)=>{
+        if(!x){
+          if((scope==='server'||scope==='region') && entry && 'character_server' in entry && !entry.character_server)
+            return `Unavailable — no verified official profile for this character, so its home ${scope} can’t be matched. World still compares globally.`;
+          return 'Unavailable — no eligible matched comparison yet. Check capture quality and encounter metadata above.';
+        }
+        return `<span title="${esc((x.reasons || []).join(' '))}">${x.rank===null?'Rank unavailable':`#${x.rank} / ${x.count}`}${x.provisional?' (provisional)':''}<br>${x.percentile===null || x.percentile===undefined?'Percentile unavailable':x.percentile.toFixed(1)+' percentile'}${x.public_samples!==undefined?` · ${x.public_samples} public samples · ${x.identities} distinct identities`:''}${x.reasons?.length?'<br>'+esc(x.reasons.join(' ')):''}</span>`;
+      };
+      const scopes=x=>['server','region','world'].map(s=>`${s[0].toUpperCase()+s.slice(1)}: ${values(x?.[s],s,x)}`).join('<br>');
       return `<h3>Matched public comparisons</h3><p class="small muted">${esc(ranks.note || '')} ${esc(ranks.cohort_note || '')}</p>${table(['Player · party size','Current standings (same game version)','At upload (reconstructed)'],(ranks.players || []).map(p=>`<tr><td>${esc(p.name)} · ${p.party_size || 'Unknown'} players${p.uploaded_at?`<br>Uploaded ${esc(new Date(p.uploaded_at*1000).toLocaleString())}`:''}</td><td>${scopes(p)}</td><td>${scopes(p.at_upload)}</td></tr>`))}<h4>Run speed · lower elapsed time wins</h4>${table(['Current standings (same game version)','At upload (reconstructed)'],[`<tr><td>${scopes(ranks.run)}</td><td>${scopes(ranks.run_at_upload)}</td></tr>`])}`;
     }
     const seconds=x=>x===null || x===undefined?'Unavailable':`${Math.floor(x/60)}:${(x%60).toFixed(1).padStart(4,'0')}`;
