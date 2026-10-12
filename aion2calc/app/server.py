@@ -153,7 +153,37 @@ def act_character_import(body: dict, log) -> dict:
                            progress=log, use_cache=float(body.get("cache", 0)))
     log("scoring the build as it is")
     ev = evaluate_current(imp)
+    _contribute_character_points(body, imp, ev, log)
     return views.character_view(imp, ev)
+
+
+def _contribute_character_points(body: dict, imp, ev: dict, log) -> None:
+    """Share the collected character's observed point allocations with the community
+    "highest observed build points", on by default (``community_contribute_character``).
+
+    Collecting a character in the My Character tab previously submitted nothing — only
+    running an Optimize did — so a user who just imported never appeared in the server's
+    observed totals. This sends the same anonymous ``profile_lower_bound`` observation an
+    optimize would (class, region, game version and the skill/stigma/Daevanion points the
+    profile has spent; no name, character id, IP or build detail). Best-effort: a missing
+    server, an opt-out, or any failure just means nothing is sent, and it never raises."""
+    try:
+        if ui_settings().get("community_contribute_character", True) is False:
+            return
+        points = ev.get("budgets") if isinstance(ev, dict) else None
+        if not isinstance(points, dict) or any(
+                type(points.get(k)) is not int or not 0 <= points[k] <= 10000
+                for k in ("skill", "stigma", "daevanion")):
+            return
+        from ..combat import share
+        if not str(share.effective().get("url") or "").strip():
+            return
+        share.community_request("/api/v1/progression", {
+            "class": imp.cls, "region": body.get("region", ""), "game_patch": body.get("game_patch", ""),
+            "points": {k: points[k] for k in ("skill", "stigma", "daevanion")}, "source": "profile_lower_bound"})
+        log("Shared your build's point totals with the community (anonymous).")
+    except Exception as exc:   # a community beacon must never break collecting a character
+        log("Could not share point totals: " + str(exc))
 
 
 @_model_action
@@ -979,7 +1009,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
                               "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart")
+                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart", "community_contribute_character")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1215,7 +1245,7 @@ def ui_settings() -> dict:
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
                 "meter_save_records": True, "meter_auto_upload": True, "meter_upload_before_prune": True, "meter_report_boss_kills": True,
                 "meter_report_enemy_hp": True, "overlay_plan_autoplay": True,
-                "meter_autostart": True, "meter_log_cache_mb": 1024,
+                "meter_autostart": True, "meter_log_cache_mb": 1024, "community_contribute_character": True,
                 "overlay_name_mode": "name",
                 "overlay_dps_interpolate": True, "overlay_interpolate_ms": 50, "overlay_show_fps": False,
                 "overlay_presets": [], "hotkeys": {}}

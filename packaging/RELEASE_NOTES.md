@@ -1,3 +1,7 @@
+## Share build points when you collect a character (0.2.238)
+
+- Collecting a character in **My Character** now shares its observed point totals with the community **"highest observed build points"** — on by default, with a toggle under Settings → Community stats (*"Share your build's point totals when you collect a character"*). Previously only running an **Optimize** submitted anything, so a character you just collected never appeared in the server's observed totals. The submission is anonymous: only the class, region, game version and the spent skill / stigma / Daevanion point totals (source `profile_lower_bound`) — never your name, character id, server, IP or gear — and it's best-effort, so a missing server or an opt-out simply sends nothing.
+
 ## Upload recordings before the size cap deletes them (0.2.237)
 
 - A new opt-out setting, **Upload a recording to the server before auto-delete reclaims it** (`meter_upload_before_prune`, on by default), under Settings → Combat records. When the logs folder is over its size cap and the oldest recordings are about to be deleted to make room, each is uploaded (unlisted, like the stop/quit auto-upload) **first**, so a long session's older parts — and the boss kills recorded in them — aren't lost before they can be shared. It only acts while auto-delete is on and a share server is set, is best-effort, and never keeps the folder over its cap if an upload fails. Applies to both the in-capture prune (the active recording is still never deleted) and the launch-time prune.
