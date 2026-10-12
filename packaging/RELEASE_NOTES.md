@@ -1,3 +1,9 @@
+## Crafting: community-measured success rates (0.2.240)
+
+- The Crafting workshop now shows a **success rate** per recipe. Our recipe source (gamers4.life) only carries the combo *trigger* rate and NCSoft publishes no official success table, so this is sourced from **metabot.gg's** community-measured data: a new `tools/export_crafting_success.py` scrapes each product's **base success chance at its required proficiency** (plus combo chance) into a small, source-attributed `crafting-success.json`, which the workshop matches to its recipes by name (158 products, all matching our catalog).
+- For a matched recipe it shows the **measured base %** at the requirement, and — when you enter a higher mastery level — an **estimated** projection toward the per-tier cap (standard gear never reaches 100%). Where a recipe isn't in the community dataset it says **not available**. Everything is labelled community-measured (metabot.gg), not developer-confirmed, and the base/estimate/not-available distinction is explicit.
+- The snapshot refreshes on the existing **daily** asset-refresh job and is served to the app and the public site.
+
 ## Crafting: rarity and item-type filters, and "what can I craft?" (0.2.239)
 
 - The Crafting workshop no longer effectively shows only Unique-and-up recipes. It always carried every tier (Common/Rare/Epic/Unique/Heroic) and types, but the list showed the first 80 matches with no way to narrow them, and Unique dominates. Added:

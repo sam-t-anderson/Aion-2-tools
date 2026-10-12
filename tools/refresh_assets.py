@@ -57,7 +57,7 @@ def main():
     args = parser.parse_args()
     if args.observed_build and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9:._-]{0,99}", args.observed_build):
         raise ValueError("Invalid build observation label")
-    generated = [STATIC / n for n in ("build-catalog.json", "crafting-catalog.json", "game-assets.json")]
+    generated = [STATIC / n for n in ("build-catalog.json", "crafting-catalog.json", "crafting-success.json", "game-assets.json")]
     previous = {p: p.read_bytes() for p in generated if p.exists()}
     class_files = sorted((ROOT / "aion2calc/data/global/classes").glob("*.json"))
     refs = {}
@@ -85,6 +85,10 @@ def main():
         additional.write_text(json.dumps(list(refs.values())), encoding="utf-8")
         run("export_build_catalog.py")
         run("export_crafting_catalog.py")
+        try:
+            run("export_crafting_success.py")
+        except Exception as exc:  # noqa: BLE001 - community success rates are optional; keep the prior snapshot
+            print(f"Crafting success refresh skipped (keeping prior snapshot): {exc}")
         refresh = ["--refresh-existing"] if args.refresh_existing else []
         run("export_game_assets.py", "--additional", additional, *refresh)
         npc_source = temp / "npcs.json"

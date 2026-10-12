@@ -13,6 +13,7 @@ on:
       - "aion2calc/plan/pantheon.py"
       - "tools/export_build_catalog.py"
       - "tools/export_crafting_catalog.py"
+      - "tools/export_crafting_success.py"
       - "tools/export_item_details.py"
       - "tools/export_game_assets.py"
       - "tools/export_npc_portraits.py"
@@ -74,7 +75,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add aion2calc/app/static/build-catalog.json aion2calc/app/static/crafting-catalog.json aion2calc/app/static/game-assets* aion2calc/meter/a2parser/data/i18n/npc-portraits docs/generated/asset-catalog-audit.json
+          git add aion2calc/app/static/build-catalog.json aion2calc/app/static/crafting-catalog.json aion2calc/app/static/crafting-success.json aion2calc/app/static/game-assets* aion2calc/meter/a2parser/data/i18n/npc-portraits docs/generated/asset-catalog-audit.json
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'Refresh source-ID game assets and catalog audit'
           git push origin automation/asset-refresh
