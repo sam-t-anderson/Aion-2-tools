@@ -33,3 +33,4 @@
 .cr-lane .cr-lane-name{flex-wrap:wrap;gap:4px;align-content:center}
 .cr-lane-controls{display:flex;gap:4px;flex-wrap:wrap}.cr-lane-controls .btn{font-size:10px;padding:2px 5px}
 .cr-lane-collapsed .cr-lane-controls{padding:5px 10px;min-height:36px}
+.cr-npc-portrait{vertical-align:middle;border-radius:3px;object-fit:contain;margin-right:4px;background:rgba(0,0,0,.2)}

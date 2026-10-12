@@ -1,3 +1,9 @@
+## Community NPC portraits show in combat review and the overlay (0.2.232)
+
+- NPC portraits scraped by the log server (the `aion2logs portraits` job) now **display** across the app as a fallback behind the curated bundled table. Combat review's *Enemy encounters* shows a small portrait beside each boss/NPC, the live overlay shows the current target's portrait on its target line, and the shared log-view pages pick them up too.
+- The portrait lookup (`npc_info`) gains a **community overlay**: for a catalog NPC with no bundled art, it falls back to the server's `npc-portraits-community.json`. Curated bundled portraits always win; community art never overrides one, and is never invented onto an NPC the catalog does not already know.
+- The frontend fetches the map from the configured log server (`/api/v1/npc-portraits`) and merges it into the asset map behind the bundled entries; images hotlink from the community source and render through the existing host-allowlisted image path. Community-sourced and name/id-matched — not an official or id-verified mapping.
+
 ## Combat review says *why* a comparison scope is unavailable (0.2.231)
 
 - In the *Matched public comparisons*, a Server or Region scope that shows **Unavailable** now says which of the two reasons it is: **no verified official profile** for that character (so its home server/region can't be matched — World still compares globally), versus **not enough comparable logs yet** (which already lists the specific sample/identity shortfall). Previously both read the same generic line.

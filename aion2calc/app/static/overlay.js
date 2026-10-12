@@ -503,7 +503,10 @@
       // single "most-hit" target is one of several — name the others compactly.
       const alsoNames=(target.also_targets||[]);
       const also=alsoNames.length?` <span class="ovalso" title="Also being hit right now: ${esc(alsoNames.join(', '))}">+${alsoNames.length} (${esc(alsoNames.map(n=>String(n)).join(', '))})</span>`:'';
-      $("#ovtarget").innerHTML=`<span class="ovtlabel">Target</span> ${esc(target.name)}${also}${hp}${ttk} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}`;
+      // Small boss/NPC portrait from the bundled/community asset map (self-removes if it fails to load).
+      const portraitUrl=target.mob_code!=null&&window.A2BundledAssets&&window.A2BundledAssets.npcs&&window.A2BundledAssets.npcs[String(target.mob_code)];
+      const portrait=portraitUrl?`<img class="ovtportrait" width="18" height="18" referrerpolicy="no-referrer" src="${esc(window.A2AssetHealth?A2AssetHealth.source(portraitUrl):portraitUrl)}" alt="" onerror="this.remove()"> `:'';
+      $("#ovtarget").innerHTML=`<span class="ovtlabel">Target</span> ${portrait}${esc(target.name)}${also}${hp}${ttk} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}`;
       $("#ovtarget").title=`Most-hit enemy this encounter${alsoNames.length?` (and ${alsoNames.length} more struck in the same instant)`:''}, its remaining HP and time-to-kill from its observed HP-decline rate (all damage sources, so it reflects how fast it is really dying — not just your party's DPS), and each contributor's DPS to it`;
     }
     // Drawn remaining-over-max enemy HP bar, shown with the enemy-HP readout when real HP was captured.

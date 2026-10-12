@@ -212,3 +212,4 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
   -webkit-text-fill-color: transparent; animation: ov-retro-sheen 3.5s linear infinite; }
 @keyframes ov-retro-sheen { to { background-position: -300% 0; } }
 @media (prefers-reduced-motion: reduce) { #ov.ov-retro .ovname, #ov.ov-retro .ovhd, #ov.ov-retro .ovpstat .ovpval { animation: none; } }
+.ovtportrait{vertical-align:middle;border-radius:3px;object-fit:contain;margin-right:3px}

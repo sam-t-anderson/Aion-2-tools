@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 from functools import lru_cache
 from importlib.resources import files
+from pathlib import Path
 
 CLASS_PREFIXES = {
     11: "Gladiator", 12: "Templar", 13: "Assassin", 14: "Ranger",
@@ -77,6 +79,62 @@ def _npc_overrides() -> dict:
     return overrides if isinstance(overrides, dict) else {}
 
 
+# ---------------------------------------------------------- community portraits
+#
+# A *fallback* portrait overlay behind the curated bundled table: the NPC id ->
+# image map scraped by the log server's `aion2logs portraits` job (its
+# ``npc-portraits-community.json``). It is community-sourced and name/id-matched,
+# not an official or id-verified mapping, so it is only consulted for NPCs the
+# bundled table has no art for, and never overrides a curated portrait. The file
+# lives on the server (or a client cache); its path is registered by the host or
+# read from the ``A2_COMMUNITY_PORTRAITS`` environment variable. Absent/malformed
+# files degrade silently to no overlay, so importing or calling this never fails.
+
+_COMMUNITY_PORTRAITS_PATH: str | None = None
+_community_cache: dict[str, tuple[float, dict]] = {}
+
+
+def set_community_portraits(path: str | os.PathLike | None) -> None:
+    """Point :func:`npc_info` at a community portrait overlay file (the server's
+    scraped ``npc-portraits-community.json``), or ``None`` to clear it. The host
+    (the log server) calls this at startup with its data-dir file."""
+    global _COMMUNITY_PORTRAITS_PATH
+    _COMMUNITY_PORTRAITS_PATH = str(path) if path else None
+    _community_cache.clear()
+
+
+def _community_portraits() -> dict:
+    """``{mob_code: icon_url}`` from the configured community overlay file, or
+    ``{}``. Cached and transparently re-read when the file's mtime changes (the
+    offline scraper rewrites it), and never raises — a missing or malformed file
+    simply yields no overlay. Accepts either the scraper envelope
+    (``{"portraits": {id: {"icon": ...}}}``) or a flat ``{id: url}`` map."""
+    path = _COMMUNITY_PORTRAITS_PATH or os.environ.get("A2_COMMUNITY_PORTRAITS") or None
+    if not path:
+        return {}
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        _community_cache.pop(path, None)
+        return {}
+    cached = _community_cache.get(path)
+    if cached and cached[0] == mtime:
+        return cached[1]
+    try:
+        doc = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    rows = doc.get("portraits") if isinstance(doc, dict) and "portraits" in doc else doc
+    out: dict[str, str] = {}
+    if isinstance(rows, dict):
+        for code, row in rows.items():
+            icon = row.get("icon") if isinstance(row, dict) else row
+            if isinstance(icon, str) and icon:
+                out[str(code)] = icon
+    _community_cache[path] = (mtime, out)
+    return out
+
+
 def npc_info(mob_code: int, locale: str = "en") -> dict:
     info = _table("npcs", locale).get(str(mob_code), {})
     if not isinstance(info, dict):
@@ -87,7 +145,10 @@ def npc_info(mob_code: int, locale: str = "en") -> dict:
     if not info:
         return {}
     portrait = _table("npc-portraits", "en").get(str(mob_code), {})
-    return {**info, "icon": portrait["icon"]} if portrait.get("icon") else info
+    icon = portrait.get("icon") if isinstance(portrait, dict) else None
+    if not icon:                                  # fall back to the community overlay
+        icon = _community_portraits().get(str(mob_code))
+    return {**info, "icon": icon} if icon else info
 
 
 def npc_name(mob_code: int, locale: str = "en") -> str:
