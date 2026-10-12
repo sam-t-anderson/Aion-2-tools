@@ -1,3 +1,10 @@
+## Crafting: rarity and item-type filters, and "what can I craft?" (0.2.239)
+
+- The Crafting workshop no longer effectively shows only Unique-and-up recipes. It always carried every tier (Common/Rare/Epic/Unique/Heroic) and types, but the list showed the first 80 matches with no way to narrow them, and Unique dominates. Added:
+  - a **Rarity** filter (Common · Rare · Epic · Unique · Heroic), derived from each recipe's output grade;
+  - an **Item type** filter (Weapon · Armor · Accessory · Material/other), derived from the output's icon path;
+  - a **Your crafting mastery** row — pick your mastery tier and enter your level, and each recipe shows whether you can make it (and your level margin), with an **"Only what I can craft"** toggle to hide the rest. The recipe detail spells out the requirement and your standing. The exact success percentage isn't in the source data, so it's described as a level margin, not a fabricated number.
+
 ## Share build points when you collect a character (0.2.238)
 
 - Collecting a character in **My Character** now shares its observed point totals with the community **"highest observed build points"** — on by default, with a toggle under Settings → Community stats (*"Share your build's point totals when you collect a character"*). Previously only running an **Optimize** submitted anything, so a character you just collected never appeared in the server's observed totals. The submission is anonymous: only the class, region, game version and the spent skill / stigma / Daevanion point totals (source `profile_lower_bound`) — never your name, character id, server, IP or gear — and it's best-effort, so a missing server or an opt-out simply sends nothing.
