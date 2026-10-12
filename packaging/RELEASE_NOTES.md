@@ -1,3 +1,8 @@
+## Two more bindable global hotkeys (0.2.235)
+
+- Added two global-hotkey actions you can bind in Settings → Hotkeys: **Show / hide overlay event notifications** (mute/un-mute the new event strip without opening the app) and **Exit Aion 2 Calc**. Both call the same in-process code the UI does. As with the other hotkeys, binding and dispatch are cross-platform but a key actually firing while the game is focused is Windows-only.
+- Still unwired (need a faster app→overlay channel or page navigation, tracked in the roadmap): screenshot-and-lock, open a specific page, and field-boss/artifact status.
+
 ## World comparison reason + open-world boss-kill reporting on by default (0.2.234)
 
 - Combat review's *Matched public comparisons* now says **why** the **World** scope is Unavailable when it is — "no comparable public cohort yet", naming what World matching groups on (the encounter's boss, game version, difficulty and party size), rather than a generic line. This completes the "why a scope is Unavailable" hint started in 0.2.231 (which covered the Server/Region no-profile case).

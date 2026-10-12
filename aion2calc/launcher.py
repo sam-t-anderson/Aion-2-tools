@@ -227,6 +227,8 @@ def _start_hotkeys(port: int, open_app):
                 overlay_click_through=not server.ui_settings().get("overlay_click_through")),
             "toggle_party_overlay": toggle_party_overlay,
             "open_app": open_app,
+            "toggle_events": lambda: set_ui(overlay_show_events=not server.ui_settings().get("overlay_show_events", True)),
+            "quit": lambda: server.schedule_shutdown(),
         }
         manager = hotkeys.HotkeyManager(lambda: server.ui_settings().get("hotkeys") or {}, dispatch)
         manager.start()

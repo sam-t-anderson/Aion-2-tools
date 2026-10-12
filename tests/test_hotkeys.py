@@ -41,10 +41,13 @@ def test_parse_combo_invalid(combo):
 def test_clean_hotkeys_filters_and_validates():
     cleaned = hotkeys.clean_hotkeys({
         "toggle_overlay": "Ctrl+Shift+O",
+        "toggle_events": "Ctrl+Shift+E",   # newly bindable action
+        "quit": "Ctrl+Shift+Q",            # newly bindable action
         "clear_meter": "",             # explicit unbind -> dropped
         "unknown_action": "Ctrl+X",    # unknown -> dropped
     })
-    assert cleaned == {"toggle_overlay": "Ctrl+Shift+O"}
+    assert cleaned == {"toggle_overlay": "Ctrl+Shift+O", "toggle_events": "Ctrl+Shift+E", "quit": "Ctrl+Shift+Q"}
+    assert "toggle_events" in hotkeys.ACTIONS and "quit" in hotkeys.ACTIONS
     with pytest.raises(ValueError):
         hotkeys.clean_hotkeys({"toggle_meter": "Ctrl"})       # modifier only
     with pytest.raises(ValueError):

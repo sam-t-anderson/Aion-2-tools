@@ -29,6 +29,8 @@ ACTIONS: dict[str, str] = {
     "toggle_click_through": "Toggle click-through",
     "toggle_party_overlay": "Show / hide the Party-DPS overlay",
     "open_app": "Open the app window",
+    "toggle_events": "Show / hide overlay event notifications",
+    "quit": "Exit Aion 2 Calc",
 }
 
 # Modifier name -> RegisterHotKey MOD_* flag.
