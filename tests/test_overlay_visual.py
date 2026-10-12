@@ -135,10 +135,13 @@ def test_overlay_prefs_reads_remembered_positions(home):
     from aion2calc.paths import write_user_json
     assert overlay._overlay_prefs()["positions"] == {"meter": None, "party": None}
     write_user_json({"overlay_remember_position": True, "overlay_pos_x": 1200, "overlay_pos_y": -40,
+                     "overlay_pos_layout": [[0, 0, 1920, 1080], [1920, 0, 1920, 1080]],
                      "overlay_party_pos_x": 50, "overlay_party_pos_y": 600}, "ui.json")
     prefs = overlay._overlay_prefs()
     assert prefs["remember_position"] is True
-    assert prefs["positions"] == {"meter": (1200, -40), "party": (50, 600)}
+    # Each position now carries its top-left and the monitor layout it was saved under.
+    assert prefs["positions"]["meter"] == {"xy": (1200, -40), "layout": [[0, 0, 1920, 1080], [1920, 0, 1920, 1080]]}
+    assert prefs["positions"]["party"] == {"xy": (50, 600), "layout": None}
     # A bool must not be read as a coordinate.
     write_user_json({"overlay_pos_x": True, "overlay_pos_y": 10}, "ui.json")
     assert overlay._overlay_prefs()["positions"]["meter"] is None

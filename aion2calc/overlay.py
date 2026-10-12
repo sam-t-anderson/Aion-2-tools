@@ -123,6 +123,29 @@ class _Windows:
         g = self.user32.GetSystemMetrics
         return g(76), g(77), g(78), g(79)   # x, y, width, height
 
+    def monitors(self) -> list[tuple[int, int, int, int]]:
+        """Each connected monitor's screen rectangle (left, top, width, height) in
+        virtual-desktop coordinates, via EnumDisplayMonitors. Used to restore a
+        remembered overlay position by the monitor layout, so a rearranged multi-monitor
+        setup lands the overlay back on the right screen. Empty on failure (the caller
+        then falls back to the virtual-screen box)."""
+        found: list[tuple[int, int, int, int]] = []
+        RECT = self.w.RECT
+
+        @ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p,
+                            ctypes.POINTER(RECT), ctypes.c_void_p)
+        def _visit(hmonitor, hdc, lprect, lparam):
+            r = lprect.contents
+            found.append((r.left, r.top, r.right - r.left, r.bottom - r.top))
+            return 1
+
+        try:
+            self.user32.EnumDisplayMonitors(None, None, _visit, 0)
+        except Exception:
+            _LOG.exception("EnumDisplayMonitors failed; falling back to the virtual screen")
+            return []
+        return found
+
     def cursor_in_client(self, hwnd) -> tuple[int, int] | None:
         """The mouse position in the overlay's client coordinates (physical px),
         or None if it can't be read. Used to hit-test the overlay's own controls
@@ -177,6 +200,69 @@ def _follow_position(previous, bounds, current, snap=False, expand_up=False):
     return nx, ny
 
 
+def _norm_monitors(layout):
+    """A list of monitor rectangles as clean (left, top, width, height) int tuples,
+    dropping anything malformed or non-positive in size."""
+    out = []
+    for m in layout or []:
+        try:
+            left, top, width, height = (int(v) for v in m)
+        except (TypeError, ValueError):
+            continue
+        if width > 0 and height > 0:
+            out.append((left, top, width, height))
+    return out
+
+
+def resolve_remembered_position(saved_x, saved_y, saved_layout, monitors, margin=40):
+    """Where to re-open a remembered overlay, or ``None`` to fall back to game-anchoring.
+
+    ``saved_x``/``saved_y`` is the overlay's top-left when it was last dragged,
+    ``saved_layout`` the monitor rectangles it was saved under, and ``monitors`` the
+    current ones (each ``(left, top, width, height)``). Keeping a position by the whole
+    virtual-desktop box alone is wrong on multi-monitor setups: rearranging or
+    renumbering screens keeps the box but moves the sub-screens, so the old absolute
+    coordinates land on the wrong monitor. So:
+
+    * **layout unchanged** → keep the exact saved position (if its top-left still lands
+      on a monitor, leaving a grabbable ``margin``);
+    * **layout changed but the monitor it was on still exists** (same size) → re-place it
+      at the same offset within that monitor, so a rearranged setup restores correctly;
+    * **otherwise** → ``None`` (never restore a stale, off-screen position).
+
+    Pure and side-effect free; the native layer supplies the monitor rectangles.
+    """
+    mons = _norm_monitors(monitors)
+    if not mons:
+        return None
+    try:
+        sx, sy = int(saved_x), int(saved_y)
+    except (TypeError, ValueError):
+        return None
+
+    def on_monitor(mon, x, y):
+        left, top, width, height = mon
+        return left <= x <= left + width - margin and top <= y <= top + height - margin
+
+    saved = _norm_monitors(saved_layout)
+    if saved:
+        if sorted(saved) == sorted(mons):
+            return (sx, sy) if any(on_monitor(m, sx, sy) for m in mons) else None
+        # Layout changed: re-seat within the same monitor if it still exists.
+        host = next((m for m in saved if m[0] <= sx < m[0] + m[2] and m[1] <= sy < m[1] + m[3]), None)
+        if host is not None:
+            off_x, off_y = sx - host[0], sy - host[1]
+            same = [m for m in mons if m[2] == host[2] and m[3] == host[3]]
+            pick = next((m for m in same if (m[0], m[1]) == (host[0], host[1])), None) or (same[0] if same else None)
+            if pick is not None:
+                nx = min(max(pick[0] + off_x, pick[0]), pick[0] + pick[2] - margin)
+                ny = min(max(pick[1] + off_y, pick[1]), pick[1] + pick[3] - margin)
+                return (nx, ny)
+        return None
+    # No saved layout (older data): accept the position if it lands on any monitor.
+    return (sx, sy) if any(on_monitor(m, sx, sy) for m in mons) else None
+
+
 def _overlay_prefs() -> dict:
     """Native overlay preferences read from the user's settings (defaults keep the
     historical behaviour). Read once at launch, so changes apply on reopen."""
@@ -197,12 +283,15 @@ def _overlay_prefs() -> dict:
             for key in prefs:
                 prefs[key] = ui.get("overlay_" + key, prefs[key]) is True
 
-            def _pos(px, py):
+            def _pos(px, py, pl):
                 x, y = ui.get(px), ui.get(py)
-                return (int(x), int(y)) if isinstance(x, int) and not isinstance(x, bool) \
-                    and isinstance(y, int) and not isinstance(y, bool) else None
-            positions["meter"] = _pos("overlay_pos_x", "overlay_pos_y")
-            positions["party"] = _pos("overlay_party_pos_x", "overlay_party_pos_y")
+                if not (isinstance(x, int) and not isinstance(x, bool)
+                        and isinstance(y, int) and not isinstance(y, bool)):
+                    return None
+                layout = ui.get(pl) if isinstance(ui.get(pl), list) else None
+                return {"xy": (int(x), int(y)), "layout": layout}
+            positions["meter"] = _pos("overlay_pos_x", "overlay_pos_y", "overlay_pos_layout")
+            positions["party"] = _pos("overlay_party_pos_x", "overlay_party_pos_y", "overlay_party_pos_layout")
     except Exception:
         pass
     prefs["positions"] = positions
@@ -326,15 +415,21 @@ def _watch_parent(app_base: str, closed: threading.Event, window) -> None:
                 return
 
 
-def _save_overlay_position(app_base, party, pos) -> None:
+def _save_overlay_position(app_base, party, pos, layout=None) -> None:
     """Persist a dragged overlay position to the app (ui.json) via its local API,
-    keyed per overlay, so it is restored next launch. Best-effort; failures are
-    swallowed so a transient app hiccup never disturbs the overlay."""
+    keyed per overlay, so it is restored next launch. ``layout`` is the current monitor
+    rectangles, stored alongside so the position can be restored by the monitor layout.
+    Best-effort; failures are swallowed so a transient app hiccup never disturbs the
+    overlay."""
     if not app_base:
         return
     import json as _json, urllib.request
     keys = ("overlay_party_pos_x", "overlay_party_pos_y") if party else ("overlay_pos_x", "overlay_pos_y")
-    body = _json.dumps({keys[0]: int(pos[0]), keys[1]: int(pos[1])}).encode("utf-8")
+    layout_key = "overlay_party_pos_layout" if party else "overlay_pos_layout"
+    payload = {keys[0]: int(pos[0]), keys[1]: int(pos[1])}
+    if layout:
+        payload[layout_key] = [[int(v) for v in m] for m in layout]
+    body = _json.dumps(payload).encode("utf-8")
     try:
         req = urllib.request.Request(app_base.rstrip("/") + "/api/ui", body,
                                      {"Content-Type": "application/json"})
@@ -415,16 +510,21 @@ def _run_overlay(window, api, app_base: str | None = None, party: bool = False) 
     remember_position = prefs["remember_position"]
     saved_pos = prefs["positions"].get("party" if party else "meter")
     last_pos, pending_pos, pending_ticks, anchored = None, None, 0, False
-    if win32 and remember_position and saved_pos:
+    if win32 and remember_position and saved_pos and saved_pos.get("xy"):
         try:
             hwnd0 = window.native.Handle.ToInt64()
-            vx, vy, vw, vh = win32.virtual_screen()
-            sx, sy = saved_pos
-            # Only restore when the saved top-left still lands on a connected screen
-            # (leave a small grabbable margin); otherwise fall back to game-anchoring.
-            if vw > 0 and vh > 0 and vx <= sx <= vx + vw - 40 and vy <= sy <= vy + vh - 40:
-                win32.move(hwnd0, sx, sy)
-                last_pos = (sx, sy)
+            sx, sy = saved_pos["xy"]
+            # Restore by the monitor layout so a rearranged multi-monitor setup lands the
+            # overlay back on the right screen. Fall back to the virtual-screen box when
+            # per-monitor enumeration is unavailable.
+            mons = win32.monitors()
+            if not mons:
+                vx, vy, vw, vh = win32.virtual_screen()
+                mons = [(vx, vy, vw, vh)] if vw > 0 and vh > 0 else []
+            place = resolve_remembered_position(sx, sy, saved_pos.get("layout"), mons)
+            if place:
+                win32.move(hwnd0, *place)
+                last_pos = place
         except Exception:
             _LOG.exception("Could not restore the remembered overlay position")
     previous = None
@@ -472,7 +572,7 @@ def _run_overlay(window, api, app_base: str | None = None, party: bool = False) 
                 if anchor != cur:
                     win32.move(hwnd, *anchor)
                     cur = anchor
-                _save_overlay_position(app_base, party, cur)
+                _save_overlay_position(app_base, party, cur, win32.monitors())
                 last_pos, anchored = cur, True
                 continue
             if cur != last_pos:
@@ -481,7 +581,7 @@ def _run_overlay(window, api, app_base: str | None = None, party: bool = False) 
                 else:
                     pending_pos, pending_ticks = cur, 0
                 if pending_ticks >= 4:
-                    _save_overlay_position(app_base, party, cur)
+                    _save_overlay_position(app_base, party, cur, win32.monitors())
                     last_pos, pending_pos, pending_ticks = cur, None, 0
             continue
         if game.hwnd != previous_hwnd:

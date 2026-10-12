@@ -115,7 +115,7 @@ Most of this pass has shipped (0.2.133–0.2.144): run segmentation and the part
 
 **Overlay visual settings & layout:**
 - **Per-element *font* controls** (family/size/weight for each text element individually) and the richer font effects still to add — **halo / retroreflection**. Already shipped: per-element *colour* pickers (rate/total/name/header, the target-line readouts, and the labels / also-targets +N / ping / identity lines), font family/size/weight, text glow and outline, colour-cycling/palette-shift, bar/row styling (fill style, rounded corners, class-coloured names, zebra striping) and the overlay look presets with bundled starters.
-- **Multi-monitor-aware saved positions** — key the remembered overlay position(s) by the *monitor layout* so a multi-monitor setup restores correctly after monitors are added/removed or rearranged (today it stores one position per overlay and only range-checks it against the virtual screen).
+- **Multi-monitor-aware saved positions** — the layout-aware restore logic shipped (0.2.226): the position is saved with its monitor layout and `resolve_remembered_position` re-seats the overlay within the right monitor after a rearrange, with unit tests. **Open:** real-Windows validation of the `EnumDisplayMonitors` read and native placement (the harness runs the logic, not the pywebview window), and macOS/Linux parity.
 
 **Combat information on the overlay:**
 - **Rank indicator** (off by default) — needs server-supplied ranking data. (Combat power, contribution, the death indicator, the enemy-HP bar/%/numbers, the TTK bar, the most-recent-target multi-name display and the FPS counter already ship.)

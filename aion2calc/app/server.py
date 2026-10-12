@@ -959,6 +959,17 @@ class Handler(BaseHTTPRequestHandler):
             if "hotkeys" in body:
                 from . import hotkeys as _hotkeys
                 cur["hotkeys"] = _hotkeys.clean_hotkeys(body["hotkeys"])
+            # Remembered monitor layout for each overlay (machine-specific; restores the
+            # position by the monitor layout). A list of [left, top, width, height] rects.
+            for key in ("overlay_pos_layout", "overlay_party_pos_layout"):
+                if key in body:
+                    layout = body[key]
+                    if not (isinstance(layout, list) and len(layout) <= 16 and all(
+                            isinstance(m, list) and len(m) == 4
+                            and all(isinstance(v, int) and not isinstance(v, bool) and -30000 <= v <= 30000 for v in m)
+                            and m[2] > 0 and m[3] > 0 for m in layout)):
+                        raise ValueError(f"{key} must be a list of [left, top, width, height] monitor rectangles")
+                    cur[key] = layout
             cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update", "combat_colors",
                                                                *(k for k, _, _ in _ui_int_ranges), *_ui_bool_flags)})
             write_user_json(cur, "ui.json")

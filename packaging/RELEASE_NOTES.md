@@ -1,3 +1,7 @@
+## Overlay remembers its spot per monitor layout (0.2.226)
+
+- **The remembered overlay position now restores correctly on multi-monitor setups.** Before, the overlay saved one screen position and only checked it against the whole desktop box — so rearranging or renumbering monitors could reopen it on the wrong screen (or just off-view). It now saves the **monitor layout** alongside the position: if your layout is unchanged it reopens exactly where you left it, if a monitor moved it re-seats at the same spot *within that monitor*, and if the screen it was on is gone it falls back to following the game window instead of opening somewhere stale. (Windows; the restore logic is covered by tests, the native monitor read is validated on a real Windows build.)
+
 ## Recolour more of the overlay's text (0.2.225)
 
 - **Colour pickers for the overlay's remaining fixed text.** Settings → Overlay colors & fonts now has pickers for the **"Target"/"Dummy parse" labels**, the **also-targets "+N" names**, the **ping line** and the **identity line** — the last text elements that were stuck on a fixed colour. Each one left at its default keeps today's look, and they ride the settings backup and the overlay look presets alongside the existing colours.
