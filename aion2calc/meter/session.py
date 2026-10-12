@@ -984,6 +984,9 @@ class CombatSession:
                 "is_player": target.get("is_player", False), "contributors": contributors,
                 "current_hp": current_hp, "max_hp": max_hp, "hp_pct": hp_pct, "ttk": ttk,
                 "ttk_fraction": ttk_fraction, "is_dummy": is_dummy, "also_targets": also_targets,
+                # The enemy's NPC code, so a bound raid plan can be matched and auto-played
+                # in the overlay for the fight you are in.
+                "mob_code": int(mob_code) if isinstance(mob_code, int) or (isinstance(mob_code, str) and mob_code.isdigit()) else None,
             }
         summary["current_target"] = current_target
         for _enemy in summary["enemies"]:   # drop internal recency bookkeeping from the output

@@ -49,7 +49,21 @@
   function newPlan(name) {
     return { format: "a2plan", version: 1,
       meta: { name: name || "New plan", author: "", notes: "", created: Date.now(), updated: Date.now() },
-      arena: { kind: "square" }, duration: 60, tokens: [], buffs: [], source: {} };
+      arena: { kind: "square" }, duration: 60, tokens: [], buffs: [], source: {}, encounter: {} };
+  }
+  // The boss/encounter a plan is for, so a library can index it and the overlay can
+  // auto-play the plan for the fight you're in. npc_id (the enemy's mob code) is the
+  // match key; boss name and map_id are context. Sanitised so an imported/shared plan
+  // can never carry anything but a small, well-formed record.
+  function cleanEncounter(enc) {
+    if (!enc || typeof enc !== "object") return {};
+    const out = {};
+    const npc = parseInt(enc.npc_id, 10);
+    if (Number.isInteger(npc) && npc > 0 && npc < 1e10) out.npc_id = npc;
+    const map = parseInt(enc.map_id, 10);
+    if (Number.isInteger(map) && map > 0 && map < 1e10) out.map_id = map;
+    if (typeof enc.boss === "string" && enc.boss.trim()) out.boss = enc.boss.trim().slice(0, 80);
+    return out;
   }
   function tokenPos(tk, t) {
     const k = tk.keyframes || [];
@@ -74,6 +88,7 @@
   function codeToPlan(code) {
     const bin = atob(code.trim()), b = Uint8Array.from(bin, (c) => c.charCodeAt(0)), p = JSON.parse(new TextDecoder().decode(b));
     if (!p || p.format !== "a2plan") throw new Error("That is not an a2plan share code");
+    p.encounter = cleanEncounter(p.encounter);
     return p;
   }
   function download(name, text, type = "application/json") {
@@ -83,6 +98,7 @@
   }
   function importDoc(p) {                                    // store an a2plan as a new local plan, make it current
     p.meta = p.meta || {}; p.meta.updated = Date.now();
+    p.encounter = cleanEncounter(p.encounter);
     const all = raidPlans(), id = uid(); all[id] = p; saveRaidPlans(all);
     st.id = id; st.sel = null; st.t = 0; st.actual = null;
   }
@@ -99,9 +115,10 @@
     const p = st.plan, dur = p.duration || 1, io = st.io;
     const all = raidPlans();
     const planOpts = Object.entries(all).sort((a, b) => (b[1].meta?.updated || 0) - (a[1].meta?.updated || 0))
-      .map(([id, pl]) => `<option value="${esc(id)}" ${id === st.id ? "selected" : ""}>${esc(pl.meta?.name || "Untitled")}</option>`).join("");
+      .map(([id, pl]) => `<option value="${esc(id)}" ${id === st.id ? "selected" : ""}>${esc(pl.meta?.name || "Untitled")}${pl.encounter?.boss ? " — " + esc(pl.encounter.boss) : ""}</option>`).join("");
     const sel = p.tokens.find((x) => x.id === st.sel) || null;
     const players = p.tokens.filter((x) => x.kind === "player");
+    const enc = p.encounter = cleanEncounter(p.encounter);
 
     const shareBtns = (io.publish ? `<label class="small muted" for="rvisibility">Visibility</label><select id="rvisibility" aria-label="Plan visibility">${["unlisted", "public", "private"].map((v) => `<option value="${v}" ${v === (p.meta?.visibility || "unlisted") ? "selected" : ""}>${v[0].toUpperCase() + v.slice(1)}</option>`).join("")}</select><button class="btn small primary" id="rpublish">${owner()?"Update published plan":"Publish plan"}</button>${owner()?`<button class="btn small" id="rpublishcopy">Publish new copy</button><button class="btn small" id="rrefresh">Refresh published plan</button><button class="btn small" id="rownerbackup">Private ownership backup</button>`:""}` : "")
       + (io.browse ? `<button class="btn small" id="rbrowse">Browse plans</button>` : "");
@@ -114,6 +131,10 @@
         <input id="rauthor" type="text" value="${esc(p.meta?.author || "")}" placeholder="Author (optional)" style="width:160px">
         <label class="muted small">Length</label><input id="rdur" type="number" min="5" max="1800" value="${dur}" style="width:80px"><span class="muted small">s</span>
         <label class="muted small">Arena</label><select id="rarena"><option value="square" ${p.arena?.kind !== "circle" ? "selected" : ""}>Square</option><option value="circle" ${p.arena?.kind === "circle" ? "selected" : ""}>Circle</option></select></div>
+      <div class="row" style="margin-top:8px"><label class="muted small">Boss</label><input id="rbossname" type="text" value="${esc(enc.boss || "")}" placeholder="Boss / mini-boss name" style="width:180px">
+        <label class="muted small">NPC id</label><input id="rbossnpc" type="number" min="0" value="${enc.npc_id || ""}" placeholder="mob code" style="width:110px">
+        ${st.actual && (st.actual.boss || st.actual.npc_id) ? `<button class="btn small" id="rbossfromfight">Use selected fight</button>` : ""}
+        <span class="faint small">Link this plan to an encounter so the overlay can auto-play it for that fight.</span></div>
       <div class="row" style="margin-top:8px"><button class="btn small" id="rexport">Export file</button>
         <label class="btn small" style="cursor:pointer">Import file<input id="rimport" type="file" accept=".json,.a2plan" hidden></label>
         <button class="btn small" id="rcode">Copy share code</button><button class="btn small" id="rload">Load from code</button>${shareBtns}${hint}</div>
@@ -186,6 +207,7 @@
 
   function renderBrowse(list) {
     const cards = list.length ? list.map((pl) => `<div class="pcard"><div class="gname">${esc(pl.name || "Plan")}</div>
+        ${pl.boss ? `<div class="small gold">${esc(pl.boss)}</div>` : ""}
         <div class="small muted">${esc(pl.author || "unknown")} · ${(pl.duration || 0).toFixed(0)}s · ${pl.tokens || 0} tokens${pl.has_fight ? " · with a fight" : ""}</div>
         <div class="small">${(pl.classes || []).map((c) => `<span class="chip">${esc(c)}</span>`).join(" ")}</div>
         <button class="btn small primary" data-open="${esc(pl.id)}" style="margin-top:6px">Open</button></div>`).join("")
@@ -251,6 +273,16 @@
     $("#rdur", st.root).onchange = (e) => { p.duration = Math.max(5, +e.target.value || 60); persist(); render(); };
     $("#rarena", st.root).onchange = (e) => { p.arena.kind = e.target.value; persist(); render(); };
     $("#rnotes", st.root).onchange = (e) => { p.meta.notes = e.target.value; persist(); };
+    if ($("#rbossname", st.root)) $("#rbossname", st.root).onchange = (e) => {
+      p.encounter = cleanEncounter({ ...p.encounter, boss: e.target.value }); persist(); };
+    if ($("#rbossnpc", st.root)) $("#rbossnpc", st.root).onchange = (e) => {
+      p.encounter = cleanEncounter({ ...p.encounter, npc_id: e.target.value }); persist(); };
+    if ($("#rbossfromfight", st.root)) $("#rbossfromfight", st.root).onclick = () => {
+      // Inherit the encounter from the fight being compared: its boss name, and its NPC
+      // id/map when the saved fight carries them (so the overlay match key is filled in).
+      const f = st.actual || {};
+      p.encounter = cleanEncounter({ ...p.encounter, boss: f.boss, npc_id: f.npc_id, map_id: f.map_id });
+      persist(); render(); };
     $("#rexport", st.root).onclick = () => download((p.meta?.name || "plan").replace(/[^\w-]+/g, "_") + ".a2plan", JSON.stringify(p, null, 2));
     $("#rimport", st.root).onchange = async (e) => {
       const f = e.target.files[0]; if (!f) return;
@@ -335,7 +367,9 @@
       if (!id) { st.actual = null; render(); return; }
       try {
         const a = await io.encounter(id);
-        st.actual = { id: +id, rotation: a.rotation || [], buffs: a.buffs || [], duration: a.summary?.duration || p.duration };
+        const meta = (st.encounters || []).find((x) => +x.id === +id) || {};
+        st.actual = { id: +id, rotation: a.rotation || [], buffs: a.buffs || [], duration: a.summary?.duration || p.duration,
+          boss: a.boss || a.summary?.boss || meta.boss, npc_id: a.npc_id || a.summary?.npc_id, map_id: a.map_id || a.summary?.map_id };
         if (st.actual.duration > p.duration) { p.duration = Math.ceil(st.actual.duration); persist(); }
         render();
       } catch (err) { toast(err.message); }

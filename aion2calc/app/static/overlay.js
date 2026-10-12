@@ -10,7 +10,7 @@
   if (partyMode) document.getElementById("ov").classList.add("ov-party");
   try { const saved=localStorage.getItem("ovmetric"); if(["dps","hps","taken"].includes(saved))metric=saved; } catch(e) { /* optional storage */ }
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
-  let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false, showDummy=true, showCombatPower=true;
+  let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false, showDummy=true, showCombatPower=true, planAutoplay=true;
   let showGraph=false;
   let graphHist=[], graphDur=-1;   // per-poll party-total samples for the live DPS/HPS sparkline, and the last seen fight duration
   const playerHist=new Map();      // per-player DPS samples (key -> [dps,…]) for the expanded-row trend sparkline
@@ -106,6 +106,7 @@
     interpolate=ui.overlay_dps_interpolate===true;
     interpolateMs=clampInt(ui.overlay_interpolate_ms,50,1000,50);
     showFps=ui.overlay_show_fps===true;
+    planAutoplay=ui.overlay_plan_autoplay!==false;   // on by default
     $("#ovfps").hidden=!showFps||partyMode;
     setFpsLoop(showFps&&!partyMode);   // only drive a per-frame loop while the FPS readout is shown
     applyClickThrough(ui.overlay_click_through===true);   // pass clicks to the game, keeping the overlay's buttons live
@@ -281,11 +282,42 @@
     }
     return { x: last.x, y: last.y };
   }
+  function allPlans() {
+    try { return JSON.parse(localStorage.getItem("a2plans") || "{}"); } catch (e) { return {}; }
+  }
   function latestPlan() {
-    let all = {};
-    try { all = JSON.parse(localStorage.getItem("a2plans") || "{}"); } catch (e) { all = {}; }
+    const all = allPlans();
     const ids = Object.keys(all).sort((a, b) => (all[b].meta?.updated || 0) - (all[a].meta?.updated || 0));
     return ids.length ? all[ids[0]] : null;
+  }
+  // The most-recently-updated saved plan bound to this enemy's NPC code, or null. This is
+  // the client-side library index the overlay uses to auto-play the right plan for the
+  // fight you are in.
+  function planForNpc(code) {
+    const npc = Number(code);
+    if (!npc) return null;
+    const all = allPlans();
+    const ids = Object.keys(all).sort((a, b) => (all[b].meta?.updated || 0) - (all[a].meta?.updated || 0));
+    for (const id of ids) if (Number(all[id]?.encounter?.npc_id) === npc) return all[id];
+    return null;
+  }
+  // Pick the plan to show and the time to show it at. When auto-play is on and the live
+  // meter is in a fight whose current target has a bound plan, play THAT plan synced to
+  // the encounter's elapsed seconds (so positions match the real pull); otherwise fall
+  // back to the latest saved plan on a free-running, looping clock.
+  function planView() {
+    if (planAutoplay && lastSnap && lastSnap.running) {
+      const snap = lastSnap.snapshot || {}, tgt = snap.current_target;
+      const bound = tgt && !tgt.is_player ? planForNpc(tgt.mob_code) : null;
+      if (bound) {
+        const dur = Math.max(1, Number(bound.duration) || 1);
+        const elapsed = Math.max(0, Number(snap.duration) || 0);
+        return { plan: bound, time: Math.min(elapsed, dur), live: true, dur };
+      }
+    }
+    const p = latestPlan();
+    const dur = Math.max(1, Number(p?.duration) || 1);
+    return { plan: p, time: t % dur, live: false, dur };
   }
   function renderParty() {
     // The separate Party-DPS overlay: raid-wide aggregates, not per-player rows.
@@ -498,23 +530,24 @@
     $("#ovtarget").hidden=true;$("#ovhpbar").hidden=true;$("#ovttkbar").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
     $("#ovgraph").hidden=true;
     $("#ovconnection").hidden=true;
-    const p = latestPlan();
+    const view = planView(), p = view.plan;
     if (!p) {
       $("#ovstatus").textContent = "";
       $("#ovcontent").innerHTML = '<div class="muted">No saved plan yet.</div>';
       return;
     }
-    const dur = Math.max(1, Number(p.duration) || 1);
+    const dur = view.dur, now = view.time;
     const svg = ['<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"><rect x="1" y="1" width="98" height="98" rx="2" fill="none" stroke="#8886" stroke-width="0.6"/>'];
     for (const tk of p.tokens || []) {
-      const pos = tokenPos(tk, t % dur);
+      const pos = tokenPos(tk, now);
       if (!pos) continue;
       const col = esc(tk.color || "#39c2e0"), x = Number(pos.x) * 100, y = Number(pos.y) * 100;
       if (tk.kind === "aoe") svg.push(`<circle cx="${x}" cy="${y}" r="${(Number(tk.radius) || 0.14) * 100}" fill="${col}" fill-opacity="0.25" stroke="${col}" stroke-width="0.5"/>`);
       else svg.push(`<circle cx="${x}" cy="${y}" r="${tk.kind === "enemy" ? 3.4 : 2.6}" fill="${col}" stroke="#0008" stroke-width="0.5"/>`);
     }
     svg.push("</svg>");
-    $("#ovstatus").textContent = `${p.meta?.name || "plan"} · ${(t % dur).toFixed(0)}/${dur.toFixed(0)}s`;
+    // "live" marks the plan as auto-synced to the real pull (vs the looping preview).
+    $("#ovstatus").textContent = `${view.live ? "▶ live · " : ""}${p.meta?.name || "plan"} · ${now.toFixed(0)}/${dur.toFixed(0)}s`;
     $("#ovcontent").innerHTML = `<div class="ovarena">${svg.join("")}</div>`;
   }
   document.querySelectorAll("[data-tab]").forEach((button) => {
@@ -564,7 +597,9 @@
     syncCapture();
   }
   $("#ovretry").onclick=()=>pollMeter();
-  setInterval(() => { if (tab === "meter") pollMeter(); }, 500);
+  // Poll on the meter tab, and on the plan tab when auto-play is on, so the plan can
+  // sync to the live pull.
+  setInterval(() => { if (tab === "meter" || (tab === "plan" && planAutoplay)) pollMeter(); }, 500);
   setInterval(() => { t += 0.1; if (tab === "plan") renderPlan(); }, 100);
   window.addEventListener("storage", (event) => { if (event.key === "aion2calc-closing") window.close(); });
 
