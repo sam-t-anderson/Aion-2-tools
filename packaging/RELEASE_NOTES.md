@@ -1,3 +1,10 @@
+## Crafting: proficiency shown as tier + level, correct names and caps (0.2.241)
+
+- **Fixed the proficiency requirement.** A recipe now reads as a **tier plus the level within that tier** instead of a single absolute number. Proficiency runs 50 levels per tier — Novice 1–50, Professional 51–100, Expert 101–150, Master 151–200 — so the *Star Dragon Lord Longsword* (source level 55) now correctly reads **Professional level 5** (55 − 50), not "intermediate mastery 55". The recipe list, the detail header, the "can you craft this" standing and the success-rate line all use this throughout.
+- **Correct tier names.** The "your mastery" tier dropdown now shows the in-game names — **Novice** and **Professional** (previously "beginner"/"intermediate") — plus Expert/Master, and only offers the tiers the selected profession actually makes recipes in.
+- **Level caps at 50.** The level field is a number up to **50** (per tier), and when a tier is the profession's highest it caps at that profession's real maximum in that tier, matching "up to the max for that profession".
+- Your mastery is compared to a recipe on one absolute scale under the hood, so "✓ you can craft / locked for you", the craftable-only filter and the over-level success projection are all consistent with the new tier + level entry.
+
 ## Crafting: community-measured success rates (0.2.240)
 
 - The Crafting workshop now shows a **success rate** per recipe. Our recipe source (gamers4.life) only carries the combo *trigger* rate and NCSoft publishes no official success table, so this is sourced from **metabot.gg's** community-measured data: a new `tools/export_crafting_success.py` scrapes each product's **base success chance at its required proficiency** (plus combo chance) into a small, source-attributed `crafting-success.json`, which the workshop matches to its recipes by name (158 products, all matching our catalog).

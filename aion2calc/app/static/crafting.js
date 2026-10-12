@@ -5,13 +5,21 @@
  const n=x=>Number(x).toLocaleString(undefined,{maximumFractionDigits:3});
  const grades={11:'Common',21:'Rare',31:'Epic',41:'Unique',51:'Heroic'};
  const GRADE_ORDER=['Common','Rare','Epic','Unique','Heroic'];
- // Crafting mastery tiers, lowest first. A recipe lists the tier it needs; a crafter can attempt it
- // only at that tier or higher. The source data uses the first two; the rest are listed so a player
- // can still say which tier they have. The exact success percentage is not in the source.
- const MASTERY=['beginner','intermediate','expert','master'];
+ // Crafting proficiency is a single absolute number in the source (a recipe's mastery_level, e.g. 55),
+ // but in game it reads as a tier plus a level within that tier, 50 levels per tier: Novice 1–50,
+ // Professional 51–100, Expert 101–150, Master 151–200. So level 55 is Professional level 5. The
+ // source's own coarse group label is ignored; tier and within-tier level are derived from the number.
+ const TIERS=['Novice','Professional','Expert','Master'],TIER_SPAN=50;
+ const tierRank=name=>{const i=TIERS.indexOf(name);return i<0?0:i;};
+ // Absolute source proficiency -> {rank, tier name, level within that tier (1..TIER_SPAN)}.
+ function band(abs){const a=Math.max(1,Math.round(Number(abs)||1));const rank=Math.min(TIERS.length-1,Math.floor((a-1)/TIER_SPAN));return {rank,tier:TIERS[rank],level:a-TIER_SPAN*rank};}
+ const tierLevelLabel=abs=>{const b=band(abs);return `${b.tier} level ${b.level}`;};
  const TYPE_LABELS={Weapon:'Weapon',Armor:'Armor',Accessory:'Accessory',ETC:'Material / other'};
  function mount(root,io={}){
   let catalog=null,success=null,selected='',search='',profession='',faction='',tier='',itype='',myTier='',myLevel='',craftableOnly=false,count=1,effective=null,seed=1,expand=false,result='',disposed=false;
+  // The player's absolute proficiency from the entered tier + within-tier level, or null when no
+  // level is entered (nothing to compare). A blank tier is read as the lowest (Novice).
+  const myAbs=()=>myLevel===''?null:TIER_SPAN*tierRank(myTier||TIERS[0])+Number(myLevel);
   // Community-measured success rate for a recipe (matched by product name), or '' when none.
   // base_success is the measured chance at the recipe's own proficiency; it rises toward a per-tier
   // cap as you out-level it (standard gear never reaches 100%). The base is community-measured
@@ -20,24 +28,22 @@
    const sx=success&&success.recipes?success.recipes[String(item(r.output).name||'').toLowerCase()]:null;
    const src='<span class="muted">community-measured (metabot.gg), not official</span>';
    if(!sx)return '<p class="small muted">Success rate: not available for this recipe in the community dataset.</p>';
-   const base=sx.base_success,cap=base>=90?99:base>=78?96.8:base>=75?94.6:93.1,req=sx.mastery;
-   if(myLevel===''||Number(myLevel)<req)
-    return `<p class="small">Success rate: <strong>${base}%</strong> at the required proficiency (${req}), rising toward ~${cap}% as you out-level it. ${src}.</p>`;
-   const diff=Number(myLevel)-req;
+   const base=sx.base_success,cap=base>=90?99:base>=78?96.8:base>=75?94.6:93.1,req=sx.mastery,reqLabel=tierLevelLabel(req),a=myAbs();
+   if(a===null||a<req)
+    return `<p class="small">Success rate: <strong>${base}%</strong> at the required proficiency (${esc(reqLabel)}), rising toward ~${cap}% as you out-level it. ${src}.</p>`;
+   const diff=a-req;
    if(diff===0)return `<p class="small">Success rate: <strong>${base}%</strong> at your proficiency. ${src}.</p>`;
    const proj=Math.min(cap,base+(cap-base)*Math.min(diff,42)/42);
-   return `<p class="small">Success rate: <strong>${base}%</strong> at the requirement; <strong>~${proj.toFixed(1)}%</strong> estimated at your +${diff} proficiency (projected toward the ~${cap}% cap). Base ${src}; the projection is an estimate.</p>`;
+   return `<p class="small">Success rate: <strong>${base}%</strong> at the requirement (${esc(reqLabel)}); <strong>~${proj.toFixed(1)}%</strong> estimated at your +${diff} proficiency (projected toward the ~${cap}% cap). Base ${src}; the projection is an estimate.</p>`;
   }
   const enhancements={},stock={},$=s=>root.querySelector(s),item=id=>catalog.items[id]||{name:id},recipe=()=>catalog.recipes[selected];
   const gradeName=id=>grades[item(id).grade]||'';
   const typeOf=id=>{const m=/\/Item\/([A-Za-z0-9]+)\//.exec(String(item(id).icon||''));return m?m[1]:'';};
   // Can a crafter at the entered tier/level attempt this recipe? No level entered → don't gate.
+  // Both sides reduce to one absolute proficiency number, so the comparison is a simple >=.
   function canCraft(r){
-   if(myLevel==='')return true;
-   const need=MASTERY.indexOf(r.mastery_group),have=myTier===''?need:MASTERY.indexOf(myTier);
-   if(have<need)return false;                 // your mastery tier is below the recipe's
-   if(have>need)return true;                  // a higher tier clears the recipe's level requirement
-   return Number(myLevel)>=r.mastery_level;   // same tier: your level must reach the recipe's
+   const a=myAbs();
+   return a===null?true:a>=r.mastery_level;
   }
   const image=id=>{const entry=item(id),url=String(entry.icon||'');const safe=/^https:\/\/gamers4\.life\/aion-2\/database\/icons\/assets\/Game\/[A-Za-z0-9_/-]+\.webp$/.test(url);return safe?`<img ${window.A2AssetHealth?A2AssetHealth.attributes({namespace:'gamers4life',kind:'item',id}):''} src="${esc(window.A2AssetHealth?A2AssetHealth.source(url):url)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.onerror=null;this.src='static/logo.png';this.title='Source image unavailable'">`:'<span class="cr-profile-empty">◇</span>';};
   function card(id,detail){return `<article class="cr-profile-card" data-grade="${grades[item(id).grade]||''}">${image(id)}<div><strong>${esc(item(id).name)}</strong><span>${esc(detail)}</span><small>Source item ${esc(id)}</small></div></article>`;}
@@ -72,16 +78,20 @@
   // What rarities, item types, mastery tiers and top level the selected profession actually makes
   // (all recipes when no profession is picked), so the filters only offer relevant choices.
   function profMeta(){
-   const g=new Set(),t=new Set(),m=new Set();let maxL=1;
+   const g=new Set(),t=new Set(),tierMax={};
    for(const r of Object.values(catalog.recipes)){
     if(profession&&r.profession!==profession)continue;
     const gn=gradeName(r.output);if(gn)g.add(gn);
     const ty=typeOf(r.output);if(ty)t.add(ty);
-    if(r.mastery_group)m.add(r.mastery_group);
-    if(Number.isInteger(r.mastery_level))maxL=Math.max(maxL,r.mastery_level);
+    if(Number.isInteger(r.mastery_level)){const b=band(r.mastery_level);tierMax[b.tier]=Math.max(tierMax[b.tier]||0,b.level);}
    }
-   return {grades:GRADE_ORDER.filter(x=>g.has(x)),types:[...t].sort(),tiers:MASTERY.filter(x=>m.has(x)),maxLevel:maxL};
+   // tiers: only those the profession actually makes recipes in; tierMax[tier]: the highest
+   // within-tier level needed there, so the level field caps at the profession's real maximum.
+   return {grades:GRADE_ORDER.filter(x=>g.has(x)),types:[...t].sort(),tiers:TIERS.filter(x=>x in tierMax),tierMax};
   }
+  // The level cap for the currently selected tier (the profession's own max in that tier, else the
+  // 50-level tier span), so "Level" never exceeds the max for that profession's tier.
+  const levelCap=meta=>{meta=meta||profMeta();return (myTier&&meta.tierMax[myTier])?meta.tierMax[myTier]:TIER_SPAN;};
   // Rebuild the rarity/type/your-tier options and the level cap for the current profession, dropping
   // any current selection the new profession doesn't offer.
   function renderFilters(){
@@ -89,17 +99,18 @@
    if(tier&&!meta.grades.includes(tier))tier='';
    if(itype&&!meta.types.includes(itype))itype='';
    if(myTier&&!meta.tiers.includes(myTier))myTier='';
-   if(myLevel!==''&&Number(myLevel)>meta.maxLevel)myLevel=String(meta.maxLevel);
+   const cap=levelCap(meta);
+   if(myLevel!==''&&Number(myLevel)>cap)myLevel=String(cap);
    $('[data-tier]').innerHTML='<option value="">All rarities</option>'+meta.grades.map(x=>`<option ${x===tier?'selected':''}>${esc(x)}</option>`).join('');
    $('[data-type]').innerHTML='<option value="">All types</option>'+meta.types.map(x=>`<option value="${esc(x)}" ${x===itype?'selected':''}>${esc(TYPE_LABELS[x]||x)}</option>`).join('');
-   $('[data-mytier]').innerHTML='<option value="">—</option>'+meta.tiers.map(x=>`<option value="${x}" ${x===myTier?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('');
-   const lvl=$('[data-mylevel]');lvl.max=meta.maxLevel;lvl.placeholder='1–'+meta.maxLevel;lvl.value=myLevel;
+   $('[data-mytier]').innerHTML='<option value="">—</option>'+meta.tiers.map(x=>`<option value="${esc(x)}" ${x===myTier?'selected':''}>${esc(x)}</option>`).join('');
+   const lvl=$('[data-mylevel]');lvl.max=cap;lvl.placeholder='1–'+cap;lvl.value=myLevel;
   }
   function results(){
    const rows=Object.entries(catalog.recipes).filter(([id,r])=>(!profession||r.profession===profession)&&(!faction||r.faction===faction)
     &&(!tier||gradeName(r.output)===tier)&&(!itype||typeOf(r.output)===itype)&&(!craftableOnly||canCraft(r))
     &&(id.includes(search)||item(r.output).name.toLocaleLowerCase().includes(search.toLocaleLowerCase())));
-   $('[data-recipe-list]').innerHTML=rows.slice(0,80).map(([id,r])=>`<button type="button" class="craft-recipe ${id===selected?'on':''}" data-recipe="${id}">${image(r.output)}<span>${esc(item(r.output).name)}<small>${esc(gradeName(r.output)||'—')} · ${esc(r.profession)} · ${r.faction==='light'?'Elyos':'Asmodian'} · ${esc(r.mastery_group)} mastery ${r.mastery_level}${myLevel!==''?(canCraft(r)?' · ✓ you can craft':' · locked for you'):''}</small></span></button>`).join('')||'<p>No matching recipes. Widen the tier, type or profession filters.</p>';
+   $('[data-recipe-list]').innerHTML=rows.slice(0,80).map(([id,r])=>`<button type="button" class="craft-recipe ${id===selected?'on':''}" data-recipe="${id}">${image(r.output)}<span>${esc(item(r.output).name)}<small>${esc(gradeName(r.output)||'—')} · ${esc(r.profession)} · ${r.faction==='light'?'Elyos':'Asmodian'} · ${esc(tierLevelLabel(r.mastery_level))}${myLevel!==''?(canCraft(r)?' · ✓ you can craft':' · locked for you'):''}</small></span></button>`).join('')||'<p>No matching recipes. Widen the tier, type or profession filters.</p>';
    $('[data-recipe-count]').textContent=rows.length+' matching recipes; showing up to 80. Filter or search to narrow the list.';
    root.querySelectorAll('[data-recipe]').forEach(b=>b.onclick=()=>{selected=b.dataset.recipe;effective=null;result='';results();details();});
   }
@@ -107,15 +118,14 @@
    const r=recipe();if(!r){$('[data-craft-detail]').textContent='Select a recipe.';return;}
    const chance=effective??r.combo_chance;let p,error='';try{p=plan();}catch(e){error=e.message;}
    const standing=(()=>{
-    if(myLevel==='')return '<p class="small muted">Enter your crafting tier and level above to see whether you can make this and your level margin.</p>';
-    const need=MASTERY.indexOf(r.mastery_group),have=myTier===''?need:MASTERY.indexOf(myTier),margin=Number(myLevel)-r.mastery_level;
-    if(have<need)return `<p class="note">Locked: this recipe needs <strong>${esc(r.mastery_group)}</strong> mastery, above your <strong>${esc(myTier||'—')}</strong> tier.</p>`;
-    if(have>need)return `<p class="small">Your <strong>${esc(myTier)}</strong> tier is above this recipe's <strong>${esc(r.mastery_group)}</strong> tier, so its level ${r.mastery_level} requirement is met.</p>`;
+    const a=myAbs();
+    if(a===null)return '<p class="small muted">Enter your crafting tier and level above to see whether you can make this and your level margin.</p>';
+    const reqLabel=tierLevelLabel(r.mastery_level),you=`${esc(myTier||TIERS[0])} level ${esc(myLevel)}`,margin=a-r.mastery_level;
     return margin>=0
-     ? `<p class="small">You can craft this: your ${esc(r.mastery_group)} level ${esc(myLevel)} is ${margin===0?'exactly at':('+'+margin+' above')} the required ${r.mastery_level}. The exact success rate isn't published in the source; a larger margin is typically easier.</p>`
-     : `<p class="note">You're ${-margin} level${-margin===1?'':'s'} short: this needs ${esc(r.mastery_group)} level ${r.mastery_level} and you entered ${esc(myLevel)}.</p>`;
+     ? `<p class="small">You can craft this: your ${you} is ${margin===0?'exactly at':('+'+margin+' above')} the required <strong>${esc(reqLabel)}</strong>. The exact success rate isn't published in the source; a larger margin is typically easier.</p>`
+     : `<p class="note">You're ${-margin} level${-margin===1?'':'s'} short: this needs <strong>${esc(reqLabel)}</strong> and you entered ${you}.</p>`;
    })();
-   $('[data-craft-detail]').innerHTML=`<h2>${esc(item(r.output).name)}</h2><p>${esc(gradeName(r.output)||'—')} · ${esc(TYPE_LABELS[typeOf(r.output)]||typeOf(r.output)||'item')} · ${esc(r.profession)} · ${r.faction==='light'?'Elyos':'Asmodian'} · ${esc(r.mastery_group)} mastery ${r.mastery_level} · recipe ${selected}</p>${standing}${successLine(r)}<div class="row"><label>Planned completed crafts <input data-crafts type="number" min="1" max="10000" value="${count}"></label><label><input data-expand type="checkbox" ${expand?'checked':''}> Expand source-linked intermediates without combo outcomes</label></div><p class="small muted">Materials/fees assume every planned craft completes and consumes the listed inputs. General success, failures/refunds and modifier rules are unavailable. Intermediate branches round separately to whole normal-output crafts; surplus is not credited. These are planning assumptions, not guaranteed shopping requirements.</p><div class="craft-detail-columns"><section class="craft-products"><div class="craft-output"><div><h3>Normal product reference</h3>${card(r.output,n(r.quantity)+' per listed normal output · '+n(r.quantity*count)+' for the planned normal-output crafts')}${outputStats(r.output)}</div><div><h3>Combo product reference</h3>${r.combo?card(r.combo,'Combo quantity and normal-output replacement rules unavailable')+outputStats(r.combo):'<p>No combo output in this recipe record.</p>'}</div></div><div class="note"><strong>Published combo trigger rate: ${n(r.combo_chance*100)}%</strong><p>Craft success rate is shown above (community-measured where available) · ${effective===null?'Using the published combo rate.':'Using your assumed effective combo rate; no modifier formula is verified.'}</p><div class="row"><label>Assumed effective combo rate (%) <input data-chance type="number" min="0" max="100" step=".1" value="${String(Number((chance*100).toFixed(4)))}"></label><button class="btn small" data-rate-reset>Use source rate</button><label>Scenario seed <input data-seed type="number" min="0" max="4294967295" value="${seed}"></label><button class="btn small" data-simulate>Simulate combo checks</button></div><p>Conditional on ${n(count)} independent completed-craft checks with a fixed ${n(chance*100)}% combo rate: expected checks triggering combo ${n(count*chance)}; probability of at least one ${n((chance===1?1:-Math.expm1(count*Math.log1p(-chance)))*100)}%.</p><p data-simulation role="status">${esc(result)}</p></div></section><section class="craft-materials"><h3>Material plan ${expand?'(expanded where supported)':'(direct)'}</h3>${error?`<p class="note">${esc(error)}</p>`:`<div class="cr-profile-grid">${p.materials.map(m=>`<div>${card(m.id,'Required '+n(m.quantity)+' · remaining '+n(m.remaining))}<label>Owned base material <input data-owned="${m.id}" type="number" min="0" max="1000000000000" value="${m.owned}"></label></div>`).join('')}</div><p>Listed fees: ${n(p.fee)} Kinah · ${p.steps.length} recipe branches.</p>${p.warnings.map(w=>`<p class="note">${esc(w)}</p>`).join('')}<p class="small muted">Entered owned quantities subtract only from final material rows; they do not change recipe counts or fees. Nothing is uploaded or persisted automatically.</p><button class="btn small" data-plan-export>Export this material plan</button>`}</section></div><p><a href="https://gamers4.life/aion-2/database/en/recipe/${selected}/" target="_blank" rel="noopener noreferrer">View source recipe ↗</a></p>`;
+   $('[data-craft-detail]').innerHTML=`<h2>${esc(item(r.output).name)}</h2><p>${esc(gradeName(r.output)||'—')} · ${esc(TYPE_LABELS[typeOf(r.output)]||typeOf(r.output)||'item')} · ${esc(r.profession)} · ${r.faction==='light'?'Elyos':'Asmodian'} · ${esc(tierLevelLabel(r.mastery_level))} · recipe ${selected}</p>${standing}${successLine(r)}<div class="row"><label>Planned completed crafts <input data-crafts type="number" min="1" max="10000" value="${count}"></label><label><input data-expand type="checkbox" ${expand?'checked':''}> Expand source-linked intermediates without combo outcomes</label></div><p class="small muted">Materials/fees assume every planned craft completes and consumes the listed inputs. General success, failures/refunds and modifier rules are unavailable. Intermediate branches round separately to whole normal-output crafts; surplus is not credited. These are planning assumptions, not guaranteed shopping requirements.</p><div class="craft-detail-columns"><section class="craft-products"><div class="craft-output"><div><h3>Normal product reference</h3>${card(r.output,n(r.quantity)+' per listed normal output · '+n(r.quantity*count)+' for the planned normal-output crafts')}${outputStats(r.output)}</div><div><h3>Combo product reference</h3>${r.combo?card(r.combo,'Combo quantity and normal-output replacement rules unavailable')+outputStats(r.combo):'<p>No combo output in this recipe record.</p>'}</div></div><div class="note"><strong>Published combo trigger rate: ${n(r.combo_chance*100)}%</strong><p>Craft success rate is shown above (community-measured where available) · ${effective===null?'Using the published combo rate.':'Using your assumed effective combo rate; no modifier formula is verified.'}</p><div class="row"><label>Assumed effective combo rate (%) <input data-chance type="number" min="0" max="100" step=".1" value="${String(Number((chance*100).toFixed(4)))}"></label><button class="btn small" data-rate-reset>Use source rate</button><label>Scenario seed <input data-seed type="number" min="0" max="4294967295" value="${seed}"></label><button class="btn small" data-simulate>Simulate combo checks</button></div><p>Conditional on ${n(count)} independent completed-craft checks with a fixed ${n(chance*100)}% combo rate: expected checks triggering combo ${n(count*chance)}; probability of at least one ${n((chance===1?1:-Math.expm1(count*Math.log1p(-chance)))*100)}%.</p><p data-simulation role="status">${esc(result)}</p></div></section><section class="craft-materials"><h3>Material plan ${expand?'(expanded where supported)':'(direct)'}</h3>${error?`<p class="note">${esc(error)}</p>`:`<div class="cr-profile-grid">${p.materials.map(m=>`<div>${card(m.id,'Required '+n(m.quantity)+' · remaining '+n(m.remaining))}<label>Owned base material <input data-owned="${m.id}" type="number" min="0" max="1000000000000" value="${m.owned}"></label></div>`).join('')}</div><p>Listed fees: ${n(p.fee)} Kinah · ${p.steps.length} recipe branches.</p>${p.warnings.map(w=>`<p class="note">${esc(w)}</p>`).join('')}<p class="small muted">Entered owned quantities subtract only from final material rows; they do not change recipe counts or fees. Nothing is uploaded or persisted automatically.</p><button class="btn small" data-plan-export>Export this material plan</button>`}</section></div><p><a href="https://gamers4.life/aion-2/database/en/recipe/${selected}/" target="_blank" rel="noopener noreferrer">View source recipe ↗</a></p>`;
    $('[data-crafts]').onchange=e=>{const x=Number(e.target.value);if(!Number.isInteger(x)||x<1||x>10000){e.target.value=count;return;}count=x;result='';details();};
    root.querySelectorAll('[data-product-enhancement]').forEach(e=>e.onchange=()=>{const id=e.dataset.productEnhancement,level=Number(e.value);if(level===0||(catalog.item_details[id]?.enhancements||[]).some(row=>row.level===level)){enhancements[id]=level;details();}});
    $('[data-expand]').onchange=e=>{expand=e.target.checked;details();};
@@ -133,13 +143,13 @@
    root.textContent='Loading crafting catalog…';try{const response=await fetch(io.catalogURL||'/static/crafting-catalog.json');if(!response.ok)throw Error('Crafting catalog unavailable');catalog=await response.json();if(disposed||!root.isConnected)return;if(catalog.version!==1)throw Error('Unsupported crafting catalog');
     try{const su=await fetch(io.successURL||(io.catalogURL?io.catalogURL.replace(/crafting-catalog\.json(\?.*)?$/,'crafting-success.json'):'/static/crafting-success.json'));if(su.ok){const sd=await su.json();if(sd&&sd.version===1&&sd.recipes)success=sd;}}catch(_){/* success rates are optional; the recipe shows 'not available' without them */}
     selected=Object.keys(catalog.recipes)[0];
-    root.innerHTML=`<section class="win"><div class="wh"><h2>Crafting workshop</h2><span class="sub">Conditional recipe planning</span></div><div class="wb"><details class="note" open><summary>Recipe source and missing rules</summary><p>${esc(catalog.note)}</p><p>${esc(catalog.item_details_note||'Item stat references unavailable.')}</p><p>${Object.keys(catalog.recipes).length} recipes · ${Object.keys(catalog.items).length} source item references · retrieved ${esc(new Date(catalog.retrieved_at).toLocaleString())} · source SHA256 ${esc(catalog.source_sha256.slice(0,16))} · <a href="${esc(catalog.source_page)}" target="_blank" rel="noopener noreferrer">Gamers4Life source</a>.</p></details><div class="craft-workspace"><aside><div class="row"><label>Search <input data-search placeholder="Item name or recipe ID"></label><label>Profession <select data-profession><option value="">All professions</option>${[...new Set(Object.values(catalog.recipes).map(r=>r.profession))].sort().map(p=>`<option>${esc(p)}</option>`).join('')}</select></label><label>Faction <select data-faction><option value="">Both factions</option><option value="light">Elyos</option><option value="dark">Asmodian</option></select></label></div><div class="row"><label>Rarity <select data-tier><option value="">All rarities</option>${GRADE_ORDER.map(g=>`<option>${g}</option>`).join('')}</select></label><label>Item type <select data-type><option value="">All types</option>${[...new Set(Object.values(catalog.recipes).map(r=>typeOf(r.output)).filter(Boolean))].sort().map(t=>`<option value="${esc(t)}">${esc(TYPE_LABELS[t]||t)}</option>`).join('')}</select></label></div><fieldset class="row" style="border:0;padding:0;margin:0"><legend class="small muted" style="padding:0">Your crafting mastery (optional — to see what you can make)</legend><label>Tier <select data-mytier><option value="">—</option>${MASTERY.map(m=>`<option value="${m}">${m[0].toUpperCase()+m.slice(1)}</option>`).join('')}</select></label><label>Level <input data-mylevel type="number" min="1" max="200" placeholder="e.g. 95" style="width:80px"></label><label><input data-craftable type="checkbox"> Only what I can craft</label></fieldset><p data-recipe-count class="small muted"></p><div data-recipe-list></div></aside><div data-craft-detail></div></div></div></section>`;
+    root.innerHTML=`<section class="win"><div class="wh"><h2>Crafting workshop</h2><span class="sub">Conditional recipe planning</span></div><div class="wb"><details class="note" open><summary>Recipe source and missing rules</summary><p>${esc(catalog.note)}</p><p>${esc(catalog.item_details_note||'Item stat references unavailable.')}</p><p>${Object.keys(catalog.recipes).length} recipes · ${Object.keys(catalog.items).length} source item references · retrieved ${esc(new Date(catalog.retrieved_at).toLocaleString())} · source SHA256 ${esc(catalog.source_sha256.slice(0,16))} · <a href="${esc(catalog.source_page)}" target="_blank" rel="noopener noreferrer">Gamers4Life source</a>.</p></details><div class="craft-workspace"><aside><div class="row"><label>Search <input data-search placeholder="Item name or recipe ID"></label><label>Profession <select data-profession><option value="">All professions</option>${[...new Set(Object.values(catalog.recipes).map(r=>r.profession))].sort().map(p=>`<option>${esc(p)}</option>`).join('')}</select></label><label>Faction <select data-faction><option value="">Both factions</option><option value="light">Elyos</option><option value="dark">Asmodian</option></select></label></div><div class="row"><label>Rarity <select data-tier><option value="">All rarities</option>${GRADE_ORDER.map(g=>`<option>${g}</option>`).join('')}</select></label><label>Item type <select data-type><option value="">All types</option>${[...new Set(Object.values(catalog.recipes).map(r=>typeOf(r.output)).filter(Boolean))].sort().map(t=>`<option value="${esc(t)}">${esc(TYPE_LABELS[t]||t)}</option>`).join('')}</select></label></div><fieldset class="row" style="border:0;padding:0;margin:0"><legend class="small muted" style="padding:0">Your crafting mastery (optional — to see what you can make)</legend><label>Tier <select data-mytier><option value="">—</option>${TIERS.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')}</select></label><label>Level <input data-mylevel type="number" min="1" max="50" placeholder="1–50" style="width:80px"></label><label><input data-craftable type="checkbox"> Only what I can craft</label></fieldset><p data-recipe-count class="small muted"></p><div data-recipe-list></div></aside><div data-craft-detail></div></div></div></section>`;
     $('[data-search]').oninput=e=>{search=e.target.value;results();};
     $('[data-profession]').onchange=e=>{profession=e.target.value;renderFilters();results();details();};
     $('[data-faction]').onchange=e=>{faction=e.target.value;results();};
     $('[data-tier]').onchange=e=>{tier=e.target.value;results();};$('[data-type]').onchange=e=>{itype=e.target.value;results();};
-    $('[data-mytier]').onchange=e=>{myTier=e.target.value;results();details();};
-    $('[data-mylevel]').oninput=e=>{const v=e.target.value,maxL=profMeta().maxLevel;myLevel=(v===''||(Number.isInteger(+v)&&+v>=1&&+v<=maxL))?v:myLevel;e.target.value=myLevel;results();details();};
+    $('[data-mytier]').onchange=e=>{myTier=e.target.value;renderFilters();results();details();};
+    $('[data-mylevel]').oninput=e=>{const v=e.target.value,cap=levelCap();myLevel=(v===''||(Number.isInteger(+v)&&+v>=1&&+v<=cap))?v:myLevel;e.target.value=myLevel;results();details();};
     $('[data-craftable]').onchange=e=>{craftableOnly=e.target.checked;results();};
     renderFilters();results();details();
    }catch(e){if(!disposed&&root.isConnected)root.textContent='Could not open crafting workshop: '+e.message;}
