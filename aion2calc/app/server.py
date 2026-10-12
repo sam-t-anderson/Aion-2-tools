@@ -892,6 +892,35 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("Overlay text colors must be six-digit hex colors for rate, total, name, "
                                      "header, target, hp, ttk, label, also, ping or identity")
                 cur["overlay_text_colors"] = {k: v.lower() for k, v in colors.items()}
+            if "overlay_text_fonts" in body:
+                spec = body["overlay_text_fonts"]
+                elements = {"rate", "total", "name", "header", "target", "hp", "ttk",
+                            "label", "also", "ping", "identity"}
+                fonts = ("", "Segoe UI", "Arial", "Verdana", "Georgia", "Trebuchet MS", "Consolas", "Tahoma")
+                if not isinstance(spec, dict) or not set(spec) <= elements:
+                    raise ValueError("overlay_text_fonts keys must be known overlay text elements")
+                cleaned = {}
+                for key, value in spec.items():
+                    if not isinstance(value, dict) or not set(value) <= {"family", "scale", "weight"}:
+                        raise ValueError("Each overlay_text_fonts entry may set family, scale and/or weight")
+                    entry = {}
+                    if "family" in value:
+                        if value["family"] not in fonts:
+                            raise ValueError("overlay_text_fonts family must be one of the available fonts")
+                        if value["family"]:
+                            entry["family"] = value["family"]
+                    for prop, lo, hi in (("scale", 80, 160), ("weight", 400, 800)):
+                        if prop in value and value[prop] is not None:
+                            if type(value[prop]) is not int or not (lo <= value[prop] <= hi):
+                                raise ValueError(f"overlay_text_fonts {prop} must be an integer {lo}-{hi}")
+                            entry[prop] = value[prop]
+                    if entry:                       # drop a fully-cleared element entirely
+                        cleaned[key] = entry
+                cur["overlay_text_fonts"] = cleaned
+            if "overlay_halo_color" in body:
+                if not _is_hex(body["overlay_halo_color"]):
+                    raise ValueError("overlay_halo_color must be a six-digit hex color")
+                cur["overlay_halo_color"] = body["overlay_halo_color"].lower()
             if "overlay_glow_color" in body:
                 if not _is_hex(body["overlay_glow_color"]):
                     raise ValueError("overlay_glow_color must be a six-digit hex color")
@@ -934,7 +963,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
                               "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart")
+                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1158,6 +1187,8 @@ def ui_settings() -> dict:
                 "overlay_always_visible": True, "overlay_remember_position": True,
                 "overlay_click_through": False, "overlay_close_on_stop": False,
                 "overlay_font_scale": 100, "overlay_font_weight": 600, "overlay_font_family": "",
+                "overlay_text_fonts": {}, "overlay_text_halo": False, "overlay_halo_color": "#e8cf8e",
+                "overlay_text_retro": False,
                 "overlay_glow": False, "overlay_glow_color": "#e8cf8e", "overlay_hp_color": "#e05a5a",
                 "overlay_ttk_color": "#8fb3d0",
                 "overlay_text_outline": False, "overlay_outline_color": "#000000",

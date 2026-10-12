@@ -80,6 +80,35 @@ def test_visual_settings_round_trip(home):
     assert s["overlay_party_enabled"] is True
 
 
+def test_per_element_fonts_and_text_effects_round_trip(home):
+    result = settings_backup.import_settings({
+        "overlay_text_fonts": {"name": {"family": "Consolas", "scale": 130, "weight": 700},
+                               "rate": {"scale": 90}, "header": {"family": "", "weight": 800}},
+        "overlay_text_halo": True, "overlay_halo_color": "#FFCC00", "overlay_text_retro": True,
+    })
+    s = result["settings"]
+    # Family="" is a non-override and is dropped, leaving only the real weight override.
+    assert s["overlay_text_fonts"] == {"name": {"family": "Consolas", "scale": 130, "weight": 700},
+                                       "rate": {"scale": 90}, "header": {"weight": 800}}
+    assert s["overlay_text_halo"] is True and s["overlay_halo_color"] == "#ffcc00"
+    assert s["overlay_text_retro"] is True
+
+
+def test_per_element_fonts_reject_bad_values(home):
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_text_fonts": {"nope": {"scale": 100}}})      # unknown element
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_text_fonts": {"name": {"scale": 300}}})      # scale out of range
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_text_fonts": {"name": {"family": "Comic Sans"}}})  # not allowed
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_text_fonts": {"name": {"weight": 900}}})     # weight out of range
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_text_fonts": {"name": {"tilt": 5}}})         # unknown property
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_halo_color": "nope"})
+
+
 def test_name_mode_and_save_records_round_trip(home):
     result = settings_backup.import_settings({"overlay_name_mode": "number", "meter_save_records": False})
     assert result["settings"]["overlay_name_mode"] == "number"

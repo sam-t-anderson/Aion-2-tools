@@ -62,6 +62,24 @@
     document.documentElement.style.setProperty('--ov-font-scale',scale/100);
     document.documentElement.style.setProperty('--ov-font-weight',weight);
     document.documentElement.style.setProperty('--ov-font-family',fam?`"${fam}", "Segoe UI", system-ui, sans-serif`:'');
+    // Per-element font overrides (family / size / weight). A var is set only when that
+    // element overrides the default; otherwise it is removed so the CSS var() fallback
+    // inherits the global overlay font.
+    const perFonts=ui.overlay_text_fonts&&typeof ui.overlay_text_fonts==='object'?ui.overlay_text_fonts:{};
+    const rootStyle=document.documentElement.style;
+    for(const key of ['rate','total','name','header','target','hp','ttk','label','also','ping','identity']){
+      const f=perFonts[key]||{};
+      const ff=typeof f.family==='string'&&f.family?`"${f.family}", "Segoe UI", system-ui, sans-serif`:'';
+      ff?rootStyle.setProperty(`--ov-${key}-ff`,ff):rootStyle.removeProperty(`--ov-${key}-ff`);
+      const fs=Number(f.scale);
+      (fs>=80&&fs<=160)?rootStyle.setProperty(`--ov-${key}-fs`,fs/100):rootStyle.removeProperty(`--ov-${key}-fs`);
+      const fw=Number(f.weight);
+      (fw>=400&&fw<=800)?rootStyle.setProperty(`--ov-${key}-fw`,fw):rootStyle.removeProperty(`--ov-${key}-fw`);
+    }
+    // Halo (luminous ring) and retroreflection (moving sheen) text effects. Off by default.
+    document.getElementById('ov').classList.toggle('ov-halo',ui.overlay_text_halo===true);
+    rootStyle.setProperty('--ov-halo-color',/^#[0-9a-f]{6}$/i.test(ui.overlay_halo_color||'')?ui.overlay_halo_color:'#e8cf8e');
+    document.getElementById('ov').classList.toggle('ov-retro',ui.overlay_text_retro===true);
     // Glow (text-shadow)
     const glow=ui.overlay_glow===true, glowColor=/^#[0-9a-f]{6}$/i.test(ui.overlay_glow_color||'')?ui.overlay_glow_color:'#e8cf8e';
     document.documentElement.style.setProperty('--ov-glow',glow?`0 0 4px ${glowColor}, 0 0 8px ${glowColor}`:'none');

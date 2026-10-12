@@ -183,3 +183,31 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovrank-1 { color: #f2c84b; opacity: 1; font-weight: 700; }
 .ovrank-2 { color: #cfd4dc; opacity: 1; font-weight: 700; }
 .ovrank-3 { color: #d08a52; opacity: 1; font-weight: 700; }
+
+/* Per-element font controls: family, weight and a size multiplier for each labelled
+   text element, each falling back to the global overlay font when that element has no
+   override (overlay.js sets --ov-<key>-ff/-fs/-fw only for an element that overrides). */
+.ovhd { font-family: var(--ov-header-ff, inherit); font-weight: var(--ov-header-fw, 700); font-size: calc(1em * var(--ov-header-fs, 1)); }
+.ovname { font-family: var(--ov-name-ff, inherit); font-weight: var(--ov-name-fw, var(--ov-font-weight, 400)); font-size: calc(1em * var(--ov-name-fs, 1)); }
+.ovpstat .ovpval { font-family: var(--ov-rate-ff, inherit); font-weight: var(--ov-rate-fw, var(--ov-font-weight, 700)); font-size: calc(1.15em * var(--ov-rate-fs, 1)); }
+.ovbar span { font-family: var(--ov-rate-ff, inherit); font-weight: var(--ov-rate-fw, 700); }
+.ovskval, .ovrow .sub { font-family: var(--ov-total-ff, inherit); font-weight: var(--ov-total-fw, 400); font-size: calc(1em * var(--ov-total-fs, 1)); }
+.ovtarget { font-family: var(--ov-target-ff, inherit); font-weight: var(--ov-target-fw, 400); font-size: calc(11px * var(--ov-target-fs, 1)); }
+.ovtarget .ovhp { font-family: var(--ov-hp-ff, inherit); font-weight: var(--ov-hp-fw, 600); font-size: calc(1em * var(--ov-hp-fs, 1)); }
+.ovtarget .ovttk { font-family: var(--ov-ttk-ff, inherit); font-weight: var(--ov-ttk-fw, 600); font-size: calc(1em * var(--ov-ttk-fs, 1)); }
+.ovtarget .ovtlabel, .ovdummy .ovtlabel { font-family: var(--ov-label-ff, inherit); font-weight: var(--ov-label-fw, 600); font-size: calc(1em * var(--ov-label-fs, 1)); }
+.ovtarget .ovalso { font-family: var(--ov-also-ff, inherit); font-weight: var(--ov-also-fw, 600); font-size: calc(.92em * var(--ov-also-fs, 1)); }
+.ovping { font-family: var(--ov-ping-ff, inherit); font-weight: var(--ov-ping-fw, 400); font-size: calc(10px * var(--ov-ping-fs, 1)); }
+.ovidentity { font-family: var(--ov-identity-ff, inherit); font-weight: var(--ov-identity-fw, 400); font-size: calc(10px * var(--ov-identity-fs, 1)); }
+
+/* Halo: a soft luminous ring around the card's text, layered on top of any glow. */
+#ov.ov-halo .ovcard { text-shadow: var(--ov-glow, none), 0 0 2px var(--ov-halo-color, #e8cf8e), 0 0 6px var(--ov-halo-color, #e8cf8e), 0 0 12px var(--ov-halo-color, #e8cf8e); }
+
+/* Retroreflection: a subtle sheen sweeping across the bright headline text, like
+   reflective material catching light. Held still under reduced-motion. */
+#ov.ov-retro .ovname, #ov.ov-retro .ovhd, #ov.ov-retro .ovpstat .ovpval {
+  background: linear-gradient(100deg, currentColor 0%, currentColor 42%, rgba(255,255,255,.92) 50%, currentColor 58%, currentColor 100%);
+  background-size: 300% 100%; -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; animation: ov-retro-sheen 3.5s linear infinite; }
+@keyframes ov-retro-sheen { to { background-position: -300% 0; } }
+@media (prefers-reduced-motion: reduce) { #ov.ov-retro .ovname, #ov.ov-retro .ovhd, #ov.ov-retro .ovpstat .ovpval { animation: none; } }

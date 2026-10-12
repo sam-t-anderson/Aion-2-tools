@@ -24,7 +24,7 @@ _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close", 
               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
-              "overlay_close_on_stop", "overlay_text_outline",
+              "overlay_close_on_stop", "overlay_text_outline", "overlay_text_halo", "overlay_text_retro",
               "overlay_bar_rounded", "overlay_class_color_names", "overlay_color_cycle",
               "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers",
               "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "meter_auto_upload", "meter_report_boss_kills", "meter_report_enemy_hp", "overlay_plan_autoplay", "meter_autostart")
@@ -45,6 +45,7 @@ _FONT_FAMILIES = ("", "Segoe UI", "Arial", "Verdana", "Georgia", "Trebuchet MS",
 _VISUAL_KEYS = ("overlay_text_colors", "overlay_glow", "overlay_glow_color", "overlay_hp_color",
                 "overlay_ttk_color", "overlay_text_outline", "overlay_outline_color",
                 "overlay_bar_style", "overlay_bar_rounded", "overlay_class_color_names", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph",
+                "overlay_text_fonts", "overlay_text_halo", "overlay_halo_color", "overlay_text_retro",
                 "overlay_font_family", "overlay_font_scale", "overlay_font_weight",
                 "overlay_bg_opacity", "overlay_bg_zoom", "overlay_bg_darken",
                 "overlay_name_mode", "overlay_long_names_scroll", "combat_colors")
@@ -77,10 +78,31 @@ def _clean(data: dict) -> dict:
                 raise ValueError("overlay_text_colors must be six-digit hex colors for rate, total, name, "
                                  "header, target, hp, ttk, label, also, ping or identity")
             clean[key] = {k: v.lower() for k, v in value.items()}
-        elif key in ("overlay_glow_color", "overlay_hp_color", "overlay_ttk_color", "overlay_outline_color"):
+        elif key in ("overlay_glow_color", "overlay_hp_color", "overlay_ttk_color", "overlay_outline_color", "overlay_halo_color"):
             if not _is_hex(value):
                 raise ValueError(f"{key} must be a six-digit hex color")
             clean[key] = value.lower()
+        elif key == "overlay_text_fonts":
+            elements = {"rate", "total", "name", "header", "target", "hp", "ttk", "label", "also", "ping", "identity"}
+            if not (isinstance(value, dict) and set(value) <= elements):
+                raise ValueError("overlay_text_fonts keys must be known overlay text elements")
+            fonts: dict = {}
+            for element, spec in value.items():
+                if not (isinstance(spec, dict) and set(spec) <= {"family", "scale", "weight"}):
+                    raise ValueError("each overlay_text_fonts entry may set family, scale and/or weight")
+                entry = {}
+                if spec.get("family"):
+                    if spec["family"] not in _FONT_FAMILIES:
+                        raise ValueError("overlay_text_fonts family must be one of the available fonts")
+                    entry["family"] = spec["family"]
+                for prop, lo, hi in (("scale", 80, 160), ("weight", 400, 800)):
+                    if spec.get(prop) is not None:
+                        if not isinstance(spec[prop], int) or isinstance(spec[prop], bool) or not lo <= spec[prop] <= hi:
+                            raise ValueError(f"overlay_text_fonts {prop} must be a whole number from {lo} to {hi}")
+                        entry[prop] = spec[prop]
+                if entry:
+                    fonts[element] = entry
+            clean[key] = fonts
         elif key == "overlay_font_family":
             if value not in _FONT_FAMILIES:
                 raise ValueError("overlay_font_family must be one of the available fonts")

@@ -1,3 +1,9 @@
+## Richer overlay text: per-element fonts, halo and retroreflection (0.2.228)
+
+- **Per-element fonts.** Each labelled overlay text element — the rate (DPS/HPS), total·percent, player name, header, target line, target HP/TTK, target label, also-targets "+N", ping line and identity line — can now take its own **font family, size and weight**, each falling back to the global overlay font when left on Inherit/Auto. Pick an element in Settings → Overlay and set just that one.
+- **Halo** adds a soft luminous ring around the overlay text (its own colour), layered on top of any glow. **Retroreflection** sweeps a subtle sheen across the headline text like reflective material catching light. Both are off by default and respect your reduced-motion setting.
+- These ride the overlay look presets and the settings backup like the other appearance options. No change to the overlay until you enable them.
+
 ## Groundwork for the overlay on macOS and Linux (0.2.227)
 
 - **Internal plumbing, no change on Windows.** The overlay's native layer (always-on-top, click-through, remembering its position, following the game window) is now behind a single platform interface, with the Windows implementation unchanged and documented macOS/Linux scaffolds for the native work still to come. macOS and Linux keep today's browser/plain-window overlay for now; this is the structure that lets the native overlay reach them next, with the cross-platform logic unit-tested.
