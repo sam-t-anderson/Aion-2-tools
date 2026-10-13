@@ -23,11 +23,13 @@ STAT_STEPS = [
     ("mp_max", 300, "MP +300"),
     ("might", 10, "Might +10 (Attack +1%)"),
     ("destruction", 10, "Destruction +10 (Attack +1%)"),
+    ("precision", 10, "Precision +10 (Crit +1%)"),
     ("death", 10, "Death +10 (Crit +1%)"),
     ("wisdom", 10, "Wisdom +10 (Double +1%)"),
     ("justice", 10, "Justice +10 (Perfect +1%)"),
     ("time", 10, "Time +10 (Combat Speed +1%)"),
     ("illusion", 10, "Illusion +10 (Cooldown -1%)"),
+    ("freedom", 10, "Freedom +10 (Accuracy +1%)"),
 ]
 
 

@@ -48,7 +48,7 @@ ASSUME = {
     "boss_breakable": True,       # self-stun gates Shadow Fall
     "insignia_stacks": 5,         # assume Insignia Explosion is used at full stacks
     "exploit_attack_uptime": 0.80,  # Exploit Weakness's +Attack proc on crit, averaged
-    "chain_frac": 0.60,
+    "chain_frac": 0.85,           # chain follow-up vs base; 0.85 est. (Gladiator parse put one at ~2.1x), pending a parse
 }
 
 

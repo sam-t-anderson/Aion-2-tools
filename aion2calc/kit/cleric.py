@@ -44,7 +44,7 @@ ASSUME = {
     "bolt_charge": 3,
     "divine_aura_ticks": 5,       # the aura's listed damage is its total, delivered over 5s
     "crit_rate": 0.60,
-    "chain_frac": 0.60,
+    "chain_frac": 0.85,           # chain follow-up vs base; 0.85 est. (Gladiator parse put one at ~2.1x), pending a parse
     "discharge_chance": 0.5,      # Earth's Retribution -> Discharge chain trigger
 }
 

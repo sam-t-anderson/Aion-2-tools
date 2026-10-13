@@ -45,25 +45,35 @@ SID = dict(
 )
 
 #: Action time of each skill in seconds at 0% Combat Speed (not in the client
-#: data; melee swing/recovery estimated from community notes — see docs).
+#: data; melee swing/recovery estimated from community notes — see docs).  The
+#: melee loop is fast: a real dummy parse (0.2.254 calibration) runs a dense
+#: Overhead Slam / basic-combo weave, so the core actions are short.
 TIMING = {
-    "keen_strike": 0.80, "rending_blow": 0.90, "leaping_slam": 1.00, "mocking_blade": 1.10,
-    "overhead_slam": 0.70, "ankle_slice": 0.90, "crushing_wave": 1.00, "rush_strike": 0.90,
-    "aerial_snare": 1.00, "ruinous_blow": 1.20, "chain_followup": 0.55, "stigma": 1.00,
+    "keen_strike": 0.60, "rending_blow": 0.55, "leaping_slam": 1.00, "mocking_blade": 1.10,
+    "overhead_slam": 0.45, "ankle_slice": 0.90, "crushing_wave": 1.00, "rush_strike": 0.90,
+    "aerial_snare": 1.00, "ruinous_blow": 1.00, "chain_followup": 0.30, "stigma": 1.00,
+    "basic_combo": 0.45,
 }
 
-#: Effects the tooltips leave out (assumptions; tune with real logs).
+#: Effects the tooltips leave out (assumptions; several are calibrated to a real
+#: Gladiator dummy parse in 0.2.254 — see docs/methodology.md).  The four skills
+#: below with no client coefficient (Upward Strike, Smashing Blow and the basic
+#: combo) are measured relative to Overhead Slam from that parse.
 ASSUME = {
-    "boss_breakable": True,       # training boss can be knocked down (gates Overhead Slam / Aerial Snare)
-    "knockdown_uses": 3,          # Overhead Slams landed per knockdown window once cooldown-free
-    "chain_frac": 0.60,           # a chain follow-up vs the base hit
+    "boss_breakable": True,       # training boss stays knocked down, so Overhead Slam / Aerial Snare are available
+    "chain_frac": 0.60,           # a generic chain follow-up vs the base hit (chains with no measured value)
+    "upward_frac": 2.09,          # Upward Strike (Overhead Slam chain) per-hit vs Overhead Slam — measured
+    "upward_chance": 0.50,        # Upward Strike follows ~half of Overhead Slams — measured
+    "overhead_spam_cd": 0.65,     # effective Overhead Slam cycle once "Remove cooldown" is taken (~1.5/s) — measured
+    "basic_frac": 0.54,           # basic-attack combo (Smashing Blow) per-hit vs Overhead Slam — measured
+    "murderous_icd": 3.0,         # Murderous Burst internal cooldown (parse: ~1 proc / 3s)
     "stagger_uptime": 0.50,       # share of time the boss carries Stagger/Impact (Destructive Impulse)
     "murderous_stacks": 5,        # attacks to trigger Murderous Burst
     "extra_damage_frac": 0.30,    # "Extra damage on hit" specs that give no number
 }
 
 
-def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
+def build_kit(build: Build, cd: ClassData, filler: str = "basic_combo") -> Kit:
     L = build.effective_levels(cd)
     specs = {sid: set(v) for sid, v in build.specs.items()}
 
@@ -127,11 +137,14 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
         # large), gated by how often the boss actually carries the status.
         if di_f and sim.proc("destructive_impulse", ASSUME["stagger_uptime"], 1.0, t):
             sim.hit("Destructive Impulse", di_f, di_c, tags=("proc",))
-        # Murderous Burst: a stack per attack; at 5 a burst and a Critical Damage buff
+        # Murderous Burst: a stack per attack; at 5 stacks a burst and a Critical Damage
+        # buff. A real parse bursts ~once every 3s (not once per 5 of this model's dense
+        # attacks), so an internal cooldown gates it to the measured rate.
         if mb_f:
             state["menace"] += 1
-            if state["menace"] >= ASSUME["murderous_stacks"]:
+            if state["menace"] >= ASSUME["murderous_stacks"] and t - state.get("mb_last", -1e9) >= ASSUME["murderous_icd"]:
                 state["menace"] = 0
+                state["mb_last"] = t
                 sim.hit("Murderous Burst", mb_f, mb_c, tags=("proc",))
                 sim.buff("murderous_burst", 3.0, {"crit_dmg": mb_cd})
 
@@ -149,7 +162,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
             k = ASSUME["chain_frac"]
             sim.hit("Reckless Strike", ke_f * k, ke_c * k, delay=TIMING["chain_followup"])
     A["keen_strike"] = Action("keen_strike", "Keen Strike", SID["KEEN"], TIMING["keen_strike"],
-                              on_cast=keen_cast, is_filler=True)
+                              on_cast=keen_cast)
 
     # Rending Blow (filler: Stagger-gauge builder, strong single-target coef)
     re_f, re_c = dmg("REND")
@@ -157,7 +170,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
     def rend_cast(sim, a):
         sim.hit("Rending Blow", re_f, re_c, mult=1.12 if has("REND", 4) else 1.0)
     A["rending_blow"] = Action("rending_blow", "Rending Blow", SID["REND"], TIMING["rending_blow"],
-                               mp=cd.mp(SID["REND"], lv("REND")), on_cast=rend_cast, is_filler=True)
+                               mp=cd.mp(SID["REND"], lv("REND")), on_cast=rend_cast)
 
     # Leaping Slam (gap closer; Prepare for Battle on the caster at u8)
     ls_f, ls_c = dmg("LEAP")
@@ -183,18 +196,23 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
                                 cooldown=cd.cd(SID["MOCK"], lv("MOCK")), mp=cd.mp(SID["MOCK"], lv("MOCK")),
                                 on_cast=mock_cast)
 
-    # Overhead Slam (only while the target is knocked down; Upward Strike chain)
+    # Overhead Slam (the core single-target spam; its Upward Strike chain is the top
+    # damage source). "Remove cooldown" turns its 5s cooldown into a fast spam cycle,
+    # not literally 0 — a real parse runs it ~1.5/s, with Upward Strike (measured at
+    # 2.1x Overhead, following ~half the casts) the biggest hit in the rotation. On a
+    # breakable training target the knockdown it needs is kept up, so it is available.
     ov_f, ov_c = dmg("OVER")
-    ov_cd = 0.0 if has("OVER", 5) else cd.cd(SID["OVER"], lv("OVER"))
+    ov_cd = ASSUME["overhead_spam_cd"] if has("OVER", 5) else cd.cd(SID["OVER"], lv("OVER"))
+    gated = () if ASSUME["boss_breakable"] else ("knockdown",)
 
     def over_cast(sim, a):
         tags = ("crit",) if has("OVER", 4) else ()
         sim.hit("Overhead Slam", ov_f, ov_c, tags=tags)
-        if has("OVER", 3):
-            k = ASSUME["chain_frac"]
+        if has("OVER", 3) and sim.proc("upward_strike", ASSUME["upward_chance"], 0.0, sim.t):
+            k = ASSUME["upward_frac"]
             sim.hit("Upward Strike", ov_f * k, ov_c * k, delay=TIMING["chain_followup"])
     A["overhead_slam"] = Action("overhead_slam", "Overhead Slam", SID["OVER"], TIMING["overhead_slam"],
-                                cooldown=ov_cd, requires=("knockdown",), on_cast=over_cast)
+                                cooldown=ov_cd, requires=gated, on_cast=over_cast)
 
     # Ankle Slice (4 targets, Root; Ankle Smash chain)
     an_f, an_c = dmg("ANKLE")
@@ -231,7 +249,18 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
             sim.hit("Forced Fall", ae_f * k, ae_c * k, delay=TIMING["chain_followup"])
     A["aerial_snare"] = Action("aerial_snare", "Aerial Snare", SID["AERIAL"], TIMING["aerial_snare"],
                                cooldown=ae_cd, mp=cd.mp(SID["AERIAL"], lv("AERIAL")),
-                               requires=("knockdown",), on_cast=aerial_cast)
+                               requires=gated, on_cast=aerial_cast)
+
+    # Basic-attack combo (Smashing Blow, and the Rupture/Wrathful Strike weave): the
+    # fast weapon string a Gladiator fills gaps with. It has no client coefficient, so
+    # it is measured at ~0.54x Overhead Slam from a real parse. This — not Keen Strike —
+    # is the true filler, and it is ~15% of real damage.
+    sb_f, sb_c = ov_f * ASSUME["basic_frac"], ov_c * ASSUME["basic_frac"]
+
+    def smash_cast(sim, a):
+        sim.hit("Smashing Blow", sb_f, sb_c)
+    A["basic_combo"] = Action("basic_combo", "Smashing Blow", 11420000, TIMING["basic_combo"],
+                              on_cast=smash_cast, is_filler=True)
 
     # Ruinous Blow (biggest hit; grants Prepare for Battle for 20s)
     rb_f, rb_c = dmg("RUIN")
@@ -310,9 +339,16 @@ def _build_stigmas(A, build, cd, stig, st, notes):
 
 
 def _policy(actions: dict, filler: str) -> list:
-    order = ["zikel", "lunge", "ruinous_blow", "rage", "lifesteal", "assault", "forcedrest",
-             "wrathwave", "fracrush", "bladetoss", "mocking_blade", "overhead_slam", "aerial_snare",
-             "rush_strike", "ankle_slice", "leaping_slam", "crushing_wave", "rending_blow"]
+    # Buffs, then the Ruinous Blow nuke, then the Overhead Slam + Upward Strike core and
+    # the Rending Blow weave (the two highest-frequency damage skills in a real parse),
+    # then the damage stigmas, then the crowd-control skills (minor direct damage), with
+    # the basic combo as the filler. Matches the measured damage shares far better than
+    # the old order, which spammed CC skills and Keen Strike for damage.
+    order = ["zikel", "lunge", "ruinous_blow", "overhead_slam", "rending_blow",
+             "rage", "lifesteal", "assault", "forcedrest", "wrathwave", "fracrush", "bladetoss",
+             "aerial_snare", "leaping_slam", "mocking_blade", "rush_strike", "ankle_slice",
+             "crushing_wave"]
     pol = [k for k in order if k in actions]
-    pol.append(filler)
+    if filler not in pol:
+        pol.append(filler)
     return pol

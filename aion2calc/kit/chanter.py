@@ -55,7 +55,7 @@ ASSUME = {
     "spin_stacks": 2,             # Spinning Strike Critical Damage stacks maintained
     "stagger_uptime": 0.50,       # Raging Spell (extra damage vs Stagger/Impact)
     "crit_rate": 0.60,
-    "chain_frac": 0.60,
+    "chain_frac": 0.85,           # chain follow-up vs base; 0.85 est. (Gladiator parse put one at ~2.1x), pending a parse
 }
 
 

@@ -1,3 +1,15 @@
+## Damage optimizer: fix the DPS underestimate and stat ranking (0.2.254)
+
+- **The stat ranking was missing stats, for every class.** `Precision` and `Freedom` were never evaluated — Precision (a crit stat) simply never appeared in the priority list. Both are now ranked for all eight classes.
+- **Chain follow-ups were undervalued everywhere.** Every class kit modelled a chain skill at a flat **0.60×** the base hit — an uncalibrated placeholder. A real Gladiator dummy parse measured a chain (Upward Strike) at **~2.1×** the base, i.e. the single biggest hit in the rotation. The shared default is raised to **0.85×** as a conservative class-agnostic estimate, marked in each kit as pending a per-class parse to measure the true value.
+- **Gladiator is recalibrated against a real parse.** The model estimated ~25K dummy DPS where a real parse was ~41K, and misranked tempo/crit stats. Root causes, all fixed:
+  - **Upward Strike** (the Overhead Slam chain, ~27% of real damage) was modelled at 0.60× Overhead; it is really ~2.1×. It is now the top hit, following ~half of Overhead Slams (measured).
+  - **The basic-attack combo** (Smashing Blow, ~15% of real damage) was not modelled at all — the kit used Keen Strike as filler, which a real parse barely casts. A basic combo is now the filler, at its measured ~0.54× Overhead.
+  - **Overhead Slam** was gated behind sparse knockdown windows and a dead `knockdown_uses` constant; on a breakable training target it is available and spammed (~1.5/s, measured), as in the parse.
+  - **Murderous Burst** over-procced (≈12% modelled vs ≈5% real); an internal cooldown gates it to the measured rate.
+  - The rotation now leads with Overhead Slam + Upward Strike + the Rending Blow / basic-combo weave instead of spamming crowd-control skills for damage.
+- Net: modelled Gladiator dummy DPS rises ~60% (tracking the real parse once scaled to your gear), the damage shares track the parse, and **Combat Speed rises to the top of the stat ranking** (the rotation is combat-speed-bound at ~7 attacks/s). The non-Gladiator chain change is an estimate; send a dummy parse for any class to calibrate it the same way. Regression tests cover the ranking additions, the chain default, and the Gladiator shares.
+
 ## Live meter: show one row per player when their actor ID changes mid-fight (0.2.253)
 
 - **The bug.** When you die and revive — or an instance mechanic swaps your character — the game hands you a **new combat actor ID**. The live meter keyed each row by actor ID, so your damage before the swap and after it landed on **two rows with the same name** ("Spirited" 15% and "Spirited" 10%), and the overlay had to warn that matching names have separate actor IDs. (Reported on a run where the player died exactly when the second "Spirited" row appeared.)

@@ -41,7 +41,7 @@ ASSUME = {
     "fa_chain_mult": (1.00, 1.12, 1.33),   # Flame Arrow -> Burst -> Pyroclasm (A2DIL share ratio)
     "blaze_delayed_frac": 0.30,            # Blaze "Delayed Damage after 3s" vs main hit
     "hellfire_dot_frac": 0.25,             # Hellfire "Fire DoT 10s" total vs the hit
-    "chain_followup_frac": 0.60,           # Winter's Illusion / The Depths follow-up hit
+    "chain_followup_frac": 0.85,           # Winter's Illusion / The Depths follow-up hit; 0.85 est. (was 0.60), pending a parse
     "enhanced_proc_icd": 1.0,              # Enhanced Embers / Frostbite internal cooldown
     "bw_ticks": 7, "fire_wall_hits": 5, "firestorm_balls": 5, "scattershot_hits": 4,
     "slow_cold_storm": 3.0,

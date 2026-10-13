@@ -43,7 +43,7 @@ ASSUME = {
     "precision_uptime": True,     # Marking Shot keeps Precision up for Deadshot's +35%
     "deadshot_charge": 3,         # assume full charge
     "crit_rate": 0.60,            # for on-crit proc passives (expected-value gate)
-    "chain_frac": 0.60,
+    "chain_frac": 0.85,           # chain follow-up vs base; 0.85 est. (Gladiator parse put one at ~2.1x), pending a parse
 }
 
 
