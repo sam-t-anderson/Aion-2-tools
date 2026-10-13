@@ -185,3 +185,42 @@ def reconstruct(name, first, last):
             raise ValueError("A recording changed while loading; refresh and try again")
         sources.append(({"file":row["file"]}, doc))
     return combine(sources)
+
+
+def live_archive_sources(current_doc):
+    """Stitch inputs for the Upload button when the live session rolled into parts.
+
+    Returns the earlier *closed* parts of the current recording (saved to disk on
+    rollover) followed by the live current part held in memory, in part order, as
+    :func:`aion2calc.combat.reconstruction.combine` expects — so one Upload can send
+    a single combined recording that holds every encounter, not only the latest part.
+
+    Returns ``None`` when there is nothing to stitch: a single-part recording (never
+    rolled over), or an earlier part that is missing, duplicated or still open on this
+    computer. The caller then uploads the current part on its own, exactly as before."""
+    meta = current_doc.get("meta") or {}
+    archive = meta.get("archive") or {}
+    archive_id, part = archive.get("id"), archive.get("part")
+    if not isinstance(archive_id, str) or type(part) is not int or part < 2:
+        return None
+    rows = recent_page(limit=100, archive=archive_id)["rows"]
+    by_part = {}
+    for row in rows:
+        info = row.get("archive") or {}
+        p = info.get("part")
+        # Only finalised earlier parts can be combined; the current part lives in
+        # memory and its on-disk checkpoint (same part number) is skipped by range.
+        if type(p) is int and 1 <= p < part and info.get("closed") and not row.get("unfinished"):
+            by_part.setdefault(p, []).append(row)
+    sources = []
+    for p in range(1, part):
+        hit = by_part.get(p)
+        if not hit or len(hit) != 1:        # a gap or a duplicate → not an unambiguous whole archive
+            return None
+        doc = json.loads(path(hit[0]["file"]).read_text(encoding="utf-8"))
+        info = (doc.get("meta") or {}).get("archive") or {}
+        if info.get("id") != archive_id or info.get("part") != p:
+            return None
+        sources.append(({"file": hit[0]["file"]}, doc))
+    sources.append(({"live": True}, current_doc))
+    return sources

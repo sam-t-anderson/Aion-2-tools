@@ -1032,6 +1032,40 @@ class Runner:
             doc["meta"]["archive"] = archive
         return self._metadata(doc, metadata=metadata, profile=profile, collector=collector)
 
+    def upload_document(self, title: str | None = None):
+        """The document(s) the Upload button sends. A single-part session uploads as
+        it is. A long session that rolled across a storage boundary into parts is
+        stitched into ONE combined recording, so a single share link holds every
+        encounter instead of only the latest part. When the parts cannot be combined
+        — an earlier part was pruned off disk, there are more than 32 parts, or the
+        combined recording would exceed the 64 MiB / 200-encounter review limits — the
+        current part is uploaded and the earlier parts are returned as ``extras`` to
+        upload individually (the server groups them under one recording by archive id).
+
+        Returns ``(doc, extras)``: ``doc`` is the single/combined document to upload and
+        ``extras`` is the list of earlier part documents to upload alongside it (empty
+        in the single-part and combined cases)."""
+        current = self.to_a2log(title)
+        try:
+            from ..combat.sessions import live_archive_sources
+            sources = live_archive_sources(current)
+        except Exception:
+            sources = None
+        if not sources:
+            return current, []
+        try:
+            from ..combat.reconstruction import combine
+            combined = combine(sources)
+            if title:
+                combined["meta"]["title"] = title
+            self.diagnostics.pop("upload_combine_fallback", None)
+            return combined, []
+        except Exception as exc:
+            # Too many parts / too large / a chain gap: still get every part to the
+            # server, linked by archive id, rather than dropping the earlier encounters.
+            self.diagnostics["upload_combine_fallback"] = str(exc)[:200]
+            return current, [doc for _, doc in sources[:-1]]
+
     def review_log(self) -> dict:
         with self.lock:
             session = copy.deepcopy(self.session if self.packet_engine is not None else self.meter)

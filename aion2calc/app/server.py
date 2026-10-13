@@ -913,12 +913,27 @@ class Handler(BaseHTTPRequestHandler):
                 def upload_snapshot(*, log):
                     from ..combat import share
                     log("Preparing a copy of the session; capture can continue.")
-                    doc = r.to_a2log(title=body.get("title"))
-                    log("Uploading session snapshot…")
+                    doc, extras = r.upload_document(title=body.get("title"))
+                    sources = (doc.get("meta", {}).get("reconstruction") or {}).get("sources")
+                    if sources:
+                        log(f"This session rolled into {len(sources)} parts; combining every encounter into one recording…")
+                    elif extras:
+                        log(f"This session rolled into {len(extras) + 1} parts, too long to merge into one; "
+                            f"uploading all {len(extras) + 1} parts linked under one recording…")
+                    else:
+                        log("Uploading session snapshot…")
                     result = share.upload(doc, visibility=body.get("visibility"))
-                    # Fill the overlay's community-rank badges from this upload (best-effort,
-                    # off by default; never fails the upload).
-                    r.apply_community_rank(doc, result)
+                    for extra in extras:
+                        # Best-effort: an earlier part failing must not fail the whole upload.
+                        try:
+                            share.upload(extra, visibility=body.get("visibility"))
+                        except Exception:
+                            pass
+                    # Fill the overlay's community-rank badges from a live single-part upload
+                    # (best-effort, off by default; never fails the upload). A combined or
+                    # multi-part historical upload is not the live fight, so it is skipped.
+                    if not sources and not extras:
+                        r.apply_community_rank(doc, result)
                     return result
                 return self._json({"job": start_job("meter-upload", upload_snapshot)})
             if action == "screenshot":
