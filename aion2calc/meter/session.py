@@ -599,6 +599,59 @@ class CombatSession:
                 "damage": 0, "hits": 0, "healing": 0, "skills": {}, "incoming": {"damage": 0, "hits": 0, "parries": 0, "sources": {}},
                 "counts": {key: 0 for key in ("crit", "back", "front", "double", "perfect", "multi", "parry")}}
 
+    def _correlate_identities(self, groups, allowed_for, self_ids):
+        """Fold a player's re-registered combat actor IDs together for the live view.
+        A death/revive or instance change hands the character a new actor ID, so one
+        player would otherwise show as two rows. Past the authoritative local-player
+        link already in ``self_ids`` (``record.local_id``), this adds a conservative
+        behavioural match for party members: identical player name, a compatible
+        inferred class (the same skills imply the same class), and damage activity that
+        never overlaps — a hand-off, not two people hitting at the same time. Two
+        different players who share a name but are active together are never merged.
+
+        Returns ``(self_ids, rereg, rereg_name)``: ``self_ids`` grown to absorb a
+        hand-off chain that includes you, ``rereg`` mapping each other re-registered ID
+        to the latest-active ID of its group, and ``rereg_name`` that group's name."""
+        stats = {}
+        for group in groups:
+            identity = self.identities[group["epoch"]]
+            names, owners, jobs = identity["names"], identity["owners"], identity["jobs"]
+            for record in group["records"]:
+                event = record.event
+                if (not isinstance(event, DamageEvent) or event.actor_id in owners
+                        or event.actor_id not in allowed_for(record)):
+                    continue
+                label = names.get(event.actor_id)
+                if not isinstance(label, str) or not label:
+                    continue  # unnamed actors never correlate by name
+                row = stats.setdefault(event.actor_id, {"name": label.casefold(), "display": label,
+                    "jobs": set(), "first": event.timestamp_ms, "last": event.timestamp_ms})
+                row["first"] = min(row["first"], event.timestamp_ms)
+                row["last"] = max(row["last"], event.timestamp_ms)
+                job = jobs.get(event.actor_id) or job_from_skill(event.skill_code)
+                if job:
+                    row["jobs"].add(job)
+        by_name = {}
+        for actor, row in stats.items():
+            by_name.setdefault(row["name"], []).append(actor)
+        rereg, rereg_name = {}, {}
+        for actors in by_name.values():
+            if len(actors) < 2:
+                continue
+            order = sorted(actors, key=lambda a: stats[a]["first"])
+            disjoint = all(stats[order[i]]["last"] <= stats[order[i + 1]]["first"] for i in range(len(order) - 1))
+            jobs = set().union(*(stats[a]["jobs"] for a in actors))
+            if not (disjoint and len(jobs) <= 1):
+                continue  # concurrent, or conflicting classes → genuinely different players
+            if self_ids & set(actors):
+                self_ids = self_ids | set(actors)   # a hand-off chain that includes you is all you
+                continue
+            canon = max(actors, key=lambda a: stats[a]["last"])
+            for actor in actors:
+                rereg[actor] = canon
+            rereg_name[canon] = stats[canon]["display"]
+        return self_ids, rereg, rereg_name
+
     def _summary(self, groups, scope, enemy_id=None, combine_pets=True, allowed_for=None, merge_epochs=False):
         allowed_for = allowed_for or self._allowances(scope)
         # The live view may merge the trailing groups of one continuing run that a
@@ -607,6 +660,24 @@ class CombatSession:
         # alone there, letting a player's totals carry across the split instead of
         # resetting. Saved logs and specific-segment views keep epoch-scoped keys.
         key_of = (lambda epoch, actor: str(actor)) if merge_epochs else (lambda epoch, actor: f"{epoch}:{actor}")
+        # Merge the local player's re-registered actor IDs into one "you" row. A
+        # death/revive or instance change reassigns your actor ID mid-fight, so keying
+        # on the raw ID alone splits one player ("Spirited") into two. record.local_id
+        # is the engine's recorded local-player ID at capture time — re-acquired after
+        # a tele/port/revive — so this folds in only IDs the engine itself confirmed as
+        # yours. It never merges by name, so a different player who shares your name is
+        # never counted as you.
+        self_ids = {r.local_id for g in groups for r in g["records"] if r.local_id is not None}
+        self_canon = self_name = None
+        for g in reversed(groups):
+            lid = self.identities.get(g["epoch"], {}).get("local_id")
+            if lid is not None:
+                self_canon, self_name = lid, self.name(g["epoch"], lid)
+                break
+        # Beyond that authoritative link, correlate a party member's re-registered IDs
+        # by behaviour (same name, compatible class, non-overlapping activity). These
+        # inferred merges are flagged so the view can mark them as best-effort.
+        self_ids, rereg, rereg_name = self._correlate_identities(groups, allowed_for, self_ids)
         players, enemies = {}, {}
         durations = 0
         for group in groups:
@@ -633,11 +704,23 @@ class CombatSession:
                             actor_id = identity["owners"][actor_id]
                         if actor_id in seen:
                             actor_id = original  # Never collapse a cyclic owner reference.
-                    name = self.name(record.epoch, actor_id)
-                    key = key_of(record.epoch, actor_id)
+                    pet_collapsed = original != actor_id
+                    inferred = False
+                    if self_canon is not None and actor_id in self_ids:
+                        # All of your re-registered actor IDs are one person: one "you" row.
+                        actor_id, name, key = self_canon, self_name, "self"
+                    elif actor_id in rereg:
+                        # A party member's re-registered IDs, correlated by behaviour.
+                        actor_id = rereg[actor_id]
+                        name, key, inferred = rereg_name[actor_id], f"id:{actor_id}", True
+                    else:
+                        name = self.name(record.epoch, actor_id)
+                        key = key_of(record.epoch, actor_id)
                     job = identity["jobs"].get(actor_id) or identity["jobs"].get(identity["owners"].get(actor_id))
                     row = players.setdefault(key, self._actor(actor_id, name, job))
-                    if original != actor_id:
+                    if inferred:
+                        row["inferred_identity"] = True
+                    if pet_collapsed:
                         row["includes_pets"] = True
                     elif actor_id in identity["owners"]:
                         row["owner"] = str(identity["owners"][actor_id])

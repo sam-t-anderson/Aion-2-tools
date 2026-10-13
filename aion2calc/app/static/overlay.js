@@ -461,6 +461,9 @@
       `\n— Aion 2 Calc`;
     $("#ovstatus").textContent = `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
     const identity=snap.identity_status, missing=players.length>0&&identity&&(!identity.self_identified||identity.unnamed_actors>0), repeated=visible.some(duplicate);
+    // A player whose combat actor id changed mid-fight (death/revive, instance swap) was
+    // correlated into one row by name, class and non-overlapping timing — flagged inferred.
+    const inferred=visible.some(p=>p.inferred_identity);
     // A zone load (tele/port/revive/instance) reassigns your actor id; show the
     // re-acquired identity so a brief "not received" gap is visibly recovered.
     const selfName=identity&&identity.local_name;
@@ -469,9 +472,9 @@
     const meIdx=selfName?ranked.findIndex(p=>String(p.name||'').toLocaleLowerCase()===String(selfName).toLocaleLowerCase()):-1;
     const rankStr=(meIdx>=0&&ranked.length>1)?` · #${meIdx+1} of ${ranked.length}`:'';
     const selfLine=selfName?`You: ${selfName}${rankStr}${cp?` · CP ${kfmt(identity.local_combat_power)}`:''}`:'';
-    $("#ovidentity").hidden=!missing&&!repeated&&!selfName;
+    $("#ovidentity").hidden=!missing&&!repeated&&!inferred&&!selfName;
     $("#ovidentity").classList.toggle("ok",!missing&&!repeated&&!!selfName);
-    $("#ovidentity").textContent=[missing?`${identity.self_identified?"Self identified":"Self identity not received — teleport or change instances to refresh it"} · ${identity.unnamed_actors} unnamed actors · ${identity.linked_pets} linked pets. Grouping needs recorded owner links.`:selfLine,repeated?'Matching names have separate combat actor IDs; names alone do not establish shared identity or ownership.':''].filter(Boolean).join(' ');
+    $("#ovidentity").textContent=[missing?`${identity.self_identified?"Self identified":"Self identity not received — teleport or change instances to refresh it"} · ${identity.unnamed_actors} unnamed actors · ${identity.linked_pets} linked pets. Grouping needs recorded owner links.`:selfLine,repeated?'Matching names have separate combat actor IDs; names alone do not establish shared identity or ownership.':'',inferred?'Combined a player’s re-registered actor IDs (matched by name, class and timing).':''].filter(Boolean).join(' ');
     if(s.error) $("#ovstatus").textContent='Capture stopped: '+s.error;
     if(meterUnavailable) $("#ovstatus").textContent='Refresh failed · retrying';
     $("#ovstatus").title=$("#ovstatus").textContent;
