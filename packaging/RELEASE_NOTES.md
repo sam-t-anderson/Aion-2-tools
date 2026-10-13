@@ -1,3 +1,8 @@
+## Optional: update your community-rank badge live after each fight (0.2.245)
+
+- The overlay's community-rank badge (e.g. "World Top 8%") fills after an upload — until now only when you pressed **Upload** or on quit. A new overlay setting, **"Update the rank live after each fight"** (off by default), refreshes it during play: once a **ranked** fight has paused, the client uploads that encounter **unlisted** and re-fetches your standing, so the badge keeps up without a manual upload.
+- Tightly bounded and private-by-default: it only runs when you turn it on **and** the rank badge is on **and** a share server is set; it waits until combat has been idle a few seconds (a fight ended), uploads at most once every 20s, runs one refresh at a time on a background worker, and **only uploads ranked-eligible fights** — trash pulls are never uploaded and never clear a standing you already earned. All best-effort and guarded, so it never disturbs capture.
+
 ## Optional: show each player's server (world) name on the live meter (0.2.244)
 
 - A new Live Meter / Combat records setting — **"Show each player's server (world) name next to their name"**, **off by default** — labels every row (you and party members) with their home world, e.g. `Me · Nezekan`. The id→world name comes from the official server list already used for region detection (0.2.242); if it hasn't resolved, the **Retry region detection** button fills it in.

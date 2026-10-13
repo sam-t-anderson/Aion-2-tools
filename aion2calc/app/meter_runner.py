@@ -20,6 +20,11 @@ CAPTURE_COUNTERS = ("tcp_discarded_payloads", "tcp_unresolved_flows", *PCAP_FIEL
 
 DEMO = Path(__file__).resolve().parent.parent / "meter" / "demo_session.jsonl"
 
+# Live community-rank refresh: only act once combat has paused this long (a fight ended),
+# and no more than once per this interval, so a per-fight badge never floods the server.
+_LIVE_RANK_IDLE_S = 5.0
+_LIVE_RANK_THROTTLE_S = 20.0
+
 
 def upload_evictor():
     """A callback for :func:`aion2calc.combat.sessions.prune_logs` that uploads each
@@ -80,6 +85,11 @@ class Runner:
         # can't exceed ~50% duty no matter how big the fight gets.
         self._snap_cache: tuple | None = None
         self._community_rank: dict = {}   # player id -> {text, scope, percentile} after an upload
+        # Live community-rank refresh (opt-in): after a ranked fight ends mid-capture, upload the
+        # snapshot unlisted and refresh the badge, throttled, so it updates without a manual Upload.
+        self._live_rank_last = 0.0        # monotonic of the last auto-refresh upload
+        self._live_rank_key = None        # signature of the fights last auto-uploaded
+        self._live_rank_busy = False      # one auto-refresh in flight at a time
         self._last_snap_cost = 0.0
         self._last_prune = 0.0   # throttle the logs-folder size prune
         self.started_at: float | None = None
@@ -124,6 +134,7 @@ class Runner:
             self.packet_engine = None
             self._snap_cache = None          # never show the previous session's snapshot
             self._community_rank = {}        # a prior session's standings must not leak in
+            self._live_rank_last, self._live_rank_key, self._live_rank_busy = 0.0, None, False
         self.error = None
         self._last_display_diagnostics = {}
         self.diagnostics = {}
@@ -721,6 +732,8 @@ class Runner:
                     badge = self._community_rank.get(p.get("id"))
                     if badge:
                         p["community_rank"] = badge
+            # Opt-in per-fight refresh of those badges (off by default; cheap-gated, worker-backed).
+            self._maybe_live_rank()
             # When the viewer turns the option on, label each player's home world next to their
             # name, resolved from their captured server id via the same official server list used
             # for region. Off by default; best-effort and local (no network in this path).
@@ -833,6 +846,53 @@ class Runner:
             self._community_rank = mapped
         except Exception:
             pass
+
+    def _maybe_live_rank(self) -> None:
+        """Opt-in: once a fight has paused during live capture, refresh the community-rank
+        badge from a fresh unlisted upload, so it updates per-fight instead of only on a
+        manual Upload. Cheap-gated here; the upload/ranking run on a worker. Fully guarded,
+        throttled, one in flight at a time, and never touches capture."""
+        try:
+            if not self.running or self._live_rank_busy or self._last_combat_at is None:
+                return
+            now = time.monotonic()
+            if now - self._last_combat_at < _LIVE_RANK_IDLE_S or now - self._live_rank_last < _LIVE_RANK_THROTTLE_S:
+                return   # still mid-fight, or refreshed too recently
+            from .server import ui_settings
+            ui = ui_settings()
+            if not (ui.get("overlay_live_community_rank") and ui.get("overlay_show_community_rank")):
+                return
+            with self.lock:
+                key = (len(self.session.records), self.session.run)
+            if not key[0] or key == self._live_rank_key:
+                return   # no combat yet, or no new fight since the last refresh
+            self._live_rank_busy = True
+            self._live_rank_key, self._live_rank_last = key, now
+            threading.Thread(target=self._live_rank_upload, daemon=True, name="live-rank").start()
+        except Exception:
+            pass
+
+    def _live_rank_upload(self) -> None:
+        """Worker: upload the current snapshot unlisted and refresh the badge, but only for a
+        ranked-eligible main fight — so trash pulls neither upload nor wipe a standing."""
+        try:
+            from ..combat import share, quality
+            if not share.effective().get("url"):
+                return
+            doc = self.to_a2log()
+            segments = doc.get("segments") or []
+            if not segments:
+                return
+            main = max(range(len(segments)),
+                       key=lambda i: sum(h.get("damage", 0) for h in segments[i].get("hits", [])))
+            if not quality.assess(doc, segments[main]).get("eligible"):
+                return   # unranked fight: don't upload it, and leave the last standing in place
+            result = share.upload(doc, visibility="unlisted")
+            self.apply_community_rank(doc, result)
+        except Exception:
+            pass
+        finally:
+            self._live_rank_busy = False
 
     def select_installation(self, value):
         from ..meter.metadata import choose_installation
