@@ -561,6 +561,16 @@ class Runner:
                 hp_report.report_async(doc)
             except Exception:
                 pass
+            # Opt-OUT (on by default), anonymous diagnostics beacons: ids the catalog
+            # doesn't map yet (to fill catalog gaps) and capture-pipeline health (to
+            # catch regressions across users). Only on the final save (not every
+            # checkpoint), so the counters are complete and it posts once per session.
+            if not active:
+                try:
+                    from ..combat import diag_report
+                    diag_report.report_async(doc, dict(self.diagnostics))
+                except Exception:
+                    pass
             # Keep the logs folder under the user's cache cap (default 1 GB). A long
             # session writes many rollover parts, so prune the oldest here — throttled
             # so it runs at most ~once/minute — never removing the file just written.

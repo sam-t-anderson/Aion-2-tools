@@ -1,3 +1,10 @@
+## Anonymous diagnostics beacons: fill catalog gaps and catch meter regressions (0.2.248)
+
+- Two tiny, anonymous, **opt-out (on by default)** beacons after a fight, alongside the existing enemy-HP/heartbeat ones. They carry **no** account, character, server, IP or combat-log data — only a per-install rotating token (from the local, never-sent install salt), the client/game version, a coarse region, and small integers:
+  - **unknown-ids** — the NPC mob codes and skill ids a session used that the **shipped catalog can't name yet** (new content whose id→name tables upstream hasn't published, e.g. the `295xxxx` range). The server ranks these so catalog gaps get filled from what players actually encounter. Deduped per id + game build, so each code is reported at most once per build.
+  - **capture-health** — a whitelist of capture-pipeline counters (rollover parts saved, decoder/processing/capture errors, dropped-packet totals, …) from a finished session, so regressions like a meter that rolls over and resets mid-fight surface in aggregate across users instead of one shared diagnostics zip at a time. Sent once per session, on the final save.
+- A single Settings → Recording toggle, **"Share anonymous diagnostics…"**, turns both off. Best-effort and silent: a failure (or a server without the endpoint) simply means no contribution and never affects capture or the app. Mirrors the enemy-HP reporter's privacy model exactly.
+
 ## Show real names for NPCs the catalog hasn't mapped yet, from the community overlay (0.2.247)
 
 - New-content NPCs the bundled catalog doesn't map (e.g. the `295xxxx` range from Product 2.0.6.0) showed as a bare `#<code>`, because the game packets carry only the numeric mob code and the upstream id→name table hadn't published those ids. The log server's `aion2logs portraits` job now harvests the current display name by id from the id-keyed community database (server 0.2.83), and this release consumes those names as a **fallback behind the curated table**:
