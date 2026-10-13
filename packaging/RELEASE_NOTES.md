@@ -1,3 +1,9 @@
+## Wire two more global hotkey actions: Open Settings and Screenshot lock (0.2.246)
+
+- Two previously-unbindable global-hotkey actions are now wired: **Open the Settings page** (opens the app on its Settings route, not just the window) and **Screenshot lock** (toggles the overlay's screenshot freeze). Both appear in Settings → Global hotkeys like the others; unbound by default.
+- Screenshot lock needed a faster path than the ~10s settings sync, because a *locked* overlay stops its meter poll and so can't be reached to unlock. A global hotkey fires in the app process and can't call the separate overlay window directly, so the app now bumps a one-shot counter (`/api/overlay/commands`) and the overlay watches it on a light ~1s command poll that keeps running even while locked — so the same key locks and unlocks within about a second.
+- As before, global hotkeys are Windows-only (they work even while the game is focused) and inert until you assign keys; nothing changes for anyone who hasn't bound them.
+
 ## Optional: update your community-rank badge live after each fight (0.2.245)
 
 - The overlay's community-rank badge (e.g. "World Top 8%") fills after an upload — until now only when you pressed **Upload** or on quit. A new overlay setting, **"Update the rank live after each fight"** (off by default), refreshes it during play: once a **ranked** fight has paused, the client uploads that encounter **unlisted** and re-fetches your standing, so the badge keeps up without a manual upload.

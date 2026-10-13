@@ -184,7 +184,7 @@ def smoke_test(out: str | None = None) -> int:
     return 0 if ok else 1
 
 
-def _start_hotkeys(port: int, open_app):
+def _start_hotkeys(port: int, open_app, open_settings):
     """Start the global-hotkey listener (Windows-only; a no-op elsewhere).
 
     Best-effort and off the main thread, so it can never block or break startup.
@@ -227,7 +227,9 @@ def _start_hotkeys(port: int, open_app):
                 overlay_click_through=not server.ui_settings().get("overlay_click_through")),
             "toggle_party_overlay": toggle_party_overlay,
             "open_app": open_app,
+            "open_settings": open_settings,
             "toggle_events": lambda: set_ui(overlay_show_events=not server.ui_settings().get("overlay_show_events", True)),
+            "screenshot_lock": lambda: server.pulse_overlay_lock(),
             "quit": lambda: server.schedule_shutdown(),
         }
         manager = hotkeys.HotkeyManager(lambda: server.ui_settings().get("hotkeys") or {}, dispatch)
@@ -297,9 +299,15 @@ def main(argv=None) -> int:
             if proc is not None:
                 server.APP_WINDOW["process"] = proc
             return proc
+        def open_settings_window():
+            # Same as opening the app, but land on the Settings page (its hash route).
+            proc = open_window(url + "#/settings", prefer_app)
+            if proc is not None:
+                server.APP_WINDOW["process"] = proc
+            return proc
         # Global hotkeys (Windows): inert until the user assigns keys in Settings.
         # The daemon thread's bound method keeps the manager alive, so no ref needed.
-        _start_hotkeys(port, open_app_window)
+        _start_hotkeys(port, open_app_window, open_settings_window)
         from .app import tray as tray_mod
         # "Collapse to tray": closing the window keeps the app (and meter/overlay)
         # running behind a tray icon instead of quitting. Only when a tray backend

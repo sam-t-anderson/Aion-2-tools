@@ -584,6 +584,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/capture/setup":
             from . import capture_setup
             return self._json(capture_setup.status())
+        if path == "/api/overlay/commands":
+            # Fast one-shot command channel for the overlay (hotkey-driven). Tiny and
+            # uncached so the overlay sees a bumped counter within its poll interval.
+            return self._json(dict(OVERLAY_COMMANDS), cache=0)
         if path == "/api/meter/installations":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Game installations are available only on this computer")
@@ -1146,6 +1150,19 @@ PING: dict = {"at": time.time()}
 APP_WINDOW: dict = {}
 TRAY: dict = {}   # the launcher stores a running collapse-to-tray icon here, so a
 # programmatic shutdown (Quit / update) can stop it and let the process exit.
+
+# One-shot commands for the overlay process, delivered over its fast command poll
+# (see /api/overlay/commands). A global hotkey fires in the launcher process and can't
+# reach the separate overlay window directly, so it bumps a counter here; the overlay
+# acts each time a counter increases. "lock" toggles the screenshot freeze — which needs
+# this channel because a locked overlay stops its meter poll, so the 10s settings sync
+# can't reach it to unlock.
+OVERLAY_COMMANDS: dict = {"lock_seq": 0}
+
+
+def pulse_overlay_lock() -> None:
+    """Ask the overlay to toggle its screenshot lock on its next command poll."""
+    OVERLAY_COMMANDS["lock_seq"] = OVERLAY_COMMANDS.get("lock_seq", 0) + 1
 
 
 def _auto_upload_on_quit() -> None:

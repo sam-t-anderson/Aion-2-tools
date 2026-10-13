@@ -686,14 +686,28 @@
   // Screenshot & lock: freeze the display and keep the overlay pinned (even when
   // the game loses focus) so it can be captured; a second click resumes.
   const lockBtn=$("#ovlock");
-  if(lockBtn)lockBtn.onclick=()=>{
+  function toggleLock(){
     locked=!locked;
-    lockBtn.textContent=locked?"Unlock":"Lock";
-    lockBtn.classList.toggle("on",locked);
+    if(lockBtn){lockBtn.textContent=locked?"Unlock":"Lock";lockBtn.classList.toggle("on",locked);}
     document.getElementById("ov").classList.toggle("ov-locked",locked);
     nativeCall("set_locked",locked);
-    if(!locked)pollMeter();
-  };
+    if(!locked)pollMeter();                 // resume the frozen meter poll on unlock
+  }
+  if(lockBtn)lockBtn.onclick=toggleLock;
+  // A global "screenshot lock" hotkey fires in the app process, which can't reach this
+  // separate overlay window — so the app bumps a counter and we watch it on a light poll
+  // that keeps running even while locked (the meter poll stops when locked, so it can't
+  // carry the unlock). First reading seeds the baseline so startup never auto-locks.
+  let lastLockSeq=null;
+  async function pollCommands(){
+    try{
+      const r=await fetch("/api/overlay/commands",{cache:"no-store"});
+      if(r.ok){const c=await r.json(),seq=Number(c.lock_seq)||0;
+        if(lastLockSeq===null)lastLockSeq=seq;
+        else if(seq>lastLockSeq){lastLockSeq=seq;toggleLock();}}
+    }catch(_){/* best-effort: a missed command poll just delays the next hotkey action */}
+  }
+  pollCommands(); setInterval(pollCommands,1000);
 
   // Regional event notifications (on by default): a compact strip of the next
   // rift / Shugo / battlefield / field-boss windows from the bundled schedule, for

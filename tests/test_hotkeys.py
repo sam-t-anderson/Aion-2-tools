@@ -80,3 +80,21 @@ def test_every_action_has_a_label_and_is_wired():
     assert 'id="hotkey-rows"' in APP_JS
     assert 'id="hotkeys-save"' in APP_JS
     assert "hotkeys:map" in APP_JS
+
+
+def test_newly_wired_actions_present():
+    # The two actions added for the overlay hotkey wiring.
+    assert "open_settings" in hotkeys.ACTIONS and "screenshot_lock" in hotkeys.ACTIONS
+    # open_settings lands on the Settings route; screenshot_lock drives the overlay lock pulse.
+    assert "#/settings" in LAUNCHER
+    assert "pulse_overlay_lock" in LAUNCHER
+
+
+def test_overlay_lock_pulse_channel():
+    # A hotkey in the app process can't call the separate overlay window, so it bumps a
+    # counter the overlay watches on its own poll (which keeps running even while locked).
+    before = server.OVERLAY_COMMANDS.get("lock_seq", 0)
+    server.pulse_overlay_lock()
+    assert server.OVERLAY_COMMANDS["lock_seq"] == before + 1
+    overlay_js = (STATIC / "overlay.js").read_text(encoding="utf-8")
+    assert "/api/overlay/commands" in overlay_js and "lock_seq" in overlay_js and "toggleLock" in overlay_js

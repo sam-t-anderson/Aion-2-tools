@@ -29,7 +29,9 @@ ACTIONS: dict[str, str] = {
     "toggle_click_through": "Toggle click-through",
     "toggle_party_overlay": "Show / hide the Party-DPS overlay",
     "open_app": "Open the app window",
+    "open_settings": "Open the Settings page",
     "toggle_events": "Show / hide overlay event notifications",
+    "screenshot_lock": "Screenshot lock (freeze the overlay)",
     "quit": "Exit Aion 2 Calc",
 }
 
