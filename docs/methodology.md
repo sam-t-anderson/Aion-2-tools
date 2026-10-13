@@ -199,6 +199,13 @@ notes / `ASSUME` for when one is available, not yet modelled):
   attacks are folded into one stream rather than modelled individually.
 * **Sorcerer** — Burst / Pyroclasm / Cold Wave are partly covered by the Flame
   Arrow chain multipliers; a dedicated capture would refine them.
+* **Gladiator** — on the median loadout the kit is MP-tight (Rending Blow costs
+  ~96 MP and the median gear carries little combat speed or MP regen), so Rending
+  Blow is cast at a smaller share than a geared, combat-speed-stacked parse, where
+  the fast basic-attack string sustains the MP pool and Rending weaves ~1.9/s. The
+  shares track once scaled to the player's own gear; a gear-matched capture would
+  let the MP-sustain (basic-attack MP return vs. combat MP regen) be calibrated
+  directly rather than left to the median loadout's economy.
 * DoT ticks already modelled as their parent skill (Debilitating Mark, Chain of
   Torment, Poison) and consumable **theostone** procs are intentionally not
   class-skill damage.
