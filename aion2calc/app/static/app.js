@@ -1289,14 +1289,18 @@ async function pageMeter() {
     };
   }
   const meterMountedAt = Date.now();
+  // The meter is the DEFAULT route, so at launch location.hash is "" (not "#/meter") while this
+  // page is already mounted. Match the router's own rule (empty hash => "meter"); otherwise the
+  // first poll tick returns before rescheduling and the loop dies, leaving the Start/Stop button
+  // stuck on its pre-auto-start render until the user switches tabs (which sets the hash and
+  // re-mounts). That dead loop — not the poll cadence — was why the button showed "Start" at launch.
+  const onMeterPage = () => (location.hash.replace(/^#\//, "") || "meter").split("/")[0] === "meter";
   const poll = async () => {
-    if (!location.hash.startsWith("#/meter")) return;
-    try { const result=await meterStatus(); if(location.hash.startsWith("#/meter")) renderMeter(result); }
+    if (!onMeterPage()) return;
+    try { const result=await meterStatus(); if(onMeterPage()) renderMeter(result); }
     catch (e) { if($('#mmsg')) $('#mmsg').textContent='Could not refresh the meter: '+e.message+'. Last readings retained; capture status is unknown. Export capture diagnostics, or wait for automatic retry.'; }
-    // Poll briskly for the first few seconds after opening the page so the Start/Stop
-    // button catches the launch-time auto-start (it fires ~1.6s after launch) as promptly
-    // as the overlay does, instead of lagging a full idle interval behind it and showing
-    // "Start" while the overlay already shows "Stop".
+    // Poll briskly for the first few seconds after opening the page so the Start/Stop button
+    // catches the launch-time auto-start (it fires ~1.6s after launch) as promptly as the overlay.
     const warming = Date.now() - meterMountedAt < 6000;
     setTimeout(poll, st.running ? 700 : warming ? 300 : 1200);
   };
