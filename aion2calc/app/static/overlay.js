@@ -464,6 +464,9 @@
       ranked.map((p,i)=>`${i+1}. ${displayName(p)}  ${kfmt(rate(p))}/s  (${Math.round(100*amount(p)/(total||1))}%)`).join("\n")+
       `\n— Aion 2 Calc`;
     $("#ovstatus").textContent = `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
+    // During a big fight the decoder can fall behind the packet backlog; show it is
+    // catching up (and how deep the queue is) so the live view does not look frozen.
+    if (snap.decode_backlog && snap.decode_backlog.catching_up) $("#ovstatus").textContent += ` · ⏳ catching up (${snap.decode_backlog.queue_depth})`;
     const identity=snap.identity_status, missing=players.length>0&&identity&&(!identity.self_identified||identity.unnamed_actors>0), repeated=visible.some(duplicate);
     // A player whose combat actor id changed mid-fight (death/revive, instance swap) was
     // correlated into one row by name, class and non-overlapping timing — flagged inferred.

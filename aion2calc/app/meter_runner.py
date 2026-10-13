@@ -25,6 +25,20 @@ DEMO = Path(__file__).resolve().parent.parent / "meter" / "demo_session.jsonl"
 _LIVE_RANK_IDLE_S = 5.0
 _LIVE_RANK_THROTTLE_S = 20.0
 
+# Live-meter throughput. One thread decodes packets; a major fight (a world/abyss boss
+# with a full raid) can enqueue them faster than it drains them. Draining the burst that
+# has piled up and doing the per-burst bookkeeping (run-save / rollover / checkpoint) once
+# per batch — instead of once per packet — is what keeps the decoder ahead of the queue.
+_DECODE_BATCH_MAX = 256
+# A backlog at least this deep means the live view is behind real time: tell the viewer it
+# is catching up, and (in _live_snapshot) let the costly recompute step aside so the
+# decoder reclaims the shared lock to drain the burst. Normal play sits near zero.
+_DECODE_BACKLOG_QUEUE = 48
+# While backlogged, stretch the live-snapshot interval by this factor so the recompute
+# holds the shared lock ~1/(1+N) of the time (N=3 -> ~25%, vs the ~50% it may take when the
+# decoder is keeping up), handing that lock time back to the decoder.
+_SNAPSHOT_BACKLOG_DUTY = 3.0
+
 
 def upload_evictor():
     """A callback for :func:`aion2calc.combat.sessions.prune_logs` that uploads each
@@ -232,7 +246,8 @@ class Runner:
         self.diagnostics = {"state": "starting", "packets": 0, "bytes": 0, "decoded_events": 0,
                             "auto_port": bool(opts.get("auto_port", decoder is None)), "port": None,
                             "shutdown_drained_payloads": 0, "shutdown_discarded_payloads": 0,
-                            "decoder_errors": 0, "recovered_frame_skips": 0}
+                            "decoder_errors": 0, "recovered_frame_skips": 0,
+                            "queue_depth": 0, "queue_depth_peak": 0}
         self.thread = threading.Thread(target=self._run_a2tools,
                                        args=(iface, port, host, decoder, self.diagnostics["auto_port"]),
                                        daemon=True, name="a2tools-meter")
@@ -257,65 +272,90 @@ class Runner:
                         self.diagnostics["shutdown_drain_timed_out"] = True
                         break
                 try:
-                    item = packets.get(timeout=0.25 if shutdown_deadline is not None else 0.5)
+                    first = packets.get(timeout=0.25 if shutdown_deadline is not None else 0.5)
                 except queue.Empty:
+                    self.diagnostics["queue_depth"] = 0
                     if stop_event.is_set() and not self.packet_capture_thread.is_alive():
                         break
                     if shutdown_deadline is None:
                         self._checkpoint_session()
                     continue
-                kind, *data = item
-                try:
-                    if kind == "packet":
-                        stream, payload, timestamp_ms = data
-                        before_run = (self.session.run, self.session.run_closed)
-                        with self.lock:
-                            self._last_packet_at = time.monotonic()
-                            events = self._decode_packet(engine, decoder, stream, payload, timestamp_ms)
-                            self.diagnostics["decoded_events"] += len(events)
-                            if stop_event.is_set():
-                                self.diagnostics["shutdown_drained_payloads"] += 1
-                                self.session.capture_evidence["shutdown_drained_payloads"] = self.session.capture_evidence.get("shutdown_drained_payloads", 0) + 1
-                            if events:
-                                self._last_combat_at = time.monotonic()
-                        if not stop_event.is_set() and before_run != (self.session.run, self.session.run_closed):
-                            self._save_session(active=True)
-                        if engine is not None and not stop_event.is_set():
-                            self._rollover_session()
-                    elif kind == "stream_reset":
-                        with self.lock:
-                            if engine is not None:
-                                engine.reset_stream(data[0])
-                                self.session.split_now()
-                                self.segment_id = self.enemy_id = None
-                    elif kind == "error":
-                        self.error = str(data[0])
-                        stop_event.set()
-                    elif kind == "capture_started":
-                        self.diagnostics["state"] = "stopping" if stop_event.is_set() else "capturing"
-                    elif kind == "capture_stats":
-                        with self.lock:
-                            self._record_capture_stats(data[0])
-                            if stop_event.is_set():
-                                self.diagnostics["state"] = "stopping"
-                            if engine is not None and data[0].get("port"):
-                                engine.set_server_port(int(data[0]["port"]))
-                    elif kind == "ping":
-                        with self.lock:
-                            self.meter.add(CombatEvent(kind="ping", t=float(data[1]) / 1000.0, ping_ms=float(data[0])))
-                    elif kind == "capture_stopped":
+                # Batch only when the decoder is actually falling behind — a resource-heavy
+                # boss fight where packets have piled up. For normal encounters and dungeons
+                # the queue stays shallow (cap 1), so each packet is taken one at a time with
+                # exactly the per-packet bookkeeping and full-cadence snapshot as before:
+                # batching, and the snapshot stepping aside, engage only once a backlog forms.
+                behind = packets.qsize()
+                cap = _DECODE_BATCH_MAX if behind >= _DECODE_BACKLOG_QUEUE else 1
+                batch = [first]
+                while len(batch) < cap:
+                    try:
+                        batch.append(packets.get_nowait())
+                    except queue.Empty:
                         break
-                    if not stop_event.is_set():
-                        self._checkpoint_session()
-                except Exception as exc:
-                    # A transient failure handling one item (e.g. a zone/instance
-                    # transition that resets identities and splits the session mid-save)
-                    # must not tear down live capture. Record it and keep going; genuine
-                    # adapter failures still arrive as a terminal "error" item above.
-                    self.diagnostics["processing_error"] = f"{kind}: {type(exc).__name__}: {exc}"[:300]
-                    self.diagnostics["processing_errors"] = self.diagnostics.get("processing_errors", 0) + 1
-                    with self.lock:
-                        self.session.capture_evidence["processing_errors"] = self.session.capture_evidence.get("processing_errors", 0) + 1
+                self.diagnostics["queue_depth"] = packets.qsize()
+                self.diagnostics["queue_depth_peak"] = max(self.diagnostics.get("queue_depth_peak", 0), behind + 1)
+                self.diagnostics["last_batch"] = len(batch)
+                run_before = (self.session.run, self.session.run_closed)
+                saw_packet = stop_after_batch = False
+                for item in batch:
+                    kind, *data = item
+                    try:
+                        if kind == "packet":
+                            stream, payload, timestamp_ms = data
+                            saw_packet = True
+                            with self.lock:
+                                self._last_packet_at = time.monotonic()
+                                events = self._decode_packet(engine, decoder, stream, payload, timestamp_ms)
+                                self.diagnostics["decoded_events"] += len(events)
+                                if stop_event.is_set():
+                                    self.diagnostics["shutdown_drained_payloads"] += 1
+                                    self.session.capture_evidence["shutdown_drained_payloads"] = self.session.capture_evidence.get("shutdown_drained_payloads", 0) + 1
+                                if events:
+                                    self._last_combat_at = time.monotonic()
+                        elif kind == "stream_reset":
+                            with self.lock:
+                                if engine is not None:
+                                    engine.reset_stream(data[0])
+                                    self.session.split_now()
+                                    self.segment_id = self.enemy_id = None
+                        elif kind == "error":
+                            self.error = str(data[0])
+                            stop_event.set()
+                        elif kind == "capture_started":
+                            self.diagnostics["state"] = "stopping" if stop_event.is_set() else "capturing"
+                        elif kind == "capture_stats":
+                            with self.lock:
+                                self._record_capture_stats(data[0])
+                                if stop_event.is_set():
+                                    self.diagnostics["state"] = "stopping"
+                                if engine is not None and data[0].get("port"):
+                                    engine.set_server_port(int(data[0]["port"]))
+                        elif kind == "ping":
+                            with self.lock:
+                                self.meter.add(CombatEvent(kind="ping", t=float(data[1]) / 1000.0, ping_ms=float(data[0])))
+                        elif kind == "capture_stopped":
+                            stop_after_batch = True
+                            break
+                    except Exception as exc:
+                        # A transient failure handling one item (e.g. a zone/instance
+                        # transition that resets identities and splits the session mid-save)
+                        # must not tear down live capture. Record it and keep going; genuine
+                        # adapter failures still arrive as a terminal "error" item above.
+                        self.diagnostics["processing_error"] = f"{kind}: {type(exc).__name__}: {exc}"[:300]
+                        self.diagnostics["processing_errors"] = self.diagnostics.get("processing_errors", 0) + 1
+                        with self.lock:
+                            self.session.capture_evidence["processing_errors"] = self.session.capture_evidence.get("processing_errors", 0) + 1
+                # Per-burst bookkeeping, once for the whole batch (skipped entirely while
+                # draining for shutdown, exactly as the per-packet path was).
+                if not stop_event.is_set():
+                    if saw_packet and run_before != (self.session.run, self.session.run_closed):
+                        self._save_session(active=True)
+                    if engine is not None and saw_packet:
+                        self._rollover_session()
+                    self._checkpoint_session()
+                if stop_after_batch:
+                    break
         except Exception as exc:
             self.error = self.error or f"Capture processing failed: {type(exc).__name__}: {exc}"
         finally:
@@ -348,7 +388,7 @@ class Runner:
                     self.session.capture_evidence["recovered_frame_skips"] = \
                         self.session.capture_evidence.get("recovered_frame_skips", 0) + rejected
                     self.diagnostics["recovered_frame_skips"] = self.session.capture_evidence["recovered_frame_skips"]
-                    history = self.diagnostics.setdefault("processing_errors", [])
+                    history = self.diagnostics.setdefault("processing_error_log", [])
                     history.append({"at":timestamp_ms, "type":"CompressedFrameRejected", "message":warning, "recoverable":True, "frames":rejected})
                     del history[:-20]
                 self.session.observe(engine, events, timestamp_ms=timestamp_ms)
@@ -367,14 +407,14 @@ class Runner:
             self.session.capture_evidence["recovered_frame_skips"] = \
                 self.session.capture_evidence.get("recovered_frame_skips", 0) + 1
             self.diagnostics["recovered_frame_skips"] = self.session.capture_evidence["recovered_frame_skips"]
-            history = self.diagnostics.setdefault("processing_errors", [])
+            history = self.diagnostics.setdefault("processing_error_log", [])
             history.append({"at": timestamp_ms, "type": type(exc).__name__, "message": str(exc)[:500], "recoverable": True})
             del history[:-20]
             if engine is not None:
                 engine.reset_stream(stream)
             return []
         except Exception as exc:
-            history = self.diagnostics.setdefault("processing_errors", [])
+            history = self.diagnostics.setdefault("processing_error_log", [])
             history.append({"at": timestamp_ms, "type": type(exc).__name__, "message": str(exc)[:500], "recoverable": False})
             del history[:-20]
             self.error = f"Decoder failed: {type(exc).__name__}: {exc}"
@@ -687,9 +727,15 @@ class Runner:
         now = time.monotonic()
         cached = self._snap_cache
         if cached is not None and cached[0] == key:
-            # Never recompute more often than the last recompute cost (floor 250ms),
-            # so snapshot work stays at most ~50% duty and the capture thread keeps up.
-            if now - cached[1] <= max(0.25, self._last_snap_cost):
+            # Never recompute more often than the last recompute cost (floor 250ms), so the
+            # recompute holds the shared lock at most ~50% of the time and the decode thread
+            # keeps up. When packets have backed up (a heavy fight the decoder is behind on),
+            # stretch that interval so the recompute steps further aside and the decoder
+            # reclaims the lock to drain the burst — the live number simply updates a little
+            # less often until it catches up.
+            busy = self.packet_queue is not None and self.packet_queue.qsize() >= _DECODE_BACKLOG_QUEUE
+            interval = max(0.25, self._last_snap_cost) * (_SNAPSHOT_BACKLOG_DUTY if busy else 1.0)
+            if now - cached[1] <= interval:
                 return cached[2]
         started = time.monotonic()
         snap = self.session.snapshot(self.scope, None if follow_latest else self.segment_id,
@@ -726,6 +772,12 @@ class Runner:
             finalizing = bool(not self.running and self.thread and self.thread.is_alive())
             snap = (self._live_snapshot(follow_latest)
                     if self.packet_engine is not None else self.meter.snapshot())
+            if self.packet_queue is not None:
+                # Let the live view (app and overlay both read the snapshot) show when the
+                # decoder is behind real time during a burst, instead of looking frozen.
+                # Final totals are unaffected — the backlog is drained, never dropped.
+                qd = self.packet_queue.qsize()
+                snap["decode_backlog"] = {"queue_depth": qd, "catching_up": qd >= _DECODE_BACKLOG_QUEUE}
             if self.packet_engine is not None:
                 snap["ping"] = self.meter.ping_summary()   # the session snapshot carries no latency
             # Blend the community effective-HP consensus (confident, per-build, cached
