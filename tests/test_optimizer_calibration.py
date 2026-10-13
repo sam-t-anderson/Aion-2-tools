@@ -65,9 +65,13 @@ def test_gladiator_models_upward_strike_and_the_basic_combo():
     assert dmg["Upward Strike"] >= dmg.get("Overhead Slam", 0)
     # Overhead Slam + Upward Strike dominate the single-target rotation.
     assert (dmg["Upward Strike"] + dmg.get("Overhead Slam", 0)) / res.total > 0.4
+    # Ruinous Blow is modelled as a multi-strike, so it is a meaningful share (~its
+    # measured 7.7%) instead of a single hit — this is what lifts Cooldown Reduction.
+    assert dmg.get("Ruinous Blow", 0) / res.total > 0.04
 
 
 def test_gladiator_upward_chain_uses_the_measured_fraction():
     from aion2calc.kit.gladiator import ASSUME
     assert ASSUME["upward_frac"] > 1.5          # measured ~2.1x; never the old 0.60 placeholder
     assert "knockdown_uses" not in ASSUME       # the dead constant was removed
+    assert ASSUME["ruinous_hits"] >= 2          # Ruinous Blow is a multi-strike (lifts Cooldown Reduction)

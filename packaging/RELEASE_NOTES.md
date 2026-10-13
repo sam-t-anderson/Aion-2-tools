@@ -1,3 +1,8 @@
+## Gladiator: model Ruinous Blow's multi-hit (lifts Cooldown Reduction) (0.2.255)
+
+- Building on 0.2.254: **Ruinous Blow lands as a multi-strike** (~4 raw hits per cast in a real parse, ~7.7% of damage), but the model treated it as a single hit — so it was undervalued and, because it is the Gladiator's main cooldown-bound nuke, it **undervalued Cooldown Reduction / Illusion**. It is now modelled as ~3 full-coefficient strikes, landing at its measured ~7.7% share.
+- Effect: Ruinous Blow's modelled share rises from ~2.5% to ~7.9% (matching the parse), and **Cooldown Reduction's and Illusion's stat weights roughly double**. Combat Speed still leads the ranking — the Gladiator rotation is genuinely combat-speed-bound at ~7 attacks/s — but Cooldown is no longer near-zero.
+
 ## Damage optimizer: fix the DPS underestimate and stat ranking (0.2.254)
 
 - **The stat ranking was missing stats, for every class.** `Precision` and `Freedom` were never evaluated — Precision (a crit stat) simply never appeared in the priority list. Both are now ranked for all eight classes.

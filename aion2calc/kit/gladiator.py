@@ -66,6 +66,10 @@ ASSUME = {
     "upward_chance": 0.50,        # Upward Strike follows ~half of Overhead Slams — measured
     "overhead_spam_cd": 0.65,     # effective Overhead Slam cycle once "Remove cooldown" is taken (~1.5/s) — measured
     "basic_frac": 0.54,           # basic-attack combo (Smashing Blow) per-hit vs Overhead Slam — measured
+    "ruinous_hits": 3,            # Ruinous Blow lands as a multi-strike (~4 raw hits/cast in the parse,
+                                  # ~3 full-coefficient applications of damage ~ its measured 7.7% share);
+                                  # modelling one hit undervalued it and, since it is the main
+                                  # cooldown-bound nuke, undervalued Cooldown Reduction.
     "murderous_icd": 3.0,         # Murderous Burst internal cooldown (parse: ~1 proc / 3s)
     "stagger_uptime": 0.50,       # share of time the boss carries Stagger/Impact (Destructive Impulse)
     "murderous_stacks": 5,        # attacks to trigger Murderous Burst
@@ -270,7 +274,10 @@ def build_kit(build: Build, cd: ClassData, filler: str = "basic_combo") -> Kit:
         tags = ("multi", "noparry") if has("RUIN", 5) else ()
         extra = 1.0 + ASSUME["extra_damage_frac"] if has("RUIN", 4) else 1.0
         crit = ("crit",) if has("RUIN", 3) else ()      # +30% Skill Critical -> treat as guaranteed-ish
-        sim.hit("Ruinous Blow", rb_f, rb_c, mult=extra, tags=tags + crit)
+        # Ruinous Blow lands as several strikes, each the skill's full hit (a real parse shows
+        # ~4/cast). n splits one hit's damage, so mult restores each strike to the full coef.
+        hits = ASSUME["ruinous_hits"]
+        sim.hit("Ruinous Blow", rb_f, rb_c, n=hits, spread=0.3, mult=extra * hits, tags=tags + crit)
         sim.buff("prepare_for_battle", 20.0, _prepare_stats(cd, lv("RUIN")))
     A["ruinous_blow"] = Action("ruinous_blow", "Ruinous Blow", SID["RUIN"], TIMING["ruinous_blow"],
                                cooldown=cd.cd(SID["RUIN"], lv("RUIN")), mp=cd.mp(SID["RUIN"], lv("RUIN")),
