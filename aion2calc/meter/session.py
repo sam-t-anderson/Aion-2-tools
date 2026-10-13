@@ -315,21 +315,26 @@ class CombatSession:
             # death or a phase teleport in an instance), can't look like dozens of distinct players
             # and trip the 48-player rollover again and again — which flushes a part and resets the
             # live view each time (the Vakron Sky Island / summon-heavy expedition case).
-            owners, pnames = identity["owners"], identity["names"]
-            def _player_key(actor, _o=owners, _n=pnames):
+            owners, pnames, pspawns = identity["owners"], identity["names"], identity["spawns"]
+            def _player_key(actor, _o=owners, _n=pnames, _s=pspawns):
                 seen = set()
-                while actor in _o and actor not in seen:   # a summon/pet counts as its owner
-                    seen.add(actor)
+                while actor in _o and actor not in seen:   # a summon/pet resolves to its owner once linked,
+                    seen.add(actor)                         # so its damage is attributed there, not counted apart
                     actor = _o[actor]
+                if _s.get(actor, {}).get("mobCode"):        # a spawned entity (summon/pet/turret) is never a
+                    return None                             # party member — unlinked, it adds nothing to the count
                 name = _n.get(actor)                        # a re-registered player counts as its name
                 return name.casefold() if isinstance(name, str) and name else actor
-            self.storage_players.update(_player_key(a) for a in allowed if a not in owners)
+            # Only real players count toward the rollover bound; pets are excluded (None), so a
+            # class' summons never increase the player total whether or not their owner link has
+            # resolved — and once it does, their damage lands on the owner (see _summary).
+            self.storage_players.update(
+                key for a in allowed if a not in owners and (key := _player_key(a)) is not None)
             for scope in ("self", "party", "all", "auto"):
                 selected = self._allowed(record, scope)
-                if self._effective_scope(scope, self.epoch) == "party":
-                    keys = {_player_key(a) for a in selected}
-                else:
-                    keys = {_player_key(a) for a in (event.actor_id, event.target_id) if a in selected}
+                source = selected if self._effective_scope(scope, self.epoch) == "party" \
+                    else [a for a in (event.actor_id, event.target_id) if a in selected]
+                keys = {key for a in source if (key := _player_key(a)) is not None}
                 self._storage_players.setdefault(scope, set()).update(keys)
             if isinstance(event, DamageEvent):
                 # Classify the enemies our party actually engaged, so a later return to

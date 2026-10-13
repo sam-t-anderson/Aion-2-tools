@@ -1288,11 +1288,17 @@ async function pageMeter() {
       finally { button.disabled = false; button.removeAttribute("aria-busy"); button.textContent = label; }
     };
   }
+  const meterMountedAt = Date.now();
   const poll = async () => {
     if (!location.hash.startsWith("#/meter")) return;
     try { const result=await meterStatus(); if(location.hash.startsWith("#/meter")) renderMeter(result); }
     catch (e) { if($('#mmsg')) $('#mmsg').textContent='Could not refresh the meter: '+e.message+'. Last readings retained; capture status is unknown. Export capture diagnostics, or wait for automatic retry.'; }
-    setTimeout(poll, st.running ? 700 : 1200);   // poll briskly while idle too, so the button reflects an auto-started meter quickly
+    // Poll briskly for the first few seconds after opening the page so the Start/Stop
+    // button catches the launch-time auto-start (it fires ~1.6s after launch) as promptly
+    // as the overlay does, instead of lagging a full idle interval behind it and showing
+    // "Start" while the overlay already shows "Stop".
+    const warming = Date.now() - meterMountedAt < 6000;
+    setTimeout(poll, st.running ? 700 : warming ? 300 : 1200);
   };
   const initial = await meterStatus().catch(() => ({snapshot: {players: []}}));
   if (initial.source) { $("#msrc").value = initial.source; live(); }

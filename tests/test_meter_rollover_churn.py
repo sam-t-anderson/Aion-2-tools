@@ -74,3 +74,31 @@ def test_summon_spam_and_player_reregistration_do_not_inflate_the_player_bound()
     # ~360 distinct entity ids churned through, but only three real players — far below 48, so
     # no storage rollover storm and no live-view reset.
     assert len(players) <= 4, (len(players), sorted(players)[:10])
+
+
+def test_named_summons_bucket_as_pets_not_players_even_unlinked():
+    """Hardening beyond owner-linking: a spawned entity (it has a mob code) is never a party
+    member, even when it is named and its owner mapping hasn't arrived. In 'all'/'auto' scope
+    a class' summons are named and so land in the roster-less 'all' set; without this they'd
+    each count as a distinct player and trip the rollover. They now share one pet sub-bucket."""
+    s = CombatSession()
+    s.pvp = False
+    engine = MeterEngine()
+    local = 4062
+    engine.map_id = engine.dungeon_id = 600072
+    engine.local_player_id = local
+
+    t = 10_000
+    for i in range(100):                              # 100 distinct, named, owner-less summons
+        summon = 500_000 + i
+        engine.names = {local: "Me", summon: f"Spirit {i}"}
+        engine.known_players = {local}
+        engine.roster = {"Me": {}}
+        engine.spawn_info = {summon: {"mobCode": 2_990_000 + i}}   # a spawned entity, no owner link
+        s.observe(engine, [_hit(local, 9001, t), _hit(summon, 9001, t + 100)], timestamp_ms=t + 100)
+        t += 2_000
+
+    players_all = s._storage_players.get("all", set())
+    # 100 distinct named summons add NOTHING to the player count — only the one real player
+    # remains. Pets never increase the player total.
+    assert players_all == {"me"}, sorted(map(str, players_all))[:5]
