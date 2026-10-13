@@ -49,7 +49,8 @@ ASSUME = {
     "eunify_stacks": 5,           # Element Unification Critical Damage stacks maintained
     "ancient_duration": 30.0,     # Ancient Spirit stigma: a 30s window of a much stronger pet
     "crit_rate": 0.60,
-    "chain_frac": 0.60,
+    "chain_frac": 1.5,            # Ashy Call (Combustion chain); community L45 parses put detected
+                                  #   chains at ~1.4-1.9x, so 1.5 (was 0.60) class-wide
 }
 
 

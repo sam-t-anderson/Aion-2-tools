@@ -44,8 +44,14 @@ ASSUME = {
     "bolt_charge": 3,
     "divine_aura_ticks": 5,       # the aura's listed damage is its total, delivered over 5s
     "crit_rate": 0.60,
-    "chain_frac": 0.85,           # chain follow-up vs base; 0.85 est. (Gladiator parse put one at ~2.1x), pending a parse
+    "chain_frac": 1.5,            # Discharge (Earth's Retribution chain); community L45 parses put
+                                  #   detected chains at ~1.4-1.9x, so 1.5 (was 0.85) class-wide
     "discharge_chance": 0.5,      # Earth's Retribution -> Discharge chain trigger
+    # Divine Punishment is Judgment Thunder's companion strike (fires "on landing"; the idx5 spec
+    # fires it an extra time). A community L45 parse put it ~1.09x Judgment per hit and ~= its total
+    # (~11% of damage); it was dropped entirely because the hand cast bypassed the generic reader.
+    "divine_punishment_frac": 1.09,
+    "judgment_cadence": 2.2,      # Judgment Thunder is a heavy swing used on a cadence, not pure spam
 }
 
 # stigma skills resolved by name (ids vary; look them up from the class data)
@@ -133,11 +139,16 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
                                      is_filler=True)
 
     ju_f, ju_c = dmg("JUDGMENT")
+    dp_frac = ASSUME["divine_punishment_frac"]
+
+    def judg_cast(sim, a):
+        sim.hit("Judgment Thunder", ju_f, ju_c, mult=1.12 if has("JUDGMENT", 2) else 1.0)
+        # Divine Punishment rides every Judgment Thunder (idx5 fires it an extra time).
+        n = 2 if has("JUDGMENT", 5) else 1
+        sim.hit("Divine Punishment", ju_f * dp_frac, ju_c * dp_frac, n=n, spread=0.2 * (n - 1))
     A["judgment_thunder"] = Action("judgment_thunder", "Judgment Thunder", SID["JUDGMENT"],
-                                   TIMING["judgment_thunder"],
-                                   on_cast=lambda sim, a: sim.hit("Judgment Thunder", ju_f, ju_c,
-                                                                  mult=1.12 if has("JUDGMENT", 2) else 1.0),
-                                   is_filler=True)
+                                   TIMING["judgment_thunder"], cooldown=ASSUME["judgment_cadence"],
+                                   affected_by_cdr=False, on_cast=judg_cast, is_filler=True)
 
     # Chain of Torment (DoT debuff -> gates Condemnation)
     tv = cd.vals(SID["TORMENT"], max(1, lv("TORMENT")))

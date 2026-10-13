@@ -18,10 +18,12 @@ from .sorcerer import Kit
 DEFAULT_CAST = 0.95
 BUFF_CAST = 0.60
 FILLER_CAST = 0.80
-CHAIN_FRAC = 0.85          # a chain follow-up hit vs the base hit. A measured Gladiator parse
-                           # (0.2.254) put a real chain at ~2.1x the base, so the old 0.60 was a
-                           # systematic underestimate; 0.85 is a conservative class-agnostic
-                           # estimate pending a per-class parse to measure the true value.
+CHAIN_FRAC = 1.5           # a chain follow-up ("Adds [X] Chain Skill") vs the base hit. These are
+                           # finishers, not weak taps: community L45 parses (0.2.256) measured
+                           # chanter Piercing Strike 1.65x Dark Crush, sorcerer Winter's Illusion
+                           # 1.86x Winter's Shackles, ranger Shackling Arrow 1.38x Snare Shot and a
+                           # Gladiator chain 2.1x — mean ~1.7. 1.5 is a conservative class-agnostic
+                           # value (the old 0.60/0.85 placeholders dropped most of a chain's damage).
 EXTRA_FRAC = 0.30          # an "Extra damage on hit" spec that gives no number
 
 

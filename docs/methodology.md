@@ -158,6 +158,54 @@ come mostly from slowing fillers to match KR's higher-level rotation, so the
 remaining divergence is structural and the honest path is calibrating against
 the player's own captures.
 
+### Chain, variant and combo skills, and known catalog gaps
+
+metabot's build-planner page exposes 35 skills per class. Several real skills
+are **not** in that list: the game logs them under their own skill id, but
+metabot only names them inside a parent skill's specialization text — a chain
+(`Adds [X] Chain Skill`), an "on landing [X]" variant, or an unlisted basic-combo
+step. A generic reading can only simulate what is in the catalog, and a
+hand-written kit that models a parent skill directly used to *drop* that parent's
+chain/variant entirely (the generic chain reader only fires for skills the kit
+leaves to it). So these skills were invisible to the optimizer, which both
+undervalued DPS and over-weighted the fillers that expanded to fill the idle
+time the missing skills should have occupied.
+
+Community level-45 training-dummy and raid parses (A2Parser captures) measure each
+such skill's coefficient as a ratio to a modelled parent (non-crit damage per hit,
+which cancels crit-rate and gear). The ratios drive the per-class knobs added in
+0.2.256:
+
+| Class | Added / fixed from parses | Measured ratio |
+| --- | --- | --- |
+| all | `Adds [X] Chain Skill` finishers (generic + kit `chain_frac`) | 1.5x base (was 0.60/0.85; measured 1.38–2.1) |
+| Chanter | Piercing Strike (Dark Crush chain), Bursting Blow (Incandescent Blow variant) | 1.65x, 2.23x |
+| Cleric | Divine Punishment (Judgment Thunder companion), Discharge coefficient | 1.09x, 1.5x |
+| Assassin | Quick Slice basic combo (Swift + Breaking Slice); Savage Roar demoted to a cadenced upkeep skill | 0.67x, 0.76x |
+| Templar | Vicious Strike combo (Decisive + Desperate Strike) | 1.20x, 1.54x |
+
+**Still flagged for a gear-matched capture** (measured ratios recorded in the kit
+notes / `ASSUME` for when one is available, not yet modelled):
+
+* **Templar** — Punishing Strike (~13% of a real parse, ~3.4x Pummel) and the
+  Pummel filler's per-hit magnitude. Punishing Strike has no documented parent
+  mechanic, and the median build's Pummel share is already high, so modelling it
+  now would overshoot; it needs a gear-matched capture to calibrate the Pummel
+  coefficient first.
+* **Assassin** — Savage Smash (~6%, 3.3x Quick Slice) and Savage Back Kick (~6%,
+  1.45x), and Heart Gore's cadence (under-cast vs parses).
+* **Spiritmaster** — the single-Water-Spirit pet stream approximates a real
+  multi-spirit (Fire/Earth/Ancient) rotation; per-spirit skills and pet basic
+  attacks are folded into one stream rather than modelled individually.
+* **Sorcerer** — Burst / Pyroclasm / Cold Wave are partly covered by the Flame
+  Arrow chain multipliers; a dedicated capture would refine them.
+* DoT ticks already modelled as their parent skill (Debilitating Mark, Chain of
+  Torment, Poison) and consumable **theostone** procs are intentionally not
+  class-skill damage.
+
+As always this is a diagnostic, not a target: the honest path for any single
+character is calibrating against that player's own captures.
+
 ## Optimization and macro planning
 
 `aion2calc/opt/pipeline.py` alternates, accepting only improvements:

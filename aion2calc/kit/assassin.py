@@ -48,7 +48,13 @@ ASSUME = {
     "boss_breakable": True,       # self-stun gates Shadow Fall
     "insignia_stacks": 5,         # assume Insignia Explosion is used at full stacks
     "exploit_attack_uptime": 0.80,  # Exploit Weakness's +Attack proc on crit, averaged
-    "chain_frac": 0.85,           # chain follow-up vs base; 0.85 est. (Gladiator parse put one at ~2.1x), pending a parse
+    "chain_frac": 1.5,            # Dark Strike (Infiltrate chain); community parses put detected
+                                  #   chains at ~1.4-1.9x, so 1.5 (was 0.85) class-wide
+    # Quick Slice basic-attack combo, measured from a community L45 assassin parse (0.2.256):
+    "swift_frac": 0.67,           # Quick Slice -> Swift Slice combo step (~0.67x the base)
+    "breaking_frac": 0.76,        # Quick Slice -> Breaking Slice combo step (~0.76x the base)
+    "savage_roar_cadence": 5.0,   # Savage Roar maintains the Insignia stacks on a cadence; it is not a
+                                  #   spammable filler (a real parse put it at ~5% of damage, not a third)
 }
 
 
@@ -137,6 +143,12 @@ def build_kit(build: Build, cd: ClassData, filler: str = "quick_slice") -> Kit:
         tags = ("crit", "noparry") if has("QS", 5) else ()
         mods = {"multihit": 0.5} if has("QS", 3) else None
         sim.hit("Quick Slice", qs_f, qs_c, tags=tags, mods=mods)
+        # Quick Slice is the first step of the melee combo string; Swift Slice and
+        # Breaking Slice follow from it (together ~13% of real damage, previously dropped).
+        sw = ASSUME["swift_frac"]
+        br = ASSUME["breaking_frac"]
+        sim.hit("Swift Slice", qs_f * sw, qs_c * sw, tags=tags)
+        sim.hit("Breaking Slice", qs_f * br, qs_c * br, tags=tags)
         sim.gain_mp(100 * (1.2 if has("QS", 1) else 1.0))
         if has("QS", 4):
             sim.reduce_cd("insignia_explosion", 1.0)
@@ -148,8 +160,11 @@ def build_kit(build: Build, cd: ClassData, filler: str = "quick_slice") -> Kit:
     def roar_cast(sim, a):
         sim.hit("Savage Roar", ro_f, ro_c, mult=1.12 if has("ROAR", 3) else 1.0)
         sim.debuff("insignia", 10.0)
+    # Savage Roar engraves the Insignia and is used on a cadence to keep it up, not spammed
+    # as a filler — a real parse put it at ~5% of damage, so Quick Slice's combo is the filler.
     A["savage_roar"] = Action("savage_roar", "Savage Roar", SID["ROAR"], TIMING["savage_roar"],
-                              skill_speed=0.2 if has("ROAR", 2) else 0.0, on_cast=roar_cast, is_filler=True)
+                              cooldown=ASSUME["savage_roar_cadence"],
+                              skill_speed=0.2 if has("ROAR", 2) else 0.0, on_cast=roar_cast)
 
     # Ambush (Back attack bonus)
     am2_f, am2_c = dmg("AMBUSH")

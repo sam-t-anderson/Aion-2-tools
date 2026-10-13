@@ -44,8 +44,12 @@ TIMING = {
 ASSUME = {
     "boss_breakable": True,       # training boss can be stunned/knocked down (gates Annihilate)
     "judgment_window": 2.0,       # seconds Judgment stays usable after a trigger skill
-    "chain_frac": 0.60,
+    "chain_frac": 1.5,            # Threatening Blow (Vicious Strike chain); community parses put
+                                  #   detected chains at ~1.4-1.9x, so 1.5 (was 0.85) class-wide
     "punishment_charge": 3,       # assume the skill is cast at full charge
+    # Vicious Strike combo string, measured from a community L45 templar parse (0.2.256):
+    "decisive_frac": 1.20,        # Vicious Strike -> Decisive Strike combo step (~1.20x the base)
+    "desperate_frac": 1.54,       # Vicious Strike -> Desperate Strike combo step (~1.54x the base)
 }
 
 
@@ -113,6 +117,12 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
     def vic_cast(sim, a):
         mods = {"multihit": 0.5} if has("VIC", 3) else None
         sim.hit("Vicious Strike", vi_f, vi_c, mods=mods)
+        # Vicious Strike opens the melee combo string; Decisive Strike and Desperate
+        # Strike follow from it (together ~9% of real damage, previously dropped).
+        de = ASSUME["decisive_frac"]
+        dp = ASSUME["desperate_frac"]
+        sim.hit("Decisive Strike", vi_f * de, vi_c * de)
+        sim.hit("Desperate Strike", vi_f * dp, vi_c * dp)
         sim.gain_mp(100 * (1.2 if has("VIC", 1) else 1.0))
         if has("VIC", 2):
             sim.reduce_cd("warding_strike", 2.0)

@@ -55,7 +55,10 @@ ASSUME = {
     "spin_stacks": 2,             # Spinning Strike Critical Damage stacks maintained
     "stagger_uptime": 0.50,       # Raging Spell (extra damage vs Stagger/Impact)
     "crit_rate": 0.60,
-    "chain_frac": 0.85,           # chain follow-up vs base; 0.85 est. (Gladiator parse put one at ~2.1x), pending a parse
+    # Measured from a community L45 chanter parse (0.2.256):
+    "piercing_frac": 1.65,        # Dark Crush -> Piercing Strike chain hits ~1.65x the base (22% of real damage)
+    "bursting_frac": 2.23,        # Incandescent Blow -> Bursting Blow variant hits ~2.23x the base
+    "bursting_every": 2,          # Bursting Blow landed ~once per 2 Incandescent Blows (its total ~= Incandescent's)
 }
 
 
@@ -139,12 +142,22 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
                             on_cast=ons_cast, is_filler=True)
 
     # Incandescent Blow: a hard-hitting swing (coef far above any basic), so it is
-    # used on an assumed cadence rather than spammed as a filler.
+    # used on an assumed cadence rather than spammed as a filler.  With its spec it
+    # periodically lands as Bursting Blow — a ~2.2x variant that, in a real parse,
+    # totals about as much as Incandescent Blow itself (and was previously dropped).
     ic_f, ic_c = dmg("INCAND")
+
+    def incand_cast(sim, a):
+        sim.hit("Incandescent Blow", ic_f, ic_c)
+        if has("INCAND", 4):
+            st = sim.kit_state.setdefault("chanter_incand", {"n": 0})
+            st["n"] += 1
+            if st["n"] % ASSUME["bursting_every"] == 0:
+                k = ASSUME["bursting_frac"]
+                sim.hit("Bursting Blow", ic_f * k, ic_c * k, delay=TIMING["chain_followup"])
     A["incandescent_blow"] = Action("incandescent_blow", "Incandescent Blow", SID["INCAND"],
                                     TIMING["incandescent_blow"], cooldown=ASSUME["incand_cadence"],
-                                    affected_by_cdr=False,
-                                    on_cast=lambda sim, a: sim.hit("Incandescent Blow", ic_f, ic_c))
+                                    affected_by_cdr=False, on_cast=incand_cast)
 
     rs_f, rs_c = dmg("RSMASH")
 
@@ -166,11 +179,20 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
                                   cooldown=cd.cd(SID["ICRUSH"], lv("ICRUSH")), mp=cd.mp(SID["ICRUSH"], lv("ICRUSH")),
                                   on_cast=icrush_cast)
 
-    # Dark Crush (usable in the window; low cooldown)
+    # Dark Crush (usable in the window; low cooldown).  Its spec adds the Piercing
+    # Strike chain, the chanter's single biggest hit in a real parse (~1.65x Dark
+    # Crush, ~22% of damage) — previously dropped because the hand-written cast
+    # bypassed the generic chain reader.
     dc_f, dc_c = dmg("DCRUSH")
+
+    def dark_crush_cast(sim, a):
+        sim.hit("Dark Crush", dc_f, dc_c)
+        if has("DCRUSH", 4):
+            k = ASSUME["piercing_frac"]
+            sim.hit("Piercing Strike", dc_f * k, dc_c * k, delay=TIMING["chain_followup"])
     A["dark_crush"] = Action("dark_crush", "Dark Crush", SID["DCRUSH"], TIMING["dark_crush"],
                              cooldown=cd.cd(SID["DCRUSH"], lv("DCRUSH")), requires=("dark_crush",),
-                             on_cast=lambda sim, a: sim.hit("Dark Crush", dc_f, dc_c))
+                             on_cast=dark_crush_cast)
 
     hw_f, hw_c = dmg("HEATWAVE")
     A["heat_wave_blow"] = Action("heat_wave_blow", "Heat Wave Blow", SID["HEATWAVE"], TIMING["heat_wave_blow"],
