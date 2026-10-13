@@ -31,6 +31,13 @@ class Record:
 #: qualifies. Measured as elapsed time since first contact (not a hit span), so an early
 #: mechanic pause is still covered once the threshold passes.
 MAJOR_ENGAGE_MS = 12_000
+#: A boss seen back at full HP only counts as a leash/reset (a fresh attempt) after our
+#: damage to it has paused at least this long. Boss HP packets are sparse and can read
+#: stale/over-max mid-fight, so without a real lull one spurious "full" reading would split
+#: a single continuous fight into many phantom attempts. A genuine wipe/leash stops our
+#: damage (party dead, or ran out of range) well beyond this; a battle-rez, where others
+#: keep hitting, never pauses it. Tunable.
+RESET_LULL_MS = 26_000
 
 
 class NoIdentifiedPlayerData(ValueError):
@@ -60,6 +67,7 @@ class CombatSession:
         result._engage_span = dict(self._engage_span)
         result.reset_splits = self.reset_splits
         result._pending_reset = self._pending_reset
+        result._boss_hit_ms = dict(self._boss_hit_ms)
         result._zone_reset_seen = False  # A continuation part never captured the run's entry.
         return result
 
@@ -114,6 +122,10 @@ class CombatSession:
         self._engaged_major = set()
         self._major_below = set()
         self._engage_span = {}        # (epoch, enemy not yet major) -> first-contact ms
+        # (epoch, enemy) -> timestamp of the last party damage to it. A boss seen back at
+        # full HP only counts as a leash/reset after a real lull (>= RESET_LULL_MS) in that
+        # damage, so a stale/erratic "full" reading during continuous combat never splits it.
+        self._boss_hit_ms = {}
         self.reset_splits = 0
         # Staged ("potential") reset: the local player revived after dying during a boss
         # engagement (a graveyard release / runback). Never resets on its own — a
@@ -345,6 +357,10 @@ class CombatSession:
                 # does not flag mini-bosses. Quick trash dies well inside that span.
                 target_code = identity["spawns"].get(event.target_id, {}).get("mobCode")
                 ekey = (self.epoch, event.target_id)
+                if event.actor_id in allowed and target_code:
+                    self._boss_hit_ms[ekey] = event.timestamp_ms      # last party damage to this enemy
+                    if len(self._boss_hit_ms) > 2048:                 # bound; keep this enemy's mark
+                        self._boss_hit_ms = {ekey: event.timestamp_ms}
                 if event.actor_id in allowed and target_code and ekey not in self._engaged_major:
                     if npc_info(target_code).get("isBoss"):
                         self._engaged_major.add(ekey)
@@ -394,6 +410,7 @@ class CombatSession:
             key = (self.epoch, sample["entity"])
             if sample["kind"] == "death":
                 self._engage_span.pop(key, None)   # a dead enemy's engagement span is moot
+                self._boss_hit_ms.pop(key, None)   # and its last-damage mark
             if sample["kind"] == "death" and key in self._engaged_major:
                 # The engaged major enemy died (a kill, not a reset): forget it, and drop
                 # any staged reset so a later full-HP respawn of a new encounter is not
@@ -410,16 +427,32 @@ class CombatSession:
                 # are missed out of range, or the party runs back to a no-lockout boss that
                 # healed up. A staged potential reset (local respawn) also confirms here,
                 # never on the respawn alone.
+                #
+                # But only a boss that climbs back to full *after a real lull in our damage*
+                # is a leash/reset. Boss HP packets are sparse and erratic — stale or over-max
+                # readings make the boss briefly read "full" while the party is still hitting
+                # it — so without this gate a single such reading splits one continuous fight
+                # into dozens of phantom "attempts". A genuine wipe/leash stops our damage
+                # (everyone dead, or out of range) for well over RESET_LULL_MS before the boss
+                # is seen at full, which this honours; a battle-rez, where others keep hitting,
+                # never pauses our damage and so correctly never resets. The reading is still
+                # recorded in telemetry below, for a whole-history log.
                 maximum = sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("reportedMaxHp")
                 if maximum and sample["current"] < maximum:
                     self._major_below.add(key)
                 elif maximum and sample["current"] >= maximum:
-                    if key in self._engaged_major and (key in self._major_below or self._pending_reset):
-                        self.manual_split += 1
-                        self.reset_splits += 1
-                        self._engaged_major.discard(key)
-                        self._pending_reset = False
-                    self._major_below.discard(key)
+                    lull = sample["timestamp_ms"] - self._boss_hit_ms.get(key, sample["timestamp_ms"])
+                    if lull >= RESET_LULL_MS:
+                        # A real return-to-full after our damage paused: honour it.
+                        if key in self._engaged_major and (key in self._major_below or self._pending_reset):
+                            self.manual_split += 1
+                            self.reset_splits += 1
+                            self._engaged_major.discard(key)
+                            self._pending_reset = False
+                        self._major_below.discard(key)
+                    # A "full" reading with no damage lull is spurious (a stale/over-max packet
+                    # during continuous combat): ignore it entirely — no reset, and keep the
+                    # below-full evidence, since the boss is not really at full.
             if sample["kind"] == "hp" and sample["current"] > 0:
                 # A local-player revive after death, mid boss engagement, stages a
                 # potential reset (graveyard release / runback). It commits only when an

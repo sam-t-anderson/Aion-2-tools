@@ -136,8 +136,8 @@ def test_boss_returning_to_full_hp_starts_a_fresh_attempt(monkeypatch):
     s.reset_after_battle = True
     s.reset_delay_seconds = 5
     now = int(time.time() * 1000)
-    engine.telemetry = [_hp(9001, 500, 1000, now - 20000)]   # engage, boss to 50%
-    s.observe(engine, [_hit(5001, 9001, now - 20000, 500)], timestamp_ms=now - 20000)
+    engine.telemetry = [_hp(9001, 500, 1000, now - 40000)]   # engage, boss to 50%
+    s.observe(engine, [_hit(5001, 9001, now - 40000, 500)], timestamp_ms=now - 40000)
     assert (s.epoch, 9001) in s._major_below
     assert s.snapshot(scope="auto", segment_id=None)["boss_alive"] is True
     split_before = s.manual_split
@@ -235,8 +235,8 @@ def test_local_respawn_stages_a_reset_that_boss_full_hp_confirms(monkeypatch):
     s.reset_after_battle = True
     s.reset_delay_seconds = 5
     now = int(time.time() * 1000)
-    engine.telemetry = [_hp(9001, 500, 1000, now - 30000)]
-    s.observe(engine, [_hit(5001, 9001, now - 30000, 500)], timestamp_ms=now - 30000)
+    engine.telemetry = [_hp(9001, 500, 1000, now - 32000)]
+    s.observe(engine, [_hit(5001, 9001, now - 32000, 500)], timestamp_ms=now - 32000)
     split0 = s.manual_split
     assert (s.epoch, 9001) in s._major_below
 
@@ -285,6 +285,38 @@ def test_battle_rez_mid_fight_never_resets(monkeypatch):
     assert s.manual_split == split0                    # no reset
     assert s.reset_splits == 0
     assert s.snapshot(scope="auto", segment_id=None)["boss_alive"] is True   # overlay still holds
+
+
+def test_a_full_hp_reading_during_continuous_combat_does_not_reset(monkeypatch):
+    # The over-segmentation bug: a boss's HP stream is sparse and erratic (stale or over-max
+    # readings make it briefly read "full"), yet the party is hitting it the whole time.
+    # With no lull in our damage, a "full" reading must NOT start a fresh attempt — otherwise
+    # one continuous fight is chopped into dozens of phantom "attempts". (Observed live: an
+    # Argo fight with 747 hits and a max 3.8s damage gap was split into 5 segments.)
+    import aion2calc.meter.session as session
+    monkeypatch.setattr(session, "npc_info", lambda code: {"isBoss": code == 777})
+    s, engine = _session()
+    engine.spawn_info = {9001: {"mobCode": 777}}
+    now = int(time.time() * 1000)
+    engine.telemetry = [_hp(9001, 500, 1000, now - 8000)]            # engage, boss below full
+    s.observe(engine, [_hit(5001, 9001, now - 8000, 500)], timestamp_ms=now - 8000)
+    assert (s.epoch, 9001) in s._major_below
+    split0 = s.manual_split
+
+    # A stale/over-max "full" reading arrives while we are STILL hitting the boss (no lull):
+    # it must be ignored for reset purposes, and must not clear the below-full evidence.
+    engine.telemetry = [_hp(9001, 1000, 1000, now - 2000)]
+    s.observe(engine, [_hit(5001, 9001, now - 2000, 500)], timestamp_ms=now - 2000)
+    assert s.manual_split == split0                                  # no phantom split
+    assert s.reset_splits == 0
+    assert (s.epoch, 9001) in s._major_below                        # evidence preserved
+
+    # The real boundary still works: once our damage has paused beyond RESET_LULL_MS, a boss
+    # seen back at full is a genuine leash/reset.
+    later = now - 2000 + session.RESET_LULL_MS + 1000
+    engine.telemetry = [_hp(9001, 1000, 1000, later)]
+    s.observe(engine, [], timestamp_ms=later)
+    assert s.reset_splits == 1
 
 
 def test_save_records_flag_follows_the_setting(tmp_path, monkeypatch):
