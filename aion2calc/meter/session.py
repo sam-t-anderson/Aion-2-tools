@@ -308,24 +308,29 @@ class CombatSession:
             record = Record(self.epoch, event, party, engine.local_player_id, sequence=self.sequence+1)
             allowed = self._allowed(record, "party")
             self._track_boss_attempt(engine, record, allowed)
-            self.storage_players.update(actor for actor in allowed if actor not in identity["owners"])
+            # Bound the rollover on distinct *players*, not entity ids. Keying on the actor
+            # (0.2.243) stopped epoch churn from inflating this; keying on identity now stops ID
+            # churn. Collapse a summon/pet to its owner and a player to its NAME, so a class that
+            # spams fresh-id summons, or a party member who re-registers under a new id (after a
+            # death or a phase teleport in an instance), can't look like dozens of distinct players
+            # and trip the 48-player rollover again and again — which flushes a part and resets the
+            # live view each time (the Vakron Sky Island / summon-heavy expedition case).
+            owners, pnames = identity["owners"], identity["names"]
+            def _player_key(actor, _o=owners, _n=pnames):
+                seen = set()
+                while actor in _o and actor not in seen:   # a summon/pet counts as its owner
+                    seen.add(actor)
+                    actor = _o[actor]
+                name = _n.get(actor)                        # a re-registered player counts as its name
+                return name.casefold() if isinstance(name, str) and name else actor
+            self.storage_players.update(_player_key(a) for a in allowed if a not in owners)
             for scope in ("self", "party", "all", "auto"):
                 selected = self._allowed(record, scope)
-                actors = set(selected) if self._effective_scope(scope, self.epoch) == "party" else set()
-                for actor in (event.actor_id, event.target_id):
-                    if actor not in selected:
-                        continue
-                    seen = set()
-                    while actor in identity["owners"] and actor not in seen:
-                        seen.add(actor)
-                        actor = identity["owners"][actor]
-                    if actor in selected and actor not in identity["owners"]:
-                        actors.add(actor)
-                # Key the rollover memory-bound on the actor alone, not (epoch, actor): a run of
-                # zone-reset signals (phase changes in an instance) churns the epoch, and keying on
-                # it made the same handful of party actors look like dozens of distinct players,
-                # tripping the 48-player rollover again and again and resetting the live view.
-                self._storage_players.setdefault(scope, set()).update(actors)
+                if self._effective_scope(scope, self.epoch) == "party":
+                    keys = {_player_key(a) for a in selected}
+                else:
+                    keys = {_player_key(a) for a in (event.actor_id, event.target_id) if a in selected}
+                self._storage_players.setdefault(scope, set()).update(keys)
             if isinstance(event, DamageEvent):
                 # Classify the enemies our party actually engaged, so a later return to
                 # full HP (leash/reset) is told apart from an unrelated nearby enemy. An

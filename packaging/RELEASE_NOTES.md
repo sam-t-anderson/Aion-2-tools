@@ -1,3 +1,9 @@
+## Fix the live meter resetting mid-fight on summon-heavy expeditions (0.2.249)
+
+- **Vakron Sky Island (and similar) reset the overlay's DPS over and over during the fight.** The storage rollover — a memory flush that also resets the live view — is tripped when too many distinct *players* are retained (a 48-player bound, meant to catch huge open-world crowds). That bound was counting raw **entity ids**, so two things inflated it on a long instance: a class spawning a **fresh-id summon/pet on every cast**, and party members **re-registering under a new id** after a death or a phase teleport. The same five-person party looked like dozens of players, tripped the bound, flushed a part, and reset the meter — 336 times in the reported run.
+- The bound now counts distinct **player identities**: a summon/pet counts as its owner, and a player counts as its name (so a new id for the same character is the same player). Five players stay five, no matter how many summon ids or re-registrations churn through.
+- This is the id-churn sibling of the 0.2.243 fix (which stopped *epoch* churn from inflating the same bound after phase teleports). Regression test added for summon spam + re-registration.
+
 ## Anonymous diagnostics beacons: fill catalog gaps and catch meter regressions (0.2.248)
 
 - Two tiny, anonymous, **opt-out (on by default)** beacons after a fight, alongside the existing enemy-HP/heartbeat ones. They carry **no** account, character, server, IP or combat-log data — only a per-install rotating token (from the local, never-sent install salt), the client/game version, a coarse region, and small integers:
