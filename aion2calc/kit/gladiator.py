@@ -74,6 +74,10 @@ ASSUME = {
     "stagger_uptime": 0.50,       # share of time the boss carries Stagger/Impact (Destructive Impulse)
     "murderous_stacks": 5,        # attacks to trigger Murderous Burst
     "extra_damage_frac": 0.30,    # "Extra damage on hit" specs that give no number
+    "basic_mp_restore": 90,       # the basic-attack weapon string restores MP (standard melee sustain).
+                                  # Without it the MP-costly Rending Blow starves on median gear and is
+                                  # cast far below its ~14.5% parse share; the basic string is what a real
+                                  # parse sustains Rending with (Keen Strike is barely used).
 }
 
 
@@ -263,6 +267,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "basic_combo") -> Kit:
 
     def smash_cast(sim, a):
         sim.hit("Smashing Blow", sb_f, sb_c)
+        sim.gain_mp(ASSUME["basic_mp_restore"])   # the weapon string sustains the MP pool
     A["basic_combo"] = Action("basic_combo", "Smashing Blow", 11420000, TIMING["basic_combo"],
                               on_cast=smash_cast, is_filler=True)
 
@@ -346,16 +351,20 @@ def _build_stigmas(A, build, cd, stig, st, notes):
 
 
 def _policy(actions: dict, filler: str) -> list:
-    # Buffs, then the Ruinous Blow nuke, then the Overhead Slam + Upward Strike core and
-    # the Rending Blow weave (the two highest-frequency damage skills in a real parse),
-    # then the damage stigmas, then the crowd-control skills (minor direct damage), with
-    # the basic combo as the filler. Matches the measured damage shares far better than
-    # the old order, which spammed CC skills and Keen Strike for damage.
-    order = ["zikel", "lunge", "ruinous_blow", "overhead_slam", "rending_blow",
-             "rage", "lifesteal", "assault", "forcedrest", "wrathwave", "fracrush", "bladetoss",
-             "aerial_snare", "leaping_slam", "mocking_blade", "rush_strike", "ankle_slice",
-             "crushing_wave"]
-    pol = [k for k in order if k in actions]
-    if filler not in pol:
-        pol.append(filler)
+    # Buffs, then the Ruinous Blow nuke, the Overhead Slam + Upward Strike core and the
+    # Rending Blow weave (the two highest-frequency damage skills in a real parse), then the
+    # damage stigmas and the Wrathful/Rupture weave. The basic combo comes next: it is the
+    # Gladiator's MP engine (the weapon string restores MP), so it must out-prioritise the
+    # low-damage crowd-control / gap-closers — otherwise, when Rending Blow has drained MP,
+    # the engine would cast a non-restoring CC skill instead of the basic string and the
+    # rotation would starve. A real dummy parse skips the CC skills entirely, so leaving them
+    # below the always-available filler matches it (they stay for completeness / other kits'
+    # callers, but a DPS rotation on a dummy never needs them).
+    damage = ["zikel", "lunge", "ruinous_blow", "overhead_slam", "rending_blow",
+              "rage", "lifesteal", "assault", "forcedrest", "wrathwave", "fracrush", "bladetoss"]
+    cc = ["aerial_snare", "leaping_slam", "mocking_blade", "rush_strike", "ankle_slice", "crushing_wave"]
+    pol = [k for k in damage if k in actions]
+    if filler in actions:
+        pol.append(filler)                       # the MP-restoring basic string, above the CC skills
+    pol += [k for k in cc if k in actions and k != filler]
     return pol

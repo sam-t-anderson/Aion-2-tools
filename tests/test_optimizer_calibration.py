@@ -106,6 +106,23 @@ def test_gladiator_upward_chain_uses_the_measured_fraction():
     assert ASSUME["ruinous_hits"] >= 2          # Ruinous Blow is a multi-strike (lifts Cooldown Reduction)
 
 
+def test_gladiator_basic_string_sustains_mp_and_skips_crowd_control_on_a_dummy():
+    # The weapon basic string restores MP (0.2.257), so the MP-costly Rending Blow weaves at a
+    # real share instead of starving at 0 MP; and because the basic filler is always available
+    # and out-prioritises the low-DPS gap-closers, a dummy rotation skips the crowd-control
+    # skills entirely, as a real parse does.
+    from aion2calc.kit.gladiator import ASSUME
+    assert ASSUME["basic_mp_restore"] > 0
+    b = _gladiator_build()
+    res = simulate(b, Scenario(loadout="gladiator_l45_global_median",
+                               target=Target(hp_model="dummy"), config=SimConfig(duration=120.0)))
+    dmg, total = res.damage_by, res.total
+    assert dmg.get("Rending Blow", 0) / total > 0.06    # was ~3.9% when MP-starved
+    cc = sum(dmg.get(k, 0) for k in ("Ankle Slice", "Rush Strike", "Mocking Blade",
+                                     "Leaping Slam", "Crushing Wave", "Aerial Snare"))
+    assert cc / total < 0.03                             # the dummy DPS rotation never needs these
+
+
 def _dummy(cls, duration=120.0):
     from aion2calc.scenarios import typical_build
     b = typical_build(cls)
