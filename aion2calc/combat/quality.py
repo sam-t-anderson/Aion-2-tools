@@ -9,6 +9,12 @@ import re
 DECODER = "a2tools-python-v1"
 COUNTERS = ("discarded_effects", "discarded_segments", "discarded_telemetry",
             "validation_discarded", "tcp_discarded_payloads", "tcp_unresolved_flows", "capture_errors", "decoder_errors", "shutdown_discarded_payloads", "pcap_dropped", "pcap_if_dropped")
+# Frames the decoder skipped but recovered from (malformed / over-limit compressed frames, a
+# single unsupported packet) are routine — a perfect frame stream is not achievable — so a
+# handful never voids ranking. Only a *material* amount (more than RECOVERED_SKIP_FLOOR frames,
+# or RECOVERED_SKIP_FRACTION of the packets received, whichever is larger) counts as capture loss.
+RECOVERED_SKIP_FLOOR = 200
+RECOVERED_SKIP_FRACTION = 0.02
 LABELS = {
     "classification_conflict": "Recorded map/instance and catalog evidence conflict; review encounter classification.",
     "classification_map_only": "A catalog map match suggests an instance, but its instance/entry evidence was not recorded; metrics remain descriptive.",
@@ -24,6 +30,7 @@ LABELS = {
     "boss_unverified": "No identified boss NPC was recorded.",
     "identity_unverified": "A participating player is missing a name, server or class.",
     "capture_loss": "Capture/driver reported discarded data, interruption or validation loss.",
+    "frame_skips_material": "A large share of frames were skipped while decoding; the capture is materially incomplete.",
     "transport_unverified": "TCP loss monitoring was unavailable for this capture.",
     "tcp_pending": "The TCP stream still contains unresolved out-of-order data.",
     "decoder_unverified": "The decoder or application version is missing or unsupported.",
@@ -67,6 +74,9 @@ def assess(doc, segment):
         reasons.append("transport_unverified")
     if any(capture.get(k, 0) > 0 for k in COUNTERS):
         reasons.append("capture_loss")
+    skip_budget = max(RECOVERED_SKIP_FLOOR, int(RECOVERED_SKIP_FRACTION * (capture.get("pcap_received") or 0)))
+    if capture.get("recovered_frame_skips", 0) > skip_budget:
+        reasons.append("frame_skips_material")
     if capture.get("tcp_pending_bytes", 0) > 0:
         reasons.append("tcp_pending")
     if meta.get("capture_scope") != "party":
@@ -105,7 +115,7 @@ def assess(doc, segment):
                   **{k:capture.get(k) for k in ("pcap_received", "pcap_dropped", "pcap_if_dropped", "pcap_stats_reads")},
                   "note":NOTE}
     return {"policy_version": 1, "driver_monitoring":monitoring,
-            "capture_processing": {k:capture.get(k) for k in ("capture_errors", "decoder_errors", "shutdown_discarded_payloads", "shutdown_drained_payloads")}, "eligible": not reasons,
+            "capture_processing": {k:capture.get(k) for k in ("capture_errors", "decoder_errors", "recovered_frame_skips", "shutdown_discarded_payloads", "shutdown_drained_payloads")}, "eligible": not reasons,
             "status": "eligible" if not reasons else "unranked",
             "reasons": reasons, "messages": [LABELS[k] for k in reasons],
             "note": "Completeness checks use submitted telemetry; they do not verify authenticity or prove that every packet was captured."}

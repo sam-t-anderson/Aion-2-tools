@@ -210,7 +210,8 @@ class Runner:
             return self.status()
         decoder = opts.get("custom_decoder")
         self.packet_engine = None if decoder else PacketMeterEngine()
-        for key in ("capture_errors", "decoder_errors", "shutdown_discarded_payloads", "shutdown_drained_payloads"):
+        for key in ("capture_errors", "decoder_errors", "recovered_frame_skips",
+                    "shutdown_discarded_payloads", "shutdown_drained_payloads"):
             self.session.capture_evidence.setdefault(key, 0)
         self._capture_loss_baseline = {k:self.session.capture_evidence.get(k, 0) for k in CAPTURE_COUNTERS}
         if self.session.capture_evidence.get("tcp_pending_bytes", 0):
@@ -230,7 +231,8 @@ class Runner:
         self.running = True
         self.diagnostics = {"state": "starting", "packets": 0, "bytes": 0, "decoded_events": 0,
                             "auto_port": bool(opts.get("auto_port", decoder is None)), "port": None,
-                            "shutdown_drained_payloads": 0, "shutdown_discarded_payloads": 0, "decoder_errors": 0}
+                            "shutdown_drained_payloads": 0, "shutdown_discarded_payloads": 0,
+                            "decoder_errors": 0, "recovered_frame_skips": 0}
         self.thread = threading.Thread(target=self._run_a2tools,
                                        args=(iface, port, host, decoder, self.diagnostics["auto_port"]),
                                        daemon=True, name="a2tools-meter")
@@ -339,9 +341,13 @@ class Runner:
                 if rejected:
                     warning = f"Skipped {rejected} malformed or over-limit compressed frames; capture continues"
                     self.diagnostics["decoder_warning"] = warning
-                    for key in ("decoder_errors", "capture_errors"):
-                        self.session.capture_evidence[key] = self.session.capture_evidence.get(key, 0) + rejected
-                        self.diagnostics[key] = self.session.capture_evidence[key]
+                    # A skipped-and-recovered frame is not a decoder failure: the capture
+                    # continues. Count it separately so a routine handful does not void
+                    # ranking (a perfect frame stream is not achievable); quality.py still
+                    # treats a *material* amount as loss.
+                    self.session.capture_evidence["recovered_frame_skips"] = \
+                        self.session.capture_evidence.get("recovered_frame_skips", 0) + rejected
+                    self.diagnostics["recovered_frame_skips"] = self.session.capture_evidence["recovered_frame_skips"]
                     history = self.diagnostics.setdefault("processing_errors", [])
                     history.append({"at":timestamp_ms, "type":"CompressedFrameRejected", "message":warning, "recoverable":True, "frames":rejected})
                     del history[:-20]
@@ -352,13 +358,15 @@ class Runner:
                     self.meter.add(event)
             return events
         except (ValueError, IndexError, KeyError, UnicodeError, struct.error) as exc:
-            # A malformed/unsupported packet must not end the entire live recording.
-            # Keep loss evidence so recovered sessions cannot appear complete.
+            # A malformed/unsupported packet must not end the entire live recording, and a
+            # single recovered one must not void a whole session's ranking (a perfect packet
+            # stream is not achievable). It is counted as a recovered skip, not a decoder
+            # failure; quality.py still treats a *material* amount of skips as capture loss.
             warning = f"Packet decode skipped: {type(exc).__name__}: {exc}"
             self.diagnostics["decoder_warning"] = warning[:500]
-            self.diagnostics["decoder_errors"] += 1
-            for key in ("decoder_errors", "capture_errors"):
-                self.session.capture_evidence[key] = self.session.capture_evidence.get(key, 0) + 1
+            self.session.capture_evidence["recovered_frame_skips"] = \
+                self.session.capture_evidence.get("recovered_frame_skips", 0) + 1
+            self.diagnostics["recovered_frame_skips"] = self.session.capture_evidence["recovered_frame_skips"]
             history = self.diagnostics.setdefault("processing_errors", [])
             history.append({"at": timestamp_ms, "type": type(exc).__name__, "message": str(exc)[:500], "recoverable": True})
             del history[:-20]
@@ -636,7 +644,7 @@ class Runner:
                 diagnostic["npc_diagnostics"] = self.session.npc_diagnostics()
             diagnostic["raw_recording_enabled"] = self.recorder is not None
             diagnostic["scope"] = self.scope
-            diagnostic["capture_processing"] = {k:self.session.capture_evidence.get(k) for k in ("capture_errors", "decoder_errors", "shutdown_discarded_payloads", "shutdown_drained_payloads")}
+            diagnostic["capture_processing"] = {k:self.session.capture_evidence.get(k) for k in ("capture_errors", "decoder_errors", "recovered_frame_skips", "shutdown_discarded_payloads", "shutdown_drained_payloads")}
             diagnostic["retained_effects"] = len(self.session.records)
             diagnostic["retained_telemetry"] = len(self.session.telemetry)
             engine, collector = self.packet_engine, self.capture_metadata
@@ -773,7 +781,7 @@ class Runner:
             collector = self.capture_metadata
             installation_locked = self.running or bool(self.session.records) or bool(self.meter.players)
             diagnostic = dict(self.diagnostics)
-            diagnostic["capture_processing"] = {k:self.session.capture_evidence.get(k) for k in ("capture_errors", "decoder_errors", "shutdown_discarded_payloads", "shutdown_drained_payloads")}
+            diagnostic["capture_processing"] = {k:self.session.capture_evidence.get(k) for k in ("capture_errors", "decoder_errors", "recovered_frame_skips", "shutdown_discarded_payloads", "shutdown_drained_payloads")}
             now = time.monotonic()
             if self.source_name in ("a2tools", "live"):
                 if self.error:
