@@ -41,6 +41,16 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     const src = window.A2AssetHealth ? A2AssetHealth.source(url) : url;
     return `<img class="cr-npc-portrait" width="22" height="22" loading="lazy" referrerpolicy="no-referrer" src="${esc(src)}" alt="" onerror="this.remove()"> `;
   };
+  // NPC display name. The backend labels an id the catalog doesn't map as "#<code>";
+  // when a community name overlay (npc-portraits.js) knows that id, show the real name.
+  const npcName = e => {
+    const nm = (e.name!=null && e.name!=="") ? String(e.name) : String(e.id ?? "");
+    if(e.mob_code!=null && /^#\d+$/.test(nm) && window.A2CommunityNames){
+      const c = window.A2CommunityNames[String(e.mob_code)];
+      if(c) return c;
+    }
+    return nm;
+  };
   function mount(root, doc, options={}) {
     if(doc.meta?.reconstruction || doc.meta?.capture_quality?.reconstructed)options={...options,rankings:undefined,lookupProfile:undefined,publish:undefined,saveMetadata:undefined,report:undefined};
     let state={followLatest:!!options.live,mode:["pve","pvp"].includes(options.mode)?options.mode:"",run:"",segment:0,metric:"summary",view:"table",graph:true,timeline:true,graphMode:"total",timelineWindow:30,timelineStart:0,skills:true,deaths:true,heals:true,pets:true,combine:true,actor:"",page:0,enemy:"",hidden:new Set(), ...options.state};
@@ -190,7 +200,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       const enemies=(d.segment.entities || []).filter(e=>e.kind==="enemy");
       return `<h3>Enemy encounters</h3>${table(["Enemy","Creature type","Damage received","Observed lifespan"],enemies.map(e=>{
         const ee=d.events.filter(x=>x.source===e.id || x.target===e.id),damage=ee.filter(x=>x.kind==="damage" && x.target===e.id).reduce((n,x)=>n+x.amount,0);
-        const name=e.is_player?actorHTML(e):npcPortrait(e.mob_code)+esc(e.name || e.id);
+        const name=e.is_player?actorHTML(e):npcPortrait(e.mob_code)+esc(npcName(e));
         return `<tr><td>${name} <button class="btn small" data-enemy-filter="${esc(e.id)}">Filter${e.is_player?" (opponent)":bossEntity(e)?" (boss)":""}</button></td><td>${esc(e.mob_code ?? "Unknown")}</td><td>${number(damage)}</td><td>${ee.length?ee[0].t.toFixed(1)+"–"+ee[ee.length-1].t.toFixed(1)+"s":"—"}</td></tr>`;}))}<button class="btn small" data-clear-enemy>All enemies</button>`;
     }
     function timeline(d, events) {

@@ -79,15 +79,20 @@ def _npc_overrides() -> dict:
     return overrides if isinstance(overrides, dict) else {}
 
 
-# ---------------------------------------------------------- community portraits
+# ----------------------------------------------------- community name + portrait overlay
 #
-# A *fallback* portrait overlay behind the curated bundled table: the NPC id ->
-# image map scraped by the log server's `aion2logs portraits` job (its
-# ``npc-portraits-community.json``). It is community-sourced and name/id-matched,
-# not an official or id-verified mapping, so it is only consulted for NPCs the
-# bundled table has no art for, and never overrides a curated portrait. The file
-# lives on the server (or a client cache); its path is registered by the host or
-# read from the ``A2_COMMUNITY_PORTRAITS`` environment variable. Absent/malformed
+# A *fallback* overlay behind the curated bundled table: the NPC id -> {name, icon}
+# map scraped by the log server's `aion2logs portraits` job (its
+# ``npc-portraits-community.json``). It is community-sourced and id-matched, not an
+# official or id-verified mapping, so it is a fallback only — it never overrides a
+# curated name or portrait. Two uses:
+#   * portrait: art for a catalog NPC the bundled table has no image for; and
+#   * name: for an id the curated catalog does not map at all (new content upstream
+#     hasn't published), so we can show a real name instead of ``#<code>``. A
+#     name-less entry (a flat ``{id: url}`` map) never invents an NPC — an unmapped
+#     id with no scraped name stays unknown.
+# The file lives on the server (or a client cache); its path is registered by the host
+# or read from the ``A2_COMMUNITY_PORTRAITS`` environment variable. Absent/malformed
 # files degrade silently to no overlay, so importing or calling this never fails.
 
 _COMMUNITY_PORTRAITS_PATH: str | None = None
@@ -95,7 +100,7 @@ _community_cache: dict[str, tuple[float, dict]] = {}
 
 
 def set_community_portraits(path: str | os.PathLike | None) -> None:
-    """Point :func:`npc_info` at a community portrait overlay file (the server's
+    """Point :func:`npc_info` at a community name/portrait overlay file (the server's
     scraped ``npc-portraits-community.json``), or ``None`` to clear it. The host
     (the log server) calls this at startup with its data-dir file."""
     global _COMMUNITY_PORTRAITS_PATH
@@ -103,12 +108,13 @@ def set_community_portraits(path: str | os.PathLike | None) -> None:
     _community_cache.clear()
 
 
-def _community_portraits() -> dict:
-    """``{mob_code: icon_url}`` from the configured community overlay file, or
-    ``{}``. Cached and transparently re-read when the file's mtime changes (the
-    offline scraper rewrites it), and never raises — a missing or malformed file
-    simply yields no overlay. Accepts either the scraper envelope
-    (``{"portraits": {id: {"icon": ...}}}``) or a flat ``{id: url}`` map."""
+def _community_overlay() -> dict:
+    """``{mob_code: {"name": str|None, "icon": str|None}}`` from the configured overlay
+    file, or ``{}``. Cached and transparently re-read when the file's mtime changes (the
+    offline scraper rewrites it), and never raises — a missing or malformed file simply
+    yields no overlay. Accepts either the scraper envelope
+    (``{"portraits": {id: {"name": ..., "icon": ...}}}``) or a flat ``{id: url}`` map
+    (icon only, no name)."""
     path = _COMMUNITY_PORTRAITS_PATH or os.environ.get("A2_COMMUNITY_PORTRAITS") or None
     if not path:
         return {}
@@ -125,12 +131,17 @@ def _community_portraits() -> dict:
     except (OSError, ValueError):
         return {}
     rows = doc.get("portraits") if isinstance(doc, dict) and "portraits" in doc else doc
-    out: dict[str, str] = {}
+    out: dict[str, dict] = {}
     if isinstance(rows, dict):
         for code, row in rows.items():
-            icon = row.get("icon") if isinstance(row, dict) else row
-            if isinstance(icon, str) and icon:
-                out[str(code)] = icon
+            if isinstance(row, dict):
+                name, icon = row.get("name"), row.get("icon")
+            else:
+                name, icon = None, row                       # flat {id: url}: icon only
+            name = name if isinstance(name, str) and name.strip() else None
+            icon = icon if isinstance(icon, str) and icon else None
+            if name or icon:
+                out[str(code)] = {"name": name, "icon": icon}
     _community_cache[path] = (mtime, out)
     return out
 
@@ -142,12 +153,19 @@ def npc_info(mob_code: int, locale: str = "en") -> dict:
     override = _npc_overrides().get(str(mob_code))
     if isinstance(override, dict):
         info = {**info, **{k: v for k, v in override.items() if k not in ("source", "note")}}
+    comm = _community_overlay().get(str(mob_code), {})
     if not info:
-        return {}
+        # Unknown to the curated catalog: fall back to the community name overlay for new
+        # content the bundled table hasn't mapped yet (shown as ``#<code>`` otherwise). A
+        # scraped name is required — a name-less overlay entry never invents an NPC.
+        name = comm.get("name")
+        if not name:
+            return {}
+        info = {"name": name, "community": True}
     portrait = _table("npc-portraits", "en").get(str(mob_code), {})
     icon = portrait.get("icon") if isinstance(portrait, dict) else None
     if not icon:                                  # fall back to the community overlay
-        icon = _community_portraits().get(str(mob_code))
+        icon = comm.get("icon")
     return {**info, "icon": icon} if icon else info
 
 

@@ -1,3 +1,10 @@
+## Show real names for NPCs the catalog hasn't mapped yet, from the community overlay (0.2.247)
+
+- New-content NPCs the bundled catalog doesn't map (e.g. the `295xxxx` range from Product 2.0.6.0) showed as a bare `#<code>`, because the game packets carry only the numeric mob code and the upstream id→name table hadn't published those ids. The log server's `aion2logs portraits` job now harvests the current display name by id from the id-keyed community database (server 0.2.83), and this release consumes those names as a **fallback behind the curated table**:
+  - The client library's `npc_info`/`npc_name` now resolve an unmapped id to its scraped community name (marked `community`), so backend-produced labels — meter, overlay, saved logs, the server's leaderboards and boss status — can show a real name instead of `#<code>`. A name-less overlay entry never invents an NPC; only a real scraped name resolves an unknown id, and a curated name/portrait always wins.
+  - The web UI's community overlay (`npc-portraits.js`) now also loads names into `window.A2CommunityNames`, and the combat review swaps a `#<code>` label for the community name when one is known.
+- Community-sourced and id-matched, not official or id-verified; this is a display fallback only and the curated bundled table stays primary. (Rendering the names on the public site and the live meter also needs the server to publish them on `/api/v1/npc-portraits` and to pick up this library version — a paired server release.)
+
 ## Wire two more global hotkey actions: Open Settings and Screenshot lock (0.2.246)
 
 - Two previously-unbindable global-hotkey actions are now wired: **Open the Settings page** (opens the app on its Settings route, not just the window) and **Screenshot lock** (toggles the overlay's screenshot freeze). Both appear in Settings → Global hotkeys like the others; unbound by default.

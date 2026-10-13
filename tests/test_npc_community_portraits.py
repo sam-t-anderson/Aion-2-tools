@@ -58,3 +58,48 @@ def test_missing_or_cleared_overlay_yields_no_icon(tmp_path, monkeypatch):
     assert "icon" not in npc_info(500)
     set_community_portraits(None)
     assert "icon" not in npc_info(500)
+
+
+def test_community_name_fills_an_id_the_catalog_does_not_map(tmp_path, monkeypatch):
+    # New content (e.g. the 295xxxx range) the bundled catalog hasn't mapped: the scraped
+    # name resolves it instead of showing "#<code>". Marked community-sourced.
+    from aion2calc.meter.a2parser.lookup import npc_name
+    _fake_tables(monkeypatch, {}, {})                       # empty catalog: id 2951001 is unknown
+    overlay = tmp_path / "npc-portraits-community.json"
+    overlay.write_text(json.dumps({"portraits": {"2951001": {"name": "Nemon", "icon": None,
+                                                              "source": "gamers4.life"}}}))
+    try:
+        set_community_portraits(overlay)
+        info = npc_info(2951001)
+        assert info == {"name": "Nemon", "community": True}  # name only, no art
+        assert npc_name(2951001) == "Nemon"                  # was "#2951001"
+    finally:
+        set_community_portraits(None)
+
+
+def test_community_name_and_art_for_an_unmapped_id(tmp_path, monkeypatch):
+    _fake_tables(monkeypatch, {}, {})
+    overlay = tmp_path / "npc-portraits-community.json"
+    overlay.write_text(json.dumps({"portraits": {"2951100": {"name": "Guard",
+                       "icon": "https://gamers4.life/icons/reference/npcs/2951100.webp"}}}))
+    try:
+        set_community_portraits(overlay)
+        info = npc_info(2951100)
+        assert info["name"] == "Guard" and info["community"] is True
+        assert info["icon"].endswith("/2951100.webp")
+    finally:
+        set_community_portraits(None)
+
+
+def test_unmapped_id_without_a_scraped_name_stays_unknown(tmp_path, monkeypatch):
+    # An overlay row with art but no name must not invent a nameless NPC onto an id the
+    # catalog doesn't map — only a real scraped name resolves an unknown id.
+    _fake_tables(monkeypatch, {}, {})
+    overlay = tmp_path / "npc-portraits-community.json"
+    overlay.write_text(json.dumps({"portraits": {"2952000": {"name": None,
+                       "icon": "https://gamers4.life/icons/reference/npcs/2952000.webp"}}}))
+    try:
+        set_community_portraits(overlay)
+        assert npc_info(2952000) == {}
+    finally:
+        set_community_portraits(None)
