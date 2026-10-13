@@ -1054,6 +1054,9 @@ class Handler(BaseHTTPRequestHandler):
                 if key in body:
                     if not isinstance(body[key], int) or isinstance(body[key], bool) or not lo <= body[key] <= hi:
                         raise ValueError(f"{key} must be a whole number from {lo} to {hi}")
+            for key in ("event_region", "event_group"):   # Timers-page region, mirrored for the overlay
+                if key in body and not (isinstance(body[key], str) and len(body[key]) <= 32):
+                    raise ValueError(f"{key} must be a short string")
             if "hotkeys" in body:
                 from . import hotkeys as _hotkeys
                 cur["hotkeys"] = _hotkeys.clean_hotkeys(body["hotkeys"])
@@ -1069,6 +1072,7 @@ class Handler(BaseHTTPRequestHandler):
                         raise ValueError(f"{key} must be a list of [left, top, width, height] monitor rectangles")
                     cur[key] = layout
             cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update", "combat_colors",
+                                                               "event_region", "event_group",
                                                                *(k for k, _, _ in _ui_int_ranges), *_ui_bool_flags)})
             write_user_json(cur, "ui.json")
             if any(k.startswith("meter_") for k in body):
@@ -1263,6 +1267,9 @@ def ui_settings() -> dict:
                 "meter_show_dummy_parse": True, "meter_dummy_record_seconds": 60,
                 "overlay_show_combat_power": True, "overlay_show_community_rank": False, "overlay_live_community_rank": False,
                 "overlay_show_events": True, "overlay_events_sound": False, "overlay_events_sound_set": False,
+                # The region/group the Timers page picked, mirrored here so the separate overlay
+                # window (which does not share the Timers page's localStorage) can read it.
+                "event_region": "", "event_group": "",
                 "overlay_max_players": 8, "overlay_width": 340, "overlay_height": 0, "overlay_row_height": 22,
                 "overlay_only_in_combat": False, "overlay_auto_expand": False,
                 # Visual group (all inert by default so the overlay looks unchanged until enabled).

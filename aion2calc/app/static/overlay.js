@@ -17,7 +17,7 @@
   let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name", classColorNames=false, classSwatch=false, rankNumbers=false, highlightMe=false, showCommunityRank=false, showEvents=true;
   // Regional event-notification strip: next rift/Shugo/battlefield/field-boss windows
   // from the bundled schedule, for the region the player picked on the Timers page.
-  let eventCatalog=null, eventTimer=null;
+  let eventCatalog=null, eventTimer=null, eventRegion="", eventGroup="";
   const EVENT_LEAD_MS=15*60000;   // notify when an event is within 15 minutes
   // Optional chime when a new event enters the strip. Off by default; a built-in
   // WebAudio chime unless the user uploaded a custom sound (served at /overlay-event-sound).
@@ -135,6 +135,10 @@
     showEvents=ui.overlay_show_events!==false;   // on by default
     eventsSound=ui.overlay_events_sound===true;  // chime off by default (opt-in audio)
     eventsSoundCustom=ui.overlay_events_sound_set===true;
+    // The region/group the Timers page picked, delivered via the server (this overlay
+    // window does not share the Timers page's localStorage).
+    eventRegion=typeof ui.event_region==="string"?ui.event_region:"";
+    eventGroup=typeof ui.event_group==="string"?ui.event_group:"";
     setupEvents();
     nameMode=["name","class_number","number"].includes(ui.overlay_name_mode)?ui.overlay_name_mode:"name";
     interpolate=ui.overlay_dps_interpolate===true;
@@ -742,7 +746,8 @@
     const box=$("#ovevents");
     if(!box)return;
     if(!showEvents||!eventCatalog||!window.A2EventSchedule){box.hidden=true;eventsPrimed=false;announcedEvents.clear();return;}
-    const {region,group}=A2EventSchedule.savedRegion();
+    const saved=A2EventSchedule.savedRegion();
+    const region=eventRegion||saved.region, group=eventGroup||saved.group;   // server-provided first, localStorage fallback
     if(!region){box.hidden=true;eventsPrimed=false;announcedEvents.clear();return;}   // no region chosen on the Timers page yet
     const now=Date.now();
     const list=A2EventSchedule.upcoming(eventCatalog,region,group,now)

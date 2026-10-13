@@ -14,7 +14,14 @@
     let fieldQuery='';
     try{const pref=JSON.parse(localStorage.getItem('a2-event-region')||'{}');region=pref.region||'';group=pref.group||'';killServer=String(pref.killServer||'');}catch(_){}
     const $=s=>root.querySelector(s);
-    function save(){try{localStorage.setItem('a2-event-region',JSON.stringify({region,group,killServer}));}catch(_){}}
+    function save(){
+      try{localStorage.setItem('a2-event-region',JSON.stringify({region,group,killServer}));}catch(_){}
+      // Mirror the chosen region to the app server so the separate overlay window — which
+      // does not share this page's localStorage — can read it from /api/ui. Best-effort:
+      // the public static site has no such endpoint, so any failure is swallowed.
+      try{fetch('/api/ui',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({event_region:region,event_group:group})}).catch(()=>{});}catch(_){}
+    }
     function render(){
       if(disposed||!root.isConnected)return;
       bossSerial++;bossData=null;killSerial++;killData=null;
