@@ -1,3 +1,11 @@
+## Overlay: auto-contrast the text to your background image (0.2.262)
+
+- When you set a background image for the overlay, the text can now adapt to it so it stays readable — no more hunting through the colour pickers. **Settings → Overlay → Overlay background → Auto-contrast text to image:**
+  - **Dynamic (per-pixel blend):** each glyph is painted as the inverse of whatever is directly behind it (`mix-blend-mode: difference`), computed per-pixel and updated live — white over dark areas, dark over light.
+  - **By brightness (computed):** samples the image's **WCAG relative luminance** (`0.2126·R + 0.7152·G + 0.0722·B` on linearized sRGB, with the Darken slider folded in) and sets one solid light-or-dark text colour for guaranteed contrast on any image, including flat mid-tones.
+- It reads **only the overlay's own background image**, not the live game behind a transparent window (the OS composites the game after the page renders, out of CSS/canvas reach) — so it pairs with a background image, which also hides the game clutter behind the panel. Off by default; your own text colours are restored when you switch it off, and it rides the overlay look presets.
+- This is a CSS/canvas rendering change that can't be exercised headless, so verify the final look on the Windows overlay. Regression-tested (the setting defaults off and validates its three modes; the overlay drives both the blend class and the computed-luminance colour; the settings page offers and saves it).
+
 ## Encounters: one boss fight is no longer split into dozens of phantom "attempts" (0.2.261)
 
 - **The symptom.** A single dungeon/world/abyss boss fight showed up as many separate encounters — one Argo pull appeared as 5 segments; the leaderboard counted a boss (e.g. Vakron) with 86 "attempts", 2 kills and 84 "unknown". Because each fragment started mid-fight and never saw the boss go from full HP to death, **every fragment was partial and unranked** — which is why Completed-run speed, best wipe HP, fastest kill, Class performance and the matched comparisons were all empty.

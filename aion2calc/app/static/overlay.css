@@ -217,3 +217,15 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 @keyframes ov-retro-sheen { to { background-position: -300% 0; } }
 @media (prefers-reduced-motion: reduce) { #ov.ov-retro .ovname, #ov.ov-retro .ovhd, #ov.ov-retro .ovpstat .ovpval { animation: none; } }
 .ovtportrait{vertical-align:middle;border-radius:3px;object-fit:contain;margin-right:3px}
+
+/* Auto-contrast the overlay text to the uploaded background image (Settings → Overlay).
+   "By brightness" (ov-ac-lum) is handled in overlay.js, which overrides the text-colour
+   variables from the image's WCAG relative luminance — no extra CSS needed. "Dynamic"
+   (ov-ac-blend) paints each readout glyph as the inverse of whatever is directly behind
+   it. The card is isolated so the blend reaches only the panel + background image, never
+   the game outside a transparent window. Only meaningful with a background image set. */
+#ov.ov-ac-blend .ovcard { isolation: isolate; }
+#ov.ov-ac-blend :is(.ovsub, .ovname, .ovactor, .ovbar span, .ovrow .sub, .ovskname, .ovskval,
+  .ovrank, .ovcrank, .ovdead, .ovtarget, .ovtarget *, .ovidentity, .ovping, .ovcontribution,
+  .ovdummy, .ovdummy *, .ovevents, .ovevents *, .ovpstat .ovplabel, .ovpstat .ovpval, .ovfps,
+  .muted, .ovbrand) { mix-blend-mode: difference; }

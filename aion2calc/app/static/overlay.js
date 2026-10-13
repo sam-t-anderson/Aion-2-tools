@@ -54,6 +54,42 @@
     el.style.opacity=Math.max(0,Math.min(1,op/100));
     el.hidden=!bgLoaded;
   }
+  // Auto-contrast the overlay text to the uploaded background image. "blend" paints the
+  // readout text white and uses mix-blend-mode:difference, so each glyph shows as the
+  // inverse of whatever is directly behind it (per-pixel, live). "luminance" samples the
+  // image's WCAG relative luminance and picks one solid light/dark colour. Both see only
+  // the overlay's own layers (panel + image) — a transparent window's game scene is
+  // composited by the OS, out of reach — so this pairs with a background image. When off,
+  // syncColors restores the user's own text colours (set just above this call).
+  const AC_VARS=['--ov-rate-text','--ov-total-text','--ov-name-color','--ov-header-color','--ov-target-color','--ov-hp-text-color','--ov-ttk-text-color','--ov-label-color','--ov-also-color','--ov-ping-color','--ov-identity-color'];
+  function setAcColor(cc){const s=document.documentElement.style;AC_VARS.forEach(v=>s.setProperty(v,cc));}
+  let acImg=null;
+  function computeBgContrast(darkPct){
+    const img=acImg||(acImg=new Image());
+    img.onload=()=>{
+      try{
+        const n=24,c=document.createElement('canvas');c.width=c.height=n;
+        const ctx=c.getContext('2d',{willReadFrequently:true});
+        ctx.drawImage(img,0,0,n,n);
+        const data=ctx.getImageData(0,0,n,n).data;
+        const lin=v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);};
+        let sum=0,wt=0;
+        for(let i=0;i<data.length;i+=4){const a=data[i+3]/255;sum+=(0.2126*lin(data[i])+0.7152*lin(data[i+1])+0.0722*lin(data[i+2]))*a;wt+=a;}
+        const d=Math.max(0,Math.min(1,(darkPct||0)/100));
+        const L=(wt?sum/wt:0)*(1-d);              // factor in the image's darken overlay
+        setAcColor(L>0.179?'#0a0e16':'#f4f1ea');  // black over a light image, white over a dark one
+      }catch(e){setAcColor('#f4f1ea');}           // canvas read failed (same-origin, shouldn't) -> light text
+    };
+    img.onerror=()=>setAcColor('#f4f1ea');
+    img.src='/overlay-background?v='+Date.now();
+  }
+  function applyAutoContrast(mode,active,darkPct){
+    const ov=document.getElementById('ov');
+    const blend=active&&mode==='blend';
+    ov.classList.toggle('ov-ac-blend',blend);
+    if(blend)setAcColor('#ffffff');               // white base; difference inverts it to a contrasting colour
+    else if(active&&mode==='luminance')computeBgContrast(darkPct);
+  }
   const syncColors=()=>fetch("/api/ui").then(r=>r.json()).then(ui=>{
     if(ui.combat_colors){try{localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));}catch(e){/* optional storage */}}
     for(const key of ['rate','total']){const color=ui.overlay_text_colors?.[key];document.documentElement.style.setProperty(`--ov-${key}-text`,/^#[0-9a-f]{6}$/i.test(color||'')?color:'#000000');}
@@ -124,6 +160,8 @@
     // Background photo (opacity 0 = none). The image load errors are swallowed.
     const bgOp=clampInt(ui.overlay_bg_opacity,0,100,100), bgZoom=clampInt(ui.overlay_bg_zoom,50,200,100), bgDark=clampInt(ui.overlay_bg_darken,0,100,20);
     applyBackground(ui.overlay_bg_set===true && bgOp>0, bgOp, bgZoom, bgDark);
+    // Auto-contrast the text to that background image (off / blend / luminance).
+    applyAutoContrast(typeof ui.overlay_text_autocontrast==='string'?ui.overlay_text_autocontrast:'off', ui.overlay_bg_set===true && bgOp>0, bgDark);
     showContribution=ui.overlay_show_contribution!==false;
     showTarget=ui.overlay_show_target!==false;
     showDeaths=ui.overlay_show_deaths!==false;

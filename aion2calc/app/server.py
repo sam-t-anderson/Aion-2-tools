@@ -1022,6 +1022,10 @@ class Handler(BaseHTTPRequestHandler):
                 if body["overlay_bar_style"] not in ("flat", "gradient"):
                     raise ValueError("overlay_bar_style must be flat or gradient")
                 cur["overlay_bar_style"] = body["overlay_bar_style"]
+            if "overlay_text_autocontrast" in body:
+                if body["overlay_text_autocontrast"] not in ("off", "blend", "luminance"):
+                    raise ValueError("overlay_text_autocontrast must be off, blend or luminance")
+                cur["overlay_text_autocontrast"] = body["overlay_text_autocontrast"]
             _ui_bool_flags = ("tray_on_close", "overlay_show_contribution", "overlay_show_target",
                               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
                               "meter_reset_after_battle", "meter_show_dummy_parse", "overlay_show_combat_power",
@@ -1285,6 +1289,7 @@ def ui_settings() -> dict:
                 "overlay_bar_style": "flat", "overlay_bar_rounded": False, "overlay_class_color_names": False,
                 "overlay_color_cycle": False, "overlay_row_stripes": False, "overlay_class_swatch": False, "overlay_compact_rows": False, "overlay_rank_numbers": False, "overlay_highlight_me": False, "overlay_dps_graph": False,
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,
+                "overlay_text_autocontrast": "off",
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
                 "meter_save_records": True, "meter_auto_upload": True, "meter_upload_before_prune": True, "meter_report_boss_kills": True,
                 "meter_report_enemy_hp": True, "meter_report_diagnostics": True, "overlay_plan_autoplay": True,
