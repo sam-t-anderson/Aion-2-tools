@@ -15,6 +15,18 @@ COUNTERS = ("discarded_effects", "discarded_segments", "discarded_telemetry",
 # or RECOVERED_SKIP_FRACTION of the packets received, whichever is larger) counts as capture loss.
 RECOVERED_SKIP_FLOOR = 200
 RECOVERED_SKIP_FRACTION = 0.02
+# Kernel/driver packet-buffer drops (``pcap_dropped``/``pcap_if_dropped``) are a *cumulative,
+# whole-session* counter stamped onto every fight in the session, so one early buffer overflow
+# would otherwise unrank every later fight — including ones that lost nothing. Like the recovered
+# frame-skip budget above, a handful of dropped packets is routine; only a *material* share of the
+# session's received packets (more than PCAP_DROP_FLOOR, or PCAP_DROP_FRACTION of those received,
+# whichever is larger) counts as capture loss. Genuine decode/validation losses below still void
+# ranking on any nonzero count.
+PCAP_DROP_FLOOR = 500
+PCAP_DROP_FRACTION = 0.02
+# Counters that are a true per-event processing/validation loss (void ranking on any nonzero count).
+# The kernel-buffer drop counters are handled separately with the fraction budget above.
+HARD_LOSS_COUNTERS = tuple(k for k in COUNTERS if k not in ("pcap_dropped", "pcap_if_dropped"))
 LABELS = {
     "classification_conflict": "Recorded map/instance and catalog evidence conflict; review encounter classification.",
     "classification_map_only": "A catalog map match suggests an instance, but its instance/entry evidence was not recorded; metrics remain descriptive.",
@@ -59,7 +71,16 @@ def assess(doc, segment):
             or bool(segment.get("instance_id")) and segment.get("run_start_observed") is False
             or meta.get("capture_scope") == "all"):
         reasons.append("partial_capture")
-    if capture.get("storage_boundary") is True:
+    # ``storage_boundary`` is a part-edge property: a saved archive part and its continuation are
+    # both flagged, so every long session (which rolls storage over many times) marks every part.
+    # It only threatens a fight that could have been *truncated* by the boundary — one whose own
+    # start or end fell outside this part. A fight that observed its own start and reached its own
+    # verified end (a kill, or a cleanly completed run) is wholly contained in this part and is not
+    # boundary-incomplete, so the part rolling over at its edges must not unrank it. Fights that are
+    # not self-contained are still caught here (and by partial_capture / start_/end_unverified).
+    self_contained = (segment.get("run_start_observed") is True
+                      and bool(segment.get("run_complete") or segment.get("killed")))
+    if capture.get("storage_boundary") is True and not self_contained:
         reasons.append("storage_boundary")
     if segment.get("party_roster_late") is True:
         reasons.append("party_roster_late")
@@ -72,7 +93,9 @@ def assess(doc, segment):
         reasons.append("decoder_unverified")
     if capture.get("transport_monitored") is not True:
         reasons.append("transport_unverified")
-    if any(capture.get(k, 0) > 0 for k in COUNTERS):
+    dropped = (capture.get("pcap_dropped") or 0) + (capture.get("pcap_if_dropped") or 0)
+    drop_budget = max(PCAP_DROP_FLOOR, int(PCAP_DROP_FRACTION * (capture.get("pcap_received") or 0)))
+    if any(capture.get(k, 0) > 0 for k in HARD_LOSS_COUNTERS) or dropped > drop_budget:
         reasons.append("capture_loss")
     skip_budget = max(RECOVERED_SKIP_FLOOR, int(RECOVERED_SKIP_FRACTION * (capture.get("pcap_received") or 0)))
     if capture.get("recovered_frame_skips", 0) > skip_budget:
