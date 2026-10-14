@@ -228,6 +228,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
     rtt = PassiveRTT()  # Accessed only under callback_lock, like detector state.
     stats = {"packets": 0, "payload_packets": 0, "bytes": 0, "forwarded": 0,
              "auto_port": auto_port, "port": None if auto_port else server_port,
+             "flow_detected": False, "capture_filter": None,
              "interface": interface or "Auto", "interfaces": interfaces, "warnings": [],
              "state": "starting", "signature_packets": 0, "candidate_flows": [],
              "transport_monitored": True, "tcp_discarded_payloads": 0, "tcp_unresolved_flows": 0,
@@ -269,6 +270,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                 stats["port"] = detector.selected[2] if detector.selected else None
                 if detector.selected:
                     stats["interface"] = detector.selected[0]
+                    stats["flow_detected"] = True   # the game flow was located (so the kernel filter could be narrowed to it)
             else:
                 chunks = [(key, int(tcp.seq), payload, syn)]
             for stream_key, sequence, chunk, has_syn in chunks:
@@ -316,6 +318,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
         bpf_filter = "tcp" if auto_port else f"tcp port {server_port}"
         if host:
             bpf_filter += f" and host {host}"
+        stats["capture_filter"] = bpf_filter   # recorded in capture_quality to reveal broad vs. narrow capture
         for name in interfaces:
             capture_socket = None
             try:

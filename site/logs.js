@@ -160,6 +160,9 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
       const roster = toMembers(lg.players);  // whole-log roster, fallback only
       const uploader = typeof lg.uploader === "string" ? lg.uploader : null;  // server-provided; else anonymous
       for (const c of (lg.contexts || [])) {
+        // Drop generic non-boss combat ("Combat 3", etc.) in PvE only; PvP skirmishes without a
+        // named boss are kept.
+        if ((comm.f.combat_mode || "pve") !== "pvp" && (!c.boss || /^combat\s*\d*$/i.test(String(c.boss).trim()))) continue;
         // Per-encounter participants when the server provides them, so one encounter's party is
         // never shown on another in a multi-encounter log; fall back to the whole-log roster.
         const members = Array.isArray(c.players) && c.players.length ? toMembers(c.players) : roster;
@@ -208,7 +211,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     root.innerHTML = '<div class="row comm-filters" style="gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap">'
       + field("Mode", `<select id="cf-mode"><option value="pve"${comm.f.combat_mode !== "pvp" ? " selected" : ""}>PvE</option><option value="pvp"${comm.f.combat_mode === "pvp" ? " selected" : ""}>PvP</option></select>`)
       + field("Boss", `<select id="cf-boss" style="min-width:170px">${options(f.boss, comm.f.boss)}</select>`)
-      + field("Difficulty", `<select id="cf-difficulty">${options(f.difficulty, comm.f.difficulty)}</select>`)
+      + field("Difficulty", `<select id="cf-difficulty">${options([...(f.difficulty || [])].sort((a, b) => String(a).localeCompare(String(b))), comm.f.difficulty)}</select>`)
       + field("Encounter", `<select id="cf-encounter_type">${options(encOpts, comm.f.encounter_type, prettyEnc)}</select>`)
       + field("Region", `<select id="cf-region">${options(f.region, comm.f.region)}</select>`)
       + field("Product", `<select id="cf-game_patch">${options(f.game_patch, comm.f.game_patch, patchOf)}</select>`)

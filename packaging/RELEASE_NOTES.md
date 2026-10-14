@@ -1,3 +1,9 @@
+## Capture-filter diagnostics, 150% log pages, and cleaner community filters (0.2.272)
+
+- **Diagnostics now record the active capture filter and whether the game flow was located** (`capture_filter`, `auto_port`, `flow_detected` in a log's capture quality). This is the groundwork for cutting packet loss: an uploaded log now reveals whether the capture ran the broad "all TCP" filter (which floods the buffer) or a narrow game-flow filter — so the fix can target the real cause. No behavior change yet; capture itself is unchanged this release.
+- **The combat-log and combat-review pages now scale to 150%** (down from 200%), still full browser width.
+- **Community combat logs:** the PvE view hides generic non-boss "Combat N" rows (PvP skirmishes are kept), and the Difficulty filter is sorted.
+
 ## Wider combat-log pages, correct uploader attribution, and per-encounter parties (0.2.271)
 
 - **Community combat logs and the combat-review (log details) page now use the full browser width and render at 200% scale**, so the dense per-encounter tables, class/boss icons and the combat breakdown are far easier to read on a large monitor. Other pages are unchanged.

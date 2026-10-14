@@ -58,6 +58,16 @@ def test_community_pagination_is_50_per_page():
     assert "COMM_PER_PAGE = 50" in LOGS_JS
 
 
+def test_community_drops_generic_combat_rows_in_pve_only():
+    # PvE hides generic non-boss "Combat N" encounters; PvP keeps its skirmishes.
+    assert "/^combat" in LOGS_JS
+    assert '!== "pvp"' in LOGS_JS
+
+
+def test_community_difficulty_dropdown_is_sorted():
+    assert "localeCompare" in LOGS_JS
+
+
 def test_community_filters_are_facet_driven_dropdowns():
     # Filter choices come from the server's own facets; each maps to a param /api/v1/logs honours.
     assert "/api/v1/report-facets" in LOGS_JS
@@ -81,7 +91,7 @@ def test_combat_log_pages_use_the_wide_enlarged_layout():
     log_html = (SITE / "log.html").read_text(encoding="utf-8")
     assert 'class="site wide-2x"' in log_html
     css = (SITE / "site.css").read_text(encoding="utf-8")
-    assert ".site.wide-2x" in css and "zoom: 2" in css
+    assert ".site.wide-2x" in css and "zoom: 1.5" in css
 
 
 def test_combat_review_roster_is_scoped_to_the_selected_encounter():

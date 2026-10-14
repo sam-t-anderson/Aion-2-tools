@@ -456,6 +456,13 @@ class Runner:
             if key in PCAP_FLAGS:
                 value = bool(value or self.session.capture_evidence.get(key, False))
             self.session.capture_evidence[key] = value
+        # Record the active capture filter and whether the game flow was located, so an uploaded
+        # log reveals whether it fell back to the broad "tcp" capture (the packet-loss culprit).
+        for key in ("auto_port", "capture_filter"):
+            if stats.get(key) is not None:
+                self.session.capture_evidence[key] = stats[key]
+        if stats.get("flow_detected"):
+            self.session.capture_evidence["flow_detected"] = True
 
     def _run(self, it) -> None:
         try:

@@ -32,6 +32,30 @@ def test_metadata_stamps_the_uploader_from_the_local_player():
     assert '"verified"' in METER_RUNNER     # marks whether the identity came from the game
 
 
+def test_validate_keeps_the_capture_filter_diagnostics():
+    # The active BPF filter and whether the game flow was located survive validation, so an uploaded
+    # log reveals whether the capture fell back to the broad "tcp" filter (the packet-loss culprit).
+    from aion2calc.combat import a2log
+    from aion2calc.meter import Meter, replay_source
+
+    demo = ROOT / "aion2calc" / "meter" / "demo_session.jsonl"
+    meter = Meter()
+    for event in replay_source(demo):
+        meter.add(event)
+    doc = meter.to_a2log(title="Demo")
+    doc["meta"].setdefault("capture_quality", {}).update(
+        {"capture_filter": "tcp", "auto_port": True, "flow_detected": False})
+    cq = a2log.validate(doc)["meta"]["capture_quality"]
+    assert cq["capture_filter"] == "tcp" and cq["auto_port"] is True and cq["flow_detected"] is False
+
+
+def test_capture_records_the_active_filter_and_flow_detection():
+    # The capture thread stamps the real filter and flips flow_detected when it locks the game flow.
+    cap = (ROOT / "aion2calc" / "meter" / "a2parser" / "capture.py").read_text(encoding="utf-8")
+    assert 'stats["capture_filter"] = bpf_filter' in cap
+    assert 'stats["flow_detected"] = True' in cap
+
+
 def test_uploader_prefers_the_in_fight_roster_name_over_the_live_actor_id():
     # Heavy packet loss can leave the live local actor an unnamed combat entity (#number), which the
     # stamp rejects. Resolve the name from the log's own roster by official character id instead, so
