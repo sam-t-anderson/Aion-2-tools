@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Logs — aion2calc</title>
-<meta name="description" content="Public AION 2 combat logs: per-skill breakdowns, DPS and rates, shared from the aion2calc app.">
+<meta name="description" content="Public AION 2 combat logs: community parses, completed-run speed, boss progression, class performance and highest observed build points, shared from the aion2calc app.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" href="static/logo.png">
@@ -15,8 +15,24 @@
 </head>
 <body>
 <header class="topbar"><div class="brand"><a href="index.html"><img src="static/logo.png" alt="">Aion 2 Calc</a><small>AION 2 combat tools</small></div><nav class="nav"><a href="index.html">Home</a><a href="logs.html" class="on" aria-current="page">Logs</a><a href="leaderboard.html">Leaderboard</a><a href="stats.html">Class stats</a><a href="builds.html">Builds</a><a href="plans.html">Plans</a><a href="planner.html">Raid Planner</a><a href="maps.html">Maps</a><a href="crafting.html">Crafting</a><a href="timers.html">Timers</a><a href="news.html">News</a><a href="docs.html">Docs</a><a href="https://github.com/sam-t-anderson/Aion-2-tools" target="_blank" rel="noopener">GitHub</a><a href="https://discord.gg/9y6zkUyvBv" target="_blank" rel="noopener">Discord</a></nav><button class="iconbtn" id="theme" title="Theme: follow computer, light or dark" aria-label="Change theme">◐</button></header>
-<main class="site"><h1 class="pagetitle">Combat logs</h1>
-  <div id="combat-log-tabs"><div class="row" role="tablist" aria-label="Combat log sources"><button class="btn small" role="tab" id="log-tab-community" data-log-tab="community" aria-controls="log-panel-community">Community Combat Logs</button><button class="btn small" role="tab" id="log-tab-owned" data-log-tab="owned" aria-controls="log-panel-owned">My Uploads</button><button class="btn small" role="tab" id="log-tab-saved" data-log-tab="saved" aria-controls="log-panel-saved">Saved Logs</button></div><div id="log-panel-saved" data-log-panel="saved" role="tabpanel" aria-labelledby="log-tab-saved"><div id="archive-upload"></div></div><div id="log-panel-owned" data-log-panel="owned" role="tabpanel" aria-labelledby="log-tab-owned" hidden><div id="owned-logs"></div></div><div id="log-panel-community" data-log-panel="community" role="tabpanel" aria-labelledby="log-tab-community" hidden><div id="community"></div></div></div><div id="archive-review" hidden></div>
+<main class="site">
+  <div id="logs-ui">
+    <h1 class="pagetitle">Combat logs</h1>
+    <p class="small muted">Learned from shared public uploads (anonymous — no names kept). Browse community parses, or see the aggregate leaderboards below.</p>
+    <div class="row" role="tablist" id="logs-tabs" aria-label="Combat log views" style="margin-top:10px">
+      <button class="btn small" role="tab" type="button" data-tab="community" aria-selected="true">Community combat logs</button>
+      <button class="btn small" role="tab" type="button" data-tab="speed" aria-selected="false">Completed-run speed</button>
+      <button class="btn small" role="tab" type="button" data-tab="progression" aria-selected="false">Boss progression</button>
+      <button class="btn small" role="tab" type="button" data-tab="classes" aria-selected="false">Class performance</button>
+      <button class="btn small" role="tab" type="button" data-tab="points" aria-selected="false">Highest observed build points</button>
+    </div>
+    <div data-logs-panel="community" style="margin-top:14px"><div id="combat-log-tabs"><div class="row" role="tablist" aria-label="Combat log sources"><button class="btn small" role="tab" id="log-tab-community" data-log-tab="community" aria-controls="log-panel-community">Community Combat Logs</button><button class="btn small" role="tab" id="log-tab-owned" data-log-tab="owned" aria-controls="log-panel-owned">My Uploads</button><button class="btn small" role="tab" id="log-tab-saved" data-log-tab="saved" aria-controls="log-panel-saved">Saved Logs</button></div><div id="log-panel-saved" data-log-panel="saved" role="tabpanel" aria-labelledby="log-tab-saved"><div id="archive-upload"></div></div><div id="log-panel-owned" data-log-panel="owned" role="tabpanel" aria-labelledby="log-tab-owned" hidden><div id="owned-logs"></div></div><div id="log-panel-community" data-log-panel="community" role="tabpanel" aria-labelledby="log-tab-community" hidden><div id="community"></div></div></div></div>
+    <div data-logs-panel="speed" hidden><div id="speed-body" style="margin-top:14px"><div class="empty">Loading…</div></div></div>
+    <div data-logs-panel="progression" hidden><div id="progression-body" style="margin-top:14px"><div class="empty">Loading…</div></div></div>
+    <div data-logs-panel="classes" hidden><div id="classes-body" style="margin-top:14px"><div class="empty">Loading…</div></div></div>
+    <div data-logs-panel="points" hidden><div id="points-body" style="margin-top:14px"><div class="empty">Loading…</div></div></div>
+  </div>
+  <div id="archive-review" hidden></div>
 </main>
 <script src="config.js"></script>
 <script src="server.js"></script>
