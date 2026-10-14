@@ -91,6 +91,29 @@
   fetchCount();
 })();
 
+// Download button in the top-right header, to the right of the light/dark/system theme
+// toggle, on every site page except the home page (index.html already has prominent
+// "Download the app" buttons). Links to the latest GitHub release, like the home page.
+(function () {
+  try {
+    const path = location.pathname;
+    if (/\/$/.test(path) || /\/index\.html?$/i.test(path)) return;   // home page: skip
+    const bar = document.querySelector(".topbar");
+    const theme = document.getElementById("theme");
+    if (!bar) return;
+    const a = document.createElement("a");
+    a.id = "download";
+    a.className = (theme && theme.className) || "iconbtn";
+    a.href = "https://github.com/sam-t-anderson/Aion-2-tools/releases/latest";
+    a.target = "_blank"; a.rel = "noopener";
+    a.title = "Download the desktop app";
+    a.setAttribute("aria-label", "Download the desktop app");
+    // Inline download glyph (arrow into a tray); inherits the icon button's colour.
+    a.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>';
+    bar.appendChild(a);   // the theme toggle is the bar's last child, so this sits to its right
+  } catch (e) { /* non-critical header enhancement */ }
+})();
+
 // Accessibility: a "skip to content" link as the first focusable element on every
 // site page (they all load this script and all have a <main>). Off-screen until a
 // keyboard user tabs to it (styled in app.css); it targets the main landmark.
