@@ -1,6 +1,8 @@
-## Website: wider, larger combat-log and combat-review pages (0.2.271)
+## Wider combat-log pages, correct uploader attribution, and per-encounter parties (0.2.271)
 
 - **Community combat logs and the combat-review (log details) page now use the full browser width and render at 200% scale**, so the dense per-encounter tables, class/boss icons and the combat breakdown are far easier to read on a large monitor. Other pages are unchanged.
+- **Your uploads attribute to you even when a fight was captured with heavy packet loss.** The uploader is now taken from your character's name as it appears in the log's own roster (matched by your official character id), not from the live combat-entity id — which can be an unnamed `#number` when the identity packets are dropped. Previously that left the log "Anonymous" even though the meter had detected you.
+- **Each community-log encounter shows its own party**, not the whole log's combined roster. A session that chains several fights (e.g. a solo pull then a 5-player dungeon) no longer shows the dungeon group on the solo fight. Pairs with the server's per-encounter participants (0.2.90).
 
 ## Website: filterable community logs, class/boss icons, a hover read-out on the spread graph, and tidier log details (0.2.270)
 

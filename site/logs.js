@@ -156,9 +156,13 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     for (const lg of logs) {
       const iconByName = {};
       for (const b of (lg.bosses || [])) if (b && b.name && b.icon) iconByName[b.name] = b.icon;  // server-provided portraits
-      const members = (lg.players || []).filter((p) => p && (p.name || p.class)).map((p) => ({ name: p.name, class: p.class }));
+      const toMembers = (list) => (list || []).filter((p) => p && (p.name || p.class)).map((p) => ({ name: p.name, class: p.class }));
+      const roster = toMembers(lg.players);  // whole-log roster, fallback only
       const uploader = typeof lg.uploader === "string" ? lg.uploader : null;  // server-provided; else anonymous
       for (const c of (lg.contexts || [])) {
+        // Per-encounter participants when the server provides them, so one encounter's party is
+        // never shown on another in a multi-encounter log; fall back to the whole-log roster.
+        const members = Array.isArray(c.players) && c.players.length ? toMembers(c.players) : roster;
         comm.buf.push({ boss: c.boss, bossIcon: srcOf(iconByName[c.boss]), difficulty: c.difficulty,
           party: c.party_size || members.length || 0, members, duration: c.duration, date: lg.created_at,
           patch: patchOf(c.game_patch), id: lg.id, uploader });

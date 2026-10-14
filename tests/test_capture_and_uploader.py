@@ -32,6 +32,15 @@ def test_metadata_stamps_the_uploader_from_the_local_player():
     assert '"verified"' in METER_RUNNER     # marks whether the identity came from the game
 
 
+def test_uploader_prefers_the_in_fight_roster_name_over_the_live_actor_id():
+    # Heavy packet loss can leave the live local actor an unnamed combat entity (#number), which the
+    # stamp rejects. Resolve the name from the log's own roster by official character id instead, so
+    # the uploader is a real in-fight name (and therefore passes the server's roster check).
+    assert 'f"p:{profile[\'serverId\']}:{profile[\'dbid\']}"' in METER_RUNNER
+    assert 'p.get("id") == want' in METER_RUNNER
+    assert "doc.get(\"players\")" in METER_RUNNER
+
+
 def test_validate_keeps_a_cleaned_uploader_through_the_schema():
     # meta.uploader is an object, not one of the allowlisted string meta keys, so validate() has to
     # preserve it explicitly -- otherwise the server strips it and every public log stays anonymous.

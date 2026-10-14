@@ -1182,15 +1182,27 @@ class Runner:
         if "uploader" not in doc["meta"]:
             try:
                 engine = self.packet_engine
-                if engine is not None and engine.local_player_id is not None:
+                players = doc.get("players") or []
+                name, official = None, False
+                # Prefer the local player's name exactly as it appears in this log's own roster,
+                # matched by official character id (roster ids are "p:<server>:<dbid>"). This is
+                # robust when the live actor id is an unnamed combat entity (heavy packet loss can
+                # drop the name/identity link) and it is guaranteed to pass the server's roster check.
+                if profile.get("serverId") and profile.get("dbid"):
+                    want = f"p:{profile['serverId']}:{profile['dbid']}"
+                    name = next((p.get("name") for p in players if p.get("id") == want), None)
+                    official = bool(name)
+                # Fall back to the engine's name for the recording actor.
+                if not name and engine is not None and engine.local_player_id is not None:
                     name = engine.names.get(engine.local_player_id)
-                    if name and not re.fullmatch(r"(?:Player\s*)?#?\d+", name, re.I):
-                        uploader = {"name": name[:60], "verified": bool(engine.local_identity_from_game)}
-                        if profile.get("serverId"):
-                            uploader["server"] = str(profile["serverId"])
-                        if profile.get("dbid"):
-                            uploader["character_id"] = str(profile["dbid"])
-                        doc["meta"]["uploader"] = uploader
+                if name and not re.fullmatch(r"(?:Player\s*)?#?\d+", name.strip(), re.I):
+                    uploader = {"name": name.strip()[:60],
+                                "verified": bool(official or (engine and engine.local_identity_from_game))}
+                    if profile.get("serverId"):
+                        uploader["server"] = str(profile["serverId"])
+                    if profile.get("dbid"):
+                        uploader["character_id"] = str(profile["dbid"])
+                    doc["meta"]["uploader"] = uploader
             except Exception:
                 pass
         # Slice by actual encounter origin, never by the time of the newest ping.
