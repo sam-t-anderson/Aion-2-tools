@@ -42,7 +42,8 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Covers the refresh plus waiting on the dispatched CI run before auto-merging.
+    timeout-minutes: 30
     env:
       GH_TOKEN: ${{ github.token }}
       OBSERVED_BUILD: ${{ inputs.observed_build || '' }}
@@ -71,18 +72,35 @@ jobs:
           extra=()
           if [ "$REFRESH_EXISTING" = true ]; then extra+=(--refresh-existing); fi
           python tools/refresh_assets.py --observed-build "$OBSERVED_BUILD" "${extra[@]}"
-      - name: Publish a reviewable snapshot when content changes
+      - name: Publish, run CI, and auto-merge when it passes
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add aion2calc/app/static/build-catalog.json aion2calc/app/static/crafting-catalog.json aion2calc/app/static/crafting-success.json aion2calc/app/static/game-assets* aion2calc/meter/a2parser/data/i18n/npc-portraits docs/generated/asset-catalog-audit.json
-          if git diff --cached --quiet; then exit 0; fi
+          if git diff --cached --quiet; then echo 'No asset changes; nothing to publish.'; exit 0; fi
           git commit -m 'Refresh source-ID game assets and catalog audit'
           git push origin automation/asset-refresh
-          existing=$(gh pr list --head automation/asset-refresh --state open --json number --jq '.[0].number')
-          if [ -z "$existing" ]; then
-            gh pr create --base main --head automation/asset-refresh --title 'Refresh game assets from published source IDs' --body 'Automated image/reference collection. Review source hashes, unknown IDs, removals and role changes in docs/generated/asset-catalog-audit.json. Gameplay catalogs are staged in that audit and are not promoted automatically. Source collection context is not a verified game-build mapping. Existing CI must pass before merge.'
+          sha=$(git rev-parse HEAD)
+          pr=$(gh pr list --head automation/asset-refresh --state open --json number --jq '.[0].number')
+          if [ -z "$pr" ]; then
+            pr=$(gh pr create --base main --head automation/asset-refresh \
+              --title 'Refresh game assets from published source IDs' \
+              --body 'Automated image/reference collection from published source IDs (see docs/generated/asset-catalog-audit.json for source hashes, unknown IDs, removals and role changes). Auto-merges once CI passes; a CI failure leaves it open to review. Source collection context is not a verified game-build mapping.' \
+              | sed 's#.*/##')
           fi
-          # GITHUB_TOKEN pushes do not trigger CI recursively. Dispatch the
-          # existing workflow explicitly so the review has its normal gates.
+          # GITHUB_TOKEN pushes do not trigger CI recursively, so dispatch it explicitly.
+          # The workflow_dispatch run executes the real tests + builds (the parallel
+          # pull_request run only skips same-repo PRs), so wait on that run and merge when
+          # it passes. A CI failure fails this job and leaves the PR open — nothing
+          # unvalidated is ever merged.
           gh workflow run ci.yml --ref automation/asset-refresh
+          run=''
+          for _ in $(seq 1 24); do
+            run=$(gh run list --workflow=ci.yml --branch automation/asset-refresh --event workflow_dispatch \
+              --limit 20 --json databaseId,headSha --jq "[.[] | select(.headSha==\"$sha\")][0].databaseId // empty")
+            if [ -n "$run" ]; then break; fi
+            sleep 5
+          done
+          if [ -z "$run" ]; then echo '::error::dispatched CI run for this commit did not appear'; exit 1; fi
+          gh run watch "$run" --exit-status
+          gh pr merge "$pr" --squash --delete-branch
