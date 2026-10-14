@@ -1,3 +1,9 @@
+## Capture: narrow the packet filter to the game flow to stop dropped packets at the source (0.2.275)
+
+- **The real fix for the packet loss behind unranked runs, unidentified enemies and the stuck overlay.** In auto-port mode the live capture used to ask the network driver for *every* TCP packet on your PC (`tcp`), which floods the capture buffer on a busy machine and drops a large share of the game's own packets. Now, as soon as the meter locks onto the game connection, it reopens the capture **narrowed to just that connection** (`tcp and host <game server> and port <game port>`), so the driver discards everything else before it ever reaches the buffer. Far fewer packets are dropped, so fights capture cleanly — which is what lets them rank, keeps enemies identified, and stops the overlay showing a fight that never ends.
+- **It never leaves you blind.** If the narrow filter can't be applied, or the connection goes quiet (a zone change or disconnect), the capture automatically widens back to the broad filter and re-detects the new flow. The buffer-size safety net (0.2.269) still backs it up.
+- The active filter is recorded in each log's capture quality (`capture_filter`), so an uploaded log shows whether it narrowed — the groundwork added in 0.2.272, now driving the fix.
+
 ## Boss progression: portraits, alphabetical order, and boss / difficulty / region / product filters (0.2.274)
 
 - **The Boss progression tab now shows each boss's portrait** beside its name, and is **sorted alphabetically** by boss.

@@ -234,6 +234,22 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
              "transport_monitored": True, "tcp_discarded_payloads": 0, "tcp_unresolved_flows": 0,
              "tcp_pending_bytes": 0, "tcp_stream_resets": 0}
     last_prune = time.monotonic()
+    # Kernel BPF filter management. In auto mode it starts broad ("tcp" — every TCP packet on the
+    # machine, which floods the capture buffer and drops packets); once the game flow is located we
+    # reopen capture narrowed to just that connection so the kernel discards everything else before it
+    # ever reaches the buffer. If the narrowed flow goes silent (zone change, disconnect) we widen back
+    # to re-detect. Fixed-port mode keeps its single filter and never switches.
+    broad_filter = "tcp" if auto_port else f"tcp port {server_port}"
+    if host:
+        broad_filter += f" and host {host}"
+    capture_state = {"filter": broad_filter}
+    driver_base: dict[str, int] = {}
+    NARROW_IDLE_WIDEN = 15.0
+
+    def flow_filter(selected) -> str:
+        # selected = (iface, src, sport, dst, dport). host+port on either endpoint of the connection
+        # matches both directions of just that socket, so the kernel passes only the game flow.
+        return f"tcp and host {selected[1]} and port {int(selected[2])}"
 
     def on_packet(packet) -> None:
         if TCP not in packet:
@@ -303,7 +319,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
 
     def driver_snapshot():
         rows = [{"interface": name, **monitor.snapshot()} for name, _, monitor, _ in resources]
-        return {**{key: sum(row[key] for row in rows) for key in FIELDS},
+        return {**{key: driver_base.get(key, 0) + sum(row[key] for row in rows) for key in FIELDS},
                 "pcap_stats_sampled": any(row["pcap_stats_sampled"] for row in rows),
                 "pcap_stats_partial": len(resources) < len(interfaces) or any(row["pcap_stats_partial"] for row in rows),
                 "pcap_interfaces": rows, "pcap_stats_note": NOTE}
@@ -314,11 +330,9 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
             on_packet(packet)
         return receive
 
-    try:
-        bpf_filter = "tcp" if auto_port else f"tcp port {server_port}"
-        if host:
-            bpf_filter += f" and host {host}"
-        stats["capture_filter"] = bpf_filter   # recorded in capture_quality to reveal broad vs. narrow capture
+    def open_all(bpf_filter: str) -> int:
+        """Open a capture socket + sniffer on every interface for this BPF filter; return how many opened."""
+        opened = 0
         for name in interfaces:
             capture_socket = None
             try:
@@ -331,6 +345,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                 sniffer.start()
                 resources.append((name, capture_socket, monitor, sniffer))
                 sniffers.append((name, sniffer))
+                opened += 1
             except Exception as exc:
                 if capture_socket is not None:
                     try:
@@ -338,6 +353,59 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                     except Exception:
                         pass
                 stats["warnings"].append(f"{name}: {exc}")
+        return opened
+
+    def retire(entries) -> None:
+        """Stop/close a set of capture entries, folding their final driver stats into the running base so
+        lifetime totals stay monotonic across a filter switch. Must not run while holding callback_lock."""
+        for _, _, _, sniffer in entries:
+            if getattr(sniffer, "running", False):
+                try:
+                    sniffer.stop(join=False)
+                except Exception:
+                    pass
+        deadline = time.monotonic() + 2
+        for name, capture_socket, monitor, sniffer in entries:
+            thread = getattr(sniffer, "thread", None)
+            if thread is not None:
+                thread.join(timeout=max(0, deadline - time.monotonic()))
+            if thread is not None and thread.is_alive():
+                stats["warnings"].append(f"{name}: capture thread did not stop while reconfiguring the filter")
+                monitor.partial = True
+                def close_after_exit(thread=thread, capture_socket=capture_socket):
+                    thread.join()
+                    try:
+                        capture_socket.close()
+                    except Exception:
+                        pass
+                threading.Thread(target=close_after_exit, daemon=True, name="capture-cleanup").start()
+            else:
+                monitor.sample(force=True)
+                try:
+                    capture_socket.close()
+                except Exception as exc:
+                    stats["warnings"].append(f"{name}: capture handle cleanup failed: {exc}")
+        for key in FIELDS:
+            driver_base[key] = driver_base.get(key, 0) + sum(monitor.snapshot()[key] for _, _, monitor, _ in entries)
+
+    def switch_filter(new_filter: str) -> None:
+        """Reopen capture under a new BPF filter, never leaving capture dark: if a narrowed filter opens
+        no adapter, fall back to the broad one so the meter keeps seeing traffic."""
+        old = list(resources)
+        resources.clear()
+        sniffers.clear()
+        retire(old)
+        if not open_all(new_filter) and new_filter != broad_filter:
+            stats["warnings"].append("Narrowed capture could not be opened; fell back to the broad filter.")
+            new_filter = broad_filter
+            open_all(broad_filter)
+        with callback_lock:
+            capture_state["filter"] = new_filter
+            stats["capture_filter"] = new_filter   # recorded in capture_quality: broad "tcp" vs. the narrowed flow
+
+    try:
+        stats["capture_filter"] = capture_state["filter"]
+        open_all(capture_state["filter"])
         stats["state"] = "capturing"
         emit("capture_started")
         while not stop_event.wait(0.25):
@@ -351,6 +419,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                 raise RuntimeError("No capture adapter could be opened. " + "; ".join(stats["warnings"]) +
                                    ". Check capture permissions and Npcap, then restart the app.")
             now = time.monotonic()
+            desired_filter = None
             with callback_lock:
                 if now - last_prune >= 30:
                     for stale_key, flow in tuple(flows.items()):
@@ -358,11 +427,28 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                             stats["tcp_unresolved_flows"] += int(bool(flow.waiting))
                             flows.pop(stale_key, None)
                     last_prune = now
+                if auto_port:
+                    selected = detector.selected
+                    # While narrowed, a flow that goes silent leaves us blind to any new flow, so drop it
+                    # and widen to re-detect. (Broad mode keeps the detector's own reset behaviour.)
+                    if (selected is not None and capture_state["filter"] != broad_filter
+                            and detector.selected_last_seen is not None
+                            and now - detector.selected_last_seen >= NARROW_IDLE_WIDEN):
+                        detector.reset()
+                        selected = None
+                        stats["port"] = None
+                    desired_filter = flow_filter(selected) if selected is not None else broad_filter
                 stats["candidate_flows"] = [{"interface": key[0], "src": key[1], "sport": key[2], "dst": key[3], "dport": key[4], "signature_hits": len(value["hits"])} for key, value in detector.candidates.items()]
                 stats["selected_flow"] = detector.selected
                 stats["tcp_pending_bytes"] = sum(len(data) for flow in flows.values() for data in flow.waiting.values())
                 stats.update(driver_snapshot())
                 emit("capture_stats", dict(stats))
+            # Narrow to (or widen from) the detected flow outside the lock: retiring the old sniffers joins
+            # their callback threads, which take callback_lock, so holding it here would deadlock.
+            if desired_filter is not None and desired_filter != capture_state["filter"]:
+                switch_filter(desired_filter)
+                with callback_lock:
+                    emit("capture_stats", dict(stats))
     except Exception as exc:
         emit("error", str(exc))
     finally:

@@ -52,8 +52,22 @@ def test_validate_keeps_the_capture_filter_diagnostics():
 def test_capture_records_the_active_filter_and_flow_detection():
     # The capture thread stamps the real filter and flips flow_detected when it locks the game flow.
     cap = (ROOT / "aion2calc" / "meter" / "a2parser" / "capture.py").read_text(encoding="utf-8")
-    assert 'stats["capture_filter"] = bpf_filter' in cap
+    assert 'stats["capture_filter"] = new_filter' in cap     # the active filter is recorded as it changes
     assert 'stats["flow_detected"] = True' in cap
+
+
+def test_capture_narrows_to_the_detected_flow_then_falls_back_to_broad():
+    # The root packet-loss fix: in auto mode the kernel filter starts broad ("tcp" floods the buffer),
+    # and once the game flow is located the capture is reopened narrowed to just that connection so the
+    # kernel discards everything else. It must never leave capture dark -- a failed narrow, or a flow
+    # that goes silent, widens back to the broad filter so a new flow can be re-detected.
+    cap = (ROOT / "aion2calc" / "meter" / "a2parser" / "capture.py").read_text(encoding="utf-8")
+    assert "def switch_filter" in cap and "def flow_filter" in cap
+    assert '"tcp and host ' in cap                            # narrowed to the one connection's host+port
+    assert 'open_all(broad_filter)' in cap                   # fallback: reopen broad if the narrow fails
+    assert "NARROW_IDLE_WIDEN" in cap                         # a silent narrowed flow widens to re-detect
+    # The reopen must happen off the callback lock, or joining the sniffer threads would deadlock.
+    assert cap.index("switch_filter(desired_filter)") > cap.index("emit(\"capture_stats\", dict(stats))")
 
 
 def test_uploader_prefers_the_in_fight_roster_name_over_the_live_actor_id():
