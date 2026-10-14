@@ -38,6 +38,13 @@ MAJOR_ENGAGE_MS = 12_000
 #: damage (party dead, or ran out of range) well beyond this; a battle-rez, where others
 #: keep hitting, never pauses it. Tunable.
 RESET_LULL_MS = 26_000
+#: In the live view with "combine pets with owner" OFF, a summon/pet that has not dealt or
+#: taken an action for at least this long is treated as de-spawned and its damage rolls into
+#: its owner's row, while the owner's still-active pets keep their own rows. Without this, a
+#: class that cycles many short-lived summons (a Spiritmaster's spirits) leaves a long tail
+#: of tiny dead-pet rows that push off the overlay's row cap, so that damage vanishes from
+#: view. Pets attack frequently, so an idle gap this long reliably means the summon is gone.
+PET_DESPAWN_IDLE_MS = 8_000
 
 
 class NoIdentifiedPlayerData(ValueError):
@@ -754,6 +761,17 @@ class CombatSession:
                        and record.event.actor_id in allowed_for(record)
                        and record.event.target_id not in allowed_for(record)}
             durations += max(1,len(buckets))
+        # Latest activity per actor and overall, so the live view can fold a summon that has
+        # gone quiet (de-spawned) into its owner when pets are shown separately. "Now" is the
+        # newest event in view; a pet idle PET_DESPAWN_IDLE_MS past it reads as gone.
+        now_ms, last_act = 0, {}
+        for group in groups:
+            for record in group["records"]:
+                ts = record.event.timestamp_ms
+                if ts > now_ms:
+                    now_ms = ts
+                if ts > last_act.get(record.event.actor_id, 0):
+                    last_act[record.event.actor_id] = ts
         timeline = {}
         offset = 0
         for group in groups:
@@ -764,7 +782,14 @@ class CombatSession:
                     # IDs may be reused after a zone/socket change: don't merge
                     # unnamed actors from unrelated contexts into one person.
                     original = actor_id
-                    if combine_pets:
+                    # Collapse a pet into its owner when pets are combined, and — even when
+                    # they are shown separately — once a pet has gone quiet long enough to be
+                    # de-spawned, so its damage stays on the owner instead of lingering as a
+                    # dead row that falls off the overlay. The owner's still-active pets (recent
+                    # activity) keep their own rows.
+                    despawned = (original in identity["owners"]
+                                 and now_ms - last_act.get(original, now_ms) >= PET_DESPAWN_IDLE_MS)
+                    if combine_pets or despawned:
                         seen = set()
                         while actor_id in identity["owners"] and actor_id not in seen:
                             seen.add(actor_id)

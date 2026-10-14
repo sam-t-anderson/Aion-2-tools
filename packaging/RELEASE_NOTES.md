@@ -1,3 +1,10 @@
+## Spiritmaster: a de-spawned spirit's damage stays on its owner instead of falling off the list (0.2.265)
+
+- **The symptom.** With **"combine pets with owner" unchecked**, a Spiritmaster's spirits each get their own row — but a Spiritmaster cycles through many short-lived spirits, and once a spirit de-spawned its row went quiet and, in a busy fight, scrolled past the overlay's row cap. Its damage dropped out of view and was **not rolled into the owner**, so the Spiritmaster's visible total kept shedding the contribution of every spirit it had already dismissed.
+- **Root cause.** The live view only ever collapsed a pet into its owner when "combine pets" was **on**. With it off, every summon stayed a standalone row for the rest of the fight — including the dozens a Spiritmaster had already de-spawned — and those dead rows competed for the limited overlay slots with the live ones.
+- **The fix.** With pets shown separately, a summon that has **gone quiet long enough to be de-spawned** (idle ≥ `PET_DESPAWN_IDLE_MS`, 8s) now folds back into its owner, so its damage stays counted on the Spiritmaster and the stale row disappears. The owner's **still-active** spirits keep their own rows — only idle/de-spawned ones fold in — so you still see what's currently out. With "combine pets" **on**, every spirit folds into the owner exactly as before.
+- **Scope.** This is a live-meter / overlay summary change (`CombatSession._summary`, the packet path the overlay and app read). It affects the live view and future captures; already-uploaded shared logs are served from their stored segments and are unchanged. Regression-tested (a de-spawned spirit folds into the owner while an active spirit stays its own row; still-active pets don't over-fold before the threshold; combine-on still folds everything).
+
 ## Encounters: split a dungeon run into one encounter per boss, not one long fight (0.2.264)
 
 - **The symptom.** In a dungeon run, after finishing one boss the meter kept the next boss in the **same** encounter, so a mini-boss and the boss after it showed up as one long continuous fight instead of two encounters.
