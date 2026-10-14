@@ -5,10 +5,17 @@ button used to send only the current in-memory part, so earlier encounters were
 missing from the uploaded log. (Seen in the wild as a public log titled "… Part 2"
 holding a single 17-second fight, while the first ~31k records sat on disk as Part 1.)
 
-``live_archive_sources`` gathers the earlier *closed* parts and hands them, with the
-live current part, to ``reconstruction.combine`` so one Upload holds every encounter;
-a single-part session is left exactly as it was, and a missing earlier part falls back
-to uploading the current part alone."""
+The Upload button sends the **original source parts** — the current in-memory part plus
+each earlier closed part — individually; the server links them under one recording by
+archive id, so one recording holds every encounter. The parts are *not* stitched into a
+reconstructed combined review for upload: the server refuses a combined review
+("Combined recording reviews cannot be uploaded; upload the original source parts"). The
+combined review built by ``reconstruction.combine`` stays a local-only feature (the
+Combat Logs review page), so it is still exercised here.
+
+``live_archive_sources`` gathers the earlier *closed* parts with the live current part; a
+single-part session is left exactly as it was, and a missing earlier part falls back to
+uploading the current part alone."""
 import uuid
 
 import pytest
@@ -70,7 +77,29 @@ def _two_part_session():
     return doc1, doc2
 
 
-def test_upload_stitches_earlier_parts_into_one_combined_recording(isolated_home):
+def test_upload_document_sends_source_parts_not_a_combined_review(isolated_home):
+    """Upload sends the original source parts (server links them by archive id), never a
+    reconstructed combined review — the server refuses those."""
+    from aion2calc.app.meter_runner import Runner
+    doc1, doc2 = _two_part_session()
+    sessions.save(doc1, "session-20261013-000001-aaaaaa.a2log.json")   # Part 1 finalised on disk
+
+    r = Runner.__new__(Runner)                      # skip the heavy __init__; drive upload_document directly
+    r.to_a2log = lambda title=None: doc2            # Part 2 is the live current part held in memory
+    doc, extras = r.upload_document()
+
+    assert doc is doc2                              # the current part is uploaded as its own document
+    assert extras == [doc1]                         # each earlier part is uploaded individually, not stitched
+    for part in (doc, *extras):                     # and none of them is a reconstructed combined review
+        assert part["meta"].get("capture_quality", {}).get("reconstructed") is not True
+        assert "reconstruction" not in part["meta"]
+        assert part["meta"]["archive"]["id"] == ARCHIVE
+
+
+def test_combine_still_builds_one_local_review_from_parts(isolated_home):
+    """The combined recording review remains a local-only feature (the Combat Logs review
+    page): combine() stitches the parts into one reconstructed review holding every
+    encounter. It is marked reconstructed and is never uploaded."""
     doc1, doc2 = _two_part_session()
     sessions.save(doc1, "session-20261013-000001-aaaaaa.a2log.json")   # Part 1 finalised on disk
 
@@ -83,7 +112,7 @@ def test_upload_stitches_earlier_parts_into_one_combined_recording(isolated_home
     combined = combine(sources)
     assert combined["meta"]["capture_quality"]["reconstructed"] is True
     assert len(combined["meta"]["reconstruction"]["sources"]) == 2
-    # One Upload now carries every encounter from both parts, none dropped.
+    # The local review carries every encounter from both parts, none dropped.
     expected = len(doc1["segments"]) + len(doc2["segments"])
     assert expected >= 3
     assert len(combined["segments"]) == expected
@@ -96,7 +125,7 @@ def test_single_part_session_uploads_unchanged(isolated_home):
     s.observe(engine, [], timestamp_ms=101_000)
     s.observe(engine, [_hit(4062, 105_000), _hit(4063, 106_000)], timestamp_ms=106_000)
     doc, _ = _finalise(s, 1, uuid.uuid4().hex, None, closed=False)
-    # Part 1 with nothing earlier → upload the current part as-is (no combine).
+    # Part 1 with nothing earlier → upload the current part as-is (no parts to gather).
     assert sessions.live_archive_sources(doc) is None
 
 

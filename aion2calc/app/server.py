@@ -914,25 +914,26 @@ class Handler(BaseHTTPRequestHandler):
                     from ..combat import share
                     log("Preparing a copy of the session; capture can continue.")
                     doc, extras = r.upload_document(title=body.get("title"))
-                    sources = (doc.get("meta", {}).get("reconstruction") or {}).get("sources")
-                    if sources:
-                        log(f"This session rolled into {len(sources)} parts; combining every encounter into one recording…")
-                    elif extras:
-                        log(f"This session rolled into {len(extras) + 1} parts, too long to merge into one; "
-                            f"uploading all {len(extras) + 1} parts linked under one recording…")
+                    if extras:
+                        log(f"This session rolled into {len(extras) + 1} parts; uploading every part, "
+                            f"linked under one recording by archive id…")
                     else:
                         log("Uploading session snapshot…")
                     result = share.upload(doc, visibility=body.get("visibility"))
+                    failed = 0
                     for extra in extras:
                         # Best-effort: an earlier part failing must not fail the whole upload.
                         try:
                             share.upload(extra, visibility=body.get("visibility"))
                         except Exception:
-                            pass
+                            failed += 1
+                    if failed:
+                        log(f"Uploaded, but {failed} earlier part(s) could not be sent; "
+                            f"they will upload with the next attempt.")
                     # Fill the overlay's community-rank badges from a live single-part upload
-                    # (best-effort, off by default; never fails the upload). A combined or
-                    # multi-part historical upload is not the live fight, so it is skipped.
-                    if not sources and not extras:
+                    # (best-effort, off by default; never fails the upload). A multi-part
+                    # historical upload is not the live fight, so it is skipped.
+                    if not extras:
                         r.apply_community_rank(doc, result)
                     return result
                 return self._json({"job": start_job("meter-upload", upload_snapshot)})

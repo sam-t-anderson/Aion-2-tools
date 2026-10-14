@@ -352,9 +352,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
           const next=await options.reconstructArchive(archiveFirst,archiveLast);
           if(disposed || request!==archiveRequest)return;
           if(!next?.meta?.reconstruction || !next.recording_summary || !Array.isArray(next.segments))throw Error('The server did not return a combined recording review. Update the server if this feature is unavailable.');
-          sourceView={doc,options,state};doc=next;rankRequest++;profileRequest++;ranks=null;previews.clear();comparisons=[];
-          options={...options,rankings:undefined,lookupProfile:undefined,publish:undefined,saveMetadata:undefined,report:undefined};
-          state={...state,segment:0,run:'',actor:'',enemy:'',character:'',page:0,hidden:new Set()};
+          applyCombined(next,archiveFirst,archiveLast);
         }catch(e){if(!disposed && request===archiveRequest)archiveError=e.message;}
         finally{if(!disposed && request===archiveRequest){archiveBusy=false;if(root.isConnected)render();}}
       };
@@ -544,9 +542,38 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       box.querySelector("[data-rewind]").onclick=()=>{pause();draw(0);};scrub.oninput=()=>{pause();draw(+scrub.value);};
       box.querySelector("[data-plan]").onclick=()=>{const plan={format:"a2plan",version:1,meta:{name:d.segment.boss || d.segment.label || "Recorded replay"},duration:d.segment.duration,arena:{kind:"square"},tokens:Object.entries(tokens).map(([id,keyframes])=>({id,kind:d.r[id]?.kind==="enemy"?"enemy":"player",label:label(d.r[id]),cls:d.r[id]?.class,color:color(d.r[id]?.class),keyframes})),buffs:[]};if(options.importPlan){try{options.importPlan(plan);}catch(e){box.querySelector("[data-plan-status]").textContent=e.message;}return;}const blob=new Blob([JSON.stringify(plan)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="recorded-replay.a2plan.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};box.querySelector("[data-plan]").textContent=options.importPlan?"Open in Raid Planner":"Export Raid Planner file";draw(0);
     }
+    // Swap the single-part view for a combined recording review (keeping the source part so
+    // "Back to source part" and each part's own ranked data stay one click away).
+    function applyCombined(next,first,last){
+      sourceView={doc,options,state};doc=next;archiveFirst=first;archiveLast=last;
+      rankRequest++;profileRequest++;ranks=null;previews.clear();comparisons=[];
+      options={...options,rankings:undefined,lookupProfile:undefined,publish:undefined,saveMetadata:undefined,report:undefined};
+      state={...state,segment:0,run:'',actor:'',enemy:'',character:'',page:0,hidden:new Set()};
+    }
+    // Viewing one part of a multi-part recording, open the complete stitched recording as the
+    // main view (the server links the parts by archive id and reconstructs them). Best-effort:
+    // if the parts can't be combined — an older server, a gap, too many parts, or a private
+    // sibling out of view — the single part stays on screen exactly as before.
+    async function autoCombine(){
+      const a=doc.meta?.archive;
+      if(disposed||sourceView||options.live||doc.meta?.reconstruction||!a||!options.reconstructArchive||!options.archiveParts)return;
+      if(!(a.part>1||a.closed))return;                       // a lone, still-open current part has no earlier siblings
+      const request=++archiveRequest;
+      try{
+        const parts=await options.archiveParts(0,100,a.id);
+        if(disposed||request!==archiveRequest||!parts||!Array.isArray(parts.rows))return;
+        const nums=parts.rows.map(r=>r.archive?.part??r.part).filter(n=>Number.isSafeInteger(n));
+        const first=Math.min(...nums),last=Math.max(...nums);
+        if(nums.length<2||last<=first||last-first>=32)return;  // nothing to combine, or too many parts to stitch
+        const next=await options.reconstructArchive(first,last);
+        if(disposed||request!==archiveRequest||!next?.meta?.reconstruction||!next.recording_summary||!Array.isArray(next.segments))return;
+        applyCombined(next,first,last);
+        if(root.isConnected)render();
+      }catch(e){/* reconstruction unavailable — leave the single-part view in place */}
+    }
     async function requestRanks() {if(!options.rankings)return;const request=++rankRequest;try{const response=await options.rankings(state.segment,doc);if(request!==rankRequest)return;ranks=response;}catch(e){ranks={error:e.message};}if(root.isConnected)render();}
     const api={update(next){doc=next;state.segment=Math.min(state.segment,doc.segments.length-1);const changed=selectLatest();render();if(changed)requestRanks();},state,dispose(){disposed=true;archiveRequest++;rankRequest++;profileRequest++;if(replayFrame)cancelAnimationFrame(replayFrame);}};
-    selectLatest();render();requestRanks();return api;
+    selectLatest();render();requestRanks();autoCombine();return api;
   }
   window.A2CombatReview={mount,color,settings,palettes:PALETTES};
 })();
