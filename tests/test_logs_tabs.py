@@ -41,6 +41,22 @@ def test_community_upload_and_review_workflow_is_preserved():
     assert "A2ArchiveUpload.mount" in LOGS_JS
 
 
+def test_progression_tab_has_icons_filters_region_product_and_alpha_sort():
+    # Boss progression: boss portrait left of the name, facet filters (boss/difficulty/region/product),
+    # Region + Product columns, and an alphabetical (by boss) sort.
+    assert "progression-body" in LOGS_JS
+    for sel in ('id="pf-boss"', 'id="pf-difficulty"', 'id="pf-region"', 'id="pf-game_patch"'):
+        assert sel in LOGS_JS, f"missing progression filter {sel}"
+    # Region + Product columns added alongside the existing Boss / Difficulty columns.
+    assert "<th>Boss</th><th>Difficulty</th><th>Region</th><th>Product</th>" in LOGS_JS
+    # The boss portrait (server-resolved per group) sits in the shared boss-cell with the mob-ic style.
+    assert "g.icon" in LOGS_JS and "boss-cell" in LOGS_JS
+    # Alphabetical sort by boss name (then difficulty), not by attempt count.
+    assert 'String(a.boss || "").localeCompare(String(b.boss || "")' in LOGS_JS
+    # Driven by the server's own facets, and the filters are passed to the progression endpoint.
+    assert "/api/v1/report-facets" in LOGS_JS and "/api/v1/encounter-progression" in LOGS_JS
+
+
 def test_community_tab_is_one_row_per_encounter():
     # The Community combat logs view is a per-encounter table (flattened from /api/v1/logs
     # contexts[]), filterable by boss, not the old per-log browse widget.

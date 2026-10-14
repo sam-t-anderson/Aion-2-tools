@@ -81,16 +81,44 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     body.innerHTML = `<table class="t"><tr><th class="r">Rank</th><th>Boss / route</th><th class="r">Time</th><th class="r">Party</th><th></th></tr>${tr}</table>` + srcNote(d);
   }
 
+  // Boss progression: one row per (boss, difficulty, region, product) engagement group, sorted
+  // alphabetically by boss. Filterable by boss / difficulty / region / product from the server's own
+  // facets; the boss portrait (server-resolved from the group's catalog id) sits left of the name.
+  const prog = { f: {}, facets: null };
+  function progQuery() {
+    const p = new URLSearchParams();
+    for (const k of ["boss", "difficulty", "region", "game_patch"]) if (prog.f[k]) p.set(k, prog.f[k]);
+    return p.toString();
+  }
   async function renderProgression() {
     const body = document.getElementById("progression-body");
-    let d; try { d = await A2.api("/api/v1/encounter-progression"); } catch (e) { body.innerHTML = errNote(e); return; }
-    const groups = ((d && d.groups) || []).slice().sort((a, b) => (b.attempts || 0) - (a.attempts || 0));
-    if (!groups.length) { body.innerHTML = '<div class="empty">No boss engagements recorded yet.</div>' + srcNote(d); return; }
-    const tr = groups.map((g) => `<tr><td>${esc(g.boss || "—")}${g.difficulty ? ` <span class="muted small">${esc(g.difficulty)}</span>` : ""}</td>
-      <td class="r">${n0(g.attempts)}</td><td class="r">${n0(g.kills)}</td><td class="r">${n0(g.wipes)}</td>
-      <td class="r">${g.observed_kill_rate == null ? "—" : pct(g.observed_kill_rate)}</td>
-      <td class="r num">${g.fastest_kill_seconds ? secs(g.fastest_kill_seconds) : "—"}</td></tr>`).join("");
-    body.innerHTML = `<table class="t"><tr><th>Boss</th><th class="r">Attempts</th><th class="r">Kills</th><th class="r">Wipes</th><th class="r">Kill rate</th><th class="r">Fastest</th></tr>${tr}</table>` + srcNote(d);
+    if (!body) return;
+    commStyle();                                             // shares the boss-cell / mob-ic styles
+    if (!prog.facets) { body.innerHTML = '<div class="empty">Loading…</div>'; try { prog.facets = await A2.api("/api/v1/report-facets"); } catch (e) { prog.facets = {}; } }
+    const f = prog.facets || {};
+    const q = progQuery();
+    let d; try { d = await A2.api("/api/v1/encounter-progression" + (q ? "?" + q : "")); } catch (e) { body.innerHTML = errNote(e); return; }
+    const groups = ((d && d.groups) || []).slice().sort((a, b) =>
+      String(a.boss || "").localeCompare(String(b.boss || "")) || String(a.difficulty || "").localeCompare(String(b.difficulty || "")));
+    const filters = '<div class="row comm-filters" style="gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap">'
+      + field("Boss", `<select id="pf-boss" style="min-width:170px">${options(f.boss, prog.f.boss)}</select>`)
+      + field("Difficulty", `<select id="pf-difficulty">${options([...(f.difficulty || [])].sort((a, b) => String(a).localeCompare(String(b))), prog.f.difficulty)}</select>`)
+      + field("Region", `<select id="pf-region">${options(f.region, prog.f.region)}</select>`)
+      + field("Product", `<select id="pf-game_patch">${options(f.game_patch, prog.f.game_patch, patchOf)}</select>`)
+      + '<button class="btn small" id="pf-clear" type="button">Clear</button></div>';
+    const table = !groups.length ? '<div class="empty">No boss engagements match these filters.</div>'
+      : `<table class="t"><tr><th>Boss</th><th>Difficulty</th><th>Region</th><th>Product</th><th class="r">Attempts</th><th class="r">Kills</th><th class="r">Wipes</th><th class="r">Kill rate</th><th class="r">Fastest</th></tr>`
+        + groups.map((g) => { const ic = srcOf(g.icon);
+          return `<tr><td><span class="boss-cell">${ic ? `<img class="mob-ic" width="22" height="22" loading="lazy" referrerpolicy="no-referrer" src="${esc(ic)}" alt="" onerror="this.remove()">` : ""}${esc(g.boss || "—")}</span></td>
+          <td>${esc(g.difficulty || "—")}</td><td>${esc(g.region || "—")}</td><td class="muted small">${esc(patchOf(g.game_patch) || "—")}</td>
+          <td class="r">${n0(g.attempts)}</td><td class="r">${n0(g.kills)}</td><td class="r">${n0(g.wipes)}</td>
+          <td class="r">${g.observed_kill_rate == null ? "—" : pct(g.observed_kill_rate)}</td>
+          <td class="r num">${g.fastest_kill_seconds ? secs(g.fastest_kill_seconds) : "—"}</td></tr>`; }).join("")
+        + `</table>`;
+    body.innerHTML = filters + table + srcNote(d);
+    const change = (id, key) => { const el = body.querySelector("#pf-" + id); if (el) el.onchange = () => { prog.f[key] = el.value || ""; renderProgression(); }; };
+    for (const [id, key] of [["boss", "boss"], ["difficulty", "difficulty"], ["region", "region"], ["game_patch", "game_patch"]]) change(id, key);
+    const clear = body.querySelector("#pf-clear"); if (clear) clear.onclick = () => { prog.f = {}; renderProgression(); };
   }
 
   async function renderPoints() {

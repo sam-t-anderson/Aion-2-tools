@@ -1,3 +1,9 @@
+## Boss progression: portraits, alphabetical order, and boss / difficulty / region / product filters (0.2.274)
+
+- **The Boss progression tab now shows each boss's portrait** beside its name, and is **sorted alphabetically** by boss.
+- **Filter it by boss, difficulty, region and product** — the same facet dropdowns the community logs use, populated from the server's live values.
+- **New Region and Product columns**, so the same boss is broken out per region and game version instead of being merged together. Pairs with the server's per-region progression grouping and portrait lookup.
+
 ## Fix: the HiGHS solver is now bundled so community comparisons work on a clean Windows install (0.2.273)
 
 - **Fixed "The HiGHS solver dependency is missing or unavailable" when generating community comparisons** (and in the gear/Daevanion optimizer) on the Windows installer and portable builds. The solver, HiGHS, is a C++ library, and its DLL needs the Microsoft Visual C++ runtime. The build only bundled the C runtime that Python itself needs, so on a PC without the "Visual C++ 2015–2022 Redistributable" the solver couldn't load — even though it worked on the machines that build the app, which have that runtime installed. The Windows build now bundles the C++ runtime (and the vendored HiGHS library) itself, so the solver loads on any Windows machine.
