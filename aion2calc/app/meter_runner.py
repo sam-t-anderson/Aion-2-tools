@@ -4,6 +4,7 @@ from __future__ import annotations
 import threading
 import copy
 import queue
+import re
 import struct
 import time
 import uuid
@@ -1175,6 +1176,23 @@ class Runner:
             profile = self.packet_engine.local_profile if self.packet_engine else {}
         if profile.get("serverId"):
             doc["meta"]["server"] = str(profile["serverId"])
+        # Stamp who uploaded this log — the local (recording) player — so public logs can show it.
+        # Best-effort and never required: if the local player isn't identified, it's left unset and
+        # the server/site fall back to "Anonymous". A label only; it never gates anything.
+        if "uploader" not in doc["meta"]:
+            try:
+                engine = self.packet_engine
+                if engine is not None and engine.local_player_id is not None:
+                    name = engine.names.get(engine.local_player_id)
+                    if name and not re.fullmatch(r"(?:Player\s*)?#?\d+", name, re.I):
+                        uploader = {"name": name[:60], "verified": bool(engine.local_identity_from_game)}
+                        if profile.get("serverId"):
+                            uploader["server"] = str(profile["serverId"])
+                        if profile.get("dbid"):
+                            uploader["character_id"] = str(profile["dbid"])
+                        doc["meta"]["uploader"] = uploader
+            except Exception:
+                pass
         # Slice by actual encounter origin, never by the time of the newest ping.
         from datetime import datetime
         from ..combat.latency import summarize

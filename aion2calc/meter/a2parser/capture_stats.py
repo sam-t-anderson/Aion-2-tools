@@ -8,6 +8,12 @@ FLAGS = ("pcap_stats_sampled", "pcap_stats_partial")
 NOTE = ("Driver counters cover the capture handle, not just decoded game traffic. "
         "Their meaning and availability vary by platform; a reported zero does not prove loss-free capture. "
         "They must not be added to TCP discard counts to estimate unique lost game packets.")
+#: Kernel capture-buffer size to request (Windows/Npcap). AION 2 raids burst far past the old
+#: 8 MiB buffer — busy fights were dropping a quarter to a half of their packets — so request a
+#: much larger buffer and step down until the backend accepts one. Per capture handle; kept modest
+#: enough to stay reasonable across several interfaces in auto mode.
+CAPTURE_BUFFER_BYTES = 64 * 1024 * 1024
+_BUFFER_CANDIDATES = (CAPTURE_BUFFER_BYTES, 32 * 1024 * 1024, 16 * 1024 * 1024, 8 * 1024 * 1024)
 
 
 class PcapStats:
@@ -27,9 +33,16 @@ class PcapStats:
             try:
                 from scapy.libs.winpcapy import pcap_setbuff
                 handle = getattr(getattr(capture_socket, "pcap_fd", None), "pcap", None)
-                if not handle or pcap_setbuff(handle, 8 * 1024 * 1024) != 0:
+                if not handle:
+                    raise OSError("No capture handle to resize")
+                # Request the largest buffer the backend will accept, stepping down from
+                # CAPTURE_BUFFER_BYTES. Must run before sniffing; resizing discards the old buffer.
+                for want in _BUFFER_CANDIDATES:
+                    if pcap_setbuff(handle, want) == 0:
+                        self.buffer_bytes = want
+                        break
+                else:
                     raise OSError("Capture buffer request was not accepted")
-                self.buffer_bytes = 8 * 1024 * 1024
             except Exception:
                 self.buffer_warning = "Could not enlarge the Windows capture buffer; using the backend default."
 

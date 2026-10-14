@@ -1,3 +1,9 @@
+## Capture: a much larger buffer to stop dropped packets, and your name on logs you upload (0.2.269)
+
+- **Bigger capture buffer — the real fix for dropped packets.** Busy fights (raids, big expeditions) burst far past the old 8 MiB kernel capture buffer, so a quarter to a half of packets were being dropped — which is why those fights stayed unranked and why many enemies showed up unidentified (their spawn packets were among the dropped). The capture now requests a **64 MiB** buffer, stepping down (32 / 16 / 8 MiB) until the backend accepts one. A larger buffer absorbs the bursts, so far fewer packets are lost; cleaner captures mean fights can actually rank and mobs keep their names. (Windows/Npcap; if the backend refuses a larger buffer the old default is used, as before.)
+- **Your uploads show who you are.** A public log now records the uploading (local) player's name, so the website's community logs can show who shared each one. It's the character the meter is recording as you; if that isn't established, the log stays **Anonymous**. It's a label only — it never affects ranking — and existing logs are unchanged.
+- Note: this helps *new* captures. It can't recover packets already lost in logs uploaded before this version, and a capture that still drops a large share stays correctly unranked.
+
 ## Ranking: a storage rollover or a few dropped packets no longer unranks a whole session (0.2.268)
 
 - **The symptom.** Across the live server's uploaded logs, **every** fight was coming back unranked. Running the real eligibility gate over a sample of recent public uploads showed two reasons firing on essentially everything: `storage_boundary` on **100%** of fights and `capture_loss` on **98%** — the rest (open-world trash with no boss, PvP) is correctly unrankable.

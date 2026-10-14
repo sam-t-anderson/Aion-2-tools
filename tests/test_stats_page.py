@@ -35,13 +35,22 @@ def test_filters_are_dropdowns_not_buttons():
     assert 'id="boss-select"' in STATS_HTML
 
 
-def test_default_view_is_performance_by_class():
-    # The initial page (no class selected) compares classes by median DPS, not one class's skills.
+def test_default_view_is_performance_by_class_with_a_spread_graph():
+    # The initial page (no class selected) compares classes, not one class's skills.
     assert "renderOverview" in STATS_JS
     assert "Performance by class" in STATS_JS
-    # ...with a bar graph (the shared .bar component) of median DPS.
     assert "All classes" in STATS_JS
-    assert 'class="bar"' in STATS_JS
+    # ...as an a2tools.app-style spread graph (box/whisker per class on a shared DPS axis).
+    assert "function spread" in STATS_JS
+    assert "<svg" in STATS_JS
+    assert ">Spread" in STATS_JS
+
+
+def test_overview_and_kpi_columns_say_dps():
+    # The user asked the Top 25% / Top 10% columns be clarified as DPS.
+    assert "Top 25% DPS" in STATS_JS
+    assert "Top 10% DPS" in STATS_JS
+    assert "Top 25% from" not in STATS_JS and "Top 10% from" not in STATS_JS
 
 
 def test_stats_page_marks_itself_active_in_the_nav():

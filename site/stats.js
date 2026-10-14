@@ -40,6 +40,23 @@
     return renderClass(cls, boss);
   }
 
+  // A horizontal box-and-whisker "spread" of a class's DPS distribution, on an axis shared across
+  // all classes (0..gmax). The box is the middle half (p25–p75, or median–p75 until the server
+  // reports p25); a strong line marks the median; a whisker runs to the best (max), with p90 ticked.
+  function spread(dps, gmax) {
+    const x = (v) => (v == null || isNaN(v) || !gmax ? null : Math.max(0, Math.min(100, 100 * v / gmax)));
+    const med = x(dps.median), p25 = x(dps.p25), p75 = x(dps.p75), p90 = x(dps.p90), mxv = x(dps.max);
+    const boxL = p25 != null ? p25 : med, boxR = p75 != null ? p75 : med;
+    const parts = [];
+    const wr = mxv != null ? mxv : (p90 != null ? p90 : boxR);
+    if (boxL != null && wr != null) parts.push(`<line x1="${boxL}" y1="10" x2="${wr}" y2="10" stroke="currentColor" stroke-opacity=".4" stroke-width="1.2"/>`);
+    if (boxL != null && boxR != null && boxR > boxL) parts.push(`<rect x="${boxL}" y="4" width="${(boxR - boxL).toFixed(2)}" height="12" rx="2" fill="#2a8fb0" fill-opacity=".55"/>`);
+    if (p90 != null) parts.push(`<line x1="${p90}" y1="6" x2="${p90}" y2="14" stroke="currentColor" stroke-opacity=".55" stroke-width="1.2"/>`);
+    if (mxv != null) parts.push(`<line x1="${mxv}" y1="4" x2="${mxv}" y2="16" stroke="currentColor" stroke-opacity=".7" stroke-width="1.2"/>`);
+    if (med != null) parts.push(`<line x1="${med}" y1="1" x2="${med}" y2="19" stroke="currentColor" stroke-width="2.2"/>`);
+    return `<svg viewBox="0 0 100 20" preserveAspectRatio="none" width="100%" height="20" role="img" aria-label="DPS spread: median ${n0(dps.median)}, middle half ${n0(dps.p25)}–${n0(dps.p75)}, best ${n0(dps.max)}">${parts.join("")}</svg>`;
+  }
+
   async function renderOverview(classes) {
     body.innerHTML = '<div class="empty">Loading…</div>';
     const results = await Promise.all(classes.map(async (c) => {
@@ -48,15 +65,15 @@
     }));
     const rows = results.filter((r) => r.dps && r.dps.median != null).sort((a, b) => (b.dps.median || 0) - (a.dps.median || 0));
     if (!rows.length) { body.innerHTML = '<div class="empty">Not enough data for a class comparison yet.</div>'; return; }
-    const mx = Math.max(...rows.map((r) => r.dps.median || 0), 1);
+    const gmax = Math.max(...rows.map((r) => r.dps.max || r.dps.p90 || r.dps.median || 0), 1);
     const tr = rows.map((r) => `<tr><td>${esc(cap(r.cls))}</td>
-      <td style="width:38%"><div class="bar"><i style="width:${(100 * (r.dps.median || 0) / mx).toFixed(1)}%"></i><span>${n0(r.dps.median)}</span></div></td>
-      <td class="r">${n0(r.obs)}</td><td class="r">${n0(r.dps.p75)}</td><td class="r">${n0(r.dps.p90)}</td>
-      <td><a href="stats.html?class=${encodeURIComponent(r.cls)}">details →</a></td></tr>`).join("");
+      <td style="width:40%">${spread(r.dps, gmax)}</td>
+      <td class="r num">${n0(r.dps.median)}</td><td class="r">${n0(r.dps.p75)}</td><td class="r">${n0(r.dps.p90)}</td>
+      <td class="r">${n0(r.obs)}</td><td><a href="stats.html?class=${encodeURIComponent(r.cls)}">details →</a></td></tr>`).join("");
     body.innerHTML =
-      '<h2 class="pagetitle" style="font-size:18px">Performance by class — median DPS</h2>' +
-      `<table class="t"><tr><th>Class</th><th>Median DPS</th><th class="r">Players</th><th class="r">Top 25%</th><th class="r">Top 10%</th><th></th></tr>${tr}</table>` +
-      '<p class="small muted" style="margin-top:10px">Median damage per second across shared fights, highest first. Choose a class above for its hit rates, cast tempo and damage by skill.</p>';
+      '<h2 class="pagetitle" style="font-size:18px">Performance by class</h2>' +
+      `<table class="t"><tr><th>Class</th><th>Spread (DPS)</th><th class="r">Median DPS</th><th class="r">Top 25% DPS</th><th class="r">Top 10% DPS</th><th class="r">Samples</th><th></th></tr>${tr}</table>` +
+      '<p class="small muted" style="margin-top:10px">Each bar is that class\'s DPS spread on a shared axis: the box is the middle half of players, the strong line is the median, the whisker runs to the best recorded. Highest median first. Choose a class above for its hit rates, cast tempo and damage by skill.</p>';
   }
 
   async function renderClass(cls, boss) {
@@ -75,7 +92,7 @@
     const mx = Math.max(...skills.map((r) => r.share || 0), 0.0001);
     const kp = [
       ["Players", n0(s.observations)], ["Median DPS", n0(dps.median)],
-      ["Top 25% from", n0(dps.p75)], ["Top 10% from", n0(dps.p90)],
+      ["Top 25% DPS", n0(dps.p75)], ["Top 10% DPS", n0(dps.p90)],
       ["Crit", pct(rates.crit)], ["Double", pct(rates.double)], ["Perfect", pct(rates.perfect)],
       ["Casts / min", tempo.cpm != null ? Math.round(tempo.cpm) : "—"],
       ["Idle (all)", pct(tempo.idle_share)], ["Idle (top 25%)", pct((tq.tempo || {}).idle_share)],
