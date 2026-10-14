@@ -1,107 +1,82 @@
 # Open investigations
 
-Findings from issues that were investigated but are **gated on inputs we do not control from
-the client** — server log population, protocol captures, or source-backed catalog data — rather
-than on unwritten code. Each entry records what was found, why it is not a client-side code fix
-today, and the concrete next step. This complements the high-level gated items in
-[the roadmap](COMBAT_ROADMAP.md).
+Findings from issues investigated against the **live server's real uploaded logs** (pulled via the
+public API) and the server source. Each entry records what was found, what was fixed, and what
+remains gated on inputs outside the client (chiefly capture packet loss). Complements the
+high-level gated items in [the roadmap](COMBAT_ROADMAP.md).
 
-## Ranked logs showing 0 (server)
+## Ranked logs showing 0 — a real bug (fixed 0.2.268) plus genuine capture loss
 
-**Finding: the ranking gate is working as designed; 0 reflects the sample, not a bug.**
+Running the real gate (`aion2calc/combat/quality.py` `assess()`) over 40 recent public uploads
+(630 segments) returned **0 eligible**. Two reasons fired on nearly everything, and both were
+**whole-session facts applied to every fight**:
 
-A log is ranked only when it clears *every* evidence gate in `aion2calc/combat/quality.py`
-`assess()` — `eligible = not reasons`. The gates require, among others: a full fight observed
-from a full-health boss (`start_unverified`) through every recorded boss's death
-(`end_unverified`); no storage-boundary crossing (`storage_boundary`); a complete, non-partial
-capture (`partial_capture`); every participant identified by name/server/class
-(`identity_unverified`); no capture/driver loss (`capture_loss`); a verified decoder/transport;
-and party scope for party encounters (`party_scope_unverified`). The server reads this verdict
-from the uploaded a2log — it never recomputes or accepts a client-asserted "eligible".
+- `storage_boundary` (**100%** of segments) — set on every rolled-over archive part *and its
+  continuation* (`meter_runner.py:536,560`), so any session long enough to roll storage over (all
+  of them) marked every fight, even fights wholly captured inside one part. Clean 0-drop captures
+  were flagged too.
+- `capture_loss` (**97.6%**) — `pcap_dropped`/`pcap_if_dropped` are **cumulative since capture
+  start**, so one early buffer overflow unranked every later fight (the identical drop count was
+  stamped on 17 different logs).
 
-The local sample available here is composed of **rollover fragments and partial mid-instance
-captures**, which legitimately trip `storage_boundary` / `partial_capture`, so 0 ranked is the
-correct result for *that* sample. Whether the live server shows 0 depends on its uploaded
-population clearing the same gates.
+**Fixed (0.2.268).** `assess()` now attributes both per fight: a self-contained fight (its own
+start observed *and* its own verified end — a kill or a cleanly completed run) is no longer gated
+by a part-edge boundary, and dropped packets use a fraction budget (like the 0.2.258 frame-skip
+budget). A genuinely truncated fight, or a materially lossy capture, is still gated. The server
+re-derives eligibility on reindex (`reports.index_log` → `assess`), so server **0.2.87** bumps the
+pin and `REPORT_INDEX_VERSION` to re-rank the existing corpus, not just new uploads.
 
-**Not changed, deliberately.** Loosening these gates blind — without a real ranked-eligible
-capture to validate against — would admit incomplete fights into the ranking and corrupt the
-very medians the leaderboard/stats pages report. (The `capture_loss` gate was already loosened in
-a measured, validated way for recovered frame-skips in 0.2.x; that is the pattern to repeat.)
+**Remaining blocker is NOT a gate bug — it is capture packet loss.** In the sampled corpus every
+actual boss kill came from a session that dropped **26–51% of its packets** (kernel/pcap buffer
+overflow — the capturing PC can't keep up with AION 2's traffic). A parse built on half the packets
+is unreliable and correctly stays unranked. Populating the leaderboard depends on reducing that
+loss at capture time (larger pcap buffer / capture-path performance), not on further gate changes.
 
-**Next step (needs server-side input):** on the live server, bucket a day of uploads by the
-`reasons[]` they carry. If a *specific* reason dominates among fights that are otherwise complete,
-that reason is the candidate to re-examine (with a captured example), exactly as the frame-skip
-gate was. Until then there is nothing safe to change on the client.
+## Logs page split into tabs — endpoints already existed (shipped)
 
-## Logs page visual overhaul + tabs
+**Correction to the earlier note here:** it previously said the open server "lacks the
+leaderboard/progression/speed endpoints." That was wrong — it was written without the server repo
+attached. The server already serves **all five** tab endpoints, live:
 
-**Finding: the reference page is a separate application; our server lacks most of its endpoints.**
+| Tab | Endpoint |
+| --- | --- |
+| Community combat logs | `/api/v1/logs` (one row per encounter, from each log's `contexts[]`) |
+| Completed-run speed | `/api/v1/run-leaderboard` |
+| Boss progression | `/api/v1/encounter-progression` |
+| Class performance | `/api/v1/stats`, `/api/v1/stats/<class>` |
+| Highest observed build points | `/api/v1/progression` |
 
-The requested look (tabbed "Community combat logs", "Completed-run speed", "Boss progression",
-"Class performance", "Highest observed build points") matches a separate, advanced single-page
-app. This repository's Pages site is static HTML + vanilla JS talking to the open
-`aion2logs` API, which exposes per-class stats (`/api/v1/stats`, `/api/v1/stats/<class>`) and
-calibration — now surfaced by the new **[Class stats](../site/stats.html)** page — but **not** the
-leaderboard/progression/speed-ranking endpoints those tabs would need. There is no
-`/api/v1/leaderboard` in the open server checkout.
+So this was a **client-only** build: `site/logs.html` + `site/logs.js` now render the five tabs
+defensively through `A2.api`. The Completed-run speed tab (and the DPS leaderboard) read empty
+until the 0.2.268 ranking fix propagates and clean runs qualify — the same root cause as ranked=0.
 
-**Shipped the safe, verifiable slice.** The Class stats page (#83) delivers the "Class
-performance" tab's substance against real, existing endpoints, read defensively so a missing field
-or an unreachable server degrades to a friendly message instead of breaking the site.
+## Enemy NPC types — the skill-provenance reclassification is detrimental; do NOT ship it
 
-**Not built, deliberately.** The remaining tabs would require either inventing server endpoints
-that do not exist in the open repo, or hard-coding a UI against response shapes that cannot be
-verified here, with no way to test the result in a browser against live data. Either path ships
-unverifiable code to a public site.
+Verified against the real logs. Across 432 PvE segments there are 302 untyped enemies (`mob_code:
+None`); across 198 PvP segments there are **0** (every PvP "enemy" is correctly `is_player: True`),
+so the "player falsely flagged as enemy" case the fix targeted **does not occur** in practice.
 
-**Next step:** decide per tab which data the open `aion2logs` server should expose (a server-repo
-task), add the endpoint there, then add the tab here against the real shape — the same additive,
-defensive pattern as the Class stats page.
+The proposed fix — reclassify a mob_code-less actor as a player if it cast a skill
+`job_from_skill` maps to a class — was tested on the real logs: **8 untyped enemies cast a
+player-job skill, and all 8 are real mobs** (e.g. `Enemy #502` → mapped to "Chanter" yet it *took
+85,649 damage from a party member*). Shipping it would flip real mobs into the player DPS tables
+and corrupt rankings. **Decision: do not ship it.** NPCs share skill IDs with player classes, so
+skill provenance is not a safe signal.
 
-## Database cleanup: catalog refs + enemy NPC types
+### Why the mobs stay "unidentified" — it is capture loss, not a catalog gap
 
-Two distinct sub-problems:
+The self-healing pipeline (unknown-ids beacon → server ranks the gap → upstream publishes the name
+→ asset refresh pulls it in) fills **names for codes we captured**. Classifying the real logs:
 
-### 1. Missing npc / map / title names for catalog IDs — **data-gated, pipeline already exists**
+- **2641** enemies are typed **and named** (we have the code; the catalog has the name).
+- **0** enemies have a code but no catalog name — so there is **nothing for self-healing to do**;
+  the catalog has no gaps for the content being played.
+- **302** enemies have **no `mob_code` at all** — these are the "unidentified" ones. **292 of 302
+  (97%) are in sessions that dropped ≥20% of packets**; the other ~10 are open-world mobs already
+  present when capture began.
 
-Names for content IDs come from the upstream published source, pulled in by the asset-refresh
-auto-merge. Where the shipped catalog has an ID but no name, the **unknown-ids diagnostics beacon**
-(`aion2calc/combat/diag_report.py` `unknown_from_doc` → `/api/v1/diag/unknown-ids`) already reports
-the gap so the server can rank it and upstream can publish the name; the next asset refresh fills
-it. This is self-healing as players encounter content and is not advanced by a client code change.
-Hand-filling names would also fight the auto-refresh.
-
-### 2. "Enemies missing NPC types (some may be players falsely flagged)" — **a real edge case; fix is validation-gated**
-
-**Where it happens.** In `aion2calc/meter/session.py`, the entity-classification `else` branch
-(around lines 1330–1334): an actor that is not a pet, not a party member, and whose name was never
-captured is labelled `kind: "enemy"` with `mob_code = identity["spawns"].get(id, {}).get("mobCode")`.
-When no spawn packet was seen for that actor, `mob_code` is `None` — an **enemy with no NPC type**.
-
-**Why most are still correct.** In PvE, an unidentified actor that deals or takes party damage is
-almost always a real mob whose spawn packet we missed. PvP opponents are already caught: the branch
-sets `is_player = (id in opponents)`, so opponents get `is_player: True`. The genuine false-flag is
-narrow: a nearby player who is neither in your party nor your opponent, whose name we never saw and
-who has no mobCode — labelled `is_player: False, kind: "enemy", mob_code: None`.
-
-**Proposed fix (not shipped).** Distinguish by **skill provenance**:
-`aion2calc/meter/a2parser/lookup.py` `job_from_skill(skill_code)` maps only player-job skill-ID
-families (100510–103500, 109300–109362, and the 10M–19.99M ranges) to a class; NPC skills fall
-outside these. Pre-scan each group's records for actor → used skill-IDs; in the `else` branch, if a
-mob_code-less actor used any skill with a non-`None` `job_from_skill`, treat it as a player
-(`is_player: True`, `class` from the skill) instead of an enemy.
-
-**Why it is gated, not shipped now.** This is a hot live-classification path shared by the meter,
-overlay, enemy-HP reporter and DPS attribution. A single wrong skill→job mapping would reclassify a
-real enemy as a player and silently corrupt everyone's DPS numbers — a worse defect than the narrow
-edge case it fixes. It needs at least one real capture that reproduces the false-flag to validate
-end-to-end before it can ship, consistent with the project rule that classification/eligibility
-changes are not made blind. The unit-level correctness (a mage-skill actor with no name/mobCode →
-player) is straightforward to assert once such a capture exists.
-
-**Diagnostic gap noted for the server-repo:** `unknown_from_doc` skips entities whose `mob_code`
-is not an integer, so untyped "enemies" (`mob_code: None`) are invisible to the unknown-ids beacon.
-A non-identifying **count** of untyped-enemy entities could be added to the capture-health beacon
-to quantify how often this happens in aggregate — the measurement that would tell us whether the
-classification fix above is worth the risk. Left for when the server consumes it.
+An actor with no `mob_code` never had its spawn packet captured, so there is no code to look a name
+up by — self-healing cannot invent one. The fix is the same as for ranked=0: **capture the spawn
+packets by reducing packet loss.** (Open-world mobs engaged without witnessing their spawn are an
+inherent limit; a future option is decoding a non-spawn packet that carries actor→mobCode, gated on
+protocol evidence.) Hand-filling names would also fight the asset-refresh auto-merge.

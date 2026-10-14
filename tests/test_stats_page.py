@@ -29,6 +29,21 @@ def test_stats_html_loads_server_before_stats():
     assert STATS_HTML.index('src="server.js"') < STATS_HTML.index('src="stats.js"')
 
 
+def test_filters_are_dropdowns_not_buttons():
+    # Class and boss filters are <select> dropdowns (replacing the old chip buttons).
+    assert 'id="class-select"' in STATS_HTML and "<select" in STATS_HTML
+    assert 'id="boss-select"' in STATS_HTML
+
+
+def test_default_view_is_performance_by_class():
+    # The initial page (no class selected) compares classes by median DPS, not one class's skills.
+    assert "renderOverview" in STATS_JS
+    assert "Performance by class" in STATS_JS
+    # ...with a bar graph (the shared .bar component) of median DPS.
+    assert "All classes" in STATS_JS
+    assert 'class="bar"' in STATS_JS
+
+
 def test_stats_page_marks_itself_active_in_the_nav():
     assert 'href="stats.html" class="on" aria-current="page"' in STATS_HTML
 

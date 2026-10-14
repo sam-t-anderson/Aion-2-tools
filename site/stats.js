@@ -1,28 +1,23 @@
 // Class statistics from shared public logs (anonymous — no names kept). Reads the server's
-// /api/v1/stats and /api/v1/stats/<class> (the same data the server's own /stats page uses) and
-// renders median DPS, hit rates, tempo and damage-by-skill per class and boss. Every field is
-// read defensively: if the server is unreachable or a field is missing, the page shows a friendly
-// message instead of breaking — it can never take down the rest of the site.
+// /api/v1/stats (class index) and /api/v1/stats/<class> (per-class medians, hit rates, tempo and
+// damage by skill — the same data the server's own /stats page uses). The default view is a
+// cross-class performance comparison with a median-DPS bar graph; a class dropdown drills into one
+// class's detail, and a boss dropdown filters it. Every field is read defensively: if the server is
+// unreachable or a field is missing, a friendly message shows instead of breaking the rest of the site.
 (function () {
   "use strict";
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const n0 = (x) => (x == null || isNaN(x) ? "—" : Math.round(x).toLocaleString("en-US"));
   const pct = (x, d = 1) => (x == null || isNaN(x) ? "—" : (100 * x).toFixed(d) + "%");
   const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "");
+  const note = (e) => `<div class="note">${esc((e && e.message) || "Could not reach the stats server.")}</div>`;
   const params = new URLSearchParams(location.search);
   const body = document.getElementById("stats-body");
-  const clsRow = document.getElementById("class-picker");
-  const bossRow = document.getElementById("boss-picker");
+  const classSel = document.getElementById("class-select");
+  const bossSel = document.getElementById("boss-select");
+  const bossWrap = document.getElementById("boss-wrap");
 
-  function chip(label, active, onclick) {
-    const b = document.createElement("button");
-    b.className = "btn small";
-    b.type = "button";
-    b.textContent = label;
-    b.onclick = onclick;
-    if (active) { b.setAttribute("aria-current", "true"); b.style.fontWeight = "700"; b.style.textDecoration = "underline"; }
-    return b;
-  }
+  const go = (c, b) => { const u = new URLSearchParams(); if (c) u.set("class", c); if (b) u.set("boss", b); location.search = u.toString(); };
   function kpis(pairs) {
     return '<div class="kpis">' + pairs.map(([k, v]) => `<div class="kpi"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join("") + "</div>";
   }
@@ -30,23 +25,48 @@
   async function render() {
     let idx;
     try { idx = await A2.api("/api/v1/stats"); }
-    catch (e) { body.innerHTML = `<div class="note">${esc(e.message || "Could not reach the stats server.")}</div>`; return; }
+    catch (e) { body.innerHTML = note(e); classSel.innerHTML = '<option>—</option>'; return; }
     const classes = (idx && idx.classes) || [];
-    if (!classes.length) { body.innerHTML = '<div class="empty">No fights uploaded yet. Share public logs from the app to populate class stats.</div>'; return; }
+    if (!classes.length) { body.innerHTML = '<div class="empty">No fights uploaded yet. Share public logs from the app to populate class stats.</div>'; classSel.innerHTML = '<option>—</option>'; return; }
 
-    const cls = params.get("class") || classes[0].class;
+    const cls = params.get("class") || "";
     const boss = params.get("boss") || "";
-    const go = (c, b) => { const u = new URLSearchParams(); u.set("class", c); if (b) u.set("boss", b); location.search = u.toString(); };
-    clsRow.replaceChildren(...classes.map((c) => chip(`${cap(c.class)} (${c.observations})`, c.class === cls, () => go(c.class, ""))));
+    classSel.innerHTML = '<option value="">All classes (overview)</option>' +
+      classes.map((c) => `<option value="${esc(c.class)}"${c.class === cls ? " selected" : ""}>${esc(cap(c.class))} (${c.observations})</option>`).join("");
+    classSel.onchange = () => go(classSel.value, "");
 
+    if (!cls) { bossWrap.hidden = true; return renderOverview(classes); }
+    bossWrap.hidden = false;
+    return renderClass(cls, boss);
+  }
+
+  async function renderOverview(classes) {
+    body.innerHTML = '<div class="empty">Loading…</div>';
+    const results = await Promise.all(classes.map(async (c) => {
+      try { const s = await A2.api(`/api/v1/stats/${encodeURIComponent(c.class)}`); return { cls: c.class, obs: c.observations, dps: s.dps || {} }; }
+      catch (e) { return { cls: c.class, obs: c.observations, dps: {} }; }
+    }));
+    const rows = results.filter((r) => r.dps && r.dps.median != null).sort((a, b) => (b.dps.median || 0) - (a.dps.median || 0));
+    if (!rows.length) { body.innerHTML = '<div class="empty">Not enough data for a class comparison yet.</div>'; return; }
+    const mx = Math.max(...rows.map((r) => r.dps.median || 0), 1);
+    const tr = rows.map((r) => `<tr><td>${esc(cap(r.cls))}</td>
+      <td style="width:38%"><div class="bar"><i style="width:${(100 * (r.dps.median || 0) / mx).toFixed(1)}%"></i><span>${n0(r.dps.median)}</span></div></td>
+      <td class="r">${n0(r.obs)}</td><td class="r">${n0(r.dps.p75)}</td><td class="r">${n0(r.dps.p90)}</td>
+      <td><a href="stats.html?class=${encodeURIComponent(r.cls)}">details →</a></td></tr>`).join("");
+    body.innerHTML =
+      '<h2 class="pagetitle" style="font-size:18px">Performance by class — median DPS</h2>' +
+      `<table class="t"><tr><th>Class</th><th>Median DPS</th><th class="r">Players</th><th class="r">Top 25%</th><th class="r">Top 10%</th><th></th></tr>${tr}</table>` +
+      '<p class="small muted" style="margin-top:10px">Median damage per second across shared fights, highest first. Choose a class above for its hit rates, cast tempo and damage by skill.</p>';
+  }
+
+  async function renderClass(cls, boss) {
     body.innerHTML = '<div class="empty">Loading…</div>';
     let s;
     try { s = await A2.api(`/api/v1/stats/${encodeURIComponent(cls)}` + (boss ? "?boss=" + encodeURIComponent(boss) : "")); }
-    catch (e) { body.innerHTML = `<div class="note">${esc(e.message || "Could not load this class.")}</div>`; return; }
-
-    bossRow.replaceChildren(
-      chip("All fights", !boss, () => go(cls, "")),
-      ...(((s && s.bosses) || []).map(([b, n]) => chip(`${b} (${n})`, b === boss, () => go(cls, b)))));
+    catch (e) { body.innerHTML = note(e); return; }
+    bossSel.innerHTML = '<option value="">All fights</option>' +
+      (((s && s.bosses) || []).map(([b, n]) => `<option value="${esc(b)}"${b === boss ? " selected" : ""}>${esc(b)} (${n})</option>`).join(""));
+    bossSel.onchange = () => go(cls, bossSel.value);
 
     if (!s || !s.observations) { body.innerHTML = '<div class="empty">No data for this selection.</div>'; return; }
     const dps = s.dps || {}, rates = s.rates || {}, tempo = s.tempo || {}, tq = s.top_quarter || {};
@@ -64,8 +84,8 @@
       <td style="width:34%"><div class="bar"><i style="width:${(100 * (r.share || 0) / mx).toFixed(1)}%"></i><span>${pct(r.share)}</span></div></td>
       <td class="r">${pct(allShare[r.skill] ?? 0)}</td><td class="r">${r.cpm != null ? r.cpm.toFixed(1) : "—"}</td><td class="r">${pct(r.used_by, 0)}</td></tr>`).join("");
     const cpRows = ((s.by_combat_power) || []).map((b) => `<tr><td>${n0(b.from)}–${n0(b.to)}</td><td class="r">${n0(b.players)}</td><td class="r num">${n0(b.median_dps)}</td></tr>`).join("");
-
     body.innerHTML =
+      `<h2 class="pagetitle" style="font-size:18px">${esc(cap(cls))}${boss ? " vs " + esc(boss) : ""}</h2>` +
       kpis(kp) +
       '<h2 class="pagetitle" style="font-size:18px;margin-top:18px">Top 25% of players: damage by skill</h2>' +
       (skillRows
@@ -76,5 +96,6 @@
         ? `<table class="t"><tr><th>Combat power</th><th class="r">Players</th><th class="r">Median DPS</th></tr>${cpRows}</table>`
         : '<div class="empty">Not enough data for combat-power brackets.</div>');
   }
+
   render();
 })();

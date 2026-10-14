@@ -29,11 +29,21 @@ def test_each_analytical_tab_reads_its_server_endpoint():
 
 
 def test_community_upload_and_review_workflow_is_preserved():
-    # The new tabs must not drop the existing browse/upload/review wiring.
+    # The new tabs must not drop the existing upload/review wiring.
     for anchor in ('id="combat-log-tabs"', 'id="archive-upload"', 'id="archive-review"', 'id="community"'):
         assert anchor in LOGS_HTML, f"lost workflow anchor {anchor}"
-    assert "A2Community.mount" in LOGS_JS
     assert "A2ArchiveUpload.mount" in LOGS_JS
+
+
+def test_community_tab_is_one_row_per_encounter():
+    # The Community combat logs view is a per-encounter table (flattened from /api/v1/logs
+    # contexts[]), filterable by boss, not the old per-log browse widget.
+    assert "renderCommunity" in LOGS_JS
+    assert "/api/v1/logs?page=" in LOGS_JS
+    assert "contexts" in LOGS_JS
+    # Columns the user asked for: boss, difficulty, party, time, date, product version.
+    for col in (">Boss<", ">Difficulty<", ">Party<", ">Time<", ">Date<", ">Product<"):
+        assert col in LOGS_JS, f"missing community column {col}"
 
 
 def test_logs_page_loads_server_before_logs_script():
