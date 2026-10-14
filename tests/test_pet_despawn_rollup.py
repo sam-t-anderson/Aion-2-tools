@@ -8,11 +8,11 @@ active spirits keep their own rows. (Fix lives in CombatSession._summary, the pa
 the overlay uses — not the legacy Meter.)"""
 from aion2calc.meter.a2parser.engine import MeterEngine
 from aion2calc.meter.a2parser.models import DamageEvent
-from aion2calc.meter.session import CombatSession
+from aion2calc.meter.session import CombatSession, BASIC_SPIRIT_NAMES
 
 
-def _hit(actor, target, t, dmg=1000):
-    return DamageEvent(actor_id=actor, target_id=target, skill_code=15210000, damage=dmg, timestamp_ms=t)
+def _hit(actor, target, t, dmg=1000, skill=15210000):
+    return DamageEvent(actor_id=actor, target_id=target, skill_code=skill, damage=dmg, timestamp_ms=t)
 
 
 def _engine():
@@ -116,3 +116,27 @@ def test_ancient_spirit_stays_out_alongside_the_current_basic_spirit():
     assert "Earth Spirit" in rows and rows["Earth Spirit"].get("owner")   # current basic spirit
     assert "Ancient Spirit" in rows and rows["Ancient Spirit"].get("owner")  # coexists → keeps its row
     assert rows["Ancient Spirit"]["damage"] == 2000
+
+
+def test_basic_spirit_replacement_classifies_by_skill_on_a_non_english_client():
+    # On a non-English client the summoned entity's name is localized and won't match the
+    # English spirit names, so classification must key on the (numeric, locale-independent)
+    # skill IDs the spirit attacks with: Water's Discharge Chill (16110001) and Earth's Tackle
+    # (16130001) mark these as basic spirits even though their names are not the English ones.
+    WATER_SKILL, EARTH_SKILL = 16110001, 16130001
+    s = CombatSession(); s.pvp = False
+    e = _engine_spirits({5001: "Spirited", 6001: "물의 정령", 6002: "땅의 정령"},
+                        {6001: 5001, 6002: 5001})
+    assert "물의 정령" not in BASIC_SPIRIT_NAMES   # the name path cannot classify these
+    s.observe(e, [_hit(5001, 9001, 1000), _hit(6001, 9001, 1000, skill=WATER_SKILL)], timestamp_ms=1000)
+    s.observe(e, [_hit(5001, 9001, 2000), _hit(6001, 9001, 2000, skill=WATER_SKILL)], timestamp_ms=2000)
+    # The earth spirit replaces the water spirit; water last acted 1.5s ago (inside the idle window),
+    # so only the skill-based replacement rule can fold it in.
+    s.observe(e, [_hit(5001, 9001, 3000), _hit(6002, 9001, 3000, skill=EARTH_SKILL)], timestamp_ms=3000)
+    s.observe(e, [_hit(5001, 9001, 3500), _hit(6002, 9001, 3500, skill=EARTH_SKILL)], timestamp_ms=3500)
+
+    rows = {p["name"]: p for p in s.snapshot(scope="party", combine_pets=False)["players"]}
+    assert "물의 정령" not in rows                 # replaced basic spirit folded into owner
+    assert rows["Spirited"].get("includes_pets") is True
+    assert rows["Spirited"]["damage"] == 6000                      # owner 4000 + the replaced water's 2000
+    assert "땅의 정령" in rows and rows["땅의 정령"].get("owner")  # current basic spirit stays

@@ -9,7 +9,7 @@ import copy
 import math
 import uuid
 
-from .a2parser.lookup import job_from_skill, npc_info, npc_name, skill_name
+from .a2parser.lookup import job_from_skill, npc_info, npc_name, skill_name, spirit_skill_category
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
 
 
@@ -58,9 +58,10 @@ def _summon_label(skill_id: int) -> str:
 #: a stale row until PET_DESPAWN_IDLE_MS elapses — the spirits cycle far faster than that idle
 #: window, so without this several dead basic-spirit rows pile up at once. Ancient Spirit (a
 #: stigma summon) can be out alongside a basic spirit, so it is exempt from this one-at-a-time
-#: replacement and only the idle rule applies to it. Names are taken from the summon skills so
-#: they track the shipped game data; on a client whose locale these names don't match, the
-#: replacement rule simply doesn't fire and the idle rule still covers de-spawns.
+#: replacement and only the idle rule applies to it. A summon is classified primarily by the
+#: skill IDs it attacks with (see spirit_skill_category — numeric, so correct on any client
+#: locale); these names, taken from the summon skills, are only a fallback for a summon that
+#: hasn't attacked with an identifying skill yet.
 BASIC_SPIRIT_NAMES = frozenset(_summon_label(s) for s in (16100000, 16110000, 16120000, 16130000))
 ANCIENT_SPIRIT_NAME = _summon_label(16250000)
 
@@ -785,24 +786,37 @@ class CombatSession:
         # time per actor (first_act) orders a Spiritmaster's basic spirits so a replaced one folds
         # in as soon as its successor appears — see replaced_basic below.
         now_ms, last_act, first_act = 0, {}, {}
-        basic_by_owner = {}
+        basic_by_owner, spirit_kind = {}, {}
         for group in groups:
             owners = self.identities[group["epoch"]]["owners"]
             for record in group["records"]:
-                ts, actor = record.event.timestamp_ms, record.event.actor_id
+                event = record.event
+                ts, actor = event.timestamp_ms, event.actor_id
                 if ts > now_ms:
                     now_ms = ts
                 if ts > last_act.get(actor, 0):
                     last_act[actor] = ts
                 if ts < first_act.get(actor, ts + 1):
                     first_act[actor] = ts
-                if actor in owners and self.name(group["epoch"], actor) in BASIC_SPIRIT_NAMES:
-                    seen = set()
-                    owner = actor
-                    while owner in owners and owner not in seen:
-                        seen.add(owner)
-                        owner = owners[owner]
-                    basic_by_owner.setdefault(owner, set()).add(actor)
+                # Classify a Spiritmaster summon as a "basic" elemental spirit or the
+                # (coexisting) Ancient Spirit by the skill IDs it attacks with — numeric, so
+                # independent of the game client's locale — and fall back to its displayed name
+                # only until an identifying skill is seen. Keying on skills lets the one-at-a-time
+                # replacement work on non-English clients too, where the name won't match.
+                if actor in owners and actor not in spirit_kind:
+                    kind = spirit_skill_category(event.skill_code) if isinstance(event, DamageEvent) else None
+                    if kind is None:
+                        name = self.name(group["epoch"], actor)
+                        kind = "basic" if name in BASIC_SPIRIT_NAMES else ("ancient" if name == ANCIENT_SPIRIT_NAME else None)
+                    if kind is not None:
+                        spirit_kind[actor] = kind
+                        if kind == "basic":
+                            seen = set()
+                            owner = actor
+                            while owner in owners and owner not in seen:
+                                seen.add(owner)
+                                owner = owners[owner]
+                            basic_by_owner.setdefault(owner, set()).add(actor)
         # A Spiritmaster can have only one basic spirit out at a time, so once a newer basic
         # spirit appears for the same owner, the earlier one is gone — fold it into the owner now
         # (even if it acted within the idle window) instead of leaving a stale row. Only basic

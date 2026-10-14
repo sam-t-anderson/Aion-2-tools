@@ -47,6 +47,42 @@ def normalize_skill(skill_id: int, locale: str = "en") -> int:
     return skill_id if raw_name != base_name else base
 
 
+#: A Spiritmaster's basic elemental spirits (one out at a time) vs the Ancient Spirit
+#: (which can be out alongside a basic spirit). Their own attack skills are named
+#: "<Element> Spirit: <skill>" in the game tables; that element decides the category.
+_SPIRIT_BASIC_ELEMENTS = frozenset({"Fire", "Water", "Wind", "Earth"})
+
+
+@lru_cache(maxsize=1)
+def _spirit_skill_sets() -> tuple[frozenset[int], frozenset[int]]:
+    """Skill IDs of a basic spirit's and the Ancient Spirit's own attacks, read once from the
+    shipped English skill table. Classifying a summon by the IDs it attacks with is independent
+    of the game client's locale (the IDs are numeric), unlike the summoned entity's name."""
+    basic: set[int] = set()
+    ancient: set[int] = set()
+    for sid, name in _table("skills", "en").items():
+        parts = name.split(" Spirit:", 1)   # the spirit's own attacks; "Summon:"/"Dismiss:" lack the colon
+        if len(parts) != 2:
+            continue
+        element = parts[0].split()[-1]
+        if element in _SPIRIT_BASIC_ELEMENTS:
+            basic.add(int(sid))
+        elif element == "Ancient":
+            ancient.add(int(sid))
+    return frozenset(basic), frozenset(ancient)
+
+
+def spirit_skill_category(skill_id: int) -> str | None:
+    """'basic' for a Fire/Water/Wind/Earth spirit's attack, 'ancient' for the Ancient Spirit's,
+    or None for any other skill. Locale-independent (keys on the numeric skill ID)."""
+    basic, ancient = _spirit_skill_sets()
+    if skill_id in basic:
+        return "basic"
+    if skill_id in ancient:
+        return "ancient"
+    return None
+
+
 def decode_spec_flags(raw_skill_id: int) -> tuple[bool, bool, bool, bool, bool]:
     flags = [False] * 5
     if 30_000_000 <= raw_skill_id <= 30_999_999:
