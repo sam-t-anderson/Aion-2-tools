@@ -19,7 +19,7 @@ from ..run import Scenario, kit_module, prepare
 from ..sim.engine import Sim
 from . import daevanion as daev_opt
 from .rotation import describe, materialize, optimize_rotation
-from .solver import name as solver_name
+from .solver import name as solver_name, require as solver_require
 from .statweights import node_values, stat_weights
 
 _CTX: dict = {}
@@ -559,6 +559,10 @@ class Optimizer:
     # ----------------------------------------------------------------- main
     def run(self, iterations: int = 3, *, initial_build: Build | None = None,
             initial_policy: list | None = None) -> OptResult:
+        # The Daevanion/SP allocation needs the in-process solver. Check it up front so a missing
+        # dependency fails immediately with guidance, rather than after the long rotation and
+        # stat-weight search (which don't use the solver) and looks like a hang at that phase.
+        solver_require()
         build = initial_build.copy() if initial_build is not None else self.initial_build()
         if self.min_effective:
             # Establish a legal seed before specialty search. Joint feasibility

@@ -15,6 +15,7 @@ from __future__ import annotations
 import heapq
 import itertools
 import math
+import time
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -22,6 +23,25 @@ from ..model.damage import HitContext, expected_hit
 from ..model.stats import Derived
 
 EPS = 1e-9
+
+#: Safety bounds so one pathological build can never hang the simulator (and with it the
+#: optimizer UI). A hit's hook may schedule more work (a proc) at the same instant; with extreme
+#: imported gear a proc can re-trigger on its own hit and schedule same-instant events without end,
+#: which would spin ``_advance_to`` forever. These caps are far above any legitimate fight (a 3-minute
+#: parse lands a few thousand events) so they never fire in a healthy sim; when one does, the sim
+#: stops draining and terminates with a bounded, slightly-approximate result instead of hanging.
+_MAX_EVENTS_PER_ADVANCE = 300_000
+_MAX_RUN_STEPS = 5_000_000
+#: A hit's hook may land another hit at the same instant (``delay=0`` lands inline), so a
+#: self-triggering proc recurses hook -> hit -> land -> hook. Real procs nest a step or two; this
+#: caps the synchronous depth so a degenerate chain stops (bounded, flagged) instead of raising
+#: RecursionError. Each level is a few stack frames, so keep this well under Python's ~1000-frame
+#: limit; real procs nest only a step or two, so this is still far above any legitimate kit.
+_MAX_LAND_DEPTH = 50
+#: Last-resort per-run wall-clock bound. A search sim runs in well under a millisecond; nothing
+#: legitimate approaches this, so it only trips on a pathological build and turns a would-be hang
+#: into a bounded, flagged result rather than freezing the optimizer UI.
+_SIM_WALL_LIMIT_S = 20.0
 
 
 @dataclass
@@ -151,6 +171,8 @@ class Sim:
         self.hooks = hooks or []           # fn(sim, t, hit_info) after each hit
         self.cond_mods = cond_mods or []   # fn(sim, t) -> dict of temporary stat adds
         self.t = 0.0
+        self._degenerate = False           # set if a safety cap trips (non-terminating same-instant chain)
+        self._land_depth = 0               # synchronous hook -> hit -> land recursion depth
         self.events: list[_Event] = []
         self._seq = itertools.count()
         self.ready: dict[str, float] = {}
@@ -340,15 +362,33 @@ class Sim:
         self.damage_by[source] = self.damage_by.get(source, 0.0) + dmg
         self.hits_by[source] = self.hits_by.get(source, 0) + 1
         info = {"source": source, "element": element, "tags": tags, "dmg": dmg}
-        for hk in self.hooks:
-            hk(self, t, info)
+        if self._land_depth >= _MAX_LAND_DEPTH:
+            # A hook kept landing more same-instant hits; stop firing hooks here so the chain
+            # unwinds instead of overflowing the stack. The hit's own damage is still counted.
+            self._degenerate = True
+            return
+        self._land_depth += 1
+        try:
+            for hk in self.hooks:
+                hk(self, t, info)
+        finally:
+            self._land_depth -= 1
 
     def _advance_to(self, t_new: float) -> None:
+        drained = 0
         while self.events and self.events[0].t <= t_new + EPS:
             ev = heapq.heappop(self.events)
             self._regen(ev.t)
             self.t = max(self.t, ev.t)
             ev.fn()
+            drained += 1
+            if drained >= _MAX_EVENTS_PER_ADVANCE:
+                # A hit whose hook keeps scheduling more same-instant work (a self-triggering
+                # proc under extreme gear) would spin here forever. Drop the remaining backlog so
+                # the sim terminates; this only trips on a degenerate build, never a real one.
+                self.events.clear()
+                self._degenerate = True
+                break
         self._regen(t_new)
         self.t = max(self.t, t_new)
 
@@ -441,7 +481,16 @@ class Sim:
     def run(self) -> "SimResult":
         T = self.cfg.duration
         idle = 0.0
+        steps = 0
+        deadline = time.monotonic() + _SIM_WALL_LIMIT_S
         while self.t < T - EPS:
+            steps += 1
+            if steps > _MAX_RUN_STEPS or (steps & 0x3FFF == 0 and time.monotonic() > deadline):
+                # Backstop: the per-advance cap already bounds same-instant chains; these guard the
+                # outer loop (by step count and wall-clock) so a sim can never run unbounded —
+                # regardless of what a kit schedules or how extreme the imported gear is.
+                self._degenerate = True
+                break
             blocked = next((stop for start, stop in self.action_blocks if start-EPS <= self.t < stop-EPS), None)
             if blocked is not None:
                 idle += blocked-self.t
