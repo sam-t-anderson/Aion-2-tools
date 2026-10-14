@@ -59,3 +59,60 @@ def test_active_pets_stay_separate_when_none_have_despawned():
     rows = {p["name"]: p for p in s.snapshot(scope="party", combine_pets=False)["players"]}
     assert "Water Spirit" in rows and rows["Water Spirit"].get("owner")   # still active → own row
     assert not rows["Spirited"].get("includes_pets")                      # owner did not absorb it
+
+
+def _engine_spirits(names, owners):
+    e = MeterEngine()
+    e.map_id = e.dungeon_id = 600002
+    e.last_zone_reset_ms = None
+    e.local_player_id = 5001
+    e.names = dict(names)
+    e.known_players = {5001}
+    e.roster = {"Spirited": {}}
+    e.summon_owners = dict(owners)
+    return e
+
+
+def test_new_basic_spirit_folds_the_replaced_one_immediately():
+    # The Spiritmaster has only one basic spirit out at a time. When a new basic spirit is
+    # summoned (Earth replacing Water here), the replaced one is gone and its damage must roll
+    # into the owner at once — even though it dealt damage well inside the 8s idle window, so the
+    # idle rule alone would not have folded it. Only the current (newest) basic spirit keeps a row.
+    s = CombatSession(); s.pvp = False
+    e = _engine_spirits({5001: "Spirited", 6001: "Water Spirit", 6002: "Earth Spirit"},
+                        {6001: 5001, 6002: 5001})
+    # Water Spirit is the basic spirit out for the first two seconds…
+    s.observe(e, [_hit(5001, 9001, 1000), _hit(6001, 9001, 1000)], timestamp_ms=1000)
+    s.observe(e, [_hit(5001, 9001, 2000), _hit(6001, 9001, 2000)], timestamp_ms=2000)
+    # …then the player summons Earth Spirit, which replaces it. Water last acted at t=2000 — only
+    # 1.5s before "now" (3500), comfortably inside the 8s idle window.
+    s.observe(e, [_hit(5001, 9001, 3000), _hit(6002, 9001, 3000)], timestamp_ms=3000)
+    s.observe(e, [_hit(5001, 9001, 3500), _hit(6002, 9001, 3500)], timestamp_ms=3500)
+
+    rows = {p["name"]: p for p in s.snapshot(scope="party", combine_pets=False)["players"]}
+    assert "Water Spirit" not in rows                       # replaced basic spirit folded in at once
+    assert rows["Spirited"].get("includes_pets") is True
+    assert rows["Spirited"]["damage"] == 6000               # owner 4000 + the replaced Water's 2000
+    assert "Earth Spirit" in rows and rows["Earth Spirit"].get("owner")  # the current basic spirit stays
+    assert rows["Earth Spirit"]["damage"] == 2000
+
+
+def test_ancient_spirit_stays_out_alongside_the_current_basic_spirit():
+    # Ancient Spirit (a stigma summon) is the one spirit that can be out at the same time as a
+    # basic spirit, so the one-at-a-time replacement must never fold it. A basic spirit replaced
+    # by a newer one still folds; the current basic spirit and the Ancient Spirit each keep a row.
+    s = CombatSession(); s.pvp = False
+    e = _engine_spirits({5001: "Spirited", 6001: "Water Spirit", 6002: "Earth Spirit",
+                         6003: "Ancient Spirit"},
+                        {6001: 5001, 6002: 5001, 6003: 5001})
+    s.observe(e, [_hit(5001, 9001, 1000), _hit(6001, 9001, 1000)], timestamp_ms=1000)
+    # Earth replaces Water, and the Ancient Spirit is summoned alongside it.
+    s.observe(e, [_hit(5001, 9001, 3000), _hit(6002, 9001, 3000), _hit(6003, 9001, 3000)], timestamp_ms=3000)
+    s.observe(e, [_hit(5001, 9001, 3500), _hit(6002, 9001, 3500), _hit(6003, 9001, 3500)], timestamp_ms=3500)
+
+    rows = {p["name"]: p for p in s.snapshot(scope="party", combine_pets=False)["players"]}
+    assert "Water Spirit" not in rows                        # replaced basic spirit folded into owner
+    assert rows["Spirited"].get("includes_pets") is True
+    assert "Earth Spirit" in rows and rows["Earth Spirit"].get("owner")   # current basic spirit
+    assert "Ancient Spirit" in rows and rows["Ancient Spirit"].get("owner")  # coexists → keeps its row
+    assert rows["Ancient Spirit"]["damage"] == 2000
