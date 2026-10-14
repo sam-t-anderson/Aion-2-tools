@@ -1,5 +1,8 @@
 /* Styles for the GitHub Pages site (landing, docs, planner chrome). Builds on app.css tokens. */
 .site { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+/* Combat-log pages opt into a full-browser-width, 200%-scaled layout so the dense
+   per-encounter tables and the combat review read comfortably on big screens. */
+.site.wide-2x { max-width: none; zoom: 2; }
 .hero2 { display: grid; grid-template-columns: 120px 1fr; gap: 24px; align-items: center; padding: 20px 0 10px; }
 .herologo { width: 120px; height: 120px; }
 .hero2 h1 { font-family: var(--display); color: var(--gold); letter-spacing: 2px; font-size: 40px; margin: 0 0 6px; }

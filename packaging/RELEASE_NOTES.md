@@ -1,3 +1,7 @@
+## Website: wider, larger combat-log and combat-review pages (0.2.271)
+
+- **Community combat logs and the combat-review (log details) page now use the full browser width and render at 200% scale**, so the dense per-encounter tables, class/boss icons and the combat breakdown are far easier to read on a large monitor. Other pages are unchanged.
+
 ## Website: filterable community logs, class/boss icons, a hover read-out on the spread graph, and tidier log details (0.2.270)
 
 - **Class-stats spread graph now reads out on hover.** Move the cursor across a class's spread and a tooltip shows the approximate DPS under it, which percentile band that is (bottom 25% → top 10%), and the class's own markers (median, 25th/75th/90th, best) with the nearest one highlighted, plus a guide line in the bar.

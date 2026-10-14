@@ -75,6 +75,15 @@ def test_community_party_uses_class_icons_and_boss_portrait():
     assert "A2AssetHealth" in LOGS_JS                          # resolves bundled / cached copies
 
 
+def test_combat_log_pages_use_the_wide_enlarged_layout():
+    # Community logs and the combat-review page opt into full-width, 200%-scaled layout.
+    assert 'class="site wide-2x"' in LOGS_HTML
+    log_html = (SITE / "log.html").read_text(encoding="utf-8")
+    assert 'class="site wide-2x"' in log_html
+    css = (SITE / "site.css").read_text(encoding="utf-8")
+    assert ".site.wide-2x" in css and "zoom: 2" in css
+
+
 def test_logs_page_loads_server_before_logs_script():
     for dep in ("config.js", "server.js", "logs.js", "navigation.js"):
         assert f'src="{dep}"' in LOGS_HTML, f"logs.html must load {dep}"
