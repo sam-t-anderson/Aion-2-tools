@@ -30,3 +30,21 @@ def test_metadata_stamps_the_uploader_from_the_local_player():
     assert 'doc["meta"]["uploader"]' in METER_RUNNER
     assert "local_player_id" in METER_RUNNER
     assert '"verified"' in METER_RUNNER     # marks whether the identity came from the game
+
+
+def test_validate_keeps_a_cleaned_uploader_through_the_schema():
+    # meta.uploader is an object, not one of the allowlisted string meta keys, so validate() has to
+    # preserve it explicitly -- otherwise the server strips it and every public log stays anonymous.
+    from aion2calc.combat import a2log
+    from aion2calc.meter import Meter, replay_source
+
+    demo = ROOT / "aion2calc" / "meter" / "demo_session.jsonl"
+    meter = Meter()
+    for event in replay_source(demo):
+        meter.add(event)
+    doc = meter.to_a2log(title="Demo")                       # a valid document ("Zikel" is in the roster)
+    doc["meta"]["uploader"] = {"name": "  Zikel  ", "verified": True, "server": "Israphel", "spoofed": {"x": 1}}
+    uploader = a2log.validate(doc)["meta"]["uploader"]
+    assert uploader["name"] == "Zikel" and uploader["verified"] is True   # trimmed, bounded, kept
+    assert uploader["server"] == "Israphel"
+    assert "spoofed" not in uploader                                      # only known fields survive

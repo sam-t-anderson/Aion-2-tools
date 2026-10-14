@@ -90,7 +90,9 @@ SCHEMA = {
             "npc_diagnostics": {"type": "object", "description": "Bounded numeric spawn-decoder evidence; no raw packet bytes"},
             "visibility": {"enum": ["public", "unlisted", "private"]},
             "contribute": {"enum": ["yes", "no"], "description": "use this fight in the anonymous class "
-                           "statistics (default yes; private logs never are)"}}},
+                           "statistics (default yes; private logs never are)"},
+            "uploader": {"type": "object", "description": "the recording/local player a public log is "
+                         "attributed to; the server keeps the name only when it matches the log's own roster"}}},
         "players": {"type": "array", "minItems": 1, "maxItems": LIMITS["players"], "items": {
             "type": "object", "required": ["id", "name"], "additionalProperties": True, "properties": {
                 "id": {"type": "string"}, "name": {"type": "string"},
@@ -190,6 +192,16 @@ def validate(doc) -> dict:
         clean_meta["checkpoint_at"] = meta["checkpoint_at"]
     if meta.get("capture_scope") in ("party", "self", "all"):
         clean_meta["capture_scope"] = meta["capture_scope"]
+    # The recording client stamps the local player as meta.uploader so a public log can be
+    # attributed. Keep a bounded copy here (it is not a plain string, so it would otherwise be
+    # dropped above); the server additionally keeps it only if the name is in the log's roster.
+    up = meta.get("uploader")
+    if isinstance(up, dict) and isinstance(up.get("name"), str) and up["name"].strip():
+        clean_up = {"name": up["name"].strip()[:60], "verified": up.get("verified") is True}
+        for key in ("server", "character_id"):
+            if isinstance(up.get(key), str) and up[key].strip():
+                clean_up[key] = up[key].strip()[:60]
+        clean_meta["uploader"] = clean_up
     from .quality import COUNTERS
     from .npc_diagnostics import clean as clean_npc_diagnostics
     npc_diagnostics = clean_npc_diagnostics(meta.get("npc_diagnostics"))
