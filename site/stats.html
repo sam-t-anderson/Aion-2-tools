@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Class stats — aion2calc</title>
+<meta name="description" content="AION 2 class statistics learned from shared public logs: median DPS, hit rates, tempo and damage by skill, per class and boss.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="static/logo.png">
+<script>try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; const a = localStorage.getItem("accent"); if (["crimson","emerald","azure","amethyst","rose"].includes(a)) document.documentElement.dataset.accent = a; } catch (e) {}</script>
+<link rel="stylesheet" href="static/app.css">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="topbar"><div class="brand"><a href="index.html"><img src="static/logo.png" alt="">Aion 2 Calc</a><small>AION 2 combat tools</small></div><nav class="nav"><a href="index.html">Home</a><a href="logs.html">Logs</a><a href="leaderboard.html">Leaderboard</a><a href="stats.html" class="on" aria-current="page">Class stats</a><a href="builds.html">Builds</a><a href="plans.html">Plans</a><a href="planner.html">Raid Planner</a><a href="maps.html">Maps</a><a href="crafting.html">Crafting</a><a href="timers.html">Timers</a><a href="news.html">News</a><a href="docs.html">Docs</a><a href="https://github.com/sam-t-anderson/Aion-2-tools" target="_blank" rel="noopener">GitHub</a><a href="https://discord.gg/9y6zkUyvBv" target="_blank" rel="noopener">Discord</a></nav><button class="iconbtn" id="theme" title="Theme: follow computer, light or dark" aria-label="Change theme">◐</button></header>
+<main class="site"><h1 class="pagetitle">Class stats</h1>
+  <p class="small muted">Learned from every public and unlisted upload (anonymous, no names kept) — median DPS, hit rates, tempo and damage by skill, per class and boss.</p>
+  <div id="class-picker" class="row" style="margin-top:10px"></div>
+  <div id="boss-picker" class="row" style="margin-top:6px"></div>
+  <div id="stats-body" style="margin-top:14px"><div class="empty">Loading…</div></div>
+</main>
+<script src="config.js"></script>
+<script src="server.js"></script>
+<script src="stats.js"></script>
+<script src="navigation.js"></script>
+</body>
+</html>
