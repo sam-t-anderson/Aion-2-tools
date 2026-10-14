@@ -54,26 +54,84 @@
     if (p90 != null) parts.push(`<line x1="${p90}" y1="6" x2="${p90}" y2="14" stroke="currentColor" stroke-opacity=".55" stroke-width="1.2"/>`);
     if (mxv != null) parts.push(`<line x1="${mxv}" y1="4" x2="${mxv}" y2="16" stroke="currentColor" stroke-opacity=".7" stroke-width="1.2"/>`);
     if (med != null) parts.push(`<line x1="${med}" y1="1" x2="${med}" y2="19" stroke="currentColor" stroke-width="2.2"/>`);
-    return `<svg viewBox="0 0 100 20" preserveAspectRatio="none" width="100%" height="20" role="img" aria-label="DPS spread: median ${n0(dps.median)}, middle half ${n0(dps.p25)}–${n0(dps.p75)}, best ${n0(dps.max)}">${parts.join("")}</svg>`;
+    parts.push('<line class="crs" x1="0" x2="0" y1="0" y2="20" stroke="currentColor" stroke-opacity="0" stroke-width="0.7"/>');
+    const d = (v) => (v == null || isNaN(v) ? "" : Math.round(v));
+    return `<span class="spread-wrap"><svg viewBox="0 0 100 20" preserveAspectRatio="none" width="100%" height="20" role="img"`
+      + ` data-spread data-gmax="${d(gmax)}" data-median="${d(dps.median)}" data-p25="${d(dps.p25)}" data-p75="${d(dps.p75)}" data-p90="${d(dps.p90)}" data-max="${d(dps.max)}"`
+      + ` aria-label="DPS spread: median ${n0(dps.median)}, middle half ${n0(dps.p25)}–${n0(dps.p75)}, best ${n0(dps.max)}. Hover to read values at the cursor.">${parts.join("")}</svg></span>`;
+  }
+
+  // Hover read-out for the spread graphs: a tooltip follows the cursor and reports the approximate
+  // DPS under it, which percentile band that falls in, and the class's key markers (with the one
+  // nearest the cursor highlighted), plus a thin guide line in the bar. Wired once to the container;
+  // works for every spread row rendered into it. Pointer devices only — it is a progressive extra.
+  let tip;
+  const MARKERS = [["median", "Median"], ["p25", "25th pct"], ["p75", "75th pct"], ["p90", "90th pct"], ["max", "Best"]];
+  function ensureTip() {
+    if (tip) return tip;
+    const style = document.createElement("style");
+    style.textContent = ".spread-wrap{display:block;cursor:crosshair}"
+      + ".spread-tip{position:fixed;z-index:60;pointer-events:none;background:var(--panel,var(--card,#1b1f27));color:var(--fg,var(--text,#e8eaed));"
+      + "border:1px solid var(--line,var(--border,#3a3f4b));border-radius:6px;padding:6px 8px;font:12px/1.35 'Noto Sans',system-ui,sans-serif;"
+      + "box-shadow:0 6px 18px rgba(0,0,0,.35);max-width:240px;opacity:0;transition:opacity .08s}"
+      + ".spread-tip .cur{color:#2a8fb0;font-weight:700;font-size:13px}.spread-tip .band{margin:2px 0 4px;opacity:.85}"
+      + ".spread-tip table{border-collapse:collapse;width:100%}.spread-tip td{padding:1px 0}.spread-tip td+td{text-align:right;padding-left:14px}"
+      + ".spread-tip tr.on td{color:#2a8fb0;font-weight:700}";
+    document.head.appendChild(style);
+    tip = document.createElement("div"); tip.className = "spread-tip"; tip.hidden = true;
+    document.body.appendChild(tip);
+    return tip;
+  }
+  function bandLabel(v, m) {
+    if (m.p25 != null && v < m.p25) return "bottom 25% of players";
+    if (m.median != null && v < m.median) return "lower-middle (25th–50th pct)";
+    if (m.p75 != null && v < m.p75) return "upper-middle (50th–75th pct)";
+    if (m.p90 != null && v < m.p90) return "top 25% (75th–90th pct)";
+    if (m.max != null && v <= m.max) return "top 10% (90th pct → best)";
+    return "beyond this class's best recorded";
+  }
+  function wireSpread(root) {
+    const t = ensureTip();
+    const hide = () => { if (!t.hidden) { t.hidden = true; t.style.opacity = "0"; } root.querySelectorAll("svg[data-spread] .crs").forEach((c) => c.setAttribute("stroke-opacity", "0")); };
+    root.addEventListener("mouseleave", hide);
+    root.addEventListener("mousemove", (e) => {
+      const svg = e.target.closest && e.target.closest("svg[data-spread]");
+      if (!svg) return hide();
+      const r = svg.getBoundingClientRect(), gmax = +svg.dataset.gmax;
+      if (!r.width || !gmax) return hide();
+      const frac = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), v = frac * gmax;
+      const m = {}; for (const k of ["p25", "median", "p75", "p90", "max"]) { const dv = svg.dataset[k]; m[k] = (dv == null || dv === "") ? null : +dv; }
+      let near = null, best = Infinity; for (const [k] of MARKERS) if (m[k] != null && Math.abs(v - m[k]) < best) { best = Math.abs(v - m[k]); near = k; }
+      const crs = svg.querySelector(".crs"); if (crs) { crs.setAttribute("x1", (frac * 100).toFixed(1)); crs.setAttribute("x2", (frac * 100).toFixed(1)); crs.setAttribute("stroke-opacity", ".8"); }
+      t.innerHTML = `<div class="cur">≈ ${n0(v)} DPS</div><div class="band">${esc(bandLabel(v, m))}</div>`
+        + `<table>${MARKERS.map(([k, lab]) => `<tr class="${k === near ? "on" : ""}"><td>${lab}</td><td>${n0(m[k])}</td></tr>`).join("")}</table>`;
+      t.hidden = false; t.style.opacity = "1";
+      const pad = 14, w = t.offsetWidth, h = t.offsetHeight;
+      let left = e.clientX + pad, top = e.clientY + pad;
+      if (left + w > innerWidth - 6) left = e.clientX - pad - w;
+      if (top + h > innerHeight - 6) top = e.clientY - pad - h;
+      t.style.left = Math.max(6, left) + "px"; t.style.top = Math.max(6, top) + "px";
+    });
   }
 
   async function renderOverview(classes) {
     body.innerHTML = '<div class="empty">Loading…</div>';
     const results = await Promise.all(classes.map(async (c) => {
-      try { const s = await A2.api(`/api/v1/stats/${encodeURIComponent(c.class)}`); return { cls: c.class, obs: c.observations, dps: s.dps || {} }; }
+      try { const s = await A2.api(`/api/v1/stats/${encodeURIComponent(c.class)}`); return { cls: c.class, obs: c.observations, dps: s.dps || {}, best: s.best_dps, cp: s.combat_power, gs: s.gear_score }; }
       catch (e) { return { cls: c.class, obs: c.observations, dps: {} }; }
     }));
     const rows = results.filter((r) => r.dps && r.dps.median != null).sort((a, b) => (b.dps.median || 0) - (a.dps.median || 0));
     if (!rows.length) { body.innerHTML = '<div class="empty">Not enough data for a class comparison yet.</div>'; return; }
     const gmax = Math.max(...rows.map((r) => r.dps.max || r.dps.p90 || r.dps.median || 0), 1);
     const tr = rows.map((r) => `<tr><td>${esc(cap(r.cls))}</td>
-      <td style="width:40%">${spread(r.dps, gmax)}</td>
+      <td style="min-width:120px">${spread(r.dps, gmax)}</td>
       <td class="r num">${n0(r.dps.median)}</td><td class="r">${n0(r.dps.p75)}</td><td class="r">${n0(r.dps.p90)}</td>
+      <td class="r num">${n0(r.best != null ? r.best : r.dps.max)}</td><td class="r">${n0(r.gs)}</td><td class="r">${n0(r.cp)}</td>
       <td class="r">${n0(r.obs)}</td><td><a href="stats.html?class=${encodeURIComponent(r.cls)}">details →</a></td></tr>`).join("");
     body.innerHTML =
       '<h2 class="pagetitle" style="font-size:18px">Performance by class</h2>' +
-      `<table class="t"><tr><th>Class</th><th>Spread (DPS)</th><th class="r">Median DPS</th><th class="r">Top 25% DPS</th><th class="r">Top 10% DPS</th><th class="r">Samples</th><th></th></tr>${tr}</table>` +
-      '<p class="small muted" style="margin-top:10px">Each bar is that class\'s DPS spread on a shared axis: the box is the middle half of players, the strong line is the median, the whisker runs to the best recorded. Highest median first. Choose a class above for its hit rates, cast tempo and damage by skill.</p>';
+      `<div style="overflow-x:auto"><table class="t"><tr><th>Class</th><th>Spread (DPS)</th><th class="r">Median DPS</th><th class="r">Top 25% DPS</th><th class="r">Top 10% DPS</th><th class="r">Best DPS</th><th class="r">Gear score</th><th class="r">Combat power</th><th class="r">Samples</th><th></th></tr>${tr}</table></div>` +
+      '<p class="small muted" style="margin-top:10px">Each bar is that class\'s DPS spread on a shared axis — hover it to read the DPS and percentile at your cursor. The box is the middle half of players, the strong line is the median, the whisker runs to the best recorded. Best DPS is the single best parse; gear score and combat power are medians, shown only where players reported them. Highest median first. Choose a class above for its hit rates, cast tempo and damage by skill.</p>';
   }
 
   async function renderClass(cls, boss) {
@@ -92,7 +150,8 @@
     const mx = Math.max(...skills.map((r) => r.share || 0), 0.0001);
     const kp = [
       ["Players", n0(s.observations)], ["Median DPS", n0(dps.median)],
-      ["Top 25% DPS", n0(dps.p75)], ["Top 10% DPS", n0(dps.p90)],
+      ["Top 25% DPS", n0(dps.p75)], ["Top 10% DPS", n0(dps.p90)], ["Best DPS", n0(s.best_dps != null ? s.best_dps : dps.max)],
+      ["Median gear score", n0(s.gear_score)], ["Median combat power", n0(s.combat_power)],
       ["Crit", pct(rates.crit)], ["Double", pct(rates.double)], ["Perfect", pct(rates.perfect)],
       ["Casts / min", tempo.cpm != null ? Math.round(tempo.cpm) : "—"],
       ["Idle (all)", pct(tempo.idle_share)], ["Idle (top 25%)", pct((tq.tempo || {}).idle_share)],
@@ -114,5 +173,6 @@
         : '<div class="empty">Not enough data for combat-power brackets.</div>');
   }
 
+  wireSpread(body);
   render();
 })();

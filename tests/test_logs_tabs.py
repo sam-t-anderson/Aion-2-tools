@@ -45,7 +45,7 @@ def test_community_tab_is_one_row_per_encounter():
     # The Community combat logs view is a per-encounter table (flattened from /api/v1/logs
     # contexts[]), filterable by boss, not the old per-log browse widget.
     assert "renderCommunity" in LOGS_JS
-    assert "/api/v1/logs?page=" in LOGS_JS
+    assert "/api/v1/logs?" in LOGS_JS and 'p.set("page"' in LOGS_JS   # paged request, now with filter params
     assert "contexts" in LOGS_JS
     # Columns the user asked for: boss, difficulty, party, time, uploaded-by, date, product version.
     for col in (">Boss<", ">Difficulty<", ">Party<", ">Time<", ">Uploaded by<", ">Date<", ">Product<"):
@@ -56,6 +56,23 @@ def test_community_tab_is_one_row_per_encounter():
 
 def test_community_pagination_is_50_per_page():
     assert "COMM_PER_PAGE = 50" in LOGS_JS
+
+
+def test_community_filters_are_facet_driven_dropdowns():
+    # Filter choices come from the server's own facets; each maps to a param /api/v1/logs honours.
+    assert "/api/v1/report-facets" in LOGS_JS
+    for sel in ('id="cf-mode"', 'id="cf-boss"', 'id="cf-difficulty"', 'id="cf-encounter_type"',
+                'id="cf-region"', 'id="cf-game_patch"', 'id="cf-party_size"'):
+        assert sel in LOGS_JS, f"missing filter control {sel}"
+    assert "combat_mode" in LOGS_JS   # PvE / PvP toggle
+
+
+def test_community_party_uses_class_icons_and_boss_portrait():
+    # Party members render as class icons (name on hover), and the boss shows its portrait.
+    assert "metabot.gg/web/aion2/classes/" in LOGS_JS   # class-icon source
+    assert "classIcon" in LOGS_JS and 'title="' in LOGS_JS   # name shown on hover
+    assert "bossIcon" in LOGS_JS and "mob-ic" in LOGS_JS      # mob portrait beside the boss name
+    assert "A2AssetHealth" in LOGS_JS                          # resolves bundled / cached copies
 
 
 def test_logs_page_loads_server_before_logs_script():

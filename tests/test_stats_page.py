@@ -53,6 +53,22 @@ def test_overview_and_kpi_columns_say_dps():
     assert "Top 25% from" not in STATS_JS and "Top 10% from" not in STATS_JS
 
 
+def test_stats_show_best_dps_median_gear_and_combat_power():
+    # Headline numbers the user asked for, read from the server aggregate (best_dps/gear_score/combat_power).
+    assert "Best DPS" in STATS_JS
+    assert "Gear score" in STATS_JS and "Combat power" in STATS_JS
+    for field in ("best_dps", "gear_score", "combat_power"):
+        assert field in STATS_JS, f"stats.js must read s.{field}"
+
+
+def test_spread_graph_has_a_cursor_hover_readout():
+    # Hovering the spread reports the DPS and percentile band under the cursor.
+    assert "wireSpread" in STATS_JS
+    assert "data-spread" in STATS_JS      # the SVG carries its markers for the read-out
+    assert "spread-tip" in STATS_JS       # the floating tooltip
+    assert "mousemove" in STATS_JS
+
+
 def test_stats_page_marks_itself_active_in_the_nav():
     assert 'href="stats.html" class="on" aria-current="page"' in STATS_HTML
 

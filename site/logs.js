@@ -116,21 +116,52 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
   // buffered as needed to fill each page. The uploader is shown when the server provides it (new
   // uploads stamp the recording player); older or undetermined uploads show "Anonymous".
   const COMM_PER_PAGE = 50;
-  const comm = { page: 1, boss: "", buf: [], srvPage: 0, done: false, total: 0 };
+  // Filters mirror what the server's /api/v1/logs already honours (combat mode, boss, difficulty,
+  // encounter type, region, product/game version, party size); the choices come from the live
+  // /api/v1/report-facets so only values that actually exist are offered.
+  const comm = { page: 1, f: { combat_mode: "pve" }, buf: [], srvPage: 0, done: false, total: 0, facets: null };
   const patchOf = (g) => String(g || "").replace(/^version:product:/, "");
+  const prettyEnc = (s) => String(s || "").replace(/^pve_|^pvp_/, "").replace(/_/g, " ") || "—";
   const day = (ts) => { try { return new Date(ts * 1000).toISOString().slice(0, 10); } catch (e) { return "—"; } };
+  const srcOf = (u) => (u && window.A2AssetHealth ? A2AssetHealth.source(u) : u || null);
+  const classIconUrl = (cls) => srcOf("https://metabot.gg/web/aion2/classes/" + encodeURIComponent(cls) + ".webp");
+  // A party member as their class icon, with the player name (and class) on hover; drops to nothing
+  // if the icon can't load so the row never breaks.
+  function classIcon(m) {
+    const cls = String(m.class || "").toLowerCase();
+    if (!cls) return "";
+    const label = m.name ? m.name + " · " + cap(cls) : cap(cls);
+    return `<img class="cls-ic" width="20" height="20" loading="lazy" referrerpolicy="no-referrer" alt="${esc(cls)}" title="${esc(label)}" src="${esc(classIconUrl(cls))}" onerror="this.remove()">`;
+  }
+  function commStyle() {
+    if (document.getElementById("comm-style")) return;
+    const s = document.createElement("style"); s.id = "comm-style";
+    s.textContent = ".comm-filters select{margin-top:3px;min-width:120px}.boss-cell{display:inline-flex;align-items:center;gap:6px}"
+      + ".mob-ic{border-radius:4px;vertical-align:middle}.party-cell{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap}"
+      + ".party-cell b{margin-right:4px}.cls-ic{border-radius:4px;vertical-align:middle}";
+    document.head.appendChild(s);
+  }
   function commReset() { comm.buf = []; comm.srvPage = 0; comm.done = false; comm.total = 0; }
+  function commQuery() {
+    const p = new URLSearchParams(); p.set("page", comm.srvPage); p.set("limit", "50");
+    if (comm.f.combat_mode) p.set("combat_mode", comm.f.combat_mode);
+    for (const k of ["boss", "difficulty", "region", "encounter_type", "game_patch", "party_size"]) if (comm.f[k]) p.set(k, comm.f[k]);
+    return p.toString();
+  }
   async function commFetchMore() {
     comm.srvPage += 1;
-    const d = await A2.api(`/api/v1/logs?page=${comm.srvPage}&limit=50` + (comm.boss ? "&boss=" + encodeURIComponent(comm.boss) : ""));
+    const d = await A2.api("/api/v1/logs?" + commQuery());
     const logs = (d && d.logs) || [];
     if (d && typeof d.total === "number") comm.total = d.total;
     for (const lg of logs) {
-      const roster = (lg.players || []).map((p) => p.name).filter(Boolean);
+      const iconByName = {};
+      for (const b of (lg.bosses || [])) if (b && b.name && b.icon) iconByName[b.name] = b.icon;  // server-provided portraits
+      const members = (lg.players || []).filter((p) => p && (p.name || p.class)).map((p) => ({ name: p.name, class: p.class }));
       const uploader = typeof lg.uploader === "string" ? lg.uploader : null;  // server-provided; else anonymous
       for (const c of (lg.contexts || [])) {
-        comm.buf.push({ boss: c.boss, difficulty: c.difficulty, party: c.party_size || roster.length || 0, roster,
-          duration: c.duration, date: lg.created_at, patch: patchOf(c.game_patch), id: lg.id, uploader });
+        comm.buf.push({ boss: c.boss, bossIcon: srcOf(iconByName[c.boss]), difficulty: c.difficulty,
+          party: c.party_size || members.length || 0, members, duration: c.duration, date: lg.created_at,
+          patch: patchOf(c.game_patch), id: lg.id, uploader });
       }
     }
     if (!logs.length || (comm.total && comm.srvPage * 50 >= comm.total)) comm.done = true;
@@ -143,9 +174,10 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     catch (e) { table.innerHTML = errNote(e); return; }
     const start = (comm.page - 1) * COMM_PER_PAGE;
     const rows = comm.buf.slice(start, start + COMM_PER_PAGE);
-    if (!rows.length) { table.innerHTML = `<div class="empty">No encounters found${comm.boss ? ' for "' + esc(comm.boss) + '"' : ""}.</div>`; return; }
-    const tr = rows.map((r) => `<tr><td>${esc(r.boss || "—")}</td><td>${esc(r.difficulty || "—")}</td>
-      <td>${n0(r.party)}${r.roster.length ? ` <span class="muted small">${esc(r.roster.slice(0, 3).join(", "))}${r.roster.length > 3 ? "…" : ""}</span>` : ""}</td>
+    if (!rows.length) { table.innerHTML = '<div class="empty">No encounters match these filters.</div>'; return; }
+    const tr = rows.map((r) => `<tr><td><span class="boss-cell">${r.bossIcon ? `<img class="mob-ic" width="22" height="22" loading="lazy" referrerpolicy="no-referrer" src="${esc(r.bossIcon)}" alt="" onerror="this.remove()">` : ""}${esc(r.boss || "—")}</span></td>
+      <td>${esc(r.difficulty || "—")}</td>
+      <td><span class="party-cell"><b>${n0(r.party)}</b>${r.members.map(classIcon).join("")}</span></td>
       <td class="r num">${secs(r.duration)}</td><td>${esc(r.uploader || "Anonymous")}</td><td class="muted small">${day(r.date)}</td><td class="muted small">${esc(r.patch || "—")}</td>
       <td><a href="log.html?id=${encodeURIComponent(r.id)}">view</a></td></tr>`).join("");
     table.innerHTML = `<table class="t"><tr><th>Boss</th><th>Difficulty</th><th>Party</th><th class="r">Time</th><th>Uploaded by</th><th>Date</th><th>Product</th><th></th></tr>${tr}</table>`;
@@ -159,19 +191,30 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
       if (next) next.onclick = () => { if (hasNext) { comm.page++; loadCommunity(); } };
     }
   }
-  function renderCommunity() {
+  const field = (label, inner) => `<label class="small muted">${label}<br>${inner}</label>`;
+  const options = (values, cur, fmt) => '<option value="">any</option>' +
+    (values || []).map((v) => `<option value="${esc(v)}"${String(v) === String(cur || "") ? " selected" : ""}>${esc(fmt ? fmt(v) : v)}</option>`).join("");
+  async function renderCommunity() {
     const root = document.getElementById("community");
     if (!root) return;
-    root.innerHTML = '<div class="row" style="gap:8px;margin-bottom:10px;align-items:flex-end">'
-      + '<label class="small muted">Boss<br><input id="comm-boss" type="text" placeholder="any boss" style="min-width:180px;margin-top:3px"></label>'
-      + '<button class="btn small" id="comm-apply" type="button">Filter</button></div>'
-      + '<div id="comm-table"><div class="empty">Loading…</div></div>'
-      + '<div class="row" id="comm-pager" style="gap:8px;margin-top:10px"></div>';
-    const input = root.querySelector("#comm-boss");
-    input.value = comm.boss;
-    const apply = () => { comm.boss = input.value.trim(); comm.page = 1; commReset(); loadCommunity(); };
-    root.querySelector("#comm-apply").onclick = apply;
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") apply(); });
+    commStyle();
+    if (!comm.facets) { root.innerHTML = '<div class="empty">Loading…</div>'; try { comm.facets = await A2.api("/api/v1/report-facets"); } catch (e) { comm.facets = {}; } }
+    const f = comm.facets || {};
+    const encOpts = (f.encounter_type || []).filter((t) => (comm.f.combat_mode === "pvp") === String(t).startsWith("pvp_"));
+    root.innerHTML = '<div class="row comm-filters" style="gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap">'
+      + field("Mode", `<select id="cf-mode"><option value="pve"${comm.f.combat_mode !== "pvp" ? " selected" : ""}>PvE</option><option value="pvp"${comm.f.combat_mode === "pvp" ? " selected" : ""}>PvP</option></select>`)
+      + field("Boss", `<select id="cf-boss" style="min-width:170px">${options(f.boss, comm.f.boss)}</select>`)
+      + field("Difficulty", `<select id="cf-difficulty">${options(f.difficulty, comm.f.difficulty)}</select>`)
+      + field("Encounter", `<select id="cf-encounter_type">${options(encOpts, comm.f.encounter_type, prettyEnc)}</select>`)
+      + field("Region", `<select id="cf-region">${options(f.region, comm.f.region)}</select>`)
+      + field("Product", `<select id="cf-game_patch">${options(f.game_patch, comm.f.game_patch, patchOf)}</select>`)
+      + field("Party", `<select id="cf-party_size">${options(f.party_size, comm.f.party_size)}</select>`)
+      + '<button class="btn small" id="cf-clear" type="button">Clear</button>'
+      + '</div><div id="comm-table"><div class="empty">Loading…</div></div><div class="row" id="comm-pager" style="gap:8px;margin-top:10px"></div>';
+    const change = (id, key) => { const el = root.querySelector("#cf-" + id); if (el) el.onchange = () => { comm.f[key] = el.value || ""; comm.page = 1; commReset(); loadCommunity(); }; };
+    for (const [id, key] of [["boss", "boss"], ["difficulty", "difficulty"], ["encounter_type", "encounter_type"], ["region", "region"], ["game_patch", "game_patch"], ["party_size", "party_size"]]) change(id, key);
+    root.querySelector("#cf-mode").onchange = (e) => { comm.f.combat_mode = e.target.value; comm.f.encounter_type = ""; comm.page = 1; commReset(); renderCommunity(); };
+    root.querySelector("#cf-clear").onclick = () => { comm.f = { combat_mode: comm.f.combat_mode }; comm.page = 1; commReset(); renderCommunity(); };
     loadCommunity();
   }
 
