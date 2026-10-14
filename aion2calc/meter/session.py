@@ -68,6 +68,9 @@ class CombatSession:
         result.reset_splits = self.reset_splits
         result._pending_reset = self._pending_reset
         result._boss_hit_ms = dict(self._boss_hit_ms)
+        result.boss_splits = self.boss_splits
+        result._boss_killed_ms = self._boss_killed_ms
+        result._boss_killed_marker = self._boss_killed_marker
         result._zone_reset_seen = False  # A continuation part never captured the run's entry.
         return result
 
@@ -133,6 +136,34 @@ class CombatSession:
         # boss is actually seen back at full HP, which is what confirms the attempt
         # restarted. Cleared on that confirmation, and on a boss kill (which is not a reset).
         self._pending_reset = False
+        # A kill ends a boss encounter. ``_boss_killed_ms`` is the time a major (boss /
+        # mini-boss) enemy was last killed; when the next major boss is engaged after it,
+        # that kill closes the previous encounter and the new boss starts a fresh segment —
+        # so a continuous dungeon run of back-to-back bosses is split per boss instead of
+        # collapsing into one long encounter. ``_boss_killed_marker`` is the (split, run)
+        # the kill happened in: if any other boundary (a wipe, reset, finish or run change)
+        # has since started a new segment, the pending kill is stale and never adds a
+        # second split. ``boss_splits`` counts these, like ``wipe_splits`` / ``reset_splits``.
+        self._boss_killed_ms = None
+        self._boss_killed_marker = None
+        self.boss_splits = 0
+
+    def _engage_major(self, ekey, engaged_ms):
+        """Mark a boss / mini-boss as engaged. If a previous boss was killed earlier in the
+        same segment and this engagement is after that kill, split first so each boss is its
+        own encounter. The ``engaged_ms >= kill`` guard means a trash mob already being
+        fought *before* the kill (promoted to major only later) never splits the fight it
+        belonged to; the marker guard means a kill already closed by another boundary never
+        splits twice."""
+        if (self._boss_killed_ms is not None and engaged_ms is not None
+                and engaged_ms >= self._boss_killed_ms
+                and self._boss_killed_marker == (self.manual_split, self.run)
+                and ekey not in self._engaged_major):
+            self.manual_split += 1
+            self.boss_splits += 1
+            self._boss_killed_ms = None
+            self._boss_killed_marker = None
+        self._engaged_major.add(ekey)
 
     def _check_boss_wipe(self, timestamp_ms, engine):
         attempt = self._boss_attempt
@@ -363,7 +394,7 @@ class CombatSession:
                         self._boss_hit_ms = {ekey: event.timestamp_ms}
                 if event.actor_id in allowed and target_code and ekey not in self._engaged_major:
                     if npc_info(target_code).get("isBoss"):
-                        self._engaged_major.add(ekey)
+                        self._engage_major(ekey, event.timestamp_ms)
                     elif ekey not in self._engage_span:
                         if len(self._engage_span) > 512:   # bound: forget stale trash contacts
                             self._engage_span.clear()
@@ -414,10 +445,13 @@ class CombatSession:
             if sample["kind"] == "death" and key in self._engaged_major:
                 # The engaged major enemy died (a kill, not a reset): forget it, and drop
                 # any staged reset so a later full-HP respawn of a new encounter is not
-                # mistaken for this attempt restarting.
+                # mistaken for this attempt restarting. Record the kill time so the next
+                # boss engaged in this run opens a fresh encounter (split per boss).
                 self._engaged_major.discard(key)
                 self._major_below.discard(key)
                 self._pending_reset = False
+                self._boss_killed_ms = sample["timestamp_ms"]
+                self._boss_killed_marker = (self.manual_split, self.run)
             if sample["kind"] == "hp" and (key in self._engaged_major or key in self._engage_span):
                 # Track an engaged enemy's HP against its max (for not-yet-major contacts
                 # too, so the below-full evidence is ready the moment a sustained
@@ -484,7 +518,7 @@ class CombatSession:
         if now_ms is not None and self._engage_span:
             for ekey, first in list(self._engage_span.items()):
                 if ekey[0] == self.epoch and now_ms - first >= MAJOR_ENGAGE_MS:
-                    self._engaged_major.add(ekey)
+                    self._engage_major(ekey, first)
                     self._engage_span.pop(ekey, None)
         # Remove identity contexts when their bounded event history expires.
         if len(self.identities) > 250:

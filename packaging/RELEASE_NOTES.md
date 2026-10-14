@@ -1,3 +1,10 @@
+## Encounters: split a dungeon run into one encounter per boss, not one long fight (0.2.264)
+
+- **The symptom.** In a dungeon run, after finishing one boss the meter kept the next boss in the **same** encounter, so a mini-boss and the boss after it showed up as one long continuous fight instead of two encounters.
+- **Root cause.** A new encounter was only ever cut on a **120s damage gap**, a wipe, or a leash/reset — a clean **boss kill never ended the encounter**. In a continuous run (trash and travel between bosses, no two-minute lull), consecutive bosses collapsed into one segment. In the shared log, Watchdog Kwapo died and the next boss was engaged **117 seconds later** — just under the 120s threshold — so the two bosses stayed merged.
+- **The fix.** A boss / mini-boss **kill now ends its encounter**: when the next boss is engaged after a kill in the same run, it starts a fresh encounter, so each boss is its own segment regardless of how little time passed between them. The split is gated so it never fires twice (a kill already closed by a wipe, reset, finish or run change doesn't add a second split) and never cuts a single continuous boss fight (the kill must come before the next boss is engaged). A trash mob already being fought before the kill — promoted to a "major" engagement only later — never splits the fight it belonged to.
+- Regression-tested: two bosses killed back-to-back with no lull become two encounters; a single boss fought straight through to the kill stays one encounter; the existing wipe / leash / battle-rez boundaries are unchanged.
+
 ## Upload: send the whole recording, and view it stitched back together (0.2.263)
 
 - **The symptom.** Uploading a long session that had rolled across a storage boundary into parts failed with `upload refused (400): Combined recording reviews cannot be uploaded; upload the original source parts` — the recording never reached the server. And even when parts did upload, a shared link showed only one fragment, so an encounter split across a storage boundary looked incomplete.

@@ -28,6 +28,39 @@ def _session():
     return s, engine
 
 
+def test_consecutive_bosses_in_one_run_split_into_one_encounter_each(monkeypatch):
+    # A dungeon run that kills a mini-boss and then engages the next boss with no lull
+    # between them must record two encounters, not one long continuous fight.
+    import aion2calc.meter.session as session
+    monkeypatch.setattr(session, "npc_info", lambda code: {"isBoss": code in (777, 778)})
+    s, engine = _session()
+    engine.spawn_info = {9001: {"mobCode": 777}, 9002: {"mobCode": 778}}
+    # Boss A: engaged, seen below full, then killed.
+    engine.telemetry = [_hp(9001, 500, 1000, 101000), {"entity": 9001, "kind": "death", "timestamp_ms": 102000}]
+    s.observe(engine, [_hit(5001, 9001, 100000), _hit(5001, 9001, 101500)], timestamp_ms=102000)
+    # Boss B engaged 1s later — continuous combat, far under the 120s gap — then killed.
+    engine.telemetry = [_hp(9002, 500, 1000, 103500), {"entity": 9002, "kind": "death", "timestamp_ms": 104000}]
+    s.observe(engine, [_hit(5001, 9002, 103000), _hit(5001, 9002, 103800)], timestamp_ms=104000)
+    assert s.boss_splits == 1          # exactly one per-boss split (boss B opened a fresh encounter)
+    assert s.manual_split == 1         # nothing else split it: no wipe, reset or 120s gap
+    doc = s.to_a2log("party")
+    with_hits = [seg for seg in doc["segments"] if seg.get("hits")]
+    assert len(with_hits) == 2         # one encounter per boss, not one merged fight
+
+
+def test_single_continuous_boss_fight_stays_one_encounter(monkeypatch):
+    # The flip side of the per-boss split: a single boss fought straight through to the kill
+    # is never split (no phantom encounters), so the boss-kill boundary can't over-segment.
+    import aion2calc.meter.session as session
+    monkeypatch.setattr(session, "npc_info", lambda code: {"isBoss": code == 777})
+    s, engine = _session()
+    engine.spawn_info = {9001: {"mobCode": 777}}
+    engine.telemetry = [_hp(9001, 500, 1000, 101000), {"entity": 9001, "kind": "death", "timestamp_ms": 105000}]
+    s.observe(engine, [_hit(5001, 9001, 100000), _hit(5001, 9001, 102000), _hit(5001, 9001, 104000)], timestamp_ms=105000)
+    assert s.boss_splits == 0
+    assert s.manual_split == 0
+
+
 def test_battle_over_only_after_the_reset_delay_when_enabled():
     s, engine = _session()
     s.reset_after_battle = True
