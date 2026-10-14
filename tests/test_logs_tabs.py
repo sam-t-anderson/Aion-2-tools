@@ -68,6 +68,12 @@ def test_community_difficulty_dropdown_is_sorted():
     assert "localeCompare" in LOGS_JS
 
 
+def test_community_pvp_relabels_boss_as_skirmish_and_hides_boss_filter():
+    # In PvP the Boss column becomes "Skirmish" and the Boss filter dropdown is hidden.
+    assert '"Skirmish" : "Boss"' in LOGS_JS
+    assert '? "" : field("Boss"' in LOGS_JS
+
+
 def test_community_filters_are_facet_driven_dropdowns():
     # Filter choices come from the server's own facets; each maps to a param /api/v1/logs honours.
     assert "/api/v1/report-facets" in LOGS_JS
