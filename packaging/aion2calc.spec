@@ -42,23 +42,46 @@ hiddenimports += {"win32": ["pystray._win32"], "darwin": ["pystray._darwin"]}.ge
     sys.platform, ["pystray._xorg", "pystray._appindicator", "pystray._gtk"])
 
 # Bundle the in-process HiGHS solver (highspy) on every platform so the packaged app never falls back
-# to CBC's external subprocess, which hangs in the windowed build at the Daevanion solve.
-try:
-    d, b, h = collect_all("highspy")
-    datas += d
-    binaries += b
-    hiddenimports += h
-    # The Windows wheel keeps its private Visual C++ runtime in the sibling
-    # ``highspy.libs`` directory.  PyInstaller sees the extension module but
-    # does not discover this wheel-specific dependency automatically.
-    if sys.platform == "win32":
-        import highspy
-        highs_libs = os.path.join(os.path.dirname(highspy.__file__), "..", "highspy.libs")
-        if os.path.isdir(highs_libs):
-            binaries += [(os.path.join(highs_libs, name), ".")
-                         for name in os.listdir(highs_libs) if name.lower().endswith(".dll")]
-except Exception as err:
-    print(f"aion2calc.spec: skipping highspy ({err})")
+# to CBC's external subprocess, which hangs in the windowed build at the Daevanion solve. highspy is a
+# required dependency: a build that cannot collect it must fail loudly instead of silently shipping a
+# bundle whose optimizer and community comparisons always raise "HiGHS solver unavailable".
+d, b, h = collect_all("highspy")
+if not b:
+    raise SystemExit(
+        "aion2calc.spec: highspy produced no binaries to bundle -- the packaged app would have no "
+        "in-process solver (optimizer and community comparisons would fail). Install highspy first.")
+datas += d
+binaries += b
+hiddenimports += h
+if sys.platform == "win32":
+    import highspy
+    # The Windows wheel keeps its private HiGHS DLL in the sibling ``highspy.libs`` directory (vendored
+    # by delvewheel, which patches highspy/__init__.py to add that directory to the DLL search path).
+    # PyInstaller collects the extension module but not this wheel-specific sibling. Copy every file
+    # there -- including delvewheel's ``.load-order`` manifest -- into the matching ``highspy.libs``
+    # folder so the loader finds it, and the DLLs also into the bundle root as a fallback search path.
+    highs_libs = os.path.join(os.path.dirname(highspy.__file__), "..", "highspy.libs")
+    if os.path.isdir(highs_libs):
+        for name in os.listdir(highs_libs):
+            src = os.path.join(highs_libs, name)
+            if not os.path.isfile(src):
+                continue
+            if name.lower().endswith(".dll"):
+                binaries += [(src, "highspy.libs"), (src, ".")]
+            else:
+                datas += [(src, "highspy.libs")]
+    # HiGHS is a C++ library, so highs.dll depends on the Microsoft Visual C++ runtime (msvcp140*,
+    # vcruntime140_1, the C++ exception/STL runtime). PyInstaller bundles only the C runtime CPython
+    # itself needs, so on a machine without the "Visual C++ 2015-2022 Redistributable" the HiGHS DLL
+    # cannot load and the solver reports itself unavailable -- even though the build's own smoke test
+    # passes, because CI runners have the redistributable installed. Bundle the C++ runtime from the
+    # build machine so the solver loads on a clean install too.
+    sys32 = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
+    for dll in ("msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "vcruntime140.dll",
+                "vcruntime140_1.dll", "concrt140.dll", "vcomp140.dll"):
+        src = os.path.join(sys32, dll)
+        if os.path.isfile(src):
+            binaries.append((src, "."))
 # The live meter imports its capture and decompression backends on demand.  Collecting them
 # explicitly keeps the feature available in the desktop bundle as well as in source installs.
 for pkg in ("scapy", "lz4"):

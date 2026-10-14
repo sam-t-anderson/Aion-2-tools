@@ -92,6 +92,29 @@ def test_solver_choice(monkeypatch):
     assert solver.name() == "HiGHS unavailable"
 
 
+def _spec_source():
+    import pathlib
+    return (pathlib.Path(__file__).resolve().parents[1] / "packaging" / "aion2calc.spec").read_text(encoding="utf-8")
+
+
+def test_spec_bundles_the_msvc_cxx_runtime_for_highs_on_windows():
+    # HiGHS is a C++ library; on Windows highs.dll needs the MSVC C++ runtime (msvcp140 / vcruntime140_1),
+    # which PyInstaller does NOT bundle on its own (it bundles only the C runtime CPython needs). Without
+    # it the solver loads on CI (the runner has the redistributable) but reports "unavailable" on a clean
+    # user machine -- the exact failure behind "The HiGHS solver dependency is missing or unavailable".
+    spec = _spec_source()
+    assert "msvcp140.dll" in spec and "vcruntime140_1.dll" in spec
+    assert "System32" in spec                                    # copied from the build machine's runtime
+
+
+def test_spec_requires_highspy_to_be_bundled():
+    # highspy is the required in-process solver. A build that cannot collect it must fail loudly rather
+    # than silently shipping a bundle whose optimizer and community comparisons always raise.
+    spec = _spec_source()
+    assert "highspy produced no binaries" in spec                # hard build failure, not a silent skip
+    assert "raise SystemExit" in spec
+
+
 def test_update_check_reads_github_releases(home, monkeypatch):
     from http.server import BaseHTTPRequestHandler
 

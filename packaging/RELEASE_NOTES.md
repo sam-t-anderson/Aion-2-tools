@@ -1,3 +1,9 @@
+## Fix: the HiGHS solver is now bundled so community comparisons work on a clean Windows install (0.2.273)
+
+- **Fixed "The HiGHS solver dependency is missing or unavailable" when generating community comparisons** (and in the gear/Daevanion optimizer) on the Windows installer and portable builds. The solver, HiGHS, is a C++ library, and its DLL needs the Microsoft Visual C++ runtime. The build only bundled the C runtime that Python itself needs, so on a PC without the "Visual C++ 2015–2022 Redistributable" the solver couldn't load — even though it worked on the machines that build the app, which have that runtime installed. The Windows build now bundles the C++ runtime (and the vendored HiGHS library) itself, so the solver loads on any Windows machine.
+- **The build now fails loudly if the solver can't be bundled**, and the Windows build is checked to actually contain the C++ runtime, so this can't silently ship broken again.
+- This takes effect once you're on the 0.2.273 Windows build (update from the in-app prompt, or reinstall). If you're stuck on an older build, installing Microsoft's "Visual C++ 2015–2022 Redistributable (x64)" also resolves it.
+
 ## Capture-filter diagnostics, 150% log pages, and cleaner community filters (0.2.272)
 
 - **Diagnostics now record the active capture filter and whether the game flow was located** (`capture_filter`, `auto_port`, `flow_detected` in a log's capture quality). This is the groundwork for cutting packet loss: an uploaded log now reveals whether the capture ran the broad "all TCP" filter (which floods the buffer) or a narrow game-flow filter — so the fix can target the real cause. No behavior change yet; capture itself is unchanged this release.

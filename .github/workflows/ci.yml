@@ -79,6 +79,20 @@ jobs:
         shell: bash
         run: echo "version=$(python -c 'import aion2calc; print(aion2calc.__version__)')" >> "$GITHUB_OUTPUT"
 
+      - name: Verify the HiGHS C++ runtime is bundled (Windows)
+        # The CI runner has the Visual C++ redistributable, so the smoke test below loads highs.dll even
+        # when its C++ runtime is missing from the bundle -- which then fails on a clean user machine.
+        # Gate on the runtime actually being bundled so that regression can never ship silently again.
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          foreach ($dll in @('msvcp140.dll','vcruntime140_1.dll')) {
+            if (-not (Get-ChildItem -Recurse -Path dist\aion2calc -Filter $dll -ErrorAction SilentlyContinue)) {
+              Write-Error "HiGHS C++ runtime not bundled: $dll missing from dist\aion2calc"
+              exit 1
+            }
+          }
+          Write-Host "HiGHS C++ runtime bundled OK"
       - name: Smoke test (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
