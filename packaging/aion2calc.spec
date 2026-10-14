@@ -43,18 +43,16 @@ hiddenimports += {"win32": ["pystray._win32"], "darwin": ["pystray._darwin"]}.ge
 
 # Bundle the in-process HiGHS solver (highspy) on every platform so the packaged app never falls back
 # to CBC's external subprocess, which hangs in the windowed build at the Daevanion solve. highspy is a
-# required dependency: a build that cannot collect it must fail loudly instead of silently shipping a
-# bundle whose optimizer and community comparisons always raise "HiGHS solver unavailable".
+# required dependency, so import it up front: that fails the build loudly if it is missing, instead of
+# silently shipping a bundle whose optimizer and community comparisons always raise "HiGHS unavailable".
+# (Its native libraries are pulled in by PyInstaller's own module analysis, so collect_all's "binaries"
+# list is legitimately empty on Linux/Windows -- do not gate the build on it.)
+import highspy
 d, b, h = collect_all("highspy")
-if not b:
-    raise SystemExit(
-        "aion2calc.spec: highspy produced no binaries to bundle -- the packaged app would have no "
-        "in-process solver (optimizer and community comparisons would fail). Install highspy first.")
 datas += d
 binaries += b
 hiddenimports += h
 if sys.platform == "win32":
-    import highspy
     # The Windows wheel keeps its private HiGHS DLL in the sibling ``highspy.libs`` directory (vendored
     # by delvewheel, which patches highspy/__init__.py to add that directory to the DLL search path).
     # PyInstaller collects the extension module but not this wheel-specific sibling. Copy every file
