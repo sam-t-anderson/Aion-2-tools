@@ -84,6 +84,13 @@ def test_combat_log_pages_use_the_wide_enlarged_layout():
     assert ".site.wide-2x" in css and "zoom: 2" in css
 
 
+def test_combat_review_roster_is_scoped_to_the_selected_encounter():
+    # The log-details roster (and the builds it links) shows only the selected segment's
+    # participants, not every player across a multi-encounter log.
+    cr = (ROOT / "aion2calc" / "app" / "static" / "combat-review.js").read_text(encoding="utf-8")
+    assert "active.size?active.has(id):!state.run" in cr
+
+
 def test_logs_page_loads_server_before_logs_script():
     for dep in ("config.js", "server.js", "logs.js", "navigation.js"):
         assert f'src="{dep}"' in LOGS_HTML, f"logs.html must load {dep}"

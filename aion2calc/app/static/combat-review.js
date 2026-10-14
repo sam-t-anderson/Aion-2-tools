@@ -81,7 +81,11 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       for(const h of segment.hits || []){for(const key of ['player','source','target','pet'])if(h[key])active.add(h[key]);}
       const entities=segment.entities || [];
       for(let i=0;i<entities.length;i++)for(const e of entities)if(active.has(e.id) && e.owner)active.add(e.owner);
-      const r={};for(const e of [...(doc.players || []).filter(p=>!state.run || active.has(p.id)),...entities.filter(e=>!state.run || active.has(e.id))])r[e.id]={...r[e.id],...e};
+      // Roster for the selected segment: keep only actors that took part in it (active = its
+      // party_members + everyone in its events/hits + pet owners), so a multi-encounter log never
+      // shows another encounter's players/builds here. Fall back to all when a segment has no actors.
+      const keep=id=>active.size?active.has(id):!state.run;
+      const r={};for(const e of [...(doc.players || []).filter(p=>keep(p.id)),...entities.filter(e=>keep(e.id))])r[e.id]={...r[e.id],...e};
       for(const e of [...(doc.players || []),...doc.segments.flatMap(s=>s.entities || [])])if(e.profile_snapshot && r[e.id])r[e.id].profile_snapshot=e.profile_snapshot;
       for(const e of Object.values(r))if(e.owner)e.class=r[e.owner]?.class;
       return r;
