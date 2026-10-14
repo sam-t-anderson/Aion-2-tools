@@ -39,6 +39,8 @@ The **[detailed workstream reference](#detailed-workstream-reference)** below ke
 - **Routes & companion features** — per-faction (Elyos / Asmodian) and **Abyss farming routes** — gathering and mob-farming loops with waypoints — on the Maps page; plus the feature leads from the [third-party meter review](meter-ecosystem-review.md): a **Hidden Cube radar**, a **skill-cooldown overlay**, a **server-driven field-boss respawn feed** (candidate protocol opcode `01 91`, to verify against our own captures) to replace the local timer forecast, and a **value-probe tool** to decode undecoded records (hidden cubes, Odyle Energy, quest/entry counters) safely. *Gated on permitted native map coordinates/assets, and — for the overlay/timer features — verified in-game captures that confirm the packet layouts.*
 - **Deployment & infrastructure** — confirming the installed server version through authenticated host access, and private server-repo auto-merge. *Gated on host access and a GitHub plan that supports private-repo auto-merge.*
 
+See [open investigations](open-investigations.md) for the detailed findings and gating on ranked-log eligibility (0 ranked), the logs-page tabs, and the data-cleanup / enemy-NPC-type classification edge case, including the proposed skill-provenance fix and why it needs a validating capture before it ships.
+
 ---
 
 ## Detailed workstream reference
