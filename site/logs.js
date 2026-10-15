@@ -197,11 +197,17 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
         // Per-encounter participants when the server provides them, so one encounter's party is
         // never shown on another in a multi-encounter log; fall back to the whole-log roster.
         const members = Array.isArray(c.players) && c.players.length ? toMembers(c.players) : roster;
+        // The encounter's own time (the server sends each segment's start) so the list runs newest
+        // to oldest by fight rather than by upload; an older server only gives the upload time.
+        const when = typeof c.start === "number" ? c.start : lg.created_at;
         comm.buf.push({ boss: c.boss, bossIcon: srcOf(iconByName[c.boss]), difficulty: c.difficulty,
-          party: c.party_size || members.length || 0, members, duration: c.duration, date: lg.created_at,
+          party: c.party_size || members.length || 0, members, duration: c.duration, date: lg.created_at, when,
           patch: patchOf(c.game_patch), id: lg.id, segment: c.segment, uploader });
       }
     }
+    // Newest encounter at the top, oldest at the bottom; within one upload (one time on an older
+    // server) the later segment comes first.
+    comm.buf.sort((a, b) => (b.when - a.when) || ((b.segment || 0) - (a.segment || 0)));
     if (!logs.length || (comm.total && comm.srvPage * 50 >= comm.total)) comm.done = true;
   }
   async function loadCommunity() {
@@ -216,7 +222,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     const tr = rows.map((r) => `<tr><td><span class="boss-cell">${r.bossIcon ? `<img class="mob-ic" width="22" height="22" loading="lazy" referrerpolicy="no-referrer" src="${esc(r.bossIcon)}" alt="" onerror="this.remove()">` : ""}${esc(r.boss || "—")}</span></td>
       <td>${esc(r.difficulty || "—")}</td>
       <td><span class="party-cell"><b>${n0(r.party)}</b>${r.members.map(classIcon).join("")}</span></td>
-      <td class="r num">${secs(r.duration)}</td><td>${esc(r.uploader || "Anonymous")}</td><td class="muted small">${day(r.date)}</td><td class="muted small">${esc(r.patch || "—")}</td>
+      <td class="r num">${secs(r.duration)}</td><td>${esc(r.uploader || "Anonymous")}</td><td class="muted small">${day(r.when)}</td><td class="muted small">${esc(r.patch || "—")}</td>
       <td><a href="log.html?id=${encodeURIComponent(r.id)}${Number.isInteger(r.segment) ? "&segment=" + r.segment : ""}">view</a></td></tr>`).join("");
     table.innerHTML = `<table class="t"><tr><th>${comm.f.combat_mode === "pvp" ? "Skirmish" : "Boss"}</th><th>Difficulty</th><th>Party</th><th class="r">Time</th><th>Uploaded by</th><th>Date</th><th>Product</th><th></th></tr>${tr}</table>`;
     const hasNext = comm.buf.length > comm.page * COMM_PER_PAGE || !comm.done;

@@ -1193,27 +1193,8 @@ class Runner:
         # the server/site fall back to "Anonymous". A label only; it never gates anything.
         if "uploader" not in doc["meta"]:
             try:
-                engine = self.packet_engine
-                players = doc.get("players") or []
-                name, official = None, False
-                # Prefer the local player's name exactly as it appears in this log's own roster,
-                # matched by official character id (roster ids are "p:<server>:<dbid>"). This is
-                # robust when the live actor id is an unnamed combat entity (heavy packet loss can
-                # drop the name/identity link) and it is guaranteed to pass the server's roster check.
-                if profile.get("serverId") and profile.get("dbid"):
-                    want = f"p:{profile['serverId']}:{profile['dbid']}"
-                    name = next((p.get("name") for p in players if p.get("id") == want), None)
-                    official = bool(name)
-                # Fall back to the engine's name for the recording actor.
-                if not name and engine is not None and engine.local_player_id is not None:
-                    name = engine.names.get(engine.local_player_id)
-                if name and not re.fullmatch(r"(?:Player\s*)?#?\d+", name.strip(), re.I):
-                    uploader = {"name": name.strip()[:60],
-                                "verified": bool(official or (engine and engine.local_identity_from_game))}
-                    if profile.get("serverId"):
-                        uploader["server"] = str(profile["serverId"])
-                    if profile.get("dbid"):
-                        uploader["character_id"] = str(profile["dbid"])
+                uploader = uploader_of(doc, profile, self.packet_engine)
+                if uploader:
                     doc["meta"]["uploader"] = uploader
             except Exception:
                 pass
@@ -1252,6 +1233,49 @@ class Runner:
     def has_data(self) -> bool:
         with self.lock:
             return bool(self.packet_engine and self.session.records) or bool(self.meter.players)
+
+
+def uploader_of(doc, profile, engine):
+    """The recording (local) player as a ``meta.uploader`` stamp, or None when they cannot be
+    named. Resolved from the log's own evidence first: the live engine's name table no longer
+    holds the local actor by the time a finished session is saved or uploaded (every zone load
+    reassigns the actor id and drops the old binding), which left uploads shown as "Anonymous"
+    even with the character configured."""
+    players = doc.get("players") or []
+    name, official, match = None, False, None
+    # Prefer the local player's name exactly as it appears in this log's own roster, matched by
+    # official character id (roster ids are "p:<server>:<dbid>"). Robust when the live actor id is
+    # an unnamed combat entity, and guaranteed to pass the server's roster check.
+    if profile.get("serverId") and profile.get("dbid"):
+        want = f"p:{profile['serverId']}:{profile['dbid']}"
+        name = next((p.get("name") for p in players if p.get("id") == want), None)
+        official = bool(name)
+    # Each segment names its recorder -- the local player's roster id, resolved per identity epoch
+    # when the segment was built. That is the recording's own answer to "who recorded this".
+    if not name:
+        recorders = {s.get("ping_recorder") for s in doc.get("segments", []) if s.get("ping_recorder")}
+        match = next((p for p in players if p.get("id") in recorders and p.get("name")), None)
+        if match:
+            name, official = match["name"], bool(match.get("character_id"))
+    # The character name the user configured for the meter, when it is in this roster.
+    if not name and engine is not None and getattr(engine, "local_character_name", ""):
+        wanted = str(engine.local_character_name).strip().casefold()
+        match = next((p for p in players if str(p.get("name") or "").strip().casefold() == wanted), None)
+        name = match.get("name") if match else None
+    # Fall back to the engine's name for the recording actor.
+    if not name and engine is not None and engine.local_player_id is not None:
+        name = engine.names.get(engine.local_player_id)
+    if not name or re.fullmatch(r"(?:Player\s*)?#?\d+", str(name).strip(), re.I):
+        return None
+    uploader = {"name": str(name).strip()[:60],
+                "verified": bool(official or (engine is not None and getattr(engine, "local_identity_from_game", False)))}
+    server = profile.get("serverId") or (match or {}).get("server")
+    if server:
+        uploader["server"] = str(server)
+    character_id = profile.get("dbid") or (match or {}).get("character_id")
+    if character_id:
+        uploader["character_id"] = str(character_id)
+    return uploader
 
 
 _RUNNER: Runner | None = None

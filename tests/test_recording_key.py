@@ -84,3 +84,48 @@ def test_upload_attaches_recording_key_header(isolated_home, monkeypatch):
     share.upload(_doc({**_CLOSED, "closed": False}))
     posts = _posts()
     assert posts and not any(k.lower() == "x-aion-recording-key" for k in posts[-1].headers)
+
+
+def test_recording_key_is_per_part_and_keys_open_parts_only_when_asked(isolated_home):
+    part1 = share.recording_key(_doc(_CLOSED))
+    part2 = share.recording_key(_doc({**_CLOSED, "part": 2}))
+    assert part1 and part2 and part1 != part2                                  # Part 2 is never a re-upload of Part 1
+    open_part = {**_CLOSED, "closed": False}
+    assert share.recording_key(_doc(open_part)) is None                        # default: finished parts only
+    assert share.recording_key(_doc(open_part), include_open=True) == part1    # keyed for a superseding server, same key as its final upload
+    assert share.recording_key(_doc({**_CLOSED, "part": "1"}), include_open=True) is None   # the part must be an int
+
+
+def test_upload_keys_an_open_part_only_when_the_server_supersedes(isolated_home, monkeypatch):
+    import json
+    reqs, flag = [], {"supersede": False}
+
+    class _Resp:
+        def __init__(self, req):
+            reqs.append(req)
+            self._discover = isinstance(req, str)        # discover() passes the bare well-known URL
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return json.dumps({"recording_supersede": True} if self._discover and flag["supersede"] else {}).encode()
+
+    monkeypatch.setattr(share, "validate", lambda d: d)
+    monkeypatch.setattr(share, "effective", lambda: {"url": "https://logs.test", "visibility": "unlisted", "is_default": False})
+    monkeypatch.setattr(share.urllib.request, "urlopen", lambda req, timeout=None: _Resp(req))
+    open_doc = _doc({**_CLOSED, "closed": False})
+
+    def _key():
+        posts = [r for r in reqs if hasattr(r, "get_method") and r.get_method() == "POST"]
+        return next((v for k, v in posts[-1].headers.items() if k.lower() == "x-aion-recording-key"), None)
+
+    share.upload(open_doc)
+    assert _key() is None                                                      # an older server: an open part is not keyed
+    reqs.clear()
+    flag["supersede"] = True
+    share.upload(open_doc)
+    assert _key() == share.recording_key(open_doc, include_open=True)          # a superseding server: keyed

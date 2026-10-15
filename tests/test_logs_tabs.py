@@ -148,3 +148,15 @@ def test_logs_page_loads_server_before_logs_script():
     for dep in ("config.js", "server.js", "logs.js", "navigation.js"):
         assert f'src="{dep}"' in LOGS_HTML, f"logs.html must load {dep}"
     assert LOGS_HTML.index('src="server.js"') < LOGS_HTML.index('src="logs.js"')
+
+
+def test_community_encounters_are_listed_newest_first_on_site_and_app():
+    # Newest encounter at the top, oldest at the bottom, by each fight's own time (the server's
+    # per-segment start; an older server only gives the upload time, where the later segment still
+    # comes first) -- on the website and in the app's Combat Logs page alike.
+    from pathlib import Path
+    view_js = (Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static" / "logs-view.js").read_text(encoding="utf-8")
+    for src in (LOGS_JS, view_js):
+        assert 'typeof c.start === "number" ? c.start : lg.created_at' in src
+        assert "comm.buf.sort((a, b) => (b.when - a.when) || ((b.segment || 0) - (a.segment || 0)))" in src
+        assert "${day(r.when)}" in src and "${day(r.date)}" not in src

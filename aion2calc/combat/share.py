@@ -133,26 +133,30 @@ def discover(url: str) -> dict:
         return json.load(r)
 
 
-def recording_key(doc: dict) -> str | None:
-    """A stable, machine-salted fingerprint of a *finished* recording, so the log server can
-    recognise and ignore a re-upload of the same recording instead of storing a duplicate.
+def recording_key(doc: dict, include_open: bool = False) -> str | None:
+    """A stable, machine-salted fingerprint of one *part* of a recording, so the log server can
+    recognise a re-upload of the same part instead of storing a duplicate.
 
     It is derived from the local install salt (random, generated once, never sent — see
-    ``heartbeat._install_salt``) and the recording's archive id, so it is the same on every
-    re-upload of that recording and different for every other recording. The salt is one-way and
-    stays on the machine, so another uploader cannot forge the key and it cannot be correlated
-    across recordings. Only a *closed* archive gets one — an in-progress checkpoint is not yet a
-    stable identity (and is not uploaded) — and a document without an archive id gets ``None``.
+    ``heartbeat._install_salt``), the recording's archive id and the part number, so it is the
+    same on every upload of that part and different for every other part and recording (a long
+    session's Part 2 must never read as a re-upload of its Part 1). The salt is one-way and stays
+    on the machine, so another uploader cannot forge the key and it cannot be correlated across
+    recordings. A *closed* (finished) part always gets one. A still-open part gets one only when
+    ``include_open`` is set — for a server that supersedes an earlier upload of the open part in
+    place — and a document without an archive id and part gets ``None``.
     """
     try:
         archive = (doc.get("meta") or {}).get("archive")
-        if not isinstance(archive, dict) or archive.get("closed") is not True:
+        if not isinstance(archive, dict):
             return None
-        archive_id = archive.get("id")
-        if not isinstance(archive_id, str) or not archive_id:
+        archive_id, part = archive.get("id"), archive.get("part")
+        if not isinstance(archive_id, str) or not archive_id or not isinstance(part, int) or isinstance(part, bool):
+            return None
+        if archive.get("closed") is not True and not include_open:
             return None
         from .heartbeat import _install_salt
-        return hashlib.sha256(f"{_install_salt()}:recording:{archive_id}".encode("utf-8")).hexdigest()
+        return hashlib.sha256(f"{_install_salt()}:recording:{archive_id}:{part}".encode("utf-8")).hexdigest()
     except Exception:
         return None
 
@@ -166,9 +170,12 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
         raise ValueError("no log server set: pass --server (or set it on the Combat Logs page)")
     doc = validate(doc)
     try:
-        target = discover(url).get("upload_url") or url + "/api/v1/logs"
+        well_known = discover(url)
+        if not isinstance(well_known, dict):
+            well_known = {}
     except Exception:
-        target = url + "/api/v1/logs"
+        well_known = {}
+    target = well_known.get("upload_url") or url + "/api/v1/logs"
     body = gzip.compress(json.dumps(doc, separators=(",", ":")).encode())
     headers = {"Content-Type": "application/json", "Content-Encoding": "gzip", "User-Agent": "aion2calc"}
     if key:
@@ -177,9 +184,13 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
         if not isinstance(request_id, str) or not re.fullmatch(r"[a-f0-9]{32}", request_id):
             raise ValueError("Invalid upload request ID")
         headers["Idempotency-Key"] = request_id
-    rk = recording_key(doc)
+    # Stable per-part fingerprint: the server ignores a re-upload of a finished part and, where it
+    # advertises superseding, updates an earlier upload of a still-open part in place — so a snapshot
+    # shared mid-run and the final upload after Stop are one log, not two. An open part is keyed only
+    # for such a server: an older one would hand the stale open snapshot back instead of storing the
+    # final upload.
+    rk = recording_key(doc, include_open=well_known.get("recording_supersede") is True)
     if rk:
-        # Stable per-recording fingerprint: the server ignores a re-upload of the same recording.
         headers["X-Aion-Recording-Key"] = rk
     req = urllib.request.Request(f"{target}?visibility={vis}", body, headers, method="POST")
     try:

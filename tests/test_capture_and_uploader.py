@@ -81,3 +81,29 @@ def test_validate_keeps_a_cleaned_uploader_through_the_schema():
     assert uploader["name"] == "Zikel" and uploader["verified"] is True   # trimmed, bounded, kept
     assert uploader["server"] == "Israphel"
     assert "spoofed" not in uploader                                      # only known fields survive
+
+
+def test_uploader_is_resolved_from_the_recordings_own_recorder_evidence():
+    # The live engine no longer knows the local actor's name once a zone load has reassigned the
+    # actor id, so a finished session used to upload as "Anonymous" even with the character set.
+    # The log's own segments name their recorder (the local player's roster id): use that first.
+    from types import SimpleNamespace
+    from aion2calc.app.meter_runner import uploader_of
+    me = {"id": "p:2102:591660401046103017", "name": "Spirited", "class": "gladiator", "server": "2102",
+          "character_id": "591660401046103017"}
+    mate = {"id": "p:2101:591378926069464783", "name": "HanWol", "class": "chanter", "server": "2101"}
+    roster = [mate, me]
+    engine = SimpleNamespace(local_player_id=None, names={}, local_character_name="", local_identity_from_game=False)
+    up = uploader_of({"players": roster, "segments": [{"ping_recorder": None}, {"ping_recorder": me["id"]}]},
+                     {"serverId": 2102, "job": "gladiator"}, engine)
+    assert up == {"name": "Spirited", "verified": True, "server": "2102", "character_id": "591660401046103017"}
+    # No recorder evidence: the configured character name picks the roster entry (case-insensitive).
+    engine.local_character_name = " spirited "
+    up = uploader_of({"players": roster, "segments": []}, {}, engine)
+    assert up["name"] == "Spirited" and up["server"] == "2102" and up["verified"] is False
+    # Nothing identifies the recorder: left unset, so the server shows Anonymous rather than a guess.
+    engine.local_character_name = ""
+    assert uploader_of({"players": roster, "segments": []}, {}, engine) is None
+    # An unnamed combat actor (#number) is never an uploader name.
+    engine.local_player_id, engine.names = 77, {77: "Player #77"}
+    assert uploader_of({"players": roster, "segments": []}, {}, engine) is None
