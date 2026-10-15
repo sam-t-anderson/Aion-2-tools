@@ -871,14 +871,20 @@ async function pageCombatLog() {
 async function pageCombat() {
   const st = S.combat;
   app().innerHTML = `<section class="win"><div class="wh"><h2>Combat logs</h2><span class="sub">per-skill breakdown, timeline, rates, idle time — compared with your optimal rotation</span></div>
-    <div class="wb"><div id="combat-log-tabs"><div class="row" role="tablist" aria-label="Combat log sources"><button class="btn small" role="tab" id="log-tab-community" data-log-tab="community" aria-controls="log-panel-community">Community Combat Logs</button><button class="btn small" role="tab" id="log-tab-owned" data-log-tab="owned" aria-controls="log-panel-owned">My Uploads</button><button class="btn small" role="tab" id="log-tab-saved" data-log-tab="saved" aria-controls="log-panel-saved">Saved Logs</button></div><div id="log-panel-saved" data-log-panel="saved" role="tabpanel" aria-labelledby="log-tab-saved"><div class="row"><input id="ref" type="text" placeholder="AbyssLogs link (abysslogs.com/e/…) or A2DIL link" style="width:400px">
+    <div class="wb"><div id="logs-view"><div class="row" role="tablist" id="logs-tabs" aria-label="Combat log views" style="flex-wrap:wrap;gap:6px"><button class="btn small" role="tab" type="button" data-tab="community" aria-selected="true">Community combat logs</button><button class="btn small" role="tab" type="button" data-tab="speed" aria-selected="false">Completed-run speed</button><button class="btn small" role="tab" type="button" data-tab="progression" aria-selected="false">Boss progression</button><button class="btn small" role="tab" type="button" data-tab="points" aria-selected="false">Highest observed build points</button><button class="btn small" role="tab" type="button" data-tab="extras" aria-selected="false">Personal records</button></div>
+    <div data-logs-panel="community" style="margin-top:12px"><div id="combat-log-tabs"><div class="row" role="tablist" aria-label="Combat log sources"><button class="btn small" role="tab" id="log-tab-community" data-log-tab="community" aria-controls="log-panel-community">Community Combat Logs</button><button class="btn small" role="tab" id="log-tab-owned" data-log-tab="owned" aria-controls="log-panel-owned">My Uploads</button><button class="btn small" role="tab" id="log-tab-saved" data-log-tab="saved" aria-controls="log-panel-saved">Saved Logs</button></div><div id="log-panel-saved" data-log-panel="saved" role="tabpanel" aria-labelledby="log-tab-saved"><div class="row"><input id="ref" type="text" placeholder="AbyssLogs link (abysslogs.com/e/…) or A2DIL link" style="width:400px">
       <input id="player" type="text" placeholder="player (party logs)" style="width:150px"><button class="btn primary" id="imp">Analyze</button>
       <span class="muted small">or</span><input id="file" type="file" accept=".json,.gz,.csv"><span id="lmsg" class="small muted"></span></div>
       <p class="small faint">Record a fight with the free <a href="https://abysslogs.com" target="_blank" rel="noopener">AbyssLogs meter</a>, press Share, and paste the link here. A party log shows the recorder's damage unless you name a player.
         Files: AbyssLogs segment (.json / .json.gz), aion2calc JSON (see docs), or CSV with columns t, skill, damage, crit, double, perfect, multi, dot.</p>
       <div class="row small" id="logsdir"></div>
       <div class="row small" id="lsrv"></div>
-      <div id="sessions"></div><div id="session-review"></div><h3>Analyzed encounters</h3><div id="hist"></div></div><div id="log-panel-owned" data-log-panel="owned" role="tabpanel" aria-labelledby="log-tab-owned" hidden><div id="owned-logs"></div></div><div id="log-panel-community" data-log-panel="community" role="tabpanel" aria-labelledby="log-tab-community" hidden><div id="community"></div></div></div></div></section><div id="enc"></div>`;
+      <div id="sessions"></div><div id="session-review"></div><h3>Analyzed encounters</h3><div id="hist"></div></div><div id="log-panel-owned" data-log-panel="owned" role="tabpanel" aria-labelledby="log-tab-owned" hidden><div id="owned-logs"></div></div><div id="log-panel-community" data-log-panel="community" role="tabpanel" aria-labelledby="log-tab-community" hidden><div id="community"></div></div></div></div>
+    <div data-logs-panel="speed" hidden><div id="speed-body" style="margin-top:12px"><div class="empty">Loading…</div></div></div>
+    <div data-logs-panel="progression" hidden><div id="progression-body" style="margin-top:12px"><div class="empty">Loading…</div></div></div>
+    <div data-logs-panel="points" hidden><div id="points-body" style="margin-top:12px"><div class="empty">Loading…</div></div></div>
+    <div data-logs-panel="extras" hidden><div id="records-extra" style="margin-top:12px"></div></div>
+    </div></div></section><div id="enc"></div>`;
   A2LogTabs.mount($('#combat-log-tabs'),st.listTab||'community',value=>{st.listTab=value;});
   api("/api/logs").then((l) => {
     if(!$("#logsdir"))return;
@@ -912,7 +918,12 @@ async function pageCombat() {
     request:(owner,action,visibility)=>api('/api/log-ownership',{owner,action,visibility}),
     open:doc=>{S.combat.openedLog=doc;location.hash='/combat-log/opened/'+Date.now();}
   });
-  A2Community.mount($('#community'),{api:communityAPI,open:(id,mode)=>{location.hash='/combat-log/shared/'+encodeURIComponent(id)+'?mode='+encodeURIComponent(mode||'');}});
+  const openShared=(id,mode)=>{location.hash='/combat-log/shared/'+encodeURIComponent(id)+'?mode='+encodeURIComponent(mode||'');};
+  // Website-style outer tabs (community combat logs / speed / boss progression / build points)
+  // plus an app-only "Personal records" tab carrying the extras the website's logs page omits
+  // (boss defeats, class performance, personal records, consistency) via a sectioned A2Community.
+  A2LogsView.mount($('#logs-view'),{api:communityAPI,open:openShared,initial:st.logsTab||'community',onTab:value=>{st.logsTab=value;},
+    extras:()=>A2Community.mount($('#records-extra'),{api:communityAPI,open:openShared,sections:['bosses','performance','records']})});
   const hist = await api("/api/encounters").catch(() => []);
   if(!$("#hist"))return;
   $("#hist").innerHTML = hist.length ? `<table class="t"><tr><th>#</th><th>Player</th><th>Class</th><th>Target</th><th>Source</th><th class="r">Duration</th><th class="r">DPS</th><th></th></tr>${hist.map((e) =>

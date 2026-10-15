@@ -1,3 +1,9 @@
+## The app's Combat Logs page now matches the website (0.2.278)
+
+- **The in-app Combat Logs page is rebuilt to mirror the public website's Logs page.** It now has the same four top tabs — **Community combat logs**, **Completed-run speed**, **Boss progression** and **Highest observed build points** — with the website's polished look: the Community tab is a clean one-row-per-encounter table with the boss portrait, each party member's class icon (name on hover), clear time, who uploaded it, date and product version, filterable by mode, boss, difficulty, encounter, region, product and party size. Boss progression shows portraits, alphabetical order and the boss / difficulty / region / product filters, exactly like the site.
+- **Opening any row opens that log inside the app** (not a website link), and every panel reads the same live community endpoints the website uses.
+- **The app keeps its extras.** A fifth **Personal records** tab holds what the website's logs page doesn't: recorded boss defeats, class-performance distributions, your personal records and your character-consistency trends. The "My Uploads" and "Saved Logs" sub-tabs (AbyssLogs import, local analysis and sharing) are unchanged.
+
 ## Live meter resets when a boss fight starts (0.2.277)
 
 - **New setting, on by default: "Reset the live meter when a boss fight starts."** The moment you pull a boss, mini-boss, field boss or world boss, the overlay clears to just that fight — so the previous mini-boss's numbers no longer linger, and the last boss of a dungeon shows its own fight instead of the whole run piled together. It uses the game's own catalog to recognise bosses (plus a sustained-engagement signal for mini-bosses the catalog doesn't flag), so nothing is hard-coded. Turn it off in Settings → Combat records to keep the old behaviour (the fight stays until the next pull, a wipe or a manual clear).

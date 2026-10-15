@@ -15,8 +15,21 @@ function encounterIcons(log,mode){
 }
 function mount(root,options){
  let page=1,recordPage=1,loadRequest=0,query={combat_mode:"pve",metric:"dps"},identity={},consistencyRequest=0;
+ // Optional section allow-list. When options.sections is given, only those blocks are rendered and
+ // fetched; this lets the desktop app reuse just the app-only extras (boss defeats, class
+ // performance, personal records, consistency) on a dedicated tab while the website-style tabs
+ // (community combat logs, speed, progression, build points) are rendered by A2LogsView instead.
+ const sections=Array.isArray(options.sections)?options.sections:null;
+ const has=s=>!sections||sections.includes(s);
  function bossPortrait(row){const id=/^npc:([0-9]+)$/.exec(String(row.boss_key||''))?.[1],url=id&&window.A2BundledAssets?.npcs?.[id];return `<img width="24" height="24" src="${esc(url?(window.A2AssetHealth?A2AssetHealth.source(url):url):'static/logo.png')}" alt="" loading="lazy" onerror="this.onerror=null;this.src='static/logo.png'">`;}
- root.innerHTML=`<h3>Community combat logs</h3><p class="small muted">Public submissions only. Filters also apply to class performance and personal records. Product versions are recorded or submitted metadata; the latest submitted version may differ from the installed version. Older captures can retain legacy launcher metadata.</p><div class="row" data-filters></div><p data-message class="small muted"></p><div data-logs></div><div class="row"><button class="btn small" data-prev>Previous</button><span data-page></span><button class="btn small" data-next>Next</button></div><details data-boss-panel style="margin:8px 0"><summary>Recorded boss defeats</summary><p class="small muted">Public defeat observations, filtered by game game version and region. Other combat-log filters do not apply here. A recorded defeat does not establish whether a boss is currently available.</p><div class="row"><label class="small">Search displayed bosses <input data-boss-search placeholder="Boss name or NPC ID" aria-label="Search displayed boss observations"></label><button class="btn small" data-boss-refresh>Refresh boss observations</button></div><p class="small muted" data-boss-message role="status">Expand to load recorded defeats.</p><div data-boss-rows></div></details><h3>Completed-run speed</h3><div data-run-ranks></div><h3>Boss progression</h3><div data-encounter-progression></div><h3>Class performance</h3><p class="small muted">Recorded rates, separate PvE/PvP distributions for each boss, difficulty, encounter type and build. Sample size and gear can affect these comparisons.</p><div data-performance></div><h3>Highest observed build points</h3><div data-progression></div><h3>Personal records</h3><div class="row"><input data-name placeholder="Character name" aria-label="Character name"><input data-server placeholder="Character server ID" aria-label="Character server ID"><input data-character placeholder="Database character ID (optional)" aria-label="Database character ID"><button class="btn small" data-record-search>Find records</button></div><p data-record-note class="small muted"></p><div data-records></div><div data-history></div><h3>Character consistency and trends</h3><div data-consistency>Search a character above to compare matched recordings.</div><div class="row"><button class="btn small" data-record-prev>Previous records</button><span data-record-page></span><button class="btn small" data-record-next>Next records</button></div>`;
+ const htmlLogs=has('logs')?`<h3>Community combat logs</h3><p data-message class="small muted"></p><div data-logs></div><div class="row"><button class="btn small" data-prev>Previous</button><span data-page></span><button class="btn small" data-next>Next</button></div>`:'';
+ const htmlBosses=has('bosses')?`<details data-boss-panel style="margin:8px 0"><summary>Recorded boss defeats</summary><p class="small muted">Public defeat observations, filtered by game game version and region. Other combat-log filters do not apply here. A recorded defeat does not establish whether a boss is currently available.</p><div class="row"><label class="small">Search displayed bosses <input data-boss-search placeholder="Boss name or NPC ID" aria-label="Search displayed boss observations"></label><button class="btn small" data-boss-refresh>Refresh boss observations</button></div><p class="small muted" data-boss-message role="status">Expand to load recorded defeats.</p><div data-boss-rows></div></details>`:'';
+ const htmlSpeed=has('speed')?`<h3>Completed-run speed</h3><div data-run-ranks></div>`:'';
+ const htmlProgression=has('progression')?`<h3>Boss progression</h3><div data-encounter-progression></div>`:'';
+ const htmlPerformance=has('performance')?`<h3>Class performance</h3><p class="small muted">Recorded rates, separate PvE/PvP distributions for each boss, difficulty, encounter type and build. Sample size and gear can affect these comparisons.</p><div data-performance></div>`:'';
+ const htmlPoints=has('points')?`<h3>Highest observed build points</h3><div data-progression></div>`:'';
+ const htmlRecords=has('records')?`<h3>Personal records</h3><div class="row"><input data-name placeholder="Character name" aria-label="Character name"><input data-server placeholder="Character server ID" aria-label="Character server ID"><input data-character placeholder="Database character ID (optional)" aria-label="Database character ID"><button class="btn small" data-record-search>Find records</button></div><p data-record-note class="small muted"></p><div data-records></div><div data-history></div><h3>Character consistency and trends</h3><div data-consistency>Search a character above to compare matched recordings.</div><div class="row"><button class="btn small" data-record-prev>Previous records</button><span data-record-page></span><button class="btn small" data-record-next>Next records</button></div>`:'';
+ root.innerHTML=`<p class="small muted">Public submissions only. Filters also apply to class performance and personal records. Product versions are recorded or submitted metadata; the latest submitted version may differ from the installed version. Older captures can retain legacy launcher metadata.</p><div class="row" data-filters></div>`+htmlLogs+htmlBosses+htmlSpeed+htmlProgression+htmlPerformance+htmlPoints+htmlRecords;
  const $=s=>root.querySelector(s),params=()=>new URLSearchParams(Object.entries(query).filter(([,v])=>v));
  let bossRequest=0,bossData=null;
  const bossPanel=$('[data-boss-panel]');
@@ -38,7 +51,7 @@ function mount(root,options){
   root.querySelectorAll('[data-boss-open]').forEach(b=>b.onclick=()=>options.open(b.dataset.bossOpen,'pve'));
  }
  async function loadBosses(){
-  if(query.combat_mode!=='pve'||!bossPanel.open)return;
+  if(!bossPanel||query.combat_mode!=='pve'||!bossPanel.open)return;
   const request=++bossRequest,q=new URLSearchParams();
   for(const key of ['game_patch','region'])if(query[key])q.set(key,query[key]);
   $('[data-boss-message]').textContent='Loading recorded boss defeats…';
@@ -54,6 +67,7 @@ function mount(root,options){
   }finally{if(request===bossRequest)$('[data-boss-refresh]').disabled=false;}
  }
  function syncBosses(){
+  if(!bossPanel)return;
   bossRequest++;bossData=null;
   bossPanel.hidden=query.combat_mode!=='pve';
   $('[data-boss-rows]').replaceChildren();
@@ -61,42 +75,53 @@ function mount(root,options){
   $('[data-boss-message]').textContent='Expand to load recorded defeats.';
   if(!bossPanel.hidden&&bossPanel.open)loadBosses();
  }
- bossPanel.ontoggle=()=>{if(bossPanel.open&&!bossData)loadBosses();};
- $('[data-boss-search]').oninput=renderBosses;
- $('[data-boss-refresh]').onclick=loadBosses;
+ if(bossPanel){
+  bossPanel.ontoggle=()=>{if(bossPanel.open&&!bossData)loadBosses();};
+  $('[data-boss-search]').oninput=renderBosses;
+  $('[data-boss-refresh]').onclick=loadBosses;
+ }
  async function load(){
   const request=++loadRequest;
   syncBosses();
-  $('[data-message]').textContent='Loading…';
+  if(has('logs'))$('[data-message]').textContent='Loading…';
   try{
    const q=params();q.set('page',page);q.set('limit',30);
-   const [logs,perf]=await Promise.all([options.api('/api/v1/logs?'+q),options.api('/api/v1/performance?'+params())]);
+   const needLogs=has('logs'),needPerf=has('performance');
+   let logs=null,perf=null;
+   if(needLogs&&needPerf)[logs,perf]=await Promise.all([options.api('/api/v1/logs?'+q),options.api('/api/v1/performance?'+params())]);
+   else if(needLogs)logs=await options.api('/api/v1/logs?'+q);
+   else if(needPerf)perf=await options.api('/api/v1/performance?'+params());
    if(request!==loadRequest)return;
-   $('[data-message]').textContent=`${logs.total||0} matching public logs`;
-   $('[data-page]').textContent=`Page ${page}`;
-   $('[data-prev]').disabled=page===1;$('[data-next]').disabled=page*30>=logs.total;
-   $('[data-logs]').innerHTML=table(['Encounter / session','Events · version · encounters','Players','Top DPS','Recorded'],(logs.logs||[]).map(l=>`<tr><td><div class="community-encounter-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><button class="btn small" data-open="${esc(l.id)}">${esc(l.title||l.boss||l.id)}</button></div>${query.combat_mode!=='pvp'?(l.bosses||[]).map(b=>`<div class="community-boss-name" style="display:flex;align-items:center;gap:6px;margin:4px 0"><img width="24" height="24" src="${esc(window.A2AssetHealth?A2AssetHealth.source(b.icon||window.A2BundledAssets?.npcs?.[b.id]||'static/logo.png'):b.icon||window.A2BundledAssets?.npcs?.[b.id]||'static/logo.png')}" alt="" onerror="this.onerror=null;this.src='static/logo.png'"> ${esc(b.name||'Recorded boss')}</div>`).join(''):''}</td><td><div>${l.event_count===undefined?'Event count unavailable':n(l.event_count)+' recorded events'} · ${[...new Set((l.contexts||[]).map(c=>c.game_patch||'Unknown game version'))].map(x=>esc(buildLabel(x))).join(', ')||'Unknown game version'}</div><div aria-label="${query.combat_mode==='pvp'?'Opponent classes':'Recorded bosses'}">${encounterIcons(l,query.combat_mode)}</div></td><td>${l.players?.length||0}</td><td>${n(l.top_dps)}</td><td>${new Date(l.created_at*1000).toLocaleString()}</td></tr>`));
    const timing=x=>x===null || x===undefined?'Unavailable':`${Math.floor(x/60)}:${(x%60).toFixed(1).padStart(4,'0')}`;
-   options.api('/api/v1/run-leaderboard?'+params()).then(r=>{if(request!==loadRequest)return;
+   if(logs){
+    $('[data-message]').textContent=`${logs.total||0} matching public logs`;
+    $('[data-page]').textContent=`Page ${page}`;
+    $('[data-prev]').disabled=page===1;$('[data-next]').disabled=page*30>=logs.total;
+    $('[data-logs]').innerHTML=table(['Encounter / session','Events · version · encounters','Players','Top DPS','Recorded'],(logs.logs||[]).map(l=>`<tr><td><div class="community-encounter-name" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><button class="btn small" data-open="${esc(l.id)}">${esc(l.title||l.boss||l.id)}</button></div>${query.combat_mode!=='pvp'?(l.bosses||[]).map(b=>`<div class="community-boss-name" style="display:flex;align-items:center;gap:6px;margin:4px 0"><img width="24" height="24" src="${esc(window.A2AssetHealth?A2AssetHealth.source(b.icon||window.A2BundledAssets?.npcs?.[b.id]||'static/logo.png'):b.icon||window.A2BundledAssets?.npcs?.[b.id]||'static/logo.png')}" alt="" onerror="this.onerror=null;this.src='static/logo.png'"> ${esc(b.name||'Recorded boss')}</div>`).join(''):''}</td><td><div>${l.event_count===undefined?'Event count unavailable':n(l.event_count)+' recorded events'} · ${[...new Set((l.contexts||[]).map(c=>c.game_patch||'Unknown game version'))].map(x=>esc(buildLabel(x))).join(', ')||'Unknown game version'}</div><div aria-label="${query.combat_mode==='pvp'?'Opponent classes':'Recorded bosses'}">${encounterIcons(l,query.combat_mode)}</div></td><td>${l.players?.length||0}</td><td>${n(l.top_dps)}</td><td>${new Date(l.created_at*1000).toLocaleString()}</td></tr>`));
+    bindOpen();
+   }
+   if(has('speed'))options.api('/api/v1/run-leaderboard?'+params()).then(r=>{if(request!==loadRequest)return;
     $('[data-run-ranks]').innerHTML=`<p class="small muted">${esc(r.note)} ${r.samples||0} run samples; showing up to 50.${r.truncated?' Dataset capped.':''}</p>`+table(['Run','Instance · route','Type · version · difficulty','Party','Matched rank · percentile','Elapsed','Recorded combat','Downtime'],(r.entries||[]).map(x=>`<tr><td><button class="btn small" data-open="${esc(x.log)}">Run ${esc(x.id)}</button></td><td>${esc(x.instance_id)} · ${esc((x.boss_route||[]).join(' → '))}</td><td>${esc(types[x.encounter_type])} · ${esc(buildLabel(x.game_patch))} · ${esc(x.difficulty)}</td><td>${x.party_size}</td><td>#${x.rank} / ${x.count}<br>${x.comparison?.percentile!==null && x.comparison?.percentile!==undefined?x.comparison.percentile.toFixed(1)+' percentile':'Percentile unavailable'}<br>${esc((x.comparison?.reasons||[]).join(' '))}</td><td>${timing(x.elapsed_seconds)}</td><td>${timing(x.combat_seconds)}</td><td>${timing(x.downtime_seconds)}</td></tr>`));bindOpen();
    }).catch(e=>{if(request!==loadRequest)return;$('[data-run-ranks]').textContent='Run rankings unavailable: '+e.message;});
-   options.api('/api/v1/encounter-progression?'+params()).then(r=>{if(request!==loadRequest)return;
+   if(has('progression'))options.api('/api/v1/encounter-progression?'+params()).then(r=>{if(request!==loadRequest)return;
     // Only show bosses with at least one recorded kill or observed wipe. A boss
     // whose every attempt is "unknown" (partial captures that never recorded the
     // kill or a complete wipe) carries no progression signal, so it is hidden.
     const progGroups=(r.groups||[]).filter(x=>(x.kills||0)>0||(x.wipes||0)>0);
     $('[data-encounter-progression]').innerHTML=`<p class="small muted">${esc(r.note)}${r.truncated?' Dataset capped.':''} Bosses with only unknown outcomes are hidden. Fastest kill is the quickest recorded clear of that boss; open its log to review it (shown when the server reports it).</p>`+(progGroups.length?table(['Boss','Type · version · difficulty','Recorded attempts','Kills','Observed wipes','Unknown','Kill rate among known outcomes','Best observed wipe HP','Fastest kill · log'],progGroups.map(x=>`<tr><td><span class="community-boss-name">${bossPortrait(x)}${esc(x.boss)}</span></td><td>${esc(types[x.encounter_type])} · ${esc(buildLabel(x.game_patch||'Unknown'))} · ${esc(x.difficulty||'Unknown')}</td><td>${x.attempts}</td><td>${x.kills}</td><td>${x.wipes}</td><td>${x.unknown}</td><td>${x.observed_kill_rate===null?'Unavailable':(100*x.observed_kill_rate).toFixed(1)+'%'}</td><td>${x.best_wipe_hp_pct===null?'Unavailable':x.best_wipe_hp_pct.toFixed(1)+'%'}</td><td>${(typeof x.fastest_kill_seconds==='number'&&x.fastest_kill_seconds>0)?timing(x.fastest_kill_seconds)+(/^[A-Za-z0-9]{6,16}$/.test(x.fastest_kill_log||'')?` <button class="btn small" data-open="${esc(x.fastest_kill_log)}">Open log</button>`:''):'Unavailable'}</td></tr>`)):'<p class="small muted">No bosses with a recorded kill or observed wipe for these filters yet.</p>');bindOpen();
    }).catch(e=>{if(request!==loadRequest)return;$('[data-encounter-progression]').textContent='Boss progression unavailable: '+e.message;});
-   const buckets=new Map();for(const g of perf.groups||[]){const k=[g.boss,g.boss_key,g.encounter_type,g.game_patch,g.difficulty,'Party '+(g.party_size||'unknown'),'Instance '+(g.instance_id||'unknown')].join(' · ');if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(g);}
-   $('[data-performance]').innerHTML=`<p class="small muted">${esc(perf.note)} ${perf.samples||0} samples; ${perf.excluded_unknown_metadata||0} excluded for missing metadata.${perf.truncated?' Coverage capped.':''}</p>`+[...buckets].map(([key,groups])=>{
-    const maximum=Math.max(1,...groups.map(g=>g.max));
-    return `<h4>${esc(buildLabel(key))}</h4>`+table(['Class',esc(query.metric.toUpperCase())+' distribution (min / quartiles / max)','Median '+esc(query.metric.toUpperCase()),'Range','Parses · distinct characters','Coverage'],groups.sort((a,b)=>b.median-a.median).map(g=>`<tr><td style="color:${window.A2CombatReview.color(g.class)}">${esc(g.class)}</td><td><svg viewBox="0 0 360 32" style="min-width:230px;width:100%;max-width:500px" role="img" aria-label="${esc(g.class)} DPS distribution"><title>Min ${n(g.min)}; lower quartile ${n(g.q1)}; median ${n(g.median)}; upper quartile ${n(g.q3)}; max ${n(g.max)}; ${g.count} parses</title><line x1="${g.min/maximum*350}" x2="${g.max/maximum*350}" y1="16" y2="16" stroke="currentColor"/><rect x="${g.q1/maximum*350}" y="6" width="${Math.max(2,(g.q3-g.q1)/maximum*350)}" height="20" fill="${window.A2CombatReview.color(g.class)}"/><line x1="${g.median/maximum*350}" x2="${g.median/maximum*350}" y1="3" y2="29" stroke="currentColor"/></svg></td><td>${n(g.median)}</td><td>${n(g.min)} – ${n(g.max)}</td><td>${g.count} · ${g.comparison?.identities??'Unavailable'}</td><td>${g.comparison?.status==='available'?'Sufficient sample':esc((g.comparison?.reasons||['Coverage unavailable']).join(' '))}</td></tr>`));
-   }).join('');bindOpen();
-   options.api('/api/v1/progression?'+params()).then(r=>{if(request!==loadRequest)return;$('[data-progression]').innerHTML=`<p class="small muted">${esc(r.note)}</p>`+table(['Class','Region · build','Source','Skill','Stigma','PvE Daevanion','Observations'],(r.observations||[]).map(x=>`<tr><td>${esc(x.class_name)}</td><td>${esc(x.region)} · ${esc(buildLabel(x.game_patch))}</td><td>${esc(x.source)}</td><td>${x.skill}</td><td>${x.stigma}</td><td>${x.daevanion}</td><td>${x.observations}</td></tr>`));}).catch(e=>{if(request!==loadRequest)return;$('[data-progression]').textContent=e.message;});
-  }catch(e){if(request!==loadRequest)return;$('[data-message]').textContent=e.message;}
+   if(perf){
+    const buckets=new Map();for(const g of perf.groups||[]){const k=[g.boss,g.boss_key,g.encounter_type,g.game_patch,g.difficulty,'Party '+(g.party_size||'unknown'),'Instance '+(g.instance_id||'unknown')].join(' · ');if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(g);}
+    $('[data-performance]').innerHTML=`<p class="small muted">${esc(perf.note)} ${perf.samples||0} samples; ${perf.excluded_unknown_metadata||0} excluded for missing metadata.${perf.truncated?' Coverage capped.':''}</p>`+[...buckets].map(([key,groups])=>{
+     const maximum=Math.max(1,...groups.map(g=>g.max));
+     return `<h4>${esc(buildLabel(key))}</h4>`+table(['Class',esc(query.metric.toUpperCase())+' distribution (min / quartiles / max)','Median '+esc(query.metric.toUpperCase()),'Range','Parses · distinct characters','Coverage'],groups.sort((a,b)=>b.median-a.median).map(g=>`<tr><td style="color:${window.A2CombatReview.color(g.class)}">${esc(g.class)}</td><td><svg viewBox="0 0 360 32" style="min-width:230px;width:100%;max-width:500px" role="img" aria-label="${esc(g.class)} DPS distribution"><title>Min ${n(g.min)}; lower quartile ${n(g.q1)}; median ${n(g.median)}; upper quartile ${n(g.q3)}; max ${n(g.max)}; ${g.count} parses</title><line x1="${g.min/maximum*350}" x2="${g.max/maximum*350}" y1="16" y2="16" stroke="currentColor"/><rect x="${g.q1/maximum*350}" y="6" width="${Math.max(2,(g.q3-g.q1)/maximum*350)}" height="20" fill="${window.A2CombatReview.color(g.class)}"/><line x1="${g.median/maximum*350}" x2="${g.median/maximum*350}" y1="3" y2="29" stroke="currentColor"/></svg></td><td>${n(g.median)}</td><td>${n(g.min)} – ${n(g.max)}</td><td>${g.count} · ${g.comparison?.identities??'Unavailable'}</td><td>${g.comparison?.status==='available'?'Sufficient sample':esc((g.comparison?.reasons||['Coverage unavailable']).join(' '))}</td></tr>`));
+    }).join('');bindOpen();
+   }
+   if(has('points'))options.api('/api/v1/progression?'+params()).then(r=>{if(request!==loadRequest)return;$('[data-progression]').innerHTML=`<p class="small muted">${esc(r.note)}</p>`+table(['Class','Region · build','Source','Skill','Stigma','PvE Daevanion','Observations'],(r.observations||[]).map(x=>`<tr><td>${esc(x.class_name)}</td><td>${esc(x.region)} · ${esc(buildLabel(x.game_patch))}</td><td>${esc(x.source)}</td><td>${x.skill}</td><td>${x.stigma}</td><td>${x.daevanion}</td><td>${x.observations}</td></tr>`));}).catch(e=>{if(request!==loadRequest)return;$('[data-progression]').textContent=e.message;});
+  }catch(e){if(request!==loadRequest)return;if(has('logs'))$('[data-message]').textContent=e.message;}
  }
  function bindOpen(){root.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>options.open(b.dataset.open,query.combat_mode));}
- async function records(){try{
+ async function records(){if(!has('records'))return;try{
   const q=params();Object.entries(identity).forEach(([k,v])=>q.set(k,v));q.set('page',recordPage);
   const request=++consistencyRequest;
   $('[data-consistency]').textContent='Loading matched character trends…';
@@ -115,14 +140,16 @@ function mount(root,options){
   $('[data-history]').innerHTML='<h4>All matching public attempts</h4>'+table(['Encounter','Character · server',esc(query.metric.toUpperCase()),'Ranking status','Recorded'],(r.history||[]).map(x=>`<tr><td><button class="btn small" data-open="${esc(x.log_id)}">${esc(x.boss)}</button></td><td>${esc(x.name)} · ${esc(x.server)}</td><td>${n(x.score??x.dps)}</td><td>${x.ranking_eligible?'Eligible':'Unranked / unverified'}</td><td>${new Date(x.created_at*1000).toLocaleString()}</td></tr>`));
   $('[data-record-page]').textContent=`Page ${recordPage} · ${r.total} attempts`;$('[data-record-prev]').disabled=recordPage===1;$('[data-record-next]').disabled=recordPage*50>=r.total;bindOpen();
  }catch(e){$('[data-record-note]').textContent=e.message;}}
- $('[data-prev]').onclick=()=>{page=Math.max(1,page-1);load();};$('[data-next]').onclick=()=>{page++;load();};
- $('[data-record-search]').onclick=()=>{identity={name:$('[data-name]').value.trim(),server:$('[data-server]').value.trim(),character_id:$('[data-character]').value.trim()};recordPage=1;records();};
- $('[data-record-prev]').onclick=()=>{recordPage=Math.max(1,recordPage-1);records();};$('[data-record-next]').onclick=()=>{recordPage++;records();};
+ if(has('logs')){$('[data-prev]').onclick=()=>{page=Math.max(1,page-1);load();};$('[data-next]').onclick=()=>{page++;load();};}
+ if(has('records')){
+  $('[data-record-search]').onclick=()=>{identity={name:$('[data-name]').value.trim(),server:$('[data-server]').value.trim(),character_id:$('[data-character]').value.trim()};recordPage=1;records();};
+  $('[data-record-prev]').onclick=()=>{recordPage=Math.max(1,recordPage-1);records();};$('[data-record-next]').onclick=()=>{recordPage++;records();};
+ }
  options.api('/api/v1/report-facets').then(f=>{
   query.game_patch=f.latest_submitted_patch||'';
   $('[data-filters]').innerHTML=['combat_mode','metric','encounter_type','game_patch','boss','difficulty','region','party_size'].map(k=>`<label class="small">${esc(k==='game_patch'?'game version':k.replaceAll('_',' '))} <select data-filter="${k}">${["combat_mode","metric"].includes(k)?"":'<option value="">All</option>'}${(k==='combat_mode'?['pve','pvp']:k==='metric'?['dps','hps','dtps']:k==='encounter_type'?Object.keys(types):f[k]||[]).map(v=>`<option value="${esc(v)}" ${query[k]===v?'selected':''}>${esc(k==='encounter_type'?types[v]:k==='game_patch'?buildLabel(v):v)}</option>`).join('')}</select></label>`).join('')+'<button class="btn small" data-refresh>Refresh</button>';
   root.querySelectorAll('[data-filter]').forEach(e=>e.onchange=()=>{query[e.dataset.filter]=e.value;if(e.dataset.filter==='encounter_type'&&e.value)query.combat_mode=e.value.startsWith('pvp_')?'pvp':'pve';if(e.dataset.filter==='combat_mode')query.encounter_type='';root.querySelector('[data-filter=combat_mode]').value=query.combat_mode;root.querySelector('[data-filter=encounter_type]').value=query.encounter_type||'';page=1;load();if(identity.server){recordPage=1;records();}});$('[data-refresh]').onclick=load;load();
- }).catch(e=>{$('[data-message]').textContent=e.message;});
+ }).catch(e=>{const el=$('[data-message]')||$('[data-filters]');if(el)el.textContent=e.message;});
  return {refresh:load};
 }
 window.A2Community={mount,types};
