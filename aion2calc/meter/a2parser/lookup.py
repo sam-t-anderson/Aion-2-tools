@@ -115,6 +115,42 @@ def _npc_overrides() -> dict:
     return overrides if isinstance(overrides, dict) else {}
 
 
+@lru_cache(maxsize=1)
+def _dungeon_final_bosses() -> dict:
+    """Curated ``{dungeonId: frozenset(mob_code, …)}`` of each dungeon's final boss, read
+    once from the shipped ``dungeon_final_bosses.json``. It lets the meter auto-mark a
+    dungeon run complete (and rankable) when the party kills the final boss, without any
+    manual ``final_boss_ids`` configuration. A missing or malformed file degrades to an
+    empty map, so detection simply falls back to a manual designation and nothing breaks."""
+    resource = files(__package__).joinpath("data", "dungeon_final_bosses.json")
+    try:
+        doc = json.loads(resource.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ModuleNotFoundError, ValueError):
+        return {}
+    raw = doc.get("final_bosses") if isinstance(doc, dict) else None
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[int, frozenset] = {}
+    for did, codes in raw.items():
+        try:
+            key = int(did)
+        except (TypeError, ValueError):
+            continue
+        if key > 0 and isinstance(codes, list):
+            members = frozenset(c for c in codes if isinstance(c, int) and 0 < c <= 2**32 - 1)
+            if members:
+                out[key] = members
+    return out
+
+
+def dungeon_final_bosses(dungeon_id: int) -> frozenset:
+    """The curated final-boss mob codes for a catalog ``dungeonId`` (its HP-bar phases /
+    variants), or an empty set when the dungeon is unknown or deliberately unmapped."""
+    if not isinstance(dungeon_id, int) or dungeon_id <= 0:
+        return frozenset()
+    return _dungeon_final_bosses().get(dungeon_id, frozenset())
+
+
 # ----------------------------------------------------- community name + portrait overlay
 #
 # A *fallback* overlay behind the curated bundled table: the NPC id -> {name, icon}

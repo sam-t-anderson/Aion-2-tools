@@ -9,7 +9,7 @@ import copy
 import math
 import uuid
 
-from .a2parser.lookup import job_from_skill, npc_info, npc_name, skill_name, spirit_skill_category
+from .a2parser.lookup import dungeon_final_bosses, job_from_skill, npc_info, npc_name, skill_name, spirit_skill_category
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
 
 
@@ -544,8 +544,13 @@ class CombatSession:
                 self.discarded_telemetry += 1
             self.telemetry.append({**sample, "epoch": self.epoch})
             code = identity["spawns"].get(sample["entity"], {}).get("mobCode")
+            # A dungeon run finishes (and becomes rankable) when the party kills the final boss.
+            # That boss is either an explicit designation (``final_boss_ids``, e.g. from an analysis
+            # request) or, with none configured, the current dungeon's curated final boss from the
+            # catalog — so a complete live run ranks automatically, no manual setup needed.
             if (self.auto_finish and not self.pvp and sample["kind"] == "death"
-                    and code in self.final_boss_ids and npc_info(code).get("isBoss")
+                    and (code in self.final_boss_ids or code in dungeon_final_bosses(engine.dungeon_id))
+                    and npc_info(code).get("isBoss")
                     and engine.dungeon_id == npc_info(code).get("dungeonId") and engine.dungeon_id
                     and any(r.run == self.run and isinstance(r.event,DamageEvent) and r.event.target_id == sample["entity"] and r.event.actor_id in self._allowed(r,"party") for r in self.records)):
                 self.runs[self.run]["recorded_final_boss"] = code
