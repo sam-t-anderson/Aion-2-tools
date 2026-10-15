@@ -4,9 +4,82 @@ import os
 import tempfile
 import threading
 from collections import OrderedDict
+from functools import lru_cache
 from pathlib import Path
 
 from ..paths import logs_dir, within
+
+
+@lru_cache(maxsize=1)
+def _field_boss_names() -> frozenset:
+    """Lower-cased names of the known open-world field bosses (best effort), read once from the
+    shared ``field-bosses.json``. Used only to tell a field boss from a world boss when grouping
+    saved encounters; a missing/malformed file just means open-world bosses group as world bosses."""
+    try:
+        import aion2calc
+        target = Path(aion2calc.__file__).resolve().parent / "app" / "static" / "field-bosses.json"
+        doc = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return frozenset()
+    rows = doc.get("bosses") if isinstance(doc, dict) else None
+    if not isinstance(rows, list):
+        return frozenset()
+    return frozenset(r["name"].casefold() for r in rows if isinstance(r, dict) and isinstance(r.get("name"), str))
+
+
+def _boss_code(segment: dict):
+    """The mob code of the segment's named boss, for a portrait and the final-boss lookup. Prefers
+    the recorded-boss entity whose name matches ``segment['boss']``; else the first boss entity."""
+    boss = segment.get("boss")
+    fallback = None
+    for entity in segment.get("entities", []):
+        if not isinstance(entity, dict) or not entity.get("is_boss"):
+            continue
+        code = entity.get("mob_code")
+        if not isinstance(code, int):
+            continue
+        if boss and entity.get("name") == boss:
+            return code
+        if fallback is None:
+            fallback = code
+    return fallback
+
+
+def _dungeon_role(code, instance):
+    """Within a *mapped* dungeon, whether a boss is the final boss or an earlier mini-boss. Returns
+    None when the dungeon has no curated final boss, so we never guess final/mini for it."""
+    from ..meter.a2parser.lookup import dungeon_final_bosses
+    finals = dungeon_final_bosses(instance) if isinstance(instance, int) else frozenset()
+    if not finals or not isinstance(code, int):
+        return None
+    return "final" if code in finals else "mini"
+
+
+# User-facing grouping of a recorded encounter, from its recorded encounter type plus (for dungeons)
+# the catalog final-boss data and (for the open world) the field-boss list. Kept deliberately coarse
+# so the Saved Logs view reads at a glance: one section per category, boss role shown per row.
+def _category(segment: dict, meta: dict) -> dict:
+    etype = str(segment.get("encounter_type") or meta.get("encounter_type") or "unknown")
+    boss = segment.get("boss") or None
+    code = _boss_code(segment)
+    instance = segment.get("instance_id") if isinstance(segment.get("instance_id"), int) else None
+    role = None
+    if etype.startswith("pvp_"):
+        category = "pvp"
+    elif etype == "sanctuary":
+        category, role = "raid", _dungeon_role(code, instance)
+    elif etype in ("nightmare", "ascension", "expedition", "transcendence", "daily"):
+        category, role = etype, _dungeon_role(code, instance)
+    elif etype == "pve_open_world":
+        if boss and boss.casefold() in _field_boss_names():
+            category, role = "field_boss", "field"
+        elif boss:
+            category, role = "world_boss", "world"
+        else:
+            category = "open_world"
+    else:
+        category = "other"
+    return {"category": category, "role": role, "boss": boss, "boss_code": code}
 
 
 def path(name: str) -> Path:
@@ -104,8 +177,12 @@ def _row(target):
     archive = doc.get("meta", {}).get("archive")
     if not (isinstance(archive,dict) and isinstance(archive.get("id"),str) and type(archive.get("part")) is int and 1 <= archive["part"] <= 2**53-1):
         archive = None
-    row = {"file":target.name, "title":doc.get("meta", {}).get("title"),
-           "contexts":[{k:segment.get(k) or doc.get("meta", {}).get(k) or "unknown" for k in ("encounter_type", "game_patch", "difficulty")} for segment in doc["segments"]],
+    meta = doc.get("meta") or {}
+    row = {"file":target.name, "title":meta.get("title"),
+           "contexts":[{**{k:segment.get(k) or meta.get(k) or "unknown" for k in ("encounter_type", "game_patch", "difficulty")},
+                        **_category(segment, meta), "segment":i,
+                        "duration":segment.get("duration"), "killed":bool(segment.get("killed"))}
+                       for i, segment in enumerate(doc["segments"])],
            "unfinished":bool(doc.get("meta", {}).get("capture_active")),
            "archive":archive, "checkpoint_at":doc.get("meta", {}).get("checkpoint_at"),
            "updated":stat.st_mtime, "players":len(doc["players"]), "segments":len(doc["segments"]),

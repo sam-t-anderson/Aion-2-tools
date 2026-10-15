@@ -1,3 +1,9 @@
+## Saved Logs, grouped by encounter type (0.2.280)
+
+- **The app's Combat Logs → Saved Logs now groups your recorded encounters by type**, so it's no longer a guess what each fight was. Encounters are split into labelled sections — **PvP, World bosses, Field bosses, Raids, Nightmare dungeons, Ascension trials, Expeditions, Transcendence dungeons, Daily dungeons** — each a one-row-per-encounter list with the boss portrait and name, difficulty, clear time and date, reading like the website's Community Combat Logs. Each row opens that exact encounter.
+- **Inside a dungeon, each row is tagged "Final boss" or "Mini-boss"** (using the same catalog final-boss data added in 0.2.279), and open-world fights are tagged Field boss or World boss, so you can tell the headline kill from the trash on the way there.
+- The existing recording upload tools and the imported "Analyzed encounters" list are unchanged, below the new grouped view.
+
 ## Completed dungeon runs now rank automatically (0.2.279)
 
 - **Your complete runs now qualify for the speed leaderboard without any setup.** A run only ranks once the meter has seen the dungeon's **final boss** die — but until now the final boss had to be configured by hand, so live runs were never marked complete and showed "A configured final-boss completion was not observed," even for a clean full clear. The meter now recognises each dungeon's final boss automatically from the game catalog, so finishing a dungeon marks the run complete and eligible on its own.

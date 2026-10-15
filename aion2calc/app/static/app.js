@@ -879,13 +879,17 @@ async function pageCombat() {
         Files: AbyssLogs segment (.json / .json.gz), aion2calc JSON (see docs), or CSV with columns t, skill, damage, crit, double, perfect, multi, dot.</p>
       <div class="row small" id="logsdir"></div>
       <div class="row small" id="lsrv"></div>
-      <div id="sessions"></div><div id="session-review"></div><h3>Analyzed encounters</h3><div id="hist"></div></div><div id="log-panel-owned" data-log-panel="owned" role="tabpanel" aria-labelledby="log-tab-owned" hidden><div id="owned-logs"></div></div><div id="log-panel-community" data-log-panel="community" role="tabpanel" aria-labelledby="log-tab-community" hidden><div id="community"></div></div></div></div>
+      <h3>Recorded encounters by type</h3><div id="saved-browse"></div>
+      <h3>Upload recordings</h3><div id="sessions"></div><div id="session-review"></div><h3>Analyzed encounters</h3><div id="hist"></div></div><div id="log-panel-owned" data-log-panel="owned" role="tabpanel" aria-labelledby="log-tab-owned" hidden><div id="owned-logs"></div></div><div id="log-panel-community" data-log-panel="community" role="tabpanel" aria-labelledby="log-tab-community" hidden><div id="community"></div></div></div></div>
     <div data-logs-panel="speed" hidden><div id="speed-body" style="margin-top:12px"><div class="empty">Loading…</div></div></div>
     <div data-logs-panel="progression" hidden><div id="progression-body" style="margin-top:12px"><div class="empty">Loading…</div></div></div>
     <div data-logs-panel="points" hidden><div id="points-body" style="margin-top:12px"><div class="empty">Loading…</div></div></div>
     <div data-logs-panel="extras" hidden><div id="records-extra" style="margin-top:12px"></div></div>
     </div></div></section><div id="enc"></div>`;
   A2LogTabs.mount($('#combat-log-tabs'),st.listTab||'community',value=>{st.listTab=value;});
+  // Saved Logs, grouped by encounter type (PvP / world / field boss / raid / nightmare / … ) so it
+  // reads like the website's Community Combat Logs. Opens each encounter at its own segment.
+  A2SavedLogs.mount($('#saved-browse'),{api,open:(file,segment)=>{location.hash='/combat-log/local/'+encodeURIComponent(file)+(Number.isInteger(segment)?'?segment='+segment:'');}});
   api("/api/logs").then((l) => {
     if(!$("#logsdir"))return;
     $("#logsdir").innerHTML = `<span class="muted">Every analyzed log is saved as a file in</span> <code>${esc(l.folder)}</code> <span class="faint">(${l.files} files)</span>
