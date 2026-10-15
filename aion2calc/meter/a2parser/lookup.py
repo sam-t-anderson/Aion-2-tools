@@ -151,6 +151,29 @@ def dungeon_final_bosses(dungeon_id: int) -> frozenset:
     return _dungeon_final_bosses().get(dungeon_id, frozenset())
 
 
+@lru_cache(maxsize=1)
+def _servers_table() -> dict:
+    """The bundled ``serverId -> {locale: world name}`` table, read once. Used only as a fallback
+    for the world/server name when the live official metadata source did not carry it."""
+    resource = files(__package__).joinpath("data", "servers.json")
+    try:
+        doc = json.loads(resource.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ModuleNotFoundError, ValueError):
+        return {}
+    servers = doc.get("servers") if isinstance(doc, dict) else None
+    return servers if isinstance(servers, dict) else {}
+
+
+def server_name(server_id, locale: str = "en") -> str | None:
+    """The world/server name for a server ID from the bundled table (e.g. 2102 -> "Zikel"), or
+    None when unknown. Prefers the requested locale, then English, then any available name."""
+    row = _servers_table().get(str(server_id))
+    if not isinstance(row, dict):
+        return None
+    name = row.get(locale) or row.get("en") or next((v for v in row.values() if isinstance(v, str) and v.strip()), None)
+    return name if isinstance(name, str) and name.strip() else None
+
+
 # ----------------------------------------------------- community name + portrait overlay
 #
 # A *fallback* overlay behind the curated bundled table: the NPC id -> {name, icon}

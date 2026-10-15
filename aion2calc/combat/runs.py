@@ -143,8 +143,13 @@ def summarize(doc):
                     open_attempts[boss["id"]] = attempt
                 else:
                     open_attempts.pop(boss["id"], None)
-        if not attempts or any(not a["start_observed"] or a["outcome"] == "unknown" or a["quality_reasons"] for a in attempts):
-            reasons.append("Boss attempts lack a complete observed start and kill/wipe outcome.")
+        # A run's start is the observed instance entry (``start_observed`` above), not each boss's
+        # own full-HP pull: a dungeon clear is timed entry -> final-boss kill, so an intermediate
+        # boss whose exact 100%-HP packet wasn't logged must not unrank the run. Every boss still
+        # needs a definite outcome (kill/wipe, not unknown) and clean per-encounter capture, and the
+        # final attempt must be a kill (checked below).
+        if not attempts or any(a["outcome"] == "unknown" or a["quality_reasons"] for a in attempts):
+            reasons.append("Boss attempts lack a complete kill/wipe outcome with clean capture.")
         if not attempts or attempts[-1]["outcome"] != "kill":
             reasons.append("The final recorded boss attempt is not an observed kill.")
         progression, previous_boss = {}, {}
@@ -164,7 +169,12 @@ def summarize(doc):
                 old = row["best_wipe_hp_pct"]
                 row["best_wipe_hp_pct"] = min(old, a["best_remaining_hp_pct"]) if old is not None else a["best_remaining_hp_pct"]
         roster = [p for p in doc.get("players", []) if p["id"] in participants]
-        if (any(not s.get("party_roster_complete") for s in segments)
+        # The roster must be stable (the same member set in every segment) and fully identified, and
+        # confirmed complete at least once during the run — the opening pull's roster can arrive a
+        # beat late (party_roster_complete False on only that segment) without the party actually
+        # changing, so requiring the complete flag on literally every segment wrongly unranks an
+        # otherwise stable, identified party.
+        if (not any(s.get("party_roster_complete") for s in segments)
                 or len({tuple(sorted(s.get("party_members", []))) for s in segments}) != 1
                 or any(not p.get("name") or not p.get("class") or not p.get("server") for p in roster)):
             reasons.append("A complete, stable identified party roster is required.")

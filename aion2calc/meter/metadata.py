@@ -497,6 +497,12 @@ class CaptureMetadata:
         with self.lock:
             matches = [region for region, servers in self.regions.items() if str(server) in servers]
             name = self.names.get(str(server)) if server else None
+            if not name and server:
+                # The live official source resolves the region but does not always carry the
+                # world/server name; fall back to the bundled server table so a recorded server ID
+                # still gets its world name (e.g. 2102 -> "Zikel") on the log and overlay.
+                from .a2parser.lookup import server_name as _bundled_server_name
+                name = _bundled_server_name(server)
             from .builds import resolve
             region = matches[0] if len(matches) == 1 else None
             return {**self.build, **resolve(self.build), "region": region,

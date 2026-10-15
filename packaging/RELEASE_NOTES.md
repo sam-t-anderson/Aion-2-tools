@@ -1,3 +1,9 @@
+## Complete dungeon runs rank reliably; world/server name recorded (0.2.282)
+
+- **A full, legitimate dungeon clear now ranks for speed even when an intermediate boss wasn't seen at exactly full HP at the pull.** A run's start is the observed *instance entry*, not each boss's own 100%-HP packet, so a timed clear (entry → final-boss kill) no longer gets unranked just because a mid-run boss's opening HP reading landed a split-second late. Every boss still needs a clean kill/wipe outcome and the final boss must be a verified kill, and open-world/incomplete runs are still correctly unranked.
+- **A late opening-pull party roster no longer unranks the run.** If the party's roster-complete confirmation arrives a beat into the first fight — but the party is the same, fully-identified group all the way through — the run now ranks. (The roster must still be stable and identified, and confirmed complete at least once.)
+- **The world/server name is now recorded on logs and the overlay even when the live server list didn't provide it** — it falls back to the bundled server table, so e.g. server 2102 shows as "Zikel". Region and server ID were already recorded; this fills in the name. (Applies to new recordings.)
+
 ## Overlay no longer drops DPS mid-fight; logs-page filter and "view" fixes (0.2.281)
 
 - **Fixed the live meter overlay dropping its DPS mid-combat.** The boss-start reset (0.2.277) was also firing when an *add* (or a second enemy) that you'd been fighting for a while got promoted to a "major" target partway through a boss fight — which wrongly reset the overlay to that add and dropped the boss's running numbers. The overlay now resets only at a fight's **start** (when no other boss/major is still alive), never when something joins a fight already in progress. Back-to-back bosses still each reset as intended; your saved logs are unaffected either way.
