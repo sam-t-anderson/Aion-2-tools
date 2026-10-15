@@ -1,3 +1,8 @@
+## Re-uploading a recording no longer creates a duplicate on the server (0.2.283)
+
+- **A finished recording now carries a stable, private fingerprint, so the community server recognises and ignores a re-upload of the same recording instead of storing it twice.** If the same fight reaches the server more than once — an automatic upload and a manual share, or a retried upload across app restarts — the server returns the existing report rather than creating a duplicate encounter. (This is the client half; the log server ships the matching change that honours the fingerprint.)
+- **The fingerprint is machine-salted and one-way.** It is derived from a random per-install salt that never leaves your machine, combined with the recording's own id — so it is identical every time *you* re-upload that recording, different for every other recording, and cannot be forged by anyone else or used to link your recordings together. Only a finished recording gets one; an in-progress capture checkpoint never does.
+
 ## Complete dungeon runs rank reliably; world/server name recorded (0.2.282)
 
 - **A full, legitimate dungeon clear now ranks for speed even when an intermediate boss wasn't seen at exactly full HP at the pull.** A run's start is the observed *instance entry*, not each boss's own 100%-HP packet, so a timed clear (entry → final-boss kill) no longer gets unranked just because a mid-run boss's opening HP reading landed a split-second late. Every boss still needs a clean kill/wipe outcome and the final boss must be a verified kill, and open-world/incomplete runs are still correctly unranked.

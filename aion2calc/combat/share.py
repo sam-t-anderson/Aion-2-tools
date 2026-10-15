@@ -7,6 +7,7 @@ The server address and upload key are kept in the user folder
 from __future__ import annotations
 
 import gzip
+import hashlib
 import json
 import re
 import urllib.error
@@ -132,6 +133,30 @@ def discover(url: str) -> dict:
         return json.load(r)
 
 
+def recording_key(doc: dict) -> str | None:
+    """A stable, machine-salted fingerprint of a *finished* recording, so the log server can
+    recognise and ignore a re-upload of the same recording instead of storing a duplicate.
+
+    It is derived from the local install salt (random, generated once, never sent — see
+    ``heartbeat._install_salt``) and the recording's archive id, so it is the same on every
+    re-upload of that recording and different for every other recording. The salt is one-way and
+    stays on the machine, so another uploader cannot forge the key and it cannot be correlated
+    across recordings. Only a *closed* archive gets one — an in-progress checkpoint is not yet a
+    stable identity (and is not uploaded) — and a document without an archive id gets ``None``.
+    """
+    try:
+        archive = (doc.get("meta") or {}).get("archive")
+        if not isinstance(archive, dict) or archive.get("closed") is not True:
+            return None
+        archive_id = archive.get("id")
+        if not isinstance(archive_id, str) or not archive_id:
+            return None
+        from .heartbeat import _install_salt
+        return hashlib.sha256(f"{_install_salt()}:recording:{archive_id}".encode("utf-8")).hexdigest()
+    except Exception:
+        return None
+
+
 def upload(doc: dict, url: str | None = None, key: str | None = None, visibility: str | None = None, request_id: str | None = None) -> dict:
     s = effective()
     url = (url or s.get("url") or "").rstrip("/")
@@ -152,6 +177,10 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
         if not isinstance(request_id, str) or not re.fullmatch(r"[a-f0-9]{32}", request_id):
             raise ValueError("Invalid upload request ID")
         headers["Idempotency-Key"] = request_id
+    rk = recording_key(doc)
+    if rk:
+        # Stable per-recording fingerprint: the server ignores a re-upload of the same recording.
+        headers["X-Aion-Recording-Key"] = rk
     req = urllib.request.Request(f"{target}?visibility={vis}", body, headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
