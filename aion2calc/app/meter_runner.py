@@ -1012,6 +1012,7 @@ class Runner:
         except Exception:
             return
         self.session.reset_after_battle = bool(ui.get("meter_reset_after_battle", False))
+        self.session.reset_on_boss_start = bool(ui.get("meter_reset_on_boss_start", True))
         self.session.reset_delay_seconds = min(120, max(1, int(ui.get("meter_reset_delay", 5) or 5)))
         self.session.max_records = min(500, max(0, int(ui.get("meter_max_records", 20) or 0)))
         self.session.dummy_record_seconds = min(3600, max(5, int(ui.get("meter_dummy_record_seconds", 60) or 60)))

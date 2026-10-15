@@ -1,3 +1,8 @@
+## Live meter resets when a boss fight starts (0.2.277)
+
+- **New setting, on by default: "Reset the live meter when a boss fight starts."** The moment you pull a boss, mini-boss, field boss or world boss, the overlay clears to just that fight — so the previous mini-boss's numbers no longer linger, and the last boss of a dungeon shows its own fight instead of the whole run piled together. It uses the game's own catalog to recognise bosses (plus a sustained-engagement signal for mini-bosses the catalog doesn't flag), so nothing is hard-coded. Turn it off in Settings → Combat records to keep the old behaviour (the fight stays until the next pull, a wipe or a manual clear).
+- This changes the **live overlay only** — your saved combat logs, their per-encounter segments and everything on the website are unchanged.
+
 ## Revert the capture-filter narrowing — it broke capture on some setups (0.2.276)
 
 - **Reverted the 0.2.275 change that reopened the capture narrowed to the game flow.** Reopening the capture handle mid-session (to swap the kernel filter) can fail on some Npcap setups, which could stop capture right after a fight was detected — leaving the session empty, so uploads reported "nothing to upload yet". Capture is back to the known-good single broad filter plus the 64 MiB buffer (0.2.269), which already absorbs the bursts. The `capture_filter` diagnostic is kept, so uploaded logs still show the filter in use.

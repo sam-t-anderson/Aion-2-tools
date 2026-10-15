@@ -1869,6 +1869,7 @@ async function pageSettings() {
       <label><input type="checkbox" id="ov-expandup" ${ui.overlay_expand_up === true?'checked':''}> Expand upward (anchor the overlay near the bottom of the game window)</label>
       <p class="small muted">Applies to the live overlay; changes reach an open overlay within 10 seconds.</p></div></div>
     <div class="setrow" data-g="meter"><div class="lbl">Combat records</div><div><label><input type="checkbox" id="rec-reset" ${ui.meter_reset_after_battle === true?'checked':''}> Clear the live meter after a battle ends (off by default — the last fight's numbers stay on the overlay until the next fight, a wipe or a manual clear)</label>
+      <label><input type="checkbox" id="rec-boss-reset" ${ui.meter_reset_on_boss_start !== false?'checked':''}> Reset the live meter when a boss fight starts (on by default — a boss, mini-boss, field boss or world boss pull clears the overlay so each fight shows fresh)</label>
       <div class="row" style="margin-top:4px"><label>Reset delay <input type="number" id="rec-delay" min="1" max="120" value="${Number(ui.meter_reset_delay)||5}" style="width:64px"> s</label><label>Keep up to <input type="number" id="rec-max" min="1" max="500" value="${Number(ui.meter_max_records)||20}" style="width:70px"> past combats</label><span id="rec-msg" class="small muted" role="status"></span></div>
       <label><input type="checkbox" id="rec-save" ${ui.meter_save_records !== false?'checked':''}> Save combat records automatically (write each session to the logs folder)</label>
       <div class="row" style="margin-top:4px"><label>Keep the logs folder under <input type="number" id="rec-logcache" min="0" max="1048576" step="128" value="${Number.isFinite(+ui.meter_log_cache_mb)?+ui.meter_log_cache_mb:1024}" style="width:90px"> MB</label><span id="rec-logcache-msg" class="small muted" role="status"></span></div>
@@ -2228,6 +2229,7 @@ async function pageSettings() {
   $("#ov-fps").onchange = () => api("/api/ui", { overlay_show_fps: $("#ov-fps").checked }).then(() => toast("Saved"));
   $("#ov-clickthrough").onchange = () => api("/api/ui", { overlay_click_through: $("#ov-clickthrough").checked }).then(() => toast("Saved · applies to the open overlay within 10s"));
   $("#rec-reset").onchange = () => api("/api/ui", { meter_reset_after_battle: $("#rec-reset").checked }).then(() => toast("Saved"));
+  $("#rec-boss-reset").onchange = () => api("/api/ui", { meter_reset_on_boss_start: $("#rec-boss-reset").checked }).then(() => toast("Saved"));
   const saveRecNum = async (id, key, lo, hi) => {
     const el = $("#" + id), msg = $("#rec-msg"), n = parseInt(el.value, 10);
     if (!Number.isInteger(n) || n < lo || n > hi) { msg.textContent = `Enter a whole number from ${lo} to ${hi}.`; return; }

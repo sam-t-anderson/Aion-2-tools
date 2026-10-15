@@ -76,7 +76,7 @@ class CombatSession:
         result = CombatSession()
         for key in ("epoch", "gap_seconds", "automatic_splits", "pvp", "manual_split",
                     "sequence", "run", "run_closed", "auto_finish", "_zone_reset", "_context",
-                    "reset_after_battle", "reset_delay_seconds", "max_records", "dummy_record_seconds"):
+                    "reset_after_battle", "reset_delay_seconds", "reset_on_boss_start", "max_records", "dummy_record_seconds"):
             setattr(result, key, getattr(self, key))
         result.final_boss_ids = set(self.final_boss_ids)
         result._dead = set(self._dead)
@@ -97,6 +97,7 @@ class CombatSession:
         result.boss_splits = self.boss_splits
         result._boss_killed_ms = self._boss_killed_ms
         result._boss_killed_marker = self._boss_killed_marker
+        result._live_boss_reset_ms = self._live_boss_reset_ms
         result._zone_reset_seen = False  # A continuation part never captured the run's entry.
         return result
 
@@ -115,6 +116,10 @@ class CombatSession:
         # replay/offline paths and tests are unaffected until a runner opts in.
         self.reset_after_battle = False
         self.reset_delay_seconds = 5
+        # Live overlay only: clear the shown stats to just the current fight the moment a boss,
+        # mini-boss, field boss or world boss is engaged, so each pull starts fresh on the overlay
+        # (the saved log and its segments are unchanged). On by default. See ``_since_boss_pull``.
+        self.reset_on_boss_start = True
         self.max_records = 0
         self.dummy_record_seconds = 60   # standard training-dummy parse window
         self._zone_reset = None
@@ -173,6 +178,9 @@ class CombatSession:
         self._boss_killed_ms = None
         self._boss_killed_marker = None
         self.boss_splits = 0
+        # Timestamp of the most recent major (boss / mini-boss / field / world boss) engagement.
+        # The live overlay scopes to records from here when ``reset_on_boss_start`` is on.
+        self._live_boss_reset_ms = None
 
     def _engage_major(self, ekey, engaged_ms):
         """Mark a boss / mini-boss as engaged. If a previous boss was killed earlier in the
@@ -181,14 +189,19 @@ class CombatSession:
         fought *before* the kill (promoted to major only later) never splits the fight it
         belonged to; the marker guard means a kill already closed by another boundary never
         splits twice."""
+        new_major = ekey not in self._engaged_major
         if (self._boss_killed_ms is not None and engaged_ms is not None
                 and engaged_ms >= self._boss_killed_ms
                 and self._boss_killed_marker == (self.manual_split, self.run)
-                and ekey not in self._engaged_major):
+                and new_major):
             self.manual_split += 1
             self.boss_splits += 1
             self._boss_killed_ms = None
             self._boss_killed_marker = None
+        # A fresh major pull (boss / mini-boss / field / world boss) marks where the live overlay
+        # resets to, so it shows just this fight when ``reset_on_boss_start`` is on. Display only.
+        if new_major and engaged_ms is not None:
+            self._live_boss_reset_ms = engaged_ms
         self._engaged_major.add(ekey)
 
     def _check_boss_wipe(self, timestamp_ms, engine):
@@ -261,6 +274,7 @@ class CombatSession:
         self.runs[self.run]["ended_at"] = timestamp_ms if timestamp_ms is not None else last
         self.run_closed = True
         self.manual_split += 1
+        self._live_boss_reset_ms = None   # a new run's overlay starts unscoped until its first boss
 
     def _next_run(self):
         self.run += 1
@@ -975,6 +989,37 @@ class CombatSession:
                 break
         return chosen
 
+    def _since_boss_pull(self, chosen, cutoff, allowed_for):
+        """Live overlay only: trim the shown encounter to records from the latest major pull
+        (``cutoff`` = when a boss / mini-boss / field / world boss was engaged) onward, so each
+        pull starts the overlay fresh. Rebuilds each trimmed group's timing fields the way
+        ``groups`` does, so duration and DPS stay correct. Returns the view unchanged when the
+        cutoff is before this encounter (nothing to trim), never an empty view."""
+        if not chosen or chosen[-1]["end"] < cutoff:
+            return chosen
+        trimmed = []
+        for group in chosen:
+            if group["end"] < cutoff:
+                continue
+            records = [r for r in group["records"] if r.event.timestamp_ms >= cutoff]
+            if not records:
+                continue
+            new = dict(group)
+            new["records"] = records
+            new["start"] = records[0].event.timestamp_ms
+            new["end"] = max(r.event.timestamp_ms for r in records)
+            new["damage_start"] = None
+            new["last_damage"] = records[0].event.timestamp_ms
+            for record in records:
+                event = record.event
+                allowed = allowed_for(record)
+                if isinstance(event, DamageEvent) and event.actor_id in allowed and event.target_id not in allowed:
+                    if new["damage_start"] is None:
+                        new["damage_start"] = event.timestamp_ms
+                    new["last_damage"] = max(new["last_damage"], event.timestamp_ms)
+            trimmed.append(new)
+        return trimmed or chosen
+
     def _latest_hp(self, entity_id, epochs):
         """The entity's most recent observed current HP and its max HP, within the
         shown epochs. Either may be None when HP was never captured.
@@ -1033,6 +1078,8 @@ class CombatSession:
             chosen, merge = ([next((g for g in groups if g["id"] == segment_id), groups[-1])] if groups else []), False
         else:
             chosen, merge = self._live_encounter(groups), True
+            if self.reset_on_boss_start and self._live_boss_reset_ms is not None:
+                chosen = self._since_boss_pull(chosen, self._live_boss_reset_ms, allowed_for)
         summary = self._summary(chosen, scope, None, combine_pets, allowed_for, merge)
         if enemy_id is not None:
             if any(row["key"] == enemy_id for row in summary["enemies"]):

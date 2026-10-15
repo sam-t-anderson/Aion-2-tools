@@ -1029,7 +1029,7 @@ class Handler(BaseHTTPRequestHandler):
                 cur["overlay_text_autocontrast"] = body["overlay_text_autocontrast"]
             _ui_bool_flags = ("tray_on_close", "overlay_show_contribution", "overlay_show_target",
                               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
-                              "meter_reset_after_battle", "meter_show_dummy_parse", "overlay_show_combat_power",
+                              "meter_reset_after_battle", "meter_reset_on_boss_start", "meter_show_dummy_parse", "overlay_show_combat_power",
                               "overlay_only_in_combat", "overlay_auto_expand",
                               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
                               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
@@ -1268,7 +1268,7 @@ def ui_settings() -> dict:
                 "community_heartbeat": True,
                 "overlay_show_contribution": True, "overlay_show_target": True,
                 "overlay_show_deaths": True, "overlay_show_enemy_hp": False, "overlay_show_ttk": False,
-                "meter_reset_after_battle": False, "meter_reset_delay": 5, "meter_max_records": 20,
+                "meter_reset_after_battle": False, "meter_reset_on_boss_start": True, "meter_reset_delay": 5, "meter_max_records": 20,
                 "meter_show_dummy_parse": True, "meter_dummy_record_seconds": 60,
                 "overlay_show_combat_power": True, "overlay_show_community_rank": False, "overlay_live_community_rank": False,
                 "overlay_show_events": True, "overlay_events_sound": False, "overlay_events_sound_set": False,
