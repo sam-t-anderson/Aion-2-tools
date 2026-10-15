@@ -34,3 +34,8 @@
 .cr-lane-controls{display:flex;gap:4px;flex-wrap:wrap}.cr-lane-controls .btn{font-size:10px;padding:2px 5px}
 .cr-lane-collapsed .cr-lane-controls{padding:5px 10px;min-height:36px}
 .cr-npc-portrait{vertical-align:middle;border-radius:3px;object-fit:contain;margin-right:4px;background:rgba(0,0,0,.2)}
+
+/* Parse (WCL-style percentile colours) in the player table; the website's leaderboard shares these. */
+.parse{display:inline-block;min-width:2.4em;padding:1px 7px;border-radius:999px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;color:var(--q);border:1px solid color-mix(in srgb,var(--q) 55%,transparent);background:color-mix(in srgb,var(--q) 14%,transparent)}
+.parse.provisional{opacity:.6;font-weight:600}
+.q-grey{--q:#8a8f9c}.q-green{--q:#1eff00}.q-blue{--q:#3d8bff}.q-purple{--q:#b04cf2}.q-orange{--q:#ff8000}.q-pink{--q:#e268a8}.q-gold{--q:#e5cc80}.q-none{--q:#6b7080}
