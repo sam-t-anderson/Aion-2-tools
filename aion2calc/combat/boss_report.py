@@ -32,7 +32,7 @@ import urllib.request
 
 from .. import __version__
 from ..paths import data_file, read_json, write_user_json
-from . import heartbeat, share
+from . import beacon, heartbeat, share
 
 _MARK_FILE = ("community", "boss_reports.json")
 _ENDPOINT = "/api/v1/boss-kill"
@@ -41,6 +41,8 @@ _OPEN_WORLD = ("pve_open_world",)
 #: Keep the local dedup marker bounded; older signatures simply age out.
 _MARK_LIMIT = 200
 _SERVER_RE = re.compile(r"[A-Za-z0-9_-]{1,32}")
+#: Honoured after a 429 so a spent per-IP bucket is not re-hit on every checkpoint save.
+_BACKOFF = beacon.Backoff()
 
 
 def reporter_key() -> str:
@@ -204,17 +206,26 @@ def report(doc: dict, ui: dict | None = None) -> str:
                  if sig not in _already_reported(set(signatures))}
         if not fresh:
             return "already"
+        if _BACKOFF.paused():
+            return "paused"
         key = server.get("key")
-        sent = []
+        sent, dropped = [], []
         for sig, body in fresh.items():
             try:
                 _post(base, body, key)
                 sent.append(sig)
-            except Exception:
-                pass          # best-effort per kill; a failure just retries next save
+            except Exception as exc:
+                if beacon.permanent_rejection(exc):
+                    dropped.append(sig)       # the server will never take this body: don't retry it
+                    continue
+                if beacon.rate_limited(exc):
+                    _BACKOFF.pause(getattr(exc, "headers", None))
+                break                         # refusing or down: try again later, never hammer
+        if sent or dropped:
+            _mark_reported(sent + dropped)
         if sent:
-            _mark_reported(sent)
-        return f"sent:{len(sent)}" if sent else "error"
+            return f"sent:{len(sent)}"
+        return "paused" if _BACKOFF.paused() else ("rejected" if dropped else "error")
     except Exception as exc:   # a community beacon must never affect the app
         return "error:" + type(exc).__name__
 

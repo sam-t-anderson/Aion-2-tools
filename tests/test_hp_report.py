@@ -14,6 +14,10 @@ from aion2calc.combat import boss_report, heartbeat, hp_report
 @pytest.fixture
 def isolated_home(tmp_path, monkeypatch):
     monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
+    hp_report._BACKOFF.clear()
+    hp_report._last_checkpoint_report = 0.0
+    from aion2calc.combat import share
+    share._CAPABILITIES.clear()
     return tmp_path
 
 
@@ -175,7 +179,9 @@ def test_report_posts_to_endpoint_and_dedupes_repeat_saves(isolated_home, monkey
     monkeypatch.setattr(hp_report.urllib.request, "urlopen", _capture_urlopen(captured))
     ui = {"meter_report_enemy_hp": True}
     assert hp_report.report(_doc(), ui=ui) == "sent:1"
-    req = captured["reqs"][0]
+    # The reporter also reads the server's well-known document (a bare URL string to urlopen)
+    # to learn whether it accepts batches; the report itself is the POST request.
+    req = next(r for r in captured["reqs"] if hasattr(r, "get_method"))
     assert req.full_url == "https://logs.example.com/api/v1/enemy-hp"
     body = json.loads(req.data.decode())
     assert body["npc_id"] == 56968 and body["effective_hp"] == 6420

@@ -33,16 +33,27 @@ import hashlib
 import json
 import re
 import threading
+import time
 import urllib.request
 
 from .. import __version__
 from ..paths import data_file, read_json, write_user_json
-from . import heartbeat, share
+from . import beacon, heartbeat, share
 
 _MARK_FILE = ("community", "enemy_hp_reports.json")
 _ENDPOINT = "/api/v1/enemy-hp"
-#: Keep the local dedup marker bounded; older signatures simply age out.
-_MARK_LIMIT = 400
+#: Keep the local dedup marker bounded; older signatures simply age out. A long open-world
+#: session kills well over 400 enemies, and a marker that forgot them re-reported old kills.
+_MARK_LIMIT = 2000
+#: Checkpoint saves run every 15 s; the HP consensus does not need sub-minute latency, so
+#: between the start of a run and its final save we report at most this often.
+_CHECKPOINT_EVERY_S = 300.0
+#: Most observations one request may carry when the server accepts batches.
+_BATCH_MAX = 100
+#: Honoured after a 429: the server's per-IP hourly bucket is spent, so re-sending every
+#: pending kill on every checkpoint would only add rejections.
+_BACKOFF = beacon.Backoff()
+_last_checkpoint_report = 0.0
 #: Server contract for a game-build string (matches the server's own regex).
 _BUILD_RE = re.compile(r"[^A-Za-z0-9 ._:+-]")
 
@@ -244,10 +255,29 @@ def _post(base: str, body: dict, key: str | None) -> None:
         response.read()
 
 
-def report(doc: dict, ui: dict | None = None) -> str:
+def _batch_size(base: str) -> int:
+    """How many observations one request may carry: the server's advertised ``enemy_hp_batch``
+    (log server 0.2.94+), else 1 — one request per kill, as before."""
+    try:
+        size = share.capabilities(base).get("enemy_hp_batch")
+        if isinstance(size, int) and not isinstance(size, bool) and size > 1:
+            return min(size, _BATCH_MAX)
+    except Exception:
+        pass
+    return 1
+
+
+def report(doc: dict, ui: dict | None = None, final: bool | None = None) -> str:
     """Best-effort: post any not-yet-reported killed-enemy effective-HP observations
     in ``doc``. Returns a short status string and never raises -- a failure just means
-    the observation is not reported. Each kill is reported at most once per install."""
+    the observation is not reported. Each kill is reported at most once per install.
+
+    ``final`` says whether this is a run's final save (``True``), a periodic checkpoint
+    (``False``, reported at most every five minutes) or unknown (``None``: report now).
+    Observations go out in one batched request where the server supports it; a 429 pauses
+    reporting for the server's ``Retry-After`` and a rejected body (another 4xx) is marked
+    done rather than retried on every later save."""
+    global _last_checkpoint_report
     try:
         if not enabled(ui):
             return "disabled"
@@ -263,29 +293,62 @@ def report(doc: dict, ui: dict | None = None) -> str:
         fresh = {sig: body for sig, body in by_sig.items() if sig not in done}
         if not fresh:
             return "already"
+        if _BACKOFF.paused():
+            return "paused"
+        now = time.monotonic()
+        if final is False:
+            if now - _last_checkpoint_report < _CHECKPOINT_EVERY_S:
+                return "throttled"
+            _last_checkpoint_report = now
         key = server.get("key")
-        sent = []
-        for sig, body in fresh.items():
-            payload = {k: v for k, v in body.items() if k != "_sig"}
-            try:
-                _post(base, payload, key)
-                sent.append(sig)
-            except Exception:
-                pass          # best-effort per enemy; a failure just retries next save
+        sent, dropped = [], []
+        items = list(fresh.items())
+        size = _batch_size(base)
+        if size > 1:
+            reporter = reporter_key()
+            for start in range(0, len(items), size):
+                chunk = items[start:start + size]
+                body = {"reporter": reporter, "client": __version__,
+                        "observations": [{k: v for k, v in b.items() if k not in ("_sig", "reporter", "client")}
+                                         for _, b in chunk]}
+                try:
+                    _post(base, body, key)
+                    sent.extend(sig for sig, _ in chunk)
+                except Exception as exc:
+                    if beacon.permanent_rejection(exc):
+                        dropped.extend(sig for sig, _ in chunk)
+                    elif beacon.rate_limited(exc):
+                        _BACKOFF.pause(getattr(exc, "headers", None))
+                    break               # the server is refusing or down: try again later, never hammer
+        else:
+            for sig, body in items:
+                payload = {k: v for k, v in body.items() if k != "_sig"}
+                try:
+                    _post(base, payload, key)
+                    sent.append(sig)
+                except Exception as exc:
+                    if beacon.permanent_rejection(exc):
+                        dropped.append(sig)   # this body is never going to be accepted: don't retry it
+                        continue
+                    if beacon.rate_limited(exc):
+                        _BACKOFF.pause(getattr(exc, "headers", None))
+                    break
+        if sent or dropped:
+            _mark_reported(sent + dropped)
         if sent:
-            _mark_reported(sent)
-        return f"sent:{len(sent)}" if sent else "error"
+            return f"sent:{len(sent)}"
+        return "paused" if _BACKOFF.paused() else ("rejected" if dropped else "error")
     except Exception as exc:   # a community beacon must never affect the app
         return "error:" + type(exc).__name__
 
 
-def report_async(doc: dict, ui: dict | None = None) -> None:
+def report_async(doc: dict, ui: dict | None = None, final: bool | None = None) -> None:
     """Fire :func:`report` on a daemon thread so a finalise/save never blocks on the
     network. Failures are swallowed."""
     try:
         if not enabled(ui):
             return
-        threading.Thread(target=report, args=(doc, ui), daemon=True,
+        threading.Thread(target=report, args=(doc, ui, final), daemon=True,
                          name="aion2-enemy-hp-report").start()
     except Exception:
         pass

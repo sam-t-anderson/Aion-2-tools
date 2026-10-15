@@ -65,6 +65,10 @@ def upload_evictor():
             import json
             from ..combat import share
             doc = json.loads(Path(target).read_text(encoding="utf-8"))
+            if share.already_uploaded(doc):
+                return True            # a finished part the server already holds: nothing to send
+            if share.automatic_uploads_paused():
+                return False           # the server's upload bucket is spent: don't add a rejection
             share.upload(doc, visibility="unlisted")
             return True
         except Exception:
@@ -614,7 +618,7 @@ class Runner:
             # kill, best-effort, never blocks or raises here.
             try:
                 from ..combat import hp_report
-                hp_report.report_async(doc)
+                hp_report.report_async(doc, final=not active)
             except Exception:
                 pass
             # Opt-OUT (on by default), anonymous diagnostics beacons: ids the catalog
@@ -955,8 +959,8 @@ class Runner:
         ranked-eligible main fight — so trash pulls neither upload nor wipe a standing."""
         try:
             from ..combat import share, quality
-            if not share.effective().get("url"):
-                return
+            if not share.effective().get("url") or share.automatic_uploads_paused():
+                return   # no server, or its upload bucket is spent (a 429): refresh later
             doc = self.to_a2log()
             segments = doc.get("segments") or []
             if not segments:

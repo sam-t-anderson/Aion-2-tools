@@ -36,6 +36,7 @@ class MeterEngine:
         self.last_framing_errors = 0
         self.names: dict[int, str] = {}
         self.known_players: set[int] = set()
+        self._at_zero_hp: set[int] = set()        # players whose last HP sample read 0 (dead until >0)
         self.jobs: dict[int, str] = {}
         self.roster: dict[str, dict] = {}
         self.roster_complete = False
@@ -181,6 +182,7 @@ class MeterEngine:
                 self.dungeon_id = 0
         current_hp, maximum_hp = scan_hp_updates(complete)
         self.telemetry.extend({"kind": "hp", "entity": eid, "current": hp, "max": maximum_hp.get(eid), "timestamp_ms": timestamp_ms} for eid, hp in current_hp.items())
+        self.telemetry.extend(self._player_deaths_from_hp(current_hp, timestamp_ms))
         self.live_hp.update(current_hp)
         for entity_id, value in current_hp.items():
             info = self.spawn_info.setdefault(entity_id, {})
@@ -204,6 +206,7 @@ class MeterEngine:
             self.known_entities.update(self.spawn_info)
             current, maximum = scan_hp_updates(packet)
             self.telemetry.extend({"kind": "hp", "entity": eid, "current": hp, "max": maximum.get(eid), "timestamp_ms": timestamp_ms} for eid, hp in current.items())
+            self.telemetry.extend(self._player_deaths_from_hp(current, timestamp_ms))
             self.telemetry.extend({"kind": "death", "entity": eid, "timestamp_ms": timestamp_ms} for eid in scan_deaths(packet))
             self.live_hp.update(current)
             for entity_id, value in maximum.items():
@@ -307,6 +310,25 @@ class MeterEngine:
                     self._saved_encounters.add(key)
         return events
 
+    def _player_deaths_from_hp(self, current: dict, timestamp_ms: int) -> list[dict]:
+        """Death markers for *players* whose HP update reads 0.
+
+        The game sends the in-combat death flag (``scan_deaths``) for NPCs, but a player's death
+        arrives only as their HP dropping to 0: a lethal hit, an HP update of 0, no actions until a
+        resurrection brings the HP back up. Every player death in a 37-minute dungeon recording was
+        missing from the log for that reason (the viewer showed "No markers" for everyone). One
+        marker per death: a player stays "at zero" until an HP update above 0 (revive), so the
+        duplicate 0 readings the scans produce never double-count. Enemies keep their flag-based
+        deaths — the session already treats their 0-HP reading as the end of the fight."""
+        out = []
+        for entity_id, value in current.items():
+            if value > 0:
+                self._at_zero_hp.discard(entity_id)
+            elif entity_id in self.known_players and entity_id not in self._at_zero_hp:
+                self._at_zero_hp.add(entity_id)
+                out.append({"kind": "death", "entity": entity_id, "timestamp_ms": timestamp_ms})
+        return out
+
     def _scan_spawns(self, data: bytes, timestamp_ms: int) -> dict:
         scan = {"records": [], "candidates": 0}
         found = scan_spawn_metadata(data, scan)
@@ -343,6 +365,7 @@ class MeterEngine:
         self.names.clear()
         self.jobs.clear()
         self.known_players.clear()
+        self._at_zero_hp.clear()
         self.known_entities.clear()
         self.summons.clear()
         self.summon_owners.clear()

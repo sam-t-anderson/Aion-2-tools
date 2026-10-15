@@ -133,6 +133,82 @@ def discover(url: str) -> dict:
         return json.load(r)
 
 
+_CAPABILITIES: dict[str, tuple[float, dict]] = {}
+_CAPABILITIES_MAX_AGE = 3600.0
+
+
+def capabilities(url: str, max_age: float = _CAPABILITIES_MAX_AGE) -> dict:
+    """The server's well-known document, cached per server for an hour. For the beacons, which
+    only need to know what the server *supports* (e.g. ``enemy_hp_batch``) and must not fetch it
+    on every save; an unreachable server reads as ``{}``. Uploads keep calling :func:`discover`
+    directly so a capability change reaches the very next upload."""
+    import time
+    base = url.rstrip("/")
+    now = time.monotonic()
+    cached = _CAPABILITIES.get(base)
+    if cached and now - cached[0] < max_age:
+        return cached[1]
+    try:
+        found = discover(base)
+        found = found if isinstance(found, dict) else {}
+    except Exception:
+        found = {}
+    _CAPABILITIES[base] = (now, found)
+    return found
+
+
+# ---- automatic uploads: back off after a 429 and never re-send a finished recording ----------
+# Keyless (anonymous) uploads are capped per IP and hour by the server. The automatic senders —
+# the live-rank refresh after each fight, the upload-before-prune sweep and the parts of a long
+# session — used to keep trying through a spent bucket, each attempt one more rejection. They now
+# pause for the server's Retry-After, and a finished part the server already holds (same
+# recording key, see ``recording_key``) is never uploaded again just to be deleted locally.
+from . import beacon as _beacon   # noqa: E402 - sits with the helpers it serves
+
+_UPLOAD_BACKOFF = _beacon.Backoff()
+_UPLOADED_FILE = ("community", "uploaded_recordings.json")
+_UPLOADED_LIMIT = 2000
+
+
+def note_upload_rejection(code: int, headers=None) -> None:
+    """Called when the server refused an upload: a 429 pauses the *automatic* uploads."""
+    if code == 429:
+        _UPLOAD_BACKOFF.pause(headers)
+
+
+def automatic_uploads_paused() -> bool:
+    """True while the server's upload bucket is known to be spent (after a 429)."""
+    return _UPLOAD_BACKOFF.paused()
+
+
+def _uploaded_keys() -> list[str]:
+    try:
+        rows = read_json(*_UPLOADED_FILE).get("keys") if data_file(*_UPLOADED_FILE).exists() else []
+        return [k for k in rows if isinstance(k, str)] if isinstance(rows, list) else []
+    except Exception:
+        return []
+
+
+def remember_uploaded(doc: dict) -> None:
+    """Record that this *finished* part reached the server (keyed by its recording key)."""
+    rk = recording_key(doc)
+    if not rk:
+        return
+    try:
+        keys = _uploaded_keys()
+        if rk not in keys:
+            write_user_json({"keys": (keys + [rk])[-_UPLOADED_LIMIT:]}, *_UPLOADED_FILE)
+    except Exception:
+        pass
+
+
+def already_uploaded(doc: dict) -> bool:
+    """True when this finished part was uploaded from this install before (the server would only
+    answer "deduped" again, after spending one more slot of the hourly upload bucket)."""
+    rk = recording_key(doc)
+    return bool(rk) and rk in _uploaded_keys()
+
+
 def recording_key(doc: dict, include_open: bool = False) -> str | None:
     """A stable, machine-salted fingerprint of one *part* of a recording, so the log server can
     recognise a re-upload of the same part instead of storing a duplicate.
@@ -196,6 +272,7 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
             result = json.load(r)
+        remember_uploaded(doc)
         from .ownership import remember
         try:
             if not result.get("replayed"):
@@ -204,6 +281,7 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
             result["ownership_warning"] = "Uploaded, but could not save ownership locally: " + str(exc)
         return result
     except urllib.error.HTTPError as e:
+        note_upload_rejection(e.code, getattr(e, "headers", None))
         msg = e.read().decode("utf-8", "replace")
         try:
             msg = json.loads(msg).get("error", msg)
