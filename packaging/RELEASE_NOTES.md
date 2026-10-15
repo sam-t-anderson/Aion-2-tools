@@ -1,3 +1,8 @@
+## Revert the capture-filter narrowing — it broke capture on some setups (0.2.276)
+
+- **Reverted the 0.2.275 change that reopened the capture narrowed to the game flow.** Reopening the capture handle mid-session (to swap the kernel filter) can fail on some Npcap setups, which could stop capture right after a fight was detected — leaving the session empty, so uploads reported "nothing to upload yet". Capture is back to the known-good single broad filter plus the 64 MiB buffer (0.2.269), which already absorbs the bursts. The `capture_filter` diagnostic is kept, so uploaded logs still show the filter in use.
+- The underlying packet loss on very busy machines is still best addressed by the larger buffer; a safer way to narrow the capture (without a mid-session handle reopen) is being worked out separately.
+
 ## Capture: narrow the packet filter to the game flow to stop dropped packets at the source (0.2.275)
 
 - **The real fix for the packet loss behind unranked runs, unidentified enemies and the stuck overlay.** In auto-port mode the live capture used to ask the network driver for *every* TCP packet on your PC (`tcp`), which floods the capture buffer on a busy machine and drops a large share of the game's own packets. Now, as soon as the meter locks onto the game connection, it reopens the capture **narrowed to just that connection** (`tcp and host <game server> and port <game port>`), so the driver discards everything else before it ever reaches the buffer. Far fewer packets are dropped, so fights capture cleanly — which is what lets them rank, keeps enemies identified, and stops the overlay showing a fight that never ends.
