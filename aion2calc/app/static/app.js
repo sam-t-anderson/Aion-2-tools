@@ -922,7 +922,7 @@ async function pageCombat() {
     request:(owner,action,visibility)=>api('/api/log-ownership',{owner,action,visibility}),
     open:doc=>{S.combat.openedLog=doc;location.hash='/combat-log/opened/'+Date.now();}
   });
-  const openShared=(id,mode)=>{location.hash='/combat-log/shared/'+encodeURIComponent(id)+'?mode='+encodeURIComponent(mode||'');};
+  const openShared=(id,mode,segment)=>{location.hash='/combat-log/shared/'+encodeURIComponent(id)+'?mode='+encodeURIComponent(mode||'')+(Number.isInteger(segment)?'&segment='+segment:'');};
   // Website-style outer tabs (community combat logs / speed / boss progression / build points)
   // plus an app-only "Personal records" tab carrying the extras the website's logs page omits
   // (boss defeats, class performance, personal records, consistency) via a sectioned A2Community.

@@ -198,9 +198,13 @@ class CombatSession:
             self.boss_splits += 1
             self._boss_killed_ms = None
             self._boss_killed_marker = None
-        # A fresh major pull (boss / mini-boss / field / world boss) marks where the live overlay
-        # resets to, so it shows just this fight when ``reset_on_boss_start`` is on. Display only.
-        if new_major and engaged_ms is not None:
+        # A fresh major pull marks where the live overlay resets to, so it shows just this fight
+        # when ``reset_on_boss_start`` is on. The reset marks a fight's *start*, so it fires only
+        # when no other major is still alive — never when an add (or a second boss) is promoted to
+        # major mid-fight while the current boss is still up, which would wrongly drop the running
+        # boss DPS from the overlay. Display only; segmentation above is unchanged.
+        if (new_major and engaged_ms is not None
+                and not any(k[0] == self.epoch and k not in self._dead for k in self._engaged_major)):
             self._live_boss_reset_ms = engaged_ms
         self._engaged_major.add(ekey)
 

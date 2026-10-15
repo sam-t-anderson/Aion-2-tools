@@ -114,3 +114,18 @@ def test_community_module_supports_a_section_allow_list():
 def test_index_loads_logs_view_after_community():
     assert 'src="/static/logs-view.js"' in INDEX_HTML
     assert INDEX_HTML.index('src="/static/community.js"') < INDEX_HTML.index('src="/static/logs-view.js"')
+
+
+def test_pve_boss_filter_excludes_generic_combat():
+    # "Combat N" is dropped from PvE rows; it must also be kept out of the Boss filter dropdown.
+    assert "realBoss" in VIEW_JS
+    assert VIEW_JS.count(".filter(realBoss)") >= 2   # community + progression boss dropdowns
+
+
+def test_view_opens_the_specific_encounter_segment():
+    # The per-encounter row carries its segment and the view button opens that encounter.
+    assert "segment: c.segment" in VIEW_JS
+    assert "data-logs-seg" in VIEW_JS
+    assert 'openBtn(r.id, mode, "view", r.segment)' in VIEW_JS
+    # The app's shared-log open handler threads the segment into the route.
+    assert "'&segment='+segment" in APP_JS

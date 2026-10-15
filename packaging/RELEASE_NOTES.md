@@ -1,3 +1,10 @@
+## Overlay no longer drops DPS mid-fight; logs-page filter and "view" fixes (0.2.281)
+
+- **Fixed the live meter overlay dropping its DPS mid-combat.** The boss-start reset (0.2.277) was also firing when an *add* (or a second enemy) that you'd been fighting for a while got promoted to a "major" target partway through a boss fight — which wrongly reset the overlay to that add and dropped the boss's running numbers. The overlay now resets only at a fight's **start** (when no other boss/major is still alive), never when something joins a fight already in progress. Back-to-back bosses still each reset as intended; your saved logs are unaffected either way.
+- **The website Logs page "Boss" filter no longer lists generic "Combat N".** On the PvE view the Boss dropdown now offers only real bosses (generic non-boss combat was already hidden from the rows; now it's out of the filter too). Same fix in the app's Combat Logs page.
+- **Clicking "view" on a community encounter now opens that exact encounter.** For a boss (or mini-boss) with several encounters in one log, "view" jumps straight to the one you clicked instead of the start of the log — on both the website and the app.
+- **An unfinished (open) recording checkpoint is no longer uploaded as its own log.** Uploading an in-progress checkpoint created a duplicate of the final part on the server; the upload now excludes open parts (only finished/closed parts are shared). (Server-side de-duplication of any already-duplicated logs is a separate change.)
+
 ## Saved Logs, grouped by encounter type (0.2.280)
 
 - **The app's Combat Logs → Saved Logs now groups your recorded encounters by type**, so it's no longer a guess what each fight was. Encounters are split into labelled sections — **PvP, World bosses, Field bosses, Raids, Nightmare dungeons, Ascension trials, Expeditions, Transcendence dungeons, Daily dungeons** — each a one-row-per-encounter list with the boss portrait and name, difficulty, clear time and date, reading like the website's Community Combat Logs. Each row opens that exact encounter.

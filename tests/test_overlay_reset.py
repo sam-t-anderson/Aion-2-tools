@@ -73,6 +73,26 @@ def test_engaging_a_major_marks_the_live_reset_point():
     assert s._live_boss_reset_ms == 12345
 
 
+def test_a_mid_fight_add_does_not_move_the_overlay_reset_point():
+    # The overlay resets to a fight's *start*. While the boss is still alive, an add promoted to
+    # "major" (sustained engagement) must NOT re-point the reset at the add — doing so dropped the
+    # running boss's DPS from the overlay mid-combat (the reported regression).
+    s = CombatSession()
+    s._engage_major((0, 9001), 1000)            # boss pulled
+    assert s._live_boss_reset_ms == 1000
+    s._engage_major((0, 9500), 9000)            # an add crosses the sustained-engagement threshold mid-fight
+    assert s._live_boss_reset_ms == 1000         # overlay still scoped to the boss pull, not the add
+
+
+def test_a_fresh_fight_after_the_boss_dies_moves_the_reset_point():
+    # Once the current boss is dead, the next major pull is a new fight and resets the overlay.
+    s = CombatSession()
+    s._engage_major((0, 9001), 1000)
+    s._dead.add((0, 9001))                       # the boss dies
+    s._engage_major((0, 9002), 50000)            # next boss pulled: fresh fight → overlay resets
+    assert s._live_boss_reset_ms == 50000
+
+
 def test_live_meter_resets_to_the_current_boss_pull_when_enabled():
     s = _session_two_bosses()
     s._live_boss_reset_ms = 50000                 # the second boss was engaged at t=50000

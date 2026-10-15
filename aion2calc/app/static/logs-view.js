@@ -35,6 +35,9 @@
   const field = (label, inner) => `<label class="small muted">${label}<br>${inner}</label>`;
   const options = (values, cur, fmt) => '<option value="">any</option>' +
     (values || []).map((v) => `<option value="${esc(v)}"${String(v) === String(cur || "") ? " selected" : ""}>${esc(fmt ? fmt(v) : v)}</option>`).join("");
+  // Generic non-boss combat ("Combat 3", etc.) is dropped from the PvE rows; keep it out of the
+  // Boss filter dropdown too, so the PvE boss list only offers real bosses.
+  const realBoss = (b) => !/^combat\s*\d*$/i.test(String(b).trim());
 
   function classIcon(m) {
     const cls = String(m.class || "").toLowerCase();
@@ -54,9 +57,10 @@
   function mount(root, options_) {
     const api = options_.api, open = options_.open || (() => {});
     const sel = (id) => root.querySelector("#" + id);
-    // A log-opening control for inside a table string: a button that routes through the app.
-    const openBtn = (id, mode, label) => id ? `<button class="btn small" data-logs-open="${esc(id)}" data-logs-mode="${esc(mode || "pve")}" type="button">${esc(label || "view")}</button>` : "";
-    const bindOpen = (container) => { (container || root).querySelectorAll("[data-logs-open]").forEach((b) => (b.onclick = () => open(b.dataset.logsOpen, b.dataset.logsMode || "pve"))); };
+    // A log-opening control for inside a table string: a button that routes through the app. When a
+    // segment index is given, opening jumps straight to that encounter rather than the log's start.
+    const openBtn = (id, mode, label, segment) => id ? `<button class="btn small" data-logs-open="${esc(id)}" data-logs-mode="${esc(mode || "pve")}"${Number.isInteger(segment) ? ` data-logs-seg="${segment}"` : ""} type="button">${esc(label || "view")}</button>` : "";
+    const bindOpen = (container) => { (container || root).querySelectorAll("[data-logs-open]").forEach((b) => (b.onclick = () => { const s = parseInt(b.dataset.logsSeg, 10); open(b.dataset.logsOpen, b.dataset.logsMode || "pve", Number.isInteger(s) ? s : undefined); })); };
 
     async function renderSpeed() {
       const body = sel("speed-body"); if (!body) return;
@@ -93,7 +97,7 @@
       const groups = ((d && d.groups) || []).slice().sort((a, b) =>
         String(a.boss || "").localeCompare(String(b.boss || "")) || String(a.difficulty || "").localeCompare(String(b.difficulty || "")));
       const filters = '<div class="row comm-filters" style="gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap">'
-        + field("Boss", `<select id="pf-boss" style="min-width:170px">${options(f.boss, prog.f.boss)}</select>`)
+        + field("Boss", `<select id="pf-boss" style="min-width:170px">${options((f.boss || []).filter(realBoss), prog.f.boss)}</select>`)
         + field("Difficulty", `<select id="pf-difficulty">${options([...(f.difficulty || [])].sort((a, b) => String(a).localeCompare(String(b))), prog.f.difficulty)}</select>`)
         + field("Region", `<select id="pf-region">${options(f.region, prog.f.region)}</select>`)
         + field("Product", `<select id="pf-game_patch">${options(f.game_patch, prog.f.game_patch, patchOf)}</select>`)
@@ -163,7 +167,7 @@
           const members = Array.isArray(c.players) && c.players.length ? toMembers(c.players) : roster;
           comm.buf.push({ boss: c.boss, bossIcon: srcOf(iconByName[c.boss]), difficulty: c.difficulty,
             party: c.party_size || members.length || 0, members, duration: c.duration, date: lg.created_at,
-            patch: patchOf(c.game_patch), id: lg.id, uploader });
+            patch: patchOf(c.game_patch), id: lg.id, segment: c.segment, uploader });
         }
       }
       if (!logs.length || (comm.total && comm.srvPage * 50 >= comm.total)) comm.done = true;
@@ -182,7 +186,7 @@
         <td>${esc(r.difficulty || "—")}</td>
         <td><span class="party-cell"><b>${n0(r.party)}</b>${r.members.map(classIcon).join("")}</span></td>
         <td class="r num">${secs(r.duration)}</td><td>${esc(r.uploader || "Anonymous")}</td><td class="muted small">${day(r.date)}</td><td class="muted small">${esc(r.patch || "—")}</td>
-        <td>${openBtn(r.id, mode)}</td></tr>`).join("");
+        <td>${openBtn(r.id, mode, "view", r.segment)}</td></tr>`).join("");
       table.innerHTML = `<table class="t"><tr><th>${mode === "pvp" ? "Skirmish" : "Boss"}</th><th>Difficulty</th><th>Party</th><th class="r">Time</th><th>Uploaded by</th><th>Date</th><th>Product</th><th></th></tr>${tr}</table>`;
       bindOpen(table);
       const hasNext = comm.buf.length > comm.page * COMM_PER_PAGE || !comm.done;
@@ -204,7 +208,7 @@
       const encOpts = (f.encounter_type || []).filter((t) => (comm.f.combat_mode === "pvp") === String(t).startsWith("pvp_"));
       r.innerHTML = '<div class="row comm-filters" style="gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap">'
         + field("Mode", `<select id="cf-mode"><option value="pve"${comm.f.combat_mode !== "pvp" ? " selected" : ""}>PvE</option><option value="pvp"${comm.f.combat_mode === "pvp" ? " selected" : ""}>PvP</option></select>`)
-        + (comm.f.combat_mode === "pvp" ? "" : field("Boss", `<select id="cf-boss" style="min-width:170px">${options(f.boss, comm.f.boss)}</select>`))
+        + (comm.f.combat_mode === "pvp" ? "" : field("Boss", `<select id="cf-boss" style="min-width:170px">${options((f.boss || []).filter(realBoss), comm.f.boss)}</select>`))
         + field("Difficulty", `<select id="cf-difficulty">${options([...(f.difficulty || [])].sort((a, b) => String(a).localeCompare(String(b))), comm.f.difficulty)}</select>`)
         + field("Encounter", `<select id="cf-encounter_type">${options(encOpts, comm.f.encounter_type, prettyEnc)}</select>`)
         + field("Region", `<select id="cf-region">${options(f.region, comm.f.region)}</select>`)

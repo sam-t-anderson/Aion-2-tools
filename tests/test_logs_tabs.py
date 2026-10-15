@@ -123,6 +123,24 @@ def test_combat_review_roster_is_scoped_to_the_selected_encounter():
     assert "active.size?active.has(id):!state.run" in cr
 
 
+def test_pve_boss_filter_excludes_generic_combat():
+    # "Combat N" is dropped from the PvE rows; it must also be kept out of the Boss filter dropdown.
+    assert "realBoss" in LOGS_JS
+    assert "/^combat\\s*\\d*$/i" in LOGS_JS
+    assert LOGS_JS.count(".filter(realBoss)") >= 2   # community + progression boss dropdowns
+
+
+def test_community_view_link_targets_the_specific_encounter_segment():
+    # Clicking "view" on a multi-encounter log opens that encounter's segment, not the log's start.
+    assert "segment: c.segment" in LOGS_JS                       # the per-encounter row carries its segment
+    assert '"&segment=" + r.segment' in LOGS_JS                  # and the view link uses it
+
+
+def test_unfinished_checkpoint_upload_is_rejected():
+    # An open (not-closed) archive part is a checkpoint; uploading it duplicates the final part's log.
+    assert "archive?.closed===false" in LOGS_JS
+
+
 def test_logs_page_loads_server_before_logs_script():
     for dep in ("config.js", "server.js", "logs.js", "navigation.js"):
         assert f'src="{dep}"' in LOGS_HTML, f"logs.html must load {dep}"

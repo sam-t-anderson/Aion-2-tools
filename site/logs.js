@@ -28,7 +28,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     if(location.hash==='#local-log')renderPreviewPage();else location.hash='local-log';},
   upload:async(row,batch)=>{
     const text=await row.input.text(),doc=JSON.parse(text);
-    if(doc.meta?.capture_active)throw Error('Unfinished checkpoints are excluded; review and export a finished part first.');
+    if(doc.meta?.capture_active || doc.meta?.archive?.closed===false)throw Error('Unfinished checkpoints are excluded; review and export a finished part first.');
     let body=text;const headers={'Content-Type':'application/json'};
     if(batch.key)headers.Authorization='Bearer '+batch.key;
     if(row.request_id)headers['Idempotency-Key']=row.request_id;
@@ -65,6 +65,9 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
   const secs = (x) => { if (x == null || isNaN(x)) return "—"; x = Math.round(x); const m = Math.floor(x / 60); return m + ":" + String(x % 60).padStart(2, "0"); };
   const errNote = (e) => `<div class="note">${esc((e && e.message) || "Could not reach the stats server.")}</div>`;
   const srcNote = (d) => (d && d.note ? `<p class="small muted" style="margin-top:10px">${esc(d.note)}</p>` : "");
+  // Generic non-boss combat ("Combat 3", etc.) is dropped from the PvE rows; keep it out of the
+  // Boss filter dropdown too, so the PvE boss list only offers real bosses.
+  const realBoss = (b) => !/^combat\s*\d*$/i.test(String(b).trim());
 
   async function renderSpeed() {
     const body = document.getElementById("speed-body");
@@ -101,7 +104,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     const groups = ((d && d.groups) || []).slice().sort((a, b) =>
       String(a.boss || "").localeCompare(String(b.boss || "")) || String(a.difficulty || "").localeCompare(String(b.difficulty || "")));
     const filters = '<div class="row comm-filters" style="gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap">'
-      + field("Boss", `<select id="pf-boss" style="min-width:170px">${options(f.boss, prog.f.boss)}</select>`)
+      + field("Boss", `<select id="pf-boss" style="min-width:170px">${options((f.boss || []).filter(realBoss), prog.f.boss)}</select>`)
       + field("Difficulty", `<select id="pf-difficulty">${options([...(f.difficulty || [])].sort((a, b) => String(a).localeCompare(String(b))), prog.f.difficulty)}</select>`)
       + field("Region", `<select id="pf-region">${options(f.region, prog.f.region)}</select>`)
       + field("Product", `<select id="pf-game_patch">${options(f.game_patch, prog.f.game_patch, patchOf)}</select>`)
@@ -196,7 +199,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
         const members = Array.isArray(c.players) && c.players.length ? toMembers(c.players) : roster;
         comm.buf.push({ boss: c.boss, bossIcon: srcOf(iconByName[c.boss]), difficulty: c.difficulty,
           party: c.party_size || members.length || 0, members, duration: c.duration, date: lg.created_at,
-          patch: patchOf(c.game_patch), id: lg.id, uploader });
+          patch: patchOf(c.game_patch), id: lg.id, segment: c.segment, uploader });
       }
     }
     if (!logs.length || (comm.total && comm.srvPage * 50 >= comm.total)) comm.done = true;
@@ -214,7 +217,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
       <td>${esc(r.difficulty || "—")}</td>
       <td><span class="party-cell"><b>${n0(r.party)}</b>${r.members.map(classIcon).join("")}</span></td>
       <td class="r num">${secs(r.duration)}</td><td>${esc(r.uploader || "Anonymous")}</td><td class="muted small">${day(r.date)}</td><td class="muted small">${esc(r.patch || "—")}</td>
-      <td><a href="log.html?id=${encodeURIComponent(r.id)}">view</a></td></tr>`).join("");
+      <td><a href="log.html?id=${encodeURIComponent(r.id)}${Number.isInteger(r.segment) ? "&segment=" + r.segment : ""}">view</a></td></tr>`).join("");
     table.innerHTML = `<table class="t"><tr><th>${comm.f.combat_mode === "pvp" ? "Skirmish" : "Boss"}</th><th>Difficulty</th><th>Party</th><th class="r">Time</th><th>Uploaded by</th><th>Date</th><th>Product</th><th></th></tr>${tr}</table>`;
     const hasNext = comm.buf.length > comm.page * COMM_PER_PAGE || !comm.done;
     if (pager) {
@@ -238,7 +241,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     const encOpts = (f.encounter_type || []).filter((t) => (comm.f.combat_mode === "pvp") === String(t).startsWith("pvp_"));
     root.innerHTML = '<div class="row comm-filters" style="gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap">'
       + field("Mode", `<select id="cf-mode"><option value="pve"${comm.f.combat_mode !== "pvp" ? " selected" : ""}>PvE</option><option value="pvp"${comm.f.combat_mode === "pvp" ? " selected" : ""}>PvP</option></select>`)
-      + (comm.f.combat_mode === "pvp" ? "" : field("Boss", `<select id="cf-boss" style="min-width:170px">${options(f.boss, comm.f.boss)}</select>`))
+      + (comm.f.combat_mode === "pvp" ? "" : field("Boss", `<select id="cf-boss" style="min-width:170px">${options((f.boss || []).filter(realBoss), comm.f.boss)}</select>`))
       + field("Difficulty", `<select id="cf-difficulty">${options([...(f.difficulty || [])].sort((a, b) => String(a).localeCompare(String(b))), comm.f.difficulty)}</select>`)
       + field("Encounter", `<select id="cf-encounter_type">${options(encOpts, comm.f.encounter_type, prettyEnc)}</select>`)
       + field("Region", `<select id="cf-region">${options(f.region, comm.f.region)}</select>`)
