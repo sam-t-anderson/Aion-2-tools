@@ -53,7 +53,7 @@ _BATCH_MAX = 100
 #: Honoured after a 429: the server's per-IP hourly bucket is spent, so re-sending every
 #: pending kill on every checkpoint would only add rejections.
 _BACKOFF = beacon.Backoff()
-_last_checkpoint_report = 0.0
+_last_checkpoint_report: float | None = None      # monotonic of the last checkpoint-time report
 #: Server contract for a game-build string (matches the server's own regex).
 _BUILD_RE = re.compile(r"[^A-Za-z0-9 ._:+-]")
 
@@ -297,7 +297,9 @@ def report(doc: dict, ui: dict | None = None, final: bool | None = None) -> str:
             return "paused"
         now = time.monotonic()
         if final is False:
-            if now - _last_checkpoint_report < _CHECKPOINT_EVERY_S:
+            # "never reported" is None, not 0: on a freshly booted machine the monotonic clock
+            # itself can read under five minutes, which would throttle the first report.
+            if _last_checkpoint_report is not None and now - _last_checkpoint_report < _CHECKPOINT_EVERY_S:
                 return "throttled"
             _last_checkpoint_report = now
         key = server.get("key")

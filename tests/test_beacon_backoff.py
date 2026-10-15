@@ -23,7 +23,7 @@ from aion2calc.combat import beacon, boss_report, hp_report, share
 def isolated_home(tmp_path, monkeypatch):
     monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
     hp_report._BACKOFF.clear()
-    hp_report._last_checkpoint_report = 0.0
+    hp_report._last_checkpoint_report = None
     boss_report._BACKOFF.clear()
     share._UPLOAD_BACKOFF.clear()
     share._CAPABILITIES.clear()

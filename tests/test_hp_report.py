@@ -15,7 +15,7 @@ from aion2calc.combat import boss_report, heartbeat, hp_report
 def isolated_home(tmp_path, monkeypatch):
     monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
     hp_report._BACKOFF.clear()
-    hp_report._last_checkpoint_report = 0.0
+    hp_report._last_checkpoint_report = None
     from aion2calc.combat import share
     share._CAPABILITIES.clear()
     return tmp_path
