@@ -9,7 +9,7 @@ import copy
 import math
 import uuid
 
-from .a2parser.lookup import dungeon_final_bosses, job_from_skill, npc_info, npc_name, skill_name, spirit_skill_category
+from .a2parser.lookup import dungeon_final_bosses, is_heal_skill, job_from_skill, npc_info, npc_name, skill_name, spirit_skill_category
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
 
 
@@ -98,6 +98,8 @@ class CombatSession:
         result._boss_killed_ms = self._boss_killed_ms
         result._boss_killed_marker = self._boss_killed_marker
         result._live_boss_reset_ms = self._live_boss_reset_ms
+        result._pull_ended_ms = self._pull_ended_ms
+        result._major_history = set(self._major_history)
         result._zone_reset_seen = False  # A continuation part never captured the run's entry.
         return result
 
@@ -181,6 +183,13 @@ class CombatSession:
         # Timestamp of the most recent major (boss / mini-boss / field / world boss) engagement.
         # The live overlay scopes to records from here when ``reset_on_boss_start`` is on.
         self._live_boss_reset_ms = None
+        # When the current pull's last live major died (ms). The next outgoing damage after it
+        # moves ``_live_boss_reset_ms`` there, so the overlay starts the following fight fresh
+        # instead of piling trash (or the next boss) onto the finished pull's numbers.
+        self._pull_ended_ms = None
+        # Every (epoch, enemy) ever engaged as a major, never dropped on its death -- ``groups``
+        # uses it to know, after the fact, that a group was a boss / mini-boss fight.
+        self._major_history = set()
 
     def _engage_major(self, ekey, engaged_ms):
         """Mark a boss / mini-boss as engaged. If a previous boss was killed earlier in the
@@ -207,6 +216,9 @@ class CombatSession:
                 and not any(k[0] == self.epoch and k not in self._dead for k in self._engaged_major)):
             self._live_boss_reset_ms = engaged_ms
         self._engaged_major.add(ekey)
+        if len(self._major_history) > 2048:       # bound; keep this epoch's majors
+            self._major_history = {k for k in self._major_history if k[0] == self.epoch}
+        self._major_history.add(ekey)
 
     def _check_boss_wipe(self, timestamp_ms, engine):
         attempt = self._boss_attempt
@@ -232,6 +244,12 @@ class CombatSession:
             self.manual_split += 1
             self.wipe_splits += 1
             self._boss_attempt = None
+            # The wiped pull's bosses are no longer an engagement: the run-back re-pull is a
+            # fresh major, so the overlay resets for it (``_engage_major``) rather than keeping
+            # the wipe's numbers up because the same boss still counted as engaged.
+            self._engaged_major = {k for k in self._engaged_major if k[0] != self.epoch}
+            self._major_below = {k for k in self._major_below if k[0] != self.epoch}
+            self._pull_ended_ms = timestamp_ms
 
     def _track_boss_attempt(self, engine, record, allowed):
         event = record.event
@@ -279,6 +297,7 @@ class CombatSession:
         self.run_closed = True
         self.manual_split += 1
         self._live_boss_reset_ms = None   # a new run's overlay starts unscoped until its first boss
+        self._pull_ended_ms = None
 
     def _next_run(self):
         self.run += 1
@@ -395,6 +414,16 @@ class CombatSession:
             record = Record(self.epoch, event, party, engine.local_player_id, sequence=self.sequence+1)
             allowed = self._allowed(record, "party")
             self._track_boss_attempt(engine, record, allowed)
+            if (self._pull_ended_ms is not None and isinstance(event, DamageEvent)
+                    and event.timestamp_ms > self._pull_ended_ms
+                    and event.actor_id in allowed and event.target_id not in allowed):
+                # The pull's boss is dead and this is the next outgoing damage: a new fight. With
+                # ``reset_on_boss_start`` the overlay starts fresh here, so the finished pull's
+                # final numbers stay up through the lull but never absorb the trash (or the next
+                # boss) that follows. Display only; segmentation is unchanged.
+                if self.reset_on_boss_start:
+                    self._live_boss_reset_ms = event.timestamp_ms
+                self._pull_ended_ms = None
             # Bound the rollover on distinct *players*, not entity ids. Keying on the actor
             # (0.2.243) stopped epoch churn from inflating this; keying on identity now stops ID
             # churn. Collapse a summon/pet to its owner and a player to its NAME, so a class that
@@ -496,6 +525,10 @@ class CombatSession:
                 self._pending_reset = False
                 self._boss_killed_ms = sample["timestamp_ms"]
                 self._boss_killed_marker = (self.manual_split, self.run)
+                if not any(k[0] == self.epoch and k not in self._dead for k in self._engaged_major):
+                    # No other major of this pull is still alive: the pull is over. The next
+                    # outgoing damage starts the overlay fresh (see ``observe``).
+                    self._pull_ended_ms = sample["timestamp_ms"]
             if sample["kind"] == "hp" and (key in self._engaged_major or key in self._engage_span):
                 # Track an engaged enemy's HP against its max (for not-yet-major contacts
                 # too, so the below-full evidence is ready the moment a sustained
@@ -656,8 +689,8 @@ class CombatSession:
 
     def _pvp_damage(self, record, allowed):
         event = record.event
-        if not isinstance(event,DamageEvent):
-            return False
+        if not isinstance(event,DamageEvent) or is_heal_skill(event.skill_code):
+            return False   # healing is never a hostile act, whoever receives it
         identity = self.identities[record.epoch]
         opponent = event.target_id if event.actor_id in allowed else event.actor_id
         opponent = identity["owners"].get(opponent,opponent)
@@ -668,6 +701,19 @@ class CombatSession:
     def groups(self, scope="party", allowed_for=None):
         allowed_for = allowed_for or self._allowances(scope)
         groups = []
+        # When each enemy died, (epoch, entity) -> ms, from the recorded deaths. A boss fight is
+        # live until its boss dies; that decides below whether a stray effect may cut it.
+        death_ms = {}
+        for sample in self.telemetry:
+            if sample["kind"] == "death":
+                death_ms.setdefault((sample["epoch"], sample["entity"]), sample["timestamp_ms"])
+        major_cache = {}
+        def is_major(epoch, enemy):
+            key = (epoch, enemy)
+            if key not in major_cache:
+                code = self.identities.get(epoch, {}).get("spawns", {}).get(enemy, {}).get("mobCode")
+                major_cache[key] = key in self._major_history or bool(code and npc_info(code).get("isBoss"))
+            return major_cache[key]
         for record in self.records:
             event = record.event
             allowed = allowed_for(record)
@@ -687,25 +733,49 @@ class CombatSession:
                     groups[-1]["end"] = max(groups[-1]["end"], event.timestamp_ms)
                 continue
             outgoing = event.actor_id in allowed and event.target_id not in allowed
+            switched = bool(groups) and groups[-1]["pvp"] != pvp
+            if (switched and pvp and groups[-1]["epoch"] == record.epoch and groups[-1]["split"] == record.split
+                    and any(death_ms.get((record.epoch, enemy), float("inf")) > event.timestamp_ms
+                            for enemy in groups[-1]["majors"])):
+                # A PvE boss / mini-boss fight that is still live is one encounter. A single
+                # player-vs-player-looking effect in the middle of it -- a party member's AoE or
+                # pet clipping an allied NPC the game registers as a player, an unmapped support
+                # skill landing on an ally -- is not a switch to PvP and must not cut the fight
+                # in two (and back again on the next boss hit): that shredded one pull into
+                # dozens of "encounters" and reset the overlay on every cast. The effect joins
+                # the fight. A real PvP fight still starts its own encounter once the boss is
+                # dead, and explicit PvP mode is unaffected.
+                switched = False
             if (not groups or groups[-1]["epoch"] != record.epoch or groups[-1]["split"] != record.split
-                    or groups[-1]["pvp"] != pvp
+                    or switched
                     or (self.automatic_splits and outgoing and event.timestamp_ms - groups[-1]["last_damage"] > self.gap_seconds * 1000)):
                 groups.append({"id": f"{record.epoch}-{event.timestamp_ms}-{record.sequence}", "epoch": record.epoch,
-                               "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "damage_start": None, "split": record.split, "run":record.run, "pvp":pvp, "records": []})
+                               "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "damage_start": None, "split": record.split, "run":record.run, "pvp":pvp, "records": [], "majors": set()})
             group = groups[-1]
             if outgoing:
                 if group["damage_start"] is None:
                     group["damage_start"] = event.timestamp_ms
                 group["last_damage"] = max(group["last_damage"], event.timestamp_ms)
+                if is_major(record.epoch, event.target_id):
+                    group["majors"].add(event.target_id)
             group["end"] = max(group["end"], event.timestamp_ms)
             group["records"].append(record)
         deaths = [s for s in self.telemetry if s["kind"] == "death"]
-        for group in groups:
-            actors = {r.event.actor_id for r in group["records"]} | {r.event.target_id for r in group["records"]}
-            for sample in deaths:
-                if (sample["kind"] == "death" and sample["epoch"] == group["epoch"] and sample["entity"] in actors
-                        and group["end"] <= sample["timestamp_ms"] <= group["last_damage"] + self.gap_seconds*1000):
-                    group["end"] = sample["timestamp_ms"]
+        # A death closes exactly one encounter: the latest group still fighting that enemy
+        # (its records end at or before the death, within the pull gap). Extending every earlier
+        # group that ever touched the enemy -- a leashed or wiped attempt, or the pieces of one
+        # fight cut by an earlier boundary -- stretched each of them to the kill and marked
+        # every one "killed", so a single kill was counted many times over.
+        actors_of = [{r.event.actor_id for r in g["records"]} | {r.event.target_id for r in g["records"]} for g in groups]
+        for sample in deaths:
+            chosen = None
+            for group, actors in zip(groups, actors_of):
+                if (sample["epoch"] == group["epoch"] and sample["entity"] in actors
+                        and group["end"] <= sample["timestamp_ms"] <= group["last_damage"] + self.gap_seconds*1000
+                        and (chosen is None or group["last_damage"] >= chosen["last_damage"])):
+                    chosen = group
+            if chosen is not None:
+                chosen["end"] = sample["timestamp_ms"]
         self.discarded_segments = max(self.discarded_segments, len(groups) - 200)
         return groups[-200:]
 

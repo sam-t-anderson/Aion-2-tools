@@ -28,7 +28,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     if(location.hash==='#local-log')renderPreviewPage();else location.hash='local-log';},
   upload:async(row,batch)=>{
     const text=await row.input.text(),doc=JSON.parse(text);
-    if(doc.meta?.capture_active || doc.meta?.archive?.closed===false)throw Error('Unfinished checkpoints are excluded; review and export a finished part first.');
+    if(doc.meta?.capture_active===true)throw Error('Unfinished checkpoints are excluded; review and export a finished part first.');
     let body=text;const headers={'Content-Type':'application/json'};
     if(batch.key)headers.Authorization='Bearer '+batch.key;
     if(row.request_id)headers['Idempotency-Key']=row.request_id;

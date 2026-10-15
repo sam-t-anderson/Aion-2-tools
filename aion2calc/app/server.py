@@ -748,13 +748,12 @@ class Handler(BaseHTTPRequestHandler):
                 current = runner()
                 with current.lock:
                     active = current.running and current.session_file == body["file"]
-                archive = doc.get("meta", {}).get("archive")
-                # An un-closed archive part is an in-progress checkpoint that a later, fuller part of
-                # the same recording supersedes; uploading it creates a duplicate log on the server
-                # for the same (archive id, part). Only finished parts (closed, or non-archive
-                # single sessions) are eligible for batch upload.
-                open_checkpoint = isinstance(archive, dict) and archive.get("closed") is False
-                if active or doc.get("meta", {}).get("capture_active") or open_checkpoint:
+                # A checkpoint saved while capture was still running is superseded by the later,
+                # fuller save of the same part; uploading it creates a duplicate log on the server
+                # for the same (archive id, part). ``capture_active`` is that signal. The part's
+                # ``archive.closed`` flag is not: the final part of a recording saved by
+                # 0.2.252-0.2.283 was left un-closed, and refusing it blocked sharing finished runs.
+                if active or doc.get("meta", {}).get("capture_active") is True:
                     raise ValueError("Active or unfinished checkpoints are excluded from batch upload; stop capture or review and publish this part individually.")
                 settings = effective()
                 if body.get("server") != settings.get("url"):

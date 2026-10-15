@@ -1092,8 +1092,12 @@ class Runner:
             profile = dict(self.packet_engine.local_profile) if self.packet_engine else {}
             scope = self.scope
             collector = self.capture_metadata
-            archive = (self._archive_metadata(session) if isinstance(session, CombatSession)
-                       else {"id":self.archive_id, "part":self.archive_part, "closed":False})
+            # The live part is open while capture runs; once capture has stopped it is the
+            # recording's final, finished part -- closed, so it carries a stable recording key
+            # (the server ignores a re-upload of it) and is never mistaken for a checkpoint.
+            closed = not self.running
+            archive = (self._archive_metadata(session, closed=closed) if isinstance(session, CombatSession)
+                       else {"id":self.archive_id, "part":self.archive_part, "closed":closed})
         if isinstance(session, CombatSession) and not title:
             title = f"Live combat session {archive['id'][:8]} Â· Part {archive['part']}"
         doc = session.to_a2log(scope, title) if isinstance(session, CombatSession) else session.to_a2log(title=title)

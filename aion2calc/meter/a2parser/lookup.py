@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from functools import lru_cache
 from importlib.resources import files
 from pathlib import Path
@@ -45,6 +46,58 @@ def normalize_skill(skill_id: int, locale: str = "en") -> int:
     if not raw_name:
         return base
     return skill_id if raw_name != base_name else base
+
+
+#: Skill families (id with the per-rank/spec suffix zeroed) known to only restore HP: the
+#: cleric and chanter heals and heal procs seen in live recordings. A floor under the
+#: data-driven set below, so these decode as healing even if the bundled class data is missing.
+_KNOWN_HEAL_FAMILIES = frozenset({
+    17090000,   # Light of Regeneration
+    17100000,   # Healing Light
+    17120000,   # Radiant Recovery
+    17160000,   # Benevolence
+    17290000,   # Absolution
+    17800000,   # Radiant Benediction (passive: heals the party on landing an attack)
+    18120000,   # Recuperation
+    18170000,   # Healing Touch
+    18420000,   # Guardian Blessing
+})
+_HEAL_TIP = re.compile(r"\b(?:restores?|recovers?|heals?|healing)\b.{0,80}\bHP\b|\bHP\b.{0,40}\b(?:restor|recover|heal)", re.I | re.S)
+_DAMAGE_TIP = re.compile(r"\bdamage\b", re.I)
+
+
+@lru_cache(maxsize=1)
+def heal_skill_families() -> frozenset[int]:
+    """Skill families whose only effect on a target is restoring HP (a cleric/chanter heal,
+    a passive heal proc on the party), from the bundled class skill data: a skill whose
+    description restores HP and never mentions dealing damage. Lifesteal / drain attacks
+    describe their damage and stay damage. ``_KNOWN_HEAL_FAMILIES`` is always included."""
+    families = set(_KNOWN_HEAL_FAMILIES)
+    try:
+        from ...paths import list_names, read_json
+        for cls in list_names("global", "classes"):
+            try:
+                doc = read_json("global", "classes", f"{cls}.json")
+            except Exception:
+                continue
+            for skill in (doc.get("skills") or []) if isinstance(doc, dict) else []:
+                sid, tip = skill.get("id"), skill.get("tip")
+                if (isinstance(sid, int) and not isinstance(sid, bool) and isinstance(tip, str)
+                        and _HEAL_TIP.search(tip) and not _DAMAGE_TIP.search(tip)):
+                    families.add(sid - sid % 10_000)
+    except Exception:
+        pass
+    return frozenset(families)
+
+
+def is_heal_skill(skill_code) -> bool:
+    """Whether this skill only restores HP, so its effect on another entity is healing --
+    never damage, and never a hostile (PvP) act -- whoever receives it."""
+    try:
+        code = int(skill_code)
+    except (TypeError, ValueError):
+        return False
+    return (code - code % 10_000) in heal_skill_families()
 
 
 #: A Spiritmaster's basic elemental spirits (one out at a time) vs the Ancient Spirit

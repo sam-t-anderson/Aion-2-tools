@@ -137,8 +137,11 @@ def test_community_view_link_targets_the_specific_encounter_segment():
 
 
 def test_unfinished_checkpoint_upload_is_rejected():
-    # An open (not-closed) archive part is a checkpoint; uploading it duplicates the final part's log.
-    assert "archive?.closed===false" in LOGS_JS
+    # A checkpoint saved while capture was still running is superseded by the final save of the
+    # same part; uploading it duplicates that log. The archive "closed" flag is not the signal: a
+    # recording's final part was left un-closed by earlier builds and must stay shareable.
+    assert "capture_active===true" in LOGS_JS
+    assert "archive?.closed===false" not in LOGS_JS
 
 
 def test_logs_page_loads_server_before_logs_script():

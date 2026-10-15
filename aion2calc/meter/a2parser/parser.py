@@ -14,7 +14,7 @@ from importlib.resources import files
 
 from .framing import FrameKind, decompress_bundle, read_varint, walk, walk_inner
 from .models import DamageEvent, HealEvent, SpecialDamage
-from .lookup import has_skill, normalize_skill, decode_spec_flags, job_from_roster
+from .lookup import has_skill, is_heal_skill, normalize_skill, decode_spec_flags, job_from_roster
 
 try:
     DOT_SKILLS = set(json.loads(files(__package__).joinpath("data", "dot_skill_ids.json").read_text(encoding="utf-8")))
@@ -313,7 +313,17 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
             heal = _var(frame, offset + 2)
             if heal and 0 < heal[0] < 10_000_000:
                 heal_amount = heal[0]
-        if actor_id != target_id:
+        if actor_id != target_id and is_heal_skill(normalized_skill):
+            # A pure healing skill landing on another entity -- a cleric/chanter heal on a party
+            # member or an allied NPC, a passive heal proc on the party -- arrives in the same
+            # layout as a damage hit, but the amount is HP restored. Record it as healing of
+            # that target, never as damage: as damage it read as incoming damage on the party
+            # member and, on a non-party ally, as a PvP hit that cut the fight in two.
+            if damage > 0:
+                out.append(HealEvent(actor_id, normalized_skill, damage, timestamp_ms, False, target_id))
+            if heal_amount:
+                out.append(HealEvent(actor_id, normalized_skill, heal_amount, timestamp_ms))
+        elif actor_id != target_id:
             out.append(DamageEvent(actor_id, target_id, normalized_skill, damage, timestamp_ms,
                                    damage_type, frozenset(specials), False,
                                    multi_count, multi_damage,
