@@ -2,7 +2,7 @@
 from functools import lru_cache
 import re
 
-from .a2parser.lookup import _table, npc_info
+from .a2parser.lookup import _table, dungeon_final_bosses, npc_info
 
 PVP_MAPS = {
     60: {"zone":"Fire Temple Arena", "evidence":"User-confirmed arena capture and result screenshot"},
@@ -43,6 +43,21 @@ def _instances():
         if tier := _difficulty(row.get("tier")):
             group["tiers"].add(tier)
     return result
+
+
+DERIVED_ZONE = " + curated final boss name (derived label: the catalog names the boss, not this instance)"
+
+
+def derived_zone_label(instance_id):
+    """A label for a catalog instance the dungeon table does not name but whose final boss is
+    curated: "<Final boss> (instance NNNNNN)". The boss name is the catalog's own; the instance
+    number says plainly that the dungeon name is missing upstream. None when there is nothing
+    curated for the instance (names are never inferred from anything else)."""
+    instance_id = _id(instance_id)
+    names = sorted({npc_info(code).get("name") for code in dungeon_final_bosses(instance_id)} - {None, ""})
+    if not instance_id or not names:
+        return None
+    return f"{' / '.join(names[:2])} (instance {instance_id})"
 
 
 def classify(map_id, instance_id, pvp, entities=()):
@@ -96,6 +111,12 @@ def classify(map_id, instance_id, pvp, entities=()):
     prefix = AUTO + ("recorded NPC IDs" if basis == "npc_only" else "recorded map ID" if basis == "recorded_map" else "recorded instance ID")
     if dungeon.get("name") and not conflicts:
         result.update(zone=dungeon["name"], zone_source=prefix + " + exact dungeon name")
+    elif candidate and not conflicts and (label := derived_zone_label(candidate)):
+        # The catalog has this instance's bosses (a curated final boss) but no dungeon name
+        # for it (60 such instances at catalog 2b9f9d65, data-gated upstream): label the run
+        # by its final boss, marked derived, instead of leaving the zone blank.
+        result.update(zone=label, zone_source=prefix + DERIVED_ZONE)
+        evidence["derived_zone"] = True
     if candidate:
         evidence.update(catalog_instance_id=candidate, basis=basis)
     if conflicts:

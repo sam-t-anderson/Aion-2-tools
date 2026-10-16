@@ -2,6 +2,7 @@
 
 Commands
   catalog-refresh  stage pinned enemy/dungeon tables and an audit for release review
+  catalog-gaps     list what the bundled catalog cannot name, for reporting upstream
   refresh    re-scrape the sources and rebuild aion2calc/data
   optimize   full build + rotation optimization for a class, writes a report folder
   simulate   simulate the typical top global build or a saved build.json
@@ -57,6 +58,9 @@ def main(argv: list[str] | None = None) -> int:
     cat = sub.add_parser("catalog-refresh", help="stage pinned NPC/dungeon tables and a review diff")
     cat.add_argument("--revision", required=True, help="full upstream commit SHA (40 lowercase hex characters)")
     cat.add_argument("--out", required=True, help="new staging directory; does not replace installed tables")
+
+    gp = sub.add_parser("catalog-gaps", help="list the catalog's gap lists (unmapped tiers, unnamed instances, unbacked codes)")
+    gp.add_argument("--out", help="write the full JSON report here (otherwise a summary is printed)")
 
     o = sub.add_parser("optimize", help="optimize build + rotation and write a report")
     o.add_argument("cls", help="class key: gladiator templar assassin ranger sorcerer spiritmaster cleric chanter")
@@ -195,6 +199,27 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "catalog-refresh":
         from .scrape.catalog import stage
         stage(args.revision, args.out)
+    elif args.cmd == "catalog-gaps":
+        import json
+        from .combat.catalog import gaps
+        report = gaps()
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as stream:
+                json.dump(report, stream, ensure_ascii=False, indent=2)
+                stream.write("\n")
+            print(f"Wrote {args.out}")
+        counts = report["counts"]
+        print(f"Catalog {report['catalog_revision']} · upstream {((report.get('catalog_source') or {}).get('revision') or 'unknown')[:12]}")
+        print(f"Named dungeon tiers without a curated or derived final boss: {counts['named_tiers_without_final_boss']}")
+        for row in report["named_tiers_without_final_boss"]:
+            print(f"  {row['instance_id']}  {row['name'] or 'unnamed'}" + (f" · {row['difficulty']}" if row.get("difficulty") else ""))
+        print(f"Instances with a curated final boss but no dungeon name: {counts['unnamed_instances_with_final_boss']}")
+        for row in report["unnamed_instances_with_final_boss"]:
+            print(f"  {row['instance_id']}  {row['label']}")
+        print(f"Final-boss codes without a backing NPC record: {counts['final_boss_codes_without_npc']}")
+        for row in report["final_boss_codes_without_npc"]:
+            print(f"  {row['instance_id']}  {row['code']}  {row['problem']}")
+        print(report["note"])
     elif args.cmd == "refresh":
         from .scrape.refresh import refresh
         refresh(only=args.only, skip_kr=args.skip_kr, items_only=args.items_only)

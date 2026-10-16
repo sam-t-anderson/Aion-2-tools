@@ -93,7 +93,16 @@ Use a reviewed upstream commit and a new output directory. The command downloads
 
 `catalog-audit.json` lists added, removed and changed ID counts per table, with up to 100 changes per table and omitted counts. Review the staged tables for complete changes, especially boss/dummy flags, dungeon links and difficulty. `catalog-source.json` records the upstream commit, check date, record counts, normalized table SHA-256 hashes and original download hashes.
 
-For a release, copy the reviewed `i18n/npcs` and `i18n/dungeons` directories and `catalog-source.json` into `aion2calc/meter/a2parser/data/`, then submit the diff through CI. Keep source attribution and license obligations. Mapping coverage shows the source commit on desktop and Pages for new reports; older logs may lack this metadata. A community source revision does not establish its applicable game Build ID. No build association, missing portrait, difficulty or miniboss role is invented.
+For a release, copy the reviewed `i18n/npcs` and `i18n/dungeons` directories and `catalog-source.json` into `aion2calc/meter/a2parser/data/`, then submit the diff through CI.
+
+### Catalog gaps
+
+```bash
+python -m aion2calc catalog-gaps                 # summary on screen
+python -m aion2calc catalog-gaps --out gaps.json # the full lists, for reporting upstream
+```
+
+Lists what the bundled catalog cannot name, read from the bundled tables and the curated final-boss table only: named dungeon tiers with no curated or derived final boss (a clear there cannot auto-complete until a capture shows the boss), instances with a curated final boss but no dungeon name (reports label these `<Final boss> (instance N)`, marked derived, and this is the list to send upstream), and final-boss codes without a backing NPC record. The report carries the installed catalog revision and the upstream source commit. No name is ever inferred. Keep source attribution and license obligations. Mapping coverage shows the source commit on desktop and Pages for new reports; older logs may lack this metadata. A community source revision does not establish its applicable game Build ID. No build association, missing portrait, difficulty or miniboss role is invented.
 
 ## Testing
 
