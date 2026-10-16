@@ -12,7 +12,10 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     "Colourblind-friendly": {gladiator:"#e69f00",templar:"#cc79a7",assassin:"#f0e442",ranger:"#009e73",sorcerer:"#56b4e9",spiritmaster:"#0072b2",cleric:"#bbbbbb",chanter:"#d55e00"},
     "High contrast": {gladiator:"#ff9f1c",templar:"#ff5dd2",assassin:"#ffe600",ranger:"#4cff4c",sorcerer:"#36d6ff",spiritmaster:"#7c6cff",cleric:"#ffffff",chanter:"#ff5a2a"},
     "Pastel": {gladiator:"#e6c79c",templar:"#f5b8d6",assassin:"#fff3a3",ranger:"#c3e6a3",sorcerer:"#a7dcef",spiritmaster:"#bcbdf0",cleric:"#eaeaea",chanter:"#ffc49c"},
-    "Vivid": {gladiator:"#ff8c00",templar:"#ff2fae",assassin:"#ffe000",ranger:"#2ecc40",sorcerer:"#00bfff",spiritmaster:"#6a5cff",cleric:"#f5f5f5",chanter:"#ff4500"}
+    "Vivid": {gladiator:"#ff8c00",templar:"#ff2fae",assassin:"#ffe000",ranger:"#2ecc40",sorcerer:"#00bfff",spiritmaster:"#6a5cff",cleric:"#f5f5f5",chanter:"#ff4500"},
+    // The live overlay's own default tints (overlay.js OVERLAY_CLASS_COLORS); applying it
+    // here carries the same colours into the review pages and charts.
+    "Overlay (cool)": {gladiator:"#c8474f",templar:"#c9772b",assassin:"#4caf6e",ranger:"#b9962a",sorcerer:"#3a86c8",spiritmaster:"#7a63d8",cleric:"#3fb4b0",chanter:"#b84f9e"}
   };
   const esc = x => String(x ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const number = x => Math.round(x || 0).toLocaleString();

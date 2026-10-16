@@ -27,5 +27,5 @@ def test_sparkline_is_styled():
 def test_sparkline_is_tinted_to_the_players_class_colour():
     # sparkLine takes a colour and the row passes the player's class colour.
     assert "function sparkLine(series, color)" in JS
-    assert "sparkLine(playerHist.get(key),A2CombatReview.color(p.class))" in JS
+    assert "sparkLine(playerHist.get(key),barColor(p.class))" in JS   # the overlay tint (a chosen class colour wins)
     assert ".ovparea" in CSS  # faint class-tinted fill under the line

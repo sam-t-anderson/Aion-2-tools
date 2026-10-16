@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import threading
 import copy
+import json
 import queue
 import re
 import struct
 import time
+import traceback
 import uuid
 from pathlib import Path
 
@@ -117,6 +119,11 @@ class Runner:
         self._snap_thread: threading.Thread | None = None   # the in-flight off-lock snapshot recompute, if any
         self._last_save_cost = 0.0        # seconds the last checkpoint save took (stretches the cadence)
         self._unsaved_parts: list = []    # rolled-over archive parts detached from the live session, not yet on disk
+        #: Every archive part file this process wrote (name -> first write time): the recordings
+        #: an automatic upload on Stop, quit or the next launch must still send (see pending_uploads).
+        self._written_files: dict = {}
+        self._upload_lock = threading.Lock()      # one automatic upload pass at a time
+        self._pending_upload_thread = None
         self._flush_thread: threading.Thread | None = None
         self._last_prune = 0.0   # throttle the logs-folder size prune
         self.started_at: float | None = None
@@ -681,6 +688,7 @@ class Runner:
             with self.lock:
                 self._unsaved_parts.pop(0)
                 self.saved_log = saved
+                self._written_files.setdefault(part["file"], time.time())
                 self.diagnostics["archive_parts_saved"] = self.diagnostics.get("archive_parts_saved", 0) + 1
                 self.diagnostics["archive_last_part"] = saved
                 self.diagnostics.pop("archive_save_error", None)
@@ -702,6 +710,7 @@ class Runner:
                 doc["meta"].update(capture_active=bool(active and self.running),
                                    checkpoint_at=time.time(), capture_scope=self.scope)
                 self.saved_log = str(save(doc, self.session_file))
+                self._written_files.setdefault(self.session_file, time.time())
                 self.diagnostics.pop("log_save_error", None)
                 self._last_save_cost = time.monotonic() - started
             except Exception as exc:   # noqa: BLE001 - a save must never abort Stop or the
@@ -1290,6 +1299,145 @@ class Runner:
         if isinstance(session, CombatSession):
             doc["meta"]["archive"] = archive
         return self._metadata(doc, metadata=metadata, profile=profile, collector=collector)
+
+    # ---- automatic uploads of everything this launch recorded ------------------------------
+    #: How long the quit path may spend uploading before the app exits regardless.
+    QUIT_UPLOAD_BUDGET_S = 20.0
+    #: Closed parts from earlier launches no older than this are picked up at launch (an upload
+    #: that failed at the previous quit, or a part saved while the server was unreachable).
+    CATCH_UP_DAYS = 7
+    CATCH_UP_LIMIT = 20
+
+    def pending_uploads(self, *, include_live: bool = False, catch_up_days: float | None = None,
+                        limit: int = 50) -> list:
+        """The recordings not yet on the configured server, newest first, as
+        ``{"file": name | None, "doc": document, "live": bool}``.
+
+        Every archive part this process saved since launch is a candidate: a closed part (one a
+        rollover detached, or the final save after Stop) whose recording key is not remembered
+        as uploaded. The live part is included first when ``include_live`` -- the Upload button,
+        and the automatic upload after Stop -- as the in-memory document (the freshest copy of
+        the current part), so its on-disk checkpoint is never sent as well. With
+        ``catch_up_days`` the scan also covers closed parts on disk from earlier launches no
+        older than that, bounded by ``limit``, so an upload the previous quit ran out of time
+        for is not lost. Open checkpoints (capture still active) are never finished recordings."""
+        from ..combat import share
+        from ..combat.sessions import path as session_path, logs_dir
+        names = dict(self._written_files)
+        if catch_up_days:
+            cutoff = time.time() - catch_up_days * 86400
+            for target in logs_dir().glob("session-*.a2log.json"):
+                try:
+                    stamp = target.stat().st_mtime
+                except OSError:
+                    continue
+                if stamp >= cutoff:
+                    names.setdefault(target.name, stamp)
+        seen, out = set(), []
+        for name in sorted(names, key=lambda n: names[n], reverse=True):
+            if name == self.session_file and (self.running or include_live):
+                continue   # the live part is sent from memory (below), never from its checkpoint
+            try:
+                doc = json.loads(session_path(name).read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            meta = doc.get("meta") if isinstance(doc, dict) else None
+            archive = (meta or {}).get("archive") or {}
+            if not isinstance(meta, dict) or archive.get("closed") is not True or meta.get("capture_active"):
+                continue
+            key = share.recording_key(doc)
+            if not key or key in seen or share.already_uploaded(doc):
+                continue
+            seen.add(key)
+            out.append({"file": name, "doc": doc, "live": False})
+            if len(out) >= limit:
+                break
+        if include_live and self.has_data():
+            try:
+                doc = self.to_a2log()
+                key = share.recording_key(doc)       # None while capture runs: an open part
+                if not (key and (key in seen or share.already_uploaded(doc))):
+                    out.insert(0, {"file": None, "doc": doc, "live": True})
+            except Exception:
+                pass
+        return out
+
+    def upload_pending(self, *, log=None, include_live: bool = True, visibility: str | None = None,
+                       budget_s: float | None = None, catch_up_days: float | None = None,
+                       limit: int = 50, automatic: bool = False) -> dict:
+        """Upload every pending recording (``pending_uploads``), newest first, one pass at a time
+        so the page's Stop, the overlay's Stop and quit never send the same part twice. Returns
+        ``{"uploaded", "failed", "pending", "url", "results"}``; ``url`` is the newest upload's
+        link. ``budget_s`` bounds the pass (quit must not hang): what is left over is sent by the
+        next Stop, Upload or launch. An ``automatic`` pass stands down while the server's upload
+        limit is spent (a recent 429); the Upload button does not."""
+        from ..combat import share
+        say = log or (lambda *_: None)
+        result = {"uploaded": 0, "failed": 0, "pending": 0, "url": None, "results": []}
+        if not share.effective().get("url"):
+            say("No log server is set; nothing to upload.")
+            return result
+        if automatic and share.automatic_uploads_paused():
+            say("The server's upload limit was reached recently; pending recordings upload later.")
+            return result
+        with self._upload_lock:
+            items = self.pending_uploads(include_live=include_live, catch_up_days=catch_up_days, limit=limit)
+            if not items:
+                say("Every recording from this session is already on the server.")
+                return result
+            if len(items) > 1:
+                say(f"{len(items)} recordings to upload, newest first…")
+            started = time.monotonic()
+            for index, item in enumerate(items):
+                if budget_s is not None and time.monotonic() - started > budget_s - 3:
+                    result["pending"] = len(items) - index
+                    say(f"Out of time: {result['pending']} recording(s) will upload at the next Stop or launch.")
+                    break
+                label = "the current session" if item["live"] else item["file"]
+                say(f"Uploading {label}…")
+                try:
+                    sent = share.upload(item["doc"], visibility=visibility)
+                except Exception as exc:   # noqa: BLE001 - one failed part must not stop the rest
+                    result["failed"] += 1
+                    result["results"].append({"file": item["file"], "error": str(exc)[:300]})
+                    say(f"Upload of {label} failed: {exc}")
+                    if share.automatic_uploads_paused():
+                        result["pending"] += len(items) - index - 1
+                        break
+                    continue
+                result["uploaded"] += 1
+                result["results"].append({"file": item["file"], "id": sent.get("id"), "url": sent.get("url")})
+                if result["url"] is None:
+                    result["url"] = sent.get("url")
+                if item["live"]:
+                    try:
+                        self.apply_community_rank(item["doc"], sent)   # the live fight's standings badge
+                    except Exception:
+                        pass
+            return result
+
+    def upload_pending_async(self, reason: str, **kw) -> bool:
+        """Run ``upload_pending`` on a worker when automatic uploads are on (Settings:
+        meter_auto_upload) and no pass is running. The launch catch-up pass also needs
+        the catch-up setting (meter_catch_up_uploads). Returns whether a worker was started."""
+        from ..app import server as _srv
+        ui = _srv.ui_settings()
+        if not ui.get("meter_auto_upload", True):
+            return False
+        if reason == "launch" and not ui.get("meter_catch_up_uploads", True):
+            return False
+        worker = self._pending_upload_thread
+        if worker is not None and worker.is_alive():
+            return False
+
+        def _run():
+            try:
+                self.upload_pending(automatic=True, **kw)
+            except Exception:
+                traceback.print_exc()
+        self._pending_upload_thread = threading.Thread(target=_run, daemon=True, name=f"auto-upload-{reason}")
+        self._pending_upload_thread.start()
+        return True
 
     def upload_document(self, title: str | None = None):
         """The document(s) the Upload button sends. A single-part session uploads as it

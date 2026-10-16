@@ -92,7 +92,7 @@
   }
   const syncColors=()=>fetch("/api/ui").then(r=>r.json()).then(ui=>{
     if(ui.combat_colors){try{localStorage.setItem("a2-combat-colors",JSON.stringify(ui.combat_colors));}catch(e){/* optional storage */}}
-    for(const key of ['rate','total']){const color=ui.overlay_text_colors?.[key];document.documentElement.style.setProperty(`--ov-${key}-text`,/^#[0-9a-f]{6}$/i.test(color||'')?color:'#000000');}
+    for(const key of ['rate','total']){const color=ui.overlay_text_colors?.[key];document.documentElement.style.setProperty(`--ov-${key}-text`,/^#[0-9a-f]{6}$/i.test(color||'')?color:'');}   // blank = the stylesheet's default (light on the dark bars)
     // Extra text-element colors: name and header (blank = CSS default).
     for(const key of ['name','header']){const c=ui.overlay_text_colors?.[key];document.documentElement.style.setProperty(`--ov-${key}-color`,/^#[0-9a-f]{6}$/i.test(c||'')?c:'');}
     // Target-line readout colors: target text, enemy-HP text, TTK text (blank = CSS default).
@@ -459,6 +459,26 @@
     g.hidden=false;
     g.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polygon class="ovgarea" points="0,${H} ${pts.join(" ")} ${W},${H}"/><polyline class="ovgline" points="${pts.join(" ")}"/></svg><span class="ovglabel">${label} · now ${kfmt(series[series.length-1])} · peak ${kfmt(mx)}</span>`;
   }
+  // The class icon badge before a name: the bundled class art (game-assets.js), tinted by the
+  // class colour ring. Purely visual; nothing is shown when no art is bundled for the class.
+  // The overlay's own class palette (the cool look): a bar/icon tint for all eight
+  // classes. A class colour the user chose in Settings → Combat colours (or a palette
+  // they applied there) wins, and "Use class colors" off still gives every row the
+  // neutral gold, exactly as the shared A2CombatReview.color() decides.
+  const OVERLAY_CLASS_COLORS={sorcerer:"#3a86c8",assassin:"#4caf6e",templar:"#c9772b",ranger:"#b9962a",chanter:"#b84f9e",gladiator:"#c8474f",spiritmaster:"#7a63d8",cleric:"#3fb4b0"};
+  function barColor(cls){
+    const key=String(cls||'').toLowerCase();
+    let pref={}; try{pref=JSON.parse(localStorage.getItem("a2-combat-colors"))||{};}catch(_){pref={};}
+    const own=(pref.colors||{})[key];
+    if(pref.enabled===false||/^#[0-9a-f]{6}$/i.test(own||'')||!OVERLAY_CLASS_COLORS[key]) return A2CombatReview.color(key);
+    return OVERLAY_CLASS_COLORS[key];
+  }
+  function classIcon(cls){
+    const key=String(cls||'').toLowerCase(); if(!key) return '';
+    const files=window.A2BundledAssets&&window.A2BundledAssets.files, base=window.A2BundledAssets&&window.A2BundledAssets.base;
+    const file=files&&files[`https://metabot.gg/web/aion2/classes/${key}.webp`]; if(!file||!base) return '';
+    return `<i class="ovcicon" style="background-image:url(${esc(base+file)});--bar:${barColor(key)}" title="${esc(key)}"></i>`;
+  }
   function renderMeter() {
     if(partyMode)return renderParty();
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
@@ -491,10 +511,10 @@
       // damage). Click a row to expand it; the open rows are remembered in `expanded`.
       const hasSkills=metric==="dps"&&Array.isArray(p.skills)&&p.skills.length;
       // When the DPS graph is on, an expanded row also shows that player's DPS trend.
-      const spark=(hasSkills&&showGraph&&expanded.has(key))?sparkLine(playerHist.get(key),A2CombatReview.color(p.class)):"";
+      const spark=(hasSkills&&showGraph&&expanded.has(key))?sparkLine(playerHist.get(key),barColor(p.class)):"";
       const skills=hasSkills?`<div class="ovskills"${expanded.has(key)?'':' hidden'}>${spark}${p.skills.slice(0,6).map(sk=>`<div class="ovskrow"><span class="ovskname">${esc(sk.skill||sk.skill_id)}</span><span class="ovskval">${kfmt(sk.damage)} · ${Math.round((sk.share||0)*100)}%</span></div>`).join("")}</div>`:"";
-      return `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}${isMe(p)?' ovrow-me':''}${hasSkills?' ovrow-x':''}"${hasSkills?` data-exk="${esc(key)}"`:''}><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}">${rankNumbers?`<span class="ovrank${i<3?' ovrank-'+(i+1):''}">${i+1}.</span>`:''}${classSwatch?`<i class="ovclass" style="background:${A2CombatReview.color(p.class)}" title="${esc(p.class||'')}"></i>`:''}<span class="ovnametext"${classColorNames?` style="color:${A2CombatReview.color(p.class)}"`:''}>${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}${showCommunityRank&&p.community_rank&&p.community_rank.text?`<small class="ovcrank" title="Community standing for your last uploaded fight">${esc(p.community_rank.text)}</small>`:''}</span>
-        <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i data-k="${esc(key)}" style="width:${100 * rate(p) / mx}%;--bar:${A2CombatReview.color(p.class)}"></i><span><span class="ovrate" data-k="${esc(key)}" data-target="${rate(p)}" data-amt="${amount(p)}">${kfmt(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div>${skills}</div>`;
+      return `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}${isMe(p)?' ovrow-me':''}${hasSkills?' ovrow-x':''}"${hasSkills?` data-exk="${esc(key)}"`:''}><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}">${rankNumbers?`<span class="ovrank${i<3?' ovrank-'+(i+1):''}">${i+1}.</span>`:''}${classIcon(p.class)}${classSwatch?`<i class="ovclass" style="background:${barColor(p.class)}" title="${esc(p.class||'')}"></i>`:''}<span class="ovnametext"${classColorNames?` style="color:color-mix(in srgb, ${barColor(p.class)} 55%, #ffffff)"`:''}>${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}${showCommunityRank&&p.community_rank&&p.community_rank.text?`<small class="ovcrank" title="Community standing for your last uploaded fight">${esc(p.community_rank.text)}</small>`:''}</span>
+        <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i data-k="${esc(key)}" style="width:${100 * rate(p) / mx}%;--bar:${barColor(p.class)}"></i><span><span class="ovrate" data-k="${esc(key)}" data-target="${rate(p)}" data-amt="${amount(p)}">${kfmt(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div>${skills}</div>`;
     }).join("");
     const duration=metric==="dps"?snap.duration:snap.recorded_duration;
     // Plain-text leaderboard of the current view, ready to paste into chat/Discord.
@@ -566,7 +586,10 @@
       // Small boss/NPC portrait from the bundled/community asset map (self-removes if it fails to load).
       const portraitUrl=target.mob_code!=null&&window.A2BundledAssets&&window.A2BundledAssets.npcs&&window.A2BundledAssets.npcs[String(target.mob_code)];
       const portrait=portraitUrl?`<img class="ovtportrait" width="18" height="18" referrerpolicy="no-referrer" src="${esc(window.A2AssetHealth?A2AssetHealth.source(portraitUrl):portraitUrl)}" alt="" onerror="this.remove()"> `:'';
-      $("#ovtarget").innerHTML=`<span class="ovtlabel">Target</span> ${portrait}${esc(target.name)}${also}${hp}${ttk} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}`;
+      // Same content as always; the name and the secondary readouts are wrapped so the
+      // stylesheet can lay the panel out as a boss card (name + HP on top, TTK, damage
+      // and contributors beneath). Hidden readouts stay hidden exactly as before.
+      $("#ovtarget").innerHTML=`<span class="ovtlabel">Target</span> ${portrait}<span class="ovtname">${esc(target.name)}</span>${also}${hp}<span class="ovtline">${ttk} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}</span>`;
       $("#ovtarget").title=`Most-hit enemy this encounter${alsoNames.length?` (and ${alsoNames.length} more struck in the same instant)`:''}, its remaining HP and time-to-kill from its observed HP-decline rate (all damage sources, so it reflects how fast it is really dying — not just your party's DPS), and each contributor's DPS to it`;
     }
     // Drawn remaining-over-max enemy HP bar, shown with the enemy-HP readout when real HP was captured.

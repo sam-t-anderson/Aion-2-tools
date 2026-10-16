@@ -36,22 +36,24 @@ def test_meter_autostart_rides_the_settings_backup(home):
 
 
 def test_auto_upload_on_quit_is_gated(home, monkeypatch):
-    # Off when the upload setting is off; a no-op with no session data. Never raises.
-    calls = {"n": 0}
+    # Off when the upload setting is off; otherwise one bounded automatic pass over everything
+    # this launch recorded that is not on the server yet (whether or not capture was running).
+    calls = []
 
     class _R:
-        def has_data(self):
-            calls["n"] += 1
-            return False
+        def upload_pending(self, **kw):
+            calls.append(kw)
+            return {"uploaded": 0, "failed": 0, "pending": 0, "url": None, "results": []}
 
     monkeypatch.setattr(server, "ui_settings", lambda: {"meter_auto_upload": False})
+    monkeypatch.setattr("aion2calc.app.meter_runner.runner", lambda: _R())
     server._auto_upload_on_quit()                      # disabled → returns before touching the runner
-    assert calls["n"] == 0
+    assert calls == []
 
     monkeypatch.setattr(server, "ui_settings", lambda: {"meter_auto_upload": True})
-    monkeypatch.setattr("aion2calc.app.meter_runner.runner", lambda: _R())
-    server._auto_upload_on_quit()                      # enabled but no data → no upload, no raise
-    assert calls["n"] == 1
+    server._auto_upload_on_quit()                      # enabled → the pending pass, bounded, never raises
+    from aion2calc.app.meter_runner import Runner
+    assert len(calls) == 1 and calls[0]["automatic"] is True and calls[0]["budget_s"] == Runner.QUIT_UPLOAD_BUDGET_S
 
 
 def test_overlay_has_a_start_stop_button():

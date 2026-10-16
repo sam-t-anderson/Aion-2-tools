@@ -889,6 +889,11 @@ class Handler(BaseHTTPRequestHandler):
                 if ui_settings().get("overlay_close_on_stop") and not body.get("from_overlay"):
                     from .overlay_launch import close as close_overlay
                     close_overlay()
+                # The Live Meter page runs the automatic upload itself (so it can show progress and
+                # the shared link); a Stop from the overlay or its hotkey has no page to do that,
+                # so the app sends every recording of this launch that is not on the server yet.
+                if body.get("from_overlay"):
+                    r.upload_pending_async("stop")
                 return self._json(r.status())
             if action == "diagnostics-folder":
                 if self.client_address[0] not in ("127.0.0.1", "::1"):
@@ -913,33 +918,20 @@ class Handler(BaseHTTPRequestHandler):
                                 encoding="utf-8")
                 return self._json({"file": str(path)})
             if action == "upload":
-                if not r.has_data():
+                if not r.has_data() and not r.pending_uploads():
                     raise ValueError("nothing to upload yet")
                 def upload_snapshot(*, log):
-                    from ..combat import share
+                    # The current session first (capture can continue; an open part is superseded
+                    # by the final upload), then every earlier part of this launch that is not on
+                    # the server yet -- rolled-over parts and sessions a previous Stop could not
+                    # send -- each as its own document, linked under one recording by archive id.
                     log("Preparing a copy of the session; capture can continue.")
-                    doc, extras = r.upload_document(title=body.get("title"))
-                    if extras:
-                        log(f"This session rolled into {len(extras) + 1} parts; uploading every part, "
-                            f"linked under one recording by archive id…")
-                    else:
-                        log("Uploading session snapshot…")
-                    result = share.upload(doc, visibility=body.get("visibility"))
-                    failed = 0
-                    for extra in extras:
-                        # Best-effort: an earlier part failing must not fail the whole upload.
-                        try:
-                            share.upload(extra, visibility=body.get("visibility"))
-                        except Exception:
-                            failed += 1
-                    if failed:
-                        log(f"Uploaded, but {failed} earlier part(s) could not be sent; "
+                    result = r.upload_pending(log=log, include_live=True, visibility=body.get("visibility"))
+                    if result["failed"] and not result["uploaded"]:
+                        raise RuntimeError(result["results"][0].get("error") or "upload failed")
+                    if result["failed"]:
+                        log(f"Uploaded, but {result['failed']} recording(s) could not be sent; "
                             f"they will upload with the next attempt.")
-                    # Fill the overlay's community-rank badges from a live single-part upload
-                    # (best-effort, off by default; never fails the upload). A multi-part
-                    # historical upload is not the live fight, so it is skipped.
-                    if not extras:
-                        r.apply_community_rank(doc, result)
                     return result
                 return self._json({"job": start_job("meter-upload", upload_snapshot)})
             if action == "screenshot":
@@ -1042,7 +1034,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
                               "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics")
+                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1195,25 +1187,24 @@ def pulse_overlay_lock() -> None:
 
 
 def _auto_upload_on_quit() -> None:
-    """On quit / window close, upload the just-stopped session to the configured
-    server (on by default, the same ``meter_auto_upload`` setting as Stop). Bounded
-    and best-effort: a slow or failing upload can never hold up or break shutdown."""
+    """On quit / window close, upload every recording of this launch that is not on the
+    configured server yet -- the just-stopped session and any earlier part a Stop could not
+    send (on by default, the same ``meter_auto_upload`` setting as Stop). Bounded and
+    best-effort: a slow or failing upload can never hold up or break shutdown; what is left
+    over is sent at the next launch."""
     if not ui_settings().get("meter_auto_upload", True):
         return
-    from .meter_runner import runner
+    from .meter_runner import Runner, runner
     r = runner()
-    if not r.has_data():
-        return
 
     def _do():
         try:
-            from ..combat import share
-            share.upload(r.to_a2log(), visibility="unlisted")
+            r.upload_pending(include_live=True, budget_s=Runner.QUIT_UPLOAD_BUDGET_S, automatic=True)
         except Exception:
             traceback.print_exc()
     worker = threading.Thread(target=_do, daemon=True, name="quit-upload")
     worker.start()
-    worker.join(timeout=8)   # bounded so quit/close never feels hung; a slow upload is dropped
+    worker.join(timeout=Runner.QUIT_UPLOAD_BUDGET_S + 5)   # bounded so quit/close never feels hung
 
 
 def schedule_shutdown(upload: bool = True) -> None:
@@ -1229,15 +1220,15 @@ def schedule_shutdown(upload: bool = True) -> None:
         from .meter_runner import runner
         from .windows import close_app_browser
         r = runner()
-        # Only auto-upload on quit if capture was still running — if the user already
-        # hit Stop, the stop path already auto-uploaded, so this avoids a duplicate.
-        was_running = bool(r.running or (r.thread and r.thread.is_alive()))
         for close in (close_app_browser, r.stop):
             try:
                 close()
             except Exception:
                 traceback.print_exc()
-        if upload and was_running:
+        # Whether or not capture was still running: a Stop from the overlay may still be
+        # uploading, an earlier upload may have failed, and a part already on the server is
+        # recognised by its recording key, so nothing is sent twice.
+        if upload:
             try:
                 _auto_upload_on_quit()
             except Exception:
@@ -1297,7 +1288,7 @@ def ui_settings() -> dict:
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,
                 "overlay_text_autocontrast": "off",
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
-                "meter_save_records": True, "meter_auto_upload": True, "meter_upload_before_prune": True, "meter_report_boss_kills": True,
+                "meter_save_records": True, "meter_auto_upload": True, "meter_catch_up_uploads": True, "meter_upload_before_prune": True, "meter_report_boss_kills": True,
                 "meter_report_enemy_hp": True, "meter_report_diagnostics": True, "overlay_plan_autoplay": True,
                 "meter_autostart": True, "meter_log_cache_mb": 1024, "community_contribute_character": True,
                 "meter_show_server_name": False,
@@ -1408,6 +1399,19 @@ def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: 
     print(f"data folder: {home()}   combat logs: {logs_dir()}")
     if open_browser:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+    # Recordings the previous launch could not send (quit ran out of time, the server was
+    # unreachable) are uploaded shortly after launch, newest first and bounded, when automatic
+    # uploads and the catch-up setting are on (the runner checks both). Only on a real
+    # user-facing launch, like the overlay and the meter below.
+    if open_overlay:
+        def _catch_up_uploads():
+            try:
+                from .meter_runner import Runner, runner
+                runner().upload_pending_async("launch", include_live=False, catch_up_days=Runner.CATCH_UP_DAYS,
+                                              limit=Runner.CATCH_UP_LIMIT)
+            except Exception:
+                pass
+        threading.Timer(20.0, _catch_up_uploads).start()
     # Open the transparent overlay alongside the app on launch (on by default). It
     # waits for the game and still follows the AION 2 window when that appears. Only
     # on a real user-facing launch — never a headless/render/CI server — and a no-op

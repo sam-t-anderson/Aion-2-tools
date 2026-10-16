@@ -6,9 +6,21 @@ html, body, #ov { width: 100%; margin: 0; background: transparent !important; co
 html, body { overflow: hidden; }
 #ov { padding: 4px; width: max-content; max-width: 100vw; position: relative;
   font-size: calc(12px * var(--ov-font-scale, 1)); font-family: var(--ov-font-family, "Segoe UI", "Noto Sans", system-ui, sans-serif); }
-.ovcard { background: rgba(10, 14, 22, var(--ovbg, .72)); border: 1px solid rgba(233, 203, 128, .40); border-radius: 8px;
-  padding: 8px 10px; width: var(--ov-width, 340px); max-width: 100%; min-height: var(--ov-height, 0);
-  cursor: grab; position: relative; text-shadow: var(--ov-glow, none); }
+/* Palette: a cool blue-grey card (#1b202a) with gold as the header accent, class-tinted
+   rows with light numbers, a rose boss panel and HP bar, and a soft green ping / pink
+   identity footer. Every colour here is a default behind the matching Settings control. */
+.ovcard { background: rgba(27, 32, 42, var(--ovbg, .9)); border: 1px solid rgba(255, 255, 255, .08); border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .04);
+  padding: 9px 11px 8px; width: var(--ov-width, 340px); max-width: 100%; min-height: var(--ov-height, 0);
+  cursor: grab; position: relative; text-shadow: var(--ov-glow, none);
+  display: flex; flex-wrap: wrap; align-items: flex-start; }
+/* Every block spans the card; the identity and ping lines share one footer-like strip
+   (re-ordered with CSS only: the page markup and script are untouched). */
+.ovcard > * { flex: 0 0 100%; min-width: 0; }
+.ovcard > #ovidentity { order: 60; flex: 1 1 auto; margin: 6px 8px 0 0; }
+.ovcard > #ovping { order: 60; flex: 0 1 auto; margin: 6px 0 0 auto; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ovcard > #ovcontribution { order: 61; }
+.ovcard > .ovfoot { order: 90; }
 /* In the native overlay window the card IS the window, so it must be free to grow
    wider/taller than the window's current size — the window then follows it (fit()).
    The viewport clamps are kept only for the in-browser preview. */
@@ -20,7 +32,7 @@ html.native-windows .ovcard { max-width: none; }
    setting it on the card cascades to every text element. Off by default. */
 #ov.ov-outline .ovcard { -webkit-text-stroke: var(--ov-outline-width, .6px) var(--ov-outline-color, #000000); paint-order: stroke fill; }
 /* User background photo layer (behind the content). */
-#ovbg { position: absolute; inset: 0; border-radius: 8px; z-index: 0; background-repeat: no-repeat; pointer-events: none; }
+#ovbg { position: absolute; inset: 0; border-radius: 12px; z-index: 0; background-repeat: no-repeat; pointer-events: none; }
 #ovbg[hidden] { display: none; }
 .ovcard > *:not(#ovbg) { position: relative; z-index: 1; }
 /* Separate Party-DPS overlay view. */
@@ -39,64 +51,79 @@ html.native-windows .ovcard { max-width: none; }
 @media (prefers-reduced-motion: no-preference) {
   #ov.ov-cycle .ovhd, #ov.ov-cycle .ovname { animation: ovhue 12s linear infinite; }
 }
-html.native-windows .ovcard { background: rgb(10, 14, 22); }
+html.native-windows .ovcard { background: rgb(27, 32, 42); }
 .ovcard:active { cursor: grabbing; }
 /* Group the view tabs and the Lock/Hide buttons together on the left; the status
    text takes the remaining space on the right (margin-left:auto). Using an explicit
    gap instead of justify-content:space-between keeps the buttons grouped and stops
    Lock/Hide from floating into the middle (and visually overlapping the tabs) at
    narrow widths or larger fonts. */
-.ovhd { display: flex; align-items: center; gap: 2px; color: var(--ov-header-color, #e8cf8e); font-weight: 700; margin-bottom: 5px; }
-.ovtabs button { background: transparent; border: 0; color: #9aa3b5; cursor: pointer; font-weight: 700; padding: 0 4px; font-size: 11px; }
-.ovtabs button.on { color: #e8cf8e; }
-.ovsub { color: #9aa3b5; font-weight: 400; font-size: 11px; min-width: 0; margin-left: auto; text-align: right; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+.ovhd { display: flex; align-items: center; gap: 2px; color: var(--ov-header-color, #e8cf8e); font-weight: 700; margin-bottom: 6px; }
+.ovhd::before { content: ""; width: 8px; height: 8px; border-radius: 50%; margin: 0 7px 0 1px; flex-shrink: 0;
+  background: #51e18c; box-shadow: 0 0 6px rgba(81, 225, 140, .9); }
+.ovtabs button { background: transparent; border: 0; color: #7f8aa3; cursor: pointer; font-weight: 700; padding: 0 5px 0 0; font-size: 14px; letter-spacing: .1px; }
+.ovtabs button.on { color: var(--ov-header-color, #e8cf8e); }
+.ovsub { color: #8fb3b4; font-weight: 500; font-size: 11px; min-width: 0; flex: 1 1 auto; margin-left: auto; text-align: right; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
 .ovtabs { flex-shrink: 0; }
-.ovmetrics { display: flex; gap: 4px; margin: 2px 0 6px; cursor: default; }
+.ovmetrics { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 7px; cursor: default; align-items: center; }
 .ovmetrics[hidden], .ovidentity[hidden], .ovtarget[hidden], .ovcontribution[hidden], .ovevents[hidden] { display: none; }
 .ovevents { font-size: 10px; margin: 2px 0 5px; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #9aa3b5; }
 .ovevents .ovelabel { color: var(--ov-label-color, #e8cf8e); font-weight: 600; margin-right: 3px; }
 .ovevents .ovevent b { color: #cdd6e6; font-weight: 600; }
 .ovevents .ovevent.on b { color: #8fd0a0; }   /* an event in its window right now */
-.ovmetrics button { padding: 3px 7px; border: 1px solid #b9984f55; border-radius: 4px; background: #1c2438; }
-.ovmetrics button.on { border-color: #e8cf8e; background: #493e25; }
+.ovmetrics button { padding: 2px 8px; border: 1px solid rgba(255,255,255,.08); border-radius: 999px; background: rgba(255,255,255,.05); font-size: 10.5px; color: #9aa8bb; }
+.ovmetrics button.on { border-color: rgba(233,203,128,.55); background: rgba(233,203,128,.14); color: #f3dea0; }
 .ovmetrics button:focus-visible { outline: 2px solid #e8cf8e; outline-offset: 1px; }
 .ovidentity { color: var(--ov-identity-color, #e8cf8e); font-size: 10px; margin: 3px 0 6px; cursor: default; }
-.ovidentity.ok { color: #8fd0a0; }
-.ovtarget { color: var(--ov-target-color, #cdd6e6); font-size: 11px; margin: 2px 0 5px; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ovtarget .ovtlabel { color: var(--ov-label-color, #e8cf8e); font-weight: 600; margin-right: 3px; }
-.ovtarget .sub { color: #9aa3b5; }
-.ovtarget .ovhp { color: var(--ov-hp-text-color, #e58f8f); font-weight: 600; }
+.ovidentity.ok { color: #dfa7da; font-weight: 600; }
+.ovtarget { color: var(--ov-target-color, #f0d6da); font-size: 12px; margin: 2px 0 7px; cursor: default; white-space: nowrap; overflow: hidden;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 5px;
+  padding: 6px 10px; border-radius: 10px; border: 1px solid rgba(255, 140, 160, .2);
+  background: linear-gradient(180deg, rgba(62, 44, 56, .62), rgba(42, 36, 46, .62)); }
+.ovtarget .ovtname { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 700; font-size: 1.12em; }
+/* Second line of the boss card: time-to-kill, damage dealt and the top contributors. */
+.ovtarget .ovtline { flex: 0 0 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; color: #b7aab2; }
+.ovtarget:has(+ .ovhpbar:not([hidden])) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 0; margin-bottom: 0; padding-bottom: 6px; }
+.ovtarget .ovtlabel { color: var(--ov-label-color, #b39aa2); font-weight: 600; margin-right: 2px; font-size: .86em; text-transform: uppercase; letter-spacing: .4px; }
+.ovtarget .sub { color: #aa9ca6; }
+.ovtarget .ovhp { color: var(--ov-hp-text-color, #e9a4b6); font-weight: 700; font-size: 1.15em; margin-left: auto; }
 /* Drawn remaining-over-max enemy HP bar (shown with the enemy-HP readout). */
-.ovhpbar { position: relative; height: 6px; margin: 0 0 5px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; cursor: default; }
+.ovhpbar { position: relative; height: 7px; margin: 0 0 7px; border-radius: 0 0 10px 10px; background: rgba(23, 19, 25, .9); overflow: hidden; cursor: default;
+  border: 1px solid rgba(255, 140, 160, .2); border-top: 0; }
+.ovhpbar:has(+ .ovttkbar:not([hidden])) { border-radius: 0; margin-bottom: 0; }
 .ovhpbar[hidden] { display: none; }
-.ovhpbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ov-hp-color, #e05a5a); transition: width .2s linear; }
-.ovtarget .ovttk { color: var(--ov-ttk-text-color, #8fb3d0); font-weight: 600; }
+.ovhpbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ov-hp-color, #e4808f); border-radius: 0 4px 4px 0; transition: width .2s linear;
+  box-shadow: 0 0 8px rgba(228, 128, 143, .45); }
+.ovtarget .ovttk { color: var(--ov-ttk-text-color, #e3ad7f); font-weight: 700; margin-right: 4px; }
 .ovtarget .ovalso { color: var(--ov-also-color, #c9a86a); font-weight: 600; font-size: .92em; }
 /* Drawn time-to-kill progress bar (shown with the TTK readout). Thinner than the
    HP bar so the two read as distinct. */
-.ovttkbar { position: relative; height: 4px; margin: 0 0 5px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; cursor: default; }
+.ovttkbar { position: relative; height: 4px; margin: 0 0 7px; border-radius: 0 0 10px 10px; background: rgba(23, 19, 25, .9); overflow: hidden; cursor: default;
+  border: 1px solid rgba(255, 140, 160, .2); border-top: 0; }
 .ovttkbar[hidden] { display: none; }
-.ovttkbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ov-ttk-color, #8fb3d0); transition: width .2s linear; }
+.ovttkbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ov-ttk-color, #86a9c6); transition: width .2s linear; }
 .ovrow-dead { opacity: 0.55; }
 .ovdead { color: #e5706e; font-weight: 700; margin-left: 4px; font-size: 9px; letter-spacing: 0.5px; }
-.ovcrank { color: #e8cf8e; font-weight: 700; margin-left: 4px; font-size: 9px; letter-spacing: .3px; opacity: .9; white-space: nowrap; }
-.ovcontribution { color: #8fd0a0; font-size: 11px; margin: 5px 0 1px; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ovcrank { color: #e8cf8e; font-weight: 700; margin-left: 5px; font-size: 9px; letter-spacing: .3px; opacity: .9; white-space: nowrap; }
+.ovcontribution { color: #88d1d2; font-size: 10.5px; margin: 5px 0 1px; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ovdummy { color: #cdd6e6; font-size: 11px; margin: 2px 0 5px; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ovdummy.ok { color: #8fd0a0; }
 .ovdummy .ovtlabel { color: var(--ov-label-color, #e8cf8e); font-weight: 600; margin-right: 3px; }
 .ovdummy[hidden] { display: none; }
 /* Live DPS/HPS sparkline (Settings → Overlay layout). Each point is a real
    per-poll reading of the party total; the line stretches to the card width. */
-.ovgraph { position: relative; height: 34px; margin: 4px 0 2px; border-radius: 4px; background: rgba(255,255,255,.05); overflow: hidden; cursor: default; }
+.ovgraph { position: relative; height: 34px; margin: 6px 0 2px; border-radius: 8px; background: rgba(255,255,255,.05); overflow: hidden; cursor: default; }
 .ovgraph[hidden] { display: none; }
 .ovgraph svg { display: block; width: 100%; height: 100%; }
 .ovgline { fill: none; stroke: var(--ov-glow-color, #e8cf8e); stroke-width: 1.4px; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
 .ovgarea { fill: color-mix(in srgb, var(--ov-glow-color, #e8cf8e) 20%, transparent); stroke: none; }
 .ovglabel { position: absolute; top: 2px; left: 5px; font-size: 9px; color: #cdd6e6; letter-spacing: .3px; text-shadow: 0 1px 2px rgba(0,0,0,.75); white-space: nowrap; pointer-events: none; }
-.ovrow { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: center; padding: 2px 0; min-height: var(--ov-row-h, 22px); }
+.ovrow { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; padding: 0; margin: 0 0 4px;
+  min-height: var(--ov-row-h, 22px); border-radius: 8px; background: rgba(255,255,255,.04); overflow: hidden; }
+.ovrow:last-child { margin-bottom: 0; }
 /* Expandable per-skill breakdown (click a row in the DPS view). */
 .ovrow-x { cursor: pointer; }
-.ovskills { grid-column: 1 / -1; margin: 1px 0 3px 8px; display: grid; gap: 1px; }
+.ovskills { flex: 0 0 100%; position: relative; z-index: 1; margin: 1px 0 4px; padding: 0 10px; display: grid; gap: 1px; }
 .ovskills[hidden] { display: none; }
 /* Per-player DPS trend sparkline at the top of an expanded row (with the DPS graph on). */
 .ovpspark { margin: 1px 0 3px; height: 16px; background: rgba(255,255,255,.05); border-radius: 3px; overflow: hidden; }
@@ -107,50 +134,60 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovskname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ovskval { color: var(--ov-total-text, inherit); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* Optional zebra striping on the player rows (Settings → Overlay layout). */
-#ov.ov-stripes .ovrow:nth-child(even) { background: rgba(255,255,255,.05); border-radius: 3px; }
+#ov.ov-stripes .ovrow:nth-child(even) { background: rgba(255,255,255,.075); }
 /* Optional highlight of your own row so you can find yourself instantly. The
    accent follows the glow colour; a left bar keeps it readable on any theme. */
-.ovrow-me { background: color-mix(in srgb, var(--ov-glow-color, #ffcf6b) 16%, transparent); border-radius: 3px; box-shadow: inset 2px 0 0 var(--ov-glow-color, #ffcf6b); padding-left: 4px; }
-.ovname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ov-name-color, inherit); font-weight: var(--ov-font-weight, 400); }
+.ovrow-me { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ov-glow-color, #ffcf6b) 55%, transparent); }
+.ovrow-me .ovname::after { content: "ME"; margin-left: 6px; font-size: 9px; font-weight: 800; letter-spacing: .6px; color: #e9a0dd; vertical-align: 1px; }
+.ovname { position: relative; z-index: 1; flex: 1 1 0; min-width: 0; padding: 0 0 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--ov-name-color, #e9f7ff); font-weight: var(--ov-font-weight, 700); font-size: 1.05em; line-height: var(--ov-row-h, 22px); }
+/* Class icon badge before the name (from the bundled class art; absent when no art). */
+.ovcicon { display: inline-block; width: 18px; height: 18px; border-radius: 50%; margin: 0 7px -4px 0; background: rgba(0,0,0,.35) center / 78% no-repeat;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--bar, #b9984f) 70%, transparent); }
 /* Optional class-colour swatch before the name (Settings → Overlay layout). */
 .ovclass { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: baseline; }
-.ovactor { display: block; color: #c8d0e2; font-size: 9px; font-weight: 400; }
-.ovbar { position: relative; height: 16px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
-/* Per-class bar colour is set per row as --bar; the fill is flat by default. */
-.ovbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--bar, #b9984f); transition: width .18s linear; }
+.ovactor { display: inline; color: #aab3c5; font-size: 9px; font-weight: 400; margin-left: 4px; }
+.ovbar { position: static; flex: 0 0 auto; height: var(--ov-row-h, 22px); background: transparent; border-radius: 0; overflow: visible;
+  display: flex; align-items: center; justify-content: flex-end; }
+/* Per-class bar colour is set per row as --bar; the fill spans the whole row behind the name
+   and the numbers (the row is the positioned box), fading toward the right by default. */
+.ovbar i { position: absolute; left: 0; top: 0; height: var(--ov-row-h, 22px); width: 0; border-radius: 8px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bar, #b9984f) 62%, #1b202a) 0%, color-mix(in srgb, var(--bar, #b9984f) 44%, #1b202a) 70%, color-mix(in srgb, var(--bar, #b9984f) 16%, transparent) 100%);
+  transition: width .18s linear; }
 @media (prefers-reduced-motion: reduce) { .ovbar i, .ovhpbar i, .ovttkbar i { transition: none; } }
 /* Optional bar styles (Settings → Overlay layout). Gradient darkens toward the
    right; rounded makes the track a pill. Both compose with any class colour. */
-#ov.ov-bars-gradient .ovbar i { background: linear-gradient(90deg, var(--bar, #b9984f), color-mix(in srgb, var(--bar, #b9984f) 52%, #000)); }
-#ov.ov-bars-rounded .ovbar { border-radius: 8px; }
-.ovbar span { position: relative; padding: 0 6px; line-height: 16px; font-weight: 700; color: var(--ov-rate-text, #000000); font-variant-numeric: tabular-nums; }
+#ov.ov-bars-gradient .ovbar i { background: linear-gradient(90deg, var(--bar, #b9984f), color-mix(in srgb, var(--bar, #b9984f) 40%, #000)); }
+#ov.ov-bars-rounded .ovrow, #ov.ov-bars-rounded .ovbar i { border-radius: 999px; }
+.ovbar > span { position: relative; z-index: 1; display: flex; align-items: baseline; gap: 7px; padding: 0 9px 0 6px; line-height: var(--ov-row-h, 22px);
+  font-weight: 800; color: var(--ov-rate-text, #ffffff); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 1.12em; }
 .muted { color: #9aa3b5; }
 .ovarena { position: relative; width: 200px; height: 200px; margin: 2px auto; border: 1px solid rgba(233,203,128,.3);
   border-radius: 6px; background: rgba(6,9,15,.5); }
 .ovarena svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .ovfoot { display: flex; align-items: center; gap: 8px; margin-top: 7px; padding-top: 6px;
-  border-top: 1px solid rgba(255,255,255,.08); color: #9aa3b5; font-size: 10px; }
-.ovfoot input[type=range] { flex: 1; min-width: 0; height: 14px; accent-color: #e8cf8e; cursor: pointer; }
-.ovbrand { color: #b9984f; font-weight: 700; letter-spacing: .3px; }
-.ovrow .sub { color: var(--ov-total-text, #000000); font-weight: 400; font-variant-numeric: tabular-nums; }
+  border-top: 1px solid rgba(255,255,255,.07); color: #7f8aa3; font-size: 10px; }
+.ovfoot input[type=range] { flex: 1; min-width: 0; height: 12px; accent-color: #e8cf8e; cursor: pointer; opacity: .75; }
+.ovbrand { color: #b9984f; font-weight: 700; letter-spacing: .3px; opacity: .85; }
+.ovrow .sub { color: var(--ov-total-text, #9bb1c1); font-weight: 500; font-variant-numeric: tabular-nums; font-size: .82em; }
 /* Compact rows: drop the trailing total · percent, keep just the rate. */
 #ov.ov-compact .ovbar .sub { display: none; }
 
 /* Match the desktop's compact framed buttons without changing the transparent page. */
-#ovhide, #ovlock, #ovcopy, #ovsplit { flex-shrink: 0; margin: 0 6px 0 0; padding: 3px 8px; border-radius: 4px;
-  border: 1px solid rgba(206,182,122,.28); background: linear-gradient(180deg,#2b3550,#1c2438);
-  color: #e9e6df; font: 600 11px/1.35 "Segoe UI", system-ui, sans-serif; cursor: pointer; }
-#ovhide { margin: 0 6px; }
-#ovhide:hover, #ovlock:hover, #ovcopy:hover, #ovsplit:hover { border-color: rgba(233,203,128,.65); color: #e8cf8e; }
+#ovhide, #ovlock, #ovcopy, #ovsplit { flex-shrink: 0; margin: 0 2px 0 0; padding: 2px 6px; border-radius: 6px;
+  border: 1px solid transparent; background: transparent;
+  color: #8e97ad; font: 600 10.5px/1.35 "Segoe UI", system-ui, sans-serif; cursor: pointer; }
+#ovhide { margin: 0 4px 0 2px; }
+#ovhide:hover, #ovlock:hover, #ovcopy:hover, #ovsplit:hover { border-color: rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: #f1f3f8; }
 #ovhide:focus-visible, #ovlock:focus-visible, #ovcopy:focus-visible, #ovsplit:focus-visible { outline: 2px solid #e8cf8e; outline-offset: 2px; }
 #ovhide:active, #ovlock:active, #ovcopy:active, #ovsplit:active { background: #1c2438; }
 #ovlock.on { color: #8fd0a0; border-color: rgba(143,208,160,.6); }
 /* Start/Stop capture toggle, pinned to the right end of the header. Green while
    stopped (Start), red while running (Stop), mirroring the app's button. */
-#ovcapture { flex-shrink: 0; margin: 0 0 0 auto; padding: 3px 10px; border-radius: 4px;
-  border: 1px solid rgba(143,208,160,.55); background: linear-gradient(180deg,#223247,#17202f);
-  color: #8fd0a0; font: 700 11px/1.35 "Segoe UI", system-ui, sans-serif; cursor: pointer; }
-#ovcapture.on { color: #e58f8f; border-color: rgba(224,90,90,.6); }
+#ovcapture { flex-shrink: 0; margin: 0 0 0 auto; padding: 2px 10px; border-radius: 999px;
+  border: 1px solid rgba(81,225,140,.5); background: rgba(81,225,140,.12);
+  color: #6fe3a3; font: 700 10.5px/1.35 "Segoe UI", system-ui, sans-serif; cursor: pointer; }
+#ovcapture.on { color: #ff8585; border-color: rgba(255,110,110,.5); background: rgba(255,110,110,.1); }
 #ovcapture:hover { filter: brightness(1.18); }
 #ovcapture:focus-visible { outline: 2px solid #e8cf8e; outline-offset: 2px; }
 #ovcapture[disabled] { opacity: .55; cursor: default; }
@@ -158,7 +195,7 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovfps[hidden] { display: none; }
 #ov.ov-locked .ovcard { outline: 1px dashed rgba(143,208,160,.7); outline-offset: -1px; }
 
-.ovoptions { color: #9aa3b5; font-size: 10px; margin-bottom: 5px; cursor: default; }
+.ovoptions { color: #7f8aa3; font-size: 10px; margin-bottom: 6px; cursor: default; }
 .ovoptions label { cursor: pointer; }
 .ovoptions input { margin: 0 3px 0 0; vertical-align: middle; accent-color: #e8cf8e; }
 
@@ -167,7 +204,7 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 #ovretry { margin: 2px; border: 1px solid #b9984f66; border-radius: 4px;
   background: #1c2438; color: #e9e6df; cursor: pointer; }
 
-.ovping{font-size:10px;color:var(--ov-ping-color, #9aa3b5);line-height:1.5;margin:4px 0 6px;white-space:normal;overflow-wrap:anywhere;cursor:default}
+.ovping{font-size:10px;color:var(--ov-ping-color, #76c59d);line-height:1.5;margin:4px 0 6px;white-space:normal;overflow-wrap:anywhere;cursor:default;font-weight:600}
 
 /* Drag-to-resize grips (shown only when the resize setting is on). The frameless
    window auto-fits the card, so resizing drives the card width/height and the
@@ -195,8 +232,8 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
 .ovhd { font-family: var(--ov-header-ff, inherit); font-weight: var(--ov-header-fw, 700); font-size: calc(1em * var(--ov-header-fs, 1)); }
 .ovname { font-family: var(--ov-name-ff, inherit); font-weight: var(--ov-name-fw, var(--ov-font-weight, 400)); font-size: calc(1em * var(--ov-name-fs, 1)); }
 .ovpstat .ovpval { font-family: var(--ov-rate-ff, inherit); font-weight: var(--ov-rate-fw, var(--ov-font-weight, 700)); font-size: calc(1.15em * var(--ov-rate-fs, 1)); }
-.ovbar span { font-family: var(--ov-rate-ff, inherit); font-weight: var(--ov-rate-fw, 700); }
-.ovskval, .ovrow .sub { font-family: var(--ov-total-ff, inherit); font-weight: var(--ov-total-fw, 400); font-size: calc(1em * var(--ov-total-fs, 1)); }
+.ovbar > span { font-family: var(--ov-rate-ff, inherit); font-weight: var(--ov-rate-fw, 800); }
+.ovskval, .ovrow .sub { font-family: var(--ov-total-ff, inherit); font-weight: var(--ov-total-fw, 500); font-size: calc(.82em * var(--ov-total-fs, 1)); }
 .ovtarget { font-family: var(--ov-target-ff, inherit); font-weight: var(--ov-target-fw, 400); font-size: calc(11px * var(--ov-target-fs, 1)); }
 .ovtarget .ovhp { font-family: var(--ov-hp-ff, inherit); font-weight: var(--ov-hp-fw, 600); font-size: calc(1em * var(--ov-hp-fs, 1)); }
 .ovtarget .ovttk { font-family: var(--ov-ttk-ff, inherit); font-weight: var(--ov-ttk-fw, 600); font-size: calc(1em * var(--ov-ttk-fs, 1)); }
@@ -216,7 +253,7 @@ html.native-windows .ovcard { background: rgb(10, 14, 22); }
   -webkit-text-fill-color: transparent; animation: ov-retro-sheen 3.5s linear infinite; }
 @keyframes ov-retro-sheen { to { background-position: -300% 0; } }
 @media (prefers-reduced-motion: reduce) { #ov.ov-retro .ovname, #ov.ov-retro .ovhd, #ov.ov-retro .ovpstat .ovpval { animation: none; } }
-.ovtportrait{vertical-align:middle;border-radius:3px;object-fit:contain;margin-right:3px}
+.ovtportrait{vertical-align:middle;border-radius:50%;object-fit:cover;margin-right:2px;width:20px;height:20px;box-shadow:0 0 0 1.5px rgba(255,120,120,.5)}
 
 /* Auto-contrast the overlay text to the uploaded background image (Settings → Overlay).
    "By brightness" (ov-ac-lum) is handled in overlay.js, which overrides the text-colour
