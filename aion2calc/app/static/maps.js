@@ -20,7 +20,8 @@
   const sources=data.sources||{};
   const routes=(zone.routes||[]).map((route,i)=>{
    const src=sources[route.source];
-   const legs=route.legs.map(l=>`<li>${esc(l.area||'unnamed area')} — ${l.count} ${esc(route.item)}${l.count===1?'':''} <span class="muted">(waypoints ${l.from}${l.to!==l.from?'–'+l.to:''})</span></li>`).join('');
+   const one=String(route.item).replace(/s$/,'');
+   const legs=route.legs.map(l=>`<li>${esc(l.area||'unnamed area')} — ${l.count} ${esc(l.count===1?one:route.item)} <span class="muted">(${l.count===1?'waypoint '+l.from:'waypoints '+l.from+'–'+l.to})</span></li>`).join('');
    const points=route.waypoints.map(w=>`<li>${esc(w.area||'—')} <span class="muted">(${w.x}, ${w.y})</span></li>`).join('');
    return `<details ${i===0?'open':''} class="note" data-route="${i}"><summary>${esc(route.title)} · ${route.count} ${esc(route.item)} · ${route.legs.length} leg${route.legs.length===1?'':'s'}${route.start&&route.start.area?' · starts in '+esc(route.start.area)+(route.start.near_teleport?' (near a teleport)':''):''}</summary>
     <p class="small muted">${esc(route.note)} ${esc(route.method)}</p>
