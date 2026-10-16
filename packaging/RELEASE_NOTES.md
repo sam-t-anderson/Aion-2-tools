@@ -14,6 +14,7 @@ What changed:
 - **The live snapshot is recomputed off the capture lock** on a detached copy; the app and overlay are served the last completed reading meanwhile (the first reading of a view is still immediate). The decoder is never blocked by a poll again.
 - **Checkpoint saves stretch their cadence** when a save is slow (never more than about a quarter of the CPU), and relax back to 15 s.
 - "Is combat still active" (rollover deferral) is tracked as records arrive instead of scanning the history.
+- **All scope in a crowd no longer rolls over on every packet batch.** The part's player bounds (48 due / 60 forced) dated from a 64-identity export limit that is now 1024; with a hundred players in scope every batch was a *forced* rollover — a tiny part flushed and the live view emptied, continuously (the simulation produced 1,348 parts in 400 s). The bounds are now 400 / 800.
 
 ## Stitched runs and shared fights in the log review (0.2.289)
 

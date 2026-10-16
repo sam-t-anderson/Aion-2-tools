@@ -38,6 +38,10 @@ _DECODE_BACKLOG_QUEUE = 48
 # holds the shared lock ~1/(1+N) of the time (N=3 -> ~25%, vs the ~50% it may take when the
 # decoder is keeping up), handing that lock time back to the decoder.
 _SNAPSHOT_BACKLOG_DUTY = 3.0
+#: Distinct players in scope that make a storage part due (rolled over at the next combat pause)
+#: and that force it regardless; both below the a2log export limit of 1024 identities.
+_ROLLOVER_PLAYERS_DUE = 400
+_ROLLOVER_PLAYERS_HARD = 800
 
 
 def upload_evictor():
@@ -552,14 +556,18 @@ class Runner:
         with self.lock:
             if not self.session.records:
                 return  # Idle telemetry alone cannot form an identified combat log.
+            # The player bounds sit below the a2log export limit (1024 identities). They used to be
+            # 48/60 from an older 64-identity limit: under the All scope in a world-boss crowd that
+            # made every packet batch a *hard* rollover (a hundred players are in scope at once),
+            # flushing a tiny part and resetting the live view continuously.
+            players = len(self.session._storage_players.get(self.scope, self.session.storage_players))
+            groups = self.session._storage_groups.get(self.scope, self.session.storage_groups)
             due = (len(self.session.records) >= 100_000 or len(self.session.telemetry) >= 20_000
-                   or self.session._storage_groups.get(self.scope, self.session.storage_groups) >= 100
-                   or len(self.session._storage_players.get(self.scope, self.session.storage_players)) >= 48)
+                   or groups >= 100 or players >= _ROLLOVER_PLAYERS_DUE)
             if not due:
                 return
             hard = (len(self.session.records) >= 350_000 or len(self.session.telemetry) >= 40_000
-                    or self.session._storage_groups.get(self.scope, self.session.storage_groups) >= 180
-                    or len(self.session._storage_players.get(self.scope, self.session.storage_players)) >= 60)
+                    or groups >= 180 or players >= _ROLLOVER_PLAYERS_HARD)
             active = self._recent_outgoing(120_000)
             if due and active and not hard and not self.session.run_closed:
                 self.diagnostics["archive_deferred"] = "Archive part will be saved after combat pauses; live totals continue."

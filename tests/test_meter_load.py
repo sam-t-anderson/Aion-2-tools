@@ -252,3 +252,16 @@ def test_the_runner_hands_its_scope_to_the_session(home, monkeypatch):
         assert r.scope == "all" and r.session.retain_scope == "all"
     finally:
         r.stop()
+
+
+def test_a_world_boss_crowd_in_scope_does_not_force_rollovers(home):
+    r = _runner()
+    r.scope = "all"
+    r.session.retain_scope = "all"
+    r.session._storage_players["all"] = {f"player{i}" for i in range(120)}   # a hundred-odd players in scope
+    live = r.session
+    r._rollover_session()
+    assert r.session is live and r.archive_part == 1 and not r._unsaved_parts   # neither due nor forced
+    r.session._storage_players["all"] = {f"player{i}" for i in range(MR._ROLLOVER_PLAYERS_HARD)}
+    r._rollover_session()
+    assert r.archive_part == 2                                                  # the export limit still guards
