@@ -1,6 +1,7 @@
 let logSource='community';
 A2LogTabs.mount(document.getElementById('combat-log-tabs'),logSource,value=>{logSource=value;});
 A2LogOwnership.mount(document.getElementById("owned-logs"));
+A2Identity.mount(document.getElementById("my-characters"));
 // The "Community Combat Logs" sub-tab is rendered as a one-row-per-encounter table by the tab
 // controller below (renderCommunity); A2Community stays loaded for its upload types (used below).
 
@@ -167,7 +168,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
   function classIcon(m) {
     const cls = String(m.class || "").toLowerCase();
     if (!cls) return "";
-    const label = m.name ? m.name + " · " + cap(cls) : cap(cls);
+    const label = (m.name ? m.name + " · " + cap(cls) : cap(cls)) + (m.verified ? " · verified" : "") + (m.pseudonym ? " · hidden by its player" : "");
     return `<img class="cls-ic" width="20" height="20" loading="lazy" referrerpolicy="no-referrer" alt="${esc(cls)}" title="${esc(label)}" src="${esc(classIconUrl(cls))}" onerror="this.remove()">`;
   }
   function commStyle() {
@@ -193,7 +194,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     for (const lg of logs) {
       const iconByName = {};
       for (const b of (lg.bosses || [])) if (b && b.name && b.icon) iconByName[b.name] = b.icon;  // server-provided portraits
-      const toMembers = (list) => (list || []).filter((p) => p && (p.name || p.class)).map((p) => ({ name: p.name, class: p.class }));
+      const toMembers = (list) => (list || []).filter((p) => p && (p.name || p.class)).map((p) => ({ name: p.name, class: p.class, verified: p.verified === true, pseudonym: p.pseudonym === true }));
       const roster = toMembers(lg.players);  // whole-log roster, fallback only
       const uploader = typeof lg.uploader === "string" ? lg.uploader : null;  // server-provided; else anonymous
       for (const c of (lg.contexts || [])) {

@@ -63,5 +63,5 @@ function mount(root,io={}){
  load();const manager={refresh:()=>root.isConnected?load():undefined};window.A2OwnedUploads=manager;return manager;
 }
 document.addEventListener('a2log-uploaded',()=>window.A2OwnedUploads?.refresh());
-window.A2LogOwnership={mount,clean,remember:(server,result,title)=>browserImport([{server,id:result.id,delete_token:result.delete_token,title}])};
+window.A2LogOwnership={mount,clean,rows:browserRows,remember:(server,result,title)=>browserImport([{server,id:result.id,delete_token:result.delete_token,title}])};
 })();

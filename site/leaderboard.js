@@ -28,7 +28,7 @@
       const entries = data.entries || [];
       const mx = Math.max(...entries.map((e) => e.score ?? e.dps ?? 0), 1);
       const rows = entries.map((e, i) => `<tr onclick="location.href='log.html?id=${esc(e.log)}'" style="cursor:pointer">
-        <td class="r muted">${i+1}</td><td class="r">${parseHTML(e)}</td><td class="gold">${esc(e.name || "")}</td><td>${esc(cap(e.class || ""))}</td>
+        <td class="r muted">${i+1}</td><td class="r">${parseHTML(e)}</td><td class="gold">${esc(e.name || "")}${e.verified?' <span class="verified" title="Verified: claimed by its player">✓</span>':''}</td><td>${esc(cap(e.class || ""))}</td>
         <td style="width:40%"><div class="bar"><i style="width:${100 * (e.score ?? e.dps ?? 0) / mx}%"></i><span>${n0(e.score??e.dps)}</span></div></td>
         <td>${esc(e.boss || "")} · ${esc(e.difficulty||"Unknown ruleset")} · ${esc(String(e.game_patch||"Unknown game version").replace(/version:product:([0-9.]+)/g,(_,v)=>"Product version "+v.split(".").slice(0,4).join(".")).replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})/g,"Legacy build $1 · Steam"))} · party ${e.party_size||'unknown'} · instance ${e.instance_id||'unknown'}<br><small>${esc((e.comparison?.reasons||[]).join(' '))}</small></td><td class="r">${killTime(e.duration)}</td><td class="muted small">${esc(day(e.created_at))}</td><td class="r muted small">${e.comparison?.rank??'—'} / ${e.comparison?.count??'—'}<br>${e.comparison?.percentile!==null && e.comparison?.percentile!==undefined?e.comparison.percentile.toFixed(1)+' percentile':'Percentile unavailable'}</td></tr>`).join("");
       $("#list").innerHTML = rows

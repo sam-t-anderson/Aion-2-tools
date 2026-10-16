@@ -615,6 +615,14 @@ class Handler(BaseHTTPRequestHandler):
                 raise PermissionError("Upload credentials require the local application origin")
             from ..combat.ownership import entries
             return self._json(entries())
+        if path == "/api/identity-claims":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("Identity credentials are local to this computer")
+            origin = self.headers.get("Origin")
+            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
+                raise PermissionError("Identity credentials require the local application origin")
+            from ..combat.identity import entries
+            return self._json(entries())
         if path == "/api/logserver":
             from ..combat import share
             st = share.effective()
@@ -811,6 +819,16 @@ class Handler(BaseHTTPRequestHandler):
                 raise PermissionError("Private upload credentials are local to this computer")
             from ..combat.ownership import entries
             return self._json(entries())
+        if path == "/api/identity-claims":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("Identity credentials are local to this computer")
+            origin = self.headers.get("Origin")
+            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
+                raise PermissionError("Identity credentials require the local application origin")
+            from ..combat import identity
+            if body.get("action") != "replace":
+                raise ValueError("Unknown identity action")
+            return self._json(identity.replace(body.get("claims")))
         if path == "/api/logserver":
             from ..combat import share
             st = share.save_settings(body.get("url"), body.get("key"), body.get("visibility"))

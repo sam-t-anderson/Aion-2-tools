@@ -419,6 +419,16 @@ Upload a retained fight or saved part to the server selected in Settings. Choose
 
 **Saved Parts** supports a sequential upload queue. Select local files, choose visibility and upload; each file becomes an independent report. Results show progress, report links and errors. **Restore saved queue** or an exported recovery file resumes local queue metadata; Pages requires you to reselect the original files. Check My Uploads before explicitly retrying an uncertain request, because the server may have accepted it already. File fingerprints verify content and saved random request IDs let updated servers reuse matching accepted requests. Older servers and legacy uncertain requests can still duplicate. Clearing a queue starts fresh request IDs. Retry receipts do not reissue private links or ownership tokens; use the original My Uploads entry or ownership backup. Recovery files do not grant ownership. See [saved-part uploads](user-guide.md#review-and-upload-saved-parts) and [queue recovery](user-guide.md#resume-uploads).
 
+## Your characters
+
+Under **Combat Logs → My Uploads**, *Your characters* lists the characters this computer's public recordings can claim on the configured share server. A claim is proven by your own recordings, never by a password or an account: the private credentials of three public recordings where you were the recording player (the same credentials *My uploads* keeps) prove to the server that you recorded them, and the server issues an identity credential that stays in the app's data folder. A claimed character shows a **verified** mark (✓) wherever it is listed on the server, the website and the app.
+
+With **Hide me in other uploaders' public logs, leaderboards and parse brackets** ticked (off by default), other people's public logs show you as a stable stand-in name (`Daeva-…`) with no character id, your parses leave the leaderboards and the parse brackets entirely (as an entry and as a competitor), and your records are unavailable to others. Your own uploads always show your name, and your own requests from the app are never masked.
+
+Another uploader can claim a character you hold only with recordings newer than yours; the panel then shows a seven-day notice, and you keep the character by uploading a public recording of yours that is newer than theirs and pressing **Renew**. Otherwise the claim passes to them. **Release** gives a character up. Nothing in a claim changes who recorded a log or how it ranks.
+
+Recovery needs no extra secret: on another computer, restore your ownership backup (My uploads → export/import) and press **Recover**; the credentials of three of the claim's own recordings reissue the identity credential. The website's Combat Logs page offers the same panel from the credentials saved in that browser.
+
 ## Community comparisons
 
 Use Combat Logs to browse public submissions by type, boss, build, difficulty and region. Class distributions stay in separate encounter buckets and show parse counts. Search personal records using server ID plus name, or database character ID. World ranks cover this community's public submissions only. Missing classification prevents ranking; open a local saved session to add verified metadata.

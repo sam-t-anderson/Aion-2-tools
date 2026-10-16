@@ -42,7 +42,7 @@
   function classIcon(m) {
     const cls = String(m.class || "").toLowerCase();
     if (!cls) return "";
-    const label = m.name ? m.name + " · " + cap(cls) : cap(cls);
+    const label = (m.name ? m.name + " · " + cap(cls) : cap(cls)) + (m.verified ? " · verified" : "") + (m.pseudonym ? " · hidden by its player" : "");
     return `<img class="cls-ic" width="20" height="20" loading="lazy" referrerpolicy="no-referrer" alt="${esc(cls)}" title="${esc(label)}" src="${esc(classIconUrl(cls))}" onerror="this.remove()">`;
   }
   function commStyle() {
@@ -161,7 +161,7 @@
       for (const lg of logs) {
         const iconByName = {};
         for (const b of (lg.bosses || [])) if (b && b.name && b.icon) iconByName[b.name] = b.icon;  // server-provided portraits
-        const toMembers = (list) => (list || []).filter((p) => p && (p.name || p.class)).map((p) => ({ name: p.name, class: p.class }));
+        const toMembers = (list) => (list || []).filter((p) => p && (p.name || p.class)).map((p) => ({ name: p.name, class: p.class, verified: p.verified === true, pseudonym: p.pseudonym === true }));
         const roster = toMembers(lg.players);  // whole-log roster, fallback only
         const uploader = typeof lg.uploader === "string" ? lg.uploader : null;  // server-provided; else anonymous
         for (const c of (lg.contexts || [])) {

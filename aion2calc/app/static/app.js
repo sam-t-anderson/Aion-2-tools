@@ -880,7 +880,7 @@ async function pageCombat() {
       <div class="row small" id="logsdir"></div>
       <div class="row small" id="lsrv"></div>
       <h3>Recorded encounters by type</h3><div id="saved-browse"></div>
-      <h3>Upload recordings</h3><div id="sessions"></div><div id="session-review"></div><h3>Analyzed encounters</h3><div id="hist"></div></div><div id="log-panel-owned" data-log-panel="owned" role="tabpanel" aria-labelledby="log-tab-owned" hidden><div id="owned-logs"></div></div><div id="log-panel-community" data-log-panel="community" role="tabpanel" aria-labelledby="log-tab-community" hidden><div id="community"></div></div></div></div>
+      <h3>Upload recordings</h3><div id="sessions"></div><div id="session-review"></div><h3>Analyzed encounters</h3><div id="hist"></div></div><div id="log-panel-owned" data-log-panel="owned" role="tabpanel" aria-labelledby="log-tab-owned" hidden><div id="owned-logs"></div><div id="my-characters"></div></div><div id="log-panel-community" data-log-panel="community" role="tabpanel" aria-labelledby="log-tab-community" hidden><div id="community"></div></div></div></div>
     <div data-logs-panel="speed" hidden><div id="speed-body" style="margin-top:12px"><div class="empty">Loading…</div></div></div>
     <div data-logs-panel="progression" hidden><div id="progression-body" style="margin-top:12px"><div class="empty">Loading…</div></div></div>
     <div data-logs-panel="points" hidden><div id="points-body" style="margin-top:12px"><div class="empty">Loading…</div></div></div>
@@ -921,6 +921,14 @@ async function pageCombat() {
     forget:owner=>api('/api/log-ownership',{action:'forget',owner}),
     request:(owner,action,visibility)=>api('/api/log-ownership',{owner,action,visibility}),
     open:doc=>{S.combat.openedLog=doc;location.hash='/combat-log/opened/'+Date.now();}
+  });
+  // Community identity: the characters this computer's recordings can claim (credentials and the
+  // issued identity credentials stay in the app's data folder, never in the browser).
+  A2Identity.mount($('#my-characters'),{
+    credentials:()=>api('/api/log-ownership'),
+    server:async()=>String((await api('/api/logserver')).url||'').replace(/\/+$/,''),
+    claims:()=>api('/api/identity-claims'),
+    save:rows=>api('/api/identity-claims',{action:'replace',claims:rows})
   });
   const openShared=(id,mode,segment)=>{location.hash='/combat-log/shared/'+encodeURIComponent(id)+'?mode='+encodeURIComponent(mode||'')+(Number.isInteger(segment)?'&segment='+segment:'');};
   // Website-style outer tabs (community combat logs / speed / boss progression / build points)
