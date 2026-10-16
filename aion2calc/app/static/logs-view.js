@@ -139,7 +139,13 @@
     // from /api/v1/logs' per-encounter contexts[]; server pages of logs are fetched and buffered as
     // needed to fill each page.
     const COMM_PER_PAGE = 50;
-    const comm = { page: 1, f: { combat_mode: "pve" }, buf: [], srvPage: 0, done: false, total: 0, facets: null };
+    // Mini-bosses (an earlier boss of a dungeon whose final boss the catalog knows) are hidden
+    // unless asked for; the server says each encounter's role (final / mini / field / unknown) from
+    // recorded ids, so an unmapped dungeon or a boss without its code is never hidden by a guess.
+    const MINI_PREF = "a2.logs.showMiniBosses";
+    const readMiniPref = () => { try { return localStorage.getItem(MINI_PREF) === "1"; } catch (e) { return false; } };
+    const comm = { page: 1, f: { combat_mode: "pve" }, buf: [], srvPage: 0, done: false, total: 0, facets: null, mini: readMiniPref() };
+    const isMini = (name, roles) => !!(roles && roles[name] === "mini");
     function commReset() { comm.buf = []; comm.srvPage = 0; comm.done = false; comm.total = 0; }
     function commQuery() {
       const p = new URLSearchParams(); p.set("page", comm.srvPage); p.set("limit", "50");
@@ -162,6 +168,7 @@
           // Drop generic non-boss combat ("Combat 3", etc.) in PvE only; PvP skirmishes without a
           // named boss are kept.
           if ((comm.f.combat_mode || "pve") !== "pvp" && (!c.boss || /^combat\s*\d*$/i.test(String(c.boss).trim()))) continue;
+          if ((comm.f.combat_mode || "pve") !== "pvp" && !comm.mini && c.boss_role === "mini") continue;   // hidden unless asked for
           // Per-encounter participants when the server provides them, so one encounter's party is
           // never shown on another in a multi-encounter log; fall back to the whole-log roster.
           const members = Array.isArray(c.players) && c.players.length ? toMembers(c.players) : roster;
@@ -214,7 +221,8 @@
       const encOpts = (f.encounter_type || []).filter((t) => (comm.f.combat_mode === "pvp") === String(t).startsWith("pvp_"));
       r.innerHTML = '<div class="row comm-filters" style="gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap">'
         + field("Mode", `<select id="cf-mode"><option value="pve"${comm.f.combat_mode !== "pvp" ? " selected" : ""}>PvE</option><option value="pvp"${comm.f.combat_mode === "pvp" ? " selected" : ""}>PvP</option></select>`)
-        + (comm.f.combat_mode === "pvp" ? "" : field("Boss", `<select id="cf-boss" style="min-width:170px">${options((f.boss || []).filter(realBoss), comm.f.boss)}</select>`))
+        + (comm.f.combat_mode === "pvp" ? "" : field("Boss", `<select id="cf-boss" style="min-width:170px">${options((f.boss || []).filter(realBoss).filter((b) => comm.mini || !isMini(b, f.boss_roles)), comm.f.boss)}</select>`)
+        + `<div class="small muted">Mini-bosses<br><label class="small" title="Earlier bosses of a dungeon whose final boss the catalog knows; hidden unless shown"><input type="checkbox" id="cf-mini"${comm.mini ? " checked" : ""}> show</label></div>`)
         + field("Difficulty", `<select id="cf-difficulty">${options([...(f.difficulty || [])].sort((a, b) => String(a).localeCompare(String(b))), comm.f.difficulty)}</select>`)
         + field("Encounter", `<select id="cf-encounter_type">${options(encOpts, comm.f.encounter_type, prettyEnc)}</select>`)
         + field("Region", `<select id="cf-region">${options(f.region, comm.f.region)}</select>`)
@@ -226,6 +234,13 @@
       for (const [id, key] of [["boss", "boss"], ["difficulty", "difficulty"], ["encounter_type", "encounter_type"], ["region", "region"], ["game_patch", "game_patch"], ["party_size", "party_size"]]) change(id, key);
       r.querySelector("#cf-mode").onchange = (e) => { comm.f.combat_mode = e.target.value; comm.f.encounter_type = ""; comm.f.boss = ""; comm.page = 1; commReset(); renderCommunity(); };
       r.querySelector("#cf-clear").onclick = () => { comm.f = { combat_mode: comm.f.combat_mode }; comm.page = 1; commReset(); renderCommunity(); };
+      const miniBox = r.querySelector("#cf-mini");
+      if (miniBox) miniBox.onchange = () => {
+        comm.mini = miniBox.checked;
+        try { localStorage.setItem(MINI_PREF, comm.mini ? "1" : "0"); } catch (e) { /* private mode: not remembered */ }
+        if (!comm.mini && isMini(comm.f.boss, f.boss_roles)) comm.f.boss = "";   // a hidden boss cannot stay selected
+        comm.page = 1; commReset(); renderCommunity();
+      };
       loadCommunity();
     }
 
