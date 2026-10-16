@@ -42,6 +42,7 @@ def test_consecutive_bosses_in_one_run_split_into_one_encounter_each(monkeypatch
     engine.telemetry = [_hp(9002, 500, 1000, 103500), {"entity": 9002, "kind": "death", "timestamp_ms": 104000}]
     s.observe(engine, [_hit(5001, 9002, 103000), _hit(5001, 9002, 103800)], timestamp_ms=104000)
     assert s.boss_splits == 1          # exactly one per-boss split (boss B opened a fresh encounter)
+    assert s.boss_kills == 2           # both kills counted (the per-fight upload trigger)
     assert s.manual_split == 1         # nothing else split it: no wipe, reset or 120s gap
     doc = s.to_a2log("party")
     with_hits = [seg for seg in doc["segments"] if seg.get("hits")]
@@ -59,6 +60,7 @@ def test_single_continuous_boss_fight_stays_one_encounter(monkeypatch):
     s.observe(engine, [_hit(5001, 9001, 100000), _hit(5001, 9001, 102000), _hit(5001, 9001, 104000)], timestamp_ms=105000)
     assert s.boss_splits == 0
     assert s.manual_split == 0
+    assert s.boss_kills == 1           # one kill, counted once
 
 
 def test_battle_over_only_after_the_reset_delay_when_enabled():

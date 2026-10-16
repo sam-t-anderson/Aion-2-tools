@@ -1960,6 +1960,8 @@ async function pageSettings() {
       <label><input type="checkbox" id="rec-server-name" ${ui.meter_show_server_name === true?'checked':''}> Show each player's server (world) name next to their name on the live meter <span class="muted">(off by default; needs the region/world list — use Retry region detection if it hasn't resolved)</span></label>
       <label><input type="checkbox" id="rec-autoupload" ${ui.meter_auto_upload !== false?'checked':''}> Upload every recording of this session that is not on the configured server yet when the meter stops (from the app, the overlay or its hotkey) or the app quits (on by default)</label>
       <label><input type="checkbox" id="rec-catchup" ${ui.meter_catch_up_uploads !== false?'checked':''}> Catch up at the next launch: upload recordings from the last 7 days that are still not on the server (needs the option above; on by default)</label>
+      <label><input type="checkbox" id="rec-perfight" ${ui.meter_upload_per_fight !== false?'checked':''}> Upload the recording each time a boss fight ends, so its kill, standings and timers reach the community during play (needs automatic uploads; on by default)</label>
+      <p class="small muted" style="margin:2px 0 6px 14px">Sends the current recording once a boss, mini-boss, field or world boss has died and the fight has paused, at most every 30 seconds; the share server updates the same log in place, so the upload at Stop and these are one log, never duplicates.</p>
       <label style="margin-top:4px"><input type="checkbox" id="rec-report-boss" ${ui.meter_report_boss_kills !== false?'checked':''}> Report open-world boss kills to the community world-boss feed <span class="muted">(anonymous per-install; shown only once two installs agree; on by default)</span></label>
       <p class="small muted" style="margin:2px 0 6px 14px">Anonymous and opt-in: sends only the boss, server and kill time (no account, character, log or IP). Two different installs must report the same kill before it shows, so the public world-boss availability feed stays corroborated.</p>
       <label style="margin-top:4px"><input type="checkbox" id="rec-report-enemy-hp" ${ui.meter_report_enemy_hp !== false?'checked':''}> Share enemy HP data to improve everyone's HP bars (on by default)</label>
@@ -2326,6 +2328,7 @@ async function pageSettings() {
   $("#rec-server-name").onchange = () => api("/api/ui", { meter_show_server_name: $("#rec-server-name").checked }).then(() => toast("Saved"));
   $("#rec-autoupload").onchange = () => api("/api/ui", { meter_auto_upload: $("#rec-autoupload").checked }).then(() => toast("Saved"));
   $("#rec-catchup").onchange = () => api("/api/ui", { meter_catch_up_uploads: $("#rec-catchup").checked }).then(() => toast("Saved"));
+  $("#rec-perfight").onchange = () => api("/api/ui", { meter_upload_per_fight: $("#rec-perfight").checked }).then(() => toast("Saved"));
   $("#rec-report-boss").onchange = () => api("/api/ui", { meter_report_boss_kills: $("#rec-report-boss").checked }).then(() => toast("Saved"));
   $("#rec-report-enemy-hp").onchange = () => api("/api/ui", { meter_report_enemy_hp: $("#rec-report-enemy-hp").checked }).then(() => toast("Saved"));
   $("#rec-report-diagnostics").onchange = () => api("/api/ui", { meter_report_diagnostics: $("#rec-report-diagnostics").checked }).then(() => toast("Saved"));

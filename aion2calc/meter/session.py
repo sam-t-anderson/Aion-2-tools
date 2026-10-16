@@ -118,6 +118,7 @@ class CombatSession:
         result._pending_reset = self._pending_reset
         result._boss_hit_ms = dict(self._boss_hit_ms)
         result.boss_splits = self.boss_splits
+        result.boss_kills = self.boss_kills
         result._boss_killed_ms = self._boss_killed_ms
         result._boss_killed_marker = self._boss_killed_marker
         result._live_boss_reset_ms = self._live_boss_reset_ms
@@ -230,6 +231,11 @@ class CombatSession:
         self._boss_killed_ms = None
         self._boss_killed_marker = None
         self.boss_splits = 0
+        # Kills of a major (boss / mini-boss / field / world boss) enemy in this capture. The
+        # runner's per-fight upload sends the current part once this grows (a pull ended in a
+        # kill), so the recording reaches the share server during play. Carried across storage
+        # parts, so within one capture it only ever grows.
+        self.boss_kills = 0
         # Timestamp of the most recent major (boss / mini-boss / field / world boss) engagement.
         # The live overlay scopes to records from here when ``reset_on_boss_start`` is on.
         self._live_boss_reset_ms = None
@@ -650,6 +656,7 @@ class CombatSession:
                 self._pending_reset = False
                 self._boss_killed_ms = sample["timestamp_ms"]
                 self._boss_killed_marker = (self.manual_split, self.run)
+                self.boss_kills += 1
                 if not any(k[0] == self.epoch and k not in self._dead for k in self._engaged_major):
                     # No other major of this pull is still alive: the pull is over. The next
                     # outgoing damage starts the overlay fresh (see ``observe``).
@@ -1343,6 +1350,7 @@ class CombatSession:
         summary["selected_enemy"] = enemy_id
         summary["combine_pets"] = combine_pets
         summary["wipe_splits"] = self.wipe_splits
+        summary["boss_kills"] = self.boss_kills
         epochs = {g["epoch"] for g in chosen}
         actors = {(g["epoch"], actor) for g in chosen for r in g["records"]
                   for actor in (r.event.actor_id, r.event.target_id) if actor in allowed_for(r)}
