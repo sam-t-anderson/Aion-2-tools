@@ -1,3 +1,12 @@
+## Stitched runs and shared fights in the log review (0.2.289)
+
+Companion to log server 0.2.96, which rebuilds a dungeon run that rolled over between archive parts (entry in one part, final boss in the next) and recognises the same fight uploaded by several party members.
+
+- **Capture quality now says when a fight is part of a stitched run** ("Part of a run stitched across recording parts 1–2"), when the fight itself was cut by a storage rollover and is ranked whole ("the first 41 s are in the previous part"), and, on the cut half, where the whole fight lives — with a button to open the other part.
+- **"Also recorded by"**: other public uploads of the same fight are listed with uploader and date, each openable, and the note explains they count once per character on the leaderboard.
+- **Run timing** marks a stitched run ("parts 1–2") in the Speed status column.
+- **Website Logs tab** shows "+N more" next to the uploader when other uploads recorded the same fights.
+
 ## Capture that survives a real evening: narrow kernel filter, stall-free checkpoints, identities that outlive a restart, revives, and a final boss recognised by its HP (0.2.288)
 
 Diagnosed from a Fire Temple recording (two back-to-back runs, 0.2.287):

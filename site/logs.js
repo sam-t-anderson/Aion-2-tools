@@ -202,7 +202,8 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
         const when = typeof c.start === "number" ? c.start : lg.created_at;
         comm.buf.push({ boss: c.boss, bossIcon: srcOf(iconByName[c.boss]), difficulty: c.difficulty,
           party: c.party_size || members.length || 0, members, duration: c.duration, date: lg.created_at, when,
-          patch: patchOf(c.game_patch), id: lg.id, segment: c.segment, uploader });
+          patch: patchOf(c.game_patch), id: lg.id, segment: c.segment, uploader,
+          shared: Number.isInteger(lg.shared_uploads) ? lg.shared_uploads : 0 });   // other uploads of the same fights
       }
     }
     // Newest encounter at the top, oldest at the bottom; within one upload (one time on an older
@@ -222,7 +223,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     const tr = rows.map((r) => `<tr><td><span class="boss-cell">${r.bossIcon ? `<img class="mob-ic" width="22" height="22" loading="lazy" referrerpolicy="no-referrer" src="${esc(r.bossIcon)}" alt="" onerror="this.remove()">` : ""}${esc(r.boss || "—")}</span></td>
       <td>${esc(r.difficulty || "—")}</td>
       <td><span class="party-cell"><b>${n0(r.party)}</b>${r.members.map(classIcon).join("")}</span></td>
-      <td class="r num">${secs(r.duration)}</td><td>${esc(r.uploader || "Anonymous")}</td><td class="muted small">${day(r.when)}</td><td class="muted small">${esc(r.patch || "—")}</td>
+      <td class="r num">${secs(r.duration)}</td><td>${esc(r.uploader || "Anonymous")}${r.shared ? ` <span class="muted small" title="Other public uploads indexed as the same fight; it counts once per character on the leaderboard">+${n0(r.shared)} more</span>` : ""}</td><td class="muted small">${day(r.when)}</td><td class="muted small">${esc(r.patch || "—")}</td>
       <td><a href="log.html?id=${encodeURIComponent(r.id)}${Number.isInteger(r.segment) ? "&segment=" + r.segment : ""}">view</a></td></tr>`).join("");
     table.innerHTML = `<table class="t"><tr><th>${comm.f.combat_mode === "pvp" ? "Skirmish" : "Boss"}</th><th>Difficulty</th><th>Party</th><th class="r">Time</th><th>Uploaded by</th><th>Date</th><th>Product</th><th></th></tr>${tr}</table>`;
     const hasNext = comm.buf.length > comm.page * COMM_PER_PAGE || !comm.done;
