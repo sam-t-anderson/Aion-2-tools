@@ -71,6 +71,9 @@ html.native-windows .ovcard { background: rgb(27, 32, 42); }
 .ovevents .ovelabel { color: var(--ov-label-color, #e8cf8e); font-weight: 600; margin-right: 3px; }
 .ovevents .ovevent b { color: #cdd6e6; font-weight: 600; }
 .ovevents .ovevent.on b { color: #8fd0a0; }   /* an event in its window right now */
+.ovevents .ovevent.ovobserved { color: #b5bfd0; }   /* an observed field-boss kill: live-meter recordings on your server */
+.ovevents .ovevent.ovobserved b { color: #e3ad7f; }
+.ovevents .ovevent.ovobserved.on b { color: #f0c36a; }   /* expected back now */
 .ovmetrics button { padding: 2px 8px; border: 1px solid rgba(255,255,255,.08); border-radius: 999px; background: rgba(255,255,255,.05); font-size: 10.5px; color: #9aa8bb; }
 .ovmetrics button.on { border-color: rgba(233,203,128,.55); background: rgba(233,203,128,.14); color: #f3dea0; }
 .ovmetrics button:focus-visible { outline: 2px solid #e8cf8e; outline-offset: 1px; }

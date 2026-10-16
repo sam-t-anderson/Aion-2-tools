@@ -9,13 +9,13 @@
   // engine (also used by the overlay), loaded before this script.
   const {occurrences,countdown}=window.A2EventSchedule;
   function mount(root,io={}){
-    let catalog=null,fieldCatalog=null,region='',group='',prepared=[],timer=null,disposed=false,serial=0,bossSerial=0,bossData=null,preparedDay='',killSerial=0,killData=null,killServer='';
+    let catalog=null,fieldCatalog=null,region='',group='',prepared=[],timer=null,disposed=false,serial=0,bossSerial=0,bossData=null,preparedDay='',killSerial=0,killData=null,killServer='',killFaction='mine',identified=null,identitySerial=0;
     const dur=m=>m==null?'':m>=60?(m%60?Math.floor(m/60)+'h '+(m%60)+'m':Math.floor(m/60)+'h'):m+'m';
     let fieldQuery='';
-    try{const pref=JSON.parse(localStorage.getItem('a2-event-region')||'{}');region=pref.region||'';group=pref.group||'';killServer=String(pref.killServer||'');}catch(_){}
+    try{const pref=JSON.parse(localStorage.getItem('a2-event-region')||'{}');region=pref.region||'';group=pref.group||'';killServer=String(pref.killServer||'');killFaction=['mine','elyos','asmodian','all'].includes(pref.killFaction)?pref.killFaction:'mine';}catch(_){}
     const $=s=>root.querySelector(s);
     function save(){
-      try{localStorage.setItem('a2-event-region',JSON.stringify({region,group,killServer}));}catch(_){}
+      try{localStorage.setItem('a2-event-region',JSON.stringify({region,group,killServer,killFaction}));}catch(_){}
       // Mirror the chosen region to the app server so the separate overlay window — which
       // does not share this page's localStorage — can read it from /api/ui. Best-effort:
       // the public static site has no such endpoint, so any failure is swallowed.
@@ -25,13 +25,15 @@
     function render(){
       if(disposed||!root.isConnected)return;
       bossSerial++;bossData=null;killSerial++;killData=null;
-      root.innerHTML=`<section class="note"><h2>Regional event timers</h2><p>${esc(catalog.note)}</p><div class="row" style="gap:8px"><label>Game region <select data-region><option value="">Choose a region</option>${catalog.regions.map(r=>`<option value="${esc(r.id)}" ${r.id===region?'selected':''}>${esc(r.name)}</option>`).join('')}</select></label><label data-group-label ${region==='kr'?'':'hidden'}>Korean matching group <select data-group><option value="">Unknown — hide group-specific forecasts</option>${[1,2,3].map(n=>`<option value="${n}" ${group===String(n)?'selected':''}>Group ${n}</option>`).join('')}</select></label></div><p class="small muted">${esc(catalog.source_name)} · source updated ${esc(catalog.source_updated_at)} · checked ${esc(catalog.checked_at)} · review after ${esc(catalog.review_after)}. <a href="https://shugo.gg/timers" target="_blank" rel="noopener noreferrer">Schedule source ↗</a> · <a href="https://aion2codex.wiki/tools/rift-timer" target="_blank" rel="noopener noreferrer">Conflicting rift report ↗</a></p><p data-clock class="small muted"></p><div data-schedule></div></section><section class="note" data-field><h2>Field boss respawn reference</h2><p class="small muted">Loading community respawn reference…</p></section><section class="note"><h2>Field boss kills by server</h2><p class="small muted">Kills found in public combat logs, placed on the home server of the recorded characters who fought the boss. A kill appears when its log is uploaded, not when the boss dies. A visitor from another server reports its own server, so trust a kill more when several uploaders recorded it. The expected return uses a respawn length measured from repeated kills and is the latest it should be back.</p><div class="row" style="gap:8px"><label>Game server <select data-kill-server><option value="">Load kills to choose a server</option></select></label><button class="btn small" data-kill-refresh>Load / refresh kills</button></div><p data-kill-status role="status">Load to retrieve recent kills from the community server.</p><div data-kill-rows></div></section><section class="note"><h2>Recorded boss defeats</h2><p class="small muted">Submitted observations are separate from schedule forecasts. Region is recorded log metadata; it does not establish physical server or channel. Availability and respawn time remain unknown.</p><div class="row" style="gap:8px"><label>Recorded region <input data-boss-region placeholder="All regions" maxlength="32"></label><label>Search displayed bosses <input data-boss-search placeholder="Boss name or NPC ID"></label><button class="btn small" data-boss-refresh>Load / refresh observations</button></div><p data-boss-status role="status">Load to retrieve public observations from the community server.</p><div data-boss-rows></div><p><a href="${io.logsURL||'#/combat'}">Browse combat logs →</a></p></section>`;
+      root.innerHTML=`<section class="note"><h2>Regional event timers</h2><p>${esc(catalog.note)}</p><div class="row" style="gap:8px"><label>Game region <select data-region><option value="">Choose a region</option>${catalog.regions.map(r=>`<option value="${esc(r.id)}" ${r.id===region?'selected':''}>${esc(r.name)}</option>`).join('')}</select></label><label data-group-label ${region==='kr'?'':'hidden'}>Korean matching group <select data-group><option value="">Unknown — hide group-specific forecasts</option>${[1,2,3].map(n=>`<option value="${n}" ${group===String(n)?'selected':''}>Group ${n}</option>`).join('')}</select></label></div><p class="small muted">${esc(catalog.source_name)} · source updated ${esc(catalog.source_updated_at)} · checked ${esc(catalog.checked_at)} · review after ${esc(catalog.review_after)}. <a href="https://shugo.gg/timers" target="_blank" rel="noopener noreferrer">Schedule source ↗</a> · <a href="https://aion2codex.wiki/tools/rift-timer" target="_blank" rel="noopener noreferrer">Conflicting rift report ↗</a></p><p data-clock class="small muted"></p><div data-schedule></div></section><section class="note" data-field><h2>Field boss respawn reference</h2><p class="small muted">Loading community respawn reference…</p></section><section class="note"><h2>Field boss kills by server</h2><p class="small muted">Kills the live meter observed: found in public Live Meter recordings, or sent by the opt-in auto-report once two installs agree, and placed on the home server of the recorded characters who fought the boss. A kill appears when a recording is uploaded, not when the boss dies. A visitor from another server reports its own server, so trust a kill more when several uploaders recorded it. The expected return is the community respawn reference after the kill (unverified), or a length measured from repeated kills when the reference has none. The Discord bot's manually entered timers never appear here.</p><div class="row" style="gap:8px"><label>Game server <select data-kill-server><option value="">Load kills to choose a server</option></select></label><label>Faction <select data-kill-faction><option value="mine" ${killFaction==='mine'?'selected':''}>Mine (from the live meter)</option><option value="elyos" ${killFaction==='elyos'?'selected':''}>Elyos zones + Abyss</option><option value="asmodian" ${killFaction==='asmodian'?'selected':''}>Asmodian zones + Abyss</option><option value="all" ${killFaction==='all'?'selected':''}>Every zone</option></select></label><button class="btn small" data-kill-refresh>Load / refresh kills</button></div><p data-kill-identity class="small muted"></p><p data-kill-status role="status">Load to retrieve recent kills from the community server.</p><div data-kill-rows></div></section><section class="note"><h2>Recorded boss defeats</h2><p class="small muted">Submitted observations are separate from schedule forecasts. Region is recorded log metadata; it does not establish physical server or channel. Availability and respawn time remain unknown.</p><div class="row" style="gap:8px"><label>Recorded region <input data-boss-region placeholder="All regions" maxlength="32"></label><label>Search displayed bosses <input data-boss-search placeholder="Boss name or NPC ID"></label><button class="btn small" data-boss-refresh>Load / refresh observations</button></div><p data-boss-status role="status">Load to retrieve public observations from the community server.</p><div data-boss-rows></div><p><a href="${io.logsURL||'#/combat'}">Browse combat logs →</a></p></section>`;
       $('[data-region]').onchange=e=>{region=e.target.value;save();render();};
       $('[data-group]').onchange=e=>{group=e.target.value;save();prepare();};
       $('[data-boss-refresh]').onclick=loadBosses;
       $('[data-boss-search]').oninput=renderBosses;
       $('[data-kill-refresh]').onclick=loadKills;
       $('[data-kill-server]').onchange=e=>{killServer=e.target.value;save();renderKills();};
+      $('[data-kill-faction]').onchange=e=>{killFaction=e.target.value;save();renderKills();};
+      renderIdentity();
       prepare();renderFieldBosses();
     }
     function renderFieldBosses(){
@@ -104,6 +106,41 @@
       finally{if(n===bossSerial&&!disposed&&root.isConnected)$('[data-boss-refresh]').disabled=false;}
     }
     const serverLabel=k=>(k.server_name||'Server '+k.server)+(k.region?' · '+String(k.region).toUpperCase():'');
+    // The bundled reference says which faction's zone a field boss stands in ("abyss": both). A name
+    // listed in both Verteron and Altgard is told apart by the map the kill was recorded on.
+    const ZONE_MAPS={asmodian:m=>m===1100||m===1110||m===1111||(m>=110001&&m<112000),elyos:m=>m===1000||m===1010||m===1011||(m>=100001&&m<102000)};
+    const ZONE_NAMES={asmodian:'Altgard',elyos:'Verteron'};
+    const mapFaction=m=>{for(const [f,test] of Object.entries(ZONE_MAPS))if(test(Number(m)))return f;return null;};
+    const nameKey=n=>String(n||'').toLocaleLowerCase().replace(/[^\p{L}\p{N} ]/gu,'').trim();   // "Argo, the Spirit King" = "Argo the Spirit King"
+    // Where the kill was recorded decides whose timer it is; the reference adds the zone and respawn
+    // when its row is for that zone (a name listed in both Verteron and Altgard has one row each).
+    function bossEntry(k){
+      const mf=mapFaction(k.map_id);
+      const rows=fieldCatalog?fieldCatalog.bosses.filter(b=>nameKey(b.name)===nameKey(k.boss)):[];
+      let row=rows.length<=1?rows[0]||null:(mf&&rows.find(b=>b.faction===mf))||{...rows[0],faction:'abyss',zone:rows.map(b=>b.zone).join(' / '),respawn_minutes:null};
+      if(row&&mf&&row.faction!==mf)row=null;   // another zone's copy, or an Abyss namesake: the map wins
+      const faction=mf||(row&&row.faction)||null;
+      return {faction,zone:(row&&row.zone)||(mf?ZONE_NAMES[mf]:''),respawn_minutes:row&&row.respawn_minutes!=null?row.respawn_minutes:null};
+    }
+    const wantedFaction=()=>killFaction==='mine'?(identified&&identified.faction)||'':killFaction==='all'?'':killFaction;
+    function renderIdentity(){
+      const el=$('[data-kill-identity]');
+      if(!el)return;
+      if(identified&&identified.server){
+        const who=identified.character?`${identified.character} on `:'';
+        el.textContent=`Identified from your live meter: ${who}${identified.server_name||('server '+identified.server)}${identified.faction?' · '+identified.faction.charAt(0).toUpperCase()+identified.faction.slice(1):' · faction not resolved yet'}. Kills come from Live Meter recordings and corroborated auto-reports only; the Discord bot's manual timers are never used.`;
+      }else el.textContent=killFaction==='mine'?'Start the live meter so your server and faction are identified, or choose a faction and server here.':'';
+    }
+    async function loadIdentity(){
+      if(!io.identity)return;
+      const n=++identitySerial;
+      try{const doc=await io.identity();if(n!==identitySerial||disposed||!root.isConnected||!doc||!doc.server)return;
+        identified=doc;
+        if(!killServer){killServer=String(doc.server);save();}
+        renderIdentity();
+        if(!killData)loadKills();else renderKills();
+      }catch(_){}
+    }
     function tickKills(now){
       root.querySelectorAll('[data-kill-back]').forEach(el=>{
         const at=Number(el.dataset.killBack)*1000;
@@ -116,9 +153,10 @@
       kills.forEach(k=>{if(!servers.has(String(k.server)))servers.set(String(k.server),serverLabel(k));});
       if(killServer&&!servers.has(killServer))servers.set(killServer,'Server '+killServer+' · no recent kills');
       $('[data-kill-server]').innerHTML='<option value="">Choose a server</option>'+[...servers].sort((a,b)=>a[1].localeCompare(b[1])).map(([id,name])=>`<option value="${esc(id)}" ${id===killServer?'selected':''}>${esc(name)}</option>`).join('');
-      const rows=kills.filter(k=>String(k.server)===killServer);
+      const faction=wantedFaction();
+      const rows=kills.filter(k=>String(k.server)===killServer).filter(k=>{if(!faction)return true;const f=bossEntry(k).faction;return f===faction||f==='abyss';});
       $('[data-kill-status]').textContent=killServer?`${rows.length} bosses with a recorded kill in the last ${Math.round(killData.window_seconds/3600)} hours. Snapshot ${local(killData.generated_at*1000)}.`:`${servers.size} servers have recorded kills. Choose yours.`;
-      $('[data-kill-rows]').innerHTML=rows.map(k=>`<details style="margin:4px 0"><summary>${esc(k.boss)} · killed ${esc(local(k.killed_at*1000))} · ${Number(k.reports)===1?'1 uploader':esc(Number(k.reports))+' uploaders'}</summary><p>${Number.isFinite(k.respawn_at)?`<span data-kill-back="${esc(k.respawn_at)}"></span> · respawn about ${esc(countdown(k.respawn_seconds*1000))}, measured from ${esc(Number(k.respawn_samples))} gaps between kills`:'Respawn length not measured yet: it needs repeated kills of this boss in uploaded logs.'}</p><p class="small muted">${k.previous_killed_at==null?'':'Previous kill '+esc(local(k.previous_killed_at*1000))+' · '}${(k.logs||[]).slice(0,3).map(id=>sourceLink(id)).join(' · ')}</p></details>`).join('')+(killServer&&!rows.length?'<p class="small muted">No kills recorded for this server yet. They come from public Live Meter logs uploaded by players there.</p>':'');
+      $('[data-kill-rows]').innerHTML=rows.map(k=>{const e=bossEntry(k);const ref=e.respawn_minutes;const back=ref!=null?k.killed_at+ref*60:(Number.isFinite(k.respawn_at)?k.respawn_at:null);return `<details style="margin:4px 0"><summary>${esc(k.boss)}${e&&e.zone?' · <span class="small muted">'+esc(e.zone)+'</span>':''} · killed ${esc(local(k.killed_at*1000))} · ${Number(k.reports)===1?'1 uploader':esc(Number(k.reports))+' uploaders'}</summary><p>${back!=null?`<span data-kill-back="${esc(back)}"></span> · ${ref!=null?'community respawn reference '+esc(dur(ref))+' (unverified)':'respawn about '+esc(countdown(k.respawn_seconds*1000))+', measured from '+esc(Number(k.respawn_samples))+' gaps between kills'}`:'Respawn length unknown: no community reference, and it needs repeated kills of this boss in uploaded logs.'}</p><p class="small muted">${k.previous_killed_at==null?'':'Previous kill '+esc(local(k.previous_killed_at*1000))+' · '}${(k.logs||[]).slice(0,3).map(id=>sourceLink(id)).join(' · ')}</p></details>`;}).join('')+(killServer&&!rows.length?'<p class="small muted">No kills recorded for this server'+(faction?' in '+esc(faction)+' zones or the Abyss':'')+' yet. They come from public Live Meter logs uploaded by players there.</p>':'');
       tickKills(Date.now());
     }
     async function loadKills(){
@@ -131,7 +169,7 @@
     function dispose(){disposed=true;serial++;bossSerial++;killSerial++;if(timer)clearInterval(timer);}
     async function load(){
       const n=++serial;root.textContent='Loading event schedules…';
-      try{const response=await fetch(io.catalogURL||'/static/event-schedules.json');if(!response.ok)throw Error('Schedule file unavailable');const data=await response.json();if(n!==serial||disposed||!root.isConnected)return;if(data.version!==1)throw Error('Unsupported schedule format');catalog=data;render();timer=setInterval(tick,1000);loadFieldBosses();}
+      try{const response=await fetch(io.catalogURL||'/static/event-schedules.json');if(!response.ok)throw Error('Schedule file unavailable');const data=await response.json();if(n!==serial||disposed||!root.isConnected)return;if(data.version!==1)throw Error('Unsupported schedule format');catalog=data;render();timer=setInterval(tick,1000);loadFieldBosses();loadIdentity();}
       catch(e){if(n===serial&&!disposed&&root.isConnected)root.textContent='Could not load schedules: '+e.message;}
     }
     async function loadFieldBosses(){
@@ -140,7 +178,7 @@
         const url=io.fieldBossURL||(io.catalogURL?io.catalogURL.replace(/event-schedules\.json(\?.*)?$/,'field-bosses.json'):'/static/field-bosses.json');
         const r=await fetch(url);if(!r.ok)return;const d=await r.json();
         if(n!==serial||disposed||!root.isConnected||!d||d.version!==1||!Array.isArray(d.bosses))return;
-        fieldCatalog=d;renderFieldBosses();
+        fieldCatalog=d;renderFieldBosses();if(killData)renderKills();
       }catch(_){/* the respawn reference is optional; leave the placeholder */}
     }
     load();return {dispose};

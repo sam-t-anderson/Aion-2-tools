@@ -27,6 +27,7 @@ DEMO = Path(__file__).resolve().parent.parent / "meter" / "demo_session.jsonl"
 # and no more than once per this interval, so a per-fight badge never floods the server.
 _FIGHT_UPLOAD_IDLE_S = 5.0        # a fight counts as paused this long after its last decoded event
 _FIGHT_UPLOAD_THROTTLE_S = 30.0   # at most one per-fight upload / rank refresh this often
+_FIELD_BOSS_REFRESH_S = 120.0     # how often the observed field-boss kills are re-read
 
 # Live-meter throughput. One thread decodes packets; a major fight (a world/abyss boss
 # with a full raid) can enqueue them faster than it drains them. Draining the burst that
@@ -116,6 +117,9 @@ class Runner:
         self._fight_upload_key = None     # signature of the fights last sent by the rank refresh
         self._fight_upload_kills = 0      # session.boss_kills at the last per-fight upload
         self._fight_upload_busy = False   # one per-fight upload in flight at a time
+        self._field_bosses = None         # observed kills for the player's server + faction (overlay, Timers)
+        self._field_bosses_at = 0.0       # monotonic of the last feed read
+        self._field_bosses_busy = False   # one feed read in flight at a time
         self._last_snap_cost = 0.0
         self._snap_thread: threading.Thread | None = None   # the in-flight off-lock snapshot recompute, if any
         self._last_save_cost = 0.0        # seconds the last checkpoint save took (stretches the cadence)
@@ -173,6 +177,7 @@ class Runner:
             self._snap_cache = None          # never show the previous session's snapshot
             self._community_rank = {}        # a prior session's standings must not leak in
             self._fight_upload_at, self._fight_upload_key, self._fight_upload_kills, self._fight_upload_busy = 0.0, None, 0, False
+            self._field_bosses, self._field_bosses_at = None, 0.0   # re-identified by the new capture
         self.error = None
         self._last_display_diagnostics = {}
         self.diagnostics = {}
@@ -1008,6 +1013,16 @@ class Runner:
             # Per-fight upload once a pull ended in a kill (on by default) and the opt-in rank
             # refresh (cheap-gated here, worker-backed).
             self._maybe_fight_upload()
+            # Observed field-boss kills for the player's own server and faction (overlay strip and
+            # the Timers page); re-read from the share server every couple of minutes on a worker.
+            self._maybe_field_bosses()
+            if self._field_bosses:
+                snap["field_bosses"] = self._field_bosses
+                status = snap.get("identity_status")
+                if isinstance(status, dict):
+                    status["faction"] = self._field_bosses.get("faction")
+                    status["server"] = self._field_bosses.get("server")
+                    status["server_name"] = self._field_bosses.get("server_name")
             # When the viewer turns the option on, label each player's home world next to their
             # name, resolved from their captured server id via the same official server list used
             # for region. Off by default; best-effort and local (no network in this path).
@@ -1162,6 +1177,58 @@ class Runner:
             threading.Thread(target=self._fight_upload, args=(reason,), daemon=True, name="fight-upload").start()
         except Exception:
             pass
+
+    def _maybe_field_bosses(self) -> None:
+        """Keep the observed field-boss kills for the player's server and faction fresh (cheap-gated
+        here, read on a worker): the overlay's event strip and the Timers page show the kills the live
+        meter observed on the player's own server, for their faction's zones and the Abyss. Needs the
+        strip enabled (Settings: regional event notifications), a share server, and an identified local
+        player with a home server; the faction is resolved once from the official character search and
+        cached. Never touches capture and never raises."""
+        try:
+            if self._field_bosses_busy or time.monotonic() - self._field_bosses_at < _FIELD_BOSS_REFRESH_S:
+                return
+            from .server import ui_settings
+            if not ui_settings().get("overlay_show_events", True):
+                return
+            engine = self.packet_engine
+            known = self._field_bosses or {}
+            name = server = None
+            if engine is not None and engine.local_player_id is not None:
+                name = engine.names.get(engine.local_player_id)
+                server = engine.local_profile.get("serverId") or (engine.roster.get(name) or {}).get("serverId") if name else None
+            if not (name and server):
+                if not (self.running or known.get("server")):
+                    return
+                name, server = known.get("character"), known.get("server")   # keep the last identity while stopped
+            if not (name and server):
+                return
+            region = server_name = None
+            if self.capture_metadata is not None:
+                meta = self.capture_metadata.snapshot(server)
+                region, server_name = meta.get("region"), meta.get("server_name")
+            self._field_bosses_busy = True
+            self._field_bosses_at = time.monotonic()
+            threading.Thread(target=self._field_bosses_refresh, args=(str(name), str(server), region, server_name),
+                             daemon=True, name="field-bosses").start()
+        except Exception:
+            pass
+
+    def _field_bosses_refresh(self, name: str, server: str, region, server_name) -> None:
+        """Worker: resolve the faction (cached), read the feed for the server, keep the relevant kills."""
+        try:
+            from ..combat import field_bosses, share
+            if not share.effective().get("url"):
+                return
+            faction = field_bosses.faction_for(name, server, region)
+            kills = field_bosses.fetch(server).get("kills") if faction else []
+            self._field_bosses = field_bosses.document(server, name, faction, kills or [], server_name=server_name)
+        except Exception:
+            if self._field_bosses is None:
+                self._field_bosses = {"server": server, "server_name": server_name, "character": name,
+                                      "faction": None, "fetched_at": time.time(), "kills": [], "error": "unavailable"}
+        finally:
+            self._field_bosses_busy = False
 
     def _fight_upload(self, reason: str = "boss") -> None:
         """Worker: upload the current part (superseding its earlier open upload on the server) and

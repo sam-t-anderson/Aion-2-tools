@@ -19,6 +19,7 @@
   // from the bundled schedule, for the region the player picked on the Timers page.
   let eventCatalog=null, eventTimer=null, eventRegion="", eventGroup="";
   const EVENT_LEAD_MS=15*60000;   // notify when an event is within 15 minutes
+  const OBSERVED_GRACE_MS=30*60000;   // an observed field-boss kill stays listed this long past its expected return
   // Optional chime when a new event enters the strip. Off by default; a built-in
   // WebAudio chime unless the user uploaded a custom sound (served at /overlay-event-sound).
   let eventsSound=false, eventsSoundCustom=false, eventsPrimed=false, actx=null;
@@ -806,16 +807,39 @@
       });
     }catch(_){}
   }
+  // Field-boss kills the live meter observed on the player's own server, for their faction's
+  // zones and the Abyss (snapshot.field_bosses, read by the app from the share server's kill
+  // feed: uploaded recordings and corroborated auto-reports; the Discord bot's manual timers
+  // never reach it). A boss whose expected return is near or just passed joins the strip.
+  function observedBossEvents(now){
+    const doc=lastSnap&&lastSnap.snapshot&&lastSnap.snapshot.field_bosses;
+    if(!doc||!doc.faction||!Array.isArray(doc.kills))return [];
+    const out=[];
+    for(const k of doc.kills){
+      if(!Number.isFinite(k.expected_at))continue;
+      const at=k.expected_at*1000, startsInMs=at-now;
+      if(startsInMs>EVENT_LEAD_MS||startsInMs<-OBSERVED_GRACE_MS)continue;
+      const ago=A2EventSchedule.shortCountdown(Math.max(0,now-k.killed_at*1000));
+      const who=Number(k.reports)===1?'1 uploader':`${Number(k.reports)||0} uploaders`;
+      out.push({id:'fb:'+k.boss+':'+Math.round(k.killed_at),name:k.boss,zone:k.zone||'',observed:true,
+        active:startsInMs<=0,startsInMs:startsInMs,endsAt:at+OBSERVED_GRACE_MS,
+        tip:`${k.boss} — observed kill ${ago} ago by ${who} on ${doc.server_name||('server '+doc.server)} (live meter recordings, not Discord timers)${k.respawn_basis==='reference'?`; community respawn reference ${k.respawn_minutes} min, unverified`:k.respawn_basis==='measured'?'; respawn measured from repeated kills':''}${k.zone?' · '+k.zone:''}`});
+    }
+    return out;
+  }
   function renderEvents(){
     const box=$("#ovevents");
     if(!box)return;
-    if(!showEvents||!eventCatalog||!window.A2EventSchedule){box.hidden=true;eventsPrimed=false;announcedEvents.clear();return;}
+    if(!showEvents||!window.A2EventSchedule){box.hidden=true;eventsPrimed=false;announcedEvents.clear();return;}
     const saved=A2EventSchedule.savedRegion();
     const region=eventRegion||saved.region, group=eventGroup||saved.group;   // server-provided first, localStorage fallback
-    if(!region){box.hidden=true;eventsPrimed=false;announcedEvents.clear();return;}   // no region chosen on the Timers page yet
     const now=Date.now();
-    const list=A2EventSchedule.upcoming(eventCatalog,region,group,now)
-      .filter(e=>e.active||(e.startsInMs!=null&&e.startsInMs<=EVENT_LEAD_MS))
+    const observed=observedBossEvents(now);
+    if(!region&&!observed.length){box.hidden=true;eventsPrimed=false;announcedEvents.clear();return;}   // no region chosen on the Timers page yet, nothing observed
+    const forecast=(region&&eventCatalog)?A2EventSchedule.upcoming(eventCatalog,region,group,now)
+      .filter(e=>e.active||(e.startsInMs!=null&&e.startsInMs<=EVENT_LEAD_MS)):[];
+    const list=observed.concat(forecast)
+      .sort((a,b)=>(a.active?-1:a.startsInMs)-(b.active?-1:b.startsInMs))
       .slice(0,3);
     // Chime once when a new event (or a new phase of one) enters the strip. The first
     // populate primes silently so we don't blast on launch for an already-open window.
@@ -830,6 +854,10 @@
     if(!list.length){box.hidden=true;return;}
     box.hidden=false;
     box.innerHTML=`<span class="ovelabel">Events</span> `+list.map(e=>{
+      if(e.observed){
+        const when=e.active?'due now':`back in ${A2EventSchedule.shortCountdown(e.startsInMs)}`;
+        return `<span class="ovevent ovobserved${e.active?' on':''}" title="${esc(e.tip)}">${esc(e.name)} <b>${when}</b></span>`;
+      }
       const when=e.active
         ? (e.entryOpen&&e.endsAt?`entry ${A2EventSchedule.shortCountdown(e.endsAt-now)}`:(e.endsAt?`ends ${A2EventSchedule.shortCountdown(e.endsAt-now)}`:'now'))
         : `in ${A2EventSchedule.shortCountdown(e.startsInMs)}`;
