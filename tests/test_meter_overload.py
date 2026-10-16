@@ -15,6 +15,9 @@ class _StubSession:
         self.calls += 1
         return {"players": [], "call": self.calls}
 
+    def __deepcopy__(self, memo):
+        return self       # a recompute off the lock counts on this same stub
+
 
 def test_live_snapshot_dedupes_rapid_overlapping_polls():
     r = Runner()
@@ -39,8 +42,9 @@ def test_snapshot_recomputes_after_the_adaptive_interval():
     r.session = _StubSession()
     r._live_snapshot(True)
     assert r.session.calls == 1
-    time.sleep(0.27)                       # past the 250ms floor → a fresh reading
+    time.sleep(0.27)                       # past the 250ms floor → a fresh reading, on a worker
     r._live_snapshot(True)
+    r._snap_thread.join(2)
     assert r.session.calls == 2
 
 

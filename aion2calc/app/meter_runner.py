@@ -14,7 +14,6 @@ from ..meter import CombatEvent, Meter, load_decoder, replay_source
 from ..meter.a2parser.engine import MeterEngine as PacketMeterEngine
 from ..meter.a2parser.capture import capture_packets
 from ..meter.session import CombatSession, NoIdentifiedPlayerData
-from ..meter.a2parser.models import DamageEvent
 from ..meter.a2parser.capture_stats import FIELDS as PCAP_FIELDS, FLAGS as PCAP_FLAGS
 
 CAPTURE_COUNTERS = ("tcp_discarded_payloads", "tcp_unresolved_flows", *PCAP_FIELDS)
@@ -110,6 +109,10 @@ class Runner:
         self._live_rank_key = None        # signature of the fights last auto-uploaded
         self._live_rank_busy = False      # one auto-refresh in flight at a time
         self._last_snap_cost = 0.0
+        self._snap_thread: threading.Thread | None = None   # the in-flight off-lock snapshot recompute, if any
+        self._last_save_cost = 0.0        # seconds the last checkpoint save took (stretches the cadence)
+        self._unsaved_parts: list = []    # rolled-over archive parts detached from the live session, not yet on disk
+        self._flush_thread: threading.Thread | None = None
         self._last_prune = 0.0   # throttle the logs-folder size prune
         self.started_at: float | None = None
         self._last_packet_at: float | None = None
@@ -185,6 +188,7 @@ class Runner:
         self.scope = str(opts.get("scope") or "auto")
         if self.scope not in ("party", "self", "all", "auto"):
             self.scope = "auto"
+        self.session.retain_scope = self.scope   # keep only what this scope's log and live view use
         from ..combat.a2log import combat_mode
         self.session.pvp = combat_mode({"meta": self.metadata}) == "pvp"
         if self.session.pvp and self.scope == "all":
@@ -521,7 +525,11 @@ class Runner:
 
     def _checkpoint_session(self) -> None:
         now = time.monotonic()
-        if now - self._last_checkpoint >= 15:
+        # Every 15 s, but the save worker never takes more than about a quarter of the CPU: a
+        # 350k-record part serialises for many seconds, and with Python's GIL that time comes
+        # straight out of the decoder's. The cadence stretches with the last save's cost (capped
+        # at two minutes) and relaxes again as soon as saves are quick.
+        if now - self._last_checkpoint >= min(120.0, max(15.0, 4.0 * self._last_save_cost)):
             if self._spawn_save():
                 self._last_checkpoint = now
 
@@ -552,58 +560,98 @@ class Runner:
             hard = (len(self.session.records) >= 350_000 or len(self.session.telemetry) >= 40_000
                     or self.session._storage_groups.get(self.scope, self.session.storage_groups) >= 180
                     or len(self.session._storage_players.get(self.scope, self.session.storage_players)) >= 60)
-            last_hit = next((r.event.timestamp_ms for r in reversed(self.session.records)
-                            if isinstance(r.event, DamageEvent) and r.event.actor_id in self.session._allowed(r, self.scope)
-                            and r.event.target_id not in self.session._allowed(r, self.scope)), 0)
-            active = last_hit and time.time() * 1000 - last_hit < 120_000
+            active = self._recent_outgoing(120_000)
             if due and active and not hard and not self.session.run_closed:
                 self.diagnostics["archive_deferred"] = "Archive part will be saved after combat pauses; live totals continue."
                 return
-        if not due or time.monotonic() < self._rollover_retry_at:
-            return
-        from ..combat.sessions import save
-        with self._session_save_lock:
-            with self.lock:
-                detached = copy.deepcopy(self.session)
-                metadata = dict(self.metadata)
-                profile = dict(self.packet_engine.local_profile)
-                scope, collector = self.scope, self.capture_metadata
-            detached.capture_evidence["storage_boundary"] = True
-            detached.finish_run("storage_rollover", complete=False)
-            title = f"Live combat session {self.archive_id[:8]} Â· Part {self.archive_part}"
-            try:
-                document = detached.to_a2log(scope, title)
-            except NoIdentifiedPlayerData:
-                # Identity/filter eligibility is not a decoder failure. Keep
-                # the bounded session intact and retry without copying it on
-                # every subsequent packet. Ordinary retention counters expose
-                # any history lost while identity remains unresolved.
+            if time.monotonic() < self._rollover_retry_at:
+                return
+            if not self.session._storage_players.get(self.scope, self.session.storage_players):
+                # Identity/filter eligibility is not a decoder failure: nothing is identified
+                # under the selected filter yet, so the part would be empty. Keep the bounded
+                # session intact and retry later; ordinary retention counters expose any
+                # history lost while identity remains unresolved.
                 self._rollover_retry_at = time.monotonic() + 5
                 self.diagnostics["archive_deferred"] = (
                     "Archive rollover is waiting for player data under the selected filter. "
                     "Capture continues; unresolved history remains subject to retention limits.")
                 return
-            doc = self._metadata(document, metadata=metadata, profile=profile, collector=collector)
-            doc["meta"].update(capture_active=False, checkpoint_at=time.time(),
-                               archive=self._archive_metadata(detached, closed=True))
-            # Never clear the memory part unless its atomic disk save succeeded.
-            # A failed save propagates to the runner and stops capture visibly.
-            saved = str(save(doc, self.session_file))
+            # Detach the finished part under the lock (milliseconds: see
+            # ``CombatSession.__deepcopy__``) and carry on recording in a fresh continuation at
+            # once. Building and writing the part's document -- seconds for a big part -- happens
+            # on a worker (``_flush_parts``): a forced mid-fight rollover used to run it on the
+            # decoder thread, which froze the meter for as long as it took.
+            detached = copy.deepcopy(self.session)
+            detached.capture_evidence["storage_boundary"] = True
+            detached.finish_run("storage_rollover", complete=False)
+            part = {"session": detached, "metadata": dict(self.metadata), "profile": dict(self.packet_engine.local_profile),
+                    "scope": self.scope, "collector": self.capture_metadata, "file": self.session_file,
+                    "archive": self._archive_metadata(detached, closed=True),
+                    "title": f"Live combat session {self.archive_id[:8]} · Part {self.archive_part}"}
+            self.session = self.session.continuation()
+            self._snap_cache = None      # the continuation is a fresh session object
+            self.session.capture_evidence["storage_boundary"] = True
+            self.archive_part += 1
+            self.archive_previous = part["archive"].get("continuity")
+            self.archive_part_token = uuid.uuid4().hex
+            self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
+            self.segment_id = self.enemy_id = None
+            self._unsaved_parts.append(part)
+            self.diagnostics.pop("archive_deferred", None)
+            self._rollover_retry_at = 0.0
+        self._last_checkpoint = time.monotonic()
+        self._spawn_flush()
+
+    def _recent_outgoing(self, window_ms: int) -> bool:
+        """Whether the selected scope landed outgoing damage within ``window_ms`` (tracked by the
+        session as records arrive, so this never walks the record history)."""
+        last = getattr(self.session, "_last_outgoing", {}).get(self.scope)
+        return bool(last) and time.time() * 1000 - last < window_ms
+
+    def _spawn_flush(self) -> bool:
+        worker = self._flush_thread
+        if worker is not None and worker.is_alive():
+            return False
+        self._flush_thread = threading.Thread(target=self._flush_parts, daemon=True, name="part-flush")
+        self._flush_thread.start()
+        return True
+
+    def _flush_parts(self) -> None:
+        with self._session_save_lock:
+            self._flush_pending_parts()
+
+    def _flush_pending_parts(self) -> None:
+        """Write the archive parts a rollover detached, oldest first. Caller holds
+        ``_session_save_lock``. A part whose document cannot be built or written yet stays queued
+        (in memory) and is retried on the next save; the final save after Stop reports one it
+        still cannot write instead of silently dropping it."""
+        from ..combat.sessions import save
+        while True:
             with self.lock:
-                self.session = self.session.continuation()
-                self._snap_cache = None      # the continuation is a fresh session object
-                self.session.capture_evidence["storage_boundary"] = True
-                self.archive_part += 1
-                self.archive_previous = doc["meta"]["archive"].get("continuity")
-                self.archive_part_token = uuid.uuid4().hex
-                self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
-                self.segment_id = self.enemy_id = None
+                if not self._unsaved_parts:
+                    return
+                part = self._unsaved_parts[0]
+            try:
+                document = part["session"].to_a2log(part["scope"], part["title"])
+                doc = self._metadata(document, metadata=part["metadata"], profile=part["profile"], collector=part["collector"])
+                doc["meta"].update(capture_active=False, checkpoint_at=time.time(), archive=part["archive"])
+                saved = str(save(doc, part["file"]))
+            except NoIdentifiedPlayerData as exc:
+                if self.running:
+                    return                      # identity may still resolve for a later part; retry on the next save
+                with self.lock:
+                    self._unsaved_parts.pop(0)
+                self.diagnostics["archive_part_unsaved"] = f"Part {part['archive']['part']}: {exc}"
+                continue
+            except Exception as exc:   # noqa: BLE001 - a part that cannot be written yet is retried, never lost
+                self.diagnostics["archive_save_error"] = f"{type(exc).__name__}: {exc}"[:300]
+                return
+            with self.lock:
+                self._unsaved_parts.pop(0)
                 self.saved_log = saved
-                self.diagnostics["archive_parts_saved"] = self.archive_part - 1
+                self.diagnostics["archive_parts_saved"] = self.diagnostics.get("archive_parts_saved", 0) + 1
                 self.diagnostics["archive_last_part"] = saved
-                self.diagnostics.pop("archive_deferred", None)
-                self._rollover_retry_at = 0.0
-            self._last_checkpoint = time.monotonic()
+                self.diagnostics.pop("archive_save_error", None)
 
     def _save_session(self, active: bool) -> None:
         # "Save combat records" off: never auto-write the session log to disk.
@@ -613,7 +661,9 @@ class Runner:
         # Serialize snapshot and replacement together so an older periodic save
         # cannot overwrite the final snapshot after Stop.
         with self._session_save_lock:
+            self._flush_pending_parts()     # rolled-over parts go to disk before the live part
             self._store_boss_hp()
+            started = time.monotonic()
             try:
                 from ..combat.sessions import save
                 doc = self.to_a2log()
@@ -621,6 +671,7 @@ class Runner:
                                    checkpoint_at=time.time(), capture_scope=self.scope)
                 self.saved_log = str(save(doc, self.session_file))
                 self.diagnostics.pop("log_save_error", None)
+                self._last_save_cost = time.monotonic() - started
             except Exception as exc:   # noqa: BLE001 - a save must never abort Stop or the
                 # diagnostics archive that follows it. Any failure (including an unexpected
                 # one on a very large session) is recorded and swallowed so Stop still
@@ -763,22 +814,60 @@ class Runner:
         now = time.monotonic()
         cached = self._snap_cache
         if cached is not None and cached[0] == key:
-            # Never recompute more often than the last recompute cost (floor 250ms), so the
-            # recompute holds the shared lock at most ~50% of the time and the decode thread
-            # keeps up. When packets have backed up (a heavy fight the decoder is behind on),
-            # stretch that interval so the recompute steps further aside and the decoder
-            # reclaims the lock to drain the burst — the live number simply updates a little
-            # less often until it catches up.
+            # Never recompute more often than the last recompute cost (floor 250ms). When packets
+            # have backed up (a heavy fight the decoder is behind on), stretch that interval so
+            # the recompute steps further aside — the live number simply updates a little less
+            # often until it catches up. The recompute itself runs on a worker from a detached
+            # copy of the session (``_schedule_snapshot``): it walks every record, which held the
+            # capture lock for seconds in a big fight and starved the decoder. Meanwhile the last
+            # completed reading is served.
             busy = self.packet_queue is not None and self.packet_queue.qsize() >= _DECODE_BACKLOG_QUEUE
             interval = max(0.25, self._last_snap_cost) * (_SNAPSHOT_BACKLOG_DUTY if busy else 1.0)
-            if now - cached[1] <= interval:
-                return cached[2]
+            if now - cached[1] > interval:
+                self._schedule_snapshot(key, follow_latest)
+            return cached[2]
+        # The first reading of a view (a fresh capture, a changed selection): compute it now.
         started = time.monotonic()
         snap = self.session.snapshot(self.scope, None if follow_latest else self.segment_id,
                                      None if follow_latest else self.enemy_id, self.combine_pets)
         self._last_snap_cost = time.monotonic() - started
         self._snap_cache = (key, time.monotonic(), snap)
         return snap
+
+    def _schedule_snapshot(self, key, follow_latest: bool) -> bool:
+        """Recompute the live snapshot on a worker from a detached copy of the session. The copy
+        takes milliseconds (``CombatSession.__deepcopy__`` shares the record history); one
+        recompute runs at a time, and its result is kept only if the view and the live session
+        are still the ones it was taken from. Caller holds ``self.lock``."""
+        worker = self._snap_thread
+        if worker is not None and worker.is_alive():
+            return False
+        source = self.session
+        try:
+            detached = copy.deepcopy(source)
+        except Exception:   # noqa: BLE001 - a view that cannot be detached is recomputed in place next time
+            return False
+        args = (key, source, self._capture_generation, detached, self.scope,
+                None if follow_latest else self.segment_id, None if follow_latest else self.enemy_id, self.combine_pets)
+        self._snap_thread = threading.Thread(target=self._compute_snapshot, args=args, daemon=True, name="live-snapshot")
+        self._snap_thread.start()
+        return True
+
+    def _compute_snapshot(self, key, source, generation, session, scope, segment_id, enemy_id, combine_pets) -> None:
+        # ``source`` is the live session the copy was taken from, held so it cannot be freed and
+        # its identity reused by a continuation; the reading is kept only while it is still live.
+        started = time.monotonic()
+        try:
+            snap = session.snapshot(scope, segment_id, enemy_id, combine_pets)
+        except Exception as exc:   # noqa: BLE001 - the live view keeps its last reading
+            self.diagnostics["snapshot_error"] = f"{type(exc).__name__}: {exc}"[:300]
+            return
+        cost = time.monotonic() - started
+        with self.lock:
+            self._last_snap_cost = cost
+            if self.session is source and self._capture_generation == generation and (
+                    self._snap_cache is None or self._snap_cache[0] == key):
+                self._snap_cache = (key, time.monotonic(), snap)
 
     _BOSS_HP_FILE = ("community", "boss_hp_seen.json")
 
@@ -1096,6 +1185,7 @@ class Runner:
                 raise ValueError("Use Self or Party scope for PvP capture.")
             if body.get("scope") in ("party", "self", "all", "auto"):
                 self.scope = body["scope"]
+                self.session.retain_scope = self.scope   # from now on; a narrower past is not re-widened
             if "segment" in body:
                 self.segment_id = body["segment"] or None
                 self.enemy_id = None

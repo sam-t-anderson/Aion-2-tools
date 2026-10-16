@@ -66,6 +66,10 @@ BASIC_SPIRIT_NAMES = frozenset(_summon_label(s) for s in (16100000, 16110000, 16
 ANCIENT_SPIRIT_NAME = _summon_label(16250000)
 
 
+#: A placeholder effect for scope checks that concern an entity rather than an effect.
+_PROBE = HealEvent(actor_id=0, skill_code=0, amount=0, timestamp_ms=0)
+
+
 class NoIdentifiedPlayerData(ValueError):
     """The selected scope cannot yet form an identified combat report."""
 
@@ -97,6 +101,8 @@ class CombatSession:
             setattr(result, key, getattr(self, key))
         result.final_boss_ids = set(self.final_boss_ids)
         result._dead = set(self._dead)
+        result._last_outgoing = dict(self._last_outgoing)
+        result.retain_scope = self.retain_scope
         result.capture_evidence = dict(self.capture_evidence)
         result.identities = {self.epoch: copy.deepcopy(self.identities[self.epoch])} if self.epoch in self.identities else {}
         result.runs = {self.run: {**self.runs[self.run], "start_observed": False}}
@@ -122,6 +128,19 @@ class CombatSession:
 
     def __init__(self):
         self.records = deque(maxlen=400_000)
+        #: Per selectable scope, when that scope last landed outgoing damage (capture wall-clock
+        #: ms), kept as records arrive so "is combat still active" never walks the history.
+        self._last_outgoing: dict[str, int] = {}
+        #: The capture scope records are kept for (None keeps everything). In a crowd -- a world
+        #: or field boss with a hundred players in range -- the other players' hits are 95%+ of
+        #: the effects decoded, and keeping them filled the bounded history in minutes: forced
+        #: mid-fight storage rollovers (each resetting the live view), eviction of the party's own
+        #: early records, and a live snapshot that walked them all. Under a Party/Self scope only
+        #: effects that involve the scope are retained; everything is still kept while the roster
+        #: or the local player is unknown (late identification reconciles earlier records), and
+        #: under All. Dropped effects are counted as ``out_of_scope`` (not capture loss).
+        self.retain_scope = None
+        self.out_of_scope = 0
         self.epoch = 0
         self.identities = {}
         self.discarded = 0
@@ -437,9 +456,21 @@ class CombatSession:
             # first observed roster; later joins/disbands must not rewrite it.
             identity["initial_roster"] = party
             identity["initial_roster_sequence"] = self.sequence
+        # Every event in this batch shares the identity state updated above; the allowed set for
+        # a scope depends only on that, the record's party / local id and its late-roster status.
+        # Memoize per batch: computing it per event and per scope walked every known name four
+        # times per hit, which is what made a world-boss crowd (hundreds of names, thousands of
+        # hits a second) too expensive to keep up with.
+        batch_allowed = {}
+        def allowed_in(record, scope):
+            key = (scope, record.party, record.local_id, self._late_roster(record))
+            value = batch_allowed.get(key)
+            if value is None:
+                value = batch_allowed[key] = self._allowed(record, scope)
+            return value
         for event in events:
             record = Record(self.epoch, event, party, engine.local_player_id, sequence=self.sequence+1)
-            allowed = self._allowed(record, "party")
+            allowed = allowed_in(record, "party")
             if (isinstance(event, DamageEvent) and not event.is_dot
                     and (self.epoch, event.actor_id) in self._dead and event.actor_id in identity["names"]):
                 # A player marked dead who lands a full cast (not a lingering DoT tick) is alive:
@@ -480,7 +511,7 @@ class CombatSession:
             self.storage_players.update(
                 key for a in allowed if a not in owners and (key := _player_key(a)) is not None)
             for scope in ("self", "party", "all", "auto"):
-                selected = self._allowed(record, scope)
+                selected = allowed_in(record, scope)
                 source = selected if self._effective_scope(scope, self.epoch) == "party" \
                     else [a for a in (event.actor_id, event.target_id) if a in selected]
                 keys = {key for a in source if (key := _player_key(a)) is not None}
@@ -509,7 +540,9 @@ class CombatSession:
                 # for every selectable scope. Nearby NPC-only effects must not
                 # force storage rollovers that clear the player's live view.
                 for scope in ("self", "party", "all", "auto"):
-                    selected = self._allowed(record, scope)
+                    selected = allowed_in(record, scope)
+                    if event.actor_id in selected and event.target_id not in selected:
+                        self._last_outgoing[scope] = max(self._last_outgoing.get(scope, 0), event.timestamp_ms)
                     pvp = self._pvp_damage(record, selected)
                     if (self.pvp and not pvp
                             or event.actor_id not in selected and event.target_id not in selected):
@@ -525,10 +558,14 @@ class CombatSession:
                     self._storage_last[scope] = (context_key, max(event.timestamp_ms, previous[1])
                                                if previous and context_key == previous[0] else event.timestamp_ms)
                 self.storage_groups = max(self._storage_groups.values(), default=0)
+            if not self._retained(record, party, identity, allowed_in):
+                self.out_of_scope += 1
+                continue
             if len(self.records) == self.records.maxlen:
                 self.discarded += 1
             self.sequence += 1
             self.records.append(Record(self.epoch, event, party, engine.local_player_id, self.manual_split, self.run, self.sequence))
+        probe = Record(self.epoch, _PROBE, party, engine.local_player_id, sequence=self.sequence+1)
         for sample in engine.telemetry:
             attempt = self._boss_attempt
             if attempt:
@@ -612,6 +649,9 @@ class CombatSession:
                 self._dead.add(key)
             if len(self.telemetry) == self.telemetry.maxlen:
                 self.discarded_telemetry += 1
+            if not self._retained(probe, party, identity, allowed_in, entity=sample.get("entity")):
+                self.out_of_scope += 1
+                continue
             self.telemetry.append({**sample, "epoch": self.epoch})
             code = identity["spawns"].get(sample["entity"], {}).get("mobCode")
             # A dungeon run finishes (and becomes rankable) when the party kills the final boss.
@@ -651,6 +691,23 @@ class CombatSession:
             name = npc_name(code)
             return name if not name.startswith("#") else f"Enemy #{actor_id} (type {code})"
         return f"{'Enemy' if enemy else 'Player'} #{actor_id}"
+
+    def _retained(self, record, party, identity, allowed_in, entity=None):
+        """Whether an effect (``record``) or an HP/death sample of ``entity`` is kept under the
+        capture scope. Everything is kept with no retention scope, under All, and while the
+        party roster or the local player is still unknown; otherwise an effect must involve an
+        actor of the scope, and a sample must be of such an actor or of an NPC (bosses and the
+        enemies the party fights, whose HP the log and the live view need)."""
+        scope = self.retain_scope
+        if scope is None or identity["local_id"] is None or not party:
+            return True
+        if self._effective_scope(scope, record.epoch) == "all":
+            return True
+        selected = allowed_in(record, scope)
+        if entity is not None:
+            return entity in selected or bool(identity["spawns"].get(entity, {}).get("mobCode"))
+        event = record.event
+        return event.actor_id in selected or event.target_id in selected
 
     def _late_roster(self, record):
         identity = self.identities[record.epoch]
@@ -1610,7 +1667,7 @@ class CombatSession:
         from .. import __version__
         from ..combat.quality import DECODER
         evidence = {**self.capture_evidence, "decoder":DECODER, "app_version":__version__,
-                    "discarded_effects":self.discarded, "discarded_segments":self.discarded_segments,
+                    "discarded_effects":self.discarded, "discarded_segments":self.discarded_segments, "out_of_scope_effects":self.out_of_scope,
                     "discarded_telemetry":self.discarded_telemetry}
         npc_diagnostics = self.npc_diagnostics(g["epoch"] for g in groups)
         exported_scope = scope

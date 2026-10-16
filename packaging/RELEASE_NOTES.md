@@ -1,3 +1,20 @@
+## Crowd-proof live meter: world and field bosses no longer stall or reset it (0.2.290)
+
+Measured by replaying an 18-minute diagnostics capture (55,807 TCP payloads, 20,306 decoded effects, 5-player party) through the real decoder, engine and session with every hit cloned to 50x and 100x the players — a world-boss crowd seen from one client. On the unpatched 0.2.289 pipeline (this measuring machine is a slow one; the shape is what matters):
+
+- **1x** was fine: decode + bookkeeping used ~6% of a core, but the live snapshot already took 0.33 s at 20,000 records because it walks every record under the capture lock.
+- **50x**: bookkeeping alone needed 0.33 CPU-seconds per second; the storage part filled up (the other players' hits and HP samples) and was **forced to roll over mid-fight four times**, each a ~1-second stall on the decoder thread *and a reset of the live view*; snapshots took up to 0.8 s under the lock (overlay refresh every ~1.6 s).
+- **100x**: bookkeeping needed **1.03 CPU-seconds per second** — more than real time — so packets queued without bound (the freeze); **nine forced mid-fight rollovers** (ten archive parts of a single session); snapshots up to 0.84 s.
+
+What changed:
+
+- **Only the capture scope's effects are retained.** Under Party or Self, hits between other players and the boss — 95%+ of everything decoded at a world boss — are no longer stored (counted as `out_of_scope_effects`, never as capture loss). Everything is still kept while the party roster or your own identity is unknown (late identification reconciles earlier records) and under All. The party's own log stays complete instead of being evicted or rolled over by the crowd.
+- **Per-hit bookkeeping memoized per batch** (the allowed sets for the four scopes were re-derived per hit, walking every known name): ~4x cheaper in a crowd.
+- **A forced rollover no longer stops the decoder.** The finished part is detached in milliseconds and written on a worker while recording continues in the continuation; a part that cannot be written yet is retried, never lost.
+- **The live snapshot is recomputed off the capture lock** on a detached copy; the app and overlay are served the last completed reading meanwhile (the first reading of a view is still immediate). The decoder is never blocked by a poll again.
+- **Checkpoint saves stretch their cadence** when a save is slow (never more than about a quarter of the CPU), and relax back to 15 s.
+- "Is combat still active" (rollover deferral) is tracked as records arrive instead of scanning the history.
+
 ## Stitched runs and shared fights in the log review (0.2.289)
 
 Companion to log server 0.2.96, which rebuilds a dungeon run that rolled over between archive parts (entry in one part, final boss in the next) and recognises the same fight uploaded by several party members.
