@@ -6,6 +6,8 @@
 
 **The first pulls inside an instance are no longer typed as open-world trash.** The instance-entry record arrives before the map record (or the map record is lost), so a fight recorded with the instance id already known but the map id still the open-world one was classified *open world* and its boss, when there was one, counted as an open-world field-boss kill. A recorded instance now wins over a stale open-world map id, and the zone source says so. Found in the live server's recent public logs (`docs/open-investigations.md` → classification review).
 
+**Overlay wording.** An observed field boss whose expected return has come reads *now* on the event strip instead of *due now*.
+
 **Roadmap refresh.** `docs/COMBAT_ROADMAP.md` now reflects what shipped this round (identity and auth, the Fera bot's field bosses, the deployment card, the per-fight upload, the observed field-boss timers, the value probe, merge-on-green instead of paid auto-merge), the owner's Windows validation of the native overlay layer, multi-monitor placement and hotkeys, macOS/Linux parity as optional and hardware-gated, and the evidence still wanted. The open investigations gained the Kibelisk findings, the open-world map ids behind the observed timers, a server-record census of the diagnostic captures as probe leads, and the classification review of recent uploads.
 
 ## Value probe: which record carries a number you can see in the game (0.2.299)

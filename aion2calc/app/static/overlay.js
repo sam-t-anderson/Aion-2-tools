@@ -855,7 +855,7 @@
     box.hidden=false;
     box.innerHTML=`<span class="ovelabel">Events</span> `+list.map(e=>{
       if(e.observed){
-        const when=e.active?'due now':`back in ${A2EventSchedule.shortCountdown(e.startsInMs)}`;
+        const when=e.active?'now':`back in ${A2EventSchedule.shortCountdown(e.startsInMs)}`;
         return `<span class="ovevent ovobserved${e.active?' on':''}" title="${esc(e.tip)}">${esc(e.name)} <b>${when}</b></span>`;
       }
       const when=e.active

@@ -210,6 +210,7 @@ def test_snapshot_and_pages_are_wired():
     # Overlay: observed kills join the strip, labelled as observed, with their own grace window.
     assert "observedBossEvents" in OVERLAY and "snapshot.field_bosses" in OVERLAY
     assert "OBSERVED_GRACE_MS" in OVERLAY and "ovobserved" in OVERLAY and "not Discord timers" in OVERLAY
+    assert "e.active?'now'" in OVERLAY and "due now" not in OVERLAY   # an expected return that has come reads "now"
     assert "if(!region&&!observed.length)" in OVERLAY           # the strip shows observed kills even without a region
     # Timers page: faction filter, identity line, the identified server as the default, map-based zone split.
     assert "data-kill-faction" in TIMERS and "Mine (from the live meter)" in TIMERS
