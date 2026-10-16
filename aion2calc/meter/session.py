@@ -449,7 +449,10 @@ class CombatSession:
                 # boss room) is a reload, not an entry, and must not stamp the run's start onto
                 # whatever fight follows it -- that made a dungeon clear's "entry" the final-boss
                 # pull, the run's elapsed time unusable and its speed unranked.
-                if self._zone_reset_seen and not run.get("start_observed"):
+                # A load decoded in this very batch counts too (it is recorded further down).
+                loaded = self._zone_reset_seen or (engine.last_zone_reset_ms != self._zone_reset
+                                                   and (self._zone_reset is not None or engine.last_zone_reset_ms is not None))
+                if loaded and not run.get("start_observed"):
                     observed = timestamp_ms
                     if observed is None:
                         observed = max((e.timestamp_ms for e in events if isinstance(e, DamageEvent)), default=None)

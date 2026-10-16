@@ -223,3 +223,15 @@ def test_the_runner_dates_a_tcp_restarts_loss(monkeypatch, tmp_path):
     r._record_capture_stats({"tcp_discarded_payloads": 200, "tcp_unresolved_flows": 0})    # a periodic repeat: no new loss
     assert [(k, n) for _, k, n in r.session.capture_losses] == [("tcp_discarded_payloads", 200)]
     assert r.session.capture_evidence["tcp_discarded_payloads"] == 200
+
+
+def test_a_zone_load_decoded_with_the_runs_first_damage_still_counts_as_its_entry():
+    s, e = CombatSession(), _engine()
+    s.pvp = False
+    t0 = 1_000_000
+    e.last_zone_reset_ms = t0 - 5_000                 # the entry load, decoded in the same batch as the first hit
+    s.observe(e, [_hit(5001, t0), _hit(5002, t0 + 100)], timestamp_ms=t0)
+    run = s.runs[s.run]
+    assert run["start_observed"] and run["started_at"] == t0 and run["combat_seen"]
+    _fight(s, e, (5001, 5002), t0 + 1000)
+    assert s.runs[s.run]["started_at"] == t0
