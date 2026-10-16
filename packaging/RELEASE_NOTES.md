@@ -17,6 +17,19 @@ What changed:
 - **The party roster survives chained zone loads.** A teleport followed by the destination's own load seconds later (before any roster packet) dropped the roster carried over from the first load: in the uploaded capture two resets 7 s apart left the party unknown for the next 200 s — the overlay showing only you, every fight in that window roster-late — until the roster packet finally arrived. The carried names are now carried on again.
 - **All scope in a crowd no longer rolls over on every packet batch.** The part's player bounds (48 due / 60 forced) dated from a 64-identity export limit that is now 1024; with a hundred players in scope every batch was a *forced* rollover — a tiny part flushed and the live view emptied, continuously (the simulation produced 1,348 parts in 400 s). The bounds are now 400 / 800.
 
+The same simulation on this release (same slow machine), Party scope:
+
+| | 0.2.289 at 50x | 0.2.290 at 50x | 0.2.289 at 100x | 0.2.290 at 100x |
+|---|---|---|---|---|
+| bookkeeping CPU per capture-second | 0.33 | **0.09** | 1.03 (over real time) | **0.21** |
+| decoder CPU needed per capture-second at the worst moment (incl. the snapshot's share) | 0.77 | **0.28** | 2.16 (cannot keep up) | **0.52** |
+| forced mid-fight rollovers / archive parts | 4 / 5 | **0 / 1** | 9 / 10 | **0 / 1** |
+| records kept for the party's own log | up to 288k, evicted and rolled | **19,900 (the 1x figure)** | up to 324k | **19,900** |
+| live snapshot, max | 0.80 s | 0.45 s | 0.84 s | 0.33 s — and off the lock now |
+| memory (max RSS) | 194 MB | 93 MB | 203 MB | 93 MB |
+
+All scope at 50x (every player in view by design) keeps up too (0.28 CPU-s per second), with the known cost that a 250-row live view recomputes in about 3 s — off the lock, so the decoder is unaffected and the overlay simply refreshes every few seconds — and its 45 MB checkpoint document stretches the save cadence to ~25 s.
+
 ## Stitched runs and shared fights in the log review (0.2.289)
 
 Companion to log server 0.2.96, which rebuilds a dungeon run that rolled over between archive parts (entry in one part, final boss in the next) and recognises the same fight uploaded by several party members.
