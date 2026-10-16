@@ -71,6 +71,23 @@ class NoIdentifiedPlayerData(ValueError):
 
 
 class CombatSession:
+    def __deepcopy__(self, memo):
+        """A detached copy for checkpoint saves and rollovers, taken under the capture lock.
+
+        The two large collections hold immutable records (frozen dataclasses) and append-only
+        telemetry samples, so they are shared through a fresh deque (milliseconds) instead of
+        copied element by element: a true deep copy of a 100k-record session took 4.6 s with the
+        lock held, stalling the decoder and the overlay every 15 s and overflowing the capture
+        buffer on busy fights. Everything else (identities, runs, counters) is small and copied."""
+        clone = CombatSession.__new__(CombatSession)
+        memo[id(self)] = clone
+        for key, value in vars(self).items():
+            if key in ("records", "telemetry"):
+                setattr(clone, key, deque(value, maxlen=value.maxlen))
+            else:
+                setattr(clone, key, copy.deepcopy(value, memo))
+        return clone
+
     def continuation(self):
         """A storage part continues decoding, but cannot establish run entry."""
         result = CombatSession()
@@ -383,8 +400,18 @@ class CombatSession:
                     run["started_at"] = observed
         if engine.last_zone_reset_ms != self._zone_reset:
             if self._zone_reset is not None or engine.last_zone_reset_ms is not None:
+                previous = self.identities.get(self.epoch)
                 self.epoch += 1
                 self._zone_reset_seen = True
+                if previous and previous.get("roster"):
+                    # A zone load (an in-instance teleport to the boss room, a re-entry) clears
+                    # the engine's roster until the next roster packet, which under packet loss
+                    # may arrive after the fight has begun. The party does not change on a
+                    # teleport: carry its names so those first records are not "roster late"
+                    # (which unranked every boss-room fight). A later roster packet that lists a
+                    # different party still leaves the fight unranked (two distinct rosters).
+                    self.identities.setdefault(self.epoch, {"names": {}, "spawns": {}, "jobs": {}, "local_id": None, "roster": {}, "owners": {}})
+                    self.identities[self.epoch]["carried_roster"] = frozenset(previous["roster"])
             self._zone_reset = engine.last_zone_reset_ms
         identity = self.identities.setdefault(self.epoch, {"names": {}, "spawns": {}, "jobs": {}, "local_id": None, "roster": {}, "owners": {}})
         identity["player_ids"] = set(engine.known_players)
@@ -403,7 +430,7 @@ class CombatSession:
         if engine.local_player_id is not None:
             identity["local_id"] = engine.local_player_id
         self._check_boss_wipe(timestamp_ms, engine)
-        party = frozenset(name.casefold() for name in engine.roster)
+        party = frozenset(name.casefold() for name in engine.roster) or identity.get("carried_roster", frozenset())
         if party and "initial_roster" not in identity:
             # A capture can start before its first roster message. Reconcile only
             # those earlier records, within this identity epoch, against this
@@ -413,6 +440,12 @@ class CombatSession:
         for event in events:
             record = Record(self.epoch, event, party, engine.local_player_id, sequence=self.sequence+1)
             allowed = self._allowed(record, "party")
+            if (isinstance(event, DamageEvent) and not event.is_dot
+                    and (self.epoch, event.actor_id) in self._dead and event.actor_id in identity["names"]):
+                # A player marked dead who lands a full cast (not a lingering DoT tick) is alive:
+                # the resurrection's HP sample was lost, so the overlay's death indicator would
+                # otherwise stay on while they fight on.
+                self._dead.discard((self.epoch, event.actor_id))
             self._track_boss_attempt(engine, record, allowed)
             if (self._pull_ended_ms is not None and isinstance(event, DamageEvent)
                     and event.timestamp_ms > self._pull_ended_ms
@@ -1517,6 +1550,7 @@ class CombatSession:
                 if eid in entities and entities[eid].get("is_boss"):
                     maximum = sample.get("max") or identity["spawns"].get(actor_id, {}).get("reportedMaxHp")
                     health.append({"t":0, "entity":eid, "current":sample["current"], "max":maximum})
+            dead_players = set()
             for sample in self.telemetry:
                 if sample["epoch"] != group["epoch"] or not group["start"] <= sample["timestamp_ms"] <= group["end"]:
                     continue
@@ -1526,6 +1560,14 @@ class CombatSession:
                 t = (sample["timestamp_ms"] - group["start"]) / 1000
                 if sample["kind"] == "death":
                     events.append({"kind": "death", "t": t, "target": eid})
+                    if eid in players:
+                        dead_players.add(eid)
+                elif eid in dead_players and (sample.get("current") or 0) > 0:
+                    # A player's first HP above zero after their death: the resurrection.
+                    dead_players.discard(eid)
+                    events.append({"kind": "revive", "t": t, "target": eid})
+                    health.append({"t": t, "entity": eid, "current": sample["current"],
+                        "max": sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("reportedMaxHp")})
                 else:
                     health.append({"t": t, "entity": eid, "current": sample["current"],
                         "max": sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("reportedMaxHp")})

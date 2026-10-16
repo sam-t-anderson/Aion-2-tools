@@ -121,6 +121,8 @@ class Runner:
         self._exported_generation = -1
         self._diagnostic_lock = threading.Lock()
         self._session_save_lock = threading.Lock()
+        self._save_thread: threading.Thread | None = None   # the in-flight checkpoint save, if any
+        self._previous_engine = None                        # the last capture's engine, for identity carry-over
         self._last_checkpoint = 0.0
         self._rollover_retry_at = 0.0
         self._stop = False
@@ -150,6 +152,7 @@ class Runner:
         self.stop()
         with self.lock:
             self.meter = Meter()
+            self._previous_engine = self.packet_engine
             self.packet_engine = None
             self._snap_cache = None          # never show the previous session's snapshot
             self._community_rank = {}        # a prior session's standings must not leak in
@@ -238,6 +241,13 @@ class Runner:
         if self.packet_engine is not None:
             self.session.begin_capture()
             self.packet_engine.set_server_port(port)
+            previous, self._previous_engine = self._previous_engine, None
+            if previous is not None and self.session.records and hasattr(previous, "adopt_identity"):
+                # Restarting mid-recording (to export, after a hiccup): the party, your own actor
+                # id and the spawns seen are still valid in the zone the client is in. Without
+                # this, nobody is identified until the next zone load.
+                self.packet_engine.adopt_identity(previous)
+            self._seed_boss_hp(self.packet_engine)
             if opts.get("character_name"):
                 self.packet_engine.set_local_character_name(str(opts["character_name"]))
         self.target_mode = str(opts.get("target_mode") or "bossTargets")
@@ -355,7 +365,7 @@ class Runner:
                 # draining for shutdown, exactly as the per-packet path was).
                 if not stop_event.is_set():
                     if saw_packet and run_before != (self.session.run, self.session.run_closed):
-                        self._save_session(active=True)
+                        self._spawn_save()
                     if engine is not None and saw_packet:
                         self._rollover_session()
                     self._checkpoint_session()
@@ -512,8 +522,21 @@ class Runner:
     def _checkpoint_session(self) -> None:
         now = time.monotonic()
         if now - self._last_checkpoint >= 15:
-            self._last_checkpoint = now
-            self._save_session(active=True)
+            if self._spawn_save():
+                self._last_checkpoint = now
+
+    def _spawn_save(self) -> bool:
+        """Write the session log on a worker thread. Building and serialising an 8 MB document
+        took seconds on the decoder thread every 15 s; packets piled up meanwhile (the capture
+        buffer overflowed, the overlay froze). The detach under the capture lock is cheap now
+        (see ``CombatSession.__deepcopy__``), the rest runs here. One save at a time: a save
+        still running when the next is due simply makes that one wait for the next tick."""
+        worker = self._save_thread
+        if worker is not None and worker.is_alive():
+            return False
+        self._save_thread = threading.Thread(target=self._save_session, args=(True,), daemon=True, name="session-save")
+        self._save_thread.start()
+        return True
 
     def _rollover_session(self) -> None:
         # Keep substantial headroom below both live and import/export limits.
@@ -590,6 +613,7 @@ class Runner:
         # Serialize snapshot and replacement together so an older periodic save
         # cannot overwrite the final snapshot after Stop.
         with self._session_save_lock:
+            self._store_boss_hp()
             try:
                 from ..combat.sessions import save
                 doc = self.to_a2log()
@@ -755,6 +779,42 @@ class Runner:
         self._last_snap_cost = time.monotonic() - started
         self._snap_cache = (key, time.monotonic(), snap)
         return snap
+
+    _BOSS_HP_FILE = ("community", "boss_hp_seen.json")
+
+    def _seed_boss_hp(self, engine) -> None:
+        """Prime the engine's boss max-HP memory for the current build from disk (best-effort)."""
+        try:
+            from ..paths import data_file, read_json
+            build = self._game_build()
+            if not build or not data_file(*self._BOSS_HP_FILE).exists():
+                return
+            table = (read_json(*self._BOSS_HP_FILE).get("builds") or {}).get(build) or {}
+            for code, hp in table.items():
+                try:
+                    engine.boss_hp_seen.setdefault(int(code), float(hp))
+                except (TypeError, ValueError):
+                    continue
+        except Exception:
+            pass
+
+    def _store_boss_hp(self) -> None:
+        """Persist the engine's boss max-HP memory for the current build (best-effort, bounded)."""
+        try:
+            engine = self.packet_engine
+            seen = dict(getattr(engine, "boss_hp_seen", None) or {})
+            build = self._game_build()
+            if not seen or not build:
+                return
+            from ..paths import data_file, read_json, write_user_json
+            doc = read_json(*self._BOSS_HP_FILE) if data_file(*self._BOSS_HP_FILE).exists() else {}
+            builds = doc.get("builds") if isinstance(doc.get("builds"), dict) else {}
+            table = dict(builds.get(build) or {})
+            table.update({str(code): float(hp) for code, hp in seen.items()})
+            builds[build] = dict(list(table.items())[-500:])
+            write_user_json({"builds": dict(list(builds.items())[-8:])}, *self._BOSS_HP_FILE)
+        except Exception:
+            pass
 
     def _game_build(self) -> str | None:
         """The game build to key community HP lookups on, matching what the enemy-HP

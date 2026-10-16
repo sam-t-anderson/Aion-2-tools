@@ -12,7 +12,7 @@ import time
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
 from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, _damage_frames
 from .framing import walk, bundle_batch
-from .lookup import job_from_skill, skill_name, npc_info, npc_name
+from .lookup import job_from_skill, skill_name, npc_info, npc_name, dungeon_final_bosses
 from .ping import PingTracker
 import json
 from importlib.resources import files
@@ -37,6 +37,9 @@ class MeterEngine:
         self.names: dict[int, str] = {}
         self.known_players: set[int] = set()
         self._at_zero_hp: set[int] = set()        # players whose last HP sample read 0 (dead until >0)
+        # Max HP of catalog bosses this install has seen (mob code -> HP on the current build), so a
+        # dungeon's final boss whose spawn packet was lost can still be recognised by its HP.
+        self.boss_hp_seen: dict[int, float] = {}
         self.jobs: dict[int, str] = {}
         self.roster: dict[str, dict] = {}
         self.roster_complete = False
@@ -173,6 +176,8 @@ class MeterEngine:
             if info.get("maxHp"):
                 self.spawn_info[entity_id]["reportedMaxHp"] = info["maxHp"]
                 self.telemetry.append({"kind":"hp", "entity":entity_id, "current":info["currentHp"], "max":info["maxHp"], "timestamp_ms":timestamp_ms})
+                if info.get("mobCode") and npc_info(info["mobCode"]).get("isBoss"):
+                    self.boss_hp_seen[int(info["mobCode"])] = float(info["maxHp"])
         self.known_entities.update(self.spawn_info)
         self.known_entities.update(links)
         self.known_entities.update(links.values())
@@ -183,6 +188,7 @@ class MeterEngine:
         current_hp, maximum_hp = scan_hp_updates(complete)
         self.telemetry.extend({"kind": "hp", "entity": eid, "current": hp, "max": maximum_hp.get(eid), "timestamp_ms": timestamp_ms} for eid, hp in current_hp.items())
         self.telemetry.extend(self._player_deaths_from_hp(current_hp, timestamp_ms))
+        self._identify_boss_by_hp(current_hp, maximum_hp)
         self.live_hp.update(current_hp)
         for entity_id, value in current_hp.items():
             info = self.spawn_info.setdefault(entity_id, {})
@@ -207,6 +213,7 @@ class MeterEngine:
             current, maximum = scan_hp_updates(packet)
             self.telemetry.extend({"kind": "hp", "entity": eid, "current": hp, "max": maximum.get(eid), "timestamp_ms": timestamp_ms} for eid, hp in current.items())
             self.telemetry.extend(self._player_deaths_from_hp(current, timestamp_ms))
+            self._identify_boss_by_hp(current, maximum)
             self.telemetry.extend({"kind": "death", "entity": eid, "timestamp_ms": timestamp_ms} for eid in scan_deaths(packet))
             self.live_hp.update(current)
             for entity_id, value in maximum.items():
@@ -328,6 +335,59 @@ class MeterEngine:
                 self._at_zero_hp.add(entity_id)
                 out.append({"kind": "death", "entity": entity_id, "timestamp_ms": timestamp_ms})
         return out
+
+    def _identify_boss_by_hp(self, current: dict, maximum: dict) -> None:
+        """Learn catalog bosses' max HP, and name a spawn-less enemy by it.
+
+        Both final-boss fights of a Fire Temple recording showed the boss only as ``Enemy #id``:
+        its spawn packet (the one carrying the mob code) was lost in a zone-load burst, so the
+        kill was never recognised, the run never finished and the overlay never reset. The HP
+        packets did arrive, and the boss's HP is a stable signature on a build (15.50M observed
+        against 15.504M seen the day before). So: remember every catalog boss's max HP as it is
+        seen, and when an enemy with no mob code reports HP within 1% of a remembered final boss
+        of the current dungeon, take it for that boss. Only the dungeon's own final bosses are
+        candidates, so trash can never be promoted; the entry is marked ``inferred``."""
+        for entity_id, value in maximum.items():
+            code = self.spawn_info.get(entity_id, {}).get("mobCode")
+            if code and value > 0 and npc_info(code).get("isBoss"):
+                self.boss_hp_seen[int(code)] = float(value)
+        candidates = dungeon_final_bosses(self.dungeon_id or self.map_id) if (self.dungeon_id or self.map_id) else ()
+        if not candidates or not self.boss_hp_seen:
+            return
+        for entity_id in set(current) | set(maximum):
+            info = self.spawn_info.get(entity_id, {})
+            if info.get("mobCode"):
+                continue
+            value = maximum.get(entity_id) or current.get(entity_id) or 0
+            if value <= 0:
+                continue
+            for code in candidates:
+                known = self.boss_hp_seen.get(int(code))
+                if known and abs(value - known) <= 0.01 * known:
+                    self.spawn_info.setdefault(entity_id, {}).update(
+                        {"mobCode": int(code), "inferred": "hp_signature", "maxHp": known, "reportedMaxHp": known})
+                    self.known_entities.add(entity_id)
+                    break
+
+    def adopt_identity(self, previous: "MeterEngine") -> None:
+        """Carry the previous capture's identities into this engine.
+
+        Stopping and restarting the meter inside a dungeon (to export, say) made a fresh engine
+        that knew nobody: the identity, roster and spawn packets are sent at zone load, so until
+        the next load the overlay showed a single player and the log recorded one. Actor ids
+        stay valid while the client stays in the zone, and the next real zone load resets this
+        state anyway, so adopting the last engine's view is safe and restores the party at once."""
+        with self._lock:
+            for attr in ("names", "jobs", "roster", "spawn_info", "summon_owners", "local_profile", "live_hp", "boss_hp_seen"):
+                getattr(self, attr).update(getattr(previous, attr, {}) or {})
+            for attr in ("known_players", "known_entities", "summons"):
+                getattr(self, attr).update(getattr(previous, attr, ()) or ())
+            self.roster_complete = bool(getattr(previous, "roster_complete", False))
+            self.local_player_id = getattr(previous, "local_player_id", None)
+            self.local_identity_from_game = bool(getattr(previous, "local_identity_from_game", False))
+            self.local_character_name = getattr(previous, "local_character_name", "") or self.local_character_name
+            self.map_id = getattr(previous, "map_id", 0) or self.map_id
+            self.dungeon_id = getattr(previous, "dungeon_id", 0) or self.dungeon_id
 
     def _scan_spawns(self, data: bytes, timestamp_ms: int) -> dict:
         scan = {"records": [], "candidates": 0}

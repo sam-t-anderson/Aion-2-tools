@@ -112,6 +112,94 @@ class TCPReassembler:
         self.generation += 1
 
 
+#: Always passes a narrowed kernel filter: TCP connection setup and teardown. A zone change
+#: or reconnect can replace the game socket (new port, maybe a new host); its handshake is the
+#: one packet guaranteed to reach the callback, where the filter widens again to find it.
+_HANDSHAKE_CLAUSE = "(tcp[tcpflags] & (tcp-syn|tcp-fin|tcp-rst) != 0)"
+
+
+def narrow_filter(selected: tuple, base: str = "tcp") -> str:
+    """The kernel filter for the located game connection: only its server host and port (plus
+    every TCP handshake/teardown packet, see ``_HANDSHAKE_CLAUSE``). ``selected`` is the flow
+    detector's key, a server->client packet: ``(interface, server, server_port, client, port)``.
+    ``base`` is the broad filter the capture opened with ("tcp", or "tcp and host X")."""
+    host, port = selected[1], int(selected[2])
+    return f"({base} and host {host} and port {port}) or ({base} and {_HANDSHAKE_CLAUSE})"
+
+
+def apply_kernel_filter(capture_socket, expression: str, interface: str | None = None) -> bool:
+    """Replace the BPF program on a live capture handle without reopening it.
+
+    Reopening would lose the packets in flight during the switch; libpcap/Npcap can compile and
+    install a new program on the open handle (scapy's pcap wrapper exposes it as ``setfilter``),
+    Linux attaches one to the raw socket. Must run on the thread that receives from this
+    handle. Returns True when the filter was installed; a backend without the ability keeps
+    the filter it has (the caller records that and carries on)."""
+    import sys
+    try:
+        for wrapper in (getattr(capture_socket, "pcap_fd", None), getattr(capture_socket, "ins", None)):
+            setfilter = getattr(wrapper, "setfilter", None)
+            if callable(setfilter):
+                setfilter(expression)
+                return True
+        if sys.platform.startswith("linux"):
+            from scapy.arch.linux import attach_filter
+            inner = getattr(capture_socket, "ins", None)
+            if inner is not None:
+                attach_filter(inner, expression, interface)
+                return True
+    except Exception:
+        return False
+    return False
+
+
+class KernelFilter:
+    """Per-adapter kernel filter state: narrow to the located game connection, widen when it ends.
+
+    With the broad ``tcp`` filter every TCP packet on the machine (downloads, streams, voice)
+    reaches the Python callback and the capture buffer; a recording showed 84% of 14.2M packets
+    dropped that way, including the zone-load bursts that carry identities and spawns. Once the
+    flow detector has the game connection, each adapter's filter shrinks to that host and port
+    (plus handshakes), and widens again as soon as the connection is gone so a replacement is
+    found. ``apply`` is the installer (``apply_kernel_filter``); an adapter whose backend refuses
+    is left alone and never retried."""
+
+    def __init__(self, base: str = "tcp", apply=apply_kernel_filter):
+        self.base = base
+        self.apply = apply
+        self.current: dict[str, str] = {}
+        self.failed: set[str] = set()
+
+    def expression(self, interface: str) -> str:
+        return self.current.get(interface, self.base)
+
+    def narrowed(self, interface: str) -> bool:
+        return self.expression(interface) != self.base
+
+    def narrow(self, interface: str, capture_socket, selected: tuple) -> bool:
+        """Install the narrow filter for ``selected`` on this adapter; True when it changed."""
+        if interface in self.failed:
+            return False
+        want = narrow_filter(selected, self.base)
+        if self.current.get(interface) == want:
+            return False
+        if not self.apply(capture_socket, want, interface):
+            self.failed.add(interface)
+            return False
+        self.current[interface] = want
+        return True
+
+    def widen(self, interface: str, capture_socket) -> bool:
+        """Back to the broad filter once the game connection is gone; True when it changed."""
+        if not self.narrowed(interface) or interface in self.failed:
+            return False
+        if not self.apply(capture_socket, self.base, interface):
+            self.failed.add(interface)
+            return False
+        self.current[interface] = self.base
+        return True
+
+
 class CombatFlowDetector:
     """Identify a game flow with the upstream 12-packet/3-second marker gate."""
     signatures = (b"\x0e\x00\x36", b"\x06\x00\x36")
@@ -228,14 +316,16 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
     rtt = PassiveRTT()  # Accessed only under callback_lock, like detector state.
     stats = {"packets": 0, "payload_packets": 0, "bytes": 0, "forwarded": 0,
              "auto_port": auto_port, "port": None if auto_port else server_port,
-             "flow_detected": False, "capture_filter": None,
+             "flow_detected": False, "capture_filter": None, "filter_narrowed": False,
              "interface": interface or "Auto", "interfaces": interfaces, "warnings": [],
              "state": "starting", "signature_packets": 0, "candidate_flows": [],
              "transport_monitored": True, "tcp_discarded_payloads": 0, "tcp_unresolved_flows": 0,
              "tcp_pending_bytes": 0, "tcp_stream_resets": 0}
     last_prune = time.monotonic()
 
-    def on_packet(packet) -> None:
+    kernel: KernelFilter | None = None   # set once the broad filter is known (below)
+
+    def on_packet(packet, adapter: str | None = None, capture_socket=None) -> None:
         if TCP not in packet:
             return
         ip = packet[IP] if IP in packet else packet[IPv6] if IPv6 in packet else None
@@ -297,6 +387,18 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                 if auto_port and detector.is_connection(key):
                     detector.reset()
                     stats["port"] = None
+            # Narrow this adapter's kernel filter to the located game connection, or widen it
+            # back once that connection is gone (its idle reset or FIN/RST above). This runs on
+            # the adapter's own receive thread, the only thread allowed to touch its handle.
+            if auto_port and kernel is not None and adapter is not None and capture_socket is not None:
+                changed = (kernel.narrow(adapter, capture_socket, detector.selected) if detector.selected is not None
+                           else kernel.widen(adapter, capture_socket))
+                if changed:
+                    stats["capture_filter"] = kernel.expression(adapter)
+                    stats["filter_narrowed"] = kernel.narrowed(adapter)
+                    if kernel.failed:
+                        stats["filter_unchangeable"] = sorted(kernel.failed)
+                    emit("capture_stats", dict(stats))
 
     sniffers = []
     resources = []
@@ -308,10 +410,10 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                 "pcap_stats_partial": len(resources) < len(interfaces) or any(row["pcap_stats_partial"] for row in rows),
                 "pcap_interfaces": rows, "pcap_stats_note": NOTE}
 
-    def packet_callback(monitor):
+    def packet_callback(monitor, adapter=None, capture_socket=None):
         def receive(packet):
             monitor.sample()  # Same thread as libpcap recv; no cross-thread handle calls.
-            on_packet(packet)
+            on_packet(packet, adapter, capture_socket)
         return receive
 
     try:
@@ -319,6 +421,8 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
         if host:
             bpf_filter += f" and host {host}"
         stats["capture_filter"] = bpf_filter   # recorded in capture_quality to reveal broad vs. narrow capture
+        if auto_port:
+            kernel = KernelFilter(bpf_filter)
         for name in interfaces:
             capture_socket = None
             try:
@@ -327,7 +431,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                 if monitor.buffer_warning:
                     stats["warnings"].append(f"{name}: {monitor.buffer_warning}")
                 monitor.sample(force=True)
-                sniffer = AsyncSniffer(opened_socket={capture_socket: name}, prn=packet_callback(monitor), store=False)
+                sniffer = AsyncSniffer(opened_socket={capture_socket: name}, prn=packet_callback(monitor, name, capture_socket), store=False)
                 sniffer.start()
                 resources.append((name, capture_socket, monitor, sniffer))
                 sniffers.append((name, sniffer))

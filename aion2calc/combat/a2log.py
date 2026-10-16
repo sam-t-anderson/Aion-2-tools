@@ -135,7 +135,7 @@ _segment_properties.update({
     "zone_source":{"type":"string"}, "encounter_type_source":{"type":"string"}, "difficulty_source":{"type":"string"},
     "game_patch": {"type": "string"}, "game_patch_source": {"type": "string"}, "game_patch_basis": {"type": "string"}, "difficulty": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
     "entities": {"type": "array", "maxItems": 2000, "description": "Observed enemies and pets: id, name, kind, mob_code, is_boss, owner"},
-    "events": {"type": "array", "maxItems": LIMITS["hits"], "description": "Recorded damage/heal/death effects: t, kind, source, target, skill, skill_id, amount; unknown recipients omitted"},
+    "events": {"type": "array", "maxItems": LIMITS["hits"], "description": "Recorded damage/heal/death/revive effects: t, kind, source, target, skill, skill_id, amount; a revive is a player's first HP above zero after a death; unknown recipients omitted"},
     "health": {"type": "array", "maxItems": LIMITS["hp"], "description": "Entity HP samples: t, entity, current, optional max"},
     "ping_source": {"type": "string"}, "ping_recorder": {"type": "string"},
     "ping": {"type": "array", "maxItems": LIMITS["hp"], "description": "Round-trip latency over time: [t seconds, milliseconds] pairs"},
@@ -332,7 +332,7 @@ def validate(doc) -> dict:
         references = ids | {e["id"] for e in entities}
         events = []
         for event in (s.get("events") or [])[:LIMITS["hits"]]:
-            if not isinstance(event, dict) or event.get("kind") not in ("damage", "heal", "death"):
+            if not isinstance(event, dict) or event.get("kind") not in ("damage", "heal", "death", "revive"):
                 continue
             if not _num(event.get("t")) or not 0 <= event["t"] <= s["duration"] + 1:
                 continue
@@ -340,9 +340,9 @@ def validate(doc) -> dict:
             for k in ("source", "target"):
                 if event.get(k) in references:
                     row[k] = event[k]
-            if event["kind"] == "death" and "target" not in row:
+            if event["kind"] in ("death", "revive") and "target" not in row:
                 continue
-            if event["kind"] != "death":
+            if event["kind"] not in ("death", "revive"):
                 if not _num(event.get("amount")) or event["amount"] < 0:
                     continue
                 row["amount"] = float(event["amount"])
