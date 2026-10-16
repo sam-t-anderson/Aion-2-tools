@@ -41,33 +41,52 @@ def retained_range(session, token, previous=None):
 
 
 def describe(archive, previous=None, duplicate=False):
+    """How a saved part's retained-record range relates to its predecessor's, from the submitted
+    counters and part links alone.
+
+    Record sequence continuity is the evidence: ``connected`` means the continuation's first
+    retained record is the very next one after the predecessor's last, so no decoded record is
+    missing or repeated between the two. A capture or identity context (the record epoch, which
+    advances on every zone load -- a dungeon run has several, and the storage rollover fires in the
+    pause between dungeons, right after one) may advance within a part or across the boundary
+    without breaking that; the combined review accepts the same nondecreasing contexts. Only a
+    context that goes *backwards* across the boundary contradicts the part link. Such a part is
+    reported ``connected`` with ``context_changed`` set, never as a break: treating every zone load
+    as one kept almost every real recording's parts apart (and its runs unstitched)."""
     current = clean_continuity(archive.get("continuity"))
-    def status(code, label):
-        return {"code":code, "label":label, "note":"Submitted record counters and part links; not verified packet continuity, identity or run completion."}
+    def status(code, label, **extra):
+        return {"code":code, "label":label, **extra,
+                "note":"Submitted record counters and part links; not verified packet continuity, identity or run completion."}
     if duplicate:
         return status("duplicate", "Multiple uploads/files for this part")
     if not current:
         return status("unavailable", "Continuity metadata not recorded")
     if current["retained_records"] != current["last_sequence"]-current["first_sequence"]+1:
         return status("internal_gap", "Gap within retained record range")
+    changed_within = current.get("first_epoch") is not None and current.get("first_epoch") != current.get("last_epoch")
     if archive.get("part") == 1:
-        if current.get("first_epoch") != current.get("last_epoch"):
-            return status("context_change", "Multiple capture or identity contexts")
-        return status("start", "Starts at retained record 1") if current["first_sequence"] == 1 and not current.get("previous_token") else status("start_gap", "Earlier retained records unavailable")
+        if current["first_sequence"] == 1 and not current.get("previous_token"):
+            return status("start", "Starts at retained record 1" + (" (capture or identity context changed within the part)" if changed_within else ""),
+                          context_changed=changed_within)
+        return status("start_gap", "Earlier retained records unavailable", context_changed=changed_within)
     parent = clean_continuity((previous or {}).get("continuity"))
     if not parent:
         return status("parent_unavailable", "Previous part unavailable or ambiguous in this list")
     if current.get("previous_token") != parent["token"] or current.get("previous_last_sequence") != parent["last_sequence"]:
         return status("parent_mismatch", "Predecessor does not match this saved part")
-    if not previous.get("closed"):
-        return status("parent_open", "Previous part is an unfinished storage part")
     delta = current["first_sequence"]-parent["last_sequence"]-1
     if delta < 0:
         return status("overlap", "Overlapping retained record ranges")
     if delta > 0:
+        # An unfinished (snapshot) predecessor is missing its tail: that is the gap. A snapshot whose
+        # last record the continuation follows directly holds everything up to the rollover.
+        if not previous.get("closed"):
+            return status("parent_open", "Previous part is an unfinished storage part")
         return status("gap", "Gap between retained record ranges")
-    if (current.get("first_epoch") != current.get("last_epoch")
-            or current.get("first_epoch") is not None and parent.get("last_epoch") is not None
-            and current["first_epoch"] != parent["last_epoch"]):
-        return status("context_change", "Capture or identity context changed")
-    return status("connected", "Submitted ranges connect")
+    if (current.get("first_epoch") is not None and parent.get("last_epoch") is not None
+            and current["first_epoch"] < parent["last_epoch"]):
+        return status("context_change", "Capture or identity context goes backwards across the parts")
+    changed = changed_within or (current.get("first_epoch") is not None and parent.get("last_epoch") is not None
+                                 and current["first_epoch"] != parent["last_epoch"])
+    return status("connected", "Submitted ranges connect" + (" (capture or identity context changed)" if changed else ""),
+                  context_changed=changed)
