@@ -265,3 +265,24 @@ def test_a_world_boss_crowd_in_scope_does_not_force_rollovers(home):
     r.session._storage_players["all"] = {f"player{i}" for i in range(MR._ROLLOVER_PLAYERS_HARD)}
     r._rollover_session()
     assert r.archive_part == 2                                                  # the export limit still guards
+
+
+def test_the_party_roster_is_carried_through_chained_zone_loads():
+    e = _engine()
+    s = CombatSession()
+    s.pvp = False
+    s.retain_scope = "party"
+    e.last_zone_reset_ms = 1_000
+    s.observe(e, [DamageEvent(5001, 9001, 15210000, 100, 1_000)], timestamp_ms=1_000)   # roster known
+    e.roster = {}                                                       # a teleport clears it...
+    e.last_zone_reset_ms = 2_000
+    s.observe(e, [], timestamp_ms=2_000)
+    e.last_zone_reset_ms = 2_500                                        # ...and the destination loads again
+    s.observe(e, [], timestamp_ms=2_500)
+    e.names[7777] = "Stranger"; e.known_players.add(7777)
+    s.observe(e, [DamageEvent(5002, 9001, 15210000, 70, 3_000), DamageEvent(7777, 9001, 15210000, 70, 3_001)], timestamp_ms=3_000)
+    identity = s.identities[s.epoch]
+    assert s.epoch == 3 and identity["carried_roster"] == frozenset({"me", "ally"})   # epochs: first reset, teleport, load
+    # The ally's hit is in scope (kept, not roster-late); the stranger's is not retained.
+    assert [r.event.actor_id for r in s.records if r.epoch == 3] == [5002]
+    assert s.snapshot("party")["party_roster_late"] is False

@@ -422,15 +422,20 @@ class CombatSession:
                 previous = self.identities.get(self.epoch)
                 self.epoch += 1
                 self._zone_reset_seen = True
-                if previous and previous.get("roster"):
+                carried = (previous.get("roster") or previous.get("carried_roster")) if previous else None
+                if carried:
                     # A zone load (an in-instance teleport to the boss room, a re-entry) clears
                     # the engine's roster until the next roster packet, which under packet loss
                     # may arrive after the fight has begun. The party does not change on a
                     # teleport: carry its names so those first records are not "roster late"
                     # (which unranked every boss-room fight). A later roster packet that lists a
                     # different party still leaves the fight unranked (two distinct rosters).
+                    # Chained loads (a teleport followed by the destination's own load seconds
+                    # later, before any roster packet) carry the names on again: a capture showed
+                    # two resets 7 s apart leaving the party unknown for the next 200 s -- the
+                    # overlay showing only the local player, and every fight roster-late.
                     self.identities.setdefault(self.epoch, {"names": {}, "spawns": {}, "jobs": {}, "local_id": None, "roster": {}, "owners": {}})
-                    self.identities[self.epoch]["carried_roster"] = frozenset(previous["roster"])
+                    self.identities[self.epoch]["carried_roster"] = frozenset(carried)
             self._zone_reset = engine.last_zone_reset_ms
         identity = self.identities.setdefault(self.epoch, {"names": {}, "spawns": {}, "jobs": {}, "local_id": None, "roster": {}, "owners": {}})
         identity["player_ids"] = set(engine.known_players)
