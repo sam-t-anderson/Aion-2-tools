@@ -80,3 +80,28 @@ up by — self-healing cannot invent one. The fix is the same as for ranked=0: *
 packets by reducing packet loss.** (Open-world mobs engaged without witnessing their spawn are an
 inherent limit; a future option is decoding a non-spawn packet that carries actor→mobCode, gated on
 protocol evidence.) Hand-filling names would also fight the asset-refresh auto-merge.
+
+## Catalog references audit (0.2.292) — what was filled, what stays data-gated
+
+Cross-checked the bundled tables against each other (`dungeon_final_bosses.json`, `i18n/dungeons`,
+`i18n/npcs`, `i18n/npc-portraits`, `data/global/titles.json`):
+
+- **Final-boss codes without an NPC record or name: 0.** Codes the catalog flags non-boss: 0.
+- **Named dungeon tiers without a curated final boss: 19 → 2.** The upstream catalog attributes no
+  NPC to these tiers, so nothing could be curated. Every curated entry follows one pattern (the
+  same boss name, boss flag and three-digit code suffix across a dungeon's tiers; 0 exceptions over
+  100 entries), so 17 tiers now take their sibling tiers' final boss under every such code
+  (`derived_final_bosses`, provenance per entry; curated wins). Citadel of the Fallen Daeva
+  600151–600153 have no curated sibling and stay unmapped until a capture shows the boss.
+- **Instances with a curated final boss but no dungeon name: 61 → 60.** Their NPC records exist
+  upstream (3–4 bosses each, e.g. 610020–610023 "Kromede's Desolation", 910011–910016 "Divided
+  Aponos"), the dungeon-name table does not list them. Upstream main (`2b9f9d65`) named one
+  (610044 "Dying Dramata's Nest"); the rest are data-gated on upstream. Names are never inferred
+  from boss names.
+- **Boss NPCs without portrait art: 91 of 1,412** (1,321 have art) — the community portrait
+  fallback pipeline covers these behind the curated table; no bundled change.
+- **Titles: 509 records, stats absent in the bundle by design** — `db/sync.py` fetches each
+  title's details into the user copy on launch.
+- **Enemy NPC types:** unchanged — see the section above (the skill-provenance reclassification is
+  detrimental and is not shipped; untyped enemies are capture loss, not a catalog gap).
+

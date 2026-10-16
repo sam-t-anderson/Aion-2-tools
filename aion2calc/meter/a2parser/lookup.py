@@ -184,15 +184,25 @@ def _dungeon_final_bosses() -> dict:
     if not isinstance(raw, dict):
         return {}
     out: dict[int, frozenset] = {}
-    for did, codes in raw.items():
+    def take(did, codes):
         try:
             key = int(did)
         except (TypeError, ValueError):
-            continue
-        if key > 0 and isinstance(codes, list):
+            return
+        if key > 0 and key not in out and isinstance(codes, list):
             members = frozenset(c for c in codes if isinstance(c, int) and 0 < c <= 2**32 - 1)
             if members:
                 out[key] = members
+    for did, codes in raw.items():
+        take(did, codes)
+    # Tiers of a curated dungeon the catalog attributes no NPC to: their final boss is the sibling
+    # tiers' final boss under its other tier codes (``derived_final_bosses``, each entry naming
+    # the siblings and codes it was derived from). A curated entry always wins.
+    derived = doc.get("derived_final_bosses")
+    if isinstance(derived, dict):
+        for did, entry in derived.items():
+            if isinstance(entry, dict):
+                take(did, entry.get("codes"))
     return out
 
 

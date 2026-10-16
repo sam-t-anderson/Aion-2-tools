@@ -315,5 +315,310 @@
   "910067": [
    2702623
   ]
- }
+ },
+ "derived_final_bosses": {
+  "600003": {
+   "codes": [
+    2300171,
+    2300172,
+    2300173,
+    2300174,
+    2310171,
+    2310172,
+    2310173,
+    2310174,
+    2320171,
+    2320172,
+    2320173,
+    2320174,
+    2330171
+   ],
+   "boss": [
+    "Ultimate Berk"
+   ],
+   "basis": "Krao Cave tiers 600001, 600002, 600004 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600003 itself."
+  },
+  "600014": {
+   "codes": [
+    2300218,
+    2310218,
+    2320218,
+    2330218
+   ],
+   "boss": [
+    "Divine Auldor"
+   ],
+   "basis": "Urugugu Canyon tiers 600011, 600012, 600013 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600014 itself."
+  },
+  "600024": {
+   "codes": [
+    2300371,
+    2310371,
+    2320371,
+    2330371
+   ],
+   "boss": [
+    "Kromede's Desire"
+   ],
+   "basis": "Fire Temple tiers 600021, 600022, 600023 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600024 itself."
+  },
+  "600025": {
+   "codes": [
+    2300371,
+    2310371,
+    2320371,
+    2330371
+   ],
+   "boss": [
+    "Kromede's Desire"
+   ],
+   "basis": "Fire Temple tiers 600021, 600022, 600023 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600025 itself."
+  },
+  "600034": {
+   "codes": [
+    2300471,
+    2310471,
+    2320471
+   ],
+   "boss": [
+    "Transcendent Bakarma"
+   ],
+   "basis": "Draupnir tiers 600031, 600032, 600033 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600034 itself."
+  },
+  "600051": {
+   "codes": [
+    2300616,
+    2310616,
+    2320616,
+    2330616,
+    2340616,
+    2341616,
+    2342616,
+    2343616,
+    2344616,
+    2345616,
+    2346616,
+    2347616
+   ],
+   "boss": [
+    "Gelcos"
+   ],
+   "basis": "Deus Research Base tiers 600053, 600055, 600058 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600051 itself."
+  },
+  "600052": {
+   "codes": [
+    2300616,
+    2310616,
+    2320616,
+    2330616,
+    2340616,
+    2341616,
+    2342616,
+    2343616,
+    2344616,
+    2345616,
+    2346616,
+    2347616
+   ],
+   "boss": [
+    "Gelcos"
+   ],
+   "basis": "Deus Research Base tiers 600053, 600055, 600058 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600052 itself."
+  },
+  "600054": {
+   "codes": [
+    2300616,
+    2310616,
+    2320616,
+    2330616,
+    2340616,
+    2341616,
+    2342616,
+    2343616,
+    2344616,
+    2345616,
+    2346616,
+    2347616
+   ],
+   "boss": [
+    "Gelcos"
+   ],
+   "basis": "Deus Research Base tiers 600053, 600055, 600058 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600054 itself."
+  },
+  "600056": {
+   "codes": [
+    2300616,
+    2310616,
+    2320616,
+    2330616,
+    2340616,
+    2341616,
+    2342616,
+    2343616,
+    2344616,
+    2345616,
+    2346616,
+    2347616
+   ],
+   "boss": [
+    "Gelcos"
+   ],
+   "basis": "Deus Research Base tiers 600053, 600055, 600058 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600056 itself."
+  },
+  "600057": {
+   "codes": [
+    2300616,
+    2310616,
+    2320616,
+    2330616,
+    2340616,
+    2341616,
+    2342616,
+    2343616,
+    2344616,
+    2345616,
+    2346616,
+    2347616
+   ],
+   "boss": [
+    "Gelcos"
+   ],
+   "basis": "Deus Research Base tiers 600053, 600055, 600058 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600057 itself."
+  },
+  "600059": {
+   "codes": [
+    2300616,
+    2310616,
+    2320616,
+    2330616,
+    2340616,
+    2341616,
+    2342616,
+    2343616,
+    2344616,
+    2345616,
+    2346616,
+    2347616
+   ],
+   "boss": [
+    "Gelcos"
+   ],
+   "basis": "Deus Research Base tiers 600053, 600055, 600058 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600059 itself."
+  },
+  "600061": {
+   "codes": [
+    2300709,
+    2330709,
+    2340709,
+    2350709,
+    2351709,
+    2352709,
+    2353709,
+    2354709,
+    2355709,
+    2356709,
+    2357709
+   ],
+   "boss": [
+    "Talisra of the Void"
+   ],
+   "basis": "Shattered Arkanis tiers 600063, 600065, 600068 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600061 itself."
+  },
+  "600062": {
+   "codes": [
+    2300709,
+    2330709,
+    2340709,
+    2350709,
+    2351709,
+    2352709,
+    2353709,
+    2354709,
+    2355709,
+    2356709,
+    2357709
+   ],
+   "boss": [
+    "Talisra of the Void"
+   ],
+   "basis": "Shattered Arkanis tiers 600063, 600065, 600068 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600062 itself."
+  },
+  "600064": {
+   "codes": [
+    2300709,
+    2330709,
+    2340709,
+    2350709,
+    2351709,
+    2352709,
+    2353709,
+    2354709,
+    2355709,
+    2356709,
+    2357709
+   ],
+   "boss": [
+    "Talisra of the Void"
+   ],
+   "basis": "Shattered Arkanis tiers 600063, 600065, 600068 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600064 itself."
+  },
+  "600066": {
+   "codes": [
+    2300709,
+    2330709,
+    2340709,
+    2350709,
+    2351709,
+    2352709,
+    2353709,
+    2354709,
+    2355709,
+    2356709,
+    2357709
+   ],
+   "boss": [
+    "Talisra of the Void"
+   ],
+   "basis": "Shattered Arkanis tiers 600063, 600065, 600068 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600066 itself."
+  },
+  "600067": {
+   "codes": [
+    2300709,
+    2330709,
+    2340709,
+    2350709,
+    2351709,
+    2352709,
+    2353709,
+    2354709,
+    2355709,
+    2356709,
+    2357709
+   ],
+   "boss": [
+    "Talisra of the Void"
+   ],
+   "basis": "Shattered Arkanis tiers 600063, 600065, 600068 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600067 itself."
+  },
+  "600069": {
+   "codes": [
+    2300709,
+    2330709,
+    2340709,
+    2350709,
+    2351709,
+    2352709,
+    2353709,
+    2354709,
+    2355709,
+    2356709,
+    2357709
+   ],
+   "boss": [
+    "Talisra of the Void"
+   ],
+   "basis": "Shattered Arkanis tiers 600063, 600065, 600068 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600069 itself."
+  }
+ },
+ "derived_note": "Dungeon tiers the catalog names but attributes no NPC to (so no final boss could be curated for them): each takes its sibling tiers' final boss under every catalog code of that boss (same name, boss flag and three-digit code suffix -- the pattern every curated entry follows). Any of those codes dying in that instance completes the run; a code that cannot spawn there never matters. Curated entries win; tiers without a curated sibling (Citadel of the Fallen Daeva 600151-600153) stay unmapped."
 }
