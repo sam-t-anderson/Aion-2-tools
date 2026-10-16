@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 import math
 
-from .quality import assess
+from .quality import assess, observed_starts
 from ..meter.a2parser.lookup import npc_info
 
 NOTE = ("Timing uses recorded wall-clock boundaries and the union of encounter intervals, not time spent actively pressing skills. "
@@ -34,7 +34,7 @@ def _boss_attempt(segment, boss, quality):
     events = segment.get("events", [])
     health = [s for s in segment.get("health", []) if s["entity"] == identity]
     killed = any(e.get("kind") == "death" and e.get("target") == identity for e in events) or any(s["current"] == 0 for s in health)
-    full = any(s.get("t", 1) == 0 and s.get("max", 0) > 0 and s["current"] == s["max"] for s in health)
+    full = identity in observed_starts(segment, {identity})      # the ranking gate's own full-health rule
     percentages = [100*s["current"]/s["max"] for s in health if s.get("max", 0) > 0 and 0 <= s["current"] <= s["max"]]
     members = set(segment.get("party_members", []))
     dead = set()

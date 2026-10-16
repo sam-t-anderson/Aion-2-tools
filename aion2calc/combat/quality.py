@@ -31,6 +31,30 @@ PCAP_DROP_FRACTION = 0.02
 # Counters that are a true per-event processing/validation loss (void ranking on any nonzero count).
 # The kernel-buffer drop counters are handled separately with the fraction budget above.
 HARD_LOSS_COUNTERS = tuple(k for k in COUNTERS if k not in ("pcap_dropped", "pcap_if_dropped"))
+#: Counters that accumulate for the whole capture: every archive part of a recording repeats the
+#: total so far, so a loss during the first hour is stamped on a part recorded two hours later.
+#: A part's own share is the counter minus ``capture_quality.part_baseline`` -- the values at the
+#: part's start, stamped by the recorder on each continuation part (the log server derives the
+#: same baseline from the previous part for recordings made before it was stamped).
+LIFETIME_COUNTERS = ("tcp_discarded_payloads", "tcp_unresolved_flows", "capture_errors", "decoder_errors",
+                     "shutdown_discarded_payloads", "recovered_frame_skips", "pcap_dropped", "pcap_if_dropped",
+                     "pcap_received")
+#: Losses the recorder places in time (it notes when each one happened), so a fight is charged only
+#: with the losses inside its own window: ``segment["capture_loss"]`` on documents whose
+#: ``capture_quality.loss_attribution`` is "segment". Retention counters (``discarded_*``) describe
+#: the whole part's history and stay part-wide.
+TIMED_LOSS_COUNTERS = ("tcp_discarded_payloads", "tcp_unresolved_flows", "capture_errors", "decoder_errors",
+                       "shutdown_discarded_payloads")
+#: A TCP reassembly restart discards data buffered for up to five seconds before it, so a loss noted
+#: at T may have cost a fight data from T - LOSS_WINDOW_BEFORE_S on; a fight whose window overlaps
+#: [T - before, T + after] is charged with it.
+LOSS_WINDOW_BEFORE_S = 6.0
+LOSS_WINDOW_AFTER_S = 1.0
+#: Documents from before per-segment validation accounting carry one whole-document
+#: ``validation_discarded`` that also counted routine filtering (out-of-range or unreferenced
+#: samples the validator dropped) -- not capture loss. Only a count large enough to be a size-cap
+#: overflow (which drops recorded evidence) is treated as loss there.
+VALIDATION_LEGACY_FLOOR = 100
 LABELS = {
     "classification_conflict": "Recorded map/instance and catalog evidence conflict; review encounter classification.",
     "classification_map_only": "A catalog map match suggests an instance, but its instance/entry evidence was not recorded; metrics remain descriptive.",
@@ -55,6 +79,64 @@ LABELS = {
     "party_scope_unverified": "A Party capture is required for comparable party encounters.",
     "timing_invalid": "Recorded damage extends beyond the encounter duration.",
 }
+
+
+def part_counter(capture, key):
+    """A counter's share for this archive part: lifetime counters less the part's baseline."""
+    value = capture.get(key) or 0
+    if key in LIFETIME_COUNTERS:
+        baseline = capture.get("part_baseline") or {}
+        value -= baseline.get(key) or 0
+    return max(0, value)
+
+
+def observed_starts(segment, bosses):
+    """The bosses seen at (essentially) full health before the party's first hit on them.
+
+    A boss seen whole before it was pulled started the fight whole. The first HP sample usually
+    lands with the opening hit, i.e. a hair below the maximum at t=0; and when trash merges into
+    the same combat segment the boss is first seen (at full health) some seconds before it is
+    pulled. Both are a start observed from the top."""
+    first_hit: dict = {}
+    for h in segment.get("hits") or []:
+        target = h.get("target")
+        if target in bosses and (target not in first_hit or h.get("t", 0) < first_hit[target]):
+            first_hit[target] = h.get("t", 0)
+    starts = set()
+    for sample in segment.get("health") or []:
+        entity, maximum, current = sample.get("entity"), sample.get("max") or 0, sample.get("current") or 0
+        if maximum <= 0 or entity not in bosses:
+            continue
+        if (current >= maximum * (1 - FULL_HEALTH_TOLERANCE)
+                and sample.get("t", 1) <= max(0.0, first_hit.get(entity, 0.0)) + FULL_HEALTH_WINDOW_S):
+            starts.add(entity)
+    return starts
+
+
+def segment_losses(capture, segment):
+    """The timed losses charged to this fight, or ``None`` when the recorder did not place its
+    losses in time (older recordings: the counters are then read part-wide)."""
+    timed = segment.get("capture_loss")
+    if capture.get("loss_attribution") == "segment" and isinstance(timed, dict):
+        return {k: timed.get(k) or 0 for k in TIMED_LOSS_COUNTERS}
+    return None
+
+
+def lost_data(capture, segment):
+    """Whether this fight is charged with capture/driver/validation loss."""
+    timed = segment_losses(capture, segment)
+    for key in HARD_LOSS_COUNTERS:
+        if key == "validation_discarded":
+            continue
+        if timed is not None and key in TIMED_LOSS_COUNTERS:
+            if timed[key] > 0:
+                return True
+        elif part_counter(capture, key) > 0:
+            return True
+    validation = segment.get("validation")
+    if isinstance(validation, dict) and "capped" in validation:
+        return (validation.get("capped") or 0) > 0      # only a size-cap overflow drops recorded evidence
+    return (capture.get("validation_discarded") or 0) > VALIDATION_LEGACY_FLOOR
 
 
 def assess(doc, segment):
@@ -97,12 +179,16 @@ def assess(doc, segment):
         reasons.append("decoder_unverified")
     if capture.get("transport_monitored") is not True:
         reasons.append("transport_unverified")
-    dropped = (capture.get("pcap_dropped") or 0) + (capture.get("pcap_if_dropped") or 0)
-    drop_budget = max(PCAP_DROP_FLOOR, int(PCAP_DROP_FRACTION * (capture.get("pcap_received") or 0)))
-    if any(capture.get(k, 0) > 0 for k in HARD_LOSS_COUNTERS) or dropped > drop_budget:
+    # Loss is charged to the fights it can have touched: timed losses inside each fight's own window
+    # when the recorder placed them, this archive part's own share of the lifetime counters
+    # otherwise (see LIFETIME_COUNTERS / TIMED_LOSS_COUNTERS).
+    received = part_counter(capture, "pcap_received")
+    dropped = part_counter(capture, "pcap_dropped") + part_counter(capture, "pcap_if_dropped")
+    drop_budget = max(PCAP_DROP_FLOOR, int(PCAP_DROP_FRACTION * received))
+    if lost_data(capture, segment) or dropped > drop_budget:
         reasons.append("capture_loss")
-    skip_budget = max(RECOVERED_SKIP_FLOOR, int(RECOVERED_SKIP_FRACTION * (capture.get("pcap_received") or 0)))
-    if capture.get("recovered_frame_skips", 0) > skip_budget:
+    skip_budget = max(RECOVERED_SKIP_FLOOR, int(RECOVERED_SKIP_FRACTION * received))
+    if part_counter(capture, "recovered_frame_skips") > skip_budget:
         reasons.append("frame_skips_material")
     if capture.get("tcp_pending_bytes", 0) > 0:
         reasons.append("tcp_pending")
@@ -120,22 +206,7 @@ def assess(doc, segment):
            or re.fullmatch(r"(?:Player\s*)?#?\d+", p["name"], re.I) for p in players):
         reasons.append("identity_unverified")
     bosses = {e["id"] for e in segment.get("entities", []) if e.get("is_boss") and e.get("mob_code")}
-    # A boss seen at (essentially) full health before the party's first hit on it started the
-    # fight whole. The first HP sample usually lands with the opening hit, i.e. a hair below the
-    # maximum at t=0; and when trash merges into the same combat segment the boss is first seen
-    # (at full health) some seconds before it is pulled. Both are a start observed from the top.
-    first_hit: dict = {}
-    for h in hits:
-        target = h.get("target")
-        if target in bosses and (target not in first_hit or h.get("t", 0) < first_hit[target]):
-            first_hit[target] = h.get("t", 0)
-    starts = set()
-    for sample in segment.get("health", []):
-        entity, maximum, current = sample.get("entity"), sample.get("max") or 0, sample.get("current") or 0
-        if maximum <= 0 or entity not in bosses:
-            continue
-        if current >= maximum * (1 - FULL_HEALTH_TOLERANCE) and sample.get("t", 1) <= max(0.0, first_hit.get(entity, 0.0)) + FULL_HEALTH_WINDOW_S:
-            starts.add(entity)
+    starts = observed_starts(segment, bosses)
     deaths = {e.get("target") for e in segment.get("events", []) if e.get("kind") == "death"}
     deaths.update(s["entity"] for s in segment.get("health", []) if s.get("current") == 0)
     if kind.startswith("pvp_"):
@@ -152,8 +223,13 @@ def assess(doc, segment):
                   "partial":capture.get("pcap_stats_partial") is True,
                   **{k:capture.get(k) for k in ("pcap_received", "pcap_dropped", "pcap_if_dropped", "pcap_stats_reads")},
                   "note":NOTE}
+    timed = segment_losses(capture, segment)
     return {"policy_version": 1, "driver_monitoring":monitoring,
-            "capture_processing": {k:capture.get(k) for k in ("capture_errors", "decoder_errors", "recovered_frame_skips", "shutdown_discarded_payloads", "shutdown_drained_payloads")}, "eligible": not reasons,
+            "capture_processing": {k:capture.get(k) for k in ("capture_errors", "decoder_errors", "recovered_frame_skips", "shutdown_discarded_payloads", "shutdown_drained_payloads")},
+            # how loss was charged to this fight: its own timed window, this part's share, or the whole session
+            "loss_attribution": "segment" if timed is not None else "part" if capture.get("part_baseline") else "session",
+            "segment_loss": timed, "validation": segment.get("validation") if isinstance(segment.get("validation"), dict) else None,
+            "eligible": not reasons,
             "status": "eligible" if not reasons else "unranked",
             "reasons": reasons, "messages": [LABELS[k] for k in reasons],
             "note": "Completeness checks use submitted telemetry; they do not verify authenticity or prove that every packet was captured."}

@@ -15,6 +15,7 @@ from ..meter.a2parser.engine import MeterEngine as PacketMeterEngine
 from ..meter.a2parser.capture import capture_packets
 from ..meter.session import CombatSession, NoIdentifiedPlayerData
 from ..meter.a2parser.capture_stats import FIELDS as PCAP_FIELDS, FLAGS as PCAP_FLAGS
+from ..combat.quality import LIFETIME_COUNTERS, TIMED_LOSS_COUNTERS
 
 CAPTURE_COUNTERS = ("tcp_discarded_payloads", "tcp_unresolved_flows", *PCAP_FIELDS)
 
@@ -244,8 +245,10 @@ class Runner:
                     "shutdown_discarded_payloads", "shutdown_drained_payloads"):
             self.session.capture_evidence.setdefault(key, 0)
         self._capture_loss_baseline = {k:self.session.capture_evidence.get(k, 0) for k in CAPTURE_COUNTERS}
+        self._loss_seen = {}            # dated capture-loss counters (see _record_capture_stats)
         if self.session.capture_evidence.get("tcp_pending_bytes", 0):
             self._capture_loss_baseline["tcp_unresolved_flows"] += 1
+        self._loss_seen = {k: self._capture_loss_baseline.get(k, 0) for k in TIMED_LOSS_COUNTERS}
         if self.packet_engine is not None:
             self.session.begin_capture()
             self.packet_engine.set_server_port(port)
@@ -389,6 +392,7 @@ class Runner:
             with self.lock:
                 if self.error:
                     self.session.capture_evidence["capture_errors"] = self.session.capture_evidence.get("capture_errors", 0) + 1
+                    self._note_loss("capture_errors", 1)
                 self._discard_final_capture_items(packets)
                 self.running = bool(self.packet_capture_thread and self.packet_capture_thread.is_alive())
                 self.diagnostics["state"] = "stopping" if self.running else "error" if self.error else "stopped"
@@ -443,6 +447,7 @@ class Runner:
             self.error = f"Decoder failed: {type(exc).__name__}: {exc}"
             self.diagnostics["decoder_errors"] += 1
             self.session.capture_evidence["decoder_errors"] = self.session.capture_evidence.get("decoder_errors", 0) + 1
+            self._note_loss("decoder_errors", 1, timestamp_ms)
             raise
 
     def _discard_final_capture_items(self, packets):
@@ -458,9 +463,15 @@ class Runner:
                 self.diagnostics["shutdown_discarded_payloads"] = self.diagnostics.get("shutdown_discarded_payloads", 0) + 1
                 for key in ("capture_errors", "shutdown_discarded_payloads"):
                     self.session.capture_evidence[key] = self.session.capture_evidence.get(key, 0) + 1
+                    self._note_loss(key, 1, final[3] if len(final) > 3 else None)
             elif final[0] == "capture_stats":
                 self._record_capture_stats(final[1])
         self.diagnostics["capture_errors"] = self.session.capture_evidence.get("capture_errors", 0)
+
+    def _note_loss(self, key, count, timestamp_ms=None):
+        """Place a capture loss in time so the fight it happened in -- not every fight of the
+        session -- is charged with it (see CombatSession.note_capture_loss)."""
+        self.session.note_capture_loss(key, count, int(time.time() * 1000) if timestamp_ms is None else timestamp_ms)
 
     def _record_capture_stats(self, stats):
         # Caller holds self.lock; final counters must also reach the visible diagnostics.
@@ -475,6 +486,13 @@ class Runner:
             value = stats[key]
             if key in CAPTURE_COUNTERS:
                 value += self._capture_loss_baseline.get(key, 0)
+                if key in TIMED_LOSS_COUNTERS:
+                    # The capture reports its counters the moment a TCP stream restarts (and
+                    # periodically), so the counter's movement dates the loss.
+                    seen = self._loss_seen.get(key, self._capture_loss_baseline.get(key, 0))
+                    if value > seen:
+                        self._note_loss(key, value - seen)
+                    self._loss_seen[key] = max(seen, value)
             if key in PCAP_FLAGS:
                 value = bool(value or self.session.capture_evidence.get(key, False))
             self.session.capture_evidence[key] = value
@@ -599,6 +617,12 @@ class Runner:
             self.session = self.session.continuation()
             self._snap_cache = None      # the continuation is a fresh session object
             self.session.capture_evidence["storage_boundary"] = True
+            # The lifetime counters as they stand when this part begins: the quality gate charges
+            # the part only with what accrues after this (a loss during an earlier part is not
+            # this part's loss; see quality.LIFETIME_COUNTERS).
+            self.session.capture_evidence["part_baseline"] = {
+                k: int(self.session.capture_evidence[k]) for k in LIFETIME_COUNTERS
+                if isinstance(self.session.capture_evidence.get(k), int) and self.session.capture_evidence[k] > 0}
             self.archive_part += 1
             self.archive_previous = part["archive"].get("continuity")
             self.archive_part_token = uuid.uuid4().hex

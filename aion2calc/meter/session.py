@@ -123,7 +123,17 @@ class CombatSession:
         result._live_boss_reset_ms = self._live_boss_reset_ms
         result._pull_ended_ms = self._pull_ended_ms
         result._major_history = set(self._major_history)
-        result._zone_reset_seen = False  # A continuation part never captured the run's entry.
+        # A continuation part never captured the *open* run's entry (that is ``recorded_entry``
+        # above). A zone load captured after the party's last combat, though, is still pending: it
+        # is the entry evidence of the next run's first combat -- the storage rollover fires
+        # during exactly such a pause (leaving one instance, entering the next), and forgetting the
+        # load left the next run without an observed start, which a later in-instance reload then
+        # mis-stamped (see observe()). The open run itself keeps its combat_seen flag, so the
+        # carried load can never re-stamp it.
+        last_combat = max(self._last_outgoing.values(), default=None)
+        result._zone_reset_seen = bool(self._zone_reset_seen and self._zone_reset is not None
+                                       and (last_combat is None or self._zone_reset > last_combat))
+        result.capture_losses = []     # the new part's own window; its counters start from part_baseline
         return result
 
     def __init__(self):
@@ -141,6 +151,10 @@ class CombatSession:
         #: under All. Dropped effects are counted as ``out_of_scope`` (not capture loss).
         self.retain_scope = None
         self.out_of_scope = 0
+        #: Capture losses placed in time -- ``(timestamp_ms, counter, count)`` -- noted by the
+        #: recorder as its counters move, so each exported fight is charged only with the losses
+        #: inside its own window (``capture_loss`` per segment) rather than the session's total.
+        self.capture_losses = []
         self.epoch = 0
         self.identities = {}
         self.discarded = 0
@@ -346,6 +360,25 @@ class CombatSession:
     def split_now(self):
         self.manual_split += 1
 
+    def note_capture_loss(self, key, count, timestamp_ms):
+        """A capture counter moved by ``count`` at ``timestamp_ms`` (capture wall-clock ms)."""
+        if count > 0 and timestamp_ms is not None:
+            self.capture_losses.append((int(timestamp_ms), key, int(count)))
+            if len(self.capture_losses) > 20_000:
+                del self.capture_losses[:-10_000]
+
+    def losses_within(self, start_ms, end_ms):
+        """The timed losses charged to a fight recorded over ``[start_ms, end_ms]``: a loss noted
+        up to LOSS_WINDOW_BEFORE_S before it (a TCP restart discards data buffered for seconds
+        before the restart) and LOSS_WINDOW_AFTER_S after it."""
+        from ..combat.quality import LOSS_WINDOW_BEFORE_S, LOSS_WINDOW_AFTER_S, TIMED_LOSS_COUNTERS
+        low, high = start_ms - LOSS_WINDOW_BEFORE_S * 1000, end_ms + LOSS_WINDOW_AFTER_S * 1000
+        charged = {}
+        for at, key, count in self.capture_losses:
+            if key in TIMED_LOSS_COUNTERS and low <= at <= high:
+                charged[key] = charged.get(key, 0) + count
+        return charged
+
     def begin_capture(self):
         self.finish_run("capture_restart", complete=False)
         self._context = None
@@ -409,15 +442,21 @@ class CombatSession:
                 # an identity packet that merely arrived before the next zone's
                 # first damage (which belongs to the next run, not this one).
                 run["local_id"] = local_id
-            if has_damage and self._zone_reset_seen and not run.get("start_observed"):
-                # This run's combat began after a zone load we captured, so its
-                # instance entry was observed; the capture did not join mid-run.
-                observed = timestamp_ms
-                if observed is None:
-                    observed = max((e.timestamp_ms for e in events if isinstance(e, DamageEvent)), default=None)
-                run["start_observed"] = True
-                if observed is not None and run.get("started_at") is None:
-                    run["started_at"] = observed
+            if has_damage and not run.get("combat_seen"):
+                # The run's first combat. If it began after a zone load we captured, its instance
+                # entry was observed; the capture did not join mid-run. Only the *first* combat can
+                # say so: a zone load later in the run (a revive, an in-instance teleport to the
+                # boss room) is a reload, not an entry, and must not stamp the run's start onto
+                # whatever fight follows it -- that made a dungeon clear's "entry" the final-boss
+                # pull, the run's elapsed time unusable and its speed unranked.
+                if self._zone_reset_seen and not run.get("start_observed"):
+                    observed = timestamp_ms
+                    if observed is None:
+                        observed = max((e.timestamp_ms for e in events if isinstance(e, DamageEvent)), default=None)
+                    run["start_observed"] = True
+                    if observed is not None and run.get("started_at") is None:
+                        run["started_at"] = observed
+                run["combat_seen"] = True
         if engine.last_zone_reset_ms != self._zone_reset:
             if self._zone_reset is not None or engine.last_zone_reset_ms is not None:
                 previous = self.identities.get(self.epoch)
@@ -1694,7 +1733,8 @@ class CombatSession:
                     "killed": any(e["kind"] == "death" and e["target"] in {b["id"] for b in bosses} for e in events),
                     "hits": hits, "events": sorted(events, key=lambda e: e["t"]), "entities": list(entities.values()), "health": health,
                     "start": datetime.fromtimestamp(group["start"] / 1000, timezone.utc).isoformat(),
-                    "duration": max(0.001, (group["end"] - group["start"]) / 1000)})
+                    "duration": max(0.001, (group["end"] - group["start"]) / 1000),
+                    "capture_loss": self.losses_within(group["start"], group["end"])})
         if not players:
             raise NoIdentifiedPlayerData("No identified player data is available under the selected party filter.")
         if len(players) > a2log.LIMITS["players"]:
@@ -1703,7 +1743,7 @@ class CombatSession:
         from ..combat.quality import DECODER
         evidence = {**self.capture_evidence, "decoder":DECODER, "app_version":__version__,
                     "discarded_effects":self.discarded, "discarded_segments":self.discarded_segments, "out_of_scope_effects":self.out_of_scope,
-                    "discarded_telemetry":self.discarded_telemetry}
+                    "discarded_telemetry":self.discarded_telemetry, "loss_attribution": "segment"}
         npc_diagnostics = self.npc_diagnostics(g["epoch"] for g in groups)
         exported_scope = scope
         if scope == "auto":

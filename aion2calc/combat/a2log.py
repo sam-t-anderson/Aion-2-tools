@@ -44,6 +44,11 @@ PLAYER_STATS = ("critical_hit", "attack", "double_pct", "perfect_pct", "multihit
 LIMITS = {"players": 1024, "segments": 200, "hits": 400_000, "buffs": 100_000, "hp": 50_000, "text": 200}
 
 
+def _count(value):
+    """A non-negative integer count from an optional value (anything else counts as zero)."""
+    return value if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 2**53-1 else 0
+
+
 def profile_snapshot(value):
     if not isinstance(value,dict) or value.get("status") not in ("pending","ready","partial","unavailable"):
         return None
@@ -202,7 +207,7 @@ def validate(doc) -> dict:
             if isinstance(up.get(key), str) and up[key].strip():
                 clean_up[key] = up[key].strip()[:60]
         clean_meta["uploader"] = clean_up
-    from .quality import COUNTERS
+    from .quality import COUNTERS, LIFETIME_COUNTERS, TIMED_LOSS_COUNTERS
     from .npc_diagnostics import clean as clean_npc_diagnostics
     npc_diagnostics = clean_npc_diagnostics(meta.get("npc_diagnostics"))
     if npc_diagnostics:
@@ -210,12 +215,24 @@ def validate(doc) -> dict:
     capture = meta.get("capture_quality")
     if isinstance(capture, dict):
         evidence = {k: capture[k][:100] for k in ("decoder", "app_version", "capture_filter") if isinstance(capture.get(k), str)}
-        for k in (*COUNTERS, "shutdown_drained_payloads", "tcp_pending_bytes", "pcap_received", "pcap_stats_reads", "out_of_scope_effects"):
+        for k in (*COUNTERS, "shutdown_drained_payloads", "tcp_pending_bytes", "pcap_received", "pcap_stats_reads", "out_of_scope_effects",
+                  "validation_filtered"):
             if isinstance(capture.get(k), int) and not isinstance(capture[k], bool) and 0 <= capture[k] <= 2**53-1:
                 evidence[k] = capture[k]
         for flag in ("transport_monitored", "pcap_stats_sampled", "pcap_stats_partial", "storage_boundary", "reconstructed", "auto_port", "flow_detected"):
             if isinstance(capture.get(flag), bool):
                 evidence[flag] = capture[flag]
+        # The recorder places each capture loss in time (per-segment ``capture_loss`` windows) and
+        # stamps a continuation part with the lifetime counters as they stood when the part began,
+        # so a fight is charged only with the loss that can have touched it (see quality.py).
+        if capture.get("loss_attribution") == "segment":
+            evidence["loss_attribution"] = "segment"
+        baseline = capture.get("part_baseline")
+        if isinstance(baseline, dict):
+            clean_baseline = {k: baseline[k] for k in LIFETIME_COUNTERS
+                              if isinstance(baseline.get(k), int) and not isinstance(baseline[k], bool) and 0 <= baseline[k] <= 2**53-1}
+            if clean_baseline:
+                evidence["part_baseline"] = clean_baseline
         clean_meta["capture_quality"] = evidence
     from .reconstruction import clean_manifest
     manifest = clean_manifest(meta.get("reconstruction"))
@@ -269,6 +286,7 @@ def validate(doc) -> dict:
     if not isinstance(segs, list) or not segs or len(segs) > LIMITS["segments"]:
         raise Invalid(f'"segments" must hold 1 to {LIMITS["segments"]} segments')
     total_hits, out_segs = 0, []
+    capped_total = filtered_total = 0
     for i, s in enumerate(segs):
         if not isinstance(s, dict):
             raise Invalid(f"segments[{i}] must be an object")
@@ -397,18 +415,41 @@ def validate(doc) -> dict:
         for key in ("instance_id", "map_id"):
             if isinstance(s.get(key),int) and 0 <= s[key] <= 2**32-1:
                 out_segs[-1][key] = s[key]
+        timed = s.get("capture_loss")
+        if isinstance(timed, dict):
+            # Kept even when empty: "no loss inside this fight's window" is the evidence.
+            out_segs[-1]["capture_loss"] = {k: timed[k] for k in TIMED_LOSS_COUNTERS
+                                            if isinstance(timed.get(k), int) and not isinstance(timed[k], bool) and 0 <= timed[k] <= 2**53-1}
+        # Optional arrays are capped (a size limit drops recorded evidence: counted as ``capped``)
+        # and filtered (malformed, out-of-range or unreferenced entries: ``filtered``, routine).
+        # Counts survive round trips: a re-validation adds to what the recorder's own pass found.
+        previous = s.get("validation") if isinstance(s.get("validation"), dict) else {}
+        capped = filtered = 0
+        for key, cap in (("buffs", LIMITS["buffs"]), ("hp", LIMITS["hp"]), ("entities", 2000), ("events", LIMITS["hits"]),
+                         ("health", LIMITS["hp"]), ("positions", LIMITS["hp"])):
+            given = s.get(key)
+            if not isinstance(given, list):
+                continue
+            over = max(0, len(given) - cap)
+            capped += over
+            filtered += max(0, len(given) - len(out_segs[-1].get(key) or []) - over)
+        out_segs[-1]["validation"] = {"capped": _count(previous.get("capped")) + capped,
+                                      "filtered": _count(previous.get("filtered")) + filtered}
+        capped_total += capped
+        filtered_total += filtered
         for key in ("game_patch", "game_patch_source", "game_patch_basis", "difficulty", "encounter_type"):
             if isinstance(s.get(key), str):
                 if key == "encounter_type" and s[key] not in ENCOUNTER_TYPES:
                     raise Invalid("Unknown segment encounter_type")
                 out_segs[-1][key] = s[key][:200]
-    # Optional arrays are filtered/capped above. Make any loss visible after round trips.
-    removed = sum(max(0, len(s.get(key) or []) - len(out.get(key) or []))
-                  for s, out in zip(segs, out_segs)
-                  for key in ("events", "health", "positions", "entities", "buffs", "hp"))
-    if removed:
+    # Make any loss visible after round trips: a size cap dropping recorded evidence is capture
+    # loss (``validation_discarded``); routine filtering is reported apart (``validation_filtered``).
+    if capped_total or filtered_total:
         evidence = clean_meta.setdefault("capture_quality", {})
-        evidence["validation_discarded"] = min(2**53-1, evidence.get("validation_discarded", 0) + removed)
+        if capped_total:
+            evidence["validation_discarded"] = min(2**53-1, evidence.get("validation_discarded", 0) + capped_total)
+        if filtered_total:
+            evidence["validation_filtered"] = min(2**53-1, evidence.get("validation_filtered", 0) + filtered_total)
     result = {"format": "a2log", "version": VERSION, "meta": clean_meta, "players": out_players, "segments": out_segs}
     from ..meter.context import enrich
     enrich(result)

@@ -17,7 +17,7 @@ Running the real gate (`aion2calc/combat/quality.py` `assess()`) over 40 recent 
   were flagged too.
 - `capture_loss` (**97.6%**) — `pcap_dropped`/`pcap_if_dropped` are **cumulative since capture
   start**, so one early buffer overflow unranked every later fight (the identical drop count was
-  stamped on 17 different logs).
+  stamped on 17 different logs). **0.2.292:** the recorder places each loss in time and stamps every fight with the losses inside its own window (`capture_loss` per segment) and each continuation part with its counter baseline (`part_baseline`); the gate charges a fight only with those, and the log server derives the baseline from the previous part for older uploads. The whole-session reading remains only for single-part uploads from older clients.
 
 **Fixed (0.2.268).** `assess()` now attributes both per fight: a self-contained fight (its own
 start observed *and* its own verified end — a kill or a cleanly completed run) is no longer gated
