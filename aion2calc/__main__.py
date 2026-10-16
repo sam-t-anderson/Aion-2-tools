@@ -4,6 +4,7 @@ Commands
   catalog-refresh  stage pinned enemy/dungeon tables and an audit for release review
   catalog-gaps     list what the bundled catalog cannot name, for reporting upstream
   routes-build     rebuild the Maps page's farming-route catalog from a permitted source checkout
+  probe            find which undecoded record carries a number you saw in the game (diagnostic capture)
   refresh    re-scrape the sources and rebuild aion2calc/data
   optimize   full build + rotation optimization for a class, writes a report folder
   simulate   simulate the typical top global build or a saved build.json
@@ -25,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import zipfile
 from pathlib import Path
 
 
@@ -60,6 +62,14 @@ def main(argv: list[str] | None = None) -> int:
     cat.add_argument("--revision", required=True, help="full upstream commit SHA (40 lowercase hex characters)")
     cat.add_argument("--out", required=True, help="new staging directory; does not replace installed tables")
 
+    pb = sub.add_parser("probe", help="value probe: which record field held the numbers you saw in the game, from a diagnostic capture")
+    pb.add_argument("capture", help="the diagnostics ZIP (exported with raw TCP recording on) or its tcp-payloads.jsonl")
+    pb.add_argument("--know", action="append", required=True, metavar="WHEN=VALUE[:label]",
+                    help="a value you saw and when: WHEN is HH:MM[:SS] (local clock), an ISO time, epoch seconds or +M:SS after the capture start; repeatable, at least two different values make a finding")
+    pb.add_argument("--window", type=float, default=20.0, help="seconds around each observation to search (default 20)")
+    pb.add_argument("--server-port", type=int, default=None, help="the game server's port, when the lower-port rule picks the wrong direction")
+    pb.add_argument("--limit", type=int, default=25, help="how many candidates to list (default 25)")
+    pb.add_argument("--out", help="also write the full report as JSON")
     gp = sub.add_parser("catalog-gaps", help="list the catalog's gap lists (unmapped tiers, unnamed instances, unbacked codes)")
     gp.add_argument("--out", help="write the full JSON report here (otherwise a summary is printed)")
 
@@ -211,6 +221,16 @@ def main(argv: list[str] | None = None) -> int:
         out = args.out or str(files("aion2calc.app").joinpath("static", "farming-routes.json"))
         catalog = write(args.source, args.revision, out)
         print(f"Wrote {out}: " + ", ".join(f"{z['name']} {len(z['routes'])} route(s), {len(z['guides'])} guide link(s)" for z in catalog["zones"]))
+    elif args.cmd == "probe":
+        from .meter.probe import run, format_report
+        try:
+            data = run(args.capture, args.know, window_s=args.window, server_port=args.server_port, limit=args.limit, out=args.out)
+        except (OSError, ValueError, zipfile.BadZipFile) as exc:
+            print(f"probe: {exc}")
+            return 2
+        print(format_report(data))
+        if args.out:
+            print(f"Wrote {args.out}")
     elif args.cmd == "catalog-gaps":
         import json
         from .combat.catalog import gaps

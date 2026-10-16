@@ -104,6 +104,17 @@ python -m aion2calc catalog-gaps --out gaps.json # the full lists, for reporting
 
 Lists what the bundled catalog cannot name, read from the bundled tables and the curated final-boss table only: named dungeon tiers with no curated or derived final boss (a clear there cannot auto-complete until a capture shows the boss), instances with a curated final boss but no dungeon name (reports label these `<Final boss> (instance N)`, marked derived, and this is the list to send upstream), and final-boss codes without a backing NPC record. The report carries the installed catalog revision and the upstream source commit. No name is ever inferred. Keep source attribution and license obligations. Mapping coverage shows the source commit on desktop and Pages for new reports; older logs may lack this metadata. A community source revision does not establish its applicable game Build ID. No build association, missing portrait, difficulty or miniboss role is invented.
 
+## Value probe (diagnostic captures)
+
+```bash
+python -m aion2calc probe meter-20261015-195911-d72a0e.zip --know 19:59:30=37:cubes --know 20:04:10=38 --know 20:06:00=39
+python -m aion2calc probe tcp-payloads.jsonl --know +2:10=412 --know +9:40=433 --window 30 --out probe.json
+```
+
+Which undecoded record carries a number you can see in the game: hidden cubes collected, Odyle Energy, a quest or entry counter. Export diagnostics from the Live Meter with *raw TCP recording* on, note the values you see and when (the clock time, an ISO time, epoch seconds, or `+M:SS` after the capture started), and the probe searches every server record near those moments for a field that held exactly those numbers as a byte, a 16- or 32-bit little-endian integer or a varint, then checks how that field behaved across the whole capture. It prints the candidates ranked by evidence (observations matched, agreement of the field's latest value with each observation, how many distinct values the field took, how many records carry it), with a verdict: **strong** (every observation matched, at least three different values, full agreement), **plausible**, or **weak**. Two different values are the minimum for a finding; three or more spread over the session are far better, and a short window (the default is ±20 s) keeps chance matches down.
+
+The probe is read-only and bounded: it never changes the decoder, uses no network, and writes nothing unless `--out` is given. A candidate becomes a decoder rule only after a second, independent capture (another session, other values) confirms the same opcode, offset and encoding, and the record's other fields have been read well enough to know what the number means; the finding then goes into the parser with a test built from the capture. Rows from another program's text protocol on the same interface are skipped; the game server is taken to be the lower, fixed port of a flow (`--server-port` overrides).
+
 ## Farming-route catalog
 
 ```bash
