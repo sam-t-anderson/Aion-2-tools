@@ -702,6 +702,12 @@ Updater maintenance retains two recognized release packages, helpers for seven d
 
 ## Maps and crafting
 
+### Farming routes
+
+Under the embedded map, **Farming routes** lists ordered waypoint loops for the selected zone, as text beside the map: for Verteron, Altgard and Chaotic Lower Reshanta, a Hidden Cube loop and a Monolith-material loop built from the AION 2 Interactive Map's marker data (CC BY-NC 4.0, credited with the commit used). Each loop is grouped into legs by named area (for example *Western Cantas Valley, 12 cubes, waypoints 1–12*), starts near a teleport, and expands to every waypoint with its position on the source's map; **Copy as text** copies the ordered list. The order is computed (nearest-neighbour with 2-opt) and the panel says so; it is not a community-verified route, and map positions are the source's, not in-game coordinates.
+
+Gathering-node routes (ore, gems, logs, herbs, Odyle) and mob-farming loops are not listed because no source publishes their positions under terms that allow reuse; the panel links the guides that describe them instead. A zone with no permitted source at all (the starter zones) says so and shows no route. Rebuild the catalog with `python -m aion2calc routes-build` (see `docs/cli.md`).
+
 **Maps** embeds the provider-supported InteractiveMap.app viewer for Verteron, Altgard, Poeta and Ishalgen. Use its marker filters, zoom and route controls, or **Open provider** if embedding/storage restrictions prevent use. Shugo.GG/A2DB links provide additional regional references. This online view does not transfer application profiles, combat logs or credentials; account/checklist state and data belong to the provider. It does not classify encounters or verify marker/build applicability.
 
 **Crafting** provides a dated Gamers4Life recipe snapshot with profession/faction search, mastery gates, materials, normal/combo product icons and listed fees. Enter the number of planned completed crafts. Optionally expand source-linked same-faction intermediates without combo outcomes. Each branch rounds to whole crafts; surplus is not credited. Owned quantities subtract from final material rows only. Export the plan as JSON.

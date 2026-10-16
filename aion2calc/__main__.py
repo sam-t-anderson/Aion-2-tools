@@ -3,6 +3,7 @@
 Commands
   catalog-refresh  stage pinned enemy/dungeon tables and an audit for release review
   catalog-gaps     list what the bundled catalog cannot name, for reporting upstream
+  routes-build     rebuild the Maps page's farming-route catalog from a permitted source checkout
   refresh    re-scrape the sources and rebuild aion2calc/data
   optimize   full build + rotation optimization for a class, writes a report folder
   simulate   simulate the typical top global build or a saved build.json
@@ -61,6 +62,11 @@ def main(argv: list[str] | None = None) -> int:
 
     gp = sub.add_parser("catalog-gaps", help="list the catalog's gap lists (unmapped tiers, unnamed instances, unbacked codes)")
     gp.add_argument("--out", help="write the full JSON report here (otherwise a summary is printed)")
+
+    rb = sub.add_parser("routes-build", help="rebuild the farming-route catalog from the interactive map's public/data checkout")
+    rb.add_argument("--source", required=True, help="the source's public/data directory (a checkout of its repository)")
+    rb.add_argument("--revision", required=True, help="full 40-character commit SHA of that checkout (recorded as attribution)")
+    rb.add_argument("--out", help="catalog path (default: the bundled aion2calc/app/static/farming-routes.json)")
 
     o = sub.add_parser("optimize", help="optimize build + rotation and write a report")
     o.add_argument("cls", help="class key: gladiator templar assassin ranger sorcerer spiritmaster cleric chanter")
@@ -199,6 +205,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "catalog-refresh":
         from .scrape.catalog import stage
         stage(args.revision, args.out)
+    elif args.cmd == "routes-build":
+        from importlib.resources import files
+        from .scrape.routes import write
+        out = args.out or str(files("aion2calc.app").joinpath("static", "farming-routes.json"))
+        catalog = write(args.source, args.revision, out)
+        print(f"Wrote {out}: " + ", ".join(f"{z['name']} {len(z['routes'])} route(s), {len(z['guides'])} guide link(s)" for z in catalog["zones"]))
     elif args.cmd == "catalog-gaps":
         import json
         from .combat.catalog import gaps

@@ -104,6 +104,15 @@ python -m aion2calc catalog-gaps --out gaps.json # the full lists, for reporting
 
 Lists what the bundled catalog cannot name, read from the bundled tables and the curated final-boss table only: named dungeon tiers with no curated or derived final boss (a clear there cannot auto-complete until a capture shows the boss), instances with a curated final boss but no dungeon name (reports label these `<Final boss> (instance N)`, marked derived, and this is the list to send upstream), and final-boss codes without a backing NPC record. The report carries the installed catalog revision and the upstream source commit. No name is ever inferred. Keep source attribution and license obligations. Mapping coverage shows the source commit on desktop and Pages for new reports; older logs may lack this metadata. A community source revision does not establish its applicable game Build ID. No build association, missing portrait, difficulty or miniboss role is invented.
 
+## Farming-route catalog
+
+```bash
+git clone --depth 1 https://github.com/aion2-interactive-map/aion2-interactive-map /tmp/a2map
+python -m aion2calc routes-build --source /tmp/a2map/public/data --revision $(git -C /tmp/a2map rev-parse HEAD)
+```
+
+Rebuilds `aion2calc/app/static/farming-routes.json`, the catalog the Maps page (app and website) renders beside the embedded map. Waypoints come only from a source whose terms allow reuse — today the AION 2 Interactive Map's marker data (CC BY-NC 4.0, credited in the catalog with the commit used); the loop order (nearest-neighbour plus 2-opt, starting near a teleport) is computed and labelled as computed. Zones the source does not cover, and gathering or mob routes nobody publishes under reuse terms, carry guide links only and say so. Review the diff before a release: the catalog is bundled and copied to the website.
+
 ## Testing
 
 ```bash

@@ -1,3 +1,9 @@
+## Farming routes on the Maps page: attributed collection loops, guide links for the rest (0.2.296)
+
+**Farming routes** sit under the embedded map on the Maps page (app and website). For Verteron, Altgard and Chaotic Lower Reshanta there is a **Hidden Cube loop** and a **Monolith-material loop**: ordered waypoint lists built from the AION 2 Interactive Map's marker data (CC BY-NC 4.0, credited with the commit used), grouped into legs by named area, starting near a teleport, with every waypoint's position on the source's map and a **Copy as text** button. The order is computed (nearest-neighbour with 2-opt) and the panel says so — a computed loop, not a community-verified route; positions are the source's, not in-game coordinates.
+
+Nothing is invented: gathering-node routes (ore, gems, logs, herbs, Odyle) and mob-farming loops have no source that publishes positions under reuse terms, so the panel links the guides that describe them (Verteron, Altgard and Abyss guides) and says why no loop is listed; the starter zones, which no permitted source covers, say so too. The catalog is `farming-routes.json`, rebuilt with `python -m aion2calc routes-build` from a checkout of the source (`docs/cli.md`).
+
 ## Your characters: claim the characters you record, choose how others' public logs show you (0.2.295)
 
 **Your characters** (Combat Logs → My Uploads, and the website's Combat Logs page) lists the characters your public recordings can claim on the share server. A claim is proven by your own recordings, never by a password or an account: the private credentials of three public recordings where you were the recording player (the ones *My uploads* already keeps) prove that you recorded them, and the server issues an identity credential that stays in the app's data folder (or that browser). A claimed character shows a **verified** mark (✓) wherever it is listed: the community log lists, the leaderboard and the log viewer, on the website and in the app.
