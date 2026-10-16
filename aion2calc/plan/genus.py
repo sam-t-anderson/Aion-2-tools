@@ -33,6 +33,14 @@ def data() -> dict:
     return read_json("global", "genus_insight.json")
 
 
+def properties() -> dict:
+    """Every line each Insight slot can roll (``genus_properties.json``)."""
+    return read_json("global", "genus_properties.json")
+
+
+GRADE_ORDER = ("Common", "Rare", "Epic", "Unique", "Heroic")
+
+
 def validate_state(value):
     """Validate manual allocations before replacing a saved inventory's genus state."""
     if not isinstance(value, dict) or len(value) > 5:
@@ -208,6 +216,7 @@ def plan_genus(ctx: PlanContext, genus_state: dict | None, encounters: list[dict
     return {"mode": mode, "state": state, "mix": plan["mix"], "mix_source": plan["mix_source"],
             "dps_with_lines": with_all, "lines": lines, "coverage": cov,
             "reroll_first": [], "chase": chase, "level_order": levels, "targets": target_values(state, mode, mix),
+            "roll_targets": roll_targets(ctx, state, mode, mix),
             "note": plan["note"] + " Candidate gains replace a single unlocked slot and are not additive; absent target lines assume an empty slot. No roll probability, cost or defensive tradeoff is optimized."}
 
 
@@ -239,3 +248,98 @@ def target_values(state, mode, mix):
     return {"rows": rows, "source": catalog["source"],
             "note": "Catalog upper-range targets, not expected reroll results. Current Product-version applicability, roll odds and costs are unverified. Levels unlock slots; they do not determine your rolled values. Other stat ranges and Special targets are not supplied by this catalog. Defensive tradeoffs are not scored."
             if mode == "pve" else "Numeric PvP targets are unavailable: genus-specific applicability to players is unverified, and this catalog supplies no verified ranges for unconditional PvP lines. Entered supported lines can still be scored; their values are held fixed."}
+
+
+def _line_text(low, high, percent) -> tuple[str, str]:
+    """The midpoint of a roll range as a line value, and the range for display."""
+    def fmt(x):
+        return f"{x:g}"
+    mid = (low + high) / 2
+    unit = "%" if percent else ""
+    return f"{fmt(mid)}{unit}", f"{fmt(low)}–{fmt(high)}{unit}"
+
+
+def roll_targets(ctx: PlanContext, state: dict | None, mode: str, mix: dict, top: int = 3) -> dict:
+    """What to roll for, per genus and slot, from the lines each slot can actually roll.
+
+    Every candidate line is scored at the midpoint of its best listed grade (Heroic where
+    the slot offers it) on top of the character's current build and saved lines, so the
+    ranking holds whether or not anything is recorded yet. Lines the damage model does
+    not cover (defensive, situational) are listed as unmodeled, never recommended.
+    """
+    from ..opt.genus import prepare, apply
+    import copy
+    catalog = properties()
+    state = state or {}
+    plan = prepare(state, mode, {"mix": mix} if mode == "pve" else None)
+    base_loadout = ctx.assemble(ctx.equipped)
+    base = ctx.dps(loadout=apply(base_loadout, plan))
+    cache: dict = {}
+
+    def gain_of(stats: dict) -> float | None:
+        key = tuple(sorted((k, round(v, 6)) for k, v in stats.items()))
+        if key in cache:
+            return cache[key]
+        trial = copy.deepcopy(plan)
+        for k, v in stats.items():
+            trial["stats"][k] = trial["stats"].get(k, 0.0) + v
+        trial["enabled"] = True
+        value = ctx.dps(loadout=apply(base_loadout, trial)) / base - 1 if base > 0 else None
+        cache[key] = value
+        return value
+
+    out = {"mode": mode, "genera": {}, "basis": "midpoint of each line's best listed grade, on your current build and saved lines",
+           "source": catalog.get("source"),
+           "note": "Candidates come from the Global slot property tables: each slot rolls one line of a grade drawn by the Insight level. "
+                   "Gains are modeled damage on the boss scenario and are not additive across slots; defensive and situational lines are "
+                   "shown as unmodeled, never recommended. Genus-named lines are weighted by your fight time against that genus."}
+    for genus in (*MAIN, "Special"):
+        slots = (catalog.get("genera") or {}).get(genus, {}).get("slots") or {}
+        current = {int(x["slot"]): x for x in (state.get(genus) or {}).get("lines") or []}
+        level = (state.get(genus) or {}).get("level")
+        per_slot = {}
+        for slot in range(1, 10):
+            rows = []
+            for stat, grades in (slots.get(str(slot)) or {}).items():
+                grade = next((g for g in reversed(GRADE_ORDER) if g in grades), None)
+                if grade is None:
+                    continue
+                low, high, percent, chance = grades[grade]
+                if low is None or high is None:
+                    continue
+                value, rng = _line_text(low, high, percent)
+                conditional = any(stat.startswith(g + " ") for g in (*MAIN, "Special"))
+                stats = line_stats(stat, value, genus, mix) if not (mode == "pvp" and conditional) else {}
+                reason = ""
+                if mode == "pvp" and conditional:
+                    reason = "Genus-specific applicability to players is unverified"
+                elif set(stats) & {"might", "precision"}:
+                    stats, reason = {}, "Primary stats already come from official profile totals"
+                elif not stats:
+                    reason = "Not modeled (defensive or situational)"
+                elif mode == "pvp" and set(stats) <= {"amp_pve", "pve_atk", "amp_boss", "boss_atk"}:
+                    stats, reason = {}, "PvE/boss effect does not apply to this player target"
+                elif mode == "pve" and set(stats) <= {"amp_pvp", "pvp_atk"}:
+                    stats, reason = {}, "PvP effect does not apply to this monster target"
+                elif not any(stats.values()):
+                    reason = "No share of your fight time against this genus"
+                gain = gain_of(stats) if stats and any(stats.values()) and not reason else None
+                if gain is not None and gain <= 1e-6:
+                    gain, reason = None, "No damage gain on your build (the stat is capped or unused)"
+                rows.append({"stat": stat, "grade": grade, "value": value, "range": rng, "chance": chance,
+                             "gain": gain, "modeled": gain is not None, "reason": reason, "conditional": conditional})
+            rows.sort(key=lambda r: (r["gain"] is None, -(r["gain"] or 0), r["stat"]))
+            modeled = [r for r in rows if r["modeled"]]
+            best = modeled[0] if modeled else None
+            held = current.get(slot)
+            per_slot[slot] = {"aim": modeled[:top], "unmodeled": len(rows) - len(modeled), "options": len(rows),
+                              "best": best, "current": held,
+                              "unlocked": level is not None and level >= slot,
+                              "status": ("Enter level" if level is None else f"Unlock at Lv {slot}" if level < slot
+                                         else "Not recorded" if not held else
+                                         "Keep" if best and held.get("stat") == best["stat"] else
+                                         "Reroll candidate" if best else "Recorded")}
+        ranked = sorted(((slot, r) for slot, x in per_slot.items() for r in x["aim"][:1]), key=lambda t: -(t[1]["gain"] or 0))
+        out["genera"][genus] = {"slots": per_slot, "level": level,
+                                "best": [{"slot": slot, **r} for slot, r in ranked[:3]]}
+    return out

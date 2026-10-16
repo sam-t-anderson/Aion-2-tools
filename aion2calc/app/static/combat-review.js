@@ -294,18 +294,31 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       // missing comparison. A resolved profile with too few peers instead returns an
       // object carrying reasons (e.g. "Insufficient samples"), handled below — that is the
       // "no eligible cohort" case, as opposed to the "no matched profile" case here.
-      const values=(x,scope,entry)=>{
+      const unrankedWhy=(ranks.quality && ranks.quality.eligible===false)?(ranks.quality.messages || []).join(' '):'';
+      const values=(x,scope,entry,context)=>{
         if(!x){
+          if(context==='run'){
+            const why=(ranks.run_detail?.speed_reasons || []).join(' ');
+            return `Not a timed run — run speed is ranked only for a complete, cleanly captured instance clear (entry to final boss). ${why}`.trim();
+          }
+          if(context==='at_upload' && !(entry && entry.uploaded_at) && !(ranks.players || []).some(p=>p.uploaded_at))
+            return 'Not uploaded yet — at-upload standings exist only for recordings shared with the log server.';
+          if(unrankedWhy)
+            return `Unranked — ${unrankedWhy}`;
           if((scope==='server'||scope==='region') && entry && 'character_server' in entry && !entry.character_server)
             return `Unavailable — no verified official profile for this character, so its home ${scope} can’t be matched. World still compares globally.`;
+          if((scope==='server'||scope==='region') && entry && !('character_server' in entry))
+            return `Unavailable — this player’s home ${scope} is unknown (no server or class on the recording), so only World can compare.`;
           if(scope==='world')
             return 'Unavailable — no comparable public cohort yet. World matching groups logs by the encounter’s boss, game version, difficulty and party size; either this recording lacks that metadata or too few public logs share it so far.';
           return 'Unavailable — no eligible matched comparison yet. Check capture quality and encounter metadata above.';
         }
         return `<span title="${esc((x.reasons || []).join(' '))}">${x.rank===null?'Rank unavailable':`#${x.rank} / ${x.count}`}${x.provisional?' (provisional)':''}<br>${x.percentile===null || x.percentile===undefined?'Percentile unavailable':x.percentile.toFixed(1)+' percentile'}${x.public_samples!==undefined?` · ${x.public_samples} public samples · ${x.identities} distinct identities`:''}${x.reasons?.length?'<br>'+esc(x.reasons.join(' ')):''}</span>`;
       };
-      const scopes=x=>['server','region','world'].map(s=>`${s[0].toUpperCase()+s.slice(1)}: ${values(x?.[s],s,x)}`).join('<br>');
-      return `<h3>Matched public comparisons</h3><p class="small muted">${esc(ranks.note || '')} ${esc(ranks.cohort_note || '')}</p>${table(['Player · party size','Current standings (same game version)','At upload (reconstructed)'],(ranks.players || []).map(p=>`<tr><td>${esc(p.name)} · ${p.party_size || 'Unknown'} players${p.uploaded_at?`<br>Uploaded ${esc(new Date(p.uploaded_at*1000).toLocaleString())}`:''}</td><td>${scopes(p)}</td><td>${scopes(p.at_upload)}</td></tr>`))}<h4>Run speed · lower elapsed time wins</h4>${table(['Current standings (same game version)','At upload (reconstructed)'],[`<tr><td>${scopes(ranks.run)}</td><td>${scopes(ranks.run_at_upload)}</td></tr>`])}`;
+      const scopes=(x,context)=>['server','region','world'].map(s=>`${s[0].toUpperCase()+s.slice(1)}: ${values(x?.[s],s,x,context)}`).join('<br>');
+      const unranked=unrankedWhy?`<p class="note">This encounter is <b>unranked</b>: ${esc(unrankedWhy)} Fix what you can on the next recording (start the meter before entering the instance, keep the party roster, let the boss be seen at full health) — the standings below stay unavailable until a recording of this fight is eligible.</p>`:'';
+      const noPlayers=!(ranks.players || []).length && !unrankedWhy?`<p class="note">No player standings: ${esc(ranks.note || 'the encounter metadata (boss, game version, difficulty, encounter type) is incomplete.')}</p>`:'';
+      return `<h3>Matched public comparisons</h3><p class="small muted">${esc(ranks.note || '')} ${esc(ranks.cohort_note || '')}</p>${unranked}${noPlayers}${table(['Player · party size','Current standings (same game version)','At upload (reconstructed)'],(ranks.players || []).map(p=>`<tr><td>${esc(p.name)} · ${p.party_size || 'Unknown'} players${p.uploaded_at?`<br>Uploaded ${esc(new Date(p.uploaded_at*1000).toLocaleString())}`:''}</td><td>${scopes(p,'current')}</td><td>${scopes(p.at_upload,'at_upload')}</td></tr>`))}<h4>Run speed · lower elapsed time wins</h4>${table(['Current standings (same game version)','At upload (reconstructed)'],[`<tr><td>${scopes(ranks.run,'run')}</td><td>${scopes(ranks.run_at_upload,'run')}</td></tr>`])}`;
     }
     const seconds=x=>x===null || x===undefined?'Unavailable':`${Math.floor(x/60)}:${(x%60).toFixed(1).padStart(4,'0')}`;
     function runsHTML(d) {

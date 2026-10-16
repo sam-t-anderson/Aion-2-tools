@@ -111,6 +111,17 @@ def _add(dst: dict, src: dict) -> None:
         dst[k] = dst.get(k, 0) + v
 
 
+def faction_of(profile: dict) -> str | None:
+    """``"elyos"`` / ``"asmodian"`` from the official profile's race fields, else None."""
+    for key in ("raceName", "race", "raceType", "faction"):
+        value = str(profile.get(key) or "").strip().casefold()
+        if value.startswith("asmo"):
+            return "asmodian"
+        if value.startswith("ely"):
+            return "elyos"
+    return None
+
+
 def from_profile(ch: dict) -> ImportedCharacter:
     p = ch["profile"]
     cls = CLASS_KEYS.get(p.get("className"), (p.get("className") or "").lower())
@@ -120,7 +131,7 @@ def from_profile(ch: dict) -> ImportedCharacter:
         warnings.append("Synced base stats were incomplete; scoring uses the bundled class base-stat table.")
     comps, systems = [], {"equipment": [], "arcana": [], "manastones": [], "titles": [], "skills": [],
                           "stigmas": [], "daevanion": {}, "pet": None, "wings": None, "profile_stats": {},
-                          "deities": []}
+                          "deities": [], "faction": faction_of(p)}
     gear_bonus: dict[int, int] = {}
 
     for e in (ch.get("equipment") or {}).get("equipmentList", []):

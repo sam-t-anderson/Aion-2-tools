@@ -393,7 +393,8 @@ class CombatSession:
         if (not self.run_closed and has_damage and local_id is not None
                 and local_id != self.runs[self.run].get("local_id")
                 and self.epoch != self.runs[self.run].get("open_epoch")
-                and any(r.run == self.run for r in self.records)):
+                and any(r.run == self.run for r in self.records)
+                and not self._same_instance_reload(engine)):
             self.finish_run("zone_reentry", complete=False)
         if self.run_closed and any(isinstance(e,DamageEvent) and
                 (self.runs[self.run].get("end_reason") != "configured_final_boss_death"
@@ -423,6 +424,7 @@ class CombatSession:
                 self.epoch += 1
                 self._zone_reset_seen = True
                 carried = (previous.get("roster") or previous.get("carried_roster")) if previous else None
+                carried_entries = (previous.get("roster") or previous.get("carried_entries")) if previous else None
                 if carried:
                     # A zone load (an in-instance teleport to the boss room, a re-entry) clears
                     # the engine's roster until the next roster packet, which under packet loss
@@ -436,6 +438,12 @@ class CombatSession:
                     # overlay showing only the local player, and every fight roster-late.
                     self.identities.setdefault(self.epoch, {"names": {}, "spawns": {}, "jobs": {}, "local_id": None, "roster": {}, "owners": {}})
                     self.identities[self.epoch]["carried_roster"] = frozenset(carried)
+                    if carried_entries:
+                        # The members' server, character id and class ride along too: until the next
+                        # roster packet the party would otherwise export under bare actor ids (no
+                        # server, no class) -- "identity unverified", a different-looking party, and
+                        # the first fights after every revive unranked.
+                        self.identities[self.epoch]["carried_entries"] = {name: dict(info) for name, info in carried_entries.items()}
             self._zone_reset = engine.last_zone_reset_ms
         identity = self.identities.setdefault(self.epoch, {"names": {}, "spawns": {}, "jobs": {}, "local_id": None, "roster": {}, "owners": {}})
         identity["player_ids"] = set(engine.known_players)
@@ -718,6 +726,28 @@ class CombatSession:
         identity = self.identities[record.epoch]
         return (not record.party and bool(identity.get("initial_roster"))
                 and 0 < record.sequence <= identity.get("initial_roster_sequence", 0))
+
+    @staticmethod
+    def _roster_info(identity, name) -> dict:
+        """A party member's roster entry (server, character id, class, gear): this epoch's own
+        roster packet first, else the entry carried across the last zone load."""
+        key = str(name or "").casefold()
+        return identity["roster"].get(key) or identity.get("carried_entries", {}).get(key, {})
+
+    def _same_instance_reload(self, engine) -> bool:
+        """True when the zone load that reassigned the local actor id went back into the very
+        instance the open run is in: a revive after a wipe, an in-instance teleport. The party is
+        still on the same run (same instance id, same map), so the run continues instead of being
+        split into a second run whose later fights would carry no entry evidence. Leaving for the
+        open world or another instance changes the map or instance id and still closes the run."""
+        from .a2parser.engine import OPEN_WORLD_MAPS
+        run = self.runs.get(self.run) or {}
+        instance = run.get("instance_id")
+        # Only an instance the decoder *restored* across the reload counts: a genuine re-entry
+        # of the same dungeon arrives with its own roster/entry packet (which names the
+        # instance afresh and clears the restore flag) and still opens a new run.
+        return bool(instance and getattr(engine, "instance_restored", False) and engine.dungeon_id == instance
+                    and engine.map_id == run.get("map_id") and engine.map_id not in OPEN_WORLD_MAPS)
 
     @staticmethod
     def _entry_observed(run) -> bool:
@@ -1066,7 +1096,7 @@ class CombatSession:
                     if not row.get("server"):
                         # Carry each player's home server id (from the party roster, or the local
                         # profile for yourself), so the live view can show the world next to a name.
-                        info = identity["roster"].get(name.casefold(), {})
+                        info = self._roster_info(identity, name)
                         srv = info.get("serverId") or (identity.get("profile", {}).get("serverId")
                                                         if actor_id == identity.get("local_id") else None)
                         if srv:
@@ -1535,7 +1565,7 @@ class CombatSession:
                     resolving.discard(actor_id)
                     entities[pid] = {"id": pid, "name": name, "kind": "pet", "owner": owner}
                 elif actor_id in roster_allowed:
-                    info = identity["roster"].get(name.casefold(), {})
+                    info = self._roster_info(identity, name)
                     profile = identity.get("profile", {}) if actor_id == identity["local_id"] else {}
                     server = info.get("serverId") or profile.get("serverId")
                     if server and actor_id in identity["names"]:

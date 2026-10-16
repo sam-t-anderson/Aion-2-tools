@@ -232,8 +232,8 @@ def encounter_from_capture(path_or_ref: str, *, player: str | None = None, segme
 def _select_a2log(path_or_ref, *, player=None, segment=None):
     """``(doc, player_id, segment_index)`` for a saved a2log, else ``None``.
 
-    Picks the recording (local) player — meter order puts them first — else the
-    top-damage player, and the segment with the most recorded hits.
+    Picks the recording (local) player, else the top-damage player, and the segment
+    with the most recorded hits (see :func:`aion2calc.combat.a2log.select`).
     """
     from pathlib import Path
     p = Path(path_or_ref)
@@ -243,26 +243,13 @@ def _select_a2log(path_or_ref, *, player=None, segment=None):
         doc = json.loads(p.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    if not isinstance(doc, dict) or doc.get("format") != "a2log":
+    from .combat import a2log as F
+    if not F.is_document(doc):
         return None
-    players = doc.get("players") or []
-    segs = doc.get("segments") or []
-    idx = segment if segment is not None else max(
-        range(len(segs)), key=lambda i: len(segs[i].get("hits") or []), default=0)
-    pid = player
-    if pid is None:
-        pid = next((pl["id"] for pl in players if pl.get("local")), None)
-        if pid is None and segs:
-            dmg: dict = {}
-            for h in segs[idx].get("hits") or []:
-                who = h.get("player") or h.get("source")
-                if who:
-                    dmg[who] = dmg.get(who, 0.0) + (h.get("damage") or 0.0)
-            ids = {pl["id"] for pl in players}
-            ranked = sorted((k for k in dmg if not ids or k in ids), key=lambda k: -dmg[k])
-            pid = ranked[0] if ranked else (players[0]["id"] if players else None)
-        elif pid is None and players:
-            pid = players[0]["id"]
+    try:
+        pid, idx = F.select(doc, player=player, segment=segment)
+    except ValueError:
+        return None
     return doc, pid, idx
 
 

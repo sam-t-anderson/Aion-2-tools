@@ -13,6 +13,8 @@ Sources
     * AbyssLogs fights (abysslogs.com share links, or a segment file saved from
       the site): :mod:`aion2calc.combat.abysslogs`
     * A2DIL training-dummy logs (Korean service, public): ``from_a2dil``
+    * live-meter sessions and other ``a2log`` documents (one player, one encounter at a
+      time): ``from_a2log``
     * any tool that can export JSON in the format above, or CSV with the columns
       ``t, skill, damage, crit, double, perfect, multi, dot`` (``from_json``/``from_csv``)
     * a live packet capture can feed the same format through ``live.LiveSource``
@@ -127,18 +129,34 @@ def from_a2dil(ref: str) -> dict:
     return enc
 
 
-def from_json(text: str, player: str | None = None) -> dict:
+def from_json(text: str, player: str | None = None, segment: int | None = None) -> dict:
     d = json.loads(text)
     from . import abysslogs
     if abysslogs.is_segment(d):
         return abysslogs.from_segment(d, player=player)
+    from . import a2log
+    if a2log.is_document(d):
+        return from_a2log(d, player=player, segment=segment)
     return normalize(d)
 
 
-def from_text(text: str, name: str | None = None, player: str | None = None) -> dict:
-    """File contents: canonical JSON, an AbyssLogs segment, or CSV."""
+def from_a2log(doc: dict, player: str | None = None, segment: int | None = None) -> dict:
+    """A live-meter session (a2log document): one player's side of one encounter.
+
+    The recording player and the encounter with the most recorded hits by default;
+    ``player`` is an id or a name, ``segment`` an index. The document is validated
+    first so class names, ids and the per-encounter quality verdict are canonical.
+    """
+    from . import a2log
+    doc = a2log.validate(doc)
+    pid, idx = a2log.select(doc, player=player, segment=segment)
+    return a2log.to_encounter(doc, pid, idx)
+
+
+def from_text(text: str, name: str | None = None, player: str | None = None, segment: int | None = None) -> dict:
+    """File contents: canonical JSON, an AbyssLogs segment, a live-meter session (a2log), or CSV."""
     if text.lstrip().startswith("{"):
-        return from_json(text, player=player)
+        return from_json(text, player=player, segment=segment)
     return from_csv(text, {"ref": name})
 
 
@@ -158,8 +176,8 @@ def from_csv(text: str, meta: dict | None = None) -> dict:
     return normalize({"meta": {"source": "csv", **(meta or {})}, "hits": hits})
 
 
-def load(path_or_ref: str, player: str | None = None) -> dict:
-    """AbyssLogs link, A2DIL URL/id, or a .json / .json.gz / .csv file."""
+def load(path_or_ref: str, player: str | None = None, segment: int | None = None) -> dict:
+    """AbyssLogs link, A2DIL URL/id, or a .json / .json.gz / .csv / .a2log.json file."""
     from pathlib import Path
 
     from . import abysslogs
@@ -177,6 +195,6 @@ def load(path_or_ref: str, player: str | None = None) -> dict:
     text = raw.decode("utf-8-sig")
     if path.suffix.lower() == ".csv":
         return from_csv(text, {"ref": path_or_ref})
-    enc = from_json(text, player=player)
+    enc = from_json(text, player=player, segment=segment)
     enc["meta"].setdefault("ref", path_or_ref)
     return enc

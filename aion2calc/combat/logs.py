@@ -78,6 +78,8 @@ def backfill(conn=None) -> int:
     folder = logs_dir()
     n = 0
     for row in store.encounters(conn):
+        if row.get("source") == "session":          # lives in its session file already
+            continue
         if path_of(row["id"], folder) is None:
             enc = store.encounter(conn, row["id"])
             if enc:

@@ -22,6 +22,10 @@ RECOVERED_SKIP_FRACTION = 0.02
 # session's received packets (more than PCAP_DROP_FLOOR, or PCAP_DROP_FRACTION of those received,
 # whichever is larger) counts as capture loss. Genuine decode/validation losses below still void
 # ranking on any nonzero count.
+#: a boss counts as seen at full health when its first sample is within this share of its maximum
+#: (the opening hit lands with the sample) and no later than this long after the party's first hit on it
+FULL_HEALTH_TOLERANCE = 0.005
+FULL_HEALTH_WINDOW_S = 0.5
 PCAP_DROP_FLOOR = 500
 PCAP_DROP_FRACTION = 0.02
 # Counters that are a true per-event processing/validation loss (void ranking on any nonzero count).
@@ -116,11 +120,22 @@ def assess(doc, segment):
            or re.fullmatch(r"(?:Player\s*)?#?\d+", p["name"], re.I) for p in players):
         reasons.append("identity_unverified")
     bosses = {e["id"] for e in segment.get("entities", []) if e.get("is_boss") and e.get("mob_code")}
+    # A boss seen at (essentially) full health before the party's first hit on it started the
+    # fight whole. The first HP sample usually lands with the opening hit, i.e. a hair below the
+    # maximum at t=0; and when trash merges into the same combat segment the boss is first seen
+    # (at full health) some seconds before it is pulled. Both are a start observed from the top.
+    first_hit: dict = {}
+    for h in hits:
+        target = h.get("target")
+        if target in bosses and (target not in first_hit or h.get("t", 0) < first_hit[target]):
+            first_hit[target] = h.get("t", 0)
     starts = set()
     for sample in segment.get("health", []):
-        if (sample.get("max", 0) > 0 and sample["current"] >= sample["max"]
-                and sample.get("t", 1) <= 0):
-            starts.add(sample["entity"])
+        entity, maximum, current = sample.get("entity"), sample.get("max") or 0, sample.get("current") or 0
+        if maximum <= 0 or entity not in bosses:
+            continue
+        if current >= maximum * (1 - FULL_HEALTH_TOLERANCE) and sample.get("t", 1) <= max(0.0, first_hit.get(entity, 0.0)) + FULL_HEALTH_WINDOW_S:
+            starts.add(entity)
     deaths = {e.get("target") for e in segment.get("events", []) if e.get("kind") == "death"}
     deaths.update(s["entity"] for s in segment.get("health", []) if s.get("current") == 0)
     if kind.startswith("pvp_"):

@@ -33,7 +33,7 @@ python -m aion2calc compare sorcerer ranger assassin gladiator
 # import and optimize a real character (official AION 2 site, global regions)
 python -m aion2calc character "Name" --server Zikel --optimize
 
-# analyze a combat log against the optimal rotation: AbyssLogs link, A2DIL link, JSON or CSV
+# analyze a combat log against the optimal rotation: AbyssLogs link, A2DIL link, a live-meter session (.a2log.json: the recording player's biggest fight), JSON or CSV
 python -m aion2calc analyze https://abysslogs.com/e/<id>
 python -m aion2calc analyze https://abysslogs.com/e/<id> --player "Name"   # one player of a party log
 

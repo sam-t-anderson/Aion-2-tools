@@ -593,11 +593,10 @@
   }
  },
  "genus_lines": {
-  "note": "genus-specific analysis lines (slots 4 and 7); other slots roll Attack, Critical Hit, Accuracy, defensive stats and HP/MP, some of them '<genus> ...' (against that genus only)",
+  "note": "genus-specific analysis lines: the '<genus> Damage Boost' line rolls in slot 4 (the amplification slot); slot 7 mirrors it with '<genus> Damage Tolerance'. Other slots roll Attack, Critical Hit, Accuracy, defensive stats and HP/MP, some of them '<genus> ...' (against that genus only). The full per-slot pools with ranges per grade are in genus_properties.json.",
   "damage_boost": {
    "slots": [
-    4,
-    7
+    4
    ],
    "range_pct": [
     2.4,

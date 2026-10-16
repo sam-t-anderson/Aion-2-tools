@@ -40,6 +40,9 @@ class MeterEngine:
         # Max HP of catalog bosses this install has seen (mob code -> HP on the current build), so a
         # dungeon's final boss whose spawn packet was lost can still be recognised by its HP.
         self.boss_hp_seen: dict[int, float] = {}
+        self._left_instance: tuple[int, int] | None = None   # (map id, instance id) the last zone load left
+        self.instance_restored = False                        # dungeon_id was restored across a same-map reload
+        self._signature_scan: tuple | None = None            # last same-name HP-signature scan (spawn count, candidates)
         self.jobs: dict[int, str] = {}
         self.roster: dict[str, dict] = {}
         self.roster_complete = False
@@ -182,9 +185,7 @@ class MeterEngine:
         self.known_entities.update(links)
         self.known_entities.update(links.values())
         if map_id is not None:
-            self.map_id = map_id
-            if map_id in OPEN_WORLD_MAPS:
-                self.dungeon_id = 0
+            self._note_map(map_id)
         current_hp, maximum_hp = scan_hp_updates(complete)
         self.telemetry.extend({"kind": "hp", "entity": eid, "current": hp, "max": maximum_hp.get(eid), "timestamp_ms": timestamp_ms} for eid, hp in current_hp.items())
         self.telemetry.extend(self._player_deaths_from_hp(current_hp, timestamp_ms))
@@ -352,7 +353,24 @@ class MeterEngine:
             if code and value > 0 and npc_info(code).get("isBoss"):
                 self.boss_hp_seen[int(code)] = float(value)
         candidates = dungeon_final_bosses(self.dungeon_id or self.map_id) if (self.dungeon_id or self.map_id) else ()
-        if not candidates or not self.boss_hp_seen:
+        if not candidates:
+            return
+        # Fire Temple's final boss (Kromede's Desire) is never decoded under its catalog code: the
+        # body is a spawn-less ``Enemy #id`` and the phase copies that do spawn carry codes the
+        # catalog lists as non-boss -- but the same name and the boss's own max HP (15.504M). A
+        # same-named spawn of the dungeon's final boss is that boss's HP signature too.
+        scan_key = (len(self.spawn_info), tuple(sorted(candidates)))
+        if any(int(code) not in self.boss_hp_seen for code in candidates) and scan_key != self._signature_scan:
+            self._signature_scan = scan_key            # rescan only when a spawn arrived or the dungeon changed
+            names = {npc_info(code).get("name") or "": int(code) for code in candidates}
+            names.pop("", None)
+            for entity_id, info in self.spawn_info.items():
+                code, max_hp = info.get("mobCode"), info.get("reportedMaxHp") or info.get("maxHp")
+                if code and max_hp and int(code) not in candidates:
+                    target = names.get(npc_info(code).get("name"))
+                    if target is not None and target not in self.boss_hp_seen:
+                        self.boss_hp_seen[target] = float(max_hp)
+        if not self.boss_hp_seen:
             return
         for entity_id in set(current) | set(maximum):
             info = self.spawn_info.get(entity_id, {})
@@ -435,7 +453,10 @@ class MeterEngine:
         self.local_player_id = None
         self.local_identity_from_game = False
         self.local_profile.clear()
+        # Remember the instance this load left; a reload into the same map restores it.
+        self._left_instance = (self.map_id, self.dungeon_id) if self.dungeon_id and self.map_id not in OPEN_WORLD_MAPS else None
         self.dungeon_id = 0
+        self.instance_restored = False
         self.last_zone_reset_ms = timestamp_ms
 
     def drain_completed_fights(self) -> list[dict]:
@@ -466,9 +487,28 @@ class MeterEngine:
                        for actor in sorted(target.actors.values(), key=lambda row: row.damage, reverse=True)],
         }
 
+    def _note_map(self, map_id: int) -> None:
+        """A zone-state packet named the loaded map."""
+        self.map_id = map_id
+        if map_id in OPEN_WORLD_MAPS:
+            self.dungeon_id = 0
+            self.instance_restored = False
+        elif not self.dungeon_id and self._left_instance and self._left_instance[0] == map_id:
+            # The zone load went back into the same instance map (a revive, an in-instance
+            # teleport). The party is still in that instance: its roster packet, the only
+            # carrier of the instance id, is not re-sent on such a load, so the id would
+            # otherwise stay unknown until the party changes -- every later fight
+            # "map-only" classified and unranked, the run split in two. ``instance_restored``
+            # tells the session this is a reload, not an entry: a genuine re-entry comes
+            # with its own roster/entry packet, which clears the flag.
+            self.dungeon_id = self._left_instance[1]
+            self.instance_restored = True
+
     def _update_roster(self, members: dict[str, dict], complete: bool, dungeon_id: int) -> None:
         """Apply a complete roster or merge the members from a partial decode."""
         self.dungeon_id = dungeon_id
+        if dungeon_id:
+            self.instance_restored = False               # the instance came from the game, not a restore
         self.roster_complete = complete
         if complete:
             self.roster = members

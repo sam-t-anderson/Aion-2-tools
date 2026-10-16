@@ -471,6 +471,63 @@ def damage_duration(segment: dict) -> float:
     return float(max(1,len(buckets)))
 
 
+def is_document(d) -> bool:
+    """True for an a2log document (the live meter's session format)."""
+    return isinstance(d, dict) and d.get("format") == "a2log" and isinstance(d.get("players"), list) \
+        and isinstance(d.get("segments"), list)
+
+
+def recording_player(doc: dict) -> str | None:
+    """The id of the recording (local) player: the segments' ``ping_recorder`` when it names a
+    listed player, else the ``meta.uploader`` stamp by name, else ``None``."""
+    players = doc.get("players") or []
+    recorders = [s.get("ping_recorder") for s in doc.get("segments") or [] if s.get("ping_recorder")]
+    for rec in recorders:
+        if any(p.get("id") == rec for p in players):
+            return rec
+    stamp = (doc.get("meta") or {}).get("uploader")
+    name = str(stamp.get("name") or "").strip().casefold() if isinstance(stamp, dict) else ""
+    if name:
+        for p in players:
+            if str(p.get("name") or "").strip().casefold() == name:
+                return p["id"]
+    return None
+
+
+def select(doc: dict, player: str | None = None, segment: int | None = None) -> tuple[str, int]:
+    """``(player_id, segment_index)`` to analyze from an a2log document.
+
+    ``player`` may be a player id or name (case-insensitive); by default the recording
+    player, else the top-damage player of the chosen segment. ``segment`` defaults to
+    the segment with the most recorded hits, so a multi-encounter capture still yields
+    its most informative fight.
+    """
+    players = doc.get("players") or []
+    segs = doc.get("segments") or []
+    if not players or not segs:
+        raise ValueError("the log has no players or no encounters")
+    idx = segment if segment is not None else max(range(len(segs)), key=lambda i: len(segs[i].get("hits") or []))
+    if not 0 <= idx < len(segs):
+        raise ValueError(f"the log has no encounter #{idx + 1}")
+    pid = None
+    if player:
+        want = str(player).strip().casefold()
+        pid = next((p["id"] for p in players if p.get("id") == player or str(p.get("name") or "").strip().casefold() == want), None)
+        if pid is None:
+            raise ValueError(f"no player named {player!r} in the log")
+    if pid is None:
+        pid = recording_player(doc)
+    if pid is None:
+        dmg: dict = {}
+        for h in segs[idx].get("hits") or []:
+            if h.get("player"):
+                dmg[h["player"]] = dmg.get(h["player"], 0.0) + (h.get("damage") or 0.0)
+        ids = {p["id"] for p in players}
+        ranked = sorted((k for k in dmg if k in ids), key=lambda k: -dmg[k])
+        pid = ranked[0] if ranked else players[0]["id"]
+    return pid, idx
+
+
 def to_encounter(doc: dict, player_id: str, segment: int = 0) -> dict:
     """One player's side of one segment -> an aion2calc encounter (for the analyzer)."""
     from .adapters import normalize
@@ -504,8 +561,13 @@ def to_encounter(doc: dict, player_id: str, segment: int = 0) -> dict:
     buffs = [{"name": n or str(sid), "skill_id": sid, "windows": w,
               "uptime": min(1.0, sum(z - a for a, z in w) / seg["duration"])} for (n, sid), w in wins.items()]
     enc = {"meta": {"source": "a2log", "player": p["name"], "class": p.get("class"), "target": seg.get("boss") or
-                    seg.get("label"), "duration": seg["duration"], "combat_power": p.get("combat_power")},
+                    seg.get("label"), "duration": seg["duration"], "combat_power": p.get("combat_power"),
+                    "started_at": seg.get("start") or (doc.get("meta") or {}).get("recorded_at"),
+                    "boss_killed": bool(seg.get("killed")), "segment": segment,
+                    "encounter_type": seg.get("encounter_type") or (doc.get("meta") or {}).get("encounter_type"),
+                    "zone": seg.get("zone") or (doc.get("meta") or {}).get("zone")},
            "hits": hits, "buffs": buffs, "specs": {}}
+    enc["meta"] = {k: v for k, v in enc["meta"].items() if v is not None}
     from .quality import assess
     excluded = {"partial_capture", "party_roster_late", "classification_npc_only", "classification_map_only", "classification_conflict"}.intersection(assess(doc, seg)["reasons"])
     enc["meta"]["learning_excluded"] = bool(excluded)

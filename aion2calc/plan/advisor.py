@@ -66,6 +66,21 @@ def rotation_findings(name: str, cls: str, build=None, limit: int = 8) -> dict:
             "specs": list(specs.values())}
 
 
+def fight_summary(fights: list[dict], synced: dict | None = None, limit: int = 12) -> dict:
+    """The character's saved fights at a glance: where they came from and the latest ones."""
+    sources: dict = {}
+    for f in fights:
+        key = f.get("source") or "unknown"
+        sources[key] = sources.get(key, 0) + 1
+    recent = [{"id": f["id"], "boss": f.get("boss"), "duration": f.get("duration"), "dps": f.get("dps"),
+               "source": f.get("source"), "started_at": f.get("started_at"), "imported_at": f.get("imported_at")}
+              for f in fights[:limit]]
+    return {"count": len(fights), "sources": sources, "recent": recent, "synced": (synced or {}).get("added", 0),
+            "note": "Boss fights of this character from the live meter's saved sessions are added to the history "
+                    "automatically (PvE, at least 20 s and 10 of your own hits); AbyssLogs links can be imported on the "
+                    "Combat Logs page. Rotation findings use the latest eight."}
+
+
 def _card(e: dict | None) -> dict | None:
     if not e:
         return None
@@ -105,6 +120,13 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
     say = progress or (lambda m: None)
     t0 = time.time()
     inv = inv or INV.from_character(imp)
+    say("your recorded fights")
+    try:
+        from ..combat.history import sync_sessions
+        synced = sync_sessions(imp.name, imp.cls, progress=say)
+    except Exception as err:          # noqa: BLE001 - advice never fails on the fight import
+        say(f"could not read the recorded sessions: {err}")
+        synced = {"added": 0}
     with learn.calibrated(imp.cls) as cal:
         say("scoring the character as it is")
         ctx = PlanContext.from_character(imp, inv, evaluation)
@@ -184,7 +206,8 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
                 f"community calibration from your log server: {c['fights']} fights" for c in
                 [learn.community(imp.cls, fetch=False)] if c and c.get("active")], "calibrated": bool(cal),
             "top": top, "doll": doll, "equip": equip, "goals": goals, "upgrade_path": path, "arcana": arc,
-            "pantheon": pan, "titles": tit, "genus": gen, "skill_specialties": specialties, "rotation": rot, "community": cs, "seconds": time.time() - t0}
+            "pantheon": pan, "titles": tit, "genus": gen, "skill_specialties": specialties, "rotation": rot, "community": cs,
+            "fights": fight_summary(fights, synced), "seconds": time.time() - t0}
 
 
 def _pct(x) -> str:
@@ -238,13 +261,32 @@ def write_markdown(adv: dict, out: Path) -> Path:
         L.append(f"* {r['genus']} slot {r['slot']}: {r['stat']} {r['value']} → {_pct(r['gain']) if r['gain'] is not None else r.get('reason', 'Not modeled')}")
     for r in adv["genus"]["level_order"][:3]:
         L.append(f"* level {r['genus']} (Lv {r['level']}, {100 * r['share']:.0f}% of your fight time)")
+    rolls = (adv["genus"].get("roll_targets") or {}).get("genera") or {}
+    if rolls:
+        L += ["", "### Lines to roll for (modeled damage, best listed grade)", "", "| Genus | Slot | Roll for | Range | DPS |", "|---|---:|---|---|---:|"]
+        for genus, g in rolls.items():
+            for slot, x in sorted(g["slots"].items(), key=lambda kv: int(kv[0])):
+                aim = (x.get("aim") or [None])[0]
+                if aim:
+                    L.append(f"| {genus} | {slot} | {aim['stat']} | {aim['grade']} {aim['range']} | {_pct(aim['gain'])} |")
+    board = adv["pantheon"].get("board")
+    if board:
+        L += ["", "### Pantheon board (modeled damage)", "", f"Recommended set: {_pct(board['gain'])}; points " +
+              ", ".join(f"{k.split(' [')[0]} {v}" for k, v in sorted(board['totals'].items(), key=lambda kv: -kv[1])), ""]
+        for kind in ("colossus", "statue", "artwork"):
+            for r in board["board"].get(kind, []):
+                L.append(f"* {kind}: {r['short']} ({', '.join(f'{k.split(chr(32))[0]} +{v}' for k, v in r['stats'].items())}) {_pct(r['gain'])}"
+                         + (f" — {r['sources'][0]}" if r.get("sources") else ""))
     rot = adv["rotation"]
     L += ["", "## Your fights", ""]
+    fights = adv.get("fights") or {}
+    if fights.get("count"):
+        L.append(f"{fights['count']} saved fight(s): " + ", ".join(f"{n} from {src}" for src, n in fights["sources"].items()) + ".")
     if rot["fights"]:
-        L.append(f"{rot['fights']} fight(s); idle {100 * (rot['idle_share'] or 0):.0f}% of the time.")
+        L.append(f"{rot['fights']} fight(s) compared with the optimal rotation; idle {100 * (rot['idle_share'] or 0):.0f}% of the time.")
         L += [f"* {t['text']}" for t in rot["under_cast"][:6]]
-    else:
-        L.append("No saved fights for this character yet: import AbyssLogs links on the Combat Logs page.")
+    elif not fights.get("count"):
+        L.append("No saved fights for this character yet: record a boss fight with the live meter, or import AbyssLogs links on the Combat Logs page.")
     L += ["", "## Model calibration", ""] + [f"* {x}" for x in adv["calibration"]]
     out.mkdir(parents=True, exist_ok=True)
     (out / "advice.json").write_text(json.dumps(adv, indent=1, default=str), encoding="utf-8")

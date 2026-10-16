@@ -1,0 +1,5343 @@
+{
+"source": "aion2hub.com item database, Decor category (Global + Korea/Taiwan data, read 2026-10-16); colossus grants cross-checked with aion.xtopolis.com and aion2.tools/guides/pantheon",
+"note": "Pantheon decorations: one Colossus (centre), four Statues (inner ring) and twelve Artworks (outer ring) are placed at a time; a decoration fits only its own slot type and only placed decorations count. Each point of a deity stat adds 0.1% to its two effects. 'global' false marks items only in the Korea/Taiwan client data so far. Items without stats have no effect block in the source data and are listed for completeness only. Ownership is not in any supported source: the board recommends by modeled damage value and tells you where each piece comes from.",
+"slots": {
+"colossus": 1,
+"statue": 4,
+"artwork": 12
+},
+"deity_effects": {
+"Justice [Nezekan]": "Defense, Perfect Chance",
+"Freedom [Vaizel]": "Accuracy, Evasion",
+"Illusion [Kaisinel]": "Cooldown, Endurance Penetration",
+"Life [Yustiel]": "HP, Regeneration",
+"Time [Siel]": "Combat Speed, Double Resist",
+"Destruction [Zikel]": "Attack, Perfect Resist",
+"Death [Triniel]": "Critical Hit, Regeneration Penetration",
+"Wisdom [Lumiel]": "MP cost, Double Chance",
+"Destiny [Marchutan]": "MP, Endurance",
+"Space [Israphel]": "Move Speed, Block"
+},
+"items": [
+{
+"id": 514330003,
+"name": "Colossus: Guardian Lord Nahma",
+"kind": "colossus",
+"grade": "Heroic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destruction [Zikel]": 55,
+"Justice [Nezekan]": 55,
+"Time [Siel]": 55
+},
+"stats_source": "aion2hub item page",
+"points": 165,
+"sources": [
+"Drops from Guardian Lord Nahma (Chaotic Lower Reshanta), Enraged Guardian Lord Nahma"
+],
+"drops": [
+{
+"name": "Guardian Lord Nahma",
+"zone": "Chaotic Lower Reshanta",
+"level": 65
+},
+{
+"name": "Enraged Guardian Lord Nahma",
+"level": 80
+}
+]
+},
+{
+"id": 534330003,
+"name": "Colossus: Guardian Lord Nahma (Bound)",
+"kind": "colossus",
+"grade": "Heroic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Destruction [Zikel]": 55,
+"Justice [Nezekan]": 55,
+"Time [Siel]": 55
+},
+"stats_source": "aion2hub item page of Colossus: Guardian Lord Nahma (same decoration, other binding)",
+"points": 165,
+"sources": [],
+"drops": []
+},
+{
+"id": 534330006,
+"name": "Colossus: Ascended Atheron (Bound)",
+"kind": "colossus",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Wisdom [Lumiel]": 50,
+"Time [Siel]": 50,
+"Destruction [Zikel]": 50
+},
+"stats_source": "aion2hub item page",
+"points": 150,
+"sources": [
+"Token shop: Coin Shop Nightmare 58,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534330005,
+"name": "Colossus: Tyrant Tassin (Bound)",
+"kind": "colossus",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Wisdom [Lumiel]": 48,
+"Time [Siel]": 48,
+"Destruction [Zikel]": 48
+},
+"stats_source": "aion2hub item page",
+"points": 144,
+"sources": [
+"Token shop: Coin Shop Nightmare 40,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534330002,
+"name": "Colossus: Kaisinel's Illusion (Bound)",
+"kind": "colossus",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Time [Siel]": 45,
+"Wisdom [Lumiel]": 45,
+"Destruction [Zikel]": 45
+},
+"stats_source": "aion2hub item page",
+"points": 135,
+"sources": [
+"Token shop: Coin Shop Nightmare 21,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534330004,
+"name": "Colossus: Kromede's Desire (Bound)",
+"kind": "colossus",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Destruction [Zikel]": 45,
+"Time [Siel]": 45,
+"Justice [Nezekan]": 45
+},
+"stats_source": "aion.xtopolis.com/collectibles/pantheon colossus table",
+"points": 135,
+"sources": [
+"Achievement reward"
+],
+"drops": []
+},
+{
+"id": 534330011,
+"name": "Colossus: Zikel's Apparition (Bound)",
+"kind": "colossus",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Destruction [Zikel]": 45,
+"Justice [Nezekan]": 45,
+"Time [Siel]": 45
+},
+"stats_source": "aion2hub item page",
+"points": 135,
+"sources": [
+"Token shop: Coin Shop Nightmare 14,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534330016,
+"name": "Colossus: Incarnated Warding Feather (Bound)",
+"kind": "colossus",
+"grade": "Rare",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Justice [Nezekan]": 35,
+"Time [Siel]": 35
+},
+"stats_source": "aion2hub item page",
+"points": 70,
+"sources": [
+"Quest: Zumion's Ward (Lv 35)"
+],
+"drops": []
+},
+{
+"id": 534330015,
+"name": "Colossus: Warden Santras (Bound)",
+"kind": "colossus",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Justice [Nezekan]": 35,
+"Time [Siel]": 35
+},
+"stats_source": "aion2hub item page",
+"points": 70,
+"sources": [
+"Quest: Last of the Destruction Archons (Lv 32)"
+],
+"drops": []
+},
+{
+"id": 534320085,
+"name": "Statue: Ascension Monolith (Bound)",
+"kind": "statue",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 12,
+"Death [Triniel]": 12,
+"Space [Israphel]": 12
+},
+"stats_source": "aion2hub item page",
+"points": 36,
+"sources": [],
+"drops": []
+},
+{
+"id": 514320072,
+"name": "Statue: Askran",
+"kind": "statue",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 12,
+"Death [Triniel]": 12,
+"Space [Israphel]": 12
+},
+"stats_source": "aion2hub item page",
+"points": 36,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 514320071,
+"name": "Statue: Gargaum",
+"kind": "statue",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 12,
+"Death [Triniel]": 12,
+"Space [Israphel]": 12
+},
+"stats_source": "aion2hub item page",
+"points": 36,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 514320070,
+"name": "Statue: Kromede's Desolation",
+"kind": "statue",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 12,
+"Death [Triniel]": 12,
+"Space [Israphel]": 12
+},
+"stats_source": "aion2hub item page",
+"points": 36,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534320001,
+"name": "Statue: Transcendent Bakarma (Bound)",
+"kind": "statue",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Death [Triniel]": 12,
+"Freedom [Vaizel]": 12,
+"Space [Israphel]": 12
+},
+"stats_source": "aion2hub item page",
+"points": 36,
+"sources": [
+"Achievement reward"
+],
+"drops": []
+},
+{
+"id": 534320022,
+"name": "Statue: Artifact of Eternity (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Death [Triniel]": 10,
+"Freedom [Vaizel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [
+"Quest: Pursuing the Arch Daeva Dream"
+],
+"drops": []
+},
+{
+"id": 534320024,
+"name": "Statue: Asahr's Mirror (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Death [Triniel]": 10,
+"Space [Israphel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [
+"Quest: Receiving the Empyrean Lords' Might"
+],
+"drops": []
+},
+{
+"id": 534320081,
+"name": "Statue: Culminant Paton (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 10,
+"Death [Triniel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [
+"Token shop: Coin Shop Nightmare 37,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320017,
+"name": "Statue: Earth Spirit (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Death [Triniel]": 10,
+"Space [Israphel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320083,
+"name": "Statue: Eltnen's Flower Trees (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Death [Triniel]": 10,
+"Space [Israphel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320057,
+"name": "Statue: Enraged Reda (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 10,
+"Space [Israphel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [
+"Token shop: Coin Shop Nightmare 15,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320012,
+"name": "Statue: Fire Spirit (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 10,
+"Death [Triniel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320055,
+"name": "Statue: Fortress Guardian Notun (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Death [Triniel]": 10,
+"Space [Israphel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [
+"Token shop: Coin Shop Nightmare 8,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320056,
+"name": "Statue: Gerod (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Freedom [Vaizel]": 10,
+"Space [Israphel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [
+"Token shop: Coin Shop Nightmare 8,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320072,
+"name": "Statue: Incarnated Warding Feather (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 10,
+"Death [Triniel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [
+"Token shop: Coin Shop Nightmare 25,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320002,
+"name": "Statue: Kibelisk (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Freedom [Vaizel]": 10,
+"Space [Israphel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [
+"Achievement reward"
+],
+"drops": []
+},
+{
+"id": 534320021,
+"name": "Statue: Kibelisk (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Freedom [Vaizel]": 10,
+"Space [Israphel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [
+"Achievement reward"
+],
+"drops": []
+},
+{
+"id": 534320040,
+"name": "Statue: Modified Bargott (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 10,
+"Space [Israphel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [
+"Token shop: Coin Shop Nightmare 25,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320084,
+"name": "Statue: Morheim's Flower Trees (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 10,
+"Death [Triniel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320082,
+"name": "Statue: Scout Captain Ked (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Death [Triniel]": 10,
+"Space [Israphel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [
+"Token shop: Coin Shop Nightmare 37,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320058,
+"name": "Statue: Warden Santras (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Death [Triniel]": 10,
+"Space [Israphel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [
+"Token shop: Coin Shop Nightmare 15,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320019,
+"name": "Statue: Water Spirit (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 10,
+"Death [Triniel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320018,
+"name": "Statue: Wind Spirit (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 10,
+"Space [Israphel]": 10
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320009,
+"name": "Statue: Dream Fragment (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Death [Triniel]": 8,
+"Freedom [Vaizel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Quest: Opening the Way to a New Ascension"
+],
+"drops": []
+},
+{
+"id": 534320029,
+"name": "Statue: Fafnir's Poison Blood (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Death [Triniel]": 8,
+"Freedom [Vaizel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Token shop: Coin Shop Nightmare 5,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320035,
+"name": "Statue: Furious Feruk (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Death [Triniel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Token shop: Coin Shop Nightmare 5,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320032,
+"name": "Statue: Gatekeeper Pinopi (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Death [Triniel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Token shop: Coin Shop Nightmare 5,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320006,
+"name": "Statue: Glorious Wings (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Freedom [Vaizel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534320033,
+"name": "Statue: Grisilla (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Death [Triniel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Quest: Contaminated Sacred Tree (Lv 30)"
+],
+"drops": []
+},
+{
+"id": 534320080,
+"name": "Statue: Kromede's Desire (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Death [Triniel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Token shop: Coin Shop Nightmare 27,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320079,
+"name": "Statue: Lieutenant Hebran (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 8,
+"Death [Triniel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Token shop: Coin Shop Nightmare 27,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320023,
+"name": "Statue: Mirror of Desire (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Freedom [Vaizel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Achievement reward"
+],
+"drops": []
+},
+{
+"id": 534320036,
+"name": "Statue: Mutated Ulgorn (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Death [Triniel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Token shop: Coin Shop Nightmare 12,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320038,
+"name": "Statue: Oathbreaker Gartua (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Death [Triniel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Token shop: Coin Shop Nightmare 17,500 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320071,
+"name": "Statue: Ritualist Aulisa (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Token shop: Coin Shop Nightmare 17,500 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320020,
+"name": "Statue: Root Mythical Bird Aultross (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Token shop: Coin Shop Nightmare 17,500 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320039,
+"name": "Statue: Sanctum Guardian Gauss (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 8,
+"Death [Triniel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Token shop: Coin Shop Nightmare 17,500 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320028,
+"name": "Statue: Sealed Sura (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Death [Triniel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Token shop: Coin Shop Nightmare 12,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320003,
+"name": "Statue: Sealing Wings (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Freedom [Vaizel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534320034,
+"name": "Statue: Sharp Aulak (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Token shop: Coin Shop Nightmare 12,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320026,
+"name": "Statue: Soulreaper Rathman (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Freedom [Vaizel]": 8,
+"Death [Triniel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Token shop: Coin Shop Nightmare 12,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320005,
+"name": "Statue: Teina (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Death [Triniel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Quest: Time Takes Its Toll (Lv 43)"
+],
+"drops": []
+},
+{
+"id": 534320047,
+"name": "Statue: Wraith Giselle (Bound)",
+"kind": "statue",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Freedom [Vaizel]": 8,
+"Space [Israphel]": 8
+},
+"stats_source": "aion2hub item page",
+"points": 16,
+"sources": [
+"Token shop: Coin Shop Nightmare 5,000 Phantasmal Fragment"
+],
+"drops": []
+},
+{
+"id": 534320014,
+"name": "Statue: Selvis (Bound)",
+"kind": "statue",
+"grade": "Common",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Freedom [Vaizel]": 6
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Quest: Creion Experiment, In the Fang Legion's Name (Lv 22)"
+],
+"drops": []
+},
+{
+"id": 534320007,
+"name": "Statue: Torn Forbidden Bookcase (Bound)",
+"kind": "statue",
+"grade": "Common",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Death [Triniel]": 6
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Quest: Questionable Methods (Lv 22)"
+],
+"drops": []
+},
+{
+"id": 534320008,
+"name": "Statue: Urd (Bound)",
+"kind": "statue",
+"grade": "Common",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Death [Triniel]": 6
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Quest: An Invitation to the Past: Part 2 (Lv 30)"
+],
+"drops": []
+},
+{
+"id": 534320060,
+"name": "Statue: Deep Sea Pydeon [Season 2] (Bound)",
+"kind": "statue",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320054,
+"name": "Statue: Glimmering Asmodian Leader (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320067,
+"name": "Statue: Glimmering Asmodian Leader [Season 2] (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320078,
+"name": "Statue: Glimmering Asmodian Leader [Season 3] (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320053,
+"name": "Statue: Glimmering Elyos Leader (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320066,
+"name": "Statue: Glimmering Elyos Leader [Season 2] (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320077,
+"name": "Statue: Glimmering Elyos Leader [Season 3] (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320042,
+"name": "Statue: Guard Troopers Captain Gelcos (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320043,
+"name": "Statue: Laboratory Chief Nazmun (Bound)",
+"kind": "statue",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320041,
+"name": "Statue: New World God Atiel (Bound)",
+"kind": "statue",
+"grade": "Heroic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320050,
+"name": "Statue: Radiant Asmodian Leader (Bound)",
+"kind": "statue",
+"grade": "Heroic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320063,
+"name": "Statue: Radiant Asmodian Leader [Season 2] (Bound)",
+"kind": "statue",
+"grade": "Heroic",
+"bound": true,
+"faction": "asmodian",
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320074,
+"name": "Statue: Radiant Asmodian Leader [Season 3] (Bound)",
+"kind": "statue",
+"grade": "Heroic",
+"bound": true,
+"faction": "asmodian",
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320049,
+"name": "Statue: Radiant Elyos Leader (Bound)",
+"kind": "statue",
+"grade": "Heroic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320062,
+"name": "Statue: Radiant Elyos Leader [Season 2] (Bound)",
+"kind": "statue",
+"grade": "Heroic",
+"bound": true,
+"faction": "elyos",
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320073,
+"name": "Statue: Radiant Elyos Leader [Season 3] (Bound)",
+"kind": "statue",
+"grade": "Heroic",
+"bound": true,
+"faction": "elyos",
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320044,
+"name": "Statue: Ruthilis of Pain (Bound)",
+"kind": "statue",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320048,
+"name": "Statue: Siliator of Deceit (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320052,
+"name": "Statue: Silvermoon Asmodian Leader (Bound)",
+"kind": "statue",
+"grade": "Unique",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320065,
+"name": "Statue: Silvermoon Asmodian Leader [Season 2] (Bound)",
+"kind": "statue",
+"grade": "Unique",
+"bound": true,
+"faction": "asmodian",
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320076,
+"name": "Statue: Silvermoon Asmodian Leader [Season 3] (Bound)",
+"kind": "statue",
+"grade": "Unique",
+"bound": true,
+"faction": "asmodian",
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320051,
+"name": "Statue: Silvermoon Elyos Leader (Bound)",
+"kind": "statue",
+"grade": "Unique",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320064,
+"name": "Statue: Silvermoon Elyos Leader [Season 2] (Bound)",
+"kind": "statue",
+"grade": "Unique",
+"bound": true,
+"faction": "elyos",
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320075,
+"name": "Statue: Silvermoon Elyos Leader [Season 3] (Bound)",
+"kind": "statue",
+"grade": "Unique",
+"bound": true,
+"faction": "elyos",
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320061,
+"name": "Statue: Singing Ellyde [Season 2] (Bound)",
+"kind": "statue",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534320059,
+"name": "Statue: Submerged Emon [Season 2] (Bound)",
+"kind": "statue",
+"grade": "Heroic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [
+"Season 2 Rank Reward Chest (Bound)"
+],
+"drops": []
+},
+{
+"id": 534320045,
+"name": "Statue: Void Talisra (Bound)",
+"kind": "statue",
+"grade": "Heroic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 514310111,
+"name": "Artwork: Eternal Gartua",
+"kind": "artwork",
+"grade": "Heroic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 5,
+"Life [Yustiel]": 5,
+"Wisdom [Lumiel]": 5,
+"Illusion [Kaisinel]": 5
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [
+"Drops from Eternal Gartua (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Eternal Gartua",
+"zone": "Verteron",
+"level": 51
+}
+]
+},
+{
+"id": 514310110,
+"name": "Artwork: Immortal Gartua",
+"kind": "artwork",
+"grade": "Heroic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 5,
+"Life [Yustiel]": 5,
+"Wisdom [Lumiel]": 5,
+"Destiny [Marchutan]": 5
+},
+"stats_source": "aion2hub item page",
+"points": 20,
+"sources": [
+"Drops from Immortal Gartua (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Immortal Gartua",
+"zone": "Altgard",
+"level": 51
+}
+]
+},
+{
+"id": 534310109,
+"name": "Artwork: Abyssal Ludra (Bound)",
+"kind": "artwork",
+"grade": "Heroic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 5,
+"Illusion [Kaisinel]": 5,
+"Wisdom [Lumiel]": 5
+},
+"stats_source": "aion2hub item page",
+"points": 15,
+"sources": [
+"Achievement reward"
+],
+"drops": []
+},
+{
+"id": 534310132,
+"name": "Artwork: Chalice of Muspel (Bound)",
+"kind": "artwork",
+"grade": "Heroic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 5,
+"Illusion [Kaisinel]": 5,
+"Wisdom [Lumiel]": 5
+},
+"stats_source": "aion2hub item page",
+"points": 15,
+"sources": [
+"Achievement reward"
+],
+"drops": []
+},
+{
+"id": 534310122,
+"name": "Artwork: Corroded Decontamination Facility (Bound)",
+"kind": "artwork",
+"grade": "Heroic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 5,
+"Illusion [Kaisinel]": 5,
+"Wisdom [Lumiel]": 5
+},
+"stats_source": "aion2hub item page",
+"points": 15,
+"sources": [
+"Achievement reward"
+],
+"drops": []
+},
+{
+"id": 514310115,
+"name": "Artwork: Guardian Lord Nahma",
+"kind": "artwork",
+"grade": "Heroic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 5,
+"Illusion [Kaisinel]": 5,
+"Life [Yustiel]": 5
+},
+"stats_source": "aion2hub item page",
+"points": 15,
+"sources": [
+"Drops from Guardian Lord Nahma (Chaotic Lower Reshanta), Enraged Guardian Lord Nahma"
+],
+"drops": [
+{
+"name": "Guardian Lord Nahma",
+"zone": "Chaotic Lower Reshanta",
+"level": 65
+},
+{
+"name": "Enraged Guardian Lord Nahma",
+"level": 80
+}
+]
+},
+{
+"id": 534310144,
+"name": "Artwork: Snowfield of Sorrow (Bound)",
+"kind": "artwork",
+"grade": "Heroic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 5,
+"Illusion [Kaisinel]": 5,
+"Wisdom [Lumiel]": 5
+},
+"stats_source": "aion2hub item page",
+"points": 15,
+"sources": [
+"Achievement reward"
+],
+"drops": []
+},
+{
+"id": 514310044,
+"name": "Artwork: Ardus Shrine",
+"kind": "artwork",
+"grade": "Unique",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Life [Yustiel]": 4
+},
+"stats_source": "aion2hub item page of Artwork: Ardus Shrine (Bound) (same decoration, other binding)",
+"points": 12,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310044,
+"name": "Artwork: Ardus Shrine (Bound)",
+"kind": "artwork",
+"grade": "Unique",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Life [Yustiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Token shop: Coin Shop Festa 10,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310112,
+"name": "Artwork: Argo, the Spirit King",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Life [Yustiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Argo, the Spirit King (Chaotic Lower Reshanta), Executor Argo (Chaotic Lower Reshanta)"
+],
+"drops": [
+{
+"name": "Argo, the Spirit King",
+"zone": "Chaotic Lower Reshanta",
+"level": 65
+},
+{
+"name": "Executor Argo",
+"zone": "Chaotic Lower Reshanta",
+"level": 65
+}
+]
+},
+{
+"id": 514310124,
+"name": "Artwork: Azure Breath Island",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 4,
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 514310074,
+"name": "Artwork: Black Tentacle Lawa",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Black Tentacle Lawa (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Black Tentacle Lawa",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310121,
+"name": "Artwork: Centurion Demiros",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Centurion Demiros (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Centurion Demiros",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310129,
+"name": "Artwork: Citadel of the Fallen Daeva",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 514310130,
+"name": "Artwork: Consumed Deus Research Base",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 514310122,
+"name": "Artwork: Cradle of Nihility",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 4,
+"Destiny [Marchutan]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 514310071,
+"name": "Artwork: Dark Shadow Vishwada",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Life [Yustiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Dark Shadow Vishwada (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Dark Shadow Vishwada",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310154,
+"name": "Artwork: Deputy Commander Sarvakha",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Deputy Commander Sarvakha (Morheim)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Deputy Commander Sarvakha",
+"zone": "Morheim",
+"level": 80
+}
+]
+},
+{
+"id": 514310142,
+"name": "Artwork: Deputy Commander Vivajra",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Deputy Commander Vivajra (Eltnen)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Deputy Commander Vivajra",
+"zone": "Eltnen",
+"level": 80
+}
+]
+},
+{
+"id": 514310091,
+"name": "Artwork: Desecrator Newbold",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Desecrator Newbold (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Desecrator Newbold",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310077,
+"name": "Artwork: Divine Ansas",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 4,
+"Life [Yustiel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Divine Ansas (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Divine Ansas",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310067,
+"name": "Artwork: Drakan Battalion Weapon Guruta",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Drakan Battalion Weapon Guruta (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Drakan Battalion Weapon Guruta",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310054,
+"name": "Artwork: Draupnir",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 4,
+"Life [Yustiel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Executor Tamasa (Chaotic Lower Reshanta), Executioner Dramos, Turncoat Ducal …",
+"Party dungeon reward"
+],
+"drops": [
+{
+"name": "Executor Tamasa",
+"zone": "Chaotic Lower Reshanta",
+"level": 65
+},
+{
+"name": "Executioner Dramos",
+"level": 80
+},
+{
+"name": "Turncoat Ducal",
+"level": 80
+},
+{
+"name": "Ravager Marakha",
+"level": 80
+}
+]
+},
+{
+"id": 514310053,
+"name": "Artwork: Dying Dramata's Nest",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 514310066,
+"name": "Artwork: Executioner Barthien",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Life [Yustiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Executioner Barthien (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Executioner Barthien",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310126,
+"name": "Artwork: Executioner Dramos",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 4,
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Executioner Dramos (Chaotic Middle Reshanta)",
+"Rift Chest: Glory (Bound)"
+],
+"drops": [
+{
+"name": "Executioner Dramos",
+"zone": "Chaotic Middle Reshanta",
+"level": 80
+}
+]
+},
+{
+"id": 514310125,
+"name": "Artwork: Executor Tamasa",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 4,
+"Destiny [Marchutan]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Executor Tamasa (Chaotic Lower Reshanta)",
+"Rift Chest: Glory (Bound)"
+],
+"drops": [
+{
+"name": "Executor Tamasa",
+"zone": "Chaotic Lower Reshanta",
+"level": 65
+}
+]
+},
+{
+"id": 514310119,
+"name": "Artwork: Ferocious Horn Den",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Party dungeon reward"
+],
+"drops": []
+},
+{
+"id": 514310035,
+"name": "Artwork: Fire Temple",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Life [Yustiel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Party dungeon reward"
+],
+"drops": []
+},
+{
+"id": 514310102,
+"name": "Artwork: Forest Warrior Aullamu",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Forest Warrior Aullamu (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Forest Warrior Aullamu",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310123,
+"name": "Artwork: Hall of Illusion",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 514310114,
+"name": "Artwork: High Commander Lagta",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Life [Yustiel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from High Commander Lagta (Verteron), High Commander Lagta (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "High Commander Lagta",
+"zone": "Verteron",
+"level": 45
+},
+{
+"name": "High Commander Lagta",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310055,
+"name": "Artwork: Impetusium",
+"kind": "artwork",
+"grade": "Unique",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Life [Yustiel]": 4
+},
+"stats_source": "aion2hub item page of Artwork: Impetusium (Bound) (same decoration, other binding)",
+"points": 12,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310055,
+"name": "Artwork: Impetusium (Bound)",
+"kind": "artwork",
+"grade": "Unique",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Life [Yustiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Token shop: Coin Shop Festa 10,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310120,
+"name": "Artwork: Krao",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Party dungeon reward"
+],
+"drops": []
+},
+{
+"id": 514310080,
+"name": "Artwork: Phantasm Kasia",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 4,
+"Life [Yustiel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Phantasm Kasia (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Phantasm Kasia",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310128,
+"name": "Artwork: Ravager Marakha",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Ravager Marakha (Chaotic Middle Reshanta)",
+"Rift Chest: Glory (Bound)"
+],
+"drops": [
+{
+"name": "Ravager Marakha",
+"zone": "Chaotic Middle Reshanta",
+"level": 80
+}
+]
+},
+{
+"id": 514310072,
+"name": "Artwork: Researcher Setram",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Life [Yustiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Researcher Setram (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Researcher Setram",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310068,
+"name": "Artwork: Sentinel K'nash",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Sentinel K'nash (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Sentinel K'nash",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310073,
+"name": "Artwork: Sharp Shylak",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Sharp Shylak (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Sharp Shylak",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310116,
+"name": "Artwork: Silent Dartan",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Life [Yustiel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Silent Dartan (Verteron), Silent Dartan (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Silent Dartan",
+"zone": "Verteron",
+"level": 45
+},
+{
+"name": "Silent Dartan",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310113,
+"name": "Artwork: Soul Ruler Kashapa",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Life [Yustiel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Soul Ruler Kashapa, Soul Ruler Kashapa (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Soul Ruler Kashapa",
+"level": 45
+},
+{
+"name": "Soul Ruler Kashapa",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310064,
+"name": "Artwork: Specter Archon Axios",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Life [Yustiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Specter Archon Axios (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Specter Archon Axios",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310141,
+"name": "Artwork: Third Unit Captain Karkoti",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 4,
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Third Unit Captain Karkoti (Eltnen)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Third Unit Captain Karkoti",
+"zone": "Eltnen",
+"level": 80
+}
+]
+},
+{
+"id": 514310153,
+"name": "Artwork: Third Unit Captain Minasara",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 4,
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Third Unit Captain Minasara (Morheim)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Third Unit Captain Minasara",
+"zone": "Morheim",
+"level": 80
+}
+]
+},
+{
+"id": 514310127,
+"name": "Artwork: Turncoat Ducal",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Turncoat Ducal (Chaotic Middle Reshanta)",
+"Rift Chest: Glory (Bound)"
+],
+"drops": [
+{
+"name": "Turncoat Ducal",
+"zone": "Chaotic Middle Reshanta",
+"level": 80
+}
+]
+},
+{
+"id": 514310052,
+"name": "Artwork: Urugugu",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Life [Yustiel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Party dungeon reward"
+],
+"drops": []
+},
+{
+"id": 514310118,
+"name": "Artwork: Vakron Sky Island",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 4,
+"Life [Yustiel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Party dungeon reward"
+],
+"drops": []
+},
+{
+"id": 514310070,
+"name": "Artwork: Visionary Karuka",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Life [Yustiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Visionary Karuka (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Visionary Karuka",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310117,
+"name": "Artwork: Watcher Kaira",
+"kind": "artwork",
+"grade": "Unique",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 4,
+"Illusion [Kaisinel]": 4,
+"Wisdom [Lumiel]": 4
+},
+"stats_source": "aion2hub item page",
+"points": 12,
+"sources": [
+"Drops from Watcher Kaira (Chaotic Lower Reshanta), Executor Kaira (Chaotic Lower Reshanta)"
+],
+"drops": [
+{
+"name": "Watcher Kaira",
+"zone": "Chaotic Lower Reshanta",
+"level": 65
+},
+{
+"name": "Executor Kaira",
+"zone": "Chaotic Lower Reshanta",
+"level": 65
+}
+]
+},
+{
+"id": 514310065,
+"name": "Artwork: Addicted Hardirun",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Addicted Hardirun (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Addicted Hardirun",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 534310143,
+"name": "Artwork: Adventure Together (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [],
+"drops": []
+},
+{
+"id": 514310079,
+"name": "Artwork: Advisor Resana",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Advisor Resana (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Advisor Resana",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310131,
+"name": "Artwork: Agglomerated Verenom",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Agglomerated Verenom (Eltnen)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Agglomerated Verenom",
+"zone": "Eltnen",
+"level": 80
+}
+]
+},
+{
+"id": 514310056,
+"name": "Artwork: Archon Underground Fortress Door",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Archon Underground Fortress Door (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310056,
+"name": "Artwork: Archon Underground Fortress Door (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310147,
+"name": "Artwork: Azure Tear Glacia",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Wisdom [Lumiel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Azure Tear Glacia (Morheim)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Azure Tear Glacia",
+"zone": "Morheim",
+"level": 80
+}
+]
+},
+{
+"id": 514310099,
+"name": "Artwork: Bloodfang Pnyn",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Bloodfang Pnyn (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Bloodfang Pnyn",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310088,
+"name": "Artwork: Blue Wave Kelpina",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Blue Wave Kelpina (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Blue Wave Kelpina",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310039,
+"name": "Artwork: Calderon Canyon",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Calderon Canyon (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310039,
+"name": "Artwork: Calderon Canyon (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310048,
+"name": "Artwork: Cantas Valley",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Cantas Valley (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310048,
+"name": "Artwork: Cantas Valley (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310103,
+"name": "Artwork: Chaser Taulo",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Chaser Taulo (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Chaser Taulo",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310145,
+"name": "Artwork: Crimson Blizzard Renulf",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Crimson Blizzard Renulf (Morheim)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Crimson Blizzard Renulf",
+"zone": "Morheim",
+"level": 80
+}
+]
+},
+{
+"id": 514310046,
+"name": "Artwork: Dawn Legion Base",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Dawn Legion Base (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310046,
+"name": "Artwork: Dawn Legion Base (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310087,
+"name": "Artwork: Deceiver Trid",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Deceiver Trid (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Deceiver Trid",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 534310063,
+"name": "Artwork: Destruction Archons High Priest Hystan (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Quest: Lest We Forget (Lv 45)"
+],
+"drops": []
+},
+{
+"id": 514310040,
+"name": "Artwork: Dredgion Crash Site",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Dredgion Crash Site (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310040,
+"name": "Artwork: Dredgion Crash Site (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310143,
+"name": "Artwork: Edgewalker Pargon",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Wisdom [Lumiel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Edgewalker Pargon (Morheim)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Edgewalker Pargon",
+"zone": "Morheim",
+"level": 80
+}
+]
+},
+{
+"id": 514310150,
+"name": "Artwork: Elite Inquisitor Verant",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Elite Inquisitor Verant (Morheim)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Elite Inquisitor Verant",
+"zone": "Morheim",
+"level": 80
+}
+]
+},
+{
+"id": 514310049,
+"name": "Artwork: Ellun River Marsh",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Ellun River Marsh (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310049,
+"name": "Artwork: Ellun River Marsh (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310045,
+"name": "Artwork: Ellun River Midstream",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Ellun River Midstream (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310045,
+"name": "Artwork: Ellun River Midstream (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 534310145,
+"name": "Artwork: Eltnen (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [],
+"drops": []
+},
+{
+"id": 514310138,
+"name": "Artwork: First Test Subject K'tima",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 3,
+"Destiny [Marchutan]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from First Test Subject K'tima (Eltnen)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "First Test Subject K'tima",
+"zone": "Eltnen",
+"level": 80
+}
+]
+},
+{
+"id": 514310146,
+"name": "Artwork: Frostarmor Harkhan",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Frostarmor Harkhan (Morheim)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Frostarmor Harkhan",
+"zone": "Morheim",
+"level": 80
+}
+]
+},
+{
+"id": 514310100,
+"name": "Artwork: Furious Saursus",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Furious Saursus (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Furious Saursus",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310134,
+"name": "Artwork: Gluttonous Egetis",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 3,
+"Destiny [Marchutan]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Gluttonous Egetis (Eltnen)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Gluttonous Egetis",
+"zone": "Eltnen",
+"level": 80
+}
+]
+},
+{
+"id": 514310078,
+"name": "Artwork: Harvest Manager Moshav",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Harvest Manager Moshav (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Harvest Manager Moshav",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310075,
+"name": "Artwork: Heretic Layla",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Heretic Layla (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Heretic Layla",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310089,
+"name": "Artwork: High Overseer Nutah",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Life [Yustiel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from High Overseer Nutah (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "High Overseer Nutah",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310097,
+"name": "Artwork: Kusan the Mad Gladiator",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Kusan the Mad Gladiator (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Kusan the Mad Gladiator",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310140,
+"name": "Artwork: Lamphus of Agony",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Lamphus of Agony (Eltnen)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Lamphus of Agony",
+"zone": "Eltnen",
+"level": 80
+}
+]
+},
+{
+"id": 514310149,
+"name": "Artwork: Lava Heart Batu",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Lava Heart Batu (Morheim)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Lava Heart Batu",
+"zone": "Morheim",
+"level": 80
+}
+]
+},
+{
+"id": 514310151,
+"name": "Artwork: Mad Watcher Bulagan",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Wisdom [Lumiel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Mad Watcher Bulagan (Morheim)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Mad Watcher Bulagan",
+"zone": "Morheim",
+"level": 80
+}
+]
+},
+{
+"id": 534310146,
+"name": "Artwork: Morheim (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Wisdom [Lumiel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [],
+"drops": []
+},
+{
+"id": 514310033,
+"name": "Artwork: Moslan Forest",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Moslan Forest (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310033,
+"name": "Artwork: Moslan Forest (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310041,
+"name": "Artwork: Nameless Cemetery",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Nameless Cemetery (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310041,
+"name": "Artwork: Nameless Cemetery (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310037,
+"name": "Artwork: Nornir Assembly",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": "asmodian",
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310037,
+"name": "Artwork: Nornir Assembly (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Nornir Assembly (same decoration, other binding)",
+"points": 6,
+"sources": [],
+"drops": []
+},
+{
+"id": 514310132,
+"name": "Artwork: Old Boss Vigor",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Old Boss Vigor (Eltnen)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Old Boss Vigor",
+"zone": "Eltnen",
+"level": 80
+}
+]
+},
+{
+"id": 514310047,
+"name": "Artwork: Pilgrim's Ridge",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Pilgrim's Ridge (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310047,
+"name": "Artwork: Pilgrim's Ridge (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310144,
+"name": "Artwork: Predator Colossus Balakh",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 3,
+"Destiny [Marchutan]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Predator Colossus Balakh (Morheim)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Predator Colossus Balakh",
+"zone": "Morheim",
+"level": 80
+}
+]
+},
+{
+"id": 514310085,
+"name": "Artwork: Predator Garsan",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Predator Garsan (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Predator Garsan",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310038,
+"name": "Artwork: Quai Campsite",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Quai Campsite (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310038,
+"name": "Artwork: Quai Campsite (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310137,
+"name": "Artwork: Rabid Nihogg",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Wisdom [Lumiel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Rabid Nihogg (Eltnen)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Rabid Nihogg",
+"zone": "Eltnen",
+"level": 80
+}
+]
+},
+{
+"id": 514310098,
+"name": "Artwork: Ritualist Garshim",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Ritualist Garshim (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Ritualist Garshim",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310136,
+"name": "Artwork: Rotten Root Meltlim",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Rotten Root Meltlim (Eltnen)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Rotten Root Meltlim",
+"zone": "Eltnen",
+"level": 80
+}
+]
+},
+{
+"id": 514310036,
+"name": "Artwork: Safe Haven",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Safe Haven (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310036,
+"name": "Artwork: Safe Haven (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310042,
+"name": "Artwork: Sanctum Outpost",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Sanctum Outpost (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310042,
+"name": "Artwork: Sanctum Outpost (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310101,
+"name": "Artwork: Scholar Aulla",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Scholar Aulla (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Scholar Aulla",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 534310140,
+"name": "Artwork: Secret Shop Shugo (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [],
+"drops": []
+},
+{
+"id": 514310133,
+"name": "Artwork: Severed Wings Zvein",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Wisdom [Lumiel]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Severed Wings Zvein (Eltnen)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Severed Wings Zvein",
+"zone": "Eltnen",
+"level": 80
+}
+]
+},
+{
+"id": 514310015,
+"name": "Artwork: Shugo Alchemist",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Shugo Alchemist (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310015,
+"name": "Artwork: Shugo Alchemist (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 534310141,
+"name": "Artwork: Shugo Festival Manager (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [],
+"drops": []
+},
+{
+"id": 514310155,
+"name": "Artwork: Shugo's Dilemma",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310011,
+"name": "Artwork: Shulak (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [],
+"drops": []
+},
+{
+"id": 514310090,
+"name": "Artwork: Special Operations Leader Linx",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Life [Yustiel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Special Operations Leader Linx (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Special Operations Leader Linx",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310135,
+"name": "Artwork: Superbia, Sacred Beast of Life",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Superbia, Sacred Beast of Life (Eltnen)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Superbia, Sacred Beast of Life",
+"zone": "Eltnen",
+"level": 80
+}
+]
+},
+{
+"id": 534310043,
+"name": "Artwork: Teina's Portrait (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Quest: Until I Hold You Again (Lv 45)"
+],
+"drops": []
+},
+{
+"id": 514310139,
+"name": "Artwork: Three-Horned Mino",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Three-Horned Mino (Eltnen)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Three-Horned Mino",
+"zone": "Eltnen",
+"level": 80
+}
+]
+},
+{
+"id": 514310050,
+"name": "Artwork: Tolbas Forest",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Tolbas Forest (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310050,
+"name": "Artwork: Tolbas Forest (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310003,
+"name": "Artwork: Verteron Fortress Ruins",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Verteron Fortress Ruins (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310003,
+"name": "Artwork: Verteron Fortress Ruins (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310069,
+"name": "Artwork: Veteran Shujakan",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Veteran Shujakan",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Veteran Shujakan",
+"level": 45
+}
+]
+},
+{
+"id": 534310142,
+"name": "Artwork: Village Piano (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 3,
+"Illusion [Kaisinel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [],
+"drops": []
+},
+{
+"id": 514310152,
+"name": "Artwork: Vulcanarch Grymnir",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 3,
+"Destiny [Marchutan]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Vulcanarch Grymnir (Morheim)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Vulcanarch Grymnir",
+"zone": "Morheim",
+"level": 80
+}
+]
+},
+{
+"id": 514310148,
+"name": "Artwork: Wings of Hellfire Fios",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": null,
+"global": false,
+"stats": {
+"Life [Yustiel]": 3,
+"Destiny [Marchutan]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Drops from Wings of Hellfire Fios (Morheim)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Wings of Hellfire Fios",
+"zone": "Morheim",
+"level": 80
+}
+]
+},
+{
+"id": 514310001,
+"name": "Artwork: Zumion Stone Gate",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Zumion Stone Gate (Bound) (same decoration, other binding)",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310001,
+"name": "Artwork: Zumion Stone Gate (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Life [Yustiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Token shop: Coin Shop Festa 2,000 Centuryroot Token"
+],
+"drops": []
+},
+{
+"id": 514310051,
+"name": "Artwork: Zumion Village",
+"kind": "artwork",
+"grade": "Epic",
+"bound": false,
+"faction": "elyos",
+"global": false,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page",
+"points": 6,
+"sources": [
+"Conversion recipe (Substance Morph)"
+],
+"drops": []
+},
+{
+"id": 534310051,
+"name": "Artwork: Zumion Village (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 3,
+"Wisdom [Lumiel]": 3
+},
+"stats_source": "aion2hub item page of Artwork: Zumion Village (same decoration, other binding)",
+"points": 6,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310013,
+"name": "Artwork: Artisan Alchemist (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 2,
+"Wisdom [Lumiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Quest: [Upgrade] Alchemy Specialty Skill (Lv 10)"
+],
+"drops": []
+},
+{
+"id": 534310060,
+"name": "Artwork: Artisan Alchemist (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 2,
+"Wisdom [Lumiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Quest: [Upgrade] Alchemy Specialty Skill (Lv 10)"
+],
+"drops": []
+},
+{
+"id": 534310031,
+"name": "Artwork: Artisan Armorsmith (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 2,
+"Wisdom [Lumiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Quest: [Upgrade] Armorsmithing Specialty Skill (Lv 10)"
+],
+"drops": []
+},
+{
+"id": 534310032,
+"name": "Artwork: Artisan Armorsmith (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 2,
+"Wisdom [Lumiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Quest: [Upgrade] Armorsmithing Specialty Skill (Lv 10)"
+],
+"drops": []
+},
+{
+"id": 534310057,
+"name": "Artwork: Artisan Blacksmith (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 2,
+"Illusion [Kaisinel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Quest: [Upgrade] Blacksmithing Specialty Skill (Lv 10)"
+],
+"drops": []
+},
+{
+"id": 534310058,
+"name": "Artwork: Artisan Blacksmith (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 2,
+"Illusion [Kaisinel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Quest: [Upgrade] Blacksmithing Specialty Skill (Lv 10)"
+],
+"drops": []
+},
+{
+"id": 534310014,
+"name": "Artwork: Artisan Chef (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 2,
+"Life [Yustiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Quest: [Upgrade] Cooking Specialty Skill (Lv 10)"
+],
+"drops": []
+},
+{
+"id": 534310030,
+"name": "Artwork: Artisan Chef (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 2,
+"Life [Yustiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Quest: [Upgrade] Cooking Specialty Skill (Lv 10)"
+],
+"drops": []
+},
+{
+"id": 534310061,
+"name": "Artwork: Artisan Essence Extractor (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 2,
+"Wisdom [Lumiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Quest: [Upgrade] Essence Extraction Specialty Skill (Lv 45)"
+],
+"drops": []
+},
+{
+"id": 534310062,
+"name": "Artwork: Artisan Essence Extractor (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 2,
+"Wisdom [Lumiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Quest: [Upgrade] Essence Extraction Specialty Skill (Lv 45)"
+],
+"drops": []
+},
+{
+"id": 534310012,
+"name": "Artwork: Artisan Handicrafter (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 2,
+"Life [Yustiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Quest: [Upgrade] Handicrafting Specialty Skill (Lv 10)"
+],
+"drops": []
+},
+{
+"id": 534310059,
+"name": "Artwork: Artisan Handicrafter (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 2,
+"Life [Yustiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Quest: [Upgrade] Handicrafting Specialty Skill (Lv 10)"
+],
+"drops": []
+},
+{
+"id": 514310084,
+"name": "Artwork: Berserker Vargor",
+"kind": "artwork",
+"grade": "Rare",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 2,
+"Wisdom [Lumiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Drops from Berserker Vargor (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Berserker Vargor",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310082,
+"name": "Artwork: Black Warrior Aed",
+"kind": "artwork",
+"grade": "Rare",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 2,
+"Wisdom [Lumiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Drops from Black Warrior Aed (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Black Warrior Aed",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310086,
+"name": "Artwork: Blood Warrior Lannar",
+"kind": "artwork",
+"grade": "Rare",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 2,
+"Life [Yustiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Drops from Blood Warrior Lannar (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Blood Warrior Lannar",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310095,
+"name": "Artwork: Blooming Korin",
+"kind": "artwork",
+"grade": "Rare",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Life [Yustiel]": 2,
+"Wisdom [Lumiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Drops from Blooming Korin (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Blooming Korin",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310096,
+"name": "Artwork: Bodyguard Teegant",
+"kind": "artwork",
+"grade": "Rare",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Life [Yustiel]": 2,
+"Wisdom [Lumiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Drops from Bodyguard Teegant (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Bodyguard Teegant",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310083,
+"name": "Artwork: Faithful Rajit",
+"kind": "artwork",
+"grade": "Rare",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 2,
+"Life [Yustiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Drops from Faithful Rajit (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Faithful Rajit",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310092,
+"name": "Artwork: Kernon of the West",
+"kind": "artwork",
+"grade": "Rare",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 2,
+"Wisdom [Lumiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Drops from Kernon of the West (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Kernon of the West",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 514310081,
+"name": "Artwork: Melted Danar",
+"kind": "artwork",
+"grade": "Rare",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 2,
+"Life [Yustiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Drops from Melted Danar (Altgard)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Melted Danar",
+"zone": "Altgard",
+"level": 45
+}
+]
+},
+{
+"id": 514310093,
+"name": "Artwork: Neikel of the East",
+"kind": "artwork",
+"grade": "Rare",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 2,
+"Illusion [Kaisinel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Drops from Neikel of the East",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Neikel of the East",
+"level": 45
+}
+]
+},
+{
+"id": 534310010,
+"name": "Artwork: Quai Merchants (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": "asmodian",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 2,
+"Life [Yustiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Quest: Farewell, My Instructor (Lv 45)"
+],
+"drops": []
+},
+{
+"id": 514310094,
+"name": "Artwork: Rotten Kutar",
+"kind": "artwork",
+"grade": "Rare",
+"bound": false,
+"faction": null,
+"global": true,
+"stats": {
+"Destiny [Marchutan]": 2,
+"Illusion [Kaisinel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Drops from Rotten Kutar (Verteron)",
+"Conversion recipe (Substance Morph)"
+],
+"drops": [
+{
+"name": "Rotten Kutar",
+"zone": "Verteron",
+"level": 45
+}
+]
+},
+{
+"id": 534310009,
+"name": "Artwork: Wind Breeze Merchants (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": "elyos",
+"global": true,
+"stats": {
+"Illusion [Kaisinel]": 2,
+"Life [Yustiel]": 2
+},
+"stats_source": "aion2hub item page",
+"points": 4,
+"sources": [
+"Quest: Names Lost in the Wind (Lv 45)"
+],
+"drops": []
+},
+{
+"id": 534310028,
+"name": "Artwork: Duduka Worker (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310124,
+"name": "Artwork: Enraged Reda [Season 2] (Bound)",
+"kind": "artwork",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310107,
+"name": "Artwork: Fafnir's Poison Blood (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310007,
+"name": "Artwork: Fortress Guardian Notun (Bound)",
+"kind": "artwork",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310106,
+"name": "Artwork: Furious Feruk (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310018,
+"name": "Artwork: Gerod (Bound)",
+"kind": "artwork",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310135,
+"name": "Artwork: Incarnated Warding Feather [Season 3] (Bound)",
+"kind": "artwork",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310123,
+"name": "Artwork: Kaisinel's Illusion [Season 2] (Bound)",
+"kind": "artwork",
+"grade": "Heroic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [
+"Season 2 Rank Reward Chest (Bound)"
+],
+"drops": []
+},
+{
+"id": 534310138,
+"name": "Artwork: Modified Bargott [Season 3] (Bound)",
+"kind": "artwork",
+"grade": "Unique",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310126,
+"name": "Artwork: Mutated Ulgorn [Season 2] (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310136,
+"name": "Artwork: Mythical Bird Aultross [Season 3] (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310137,
+"name": "Artwork: Oathbreaker Gartua [Season 3] (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310105,
+"name": "Artwork: Pino Gatekeeper (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310134,
+"name": "Artwork: Ritualist Aulisa [Season 3] (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310133,
+"name": "Artwork: Sanctum Guardian Gauss [Season 3] (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310129,
+"name": "Artwork: Sealed Sura [Season 2] (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310128,
+"name": "Artwork: Sharp Aulak [Season 2] (Bound)",
+"kind": "artwork",
+"grade": "Rare",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310139,
+"name": "Artwork: Tyrant Tassin [Season 3] (Bound)",
+"kind": "artwork",
+"grade": "Heroic",
+"bound": true,
+"faction": null,
+"global": false,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310108,
+"name": "Artwork: Wraith Giselle (Bound)",
+"kind": "artwork",
+"grade": "Epic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+},
+{
+"id": 534310104,
+"name": "Artwork: Zikel's Apparition (Bound)",
+"kind": "artwork",
+"grade": "Heroic",
+"bound": true,
+"faction": null,
+"global": true,
+"stats": {},
+"stats_source": null,
+"points": 0,
+"sources": [],
+"drops": []
+}
+]
+}
