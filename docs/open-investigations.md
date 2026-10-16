@@ -109,3 +109,50 @@ Cross-checked the bundled tables against each other (`dungeon_final_bosses.json`
 - **Enemy NPC types:** unchanged — see the section above (the skill-provenance reclassification is
   detrimental and is not shipped; untyped enemies are capture loss, not a catalog gap).
 
+## Identity after a Kibelisk teleport — no capture spans one yet; a name-based re-bind ships meanwhile (0.2.300)
+
+Reported: after a **Kibelisk** teleport (Altgard's and Verteron's fast-travel points, a teleport within the same map) the overlay did not re-acquire the local player. Every diagnostic capture supplied so far was checked for one (eleven captures, 10–15 October, replayed through the real engine with a timeline of zone-state and identity packets):
+
+- A **zone load** always sends the self zone-transition record (`23 36`, entity 0, with the destination coordinates) and, within about a second, the local-player record (`33 36`: actor id, name, server, class, level). The engine resets identities on the first and re-identifies from the second. Three captures show this six, three and two times; identity never stayed missing.
+- **In-instance actor-id changes without any zone packet** (Krao Cave, four times in ten minutes — revives or in-instance teleports) each came with a fresh `33 36` record, and identity followed every time.
+- Two captures carried no `33 36` record at all because they started after login with no zone load (identity is acquired only from a zone load or the typed character name — the documented limit).
+- **No capture contains a Kibelisk teleport in the open world** (the only open-world time, map 1110, ends shortly after the load). The hypothesis therefore stays unverified: a same-map teleport most likely sends the `23 36` transition (which resets the identities) but **no** new `33 36` record, so nothing re-identifies the player until the next zone load.
+
+The raw records also showed that `23 36` frames whose varint is not 0 are JSON text from another program's traffic on the same interface (`"#6203", "damage": …`), not game records — harmless for the zone logic, which keys on entity 0, and skipped by the value probe.
+
+**What ships (0.2.300):** the engine keeps the game-verified local name across a zone reset and, when no self record follows, re-binds the local player to the one actor that carries that name again (names are unique per server; exactly one match, summons excluded, never a guess), the same rule the typed character name already uses; a self record from the game still replaces it. A capture **spanning a Kibelisk teleport with raw TCP recording on** is what confirms the packet sequence; with one, the probe (`python -m aion2calc probe`) and the zone timeline can pin the exact record, and the reset can be refined if the game does send something at a teleport.
+
+## Observed field-boss feed and the open-world map ids (0.2.298)
+
+The live kill feed placed every Altgard field-boss kill on map **1110** (one on **1100**, the base map), which fixes Altgard's open-world ids; Verteron is taken as the paired numbering of the bundled open-world map table (1000 / 1010 / 1011) until an Elyos kill confirms it. Three bosses the community reference lists in both zones under one name (Silent Dartan, Soul Ruler Kashapa, High Commander Lagta) are told apart by that map; the kill's map is the primary faction signal for every boss, so names the catalog and the reference spell differently still land in the right zone. The probe also found a periodic record (`1c 92`, u32 at offset 12) that carries the current map id alongside the server id at offset 6 — unverified beyond one capture, noted here as a lead.
+
+## Server-record census of the diagnostic captures (protocol-variant leads)
+
+A census of the server-to-client records in two captures (the 15 October instance run, 439,482 records over 744 opcodes; the 11 October arena-and-open-world session, 8,751 records over 198 opcodes), as a map for the value probe. The decoder reads the damage/heal family (`41 36`, `42 36`), the identity records (`33 36`, `44 36`, `45 36`), the zone state (`21 36`, `23 36`), spawns, roster and deaths; everything else below is undecoded and is where a counter, a cooldown or a radar record would sit.
+
+| Opcode | Records (instance / open world) | Typical length | Note |
+| --- | --- | --- | --- |
+| `02 38` | 121,637 / 388 | 19 | the most frequent record in combat; fixed size, numeric |
+| `06 38` | 106,855 / 353 | 9 | fixed size; paired with `02 38` |
+| `04 38` | 66,365 / 557 | 24–27 | fixed size |
+| `2b 38` | 40,969 / 559 | 44 | fixed size, 2.5/s in open world: a position or state tick? |
+| `00 36` | 19,762 / 3,583 | 8 | the open-world session's most frequent record |
+| `1d 37` | 16,198 / 264 | 11 | |
+| `00 8d` | 14,130 / 587 | 9–44 | variable |
+| `1c 92` | 1,776 / 55 | 63–73 | carries the **server id** (offset 6) and the **current map id** (offset 12): a periodic status record, per the probe (one capture; unverified) |
+| `45 36` | 0 / 28 | 1,241–1,763 | the large roster/identity record seen in the open world |
+| `84 56`, `34 36`, `2d 92`, `03 36`, `4e 36`, `3a 36` | open world only | 6–59 | records the instance run never sent: open-world candidates for the probe |
+
+Nothing here is a decoded meaning; it is where to point `python -m aion2calc probe` once a capture with the values noted exists.
+
+## Classification review of recent uploads (16 October): one real defect, the rest data-gated
+
+The 51 newest public logs on the live server (889 encounter contexts, 15–16 October, all Live Meter sessions) tabulated by instance, difficulty, encounter type and boss role:
+
+- **Difficulty is set on 78 %** of contexts (expedition normal / exploration / hard, transcendence stage 1 / 3, ascension hard / extreme, nightmare level 1). The 22 % without one are open-world combat (`pve_open_world` field bosses and `pve_unverified` trash on instance 0, which have no difficulty) plus nine nightmare contexts whose tier the catalog does not carry — data-gated.
+- **Encounter types:** expedition 427, transcendence 229, open world 99, unverified 90, ascension 23, nightmare 21. `pve_unverified` is open-world combat with no boss and no instance (labelled *Combat N*): by design, not a gap.
+- **Instance runs typed from the boss while the instance id was 0** (33 transcendence, 22 expedition, 18 ascension, 12 nightmare contexts): captures that began mid-instance, classified by the catalog's boss identity, as intended.
+- **The defect:** 14 contexts carried an instance id (600092 Ferocious Horn Den, 600068) *and* an open-world type with a field-boss role — Watchdog Kwapo, Necromancer Duanka, Ferocious Horn Nuakum, trash pulls. In the recorder's own log the first segments after entering an instance read `map 1110, instance 600092, pve_open_world` (source *Recorded map ID + bundled open-world map table*) and the later ones `map 600092, expedition`: the instance-entry record arrived before the map record, so the open-world map id was stale, and the classifier typed those pulls open world (with a conflict note and no zone). **Fixed in 0.2.300:** a recorded instance id that the catalog knows wins over an open-world map id, the zone source says the map had not updated at entry, and the evidence carries `stale_map`. Older uploads reclassify on re-import or a server re-index with the pinned analyzer. The default-scope kill feed never listed these bosses (they are not on the field-boss list), so the observed timers were not affected; the `scope=all` feed was.
+- **Ranking eligibility** is 29 of 889 contexts (expedition 21, transcendence 8), one per completed boss kill with clean capture — consistent with the per-run expectation; nothing here points at the gate.
+- **Protocol variants:** no new identity, spawn or roster layout appeared in the eleven captures; the identity records were the known `33 36` / `44 36` / `45 36`, the zone state `21 36` / `23 36`. The census above lists the undecoded records by frequency for the probe.
+

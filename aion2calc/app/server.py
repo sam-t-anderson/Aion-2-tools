@@ -689,6 +689,8 @@ class Handler(BaseHTTPRequestHandler):
             if not job:
                 raise FileNotFoundError
             return self._json({k: v for k, v in job.items() if k != "log"} | {"log": job["log"][-12:]})
+        if path == "/api/rtss":
+            return self._json(rtss_state())
         if path == "/api/meter":
             from .meter_runner import runner
             current = runner()
@@ -1052,7 +1054,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
                               "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_per_fight", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics")
+                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_per_fight", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics", "rtss_enabled")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1066,6 +1068,7 @@ class Handler(BaseHTTPRequestHandler):
                               ("overlay_font_weight", 400, 800), ("overlay_bg_opacity", 0, 100),
                               ("overlay_bg_zoom", 50, 200), ("overlay_bg_darken", 0, 100),
                               ("overlay_interpolate_ms", 50, 1000),
+                              ("rtss_rows", 1, 24), ("rtss_interval_ms", 100, 5000),
                               # Remembered overlay screen positions (per overlay). Wide
                               # bounds cover multi-monitor layouts (can be negative).
                               ("overlay_pos_x", -30000, 30000), ("overlay_pos_y", -30000, 30000),
@@ -1077,6 +1080,9 @@ class Handler(BaseHTTPRequestHandler):
             for key in ("event_region", "event_group"):   # Timers-page region, mirrored for the overlay
                 if key in body and not (isinstance(body[key], str) and len(body[key]) <= 32):
                     raise ValueError(f"{key} must be a short string")
+            for key, allowed in (("rtss_metric", ("dps", "hps", "dtps")), ("rtss_style", ("plain", "colored"))):
+                if key in body and body[key] not in allowed:
+                    raise ValueError(f"{key} must be one of " + ", ".join(allowed))
             if "hotkeys" in body:
                 from . import hotkeys as _hotkeys
                 cur["hotkeys"] = _hotkeys.clean_hotkeys(body["hotkeys"])
@@ -1092,9 +1098,14 @@ class Handler(BaseHTTPRequestHandler):
                         raise ValueError(f"{key} must be a list of [left, top, width, height] monitor rectangles")
                     cur[key] = layout
             cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update", "combat_colors",
-                                                               "event_region", "event_group",
+                                                               "event_region", "event_group", "rtss_metric", "rtss_style",
                                                                *(k for k, _, _ in _ui_int_ranges), *_ui_bool_flags)})
             write_user_json(cur, "ui.json")
+            if any(k.startswith("rtss_") for k in body):
+                try:
+                    rtss_sync()
+                except Exception:
+                    traceback.print_exc()
             if any(k.startswith("meter_") for k in body):
                 try:
                     from .meter_runner import runner
@@ -1225,6 +1236,42 @@ def _auto_upload_on_quit() -> None:
     worker.join(timeout=Runner.QUIT_UPLOAD_BUDGET_S + 5)   # bounded so quit/close never feels hung
 
 
+_RTSS = None
+_RTSS_LOCK = threading.Lock()
+
+
+def rtss_pusher():
+    """The one RTSS pusher: it draws the latest meter snapshot (the overlay's view) inside the game
+    through RivaTuner Statistics Server while Settings → In-game (RTSS) is on."""
+    global _RTSS
+    with _RTSS_LOCK:
+        if _RTSS is None:
+            from . import rtss
+            from .meter_runner import runner
+            _RTSS = rtss.Pusher(lambda: runner().status(follow_latest=True, compact=True), ui_settings)
+        return _RTSS
+
+
+def rtss_sync(stop: bool = False) -> None:
+    """Start or stop the RTSS pusher to match the setting (Windows only; a no-op elsewhere)."""
+    from . import rtss
+    if not rtss.supported():
+        return
+    pusher = rtss_pusher()
+    if stop or not ui_settings().get("rtss_enabled"):
+        pusher.stop()
+    else:
+        pusher.start()
+
+
+def rtss_state() -> dict:
+    from . import rtss
+    state = dict(rtss_pusher().state) if _RTSS is not None or rtss.supported() else {"enabled": False, "connected": False}
+    state.update({"supported": rtss.supported(), "setting": bool(ui_settings().get("rtss_enabled"))})
+    state.pop("last_text", None)
+    return state
+
+
 def schedule_shutdown(upload: bool = True) -> None:
     """Let the response finish, stop capture, close native windows, then stop serving.
 
@@ -1238,6 +1285,10 @@ def schedule_shutdown(upload: bool = True) -> None:
         from .meter_runner import runner
         from .windows import close_app_browser
         r = runner()
+        try:
+            rtss_sync(stop=True)      # take the text out of the game before the meter stops
+        except Exception:
+            pass
         for close in (close_app_browser, r.stop):
             try:
                 close()
@@ -1289,6 +1340,8 @@ def ui_settings() -> dict:
                 # The region/group the Timers page picked, mirrored here so the separate overlay
                 # window (which does not share the Timers page's localStorage) can read it.
                 "event_region": "", "event_group": "",
+                # In-game text through RivaTuner Statistics Server (Windows; off by default).
+                "rtss_enabled": False, "rtss_rows": 5, "rtss_metric": "dps", "rtss_style": "plain", "rtss_interval_ms": 500,
                 "overlay_max_players": 8, "overlay_width": 340, "overlay_height": 0, "overlay_row_height": 22,
                 "overlay_only_in_combat": False, "overlay_auto_expand": False,
                 # Visual group (all inert by default so the overlay looks unchanged until enabled).
@@ -1450,6 +1503,10 @@ def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: 
     # never surfaces a launch-time error; the user can still press Start to be walked
     # through installing it. Built-in a2tools engine, auto-detected port, remembered
     # Players scope default.
+    try:
+        rtss_sync()    # resume drawing inside the game when the setting is on
+    except Exception:
+        traceback.print_exc()
     if open_overlay and ui_settings().get("meter_autostart", True):
         def _meter_on_app_start():
             try:

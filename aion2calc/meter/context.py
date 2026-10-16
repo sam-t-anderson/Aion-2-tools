@@ -100,15 +100,25 @@ def classify(map_id, instance_id, pvp, entities=()):
         conflicts.append("Recorded NPCs belong to multiple catalog instances")
     if candidate and any(value != candidate for value in npc_instances):
         conflicts.append("Recorded map/instance and NPC catalog instance disagree")
-    if map_id in OPEN_WORLD_MAPS:
+    # A recorded instance id with an open-world map id is the instance: the instance-entry
+    # record precedes the map record (or the map record was lost), so the first fights inside
+    # an instance used to be typed open-world trash -- and their bosses open-world field-boss
+    # kills -- until the map caught up. The recorded instance wins; the stale map is noted.
+    stale_map = (map_id in OPEN_WORLD_MAPS and basis == "recorded_instance"
+                 and (str(candidate) in dungeons or candidate in _instances()))
+    if map_id in OPEN_WORLD_MAPS and not stale_map:
         result.update(encounter_type="pve_open_world", encounter_type_source="Recorded map ID + bundled open-world map table")
         if candidate or npc_instances:
             conflicts.append("Open-world map conflicts with dungeon instance evidence")
         else:
             evidence.update(status="map_match", basis="recorded_map")
             return result
+    if stale_map:
+        evidence["stale_map"] = True
     dungeon = dungeons.get(str(candidate), {})
     prefix = AUTO + ("recorded NPC IDs" if basis == "npc_only" else "recorded map ID" if basis == "recorded_map" else "recorded instance ID")
+    if stale_map:
+        prefix += " (open-world map id not yet updated at entry)"
     if dungeon.get("name") and not conflicts:
         result.update(zone=dungeon["name"], zone_source=prefix + " + exact dungeon name")
     elif candidate and not conflicts and (label := derived_zone_label(candidate)):

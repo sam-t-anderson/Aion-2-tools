@@ -30,6 +30,12 @@ class MeterEngine:
         self.targets: dict[int, TargetStats] = {}
         self.local_player_id: int | None = None
         self.local_character_name = ""
+        # The game-verified name of the local player before the last zone reset. A same-map
+        # teleport (a Kibelisk) resets actor ids without a new self record following, which left
+        # the meter without an identity until the next zone load; the name re-binds it (see
+        # ``_bind_hinted_name``). A self record from the game always wins over it.
+        self._local_name_hint = ""
+        self.local_identity_rebound = False
         self.local_identity_from_game = False
         self.local_profile: dict[str, int | str] = {}
         self.telemetry: list[dict] = []
@@ -164,6 +170,7 @@ class MeterEngine:
                 self.local_player_id = actor_id
                 self.local_identity_from_game = True
         self._observe_self_profile(complete)
+        self._bind_hinted_name()
         self._bind_character_list(complete)
         roster = scan_party_roster(complete)
         if roster:
@@ -237,6 +244,7 @@ class MeterEngine:
                     self.local_player_id = actor_id
                     self.local_identity_from_game = True
             self._observe_self_profile(packet)
+            self._bind_hinted_name()
             self._bind_character_list(packet)
             roster = scan_party_roster(packet)
             if roster:
@@ -404,6 +412,7 @@ class MeterEngine:
             self.local_player_id = getattr(previous, "local_player_id", None)
             self.local_identity_from_game = bool(getattr(previous, "local_identity_from_game", False))
             self.local_character_name = getattr(previous, "local_character_name", "") or self.local_character_name
+            self._local_name_hint = getattr(previous, "_local_name_hint", "") or self._local_name_hint
             self.map_id = getattr(previous, "map_id", 0) or self.map_id
             self.dungeon_id = getattr(previous, "dungeon_id", 0) or self.dungeon_id
 
@@ -425,7 +434,25 @@ class MeterEngine:
             self.npc_trace.append(row)
         return found
 
+    def _bind_hinted_name(self) -> None:
+        """After a zone reset that no self record followed, re-bind the local player to the one
+        actor carrying the game-verified name it had (a same-map teleport reassigns the actor id
+        but not the name; names are unique per server). Mirrors the user-supplied name binding:
+        exactly one match, never a guess; a later self record from the game replaces it."""
+        if self.local_player_id is not None or not self._local_name_hint:
+            return
+        matches = [actor_id for actor_id, name in self.names.items()
+                   if name == self._local_name_hint and actor_id not in self.summons]
+        if len(matches) == 1:
+            self.local_player_id = matches[0]
+            self.known_players.add(matches[0])
+            self.known_entities.add(matches[0])
+            self.local_identity_rebound = True
+
     def _reset_zone(self, timestamp_ms: int) -> None:
+        if self.local_identity_from_game and self.local_player_id is not None and self.names.get(self.local_player_id):
+            self._local_name_hint = self.names[self.local_player_id]
+        self.local_identity_rebound = False
         for target in self.targets.values():
             if npc_info(target.mob_code).get("isBoss", False):
                 key = (target.target_id, target.first_hit_ms)

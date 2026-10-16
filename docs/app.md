@@ -281,6 +281,12 @@ does the same (`pip install pywebview` for the transparent window).
 
 Use **Hide overlay** to hide it and **Open overlay** to show it again. Drag its non-interactive background to reposition it; use the opacity slider directly to change opacity. Repeated Open requests reuse the existing overlay.
 
+### In-game through RivaTuner Statistics Server (RTSS)
+
+**Settings → Live meter overlay → In-game (RTSS)** draws the meter inside the game itself, through RivaTuner Statistics Server (the on-screen-display server MSI Afterburner installs, also available on its own). Windows only, off by default, and a first draft: please report what you see. With it on, the app writes the meter text — the fight and its elapsed time, then the top rows (name, rate per second, share) for the chosen metric — into RTSS's own shared memory, in an OSD slot it owns under the name `Aion2Calc`, and RTSS draws that text in the game the way it draws its frame counter. Nothing is injected into or loaded by the game by this app; RTSS does its own hooking, under its own terms, and whether to run it is your choice. The text refreshes every half second by default (100 ms to 5 s); **Rows**, **Metric** (DPS, HPS, damage taken) and **Style** (plain text, or class colours through RTSS colour tags) shape it; the status line says whether RTSS was found and which slot the text is in.
+
+What you need: RTSS 7.x running (its *Show On-Screen Display* on, and the game not excluded in its profile), and the shared memory it exposes (v2.0 or later; the extended 4096-character text slot from v2.7). Position, font, size and colour come from RTSS's own settings; the plain style leaves them entirely to RTSS. If RTSS is not running the app says so and keeps checking every five seconds; turning the option off, stopping the app or quitting clears the slot so the text leaves the game. Player names are drawn as plain text (angle brackets are removed so a name can never form an RTSS tag). The overlay window and the OBS browser source keep working alongside; this is a third way to see the same snapshot.
+
 ### Overlay refresh and diagnostic export
 
 The overlay retains its last readings if a refresh fails. Its warning shows the HTTP error, invalid response or timeout, the age of the last successful refresh, and a Retry button. This warning means capture status is unknown; it is separate from a decoder error saying capture stopped.
