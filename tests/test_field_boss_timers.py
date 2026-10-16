@@ -171,12 +171,16 @@ def _wait(started):
 
 def test_runner_reads_the_feed_once_the_local_player_and_server_are_known(monkeypatch, tmp_path):
     r, started = _runner(monkeypatch, tmp_path, _Engine())
+    # A fresh runner has never read the feed: the gate must open even when the machine's
+    # monotonic clock is young (a CI runner, a PC a minute after boot), which is why "never" is
+    # minus infinity and not 0.0.
+    assert r._field_bosses_at == float("-inf") and r._fight_upload_at == float("-inf")
     r._maybe_field_bosses()
     assert _wait(started) and started[0][:2] == ("Spirited", "2102")
     started.clear()
     r._maybe_field_bosses()                                     # too soon: the refresh interval holds
     assert not _wait(started)
-    r._field_bosses_at = 0.0
+    r._field_bosses_at = time.monotonic() - 999      # the interval has passed
     r._maybe_field_bosses()
     assert _wait(started)
 

@@ -113,12 +113,12 @@ class Runner:
         self._community_rank: dict = {}   # player id -> {text, scope, percentile} after an upload
         # Live community-rank refresh (opt-in): after a ranked fight ends mid-capture, upload the
         # snapshot unlisted and refresh the badge, throttled, so it updates without a manual Upload.
-        self._fight_upload_at = 0.0       # monotonic of the last per-fight upload / rank refresh
+        self._fight_upload_at = float("-inf")   # monotonic of the last per-fight upload / rank refresh (-inf: never)
         self._fight_upload_key = None     # signature of the fights last sent by the rank refresh
         self._fight_upload_kills = 0      # session.boss_kills at the last per-fight upload
         self._fight_upload_busy = False   # one per-fight upload in flight at a time
         self._field_bosses = None         # observed kills for the player's server + faction (overlay, Timers)
-        self._field_bosses_at = 0.0       # monotonic of the last feed read
+        self._field_bosses_at = float("-inf")   # monotonic of the last feed read (-inf: never)
         self._field_bosses_busy = False   # one feed read in flight at a time
         self._last_snap_cost = 0.0
         self._snap_thread: threading.Thread | None = None   # the in-flight off-lock snapshot recompute, if any
@@ -176,8 +176,8 @@ class Runner:
             self.packet_engine = None
             self._snap_cache = None          # never show the previous session's snapshot
             self._community_rank = {}        # a prior session's standings must not leak in
-            self._fight_upload_at, self._fight_upload_key, self._fight_upload_kills, self._fight_upload_busy = 0.0, None, 0, False
-            self._field_bosses, self._field_bosses_at = None, 0.0   # re-identified by the new capture
+            self._fight_upload_at, self._fight_upload_key, self._fight_upload_kills, self._fight_upload_busy = float("-inf"), None, 0, False
+            self._field_bosses, self._field_bosses_at = None, float("-inf")   # re-identified by the new capture
         self.error = None
         self._last_display_diagnostics = {}
         self.diagnostics = {}
