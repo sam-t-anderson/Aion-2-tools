@@ -33,10 +33,16 @@ SID = dict(
     ASMITE=14700000, SUPPFIRE=14380000, BOWBLESS=14220000, SEALING=14160000, AKICK=14120000,
 )
 
+#: Action time in seconds at 0% Combat Speed.  Measured (0.2.307) from the recorded casts of four
+#: global Rangers (docs/methodology.md "Measured action times"); ``deadshot`` is its charge plus the
+#: release, ``tempest_arrow`` the Snipe chain press (charged to Snipe when the chain is taken).  Snipe
+#: keeps its estimate (the captures only weave it between skills, never press it on its own), as does
+#: Explosion Trap (not recorded).
 TIMING = {
-    "snipe": 0.80, "tempest_shot": 0.80, "snare_shot": 0.90, "marking_shot": 0.80,
-    "drill_dart": 0.75, "gale_arrow": 0.90, "explosion_trap": 0.90, "burst_arrow": 0.90,
-    "suppressing_arrow": 0.85, "deadshot": 1.10, "chain_followup": 0.50, "stigma": 0.95,
+    "snipe": 0.80, "tempest_shot": 0.51, "snare_shot": 0.35, "marking_shot": 0.58,
+    "drill_dart": 0.31, "gale_arrow": 0.36, "explosion_trap": 0.90, "burst_arrow": 0.40,
+    "suppressing_arrow": 0.63, "deadshot": 0.72, "chain_followup": 0.50, "stigma": 0.35,
+    "tempest_arrow": 0.24,
 }
 
 ASSUME = {
@@ -123,7 +129,8 @@ def build_kit(build: Build, cd: ClassData, filler: str = "snipe") -> Kit:
         if has("SNIPE", 5):
             k = ASSUME["chain_frac"]
             sim.hit("Tempest Arrow", sn_f * k, sn_c * k, delay=TIMING["chain_followup"])
-    A["snipe"] = Action("snipe", "Snipe", SID["SNIPE"], TIMING["snipe"], on_cast=snipe_cast, is_filler=True)
+    sn_t = TIMING["snipe"] + (TIMING["tempest_arrow"] if has("SNIPE", 5) else 0.0)   # the chain is its own press
+    A["snipe"] = Action("snipe", "Snipe", SID["SNIPE"], sn_t, on_cast=snipe_cast, is_filler=True)
 
     te_f, te_c = dmg("TEMPEST")
 

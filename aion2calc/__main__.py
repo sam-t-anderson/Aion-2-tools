@@ -423,14 +423,15 @@ def main(argv: list[str] | None = None) -> int:
                         print("\n  recorded casts: the cooldown the game sent (skill table, implied cooldown reduction),")
                         print("  the cast lock (your own character only) and the shortest time to the next press:")
                         print(f"    {'skill':24s} {'casts':>5s}  {'cooldown':>22s}  {'cast lock':>9s}  "
-                              f"{'next press fastest/typical':>26s}  {'kit TIMING':>10s}")
+                              f"{'next press fastest/typical':>26s}  {'TIMING kit/measured':>19s}")
                         for r in mt["recorded"][:20]:
                             cool = "—" if r["cooldown_s"] is None else (
                                 f"{r['cooldown_s']:.1f}s" + (f" ({r['table_cooldown_s']:g}s, {r['cooldown_reduction_pct']:.0f}%)"
                                                              if r["table_cooldown_s"] and r["cooldown_reduction_pct"] is not None else ""))
                             press = f"{fmt(r['next_press_s'])} / {fmt(r['next_press_median_s'])}"
+                            timing = f"{fmt(r['kit_action_s'], '')} / {fmt(r['kit_value_s'], '')}"
                             print(f"    {r['skill'][:24]:24s} {r['casts']:5d}  {cool:>22s}  {fmt(r['cast_lock_s']):>9s}  "
-                                  f"{press:>26s}  {fmt(r['kit_action_s'], ''):>10s}")
+                                  f"{press:>26s}  {timing:>19s}")
                         print("  suggested TIMING (reported only; kits are not modified):",
                               json.dumps(mt["suggested_timing"]) if mt["suggested_timing"] else "no change")
                     kit = mt.get("kit") or {}

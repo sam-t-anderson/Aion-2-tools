@@ -36,10 +36,15 @@ SID = dict(
     EVASIONS=13080000, ICLONE=13310000,
 )
 
+#: Action time in seconds at 0% Combat Speed.  Measured (0.2.307) from the recorded casts of four
+#: global Assassins (docs/methodology.md "Measured action times"); ``quick_slice`` is the whole
+#: Quick -> Breaking -> Swift Slice combo pressed on its own (~0.6 s a step), since the kit lands all
+#: three hits in one cast.  Whirlwind Slice, Flash Slice and Shadow Fall keep their estimates (too
+#: few recorded presses).
 TIMING = {
-    "quick_slice": 0.75, "savage_roar": 0.80, "shadowstrike": 0.90, "ambush": 0.80,
-    "heart_gore": 0.70, "whirlwind_slice": 0.85, "flash_slice": 0.85, "infiltrate": 0.90,
-    "shadow_fall": 0.95, "insignia_explosion": 1.00, "chain_followup": 0.50, "stigma": 0.95,
+    "quick_slice": 1.93, "savage_roar": 0.63, "shadowstrike": 0.26, "ambush": 0.40,
+    "heart_gore": 0.35, "whirlwind_slice": 0.85, "flash_slice": 0.85, "infiltrate": 0.85,
+    "shadow_fall": 0.95, "insignia_explosion": 0.42, "chain_followup": 0.50, "stigma": 0.31,
 }
 
 ASSUME = {

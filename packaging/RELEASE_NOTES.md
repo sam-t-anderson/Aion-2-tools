@@ -1,3 +1,20 @@
+## The optimizer's skill timings are measured from real casts (0.2.307)
+
+**Each class kit's action times now come from recorded casts.** A kit's `TIMING` says how long each skill takes before the next one can be pressed. Until now these were estimates. They are now taken from the recorded casts of 26 players in the supplied captures, wherever a skill was pressed often enough (15 times by two or more players, or 20 times where one player made nearly all of a class's presses). The value is the typical time from a press to that player's next press, scaled to 0% Combat Speed. Most measured skills turned out much faster than the estimates: Firestorm 0.56 s instead of 1.25 s, Blaze 0.33 s instead of 0.75 s, Heart Gore 0.35 s instead of 0.70 s. How each value was derived is in the methodology under *Measured action times*.
+
+What the recordings showed, and how the kits now follow it:
+- **Basic attacks are woven between skills.** Players press one step of their basic-attack chain between two skills and cancel it after about 0.13 s; pressed back to back, the steps take 0.3–1.2 s each. A kit's basic-attack filler now uses the back-to-back cadence (the Assassin's whole Quick Slice combo 1.93 s, Sorcerer Flame Arrow 0.73 s, Chanter Onslaught 0.94 s). A woven step's time is added to the skill it follows.
+- **Chain skills are their own presses.** A kit that lands a chain hit inside its parent skill now also charges the chain press's time to the parent, when your build takes the chain: Upward Strike, Tempest Arrow, Bursting Blow and Piercing Strike. The Cleric's Discharge procs without a spec, so it is charged at its chance.
+- **Charged skills include the charge:** Deadshot 0.72 s, Bolt 1.56 s.
+- **The Gladiator's "Remove cooldown" Overhead Slam** repeats about once a second (measured), not every 0.65 s.
+- **Gladiator Crushing Wave** was simulated from its tooltip with a generic 0.95 s and ignored the kit's own time. It now uses the measured 0.93 s.
+
+Still estimated, for lack of recorded presses: the whole Templar kit (one recorded player), the Hellfire charge, pet timings and a few rarely pressed skills.
+
+**What it changes.** Simulated DPS and casts per minute move toward what players actually press. Against the KR logs the Assassin's damage split improves the most (fidelity 0.15 → 0.51), the Cleric and Chanter a little. The Gladiator, Ranger, Sorcerer and Spiritmaster lose 0.015–0.034. The faster skills leave more time for each class's filler, and that shows what the old estimates were hiding. The Spiritmaster kit doesn't model Dimensional Control, Elemental Fusion casts or the summon presses. The Gladiator's Smashing Blow should only follow Rending Blow. The Cleric's Thunder and Lightning step is missing. The roadmap lists these as the next kit fixes.
+
+**`calibrate --timings` shows each press as a `TIMING` value** beside the kit's own and bases its suggestions on it, so they compare like with like.
+
 ## Casts, buffs and the break gauge in log reviews; a skill-cooldown strip and break-gauge bar on the overlay; measured cast timings for the optimizer (0.2.306)
 
 **Log reviews show each fight's casts, buffs and debuffs, crowd control and break gauge.** The live meter now keeps the game's own records of these, decoded from the supplied captures (see *Combat records decoded from the diagnostic captures* in the open investigations). A new **Casts, buffs and break gauge** section in the app's Combat Logs and on the website log page has four tabs:

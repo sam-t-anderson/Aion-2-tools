@@ -34,10 +34,14 @@ SID = dict(
     LIGHTPROT=None, ROOTST=None,
 )
 
+#: Action time in seconds at 0% Combat Speed.  Measured (0.2.307) from one recorded global Cleric's
+#: casts (docs/methodology.md "Measured action times"); ``bolt`` is its charge plus the release, and
+#: ``discharge`` the Earth's Retribution chain press, charged to Earth's Retribution at the chain's
+#: chance.  Judgment Thunder keeps its estimate (not pressed in the captures).
 TIMING = {
-    "earths_retribution": 0.85, "judgment_thunder": 0.85, "chain_of_torment": 0.95,
-    "condemnation": 0.70, "debilitating_mark": 0.90, "divine_aura": 1.00, "bolt": 1.10,
-    "chain_followup": 0.55, "stigma": 1.00,
+    "earths_retribution": 0.62, "judgment_thunder": 0.85, "chain_of_torment": 0.64,
+    "condemnation": 0.52, "debilitating_mark": 0.81, "divine_aura": 0.57, "bolt": 1.56,
+    "chain_followup": 0.55, "stigma": 0.71, "discharge": 0.80,
 }
 
 ASSUME = {
@@ -123,20 +127,21 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
 
     # ----------------------------------------------------------------- actives
     re_f, re_c = dmg("RETRIB")
+    discharge_chance = ASSUME["discharge_chance"] + (0.20 if has("RETRIB", 2) else 0.0)
 
     def retrib_cast(sim, a):
         mods = {"multihit": 0.5} if has("RETRIB", 3) else None
         sim.hit("Earth's Retribution", re_f, re_c, element="earth", mods=mods)
         sim.gain_mp(110 * (1.2 if has("RETRIB", 1) else 1.0))
-        chance = ASSUME["discharge_chance"] + (0.20 if has("RETRIB", 2) else 0.0)
-        if sim.proc("discharge", chance, 0.0, sim.t):
+        if sim.proc("discharge", discharge_chance, 0.0, sim.t):
             k = ASSUME["chain_frac"]
             sim.hit("Discharge", re_f * k, re_c * k, element="earth", delay=TIMING["chain_followup"])
             if has("RETRIB", 4):
                 sim.reduce_cd("bolt", 7.0)
+    # Discharge is its own press; the kit folds it into Earth's Retribution, so its time is too.
     A["earths_retribution"] = Action("earths_retribution", "Earth's Retribution", SID["RETRIB"],
-                                     TIMING["earths_retribution"], element="earth", on_cast=retrib_cast,
-                                     is_filler=True)
+                                     TIMING["earths_retribution"] + discharge_chance * TIMING["discharge"],
+                                     element="earth", on_cast=retrib_cast, is_filler=True)
 
     ju_f, ju_c = dmg("JUDGMENT")
     dp_frac = ASSUME["divine_punishment_frac"]

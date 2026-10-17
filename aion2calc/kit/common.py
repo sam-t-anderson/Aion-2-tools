@@ -21,6 +21,8 @@ real combat-log captures are available.
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 from .base import ClassData, spec_slots
 from .sorcerer import Kit  # single definition of the container; re-exported here
 
@@ -33,7 +35,7 @@ def ms(v) -> float:
 
 
 def fallback_to_generic(A: dict, policy: list, build, cd: ClassData, notes: list,
-                        *, pvp: bool = False, exclude: set | None = None) -> None:
+                        *, pvp: bool = False, exclude: set | None = None, timing: dict | None = None) -> None:
     """Fill in any active/stigma the hand-written kit does not model.
 
     Mutates ``A`` and ``policy`` in place.  Only skills the build actually has
@@ -42,6 +44,8 @@ def fallback_to_generic(A: dict, policy: list, build, cd: ClassData, notes: list
     filler so bespoke skills keep priority.  ``exclude`` lists skill ids the
     hand-written kit accounts for elsewhere (e.g. a pet's damage folded into a
     background stream) so the generic reading does not double-count them.
+    ``timing`` is the kit's ``TIMING``: a skill it times (a measured action time)
+    keeps that time instead of the generic default.
     """
     known = {a.skill_id for a in A.values()} | (exclude or set())
     unknown = {sid for sid, s in cd.skills.items()
@@ -53,7 +57,7 @@ def fallback_to_generic(A: dict, policy: list, build, cd: ClassData, notes: list
     g = generic.build_kit(build, cd, pvp=pvp)
     for k, a in g.actions.items():
         if a.skill_id in unknown and k not in A and not a.is_filler:
-            A[k] = a
+            A[k] = replace(a, cast=timing[k]) if timing and k in timing else a
             policy.insert(max(0, len(policy) - 1), k)
             notes.append(f"{a.name}: not in the hand-written kit, simulated from its tooltip")
 

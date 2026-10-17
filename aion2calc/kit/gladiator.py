@@ -45,14 +45,19 @@ SID = dict(
 )
 
 #: Action time of each skill in seconds at 0% Combat Speed (not in the client
-#: data; melee swing/recovery estimated from community notes — see docs).  The
-#: melee loop is fast: a real dummy parse (0.2.254 calibration) runs a dense
-#: Overhead Slam / basic-combo weave, so the core actions are short.
+#: data).  Measured (0.2.307) from the recorded casts of six global Gladiators:
+#: the median time from a press to that player's next press (gaps up to 1.5 s)
+#: plus the basic-attack steps woven in after it, less the 30 ms latency, at the
+#: typical build's Combat Speed — see docs/methodology.md "Measured action
+#: times".  ``keen_strike`` is the basic-attack chain pressed on its own,
+#: ``upward_strike`` the Overhead Slam chain press (charged to Overhead Slam when
+#: the chain is taken) and ``stigma`` the stigma presses pooled.
+#: ``chain_followup`` is the chain hit's delay, not an action time.
 TIMING = {
-    "keen_strike": 0.60, "rending_blow": 0.55, "leaping_slam": 1.00, "mocking_blade": 1.10,
-    "overhead_slam": 0.45, "ankle_slice": 0.90, "crushing_wave": 1.00, "rush_strike": 0.90,
-    "aerial_snare": 1.00, "ruinous_blow": 1.00, "chain_followup": 0.30, "stigma": 1.00,
-    "basic_combo": 0.45,
+    "keen_strike": 0.40, "rending_blow": 0.45, "leaping_slam": 0.47, "mocking_blade": 0.89,
+    "overhead_slam": 0.40, "ankle_slice": 0.94, "crushing_wave": 0.93, "rush_strike": 0.54,
+    "aerial_snare": 0.78, "ruinous_blow": 0.40, "chain_followup": 0.30, "stigma": 0.19,
+    "basic_combo": 0.42, "upward_strike": 0.15,
 }
 
 #: Effects the tooltips leave out (assumptions; several are calibrated to a real
@@ -64,7 +69,9 @@ ASSUME = {
     "chain_frac": 0.60,           # a generic chain follow-up vs the base hit (chains with no measured value)
     "upward_frac": 2.09,          # Upward Strike (Overhead Slam chain) per-hit vs Overhead Slam — measured
     "upward_chance": 0.50,        # Upward Strike follows ~half of Overhead Slams — measured
-    "overhead_spam_cd": 0.65,     # effective Overhead Slam cycle once "Remove cooldown" is taken (~1.5/s) — measured
+    "overhead_spam_cd": 1.00,     # effective Overhead Slam cycle once "Remove cooldown" is taken — recorded casts
+                                  # (0.2.307): never under ~1 s apart (10th percentile 0.97 s, median 1.18 s,
+                                  # 223 intervals); the 0.2.254 parse estimate was ~1.5/s
     "basic_frac": 0.54,           # basic-attack combo (Smashing Blow) per-hit vs Overhead Slam — measured
     "ruinous_hits": 3,            # Ruinous Blow lands as a multi-strike (~4 raw hits/cast in the parse,
                                   # ~3 full-coefficient applications of damage ~ its measured 7.7% share);
@@ -206,8 +213,8 @@ def build_kit(build: Build, cd: ClassData, filler: str = "basic_combo") -> Kit:
 
     # Overhead Slam (the core single-target spam; its Upward Strike chain is the top
     # damage source). "Remove cooldown" turns its 5s cooldown into a fast spam cycle,
-    # not literally 0 — a real parse runs it ~1.5/s, with Upward Strike (measured at
-    # 2.1x Overhead, following ~half the casts) the biggest hit in the rotation. On a
+    # not literally 0 — recorded casts never repeat it faster than ~1 s, with Upward Strike
+    # (measured at 2.1x Overhead, following ~half the casts) the biggest hit in the rotation. On a
     # breakable training target the knockdown it needs is kept up, so it is available.
     ov_f, ov_c = dmg("OVER")
     ov_cd = ASSUME["overhead_spam_cd"] if has("OVER", 5) else cd.cd(SID["OVER"], lv("OVER"))
@@ -219,7 +226,9 @@ def build_kit(build: Build, cd: ClassData, filler: str = "basic_combo") -> Kit:
         if has("OVER", 3) and sim.proc("upward_strike", ASSUME["upward_chance"], 0.0, sim.t):
             k = ASSUME["upward_frac"]
             sim.hit("Upward Strike", ov_f * k, ov_c * k, delay=TIMING["chain_followup"])
-    A["overhead_slam"] = Action("overhead_slam", "Overhead Slam", SID["OVER"], TIMING["overhead_slam"],
+    # Upward Strike is its own press; the kit folds it into Overhead Slam, so its time is too.
+    ov_t = TIMING["overhead_slam"] + (ASSUME["upward_chance"] * TIMING["upward_strike"] if has("OVER", 3) else 0.0)
+    A["overhead_slam"] = Action("overhead_slam", "Overhead Slam", SID["OVER"], ov_t,
                                 cooldown=ov_cd, requires=gated, on_cast=over_cast)
 
     # Ankle Slice (4 targets, Root; Ankle Smash chain)
@@ -292,7 +301,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "basic_combo") -> Kit:
     _build_stigmas(A, build, cd, stig, st, notes)
 
     policy = _policy(A, filler)
-    fallback_to_generic(A, policy, build, cd, notes)
+    fallback_to_generic(A, policy, build, cd, notes, timing=TIMING)
     return Kit(actions=A, hooks=[hook], cond_mods=[], static=static, policy=policy,
                filler=filler, notes=notes, levels=L)
 

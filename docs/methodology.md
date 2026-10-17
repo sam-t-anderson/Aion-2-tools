@@ -156,7 +156,78 @@ evaluated against the tool's optimized rotation (frozen once) and reports
 suggested values rather than rewriting the kits — the KR gains are modest and
 come mostly from slowing fillers to match KR's higher-level rotation, so the
 remaining divergence is structural and the honest path is calibrating against
-the player's own captures.
+the player's own captures.  Since 0.2.307 most `TIMING` values are measured
+(below), so a tuned `TIMING` suggestion points at a modelling gap, not at a
+better action time.
+
+### Measured action times (0.2.307)
+
+`TIMING` was estimated until 0.2.307. It is now measured, for every key the
+recordings time well, from the press sequences in the diagnostic captures (26 players
+with 50 or more presses). A press is counted the way the log review
+counts casts (`combat/actions.pressed`).
+
+* **A skill's action time** is the median time from its press to that player's
+  next press (gaps up to 1.5 s), plus the basic-attack steps woven in after it
+  (next point), less the simulator's 30 ms latency, times 1.082 (the typical
+  build's 8.2 % Combat Speed) for the value at 0 % Combat Speed. The players'
+  own Combat Speed is not recorded. `calibrate.kit_action_time` does the
+  conversion, and `calibrate --timings` suggests values the same way.
+* **Basic attacks are woven between skills.** Every class but the Cleric presses
+  a step of its three-step basic-attack chain (Keen → Rupture → Wrathful Strike,
+  Flame Arrow → Burst → Pyroclasm and so on) between two skills and cancels it
+  after 0.10–0.16 s; pressed back to back, the steps take 0.3–1.2 s each. A kit
+  filler that stands for the basic chain takes the chain's own cadence: Gladiator
+  Keen Strike 0.40, Sorcerer Flame Arrow 0.73, Chanter Onslaught 0.94, and the
+  Assassin's Quick Slice, which lands all three steps in one cast, 1.93. A woven
+  step's time goes to the skill it follows (0–0.15 s; Rending Blow 0.05 s on
+  average), but it deals no modelled damage. The basic chain as a whole is
+  2.8 % of the Gladiator's KR damage, about 14 % of the Assassin's and 12 % of
+  the Chanter's.
+* **Charged skills count their charge:** the extra time into the press over the
+  previous skill's usual gap, plus the release (Ranger Deadshot 0.72, Cleric Bolt
+  1.56). The Sorcerer's Hellfire charge keeps its estimate, because the charge
+  level is not recorded.
+* **A chain step is its own press.** Where a kit folds a chain hit into its
+  parent action, the parent also carries the chain press's measured time when
+  the build takes the chain: Upward Strike 0.15 at Overhead Slam's chain chance,
+  Tempest Arrow 0.24, Bursting Blow 0.82 every second Incandescent Blow,
+  Piercing Strike 0.57. The Cleric's Discharge procs without a spec, so it is
+  charged at its chance (0.80).
+* **Thresholds.** A value needs 15 or more presses by at least two players, or
+  20 or more where one player made nearly all of a class's presses (Cleric,
+  Spiritmaster).
+  Everything else keeps its estimate: the whole Templar kit (one player, at most
+  18 presses a skill), Judgment Thunder (not pressed), Snipe and Cold Shock (only
+  ever woven), and skills with too few presses. The Gladiator's "Remove
+  cooldown" Overhead Slam cycle (`ASSUME`) is measured too: never under about
+  1 s (10th percentile 0.97 s), not the ~0.65 s estimated from a 0.2.254 parse.
+
+Effect on the calibration (optimized rotation, typical build, 180 s dummy). The
+own-capture overlap compares the simulated damage shares with the captured
+players' boss fights (the same captures the timings came from):
+
+| Class | KR fidelity, before → after | Own-capture overlap, before → after |
+|---|---|---|
+| Assassin | 0.151 → 0.514 | 0.19 → 0.58 (4 fights) |
+| Cleric | 0.417 → 0.433 | 0.50 → 0.52 (4) |
+| Chanter | 0.868 → 0.871 | 0.55 → 0.53 (5) |
+| Gladiator | 0.361 → 0.346 | 0.31 → 0.30 (7) |
+| Sorcerer | 0.719 → 0.688 | 0.68 → 0.66 (5) |
+| Ranger | 0.731 → 0.697 | no exported fight |
+| Spiritmaster | 0.440 → 0.409 | 0.48 → 0.44 (2) |
+| Templar | 0.177, unchanged | — |
+
+The measured skills are faster than the estimates, so the simulation casts more
+and the extra time goes to each class's filler. That exposes what the slow
+estimates had absorbed. The Spiritmaster kit does not model Dimensional
+Control, Elemental Fusion casts or the summon presses, about a quarter of a
+recorded Spiritmaster's active time. The Gladiator's Smashing Blow is a free
+filler, although the game opens it only after Rending Blow. The Cleric's
+Thunder and Lightning step is missing. Woven basic-attack damage is not
+modelled. Those are the next kit fixes. Re-fitting `ASSUME` to win the fidelity
+back only pushed knobs to their bounds (for example halving the parse-measured
+Assassin combo fractions), so it was not done.
 
 ### Chain, variant and combo skills, and known catalog gaps
 
@@ -356,7 +427,7 @@ The model does not reproduce movement or boss mechanics, complete party interact
 
 | Item | Value | Where |
 |---|---|---|
-| Base animation times | Flame Arrow step 0.80 s, Blaze 0.75 s, Firestorm 1.25 s, Hellfire 0.5 s/charge + 0.6 s ... | `kit/sorcerer.py: TIMING` |
+| Base animation times | measured from recorded casts where enough presses exist (Flame Arrow step 0.73 s, Blaze 0.33 s, Firestorm 0.56 s, Hellfire release 0.56 s); the Hellfire charge (0.5 s per level) and a few rarely pressed skills are estimates — see *Measured action times* | `kit/sorcerer.py: TIMING` |
 | Flame Arrow chain multipliers | 1.00 / 1.12 / 1.33 (A2DIL share ratios) | `ASSUME` |
 | Blaze "delayed damage" size | 30 % of the main hit | `ASSUME` |
 | Hellfire "Fire DoT" size | 25 % of the hit over 10 s | `ASSUME` |

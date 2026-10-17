@@ -42,10 +42,16 @@ _STIG_NAMES = {
     "FRACBLOW": "Fracturing Blow",
 }
 
+#: Action time in seconds at 0% Combat Speed.  Measured (0.2.307) from the recorded casts of five
+#: global Chanters (docs/methodology.md "Measured action times"); ``onslaught`` is a step of the
+#: Onslaught -> Resonance Crush -> Bolt Crush chain pressed on its own, and ``bursting_blow`` /
+#: ``piercing_strike`` the chain presses, charged to Incandescent Blow / Dark Crush when the chain is
+#: taken.  Heat Wave Blow, Tremor Crush, Wave Blow and the stigmas keep their estimates (too few presses).
 TIMING = {
-    "onslaught": 0.80, "incandescent_blow": 0.90, "rushing_smash": 0.90, "impactful_crush": 0.85,
-    "dark_crush": 0.70, "heat_wave_blow": 0.90, "tremor_crush": 0.90, "wave_blow": 0.95,
-    "spinning_strike": 1.20, "chain_followup": 0.55, "stigma": 1.00,
+    "onslaught": 0.94, "incandescent_blow": 0.63, "rushing_smash": 0.52, "impactful_crush": 0.43,
+    "dark_crush": 0.54, "heat_wave_blow": 0.90, "tremor_crush": 0.90, "wave_blow": 0.95,
+    "spinning_strike": 0.47, "chain_followup": 0.55, "stigma": 1.00,
+    "bursting_blow": 0.82, "piercing_strike": 0.57,
 }
 
 ASSUME = {
@@ -155,8 +161,12 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
             if st["n"] % ASSUME["bursting_every"] == 0:
                 k = ASSUME["bursting_frac"]
                 sim.hit("Bursting Blow", ic_f * k, ic_c * k, delay=TIMING["chain_followup"])
+    # Bursting Blow and Piercing Strike are their own presses; the kit folds each into its parent, so
+    # the parent carries that press's time too.
+    ic_t = TIMING["incandescent_blow"] + (TIMING["bursting_blow"] / ASSUME["bursting_every"]
+                                          if has("INCAND", 4) else 0.0)
     A["incandescent_blow"] = Action("incandescent_blow", "Incandescent Blow", SID["INCAND"],
-                                    TIMING["incandescent_blow"], cooldown=ASSUME["incand_cadence"],
+                                    ic_t, cooldown=ASSUME["incand_cadence"],
                                     affected_by_cdr=False, on_cast=incand_cast)
 
     rs_f, rs_c = dmg("RSMASH")
@@ -190,7 +200,8 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
         if has("DCRUSH", 4):
             k = ASSUME["piercing_frac"]
             sim.hit("Piercing Strike", dc_f * k, dc_c * k, delay=TIMING["chain_followup"])
-    A["dark_crush"] = Action("dark_crush", "Dark Crush", SID["DCRUSH"], TIMING["dark_crush"],
+    dc_t = TIMING["dark_crush"] + (TIMING["piercing_strike"] if has("DCRUSH", 4) else 0.0)
+    A["dark_crush"] = Action("dark_crush", "Dark Crush", SID["DCRUSH"], dc_t,
                              cooldown=cd.cd(SID["DCRUSH"], lv("DCRUSH")), requires=("dark_crush",),
                              on_cast=dark_crush_cast)
 

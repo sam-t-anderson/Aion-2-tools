@@ -35,8 +35,11 @@ SID = dict(
     ATERROR=16700000, SIPHON=16060000, ANCIENT=16250000,
 )
 
+#: Action time in seconds at 0% Combat Speed.  Combustion and Jointstrike: Curse are measured (0.2.307)
+#: from recorded casts (docs/methodology.md "Measured action times"); the rest keep their estimates:
+#: the captures only weave Cold Shock between skills, and Soul's Cry and the stigmas have too few presses.
 TIMING = {
-    "cold_shock": 0.85, "combustion": 0.85, "jointstrike_curse": 0.95, "soul_cry": 0.95,
+    "cold_shock": 0.85, "combustion": 0.50, "jointstrike_curse": 0.46, "soul_cry": 0.95,
     "chain_followup": 0.55, "stigma": 1.00,
     "pet_skill_period": 3.0,      # the Spirit Skill Cooldown listed in the data
     "pet_swing": 1.8,             # Spirit basic-attack interval

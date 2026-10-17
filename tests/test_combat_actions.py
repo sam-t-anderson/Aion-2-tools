@@ -292,7 +292,9 @@ def test_calibrate_measures_cooldowns_cast_lock_and_next_press_from_recorded_cas
     rows = {r["skill"]: r for r in recorded_timings({"duration": 30.0, "casts": casts}, "me", "gladiator")}
     rending = rows["Rending Blow"]
     assert (rending["casts"], rending["cast_lock_s"], rending["next_press_median_s"]) == (12, 0.3, 0.3)
-    assert rending["kit_key"] == "rending_blow" and rending["kit_action_s"] == 0.55
+    from aion2calc.run import kit_module
+    assert rending["kit_key"] == "rending_blow" and rending["kit_action_s"] == kit_module("gladiator").TIMING["rending_blow"]
+    assert rending["kit_value_s"] == 0.29        # (0.30 s - 30 ms latency) at the typical build's ~8% Combat Speed
     leap = rows["Leaping Slam"]
     assert (leap["cooldown_s"], leap["table_cooldown_s"], leap["cooldown_reduction_pct"]) == (13.6, 15, 9.3)
     assert rows["Smashing Blow"]["kit_key"] is None             # no TIMING knob for it

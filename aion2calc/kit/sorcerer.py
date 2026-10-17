@@ -25,13 +25,18 @@ SID = dict(
 )
 
 #: Action time of each skill in seconds at 0% Combat Speed (not in the client
-#: data; estimated from KR dummy logs and community notes — see docs).
+#: data).  Measured (0.2.307) from the recorded casts of three global Sorcerers
+#: (docs/methodology.md "Measured action times"); ``flame_arrow`` is a step of the
+#: Flame Arrow -> Burst -> Pyroclasm chain pressed on its own.  Wish of
+#: Concentration, Element Enhancement, Fire Wall, Cold Storm, the Hellfire charge
+#: and the chain press keep their estimates (too few recorded presses, or the
+#: charge level is not recorded).
 TIMING = {
-    "flame_arrow": 0.80, "ice_chain": 0.95, "firestorm": 1.25, "bittercold_wind": 1.00,
-    "blaze": 0.75, "flame_scattershot": 1.00, "frost": 1.00, "frost_burst": 0.85,
-    "winters_shackles": 1.00, "wish": 0.60, "hellfire_charge": 0.50, "hellfire_release": 0.60,
+    "flame_arrow": 0.73, "ice_chain": 0.83, "firestorm": 0.56, "bittercold_wind": 0.41,
+    "blaze": 0.33, "flame_scattershot": 0.59, "frost": 0.48, "frost_burst": 0.52,
+    "winters_shackles": 0.37, "wish": 0.60, "hellfire_charge": 0.50, "hellfire_release": 0.56,
     "element_enhancement": 0.60, "fire_wall": 1.00, "cold_storm": 1.00,
-    "delayed_explosion": 0.90, "glacial_smite": 1.00, "divine_burst": 1.00,
+    "delayed_explosion": 0.85, "glacial_smite": 1.00, "divine_burst": 1.00,
     "assault_bombardment": 1.00, "soul_freeze": 1.00, "lumiels_space": 1.00,
     "chain_followup": 0.60,
 }

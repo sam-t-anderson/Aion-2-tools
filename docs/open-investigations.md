@@ -173,6 +173,13 @@ The eight distinct diagnostic captures with raw TCP recording (10–15 October; 
 - **The listed Stagger Gauge Damage matches the gauge.** For 53 of 55 skills seen alone in a read, the drop equals the "N Stagger Gauge Damage" in the bundled skill description; the review splits a drop shared by several hits by those values.
 - **Cast lock and next press agree.** For the recording player, the time from a cast to its cast end matches the median time to the next press while chaining (Rending Blow 0.34 s against the kit's 0.55 s, Overhead Slam 0.35 s against 0.45 s), so the game sends the cast end as the next action starts. Players cancel animations: the fastest tenth of next presses are shorter still. `calibrate --timings` reports both.
 
+**Measured into the kits' action times (0.2.307).** The full press sequences of the 26 players with 50 or more presses (Templar: one player) gave the kits' `TIMING`. How each value was derived, and what it did to the calibration, is in [the methodology](methodology.md#measured-action-times-02307). What the sequences showed:
+
+- **Basic attacks are woven.** Every class but the Cleric presses one step of its three-step basic-attack chain between two skills and cancels it 0.10–0.16 s later: a skill, not another step, followed 893 of the Gladiators' 1,005 steps and 403 of the Assassins' 504. Pressed back to back, the steps take 0.3–1.2 s each. The weave is 7–13% of a player's active time; dodges take another 8–14%.
+- **Chain steps are separate presses.** Upward Strike, Bursting Blow, Piercing Strike, Tempest Arrow and Discharge each have their own press and time. Smashing Blow follows Rending Blow nearly one for one (627 and 579 presses), as the chain window records say.
+- **Charged skills record the release.** Deadshot and Bolt are recorded when released, about 0.15 s and 0.57 s before the next press; the charge shows as extra time before the press (Deadshot 0.55 s, Bolt 0.90 s).
+- **"Remove cooldown" Overhead Slam is not spammable.** With the spec, Overhead Slams never came less than about 1 s apart (10th percentile 0.97 s, median 1.18 s, 223 intervals). The 0.2.254 estimate was ~0.65 s.
+
 ## Classification review of recent uploads (16 October): one real defect, the rest data-gated
 
 The 51 newest public logs on the live server (889 encounter contexts, 15–16 October, all Live Meter sessions) tabulated by instance, difficulty, encounter type and boss role:
