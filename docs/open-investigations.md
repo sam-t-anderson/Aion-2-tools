@@ -182,7 +182,7 @@ The eight distinct diagnostic captures with raw TCP recording (10–15 October; 
 
 **Effect ids carry the caster's skill level, and the buff contribution's first check (0.2.307).** The estimated buff contribution in the log review ([method](methodology.md#estimated-buff-contribution-02307)) needs each buff's size, which depends on its caster's skill level. The packets carry no level field, but the effect id (skill variant × 10 + a stack digit) varies with it:
 
-- Undefeated Mantra's ids end `11`, `21`, `31` or `41` across 9 Chanters, and Light of Protection's end `11`, `21` or `31` across 8 Clerics. Where the caster's combat power is known (three of them), the higher digit goes with the higher combat power. One Chanter's Undefeated Mantra shows `41` while her Sprint Mantra shows `21`, so it is per skill, not per class or build.
+- Undefeated Mantra's ids end `11`, `21`, `31` or `41` across 9 Chanters, and Light of Protection's end `11`, `21` or `31` across 8 Clerics. Where the caster's combat power is known (three of them), the higher digit goes with the higher combat power. One Chanter's Undefeated Mantra shows `41` while their Sprint Mantra shows `21`, so it is per skill, not per class or build.
 - Power of the Storm, whose duration grows with its level, ran 12.0 s (level 5) with digit `1`: the digit counts the level thresholds reached (5, 10, 15, 20).
 - Passive effects carry the level itself: Robe of Cold showed `07` with the 3.5 s duration of level 7–8, Experienced Counterstrike `07`, Fury `01`.
 
@@ -192,6 +192,58 @@ The check compares the same player's same-skill plain hits (outside break window
 - The auras are open. A Transcendent Bakarma fight agreed (+22% against +17%) on only 33 hits. Four Deus Research Base fights measured +5.5% against +24%, but their 66 unbuffed hits fall in a few short windows of each fight.
 
 `calibrate --buffs` pools more fights. The estimate stays out of rankings until they agree.
+
+## Genus Insight advice checked against the model and the recorded boss fights (17 October)
+
+A Genus Insight guide for the global client (a video transcript) was compared with the planner's per-slot roll targets — each line at the midpoint of its best grade, on each class's optimized build, in the boss scenario with an even genus mix — and with the three recorded boss sessions in the diagnostic captures (15 player-fights, one to four players per class).
+
+**Where the model agrees with the guide.**
+
+- *Roll slot 4 first.* The best slot-4 line is worth 2.5–3.4% (PvE Damage Boost at 3%); no other slot's best line is worth more than 1.6%.
+- *PvE Damage Boost equals Damage Boost.* They share the additive boost bucket, so a point of either is worth the same; PvE Damage Boost ranks first only because it rolls higher (2–4% against 1.5–3%).
+- *Slots 1 and 5: PvE Attack and Boss Attack over Attack Bonus.* PvE Attack, Boss Attack and Penetration (+15, +15, +150, all flat damage in the model) beat Attack Bonus (+12, which scales with Attack % and the skill coefficient) for six classes. The Templar and Chanter are the exceptions: their higher Attack % and coefficients put Attack Bonus slightly ahead.
+- *Critical Damage Boost only for crit-heavy classes.* It is worth most to the Gladiator (1.0% against 0.2–0.5% for the others), still well below PvE Damage Boost.
+- *Natura: Multi-hit and Perfect Chance are bait.* Multi-hit is worth 0.16–0.28%, Perfect Chance less.
+- *Special: Double Chance.* Double Chance, Damage Boost and Front Attack Damage Boost are within 0.3% of each other.
+
+**Where it differs, and why.**
+
+- *Fera's Weapon Damage Boost.* The model treats it as an independent multiplier too, but at the community calculator's 66% efficiency, so it is worth 1.2–1.4%: third behind PvE Damage Boost and Damage Boost.
+- *Varian: front/back over PvE Damage Boost.* Per point, Front or Back Attack Damage Boost (its own multiplier) is worth 5–7% more than PvE Damage Boost. The boss's 30% tolerance keeps the additive bucket near 1, so additive boosts dilute little. Since PvE Damage Boost rolls higher, it still wins at matching grades; front/back overtakes it only from about 2.8%.
+- *Accuracy over crit.* The model treats Accuracy as a threshold it assumes is met, so it scores no accuracy line.
+
+**What the recorded boss fights show.** The hit record carries a position byte (1 = from behind, 2 = from the front, otherwise the side), the parry bit and the crit type. The model's crit rate is the hit-weighted crit chance inside the boss simulation, kit buffs and guaranteed crits included.
+
+| Class | Players | Boss hits | Crit, recorded | Crit, model | Parried | From behind | From the front |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Assassin | 1 | 2,115 | 62.6% | 26.3% | 0% | 77.4% | 15.0% |
+| Chanter | 2 | 1,477 | 30.9% | 14.4% | 0% | 58.8% | 18.9% |
+| Cleric | 1 | 835 | 29.7% | 9.5% | 0% | 64.6% | 23.0% |
+| Gladiator | 4 | 4,241 | 49.8% | 33.8% | 0.07% | 32.4% | 47.6% |
+| Ranger | 1 | 1,499 | 39.4% | 28.8% | 0.60% | 36.6% | 43.3% |
+| Sorcerer | 2 | 1,988 | 23.5% | 23.1% | 2.36% | 40.5% | 39.4% |
+| Spiritmaster | 2 | 1,457 | 21.1% | 20.7% | 3.77% | 53.9% | 24.8% |
+| Templar | 1 | 172 | 8.7% | 18.2% | 1.16% | 8.7% | 53.5% |
+
+- **Position.** The boss scenario counts every hit as frontal, so the model credits Front Attack lines on every hit and Back Attack lines on none. The flat Back Attack stat (`back_atk`, also the official profile's `BackFixingDamage`) does not reach the damage formula at all. In the recordings, 15–54% of a class's boss hits came from the front and 9–77% from behind.
+  - Weighted by those shares, Front and Back Attack Damage Boost fall to 0.2–1.6%. That is below Damage Boost and Double Chance for every class, the Assassin included.
+  - A Back Attack line in slot 1 or 5 would be worth about a third of a percent to the Assassin, against 0.64% for PvE Attack. The model also adds PvE Attack to damage-over-time ticks.
+- **Parries.** A parried hit loses half its damage.
+  - Bosses parried 0–0.6% of the Assassin's, Chanter's, Cleric's, Gladiator's and Ranger's hits, 2.4% of the Sorcerers' and 3.8% of the Spiritmasters' (5.2% for one).
+  - Accuracy that removed every parry would be worth up to about 1.2–1.9% to those casters and next to nothing to the others.
+  - Misses are not decoded, so how much evasion costs is unknown.
+- **Crit.**
+  - Recorded boss crit rates reach 51–63% (three Gladiators, the Assassin), so a hard 50% cap on every hit is not supported. A cap on the stat's own share cannot be ruled out.
+  - The model's crit rate matches the Sorcerers and Spiritmasters within a point. It is 11–36 points low for the Gladiators, Ranger, Chanters, Cleric and Assassin, and above the one Templar, who was tanking.
+  - The recorded players' crit stats are unknown, so this is a lead, not a fit. Where the curve runs low, Critical Hit and Critical Damage Boost lines are undervalued.
+
+**Follow-ups** (the roadmap tracks them):
+
+- a positional mix per class in the boss scenario, with Back Attack wired in;
+- a crit curve fitted to global fights whose players' crit stats are known;
+- parry and miss rates against Accuracy, before any accuracy line is scored.
+
+The Max Attack, PvE Accuracy, Front/Back Attack Critical Hit and Power Shard Damage Bonus lines are not modeled yet.
 
 ## Classification review of recent uploads (16 October): one real defect, the rest data-gated
 
