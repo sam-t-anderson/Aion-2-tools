@@ -5,13 +5,16 @@ from bisect import bisect_left
 from .pressure import friendly_ids, summarize as pressure_summary
 
 from .catalog import coverage
+from .actions import summarize as action_summary
 
 LIMIT = 100
-NOTE = ("Analysis describes retained evidence in this encounter, not cast starts or optimal play. "
+NOTE = ("Analysis describes retained evidence in this encounter, not optimal play. "
         "Effects can include multi-hit attacks, periodic damage and pets. Equal timestamps do not establish order. "
-        "Healing is recorded amount, not effective healing, overheal or shielding. Buff windows come from imports; "
-        "live buff/cast/resource decoding is unavailable. HP milestones are samples, not named mechanics or exact phase transitions. "
-        "Each section retains at most 100 rows per encounter; omitted counts are shown. Capture-quality limits still apply.")
+        "Healing is recorded amount, not effective healing, overheal or shielding. Casts, buff and debuff windows and "
+        "break-gauge readings are the game's own records when the live meter recorded them (0.2.306 or later); imported "
+        "buff windows come from imports. Crowd-control states and listed Stagger Gauge Damage come from the bundled skill "
+        "descriptions. Resources and shields are not decoded. HP milestones are samples, not named mechanics or exact phase "
+        "transitions. Each section retains at most 100 rows per encounter; omitted counts are shown. Capture-quality limits still apply.")
 
 
 def summarize(doc):
@@ -127,10 +130,14 @@ def summarize(doc):
             {"feature": "HP samples", "records": len(segment.get("health", [])), "basis": "Samples; not continuous HP or inferred shields"},
             {"feature": "Imported buff windows", "records": len(segment.get("buffs", [])), "basis": "Imported intervals; live decoding unavailable"},
             {"feature": "Normalized replay positions", "records": len(segment.get("positions", [])), "basis": "Imported positions; live decoding unavailable"},
-            {"feature": "Cast starts/ends, resources, shields, CC outcomes", "records": None, "basis": "Verified live decoding unavailable"}]
+            {"feature": "Skill casts", "records": len(segment.get("casts", [])), "basis": "Recorded cast records of players and pets; cast end only for the recording player"},
+            {"feature": "Buff, debuff and crowd-control windows", "records": len(segment.get("effects", [])), "basis": "Recorded effect applications and removals; crowd-control state from skill descriptions"},
+            {"feature": "Break-gauge readings", "records": len(segment.get("gauge", [])), "basis": "Recorded boss break-gauge values"},
+            {"feature": "Resources, shields", "records": None, "basis": "Verified live decoding unavailable"}]
         segments.append({"segment":index, "catalog":coverage(segment), "capabilities": capabilities,
             "pressure": pressure_summary(segment, events, friendly), **{key:rows[:LIMIT] for key,rows in ordered.items()},
             "omitted":{key:max(0,len(rows)-LIMIT) for key,rows in ordered.items()},
             "opening":opening,"omitted_opening":omitted_opening,"invalid_buff_windows":invalid_windows,
-            "healing_without_source":missing_heal_source,"healing_without_target":missing_heal_target})
-    return {"version": 2, "note":NOTE,"segments":segments}
+            "healing_without_source":missing_heal_source,"healing_without_target":missing_heal_target,
+            "actions":action_summary(segment, players, friendly, entities)})
+    return {"version": 3, "note":NOTE,"segments":segments}

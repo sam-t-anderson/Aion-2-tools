@@ -35,6 +35,12 @@ def has_skill(skill_id: int, locale: str = "en") -> bool:
     return str(skill_id) in _table("skills", locale)
 
 
+def skill_family(skill_id: int) -> int:
+    """A skill's family: its id with the rank/spec digits zeroed. The class system actions (weapon
+    equip, dodge, basic attack: the ``xx00`` families) are distinct actions and stay whole."""
+    return skill_id if (skill_id // 10_000) % 100 == 0 else skill_id - skill_id % 10_000
+
+
 def normalize_skill(skill_id: int, locale: str = "en") -> int:
     if 30_000_000 <= skill_id <= 30_999_999:
         return skill_id

@@ -165,7 +165,9 @@ def main(argv: list[str] | None = None) -> int:
     cb.add_argument("--tune", action="store_true", help="also suggest bounded TIMING/ASSUME values that raise the "
                                                         "share overlap (reported only; kits are not modified)")
     cb.add_argument("--timings", action="store_true", help="with --capture: measure per-skill cast cadence and pet "
-                                                           "swing periods from the capture and compare to the kit")
+                                                           "swing periods from the capture and compare to the kit; "
+                                                           "recordings from 0.2.306 also give each skill's cooldown, "
+                                                           "cast lock and time to the next press")
 
     iv2 = sub.add_parser("install-version", help="show each detected game install's version signals and, with "
                                                  "two or more (e.g. Steam and PURPLE), which signal is the shared "
@@ -232,7 +234,6 @@ def main(argv: list[str] | None = None) -> int:
         if args.out:
             print(f"Wrote {args.out}")
     elif args.cmd == "catalog-gaps":
-        import json
         from .combat.catalog import gaps
         report = gaps()
         if args.out:
@@ -417,6 +418,21 @@ def main(argv: list[str] | None = None) -> int:
                 if "error" in mt:
                     print("\n  " + mt["error"])
                 else:
+                    if mt.get("recorded"):
+                        fmt = lambda v, unit="s": "—" if v is None else f"{v:.2f}{unit}"
+                        print("\n  recorded casts: the cooldown the game sent (skill table, implied cooldown reduction),")
+                        print("  the cast lock (your own character only) and the shortest time to the next press:")
+                        print(f"    {'skill':24s} {'casts':>5s}  {'cooldown':>22s}  {'cast lock':>9s}  "
+                              f"{'next press fastest/typical':>26s}  {'kit TIMING':>10s}")
+                        for r in mt["recorded"][:20]:
+                            cool = "—" if r["cooldown_s"] is None else (
+                                f"{r['cooldown_s']:.1f}s" + (f" ({r['table_cooldown_s']:g}s, {r['cooldown_reduction_pct']:.0f}%)"
+                                                             if r["table_cooldown_s"] and r["cooldown_reduction_pct"] is not None else ""))
+                            press = f"{fmt(r['next_press_s'])} / {fmt(r['next_press_median_s'])}"
+                            print(f"    {r['skill'][:24]:24s} {r['casts']:5d}  {cool:>22s}  {fmt(r['cast_lock_s']):>9s}  "
+                                  f"{press:>26s}  {fmt(r['kit_action_s'], ''):>10s}")
+                        print("  suggested TIMING (reported only; kits are not modified):",
+                              json.dumps(mt["suggested_timing"]) if mt["suggested_timing"] else "no change")
                     kit = mt.get("kit") or {}
                     print(f"\n  measured skill cast cadence (filler: {kit.get('filler') or '?'}, "
                           f"kit action time {kit.get('filler_action_time')}):")

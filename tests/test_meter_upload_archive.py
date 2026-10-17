@@ -134,3 +134,24 @@ def test_missing_earlier_part_falls_back_to_current_part_only(isolated_home):
     # Part 1 was pruned off disk (never saved here): an unresolved chain must not drop
     # the upload — the caller uploads the current part alone rather than nothing.
     assert sessions.live_archive_sources(doc2) is None
+
+
+def test_a_combined_review_leaves_out_actions_past_one_documents_limit(isolated_home, monkeypatch):
+    """Casts and effect windows add up fast across parts: past one document's limit the combined
+    review leaves those arrays out (each part keeps them) and says so, instead of failing."""
+    from aion2calc.combat import a2log
+    doc1, doc2 = _two_part_session()
+    for doc in (doc1, doc2):
+        for segment in doc["segments"]:
+            player = segment["hits"][0]["player"]
+            segment["casts"] = [{"t": 0.5, "source": player, "skill_id": 15210000, "cooldown_ms": 5000}] * 3
+            segment["gauge"] = []
+    sessions.save(doc1, "session-20261013-000001-aaaaaa.a2log.json")
+    sources = sessions.live_archive_sources(doc2)
+    combined = combine(sources)
+    assert "omitted_actions" not in combined["meta"]["reconstruction"]
+    assert all(len(s["casts"]) == 3 for s in combined["segments"])
+    monkeypatch.setitem(a2log.LIMITS, "casts", 4)            # fewer than the parts' casts together
+    combined = combine(sources)
+    assert combined["meta"]["reconstruction"]["omitted_actions"] == ["casts"]
+    assert all("casts" not in s or not s["casts"] for s in combined["segments"])

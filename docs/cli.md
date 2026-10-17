@@ -52,7 +52,9 @@ python -m aion2calc install-version --remove-path "C:\Program Files (x86)\NC\AIO
 python -m aion2calc calibrate                       # every class vs the KR aggregate, worst fidelity first
 python -m aion2calc calibrate gladiator --tune      # per-skill share gaps + suggested knob values
 python -m aion2calc calibrate --capture fight.a2log.json --tune   # calibrate against your own capture
-python -m aion2calc calibrate --capture fight.a2log.json --timings # measure skill cadence + pet swing periods
+python -m aion2calc calibrate --capture fight.a2log.json --timings # measure skill cadence + pet swing periods; recordings
+                                                                   # from 0.2.306 add each skill's cooldown, cast lock and
+                                                                   # time to the next press, with suggested TIMING values
 
 # aggregate the NPC decoder evidence across uploaded logs (candidate NPC type IDs, packet variants, missing art)
 python -m aion2calc npc-evidence                     # from the configured community log server

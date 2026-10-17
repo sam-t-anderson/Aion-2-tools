@@ -105,6 +105,17 @@ html.native-windows .ovcard { background: rgb(27, 32, 42); }
   border: 1px solid rgba(255, 140, 160, .2); border-top: 0; }
 .ovttkbar[hidden] { display: none; }
 .ovttkbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ov-ttk-color, #86a9c6); transition: width .2s linear; }
+/* The target's break (stagger) gauge: what is left before it breaks (Settings → Overlay;
+   off by default). Joins the boss card like the HP and TTK bars. */
+.ovgauge { position: relative; height: 5px; margin: 0 0 7px; border-radius: 0 0 10px 10px; background: rgba(23, 19, 25, .9); overflow: hidden; cursor: default;
+  border: 1px solid rgba(255, 140, 160, .2); border-top: 0; }
+.ovgauge[hidden] { display: none; }
+.ovgauge i { position: absolute; inset: 0 auto 0 0; width: 0; background: #e3b35a; transition: width .2s linear; }
+.ovgauge.broken i { width: 100% !important; background: repeating-linear-gradient(90deg, #f0c36a 0 6px, #b5832e 6px 12px); }
+.ovhpbar:has(+ .ovttkbar[hidden] + .ovgauge:not([hidden])), .ovttkbar:has(+ .ovgauge:not([hidden])) { border-radius: 0; margin-bottom: 0; }
+.ovtarget:has(+ .ovhpbar[hidden] + .ovttkbar[hidden] + .ovgauge:not([hidden])) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 0; margin-bottom: 0; padding-bottom: 6px; }
+.ovtarget .ovbreak { color: #e3b35a; font-weight: 700; margin-right: 4px; }
+.ovtarget .ovbreak.broken { color: #f0c36a; letter-spacing: .4px; }
 .ovrow-dead { opacity: 0.55; }
 .ovdead { color: #e5706e; font-weight: 700; margin-left: 4px; font-size: 9px; letter-spacing: 0.5px; }
 .ovcrank { color: #e8cf8e; font-weight: 700; margin-left: 5px; font-size: 9px; letter-spacing: .3px; opacity: .9; white-space: nowrap; }
@@ -120,6 +131,21 @@ html.native-windows .ovcard { background: rgb(27, 32, 42); }
 .ovgraph svg { display: block; width: 100%; height: 100%; }
 .ovgline { fill: none; stroke: var(--ov-glow-color, #e8cf8e); stroke-width: 1.4px; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
 .ovgarea { fill: color-mix(in srgb, var(--ov-glow-color, #e8cf8e) 20%, transparent); stroke: none; }
+/* Skill-cooldown strip (Settings → Overlay; off by default): your skills on cooldown,
+   soonest ready first, each with a sweep and the time left. A skill lights up as it comes
+   off cooldown, and an open chain-skill window shows with a green ring. */
+.ovcooldowns { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; cursor: default; }
+.ovcooldowns[hidden] { display: none; }
+.ovcd { position: relative; flex: 0 0 auto; width: 26px; height: 26px; border-radius: 6px; overflow: hidden;
+  background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .14); }
+.ovcd em { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 9px; color: #cdd6e6; }
+.ovcd img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ovcd i { position: absolute; inset: 0; background: conic-gradient(rgba(8, 10, 14, .72) var(--cd, 0deg), transparent 0); }
+.ovcd b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #ffffff;
+  text-shadow: 0 1px 2px #000000, 0 0 3px #000000; font-variant-numeric: tabular-nums; }
+.ovcd.ovcd-ready { border-color: var(--ov-glow-color, #e8cf8e); box-shadow: 0 0 6px color-mix(in srgb, var(--ov-glow-color, #e8cf8e) 70%, transparent); }
+.ovcd.ovcd-ready i, .ovcd.ovcd-chain i { display: none; }
+.ovcd.ovcd-chain { border-color: #8fd0a0; box-shadow: 0 0 6px rgba(143, 208, 160, .7); }
 .ovglabel { position: absolute; top: 2px; left: 5px; font-size: 9px; color: #cdd6e6; letter-spacing: .3px; text-shadow: 0 1px 2px rgba(0,0,0,.75); white-space: nowrap; pointer-events: none; }
 .ovrow { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; padding: 0; margin: 0 0 4px;
   min-height: var(--ov-row-h, 22px); border-radius: 8px; background: rgba(255,255,255,.04); overflow: hidden; }

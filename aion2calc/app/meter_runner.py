@@ -594,11 +594,11 @@ class Runner:
             players = len(self.session._storage_players.get(self.scope, self.session.storage_players))
             groups = self.session._storage_groups.get(self.scope, self.session.storage_groups)
             due = (len(self.session.records) >= 100_000 or len(self.session.telemetry) >= 20_000
-                   or groups >= 100 or players >= _ROLLOVER_PLAYERS_DUE)
+                   or len(self.session.actions) >= 150_000 or groups >= 100 or players >= _ROLLOVER_PLAYERS_DUE)
             if not due:
                 return
             hard = (len(self.session.records) >= 350_000 or len(self.session.telemetry) >= 40_000
-                    or groups >= 180 or players >= _ROLLOVER_PLAYERS_HARD)
+                    or len(self.session.actions) >= 300_000 or groups >= 180 or players >= _ROLLOVER_PLAYERS_HARD)
             active = self._recent_outgoing(120_000)
             if due and active and not hard and not self.session.run_closed:
                 self.diagnostics["archive_deferred"] = "Archive part will be saved after combat pauses; live totals continue."
@@ -1023,12 +1023,18 @@ class Runner:
                     status["faction"] = self._field_bosses.get("faction")
                     status["server"] = self._field_bosses.get("server")
                     status["server_name"] = self._field_bosses.get("server_name")
+            ui = None
+            if self.packet_engine is not None or self.capture_metadata is not None:
+                from .server import ui_settings
+                ui = ui_settings()
+            # The skill-cooldown strip and the target's break gauge (each off by default).
+            if self.packet_engine is not None:
+                self._overlay_actions(snap, ui)
             # When the viewer turns the option on, label each player's home world next to their
             # name, resolved from their captured server id via the same official server list used
             # for region. Off by default; best-effort and local (no network in this path).
             if self.capture_metadata is not None:
-                from .server import ui_settings
-                if ui_settings().get("meter_show_server_name"):
+                if ui.get("meter_show_server_name"):
                     for p in snap.get("players", []):
                         server = p.get("server")
                         if server and not p.get("server_name"):
@@ -1182,6 +1188,46 @@ class Runner:
             self._fight_upload_busy = True
             self._fight_upload_key, self._fight_upload_kills, self._fight_upload_at = key, kills, now
             threading.Thread(target=self._fight_upload, args=(reason,), daemon=True, name="fight-upload").start()
+        except Exception:
+            pass
+
+    # How long a skill stays lit on the strip after it comes off cooldown, and how long an open
+    # chain window is shown without its closing record (a guard against a missed close).
+    _COOLDOWN_READY_MS = 3000
+    _CHAIN_WINDOW_MS = 6000
+
+    def _overlay_actions(self, snap: dict, ui: dict) -> None:
+        """Attach the local player's skill cooldowns and the current target's break gauge, read
+        from the engine's live state (the caller holds the data lock). Each needs its overlay
+        setting; the cooldown is the one the game sent with the cast, so cooldown reduction is
+        included. Only skills used since Start are known."""
+        try:
+            engine = self.packet_engine
+            now = time.time() * 1000
+            if ui.get("overlay_show_cooldowns"):
+                from ..meter.a2parser.lookup import normalize_skill, skill_family, skill_name
+                floor = int(ui.get("overlay_cooldowns_min_s") or 3) * 1000
+                rows = []
+                for family, cooldown in engine.cooldowns.items():
+                    total = int(cooldown["cooldown_ms"])
+                    remaining = cooldown["cast_ms"] + total - now
+                    if total < floor or remaining <= -self._COOLDOWN_READY_MS:
+                        continue
+                    rows.append({"family": family, "name": skill_name(normalize_skill(cooldown["skill"])),
+                                 "remaining_ms": int(min(remaining, total)), "cooldown_ms": total})
+                rows.sort(key=lambda row: row["remaining_ms"])
+                snap["cooldowns"] = rows[:int(ui.get("overlay_cooldowns_max") or 8)]
+                snap["chain_windows"] = [
+                    {"family": skill_family(chain), "name": skill_name(normalize_skill(chain))}
+                    for chain, opened in sorted(engine.chain_windows.items(), key=lambda item: -item[1])
+                    if now - opened < self._CHAIN_WINDOW_MS][:3]
+            target = snap.get("current_target")
+            if ui.get("overlay_show_break_gauge") and isinstance(target, dict) and target.get("entity_id") is not None:
+                reading = engine.break_gauges.get(target["entity_id"])
+                if reading and reading[0] > 0:
+                    maximum, current, _at = reading
+                    target["break_gauge"] = {"max": maximum, "current": current,
+                                             "pct": round(100 * max(0, min(current, maximum)) / maximum, 1)}
         except Exception:
             pass
 

@@ -12,6 +12,10 @@
   try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
   let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false, showDummy=true, showCombatPower=true, planAutoplay=true;
   let showGraph=false;
+  // Skill-cooldown strip and the target's break gauge (both off by default), and when the
+  // last reading arrived, so the strip counts down between polls.
+  let showCooldowns=false, showGauge=false, cooldownsTop=false, cooldownsAt=0;
+  const cooldownIcons=new Map();   // strip key -> icon element, kept between renders so icons never reload
   let graphHist=[], graphDur=-1;   // per-poll party-total samples for the live DPS/HPS sparkline, and the last seen fight duration
   const playerHist=new Map();      // per-player DPS samples (key -> [dps,…]) for the expanded-row trend sparkline
   let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name", classColorNames=false, classSwatch=false, rankNumbers=false, highlightMe=false, showCommunityRank=false, showEvents=true;
@@ -168,6 +172,10 @@
     showDeaths=ui.overlay_show_deaths!==false;
     showEnemyHp=ui.overlay_show_enemy_hp===true;
     showTtk=ui.overlay_show_ttk===true;
+    showCooldowns=ui.overlay_show_cooldowns===true;
+    showGauge=ui.overlay_show_break_gauge===true;
+    cooldownsTop=ui.overlay_cooldowns_position==="top";
+    placeCooldowns();
     showDummy=ui.meter_show_dummy_parse!==false;
     showCombatPower=ui.overlay_show_combat_power!==false;
     showCommunityRank=ui.overlay_show_community_rank===true;
@@ -399,7 +407,7 @@
   function renderParty() {
     // The separate Party-DPS overlay: raid-wide aggregates, not per-player rows.
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
-    for(const id of ["#ovmetrics","#ovping","#ovidentity","#ovtarget","#ovhpbar","#ovttkbar","#ovcontribution","#ovdummy","#ovconnection"])$(id).hidden=true;
+    for(const id of ["#ovmetrics","#ovping","#ovidentity","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovconnection","#ovcooldowns"])$(id).hidden=true;
     const totalDps=players.reduce((n,p)=>n+(Number(p.dps)||0),0);
     const totalHps=players.reduce((n,p)=>n+(Number(p.hps)||0),0);
     const totalTaken=players.reduce((n,p)=>n+(Number(p.dtps)||0),0);
@@ -580,6 +588,10 @@
         ? ` <span class="ovhp" title="${esc(hpTip)}">${Math.round(target.hp_pct*100)}%</span>` : '';
       const ttk=showTtk&&target.ttk!=null&&isFinite(target.ttk)
         ? ` <span class="ovttk">TTK ${fmtTtk(target.ttk)}</span>` : '';
+      const gaugePct=showGauge&&target.break_gauge?Math.max(0,Math.min(100,Number(target.break_gauge.pct)||0)):null;
+      const gaugeText=gaugePct==null?'':gaugePct<=5
+        ? ` <span class="ovbreak broken" title="The break gauge is empty: the enemy is broken (staggered) and takes more damage until it refills">BROKEN</span>`
+        : ` <span class="ovbreak" title="Break gauge left before this enemy breaks (staggers); skills that deal Stagger Gauge Damage drain it">Break ${Math.round(gaugePct)}%</span>`;
       // When several enemies are being struck in the same instant (AOE/cleave), the
       // single "most-hit" target is one of several — name the others compactly.
       const alsoNames=(target.also_targets||[]);
@@ -590,7 +602,7 @@
       // Same content as always; the name and the secondary readouts are wrapped so the
       // stylesheet can lay the panel out as a boss card (name + HP on top, TTK, damage
       // and contributors beneath). Hidden readouts stay hidden exactly as before.
-      $("#ovtarget").innerHTML=`<span class="ovtlabel">Target</span> ${portrait}<span class="ovtname">${esc(target.name)}</span>${also}${hp}<span class="ovtline">${ttk} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}</span>`;
+      $("#ovtarget").innerHTML=`<span class="ovtlabel">Target</span> ${portrait}<span class="ovtname">${esc(target.name)}</span>${also}${hp}<span class="ovtline">${ttk}${gaugeText} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}</span>`;
       $("#ovtarget").title=`Most-hit enemy this encounter${alsoNames.length?` (and ${alsoNames.length} more struck in the same instant)`:''}, its remaining HP and time-to-kill from its observed HP-decline rate (all damage sources, so it reflects how fast it is really dying — not just your party's DPS), and each contributor's DPS to it`;
     }
     // Drawn remaining-over-max enemy HP bar, shown with the enemy-HP readout when real HP was captured.
@@ -605,6 +617,14 @@
     if(showTtkBar){
       $("#ovttkbar").firstElementChild.style.width=Math.max(0,Math.min(100,target.ttk_fraction*100))+"%";
       $("#ovttkbar").title=`Estimated kill progress by time — how much of the whole kill has elapsed (engaged time so far vs the time-to-kill still remaining). Packet-sourced; it can run ahead of or behind the HP bar when the fight starts slow or finishes fast.`;
+    }
+    // Drawn break gauge: what is left before the target breaks (bosses and elites carry one).
+    const gauge=showT&&showGauge&&target&&target.break_gauge;
+    $("#ovgauge").hidden=!gauge;
+    if(gauge){
+      const pct=Math.max(0,Math.min(100,Number(gauge.pct)||0));
+      $("#ovgauge").classList.toggle("broken",pct<=5);
+      $("#ovgauge").firstElementChild.style.width=pct+"%";
     }
     // Training-dummy parse: elapsed vs the standard window, your DPS and the total.
     const dummy=snap.dummy_parse;
@@ -623,21 +643,74 @@
     $("#ovcontribution").hidden=!showC;
     if(showC) $("#ovcontribution").textContent=`Your contribution: ${Math.round((c.share||0)*100)}% · ${kfmt(c.damage)} (${kfmt(c.dps)}/s)`;
     recordGraph(s, snap, players);
+    renderCooldowns();
     // Show meter only during combat: collapse to the header when idle (the window
     // then shrinks via fit), so the overlay is unobtrusive between pulls. A brief
     // damage pause while an engaged boss is still alive is a mechanic, not the end of
     // the fight, so keep the meter open through it — never collapse mid-boss.
     if(onlyInCombat && (!s.running || over || (snap.paused && snap.boss_alive!==true))){
       $("#ovcontent").innerHTML='';
-      for(const id of ["#ovmetrics","#ovping","#ovtarget","#ovhpbar","#ovttkbar","#ovcontribution","#ovdummy","#ovidentity","#ovgraph"])$(id).hidden=true;
+      for(const id of ["#ovmetrics","#ovping","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovidentity","#ovgraph","#ovcooldowns"])$(id).hidden=true;
       $("#ovstatus").textContent=s.running?'Idle · waiting for combat':'Idle';
       $("#ovstatus").title=$("#ovstatus").textContent;
     }
   }
+  // Skill-cooldown strip: your skills on cooldown, soonest ready first, each counting down
+  // between polls from the time left the meter sent (the cooldown the game sent with the cast,
+  // so cooldown reduction is included). A skill lights up as it comes off cooldown, and an open
+  // chain-skill window shows first. Only skills used since Start are known.
+  const fmtCooldown=ms=>ms>=60000?Math.ceil(ms/60000)+'m':ms>=10000?String(Math.ceil(ms/1000)):(ms/1000).toFixed(1);
+  function placeCooldowns(){   // above the player rows, or below the graph (the default)
+    const strip=$("#ovcooldowns"), rows=$("#ovcontent"), graph=$("#ovgraph");
+    if(!strip||!rows||!graph)return;
+    if(cooldownsTop){if(strip.nextElementSibling!==rows)rows.before(strip);}
+    else if(graph.nextElementSibling!==strip)graph.after(strip);
+  }
+  function cooldownIcon(key,family,name){
+    let node=cooldownIcons.get(key);
+    if(!node){
+      node=document.createElement("span");
+      const initials=String(name||"").split(/\s+/).filter(Boolean).map(w=>w[0]).join("").slice(0,2);
+      const n=Number(family), src=Number.isSafeInteger(n)&&n>0?"https://metabot.gg/web/aion2/skills/"+n+".webp":"";
+      node.innerHTML=`<em>${esc(initials)}</em>${src?`<img src="${esc(window.A2AssetHealth?A2AssetHealth.source(src):src)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:""}<i></i><b></b>`;
+      cooldownIcons.set(key,node);
+    }
+    return node;
+  }
+  function renderCooldowns(){
+    const strip=$("#ovcooldowns");
+    if(!strip)return;
+    const s=lastSnap||{}, snap=s.snapshot||{};
+    const rows=Array.isArray(snap.cooldowns)?snap.cooldowns:[], chains=Array.isArray(snap.chain_windows)?snap.chain_windows:[];
+    const idle=onlyInCombat&&(!s.running||snap.battle_over===true||(snap.paused&&snap.boss_alive!==true));
+    const show=showCooldowns&&!partyMode&&tab==="meter"&&!!s.running&&!idle&&(rows.length>0||chains.length>0);
+    strip.hidden=!show;
+    if(!show){strip.replaceChildren();cooldownIcons.clear();return;}
+    const elapsed=Date.now()-cooldownsAt, nodes=[], keys=new Set();
+    for(const chain of chains){
+      const key="chain:"+chain.family, node=cooldownIcon(key,chain.family,chain.name);
+      node.className="ovcd ovcd-chain";node.title=`${chain.name}: chain window open`;
+      node.lastElementChild.textContent="";
+      keys.add(key);nodes.push(node);
+    }
+    for(const row of rows){
+      const key="cd:"+row.family, left=(Number(row.remaining_ms)||0)-elapsed, total=Math.max(1,Number(row.cooldown_ms)||1);
+      if(left<=-3000||keys.has(key))continue;   // lit for 3 s after it comes off cooldown, as the meter does
+      const ready=left<=0, node=cooldownIcon(key,row.family,row.name);
+      node.className="ovcd"+(ready?" ovcd-ready":"");
+      node.style.setProperty("--cd",(ready?0:360*Math.min(1,left/total)).toFixed(1)+"deg");
+      node.lastElementChild.textContent=ready?"":fmtCooldown(left);
+      node.title=`${row.name}: ${ready?"ready":(left/1000).toFixed(left<10000?1:0)+" s left"} · cooldown ${(total/1000).toFixed(1)} s`;
+      keys.add(key);nodes.push(node);
+    }
+    for(const key of [...cooldownIcons.keys()])if(!keys.has(key))cooldownIcons.delete(key);
+    if(nodes.length!==strip.children.length||nodes.some((node,i)=>strip.children[i]!==node))strip.replaceChildren(...nodes);
+  }
+  setInterval(()=>{ if(showCooldowns&&!locked&&tab==="meter")renderCooldowns(); },250);
   function renderPlan() {
     $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovidentity").hidden=true;
     $("#ovtarget").hidden=true;$("#ovhpbar").hidden=true;$("#ovttkbar").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
-    $("#ovgraph").hidden=true;
+    $("#ovgraph").hidden=true;$("#ovgauge").hidden=true;$("#ovcooldowns").hidden=true;
     $("#ovconnection").hidden=true;
     const view = planView(), p = view.plan;
     if (!p) {
@@ -696,7 +769,7 @@
       catch(e) { throw Error('Invalid meter JSON (HTTP '+response.status+')'); }
       if (!response.ok) throw Error('HTTP '+response.status+': '+String(next.error||response.statusText).slice(0,512));
       if(!next||typeof next.running!=='boolean'||!next.snapshot) throw Error('Invalid meter response');
-      lastSnap=next;meterUnavailable=false;refreshError="";lastSuccess=Date.now();
+      lastSnap=next;meterUnavailable=false;refreshError="";lastSuccess=cooldownsAt=Date.now();
     } catch (e) {
       meterUnavailable=true;
       refreshError=e.name==='AbortError'?'Meter refresh timed out after 4s':String(e.message||e).slice(0,512);

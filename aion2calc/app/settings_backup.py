@@ -18,6 +18,7 @@ VERSION = 1
 _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close", "community_heartbeat",
               "overlay_show_contribution", "overlay_show_target",
               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
+              "overlay_show_cooldowns", "overlay_show_break_gauge",
               "meter_reset_after_battle", "meter_show_dummy_parse", "overlay_show_combat_power",
               "overlay_only_in_combat", "overlay_auto_expand",
               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
@@ -36,7 +37,8 @@ _INT_KEYS = {"meter_reset_delay": (1, 120), "meter_max_records": (1, 500),
              "overlay_row_height": (14, 48),
              "overlay_font_scale": (80, 160), "overlay_font_weight": (400, 800),
              "overlay_bg_opacity": (0, 100), "overlay_bg_zoom": (50, 200), "overlay_bg_darken": (0, 100),
-             "overlay_interpolate_ms": (50, 1000)}
+             "overlay_interpolate_ms": (50, 1000),
+             "overlay_cooldowns_min_s": (1, 120), "overlay_cooldowns_max": (1, 16)}
 
 _FONT_FAMILIES = ("", "Segoe UI", "Arial", "Verdana", "Georgia", "Trebuchet MS", "Consolas", "Tahoma")
 
@@ -114,6 +116,10 @@ def _clean(data: dict) -> dict:
         elif key == "overlay_bar_style":
             if value not in ("flat", "gradient"):
                 raise ValueError("overlay_bar_style must be flat or gradient")
+            clean[key] = value
+        elif key == "overlay_cooldowns_position":
+            if value not in ("bottom", "top"):
+                raise ValueError("overlay_cooldowns_position must be bottom or top")
             clean[key] = value
         elif key == "combat_colors":
             if not (isinstance(value, dict) and all(isinstance(k, str) and _is_hex(v) for k, v in value.items())):

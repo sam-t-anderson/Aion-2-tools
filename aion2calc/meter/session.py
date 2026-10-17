@@ -4,12 +4,13 @@ from __future__ import annotations
 from collections import Counter, deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import bisect
 import time
 import copy
 import math
 import uuid
 
-from .a2parser.lookup import dungeon_final_bosses, is_heal_skill, job_from_skill, npc_info, npc_name, skill_name, spirit_skill_category
+from .a2parser.lookup import dungeon_final_bosses, has_skill, is_heal_skill, job_from_skill, normalize_skill, npc_info, npc_name, skill_name, spirit_skill_category
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
 
 
@@ -87,12 +88,15 @@ class CombatSession:
         telemetry samples, so they are shared through a fresh deque (milliseconds) instead of
         copied element by element: a true deep copy of a 100k-record session took 4.6 s with the
         lock held, stalling the decoder and the overlay every 15 s and overflowing the capture
-        buffer on busy fights. Everything else (identities, runs, counters) is small and copied."""
+        buffer on busy fights. Everything else (identities, runs, counters) is small and copied.
+        A copy only exports, so it needs no held-effect state (that is for pairing what arrives next)."""
         clone = CombatSession.__new__(CombatSession)
         memo[id(self)] = clone
         for key, value in vars(self).items():
-            if key in ("records", "telemetry"):
+            if key in ("records", "telemetry", "actions"):
                 setattr(clone, key, deque(value, maxlen=value.maxlen))
+            elif key == "_effects_held":
+                setattr(clone, key, {})
             else:
                 setattr(clone, key, copy.deepcopy(value, memo))
         return clone
@@ -187,6 +191,15 @@ class CombatSession:
         self.pvp = False
         self.manual_split = 0
         self.telemetry = deque(maxlen=100_000)
+        # The party's combat actions: skill casts and cast ends, chain windows, effects added and
+        # removed (buffs on the party, debuffs and crowd control the party applied), break-gauge
+        # readings. Exported per segment for the rotation, buff and break-gauge reviews.
+        self.actions = deque(maxlen=400_000)
+        self.discarded_actions = 0
+        # The held effect on each (epoch, target, instance): the game re-sends a held effect on the
+        # same instance (an aura every second, a re-applied debuff), which extends the kept row
+        # instead of adding one, and a removal names only the instance.
+        self._effects_held = {}
         self._dead = set()
         self.sequence = 0
         self.run = 1
@@ -332,6 +345,55 @@ class CombatSession:
             if now_ms - last < hold:
                 in_play.append(key)
         return in_play
+
+    def _keep_actions(self, actions, identity):
+        """Keep the decoded actions that concern the party: casts and cast ends by players and pets,
+        the local player's chain windows, effects on players and pets or applied by them (an enemy's
+        own buffs are kept only once the party has hit that enemy), and break-gauge readings."""
+        players, owners, epoch = identity["names"], identity["owners"], self.epoch
+        local = identity.get("local_id")
+        ours = lambda actor: actor in players or actor in owners or actor == local
+        for action in actions:
+            kind = action["kind"]
+            if kind in ("cast", "cast_end"):
+                keep = ours(action["actor"])
+            elif kind == "effect":
+                key = (epoch, action["target"], action["instance"])
+                held = self._effects_held.get(key)
+                if (held is not None and held["effect"] == action["effect"] and held.get("source") == action.get("source")
+                        and (held["duration_ms"] is None
+                             or action["timestamp_ms"] <= held.get("refreshed_ms", held["timestamp_ms"]) + held["duration_ms"] + 1500)):
+                    held["refreshed_ms"] = action["timestamp_ms"]     # still held: a refresh, not a new application
+                    held["duration_ms"] = action["duration_ms"]
+                    held["refreshes"] = held.get("refreshes", 0) + 1
+                    continue
+                keep = ours(action["target"]) or ours(action["source"]) or (epoch, action["target"]) in self._boss_hit_ms
+                if not keep and held is not None:                    # the instance now holds another effect
+                    held.setdefault("replaced_ms", action["timestamp_ms"])
+                    del self._effects_held[key]
+            elif kind == "effect_end":
+                keep = self._effects_held.pop((epoch, action["target"], action["instance"]), None) is not None
+            else:
+                keep = True                 # chain windows (the local player's) and gauge readings
+            if not keep:
+                continue
+            if len(self.actions) == self.actions.maxlen:
+                self.discarded_actions += 1
+            stored = {**action, "epoch": epoch}
+            self.actions.append(stored)
+            if kind == "effect":
+                if len(self._effects_held) >= 10_000:
+                    self._forget_lapsed_effects(action["timestamp_ms"])
+                self._effects_held[(epoch, action["target"], action["instance"])] = stored
+
+    def _forget_lapsed_effects(self, now_ms):
+        """Drop held effects that have run out: most expiries send no removal. Permanent effects
+        stay until removed, unless they alone fill the map."""
+        self._effects_held = {key: held for key, held in self._effects_held.items()
+                              if held["duration_ms"] is None
+                              or held.get("refreshed_ms", held["timestamp_ms"]) + held["duration_ms"] + 1500 >= now_ms}
+        if len(self._effects_held) >= 5_000:
+            self._effects_held.clear()
 
     def _check_boss_wipe(self, timestamp_ms, engine):
         attempt = self._boss_attempt
@@ -796,6 +858,8 @@ class CombatSession:
                     and any(r.run == self.run and isinstance(r.event,DamageEvent) and r.event.target_id == sample["entity"] and r.event.actor_id in self._allowed(r,"party") for r in self.records)):
                 self.runs[self.run]["recorded_final_boss"] = code
                 self.finish_run("configured_final_boss_death", timestamp_ms=sample["timestamp_ms"])
+        if engine_actions := getattr(engine, "actions", None):
+            self._keep_actions(engine_actions, identity)
         # Promote a sustained engagement to "major" by elapsed time since first contact,
         # not just by a hit span — so a mini-boss crosses the threshold and is held even
         # when its mechanic pause comes early (the crossing lands during the lull, driven
@@ -1611,6 +1675,8 @@ class CombatSession:
             is_dummy = bool(mob_code and npc_info(mob_code).get("isDummy"))
             current_target = {
                 "name": target["name"], "key": target["key"], "damage": target["damage"],
+                # The entity id in the current zone, so the overlay can show its break gauge.
+                "entity_id": int(target["id"]) if str(target.get("id", "")).isdigit() else None,
                 "is_player": target.get("is_player", False), "contributors": contributors,
                 "current_hp": current_hp, "max_hp": max_hp, "hp_pct": hp_pct, "ttk": ttk,
                 "ttk_fraction": ttk_fraction, "is_dummy": is_dummy, "also_targets": also_targets,
@@ -1651,6 +1717,110 @@ class CombatSession:
         rows = [row for row in rows if row]
         return clean({"version": 1, "epochs": rows[-32:], "omitted_epochs": max(0, len(rows)-32)})
 
+    def _actions_by_epoch(self):
+        """The kept actions per epoch, in arrival (time) order, with a parallel list of times."""
+        out = {}
+        for action in self.actions:
+            times, rows = out.setdefault(action["epoch"], ([], []))
+            times.append(action["timestamp_ms"])
+            rows.append(action)
+        return out
+
+    def _segment_actions(self, group, identity, actor_refs, players, entities, by_epoch):
+        """A segment's casts, effects, break-gauge readings and chain windows for its a2log, on the
+        segment's clock (seconds from its start). Only actors the segment already references appear:
+        party players and their pets cast; effects are those on them or on the enemies they fought.
+        A cast can start up to three seconds before the first hit it causes, so casts from just
+        before the segment are kept with a negative time; an effect applied earlier and still
+        active is kept, clipped to the segment and marked ``before``."""
+        times, rows = by_epoch.get(group["epoch"], ([], []))
+        start, end = group["start"], group["end"]
+        duration = max(0.001, (end - start) / 1000)
+        window = rows[bisect.bisect_left(times, start - 600_000):bisect.bisect_right(times, end + 600_000)]
+        at = lambda ms: round((ms - start) / 1000, 3)
+
+        def party_ref(actor):
+            ref = actor_refs.get(actor)
+            pet = entities.get(ref) if ref not in players else None
+            return ref if ref in players or (pet and pet.get("kind") == "pet" and pet.get("owner") in players) else None
+
+        ends, removals, applied = {}, {}, {}
+        for a in window:
+            if a["kind"] == "cast_end":
+                ends.setdefault((a["actor"], a["skill"], a["seq"]), []).append(a["timestamp_ms"])
+            elif a["kind"] == "effect_end":
+                removals.setdefault((a["target"], a["instance"]), []).append((a["timestamp_ms"], a["reason"]))
+            elif a["kind"] == "effect":
+                applied.setdefault((a["target"], a["instance"]), []).append(a["timestamp_ms"])
+        casts, effects, gauge, chains, last_gauge, chain_open = [], [], [], [], {}, {}
+        local = actor_refs.get(identity.get("local_id"))
+        for a in window:
+            kind, ms = a["kind"], a["timestamp_ms"]
+            if kind == "cast" and start - 3000 <= ms <= end + 1000:
+                source = party_ref(a["actor"])
+                if source is None:
+                    continue
+                skill = normalize_skill(a["skill"])
+                row = {"t": at(ms), "source": source, "skill_id": skill, "skill": skill_name(skill)}
+                target = actor_refs.get(a["target"])
+                if a["at_target"] and target and target != source:
+                    row["target"] = target
+                if a.get("cooldown_ms"):
+                    row["cooldown_ms"] = a["cooldown_ms"]
+                finished = [t for t in ends.get((a["actor"], a["skill"], a["seq"]), ()) if 0 <= t - ms <= 5000]
+                if finished:
+                    row["cast_ms"] = min(finished) - ms
+                casts.append(row)
+            elif kind == "effect" and ms <= end:
+                target = actor_refs.get(a["target"])
+                skill = normalize_skill(a.get("skill") or a["effect"] // 10)
+                if target is None or not has_skill(skill):
+                    continue                # not on a segment actor, or not a named game effect
+                # A removal names only the instance, and the game reuses instances: it belongs to the
+                # latest application before it, and the next application on the instance ends this one.
+                key = (a["target"], a["instance"])
+                later = applied.get(key, ())
+                following = min((t for t in (next(iter(later[bisect.bisect_right(later, ms):]), None), a.get("replaced_ms"))
+                                 if t is not None), default=None)
+                removal = next((r for r in removals.get(key, ()) if ms <= r[0] and (following is None or r[0] < following)), None)
+                stop = removal[0] if removal else (a.get("refreshed_ms", ms) + a["duration_ms"] if a["duration_ms"] is not None else None)
+                if following is not None and (stop is None or following < stop):
+                    stop = following
+                if stop is not None and stop <= start:
+                    continue                # over before the segment began
+                row = {"t": max(0.0, at(ms)), "end": round(min(duration, (stop - start) / 1000), 3) if stop is not None else round(duration, 3),
+                       "target": target, "skill_id": skill, "skill": skill_name(skill), "effect_id": a["effect"]}
+                source = actor_refs.get(a["source"])
+                if source:
+                    row["source"] = source
+                if a["duration_ms"] is not None:
+                    row["duration_ms"] = a["duration_ms"]
+                if a.get("refreshes"):
+                    row["refreshes"] = a["refreshes"]
+                if removal and removal[0] <= end:
+                    row["ended"] = "expired" if removal[1] == 1 else "removed"
+                if ms < start:
+                    row["before"] = True
+                effects.append(row)
+            elif kind == "gauge" and start <= ms <= end:
+                entity = actor_refs.get(a["entity"])
+                if entity is None or last_gauge.get(entity) == (a["max"], a["current"]):
+                    continue
+                last_gauge[entity] = (a["max"], a["current"])
+                gauge.append({"t": at(ms), "entity": entity, "max": a["max"], "current": a["current"]})
+            elif kind in ("chain_open", "chain_close") and local in players and start - 3000 <= ms <= end + 1000:
+                if kind == "chain_open":
+                    chain_open[a["next"]] = (ms, a["skill"])
+                elif a["next"] in chain_open:
+                    opened, skill = chain_open.pop(a["next"])
+                    chains.append({"t": at(opened), "end": at(ms), "player": local, "skill_id": normalize_skill(skill),
+                                   "next_id": normalize_skill(a["next"]), "next": skill_name(normalize_skill(a["next"]))})
+        for nxt, (opened, skill) in chain_open.items():
+            chains.append({"t": at(opened), "player": local, "skill_id": normalize_skill(skill),
+                           "next_id": normalize_skill(nxt), "next": skill_name(normalize_skill(nxt))})
+        chains.sort(key=lambda c: c["t"])
+        return casts, effects, gauge, chains
+
     def to_a2log(self, scope="party", title=None, segment_id="all"):
         from ..combat import a2log
         allowed_for = self._allowances(scope)
@@ -1658,6 +1828,7 @@ class CombatSession:
         if segment_id != "all":
             groups = [g for g in groups if g["id"] == segment_id] if segment_id else groups[-1:]
         players, segments = {}, []
+        by_epoch = self._actions_by_epoch()
         for index, group in enumerate(groups):
             identity = self.identities[group["epoch"]]
             hits, events, entities = [], [], {}
@@ -1783,6 +1954,7 @@ class CombatSession:
                 else:
                     health.append({"t": t, "entity": eid, "current": sample["current"],
                         "max": sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("reportedMaxHp")})
+            casts, effects, gauge, chains = self._segment_actions(group, identity, actor_refs, players, entities, by_epoch)
             if hits or events:
                 bosses = [e for e in entities.values() if e.get("is_boss")]
                 run = self.runs[group["run"]]
@@ -1813,6 +1985,7 @@ class CombatSession:
                     "boss": bosses[0]["name"] if bosses else None,
                     "killed": any(e["kind"] == "death" and e["target"] in {b["id"] for b in bosses} for e in events),
                     "hits": hits, "events": sorted(events, key=lambda e: e["t"]), "entities": list(entities.values()), "health": health,
+                    "casts": casts, "effects": effects, "gauge": gauge, "chains": chains,
                     "start": datetime.fromtimestamp(group["start"] / 1000, timezone.utc).isoformat(),
                     "duration": max(0.001, (group["end"] - group["start"]) / 1000),
                     "capture_loss": self.losses_within(group["start"], group["end"])})
@@ -1824,7 +1997,8 @@ class CombatSession:
         from ..combat.quality import DECODER
         evidence = {**self.capture_evidence, "decoder":DECODER, "app_version":__version__,
                     "discarded_effects":self.discarded, "discarded_segments":self.discarded_segments, "out_of_scope_effects":self.out_of_scope,
-                    "discarded_telemetry":self.discarded_telemetry, "loss_attribution": "segment"}
+                    "discarded_telemetry":self.discarded_telemetry, "discarded_actions":self.discarded_actions,
+                    "loss_attribution": "segment"}
         npc_diagnostics = self.npc_diagnostics(g["epoch"] for g in groups)
         exported_scope = scope
         if scope == "auto":

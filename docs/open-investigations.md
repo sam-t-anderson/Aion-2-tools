@@ -166,6 +166,13 @@ The eight distinct diagnostic captures with raw TCP recording (10–15 October; 
 
 **What it enables** (the roadmap tracks these): a cast timeline and rotation per player; real cast/lock times and cooldowns for the optimizer's kits and a skill-cooldown overlay; chain usage; buff and debuff uptime with sources; crowd control landed and how long it held; each player's break-gauge contribution and the break windows; dodges and leaps; NPC casts for a boss-ability timeline. **Still undecoded:** resources, shield absorption, interrupts, misses, mitigation, the unit and map transform of positions, and PvP rounds; overheal is computable from the HP feed but not yet checked.
 
+**Built into 0.2.306, and what building it showed.**
+
+- **Effect instances are re-sent and reused.** Of 41,246 timed effect applications in the 15 October capture, only 1,252 have a removal within their duration (plus 1.5 s), 29,376 have no removal at all (the client expires them itself), and 10,617 see another application on the same target and instance before any removal. Those are refreshes — a Chanter Mantra is re-sent every second on its instance; an Ice Chain slow on Nazmun was re-applied 13 times in 29 s and expired 5 s after the last — or the instance number reused for a different effect. Only one removal came later than its duration with nothing in between. The meter therefore keeps one row per held effect, extended by each refresh from the same source, and ends a row at the next application on its instance; a removal belongs to the latest application before it.
+- **Skill families.** A family zeroes a skill id's last four digits, but the class system actions share the `xx00` family: Dodge (`11000100`) and the Gladiator weapon equip (`11000000`) are different actions. They stay whole.
+- **The listed Stagger Gauge Damage matches the gauge.** For 53 of 55 skills seen alone in a read, the drop equals the "N Stagger Gauge Damage" in the bundled skill description; the review splits a drop shared by several hits by those values.
+- **Cast lock and next press agree.** For the recording player, the time from a cast to its cast end matches the median time to the next press while chaining (Rending Blow 0.34 s against the kit's 0.55 s, Overhead Slam 0.35 s against 0.45 s), so the game sends the cast end as the next action starts. Players cancel animations: the fastest tenth of next presses are shorter still. `calibrate --timings` reports both.
+
 ## Classification review of recent uploads (16 October): one real defect, the rest data-gated
 
 The 51 newest public logs on the live server (889 encounter contexts, 15–16 October, all Live Meter sessions) tabulated by instance, difficulty, encounter type and boss role:

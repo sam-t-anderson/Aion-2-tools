@@ -1070,12 +1070,17 @@ class Handler(BaseHTTPRequestHandler):
                 if body["overlay_bar_style"] not in ("flat", "gradient"):
                     raise ValueError("overlay_bar_style must be flat or gradient")
                 cur["overlay_bar_style"] = body["overlay_bar_style"]
+            if "overlay_cooldowns_position" in body:
+                if body["overlay_cooldowns_position"] not in ("bottom", "top"):
+                    raise ValueError("overlay_cooldowns_position must be bottom or top")
+                cur["overlay_cooldowns_position"] = body["overlay_cooldowns_position"]
             if "overlay_text_autocontrast" in body:
                 if body["overlay_text_autocontrast"] not in ("off", "blend", "luminance"):
                     raise ValueError("overlay_text_autocontrast must be off, blend or luminance")
                 cur["overlay_text_autocontrast"] = body["overlay_text_autocontrast"]
             _ui_bool_flags = ("tray_on_close", "overlay_show_contribution", "overlay_show_target",
                               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
+                              "overlay_show_cooldowns", "overlay_show_break_gauge",
                               "meter_reset_after_battle", "meter_reset_on_boss_start", "meter_show_dummy_parse", "overlay_show_combat_power",
                               "overlay_only_in_combat", "overlay_auto_expand",
                               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
@@ -1098,6 +1103,7 @@ class Handler(BaseHTTPRequestHandler):
                               ("overlay_font_weight", 400, 800), ("overlay_bg_opacity", 0, 100),
                               ("overlay_bg_zoom", 50, 200), ("overlay_bg_darken", 0, 100),
                               ("overlay_interpolate_ms", 50, 1000),
+                              ("overlay_cooldowns_min_s", 1, 120), ("overlay_cooldowns_max", 1, 16),
                               ("rtss_rows", 1, 24), ("rtss_interval_ms", 100, 5000),
                               # Remembered overlay screen positions (per overlay). Wide
                               # bounds cover multi-monitor layouts (can be negative).
@@ -1368,6 +1374,9 @@ def ui_settings() -> dict:
                 "community_heartbeat": True,
                 "overlay_show_contribution": True, "overlay_show_target": True,
                 "overlay_show_deaths": True, "overlay_show_enemy_hp": False, "overlay_show_ttk": False,
+                # Skill-cooldown strip and boss break-gauge bar (both off by default).
+                "overlay_show_cooldowns": False, "overlay_cooldowns_min_s": 3, "overlay_cooldowns_max": 8,
+                "overlay_cooldowns_position": "bottom", "overlay_show_break_gauge": False,
                 "meter_reset_after_battle": False, "meter_reset_on_boss_start": True, "meter_reset_delay": 5, "meter_max_records": 20,
                 "meter_show_dummy_parse": True, "meter_dummy_record_seconds": 60,
                 "overlay_show_combat_power": True, "overlay_show_community_rank": False, "overlay_live_community_rank": False,

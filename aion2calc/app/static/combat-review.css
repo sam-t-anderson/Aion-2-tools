@@ -39,3 +39,4 @@
 .parse{display:inline-block;min-width:2.4em;padding:1px 7px;border-radius:999px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;color:var(--q);border:1px solid color-mix(in srgb,var(--q) 55%,transparent);background:color-mix(in srgb,var(--q) 14%,transparent)}
 .parse.provisional{opacity:.6;font-weight:600}
 .q-grey{--q:#8a8f9c}.q-green{--q:#1eff00}.q-blue{--q:#3d8bff}.q-purple{--q:#b04cf2}.q-orange{--q:#ff8000}.q-pink{--q:#e268a8}.q-gold{--q:#e5cc80}.q-none{--q:#6b7080}
+.cr-skill-icon{vertical-align:middle;border-radius:3px}.cr-gauge{display:block;width:100%;height:110px;background:#8881;margin:6px 0 10px;border-radius:4px}

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import time
 import json
+import math
+import struct
 import unicodedata
 from collections import deque
 from importlib.resources import files
@@ -996,6 +998,155 @@ def scan_break_gauges(frame: bytes) -> list[tuple[int, int, int, int]]:
     if not 0 < maximum <= 1_000_000 or current > maximum:
         return []
     return [(entity[0], maximum, current, frame[at + 10])]
+
+
+_PERMANENT = 2**64 - 1        # an effect duration of all ones: it lasts until removed
+
+
+def _f32(data: bytes, at: int) -> float | None:
+    if at + 4 > len(data):
+        return None
+    value = struct.unpack_from("<f", data, at)[0]
+    return value if math.isfinite(value) and abs(value) < 10_000_000 else None
+
+
+def _final_varint(data: bytes, start: int) -> int | None:
+    """The varint ending exactly at the end of ``data`` (starting at or after ``start``)."""
+    for width in range(1, 5):
+        at = len(data) - width
+        if at < start:
+            break
+        parsed = _var(data, at)
+        if parsed is not None and parsed[1] == len(data) and (at == start or not data[at - 1] & 0x80):
+            return parsed[0]
+    return None
+
+
+def _skill_id(value: int) -> bool:
+    return 1_000_000 <= value <= 299_999_999
+
+
+def _cast(body: bytes) -> list[dict]:
+    """``02 38``: actor, ``00``, skill (u32), sequence, kind (2 = at a target, 0 = self or a proc),
+    target, then facing (f32), the target's position (3 x f32, kind 2), and the skill's cooldown in
+    milliseconds as the record's last varint."""
+    actor = _var(body, 0)
+    if actor is None or not 100 <= actor[0] <= 9_999_999:
+        return []
+    at = actor[1]
+    if at + 7 > len(body) or body[at] != 0:
+        return []
+    skill, seq, kind = int.from_bytes(body[at + 1:at + 5], "little"), body[at + 5], body[at + 6]
+    if kind not in (0, 2) or not _skill_id(skill):
+        return []
+    target = _var(body, at + 7)
+    if target is None:
+        return []
+    rest = body[target[1]:]
+    cast = {"kind": "cast", "actor": actor[0], "skill": skill, "seq": seq, "at_target": kind == 2,
+            "target": target[0]}
+    facing = _f32(rest, 0)
+    if facing is not None and 0 <= facing <= 360:
+        cast["facing"] = round(facing, 1)
+    if kind == 2 and len(rest) >= 16:
+        position = [_f32(rest, 4 * i) for i in (1, 2, 3)]
+        if None not in position:
+            cast["position"] = [round(v, 1) for v in position]
+    cooldown = _final_varint(rest, 4)
+    if cooldown is not None and cooldown <= 3_600_000:
+        cast["cooldown_ms"] = cooldown
+    return [cast]
+
+
+def _cast_end(body: bytes) -> list[dict]:
+    """``06 38``: actor, skill (u32), sequence, flag -- the cast's end (the local player and NPCs)."""
+    actor = _var(body, 0)
+    if actor is None or not 100 <= actor[0] <= 9_999_999 or actor[1] + 6 > len(body):
+        return []
+    at = actor[1]
+    skill = int.from_bytes(body[at:at + 4], "little")
+    if not _skill_id(skill):
+        return []
+    return [{"kind": "cast_end", "actor": actor[0], "skill": skill, "seq": body[at + 4], "flag": body[at + 5]}]
+
+
+def _effect(body: bytes) -> list[dict]:
+    """``2b 38``: target, type, instance (varint), effect (u32), duration (u64 ms), start (u64), source,
+    a byte, the skill that applied it (u32), two bytes, then a position (3 x f32)."""
+    target = _var(body, 0)
+    if target is None or not 100 <= target[0] <= 9_999_999 or target[1] >= len(body):
+        return []
+    instance = _var(body, target[1] + 1)
+    if instance is None:
+        return []
+    at = instance[1]
+    if at + 20 > len(body):
+        return []
+    effect = int.from_bytes(body[at:at + 4], "little")
+    duration = int.from_bytes(body[at + 4:at + 12], "little")
+    source = _var(body, at + 20)
+    if effect <= 0 or source is None:
+        return []
+    row = {"kind": "effect", "target": target[0], "instance": instance[0], "effect": effect,
+           "duration_ms": None if duration == _PERMANENT else duration, "source": source[0]}
+    if duration != _PERMANENT and duration > 86_400_000:
+        return []
+    at = source[1]
+    if at + 5 <= len(body):
+        skill = int.from_bytes(body[at + 1:at + 5], "little")
+        if _skill_id(skill):
+            row["skill"] = skill
+    return [row]
+
+
+def _effect_ends(body: bytes) -> list[dict]:
+    """``2c 38``: target, a count, then per removed effect ``00``, its instance and a reason
+    (1 = it expired)."""
+    target = _var(body, 0)
+    if target is None or not 100 <= target[0] <= 9_999_999 or target[1] >= len(body):
+        return []
+    count, at, out = body[target[1]], target[1] + 1, []
+    for _ in range(min(count, 64)):
+        instance = _var(body, at + 1)
+        if instance is None or instance[1] >= len(body):
+            break
+        out.append({"kind": "effect_end", "target": target[0], "instance": instance[0], "reason": body[instance[1]]})
+        at = instance[1] + 1
+    return out
+
+
+def scan_actions(frame: bytes) -> list[dict]:
+    """Decode the combat-action records in one frame, each a dict with a ``kind``: skill casts and
+    cast ends, the local player's chain windows (``chain_open``: a skill opened the window for its
+    chain skill; ``chain_close``), effect instances added and removed on any entity in range
+    (buffs, debuffs, crowd control), and boss break-gauge readings. The layouts were decoded from
+    diagnostic captures against the decoded damage stream (see docs/open-investigations.md)."""
+    length = read_varint(frame, 0)
+    if length.length <= 0 or length.length + 2 > len(frame):
+        return []
+    pos = length.length
+    opcode, body = frame[pos:pos + 2], frame[pos + 2:]
+    try:
+        if opcode == b"\x02\x38":
+            return _cast(body)
+        if opcode == b"\x06\x38":
+            return _cast_end(body)
+        if opcode == b"\x2b\x38":
+            return _effect(body)
+        if opcode == b"\x2c\x38":
+            return _effect_ends(body)
+        if opcode == b"\x18\x38" and len(body) >= 9 and body[4] == 1:
+            skill, chain = int.from_bytes(body[0:4], "little"), int.from_bytes(body[5:9], "little")
+            return [{"kind": "chain_open", "skill": skill, "next": chain}] if _skill_id(skill) and _skill_id(chain) else []
+        if opcode == b"\x19\x38" and len(body) >= 5 and body[0] == 1:
+            chain = int.from_bytes(body[1:5], "little")
+            return [{"kind": "chain_close", "next": chain}] if _skill_id(chain) else []
+        if opcode == b"\x05\xe0":
+            return [{"kind": "gauge", "entity": e, "max": m, "current": c, "state": st}
+                    for e, m, c, st in scan_break_gauges(frame)]
+    except (IndexError, struct.error):
+        return []
+    return []
 
 
 def scan_zone_state(data: bytes) -> tuple[bool, int | None]:

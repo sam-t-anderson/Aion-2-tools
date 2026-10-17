@@ -10,9 +10,9 @@ from copy import deepcopy
 import time
 
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
-from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_break_gauges, _damage_frames
+from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, _damage_frames
 from .framing import walk, bundle_batch
-from .lookup import job_from_skill, skill_name, npc_info, npc_name, dungeon_final_bosses
+from .lookup import job_from_skill, skill_family, skill_name, npc_info, npc_name, dungeon_final_bosses
 from .ping import PingTracker
 import json
 from importlib.resources import files
@@ -39,6 +39,17 @@ class MeterEngine:
         self.local_identity_from_game = False
         self.local_profile: dict[str, int | str] = {}
         self.telemetry: list[dict] = []
+        # Combat actions decoded in the last read (casts, cast ends, chain windows, effects added
+        # and removed, break-gauge readings), each stamped with the read's time. The session keeps
+        # the party's; the live state below serves the overlay.
+        self.actions: list[dict] = []
+        # The local player's skill cooldowns, by skill family: the cast time and the cooldown the
+        # game sent with the cast (cooldown reduction included). Kept across zone loads.
+        self.cooldowns: dict[int, dict] = {}
+        # Chain skills whose window is open for the local player: chain skill -> opened at (ms).
+        self.chain_windows: dict[int, int] = {}
+        # The latest break-gauge reading per boss/elite: entity -> (maximum, current, at ms).
+        self.break_gauges: dict[int, tuple[int, int, int]] = {}
         self.last_framing_errors = 0
         self.names: dict[int, str] = {}
         self.known_players: set[int] = set()
@@ -142,6 +153,7 @@ class MeterEngine:
 
     def _consume_locked(self, buffer: bytes, timestamp_ms: int | None, stream_id: str) -> list[DamageEvent | HealEvent]:
         self.telemetry = []
+        self.actions = []
         self.last_framing_errors = 0
         pending = self._pending[stream_id]
         pending.extend(buffer)
@@ -224,11 +236,10 @@ class MeterEngine:
             self.telemetry.extend(self._player_deaths_from_hp(current, timestamp_ms))
             self._identify_boss_by_hp(current, maximum)
             self.telemetry.extend({"kind": "death", "entity": eid, "timestamp_ms": timestamp_ms} for eid in scan_deaths(packet))
-            # Bosses and elites carry a break gauge; trash does not. The session uses it to tell
-            # a boss pull from a tanky trash pack for the live overlay's reset.
-            for entity_id, gauge_max, _current, _state in scan_break_gauges(packet):
-                self.spawn_info.setdefault(entity_id, {})["breakGauge"] = gauge_max
-                self.break_gauge_seen = True
+            for action in scan_actions(packet):
+                action["timestamp_ms"] = timestamp_ms
+                self._note_action(action)
+                self.actions.append(action)
             self.live_hp.update(current)
             for entity_id, value in maximum.items():
                 self.spawn_info.setdefault(entity_id, {})["maxHp"] = value
@@ -455,6 +466,27 @@ class MeterEngine:
             self.known_entities.add(matches[0])
             self.local_identity_rebound = True
 
+    def _note_action(self, action: dict) -> None:
+        kind = action["kind"]
+        if kind == "gauge":
+            # Bosses and elites carry a break gauge; trash does not. The session uses it to tell
+            # a boss pull from a tanky trash pack for the live overlay's reset.
+            self.spawn_info.setdefault(action["entity"], {})["breakGauge"] = action["max"]
+            self.break_gauge_seen = True
+            self.break_gauges[action["entity"]] = (action["max"], action["current"], action["timestamp_ms"])
+        elif kind == "cast" and action["actor"] == self.local_player_id and action.get("cooldown_ms"):
+            family = skill_family(action["skill"])
+            self.cooldowns[family] = {"skill": action["skill"], "cast_ms": action["timestamp_ms"],
+                                      "cooldown_ms": action["cooldown_ms"]}
+            if len(self.cooldowns) > 256:          # bound: forget the stalest
+                del self.cooldowns[min(self.cooldowns, key=lambda k: self.cooldowns[k]["cast_ms"])]
+        elif kind == "chain_open":
+            self.chain_windows[action["next"]] = action["timestamp_ms"]
+            if len(self.chain_windows) > 64:
+                del self.chain_windows[min(self.chain_windows, key=self.chain_windows.get)]
+        elif kind == "chain_close":
+            self.chain_windows.pop(action["next"], None)
+
     def _reset_zone(self, timestamp_ms: int) -> None:
         if self.local_identity_from_game and self.local_player_id is not None and self.names.get(self.local_player_id):
             self._local_name_hint = self.names[self.local_player_id]
@@ -468,6 +500,7 @@ class MeterEngine:
         self.targets.clear()
         self.healers.clear()
         self.live_hp.clear()
+        self.break_gauges.clear()
         self.spawn_info.clear()
         self.npc_trace.clear()
         self.npc_scan_calls = 0

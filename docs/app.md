@@ -281,6 +281,13 @@ does the same (`pip install pywebview` for the transparent window).
 
 Use **Hide overlay** to hide it and **Open overlay** to show it again. Drag its non-interactive background to reposition it; use the opacity slider directly to change opacity. Repeated Open requests reuse the existing overlay.
 
+### Skill cooldowns and the break gauge
+
+Two overlay readouts are off by default under **Settings → Live meter overlay**:
+
+- **Show a strip of your skills on cooldown.** Your skills on cooldown appear as icons that count down, soonest ready first. A skill lights up as it comes off cooldown and stays lit for three seconds; an open chain-skill window shows first with a green ring. The strip uses the cooldown the game sends with each of your casts, so your cooldown reduction is already included and there is nothing to set up. Choose the shortest cooldown shown (3 seconds by default, so fillers stay out), how many icons (8) and where the strip sits (below the meter, or above the player rows). It only knows skills you have used since Start, and when a proc resets a cooldown the strip catches up on your next cast.
+- **Show the current target's break (stagger) gauge.** Bosses and elites carry a break gauge. The boss card shows what is left (*Break 63%*, or *BROKEN* while the enemy is staggered) with a bar beneath the HP and kill-progress bars.
+
 ### In-game through RivaTuner Statistics Server (RTSS)
 
 **Settings → Live meter overlay → In-game (RTSS)** draws the meter inside the game itself, through RivaTuner Statistics Server (the on-screen-display server MSI Afterburner installs, also available on its own). Windows only, off by default, and a first draft: please report what you see. With it on, the app writes the meter text — the fight and its elapsed time, then the top rows (name, rate per second, share) for the chosen metric — into RTSS's own shared memory, in an OSD slot it owns under the name `Aion2Calc`, and RTSS draws that text in the game the way it draws its frame counter. Nothing is injected into or loaded by the game by this app; RTSS does its own hooking, under its own terms, and whether to run it is your choice. The text refreshes every half second by default (100 ms to 5 s); **Rows**, **Metric** (DPS, HPS, damage taken) and **Style** (plain text, or class colours through RTSS colour tags) shape it; the status line says whether RTSS was found and which slot the text is in.
@@ -351,6 +358,17 @@ Choose **Table**, **Timeline** or **Events** for the detailed metrics. Graph and
 Community lists show recorded-event count, build and encounter icons. PvP classes are deduplicated; unknown classes, absent bosses and unavailable portraits use an AION 2 emblem. Open a community entry to review only its selected combat mode, or choose **All recorded modes** in the focused viewer. Mode filters select recorded encounters and retain their original ranking indices; they do not infer the mode of ambiguous effects within a single encounter. Whole-run progression is available in the unfiltered view.
 
 Click a character to open its focused build page, then **Back to log** to restore the same review selections. Saved official profiles display the available portrait, stats, equipment slots, skills, passives, stigmas, pet/wings and boards. Full recorded build information retains all source sections, including rolls and specialties. Current official lookups remain previews and never replace historical profiles. Missing assets and pet genus stay unavailable when not supplied.
+
+### Casts, buffs and break gauge
+
+Fights recorded by the live meter from 0.2.306 carry the game's own records of each skill cast, each buff and debuff with its duration, chain-skill windows and the boss break gauge. The **Casts, buffs and break gauge** section below the tables summarises them in four tabs; the Player filter above applies to them.
+
+- **Rotation.** Skill casts, casts per minute, procs and dodges per player; a cast timeline across the fight (hover a cast for its time, target and cooldown; the line under a cast is how long it locked the caster, recorded for the player who made the recording only); and a table per skill with the average gap, the cooldown the game sent, *cooldown usage* (casts made out of how many fit between the first cast and the end of the fight) and the cast time. Chain skills show how often the follow-up was used while its window was open. **Hide procs and passive effects** is on by default.
+- **Buffs & debuffs.** Uptime of each buff on the party and who gave it, each debuff on enemies and who applied it, and enemy effects on the party. A window runs from an effect's application to its removal, or to its stated duration when the game sent no removal; re-applications while it is held extend it, and overlapping windows count once.
+- **Crowd control.** What the party landed, by player and state (stun, knockdown, airborne, slow and the others the skill descriptions name), how many times including re-applications, how long it held and how often the game removed it early. The state comes from the skill's description, the timing from the effect records.
+- **Break gauge.** Each boss's gauge over the fight with its breaks shaded, each player's share of the gauge drained, and the damage each player dealt while it was broken. A drop shared by several hits in the same read is split by each skill's listed Stagger Gauge Damage.
+
+Everything comes from what the game server broadcasts: in a crowd, the casts of distant players can be missing, and resources, shields, interrupts and misses are still not decoded. Logs recorded before 0.2.306 and imported logs do not carry these records. A shared log shows the section once its sharing server runs 0.2.306 or later.
 
 ### Recorded pressure and evidence coverage
 

@@ -44,7 +44,11 @@ def clean_manifest(value):
             if type(row.get(key)) is int and 0 <= row[key] <= 2**53-1:
                 source[key] = row[key]
         sources.append(source)
-    return {"version":1, "sources":sources, "note":NOTE}
+    manifest = {"version":1, "sources":sources, "note":NOTE}
+    omitted = value.get("omitted_actions")
+    if isinstance(omitted, list) and omitted and all(key in ("casts", "effects", "gauge", "chains") for key in omitted):
+        manifest["omitted_actions"] = sorted(set(omitted))
+    return manifest
 
 
 def combine(sources):
@@ -148,7 +152,9 @@ def combine(sources):
                 if entity.get("owner"):
                     entity["owner"] = ref(entity["owner"])
             for key, fields in (("hits", ("player", "source", "target", "pet")), ("events", ("source", "target")),
-                                ("buffs", ("player",)), ("health", ("entity",)), ("positions", ("entity",))):
+                                ("buffs", ("player",)), ("health", ("entity",)), ("positions", ("entity",)),
+                                ("casts", ("source", "target")), ("effects", ("target", "source")),
+                                ("gauge", ("entity",)), ("chains", ("player",))):
                 for event in segment.get(key, []):
                     for field in fields:
                         if field in event:
@@ -172,13 +178,20 @@ def combine(sources):
     for key, limit in (("hits", LIMITS["hits"]), ("events", LIMITS["hits"]), ("health", LIMITS["hp"]), ("positions", LIMITS["hp"]), ("ping", LIMITS["hp"])):
         if sum(len(s.get(key, [])) for s in segments) > limit:
             raise ValueError(f"Combined {key} exceeds review limits; choose a shorter range")
+    # Casts, effect windows, chain windows and gauge readings (0.2.306) add up fast across parts:
+    # past one document's limit a combined review leaves them out, and each part still has them.
+    omitted_actions = [key for key in ("casts", "effects", "gauge", "chains")
+                       if sum(len(s.get(key, [])) for s in segments) > LIMITS[key]]
+    for segment in segments:
+        for key in omitted_actions:
+            segment.pop(key, None)
     captures = [d["meta"].get("capture_quality", {}) for _, d, _, _ in loaded]
     evidence = {k:max(c.get(k, 0) for c in captures) for k in (*COUNTERS, "tcp_pending_bytes")}
     evidence.update(reconstructed=True, storage_boundary=True,
                     transport_monitored=all(c.get("transport_monitored") is True for c in captures))
     meta = {"source":"Aion 2 Calc combined recording review", "title":f"Recording parts {first}–{last}",
             "capture_scope":next(iter(scopes)), "capture_quality":evidence, "contribute":"no",
-            "reconstruction":{"version":1, "sources":provenance}}
+            "reconstruction":{"version":1, "sources":provenance, **({"omitted_actions":omitted_actions} if omitted_actions else {})}}
     for key in ("region", "game_patch", "installed_build", "installed_build_namespace", "installed_build_cohort", "installed_build_source", "launcher_build", "launcher_build_namespace", "launcher_build_source", "file_version", "installed_content_build", "installed_content_namespace", "installed_content_source"):
         values = {d["meta"].get(key) for _, d, _, _ in loaded}
         if len(values) == 1 and next(iter(values)):

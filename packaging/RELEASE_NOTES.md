@@ -1,3 +1,21 @@
+## Casts, buffs and the break gauge in log reviews; a skill-cooldown strip and break-gauge bar on the overlay; measured cast timings for the optimizer (0.2.306)
+
+**Log reviews show each fight's casts, buffs and debuffs, crowd control and break gauge.** The live meter now keeps the game's own records of these, decoded from the supplied captures (see *Combat records decoded from the diagnostic captures* in the open investigations). A new **Casts, buffs and break gauge** section in the app's Combat Logs and on the website log page has four tabs:
+- **Rotation:** each player's casts per minute, procs and dodges; a cast timeline across the fight (hover a cast for its time, target and cooldown; for the player who made the recording, how long it locked them); a table per skill with the cooldown the game sent, *cooldown usage* (casts made out of how many fit) and the cast time; and how often each chain follow-up was used while its window was open.
+- **Buffs & debuffs:** uptime of each buff on the party and who gave it, of each debuff on enemies and who applied it, and of enemy effects on the party.
+- **Crowd control:** what the party landed, by player and state (stun, knockdown, airborne, slow and so on), how many times, how long each held and how often the game removed it early.
+- **Break gauge:** each boss's gauge over the fight with its breaks, each player's share of the gauge drained, and the damage dealt while it was broken.
+
+This is what the game server broadcasts: in a crowd, distant players' casts can be missing; the cast time is recorded for your own character only; crowd-control states are named from the skill descriptions; resources, shields, interrupts and misses are still not decoded. Logs recorded before 0.2.306 and imported logs do not carry these records, and a shared log shows the section once its sharing server is updated.
+
+**A strip of your skills on cooldown on the overlay (off by default).** Turn it on under **Settings → Live meter overlay**. Your skills on cooldown count down, soonest ready first; a skill lights up as it comes off cooldown, and an open chain-skill window shows first. It uses the cooldown the game sends with each of your casts, so your cooldown reduction is included and there is nothing to set up. Settings choose the shortest cooldown shown (3 s), the number of icons (8) and whether the strip sits below the meter or above the player rows. It only knows skills used since Start.
+
+**The current target's break gauge on the overlay (off by default).** The boss card shows what is left of a boss or elite's break gauge (*Break 63%*, or *BROKEN* while it is staggered) with a bar under the HP bar.
+
+**`calibrate --timings` reads the recorded casts.** For a recording from 0.2.306, `python -m aion2calc calibrate --capture <log> --timings` lists each skill's cooldown as the game sent it beside the skill table's (and the cooldown reduction that implies), its cast lock, and the fastest and typical time to your next press, next to the kit's estimated `TIMING`. It suggests values where at least ten presses disagree with the kit (reported only; the kits are unchanged). In the Gladiator capture, Rending Blow chains in 0.34 s against the kit's 0.55 s.
+
+**`calibrate --tune` prints its suggestions again** instead of stopping with an error.
+
 ## Fix: the live overlay resets only for real bosses, and keeps a finished fight on screen while you clear its adds (0.2.305)
 
 **Trash packs no longer reset the overlay or hold it.** Any enemy the party had fought for twelve seconds counted as a *major*. So a tanky trash pack reset the overlay, and a pack pulled just before a boss could stop the boss pull from resetting it. In the game's data, bosses and elites carry a break (stagger) gauge and trash does not. In the supplied captures every catalog boss had one and none of the 36 enemies promoted by the twelve-second rule did. Now only a catalog boss, or an enemy with a break gauge, resets or holds the overlay. Between bosses, the overlay shows everything since the last boss died.
