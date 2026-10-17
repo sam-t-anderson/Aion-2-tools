@@ -1150,7 +1150,11 @@ class Runner:
         A share server that supersedes (log server 0.2.93+) keeps one log per part: the later
         upload of the still-open part updates the earlier one in place, and the final upload after
         Stop does the same. Fully guarded, throttled, one in flight at a time, and never touches
-        capture."""
+        capture.
+
+        Called from ``status()`` with ``self.lock`` held, so it reads the session directly and must
+        never take that lock itself: it is a plain, non-reentrant ``threading.Lock``, and taking it
+        again from the thread that holds it blocks that thread for good with the lock still held."""
         try:
             if not self.running or self._fight_upload_busy or self._last_combat_at is None:
                 return
@@ -1163,9 +1167,12 @@ class Runner:
             live_rank = bool(ui.get("overlay_live_community_rank") and ui.get("overlay_show_community_rank"))
             if not (per_fight or live_rank):
                 return
-            with self.lock:
-                kills = int(getattr(self.session, "boss_kills", 0) or 0)
-                key = (len(self.session.records), self.session.run)
+            # No ``with self.lock`` here: the caller already holds it. Re-acquiring it deadlocked
+            # the request thread five seconds into the first pause after combat (0.2.297-0.2.300):
+            # the decoder then waited on the lock forever, so the meter froze, and every Stop timed
+            # out waiting for the decoder.
+            kills = int(getattr(self.session, "boss_kills", 0) or 0)
+            key = (len(self.session.records), self.session.run)
             if per_fight and kills > self._fight_upload_kills and key[0]:
                 reason = "boss"
             elif live_rank and key[0] and key != self._fight_upload_key:

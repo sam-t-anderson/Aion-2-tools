@@ -2,6 +2,7 @@
 part from a worker -- after a boss kill when the per-fight upload is on (the default, needing
 automatic uploads), or after any new fight for the opt-in live community-rank refresh -- but only
 when combat has gone idle, not more often than the throttle, and one at a time."""
+import threading
 import time
 
 from aion2calc.app.meter_runner import Runner
@@ -121,3 +122,74 @@ def test_setting_is_whitelisted_with_default_on(monkeypatch, tmp_path):
     monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
     from aion2calc.app import server
     assert server.ui_settings().get("meter_upload_per_fight") is True
+
+
+# -- the live status path: the check runs inside ``status()``, which holds the runner lock --------
+
+class _ReentryGuard:
+    """Stands in for the runner's plain ``threading.Lock``: an acquire by the thread that already
+    holds it is recorded and refused instead of hanging the test the way it hung the app."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._owner = None
+        self.reentries = []
+
+    def acquire(self, blocking=True, timeout=-1):
+        if self._owner == threading.get_ident():
+            self.reentries.append(threading.current_thread().name)
+            raise RuntimeError("runner lock re-acquired by the thread that holds it")
+        if not self._lock.acquire(blocking, timeout):
+            return False
+        self._owner = threading.get_ident()
+        return True
+
+    def release(self):
+        self._owner = None
+        self._lock.release()
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, *exc):
+        self.release()
+
+
+def _status_in_thread(r, compact, wait=5.0):
+    done = []
+    worker = threading.Thread(target=lambda: done.append(r.status(compact=compact)), daemon=True)
+    worker.start()
+    worker.join(wait)
+    return done
+
+
+def test_status_returns_once_a_fight_has_paused(monkeypatch, tmp_path):
+    """The reported freeze: five seconds into the first pause after combat, with automatic and
+    per-fight uploads on (the defaults), ``status()`` took the runner lock a second time from the
+    thread already holding it. The request never returned, the decoder waited on the lock for good
+    (the meter froze) and every Stop timed out waiting for the decoder. A 1 s trash pull is enough."""
+    r, calls = _armed_runner(monkeypatch, tmp_path)
+    for compact in (True, False):          # the overlay's compact view and the app's full view
+        assert _status_in_thread(r, compact), "status() blocked holding the runner lock"
+        assert r.lock.acquire(timeout=1.0), "the runner lock was left held: the decoder would starve"
+        r.lock.release()
+
+
+def test_status_never_retakes_the_runner_lock(monkeypatch, tmp_path):
+    """Every optional step ``status()`` runs under the lock -- the per-fight upload after a kill, the
+    live rank refresh, the observed field bosses, the rank badges -- armed at once: none may take the
+    lock again, and the per-fight upload still fires from the real call site."""
+    r, calls = _armed_runner(monkeypatch, tmp_path,
+                             overlay_show_community_rank=True, overlay_live_community_rank=True)
+    r.session.boss_kills = 1
+    r._field_bosses = {"character": "Spirited", "server": "2102", "faction": "asmodian", "kills": []}
+    monkeypatch.setattr(r, "_field_bosses_refresh", lambda *a: setattr(r, "_field_bosses_busy", False))
+    r._community_rank = {7: {"text": "95th", "scope": "class", "percentile": 95}}
+    guard = r.lock = _ReentryGuard()
+    for compact in (True, False):
+        r._fight_upload_at, r._field_bosses_at = float("-inf"), float("-inf")   # re-arm both gates
+        assert _status_in_thread(r, compact), "status() blocked"
+    assert guard.reentries == []
+    assert _fired(r, calls) and calls[0] == "boss"
+
