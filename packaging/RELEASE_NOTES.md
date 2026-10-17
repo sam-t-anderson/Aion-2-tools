@@ -1,3 +1,9 @@
+## Fix: the update prompt shows again when the app starts or a window reopens (0.2.303)
+
+**The app asks to install a new release again.** The prompt at launch waits for a background check of the Releases page, and a check that failed (no network yet right after Windows starts, GitHub unreachable or briefly rate-limited) counted as "no update" for six hours, so no prompt and no gold chip appeared. A window reopened from the tray is the same running process, so it never checked again either, and **Settings → Version** said "up to date" whether or not the check had worked.
+
+A failed check is now retried within two minutes and keeps any release an earlier check found; a successful one is trusted for an hour instead of six; a freshly opened window re-checks when the last check is ten minutes old; and the page looks again every two seconds while a check is running, so the prompt appears within seconds of opening the app. **Settings → Version** now says what the last check found (up to date as of a time, still checking, or why it could not check) and has a **Check now** button.
+
 ## Fix: the live overlay resets on a boss pull again, even after trash was left alive (0.2.302)
 
 **The overlay resets when a boss fight starts, even after trash the party hit and moved past.** Any enemy the party has been fighting for twelve seconds counts as a *major*, so the overlay holds through its pauses, and a major only counted as gone once its death record arrived. Trash the party hit and left alive, or that died without a death record, therefore stayed "in the fight" for the rest of the zone: every later boss pull kept the overlay on the old numbers, and the reset after a boss kill was blocked the same way. Found in a supplied Deus Research Base capture, where the boss Nazmun kept the reset point of two trash mobs the party had left 88 seconds earlier.

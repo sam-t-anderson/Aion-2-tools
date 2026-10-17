@@ -33,9 +33,12 @@ app (in a browser tab, it stops a few minutes after the last tab closes); **Quit
 stops it at once. Starting it again while it runs brings the window back instead of starting a
 second copy.
 
-**Updating.** When a newer release is out, a gold **Version … available** chip appears in the top
-bar and links to its download page (the app checks the Releases page every few hours). Install the
-new version over the old one. Your data is kept.
+**Updating.** When a newer release is out, the app asks within a few seconds of opening whether to
+install it, and a gold **Version … available** chip in the top bar links to its download page. It
+checks the Releases page when it starts or a window opens, then hourly; a check that fails (no
+network yet right after Windows starts, say) is retried within a couple of minutes. **Settings →
+Version** shows what the last check found, with **Check now** and **Install now**. Installing puts
+the new version over the old one. Your data is kept.
 
 **Your data** stays on your computer, in `%LOCALAPPDATA%\aion2calc` on Windows and
 `~/.aion2calc` on macOS and Linux (details in [app.md](app.md#where-your-data-is-saved)). If the

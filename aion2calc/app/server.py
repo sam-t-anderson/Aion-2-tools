@@ -365,22 +365,48 @@ def act_encounter_import(body: dict, log) -> dict:
 _UPDATE: dict = {}
 #: the latest published release of the app (GitHub's public API, no account needed)
 RELEASES_API = "https://api.github.com/repos/sam-t-anderson/Aion-2-tools/releases/latest"
+#: A successful release check is trusted this long.
+UPDATE_MAX_AGE_S = 3600
+#: A failed one (no network yet right after Windows starts, GitHub unreachable or rate-limited) is
+#: retried this soon -- it used to read as "up to date" for six hours, so the update prompt never came.
+UPDATE_RETRY_S = 120
+#: A freshly opened app window re-checks once the last check is this old, so reopening the app from
+#: the tray (the same process) or a quick restart sees a release published while it was running.
+UPDATE_FRESH_S = 600
+#: The Settings "Check now" button re-checks at most this often.
+UPDATE_FORCE_S = 15
 
 
-def update_info(wait: bool = False) -> dict | None:
-    """A newer release of the app, checked in the background every 6 hours so a slow or
-    unreachable network never holds up the page."""
-    if time.time() - _UPDATE.get("at", 0) >= 6 * 3600:
-        _UPDATE["at"] = time.time()
+def update_info(wait: bool = False, fresh: bool = False, force: bool = False) -> dict | None:
+    """A newer release of the app, checked in the background so a slow or unreachable network
+    never holds up the page (see the ``UPDATE_*`` intervals; one check runs at a time)."""
+    now = time.time()
+    running = _UPDATE.get("thread")
+    if _UPDATE.get("running") and running is not None:
+        if wait:
+            running.join(8)               # a check already under way: let a waiting caller see it end
+        return _UPDATE.get("info")
+    age = now - _UPDATE.get("at", 0)
+    due = (age >= (UPDATE_MAX_AGE_S if _UPDATE.get("ok") else UPDATE_RETRY_S)
+           or fresh and age >= UPDATE_FRESH_S or force and age >= UPDATE_FORCE_S)
+    if due:
         t = threading.Thread(target=_check_update, daemon=True)
+        _UPDATE.update(at=now, running=True, thread=t)
         t.start()
         if wait:
             t.join()
     return _UPDATE.get("info")
 
 
+def update_state() -> dict:
+    """What the last release check found, for the page: still checking, when it finished, and why
+    it failed (a failed check is not "up to date")."""
+    return {"checking": bool(_UPDATE.get("running")), "checked_at": _UPDATE.get("checked_at"),
+            "error": _UPDATE.get("error")}
+
+
 def _check_update() -> None:
-    info = None
+    info, error = None, None
     try:
         from .. import __version__
         req = urllib.request.Request(RELEASES_API, headers={"Accept": "application/vnd.github+json",
@@ -390,9 +416,12 @@ def _check_update() -> None:
         version = str(rel.get("tag_name") or "").lstrip("v")
         if version and _vt(version) > _vt(__version__):
             info = {"version": version, "url": rel.get("html_url")}
-    except Exception:
-        info = None
-    _UPDATE["info"] = info
+    except Exception as exc:   # noqa: BLE001 - offline or rate-limited: retried soon, never raised
+        error = f"{type(exc).__name__}: {exc}"[:200]
+    finally:
+        # A failed check keeps what an earlier one found: a network blip must not hide an update.
+        _UPDATE.update(info=_UPDATE.get("info") if error else info, ok=error is None, error=error,
+                       checked_at=time.time(), running=False)
 
 
 def _vt(v: str) -> tuple:
@@ -521,7 +550,8 @@ class Handler(BaseHTTPRequestHandler):
             s = SYNC.get("sync")
             from .. import __version__
             return self._json({"sync": s.state.as_dict() if s else None, "db": status(), "home": str(home()),
-                               "app": "aion2calc", "version": __version__, "update": update_info(),
+                               "app": "aion2calc", "version": __version__,
+                               "update": update_info(fresh=bool(q.get("fresh"))), "update_state": update_state(),
                                "update_prompt": ui_settings().get("auto_update", True)})
         if path == "/api/assets":
             from ..db.assets import report
@@ -1123,6 +1153,11 @@ class Handler(BaseHTTPRequestHandler):
                 raise PermissionError("settings import runs only on the computer running the app")
             from .settings_backup import import_settings
             return self._json(import_settings(body.get("document", body)))
+        if path == "/api/update/check":           # Settings "Check now": re-check the latest release
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("update checks run only on the computer running the app")
+            update_info(wait=True, force=True)
+            return self._json({"update": _UPDATE.get("info"), "update_state": update_state()})
         if path == "/api/update":                 # manual "Install update now" (localhost only)
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("updates run only on the computer running the app")

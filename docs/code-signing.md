@@ -28,7 +28,7 @@ requested by the user or the person installing or operating it. In detail:
 |---|---|---|
 | At launch (skip with `--no-sync`) | metabot.gg | requests for public game data and icons; nothing about you |
 | When the app window opens | fonts.googleapis.com | a request for the Noto Sans font; nothing about you |
-| Every few hours | api.github.com | a request for the latest release of this app; nothing about you |
+| At launch, when a window opens, then hourly (a failed check is retried within minutes) | api.github.com | a request for the latest release of this app; nothing about you |
 | When you import a character | the official AION 2 site | the character name and server you search for |
 | When you import a fight by link | abysslogs.com or a2dil.com | the link you paste |
 | When you share a fight | the log server you set in **Settings** | that fight (and the character's stats when known) |

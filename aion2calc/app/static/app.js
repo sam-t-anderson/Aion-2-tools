@@ -1999,7 +1999,7 @@ async function pageSettings() {
     <div class="setrow" data-g="appearance"><div class="lbl">Combat class colors</div><div id="class-colors"></div></div><div class="setrow" data-g="system"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? new Date(s.db.last_sync.at * 1000).toLocaleString() : "never"} <button class="btn small" id="sync">Check now</button> <button class="btn small" id="asset-reindex">Re-index cached icons</button> <button class="btn small" id="asset-report">Export image coverage</button> <button class="btn small" id="retry-images">Retry images</button><span id="asset-msg" class="small muted" role="status" aria-live="polite"></span></div></div>
     <div class="setrow" data-g="system"><div class="lbl">Storage maintenance</div><div><div class="row"><button class="btn small" id="storage-inspect">Inspect cache / updates</button><button class="btn small" id="storage-cache">Clean old disposable cache</button><button class="btn small" id="storage-updates">Clean old update files</button></div><p class="small muted">Web/comparison cache: 7 days; images: 30 days. Updates retain two packages, helpers for 7 days, and at least five logs / 30 days. Active or uninspectable helpers are preserved. Cache images may need downloading again.</p><p id="storage-message" role="status"></p><div id="maintenance-details"></div></div></div>
     <div class="setrow" data-g="system"><div class="lbl">Updates</div><div><label><input type="checkbox" id="autoupd" ${ui.auto_update !== false ? "checked" : ""}> check and prompt for updates on launch</label></div></div>
-    <div class="setrow" data-g="system"><div class="lbl">Version</div><div>Aion 2 Calc ${esc(s.version)} ${s.update ? `· version ${esc(s.update.version)} available <button class="btn small" id="instupd">Install now</button> <a href="${esc(s.update.url)}" target="_blank" rel="noopener">release notes</a>` : '<span class="muted">· up to date</span>'} <span id="updmsg" class="small muted"></span></div></div>
+    <div class="setrow" data-g="system"><div class="lbl">Version</div><div>Aion 2 Calc ${esc(s.version)} ${s.update ? `· version ${esc(s.update.version)} available <button class="btn small" id="instupd">Install now</button> <a href="${esc(s.update.url)}" target="_blank" rel="noopener">release notes</a>` : `<span class="muted" id="updstate">${updateStateText(s.update_state)}</span> <button class="btn small" id="chkupd">Check now</button>`} <span id="updmsg" class="small muted"></span></div></div>
     <div class="setrow" data-g="system"><div class="lbl">Community</div><div><a href="${DISCORD}" target="_blank" rel="noopener">Join the aion2calc Discord</a> — questions, builds and help</div></div>
     <div class="setrow" data-g="system"><div class="lbl">Stop the app</div><div><button class="btn small" id="quit2">Quit aion2calc</button></div></div>
     <div class="setrow" data-g="system" style="border-top:1px solid var(--line);margin-top:8px;padding-top:10px"><div class="lbl">Author</div><div class="muted">Spirited - Zikel : Asmodian&nbsp;&nbsp;|&nbsp;&nbsp;Legion: WhaleWatch</div></div>`);
@@ -2366,6 +2366,16 @@ async function pageSettings() {
     finally { ev.target.value = ""; }
   };
   $("#autoupd").onchange = () => api("/api/ui", { auto_update: $("#autoupd").checked }).then(() => toast("Saved"));
+  if ($("#chkupd")) $("#chkupd").onclick = async () => {
+    const button = $("#chkupd"); button.disabled = true;
+    $("#updstate").textContent = "· checking for updates…";
+    try {
+      const r = await api("/api/update/check", {});
+      if (r.update) { pageSettings(); return; }          // a release is out: show Install now
+      if ($("#updstate")) $("#updstate").innerHTML = updateStateText(r.update_state);   // escaped inside
+    } catch (e) { if ($("#updstate")) $("#updstate").textContent = "· could not check: " + e.message; }
+    finally { if (button.isConnected) button.disabled = false; }
+  };
   if ($("#instupd")) $("#instupd").onclick = async () => {
     $("#instupd").disabled = true;
     $("#updmsg").textContent = "Downloading and checking the installer…";
@@ -2462,9 +2472,21 @@ async function route() {
 }
 window.addEventListener("hashchange", route);
 
+// The Settings line for the last release check: a failed check is reported as such, never as "up to date".
+function updateStateText(state) {
+  const st = state || {};
+  if (st.checking) return "· checking for updates…";
+  if (st.error) return `· could not check for updates (${esc(st.error)}); trying again shortly`;
+  if (st.checked_at) return `· up to date (checked ${esc(new Date(st.checked_at * 1000).toLocaleTimeString())})`;
+  return "· up to date";
+}
+let syncPillFirst = true;
 async function syncPill() {
   try {
-    const s = await api("/api/status");
+    // The first poll after the window opens asks for a fresh release check (a window reopened from
+    // the tray is the same process; its last check may predate a new release).
+    const s = await api("/api/status" + (syncPillFirst ? "?fresh=1" : ""));
+    syncPillFirst = false;
     const sy = s.sync, el = $("#syncpill");
     const running = sy && sy.running;
     el.innerHTML = `<span class="dot ${running ? "run" : sy && sy.errors && sy.errors.length ? "err" : "ok"}"></span><span>${
@@ -2483,7 +2505,9 @@ async function syncPill() {
       }, 250);
     }
     $("#quit").title = `Stop the app (version ${s.version || ""})`;
-    setTimeout(syncPill, running ? 2500 : 20000);
+    // While the release check is still running, look again in two seconds rather than twenty.
+    const checking = !s.update && s.update_state && s.update_state.checking;
+    setTimeout(syncPill, running ? 2500 : checking ? 2000 : 20000);
   } catch (e) { setTimeout(syncPill, 20000); }
 }
 $("#quit").onclick = async () => {
