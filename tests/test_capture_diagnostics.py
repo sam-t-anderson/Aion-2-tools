@@ -79,5 +79,11 @@ def test_overlay_host_accepts_input_without_color_key(monkeypatch):
     api._configure_windows()
     assert not changed[0] & 0x20 and changed[0] & 0x80
     assert native.TransparencyKey == "empty"
-    assert native.webview.DefaultBackgroundColor == (10, 14, 22)
+    # The host is the card's colour, and the card fills the native window (no margin, square
+    # corners, no drop shadow), so no dark frame shows around the meter.
+    assert native.webview.DefaultBackgroundColor == native.BackColor == (27, 32, 42)
     assert native.Opacity == .72
+    from pathlib import Path
+    css = (Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static" / "overlay.css").read_text(encoding="utf-8")
+    assert "html.native-windows #ov { padding: 0; }" in css
+    assert "html.native-windows .ovcard { border-radius: 0;" in css and "html.native-windows #ovbg { border-radius: 0; }" in css

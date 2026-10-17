@@ -6,6 +6,7 @@ from .pressure import friendly_ids, summarize as pressure_summary
 
 from .catalog import coverage
 from .actions import summarize as action_summary
+from .contribution import summarize as contribution_summary
 
 LIMIT = 100
 NOTE = ("Analysis describes retained evidence in this encounter, not optimal play. "
@@ -13,7 +14,7 @@ NOTE = ("Analysis describes retained evidence in this encounter, not optimal pla
         "Healing is recorded amount, not effective healing, overheal or shielding. Casts, buff and debuff windows and "
         "break-gauge readings are the game's own records when the live meter recorded them (0.2.306 or later); imported "
         "buff windows come from imports. Crowd-control states and listed Stagger Gauge Damage come from the bundled skill "
-        "descriptions. Resources and shields are not decoded. HP milestones are samples, not named mechanics or exact phase "
+        "descriptions. The buff contribution (buff-adjusted DPS, rDPS) is an estimate kept out of rankings. Resources and shields are not decoded. HP milestones are samples, not named mechanics or exact phase "
         "transitions. Each section retains at most 100 rows per encounter; omitted counts are shown. Capture-quality limits still apply.")
 
 
@@ -139,5 +140,6 @@ def summarize(doc):
             "omitted":{key:max(0,len(rows)-LIMIT) for key,rows in ordered.items()},
             "opening":opening,"omitted_opening":omitted_opening,"invalid_buff_windows":invalid_windows,
             "healing_without_source":missing_heal_source,"healing_without_target":missing_heal_target,
-            "actions":action_summary(segment, players, friendly, entities)})
-    return {"version": 3, "note":NOTE,"segments":segments}
+            "actions":action_summary(segment, players, friendly, entities),
+            "contribution":contribution_summary(doc, index)})
+    return {"version": 4, "note":NOTE,"segments":segments}

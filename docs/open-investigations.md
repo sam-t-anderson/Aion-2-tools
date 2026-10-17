@@ -180,6 +180,19 @@ The eight distinct diagnostic captures with raw TCP recording (10–15 October; 
 - **Charged skills record the release.** Deadshot and Bolt are recorded when released, about 0.15 s and 0.57 s before the next press; the charge shows as extra time before the press (Deadshot 0.55 s, Bolt 0.90 s).
 - **"Remove cooldown" Overhead Slam is not spammable.** With the spec, Overhead Slams never came less than about 1 s apart (10th percentile 0.97 s, median 1.18 s, 223 intervals). The 0.2.254 estimate was ~0.65 s.
 
+**Effect ids carry the caster's skill level, and the buff contribution's first check (0.2.307).** The estimated buff contribution in the log review ([method](methodology.md#estimated-buff-contribution-02307)) needs each buff's size, which depends on its caster's skill level. The packets carry no level field, but the effect id (skill variant × 10 + a stack digit) varies with it:
+
+- Undefeated Mantra's ids end `11`, `21`, `31` or `41` across 9 Chanters, and Light of Protection's end `11`, `21` or `31` across 8 Clerics. Where the caster's combat power is known (three of them), the higher digit goes with the higher combat power. One Chanter's Undefeated Mantra shows `41` while her Sprint Mantra shows `21`, so it is per skill, not per class or build.
+- Power of the Storm, whose duration grows with its level, ran 12.0 s (level 5) with digit `1`: the digit counts the level thresholds reached (5, 10, 15, 20).
+- Passive effects carry the level itself: Robe of Cold showed `07` with the 3.5 s duration of level 7–8, Experienced Counterstrike `07`, Fury `01`.
+
+The check compares the same player's same-skill plain hits (outside break windows) with only one credited buff group up against none up:
+
+- The party PvE Damage Boost on block (Experienced Counterstrike at level 7) measured +6.7% against +8.5% estimated, over 1,467 hits (Vakron).
+- The auras are open. A Transcendent Bakarma fight agreed (+22% against +17%) on only 33 hits. Four Deus Research Base fights measured +5.5% against +24%, but their 66 unbuffed hits fall in a few short windows of each fight.
+
+`calibrate --buffs` pools more fights. The estimate stays out of rankings until they agree.
+
 ## Classification review of recent uploads (16 October): one real defect, the rest data-gated
 
 The 51 newest public logs on the live server (889 encounter contexts, 15–16 October, all Live Meter sessions) tabulated by instance, difficulty, encounter type and boss role:

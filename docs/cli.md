@@ -56,6 +56,9 @@ python -m aion2calc calibrate --capture fight.a2log.json --timings # measure ski
                                                                    # from 0.2.306 add each skill's cooldown, cast lock and
                                                                    # time to the next press, beside the kit's TIMING and the
                                                                    # same press as a TIMING value, with suggested values
+python -m aion2calc calibrate --buffs logs/                          # check the estimated buff contribution (log review) against
+                                                                   # saved logs: measured gain in plain hits while each credited
+                                                                   # buff group was up, against the estimate (pools all files)
 
 # aggregate the NPC decoder evidence across uploaded logs (candidate NPC type IDs, packet variants, missing art)
 python -m aion2calc npc-evidence                     # from the configured community log server

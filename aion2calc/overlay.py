@@ -472,8 +472,10 @@ class _OverlayAPI:
             set_style(handle, -20, (style & ~(0x00040000 | 0x00000020)) | 0x00000080)
             # A color-keyed WinForms parent can be hit-test transparent even where
             # the separate WebView2 child draws the card. Use alpha on a compact
-            # dark host instead so the visible overlay accepts mouse input.
-            background = Color.FromArgb(10, 14, 22)
+            # host instead so the visible overlay accepts mouse input. The host is
+            # the card's own colour: the card fills the window, and an edge pixel
+            # left by rounding then blends in instead of showing as a dark frame.
+            background = Color.FromArgb(27, 32, 42)
             native.BackColor = background
             native.TransparencyKey = Color.Empty
             native.webview.DefaultBackgroundColor = background

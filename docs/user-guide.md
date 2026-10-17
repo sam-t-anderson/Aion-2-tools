@@ -42,7 +42,7 @@ Each section retains up to 100 rows per encounter, with omissions and missing he
 
 ## Casts, buffs and break gauge
 
-Fights the live meter records from 0.2.306 also carry each skill cast, buff and debuff, chain window and break-gauge reading. Below the tables, **Casts, buffs and break gauge** has four tabs: **Rotation** (a cast timeline per player, casts per minute, cooldown usage, cast time, chain follow rate and dodges), **Buffs & debuffs** (uptime and who gave each), **Crowd control** (what landed, by state, and how long it held) and **Break gauge** (each player's share of the gauge drained, the breaks and the damage dealt during them). [The app guide](app.md#casts-buffs-and-break-gauge) explains each column and its limits.
+Fights the live meter records from 0.2.306 also carry each skill cast, buff and debuff, chain window and break-gauge reading. Below the tables, **Casts, buffs and break gauge** has five tabs: **Rotation** (a cast timeline per player, casts per minute, cooldown usage, cast time, chain follow rate and dodges), **Buffs & debuffs** (uptime and who gave each), **Crowd control** (what landed, by state, and how long it held), **Break gauge** (each player's share of the gauge drained, the breaks and the damage dealt during them) and **Buff contribution** (an estimated buff-adjusted DPS and rDPS split: what other players' buffs added to each player and what each player's buffs added to others; never used for rankings or parses). [The app guide](app.md#casts-buffs-and-break-gauge) explains each column and its limits.
 
 ## Death recaps and character trends
 

@@ -406,6 +406,40 @@ def measured_timings(path_or_ref, *, player=None, segment=None) -> dict:
                      "Measured evidence, not an assumption; feed it into the kit's TIMING knobs rather than guessing.")}
 
 
+#: What each credited buff group is, for the check's report.
+BUFF_GROUPS = {"aura": "PvE Damage Boost aura (Undefeated Mantra, Light of Protection)",
+               "block": "PvE Damage Boost on block (Fury, Experienced Counterstrike)",
+               "tolerance": "enemy PvE Damage Tolerance cut (Chain of Torment, Earth's Promise)"}
+
+
+def buff_checks(paths) -> dict:
+    """The buff-contribution estimate's check, pooled across saved logs (files or folders of them):
+    per credited buff group, the measured gain in the same player's same-skill plain hits while only
+    that group was up, against the gain the estimate predicts for those hits
+    (:mod:`aion2calc.combat.contribution`). The estimate stays out of rankings until the two agree."""
+    from pathlib import Path
+    from .combat import a2log as F
+    from .combat.contribution import pool_checks
+    files = []
+    for raw in paths:
+        path = Path(raw)
+        files += sorted(path.glob("*.json")) if path.is_dir() else [path]
+    fights, results = [], []
+    for path in files:
+        try:
+            doc = F.validate(json.loads(path.read_text(encoding="utf-8")))
+        except Exception:
+            continue
+        for row in (doc.get("encounter_insights") or {}).get("segments") or []:
+            result = row.get("contribution")
+            if result and result.get("checks"):
+                segment = doc["segments"][row["segment"]]
+                results.append(result)
+                fights.append({"file": path.name, "segment": row["segment"],
+                               "label": segment.get("boss") or segment.get("label"), "checks": result["checks"]})
+    return {"files": len(files), "fights": fights, "pooled": pool_checks(results)}
+
+
 def from_capture(path_or_ref: str, *, player: str | None = None, segment: int | None = None) -> dict:
     """Compare the simulation to a real A2Parser capture (or any supported log).
 

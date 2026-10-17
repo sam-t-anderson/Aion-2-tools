@@ -52,6 +52,12 @@ html.native-windows .ovcard { max-width: none; }
   #ov.ov-cycle .ovhd, #ov.ov-cycle .ovname { animation: ovhue 12s linear infinite; }
 }
 html.native-windows .ovcard { background: rgb(27, 32, 42); }
+/* The native Windows window has an opaque host behind the page (a transparent one would not take
+   clicks), so anything around the card showed as a dark frame. There the card fills the window:
+   no margin, square corners, and no drop shadow (it could only darken the window's edge). */
+html.native-windows #ov { padding: 0; }
+html.native-windows .ovcard { border-radius: 0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04); }
+html.native-windows #ovbg { border-radius: 0; }
 .ovcard:active { cursor: grabbing; }
 /* Group the view tabs and the Lock/Hide buttons together on the left; the status
    text takes the remaining space on the right (margin-left:auto). Using an explicit

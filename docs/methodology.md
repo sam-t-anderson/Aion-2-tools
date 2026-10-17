@@ -18,6 +18,7 @@ For controls and setup, see the [app guide](app.md) and [user guide](user-guide.
 - [Assumptions and limitations](#assumptions-and-limitations)
 - [Validation and sensitivity](#validation-and-sensitivity)
 - [Combat-log evidence](#combat-log-evidence)
+- [Estimated buff contribution (0.2.307)](#estimated-buff-contribution-02307)
 - [Installation, identity and live rate evidence](#installation-identity-and-live-rate-evidence)
 - [Encounter catalog and boss roles](#encounter-catalog-and-boss-roles)
 - [Capture-driver counters](#capture-driver-counters)
@@ -457,6 +458,60 @@ The following are historical Sorcerer comparison examples for the bundled datase
 Combat review describes retained observations separately from simulated expectations. Recorded effects are not proof of cast starts, complete capture or authenticated game results. Missing telemetry remains unavailable. Linked pets retain their source IDs when totals are grouped with their owner.
 
 See the [user guide](user-guide.md) for matched comparison cohorts, ranking eligibility, privacy and review controls.
+
+## Estimated buff contribution (0.2.307)
+
+The log review's **Buff contribution** tab splits each player's damage the way rDPS does (an idea
+FFLogs popularised): the part of their hits that came from other players' damage buffs and debuffs
+moves to whoever cast them. *Buff-adjusted DPS* is a player's DPS without what others gave; *rDPS*
+adds back what their own buffs gave others, so the party's total is unchanged. It is an estimate and
+is **never used for rankings or parse percentiles**; it stays that way until the check below agrees
+with the estimate across enough fights. `aion2calc/combat/contribution.py` computes it.
+
+**Recorded:** each credited effect's window, who applied it and who it was on (live meter 0.2.306 or
+later), and every hit inside those windows.
+
+**Estimated:**
+
+* **Which buffs.** Only those whose effect on damage is a known number in the boost formula: the PvE
+  Damage Boost auras Undefeated Mantra and Light of Protection (10.5–22.5% by level; they do not
+  stack with each other, so the stronger applies), the party PvE Damage Boost on block from Fury and
+  Experienced Counterstrike (likewise exclusive), and the enemy PvE Damage Tolerance cuts from Chain
+  of Torment (5% at every level) and Earth's Promise (5.4% upward by level; not while Chain of Torment
+  is up). One buff from several casters applies once and its credit is shared. Defense cuts (Blade
+  Toss, Debilitate, Defense Break, Executing Blade, Fracturing Blow) need the boss's Defense, and
+  Combat Speed buffs (Power of the Storm) change how many hits land, so neither is credited.
+* **How big.** The value at the caster's skill level, from the official profile uploaded with the log
+  when it lists the skill, else from the effect record, else the typical top player's level. The
+  effect record's level is inferred, not a published rule. An effect id is the skill variant × 10
+  plus a stack digit. A stigma aura's variant carries the level band it has reached (`x1` = levels
+  5–9 … `x4` = 20–24, taken at the band's middle), and a passive's carries its level. In the diagnostic
+  captures the digit took several values across 17 casters, followed combat power where that is known
+  (three casters), differed between one player's stigmas, and matched the level implied by Power of
+  the Storm's and Robe of Cold's durations.
+* **How much of a hit it made.** The boost bucket is additive (`1 + B + X − tolerance`, see
+  [Damage calculation](#damage-calculation)), so a +X% buff made `X / (1 + B + X − tolerance)` of a hit
+  landed with it. `B`, the player's other damage boosts, is not recorded: it is the typical build's for
+  their class (0.07–0.26). The Damage Tolerance is 30% against a boss and 10% otherwise, the optimizer's
+  scenario values. A player's own buff on themselves is their own damage. Pet hits are not adjusted,
+  because whether party buffs reach pets is not known.
+
+**The check.** For each credited buff group, the same player's same-skill *plain* hits (no critical,
+double, perfect or periodic damage, and none during a break window, which multiplies everyone's
+damage) with only that group up are compared with those landed with no credited buff up, and the
+measured gain is set against the gain the estimate predicts for the same hits. One fight rarely holds
+enough hits without a buff, so `python -m aion2calc calibrate --buffs <logs or folders>` pools many.
+
+On the supplied captures:
+
+* **Party PvE Damage Boost on block** (Experienced Counterstrike at level 7, from its effect id)
+  measured **+6.7%** against **+8.5%** estimated, over 345 hits with it and 1,122 without (Vakron).
+* **The auras** are not settled. A Transcendent Bakarma fight agreed (+22% measured, +17% estimated)
+  on only 33 hits. Four Deus Research Base fights measured +5.5% against +24% (502 hits with an aura,
+  66 without), but their unbuffed hits fall in a few short windows of the fight, so a phase effect
+  cannot be ruled out.
+
+Until more fights agree, the tab says it is an estimate and rankings use recorded DPS only.
 
 ## Installation, identity and live rate evidence
 

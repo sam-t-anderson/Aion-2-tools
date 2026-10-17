@@ -168,6 +168,9 @@ def main(argv: list[str] | None = None) -> int:
                                                            "swing periods from the capture and compare to the kit; "
                                                            "recordings from 0.2.306 also give each skill's cooldown, "
                                                            "cast lock and time to the next press")
+    cb.add_argument("--buffs", nargs="+", metavar="LOG", help="check the estimated buff contribution against saved "
+                                                             "logs (files or folders): the measured gain in plain hits "
+                                                             "while each credited buff group was up, against the estimate")
 
     iv2 = sub.add_parser("install-version", help="show each detected game install's version signals and, with "
                                                  "two or more (e.g. Steam and PURPLE), which signal is the shared "
@@ -398,6 +401,22 @@ def main(argv: list[str] | None = None) -> int:
             print(c + ":", "; ".join(learn.summary(learn.fit(c, conn))))
     elif args.cmd == "calibrate":
         from . import calibrate as C
+        if args.buffs:
+            r = C.buff_checks(args.buffs)
+            print(f"buff contribution check: {len(r['fights'])} fights with a comparison in {r['files']} files")
+            print("  measured: the same player's same-skill plain hits (no critical, double, perfect or periodic")
+            print("  damage, outside breaks) with only that buff group up, against none of them up")
+            for f in r["fights"]:
+                print(f"  {f['file'][:40]:40s} #{f['segment']:<3d} {str(f['label'] or '')[:24]:24s} " +
+                      "; ".join(f"{c['group']} {c['measured_pct']:+.1f}% vs {c['estimated_pct']:+.1f}% "
+                                f"({c['hits_on']}/{c['hits_off']} hits)" for c in f["checks"]))
+            for c in r["pooled"]:
+                print(f"\n  {C.BUFF_GROUPS.get(c['group'], c['group'])}")
+                print(f"    {c['fights']} fights, {c['pairs']} player-skill pairs, {c['hits_on']} hits with / "
+                      f"{c['hits_off']} without: measured {c['measured_pct']:+.1f}%, estimated {c['estimated_pct']:+.1f}%")
+            if not r["pooled"]:
+                print("  no fight had enough plain hits both with and without a credited buff to compare")
+            return 0
         if args.capture:
             r = C.from_capture(args.capture, player=args.player)
             vs = r["vs_sim"]
