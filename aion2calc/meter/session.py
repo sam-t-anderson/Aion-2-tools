@@ -128,6 +128,8 @@ class CombatSession:
         result._boss_killed_marker = self._boss_killed_marker
         result._live_boss_reset_ms = self._live_boss_reset_ms
         result._pull_ended_ms = self._pull_ended_ms
+        result._pull_leftovers = set(self._pull_leftovers)
+        result._gauge_mode = self._gauge_mode
         result._major_history = set(self._major_history)
         # A continuation part never captured the *open* run's entry (that is ``recorded_entry``
         # above). A zone load captured after the party's last combat, though, is still pending: it
@@ -248,6 +250,14 @@ class CombatSession:
         # moves ``_live_boss_reset_ms`` there, so the overlay starts the following fight fresh
         # instead of piling trash (or the next boss) onto the finished pull's numbers.
         self._pull_ended_ms = None
+        # The enemies the finished pull was still fighting when its last major died (its adds).
+        # Finishing them off keeps the finished fight on the overlay; the first other enemy hit
+        # starts the next view.
+        self._pull_leftovers = set()
+        # Set once the capture decodes a break gauge (0.2.305): from then on only a catalog boss
+        # or an enemy with a gauge can reset or hold the live overlay, not a tanky trash mob
+        # promoted by elapsed time. Without gauge records the elapsed-time rule applies as before.
+        self._gauge_mode = False
         # Every (epoch, enemy) ever engaged as a major, never dropped on its death -- ``groups``
         # uses it to know, after the fact, that a group was a boss / mini-boss fight.
         self._major_history = set()
@@ -274,8 +284,12 @@ class CombatSession:
         # second boss) is promoted to major mid-fight while the current boss is still up, which
         # would wrongly drop the running boss DPS from the overlay. Display only; segmentation
         # above is unchanged.
-        if new_major and engaged_ms is not None and not self._majors_in_play(engaged_ms):
+        # A leftover of the finished pull (an add first hit before the boss died, promoted by
+        # elapsed time afterwards) never starts a new view: it would wipe the finished fight.
+        if (new_major and engaged_ms is not None and self._display_major(ekey)
+                and ekey not in self._pull_leftovers and not self._majors_in_play(engaged_ms)):
             self._live_boss_reset_ms = engaged_ms
+            self._pull_leftovers = set()
         self._engaged_major.add(ekey)
         if engaged_ms is not None:
             self._boss_hit_ms.setdefault(ekey, engaged_ms)   # in play from its engagement on
@@ -283,10 +297,21 @@ class CombatSession:
             self._major_history = {k for k in self._major_history if k[0] == self.epoch}
         self._major_history.add(ekey)
 
+    def _display_major(self, key):
+        """Whether an engaged major can reset or hold the live overlay. A catalog boss always can;
+        so can an enemy with a break gauge. Trash promoted by elapsed time only counts while the
+        capture has shown no gauge at all (an older build, or before the first boss)."""
+        spawns = (self.identities.get(key[0]) or {}).get("spawns") or {}
+        info = spawns.get(key[1]) or {}
+        if npc_info(info.get("mobCode")).get("isBoss"):
+            return True
+        return bool(info.get("breakGauge")) if self._gauge_mode else True
+
     def _majors_in_play(self, now_ms):
-        """The engaged majors of this epoch that still hold the current fight: not seen dying, and
-        damaged by the party within ``BOSS_HOLD_MS`` (a catalog boss, whose untargetable phases can
-        run long) or ``RESET_LULL_MS`` (a major inferred from a sustained engagement) of ``now_ms``.
+        """The engaged majors of this epoch that still hold the current fight: able to hold it
+        (``_display_major``), not seen dying, and damaged by the party within ``BOSS_HOLD_MS`` (a
+        catalog boss, whose untargetable phases can run long) or ``RESET_LULL_MS`` (a major
+        inferred from a sustained engagement) of ``now_ms``.
         Display only: it decides where the live overlay resets, never how fights are segmented.
 
         Without the recency test, a major that left the fight unseen stayed "alive" for the rest of
@@ -297,7 +322,7 @@ class CombatSession:
         spawns = (self.identities.get(self.epoch) or {}).get("spawns") or {}
         in_play = []
         for key in self._engaged_major:
-            if key[0] != self.epoch or key in self._dead:
+            if key[0] != self.epoch or key in self._dead or not self._display_major(key):
                 continue
             last = self._boss_hit_ms.get(key)
             if last is None:
@@ -393,6 +418,7 @@ class CombatSession:
         self.runs[self.run] = {"complete":False, "recording_token":uuid.uuid4().hex, "origin_sequence":self.sequence+1, "open_epoch":self.epoch}
         self._live_boss_reset_ms = None   # a new run's overlay starts unscoped until its first boss
         self._pull_ended_ms = None
+        self._pull_leftovers = set()
         if self._pending_run_start is not None:
             self.runs[self.run].update(start_observed=True, started_at=self._pending_run_start)
             self._pending_run_start = None
@@ -536,6 +562,7 @@ class CombatSession:
         identity["names"].update(engine.names)
         identity["jobs"].update(engine.jobs)
         identity["spawns"].update({key: dict(value) for key, value in engine.spawn_info.items()})
+        self._gauge_mode = self._gauge_mode or bool(getattr(engine, "break_gauge_seen", False))   # sticky
         identity["npc_diagnostics"] = {"epoch": self.epoch, "scan_calls": engine.npc_scan_calls,
                                        "omitted": engine.npc_trace_omitted, "candidates_seen": engine.npc_candidates_seen,
                                        "records": [dict(row) for row in engine.npc_trace]}
@@ -576,7 +603,8 @@ class CombatSession:
             self._track_boss_attempt(engine, record, allowed)
             if (self._pull_ended_ms is not None and isinstance(event, DamageEvent)
                     and event.timestamp_ms > self._pull_ended_ms
-                    and event.actor_id in allowed and event.target_id not in allowed):
+                    and event.actor_id in allowed and event.target_id not in allowed
+                    and (self.epoch, event.target_id) not in self._pull_leftovers):
                 # The pull's boss is dead and this is the next outgoing damage: a new fight. With
                 # ``reset_on_boss_start`` the overlay starts fresh here, so the finished pull's
                 # final numbers stay up through the lull but never absorb the trash (or the next
@@ -584,6 +612,7 @@ class CombatSession:
                 if self.reset_on_boss_start:
                     self._live_boss_reset_ms = event.timestamp_ms
                 self._pull_ended_ms = None
+                self._pull_leftovers = set()
             # Bound the rollover on distinct *players*, not entity ids. Keying on the actor
             # (0.2.243) stopped epoch churn from inflating this; keying on identity now stops ID
             # churn. Collapse a summon/pet to its owner and a player to its NAME, so a class that
@@ -692,10 +721,15 @@ class CombatSession:
                 self._boss_killed_ms = sample["timestamp_ms"]
                 self._boss_killed_marker = (self.manual_split, self.run)
                 self.boss_kills += 1
-                if not self._majors_in_play(sample["timestamp_ms"]):
+                if self._display_major(key) and not self._majors_in_play(sample["timestamp_ms"]):
                     # No other major of this pull is still in play: the pull is over. The next
-                    # outgoing damage starts the overlay fresh (see ``observe``).
+                    # outgoing damage to an enemy this pull did not already fight starts the
+                    # overlay fresh (see ``observe``); finishing off its adds keeps it on screen.
                     self._pull_ended_ms = sample["timestamp_ms"]
+                    # Its leftovers: every enemy the party hit since the pull started, still alive.
+                    start = self._live_boss_reset_ms or 0
+                    self._pull_leftovers = {k for k, last in self._boss_hit_ms.items()
+                                            if k[0] == self.epoch and k != key and last >= start}
             if sample["kind"] == "hp" and (key in self._engaged_major or key in self._engage_span):
                 # Track an engaged enemy's HP against its max (for not-yet-major contacts
                 # too, so the below-full evidence is ready the moment a sustained

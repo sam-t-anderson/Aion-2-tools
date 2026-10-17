@@ -1,3 +1,16 @@
+## Fix: the live overlay resets only for real bosses, and keeps a finished fight on screen while you clear its adds (0.2.305)
+
+**Trash packs no longer reset the overlay or hold it.** Any enemy the party had fought for twelve seconds counted as a *major*. So a tanky trash pack reset the overlay, and a pack pulled just before a boss could stop the boss pull from resetting it. In the game's data, bosses and elites carry a break (stagger) gauge and trash does not. In the supplied captures every catalog boss had one and none of the 36 enemies promoted by the twelve-second rule did. Now only a catalog boss, or an enemy with a break gauge, resets or holds the overlay. Between bosses, the overlay shows everything since the last boss died.
+
+**A finished boss fight stays on screen while you finish off its adds.** After a boss dies, the overlay starts its next view on the first hit against an enemy that fight was not already fighting. Before, two things went wrong. An add first hit just before the kill could be promoted twelve seconds later and move the overlay's start back before the kill. In a Transcendent Bakarma capture, that wiped the boss fight ten seconds after the boss died. And an add still being fought kept the old fight up through the following trash until the next boss, 78 seconds in a Krao Cave capture.
+
+**Checked against the supplied captures.** Replaying the four captures with boss fights:
+- all 9 boss pulls still reset at the pull;
+- no reset cuts into a running boss fight;
+- resets fall from 31 to 17, and the ones removed were trash.
+
+Captures without break-gauge records (an older game build, or before the first boss) keep the previous rule. Only the live overlay's reset changes: fights, kills and logs are split exactly as before.
+
 ## Fix: the overlay keeps the final boss fight on screen after the kill; target DPS runs on the fight clock (0.2.304)
 
 **The overlay no longer widens to the whole dungeon run when the final boss dies.** A dungeon's final boss finishes the run when it dies, and finishing a run cleared the overlay's reset point, so the overlay jumped from the boss fight to every pull since you entered the instance. Next to another meter still showing the boss fight, that read as damage missing. Checked against a supplied Transcendence log (Talisra of the Void): the recording matches the other meter to within 0.2% for every player, with no capture loss; only the overlay's view changed at the kill. The final fight now stays on the overlay until new combat opens the next run, which starts fresh as before.

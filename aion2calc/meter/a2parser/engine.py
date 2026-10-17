@@ -10,7 +10,7 @@ from copy import deepcopy
 import time
 
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
-from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, _damage_frames
+from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_break_gauges, _damage_frames
 from .framing import walk, bundle_batch
 from .lookup import job_from_skill, skill_name, npc_info, npc_name, dungeon_final_bosses
 from .ping import PingTracker
@@ -59,6 +59,7 @@ class MeterEngine:
         self.power_scalars: dict[int, set[int]] = defaultdict(set)
         self.known_entities: set[int] = set()
         self.spawn_info: dict[int, dict[str, int]] = {}
+        self.break_gauge_seen = False   # a break (stagger) gauge record was decoded in this capture
         self.npc_scan_calls = 0
         self.npc_candidates_seen = 0
         self.npc_trace = deque(maxlen=128)
@@ -223,6 +224,11 @@ class MeterEngine:
             self.telemetry.extend(self._player_deaths_from_hp(current, timestamp_ms))
             self._identify_boss_by_hp(current, maximum)
             self.telemetry.extend({"kind": "death", "entity": eid, "timestamp_ms": timestamp_ms} for eid in scan_deaths(packet))
+            # Bosses and elites carry a break gauge; trash does not. The session uses it to tell
+            # a boss pull from a tanky trash pack for the live overlay's reset.
+            for entity_id, gauge_max, _current, _state in scan_break_gauges(packet):
+                self.spawn_info.setdefault(entity_id, {})["breakGauge"] = gauge_max
+                self.break_gauge_seen = True
             self.live_hp.update(current)
             for entity_id, value in maximum.items():
                 self.spawn_info.setdefault(entity_id, {})["maxHp"] = value

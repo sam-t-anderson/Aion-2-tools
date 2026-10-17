@@ -974,6 +974,30 @@ def scan_deaths(data: bytes) -> set[int]:
     return dead
 
 
+def scan_break_gauges(frame: bytes) -> list[tuple[int, int, int, int]]:
+    """Read a boss/elite break (stagger) gauge record: ``05 e0`` entity, ``03 01``, u32 maximum,
+    u32 current, state byte. The party's hits drain it by a fixed amount per skill; at zero the
+    boss is broken for a few seconds and the gauge refills. Returns [(entity, maximum, current,
+    state)] or []."""
+    length = read_varint(frame, 0)
+    if length.length <= 0:
+        return []
+    pos = length.length
+    if frame[pos:pos + 2] != b"\x05\xe0":
+        return []
+    entity = _var(frame, pos + 2)
+    if entity is None or not 100 <= entity[0] <= 9_999_999:
+        return []
+    at = entity[1]
+    if at + 11 > len(frame) or frame[at] != 3 or frame[at + 1] != 1:
+        return []
+    maximum = int.from_bytes(frame[at + 2:at + 6], "little")
+    current = int.from_bytes(frame[at + 6:at + 10], "little")
+    if not 0 < maximum <= 1_000_000 or current > maximum:
+        return []
+    return [(entity[0], maximum, current, frame[at + 10])]
+
+
 def scan_zone_state(data: bytes) -> tuple[bool, int | None]:
     """Find self zone-transition and current map id packets."""
     zone_change = False

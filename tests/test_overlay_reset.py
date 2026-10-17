@@ -228,3 +228,93 @@ def test_the_overlay_stays_on_the_final_boss_when_its_death_finishes_the_run():
     s.observe(engine, [_hit(trash, 600_000)], timestamp_ms=600_000)   # the next combat: a new run
     live = s.snapshot(scope="self", segment_id=None)
     assert not s.run_closed and live["players"][0]["damage"] == 500
+
+
+# -- 0.2.305: a break gauge marks a boss; a finished pull's leftovers never start a new view -------
+# From the supplied captures (10-15 October): every catalog boss engaged (9) carried a break gauge
+# (``05 e0``) and none of the 36 enemies promoted by elapsed time did, so a tanky trash pack reset
+# the overlay and, pulled just before a boss, could hold the boss's reset. And an add first hit two
+# seconds before Transcendent Bakarma died was promoted twelve seconds later and moved the reset
+# point back before the kill, wiping the finished fight while the party mopped up.
+
+def _varint(value):
+    out = bytearray()
+    while True:
+        byte, value = value & 0x7F, value >> 7
+        out.append(byte | 0x80 if value else byte)
+        if not value:
+            return bytes(out)
+
+
+def _gauge_packet(entity, maximum, current, state=2, kind=b"\x03\x01"):
+    inner = (b"\x05\xe0" + _varint(entity) + kind + maximum.to_bytes(4, "little")
+             + current.to_bytes(4, "little") + bytes([state]))
+    return _varint(len(inner) + 4) + inner          # the walker's length counts four overhead bytes
+
+
+def test_the_break_gauge_record_is_read():
+    from aion2calc.meter.a2parser.parser import scan_break_gauges
+    assert scan_break_gauges(_gauge_packet(21588, 1200, 701)) == [(21588, 1200, 701, 2)]
+    assert scan_break_gauges(_gauge_packet(21588, 1200, 701, kind=b"\x00\x03")) == []   # another subtype
+    assert scan_break_gauges(_gauge_packet(21588, 1200, 1300)) == []                     # current above max
+    assert scan_break_gauges(_gauge_packet(21588, 0, 0)) == []
+
+
+def test_the_engine_marks_an_enemy_with_a_break_gauge():
+    from aion2calc.meter.a2parser.engine import MeterEngine
+    engine = MeterEngine()
+    engine.consume(_gauge_packet(21588, 1200, 1190), 1_000, "1.2.3.4:13328->192.168.1.9:57424")
+    assert engine.break_gauge_seen
+    assert engine.spawn_info[21588]["breakGauge"] == 1200
+
+
+def _gauge_session(spawns, gauges):
+    engine = _engine(spawns)
+    for entity, maximum in gauges.items():
+        engine.spawn_info[entity]["breakGauge"] = maximum
+    engine.break_gauge_seen = bool(gauges)
+    s = CombatSession()
+    s.pvp = False
+    s.observe(engine, [], timestamp_ms=101_000)
+    return engine, s
+
+
+def test_with_gauges_a_tanky_trash_pack_neither_resets_nor_holds_the_overlay():
+    trash, boss = 20217, 51000
+    engine, s = _gauge_session({trash: TRASH_CODE, boss: BOSS_CODE}, {boss: 1200})
+    s.observe(engine, [_hit(trash, 375_000)], timestamp_ms=375_000)
+    s.observe(engine, [_hit(trash, 381_000)], timestamp_ms=381_000)
+    s.observe(engine, [], timestamp_ms=390_000)                       # 15 s after first contact
+    assert (s.epoch, trash) in s._engaged_major                       # still a major for segmentation
+    assert s._live_boss_reset_ms is None                              # but the overlay did not reset on it
+    s.observe(engine, [_hit(boss, 391_000)], timestamp_ms=391_000)    # the boss, 10 s after the trash
+    assert s._live_boss_reset_ms == 391_000                           # the trash no longer holds the reset
+
+
+def test_an_enemy_with_a_break_gauge_resets_the_overlay_to_its_pull():
+    elite = 20218                                                      # not flagged in the catalog
+    engine, s = _gauge_session({elite: TRASH_CODE}, {elite: 240})
+    s.observe(engine, [_hit(elite, 400_000)], timestamp_ms=400_000)
+    s.observe(engine, [_hit(elite, 410_000)], timestamp_ms=413_000)   # a major twelve seconds in
+    assert (s.epoch, elite) in s._engaged_major
+    assert s._live_boss_reset_ms == 400_000                           # the overlay starts at its first hit
+
+
+def test_the_adds_of_a_finished_pull_keep_it_on_the_overlay():
+    # Without gauge records (the elapsed-time rule), so the add is promoted after the kill as in
+    # the Bakarma capture.
+    boss, add, trash = 51000, 30001, 30002
+    engine, s = _gauge_session({boss: BOSS_CODE, add: TRASH2_CODE, trash: TRASH_CODE}, {})
+    s.observe(engine, [_hit(boss, 110_000)], timestamp_ms=110_000)
+    assert s._live_boss_reset_ms == 110_000
+    for t in range(150_000, 160_001, 5_000):                          # an add joins the fight
+        s.observe(engine, [_hit(boss, t), _hit(add, t)], timestamp_ms=t)
+    engine.telemetry = [{"kind": "death", "entity": boss, "timestamp_ms": 162_000}]
+    s.observe(engine, [], timestamp_ms=162_000)                       # the boss dies; the add is promoted
+    engine.telemetry = []
+    assert (s.epoch, add) in s._engaged_major
+    assert s._live_boss_reset_ms == 110_000                           # the boss fight stays on screen
+    s.observe(engine, [_hit(add, 165_000)], timestamp_ms=165_000)     # finishing off the add
+    assert s._live_boss_reset_ms == 110_000
+    s.observe(engine, [_hit(trash, 200_000)], timestamp_ms=200_000)   # the next fight
+    assert s._live_boss_reset_ms == 200_000
