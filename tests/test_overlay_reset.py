@@ -114,3 +114,80 @@ def test_finishing_a_run_clears_the_live_reset_point():
     s._live_boss_reset_ms = 50000
     s.finish_run("test")
     assert s._live_boss_reset_ms is None           # a new run's overlay starts unscoped
+
+
+# -- majors that left the fight unseen must not hold the overlay on an old fight ------------------
+# From a real capture (Deus Research Base, 2026-10-15): two trash mobs the party hit for a few
+# seconds were promoted to major twelve seconds after first contact (by elapsed time, the inferred
+# elite signal), then left alive with no death record. Eighty-eight seconds later the boss Nazmun
+# was pulled and the overlay kept its old reset point: the stale "alive" trash blocked it.
+TRASH_CODE, TRASH2_CODE, BOSS_CODE = 2300608, 2300603, 2300615   # Mudthorn, Warrior, Nazmun (catalog boss)
+
+
+def test_a_major_the_party_left_long_ago_no_longer_blocks_the_next_boss_reset():
+    s = CombatSession()
+    s._engage_major((0, 20217), 375_000)                  # promoted trash (first contact 06:15)
+    s._engage_major((0, 34567), 380_000)
+    s._boss_hit_ms[(0, 20217)] = s._boss_hit_ms[(0, 34567)] = 381_000   # the party's last hits on them
+    s._engage_major((0, 51000), 469_000)                  # the boss pulled 88 s later
+    assert s._live_boss_reset_ms == 469_000
+
+
+def test_a_major_still_being_fought_keeps_holding_the_reset():
+    s = CombatSession()
+    s._engage_major((0, 20217), 375_000)
+    s._boss_hit_ms[(0, 20217)] = 460_000                  # still being hit 9 s before the boss joins
+    s._engage_major((0, 51000), 469_000)
+    assert s._live_boss_reset_ms == 375_000               # one fight: the pack and the boss together
+
+
+def test_a_catalog_boss_holds_the_reset_through_a_long_untargetable_phase():
+    s = CombatSession()
+    s.identities[0] = {"names": {}, "spawns": {9001: {"mobCode": BOSS_CODE}}, "jobs": {}, "local_id": None,
+                       "owners": {}, "roster": {}, "observed_players": set()}
+    s._engage_major((0, 9001), 1_000)
+    s._boss_hit_ms[(0, 9001)] = 10_000                    # last hit before it turned untargetable
+    s._engage_major((0, 9500), 70_000)                    # an add promoted 60 s into the phase: same fight
+    assert s._live_boss_reset_ms == 1_000
+    s._engage_major((0, 9600), 140_000)                   # untouched for 130 s: no longer holding the fight
+    assert s._live_boss_reset_ms == 140_000
+
+
+def _engine(spawns):
+    from aion2calc.meter.a2parser.engine import MeterEngine
+    engine = MeterEngine()
+    engine.map_id = engine.dungeon_id = 600053
+    engine.last_zone_reset_ms = 100_000
+    engine.local_player_id = 4062
+    engine.names = {4062: "Me"}
+    engine.known_players = {4062}
+    engine.roster = {"Me": {}}
+    engine.spawn_info = {entity: {"mobCode": code} for entity, code in spawns.items()}
+    return engine
+
+
+def _hit(target, t):
+    return DamageEvent(actor_id=4062, target_id=target, skill_code=15210000, damage=500, timestamp_ms=t)
+
+
+def test_trash_left_alive_no_longer_keeps_the_overlay_on_the_old_fight():
+    """The capture's sequence through the session: trash hit and left alive is promoted by elapsed
+    time; the boss pull 88 s later resets the overlay, the boss's death ends the pull even though
+    the trash was never seen dying, and the next combat starts the overlay fresh again."""
+    trash, trash2, boss = 20217, 34567, 51000
+    engine = _engine({trash: TRASH_CODE, trash2: TRASH2_CODE, boss: BOSS_CODE})
+    s = CombatSession()
+    s.pvp = False
+    s.observe(engine, [], timestamp_ms=101_000)
+    s.observe(engine, [_hit(trash, 375_000)], timestamp_ms=375_000)
+    s.observe(engine, [_hit(trash, 381_000)], timestamp_ms=381_000)   # the party moves on; no death record
+    s.observe(engine, [], timestamp_ms=390_000)                         # 15 s after first contact
+    assert (s.epoch, trash) in s._engaged_major                         # promoted, and never seen dying
+    s.observe(engine, [_hit(boss, 469_000)], timestamp_ms=469_000)      # the boss pulled 88 s later
+    assert s._live_boss_reset_ms == 469_000                             # the overlay starts on the boss
+    engine.telemetry = [{"kind": "death", "entity": boss, "timestamp_ms": 500_000}]
+    s.observe(engine, [], timestamp_ms=500_000)
+    engine.telemetry = []
+    assert s._pull_ended_ms == 500_000                                  # the stale trash does not keep it open
+    s.observe(engine, [_hit(trash2, 520_000)], timestamp_ms=520_000)    # the next combat
+    assert s._live_boss_reset_ms == 520_000

@@ -38,6 +38,11 @@ MAJOR_ENGAGE_MS = 12_000
 #: damage (party dead, or ran out of range) well beyond this; a battle-rez, where others
 #: keep hitting, never pauses it. Tunable.
 RESET_LULL_MS = 26_000
+#: A catalog boss still holds the current fight this long after the party's last damage to it,
+#: so an add promoted to major during a long untargetable phase never re-points the live overlay
+#: at the add. A major inferred from a sustained engagement (an elite or mini-boss) holds it for
+#: RESET_LULL_MS: one the party has not touched that long is no longer being fought.
+BOSS_HOLD_MS = 120_000
 #: In the live view with "combine pets with owner" OFF, a summon/pet that has not dealt or
 #: taken an action for at least this long is treated as de-spawned and its damage rolls into
 #: its owner's row, while the owner's still-active pets keep their own rows. Without this, a
@@ -265,16 +270,43 @@ class CombatSession:
             self._boss_killed_marker = None
         # A fresh major pull marks where the live overlay resets to, so it shows just this fight
         # when ``reset_on_boss_start`` is on. The reset marks a fight's *start*, so it fires only
-        # when no other major is still alive — never when an add (or a second boss) is promoted to
-        # major mid-fight while the current boss is still up, which would wrongly drop the running
-        # boss DPS from the overlay. Display only; segmentation above is unchanged.
-        if (new_major and engaged_ms is not None
-                and not any(k[0] == self.epoch and k not in self._dead for k in self._engaged_major)):
+        # when no other major is still in play (``_majors_in_play``) — never when an add (or a
+        # second boss) is promoted to major mid-fight while the current boss is still up, which
+        # would wrongly drop the running boss DPS from the overlay. Display only; segmentation
+        # above is unchanged.
+        if new_major and engaged_ms is not None and not self._majors_in_play(engaged_ms):
             self._live_boss_reset_ms = engaged_ms
         self._engaged_major.add(ekey)
+        if engaged_ms is not None:
+            self._boss_hit_ms.setdefault(ekey, engaged_ms)   # in play from its engagement on
         if len(self._major_history) > 2048:       # bound; keep this epoch's majors
             self._major_history = {k for k in self._major_history if k[0] == self.epoch}
         self._major_history.add(ekey)
+
+    def _majors_in_play(self, now_ms):
+        """The engaged majors of this epoch that still hold the current fight: not seen dying, and
+        damaged by the party within ``BOSS_HOLD_MS`` (a catalog boss, whose untargetable phases can
+        run long) or ``RESET_LULL_MS`` (a major inferred from a sustained engagement) of ``now_ms``.
+        Display only: it decides where the live overlay resets, never how fights are segmented.
+
+        Without the recency test, a major that left the fight unseen stayed "alive" for the rest of
+        the zone and blocked every later boss-start reset, and the reset after a kill: any enemy
+        the party touches is promoted to major twelve seconds after first contact unless its death
+        record arrives first, so trash the party hit and moved past -- or that died without a death
+        record -- kept the overlay from resetting on the next boss pull."""
+        spawns = (self.identities.get(self.epoch) or {}).get("spawns") or {}
+        in_play = []
+        for key in self._engaged_major:
+            if key[0] != self.epoch or key in self._dead:
+                continue
+            last = self._boss_hit_ms.get(key)
+            if last is None:
+                continue                      # no party damage on record: not being fought
+            code = (spawns.get(key[1]) or {}).get("mobCode")
+            hold = BOSS_HOLD_MS if code and npc_info(code).get("isBoss") else RESET_LULL_MS
+            if now_ms - last < hold:
+                in_play.append(key)
+        return in_play
 
     def _check_boss_wipe(self, timestamp_ms, engine):
         attempt = self._boss_attempt
@@ -657,8 +689,8 @@ class CombatSession:
                 self._boss_killed_ms = sample["timestamp_ms"]
                 self._boss_killed_marker = (self.manual_split, self.run)
                 self.boss_kills += 1
-                if not any(k[0] == self.epoch and k not in self._dead for k in self._engaged_major):
-                    # No other major of this pull is still alive: the pull is over. The next
+                if not self._majors_in_play(sample["timestamp_ms"]):
+                    # No other major of this pull is still in play: the pull is over. The next
                     # outgoing damage starts the overlay fresh (see ``observe``).
                     self._pull_ended_ms = sample["timestamp_ms"]
             if sample["kind"] == "hp" and (key in self._engaged_major or key in self._engage_span):
