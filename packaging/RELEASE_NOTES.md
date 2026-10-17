@@ -1,6 +1,8 @@
-## Fix: the meter froze and Stop failed after the first pause in combat (0.2.301)
+## Fix: the meter froze and Stop failed after the first pause in combat; in-game text survives busy moments (0.2.301)
 
 **The live meter no longer freezes once a fight pauses, and Stop works again.** Since 0.2.297, five seconds after combat paused (any pull, trash included) with automatic uploads and the per-fight upload on, which are the defaults, the live view's refresh took the meter's data lock a second time from the thread that already held it. That refresh never finished and never let go of the lock, so the decoder could not take another packet: the meter stopped updating, the overlay kept showing the last reading, and Stop showed *Error* because the decoder never finished shutting down. The per-fight upload check now reads the session under the lock its caller already holds. Two tests guard it: the reported sequence through the live status path, and a check that nothing the status path runs takes that lock again.
+
+**In-game text (RTSS) keeps updating through busy moments.** When the meter's data stayed busy for half a second with no reading cached yet, the reading the RTSS pusher asked for failed and ended the pusher, leaving the last text frozen in the game until the setting was toggled. The pusher now notes the error on the status line, leaves the last text in place and tries again at its normal pace; only an unreachable RTSS waits the five-second retry.
 
 **If the meter is frozen on 0.2.297 to 0.2.300:** quit the app from the tray or its window (closing can take up to about a minute while the stuck capture times out; end it in Task Manager if it stays open), start it again, and install this version from the gold *Version available* chip in the top bar. Until then, unticking *Upload the recording each time a boss fight ends* in Settings avoids the freeze.
 

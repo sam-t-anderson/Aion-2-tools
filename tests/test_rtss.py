@@ -3,6 +3,7 @@ reuse our own, write the extended text on v2.7+, bump the frame counter, release
 against an RTSS-shaped block on any platform; the text renderer never emits user text that RTSS
 would read as a tag; the pusher reports a missing RTSS instead of raising."""
 import struct
+import time
 
 import pytest
 
@@ -99,6 +100,35 @@ def test_pusher_reports_missing_rtss_and_pushes_into_a_fake_block():
     pusher.stop()
     assert rtss.release(rtss.MemoryView(block)) is False                   # stop() already cleared our slot
     assert pusher.state["enabled"] is False and pusher.state["connected"] is False
+
+
+def test_pusher_outlives_a_busy_meter_and_keeps_its_cadence():
+    """The meter's status() raises when its data lock stays busy and no reading is cached yet (the
+    heaviest moments of a fight). That used to escape push_once and end the pusher thread, freezing
+    the text in the game until the setting was toggled. Now the error is reported, the last text
+    stays, and the next update comes at the normal pace rather than the slow RTSS retry."""
+    block = rtss.fake_block()
+    calls = {"n": 0}
+
+    def status():
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            raise TimeoutError("Capture data is busy; refresh will retry.")
+        return {"running": True, "snapshot": {"boss": "B", "players": [{"name": "A", "dps": 5, "damage": 5}]}}
+    settings = {"rtss_enabled": True, "rtss_rows": 3, "rtss_metric": "dps", "rtss_style": "plain",
+                "rtss_interval_ms": 100}
+    pusher = rtss.Pusher(status, lambda: settings, view_factory=lambda: rtss.MemoryView(block))
+    assert pusher.push_once() is None and "busy" in pusher.state["error"]
+    pusher.start()                                   # its first update hits the busy meter again
+    try:
+        deadline = time.monotonic() + 3.0            # well inside the 5 s RTSS retry
+        while pusher.state["updates"] < 1 and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert pusher.state["updates"] >= 1 and pusher.state["error"] is None
+        assert pusher._thread.is_alive()
+    finally:
+        pusher.stop()
+    assert pusher.state["enabled"] is False
 
 
 def test_open_view_refuses_off_windows(monkeypatch):

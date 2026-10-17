@@ -299,10 +299,18 @@ class Pusher:
             pass
         self.state.update(connected=False, slot=None, enabled=False)
 
-    def push_once(self) -> bool:
-        """One update; True when RTSS took the text."""
+    def push_once(self) -> bool | None:
+        """One update: True when RTSS took the text, False when RTSS could not be reached (retried
+        slowly), None when the meter had no reading to give -- its data lock stayed busy with no
+        reading cached yet -- in which case the last text stays in the game and the next update
+        comes at the normal pace."""
         settings = self._settings_fn() or {}
-        text = render(self._status_fn() or {}, rows=int(settings.get("rtss_rows") or 5),
+        try:
+            status = self._status_fn() or {}
+        except Exception as exc:   # noqa: BLE001 - a busy or failing meter must never end the pusher
+            self.state["error"] = f"Meter reading unavailable: {type(exc).__name__}: {exc}"[:300]
+            return None
+        text = render(status, rows=int(settings.get("rtss_rows") or 5),
                       metric=str(settings.get("rtss_metric") or "dps"), style=str(settings.get("rtss_style") or "plain"))
         try:
             view = self._view_factory()
@@ -314,6 +322,7 @@ class Pusher:
             return False
         try:
             if text == self.state.get("last_text") and self.state.get("connected"):
+                self.state["error"] = None
                 return True
             info = write_text(view, text)
         except Exception as exc:   # noqa: BLE001
@@ -328,11 +337,16 @@ class Pusher:
     def _run(self) -> None:
         self.state["enabled"] = True
         while not self._stop.is_set():
-            settings = self._settings_fn() or {}
-            if not settings.get("rtss_enabled"):
-                break
-            ok = self.push_once()
-            interval = max(0.1, min(5.0, float(settings.get("rtss_interval_ms") or 500) / 1000))
-            self._stop.wait(interval if ok else self.RETRY_S)
+            ok, interval = None, 0.5
+            try:
+                settings = self._settings_fn() or {}
+                if not settings.get("rtss_enabled"):
+                    break
+                interval = max(0.1, min(5.0, float(settings.get("rtss_interval_ms") or 500) / 1000))
+                ok = self.push_once()
+            except Exception as exc:   # noqa: BLE001 - one failed update must never end the pusher
+                self.state["error"] = f"{type(exc).__name__}: {exc}"[:300]
+            # Only an unreachable RTSS waits the long retry; a meter hiccup retries at the normal pace.
+            self._stop.wait(self.RETRY_S if ok is False else interval)
         self._clear()
         self.state["enabled"] = False
