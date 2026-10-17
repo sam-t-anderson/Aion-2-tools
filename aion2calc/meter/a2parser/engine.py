@@ -10,7 +10,7 @@ from copy import deepcopy
 import time
 
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
-from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, _damage_frames
+from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_self_vitals, _damage_frames
 from .framing import walk, bundle_batch
 from .lookup import job_from_skill, skill_family, skill_name, npc_info, npc_name, dungeon_final_bosses
 from .ping import PingTracker
@@ -260,6 +260,13 @@ class MeterEngine:
                 if is_self:
                     self.local_player_id = actor_id
                     self.local_identity_from_game = True
+            vitals = scan_self_vitals(packet)
+            if vitals and vitals[0] == self.local_player_id:
+                # The local player's maximum HP and MP: the HP feed never carries its maximum, and
+                # effective healing and the MP summary need them.
+                info = self.spawn_info.setdefault(vitals[0], {})
+                info["maxHp"] = info["reportedMaxHp"] = vitals[1]
+                info["maxMp"] = vitals[2]
             self._observe_self_profile(packet)
             self._bind_hinted_name()
             self._bind_character_list(packet)

@@ -1070,6 +1070,50 @@ def _cast_end(body: bytes) -> list[dict]:
     return [{"kind": "cast_end", "actor": actor[0], "skill": skill, "seq": body[at + 4], "flag": body[at + 5]}]
 
 
+def _mp(body: bytes) -> list[dict]:
+    """``00 8d``: entity, ``01 01 01``, u32 -- the recording player's current MP (the game sends it
+    for the local player only). Each MP-costing cast lowers it by the skill's listed cost (Combustion
+    120, Curse 80, Summon: Fire Spirit 150, Ruinous Blow 250 in the diagnostic captures) and regen
+    ticks raise it; the HP feed is subtype ``02 01 00`` of the same record."""
+    entity = _var(body, 0)
+    if entity is None or not 100 <= entity[0] <= 9_999_999:
+        return []
+    at = entity[1]
+    if body[at:at + 3] != b"\x01\x01\x01" or at + 7 > len(body):
+        return []
+    value = int.from_bytes(body[at + 3:at + 7], "little")
+    return [{"kind": "mp", "entity": entity[0], "current": value}] if value <= 1_000_000 else []
+
+
+def scan_self_vitals(frame: bytes) -> tuple[int, int, int] | None:
+    """The recording player's own record (``33 36``, sent on entering a zone) carries ``01``, its HP
+    and maximum HP as varints (equal: a player enters at full HP) and its maximum MP (u32), about
+    200 bytes in. Returns (entity, maximum HP, maximum MP) or None. The HP feed does not carry the
+    local player's maximum; in the three captures with readings to compare, these values matched the
+    player's highest HP and MP readings."""
+    length = read_varint(frame, 0)
+    if length.length <= 0 or frame[length.length:length.length + 2] != b"\x33\x36":
+        return None
+    body = frame[length.length + 2:]
+    entity = _var(body, 0)
+    if entity is None or not 100 <= entity[0] <= 9_999_999:
+        return None
+    start = entity[1]
+    for at in range(start + 120, min(len(body) - 8, start + 320)):
+        if body[at] != 1:
+            continue
+        current = _var(body, at + 1)
+        if current is None or not 1_000 <= current[0] <= 10_000_000:
+            continue
+        maximum = _var(body, current[1])
+        if maximum is None or maximum[0] != current[0] or maximum[1] + 4 > len(body):
+            continue
+        mp = int.from_bytes(body[maximum[1]:maximum[1] + 4], "little")
+        if 0 < mp <= 1_000_000:
+            return entity[0], maximum[0], mp
+    return None
+
+
 def _effect(body: bytes) -> list[dict]:
     """``2b 38``: target, type, instance (varint), effect (u32), duration (u64 ms), start (u64), source,
     a byte, the skill that applied it (u32), two bytes, then a position (3 x f32)."""
@@ -1116,10 +1160,11 @@ def _effect_ends(body: bytes) -> list[dict]:
 
 
 def scan_actions(frame: bytes) -> list[dict]:
-    """Decode the combat-action records in one frame, each a dict with a ``kind``: skill casts and
-    cast ends, the local player's chain windows (``chain_open``: a skill opened the window for its
-    chain skill; ``chain_close``), effect instances added and removed on any entity in range
-    (buffs, debuffs, crowd control), and boss break-gauge readings. The layouts were decoded from
+    """Decode the combat-action records in one frame, each a dict with a ``kind``: skill casts
+    (players' ``02 38``; NPCs' ``09 38``, marked ``npc``) and cast ends, the local player's chain
+    windows (``chain_open``: a skill opened the window for its chain skill; ``chain_close``), effect
+    instances added and removed on any entity in range (buffs, debuffs, crowd control), boss
+    break-gauge readings and the local player's MP (``mp``). The layouts were decoded from
     diagnostic captures against the decoded damage stream (see docs/open-investigations.md)."""
     length = read_varint(frame, 0)
     if length.length <= 0 or length.length + 2 > len(frame):
@@ -1129,6 +1174,11 @@ def scan_actions(frame: bytes) -> list[dict]:
     try:
         if opcode == b"\x02\x38":
             return _cast(body)
+        if opcode == b"\x09\x38":
+            # An NPC's skill cast, in the 02 38 layout (NPCs only, almost always at a target).
+            return [dict(row, npc=True) for row in _cast(body)]
+        if opcode == b"\x00\x8d":
+            return _mp(body)
         if opcode == b"\x06\x38":
             return _cast_end(body)
         if opcode == b"\x2b\x38":

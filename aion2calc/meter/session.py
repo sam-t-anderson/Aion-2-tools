@@ -348,15 +348,23 @@ class CombatSession:
 
     def _keep_actions(self, actions, identity):
         """Keep the decoded actions that concern the party: casts and cast ends by players and pets,
-        the local player's chain windows, effects on players and pets or applied by them (an enemy's
-        own buffs are kept only once the party has hit that enemy), and break-gauge readings."""
+        casts by catalog bosses, the local player's chain windows and MP, effects on players and pets
+        or applied by them (an enemy's own buffs are kept only once the party has hit that enemy),
+        and break-gauge readings."""
         players, owners, epoch = identity["names"], identity["owners"], self.epoch
         local = identity.get("local_id")
         ours = lambda actor: actor in players or actor in owners or actor == local
         for action in actions:
             kind = action["kind"]
-            if kind in ("cast", "cast_end"):
+            if kind == "cast" and not ours(action["actor"]):
+                code = (identity["spawns"].get(action["actor"]) or {}).get("mobCode")
+                keep = bool(code) and bool(npc_info(code).get("isBoss"))
+            elif kind in ("cast", "cast_end"):
                 keep = ours(action["actor"])
+            elif kind == "mp":
+                # The game sends only the local player's MP, so readings from before the local player
+                # is known are kept too; the export takes those of the player it turned out to be.
+                keep = local is None or action["entity"] == local
             elif kind == "effect":
                 key = (epoch, action["target"], action["instance"])
                 held = self._effects_held.get(key)
@@ -1753,9 +1761,33 @@ class CombatSession:
             elif a["kind"] == "effect":
                 applied.setdefault((a["target"], a["instance"]), []).append(a["timestamp_ms"])
         casts, effects, gauge, chains, last_gauge, chain_open = [], [], [], [], {}, {}
+        resources, npc_casts, mp_before, mp_last = [], [], {}, {}
         local = actor_refs.get(identity.get("local_id"))
         for a in window:
             kind, ms = a["kind"], a["timestamp_ms"]
+            if kind == "mp":
+                entity = actor_refs.get(a["entity"])
+                if entity not in players or entity != (local or entity) or ms > end:
+                    continue
+                if ms < start:
+                    mp_before[entity] = a["current"]      # the reading in force when the fight began
+                    continue
+                if entity in mp_before:
+                    mp_last[entity] = mp_before.pop(entity)
+                    resources.append({"t": 0.0, "entity": entity, "mp": mp_last[entity]})
+                if mp_last.get(entity) != a["current"]:
+                    mp_last[entity] = a["current"]
+                    resources.append({"t": at(ms), "entity": entity, "mp": a["current"]})
+                continue
+            if kind == "cast" and start - 3000 <= ms <= end + 1000 and party_ref(a["actor"]) is None:
+                source = actor_refs.get(a["actor"])
+                if source in entities and entities[source].get("is_boss") and start <= ms:
+                    row = {"t": at(ms), "source": source, "skill_id": a["skill"], "skill": skill_name(a["skill"])}
+                    target = actor_refs.get(a["target"])
+                    if a["at_target"] and target and target != source:
+                        row["target"] = target
+                    npc_casts.append(row)
+                continue
             if kind == "cast" and start - 3000 <= ms <= end + 1000:
                 source = party_ref(a["actor"])
                 if source is None:
@@ -1819,7 +1851,14 @@ class CombatSession:
             chains.append({"t": at(opened), "player": local, "skill_id": normalize_skill(skill),
                            "next_id": normalize_skill(nxt), "next": skill_name(normalize_skill(nxt))})
         chains.sort(key=lambda c: c["t"])
-        return casts, effects, gauge, chains
+        for entity, value in mp_before.items():          # no reading during the fight: the one before it
+            resources.append({"t": 0.0, "entity": entity, "mp": value})
+        maximum = (identity["spawns"].get(identity.get("local_id")) or {}).get("maxMp")
+        if maximum and local in players:
+            for row in resources:
+                if row["entity"] == local:
+                    row["max"] = maximum
+        return casts, effects, gauge, chains, resources, npc_casts
 
     def to_a2log(self, scope="party", title=None, segment_id="all"):
         from ..combat import a2log
@@ -1930,7 +1969,8 @@ class CombatSession:
                     initial[sample["entity"]] = sample
             for actor_id, sample in initial.items():
                 eid = actor_refs.get(actor_id)
-                if eid in entities and entities[eid].get("is_boss"):
+                # Bosses, and players too: a heal early in the fight needs the HP it started from.
+                if eid in entities and entities[eid].get("is_boss") or eid in players:
                     maximum = sample.get("max") or identity["spawns"].get(actor_id, {}).get("reportedMaxHp")
                     health.append({"t":0, "entity":eid, "current":sample["current"], "max":maximum})
             dead_players = set()
@@ -1954,7 +1994,7 @@ class CombatSession:
                 else:
                     health.append({"t": t, "entity": eid, "current": sample["current"],
                         "max": sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("reportedMaxHp")})
-            casts, effects, gauge, chains = self._segment_actions(group, identity, actor_refs, players, entities, by_epoch)
+            casts, effects, gauge, chains, resources, npc_casts = self._segment_actions(group, identity, actor_refs, players, entities, by_epoch)
             if hits or events:
                 bosses = [e for e in entities.values() if e.get("is_boss")]
                 run = self.runs[group["run"]]
@@ -1986,6 +2026,7 @@ class CombatSession:
                     "killed": any(e["kind"] == "death" and e["target"] in {b["id"] for b in bosses} for e in events),
                     "hits": hits, "events": sorted(events, key=lambda e: e["t"]), "entities": list(entities.values()), "health": health,
                     "casts": casts, "effects": effects, "gauge": gauge, "chains": chains,
+                    "resources": resources, "npc_casts": npc_casts,
                     "start": datetime.fromtimestamp(group["start"] / 1000, timezone.utc).isoformat(),
                     "duration": max(0.001, (group["end"] - group["start"]) / 1000),
                     "capture_loss": self.losses_within(group["start"], group["end"])})

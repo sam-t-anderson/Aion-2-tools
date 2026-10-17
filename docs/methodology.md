@@ -19,6 +19,7 @@ For controls and setup, see the [app guide](app.md) and [user guide](user-guide.
 - [Validation and sensitivity](#validation-and-sensitivity)
 - [Combat-log evidence](#combat-log-evidence)
 - [Estimated buff contribution (0.2.307)](#estimated-buff-contribution-02307)
+- [Effective healing and overheal (0.2.307)](#effective-healing-and-overheal-02307)
 - [Installation, identity and live rate evidence](#installation-identity-and-live-rate-evidence)
 - [Encounter catalog and boss roles](#encounter-catalog-and-boss-roles)
 - [Capture-driver counters](#capture-driver-counters)
@@ -512,6 +513,34 @@ On the supplied captures:
   cannot be ruled out.
 
 Until more fights agree, the tab says it is an estimate and rankings use recorded DPS only.
+
+## Effective healing and overheal (0.2.307)
+
+The game reports how much a heal restored, not how much of it was overheal, so encounter insights
+derive that from the party HP feed (`aion2calc/combat/healing.py`). The server sends each party
+member's HP after every change. The members' maximum HP comes with it, and the recording player's
+from their own record on entering a zone.
+
+* **Instant heals.** A heal on a player restores at most the HP they are missing, so its effective
+  part is `min(amount, maximum HP − HP before)` and the rest is overheal. HP before is the target's
+  last reading from an earlier read than the heal, plus the effective part of heals already counted
+  in the same read. Each player's last reading from before the fight is kept for heals early in it.
+  A heal with no earlier reading or no known maximum is counted as *No reading*, never guessed.
+* **Heals over time and shields are not measured.**
+  * A heal over time ("restores … HP every 1s for 14s") arrives as one record carrying its whole
+    amount, while the HP feed rises tick by tick. Light of Regeneration's ~6,000 rose ~418 per tick,
+    and it was 68% of the recorded healing in the 15 October capture.
+  * Some shields arrive as healing of the shield's size ("a Protective Shield that blocks damage";
+    Impeding Authority) and restore no HP.
+  * Both are listed apart, told apart by the skill descriptions. Potions, which have none, count as
+    healing over time: their next readings rose far less than their amounts.
+* **The check.** For each read that healed a player, the target's HP after it (their last reading in
+  that read, else the next within a second) should equal the HP before plus the read's effective
+  healing. In the 15 October capture, 256 reads matched in full and 22 matched topped up to maximum
+  HP. 168 had other changes in between (damage, ticks of other heals). Read in arrival order, 215
+  heals raised HP by exactly their amount and 18 stopped at maximum HP.
+
+Pets and enemies are not covered, and shield absorption itself is not decoded.
 
 ## Installation, identity and live rate evidence
 

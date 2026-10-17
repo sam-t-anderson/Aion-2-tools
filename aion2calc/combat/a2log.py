@@ -42,7 +42,7 @@ CLASS_ALIASES = {"elementalist": "spiritmaster", "brawler": "brawler"}
 PLAYER_STATS = ("critical_hit", "attack", "double_pct", "perfect_pct", "multihit_pct", "combat_speed_pct",
                 "cooldown_pct", "accuracy")
 LIMITS = {"players": 1024, "segments": 200, "hits": 400_000, "buffs": 100_000, "hp": 50_000, "text": 200,
-          "casts": 200_000, "effects": 100_000, "gauge": 50_000, "chains": 20_000}
+          "casts": 200_000, "effects": 100_000, "gauge": 50_000, "chains": 20_000, "resources": 50_000, "npc_casts": 20_000}
 
 
 def _count(value):
@@ -150,6 +150,8 @@ _segment_properties.update({
     "effects": {"type": "array", "maxItems": LIMITS["effects"], "description": "Recorded effect instances (buffs, debuffs, crowd control) on segment actors: t and end clipped to the segment, target, optional source, skill_id, skill, effect_id, duration_ms (absent when permanent; one application's), refreshes (re-applications while held, which extend the window), ended expired/removed, before when applied before the segment"},
     "gauge": {"type": "array", "maxItems": LIMITS["gauge"], "description": "Boss break (stagger) gauge readings: t, entity, max, current"},
     "chains": {"type": "array", "maxItems": LIMITS["chains"], "description": "The recording player's chain-skill windows: t opened, optional end, player, skill_id that opened it, next_id and next (the chain skill)"},
+    "resources": {"type": "array", "maxItems": LIMITS["resources"], "description": "The recording player's MP readings (the game sends no one else's): t (0 for the reading in force at the start), entity, mp, optional max (from the player's own record)"},
+    "npc_casts": {"type": "array", "maxItems": LIMITS["npc_casts"], "description": "Recorded skill casts by bosses: t, source (a boss entity), skill_id, skill, optional target"},
 })
 SCHEMA["properties"]["players"]["items"]["properties"].update({
     "character_id": {"type": "string", "description": "Observed database character ID, distinct from the session combat entity ID"},
@@ -187,8 +189,9 @@ def _int(value, low=0, high=2**53 - 1) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and low <= value <= high
 
 
-def _clean_actions(s: dict, ids: set, references: set) -> tuple[list, list, list, list]:
-    """A segment's recorded casts, effects, break-gauge readings and chain windows, cleaned."""
+def _clean_actions(s: dict, ids: set, references: set) -> tuple[list, list, list, list, list, list]:
+    """A segment's recorded casts, effects, break-gauge readings, chain windows, MP readings and
+    boss casts, cleaned."""
     duration = s["duration"]
     casts = []
     for row in (s.get("casts") or [])[:LIMITS["casts"]]:
@@ -239,7 +242,26 @@ def _clean_actions(s: dict, ids: set, references: set) -> tuple[list, list, list
             if isinstance(row.get("next"), str):
                 x["next"] = row["next"][:80]
             chains.append(x)
-    return casts, effects, gauge, chains
+    resources = []
+    for row in (s.get("resources") or [])[:LIMITS["resources"]]:
+        if (isinstance(row, dict) and row.get("entity") in ids and _num(row.get("t")) and 0 <= row["t"] <= duration + 1
+                and _int(row.get("mp"), 0, 1_000_000)):
+            x = {"t": float(row["t"]), "entity": row["entity"], "mp": row["mp"]}
+            if _int(row.get("max"), 1, 1_000_000) and row["max"] >= row["mp"]:
+                x["max"] = row["max"]
+            resources.append(x)
+    npc_casts = []
+    entity_ids = references - ids
+    for row in (s.get("npc_casts") or [])[:LIMITS["npc_casts"]]:
+        if (isinstance(row, dict) and row.get("source") in entity_ids and _num(row.get("t"))
+                and 0 <= row["t"] <= duration + 1 and _int(row.get("skill_id"), 1)):
+            x = {"t": float(row["t"]), "source": row["source"], "skill_id": row["skill_id"]}
+            if isinstance(row.get("skill"), str):
+                x["skill"] = row["skill"][:80]
+            if row.get("target") in references:
+                x["target"] = row["target"]
+            npc_casts.append(x)
+    return casts, effects, gauge, chains, resources, npc_casts
 
 
 def validate(doc) -> dict:
@@ -448,7 +470,7 @@ def validate(doc) -> dict:
                     and all(_num(sample.get(k)) for k in ("t", "x", "y"))
                     and 0 <= sample["t"] <= s["duration"] and 0 <= sample["x"] <= 1 and 0 <= sample["y"] <= 1):
                 positions.append({k: sample[k] for k in ("t", "entity", "x", "y")})
-        casts, effects, gauge, chains = _clean_actions(s, ids, references)
+        casts, effects, gauge, chains, resources, npc_casts = _clean_actions(s, ids, references)
         from .latency import clean as clean_ping
         ping = clean_ping(s.get("ping"), s["duration"], LIMITS["hp"])
         out_segs.append({"id": _text(s.get("id"), "segment id") or str(i + 1),
@@ -456,7 +478,8 @@ def validate(doc) -> dict:
                          "start": _text(s.get("start"), "segment start"), "duration": float(s["duration"]),
                          "killed": s.get("killed") is True, "hits": out_hits, "buffs": buffs, "hp": hp,
                          "entities": entities, "events": events, "health": health, "positions": positions, "ping": ping,
-                         "casts": casts, "effects": effects, "gauge": gauge, "chains": chains})
+                         "casts": casts, "effects": effects, "gauge": gauge, "chains": chains,
+                         "resources": resources, "npc_casts": npc_casts})
         if s.get("ping_source") == "passive_tcp_ack":
             out_segs[-1]["ping_source"] = "passive_tcp_ack"
         if isinstance(s.get("ping_recorder"), str) and s["ping_recorder"] in ids:
@@ -493,7 +516,8 @@ def validate(doc) -> dict:
         capped = filtered = 0
         for key, cap in (("buffs", LIMITS["buffs"]), ("hp", LIMITS["hp"]), ("entities", 2000), ("events", LIMITS["hits"]),
                          ("health", LIMITS["hp"]), ("positions", LIMITS["hp"]), ("casts", LIMITS["casts"]),
-                         ("effects", LIMITS["effects"]), ("gauge", LIMITS["gauge"]), ("chains", LIMITS["chains"])):
+                         ("effects", LIMITS["effects"]), ("gauge", LIMITS["gauge"]), ("chains", LIMITS["chains"]),
+                         ("resources", LIMITS["resources"]), ("npc_casts", LIMITS["npc_casts"])):
             given = s.get(key)
             if not isinstance(given, list):
                 continue

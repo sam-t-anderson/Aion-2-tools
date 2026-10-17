@@ -155,16 +155,17 @@ The eight distinct diagnostic captures with raw TCP recording (10–15 October; 
 | `0e 92` / `1a 92` | target · `01` · effect (u32) / target · effect | **party buff added / removed**; effect = skill variant × 10 + stack | 15 October: 2,058 adds, 2,049 removes, 2,029 paired. Across captures 92–100% of adds follow a cast of the same skill within 1.5 s, by the class that owns it (the Chanter's Mantras and Protection Circle, the Cleric's Light of Regeneration). Durations are fixed per buff: Rage Burst 10.0 s, Ruinous Blow 20.0 s, Lunge Stance 18.5 s, Recuperation 12.0 s. |
 | `2b 38` / `2c 38` | target · `13` · instance (varint) · effect (u32) · duration (u64 ms; all ones = permanent) · time (u64) · source · … · skill (u32) · … · x/y/z (f32) / target · count · (`00` · instance · reason) × count | **effect instance added / removed**, for any entity in range — enemies included | The duration field equals the time to an "expired" (reason 1) removal on three captures. On enemies: Forced Fall 3000 → 3.02 s, Overhead Slam 3000 → 3.06 s, Ice Chain 5000 → 5.00 s, Debilitating Mark 10000 → 10.01 s, Drill Dart 6000 → 6.00 s. On players: Experienced Counterstrike 20000 → 20.05 s, Ambush Stance 10000 → 10.01 s. |
 | `05 e0` | boss · `03` · `01` · maximum (u32) · current (u32) · state | **boss break (stagger) gauge** | 99–100% of the gauge's drops share a read with a hit on that boss, and each skill takes a fixed amount (Rending Blow 2, Overhead Slam 5, Condemnation 7, Debilitating Mark 10, Rage Burst 20, Ruinous Blow 25; some hits 1.5×). Maxima differ by boss: 1200 (Vakron, Gelcos, Nazmun), 750 (the Krao Cave bosses), 317 (Transcendent Bakarma), 240, 150. Near zero the gauge stays down 5.1–6.7 s and refills; party damage in the ten seconds after a break was 1.2–2.1× the ten seconds before. |
-| `09 38` | NPC · … · skill · … · target · … · x/y/z · … | NPC cast at a player | Samples only. |
+| `09 38` | actor · `00` · skill (u32) · sequence · kind (2) · target · facing · position — the `02 38` layout | **an NPC's skill cast** (NPCs send `02 38` too) | 345 in the 15 October capture, every one aimed at a target. A boss's casts carry its named abilities (Nazmun: Ultra Laser, Trap Install, Reaction Speed Test; Transcendent Bakarma: Swipe, Subspace Dominion). Recorded per fight for catalog bosses since 0.2.307. |
 | `2e 37`, `3c 37` | entity · skill · positions and direction | dodge rolls and boss charges; skill-driven leaps and dashes (Leaping Slam, Rushing Smash, Infiltrate) | Samples only. |
 | `1a 37`, `1b 37`, `1c 37`, `2f 37` | entity · x/y/z (f32), with a heading on `2f 37` | position and movement updates for players and NPCs | Samples only; units and map transforms unverified. |
 | `00 36` | u64 | server clock in epoch milliseconds, about every 50 ms | The values track the capture clock. |
-| `00 8d` | entity · subtype · value | `02 01 00` is the decoded HP feed (party members included); `01 01 01` hovers near 2,900 (a resource?); `01 01 03` and `01 01 06` count down by 500 and 750 per update | Probe targets. |
+| `00 8d` | entity · subtype · value (u32) | `02 01 00` is the decoded HP feed (party members included). `01 01 01` is the recording player's **MP**, the only player's the game sends. `01 01 03` and `01 01 06` count down by 500 and 750 per update | MP drops by each MP-costing skill's listed cost: Combustion 120 → a median drop of 119 (18 casts), Curse 80 → 79, Summon: Fire Spirit 150 → 149, Ruinous Blow 250 → 246. It rises by +50 regeneration ticks and with MP-restoring skills. Recorded per fight since 0.2.307. The other two subtypes are probe targets. |
+| `33 36` | the recording player's own record, sent on entering a zone: … `01` · HP · maximum HP (varints, equal on entry) · maximum MP (u32), about 200 bytes in | the recording player's **maximum HP and MP** (the HP feed carries neither for them) | Found in five captures; in the three with HP and MP readings to compare, they matched the player's highest readings (23,467 / 3,077; 22,022 / 3,035; 6,610 / 1,816). Read since 0.2.307. |
 | `4a 36`, `4b 36` | local player · (stat id, value) × n / player · count · (stat id, signed delta) × n | stat lists and signed stat changes | Unverified. |
 
 **Limits.** The 11 October crowd capture (194 players, a busy capture) matched only 35% of hits to a cast: the casts of distant players were missing (a median 9.4 s since that actor's previous cast), so cast coverage holds for the party and nearby players, not for a crowd. Party buffs (`0e 92`) cover party members only; `2b 38` covers everything in range, including effects re-sent as entities come into view.
 
-**What it enables** (the roadmap tracks these): a cast timeline and rotation per player; real cast/lock times and cooldowns for the optimizer's kits and a skill-cooldown overlay; chain usage; buff and debuff uptime with sources; crowd control landed and how long it held; each player's break-gauge contribution and the break windows; dodges and leaps; NPC casts for a boss-ability timeline. **Still undecoded:** resources, shield absorption, interrupts, misses, mitigation, the unit and map transform of positions, and PvP rounds; overheal is computable from the HP feed but not yet checked.
+**What it enables** (the roadmap tracks these): a cast timeline and rotation per player; real cast/lock times and cooldowns for the optimizer's kits and a skill-cooldown overlay; chain usage; buff and debuff uptime with sources; crowd control landed and how long it held; each player's break-gauge contribution and the break windows; dodges and leaps; NPC casts for a boss-ability timeline. **Still undecoded:** shield absorption, interrupts, misses, mitigation, the unit and map transform of positions, and PvP rounds. MP and overheal (of instant heals) were added in 0.2.307 (below).
 
 **Built into 0.2.306, and what building it showed.**
 
@@ -192,6 +193,21 @@ The check compares the same player's same-skill plain hits (outside break window
 - The auras are open. A Transcendent Bakarma fight agreed (+22% against +17%) on only 33 hits. Four Deus Research Base fights measured +5.5% against +24%, but their 66 unbuffed hits fall in a few short windows of each fight.
 
 `calibrate --buffs` pools more fights. The estimate stays out of rankings until they agree.
+
+**Built into 0.2.307: MP, effective healing and boss casts, and what stays gated.**
+
+- **MP.** The recording player's MP readings (above) are kept per fight. The review shows where MP started and ended, its lowest, MP spent and restored, and the time below a fifth of the maximum. Other players' MP is never sent.
+- **Effective healing and overheal** ([method](methodology.md#effective-healing-and-overheal-02307)).
+  - An instant heal restores at most the HP its target is missing, read from the party HP feed.
+  - Heals over time cannot be measured that way: one record carries the whole amount, and the HP feed rises tick by tick. Light of Regeneration's records of ~6,000 raised HP by ~418 at the next reading, and it was 68% of the recorded healing in the 15 October capture.
+  - Impeding Authority's shield arrives as a heal of the shield's size.
+  - So heals over time and shields are listed apart. For instant heals, 256 reads matched the HP feed in full and 22 matched topped up to the maximum; 168 had damage or other heals' ticks in between.
+- **Boss casts.** Catalog bosses' `02 38` and `09 38` casts are kept per fight, with their targets. The review groups them by skill and lists each cast in order. Most boss skills have no name in the bundled tables.
+- **Still gated:**
+  - *Interrupts.* Cast ends carry a flag: 0 on instant casts and procs, and on the NPC casts that end at once; 12 on the recording player's ordinary cast ends; and rarely 2, 3, 15 or 33. Flag 3 also ends summoned spirits' basic attacks with nothing landing on the spirit, so it does not mean "interrupted by crowd control".
+  - *Misses.* None of the 13,048 decoded hits on enemies or 501 on players carried zero damage, so a miss or evasion travels in a record the decoder does not read yet.
+  - *Shield absorption and mitigation.* Neither is in the decoded records.
+  - *Movement.* Position updates arrive for party players (thousands per capture), but their units and map transforms are unverified. Dodges and skill leaps already appear in the rotation as casts.
 
 ## Genus Insight advice checked against the model and the recorded boss fights (17 October)
 

@@ -11,6 +11,8 @@ from .archive import clean_continuity
 from .runs import stamp
 
 MAX_PARTS = 32
+#: The recorded action lists (0.2.306; MP readings and boss casts since 0.2.307) a combined review may leave out.
+ACTION_KEYS = ("casts", "effects", "gauge", "chains", "resources", "npc_casts")
 MAX_BYTES = 64 * 1024 * 1024
 NOTE = ("Combined review of submitted recording parts. Source encounters and run boundaries remain separate. "
         "Counters do not establish loss-free capture; entry, completion and rankings are not inherited. "
@@ -46,7 +48,7 @@ def clean_manifest(value):
         sources.append(source)
     manifest = {"version":1, "sources":sources, "note":NOTE}
     omitted = value.get("omitted_actions")
-    if isinstance(omitted, list) and omitted and all(key in ("casts", "effects", "gauge", "chains") for key in omitted):
+    if isinstance(omitted, list) and omitted and all(key in ACTION_KEYS for key in omitted):
         manifest["omitted_actions"] = sorted(set(omitted))
     return manifest
 
@@ -154,7 +156,8 @@ def combine(sources):
             for key, fields in (("hits", ("player", "source", "target", "pet")), ("events", ("source", "target")),
                                 ("buffs", ("player",)), ("health", ("entity",)), ("positions", ("entity",)),
                                 ("casts", ("source", "target")), ("effects", ("target", "source")),
-                                ("gauge", ("entity",)), ("chains", ("player",))):
+                                ("gauge", ("entity",)), ("chains", ("player",)), ("resources", ("entity",)),
+                                ("npc_casts", ("source", "target"))):
                 for event in segment.get(key, []):
                     for field in fields:
                         if field in event:
@@ -180,8 +183,7 @@ def combine(sources):
             raise ValueError(f"Combined {key} exceeds review limits; choose a shorter range")
     # Casts, effect windows, chain windows and gauge readings (0.2.306) add up fast across parts:
     # past one document's limit a combined review leaves them out, and each part still has them.
-    omitted_actions = [key for key in ("casts", "effects", "gauge", "chains")
-                       if sum(len(s.get(key, [])) for s in segments) > LIMITS[key]]
+    omitted_actions = [key for key in ACTION_KEYS if sum(len(s.get(key, [])) for s in segments) > LIMITS[key]]
     for segment in segments:
         for key in omitted_actions:
             segment.pop(key, None)

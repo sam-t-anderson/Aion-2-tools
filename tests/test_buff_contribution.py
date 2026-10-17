@@ -133,7 +133,7 @@ def test_the_estimate_reaches_the_review_and_the_cli_but_never_the_ranking(tmp_p
     doc = _doc([_effect(MANTRA, "cha", "sor", effect_id=181900411)], _hits("sor") + _hits("cha", n=1))
     clean = F.validate(json.loads(json.dumps(doc)))
     segment = clean["encounter_insights"]["segments"][0]
-    assert clean["encounter_insights"]["version"] == 4 and segment["contribution"]["players"]
+    assert clean["encounter_insights"]["version"] == 5 and segment["contribution"]["players"]
     from pathlib import Path
     js = (Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static" / "combat-review.js").read_text(encoding="utf-8")
     assert '["contribution","Buff contribution"]' in js and "not used for rankings or parses" in js

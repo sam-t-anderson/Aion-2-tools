@@ -1,5 +1,6 @@
 """Rotation, effect-uptime, crowd-control and break-gauge summaries from an a2log segment's recorded
-casts, effects, chain windows and break-gauge readings (recorded by the live meter since 0.2.306).
+casts, effects, chain windows and break-gauge readings (recorded by the live meter since 0.2.306),
+and the recording player's MP and the bosses' casts (since 0.2.307).
 
 Everything here describes what was recorded: a cast is the game's own cast record, an effect window
 runs from the effect's application to its removal (or its stated duration), and a break-gauge drop
@@ -239,11 +240,78 @@ def stagger(segment: dict, entities: dict) -> list:
     return out
 
 
+#: MP below this share of the maximum counts as running low.
+LOW_MP = 0.2
+
+
+def mp(segment: dict) -> list:
+    """The recording player's MP over the fight (0.2.307): where it started and ended, its lowest,
+    MP spent (the sum of drops, mostly skill costs) and restored (regeneration and MP-restoring
+    skills), and the time spent below 20% of the maximum. The maximum is the one the player's own
+    record carries, else the highest reading (then marked as such)."""
+    readings = defaultdict(list)
+    for row in segment.get("resources") or []:
+        readings[row["entity"]].append(row)
+    out, duration = [], segment.get("duration") or 0
+    for entity, rows in readings.items():
+        rows.sort(key=lambda r: r["t"])
+        values = [r["mp"] for r in rows]
+        maximum = next((r["max"] for r in rows if r.get("max")), None)
+        top = maximum or max(values)
+        spent = sum(max(0, a - b) for a, b in zip(values, values[1:]))
+        restored = sum(max(0, b - a) for a, b in zip(values, values[1:]))
+        low = 0.0
+        for row, following in zip(rows, rows[1:] + [None]):
+            if top and row["mp"] < LOW_MP * top:
+                low += (following["t"] if following else duration) - row["t"]
+        out.append({"entity": entity, "readings": len(rows), "start": values[0], "end": values[-1],
+                    "lowest": min(values), "max": top, "max_from_record": bool(maximum),
+                    "spent": spent, "restored": restored,
+                    "spent_per_minute": round(60 * spent / duration, 1) if duration else None,
+                    "seconds_low": round(low, 1), "low_pct": round(100 * low / duration, 1) if duration else None})
+    return out
+
+
+#: Casts of one skill at one target this close together are one row of the boss-cast list (a
+#: channelled skill sends a cast record every few hundredths of a second).
+REPEAT_S = 1.5
+
+
+def boss_casts(segment: dict) -> dict:
+    """The skills bosses cast (0.2.307): per boss and skill, how often, when first and last, and
+    which players they were aimed at; plus the casts in order (the first 100 rows), quick repeats
+    of one skill at one target folded into one row with their count and end."""
+    casts = sorted(segment.get("npc_casts") or [], key=lambda r: r["t"])
+    grouped = {}
+    for row in casts:
+        key = (row["source"], row["skill_id"])
+        entry = grouped.setdefault(key, {"source": row["source"], "skill_id": row["skill_id"], "skill": row.get("skill"),
+                                         "casts": 0, "first": row["t"], "last": row["t"], "targets": defaultdict(int)})
+        entry["casts"] += 1
+        entry["last"] = row["t"]
+        if row.get("target"):
+            entry["targets"][row["target"]] += 1
+    skills = []
+    for entry in grouped.values():
+        targets = sorted(entry.pop("targets").items(), key=lambda kv: -kv[1])
+        skills.append({**entry, "targets": [{"target": t, "casts": n} for t, n in targets[:5]]})
+    skills.sort(key=lambda r: (r["source"], r["first"]))
+    timeline = []
+    for row in casts:
+        last = timeline[-1] if timeline else None
+        if (last and (last["source"], last["skill_id"], last.get("target")) == (row["source"], row["skill_id"], row.get("target"))
+                and row["t"] - last.get("end", last["t"]) <= REPEAT_S):
+            last["end"], last["casts"] = row["t"], last["casts"] + 1
+        else:
+            timeline.append({**row, "casts": 1})
+    return {"skills": skills, "timeline": timeline[:LIMIT], "omitted_timeline": max(0, len(timeline) - LIMIT)}
+
+
 def summarize(segment: dict, players: set, friendly: set, entities: dict) -> dict:
-    """The segment's rotation, effects, crowd control and break-gauge summaries (empty when the
-    recording carries no cast or effect records, e.g. an older log)."""
+    """The segment's rotation, effects, crowd control, break-gauge, MP and boss-cast summaries
+    (empty when the recording carries no such records, e.g. an older log)."""
     result = {"rotation": rotation(segment, players), **effects(segment, friendly, entities),
-              "stagger": stagger(segment, entities)}
+              "stagger": stagger(segment, entities), "mp": mp(segment), "boss_casts": boss_casts(segment)}
     omitted = {}
     for key in ("buffs", "incoming", "debuffs", "crowd_control", "crowd_control_by_source"):
         omitted[key] = max(0, len(result[key]) - LIMIT)
