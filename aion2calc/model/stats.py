@@ -55,6 +55,8 @@ class Stats:
     crit_pct: float = 0.0          # "Critical Hit increase" (Precision, Death)
     crit_dmg: float = 0.0          # Critical Damage Boost
     crit_atk: float = 0.0          # Critical Attack (flat, only on crit)
+    front_crit: float = 0.0        # Front Attack Critical Hit (Critical Hit on hits from the front)
+    back_crit: float = 0.0         # Back Attack Critical Hit (Critical Hit on hits from behind)
     double: float = 0.0            # Double (Smite) chance
     perfect: float = 0.0           # Perfect chance
     multihit: float = 0.0          # Multi-hit chance
@@ -72,8 +74,8 @@ class Stats:
     pvp_atk: float = 0.0           # PvP Attack
     pve_atk: float = 0.0           # PvE Attack (flat)
     boss_atk: float = 0.0          # Boss Attack (flat)
-    front_atk: float = 0.0         # Front Attack (flat, frontal hits)
-    back_atk: float = 0.0
+    front_atk: float = 0.0         # Front Attack (flat, hits from the front)
+    back_atk: float = 0.0          # Back Attack (flat, hits from behind)
     pen: float = 0.0               # Penetration
     # tempo / resources
     combat_speed: float = 0.0
@@ -96,12 +98,15 @@ class Stats:
     # skill level bonuses from gear/arcana: {skill_id: levels}
     skill_bonus: dict = field(default_factory=dict)
     pvp: bool = False
+    #: (front, back) shares of direct hits on the target, from the class's recorded mix when the
+    #: scenario asks for it (``run.character_stats``); None = the target's own positions
+    positions: tuple | None = None
 
     def add(self, other: "Stats | dict") -> "Stats":
         items = other.items() if isinstance(other, dict) else (
             (f.name, getattr(other, f.name)) for f in fields(other))
         for k, v in items:
-            if k in ("level", "pvp"):
+            if k in ("level", "pvp", "positions"):
                 continue
             if k == "skill_bonus":
                 for sid, lv in (v or {}).items():
@@ -122,11 +127,13 @@ class Stats:
         """Fold primary/deity points into the stats they feed."""
         p = STAT_POINT_PCT
         atk_pct = self.attack_pct + p * (self.might + self.destruction)
-        crit_stat = self.crit * (1 + self.crit_pct + p * (self.precision + self.death))
+        # Front / Back Attack Critical Hit are Critical Hit on hits from that side; they are assumed
+        # to scale with Critical Hit increase and Precision / Death like Critical Hit itself.
+        crit_scale = 1 + self.crit_pct + p * (self.precision + self.death)
         return Derived(
             atk_flat=self.attack, atk_pct=atk_pct,
             weapon_min=self.weapon_min, weapon_max=self.weapon_max,
-            crit_stat=crit_stat, crit_dmg=self.crit_dmg, crit_atk=self.crit_atk,
+            crit_stat=self.crit * crit_scale, crit_dmg=self.crit_dmg, crit_atk=self.crit_atk,
             double=(self.double + p * self.wisdom) * (1.0 if self.pvp else CALIBRATION["double"]),
             perfect=(self.perfect + p * self.justice) * (1.0 if self.pvp else CALIBRATION["perfect"]),
             multihit=self.multihit * (1.0 if self.pvp else CALIBRATION["multihit"]),
@@ -134,7 +141,9 @@ class Stats:
             weapon_amp=self.weapon_amp, front_amp=self.front_amp, back_amp=self.back_amp,
             fire_amp=self.fire_amp, water_amp=self.water_amp,
             flat_add=(self.pvp_atk if self.pvp else self.pve_atk + self.boss_atk) + PEN_FLAT * self.pen,
-            front_atk=self.front_atk,
+            front_atk=self.front_atk, back_atk=self.back_atk,
+            front_crit=self.front_crit * crit_scale, back_crit=self.back_crit * crit_scale,
+            positions=self.positions,
             combat_speed=self.combat_speed + p * self.time,
             cdr=min(CDR_CAP, self.cdr + p * self.illusion),
             accuracy=self.accuracy * (1 + p * self.freedom),
@@ -170,6 +179,10 @@ class Derived:
     mp_max: float
     mp_regen: float
     mp_cost_red: float
+    back_atk: float = 0.0
+    front_crit: float = 0.0
+    back_crit: float = 0.0
+    positions: tuple | None = None
 
     def attack(self, perfect: bool = False, extra_pct: float = 0.0) -> float:
         w = self.weapon_max if perfect else 0.5 * (self.weapon_min + self.weapon_max)

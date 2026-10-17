@@ -1,3 +1,38 @@
+## Front and back hits in the boss model: Back Attack and the positional Genus lines now count (0.2.308)
+
+**The boss model now knows where your hits land.** Until now the boss scenario counted every hit as coming from the front. Front Attack lines counted on every hit and Back Attack lines on none; the Back Attack stat never even reached the damage formula. Now each class's direct hits land from the front, from behind and from the side in the shares recorded on bosses. The shares come from 54 characters' boss hits in shared logs and diagnostic captures:
+
+| Class | From the front | From behind |
+| --- | ---: | ---: |
+| Assassin | 12% | 70% |
+| Chanter | 22% | 55% |
+| Cleric | 27% | 24% |
+| Gladiator | 31% | 51% |
+| Ranger | 34% | 35% |
+| Sorcerer | 43% | 30% |
+| Spiritmaster | 29% | 34% |
+| Templar | 48% | 31% |
+
+- Each of these counts only on hits from its own side: Front and Back Attack (flat damage), Front and Back Attack Damage Boost, and the newly modeled **Front and Back Attack Critical Hit**.
+- Hits from behind are never parried: none of 6,573 recorded boss hits from behind was.
+- The training dummy still takes every hit from the front.
+
+**What it changes.**
+- *Boss DPS:* the Gladiator loses 3.7% and the Templar 2.1%, because their Front Attack Damage Boost passives now count only on hits from the front. The other classes don't move.
+- *Genus roll targets:*
+  - Back Attack lines now have a value: 0.11–0.29% in slots 1 and 5, against 0.36–0.86% for PvE Attack.
+  - In slot 4, Front and Back Attack Damage Boost fall well behind PvE Damage Boost for every class (0.3–1.5% against 2.5–3.4%).
+  - Back Attack Critical Hit comes close to Critical Hit only for the Assassin.
+- *Stat priorities* now list Front Attack and Back Attack.
+
+**Checked against the recorded fights and left as they are.**
+- *The crit curve.* For all 35 players checked, recorded boss crit is higher than the curve gives at their profile's Critical Hit. Either about 200 Critical Hit that the official profile does not show (Genus Insight, Pantheon) or a flatter curve would explain it, and the data cannot tell which. Learning from your own fights still shifts the curve for your class.
+- *Max Attack.* What it raises is unverified. As the top of the weapon roll it would be a poor line (0.32–0.35% for +15); as flat Attack, a good one (0.58–0.65%).
+- *Power Shard Damage Bonus.* Power Shards are not simulated, and no recorded hit carried the power-shard flag.
+- *PvE Accuracy and Accuracy Bonus.* How Accuracy lowers parries and misses is not known.
+
+The planner now lists these lines with the reason they are not scored, instead of "defensive or situational". The [open investigations](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/open-investigations.md#hit-positions-crit-and-the-remaining-genus-lines-17-october) have the numbers.
+
 ## Buff-adjusted DPS and rDPS, your MP, effective healing and boss casts in log reviews; skill timings measured from real casts (0.2.307)
 
 **An estimated buff contribution in log reviews: buff-adjusted DPS and rDPS.** A new **Buff contribution** tab under *Casts, buffs and break gauge* shows how much of each player's damage came from other players' damage buffs and debuffs, and how much their own buffs added to others. *Buff-adjusted DPS* takes out what others gave; *rDPS* also credits what the player gave, so the party's total stays the same.

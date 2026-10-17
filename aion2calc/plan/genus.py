@@ -27,6 +27,23 @@ DEFENSIVE = ("Defense", "Evasion", "Block", "Resist", "Tolerance", "HP", "MP", "
 GENUS_STATS = {"Attack": ("attack", 1), "Damage Boost": ("amp_all", 0.01), "Damage Amplification": ("amp_all", 0.01),
                "Critical Hit": ("crit", 1), "Accuracy": ("accuracy", 1), "Penetration": ("pen", 1)}
 MAIN = ("Cogni", "Fera", "Natura", "Varian")
+#: Offensive lines the damage model does not score yet, and why (docs/open-investigations.md).
+UNSCORED = {
+    "Max Attack": "Not modeled: whether it raises the top of the weapon roll or adds flat Attack is unverified",
+    "Power Shard Damage Bonus": "Not modeled: Power Shards are not simulated",
+}
+ACCURACY_REASON = ("Not scored: the model treats accuracy as met (parry and miss rates against Accuracy "
+                   "are not measured)")
+
+
+def unscored_reason(stat: str, stats: dict) -> str:
+    """Why an offensive line gets no damage score ('' when it is scored)."""
+    stat = stat.strip()
+    if stat in UNSCORED:
+        return UNSCORED[stat]
+    if stat == "PvE Accuracy" or (stats and set(stats) == {"accuracy"}):
+        return ACCURACY_REASON
+    return ""
 
 
 def data() -> dict:
@@ -313,6 +330,8 @@ def roll_targets(ctx: PlanContext, state: dict | None, mode: str, mix: dict, top
                 reason = ""
                 if mode == "pvp" and conditional:
                     reason = "Genus-specific applicability to players is unverified"
+                elif unscored_reason(stat, stats):
+                    stats, reason = {}, unscored_reason(stat, stats)
                 elif set(stats) & {"might", "precision"}:
                     stats, reason = {}, "Primary stats already come from official profile totals"
                 elif not stats:

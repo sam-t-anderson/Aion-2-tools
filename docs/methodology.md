@@ -78,7 +78,10 @@ weapon     = 1 + 0.66 × Weapon Damage Boost
 crit       = 1 + P(crit) × (0.5 + Critical Damage Boost)   (+ Critical Attack on crit)
 double     = Double (Smite) = ×2 ; Perfect = max weapon roll ; Double and Perfect never stack
 multi-hit  = 1 + P(multi-hit) × 0.125
-DoT ticks  : no defense, no crit/double/perfect/multi-hit
+position   : a direct hit lands from the front, from behind or from the side, in the target's shares;
+             Front/Back Attack (flat), Front/Back Attack Damage Boost (its own multiplier) and
+             Front/Back Attack Critical Hit (added Critical Hit) count only on hits from their side
+DoT ticks  : no defense, no position, no crit/double/perfect/multi-hit
 ```
 
 Sources: Taiwanese Bahamut research translated on Inven
@@ -102,14 +105,25 @@ efficiency, multi-hit 12.5 %, crit curve capped at 80 %).
   [Inven](https://www.inven.co.kr/board/aion2/6444/909)).  The cap never binds at
   launch.  At global-launch crit values (~400–700) the fit is an extrapolation and
   gives 3–15 % — the largest single uncertainty for crit-related advice (see [Assumptions and limitations](#assumptions-and-limitations)).
+  Recorded boss fights crit more than the curve gives at the players' profile
+  Critical Hit: about 200 more Critical Hit than the profile shows, or a flatter
+  curve, would explain them, and the profile leaves out Genus Insight and
+  Pantheon ([checked 17 October](open-investigations.md#hit-positions-crit-and-the-remaining-genus-lines-17-october)).
+  The curve is kept; learning from your own fights shifts it per class.
+* **Front / Back Attack Critical Hit** add Critical Hit on hits from their side
+  and are assumed to scale with Critical Hit increase, Precision and Death like
+  Critical Hit itself.
 * **Primary and deity stats**: +0.1 % per point to each of their effects in the
   global client (metabot "Stats explained"; KR later raised deity stats to
   0.2 %).  Might/Destruction → Attack %, Precision/Death → Crit %, Wisdom →
   Double + MP cost, Justice → Perfect, Time → Combat Speed, Illusion → Cooldown.
-* **Parry**: insufficient Accuracy turns hits into parries (−50 %).  The
-  simulator assumes the Accuracy threshold is met (back attacks and
-  "ignores Block and Evasion" skills bypass parry); Accuracy is therefore a
-  threshold stat, not a DPS stat.
+* **Parry**: insufficient Accuracy turns hits into parries (−50 %).  Hits from
+  behind are never parried (none of 6,573 recorded boss hits from behind was),
+  nor are guaranteed crits and "ignores Block and Evasion" skills.  The
+  simulator assumes the Accuracy threshold is met, so the scenarios have no
+  parries and Accuracy is a threshold stat, not a DPS stat.  Recorded bosses
+  parried under 1 % of most classes' hits and 2.4–3.8 % of the casters', but
+  how Accuracy lowers that is not known.
 
 ## Simulation and scenarios
 
@@ -127,8 +141,15 @@ Fight scenarios (`aion2calc/scenarios.py`):
 
 * **boss** (default objective): 180 s, 30 % Damage Tolerance (TW measured
   ~30 % on a Season-1 conquest boss), HP falling linearly (matters for
-  HP-threshold passives), three 8 s stagger windows.
-* **dummy**: 180 s, 10 % Damage Tolerance (TW measurement), 100 % HP.
+  HP-threshold passives), three 8 s stagger windows.  Each class's direct hits
+  land from the front, from behind and from the side in its recorded shares
+  (`BOSS_POSITIONS` in `sim/engine.py`; from the front / from behind: Assassin
+  12 / 70 %, Chanter 22 / 55 %, Cleric 27 / 24 %, Gladiator 31 / 51 %, Ranger
+  34 / 35 %, Sorcerer 43 / 30 %, Spiritmaster 29 / 34 %, Templar 48 / 31 %;
+  54 characters' boss hits in the archived logs and captures,
+  [findings](open-investigations.md#hit-positions-crit-and-the-remaining-genus-lines-17-october)).
+* **dummy**: 180 s, 10 % Damage Tolerance (TW measurement), 100 % HP, every hit
+  from the front.
 
 ## Kit knob calibration against real logs
 

@@ -45,6 +45,8 @@ def character_stats(build: Build, cd: ClassData, scenario: Scenario, kit_static:
     for b in scenario.buffs:
         s.add(b)
     s.pvp = scenario.target.is_player
+    if scenario.target.class_positions:
+        s.positions = scenario.target.hit_positions(build.cls)
     return s
 
 

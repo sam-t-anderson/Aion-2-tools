@@ -19,6 +19,8 @@ STAT_STEPS = [
     ("cdr", 0.03, "Cooldown Reduction +3%"),
     ("pen", 300, "Penetration +300"),
     ("pve_atk", 30, "PvE Attack +30"),
+    ("front_atk", 30, "Front Attack +30"),
+    ("back_atk", 30, "Back Attack +30"),
     ("crit_atk", 50, "Critical Attack +50"),
     ("mp_max", 300, "MP +300"),
     ("might", 10, "Might +10 (Attack +1%)"),

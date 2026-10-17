@@ -44,6 +44,18 @@ _MAX_LAND_DEPTH = 50
 _SIM_WALL_LIMIT_S = 20.0
 
 
+#: Where each class's direct hits land on a boss: (front, back) shares, the rest from the side.
+#: The mean over characters with 500+ direct boss hits of their own shares, from the hit records'
+#: position byte in the archived sharing-server logs and the diagnostic captures (one row per
+#: character; docs/open-investigations.md, 17 October). Characters: Assassin 6, Chanter 7,
+#: Cleric 13, Gladiator 4, Ranger 8, Sorcerer 5, Spiritmaster 8, Templar 3.
+BOSS_POSITIONS = {
+    "assassin": (0.12, 0.70), "chanter": (0.22, 0.55), "cleric": (0.27, 0.24),
+    "gladiator": (0.31, 0.51), "ranger": (0.34, 0.35), "sorcerer": (0.43, 0.30),
+    "spiritmaster": (0.29, 0.34), "templar": (0.48, 0.31),
+}
+
+
 @dataclass
 class Target:
     """The thing being hit.  Defaults model a stationary training dummy."""
@@ -54,12 +66,29 @@ class Target:
     weapon_tol: float = 0.0
     defense: float = 0.0
     parry: float = 0.0             # chance a non-back, non-guaranteed hit is parried (-50%)
-    frontal: bool = True
+    frontal: bool = True           # without positions: every direct hit from the front (False: behind)
+    positions: tuple | None = None  # (front, back) shares of direct hits; the rest land from the side
+    class_positions: bool = False  # each class's recorded mix on bosses (BOSS_POSITIONS) instead
     stagger_windows: tuple = ()    # ((start, end), ...) seconds
     is_boss: bool = True
     hp_model: str = "dummy"        # "dummy" (always 100%) or "linear" (100% -> 0% over the fight)
 
     is_player: bool = False
+
+    def __post_init__(self):
+        if self.positions is not None:
+            front, back = (float(x) for x in self.positions)
+            if not (0.0 <= front <= 1.0 and 0.0 <= back <= 1.0 and front + back <= 1.0 + EPS):
+                raise ValueError("Target positions must be front and back shares that sum to at most 1")
+            self.positions = (front, back)
+
+    def hit_positions(self, cls: str | None = None) -> tuple[float, float]:
+        """(front, back): the shares of direct hits landing from the front and from behind."""
+        if self.class_positions and cls in BOSS_POSITIONS:
+            return BOSS_POSITIONS[cls]
+        if self.positions is not None:
+            return self.positions
+        return (1.0, 0.0) if self.frontal else (0.0, 1.0)
 
     def hp_pct(self, t: float, duration: float) -> float:
         if self.hp_model == "linear":

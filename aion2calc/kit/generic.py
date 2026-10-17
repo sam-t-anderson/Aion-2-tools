@@ -276,11 +276,10 @@ def _cond_factor(sim, t, info, cond) -> float:
         return 1.0
     kind = cond[0]
     if kind == "crit":
-        from ..model.stats import crit_chance
+        from ..model.damage import crit_probability
         if "crit" in info["tags"]:
             return 1.0
-        return crit_chance(sim.base.crit_stat, sim.target.crit_resist,
-                           midpoint=1024.52 if sim.target.is_player else None)
+        return crit_probability(sim.base, sim.target)
     if kind == "stagger":
         return 1.0 if any(s <= t < e for s, e in sim.target.stagger_windows) else 0.0
     hp = sim.target.hp_pct(t, sim.cfg.duration) * 100

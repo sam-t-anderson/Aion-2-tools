@@ -20,6 +20,7 @@ FIELD_LABELS = {
     "attack": ("Attack", "num"), "weapon_min": ("Weapon min attack", "num"),
     "weapon_max": ("Weapon max attack", "num"), "attack_pct": ("Attack increase", "pct"),
     "crit": ("Critical Hit", "num"), "crit_atk": ("Critical Attack", "num"),
+    "front_crit": ("Front Attack Critical Hit", "num"), "back_crit": ("Back Attack Critical Hit", "num"),
     "crit_dmg": ("Critical Damage Boost", "pct"), "double": ("Double chance", "pct"),
     "perfect": ("Perfect chance", "pct"), "multihit": ("Multi-hit chance", "pct"),
     "amp_all": ("Damage Boost", "pct"), "amp_pve": ("PvE Damage Boost", "pct"),

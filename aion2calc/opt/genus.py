@@ -4,7 +4,7 @@ from __future__ import annotations
 import copy
 import math
 
-from ..plan.genus import GENUS_STATS, MAIN, line_stats, validate_state, coverage, target_values
+from ..plan.genus import GENUS_STATS, MAIN, line_stats, validate_state, coverage, target_values, unscored_reason
 
 SOURCE = "manual-genus-insight"
 NOTE = ("Saved manual analysis lines are held fixed while skills, specialties and boards are optimized. "
@@ -51,6 +51,8 @@ def prepare(state: dict, mode: str, options: dict | None = None) -> dict:
             elif conditional and "%" in line["value"] and GENUS_STATS.get(line["stat"].split(" ", 1)[1], (None, None))[1] == 1:
                 values = {}
                 reason = "Percentage form of this flat stat is unsupported"
+            elif unscored_reason(line["stat"], values):
+                reason = unscored_reason(line["stat"], values)
             elif not values:
                 reason = "Unsupported damage effect or defensive effect"
             elif mode == "pvp" and set(values) <= {"amp_pve", "pve_atk", "amp_boss", "boss_atk"}:

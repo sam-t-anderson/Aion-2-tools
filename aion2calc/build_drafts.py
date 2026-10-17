@@ -152,7 +152,7 @@ def normalize(doc):
     loadout = doc.get("loadout")
     if not isinstance(loadout, dict) or not isinstance(loadout.get("components"), list) or len(loadout["components"]) > 64:
         raise ValueError("Supply at most 64 equipment/stat components")
-    numeric = {f.name for f in fields(Stats)} - {"level", "pvp", "skill_bonus"}
+    numeric = {f.name for f in fields(Stats)} - {"level", "pvp", "skill_bonus", "positions"}
     clean = []
     for component in loadout["components"]:
         if not isinstance(component, dict) or not isinstance(component.get("stats"), dict):
@@ -160,11 +160,11 @@ def normalize(doc):
         if component.get("source") == "manual-genus-insight":
             continue  # Reapply the explicit Genus state once below.
         stats = component["stats"]
-        if any(k not in numeric or type(v) not in (int, float) or not math.isfinite(v) or not 0 <= v <= (10 if k not in {"weapon_min", "weapon_max", "attack", "crit", "crit_atk", "pvp_atk", "pve_atk", "boss_atk", "front_atk", "back_atk", "pen", "accuracy", "mp_max", "mp_regen", "might", "precision", "destruction", "death", "wisdom", "justice", "time", "illusion", "freedom"} else 1000000) for k, v in stats.items()):
+        if any(k not in numeric or type(v) not in (int, float) or not math.isfinite(v) or not 0 <= v <= (10 if k not in {"weapon_min", "weapon_max", "attack", "crit", "crit_atk", "front_crit", "back_crit", "pvp_atk", "pve_atk", "boss_atk", "front_atk", "back_atk", "pen", "accuracy", "mp_max", "mp_regen", "might", "precision", "destruction", "death", "wisdom", "justice", "time", "illusion", "freedom"} else 1000000) for k, v in stats.items()):
             raise ValueError("Unknown, negative or out-of-range stat; percentage stats use fractions")
         clean.append({"slot": str(component.get("slot", "Entered component"))[:80], "item": str(component.get("item", "Entered stats"))[:200], "stats": dict(stats)})
     total = {key: sum(c["stats"].get(key, 0) for c in clean) for key in numeric}
-    if not 0 < total["weapon_max"] <= 1000000 or not 0 <= total["weapon_min"] <= total["weapon_max"] or any(v > (20 if k not in {"weapon_min", "weapon_max", "attack", "crit", "crit_atk", "pvp_atk", "pve_atk", "boss_atk", "front_atk", "back_atk", "pen", "accuracy", "mp_max", "mp_regen", "might", "precision", "destruction", "death", "wisdom", "justice", "time", "illusion", "freedom"} else 1000000) for k, v in total.items()):
+    if not 0 < total["weapon_max"] <= 1000000 or not 0 <= total["weapon_min"] <= total["weapon_max"] or any(v > (20 if k not in {"weapon_min", "weapon_max", "attack", "crit", "crit_atk", "front_crit", "back_crit", "pvp_atk", "pve_atk", "boss_atk", "front_atk", "back_atk", "pen", "accuracy", "mp_max", "mp_regen", "might", "precision", "destruction", "death", "wisdom", "justice", "time", "illusion", "freedom"} else 1000000) for k, v in total.items()):
         raise ValueError("Supply a valid weapon range and bounded aggregate stats")
     from .opt.genus import prepare
     genus = prepare(doc.get("genus") or {}, doc["mode"], {"mix": doc.get("genus_mix")} if doc.get("genus_mix") else None)

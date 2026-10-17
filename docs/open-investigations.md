@@ -241,7 +241,7 @@ A Genus Insight guide for the global client (a video transcript) was compared wi
 | Spiritmaster | 2 | 1,457 | 21.1% | 20.7% | 3.77% | 53.9% | 24.8% |
 | Templar | 1 | 172 | 8.7% | 18.2% | 1.16% | 8.7% | 53.5% |
 
-- **Position.** The boss scenario counts every hit as frontal, so the model credits Front Attack lines on every hit and Back Attack lines on none. The flat Back Attack stat (`back_atk`, also the official profile's `BackFixingDamage`) does not reach the damage formula at all. In the recordings, 15–54% of a class's boss hits came from the front and 9–77% from behind.
+- **Position.** The boss scenario counted every hit as frontal (until 0.2.308), so the model credited Front Attack lines on every hit and Back Attack lines on none. The flat Back Attack stat (`back_atk`, also the official profile's `BackFixingDamage`) does not reach the damage formula at all. In the recordings, 15–54% of a class's boss hits came from the front and 9–77% from behind.
   - Weighted by those shares, Front and Back Attack Damage Boost fall to 0.2–1.6%. That is below Damage Boost and Double Chance for every class, the Assassin included.
   - A Back Attack line in slot 1 or 5 would be worth about a third of a percent to the Assassin, against 0.64% for PvE Attack. The model also adds PvE Attack to damage-over-time ticks.
 - **Parries.** A parried hit loses half its damage.
@@ -253,13 +253,55 @@ A Genus Insight guide for the global client (a video transcript) was compared wi
   - The model's crit rate matches the Sorcerers and Spiritmasters within a point. It is 11–36 points low for the Gladiators, Ranger, Chanters, Cleric and Assassin, and above the one Templar, who was tanking.
   - The recorded players' crit stats are unknown, so this is a lead, not a fit. Where the curve runs low, Critical Hit and Critical Damage Boost lines are undervalued.
 
-**Follow-ups** (the roadmap tracks them):
+**Follow-ups:** the positional mix, Back Attack and the Front/Back Attack Critical Hit lines are in the model since 0.2.308; the crit curve, Max Attack, Power Shard Damage Bonus and the accuracy lines were checked against the archived logs and stay as they are ([checked 17 October](#hit-positions-crit-and-the-remaining-genus-lines-17-october)).
 
-- a positional mix per class in the boss scenario, with Back Attack wired in;
-- a crit curve fitted to global fights whose players' crit stats are known;
-- parry and miss rates against Accuracy, before any accuracy line is scored.
+## Hit positions, crit and the remaining Genus lines (17 October)
 
-The Max Attack, PvE Accuracy, Front/Back Attack Critical Hit and Power Shard Damage Bonus lines are not modeled yet.
+The follow-ups above were checked against the private diagnostics archive: the diagnostic captures and the sharing-server logs downloaded during past investigations. The hit record's position byte (1 = from behind, 2 = from the front) and its crit and parry bits reach the logs as each hit's `back`, `front` and `crit` flags. Players' official profiles are stored with their uploads.
+
+**Where hits land on bosses.** The mean, over characters with 500 or more direct boss hits, of each character's own shares. One row per character: the logs' row when a character is in both sources. Old exports without front flags were left out.
+
+| Class | Characters | Boss hits | From the front | From behind | Side or none |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Assassin | 6 | 32,775 | 11.7% | 69.7% | 18.6% |
+| Chanter | 7 | 10,150 | 22.3% | 55.4% | 22.4% |
+| Cleric | 13 | 24,098 | 27.2% | 23.7% | 49.1% |
+| Gladiator | 4 | 26,834 | 30.5% | 50.5% | 19.0% |
+| Ranger | 8 | 19,090 | 34.1% | 34.8% | 31.1% |
+| Sorcerer | 5 | 7,117 | 43.3% | 29.5% | 27.2% |
+| Spiritmaster | 8 | 19,260 | 29.0% | 34.4% | 36.6% |
+| Templar | 3 | 7,615 | 47.8% | 30.9% | 21.3% |
+
+- Characters vary: the four Gladiators ranged from 10% to 61% from the front, the Templars from 37% to 68%.
+- The last column also holds hits whose record carries no position (the short record layout). Except for the Gladiators', they crit far less (5–26% against 22–65% for the same class's front and back hits), so some of them are probably hits that cannot crit.
+
+**Parries come only from the front and the side.** In the captures, none of 6,573 boss hits from behind was parried (nor 1,706 on other enemies). From the front 79 of 4,694 were (1.7%), from the side 37 of 2,517. The casters took most of them: 5.1% of the Sorcerers' and 8.6% of the Spiritmasters' front hits.
+
+**Crit by position.** Within the same skill and player, hits from behind crit more often than hits from the front, by 4–13 points, for the Assassin, Chanter, Cleric, Ranger and Spiritmaster (30 of 38 players). They do not for the Gladiators (0 of 2) or Templars (2 of 4), and the Sorcerers' front hits crit 4 points more. A game-wide bonus for hits from behind would show for every class. Players' own Back Attack Critical Hit lines (Genus Insight, 20–40 each) fit the spread better. So no built-in bonus is modeled, but the lines themselves are.
+
+**The crit curve.**
+
+- *The data.* 55 players in the logs had a ready official profile and 100 or more direct boss hits. 35 of them are level 45, have 200 or more front and back hits, and get no crit buff from their kit in the simulation: Assassin 6, Chanter 7, Cleric 11, Spiritmaster 8, Templar 3. For each of them the profile was imported and its Critical Hit compared with their recorded crit rate on front and back hits.
+- *The finding.* Every one of the 35 crits more than the curve predicts. To reconcile the curve, they would need 196 more Critical Hit than their profiles show (hit-weighted median; range 23–374). Their Genus Insight lines and Pantheon allocations are not in the official profile. Genus Insight alone offers Critical Hit (15–30) and Front/Back Attack Critical Hit (20–40) in three slots of each genus.
+- *A flatter curve fits too.* The missing amount shrinks as the profile's Critical Hit rises (weighted r = −0.42). A refit with nothing missing has a slope of 0.0044 and its midpoint at 865. It gives 17% at 500 Critical Hit (4% now) and 56% at 900 (34% now), and fits these players slightly better (weighted squared error 103 against 133 ×10⁻⁴). But it puts 72% at 1048, where the dummy measurement behind the current curve found 56%.
+- *Kept.* The data cannot separate crit the profile does not show from the curve's shape, so the curve stays. [Learning from your fights](planner.md#learning-from-your-fights) already shifts the curve per class from your own recorded crit, by up to ±250 Critical Hit, which absorbs what the profile misses. A fit needs players whose Genus Insight lines are entered as well as recorded.
+
+**The lines that stay unscored.** The planner now says why for each of them.
+
+- *Max Attack* (slots 1 and 5): no official profile stat carries it, and no record shows its effect. The item catalog uses "Max Attack" for a weapon's whole damage range ("206–229") and for its enchant steps. Two readings give different advice:
+  - as the top of the weapon roll, a +15 line is worth 0.32–0.35%, below Attack Bonus +12 (0.46–0.52%) and PvE Attack +15 for every class;
+  - as flat Attack it is worth 0.58–0.65%, the best slot-1 and slot-5 line for the Chanter, Gladiator and Templar.
+- *Power Shard Damage Bonus* (slots 3, 6 and 9; also a gear stat): Power Shards are not simulated. The hit record has a power-shard bit, but none of the 18,247 decoded direct hits in the captures carried it, so nothing measures the bonus.
+- *PvE Accuracy and Accuracy Bonus.* Parries cost half a hit and only touch front and side hits. Bosses parried under 1% of most classes' hits and 2.4–3.8% of the casters'. Misses are not decoded, and how Accuracy lowers either rate is not known. The lines stay unscored rather than credited with a guess.
+
+**In the model since 0.2.308.**
+
+- *Positions.* The boss scenario lands each class's direct hits in the shares above (rounded). Front and Back Attack add flat damage, Front and Back Attack Damage Boost is its own multiplier, and Front and Back Attack Critical Hit add Critical Hit, each only on hits from its side. A hit from behind is never parried. The training dummy keeps every hit in front. Damage over time has no position.
+- *The effect.* Boss DPS falls 3.7% for the Gladiator and 2.1% for the Templar, whose kits carry a Front Attack Damage Boost passive that used to apply to every hit. The other classes' median builds have no positional stats and do not move.
+- *Genus roll targets now.* Each line is valued at the midpoint of its best grade, with an even genus mix:
+  - Slot 4: PvE Damage Boost (2.5–3.4%) beats Back Attack Damage Boost (0.5–1.5%) and Front Attack Damage Boost (0.3–1.1%) for every class.
+  - Slots 1 and 5: Back Attack is worth 0.11–0.29% and Front Attack 0.05–0.31%, against 0.36–0.86% for PvE Attack.
+  - Slots 3, 6 and 9: Back Attack Critical Hit comes close to Critical Hit only for the Assassin (1.44% against 1.53%).
 
 ## Classification review of recent uploads (16 October): one real defect, the rest data-gated
 

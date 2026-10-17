@@ -97,6 +97,7 @@ def observe(encounter_id: int, conn=None) -> dict | None:
 def _predict(cls: str, snap: dict, enc: dict) -> dict:
     from dataclasses import replace
 
+    from .model.damage import crit_probability
     from .opt.rotation import materialize
     from .report import build_from_summary
     from .run import prepare
@@ -125,7 +126,7 @@ def _predict(cls: str, snap: dict, enc: dict) -> dict:
         if n:
             prev = per_cast.get(a.name, {"damage": 0.0, "casts": 0})
             per_cast[a.name] = {"damage": prev["damage"] + dmg, "casts": prev["casts"] + n}
-    return {"predicted": {"crit": S.crit_chance(d.crit_stat, scen.target.crit_resist), "double": d.double,
+    return {"predicted": {"crit": crit_probability(d, scen.target), "double": d.double,
                           "perfect": d.perfect, "multihit": d.multihit, "cpm": 60 * sum(res.casts.values()) /
                           scen.config.duration, "dps": res.dps},
             "crit_stat": d.crit_stat, "crit_resist": scen.target.crit_resist, "sim_skills": per_cast}

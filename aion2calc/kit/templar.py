@@ -11,8 +11,9 @@ What the tooltip-driven generic kit misses for a Templar, and this kit adds:
 * **Self crowd control gating Annihilate.**  Shield Smite / Shield Rush stun
   the target (Doom Shield knocks it down); Annihilate is only usable then.
 * **The on-hit passives** Punishing Benediction (bonus-damage proc) and
-  Insulting Roar (+Attack on a front attack, effectively permanent on a frontal
-  boss), plus Fury's front-attack boost.
+  Insulting Roar (+Attack on a front attack, effectively permanent: about half a
+  Templar's recorded boss hits land from the front), plus Fury's front-attack
+  boost.
 
 Every damage number is read from ``data/global/classes/templar.json``; only the
 things the client does not expose live in :data:`TIMING` / :data:`ASSUME`.
@@ -94,7 +95,8 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
     add_static("IMPACT", {1: ("double", 0.01)})
     add_static("FURY", {0: ("front_amp", 0.01)})          # Front Attack Damage Boost (its own bucket)
     # Insulting Roar: +Attack% on a front attack with a short internal cooldown that is
-    # shorter than the buff, so on a frontal boss it is effectively always up.
+    # shorter than the buff; with about half the Templar's boss hits from the front
+    # (recorded), it is effectively always up.
     add_static("ROAR", {1: ("attack_pct", 0.01)})
 
     # Punishing Benediction proc: chance to deal extra damage on landing an attack (icd 1s)
