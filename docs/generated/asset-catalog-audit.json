@@ -5,8 +5,8 @@
     "format": "a2catalog-source",
     "version": 1,
     "repository": "taengu/A2Tools-DPS-Meter",
-    "revision": "21de830865572c2bac7906610816bfbde58128cc",
-    "checked_at": "2026-10-15T14:15:05.984520+00:00",
+    "revision": "78d853a7dc114fbedd4a529e7eede5c3b3afd0b9",
+    "checked_at": "2026-10-17T13:03:26.673391+00:00",
     "game_build": null,
     "files": [
       {
@@ -179,182 +179,34 @@
     },
     {
       "file": "dungeons/en.json",
-      "added": 2,
+      "added": 0,
       "removed": 0,
-      "changed": 4,
-      "changes": [
-        {
-          "id": "600025",
-          "change": "added"
-        },
-        {
-          "id": "610044",
-          "change": "added"
-        },
-        {
-          "id": "600001",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        },
-        {
-          "id": "600002",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        },
-        {
-          "id": "600004",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        },
-        {
-          "id": "600074",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        }
-      ],
+      "changed": 0,
+      "changes": [],
       "omitted": 0
     },
     {
       "file": "dungeons/ko.json",
-      "added": 2,
+      "added": 0,
       "removed": 0,
-      "changed": 4,
-      "changes": [
-        {
-          "id": "600025",
-          "change": "added"
-        },
-        {
-          "id": "610044",
-          "change": "added"
-        },
-        {
-          "id": "600001",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        },
-        {
-          "id": "600002",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        },
-        {
-          "id": "600004",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        },
-        {
-          "id": "600074",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        }
-      ],
+      "changed": 0,
+      "changes": [],
       "omitted": 0
     },
     {
       "file": "dungeons/zh-Hans.json",
-      "added": 2,
+      "added": 0,
       "removed": 0,
-      "changed": 4,
-      "changes": [
-        {
-          "id": "600025",
-          "change": "added"
-        },
-        {
-          "id": "610044",
-          "change": "added"
-        },
-        {
-          "id": "600001",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        },
-        {
-          "id": "600002",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        },
-        {
-          "id": "600004",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        },
-        {
-          "id": "600074",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        }
-      ],
+      "changed": 0,
+      "changes": [],
       "omitted": 0
     },
     {
       "file": "dungeons/zh-Hant.json",
-      "added": 2,
+      "added": 0,
       "removed": 0,
-      "changed": 4,
-      "changes": [
-        {
-          "id": "600025",
-          "change": "added"
-        },
-        {
-          "id": "610044",
-          "change": "added"
-        },
-        {
-          "id": "600001",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        },
-        {
-          "id": "600002",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        },
-        {
-          "id": "600004",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        },
-        {
-          "id": "600074",
-          "change": "changed",
-          "fields": [
-            "difficulty"
-          ]
-        }
-      ],
+      "changed": 0,
+      "changes": [],
       "omitted": 0
     }
   ],
