@@ -24,6 +24,7 @@
   - In slot 4, Front and Back Attack Damage Boost fall well behind PvE Damage Boost for every class (0.3–1.5% against 2.5–3.4%).
   - Back Attack Critical Hit comes close to Critical Hit only for the Assassin.
 - *Stat priorities* now list Front Attack and Back Attack.
+- *Community build presets* are scored again under the updated model, including 0.2.307's measured skill timings, once the sharing server runs this version.
 
 **Checked against the recorded fights and left as they are.**
 - *The crit curve.* For all 35 players checked, recorded boss crit is higher than the curve gives at their profile's Critical Hit. Either about 200 Critical Hit that the official profile does not show (Genus Insight, Pantheon) or a flatter curve would explain it, and the data cannot tell which. Learning from your own fights still shifts the curve for your class.
