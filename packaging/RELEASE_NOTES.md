@@ -1,6 +1,19 @@
-## The optimizer's skill timings are measured from real casts (0.2.307)
+## Buff-adjusted DPS and rDPS, your MP, effective healing and boss casts in log reviews; skill timings measured from real casts (0.2.307)
 
-**Each class kit's action times now come from recorded casts.** A kit's `TIMING` says how long each skill takes before the next one can be pressed. Until now these were estimates. They are now taken from the recorded casts of 26 players in the supplied captures, wherever a skill was pressed often enough (15 times by two or more players, or 20 times where one player made nearly all of a class's presses). The value is the typical time from a press to that player's next press, scaled to 0% Combat Speed. Most measured skills turned out much faster than the estimates: Firestorm 0.56 s instead of 1.25 s, Blaze 0.33 s instead of 0.75 s, Heart Gore 0.35 s instead of 0.70 s. How each value was derived is in the methodology under *Measured action times*.
+**An estimated buff contribution in log reviews: buff-adjusted DPS and rDPS.** A new **Buff contribution** tab under *Casts, buffs and break gauge* shows how much of each player's damage came from other players' damage buffs and debuffs, and how much their own buffs added to others. *Buff-adjusted DPS* takes out what others gave; *rDPS* also credits what the player gave, so the party's total stays the same.
+- Credited: the PvE Damage Boost auras (Undefeated Mantra, Light of Protection), the party PvE Damage Boost on block (Fury, Experienced Counterstrike) and the enemy PvE Damage Tolerance cuts (Chain of Torment, Earth's Promise). Defense cuts and Combat Speed buffs are not, because their effect needs values the log does not carry.
+- A buff's size comes from its caster's skill level: the uploaded official profile, else the effect record, else the typical top player's.
+- It is an estimate and is **not used for rankings or parses**. Each fight shows a check against its own hits, and `python -m aion2calc calibrate --buffs <logs or folders>` pools that check across logs. In the first fights the block buffs agree with the estimate (+6.7% measured, +8.5% estimated); the auras do not yet.
+
+**Your MP in log reviews.** The game sends the recording player's MP, and no one else's. The *Rotation* tab now shows where it started and ended, its lowest, MP spent and restored, and the time spent below a fifth of the maximum. Each MP-costing cast lowers it by the skill's listed cost (Combustion 120, Curse 80, Summon: Fire Spirit 150), and your own record on entering a zone gives your maximum MP and HP.
+
+**Boss casts.** A new **Boss casts** tab lists what each boss cast, how often, when, and at whom (Nazmun's Ultra Laser, Trap Install and Reaction Speed Test, for example). Quick repeats of a channelled skill are one row. Most boss skills have no name in the bundled tables yet and show their ID.
+
+**Effective healing and overheal.** *Encounter insights* now show, per healer, how much of their instant healing on players was effective and how much was overheal, from the party HP feed: a heal restores at most the HP its target is missing. Heals over time are recorded once with their whole amount while HP rises tick by tick, and some shields are reported as healing, so both are listed apart and not measured.
+
+These three need recordings made with 0.2.307 or later, and a shared log shows them once its sharing server is updated. Interrupts, misses, shield absorption and mitigation are still not decoded; the open investigations say why.
+
+**The optimizer's skill timings are measured from real casts.** A kit's `TIMING` says how long each skill takes before the next one can be pressed. Until now these were estimates. They are now taken from the recorded casts of 26 players in the supplied captures, wherever a skill was pressed often enough (15 times by two or more players, or 20 times where one player made nearly all of a class's presses). The value is the typical time from a press to that player's next press, scaled to 0% Combat Speed. Most measured skills turned out much faster than the estimates: Firestorm 0.56 s instead of 1.25 s, Blaze 0.33 s instead of 0.75 s, Heart Gore 0.35 s instead of 0.70 s. How each value was derived is in the methodology under *Measured action times*.
 
 What the recordings showed, and how the kits now follow it:
 - **Basic attacks are woven between skills.** Players press one step of their basic-attack chain between two skills and cancel it after about 0.13 s; pressed back to back, the steps take 0.3–1.2 s each. A kit's basic-attack filler now uses the back-to-back cadence (the Assassin's whole Quick Slice combo 1.93 s, Sorcerer Flame Arrow 0.73 s, Chanter Onslaught 0.94 s). A woven step's time is added to the skill it follows.
@@ -14,6 +27,8 @@ Still estimated, for lack of recorded presses: the whole Templar kit (one record
 **What it changes.** Simulated DPS and casts per minute move toward what players actually press. Against the KR logs the Assassin's damage split improves the most (fidelity 0.15 → 0.51), the Cleric and Chanter a little. The Gladiator, Ranger, Sorcerer and Spiritmaster lose 0.015–0.034. The faster skills leave more time for each class's filler, and that shows what the old estimates were hiding. The Spiritmaster kit doesn't model Dimensional Control, Elemental Fusion casts or the summon presses. The Gladiator's Smashing Blow should only follow Rending Blow. The Cleric's Thunder and Lightning step is missing. The roadmap lists these as the next kit fixes.
 
 **`calibrate --timings` shows each press as a `TIMING` value** beside the kit's own and bases its suggestions on it, so they compare like with like.
+
+**Fix: no dark frame around the overlay on Windows.** The meter card now fills its window and the window behind it matches the card, so the dark border around the overlay is gone.
 
 ## Casts, buffs and the break gauge in log reviews; a skill-cooldown strip and break-gauge bar on the overlay; measured cast timings for the optimizer (0.2.306)
 
