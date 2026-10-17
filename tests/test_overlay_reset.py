@@ -109,11 +109,18 @@ def test_live_meter_keeps_the_whole_run_when_the_setting_is_off():
     assert live["players"][0]["damage"] == 4000   # both bosses retained
 
 
-def test_finishing_a_run_clears_the_live_reset_point():
+def test_finishing_a_run_keeps_the_final_boss_on_the_overlay_until_the_next_run():
+    # From a supplied Transcendence run (Talisra of the Void, recorded on 0.2.302): the final boss's
+    # death finishes the run, and finishing used to clear the overlay's reset point, so the overlay
+    # widened from the boss fight to the whole run (461 s, every pull since entry) the moment the
+    # boss died -- which read as damage missing next to another meter still showing the boss fight.
     s = _session_two_bosses()
     s._live_boss_reset_ms = 50000
-    s.finish_run("test")
-    assert s._live_boss_reset_ms is None           # a new run's overlay starts unscoped
+    s.finish_run("configured_final_boss_death", timestamp_ms=52000)
+    live = s.snapshot(scope="self", segment_id=None)
+    assert live["players"][0]["damage"] == 3000           # still the final boss fight, not the whole run
+    s._next_run()                                         # new combat opens the next run
+    assert s._live_boss_reset_ms is None and s._pull_ended_ms is None   # which starts unscoped
 
 
 # -- majors that left the fight unseen must not hold the overlay on an old fight ------------------
@@ -191,3 +198,33 @@ def test_trash_left_alive_no_longer_keeps_the_overlay_on_the_old_fight():
     assert s._pull_ended_ms == 500_000                                  # the stale trash does not keep it open
     s.observe(engine, [_hit(trash2, 520_000)], timestamp_ms=520_000)    # the next combat
     assert s._live_boss_reset_ms == 520_000
+
+
+def test_the_overlay_stays_on_the_final_boss_when_its_death_finishes_the_run():
+    """The supplied run's chain through ``observe()``: Ruthilis of Pain dies, Talisra of the Void
+    (the dungeon's catalog final boss) is pulled at once and killed, its death finishes the run
+    automatically -- and the overlay still shows the Talisra fight, not every pull since entry.
+    The next combat opens a new run, which the overlay shows on its own."""
+    ruthilis, talisra, trash = 31000, 25417, 40000
+    engine = _engine({ruthilis: 2350708, talisra: 2350709, trash: TRASH_CODE})
+    engine.map_id = engine.dungeon_id = 600065                      # their instance in the catalog
+    s = CombatSession()
+    s.pvp = False
+    s.observe(engine, [], timestamp_ms=101_000)
+    for t in range(110_000, 270_001, 20_000):                       # Ruthilis: a steady fight
+        s.observe(engine, [_hit(ruthilis, t)], timestamp_ms=t)
+    engine.telemetry = [{"kind": "death", "entity": ruthilis, "timestamp_ms": 278_000}]
+    s.observe(engine, [], timestamp_ms=278_000)
+    engine.telemetry = []
+    talisra_hits = list(range(278_900, 450_001, 20_000))           # pulled within a second
+    for t in talisra_hits:
+        s.observe(engine, [_hit(talisra, t)], timestamp_ms=t)
+    engine.telemetry = [{"kind": "death", "entity": talisra, "timestamp_ms": 453_900}]
+    s.observe(engine, [], timestamp_ms=453_900)
+    engine.telemetry = []
+    assert s.run_closed and s.runs[s.run]["end_reason"] == "configured_final_boss_death"
+    live = s.snapshot(scope="self", segment_id=None)
+    assert live["players"][0]["damage"] == 500 * len(talisra_hits)  # the Talisra fight, not Ruthilis's too
+    s.observe(engine, [_hit(trash, 600_000)], timestamp_ms=600_000)   # the next combat: a new run
+    live = s.snapshot(scope="self", segment_id=None)
+    assert not s.run_closed and live["players"][0]["damage"] == 500

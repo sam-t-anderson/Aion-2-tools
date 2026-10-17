@@ -55,6 +55,20 @@ def test_current_target_follows_the_most_recently_hit_enemy():
     assert me["damage"] == 200 and me["dps"] > 0
 
 
+def test_target_dps_runs_on_the_fight_clock_through_an_untargetable_phase():
+    # A boss hit for two seconds, untargetable for twenty, then hit for two more: its DPS is
+    # damage over the 23 s from the first hit to the last, as other meters and the log page
+    # measure a boss fight -- not over the four seconds in which it was hit (Talisra of the
+    # Void read about 8% high next to another meter this way).
+    s, engine = _session()
+    s.observe(engine, [_hit(5001, 9001, 1000, 1000), _hit(5001, 9001, 2000, 1000)], timestamp_ms=2000)
+    s.observe(engine, [_hit(5001, 9001, 22000, 1000), _hit(5001, 9001, 23000, 1000)], timestamp_ms=23000)
+    target = s.snapshot(scope="auto", segment_id=None)["current_target"]
+    me = next(c for c in target["contributors"] if c["name"] == "Me")
+    assert me["damage"] == 4000
+    assert round(me["dps"], 2) == round(4000 / 23, 2)
+
+
 def test_ttk_uses_the_observed_hp_decline_rate_not_only_our_dps():
     # Time-to-kill must reflect how fast the enemy is really dying (all damage
     # sources), not just the observed party's DPS. A mob we only tag for a little
@@ -148,8 +162,9 @@ def test_also_targets_empty_on_a_sequential_target_switch():
 def test_ttk_fraction_tracks_elapsed_over_estimated_whole_kill():
     # The time-based TTK bar fills by engaged time so far over (engaged + remaining).
     # Same scenario as the HP-decline TTK test: 50000 HP left, dropping 10000/s ->
-    # TTK 5s; we are engaged ~2 one-second buckets (hits at t=1000 and t=6000), so
-    # the fraction is ~2/(2+5) and must stay in (0, 1) — never guessed, never out of range.
+    # TTK 5s; we have been fighting it 6 s on the fight clock (first hit at t=1000, latest
+    # at t=6000), so the fraction is ~6/(6+5) -- half the HP gone, about half the kill's time
+    # elapsed -- and must stay in (0, 1): never guessed, never out of range.
     s, engine = _session()
     engine.telemetry = [
         {"kind": "hp", "entity": 9001, "current": 100000, "max": 100000, "timestamp_ms": 1000},
@@ -159,7 +174,7 @@ def test_ttk_fraction_tracks_elapsed_over_estimated_whole_kill():
     target = s.snapshot(scope="auto", segment_id=None)["current_target"]
     assert target["ttk"] is not None and target["ttk_fraction"] is not None
     assert 0.0 < target["ttk_fraction"] < 1.0
-    assert abs(target["ttk_fraction"] - 2.0 / (2.0 + 5.0)) < 0.1
+    assert abs(target["ttk_fraction"] - 6.0 / (6.0 + 5.0)) < 0.1
 
 
 def test_local_combat_power_is_surfaced_when_captured():

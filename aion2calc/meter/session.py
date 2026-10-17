@@ -384,12 +384,15 @@ class CombatSession:
         self.runs[self.run]["ended_at"] = timestamp_ms if timestamp_ms is not None else last
         self.run_closed = True
         self.manual_split += 1
-        self._live_boss_reset_ms = None   # a new run's overlay starts unscoped until its first boss
-        self._pull_ended_ms = None
+        # The overlay keeps its reset point: the run's last fight (the final boss, when its death
+        # finished the run) stays on screen until new combat opens the next run. Clearing it here
+        # widened the overlay from the boss fight to the whole run the moment the final boss died.
 
     def _next_run(self):
         self.run += 1
         self.runs[self.run] = {"complete":False, "recording_token":uuid.uuid4().hex, "origin_sequence":self.sequence+1, "open_epoch":self.epoch}
+        self._live_boss_reset_ms = None   # a new run's overlay starts unscoped until its first boss
+        self._pull_ended_ms = None
         if self._pending_run_start is not None:
             self.runs[self.run].update(start_observed=True, started_at=self._pending_run_start)
             self._pending_run_start = None
@@ -1507,20 +1510,21 @@ class CombatSession:
                 entity = int(target["id"])
             except (TypeError, ValueError):
                 entity = None
-            # Seconds this target was actually being hit, counted in one-second buckets
-            # per group (the same way the meter measures DPS) and summed across the
-            # merged live encounter. Scoping to the target — not the whole encounter —
-            # keeps time spent on other enemies, and earlier pulls the live view merged
-            # in, from diluting the rate and inflating time-to-kill.
+            # Seconds this target has been fought: from the party's first hit on it to the
+            # last, per group, summed across the merged live encounter -- the fight clock for
+            # that target, as other meters and the log page measure a boss fight. Scoping to
+            # the target keeps earlier pulls and the time before it was engaged out of the
+            # rate; an untargetable phase inside the fight counts, as it does on that clock.
+            # (Counting only the seconds in which it was hit read about 8% high on a boss
+            # with untargetable phases next to other meters.)
             target_secs = 0
             if entity is not None:
                 for group in groups:
-                    base = group["damage_start"] if group["damage_start"] is not None else group["start"]
-                    hit_seconds = {int((record.event.timestamp_ms - base) // 1000)
-                                   for record in group["records"]
-                                   if isinstance(record.event, DamageEvent) and record.event.target_id == entity
-                                   and record.event.actor_id in allowed_for(record)}
-                    target_secs += len(hit_seconds)
+                    times = [record.event.timestamp_ms for record in group["records"]
+                             if isinstance(record.event, DamageEvent) and record.event.target_id == entity
+                             and record.event.actor_id in allowed_for(record)]
+                    if times:
+                        target_secs += (max(times) - min(times)) // 1000 + 1
             target_secs = max(1, target_secs)
             contributors = sorted(
                 [{"id": actor, "name": name_by_id.get(actor, f"Player #{actor}"),

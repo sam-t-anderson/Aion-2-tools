@@ -1,3 +1,9 @@
+## Fix: the overlay keeps the final boss fight on screen after the kill; target DPS runs on the fight clock (0.2.304)
+
+**The overlay no longer widens to the whole dungeon run when the final boss dies.** A dungeon's final boss finishes the run when it dies, and finishing a run cleared the overlay's reset point, so the overlay jumped from the boss fight to every pull since you entered the instance. Next to another meter still showing the boss fight, that read as damage missing. Checked against a supplied Transcendence log (Talisra of the Void): the recording matches the other meter to within 0.2% for every player, with no capture loss; only the overlay's view changed at the kill. The final fight now stays on the overlay until new combat opens the next run, which starts fresh as before.
+
+**The target line's DPS runs on the fight clock.** Each contributor's rate on the current target used to divide by the seconds in which the target was hit, so a boss with an untargetable phase read about 8% higher than other meters and the log page. It now divides by the time from the party's first hit on the target to the last, the way a boss fight is usually measured; earlier pulls and the time before the target was engaged still don't count. The elapsed part of the time-to-kill bar uses the same clock.
+
 ## Fix: the update prompt shows again when the app starts or a window reopens (0.2.303)
 
 **The app asks to install a new release again.** The prompt at launch waits for a background check of the Releases page, and a check that failed (no network yet right after Windows starts, GitHub unreachable or briefly rate-limited) counted as "no update" for six hours, so no prompt and no gold chip appeared. A window reopened from the tray is the same running process, so it never checked again either, and **Settings → Version** said "up to date" whether or not the check had worked.
