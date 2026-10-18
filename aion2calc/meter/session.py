@@ -1904,13 +1904,9 @@ class CombatSession:
                 # A player counted only because a group instance holds just the party (``_allowed``) is a member
                 # of the fights they took part in, not of every fight in the zone context: a party that changed
                 # inside one instance otherwise listed both line-ups in every segment.
-                acted = set()
-                for record in group["records"]:
-                    actor, seen = record.event.actor_id, set()
-                    while actor is not None and actor not in seen:   # a pet's hit counts for its owner
-                        seen.add(actor)
-                        acted.add(actor)
-                        actor = identity["owners"].get(actor)
+                # Their own hits and heals, not a summon's: a spirit's single hit, linked to a Spiritmaster of the
+                # next line-up, made that player a member of the previous line-up's boss fight.
+                acted = {record.event.actor_id for record in group["records"]}
                 named = set().union(*(set(r.party) for r in group["records"]))
                 if any(self._late_roster(r) for r in group["records"]):        # matched to the first roster seen
                     named |= set(identity.get("initial_roster") or ())
