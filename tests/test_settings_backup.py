@@ -319,3 +319,60 @@ def test_overlay_show_events_defaults_on(isolated_home):
     """Event notifications ship on by default (a toggle turns them off)."""
     from aion2calc.app.server import ui_settings
     assert ui_settings()["overlay_show_events"] is True
+
+
+# Settings → Class colors saves a switch plus one colour per class (combat-review.js);
+# "Reset class colors" saves {}.
+_CLASS_COLORS = {"enabled": False, "colors": {"gladiator": "#C69B6D", "templar": "#f58cba", "assassin": "#fff468",
+                                              "ranger": "#aad372", "sorcerer": "#3fc7eb", "spiritmaster": "#8788ee",
+                                              "cleric": "#ffffff", "chanter": "#ff7c0a"}}
+
+
+def test_class_colors_round_trip_through_the_app_routes(isolated_home):
+    # A backup made after any class colour change failed to import, and "Save current look
+    # as…" failed the same way: the check wanted a bare {class: colour} map, which the app
+    # never saves. Driven through the app's own routes, as the Settings page does.
+    import threading
+    import urllib.error
+    import urllib.request
+    from http.server import ThreadingHTTPServer
+    from aion2calc.app import server as app
+    from aion2calc.paths import write_user_json
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), app.Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+
+    def post(path, body):
+        req = urllib.request.Request(base + path, json.dumps(body).encode(), {"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read())
+    try:
+        colors = post("/api/ui", {"combat_colors": _CLASS_COLORS})["combat_colors"]
+        assert colors == {"enabled": False, "colors": {k: v.lower() for k, v in _CLASS_COLORS["colors"].items()}}
+        post("/api/ui", {"overlay_presets": [{"name": "Mine", "settings": {"combat_colors": colors}}]})
+        document = json.loads(Path(post("/api/ui/export", {})["file"]).read_text(encoding="utf-8"))
+        write_user_json({}, "ui.json")
+        restored = post("/api/ui/import", {"document": document})["settings"]
+        assert restored["combat_colors"] == colors
+        assert restored["overlay_presets"][0]["settings"]["combat_colors"] == colors
+        assert post("/api/ui", {"combat_colors": {}})["combat_colors"] == {}         # Reset class colors
+        with pytest.raises(urllib.error.HTTPError):       # the app stores only what an import accepts
+            post("/api/ui", {"combat_colors": {"sorcerer": "#3fc7eb"}})
+    finally:
+        srv.shutdown()
+
+
+def test_class_colors_reject_other_shapes(isolated_home):
+    for bad in ({"sorcerer": "#3fc7eb"},                  # a bare class map: the app reads colors from "colors"
+                {"colors": {"bard": "#3fc7eb"}},          # not a class
+                {"colors": {"sorcerer": "blue"}},         # not a six-digit hex colour
+                {"enabled": "yes"},
+                "#3fc7eb"):
+        with pytest.raises(ValueError):
+            settings_backup.import_settings({"combat_colors": bad})
+
+
+def test_a_fresh_install_backup_imports(isolated_home):
+    # Every default the export writes passes the import's checks.
+    document = json.loads(Path(settings_backup.export_settings()["file"]).read_text(encoding="utf-8"))
+    assert settings_backup.import_settings(document)["imported"]

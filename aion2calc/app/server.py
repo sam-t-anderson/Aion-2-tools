@@ -1065,6 +1065,9 @@ class Handler(BaseHTTPRequestHandler):
             if "overlay_presets" in body:
                 from .settings_backup import clean_presets
                 cur["overlay_presets"] = clean_presets(body["overlay_presets"])
+            if "combat_colors" in body:
+                from .settings_backup import clean_class_colors
+                cur["combat_colors"] = clean_class_colors(body["combat_colors"])
             if "overlay_font_family" in body:
                 fonts = ("", "Segoe UI", "Arial", "Verdana", "Georgia", "Trebuchet MS", "Consolas", "Tahoma")
                 if body["overlay_font_family"] not in fonts:
@@ -1141,7 +1144,7 @@ class Handler(BaseHTTPRequestHandler):
                             and m[2] > 0 and m[3] > 0 for m in layout)):
                         raise ValueError(f"{key} must be a list of [left, top, width, height] monitor rectangles")
                     cur[key] = layout
-            cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update", "combat_colors",
+            cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update",
                                                                "event_region", "event_group", "rtss_metric", "rtss_style",
                                                                *(k for k, _, _ in _ui_int_ranges), *_ui_bool_flags)})
             write_user_json(cur, "ui.json")

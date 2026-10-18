@@ -1,4 +1,4 @@
-## Fix: the Daevanion solve starts from the build the optimizer has, and the log says when it was cut short (0.2.312)
+## Fix: the Daevanion solve starts from the build the optimizer has, and the log says when it was cut short (0.2.313)
 
 **A busy machine matters far less to the Daevanion board you get.** 0.2.311 spends the points a stopped solve leaves unused. But each solve still started from nothing, so on a busy or slow machine it still stopped at its two-minute limit with a poor board to repair: the Spiritmaster's two solves spent only 195 and 177 of 360 points, and the second was worth less than the board it started from. Now:
 - **the solver starts from the allocation the optimizer already has, completed first.** Its unspent points go to the best connected nodes, as in 0.2.311, and the skill points are then retrained for that board, until neither adds value. The result is never worth less to the solver than that start, so an iteration can no longer give back the previous one's board. From a complete start the solver can also rule out far more, and often proves the best allocation well inside the limit;
@@ -7,13 +7,20 @@
 
 **Checked on a four-core machine** against 0.2.311 under the same load: `compare --iterations 2` for the Spiritmaster, Sorcerer and Gladiator, all three running at once. Both versions spend all 360 points on every board. The final builds land within 2% of each other:
 
-| Class | 0.2.311 | 0.2.312 | Run time, 0.2.311 → 0.2.312 |
+| Class | 0.2.311 | 0.2.313 | Run time, 0.2.311 → 0.2.313 |
 |---|---:|---:|---:|
 | Spiritmaster | 16,032 | 16,007 | 668 s → 650 s |
 | Sorcerer | 21,507 | 21,096 | 1,039 s → 914 s |
 | Gladiator | 19,435 | 19,427 | 473 s → 286 s |
 
 The final builds are no stronger: the later steps of the search follow from each board, and small changes in the search move a final build this much. The runs finish sooner because more solves prove the best allocation before the limit; the Gladiator's two took 5 s and 0.2 s instead of 94 s and 120 s. Every iteration now returns a board worth at least as much to the solver as the one it started from. Under 0.2.311, the Gladiator's second iteration produced a worse build, which had to be thrown away.
+## Settings import with class colours, and summons on the overlay's target panel (0.2.312)
+
+**Settings import works when class colours are set.** Settings → Class colors saves a "Use class colors" switch with one colour per class, but the import check expected only a list of colours. Any backup made after a class colour was changed failed to import with "combat_colors must map class names to six-digit hex colors". **Save current look as…** failed with the same error, because an overlay look preset carries the class colours. Both now accept what the app saves, and the app checks class colours when it stores them, so what it saves always imports. A backup that failed before imports as it is.
+
+**The target panel counts summons for their owner.** The DPS beside each player in the current target's panel (*Name 12.3k/s*) left out their summons, which the meter rows fold into their owner by default. A Spiritmaster's number was missing their spirits, and each spirit was listed as a "Player #12345" of its own. A player who died and came back under a new character ID was split the same way. Both now count for the player, as in the rows.
+
+**Why the target panel's DPS differs from the row.** The panel's number is a player's damage to the current target alone, over the target's fight clock: from the party's first hit on it to the last, untargetable stretches included, as other meters time a boss fight. The row counts their damage to every enemy in the encounter over the active clock, the seconds in which the party dealt damage. Adds and cleave raise the row, and time when nobody could hit the target lowers the panel's number ([app guide](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/app.md#overlay)).
 
 ## Bundled builds regenerated under the current model (0.2.311)
 
