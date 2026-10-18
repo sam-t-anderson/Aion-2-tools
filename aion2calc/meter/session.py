@@ -1911,7 +1911,9 @@ class CombatSession:
                         seen.add(actor)
                         acted.add(actor)
                         actor = identity["owners"].get(actor)
-                named = set().union(*(set(r.party) for r in group["records"]), identity.get("initial_roster") or ())
+                named = set().union(*(set(r.party) for r in group["records"]))
+                if any(self._late_roster(r) for r in group["records"]):        # matched to the first roster seen
+                    named |= set(identity.get("initial_roster") or ())
                 local = {r.local_id for r in group["records"]} | {identity["local_id"]}
                 roster_allowed = {a for a in roster_allowed if a in acted or a in local or a in identity["owners"]
                                   or identity["names"].get(a, "").casefold() in named}
