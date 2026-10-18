@@ -124,3 +124,27 @@ def test_the_bundled_catalog_yields_a_full_board_for_a_class():
     assert len(b["board"]["colossus"]) == 1 and len(b["board"]["statue"]) == 4 and len(b["board"]["artwork"]) == 12
     assert b["board"]["colossus"][0]["short"] == "Guardian Lord Nahma" and b["board"]["colossus"][0]["sources"]
     assert all(r["stats"] and r["gain"] >= 0 for rows in b["board"].values() for r in rows)
+
+
+@pytest.mark.parametrize("scenario, mode", [("boss", "pve"), ("pvp", "pvp")])
+def test_an_optimizer_result_suggests_what_to_roll_with_nothing_recorded(scenario, mode):
+    from aion2calc.opt import genus as OG
+    from aion2calc.run import prepare
+    from aion2calc.scenarios import SCENARIOS, typical_build
+    scen = SCENARIOS[scenario]("cleric_l45_global_median")
+    build = typical_build("cleric")
+    _, _, kit, _ = prepare(build, scen)
+    plan = OG.prepare({}, mode, None)
+    rt = OG.roll_targets_for(plan, build, scen, kit.policy)
+    assert rt["mode"] == mode and "optimized build" in rt["basis"]
+    best = [row for g in rt["genera"].values() for row in g["best"]]
+    assert best and all(row["gain"] > 0 for row in best)
+    for genus in rt["genera"].values():
+        for row in (r for s in genus["slots"].values() for r in s["aim"]):
+            assert row["modeled"]
+            # player targets never get genus-named lines, monsters never get PvP-only ones
+            assert not (mode == "pvp" and row["conditional"])
+    # the optimizer report attaches them to its Genus block, next to the saved-line assessment
+    import inspect
+    from aion2calc import report
+    assert 'summary["genus"]["roll_targets"] = roll_targets_for(' in inspect.getsource(report.run_report)

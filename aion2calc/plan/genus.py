@@ -277,20 +277,29 @@ def _line_text(low, high, percent) -> tuple[str, str]:
 
 
 def roll_targets(ctx: PlanContext, state: dict | None, mode: str, mix: dict, top: int = 3) -> dict:
+    """What to roll for, per genus and slot, on the character's current build and saved lines."""
+    from ..opt.genus import apply
+    base_loadout = ctx.assemble(ctx.equipped)
+    return roll_targets_on(lambda plan: ctx.dps(loadout=apply(base_loadout, plan)), state, mode, mix, top=top,
+                           basis="midpoint of each line's best listed grade, on your current build and saved lines")
+
+
+def roll_targets_on(dps_of, state: dict | None, mode: str, mix: dict, top: int = 3,
+                    basis: str = "midpoint of each line's best listed grade, on this build and its saved lines") -> dict:
     """What to roll for, per genus and slot, from the lines each slot can actually roll.
 
-    Every candidate line is scored at the midpoint of its best listed grade (Heroic where
-    the slot offers it) on top of the character's current build and saved lines, so the
-    ranking holds whether or not anything is recorded yet. Lines the damage model does
-    not cover (defensive, situational) are listed as unmodeled, never recommended.
+    ``dps_of(plan)`` is the modeled DPS with a Genus plan's stats applied. Every candidate line
+    is scored at the midpoint of its best listed grade (Heroic where the slot offers it) on top
+    of the build and saved lines, so the ranking holds whether or not anything is recorded yet.
+    Lines the damage model does not cover (defensive, situational) are listed as unmodeled,
+    never recommended.
     """
-    from ..opt.genus import prepare, apply
+    from ..opt.genus import prepare
     import copy
     catalog = properties()
     state = state or {}
     plan = prepare(state, mode, {"mix": mix} if mode == "pve" else None)
-    base_loadout = ctx.assemble(ctx.equipped)
-    base = ctx.dps(loadout=apply(base_loadout, plan))
+    base = dps_of(plan)
     cache: dict = {}
 
     def gain_of(stats: dict) -> float | None:
@@ -301,15 +310,18 @@ def roll_targets(ctx: PlanContext, state: dict | None, mode: str, mix: dict, top
         for k, v in stats.items():
             trial["stats"][k] = trial["stats"].get(k, 0.0) + v
         trial["enabled"] = True
-        value = ctx.dps(loadout=apply(base_loadout, trial)) / base - 1 if base > 0 else None
+        value = dps_of(trial) / base - 1 if base > 0 else None
         cache[key] = value
         return value
 
-    out = {"mode": mode, "genera": {}, "basis": "midpoint of each line's best listed grade, on your current build and saved lines",
-           "source": catalog.get("source"),
+    out = {"mode": mode, "genera": {}, "basis": basis, "source": catalog.get("source"),
            "note": "Candidates come from the Global slot property tables: each slot rolls one line of a grade drawn by the Insight level. "
-                   "Gains are modeled damage on the boss scenario and are not additive across slots; defensive and situational lines are "
-                   "shown as unmodeled, never recommended. Genus-named lines are weighted by your fight time against that genus."}
+                   + ("Gains are modeled damage on the boss scenario and are not additive across slots; defensive and situational lines are "
+                      "shown as unmodeled, never recommended. Genus-named lines are weighted by your fight time against that genus."
+                      if mode == "pve" else
+                      "Gains are modeled damage against the stationary player target and are not additive across slots; defensive and "
+                      "situational lines are shown as unmodeled, never recommended. Genus-named lines are left out: their applicability "
+                      "to players is unverified. Front Attack lines count fully because the stationary target takes every hit from the front.")}
     for genus in (*MAIN, "Special"):
         slots = (catalog.get("genera") or {}).get(genus, {}).get("slots") or {}
         current = {int(x["slot"]): x for x in (state.get(genus) or {}).get("lines") or []}

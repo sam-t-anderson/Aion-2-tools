@@ -410,6 +410,11 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     if genus and genus["enabled"] and progress:
         progress("Scoring saved Genus line contributions on the final build")
     summary["genus"] = assess_genus(genus, build, scen, policy)
+    if summary["genus"] is not None:
+        from .opt.genus import roll_targets_for
+        if progress:
+            progress("Genus Insight: scoring what each slot can roll on the final build")
+        summary["genus"]["roll_targets"] = roll_targets_for(genus, build, scen, policy)
     from .opt.survival import assessment
     summary["survival"] = assessment(cd, build, survival)
     summary["action_timing"] = action_timing_summary(survival, {scenario_name: scen, other_name: other}, {scenario_name: final, other_name: final_other})

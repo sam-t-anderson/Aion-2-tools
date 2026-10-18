@@ -83,6 +83,21 @@ def apply(loadout: dict, plan: dict | None) -> dict:
     return result
 
 
+def roll_targets_for(plan: dict, build, scenario, policy) -> dict:
+    """What each slot can roll and what to roll for, scored on the optimized build with its saved
+    lines held as they are (the Advice planner's per-slot suggestions, for an optimizer result)."""
+    from dataclasses import replace
+    from ..model.character import load_loadout
+    from ..plan.genus import roll_targets_on
+    from ..report import _sim
+    base = load_loadout(scenario.loadout) if isinstance(scenario.loadout, str) else scenario.loadout
+
+    def dps_of(trial):
+        return _sim(build, replace(scenario, loadout=apply(base, trial)), policy)[0].dps
+    return roll_targets_on(dps_of, plan["state"], plan["mode"], plan.get("mix") or {g: .25 for g in MAIN},
+                           basis="midpoint of each line's best listed grade, on the optimized build and its saved lines")
+
+
 def assess(plan: dict | None, build, scenario, policy) -> dict | None:
     if plan is None:
         return None

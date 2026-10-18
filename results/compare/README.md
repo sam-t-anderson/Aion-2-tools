@@ -11,4 +11,6 @@ Each class is optimized with the same budgets (203 SP, 30 stigma points, 360 Dae
 | ranger | 8,837 | 7,070 | +25.0% | 61% | [ranger](ranger/README.md) |
 | chanter | 8,298 | 7,513 | +10.5% | 39% | [chanter](chanter/README.md) |
 | assassin | 8,014 | 6,826 | +17.4% | 37% | [assassin](assassin/README.md) |
-| cleric | 6,573 | 5,832 | +12.7% | 38% | [cleric](cleric/README.md) |
+| cleric | 16,342 | 12,411 | +31.7% | 71% | [cleric](cleric/README.md) ¹ |
+
+¹ Regenerated in 0.2.310 (2 optimizer iterations) under the current model: Earth Punishment's guaranteed Condemnation crits with Condemnation's cooldown reset, and the Cleric's specialization effects. The other rows predate the measured kit timings (0.2.307) and the kit gaps closed in 0.2.309; their bundled builds are replayed under the current model wherever they are used.

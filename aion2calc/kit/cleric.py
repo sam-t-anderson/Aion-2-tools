@@ -12,9 +12,11 @@ the generic model does not see the gating or the buffs.  This kit adds:
   Discharge, the chain follow-up.
 * **Divine Aura** (a strong cooldown delivered over its duration) and charged
   **Bolt**.
-* **Light of Protection** (+PvE Damage Boost on a 5s cooldown, effectively
-  permanent) and Prayer of Amplification (+Attack), plus the Empyrean Lord's
-  Grace on-hit rider and the Earth's Grace / Empyrean Lord's Grace crit stats.
+* **Light of Protection** (a party aura left on: +PvE Damage Boost), Prayer of
+  Amplification (+Attack, and +PvE Damage Boost from stigma level 5) and Earth
+  Punishment (from stigma level 5 Condemnation crits on its targets, so with the
+  cooldown-reset specialization it is pressed back to back), plus the Empyrean
+  Lord's Grace on-hit rider and the Earth's Grace / Empyrean Lord's Grace crit stats.
 
 Heals carry no damage and are left out of the rotation.  Every damage number
 comes from ``data/global/classes/cleric.json``; only values the client does not
@@ -62,6 +64,12 @@ ASSUME = {
     # (~11% of damage); it was dropped entirely because the hand cast bypassed the generic reader.
     "divine_punishment_frac": 1.09,
     "judgment_cadence": 2.2,      # Judgment Thunder is a heavy swing used on a cadence, not pure spam
+    # Divine Aura ticks every 0.8 s (0.6 s with "+50% attacking speed") through its 5 s (8 s with "+3s
+    # duration"), the first one period after the cast: 6, 8, 10 and 13 ticks a cast, as the archived server
+    # logs show for the four spec mixes. Each tick is a fifth of the listed damage (0.30-0.47 of a
+    # Condemnation hit recorded, 0.31 modelled at the typical levels).
+    "divine_aura_period": 0.8,
+    "divine_aura_period_fast": 0.6,
 }
 
 # stigma skills resolved by name (ids vary; look them up from the class data)
@@ -109,15 +117,19 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
     static: dict[str, float] = {}
 
     def add_static(key, mapping):
+        added: dict[str, float] = {}
         if lv(key) <= 0:
-            return
+            return added
         v = cd.vals(SID[key], lv(key))
         for idx, (field, scale) in mapping.items():
             if idx < len(v) and isinstance(v[idx], (int, float)):
                 static[field] = static.get(field, 0.0) + v[idx] * scale
+                added[field] = v[idx] * scale
+        return added
 
-    add_static("ELGRACE", {0: ("crit", 1.0), 1: ("double", 0.01)})
-    add_static("EGRACE", {0: ("crit_dmg", 0.01), 1: ("accuracy", 1.0)})
+    # kept per passive: Prayer of Amplification's specializations raise each by half while it lasts
+    graces = {"ELGRACE": add_static("ELGRACE", {0: ("crit", 1.0), 1: ("double", 0.01)}),
+              "EGRACE": add_static("EGRACE", {0: ("crit_dmg", 0.01), 1: ("accuracy", 1.0)})}
 
     # Empyrean Lord's Grace on-hit extra damage (icd 1s)
     elg = None
@@ -125,11 +137,15 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
         v = cd.vals(SID["ELGRACE"], lv("ELGRACE"))
         elg = (float(v[2][0]), float(v[2][1]) / 100.0, ms(v[4]) if len(v) > 4 else 1.0)
 
+    # Prayer of Amplification at stigma level 10: "x1.5 [Empyrean Lord's Grace] effect for the duration"
+    elg_amp = st("PRAYAMP", 10)
+
     def hook(sim, t, info):
         if "proc" in info["tags"] or "dot" in info["tags"]:
             return
         if elg and sim.proc("empyrean_grace", 1.0, elg[2], t):
-            sim.hit("Empyrean Lord's Grace", elg[0], elg[1], tags=("proc",))
+            k = 1.5 if elg_amp and sim.has_buff("prayamp", t) else 1.0
+            sim.hit("Empyrean Lord's Grace", elg[0] * k, elg[1] * k, tags=("proc",))
 
     # ----------------------------------------------------------------- actives
     re_f, re_c = dmg("RETRIB")
@@ -182,24 +198,37 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
 
     to_dur += 3.0 if has("TORMENT", 2) else 0.0           # +3s Damage over Time
     to_every = 0.5 if has("TORMENT", 5) else 1.0          # Damage over Time interval -50%
+    # "Reduces enemy PvE Damage Tolerance by {2}%" while it lasts, +10% with the level-12 specialization
+    to_tol = (float(tv[2]) if len(tv) > 2 and isinstance(tv[2], (int, float)) else 0.0) / 100.0 \
+        + (0.10 if has("TORMENT", 4) else 0.0)
 
     def torment_cast(sim, a):
         sim.hit("Chain of Torment", to_f, to_c, element="earth", tags=("noparry",) if has("TORMENT", 5) else ())
         sim.dot("torment", "Chain of Torment (DoT)", tdot_f, tdot_c, to_every, to_dur)
+        if to_tol:
+            sim.debuff("torment_tolerance", to_dur, {"tol_red": to_tol})
     A["chain_of_torment"] = Action("chain_of_torment", "Chain of Torment", SID["TORMENT"],
                                    TIMING["chain_of_torment"], cooldown=cd.cd(SID["TORMENT"], lv("TORMENT")),
                                    mp=cd.mp(SID["TORMENT"], lv("TORMENT")), element="earth", on_cast=torment_cast)
 
     # Condemnation (needs Chain of Torment; low cooldown spam)
     co_f, co_c = dmg("CONDEMN")
+    # Earth Punishment from stigma level 5: "[Condemnation] lands as a Critical Hit on targets afflicted
+    # with [Earth Punishment]" (in the archived server logs 92% of Condemnations within 2 s of an Earth
+    # Punishment tick crit, against 17% otherwise)
+    sure_crit = st("EPUNISH", 5)
 
     def condemn_cast(sim, a):
-        sim.hit("Condemnation", co_f, co_c, element="earth", tags=("multi",) if has("CONDEMN", 5) else ())
+        sure = sure_crit and sim.has_debuff("epunish")
+        tags = (("multi",) if has("CONDEMN", 5) else ()) + (("crit",) if sure else ())
+        sim.hit("Condemnation", co_f, co_c, element="earth", tags=tags,
+                mult=1.12 if has("CONDEMN", 2) else 1.0)       # "Up to +12% damage when less targets hit"
         if has("CONDEMN", 1):
             sim.gain_mp(100)
         # "Resets cooldown on landing a Critical Hit": again right away as often as it crits
         if has("CONDEMN", 4):
-            p = crit_probability(sim.base, sim.target, extra=sim.stat_mods(sim.t).get("crit", 0.0))
+            p = 1.0 if sure else crit_probability(sim.base, sim.target,
+                                                  extra=sim.stat_mods(sim.t).get("crit", 0.0))
             if sim.proc("condemnation_reset", p, 0.0, sim.t):
                 sim.reset_cd("condemnation")
     A["condemnation"] = Action("condemnation", "Condemnation", SID["CONDEMN"], TIMING["condemnation"],
@@ -213,9 +242,11 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
     dmdot_f = float(dv[4][0]) / max(1.0, dm_dur)
     dmdot_c = float(dv[4][1]) / 100.0 / max(1.0, dm_dur) if isinstance(dv[4][1], (int, float)) else 0.0
 
+    dm_every = 0.5 if has("DMARK", 5) else 1.0            # Damage over Time interval -50%
+
     def dmark_cast(sim, a):
         sim.hit("Debilitating Mark", dm_f, dm_c)
-        sim.dot("debil_mark", "Debilitating Mark (DoT)", dmdot_f, dmdot_c, 1.0, dm_dur)
+        sim.dot("debil_mark", "Debilitating Mark (DoT)", dmdot_f, dmdot_c, dm_every, dm_dur)
         if has("DMARK", 1):
             sim.gain_mp(150)
     A["debilitating_mark"] = Action("debilitating_mark", "Debilitating Mark", SID["DMARK"],
@@ -223,25 +254,32 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
                                     mp=0.0 if has("DMARK", 1) else cd.mp(SID["DMARK"], lv("DMARK")),
                                     on_cast=dmark_cast)
 
-    # Divine Aura (strong cooldown; total damage delivered over its duration)
+    # Divine Aura (strong cooldown; ticks of a fifth of the listed damage through its duration)
     av = cd.vals(SID["DAURA"], max(1, lv("DAURA")))
     da_f, da_c = float(av[0][0]), float(av[0][1]) / 100.0
-    da_n = ASSUME["divine_aura_ticks"]
+    da_every = ASSUME["divine_aura_period_fast" if has("DAURA", 3) else "divine_aura_period"]
+    da_n = int((5.0 + (3.0 if has("DAURA", 4) else 0.0)) / da_every + 1e-9)
+    da_k = da_n / ASSUME["divine_aura_ticks"]
     A["divine_aura"] = Action("divine_aura", "Divine Aura", SID["DAURA"], TIMING["divine_aura"],
-                              cooldown=cd.cd(SID["DAURA"], lv("DAURA")),
-                              on_cast=lambda sim, a: sim.hit("Divine Aura", da_f, da_c, element="earth",
-                                                            n=da_n, spread=5.0))
+                              cooldown=cd.cd(SID["DAURA"], lv("DAURA")) - (10.0 if has("DAURA", 5) else 0.0),
+                              on_cast=lambda sim, a: sim.hit("Divine Aura", da_f * da_k, da_c * da_k,
+                                                            element="earth", n=da_n, delay=da_every,
+                                                            spread=da_every * (da_n - 1)))
 
     # Bolt (charge nuke)
     bv = cd.vals(SID["BOLT"], max(1, lv("BOLT")))
     b_idx = 1 if ASSUME["bolt_charge"] >= 3 else 0
     bo_f, bo_c = float(bv[b_idx][0]), float(bv[b_idx][1]) / 100.0
-    A["bolt"] = Action("bolt", "Bolt", SID["BOLT"], TIMING["bolt"], cooldown=cd.cd(SID["BOLT"], lv("BOLT")),
-                       mp=cd.mp(SID["BOLT"], lv("BOLT")),
-                       on_cast=lambda sim, a: sim.hit("Bolt", bo_f, bo_c), requires_charge=True, charge_level=3)
+    # specializations: +30% Skill Speed, "Up to +20% damage when less targets hit", "Critical Hit on hit"
+    bo_mult = 1.2 if has("BOLT", 4) else 1.0
+    bo_tags = ("crit",) if has("BOLT", 5) else ()
+    A["bolt"] = Action("bolt", "Bolt", SID["BOLT"], TIMING["bolt"] / (1.3 if has("BOLT", 3) else 1.0),
+                       cooldown=cd.cd(SID["BOLT"], lv("BOLT")), mp=cd.mp(SID["BOLT"], lv("BOLT")),
+                       on_cast=lambda sim, a: sim.hit("Bolt", bo_f, bo_c, mult=bo_mult, tags=bo_tags),
+                       requires_charge=True, charge_level=3)
 
     # ------------------------------------------------------------- stigmas
-    _build_stigmas(A, build, cd, SID, stig, st, notes)
+    _build_stigmas(A, build, cd, SID, stig, st, graces, static)
 
     policy = _policy(A, filler)
     fallback_to_generic(A, policy, build, cd, notes)
@@ -249,26 +287,60 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
                filler=filler, notes=notes, levels=L)
 
 
-def _build_stigmas(A, build, cd, SID, stig, st, notes):
+def _build_stigmas(A, build, cd, SID, stig, st, graces, static):
+    """Stigma actions. A stigma's specializations come with its level (5 / 10 / 15 / 20), not by choice."""
     def sdmg(key):
         v = cd.vals(SID[key], build.stigmas[SID[key]])
         f, c = v[0]
         return float(f), float(c) / 100.0
 
-    # Light of Protection: +PvE Damage Boost on a 5s cooldown -> keep it up
+    # Light of Protection: a party aura switched on and left on (the recorded Cleric pressed it twice in
+    # 16 minutes), so its +PvE Damage Boost is permanent; level 20 adds +10% Perfect Chance
     if stig("LIGHTPROT"):
         lv = cd.vals(SID["LIGHTPROT"], build.stigmas[SID["LIGHTPROT"]])
-        A["lightprot"] = Action("lightprot", cd.skills[SID["LIGHTPROT"]]["name"], SID["LIGHTPROT"], 0.6,
-                               cooldown=cd.cd(SID["LIGHTPROT"], build.stigmas[SID["LIGHTPROT"]]),
-                               on_cast=lambda sim, a, s=lv[0] / 100.0: sim.buff("lightprot", 10.0, {"amp": s}))
-    # Prayer of Amplification: +Attack%
+        static["amp_pve"] = static.get("amp_pve", 0.0) + lv[0] / 100.0
+        if st("LIGHTPROT", 20):
+            static["perfect"] = static.get("perfect", 0.0) + 0.10
+    # Prayer of Amplification: +Attack% for its listed duration (10 s, 14.5 s at level 10); level 5 adds +20%
+    # PvE Damage Boost, 10 and 15 raise Empyrean Lord's Grace and Earth's Grace by half, 20 adds +15% Attack
     if stig("PRAYAMP"):
         pv = cd.vals(SID["PRAYAMP"], build.stigmas[SID["PRAYAMP"]])
+        pa = {"attack_pct": pv[0] / 100.0 + (0.15 if st("PRAYAMP", 20) else 0.0)}
+        if st("PRAYAMP", 5):
+            pa["amp"] = 0.20
+        for key, level in (("ELGRACE", 10), ("EGRACE", 15)):
+            if st("PRAYAMP", level):
+                for field, v in graces.get(key, {}).items():
+                    pa[field] = pa.get(field, 0.0) + 0.5 * v
+        pdur = ms(pv[1]) if len(pv) > 1 and isinstance(pv[1], dict) else 10.0
         A["prayamp"] = Action("prayamp", cd.skills[SID["PRAYAMP"]]["name"], SID["PRAYAMP"], TIMING["stigma"],
                              cooldown=cd.cd(SID["PRAYAMP"], build.stigmas[SID["PRAYAMP"]]),
-                             on_cast=lambda sim, a, s=pv[0] / 100.0: sim.buff("prayamp", 20.0, {"attack_pct": s}))
+                             on_cast=lambda sim, a, s=pa, d=pdur: sim.buff("prayamp", d, dict(s)))
 
-    for key in ("VOICE", "EPUNISH", "POWERBURST", "ROOTST", "ASSAULTMARK"):
+    # Earth Punishment: its hit, then its listed Damage over Time as a total over the duration (the archived
+    # server logs show ten ticks of a tenth of the hit), and [Earth's Blessing] on the caster: +10% Double
+    # Chance from level 10, +10% Attack from 15, both +10 s from 20. Condemnation crits on its targets from
+    # level 5 (see condemn_cast).
+    if stig("EPUNISH"):
+        elv = build.stigmas[SID["EPUNISH"]]
+        ev = cd.vals(SID["EPUNISH"], elv)
+        ep_f, ep_c = float(ev[0][0]), float(ev[0][1]) / 100.0
+        every = ms(ev[3]) if isinstance(ev[3], dict) else 1.0
+        base_dur = ms(ev[4]) if isinstance(ev[4], dict) else 10.0
+        dur = base_dur + (10.0 if elv >= 20 else 0.0)
+        tick_f, tick_c = float(ev[2][0]) * every / base_dur, float(ev[2][1]) / 100.0 * every / base_dur
+        bless = {k: v for k, v, need in (("double", 0.10, 10), ("attack_pct", 0.10, 15)) if elv >= need}
+
+        def ep_cast(sim, a):
+            sim.hit(a.name, ep_f, ep_c, element="earth")
+            sim.dot("epunish", "Earth Punishment (DoT)", tick_f, tick_c, every, dur, element="earth")
+            if bless:
+                sim.buff("earths_blessing", dur, dict(bless))
+        A["epunish"] = Action("epunish", cd.skills[SID["EPUNISH"]]["name"], SID["EPUNISH"], TIMING["stigma"],
+                              cooldown=cd.cd(SID["EPUNISH"], elv), mp=cd.mp(SID["EPUNISH"], elv),
+                              element="earth", on_cast=ep_cast)
+
+    for key in ("VOICE", "POWERBURST", "ROOTST", "ASSAULTMARK"):
         if not stig(key):
             continue
         akey = key.lower()
@@ -280,7 +352,7 @@ def _build_stigmas(A, build, cd, SID, stig, st, notes):
 
 
 def _policy(actions: dict, filler: str) -> list:
-    order = ["lightprot", "prayamp", "bolt", "divine_aura", "voice", "epunish", "powerburst",
+    order = ["prayamp", "bolt", "divine_aura", "voice", "epunish", "powerburst",
              "rootst", "assaultmark", "chain_of_torment", "condemnation", "debilitating_mark",
              "thunder_and_lightning", "judgment_thunder"]
     pol = [k for k in order if k in actions]

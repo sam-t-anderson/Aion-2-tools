@@ -5,6 +5,7 @@ Formula (community-verified pieces, see docs/methodology.md)::
     Attack      = (Attack bonuses + weapon roll) x (1 + Attack increase%)
     base        = Attack x coefficient + skill flat + PvE/Boss Attack + Pen/10 - Defense/10
     boost       = 1 + (Damage Boost + PvE Boost + Boss Boost + buffs) - target Damage Tolerance
+                  (less Damage Tolerance reductions on the target, never below 0)
     element     = 1 + Fire/Water Attack%           (multiplicative)
     vulnerable  = 1 + "damage taken from caster" debuffs (multiplicative)
     weapon      = 1 + 0.66 x max(Weapon Damage Boost - target tolerance, 0)
@@ -74,7 +75,8 @@ def expected_hit(d: Derived, mods: dict, target, ctx: HitContext) -> float:
     boost_add = d.amp + g("amp", 0.0)
     if ctx.element == "fire":
         boost_add += g("amp_fire", 0.0)
-    boost = max(0.1, 1.0 + boost_add - target.tolerance)
+    tolerance = max(0.0, target.tolerance - g("tol_red", 0.0))
+    boost = max(0.1, 1.0 + boost_add - tolerance)
     elem = 1.0
     if ctx.element == "fire":
         elem += d.fire_amp + g("fire_amp", 0.0)
