@@ -222,7 +222,7 @@ counts casts (`combat/actions.pressed`).
   20 or more where one player made nearly all of a class's presses (Cleric,
   Spiritmaster).
   Everything else keeps its estimate: the whole Templar kit (one player, at most
-  18 presses a skill), Judgment Thunder (not pressed in the captures), Snipe and Cold Shock (only
+  18 presses a skill; measured since 0.2.315, see [The Templar from the log server's uploads](#the-templar-from-the-log-servers-uploads-02315)), Judgment Thunder (not pressed in the captures), Snipe and Cold Shock (only
   ever woven), and skills with too few presses. The Gladiator's "Remove
   cooldown" Overhead Slam cycle (`ASSUME`) is measured too: never under about
   1 s (10th percentile 0.97 s), not the ~0.65 s estimated from a 0.2.254 parse.
@@ -341,8 +341,8 @@ step's MP (the Gladiator's MP readings show every step returning at least that).
 | Ranger | Tempest Shot 0.32, Marking Shot 0.12 | 0.05 | 1.25, 1.45 (the others' average; no exported Ranger fight) |
 | Spiritmaster | Combustion 0.34, Dimensional Control 0.09, summons 0–0.03 | 0.02 | 1.29, 1.45 |
 
-The Cleric weaves almost nothing (8 steps in 873 presses) and the one recorded
-Templar made too few presses, so neither kit weaves. Steps after a Dodge (up to
+The Cleric weaves almost nothing (8 steps in 873 presses), so its kit does not
+weave; the Templar's does since 0.2.315 ([The Templar from the log server's uploads](#the-templar-from-the-log-servers-uploads-02315)). Steps after a Dodge (up to
 40 % of a class's woven steps) are left out with the Dodge.
 
 ### The Cleric's Condemnation build (0.2.310)
@@ -460,7 +460,7 @@ first-month upgrade gear.
 The old Templar build replayed below its own typical build, the clearest sign of a stale optimum. Its new
 build is the least certain one: its simulated damage shares overlap the Korean dummy logs least (12 %; the
 typical build's 0.177 in the 0.2.309 table), so the kit's shares, not only its numbers, still differ from
-real Templars.
+real Templars. 0.2.315 measures the kit from five recorded Templars and fixes those shares ([The Templar from the log server's uploads](#the-templar-from-the-log-servers-uploads-02315)).
 
 The integer program that buys Daevanion nodes and skill points stops at 120 s, and PuLP reports the best
 board found by then as optimal. For most classes that board spends the whole budget. The Spiritmaster's
@@ -479,6 +479,89 @@ as when they were made (the PvP model has not changed for them). The Assassin's 
 The canonical preset model version moves to 0.3.6 without an evaluator change. A server keeps a comparison
 scope's winner until the scope changes, so the new scope makes it re-seed from its stored winners and these
 builds; a community winner that scores higher stays the winner.
+
+### The Templar from the log server's uploads (0.2.315)
+
+Until 0.2.315 one Templar had been recorded, too few presses to time, so the Templar kit kept its
+estimates. Uploads from meter 0.2.306 or later carry every party member's casts. Four on the log
+server hold five global Templars: 2,935 presses and 25 boss fights. A fifth upload was a second copy
+of another's recording part and is left out (see [archive boundaries](#archive-boundaries-and-retention)).
+What they show, and what the kit does about it:
+
+* **The basic-attack chain is woven, never pressed on its own.** A Vicious Strike, Decisive Strike or
+  Desperate Strike step comes about 0.10 s before the next skill (620 woven steps); pressed back to
+  back, the chain made 14 steps in all, about 0.54 s a step. The kit dealt all three steps in one
+  0.8 s action, which outdamaged every other press, so the optimized rotation pressed nothing else:
+  its Judgment share was 0 %, against 21 % in the recorded fights and 42 % in the KR logs. The chain
+  is now one step a press, like the Gladiator's (the 0.55 s step time is an estimate from those 14
+  steps), and its steps are woven after each press at the recorded rate: Pummel 0.53, Punishing
+  Strike 0.49, Shield Rush 0.26, Poach 0.24, Judgment 0.19, Punishment 0.17 and any other press 0.17.
+  The steps come in their recorded mix (38 / 33 / 29 %) at 1.18 and 1.41 times Vicious Strike a press
+  (0.2.256's parse had 1.20 and 1.54).
+* **Pummel is three strikes, and Punishing Strike is its chain press.** Every recorded Pummel lands
+  three hits on a boss about 0.1 s apart. Each is 0.46–0.48 of a plain Vicious Strike (the four
+  Templars with enough of both), close to the third of the tooltip that three strikes imply, so the
+  tooltip is the damage of the whole press.
+  Punishing Strike (skill 12060000) is 14 % of the recorded Templars' damage and 21 % of the KR
+  logs'; the client data names it only in Pummel's specializations. 96 % of its presses come within
+  3 s of a Pummel, often with Judgment, Shield Smite or Warding Strike pressed in between. Its plain
+  hits are 3.52 times one of Pummel's strikes (3.50–3.58 across the five Templars), 1.17 times a
+  whole Pummel. It is now a press that needs Pummel's chain window and spends it. Pummel also costs
+  its 120 MP (96 with its first specialization), which the kit had left out. No recorded Templar has
+  Pummel at 16, where "[Punishing Strike] grants extra damage on hit" unlocks, so that
+  specialization adds the kits' usual 30 % for an "extra damage" that names no number.
+* **Judgment windows.** 94 % of the Judgments after a trigger come within 2 s of Shield Smite,
+  Warding Strike, Shield Rush or Doom Shield, and 99 % within 3 s. The windows now come from the
+  tooltips: 2 s, and 3 s for Doom Shield. The kit described Doom Shield's Judgment trigger and
+  knockdown but never applied them; it does now. Recorded Templars press Judgment in 59 % of the
+  windows; the model uses every one.
+* **Punishment is charged fully.** Its hits are 16–18 times a plain Vicious Strike, which only the
+  full charge reaches. The charge takes 0.95 s before the 0.50 s release, so its action time is 1.56
+  (the estimate was 1.20).
+* **A specialization mix-up.** "−2s [Warding Strike] cooldown on hit" is Vicious Strike's fourth
+  specialization. The kit had given it to the second, which absorbs HP.
+
+Action times at 0 % Combat Speed, by the rules of [measured action times](#measured-action-times-02307)
+(median press-to-next-press time up to 1.5 s plus the steps woven after it, less the 30 ms latency,
+times the typical build's 1.082):
+
+| Skill | Presses (players) | Measured | `TIMING` | Before |
+|---|---:|---:|---:|---:|
+| Pummel | 544 (5) | 0.613 s | 0.63 | 0.90 |
+| Punishing Strike | 495 (5) | 0.557 s | 0.57 | — |
+| Judgment | 258 (5) | 0.549 s | 0.56 | 0.70 |
+| Shield Smite | 136 (4) | 0.348 s | 0.34 | 0.90 |
+| Warding Strike | 97 (5) | 0.352 s | 0.35 | 1.00 |
+| Annihilate | 72 (5) | 0.350 s | 0.35 | 1.00 |
+| Shield Rush | 43 (5) | 0.326 s | 0.32 | 0.90 |
+| Debilitating Smash | 36 (3) | 0.519 s | 0.53 | 0.90 |
+| Punishment | 42 (5) | 0.95 s charge + 0.52 s | 1.56 | 1.20 |
+| Doom Shield | 57 (4) | 0.352 s | 0.35 | 1.00 |
+| Taunt | 56 (4) | 0.601 s | 0.62 | 1.00 |
+| Other stigmas, pooled | 144 (5) | 0.409 s | 0.41 | 1.00 |
+| Poach | 34 (4) | 0.494 s | 0.50 | generic |
+| Vicious Strike, one step | 14 steps (4) | 0.541 s | 0.55 | 0.80 for all three |
+
+Effect on the calibration (optimized rotation, typical build, 180 s dummy) and on the bundled build
+(boss DPS as the planner replays it; the share overlap is with the 25 recorded boss fights, the
+catalog skills only, and in brackets by name with Punishing Strike and the chain steps counted):
+
+| | Before | After |
+|---|---:|---:|
+| KR fidelity | 0.177 | 0.543 |
+| Own-capture overlap | 0.17 (0.27) | 0.54 (0.64) |
+| Bundled build, boss DPS | 15,700 (8,386 under the new kit) | 14,785 (typical build 13,029) |
+| Bundled build, KR share overlap | 12 % | 44 % |
+
+The bundled build is re-optimized with the [0.2.311 settings](#bundled-builds-regenerated-02311). Its
+boss shares are Punishing Strike 18 %, Judgment 17 %, Pummel 16 %, the woven steps 15 %, Punishment 9 %
+and Annihilate 9 %, against 14, 21, 13, 15, 10 and 6 % in the recorded boss fights. The KR logs' larger
+Judgment share needs Judgment's cooldown removal (its level-16 specialization, taken by every KR
+Templar), which the typical build behind the fidelity number does not have. Still estimated: the
+basic chain's step time, the MP that steps 2 and 3 restore (none of the recorded Templars made the
+recording, so their MP readings are not in the logs), and Threatening Blow, which no recorded Templar
+took. The canonical preset model version moves to 0.3.7, so a server re-seeds the comparison scopes from
+its stored winners and the regenerated builds under the new kit.
 
 ### Chain, variant and combo skills, and known catalog gaps
 
@@ -504,16 +587,13 @@ which cancels crit-rate and gear). The ratios drive the per-class knobs added in
 | Chanter | Piercing Strike (Dark Crush chain), Bursting Blow (Incandescent Blow variant) | 1.65x, 2.23x |
 | Cleric | Divine Punishment (Judgment Thunder companion), Discharge coefficient | 1.09x, 1.5x |
 | Assassin | Quick Slice basic combo (Swift + Breaking Slice); Savage Roar demoted to a cadenced upkeep skill | 0.67x, 0.76x |
-| Templar | Vicious Strike combo (Decisive + Desperate Strike) | 1.20x, 1.54x |
+| Templar | Vicious Strike combo (Decisive + Desperate Strike) | 1.20x, 1.54x (1.18x, 1.41x a press from five recorded Templars, 0.2.315) |
 
 **Still flagged for a gear-matched capture** (measured ratios recorded in the kit
 notes / `ASSUME` for when one is available, not yet modelled):
 
-* **Templar** — Punishing Strike (~13% of a real parse, ~3.4x Pummel) and the
-  Pummel filler's per-hit magnitude. Punishing Strike has no documented parent
-  mechanic, and the median build's Pummel share is already high, so modelling it
-  now would overshoot; it needs a gear-matched capture to calibrate the Pummel
-  coefficient first.
+* **Templar** — modelled since 0.2.315: Punishing Strike is Pummel's chain press and
+  Pummel's tooltip is the damage of three strikes ([The Templar from the log server's uploads](#the-templar-from-the-log-servers-uploads-02315)).
 * **Assassin** — Savage Smash (~6%, 3.3x Quick Slice) and Savage Back Kick (~6%,
   1.45x), and Heart Gore's cadence (under-cast vs parses).
 * **Spiritmaster** — the Spirits' cadence is measured per summon from two
@@ -781,6 +861,18 @@ On the supplied captures:
   on only 33 hits. Four Deus Research Base fights measured +5.5% against +24% (502 hits with an aura,
   66 without), but their unbuffed hits fall in a few short windows of the fight, so a phase effect
   cannot be ruled out.
+
+On the log server's uploads (0.2.315: 14 fights with a comparison in nine logs from meter 0.2.306 or
+later):
+
+* **The auras** measured **+8.9%** against **+16.5%** estimated, pooled over 44 player-skill pairs
+  with 1,148 hits with an aura and 520 without. The fights scatter from −6% to +31% (one of them
+  +195% on 11 hits), and only three come within a few points of the estimate. With the Deus fights
+  above, the estimate is about twice what the auras measure. A larger share of other damage boosts
+  in the same additive bucket than the typical build's would shrink each aura's part in this way;
+  the uploads do not record those boosts.
+* **The block buff** and **the tolerance cut** have one fight each (−3.7% against +10.6% on 38
+  hits; −5.0% against +12.0% on 217).
 
 Until more fights agree, the tab says it is an estimate and rankings use recorded DPS only.
 

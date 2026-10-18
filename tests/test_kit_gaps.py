@@ -149,7 +149,8 @@ def test_condemnation_resets_on_crits_and_chain_of_torment_specs():
 @pytest.mark.parametrize("cls, filler, step", [
     ("gladiator", "keen_strike", "Keen Strike"), ("spiritmaster", "cold_shock", "Cold Shock"),
     ("sorcerer", "flame_arrow", "Flame Arrow"), ("chanter", "onslaught", "Onslaught"),
-    ("assassin", "quick_slice", "Quick Slice"), ("ranger", "snipe", "Snipe")])
+    ("assassin", "quick_slice", "Quick Slice"), ("ranger", "snipe", "Snipe"),
+    ("templar", "vicious_strike", "Vicious Strike")])
 def test_woven_steps_land_whole_at_the_recorded_rate(cls, filler, step):
     from aion2calc.run import kit_module
     weave = kit_module(cls).WEAVE
@@ -164,9 +165,9 @@ def test_woven_steps_land_whole_at_the_recorded_rate(cls, filler, step):
     assert s1 > 0.5 * res.damage_by.get(step, s1 * woven[step]) / max(1, res.hits_by.get(step, woven[step]))
 
 
-def test_the_cleric_and_templar_weave_nothing():
-    # the recorded Cleric wove one step in a hundred presses; the one Templar is too short to measure
-    from aion2calc.kit import cleric, templar
-    assert not hasattr(cleric, "WEAVE") and not hasattr(templar, "WEAVE")
+def test_the_cleric_weaves_nothing():
+    # the recorded Cleric wove one step in a hundred presses
+    from aion2calc.kit import cleric
+    assert not hasattr(cleric, "WEAVE")
     _, res, _ = _sim("cleric")
     assert not any(n.endswith("(woven)") for n in res.damage_by)

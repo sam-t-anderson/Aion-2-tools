@@ -16,7 +16,7 @@ from .model.character import load_loadout
 from .paths import list_names, bundled_model_data
 from .presets import BUDGETS, InvalidPreset, candidate as legacy_candidate, parse
 
-MODEL_VERSION = "0.3.6"  # Bump for evaluator/model changes, not capture/UI releases.
+MODEL_VERSION = "0.3.7"  # Bump for evaluator/model changes, not capture/UI releases.
 # 0.3.0: hand-written kits for all eight classes (was sorcerer only) — see aion2calc/kit/.
 # Changes every class's modeled rotation, so the server re-scores all presets under it.
 # 0.3.3: kit action times measured from recorded casts (0.2.307) and each class's recorded
@@ -28,6 +28,9 @@ MODEL_VERSION = "0.3.6"  # Bump for evaluator/model changes, not capture/UI rele
 # 0.3.6: no evaluator change. The bundled builds were regenerated under the 0.3.5 model (0.2.311);
 # a server keeps a scope's winner until the scope changes, so the new scope makes it re-seed
 # from the stored winners and the regenerated builds.
+# 0.3.7: the Templar kit measured from five recorded Templars (0.2.315): Punishing Strike as
+# Pummel's chain press, the basic-attack chain one step a press and woven, Doom Shield's
+# Judgment window, measured action times; the bundled Templar build is regenerated.
 VERSION = 2
 POLICY_VERSION = 1
 MODES = {"pve": ("boss", "dummy"), "pvp": ("pvp", "pvp_burst")}

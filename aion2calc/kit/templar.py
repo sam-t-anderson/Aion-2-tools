@@ -3,9 +3,15 @@
 What the tooltip-driven generic kit misses for a Templar, and this kit adds:
 
 * **Judgment windows.**  Shield Smite, Warding Strike, Shield Rush and Doom
-  Shield each *Trigger Judgment* for a couple of seconds; Judgment (its own
-  cooldown removed by the u16 spec) is the Templar's primary nuke, fired in
-  those windows rather than freely or never.
+  Shield each *Trigger Judgment* for the time their tooltips give (2-3 s);
+  Judgment (its own cooldown removed by the u16 spec) is the Templar's primary
+  nuke, fired in those windows rather than freely or never.
+* **Pummel and Punishing Strike.**  Pummel lands three strikes and opens its
+  chain press, Punishing Strike, which the client data does not list: per press
+  it is measured from recorded fights.
+* **The basic-attack chain** (Vicious Strike -> Decisive Strike -> Desperate
+  Strike) one step a press when pressed on its own, and woven between skills
+  the way the recorded Templars play it.
 * **Executor.**  Punishment grants +PvE Damage Boost for 20s — a high-uptime
   amp buff the generic kit cannot see.
 * **Self crowd control gating Annihilate.**  Shield Smite / Shield Rush stun
@@ -20,9 +26,11 @@ things the client does not expose live in :data:`TIMING` / :data:`ASSUME`.
 """
 from __future__ import annotations
 
+import re
+
 from ..sim.engine import Action
 from .base import Build, ClassData
-from .common import Kit, fallback_to_generic, ms, spec_options  # noqa: F401
+from .common import Kit, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401
 
 __all__ = ["build_kit", "spec_options"]
 
@@ -35,22 +43,49 @@ SID = dict(
     SECOND=12190000, GRAPPLE=12220000, ELP=12310000, NEZ=12320000, AFURY=12700000,
     DOOM=12070000, BANNER=12450000, SPROT=12110000, NOBLE=12230000, EXEC=12410000, TAUNT=12120000,
 )
+PUNISHING_STRIKE = 12060000     # Pummel's chain press; the client data names it only in Pummel's specs
 
+#: Action time of each skill in seconds at 0% Combat Speed (not in the client
+#: data).  Measured (0.2.315) from the recorded casts of five global Templars in
+#: the log server's uploads: the median time from a press to that player's next
+#: press (gaps up to 1.5 s) plus the basic-attack steps woven in after it, less
+#: the 30 ms latency, at the typical build's Combat Speed — see
+#: docs/methodology.md "Measured action times".  ``vicious_strike`` is a step of
+#: the basic-attack chain pressed on its own, an estimate: the recorded Templars
+#: weave the chain between skills instead, and pressed it on its own for only 14
+#: steps (0.54 s a step, within the other melee classes' 0.40-0.94), ``punishing_strike`` the
+#: Pummel chain press, ``punishment`` its full charge (0.95 s) and release,
+#: ``doom`` and ``taunt`` those stigmas and ``stigma`` the other stigma presses
+#: pooled.  ``chain_followup`` is the chain hit's delay, not an action time.
 TIMING = {
-    "vicious_strike": 0.80, "pummel": 0.90, "shield_smite": 0.90, "judgment": 0.70,
-    "debilitating_smash": 0.90, "warding_strike": 1.00, "shield_rush": 0.90,
-    "annihilate": 1.00, "punishment": 1.20, "chain_followup": 0.55, "stigma": 1.00,
+    "vicious_strike": 0.55, "pummel": 0.63, "punishing_strike": 0.57, "shield_smite": 0.34,
+    "judgment": 0.56, "debilitating_smash": 0.53, "warding_strike": 0.35, "shield_rush": 0.32,
+    "annihilate": 0.35, "punishment": 1.56, "chain_followup": 0.55, "stigma": 0.41,
+    "doom": 0.35, "taunt": 0.62, "poach": 0.50,
 }
 
 ASSUME = {
     "boss_breakable": True,       # training boss can be stunned/knocked down (gates Annihilate)
-    "judgment_window": 2.0,       # seconds Judgment stays usable after a trigger skill
+    "judgment_window": 2.0,       # seconds Judgment stays usable after a trigger whose tooltip gives none
     "chain_frac": 1.5,            # Threatening Blow (Vicious Strike chain); community parses put
                                   #   detected chains at ~1.4-1.9x, so 1.5 (was 0.85) class-wide
-    "punishment_charge": 3,       # assume the skill is cast at full charge
-    # Vicious Strike combo string, measured from a community L45 templar parse (0.2.256):
-    "decisive_frac": 1.20,        # Vicious Strike -> Decisive Strike combo step (~1.20x the base)
-    "desperate_frac": 1.54,       # Vicious Strike -> Desperate Strike combo step (~1.54x the base)
+    "punishment_charge": 3,       # cast at full charge: recorded Punishments hit 16-18x a plain Vicious Strike
+    "punishing_frac": 1.17,       # Punishing Strike per press vs Pummel's (three strikes) — measured (0.2.315):
+                                  #   3.52x one strike in plain boss hits, 3.50-3.58 across five Templars
+    "extra_damage_frac": 0.30,    # "Extra damage on hit" specs that give no number
+}
+
+#: The basic-attack chain's three steps (name, share of the woven steps, damage per press against
+#: Vicious Strike), the woven steps after each press and after any press recorded too rarely (the
+#: median of the per-skill rates), from the recorded Templars (0.2.315; docs/methodology.md
+#: "Woven basic attacks").  Each step restores Vicious Strike's MP, as the other classes' steps
+#: do (no recorded Templar made the recording, so their MP readings are not in the logs).
+WEAVE = {
+    "steps": (("Vicious Strike", 0.38, 1.00), ("Decisive Strike", 0.33, 1.18), ("Desperate Strike", 0.29, 1.41)),
+    "after": {"pummel": 0.53, "punishing_strike": 0.49, "judgment": 0.19, "shield_rush": 0.26, "poach": 0.24,
+              "punishment": 0.17, "taunt": 0.07, "debilitating_smash": 0.03, "shield_smite": 0.01,
+              "warding_strike": 0.02, "doom": 0.02, "annihilate": 0.0},
+    "per_press": 0.17,
 }
 
 
@@ -113,34 +148,55 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
             sim.hit("Punishing Benediction", pb_f, pb_c, tags=("proc",))
 
     # ----------------------------------------------------------------- actives
-    # Vicious Strike (filler: restores MP, Threatening Blow chain)
+    # The basic-attack chain pressed on its own (the filler): Vicious Strike -> Decisive Strike ->
+    # Desperate Strike, one step a press, each restoring MP. Vicious Strike's specs (Multi-Hit,
+    # Warding Strike's cooldown, the Threatening Blow chain) ride its own step. The kit used to
+    # deal all three steps in one 0.8 s action, which outdamaged every other skill: the optimized
+    # rotation pressed nothing else and never fired Judgment.
     vi_f, vi_c = dmg("VIC")
+    vic_mp = 100 * (1.2 if has("VIC", 1) else 1.0)
 
     def vic_cast(sim, a):
-        mods = {"multihit": 0.5} if has("VIC", 3) else None
-        sim.hit("Vicious Strike", vi_f, vi_c, mods=mods)
-        # Vicious Strike opens the melee combo string; Decisive Strike and Desperate
-        # Strike follow from it (together ~9% of real damage, previously dropped).
-        de = ASSUME["decisive_frac"]
-        dp = ASSUME["desperate_frac"]
-        sim.hit("Decisive Strike", vi_f * de, vi_c * de)
-        sim.hit("Desperate Strike", vi_f * dp, vi_c * dp)
-        sim.gain_mp(100 * (1.2 if has("VIC", 1) else 1.0))
-        if has("VIC", 2):
+        step, last = sim.chain.get("vicious", (0, -99.0))
+        if sim.t - last > sim.cfg.chain_window:
+            step = 0
+        step = step % len(WEAVE["steps"]) + 1
+        sim.chain["vicious"] = (step, sim.t)
+        name, _, ratio = WEAVE["steps"][step - 1]
+        mods = {"multihit": 0.5} if step == 1 and has("VIC", 3) else None
+        sim.hit(name, vi_f * ratio, vi_c * ratio, mods=mods)
+        sim.gain_mp(vic_mp)
+        if step == 1 and has("VIC", 4):
             sim.reduce_cd("warding_strike", 2.0)
-        if has("VIC", 5):
+        if step == 1 and has("VIC", 5):
             k = ASSUME["chain_frac"]
             sim.hit("Threatening Blow", vi_f * k, vi_c * k, delay=TIMING["chain_followup"])
     A["vicious_strike"] = Action("vicious_strike", "Vicious Strike", SID["VIC"], TIMING["vicious_strike"],
                                  on_cast=vic_cast, is_filler=True)
 
-    # Pummel (filler: Stagger builder)
+    # Pummel: three strikes for the tooltip's damage (the recorded presses land three hits on a
+    # boss 0.1 s apart), opening Punishing Strike. It costs MP (20% less with its first spec).
     pu_f, pu_c = dmg("PUM")
+    pu_mult = 1.12 if has("PUM", 3) else 1.0
 
     def pummel_cast(sim, a):
-        sim.hit("Pummel", pu_f, pu_c, mult=1.12 if has("PUM", 3) else 1.0)
+        sim.hit("Pummel", pu_f, pu_c, mult=pu_mult)
+        sim.buff("pummel_chain", sim.cfg.chain_window)
     A["pummel"] = Action("pummel", "Pummel", SID["PUM"], TIMING["pummel"],
+                         mp=cd.mp(SID["PUM"], lv("PUM")) * (0.8 if has("PUM", 1) else 1.0),
                          on_cast=pummel_cast, is_filler=True)
+
+    # Punishing Strike: Pummel's chain press, 14% of the recorded Templars' damage and 21% of the KR
+    # logs'. 96% of the recorded ones come within 3 s of a Pummel, often with Judgment, Shield Smite
+    # or Warding Strike pressed in between. The client data does not list it, so it deals its
+    # measured share of Pummel; Pummel's fifth spec adds damage it does not quantify.
+    ps_mult = pu_mult * ASSUME["punishing_frac"] * (1.0 + ASSUME["extra_damage_frac"] if has("PUM", 5) else 1.0)
+
+    def punishing_cast(sim, a):
+        sim.buff("pummel_chain", 0.0)                 # spent
+        sim.hit("Punishing Strike", pu_f, pu_c, mult=ps_mult)
+    A["punishing_strike"] = Action("punishing_strike", "Punishing Strike", PUNISHING_STRIKE,
+                                   TIMING["punishing_strike"], requires=("pummel_chain",), on_cast=punishing_cast)
 
     # Judgment (primary nuke; usable in the window the trigger skills open)
     ju_f, ju_c = dmg("JUDG")
@@ -153,8 +209,8 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
     A["judgment"] = Action("judgment", "Judgment", SID["JUDG"], TIMING["judgment"],
                            cooldown=ju_cd, requires=("judgment",), on_cast=judg_cast)
 
-    def trigger_judgment(sim):
-        sim.buff("judgment", ASSUME["judgment_window"])
+    def trigger_judgment(sim, key):
+        sim.buff("judgment", _judgment_window(cd, SID[key], lv(key)))
 
     # Shield Smite (Stun -> gates Annihilate; triggers Judgment; Debilitating Smash)
     ss_f, ss_c = dmg("SMITE")
@@ -164,7 +220,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
         sim.hit("Shield Smite", ss_f, ss_c)
         if ASSUME["boss_breakable"]:
             sim.debuff("incap", 3.0 + (1.0 if has("SMITE", 1) else 0.0))
-        trigger_judgment(sim)
+        trigger_judgment(sim, "SMITE")
     A["shield_smite"] = Action("shield_smite", "Shield Smite", SID["SMITE"], TIMING["shield_smite"],
                                cooldown=ss_cd, mp=cd.mp(SID["SMITE"], lv("SMITE")), on_cast=smite_cast)
 
@@ -184,7 +240,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
 
     def ward_cast(sim, a):
         sim.hit("Warding Strike", wa_f, wa_c)
-        trigger_judgment(sim)
+        trigger_judgment(sim, "WARD")
     A["warding_strike"] = Action("warding_strike", "Warding Strike", SID["WARD"], TIMING["warding_strike"],
                                  cooldown=wa_cd, mp=cd.mp(SID["WARD"], lv("WARD")), on_cast=ward_cast)
 
@@ -196,7 +252,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
         sim.hit("Shield Rush", sr_f, sr_c)
         if ASSUME["boss_breakable"]:
             sim.debuff("incap", 3.0)
-        trigger_judgment(sim)
+        trigger_judgment(sim, "SRUSH")
     A["shield_rush"] = Action("shield_rush", "Shield Rush", SID["SRUSH"], TIMING["shield_rush"],
                               cooldown=sr_cd, on_cast=srush_cast)
 
@@ -230,9 +286,22 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
     _build_stigmas(A, build, cd, stig, st, notes)
 
     policy = _policy(A, filler)
-    fallback_to_generic(A, policy, build, cd, notes)
+    fallback_to_generic(A, policy, build, cd, notes, timing=TIMING)
+    add_weave(A, WEAVE, vi_f, vi_c, mp=vic_mp, skip=("vicious_strike",))
+    # A saved priority list from before Punishing Strike existed would never press it.
     return Kit(actions=A, hooks=[hook], cond_mods=[], static=static, policy=policy,
-               filler=filler, notes=notes, levels=L)
+               filler=filler, notes=notes, levels=L, essential=("punishing_strike",))
+
+
+def _judgment_window(cd: ClassData, sid: int, level: int) -> float:
+    """How long a trigger skill opens Judgment, from its tooltip ("Triggers [Judgment] for {n}"):
+    the duration value that placeholder names (2 s on Shield Smite, Warding Strike and Shield Rush,
+    3 s on Doom Shield)."""
+    tip = cd.skills[sid].get("tip") or ""
+    m = re.search(r"Triggers \[Judgment\] for \{(\d+)\}", tip)
+    v = cd.vals(sid, max(1, level)) if m else []
+    i = int(m.group(1)) if m else -1
+    return ms(v[i]) if 0 <= i < len(v) and isinstance(v[i], dict) else ASSUME["judgment_window"]
 
 
 def _build_stigmas(A, build, cd, stig, st, notes):
@@ -241,6 +310,10 @@ def _build_stigmas(A, build, cd, stig, st, notes):
         f, c = v[0]
         return float(f), float(c) / 100.0
 
+    if stig("DOOM"):
+        dv = cd.vals(SID["DOOM"], build.stigmas[SID["DOOM"]])
+        doom_down = ms(dv[3]) if len(dv) > 3 and isinstance(dv[3], dict) else 3.0
+        doom_window = _judgment_window(cd, SID["DOOM"], build.stigmas[SID["DOOM"]])
     for key in ("EXEC", "DOOM", "ELP", "AFURY", "GRAPPLE", "TAUNT"):
         if not stig(key):
             continue
@@ -255,9 +328,15 @@ def _build_stigmas(A, build, cd, stig, st, notes):
                 sim.buff("elp_boost", 10.0, {"amp": 0.10})
             elif key == "AFURY" and st("AFURY", 5):
                 sim.buff("assault_fury", 5.0, {"attack_pct": 0.20})
-            elif key == "DOOM" and st("DOOM", 5):
-                sim.reset_cd("annihilate")
-        A[akey] = Action(akey, cd.skills[SID[key]]["name"], SID[key], TIMING["stigma"],
+            elif key == "DOOM":
+                # Doom Shield knocks the target down (gating Annihilate) and triggers Judgment, as
+                # its tooltip says; the kit described both but never applied them.
+                if ASSUME["boss_breakable"]:
+                    sim.debuff("incap", doom_down)
+                sim.buff("judgment", doom_window)
+                if st("DOOM", 5):
+                    sim.reset_cd("annihilate")
+        A[akey] = Action(akey, cd.skills[SID[key]]["name"], SID[key], TIMING.get(akey, TIMING["stigma"]),
                          cooldown=cd.cd(SID[key], build.stigmas[SID[key]]),
                          mp=cd.mp(SID[key], build.stigmas[SID[key]]), on_cast=nuke)
 
@@ -265,7 +344,7 @@ def _build_stigmas(A, build, cd, stig, st, notes):
 def _policy(actions: dict, filler: str) -> list:
     order = ["punishment", "exec", "elp", "doom", "afury", "grapple", "taunt",
              "shield_smite", "shield_rush", "warding_strike", "annihilate", "judgment",
-             "debilitating_smash", "pummel"]
+             "debilitating_smash", "punishing_strike", "pummel"]
     pol = [k for k in order if k in actions]
     pol.append(filler)
     return pol
