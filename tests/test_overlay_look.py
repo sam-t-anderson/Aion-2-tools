@@ -46,6 +46,20 @@ def test_the_boss_panel_keeps_its_readouts_in_order():
     assert ".ovtarget .ovtname" in CSS and ".ovtarget .ovtline" in CSS
 
 
+def test_the_struck_enemies_count_sits_next_to_the_target_name():
+    row = JS.split("$(\"#ovtarget\").innerHTML=", 1)[1].split("\n", 1)[0]
+    who = row.split('<span class="ovtwho">', 1)[1]
+    assert who.index("ovtname") < who.index("${also}") < who.index("</span>${hp}")
+    also = JS.split("const also=", 1)[1].split(":'';", 1)[0]
+    assert also.index("ovalsocount") < also.index("ovalsonames")
+    # the name is only as wide as its text and the others' names take what is left, so the
+    # count follows the name instead of the HP readout at the far edge
+    assert re.search(r"\.ovtarget \.ovtwho \{ flex: 1 1 0;", CSS)
+    assert re.search(r"\.ovtarget \.ovtname \{ flex: 0 1 auto;", CSS)
+    assert re.search(r"\.ovtarget \.ovalsocount \{ flex: none;", CSS)
+    assert re.search(r"\.ovtarget \.ovalsonames \{ flex: 1 1 0; min-width: 0;", CSS)
+
+
 def test_number_colour_defaults_are_light_and_agree_everywhere():
     assert "--ov-rate-text, #ffffff" in CSS and "--ov-total-text, #9bb1c1" in CSS
     assert "rate:'#ffffff',total:'#9bb1c1'" in APP                 # the settings pickers' defaults

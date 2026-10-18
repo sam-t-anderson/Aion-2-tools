@@ -17,6 +17,8 @@ Log reviews now compare your skill shares and casts with these builds. The class
 
 **The optimizer no longer leaves Daevanion points unspent.** The solver that buys Daevanion nodes and skill points stops after 120 seconds and keeps the best board it has found. For the Spiritmaster that board spent only 195 of 360 points, even with the machine to itself, so its optimized build fell below the class's typical build. Points a stopped solve leaves unused now go to the best connected nodes: stat nodes by their stat value, skill-level nodes by what the next skill level adds. A board that already spends its points does not change.
 
+**Overlay: the count of other enemies sits next to the target.** When several enemies are hit at once, the "+N (names)" after the current target was pushed to the far edge beside its HP. It squeezed the target's name down to a few letters, or wrapped onto a line of its own. It now follows the target's name on the same line. The other enemies' names give way first, then the target's name, and the count is never cut.
+
 **The Sorcerer example is regenerated.** The planner and the log review use `results/sorcerer_l45` for the Sorcerer ahead of the class comparison. It dated from 4 October and is re-optimized too (21,722 boss DPS, 3 iterations), with its 383-skill-point and first-month upgrade-gear variants and the example page.
 
 **PvP examples.** Re-scored under the current model, seven of the eight bundled PvP examples score exactly as when they were made; the PvP model has not changed for them. The Assassin's old allocation now scores 8,249 (it was 7,946). A fresh search finds 8,809, which replaces it.
