@@ -31,9 +31,26 @@ ACTIONS: dict[str, str] = {
     "open_app": "Open the app window",
     "open_settings": "Open the Settings page",
     "toggle_events": "Show / hide overlay event notifications",
+    "toggle_field_bosses": "Show / hide field-boss timers on the overlay",
+    "toggle_combat_assist": "Show / hide combat assist (skill cooldowns, break gauge)",
     "screenshot_lock": "Screenshot lock (freeze the overlay)",
     "quit": "Exit Aion 2 Calc",
 }
+
+#: The overlay's combat-assist parts, shown and hidden together by ``toggle_combat_assist``.
+COMBAT_ASSIST = ("overlay_show_cooldowns", "overlay_show_break_gauge")
+
+
+def combat_assist_changes(ui: dict, hidden: list) -> dict:
+    """The settings ``toggle_combat_assist`` writes: every combat-assist part off when any is on
+    (``hidden`` remembers which were on), else the parts it last hid back on, or all of them when it
+    has hidden none since the app started."""
+    shown = [key for key in COMBAT_ASSIST if ui.get(key)]
+    if shown:
+        hidden[:] = shown
+        return {key: False for key in COMBAT_ASSIST}
+    return {key: True for key in (hidden or COMBAT_ASSIST)}
+
 
 # Modifier name -> RegisterHotKey MOD_* flag.
 _MODS = {"ctrl": 0x0002, "control": 0x0002, "alt": 0x0001, "shift": 0x0004,

@@ -18,7 +18,7 @@
   const cooldownIcons=new Map();   // strip key -> icon element, kept between renders so icons never reload
   let graphHist=[], graphDur=-1;   // per-poll party-total samples for the live DPS/HPS sparkline, and the last seen fight duration
   const playerHist=new Map();      // per-player DPS samples (key -> [dps,…]) for the expanded-row trend sparkline
-  let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name", classColorNames=false, classSwatch=false, rankNumbers=false, highlightMe=false, showCommunityRank=false, showEvents=true;
+  let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name", classColorNames=false, classSwatch=false, rankNumbers=false, highlightMe=false, showCommunityRank=false, showEvents=true, showFieldBosses=true;
   // Regional event-notification strip: next rift/Shugo/battlefield/field-boss windows
   // from the bundled schedule, for the region the player picked on the Timers page.
   let eventCatalog=null, eventTimer=null, eventRegion="", eventGroup="";
@@ -180,6 +180,7 @@
     showCombatPower=ui.overlay_show_combat_power!==false;
     showCommunityRank=ui.overlay_show_community_rank===true;
     showEvents=ui.overlay_show_events!==false;   // on by default
+    showFieldBosses=ui.overlay_show_field_bosses!==false;   // observed kills in the strip, on by default
     eventsSound=ui.overlay_events_sound===true;  // chime off by default (opt-in audio)
     eventsSoundCustom=ui.overlay_events_sound_set===true;
     // The region/group the Timers page picked, delivered via the server (this overlay
@@ -888,7 +889,7 @@
   // never reach it). A boss whose expected return is near or just passed joins the strip.
   function observedBossEvents(now){
     const doc=lastSnap&&lastSnap.snapshot&&lastSnap.snapshot.field_bosses;
-    if(!doc||!doc.faction||!Array.isArray(doc.kills))return [];
+    if(!showFieldBosses||!doc||!doc.faction||!Array.isArray(doc.kills))return [];
     const out=[];
     for(const k of doc.kills){
       if(!Number.isFinite(k.expected_at))continue;

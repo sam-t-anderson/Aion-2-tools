@@ -18,7 +18,11 @@ the generic model does not see the gating or the buffs.  This kit adds:
   cooldown-reset specialization it is pressed back to back), plus the Empyrean
   Lord's Grace on-hit rider and the Earth's Grace / Empyrean Lord's Grace crit stats.
 
-Heals carry no damage and are left out of the rotation.  Every damage number
+Heals carry no damage, so no priority list holds them, but since 0.2.317 they
+take the Cleric's time in a boss fight: the recorded Clerics' heal rate
+(:data:`ASSUME` ``heals_per_minute``, ``0`` for a Cleric doing nothing but
+damage) at a heal's action time, spread over every other press.  A training
+dummy deals no damage, so there the Cleric never heals.  Every damage number
 comes from ``data/global/classes/cleric.json``; only values the client does not
 expose live in :data:`TIMING` / :data:`ASSUME`.
 """
@@ -33,7 +37,7 @@ __all__ = ["build_kit", "spec_options"]
 
 SID = dict(
     RETRIB=17010000, JUDGMENT=17040000, DMARK=17080000, DAURA=17150000, TORMENT=17070000,
-    SCATTER=17370000, CONDEMN=17350000, BOLT=17060000, DEFI=17240000,
+    SCATTER=17370000, CONDEMN=17350000, BOLT=17060000, DEFI=17240000, HEALLIGHT=17100000,
     WARM=17710000, ELBEN=17720000, ELGRACE=17730000, HEALENH=17740000, IMMORTAL=17750000,
     HEALBLK=17760000, PRAYERCONC=17770000, EGRACE=17780000, SURVWILL=17790000, RADBEN=17800000,
     VOICE=17300000, EPUNISH=None, POWERBURST=None, ASSAULTMARK=None, PRAYAMP=None,
@@ -44,10 +48,13 @@ SID = dict(
 #: one recorded global Cleric's casts (docs/methodology.md "Measured action times"); ``bolt`` is its
 #: charge plus the release, and ``discharge`` the Earth's Retribution chain press, charged to Earth's
 #: Retribution at the chain's chance.  Judgment Thunder keeps its estimate (not pressed in the captures).
+#: ``heal`` is a heal press (0.2.317), the same measure pooled over the heals of 14 Clerics in the log
+#: server's uploads (475 presses followed by another within 1.5 s).
 TIMING = {
     "earths_retribution": 0.62, "judgment_thunder": 0.85, "chain_of_torment": 0.64,
     "condemnation": 0.52, "debilitating_mark": 0.81, "divine_aura": 0.57, "bolt": 1.56,
     "chain_followup": 0.55, "stigma": 0.71, "discharge": 0.80, "thunder_and_lightning": 0.55,
+    "heal": 0.45,
 }
 
 ASSUME = {
@@ -70,6 +77,10 @@ ASSUME = {
     # Condemnation hit recorded, 0.31 modelled at the typical levels).
     "divine_aura_period": 0.8,
     "divine_aura_period_fast": 0.6,
+    # Heal presses (Healing Light, Light of Regeneration, Radiant Recovery, now and then Absolution or
+    # Benevolence) a minute of boss fight: 587 in 128.5 minutes of 61 recorded fights (0.2.317; the median
+    # fight 4.45, quartiles 1.3-7.6), as often inside Earth Punishment's windows as outside them.
+    "heals_per_minute": 4.6,
 }
 
 # stigma skills resolved by name (ids vary; look them up from the class data)
@@ -161,10 +172,14 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
             sim.hit("Discharge", re_f * k, re_c * k, element="earth", delay=TIMING["chain_followup"])
             if has("RETRIB", 4):
                 sim.reduce_cd("bolt", 7.0)
-    # Discharge is its own press; the kit folds it into Earth's Retribution, so its time is too.
+    # Discharge is its own press; the kit folds it into Earth's Retribution, so its time is too. While its
+    # chain window is open the basic chain sits on Thunder and Lightning, so Earth's Retribution comes back
+    # only after that step or once the window lapses (0.2.317: in the uploads never twice in a row in 880
+    # presses, and 3.15 s or more apart, never less, with no Thunder and Lightning between).
     A["earths_retribution"] = Action("earths_retribution", "Earth's Retribution", SID["RETRIB"],
                                      TIMING["earths_retribution"] + discharge_chance * TIMING["discharge"],
-                                     element="earth", on_cast=retrib_cast, is_filler=True)
+                                     element="earth", on_cast=retrib_cast, is_filler=True,
+                                     requires=("!retribution_chain",))
 
     # Thunder and Lightning: the basic chain's second step, pressed right after Earth's Retribution.
     # Not in the skill table, so its size is measured against Earth's Retribution.
@@ -280,6 +295,13 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
 
     # ------------------------------------------------------------- stigmas
     _build_stigmas(A, build, cd, SID, stig, st, graces, static)
+
+    # Heals: no damage, in a fight whose party takes damage (the boss scenario, not the dummy) their time at
+    # the recorded rate is spread over every other press (sim.engine.Action.heal). Their MP is left out: the
+    # Cleric's MP never runs short (Earth's Retribution restores 110 a press).
+    if ASSUME["heals_per_minute"] > 0:
+        A["heals"] = Action("heals", "Heals", SID["HEALLIGHT"], TIMING["heal"],
+                            cooldown=60.0 / ASSUME["heals_per_minute"], affected_by_cdr=False, heal=True)
 
     policy = _policy(A, filler)
     fallback_to_generic(A, policy, build, cd, notes)

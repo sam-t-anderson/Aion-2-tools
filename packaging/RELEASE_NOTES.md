@@ -1,3 +1,23 @@
+## A Cleric's heals in its boss damage; the Templar's chain step measured; field-boss and combat-assist hotkeys (0.2.317)
+
+**The Cleric's modelled boss damage now includes its heals.** Until now the optimizer's Cleric never healed, so its boss DPS was a ceiling. The log server's uploads hold 61 boss fights of 14 Clerics. They press a heal 4.6 times a minute, about 0.45 seconds a press, as often inside Earth Punishment's windows as outside them. In a boss fight that time is now spread over the Cleric's other presses (3.4 % of the fight). On a training dummy nothing deals damage, so there the Cleric still never heals. The bundled Cleric build is re-optimized at 15,937 modeled boss DPS; the old one comes to 15,671 with heals (16,342 without).
+
+**Earth's Retribution is never pressed twice in a row.** After Earth's Retribution the basic chain moves on to Thunder and Lightning for about three seconds: in the uploads Earth's Retribution never followed itself (880 presses). The model allowed it, and a build re-optimized with Earth's Retribution's Bolt cooldown specialization left Thunder and Lightning out. Earth's Retribution now waits until Thunder and Lightning is pressed or the chain ends.
+
+**Why recorded Clerics deal less than the model.** They fit about a third as many Condemnations into each Earth Punishment window, because they press Judgment Thunder there as well, though Condemnation deals more a press there and is quicker. Every class also spends 28–43 % of a recorded boss fight pressing nothing, and dodges; the model leaves both out for every class.
+
+**The Templar's basic chain pressed on its own is measured.** Six Templars in the uploads pressed it on its own for 26 steps, 0.45 seconds a step, replacing the 0.55-second estimate. The bundled Templar build never presses it on its own and is unchanged. The MP the chain's steps restore is still unmeasured: no upload was recorded by a Templar.
+
+The preset model version moves to 0.3.8, so the log server re-scores the community presets under the new model.
+
+**Two new hotkeys** (Settings → Hotkeys):
+- **Show / hide field-boss timers on the overlay.** It flips a new setting, *Include observed field-boss timers in the event strip* (Settings → Overlay, on by default). Turned off, the strip keeps the scheduled rift, Shugo and battlefield events, and the Timers page keeps the kills.
+- **Show / hide combat assist.** It hides the skill-cooldown strip and the break-gauge bar together, then brings back the ones it hid, or both.
+
+An Abyss artifact status is not available yet: no record of it is decoded.
+
+**The buff contribution estimate stays an estimate.** Re-checked against 25 uploaded fights, the PvE Damage Boost auras measured +5.6 % against the estimated +16.2 %, and boss hits alone the same. The *Buff contribution* tab keeps saying it is an estimate, and rankings keep using recorded damage only.
+
 ## Fix: every party member is recorded in a dungeon; run-speed standings of a party from several worlds (0.2.316)
 
 **Every party member's damage is recorded inside a dungeon.** A party capture keeps only the effects of party members, and the party comes from the game's party list. When that list decoded short, the meter dropped everyone it missed: from the overlay and from the saved and uploaded log. In a reported Krao Cave run the list held one other member of five, not even the recording player. The overlay showed two players, and the log kept under a third of each boss's damage.

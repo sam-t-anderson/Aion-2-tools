@@ -321,6 +321,17 @@ def test_overlay_show_events_defaults_on(isolated_home):
     assert ui_settings()["overlay_show_events"] is True
 
 
+def test_overlay_show_field_bosses_is_a_bool_setting_on_by_default(isolated_home):
+    """Observed field-boss timers in the event strip (0.2.317): on by default, backed up as a boolean."""
+    from aion2calc.app.server import ui_settings
+    assert ui_settings()["overlay_show_field_bosses"] is True
+    assert "overlay_show_field_bosses" in settings_backup._BOOL_KEYS
+    result = settings_backup.import_settings({"settings": {"overlay_show_field_bosses": False}})
+    assert result["settings"]["overlay_show_field_bosses"] is False
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"settings": {"overlay_show_field_bosses": "no"}})
+
+
 # Settings → Class colors saves a switch plus one colour per class (combat-review.js);
 # "Reset class colors" saves {}.
 _CLASS_COLORS = {"enabled": False, "colors": {"gladiator": "#C69B6D", "templar": "#f58cba", "assassin": "#fff468",

@@ -392,9 +392,10 @@ reaches 16,342 boss DPS, Condemnation 47 % of it. Taking each new effect away fr
 | Divine Aura's speed and duration | −5.6 % |
 | Bolt's +20 % | −1.3 % |
 
-This is a ceiling for a Cleric who does nothing but damage: the model fits about 19 Condemnations into a
+This was a ceiling for a Cleric who does nothing but damage: the model fits about 19 Condemnations into a
 10 s window, the recorded Cleric about 6 (up to 14) around its heals, and the server-log Clerics' median
-boss DPS is 4,930 (the other classes' 7,600–13,600).
+boss DPS is 4,930 (the other classes' 7,600–13,600). Since 0.2.317 the boss scenario takes the heals'
+recorded share of the time ([The Cleric's heals and basic chain](#the-clerics-heals-and-basic-chain-02317)).
 
 ### World PvP (0.2.310)
 
@@ -493,8 +494,9 @@ What they show, and what the kit does about it:
   back, the chain made 14 steps in all, about 0.54 s a step. The kit dealt all three steps in one
   0.8 s action, which outdamaged every other press, so the optimized rotation pressed nothing else:
   its Judgment share was 0 %, against 21 % in the recorded fights and 42 % in the KR logs. The chain
-  is now one step a press, like the Gladiator's (the 0.55 s step time is an estimate from those 14
-  steps), and its steps are woven after each press at the recorded rate: Pummel 0.53, Punishing
+  is now one step a press, like the Gladiator's (the 0.55 s step time was an estimate from those 14
+  steps; since 0.2.317 it is 0.46 s, measured from 26 steps by six Templars), and its steps are woven
+  after each press at the recorded rate: Pummel 0.53, Punishing
   Strike 0.49, Shield Rush 0.26, Poach 0.24, Judgment 0.19, Punishment 0.17 and any other press 0.17.
   The steps come in their recorded mix (38 / 33 / 29 %) at 1.18 and 1.41 times Vicious Strike a press
   (0.2.256's parse had 1.20 and 1.54).
@@ -557,11 +559,72 @@ The bundled build is re-optimized with the [0.2.311 settings](#bundled-builds-re
 boss shares are Punishing Strike 18 %, Judgment 17 %, Pummel 16 %, the woven steps 15 %, Punishment 9 %
 and Annihilate 9 %, against 14, 21, 13, 15, 10 and 6 % in the recorded boss fights. The KR logs' larger
 Judgment share needs Judgment's cooldown removal (its level-16 specialization, taken by every KR
-Templar), which the typical build behind the fidelity number does not have. Still estimated: the
-basic chain's step time, the MP that steps 2 and 3 restore (none of the recorded Templars made the
-recording, so their MP readings are not in the logs), and Threatening Blow, which no recorded Templar
-took. The canonical preset model version moves to 0.3.7, so a server re-seeds the comparison scopes from
+Templar), which the typical build behind the fidelity number does not have. Still estimated: the MP
+that steps 2 and 3 restore (none of the recorded Templars made the recording, so their MP readings
+are not in the logs; 0.2.317's uploads have none either), and Threatening Blow, which no recorded
+Templar took. The step time is measured since 0.2.317: pressed back to back, six Templars made 26
+steps, a median 0.452 s apart (quartiles 0.42 and 0.56), so `TIMING["vicious_strike"]` moves from 0.55
+to 0.46. The bundled build never presses the chain on its own, so it stays at 14,785; the typical
+build's KR fidelity moves from 0.543 to 0.540 and the own-capture overlap from 0.53 to 0.52 (34
+fights). The canonical preset model version moves to 0.3.7, so a server re-seeds the comparison scopes from
 its stored winners and the regenerated builds under the new kit.
+
+### The Cleric's heals and basic chain (0.2.317)
+
+Until 0.2.317 the Cleric kit left heals out, so its modelled boss DPS was a ceiling for a Cleric who
+never heals. The log server's uploads from meter 0.2.306 or later hold 61 boss fights of 14 Clerics
+(128.5 minutes, all expedition bosses; a fight several party members uploaded counts once). What they
+show:
+
+* **Heals take about a tenth of a Cleric's pressing time.** The Clerics press a heal (Healing Light,
+  Light of Regeneration, Radiant Recovery, now and then Absolution or Benevolence) 4.6 times a minute:
+  587 presses; the median fight 4.45 a minute, the quartiles 1.3 and 7.6. Counting each press as
+  holding the time to the next one (up to 1.5 s), heals take 9.5 % of the Clerics' pressing time (the
+  Chanters' 2.5 %, the Templars' 0.5 %, the other classes' none), dodges 13 % and the support skills
+  (Light of Protection, Yustiel's Power, Defiance, Salvation, resurrection) 3 %. A heal press takes
+  0.45 s by the rules of [measured action times](#measured-action-times-02307) (475 presses). The
+  Clerics heal as often inside Earth Punishment's windows (4.3 a minute) as outside them (3.7).
+* **Every class spends 28–43 % of a boss fight not pressing anything** (the Cleric 39 %), and dodges
+  take 8–23 % of its pressing time. The model has neither for any class, so its DPS is a rotation's,
+  not a whole fight's.
+* **The windows hold fewer Condemnations by the players' choice.** The Clerics who play the build
+  (their Condemnations crit 80 % of the time or more inside the windows; 78 windows) press
+  Condemnation 0.57 times a second while Chain of Torment is up, and press Judgment Thunder there
+  224 times against Condemnation's 326, though a Condemnation there deals 11,863 a press against
+  Judgment Thunder's 8,586 with Divine Punishment, in a shorter action. The reset does not hold them
+  back: a Condemnation's hit lands 0.35 s after the press, inside its 0.52 s action, and the quickest
+  tenth of the back-to-back presses after a critical hit are 0.57 s apart.
+* **Earth's Retribution is never pressed twice running.** Of 880 presses followed by another within
+  3 s, none was Earth's Retribution again, and with no Thunder and Lightning between them two were
+  always 3.15 s or more apart (169 pairs): while its chain window is open, the basic chain sits on
+  Thunder and Lightning. The kit allowed the repeat, so the build re-optimized with heals, which has
+  Earth's Retribution's "−7s [Bolt] cooldown on landing [Discharge]", pressed it back to back and left
+  Thunder and Lightning out.
+
+The kit now spreads the heals' time over every other press in a boss fight: 4.6 a minute at 0.45 s,
+3.4 % of the time at the typical build's Combat Speed, so each press takes 1/(1 − 0.034) as long
+(`Action.heal`, `Target.party_damage`). That is what a heal at an unknown moment costs on average:
+heals pressed on a fixed schedule moved the bundled build's DPS by 2.5 % depending on whether they fell
+inside an Earth Punishment window, which the optimizer could have exploited. A training dummy deals no
+damage, so there the Cleric never heals, and the KR fidelity (scored on a dummy) does not move.
+`ASSUME["heals_per_minute"] = 0` gives back a Cleric doing nothing but damage. Earth's Retribution now
+waits while its chain window is open, until Thunder and Lightning spends it or it lapses; the old
+bundled build's rotation already alternated the two and is unaffected.
+
+| | Before | After |
+|---|---:|---:|
+| Bundled build, boss DPS | 16,342 | 15,671 replayed, 15,937 re-optimized |
+| Typical build, boss DPS (optimized rotation) | 12,411 | 12,137 |
+| Condemnations per Earth Punishment window, bundled build | 11.4 | 11.7 (the recorded build: 4.2) |
+| Bundled build, KR share overlap | 71 % | 72 % |
+
+The re-optimized build (the [0.2.311 settings](#bundled-builds-regenerated-02311)) keeps its skills
+and stigmas and changes three specializations and the Daevanion board (38 nodes out, 37 in): Earth's
+Retribution's +20 % Discharge chance instead of +50 % Multi-Hit, and a stun the model gives no effect
+on Bolt and on Debilitating Mark, in place of Bolt's +30 % Skill Speed (0.6 % lower here: the faster
+charge shifts the rotation) and Debilitating Mark's MP (the Cleric's MP never runs short). The canonical preset model
+version moves to 0.3.8, so a server re-seeds the comparison scopes from its stored winners and the
+regenerated build.
 
 ### Chain, variant and combo skills, and known catalog gaps
 
@@ -604,8 +667,8 @@ notes / `ASSUME` for when one is available, not yet modelled):
   (see *The Cleric's Condemnation build*), and the optimizer suggests the build
   the guides and five of the 13 server-log Clerics play; the other eight lean on
   Judgment Thunder (27 % of the server-log Clerics' damage with Divine
-  Punishment, close to the model's 30 %). The kit does not model healing, so its
-  DPS is a ceiling for a Cleric doing only damage.
+  Punishment, close to the model's 30 %). Since 0.2.317 its heals take their
+  recorded share of a boss fight (see *The Cleric's heals and basic chain*).
 * **Sorcerer** — Burst / Pyroclasm / Cold Wave are partly covered by the Flame
   Arrow chain multipliers; a dedicated capture would refine them.
 * **Gladiator** — on the median loadout the kit is MP-tight (Rending Blow costs
@@ -873,6 +936,16 @@ later):
   the uploads do not record those boosts.
 * **The block buff** and **the tolerance cut** have one fight each (−3.7% against +10.6% on 38
   hits; −5.0% against +12.0% on 217).
+
+0.2.317 re-ran the check on the 42 uploads from meter 0.2.306 or later (26 fights with a comparison):
+
+* **The auras** measured **+5.6%** against **+16.2%** estimated, over 25 fights, 70 player-skill
+  pairs, 2,349 hits with an aura and 849 without: about a third of the estimate. Boss hits alone give
+  the same (+5.1% against +17.1%, 17 fights), so the mix of boss and add targets (30 % and 10 %
+  Damage Tolerance) is not the cause. The uploaded official profiles list the players' primary and
+  deity stats but not their damage boosts, so the typical build's boost bucket stays the leading
+  suspect.
+* **The block buff** still has one fight, **the tolerance cut** two (−1.8% against +11.8%, 282 hits).
 
 Until more fights agree, the tab says it is an estimate and rankings use recorded DPS only.
 

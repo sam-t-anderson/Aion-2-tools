@@ -71,6 +71,7 @@ class Target:
     class_positions: bool = False  # each class's recorded mix on bosses (BOSS_POSITIONS) instead
     stagger_windows: tuple = ()    # ((start, end), ...) seconds
     is_boss: bool = True
+    party_damage: bool = False     # the party takes damage a healer answers (a dungeon boss; a dummy deals none)
     hp_model: str = "dummy"        # "dummy" (always 100%) or "linear" (100% -> 0% over the fight)
 
     is_player: bool = False
@@ -176,6 +177,8 @@ class Action:
     targets: int = 1               # enemies one cast can hit ("up to N enemies")
     reach: float | None = None     # metres from the caster the skill reaches (None: not stated)
     control: float = 0.0           # expected seconds of hard crowd control per enemy hit, per cast
+    heal: bool = False             # a heal press (no damage, ``cooldown`` = its period): never chosen, its time
+                                   # spread over the other actions when the party takes damage (Target.party_damage)
 
     def group(self) -> str:
         return self.cd_group or self.key
@@ -213,6 +216,11 @@ class Sim:
         self.events: list[_Event] = []
         self._seq = itertools.count()
         self.ready: dict[str, float] = {}
+        # The share of the time heals take while the party takes damage, spread evenly over every other
+        # action: what a heal at an unknown moment costs on average, so no build gains by where its heals fall.
+        self.heal_share = min(0.5, sum((a.cast / max(0.2, 1.0 + derived.combat_speed) + self.cfg.latency) / a.cooldown
+                                       for a in actions.values() if a.heal and a.cooldown > 0)) \
+            if self.target.party_damage else 0.0
         self.buffs: dict[str, Buff] = {}
         self.debuffs: dict[str, Buff] = {}
         self.dots: dict[str, dict] = {}
@@ -449,7 +457,7 @@ class Sim:
         dur = a.cast / max(0.2, 1.0 + cs)
         if self.cfg.quantize:
             dur = math.ceil(dur / self.cfg.tick - 1e-6) * self.cfg.tick
-        return dur + self.cfg.latency
+        return (dur + self.cfg.latency) / (1.0 - self.heal_share)
 
     def mp_cost(self, a: Action) -> float:
         return a.mp * max(0.0, 1.0 - self.base.mp_cost_red)
@@ -473,7 +481,7 @@ class Sim:
         return False
 
     def usable(self, a: Action) -> bool:
-        if self.tactical_blocked(a):
+        if a.heal or self.tactical_blocked(a):          # a heal's time is spread over the other actions
             return False
         if (self.target.out_of_reach and a.reach is not None and a.reach < self.target.reach_m
                 and any(s <= self.t < e for s, e in self.target.out_of_reach)):

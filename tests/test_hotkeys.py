@@ -98,3 +98,22 @@ def test_overlay_lock_pulse_channel():
     assert server.OVERLAY_COMMANDS["lock_seq"] == before + 1
     overlay_js = (STATIC / "overlay.js").read_text(encoding="utf-8")
     assert "/api/overlay/commands" in overlay_js and "lock_seq" in overlay_js and "toggleLock" in overlay_js
+
+
+def test_combat_assist_hides_what_is_on_and_shows_it_back():
+    hidden = []
+    on = {"overlay_show_cooldowns": True, "overlay_show_break_gauge": False}
+    assert hotkeys.combat_assist_changes(on, hidden) == {"overlay_show_cooldowns": False, "overlay_show_break_gauge": False}
+    assert hidden == ["overlay_show_cooldowns"]
+    off = {"overlay_show_cooldowns": False, "overlay_show_break_gauge": False}
+    assert hotkeys.combat_assist_changes(off, hidden) == {"overlay_show_cooldowns": True}   # what it hid, not both
+    assert hotkeys.combat_assist_changes(off, []) == {"overlay_show_cooldowns": True, "overlay_show_break_gauge": True}
+
+
+def test_field_boss_timers_and_combat_assist_hotkeys_are_wired():
+    assert "toggle_field_bosses" in hotkeys.ACTIONS and "toggle_combat_assist" in hotkeys.ACTIONS
+    assert "overlay_show_field_bosses" in LAUNCHER and "combat_assist_changes" in LAUNCHER
+    overlay_js = (STATIC / "overlay.js").read_text(encoding="utf-8")
+    assert "showFieldBosses=ui.overlay_show_field_bosses!==false" in overlay_js
+    assert "if(!showFieldBosses||" in overlay_js                # observed kills leave the strip; forecasts stay
+    assert 'id="ov-field-bosses"' in APP_JS and "overlay_show_field_bosses" in APP_JS

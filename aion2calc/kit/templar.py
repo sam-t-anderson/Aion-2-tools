@@ -51,14 +51,14 @@ PUNISHING_STRIKE = 12060000     # Pummel's chain press; the client data names it
 #: press (gaps up to 1.5 s) plus the basic-attack steps woven in after it, less
 #: the 30 ms latency, at the typical build's Combat Speed — see
 #: docs/methodology.md "Measured action times".  ``vicious_strike`` is a step of
-#: the basic-attack chain pressed on its own, an estimate: the recorded Templars
-#: weave the chain between skills instead, and pressed it on its own for only 14
-#: steps (0.54 s a step, within the other melee classes' 0.40-0.94), ``punishing_strike`` the
+#: the basic-attack chain pressed on its own: the recorded Templars weave the
+#: chain between skills, and pressed it on its own for 26 steps by six Templars
+#: (0.2.317; 0.45 s a step, 0.54 s from the first 14), ``punishing_strike`` the
 #: Pummel chain press, ``punishment`` its full charge (0.95 s) and release,
 #: ``doom`` and ``taunt`` those stigmas and ``stigma`` the other stigma presses
 #: pooled.  ``chain_followup`` is the chain hit's delay, not an action time.
 TIMING = {
-    "vicious_strike": 0.55, "pummel": 0.63, "punishing_strike": 0.57, "shield_smite": 0.34,
+    "vicious_strike": 0.46, "pummel": 0.63, "punishing_strike": 0.57, "shield_smite": 0.34,
     "judgment": 0.56, "debilitating_smash": 0.53, "warding_strike": 0.35, "shield_rush": 0.32,
     "annihilate": 0.35, "punishment": 1.56, "chain_followup": 0.55, "stigma": 0.41,
     "doom": 0.35, "taunt": 0.62, "poach": 0.50,

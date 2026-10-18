@@ -85,7 +85,7 @@ class Evaluator:
 
 
 def candidate_keys(kit) -> tuple[list, list, list]:
-    keys = [k for k, a in kit.actions.items() if not a.is_filler]
+    keys = [k for k, a in kit.actions.items() if not a.is_filler and not a.heal]
     hell = [k for k in keys if k.startswith("hellfire_c")]
     others = [k for k in keys if not k.startswith("hellfire_c")]
     fillers = [k for k, a in kit.actions.items() if a.is_filler]

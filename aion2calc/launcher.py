@@ -214,6 +214,8 @@ def _start_hotkeys(port: int, open_app, open_settings):
             r = runner()
             r.stop() if r.running else r.start("a2tools", auto_port=True, scope="auto")
 
+        assist_hidden: list = []          # the combat-assist parts the hotkey last hid, this session
+
         def toggle_party_overlay():
             set_ui(overlay_party_enabled=not server.ui_settings().get("overlay_party_enabled"))
             if overlay_open():
@@ -229,6 +231,9 @@ def _start_hotkeys(port: int, open_app, open_settings):
             "open_app": open_app,
             "open_settings": open_settings,
             "toggle_events": lambda: set_ui(overlay_show_events=not server.ui_settings().get("overlay_show_events", True)),
+            "toggle_field_bosses": lambda: set_ui(
+                overlay_show_field_bosses=not server.ui_settings().get("overlay_show_field_bosses", True)),
+            "toggle_combat_assist": lambda: set_ui(**hotkeys.combat_assist_changes(server.ui_settings(), assist_hidden)),
             "screenshot_lock": lambda: server.pulse_overlay_lock(),
             "quit": lambda: server.schedule_shutdown(),
         }

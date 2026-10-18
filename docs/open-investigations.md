@@ -324,9 +324,11 @@ recorded Cleric. Shipped in 0.2.310 ([methodology](methodology.md#the-clerics-co
 - **Different from the model before 0.2.310:** it never modelled Earth Punishment's crit or several Cleric
   specializations, so its suggested Cleric build took the first two specializations of each skill and
   Judgment Thunder carried 30% of its damage. It now suggests the guides' build.
-- *Open:* how much of a fight a Cleric spends healing. The model fits about 19 Condemnations into an Earth
-  Punishment window, the recorded Cleric about 6 (up to 14) around its heals and Dodges, so modelled Cleric
-  DPS is a ceiling for a Cleric doing only damage.
+- *Answered in 0.2.317:* how much of a fight a Cleric spends healing. In 61 boss fights of 14 Clerics on the
+  log server a heal comes 4.6 times a minute at 0.45 s a press, inside Earth Punishment's windows as often as
+  outside them, and the boss scenario now spreads that time over the other presses (3.4 %). The windows'
+  smaller Condemnation count is the players' choice: they press Judgment Thunder there too, for less damage a
+  press ([methodology](methodology.md#the-clerics-heals-and-basic-chain-02317)).
 
 ## Kit gaps from the recorded casts, pets and MP (18 October)
 
