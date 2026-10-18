@@ -69,6 +69,38 @@ def test_target_dps_runs_on_the_fight_clock_through_an_untargetable_phase():
     assert round(me["dps"], 2) == round(4000 / 23, 2)
 
 
+def test_a_summon_counts_for_its_owner_on_the_target_panel():
+    # A Spiritmaster's spirit is part of their meter row (pets combined, the default), so it is
+    # part of their DPS to the target too -- not a separate "Player #id" contributor.
+    s, engine = _session()
+    engine.names = {5001: "Me", 5002: "Ally", 6001: "Earth Spirit"}
+    engine.summon_owners = {6001: 5001}
+    s.observe(engine, [_hit(5001, 9001, 1000, 1000), _hit(6001, 9001, 1000, 500),
+                       _hit(5001, 9001, 2000, 1000), _hit(6001, 9001, 2000, 500)], timestamp_ms=2000)
+    snap = s.snapshot(scope="auto", segment_id=None)
+    contributors = snap["current_target"]["contributors"]
+    assert [(c["name"], c["damage"]) for c in contributors] == [("Me", 3000)]
+    me = next(p for p in snap["players"] if p["name"] == "Me")
+    assert contributors[0]["dps"] == me["dps"]          # one target, no gap: the row's number
+
+
+def test_a_reregistered_player_is_one_contributor_on_the_target_panel():
+    # A death/revive hands a character a new actor id. The rows fold both ids into one player;
+    # the target panel listed the old id as a "Player #id" of its own.
+    s, engine = _session()
+    engine.local_player_id = 4503
+    engine.names = {4503: "Me", 4063: "Mate"}
+    engine.known_players = {4503, 4063}
+    engine.roster = {"Me": {}, "Mate": {}}
+    s.observe(engine, [_hit(4503, 9001, 10_000, 500), _hit(4063, 9001, 10_100, 300)], timestamp_ms=10_100)
+    engine.local_player_id = 10210                    # you revive as #10210, your mate as #5555
+    engine.names = {4503: "Me", 10210: "Me", 4063: "Mate", 5555: "Mate"}
+    engine.known_players = {10210, 5555}
+    s.observe(engine, [_hit(10210, 9001, 12_000, 700), _hit(5555, 9001, 12_100, 400)], timestamp_ms=12_100)
+    contributors = s.snapshot(scope="party", segment_id=None)["current_target"]["contributors"]
+    assert {c["name"]: c["damage"] for c in contributors} == {"Me": 1200, "Mate": 700}
+
+
 def test_ttk_uses_the_observed_hp_decline_rate_not_only_our_dps():
     # Time-to-kill must reflect how fast the enemy is really dying (all damage
     # sources), not just the observed party's DPS. A mob we only tag for a little

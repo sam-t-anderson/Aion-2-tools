@@ -1243,8 +1243,9 @@ class CombatSession:
             identity = self.identities[group["epoch"]]
             for record in group["records"]:
                 event, allowed = record.event, allowed_for(record)
-                def player(actor_id):
-                    # IDs may be reused after a zone/socket change: don't merge
+                def resolve(actor_id):
+                    # The row an actor's effects land on: (actor_id, name, key, pet_collapsed,
+                    # inferred). IDs may be reused after a zone/socket change: don't merge
                     # unnamed actors from unrelated contexts into one person.
                     original = actor_id
                     # Collapse a pet into its owner when pets are combined, and — even when
@@ -1275,6 +1276,9 @@ class CombatSession:
                     else:
                         name = self.name(record.epoch, actor_id)
                         key = key_of(record.epoch, actor_id)
+                    return actor_id, name, key, pet_collapsed, inferred
+                def player(actor_id, resolved=None):
+                    actor_id, name, key, pet_collapsed, inferred = resolved or resolve(actor_id)
                     job = identity["jobs"].get(actor_id) or identity["jobs"].get(identity["owners"].get(actor_id))
                     row = players.setdefault(key, self._actor(actor_id, name, job))
                     if inferred:
@@ -1306,14 +1310,19 @@ class CombatSession:
                         "owner": identity["owners"].get(event.target_id), "players": {},
                         "last_ms": 0, "players_last": {}})
                     enemy["damage"] += event.total_damage; enemy["hits"] += 1
-                    enemy["players"][str(event.actor_id)] = enemy["players"].get(str(event.actor_id), 0) + event.total_damage
+                    # Each player's damage to this enemy (the overlay's target panel) goes to their
+                    # row's id, so a summon counts for its owner and a re-registered ID for its
+                    # player, as in the rows -- not as a "Player #id" of its own.
+                    resolved = resolve(event.actor_id)
+                    who = str(resolved[0])
+                    enemy["players"][who] = enemy["players"].get(who, 0) + event.total_damage
                     # Track recency so the overlay's "current target" follows the enemy
                     # being hit now, not whichever accumulated the most damage earlier.
                     enemy["last_ms"] = max(enemy["last_ms"], event.timestamp_ms)
                     enemy["players_last"][str(event.actor_id)] = event.timestamp_ms
                     if enemy_id and target_key != enemy_id:
                         continue
-                    row = player(event.actor_id)
+                    row = player(event.actor_id, resolved)
                     row["class"] = row["class"] or (job_from_skill(event.skill_code) or "").lower().replace("elementalist", "spiritmaster") or None
                     row["damage"] += event.total_damage; row["hits"] += 1
                     skill = row["skills"].setdefault((event.skill_code, event.is_dot), {
