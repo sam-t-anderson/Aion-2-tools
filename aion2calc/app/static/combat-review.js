@@ -420,6 +420,14 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       const values=(x,scope,entry,context)=>{
         if(!x){
           if(context==='run'){
+            // A timed run one scope cannot place says which scope and why, not "Not a timed run".
+            if(ranks.run_detail?.speed_eligible){
+              if(scope==='server')
+                return 'Unavailable — no verified home world for the party or the recording player, so the run has no Server cohort. Region and World still rank it.';
+              if(scope==='region')
+                return 'Unavailable — the run’s region is unknown, so only World ranks it.';
+              return 'Unavailable — no comparable public runs yet.';
+            }
             const why=(ranks.run_detail?.speed_reasons || []).join(' ');
             return `Not a timed run — run speed is ranked only for a complete, cleanly captured instance clear (entry to final boss). ${why}`.trim();
           }
@@ -435,7 +443,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
             return 'Unavailable — no comparable public cohort yet. World matching groups logs by the encounter’s boss, game version, difficulty and party size; either this recording lacks that metadata or too few public logs share it so far.';
           return 'Unavailable — no eligible matched comparison yet. Check capture quality and encounter metadata above.';
         }
-        return `<span title="${esc((x.reasons || []).join(' '))}">${x.rank===null?'Rank unavailable':`#${x.rank} / ${x.count}`}${x.provisional?' (provisional)':''}<br>${x.percentile===null || x.percentile===undefined?'Percentile unavailable':x.percentile.toFixed(1)+' percentile'}${x.public_samples!==undefined?` · ${x.public_samples} public samples · ${x.identities} distinct identities`:''}${x.reasons?.length?'<br>'+esc(x.reasons.join(' ')):''}</span>`;
+        return `<span title="${esc((x.reasons || []).join(' '))}">${x.rank===null?'Rank unavailable':`#${x.rank} / ${x.count}`}${x.provisional?' (provisional)':''}<br>${x.percentile===null || x.percentile===undefined?'Percentile unavailable':x.percentile.toFixed(1)+' percentile'}${x.public_samples!==undefined?` · ${x.public_samples} public samples · ${x.identities} distinct identities`:''}${x.basis==='recording_player'?`<br>On the recording player’s world (${esc(x.world)}): the party spans several worlds.`:''}${x.reasons?.length?'<br>'+esc(x.reasons.join(' ')):''}</span>`;
       };
       const scopes=(x,context)=>['server','region','world'].map(s=>`${s[0].toUpperCase()+s.slice(1)}: ${values(x?.[s],s,x,context)}`).join('<br>');
       const unranked=unrankedWhy?`<p class="note">This encounter is <b>unranked</b>: ${esc(unrankedWhy)} Fix what you can on the next recording (start the meter before entering the instance, keep the party roster, let the boss be seen at full health) — the standings below stay unavailable until a recording of this fight is eligible.</p>`:'';

@@ -45,6 +45,13 @@ def _instances():
     return result
 
 
+def party_instance(instance_id) -> bool:
+    """Whether a recorded instance ID is a catalog group instance (a dungeon, transcendence, nightmare,
+    ascension trial or raid): only the group that entered it is inside."""
+    instance_id = _id(instance_id)
+    return bool(instance_id) and (instance_id in _instances() or str(instance_id) in _table("dungeons", "en"))
+
+
 DERIVED_ZONE = " + curated final boss name (derived label: the catalog names the boss, not this instance)"
 
 

@@ -672,6 +672,12 @@ Combat effects can arrive before the first party roster or your identity record.
 
 Self requires a recorded local identity or the optional exact character-name override. If you start mid-instance, enter your character name before Start when automatic identity is unavailable. Nearby damage is never used to guess which actor is you. Raw TCP recording is optional and does not control combat decoding.
 
+### The party inside a dungeon
+
+A Party capture keeps only the effects of party members, so the party roster decides whose damage is recorded at all. Inside a group instance the catalog lists (a dungeon, transcendence, nightmare, ascension trial or raid) only the group that entered is present. There, every named player using a class skill counts as the party, whether or not the roster packet named them. Before 0.2.316, a roster packet that decoded short dropped everyone it missed. A Krao Cave run listed one other member of five, and its log kept under a third of each boss's damage; the overlay showed two players.
+
+In the open world the roster alone still decides, so other players at a world boss stay out. The roster decoder also lists a member whose record has an unusual layout, and reads past gaps in the slots and empty slots, instead of ending the party there.
+
 ### Partial mid-dungeon metrics
 
 You can start Live Meter inside a dungeon. The default **Automatic · allow partial metrics** view shows observed players when your local identity is missing. Unknown names remain actor numbers; nearby players may be included, and this does not identify you or confirm party membership. Self + Party and Self only remain available as stricter filters.

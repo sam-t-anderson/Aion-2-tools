@@ -631,8 +631,42 @@ def scan_legacy_nicknames(packet: bytes) -> list[tuple[int, str]]:
     return list(found.items())
 
 
+def _roster_member_at(data: bytes, j: int, after_slot: int, slot: int | None = None) -> bool:
+    """Whether a party-roster member record starts at ``j``: a later slot (exactly ``slot`` when given), a
+    database id whose top 16 bits are a server id, a UTF-8 nickname, and plausible level and gear after it."""
+    if j + 11 > len(data) or not after_slot < data[j + 1] <= after_slot + 12 or slot is not None and data[j + 1] != slot:
+        return False
+    server = int.from_bytes(data[j + 8:j + 10], "little")
+    name_len = data[j + 10]
+    end = j + 11 + name_len
+    if not (0 < server <= 9_999 and 0 < name_len <= 40 and end + 12 <= len(data)):
+        return False
+    try:
+        name = data[j + 11:end].decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return (name.isprintable() and 1 <= int.from_bytes(data[end + 4:end + 8], "little") <= 200
+            and int.from_bytes(data[end + 8:end + 12], "little") <= 1_000_000)
+
+
+def _next_roster_member(data: bytes, start: int, slot: int) -> int | None:
+    """Where the member after ``slot`` begins. The tail after a member's combat power varies (3 or 11 bytes in
+    every roster recorded so far); the next slot is tried first, then any later one, as a party can have gaps."""
+    stop = min(start + 160, len(data) - 12)
+    for wanted in ((slot + 1) & 0xFF, None):
+        found = next((j for j in range(start, stop) if _roster_member_at(data, j, slot, wanted)), None)
+        if found is not None:
+            return found
+    return None
+
+
 def scan_party_roster(data: bytes) -> tuple[dict[str, dict], bool, int] | None:
-    """Decode a complete or partial upstream 0x02/0x97 party roster."""
+    """Decode a complete or partial upstream 0x02/0x97 party roster.
+
+    A member whose record does not match the layout past its gear score (no server anchor where expected, or
+    an implausible combat power) is still listed by name, class and level, and the decode carries on to the
+    next member: one unreadable record must not cut the party short, because the capture keeps only effects of
+    party members -- a roster that decoded one member lost the rest of the party's damage."""
     i = 0
     while i + 24 < len(data):
         if data[i:i + 2] != b"\x02\x97":
@@ -674,8 +708,13 @@ def scan_party_roster(data: bytes) -> tuple[dict[str, dict], bool, int] | None:
             server_id = (dbid >> 48) & 0xFFFF
             name_len = data[pos + 10]
             if name_len == 0:
-                complete = True
-                break
+                # An empty slot ends the list only when no member record follows it.
+                next_pos = _next_roster_member(data, pos + 11, slot)
+                if next_pos is None:
+                    complete = True
+                    break
+                pos = next_pos
+                continue
             if name_len > 40 or pos + 11 + name_len + 12 > len(data):
                 break
             name_start = pos + 11
@@ -689,39 +728,22 @@ def scan_party_roster(data: bytes) -> tuple[dict[str, dict], bool, int] | None:
             gear_score = int.from_bytes(data[fields + 8:fields + 12], "little")
             if not 1 <= level <= 200 or gear_score > 1_000_000:
                 break
-            anchor = next((j for j in range(fields + 12, min(fields + 22, len(data) - 1))
-                           if int.from_bytes(data[j:j + 2], "little") == server_id), None)
-            if anchor is None:
-                break
-            power_at = anchor + 5
-            if power_at + 8 > len(data):
-                break
-            combat_power = int.from_bytes(data[power_at:power_at + 8], "little")
-            if combat_power > 100_000_000:
-                break
             members[nickname] = {
                 "slot": slot, "dbid": dbid, "serverId": server_id,
-                "job": job_from_roster(roster_class), "level": level,
-                "gearScore": gear_score, "combatPower": combat_power,
+                "job": job_from_roster(roster_class), "level": level, "gearScore": gear_score,
             }
+            resume = fields + 12
+            anchor = next((j for j in range(fields + 12, min(fields + 22, len(data) - 1))
+                           if int.from_bytes(data[j:j + 2], "little") == server_id), None)
+            if anchor is not None and anchor + 13 <= len(data):
+                combat_power = int.from_bytes(data[anchor + 5:anchor + 13], "little")
+                if combat_power <= 100_000_000:
+                    members[nickname]["combatPower"] = combat_power
+                    resume = anchor + 13
             if member_index + 1 == count[0]:
                 complete = True
                 break
-            # Reacquire next slot header because the tail length varies.
-            expected = (slot + 1) & 0xFF
-            next_pos = None
-            for j in range(power_at + 8, min(power_at + 40, len(data) - 12)):
-                if data[j + 1] != expected:
-                    continue
-                next_server = int.from_bytes(data[j + 8:j + 10], "little")
-                next_len = data[j + 10]
-                if 0 < next_server <= 9_999 and 0 < next_len <= 40 and j + 11 + next_len <= len(data):
-                    try:
-                        data[j + 11:j + 11 + next_len].decode("utf-8")
-                    except UnicodeDecodeError:
-                        continue
-                    next_pos = j
-                    break
+            next_pos = _next_roster_member(data, resume, slot)
             if next_pos is None:
                 break
             pos = next_pos

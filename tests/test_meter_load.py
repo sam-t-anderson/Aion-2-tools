@@ -200,7 +200,8 @@ def test_observe_tracks_last_outgoing_damage_per_scope():
 
 def test_party_scope_keeps_only_effects_that_involve_the_party_once_identified():
     e = _engine()
-    s = CombatSession()
+    e.map_id, e.dungeon_id = 111035, 0                             # a world boss is in the open world; in a
+    s = CombatSession()                                            # dungeon every player is the party
     s.pvp = False
     s.retain_scope = "party"
     e.names[7777] = "Stranger"; e.known_players.add(7777)          # another player at the world boss
@@ -269,6 +270,7 @@ def test_a_world_boss_crowd_in_scope_does_not_force_rollovers(home):
 
 def test_the_party_roster_is_carried_through_chained_zone_loads():
     e = _engine()
+    e.map_id, e.dungeon_id = 111035, 0                                  # open world: a stranger is not the party
     s = CombatSession()
     s.pvp = False
     s.retain_scope = "party"

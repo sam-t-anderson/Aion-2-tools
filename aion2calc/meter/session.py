@@ -12,6 +12,7 @@ import uuid
 
 from .a2parser.lookup import dungeon_final_bosses, has_skill, is_heal_skill, job_from_skill, normalize_skill, npc_info, npc_name, skill_name, spirit_skill_category
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
+from .context import party_instance
 
 
 @dataclass(frozen=True, slots=True)
@@ -632,6 +633,9 @@ class CombatSession:
         observed = identity.setdefault("observed_players", set())
         observed.update(engine.known_players)
         observed.update(e.actor_id for e in events if isinstance(e, DamageEvent) and job_from_skill(e.skill_code))
+        # Actors seen using a class skill (a hit or a heal): who fights here, for the group-instance party.
+        identity.setdefault("fighters", set()).update(
+            e.actor_id for e in events if isinstance(e, (DamageEvent, HealEvent)) and job_from_skill(e.skill_code))
         identity["names"].update(engine.names)
         identity["jobs"].update(engine.jobs)
         identity["spawns"].update({key: dict(value) for key, value in engine.spawn_info.items()})
@@ -640,6 +644,9 @@ class CombatSession:
                                        "omitted": engine.npc_trace_omitted, "candidates_seen": engine.npc_candidates_seen,
                                        "records": [dict(row) for row in engine.npc_trace]}
         identity["roster"].update({name.casefold(): dict(value) for name, value in engine.roster.items()})
+        from .a2parser.engine import OPEN_WORLD_MAPS
+        if not self.pvp and engine.map_id not in OPEN_WORLD_MAPS and party_instance(engine.dungeon_id):
+            identity["party_instance"] = True      # every player in it is a party member (see ``_allowed``)
         identity["owners"].update(engine.summon_owners)
         identity["profile"] = dict(engine.local_profile)
         if engine.local_player_id is not None:
@@ -967,6 +974,12 @@ class CombatSession:
             counts = Counter(name.casefold() for name in identity["names"].values()) if late else {}
             allowed.update(actor_id for actor_id, name in identity["names"].items()
                            if name.casefold() in party and (not late or counts[name.casefold()] == 1))
+            if identity.get("party_instance"):
+                # A group instance (a dungeon, a raid) holds only the party, so every named player fighting in
+                # it is a member even when the roster packet decoded short. Their effects were otherwise dropped
+                # as out of scope: a roster that read one member of five kept under a third of each boss's damage.
+                allowed.update(a for a in identity.get("fighters", ()) if a in identity["names"]
+                               and a not in identity["owners"] and not identity["spawns"].get(a, {}).get("mobCode"))
         elif scope == "all":
             allowed.update(identity["names"])
             allowed.update(a for a in identity.get("observed_players", ())
