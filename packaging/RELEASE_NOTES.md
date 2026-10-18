@@ -1,3 +1,11 @@
+## Boss kills reach the server when a recording starts a new part; no false "partial capture" after a final boss (0.2.314)
+
+**The part holding a boss kill is uploaded right after the kill.** A long recording is saved in parts, and a new part waits while you are in combat. The final boss's death ends the run, which lets a waiting new part start right away. The upload that the kill triggers then sent only the new part: a few seconds after the kill, with no damage. The part holding the kill stayed off the server until you pressed Stop or quit. The reported case was Ultimate Berk in Krao Cave. Part 4 went up as a 9-second log with no damage, while the kill in Part 3 waited. Now the upload after a kill first sends the finished part, and sends the new part only once your party has dealt damage in it.
+
+**A dead boss's lingering damage no longer starts a run.** After the final boss died, its damage-over-time effect kept ticking on a party member. The meter took that as new combat and started a run whose dungeon entry it never saw, which is what "partial capture" means. A hit from an enemy that is already dead no longer starts a run, just as a hit on its corpse did not. A new fight, or entering a zone, still starts the next run.
+
+**Upload titles show "·" again.** The live recording's upload title had a garbled separator ("Live combat session e7d4290f Â· Part 4"). It now reads "· Part 4", like a finished part's title.
+
 ## Fix: the Daevanion solve starts from the build the optimizer has, and the log says when it was cut short (0.2.313)
 
 **A busy machine matters far less to the Daevanion board you get.** 0.2.311 spends the points a stopped solve leaves unused. But each solve still started from nothing, so on a busy or slow machine it still stopped at its two-minute limit with a poor board to repair: the Spiritmaster's two solves spent only 195 and 177 of 360 points, and the second was worth less than the board it started from. Now:
