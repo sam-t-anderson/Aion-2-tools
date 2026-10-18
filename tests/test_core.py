@@ -121,6 +121,21 @@ def test_daevanion_program_respects_budget_and_connectivity(sorc):
     assert len(sol["nodes"]) >= 30         # cheap Common nodes are worth 1 each
 
 
+def test_daevanion_fill_spends_what_a_stopped_solve_left(sorc):
+    from aion2calc.opt import daevanion as dv
+    values = {nid: 1.0 for nid, (b, n) in sorc.node_index.items() if n["type"] == "Stat"}
+    sid = next(n["skillId"] for b in sorc.boards if b["name"] in dv.CRYSTAL_BOARDS for n in b["nodes"]
+               if n.get("skillId"))
+    curves = {sid: [0.0, 0.0, 5.0, 10.0]}            # two more levels are worth it; the curve ends at 3
+    nodes, value = dv.fill_unspent(sorc, set(), values, curves, {sid: 1}, {}, 40)
+    cost = sum(sorc.node_index[n][1]["cost"] for n in nodes)
+    assert 37 <= cost <= 40 and dv.connected(sorc, nodes) and value > 0
+    assert sum(1 for n in nodes if sorc.node_index[n][1].get("skillId") == sid) <= 2
+    # a spent budget, or nothing worth taking, leaves the board as it is
+    assert dv.fill_unspent(sorc, nodes, values, curves, {sid: 1}, {}, cost) == (nodes, 0.0)
+    assert dv.fill_unspent(sorc, set(), {}, {}, {}, {}, 40) == (set(), 0.0)
+
+
 def test_links_round_trip(sorc):
     from aion2calc.render.links import gamers4life_daevanion_url, metabot_daevanion_hash
     nodes = {610034, 610035}

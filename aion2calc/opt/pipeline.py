@@ -435,6 +435,9 @@ class Optimizer:
                              min_node_hp=(self.survival or {}).get("minimum_node_hp", 0), min_sp=self.min_sp, min_effective=self.min_effective)
         self.log(f"skill allocation: solver finished ({sol['status']}, "
                  f"{time.monotonic() - solver_started:.1f} s)")
+        if sol.get("filled"):
+            self.log(f"skill allocation: the solver left {sol['filled']} Daevanion points unspent; "
+                     f"spent them on the best connected nodes")
         self.log("skill allocation: applying the optimized points")
         b2 = build.copy()
         b2.daevanion = sol["nodes"]

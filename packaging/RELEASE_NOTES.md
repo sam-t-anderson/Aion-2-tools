@@ -1,3 +1,28 @@
+## Bundled builds regenerated under the current model (0.2.311)
+
+**The bundled optimized builds are re-optimized.** The builds behind the planner, the log review's comparison with the optimum, the Advice page and the server's canonical presets were made before the measured kit timings (0.2.307), the hit positions (0.2.308) and the kit gaps closed in 0.2.309 and 0.2.310. They were replayed under the current model, but they were no longer what the optimizer finds: the Templar's fell below its own typical build. Every class is now re-optimized with the comparison settings (203 skill points, 30 stigma points, 360 Daevanion points, the class's median global loadout, 2 optimizer iterations). Modeled boss DPS:
+
+| Class | Old build, replayed | New build | Typical build |
+|---|---:|---:|---:|
+| Sorcerer | 19,602 | 21,507 | 18,873 |
+| Gladiator | 17,389 | 19,473 | 16,679 |
+| Templar | 10,968 | 15,700 | 14,309 |
+| Spiritmaster | 14,325 | SPIRIT_NEW | SPIRIT_TYP |
+| Ranger | 10,095 | 12,175 | 10,701 |
+| Chanter | 9,424 | 11,872 | 10,760 |
+| Assassin | 6,741 | 9,346 | 8,009 |
+| Cleric | 16,342 | 16,342 (re-optimized in 0.2.310) | 12,411 |
+
+Log reviews now compare your skill shares and casts with these builds. The class comparison (`results/compare`) lists all eight classes again from one set of settings. It says that the Cleric's number is a ceiling for a Cleric that never heals. The Templar's simulated damage shares stay furthest from the Korean dummy logs (12% overlap), so treat its build with the most caution ([methodology](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/methodology.md#bundled-builds-regenerated-02311)).
+
+**The optimizer no longer leaves Daevanion points unspent.** The solver that buys Daevanion nodes and skill points stops after 120 seconds and keeps the best board it has found. For the Spiritmaster that board spent only 195 of 360 points, even with the machine to itself, so its optimized build fell below the class's typical build. Points a stopped solve leaves unused now go to the best connected nodes: stat nodes by their stat value, skill-level nodes by what the next skill level adds. A board that already spends its points does not change.
+
+**The Sorcerer example is regenerated.** The planner and the log review use `results/sorcerer_l45` for the Sorcerer ahead of the class comparison. It dated from 4 October and is re-optimized too (SORC_EX boss DPS, 3 iterations), with its 383-skill-point and first-month upgrade-gear variants and the example page.
+
+**PvP examples.** Re-scored under the current model, seven of the eight bundled PvP examples score exactly as when they were made; the PvP model has not changed for them. The Assassin's old allocation now scores 8,249 (it was 7,946). A fresh search finds 8,809, which replaces it.
+
+**Community presets are re-seeded.** The preset model version moves to 0.3.6. The evaluator does not change, but a server keeps a comparison scope's winner until the scope changes. The new scope makes it re-seed from the stored winners and the regenerated builds.
+
 ## The Cleric's Condemnation build, World PvP optimization and Genus roll suggestions in optimizer results (0.2.310)
 
 **The Cleric's suggestions follow the guides and the logs.** Online Cleric guides (KR Inven, GamesFuze, GAMES.GG, Mobalytics) build the class around Condemnation: Earth Punishment's first specialization makes every Condemnation on its target a critical hit, and Condemnation's level-12 specialization resets its cooldown on a critical hit, so it is pressed back to back while Earth Punishment lasts. The archived server logs agree: 92% of Condemnations within 2 seconds of an Earth Punishment tick crit, against 21% otherwise, and five of the 13 Clerics there (and the recorded Cleric) play that build, while the other eight lean on Judgment Thunder, the build the KR guide calls weaker. The Cleric kit now models Earth Punishment in full, Chain of Torment's PvE Damage Tolerance reduction, Divine Aura's measured ticks, the damage specializations of Condemnation, Bolt and Debilitating Mark, Prayer of Amplification's specializations, and Light of Protection as an aura left on. The optimizer now suggests the guides' stigmas and specializations, and the bundled Cleric build reaches 16,342 boss DPS (Condemnation 47% of it). That is a ceiling for a Cleric doing nothing but damage; recorded Clerics heal and fit about a third as many Condemnations into each window ([methodology](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/methodology.md#the-clerics-condemnation-build-02310)).

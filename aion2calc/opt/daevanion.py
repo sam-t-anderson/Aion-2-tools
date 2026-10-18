@@ -14,6 +14,8 @@ where dV comes from simulated per-skill DPS curves and w from stat weights.
 """
 from __future__ import annotations
 
+import heapq
+
 import pulp
 
 from ..kit.base import SP_COST, ClassData
@@ -121,6 +123,9 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
         for l, var in ys.items():
             if var.value() and var.value() > 0.5:
                 sp[sid] = l
+    solved_cost = sum(cost[n] for n in nodes)
+    nodes, filled_value = fill_unspent(cd, nodes, node_value, skill_curves, sp, bonus, daev_budget,
+                                       max_level=max_level, boards=boards)
     if min_node_hp > 0 or min_sp or min_effective:
         from .survival import node_hp
         variables = list(x.values()) + [v for values in y.values() for v in values.values()] + [v for values in z.values() for v in values.values()]
@@ -136,9 +141,98 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
                 raise ValueError("No feasible skill/HP reserve allocation was found within the budgets and solver time limit. No unconstrained fallback was published.")
             raise ValueError("No feasible HP-reserve allocation was found within the budgets and solver time limit. Lower the reserve or adjust your assumptions; no unconstrained fallback was published.")
     return {"status": pulp.LpStatus[status], "nodes": nodes, "sp": sp,
-            "objective": pulp.value(prob.objective),
+            "objective": pulp.value(prob.objective) + filled_value,
             "daev_cost": sum(cost[n] for n in nodes),
+            "filled": sum(cost[n] for n in nodes) - solved_cost,
             "sp_cost": sum(sum(SP_COST[:l]) for l in sp.values())}
+
+
+def fill_unspent(cd: ClassData, nodes: set, node_value: dict[int, float], skill_curves: dict[int, list[float]],
+                 sp: dict[int, int], bonus: dict[int, int], daev_budget: int, *, max_level: int = 20,
+                 boards: tuple = CRYSTAL_BOARDS) -> tuple[set, float]:
+    """Spend points a solve stopped at its time limit left unused.
+
+    The integer program can stop with an incumbent that leaves points unspent (the Spiritmaster's
+    first solve kept 165 of 360 points even with the machine to itself). Take the cheapest
+    connected path of untaken nodes to the node that adds the most value per point, again and
+    again, while it fits the budget and adds value: stat nodes count their stat value, skill-level
+    nodes their skill curve's next level, never past the curve's end (``max_level`` for skills
+    without a curve). An optimal solution has no such path, so it comes back unchanged.
+    """
+    nodes = set(nodes)
+    cost = {n["id"]: n["cost"] for b in cd.boards for n in b["nodes"]}
+    levels = {sid: sp.get(sid, 1) + bonus.get(sid, 0) for sid in cd.skills}
+    for nid in nodes:
+        sid = cd.node_index[nid][1].get("skillId")
+        if sid:
+            levels[sid] = levels.get(sid, 1) + 1
+    cap = {sid: min(max_level, len(curve) - 1) for sid, curve in skill_curves.items()}
+
+    def gains(path):
+        """Value of taking ``path``, or None when it raises a skill past its cap."""
+        extra, total = {}, 0.0
+        for nid in path:
+            total += node_value.get(nid, 0.0)
+            sid = cd.node_index[nid][1].get("skillId")
+            if sid:
+                level = levels.get(sid, 1) + extra.get(sid, 0)
+                if level + 1 > cap.get(sid, max_level):
+                    return None
+                extra[sid] = extra.get(sid, 0) + 1
+                if sid in skill_curves:
+                    total += skill_curves[sid][level + 1] - skill_curves[sid][level]
+        return total
+
+    spent, added = sum(cost[n] for n in nodes), 0.0
+    while True:
+        candidates = []
+        for b in cd.boards:
+            if b["name"] not in boards:
+                continue
+            pos = {(n["row"], n["col"]): n for n in b["nodes"]}
+
+            def around(n):
+                for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    m = pos.get((n["row"] + dr, n["col"] + dc))
+                    if m is not None and m["type"] != "Start" and m["id"] not in nodes:
+                        yield m
+
+            dist, prev, heap = {}, {}, []
+            for n in b["nodes"]:
+                if n["type"] == "Start" or n["id"] in nodes:
+                    for m in around(n):
+                        if cost[m["id"]] < dist.get(m["id"], float("inf")):
+                            dist[m["id"]], prev[m["id"]] = cost[m["id"]], None
+                            heapq.heappush(heap, (dist[m["id"]], m["id"]))
+            while heap:
+                d, nid = heapq.heappop(heap)
+                if d > dist[nid]:
+                    continue
+                if spent + d <= daev_budget:
+                    path, cur = [], nid
+                    while cur is not None:
+                        path.append(cur)
+                        cur = prev[cur]
+                    candidates.append((d, path))
+                for m in around(cd.node_index[nid][1]):
+                    if d + cost[m["id"]] < dist.get(m["id"], float("inf")):
+                        dist[m["id"]], prev[m["id"]] = d + cost[m["id"]], nid
+                        heapq.heappush(heap, (dist[m["id"]], m["id"]))
+        best = None
+        for d, path in candidates:
+            value = gains(path)
+            if value is not None and value > 1e-9 and (best is None or value / d > best[0]):
+                best = (value / d, d, path, value)
+        if best is None:
+            return nodes, added
+        _, d, path, value = best
+        for nid in path:
+            sid = cd.node_index[nid][1].get("skillId")
+            if sid:
+                levels[sid] = levels.get(sid, 1) + 1
+        nodes.update(path)
+        spent += d
+        added += value
 
 
 def connected(cd: ClassData, nodes: set) -> bool:
