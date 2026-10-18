@@ -934,7 +934,7 @@ async function pageCombat() {
     list:()=>api('/api/log-ownership'),
     import:owners=>api('/api/log-ownership',{action:'import',owners}),
     forget:owner=>api('/api/log-ownership',{action:'forget',owner}),
-    request:(owner,action,visibility)=>api('/api/log-ownership',{owner,action,visibility}),
+    request:(owner,action,value)=>api('/api/log-ownership',action==='appeal'?{owner,action,statement:value}:{owner,action,visibility:value}),
     open:doc=>{S.combat.openedLog=doc;location.hash='/combat-log/opened/'+Date.now();}
   });
   // Community identity: the characters this computer's recordings can claim (credentials and the

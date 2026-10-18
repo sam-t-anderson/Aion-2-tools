@@ -59,7 +59,9 @@ def forget(server, log_id):
         return rows
 
 
-def request(row, action, visibility=None):
+def request(row, action, visibility=None, statement=None):
+    """One owner action on an upload, sent to its original server with the private credential:
+    refresh, open, visibility, rotate, delete, or appeal a moderation hold with ``statement``."""
     from .share import effective
     row = clean(row)
     # The destination is the server the user selected in Settings, never the host
@@ -69,7 +71,7 @@ def request(row, action, visibility=None):
     configured = str(effective().get("url") or "").rstrip("/")
     if not configured or row["server"] != configured:
         raise ValueError("Select this upload's original server in Settings before managing it")
-    if action not in ("refresh","open","visibility","rotate","delete"):
+    if action not in ("refresh","open","visibility","rotate","delete","appeal"):
         raise ValueError("Unknown upload management action")
     target = configured + "/api/v1/logs/" + row["id"]
     headers = {"X-Log-Token":row["delete_token"],"User-Agent":"aion2calc"}
@@ -81,6 +83,13 @@ def request(row, action, visibility=None):
         target += "/raw"
     elif action == "delete":
         method = "DELETE"
+    elif action == "appeal":
+        if not isinstance(statement, str) or not 10 <= len(statement.strip()) <= 1000:
+            raise ValueError("Explain the appeal in 10–1,000 characters")
+        target += "/appeal"
+        method = "POST"
+        headers["Content-Type"] = "application/json"
+        body = json.dumps({"statement": statement.strip()}).encode()
     else:
         if visibility not in ("public","unlisted","private"):
             raise ValueError("Invalid visibility")
@@ -97,6 +106,13 @@ def request(row, action, visibility=None):
         with urllib.request.build_opener(NoRedirect).open(req,timeout=30) as response:
             result = json.load(response)
     except urllib.error.HTTPError as exc:
+        if action == "appeal" and exc.code in (400, 409, 413, 429):
+            # The server's reason (already appealed, no hold any more, too many appeals) is the answer.
+            try:
+                reason = json.loads(exc.read() or b"{}").get("error")
+            except (ValueError, AttributeError):
+                reason = None
+            raise ValueError(f"Appeal refused ({exc.code})" + (f": {reason}" if reason else "")) from None
         raise ValueError(f"Upload management refused ({exc.code}); check the original server and private credential") from None
     if action == "delete":
         forget(row["server"],row["id"])

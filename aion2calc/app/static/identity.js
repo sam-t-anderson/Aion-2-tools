@@ -60,6 +60,14 @@ function mount(root,io={}){
    }else if(st&&st.status==='pending'){
     state=`<b>Pending</b> · becomes yours on ${esc(when(st.activates_at))} unless the current holder renews with a newer recording`;
     actions=`<button class="btn small" data-release="${i}">Withdraw</button>`;
+   }else if(st&&st.status==='revoked'){
+    // A moderator revoked the claim: its recordings cannot claim the character again, but its holder can
+    // appeal once with this claim's credential.
+    const rv=st.revocation,a=st.appeal;
+    state=`<b>Revoked</b> by a moderator${rv?' on '+esc(when(rv.at))+(rv.note?': '+esc(rv.note):''):''}`;
+    if(a)state+=a.status==='open'?`<p class="note">Appeal sent ${esc(when(a.created_at))}; a moderator will uphold or overturn the revocation.</p>`:`<p class="note">Appeal ${esc(a.status)} ${esc(when(a.decided_at))}${a.note?': '+esc(a.note):''}</p>`;
+    actions=(a?'':`<details><summary>Appeal the revocation</summary><label>Why should a moderator look again? (10–1,000 characters; one appeal) <textarea data-statement="${i}" maxlength="1000" rows="3"></textarea></label><button class="btn small" data-appeal="${i}">Send appeal</button></details>`)
+     +`<button class="btn small" data-claim="${i}" ${claimable?'':'disabled'} title="Only recordings the revoked claim was not built on count">Claim with newer recordings</button> <button class="btn small" data-forget="${i}">Forget</button>`;
    }else if(r.stored){
     state=`<b>${esc(s?.error?'Credential not accepted':st?.status||'unknown')}</b>${s?.error?' · '+esc(s.error):''}`;
     actions=`<button class="btn small" data-claim="${i}" ${claimable?'':'disabled'}>Claim again</button> <button class="btn small" data-forget="${i}">Forget</button>`;
@@ -87,6 +95,7 @@ function mount(root,io={}){
   root.querySelectorAll('[data-optout]').forEach(b=>b.onchange=()=>run(async()=>{const r=list[+b.dataset.optout];await call(base,'/api/v1/identity/preferences',{method:'POST',body:{opt_out:b.checked},token:r.stored.token});message=b.checked?'Hidden in other uploaders’ public logs, leaderboards and parse brackets.':'Shown by name again.';}));
   root.querySelectorAll('[data-release]').forEach(b=>b.onclick=()=>{if(!confirm('Give this character up? It becomes claimable again (a pending challenger takes it at once).'))return;run(async()=>{const r=list[+b.dataset.release];await call(base,'/api/v1/identity/release',{method:'POST',body:{},token:r.stored.token});await forget(r.stored);message='Released.';});});
   root.querySelectorAll('[data-forget]').forEach(b=>b.onclick=()=>run(async()=>{await forget(list[+b.dataset.forget].stored);message='Local credential forgotten.';}));
+  root.querySelectorAll('[data-appeal]').forEach(b=>b.onclick=()=>{const statement=root.querySelector(`[data-statement="${b.dataset.appeal}"]`).value.trim();if(statement.length<10){root.querySelector('[data-message]').textContent='Explain the appeal in at least 10 characters.';return;}run(async()=>{await call(base,'/api/v1/identity/appeal',{method:'POST',body:{statement},token:list[+b.dataset.appeal].stored.token});message='Appeal sent. A moderator decides; the decision shows here.';});});
   message='';
  }
  load();const manager={refresh:()=>root.isConnected?load():undefined};window.A2YourCharacters=manager;return manager;

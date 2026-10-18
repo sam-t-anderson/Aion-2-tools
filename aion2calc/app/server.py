@@ -780,7 +780,7 @@ class Handler(BaseHTTPRequestHandler):
             row = ownership.clean(body.get("owner"))
             if action == "forget":
                 return self._json(ownership.forget(row["server"],row["id"]))
-            return self._json(ownership.request(row,action,body.get("visibility")))
+            return self._json(ownership.request(row,action,body.get("visibility"),body.get("statement")))
         if path == "/api/history":
             from .history import save
             return self._json({"id": save(body)})

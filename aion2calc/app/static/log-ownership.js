@@ -24,6 +24,7 @@ async function direct(row,action,visibility){
  else if(action==='open')path+='/raw';
  else if(action==='delete')method='DELETE';
  else if(['visibility','rotate'].includes(action)){path+='/visibility';method='PUT';body=JSON.stringify({visibility,rotate:action==='rotate'});}
+ else if(action==='appeal'){path+='/appeal';method='POST';body=JSON.stringify({statement:visibility});}
  else throw Error('Unknown management action');
  const response=await fetch(row.server+path,{method,body,redirect:'error',cache:'no-store',credentials:'omit',headers:{'X-Log-Token':row.delete_token,...(body?{'Content-Type':'application/json'}:{})}});
  const result=await response.json();if(!response.ok)throw Error(result.error||'Upload management refused');return result;
@@ -34,12 +35,21 @@ function mount(root,io={}){
  const forget=io.forget||(row=>{localStorage.setItem(KEY,JSON.stringify(browserRows().filter(r=>r.server!==row.server||r.id!==row.id)));});
  const request=io.request||direct;
  async function load(){try{rows=await list();render();}catch(e){root.textContent=e.message;}}
+ const day=t=>t?new Date(t*1000).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'';
+ // A moderation hold, and the owner's one appeal against it (proven by this upload's private credential).
+ function held(s,index){
+  const a=s?.appeal,decision=a&&a.status!=='open'?`Appeal ${esc(a.status)} ${esc(day(a.decided_at))}${a.note?': '+esc(a.note):''}.`:'';
+  if(!s?.moderation)return decision?`<p>${decision}${a.status==='overturned'?' The upload stays private until you choose its visibility.':''}</p>`:'';
+  const appeal=a?(a.status==='open'?`<p>Appeal sent ${esc(day(a.created_at))}; a moderator will uphold or overturn the hold.</p>`:`<p>${decision}</p>`)
+   :`<details><summary>Appeal this hold</summary><label>Why should a moderator look again? (10–1,000 characters; one appeal per hold) <textarea data-statement="${index}" maxlength="1000" rows="3"></textarea></label><button class="btn small" data-appeal="${index}">Send appeal</button></details>`;
+  return `<p>Moderator review: ${esc(s.moderation.note)}. Visibility changes are paused; you can still delete your upload.</p>${appeal}`;
+ }
  function render(){
   page=Math.min(page,Math.max(0,Math.ceil(rows.length/25)-1));
   root.innerHTML=`<details open class="note"><summary>My uploads · ${rows.length} saved credentials</summary><p class="small muted">Credentials stay on this device/browser. Import a private backup to manage uploads made elsewhere. A character name, shared upload key or view link does not establish ownership. Public: listed and eligible for community comparisons. Unlisted: anyone with the link can view; legacy anonymous calibration can contribute. Private: secret link only; excluded from public comparisons and calibration. Making a log private cannot recall copies already downloaded.</p><div class="row"><button class="btn small" data-backup>Export private credentials</button><label>Import private backup <input type="file" data-import accept=".json"></label><button class="btn small" data-reload>Reload saved credentials</button></div><p class="small muted">Keep backups private: they permit visibility changes, private-link access and permanent deletion. Importing a file stores credentials only; it does not contact its servers. Older uploads need their original delete credential.</p><div data-message role="status">${esc(message)}</div><div class="cr-scroll"><table class="t"><tr><th>Upload · original server</th><th>Current visibility / link</th><th>Controls</th></tr>${rows.slice(page*25,page*25+25).map((r,i)=>{
    const index=page*25+i,s=status.get(r.server+'|'+r.id),known=s&&!s.error,editable=known&&!s.moderation;
    let link='';if(known&&s.url){const u=new URL(s.url);if(['http:','https:'].includes(u.protocol)&&u.origin===new URL(r.server).origin)link=`<a href="${esc(u.href)}" target="_blank" rel="noopener noreferrer">Open shared link</a>`;}
-   return `<tr><td>${esc(r.title)} · ${esc(r.id)}<br>${esc(r.server)}</td><td>${esc(s?.error||s?.visibility||'Refresh to check')}<br>${link}${s?.moderation?`<p>Moderator review: ${esc(s.moderation.note)}. Visibility changes are paused; you can still delete your upload.</p>`:''}</td><td><button class="btn small" data-action="refresh" data-index="${index}">Refresh</button><select data-visibility="${index}" aria-label="Upload visibility" ${editable?'':'disabled'}>${['unlisted','public','private'].map(v=>`<option ${s?.visibility===v?'selected':''}>${v}</option>`).join('')}</select><button class="btn small" data-action="visibility" data-index="${index}" ${editable?'':'disabled'}>Save visibility</button><button class="btn small" data-action="rotate" data-index="${index}" ${editable&&s.visibility==='private'?'':'disabled'}>Rotate private link</button>${io.open?`<button class="btn small" data-action="open" data-index="${index}">Review</button>`:''}<button class="btn small" data-action="delete" data-index="${index}">Delete upload</button><button class="btn small" data-forget="${index}">Forget credential</button></td></tr>`;
+   return `<tr><td>${esc(r.title)} · ${esc(r.id)}<br>${esc(r.server)}</td><td>${esc(s?.error||s?.visibility||'Refresh to check')}<br>${link}${held(s,index)}</td><td><button class="btn small" data-action="refresh" data-index="${index}">Refresh</button><select data-visibility="${index}" aria-label="Upload visibility" ${editable?'':'disabled'}>${['unlisted','public','private'].map(v=>`<option ${s?.visibility===v?'selected':''}>${v}</option>`).join('')}</select><button class="btn small" data-action="visibility" data-index="${index}" ${editable?'':'disabled'}>Save visibility</button><button class="btn small" data-action="rotate" data-index="${index}" ${editable&&s.visibility==='private'?'':'disabled'}>Rotate private link</button>${io.open?`<button class="btn small" data-action="open" data-index="${index}">Review</button>`:''}<button class="btn small" data-action="delete" data-index="${index}">Delete upload</button><button class="btn small" data-forget="${index}">Forget credential</button></td></tr>`;
   }).join('')||'<tr><td colspan="3">No saved upload credentials. New desktop uploads are saved automatically.</td></tr>'}</table></div><div class="row"><button class="btn small" data-prev ${page?'':'disabled'}>Previous</button>${page+1} / ${Math.max(1,Math.ceil(rows.length/25))}<button class="btn small" data-next ${(page+1)*25>=rows.length?'disabled':''}>Next</button></div></details>`;
   const recovery=document.createElement('details');
   recovery.innerHTML='<summary>Recover an older upload with its original delete credential</summary><div class="row"><input data-server placeholder="Original server URL" aria-label="Original upload server"><input data-id placeholder="Upload ID" aria-label="Upload ID"><input type="password" data-token placeholder="Original delete token" aria-label="Original delete credential"><button class="btn small" data-recover>Save credential locally</button></div>';
@@ -50,6 +60,13 @@ function mount(root,io={}){
   root.querySelector('[data-reload]').onclick=load;
   root.querySelector('[data-prev]').onclick=()=>{page--;render();};root.querySelector('[data-next]').onclick=()=>{page++;render();};
   root.querySelectorAll('[data-forget]').forEach(b=>b.onclick=async()=>{if(!confirm('Forget this local credential? The uploaded log remains on the server. Export a backup first if you need future access.'))return;try{await forget(rows[+b.dataset.forget]);message='Local credential forgotten; server log unchanged.';await load();}catch(e){root.querySelector('[data-message]').textContent=e.message;}});
+  root.querySelectorAll('[data-appeal]').forEach(b=>b.onclick=async()=>{
+   const index=+b.dataset.appeal,row=rows[index],key=row.server+'|'+row.id,statement=root.querySelector(`[data-statement="${index}"]`).value.trim();
+   if(statement.length<10){root.querySelector('[data-message]').textContent='Explain the appeal in at least 10 characters.';return;}
+   root.querySelectorAll('button').forEach(x=>x.disabled=true);
+   try{await request(row,'appeal',statement);status.set(key,await request(row,'refresh'));message='Appeal sent. A moderator decides; the decision shows here.';}catch(e){message=e.message;}
+   render();
+  });
   root.querySelectorAll('[data-action]').forEach(b=>b.onclick=async()=>{
    const row=rows[+b.dataset.index],action=b.dataset.action,key=row.server+'|'+row.id;
    const visibility=action==='rotate'?'private':root.querySelector(`[data-visibility="${b.dataset.index}"]`).value;

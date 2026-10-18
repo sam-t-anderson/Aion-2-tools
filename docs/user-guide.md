@@ -12,7 +12,7 @@ Detailed usage and limitations for the current application. Version-by-version c
 
 Open a shared log in Combat Logs, the website, or its server link and expand **Report this shared log**. Choose a reason, describe the concern, and keep the receipt. Reports are private requests for human review; they do not automatically hide logs or establish wrongdoing. Do not include credentials or unnecessary personal details.
 
-If your upload is quarantined, **My uploads → Refresh** shows the moderator's reason. Shared links and visibility changes pause; your original credential still allows desktop review and deletion. A released upload stays private until you publish it again. A character name does not prove ownership of a log or character. Reporting requires a server with report support.
+If your upload is quarantined, **My uploads → Refresh** shows the moderator's reason. Shared links and visibility changes pause; your original credential still allows desktop review and deletion. A released upload stays private until you publish it again. To dispute it, open **Appeal this hold** under the upload, explain in a few sentences and send it; you can appeal each hold once, and the decision and the moderator's note appear there after the next **Refresh**. A character name does not prove ownership of a log or character. Reporting requires a server with report support.
 
 ## Npcap installation on Windows
 
