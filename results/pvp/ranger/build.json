@@ -159,12 +159,12 @@
  "daevanion_budget": 360,
  "dps": {
   "pvp": 6306.167242445388,
-  "pvp_burst": 6750.239948856362
+  "pvp_burst": 6750.239948856363
  },
  "score": 6528.203595650875,
  "scoring_policy": {
   "version": 1,
-  "model": "0.2.58",
+  "model": "0.3.6",
   "class": "ranger",
   "mode": "pvp",
   "budgets": {
@@ -187,7 +187,7 @@
   "calibration": "disabled",
   "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
   "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
-  "scope": "2af229e124418ca03cbd93e4e6b94f34395915f860238a26c90eadf0404eee9b"
+  "scope": "25cfd13ebbe97238a339b2ff0dd778b03af2d1e9412d7aea4a0bf3a205ca9f24"
  },
  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
  "build": {
@@ -1350,14 +1350,14 @@
   "Deadshot": 0.11067922727194493,
   "Burst Arrow": 0.09879311185864414,
   "Marking Shot": 0.0900714030978666,
-  "Gale Arrow": 0.069387125753126,
+  "Gale Arrow": 0.06938712575312601,
   "Explosive Arrow": 0.0634873810279472,
   "Rooting Eye": 0.05865600951995469,
   "Concentrated Fire": 0.0514886423662391,
   "Suppressing Arrow": 0.047068284076713734,
   "Melee Fire": 0.0463162531597397,
-  "Ambush Kick": 0.03510173259051424,
-  "Assault Smite": 0.010693985766157415,
+  "Ambush Kick": 0.035101732590514245,
+  "Assault Smite": 0.010693985766157418,
   "Hunter's Soul": 0.0072955631133677186
  },
  "opener": [
@@ -1527,8 +1527,8 @@
   "weapon_amp": 0.1
  },
  "evaluation": {
-  "model": "0.2.58",
-  "scope": "2af229e124418ca03cbd93e4e6b94f34395915f860238a26c90eadf0404eee9b",
+  "model": "0.3.6",
+  "scope": "25cfd13ebbe97238a339b2ff0dd778b03af2d1e9412d7aea4a0bf3a205ca9f24",
   "policy_version": 1
  },
  "candidate_generation": {

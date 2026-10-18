@@ -159,12 +159,12 @@
  "daevanion_budget": 360,
  "dps": {
   "pvp": 4623.392012419803,
-  "pvp_burst": 6350.3124728493085
+  "pvp_burst": 6350.312472849309
  },
- "score": 5486.852242634555,
+ "score": 5486.852242634556,
  "scoring_policy": {
   "version": 1,
-  "model": "0.2.58",
+  "model": "0.3.6",
   "class": "cleric",
   "mode": "pvp",
   "budgets": {
@@ -187,7 +187,7 @@
   "calibration": "disabled",
   "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
   "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
-  "scope": "85fe5ae37577555d2c887aae8ed623d1ece44a82e14d3853be4fbc3b245380c9"
+  "scope": "d5349e5e535e445225c3ac6ddf47e3704fe284ed9f53ebb3b111fc4cc6d825aa"
  },
  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
  "build": {
@@ -1514,8 +1514,8 @@
   "weapon_amp": 0.1
  },
  "evaluation": {
-  "model": "0.2.58",
-  "scope": "85fe5ae37577555d2c887aae8ed623d1ece44a82e14d3853be4fbc3b245380c9",
+  "model": "0.3.6",
+  "scope": "d5349e5e535e445225c3ac6ddf47e3704fe284ed9f53ebb3b111fc4cc6d825aa",
   "policy_version": 1
  },
  "candidate_generation": {

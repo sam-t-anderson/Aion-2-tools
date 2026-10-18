@@ -164,7 +164,7 @@
  "score": 13020.063693854774,
  "scoring_policy": {
   "version": 1,
-  "model": "0.2.58",
+  "model": "0.3.6",
   "class": "chanter",
   "mode": "pvp",
   "budgets": {
@@ -187,7 +187,7 @@
   "calibration": "disabled",
   "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
   "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
-  "scope": "b439432885194e606d6de91003121a56063022c1104e20537ef45724bc0f3703"
+  "scope": "05ddad3abf1535a72c88779ef47bb68508c1d00bc0a110f3ad20c5de68af2424"
  },
  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
  "build": {
@@ -1345,13 +1345,13 @@
   "Spinning Strike": 0.2645275716824537,
   "Dark Crush": 0.21620923702033193,
   "Onslaught": 0.17305087146289747,
-  "Incandescent Blow": 0.08908109475522405,
+  "Incandescent Blow": 0.08908109475522413,
   "Heat Wave Blow": 0.0729242505775018,
   "Wind's Promise": 0.06769156568330298,
   "Wave Blow": 0.04245689514548001,
   "Marchutan's Wrath": 0.037917726070684984,
   "Rushing Smash": 0.030394050438053235,
-  "Assault Shock": 0.005746737164063324
+  "Assault Shock": 0.005746737164063323
  },
  "opener": [
   [
@@ -1516,8 +1516,8 @@
   "weapon_amp": 0.1
  },
  "evaluation": {
-  "model": "0.2.58",
-  "scope": "b439432885194e606d6de91003121a56063022c1104e20537ef45724bc0f3703",
+  "model": "0.3.6",
+  "scope": "05ddad3abf1535a72c88779ef47bb68508c1d00bc0a110f3ad20c5de68af2424",
   "policy_version": 1
  },
  "candidate_generation": {

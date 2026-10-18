@@ -165,7 +165,7 @@
  "score": 7478.605792502284,
  "scoring_policy": {
   "version": 1,
-  "model": "0.2.58",
+  "model": "0.3.6",
   "class": "sorcerer",
   "mode": "pvp",
   "budgets": {
@@ -188,7 +188,7 @@
   "calibration": "disabled",
   "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
   "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
-  "scope": "5bee580f3265bd13607794b091a7a9954757f77cdd09f659c57fd464cd128e04"
+  "scope": "a5f93214ffa955dbe4adf809f70bb233477708d9073ca4d031abc0170edfe3e6"
  },
  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
  "build": {
@@ -1346,13 +1346,13 @@
   "Cold Snap": 0.07256282966542352,
   "Grace of Enhancement": 0.06415449778153783,
   "Firestorm": 0.04827225132525993,
-  "Hellfire": 0.04012286655502278,
+  "Hellfire": 0.040122866555022785,
   "Frost Burst": 0.039250283830452176,
   "Frost": 0.015231356942848244,
   "Delayed Explosion": 0.012927023505260857,
   "Assault Bombardment": 0.009839078088928538,
   "Glacial Smite": 0.008698009240343989,
-  "Winter's Shackles": 0.005349726787683151,
+  "Winter's Shackles": 0.0053497267876831504,
   "Ice Chain": 0.004521466001241771
  },
  "opener": [
@@ -1522,8 +1522,8 @@
   "weapon_amp": 0.1
  },
  "evaluation": {
-  "model": "0.2.58",
-  "scope": "5bee580f3265bd13607794b091a7a9954757f77cdd09f659c57fd464cd128e04",
+  "model": "0.3.6",
+  "scope": "a5f93214ffa955dbe4adf809f70bb233477708d9073ca4d031abc0170edfe3e6",
   "policy_version": 1
  },
  "candidate_generation": {

@@ -8,9 +8,9 @@ Each class is optimized with the same budgets (203 SP, 30 stigma points, 360 Dae
 | gladiator | 19,473 | 16,679 | +16.7% | 29% | [gladiator](gladiator/README.md) |
 | cleric | 16,342 | 12,411 | +31.7% | 71% | [cleric](cleric/README.md) |
 | templar | 15,700 | 14,309 | +9.7% | 12% | [templar](templar/README.md) |
+| ranger | 12,175 | 10,701 | +13.8% | 61% | [ranger](ranger/README.md) |
 | chanter | 11,872 | 10,760 | +10.3% | 35% | [chanter](chanter/README.md) |
 | spiritmaster | 10,649 | 9,594 | +11.0% | 27% | [spiritmaster](spiritmaster/README.md) |
 | assassin | 9,346 | 8,009 | +16.7% | 41% | [assassin](assassin/README.md) |
-| ranger | 8,837 | 7,070 | +25.0% | 61% | [ranger](ranger/README.md) |
 
 The Cleric's number is a ceiling for a Cleric that never heals: recorded Clerics heal and fit about a third as many Condemnations into each Earth Punishment window.
