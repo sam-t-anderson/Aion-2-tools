@@ -520,9 +520,11 @@ character is calibrating against that player's own captures.
    gain on the skill's curve, never past its end), and the skill points are
    retrained for that board (an exact knapsack over the SP budget), until
    neither adds value.  The result is never worth less to the program than
-   that start, the solver's own result is completed the same way, and the
-   log says when the solve stopped at its time limit, with the remaining gap
-   to the solver's bound on the best allocation.
+   that start, and the solver's own result is completed the same way; points
+   nothing of modeled value can use then go on nodes with no modeled effect
+   (defensive stats in PvE), as skill points still left after step 6 go to
+   DPS-neutral levels.  The log says when the solve stopped at its time
+   limit, with the remaining gap to the solver's bound on the best allocation.
 6. **Skill-point polish** – after the last iteration, a local search with the
    full simulator moves 1–2 skill levels between skills (or spends left-over
    points) while any move gains DPS.  It catches interactions that the
