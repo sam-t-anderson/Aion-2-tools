@@ -6,8 +6,8 @@
 |---|---:|---:|---:|
 | Sorcerer | 19,602 | 21,507 | 18,873 |
 | Gladiator | 17,389 | 19,473 | 16,679 |
+| Spiritmaster | 14,325 | 16,032 | 14,781 |
 | Templar | 10,968 | 15,700 | 14,309 |
-| Spiritmaster | 14,325 | SPIRIT_NEW | SPIRIT_TYP |
 | Ranger | 10,095 | 12,175 | 10,701 |
 | Chanter | 9,424 | 11,872 | 10,760 |
 | Assassin | 6,741 | 9,346 | 8,009 |
@@ -17,7 +17,7 @@ Log reviews now compare your skill shares and casts with these builds. The class
 
 **The optimizer no longer leaves Daevanion points unspent.** The solver that buys Daevanion nodes and skill points stops after 120 seconds and keeps the best board it has found. For the Spiritmaster that board spent only 195 of 360 points, even with the machine to itself, so its optimized build fell below the class's typical build. Points a stopped solve leaves unused now go to the best connected nodes: stat nodes by their stat value, skill-level nodes by what the next skill level adds. A board that already spends its points does not change.
 
-**The Sorcerer example is regenerated.** The planner and the log review use `results/sorcerer_l45` for the Sorcerer ahead of the class comparison. It dated from 4 October and is re-optimized too (SORC_EX boss DPS, 3 iterations), with its 383-skill-point and first-month upgrade-gear variants and the example page.
+**The Sorcerer example is regenerated.** The planner and the log review use `results/sorcerer_l45` for the Sorcerer ahead of the class comparison. It dated from 4 October and is re-optimized too (21,722 boss DPS, 3 iterations), with its 383-skill-point and first-month upgrade-gear variants and the example page.
 
 **PvP examples.** Re-scored under the current model, seven of the eight bundled PvP examples score exactly as when they were made; the PvP model has not changed for them. The Assassin's old allocation now scores 8,249 (it was 7,946). A fresh search finds 8,809, which replaces it.
 
