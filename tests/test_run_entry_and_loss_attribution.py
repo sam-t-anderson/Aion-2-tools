@@ -235,3 +235,32 @@ def test_a_zone_load_decoded_with_the_runs_first_damage_still_counts_as_its_entr
     assert run["start_observed"] and run["started_at"] == t0 and run["combat_seen"]
     _fight(s, e, (5001, 5002), t0 + 1000)
     assert s.runs[s.run]["started_at"] == t0
+
+
+KRAO_CAVE, BERK = 600001, 2300171
+
+
+def test_the_dead_final_boss_still_ticking_on_a_player_opens_no_run():
+    # Ultimate Berk (Krao Cave, archive part 4): the final boss's death closed the run and the due
+    # storage rollover fired; its damage-over-time still ticking on a player then opened a run of
+    # its own in the new part, with no entry seen -- a "partial capture" holding no damage.
+    s, e = CombatSession(), _engine(instance=KRAO_CAVE)
+    s.pvp = False
+    s._zone_reset_seen = True
+    e.spawn_info = {9001: {"mobCode": BERK}}
+    t0 = 1_000_000
+    _fight(s, e, (5001, 5002), t0)
+    e.telemetry = [{"entity": 9001, "kind": "death", "timestamp_ms": t0 + 6_000}]
+    s.observe(e, [], timestamp_ms=t0 + 6_000)
+    e.telemetry = []
+    run = s.run
+    assert s.runs[run]["end_reason"] == "configured_final_boss_death"
+    part = s.continuation()
+    for i in range(5):                            # the corpse's DoT on a player, every two seconds
+        t = t0 + 8_000 + i * 2_000
+        part.observe(e, [DamageEvent(actor_id=9001, target_id=5001, skill_code=1200015, damage=399,
+                                     timestamp_ms=t)], timestamp_ms=t)
+    assert part.run == run and part.run_closed
+    assert not any(seg.get("partial_capture") for seg in part.to_a2log("party", "Part 2")["segments"])
+    part.observe(e, [_hit(5001, t0 + 30_000, target=9002)], timestamp_ms=t0 + 30_000)
+    assert part.run == run + 1                    # a new fight in the instance still opens the next run

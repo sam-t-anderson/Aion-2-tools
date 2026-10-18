@@ -127,6 +127,9 @@ class Runner:
         #: Every archive part file this process wrote (name -> first write time): the recordings
         #: an automatic upload on Stop, quit or the next launch must still send (see pending_uploads).
         self._written_files: dict = {}
+        #: The closed parts a rollover wrote that no per-fight upload has sent yet, oldest first. A
+        #: final boss's death lets a due rollover fire at once, so the kill is in one of these.
+        self._parts_to_share: list = []
         self._upload_lock = threading.Lock()      # one automatic upload pass at a time
         self._pending_upload_thread = None
         self._flush_thread: threading.Thread | None = None
@@ -695,6 +698,7 @@ class Runner:
                 self._unsaved_parts.pop(0)
                 self.saved_log = saved
                 self._written_files.setdefault(part["file"], time.time())
+                self._parts_to_share.append(part["file"])
                 self.diagnostics["archive_parts_saved"] = self.diagnostics.get("archive_parts_saved", 0) + 1
                 self.diagnostics["archive_last_part"] = saved
                 self.diagnostics.pop("archive_save_error", None)
@@ -1287,15 +1291,36 @@ class Runner:
         """Worker: upload the current part (superseding its earlier open upload on the server) and
         refresh the community-rank badge. A rank-only refresh (``reason == "rank"``) sends only a
         ranked-eligible main fight, so trash pulls neither upload nor wipe a standing; a per-fight
-        upload after a kill always sends, at the visibility configured for automatic uploads."""
+        upload after a kill always sends, at the visibility configured for automatic uploads.
+
+        The final boss's death closes the run, which lets a due storage rollover fire at once: the
+        kill is then in the part the rollover closed, and the live part holds only its aftermath.
+        Sending just the live part put a 9-second part with no damage on the server and left the
+        kill (Ultimate Berk) off it until Stop. So a per-fight upload first sends the closed parts
+        no per-fight upload has sent, and the live part only once it holds player damage."""
         try:
             from ..combat import share, quality
+            from ..combat.sessions import path as session_path
             if not share.effective().get("url") or share.automatic_uploads_paused():
                 return   # no server, or its upload bucket is spent (a 429): send later
+            if reason == "boss":
+                flush = self._flush_thread
+                if flush is not None and flush.is_alive():
+                    flush.join(timeout=60)      # the part a rollover just detached is still being written
+                with self.lock:
+                    names, self._parts_to_share = self._parts_to_share, []
+                with self._upload_lock:         # never alongside a Stop / quit pass sending the same part
+                    for name in names:          # oldest first, so the newest part sets the badge
+                        try:
+                            part = json.loads(session_path(name).read_text(encoding="utf-8"))
+                        except (OSError, ValueError):
+                            continue            # pruned or unreadable: the Stop / launch pass reports it
+                        if not share.already_uploaded(part):
+                            self.apply_community_rank(part, share.upload(part))
             doc = self.to_a2log()
             segments = doc.get("segments") or []
-            if not segments:
-                return
+            if not any(segment.get("hits") for segment in segments):
+                return   # no player damage of its own yet (the aftermath of a kill a rollover closed)
             if reason == "rank":
                 main = max(range(len(segments)),
                            key=lambda i: sum(h.get("damage", 0) for h in segments[i].get("hits", [])))
@@ -1436,7 +1461,7 @@ class Runner:
             archive = (self._archive_metadata(session, closed=closed) if isinstance(session, CombatSession)
                        else {"id":self.archive_id, "part":self.archive_part, "closed":closed})
         if isinstance(session, CombatSession) and not title:
-            title = f"Live combat session {archive['id'][:8]} Â· Part {archive['part']}"
+            title = f"Live combat session {archive['id'][:8]} · Part {archive['part']}"
         doc = session.to_a2log(scope, title) if isinstance(session, CombatSession) else session.to_a2log(title=title)
         if isinstance(session, CombatSession):
             doc["meta"]["archive"] = archive

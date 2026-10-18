@@ -566,9 +566,12 @@ class CombatSession:
                 and any(r.run == self.run for r in self.records)
                 and not self._same_instance_reload(engine)):
             self.finish_run("zone_reentry", complete=False)
+        # After the final boss's death closed the run, only new combat opens the next one: not a
+        # hit landing on the dead (a DoT on the corpse), nor one coming from them (the dead boss's
+        # DoT still ticking on a player, which opened a run with no entry), unless a zone load came.
         if self.run_closed and any(isinstance(e,DamageEvent) and
                 (self.runs[self.run].get("end_reason") != "configured_final_boss_death"
-                 or (self.epoch,e.target_id) not in self._dead
+                 or ((self.epoch,e.target_id) not in self._dead and (self.epoch,e.actor_id) not in self._dead)
                  or engine.last_zone_reset_ms != self._zone_reset) for e in events):
             self._next_run()
         if not self.run_closed:

@@ -193,3 +193,67 @@ def test_status_never_retakes_the_runner_lock(monkeypatch, tmp_path):
     assert guard.reentries == []
     assert _fired(r, calls) and calls[0] == "boss"
 
+
+
+# -- what the per-fight upload sends after a storage rollover ------------------------------------
+
+def _recording_runner(monkeypatch, tmp_path):
+    from aion2calc.combat import share
+    from aion2calc.meter.a2parser.engine import MeterEngine
+    from aion2calc.meter.a2parser.models import DamageEvent
+    from aion2calc.meter.session import CombatSession
+    monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
+    e = MeterEngine()
+    e.names, e.known_players = {5001: "Me", 5002: "Ally"}, {5001, 5002}
+    e.roster, e.roster_complete = {"Me": {}, "Ally": {}}, True
+    e.local_player_id, e.local_identity_from_game = 5001, True
+    e.map_id = e.dungeon_id = 600001
+    e.last_zone_reset_ms = None
+    r = Runner()
+    r.running, r.scope, r.save_records, r.packet_engine = True, "party", True, e
+    r.session = CombatSession()
+    r.session.pvp = False
+    now = int(time.time() * 1000)
+    for i in range(3):
+        r.session.observe(e, [DamageEvent(5001, 9001, 15210000, 500, now - 300_000 + i * 1000)],
+                          timestamp_ms=now - 300_000 + i * 1000)
+    sent, badges = [], []
+    monkeypatch.setattr(share, "effective", lambda: {"url": "https://logs.test"})
+    monkeypatch.setattr(share, "automatic_uploads_paused", lambda: False)
+    monkeypatch.setattr(share, "upload", lambda doc, **kw: (sent.append(doc), {"id": "log"})[1])
+    monkeypatch.setattr(r, "apply_community_rank", lambda doc, result: badges.append(doc["meta"]["archive"]["part"]))
+    return r, e, sent, badges
+
+
+def test_after_a_rollover_the_kill_goes_up_not_its_empty_aftermath(monkeypatch, tmp_path):
+    # Ultimate Berk: the final boss's death let a due storage rollover fire, so the kill was in the
+    # part the rollover closed, and the live part held nine seconds of aftermath. The per-fight
+    # upload sent only the live part (a "partial capture" with no damage); the kill stayed off the
+    # server until Stop.
+    from aion2calc.meter.a2parser.models import DamageEvent
+    r, e, sent, badges = _recording_runner(monkeypatch, tmp_path)
+    r.session._storage_groups["party"] = 100           # the part is due
+    r._rollover_session()
+    r._flush_thread.join(5)
+    now = int(time.time() * 1000)
+    r.session.observe(e, [DamageEvent(9001, 5001, 1200015, 399, now)], timestamp_ms=now)   # the dead boss's DoT
+    r._fight_upload("boss")
+    assert [(d["meta"]["archive"]["part"], d["meta"]["archive"]["closed"]) for d in sent] == [(1, True)]
+    assert badges == [1] and r._parts_to_share == [] and r._fight_upload_busy is False
+    # Once the live part holds player damage of its own, the next kill sends it, and only it.
+    sent.clear()
+    r.session.observe(e, [DamageEvent(5001, 9002, 15210000, 500, now + 1000)], timestamp_ms=now + 1000)
+    r._fight_upload("boss")
+    assert [(d["meta"]["archive"]["part"], d["meta"]["archive"]["closed"]) for d in sent] == [(2, False)]
+    assert sent[0]["meta"]["title"].endswith(" · Part 2")
+
+
+def test_a_closed_part_already_on_the_server_is_not_sent_again(monkeypatch, tmp_path):
+    from aion2calc.combat import share
+    r, e, sent, badges = _recording_runner(monkeypatch, tmp_path)
+    r.session._storage_groups["party"] = 100
+    r._rollover_session()
+    r._flush_thread.join(5)
+    monkeypatch.setattr(share, "already_uploaded", lambda doc: True)   # a Stop pass sent it meanwhile
+    r._fight_upload("boss")
+    assert sent == [] and r._parts_to_share == []
