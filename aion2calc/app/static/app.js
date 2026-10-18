@@ -1089,8 +1089,8 @@ async function pageMeter() {
       <div class="row" style="margin-top:8px"><label class="small muted">Players <select id="mscope"><option value="auto">Automatic · allow partial metrics</option><option value="party" selected>Self + Party</option><option value="self">Self only</option><option value="all">All observed players</option></select></label><label class="small muted"><input id="mcombinepets" type="checkbox" checked> Combine pets with owner</label><label class="small muted"><input id="mautosplit" type="checkbox" checked> Automatic splits</label><label class="small muted">Split after no outgoing damage for <input id="msegap" type="number" min="120" max="3600" value="120" style="width:60px"> seconds</label><label class="small muted">Combat <select id="msegments"><option value="">Latest combat</option><option value="all">Whole session</option></select></label><button class="btn small" id="mallenemies">All enemies</button><button class="btn small" id="mfollow" hidden>Follow latest combat</button><span id="mviewstate" class="small muted" role="status"></span></div>
       <div class="row"><label class="small">Game installation <select id="minstall"><option value="">Auto (one installed copy)</option></select></label><button class="btn small" id="minstallrefresh">Refresh installations</button><span class="small muted" id="minstallstatus" role="status"></span></div><div class="row" style="margin-top:6px"><label class="small">Add install folder manually <input id="minstallpath" type="text" placeholder="C:\\Program Files (x86)\\NC\\AION 2" style="min-width:320px"></label><button class="btn small" id="minstalladd">Add path</button><span class="small muted" id="minstalladdstatus" role="status"></span></div><div class="note small" id="mautometa" role="status"></div><div class="row" style="margin-top:4px"><button class="btn small" id="mregionretry" style="display:none">Retry region detection</button><span class="small muted" id="mregionmsg" role="status"></span></div><div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
       <div class="note" style="margin-top:10px"><b>Capture diagnostics</b><div id="mdriverstats" class="small muted" role="status"></div>
-        <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads for diagnostics (optional; enable before Start)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><button class="btn small" id="mdiagfolder">Open diagnostics folder</button><span id="mrecordstatus" class="small muted"></span></div>
-        <p class="small faint">Diagnostic ZIPs include capture counters, status errors and a readable summary even with TCP recording off. Open diagnostics folder to find saved ZIPs. Enabling TCP recording additionally writes raw payloads without a record or size limit, even when no combat events are decoded. Available disk space limits recording. Saves a diagnostic ZIP automatically when capture stops; long recordings take longer to compress. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></div><div id="npcap" class="small faint" style="margin-top:8px"></div>
+        <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads for diagnostics (optional; remembered, and every capture records while it is ticked)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><button class="btn small" id="mdiagfolder">Open diagnostics folder</button><span id="mrecordstatus" class="small muted"></span></div>
+        <p class="small faint">Diagnostic ZIPs include capture counters, status errors and a readable summary even with TCP recording off. Open diagnostics folder to find saved ZIPs. Ticked, TCP recording additionally writes raw payloads without a record or size limit, even when no combat events are decoded: for every capture however it starts (here, the overlay's Start, the Start/Stop hotkey or the start at launch), and from the moment you tick it during a capture. Available disk space limits recording. Saves a diagnostic ZIP automatically when capture stops; long recordings take longer to compress. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></div><div id="npcap" class="small faint" style="margin-top:8px"></div>
       <p class="small faint">Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, and capture permission. Export writes an open a2log file; Upload uses the log server configured in Settings.</p>
       <div class="row"><label class="small"><input id="mautofinish" type="checkbox" checked> Finish on configured final-boss death</label><label class="small">Final-boss NPC type IDs <input id="mfinalboss" placeholder="Comma-separated verified NPC IDs"></label></div><p class="small muted">Final-boss order and PvP match-end packets are not yet verified. Configure the final boss before Start, or use Finish run. Map/instance changes create separate runs without claiming completion. Capture keeps running.</p><div id="mrun" class="small" role="status"></div><div id="midentity" class="small" role="status"></div><div id="msaved" class="small" role="status"></div><div id="mnotice" class="small" role="status"></div>
     </div></section><div id="mview"></div><div id="mlog-review"></div>`;
@@ -1255,7 +1255,6 @@ async function pageMeter() {
       automatic_splits: $("#mautosplit").checked,
       auto_finish:$('#mautofinish').checked,
       final_boss_ids:$('#mfinalboss').value.split(',').map(x=>x.trim()).filter(x=>/^\d+$/.test(x)).map(Number),
-      record_packets: source !== "replay" && $("#mrecord").checked,
       iface: source !== "replay" && $("#miface").value !== "auto" ? $("#miface").value : null,
       host: source !== "replay" && $("#mhost").value !== "any" ? $("#mhost").value : null,
       port: source !== "replay" ? (+$("#mport").value || 50349) : null,
@@ -1344,7 +1343,19 @@ async function pageMeter() {
   };
   const initial = await meterStatus().catch(() => ({snapshot: {players: []}}));
   if (initial.source) { $("#msrc").value = initial.source; live(); }
-  $("#mrecord").checked = !!initial.recording?.enabled;
+  // Record TCP payloads is a saved setting that every Start follows (the overlay's, the hotkey's
+  // and the start at launch too); ticking it during a capture records from then on.
+  $("#mrecord").checked = ui.meter_record_packets === true;
+  $("#mrecord").onchange = async () => {
+    const box = $("#mrecord"), on = box.checked;
+    st.recordBusy = true; box.disabled = true;
+    try {
+      await api("/api/ui", {meter_record_packets: on});
+      toast(on ? "TCP recording on: every capture records raw TCP from now on" : "TCP recording off");
+      renderMeter(await meterStatus());
+    } catch (e) { box.checked = !on; $("#mnotice").textContent = "Could not change TCP recording: " + e.message; }
+    finally { st.recordBusy = false; box.disabled = !!st.finalizing; }
+  };
   renderMeter(initial);
   poll();
 }
@@ -1384,10 +1395,13 @@ function renderMeter(s) {
     st.reviewLoading=true;st.reviewAt=Date.now();
     api("/api/meter/log").then(doc=>{const target=$("#mlog-review");if(!target)return;if(st.liveReviewRoot!==target){if(st.liveReview)st.liveReview.dispose();st.liveReview=A2CombatReview.mount(target,doc,{...localReviewOptions(),live:true});st.liveReviewRoot=target;}else st.liveReview.update(doc);}).catch(()=>{}).finally(()=>{st.reviewLoading=false;});
   }
-  const record = $("#mrecord"); if (record) record.disabled = st.running || !!s.finalizing;
+  const record = $("#mrecord"); if (record) record.disabled = !!s.finalizing || !!st.recordBusy;
   if ($("#mclear")) $("#mclear").disabled = st.running || !!s.finalizing;
   const recordStatus = $("#mrecordstatus");
-  if (recordStatus) recordStatus.textContent = s.recording?.enabled ? `${s.recording.records || 0} TCP payload records · ${((s.recording.disk_bytes || 0)/1048576).toFixed(1)} MiB on disk · no record limit` : "Raw TCP recording is off · not required for live combat capture";
+  const recorded = `${s.recording?.records || 0} TCP payload records · ${((s.recording?.disk_bytes || 0)/1048576).toFixed(1)} MiB on disk`;
+  if (recordStatus) recordStatus.textContent = s.recording?.enabled ? `Recording raw TCP · ${recorded} · no record limit`
+    : s.recording?.records ? `Raw TCP recording off · ${recorded}, kept for this capture's diagnostic ZIP`
+    : "Raw TCP recording is off · not required for live combat capture";
   const snap = s.snapshot || { players: [] }, msg = $("#mmsg");
   if ($("#mscope") && snap.scope) $("#mscope").value = snap.scope;
   const mode=snap.selection_mode||'latest';

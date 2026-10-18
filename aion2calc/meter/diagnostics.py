@@ -132,6 +132,21 @@ class Recorder:
                 self.path.unlink(missing_ok=True)
 
 
+class RecordingSwitch:
+    """Where a running capture sends its raw TCP segments. The runner attaches a Recorder, or
+    detaches it, while the capture runs: ticking Record TCP payloads during a capture records
+    from then on, unticking it stops (what was recorded stays for the diagnostic ZIP)."""
+    __slots__ = ("recorder",)
+
+    def __init__(self, recorder: Recorder | None = None):
+        self.recorder = recorder
+
+    def record(self, *segment) -> None:
+        recorder = self.recorder
+        if recorder is not None:
+            recorder.record(*segment)
+
+
 def export(status: dict, recorder: Recorder | None):
     from .. import __version__
     from ..paths import home
@@ -161,7 +176,7 @@ def export(status: dict, recorder: Recorder | None):
                f"Shutdown drain deadline reached: {capture.get('shutdown_drain_timed_out', False)}\n"
                f"Capture error: {metadata['error'] or 'none reported'}\n"
                f"Display error: {capture.get('status_error') or 'none reported'}\n"
-               f"Raw TCP recording: {'enabled' if recorder is not None else 'disabled; tcp-payloads.jsonl is intentionally empty'}\n"
+               f"Raw TCP recording: {'enabled' if recorder is not None else 'disabled; tcp-payloads.jsonl is intentionally empty (tick Record TCP payloads on the Live Meter page to record)'}\n"
                "Read diagnostics.json for full counters and pipeline/status details.\n"
                "This ZIP does not contain a decoded combat session or character-build snapshot.\n")
     partial = path.with_suffix(".zip.part")
@@ -175,7 +190,8 @@ def export(status: dict, recorder: Recorder | None):
         metadata["recording"] = recording
         archive.writestr("capture-summary.txt", summary)
         archive.writestr("diagnostics.json", json.dumps(metadata, indent=2))
-        archive.writestr("README.txt", "TCP payloads were recorded only if explicitly enabled before Start.\n"
+        archive.writestr("README.txt", "TCP payloads are recorded only while Record TCP payloads is ticked (Live Meter page):\n"
+                         "every capture records then, however it was started, from the moment the box was ticked.\n"
                          "Live capture records the full session to disk without a record or size cap.\n"
                          "Recording is limited by available disk space; check diagnostics.json for write errors.\n"
                          "Raw payloads may contain character names, IP addresses and other network traffic.\n"

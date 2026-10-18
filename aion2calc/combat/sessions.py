@@ -8,13 +8,15 @@ from functools import lru_cache
 from pathlib import Path
 
 from ..paths import logs_dir, within
+from .field_bosses import _key as _boss_key   # "Argo, the Spirit King" is "Argo the Spirit King" there
 
 
 @lru_cache(maxsize=1)
 def _field_boss_names() -> frozenset:
-    """Lower-cased names of the known open-world field bosses (best effort), read once from the
-    shared ``field-bosses.json``. Used only to tell a field boss from a world boss when grouping
-    saved encounters; a missing/malformed file just means open-world bosses group as world bosses."""
+    """Names of the known open-world field bosses, without case or punctuation (best effort), read
+    once from the shared ``field-bosses.json``. Used only to tell a field boss from a world boss
+    when grouping saved encounters; a missing/malformed file just means open-world bosses group as
+    world bosses."""
     try:
         import aion2calc
         target = Path(aion2calc.__file__).resolve().parent / "app" / "static" / "field-bosses.json"
@@ -24,7 +26,7 @@ def _field_boss_names() -> frozenset:
     rows = doc.get("bosses") if isinstance(doc, dict) else None
     if not isinstance(rows, list):
         return frozenset()
-    return frozenset(r["name"].casefold() for r in rows if isinstance(r, dict) and isinstance(r.get("name"), str))
+    return frozenset(_boss_key(r["name"]) for r in rows if isinstance(r, dict) and isinstance(r.get("name"), str))
 
 
 def _boss_code(segment: dict):
@@ -71,7 +73,7 @@ def _category(segment: dict, meta: dict) -> dict:
     elif etype in ("nightmare", "ascension", "expedition", "transcendence", "daily"):
         category, role = etype, _dungeon_role(code, instance)
     elif etype == "pve_open_world":
-        if boss and boss.casefold() in _field_boss_names():
+        if boss and _boss_key(boss) in _field_boss_names():
             category, role = "field_boss", "field"
         elif boss:
             category, role = "world_boss", "world"

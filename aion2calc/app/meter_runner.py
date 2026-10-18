@@ -139,6 +139,8 @@ class Runner:
         self._last_packet_at: float | None = None
         self._last_combat_at: float | None = None
         self.recorder = None
+        self._recording = None        # the RecordingSwitch the running capture writes its segments to
+        self._record_setting = False  # Record TCP payloads as last applied (see _apply_packet_recording)
         self.diagnostic_export = None
         self._exported_recorder = None
         self._capture_generation = 0
@@ -198,13 +200,20 @@ class Runner:
         self.diagnostics = {}
         self._capture_generation += 1
         self.diagnostic_export = None
-        from ..meter.diagnostics import Recorder
+        from ..meter.diagnostics import Recorder, RecordingSwitch
         if self.recorder is not None:
             try:
                 self.recorder.release(remove=self.recorder is self._exported_recorder)
             except OSError as exc:
                 self.diagnostics["recording_cleanup_error"] = str(exc)
-        self.recorder = Recorder() if opts.get("record_packets") else None
+        # Record TCP payloads is a saved setting. The overlay's Start, the Start/Stop hotkey and
+        # the start at launch make no choice of their own, so they follow it as the Live Meter
+        # page's Start does; only an explicit record_packets from an API caller overrides it.
+        self._record_setting = self._record_packets_setting()
+        record = opts.get("record_packets")
+        record = self._record_setting if record is None else bool(record)
+        self.recorder = Recorder() if record and source in ("a2tools", "live") else None
+        self._recording = RecordingSwitch(self.recorder)
         if self._continuing:
             self._spawn_flush()               # write the stopped part as the closed part it is
         self._last_packet_at = self._last_combat_at = None
@@ -314,7 +323,7 @@ class Runner:
         assert self.packet_stop is not None and self.packet_queue is not None
         stop_event, packets, engine = self.packet_stop, self.packet_queue, self.packet_engine
         self.packet_capture_thread = threading.Thread(
-            target=capture_packets, args=(stop_event, packets, iface, port, None, host, auto_port, self.recorder),
+            target=capture_packets, args=(stop_event, packets, iface, port, None, host, auto_port, self._recording),
             daemon=True, name="a2tools-capture")
         self.packet_capture_thread.start()
         shutdown_deadline = None
@@ -1130,7 +1139,8 @@ class Runner:
                 "diagnostic_export": self.diagnostic_export,
                 "saved_log": self.saved_log,
                 "run": run, "identity": identity,
-                "recording": {"enabled": self.recorder is not None,
+                "recording": {"enabled": bool(self.running and self._recording is not None
+                                              and self._recording.recorder is not None),
                               **(self.recorder.snapshot(include_rows=False)[0] if self.recorder is not None else {"records": 0})}}
         self._status_cache[(False, follow_latest)] = result
         return result
@@ -1399,6 +1409,35 @@ class Runner:
         self.session.max_records = min(500, max(0, int(ui.get("meter_max_records", 20) or 0)))
         self.session.dummy_record_seconds = min(3600, max(5, int(ui.get("meter_dummy_record_seconds", 60) or 60)))
         self.save_records = bool(ui.get("meter_save_records", True))
+        self._apply_packet_recording(ui.get("meter_record_packets") is True)
+
+    @staticmethod
+    def _record_packets_setting() -> bool:
+        try:
+            from .server import ui_settings
+            return ui_settings().get("meter_record_packets") is True
+        except Exception:
+            return False
+
+    def _apply_packet_recording(self, enabled: bool) -> None:
+        """Record TCP payloads ticked or unticked while a live capture runs: its segments are
+        recorded from now on, or no longer (what it recorded stays for the diagnostic ZIP that
+        Stop saves). Stopped, the next Start reads the setting itself."""
+        if enabled == self._record_setting:
+            return                       # unchanged: another meter setting was saved
+        if not self._lifecycle_lock.acquire(timeout=10.0):
+            return                       # a stuck Start or Stop; the next Start reads the setting
+        try:
+            self._record_setting = enabled
+            switch = self._recording
+            if not (self.running and self.source_name in ("a2tools", "live") and switch is not None):
+                return
+            if enabled and self.recorder is None:
+                from ..meter.diagnostics import Recorder
+                self.recorder = Recorder()
+            switch.recorder = self.recorder if enabled else None
+        finally:
+            self._lifecycle_lock.release()
 
     def configure_view(self, body: dict) -> dict:
         with self.lock:

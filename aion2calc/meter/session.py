@@ -1065,6 +1065,17 @@ class CombatSession:
                 continue
             outgoing = event.actor_id in allowed and event.target_id not in allowed
             switched = bool(groups) and groups[-1]["pvp"] != pvp
+            if switched and not outgoing:
+                # Only your own side's hits decide what you are fighting. Where players and NPCs
+                # both strike you -- the Abyss, a field boss's crowd of both factions -- a hit taken
+                # from the other kind is no new encounter: each one cut a segment, ten in a third
+                # of a second at one death in the Abyss. The hit joins the current one.
+                switched = False
+            elif (switched and groups[-1]["damage_start"] is None and groups[-1]["epoch"] == record.epoch
+                    and groups[-1]["split"] == record.split):
+                # The hits you took before your own first one belong to that fight.
+                groups[-1]["pvp"] = pvp
+                switched = False
             if (switched and pvp and groups[-1]["epoch"] == record.epoch and groups[-1]["split"] == record.split
                     and any(death_ms.get((record.epoch, enemy), float("inf")) > event.timestamp_ms
                             for enemy in groups[-1]["majors"])):

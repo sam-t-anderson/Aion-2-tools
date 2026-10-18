@@ -23,6 +23,15 @@ try:
     OPEN_WORLD_MAPS = set(json.loads(files(__package__).joinpath("data", "open_world_maps.json").read_text(encoding="utf-8"))["maps"])
 except (FileNotFoundError, ModuleNotFoundError, json.JSONDecodeError, KeyError):
     OPEN_WORLD_MAPS = set()
+#: Open-world maps the bundled Map table leaves out (it lists the overworld MapTypes only), each
+#: with the recorded evidence that it is one. Without them a field boss there was never an
+#: open-world kill: unreported to the kill feed, so its timer never ran.
+OBSERVED_OPEN_WORLD_MAPS = {
+    20: "the Abyss: an 18 October capture fought the community field-boss list's two Chaotic Lower "
+        "Reshanta bosses there (Watcher Kaira, killed; Argo, the Spirit King), with no instance and "
+        "players of both factions in combat",
+}
+OPEN_WORLD_MAPS |= set(OBSERVED_OPEN_WORLD_MAPS)
 
 
 class MeterEngine:

@@ -907,11 +907,13 @@ class Handler(BaseHTTPRequestHandler):
             if action == "start":
                 if self.client_address[0] not in ("127.0.0.1", "::1"):
                     raise PermissionError("Packet capture runs only on this computer")
+                if body.get("record_packets") is not None and type(body["record_packets"]) is not bool:
+                    raise ValueError("record_packets must be true or false")
                 return self._json(r.start(body.get("source", "a2tools"), path=body.get("path"),
                                           speed=body.get("speed", 1.0), decoder=body.get("decoder"),
                                           iface=body.get("iface"), host=body.get("host"), port=body.get("port"),
                                           auto_port=body.get("auto_port", body.get("source", "a2tools") == "a2tools"),
-                                          record_packets=bool(body.get("record_packets")),
+                                          record_packets=body.get("record_packets"),   # none: the saved setting
                                           character_name=body.get("character_name"),
                                           scope=body.get("scope", "auto"), segment_gap=body.get("segment_gap", 120),
                                           automatic_splits=body.get("automatic_splits", True),
@@ -1100,7 +1102,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
                               "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_per_fight", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics", "rtss_enabled")
+                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_per_fight", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics", "meter_record_packets", "rtss_enabled")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1417,6 +1419,9 @@ def ui_settings() -> dict:
                 "meter_save_records": True, "meter_auto_upload": True, "meter_catch_up_uploads": True, "meter_upload_per_fight": True, "meter_upload_before_prune": True, "meter_report_boss_kills": True,
                 "meter_report_enemy_hp": True, "meter_report_diagnostics": True, "overlay_plan_autoplay": True,
                 "meter_autostart": True, "meter_log_cache_mb": 1024, "community_contribute_character": True,
+                # Record TCP payloads (Live Meter page): every capture records raw TCP while it is on,
+                # however it was started. Off by default, and kept out of settings backups.
+                "meter_record_packets": False,
                 "meter_show_server_name": False,
                 "overlay_name_mode": "name",
                 "overlay_dps_interpolate": True, "overlay_interpolate_ms": 50, "overlay_show_fps": False,
