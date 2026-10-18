@@ -454,6 +454,9 @@ build's dummy shares:
 | Assassin | 6,741 | 9,346 | 8,009 | +16.7 % | 41 % |
 | Cleric | 16,342 (0.2.310) | unchanged | 12,411 | +31.7 % | 71 % |
 
+The Sorcerer example reaches 21,722 on median gear, 22,756 with 383 skill points and 31,547 on the
+first-month upgrade gear.
+
 The old Templar build replayed below its own typical build, the clearest sign of a stale optimum. Its new
 build is the least certain one: its simulated damage shares overlap the Korean dummy logs least (12 %; the
 typical build's 0.177 in the 0.2.309 table), so the kit's shares, not only its numbers, still differ from

@@ -1,6 +1,6 @@
 ## Bundled builds regenerated under the current model (0.2.311)
 
-**The bundled optimized builds are re-optimized.** The builds behind the planner, the log review's comparison with the optimum, the Advice page and the server's canonical presets were made before the measured kit timings (0.2.307), the hit positions (0.2.308) and the kit gaps closed in 0.2.309 and 0.2.310. They were replayed under the current model, but they were no longer what the optimizer finds: the Templar's fell below its own typical build. Every class is now re-optimized with the comparison settings (203 skill points, 30 stigma points, 360 Daevanion points, the class's median global loadout, 2 optimizer iterations). Modeled boss DPS:
+**The bundled optimized builds are re-optimized.** The builds behind the planner, the log review's comparison with the optimum, the Advice page and the server's canonical presets were made before the measured kit timings (0.2.307), the hit positions (0.2.308) and the kit gaps closed in 0.2.309 and 0.2.310. They were replayed under the current model, but they were no longer what the optimizer finds: the Templar's fell below its own typical build. The seven classes other than the Cleric (re-optimized in 0.2.310) are now re-optimized with the comparison settings (203 skill points, 30 stigma points, 360 Daevanion points, the class's median global loadout, 2 optimizer iterations). Modeled boss DPS:
 
 | Class | Old build, replayed | New build | Typical build |
 |---|---:|---:|---:|
