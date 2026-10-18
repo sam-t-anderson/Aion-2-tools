@@ -130,6 +130,7 @@ class Runner:
         #: The closed parts a rollover wrote that no per-fight upload has sent yet, oldest first. A
         #: final boss's death lets a due rollover fire at once, so the kill is in one of these.
         self._parts_to_share: list = []
+        self._continuing = False   # the last Start carried a stopped recording on (see _start)
         self._upload_lock = threading.Lock()      # one automatic upload pass at a time
         self._pending_upload_thread = None
         self._flush_thread: threading.Thread | None = None
@@ -174,6 +175,17 @@ class Runner:
     def _start(self, source: str, **opts) -> dict:
         self.stop()
         with self.lock:
+            # Starting again on a stopped session that still holds records carries the recording
+            # on in the next archive part. Stop saved the live part closed and the automatic
+            # upload sent it as that part's final version, so recording more into it left the
+            # server's copy short for good -- a finished part never changes there, and here the
+            # grown part reads as already uploaded: the fights after the restart never reached
+            # the server, and the next part's run could not be stitched to it. A restart still
+            # ends the open run, as it always has (packets were missed while stopped).
+            self._continuing = bool(self.session.records) and self.packet_engine is not None
+            if self._continuing:
+                self.session.finish_run("capture_restart", complete=False)
+                self._next_part(self.session)
             self.meter = Meter()
             self._previous_engine = self.packet_engine
             self.packet_engine = None
@@ -193,6 +205,8 @@ class Runner:
             except OSError as exc:
                 self.diagnostics["recording_cleanup_error"] = str(exc)
         self.recorder = Recorder() if opts.get("record_packets") else None
+        if self._continuing:
+            self._spawn_flush()               # write the stopped part as the closed part it is
         self._last_packet_at = self._last_combat_at = None
         self.started_at = time.monotonic()
         self._last_checkpoint = self.started_at
@@ -202,7 +216,7 @@ class Runner:
         self.source_name = source
         if source in ("a2tools", "live"):
             from ..meter.metadata import CaptureMetadata
-            if self.capture_metadata is None or not self.session.records:
+            if self.capture_metadata is None or not self._continuing:
                 self.capture_metadata = CaptureMetadata()
         else:
             self.capture_metadata = None
@@ -269,7 +283,7 @@ class Runner:
             self.session.begin_capture()
             self.packet_engine.set_server_port(port)
             previous, self._previous_engine = self._previous_engine, None
-            if previous is not None and self.session.records and hasattr(previous, "adopt_identity"):
+            if previous is not None and self._continuing and hasattr(previous, "adopt_identity"):
                 # Restarting mid-recording (to export, after a hiccup): the party, your own actor
                 # id and the spawns seen are still valid in the zone the client is in. Without
                 # this, nobody is identified until the next zone load.
@@ -626,29 +640,36 @@ class Runner:
             detached = copy.deepcopy(self.session)
             detached.capture_evidence["storage_boundary"] = True
             detached.finish_run("storage_rollover", complete=False)
-            part = {"session": detached, "metadata": dict(self.metadata), "profile": dict(self.packet_engine.local_profile),
-                    "scope": self.scope, "collector": self.capture_metadata, "file": self.session_file,
-                    "archive": self._archive_metadata(detached, closed=True),
-                    "title": f"Live combat session {self.archive_id[:8]} · Part {self.archive_part}"}
-            self.session = self.session.continuation()
-            self._snap_cache = None      # the continuation is a fresh session object
-            self.session.capture_evidence["storage_boundary"] = True
-            # The lifetime counters as they stand when this part begins: the quality gate charges
-            # the part only with what accrues after this (a loss during an earlier part is not
-            # this part's loss; see quality.LIFETIME_COUNTERS).
-            self.session.capture_evidence["part_baseline"] = {
-                k: int(self.session.capture_evidence[k]) for k in LIFETIME_COUNTERS
-                if isinstance(self.session.capture_evidence.get(k), int) and self.session.capture_evidence[k] > 0}
-            self.archive_part += 1
-            self.archive_previous = part["archive"].get("continuity")
-            self.archive_part_token = uuid.uuid4().hex
-            self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
-            self.segment_id = self.enemy_id = None
-            self._unsaved_parts.append(part)
+            self._next_part(detached)
             self.diagnostics.pop("archive_deferred", None)
             self._rollover_retry_at = 0.0
         self._last_checkpoint = time.monotonic()
         self._spawn_flush()
+
+    def _next_part(self, finished) -> None:
+        """Queue ``finished`` (the live session's records so far) as a closed archive part and carry
+        on recording in a continuation of the live session: its identities, run state and record
+        sequence carry over, so the next part's retained records follow straight on. Caller holds
+        ``self.lock`` and spawns the flush that writes the part."""
+        part = {"session": finished, "metadata": dict(self.metadata), "profile": dict(self.packet_engine.local_profile),
+                "scope": self.scope, "collector": self.capture_metadata, "file": self.session_file,
+                "archive": self._archive_metadata(finished, closed=True),
+                "title": f"Live combat session {self.archive_id[:8]} · Part {self.archive_part}"}
+        self.session = self.session.continuation()
+        self._snap_cache = None      # the continuation is a fresh session object
+        self.session.capture_evidence["storage_boundary"] = True
+        # The lifetime counters as they stand when this part begins: the quality gate charges
+        # the part only with what accrues after this (a loss during an earlier part is not
+        # this part's loss; see quality.LIFETIME_COUNTERS).
+        self.session.capture_evidence["part_baseline"] = {
+            k: int(self.session.capture_evidence[k]) for k in LIFETIME_COUNTERS
+            if isinstance(self.session.capture_evidence.get(k), int) and self.session.capture_evidence[k] > 0}
+        self.archive_part += 1
+        self.archive_previous = part["archive"].get("continuity")
+        self.archive_part_token = uuid.uuid4().hex
+        self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
+        self.segment_id = self.enemy_id = None
+        self._unsaved_parts.append(part)
 
     def _recent_outgoing(self, window_ms: int) -> bool:
         """Whether the selected scope landed outgoing damage within ``window_ms`` (tracked by the

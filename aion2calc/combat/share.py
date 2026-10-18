@@ -127,10 +127,18 @@ def save_settings(url: str | None = None, key: str | None = None, visibility: st
     return s
 
 
+_DISCOVERED: dict[str, dict] = {}
+
+
 def discover(url: str) -> dict:
-    """The server's /.well-known/a2log.json (upload URL, auth, limits)."""
-    with urllib.request.urlopen(url.rstrip("/") + "/.well-known/a2log.json", timeout=20) as r:
-        return json.load(r)
+    """The server's /.well-known/a2log.json (upload URL, auth, limits). The last document each
+    server returned is kept for :func:`upload` to fall back on."""
+    base = url.rstrip("/")
+    with urllib.request.urlopen(base + "/.well-known/a2log.json", timeout=20) as r:
+        found = json.load(r)
+    if isinstance(found, dict):
+        _DISCOVERED[base] = found
+    return found
 
 
 _CAPABILITIES: dict[str, tuple[float, dict]] = {}
@@ -250,7 +258,10 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
         if not isinstance(well_known, dict):
             well_known = {}
     except Exception:
-        well_known = {}
+        # A discovery that times out while the upload itself goes through must not forget what
+        # the server supports. An open part sent without its recording key was stored as a second
+        # log beside its final upload, and the next part could not tell which one it continues.
+        well_known = _DISCOVERED.get(url, {})
     target = well_known.get("upload_url") or url + "/api/v1/logs"
     body = gzip.compress(json.dumps(doc, separators=(",", ":")).encode())
     headers = {"Content-Type": "application/json", "Content-Encoding": "gzip", "User-Agent": "aion2calc"}

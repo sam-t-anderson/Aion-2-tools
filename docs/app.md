@@ -334,7 +334,7 @@ Save or export retained combat, stop capture, then clear the session before chan
 
 ## Long recordings and archive parts
 
-Long captures save numbered archive parts before retained-history limits are reached. Each part shares an archive ID and appears in **Combat Logs → Saved Parts**. Capture continues with its decoder and identity context; Live Meter export/upload covers the current part. Open earlier parts separately to review or upload them.
+Long captures save numbered archive parts before retained-history limits are reached. Each part shares an archive ID and appears in **Combat Logs → Saved Parts**. Capture continues with its decoder and identity context; Live Meter export/upload covers the current part. Open earlier parts separately to review or upload them. Pressing **Start** again on a stopped session that still holds combat also begins the next part: Stop saved the stopped part as finished (and the automatic upload sent it as such), so what you record after the restart goes into a part of its own, linked to the one before. The restart still ends the open run, as packets were missed while stopped.
 
 There is no fixed total part count or automatic deletion; disk space is the practical limit. A part boundary is not a kill or completed instance. Boundary parts are conservatively unranked and are not automatically stitched together. Failed rollover saves stop capture visibly and retain memory. Recovery checkpoints are saved every 15 seconds; abrupt termination can lose newer unsaved data. See [retention limits](methodology.md#archive-boundaries-and-retention).
 

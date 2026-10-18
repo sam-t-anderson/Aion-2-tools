@@ -129,3 +129,49 @@ def test_upload_keys_an_open_part_only_when_the_server_supersedes(isolated_home,
     flag["supersede"] = True
     share.upload(open_doc)
     assert _key() == share.recording_key(open_doc, include_open=True)          # a superseding server: keyed
+
+
+def test_an_open_part_keeps_its_key_when_discovery_fails(isolated_home, monkeypatch):
+    # The server stored a second log for a long session's Part 4: the well-known read timed out,
+    # the upload went through anyway, and the open part arrived without its recording key, so the
+    # final upload could not replace it and Part 5 found two logs claiming to be its predecessor.
+    import json
+    reqs, down = [], {"discovery": False}
+
+    class _Resp:
+        def __init__(self, req):
+            reqs.append(req)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return json.dumps({"recording_supersede": True} if isinstance(reqs[-1], str) else {}).encode()
+
+    def urlopen(req, timeout=None):
+        if isinstance(req, str) and down["discovery"]:
+            raise TimeoutError("timed out")
+        return _Resp(req)
+
+    share._DISCOVERED.clear()
+    monkeypatch.setattr(share, "validate", lambda d: d)
+    monkeypatch.setattr(share, "effective", lambda: {"url": "https://logs.test", "visibility": "unlisted", "is_default": False})
+    monkeypatch.setattr(share.urllib.request, "urlopen", urlopen)
+    open_doc = _doc({**_CLOSED, "closed": False})
+
+    def _key():
+        posts = [r for r in reqs if hasattr(r, "get_method") and r.get_method() == "POST"]
+        return next((v for k, v in posts[-1].headers.items() if k.lower() == "x-aion-recording-key"), None)
+
+    down["discovery"] = True
+    share.upload(open_doc)
+    assert _key() is None                                                      # never reached it: not known to supersede
+    down["discovery"] = False
+    share.upload(open_doc)
+    assert _key() == share.recording_key(open_doc, include_open=True)
+    down["discovery"] = True
+    share.upload(open_doc)
+    assert _key() == share.recording_key(open_doc, include_open=True)          # what it said last time still holds

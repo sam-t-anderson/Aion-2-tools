@@ -27,6 +27,7 @@ def isolated_home(tmp_path, monkeypatch):
     boss_report._BACKOFF.clear()
     share._UPLOAD_BACKOFF.clear()
     share._CAPABILITIES.clear()
+    share._DISCOVERED.clear()
     return tmp_path
 
 

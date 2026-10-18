@@ -64,6 +64,60 @@ def test_a_restart_mid_recording_adopts_the_last_engines_identities(home, monkey
         r.stop()
 
 
+def _identified_engine():
+    engine = MeterEngine()
+    engine.names = {5001: "Me", 5002: "Ally"}; engine.known_players = {5001, 5002}
+    engine.roster = {"Me": {}, "Ally": {}}; engine.roster_complete = True
+    engine.local_player_id = 5001; engine.local_identity_from_game = True
+    engine.map_id = engine.dungeon_id = 600022
+    engine.last_zone_reset_ms = None
+    return engine
+
+
+def test_a_restart_carries_the_recording_on_in_the_next_part(home, monkeypatch):
+    # Stop saves the live part closed and the automatic upload sends it as that part's final
+    # version. Starting again used to record on into the same part, so the log server kept the
+    # stopped copy for good (a finished part never changes there, and the grown part read as
+    # already uploaded here): stored archives had a Part 2 linking to a Part 1 tens of thousands
+    # of records longer than the one on the server, and their runs could not be stitched.
+    from aion2calc.combat import sessions
+    from aion2calc.combat.archive import describe
+    monkeypatch.setattr(MR, "capture_packets", lambda *a, **k: None)     # no real sniffer
+    r = MR.Runner()
+    r.packet_engine = _identified_engine()
+    r.session = CombatSession()
+    r.session.pvp = False
+    for t in (1000, 2000, 3000):
+        r.session.observe(r.packet_engine, [DamageEvent(5001, 9001, 15210000, 100, t)], timestamp_ms=t)
+    stopped_file = r.session_file
+    r.stop()                                                             # the final save, closed
+    try:
+        r.start("a2tools", port=50349, auto_port=True)
+        if r._flush_thread is not None:
+            r._flush_thread.join(5)
+        assert r.archive_part == 2 and r.session_file != stopped_file and not r.session.records
+        assert r.packet_engine.local_player_id == 5001                   # identities still carried over
+        stopped = json.loads(sessions.path(stopped_file).read_text(encoding="utf-8"))["meta"]["archive"]
+        assert (stopped["part"], stopped["closed"], stopped["continuity"]["last_sequence"]) == (1, True, 3)
+        with r.lock:
+            r.session.observe(r.packet_engine, [DamageEvent(5001, 9002, 15210000, 100, 9000)], timestamp_ms=9000)
+            following = r._archive_metadata(r.session, closed=True)
+        assert following["continuity"]["first_sequence"] == 4
+        assert describe(following, stopped)["code"] == "connected"
+    finally:
+        r.stop()
+
+
+def test_a_first_start_records_into_part_one(home, monkeypatch):
+    monkeypatch.setattr(MR, "capture_packets", lambda *a, **k: None)
+    r = MR.Runner()
+    try:
+        r.start("a2tools", port=50349, auto_port=True)
+        assert r.archive_part == 1 and not r._unsaved_parts
+    finally:
+        r.stop()
+
+
 def test_boss_hp_memory_round_trips_through_disk(home, monkeypatch):
     r = MR.Runner()
     monkeypatch.setattr(r, "_game_build", lambda: "version:product:1.0.21.0")
