@@ -431,6 +431,55 @@ leans on its area skills and takes every HP node too. Block, Evasion, Status Eff
 immunity, healing, shields, movement and player reactions are not modelled; these are assumptions, not
 measurements, and are shown with every result.
 
+### Bundled builds regenerated (0.2.311)
+
+The bundled optimized builds (`results/compare/<class>`, the Sorcerer example in `results/sorcerer_l45` and
+its variants) feed the planner, the log review's comparison with the optimum, the Advice page and the
+server's canonical-preset seeds. Except the Cleric's (0.2.310), they were made before the measured action
+times (0.2.307), the hit positions (0.2.308) and the kit gaps closed in 0.2.309 and 0.2.310. Every
+consumer replays a saved build under the current model, so none of them used stale damage numbers, but the
+builds themselves were no longer what the optimizer finds. 0.2.311 re-optimizes them with the comparison
+settings: 203 skill points, 30 stigma points, 360 Daevanion points, the class's median global loadout and 2
+optimizer iterations (3 for the Sorcerer example). Modeled boss DPS, and the KR share overlap of the new
+build's dummy shares:
+
+| Class | Old build, replayed | New build | Typical build | Gain | KR share overlap |
+|---|---:|---:|---:|---:|---:|
+| Sorcerer | 19,602 | 21,507 | 18,873 | +14.0 % | 71 % |
+| Gladiator | 17,389 | 19,473 | 16,679 | +16.7 % | 29 % |
+| Spiritmaster | 14,325 | 16,032 | 14,781 | +8.5 % | 47 % |
+| Templar | 10,968 | 15,700 | 14,309 | +9.7 % | 12 % |
+| Ranger | 10,095 | 12,175 | 10,701 | +13.8 % | 61 % |
+| Chanter | 9,424 | 11,872 | 10,760 | +10.3 % | 35 % |
+| Assassin | 6,741 | 9,346 | 8,009 | +16.7 % | 41 % |
+| Cleric | 16,342 (0.2.310) | unchanged | 12,411 | +31.7 % | 71 % |
+
+The Sorcerer example reaches 21,722 on median gear, 22,756 with 383 skill points and 31,547 on the
+first-month upgrade gear.
+
+The old Templar build replayed below its own typical build, the clearest sign of a stale optimum. Its new
+build is the least certain one: its simulated damage shares overlap the Korean dummy logs least (12 %; the
+typical build's 0.177 in the 0.2.309 table), so the kit's shares, not only its numbers, still differ from
+real Templars.
+
+The integer program that buys Daevanion nodes and skill points stops at 120 s, and PuLP reports the best
+board found by then as optimal. For most classes that board spends the whole budget. The Spiritmaster's
+first solve stopped with only 195 of its 360 points spent, even with the machine to itself, and the
+regenerated build fell to 12,687, below its typical build. The solver now spends what a stopped solve
+left: it takes the cheapest connected path to the untaken node that adds the most value per point (stat
+nodes by their stat value, skill-level nodes by their skill curve's next level, never past the curve's
+end) until nothing affordable adds value. An optimal board has no such path and comes back unchanged. On
+the 195-point board the step adds 165 points, and boss DPS rises from 12,687 to 15,246; the Spiritmaster
+build above comes from the optimizer with this step.
+
+Bundled PvP examples (`results/pvp`) are re-scored under the current evaluator: seven of eight score exactly
+as when they were made (the PvP model has not changed for them). The Assassin's old allocation scores 8,249
+(7,946 when made); a fresh search with the same two-search procedure finds 8,809 and replaces it.
+
+The canonical preset model version moves to 0.3.6 without an evaluator change. A server keeps a comparison
+scope's winner until the scope changes, so the new scope makes it re-seed from its stored winners and these
+builds; a community winner that scores higher stays the winner.
+
 ### Chain, variant and combo skills, and known catalog gaps
 
 metabot's build-planner page exposes 35 skills per class. Several real skills

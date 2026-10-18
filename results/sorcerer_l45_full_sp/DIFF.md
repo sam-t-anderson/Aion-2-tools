@@ -2,45 +2,57 @@
 
 | | A | B | B vs A |
 |---|---:|---:|---:|
-| boss DPS | 17,962 | 18,342 | +2.1% |
-| dummy DPS | 21,345 | 21,890 | +2.6% |
-| Crit chance | 5.1% | 5.1% | |
+| boss modeled DPS | 21,722 | 22,756 | +4.8% |
+| boss DPS | 21,722 | 22,756 | +4.8% |
+| dummy DPS | 25,723 | 27,124 | +5.4% |
+| Crit chance | 4.1% | 5.1% | |
 | Cooldown reduction | 6.5% | 6.5% | |
 | Combat Speed | 8.2% | 8.2% | |
-| Attack (avg) | 1,404 | 1,410 | |
+| Attack (avg) | 1,398 | 1,404 | |
 | Damage Boost bucket | 20.5% | 20.5% | |
 
 ## Build changes
 
 | Skill | What | A | B |
 |---|---|---|---|
-| Cold Snap | SP level | 1 | 10 |
-| Fire Mark | SP level | 9 | 10 |
-| Flame Scattershot | SP level | 4 | 10 |
+| Absorb Essence | SP level | 4 | 10 |
+| Bittercold Wind | SP level | 8 | 10 |
+| Blaze | SP level | 9 | 10 |
+| Cold Snap | SP level | 4 | 10 |
+| Fire Mark | SP level | 7 | 10 |
+| Flame Arrow | SP level | 7 | 10 |
+| Flame Scattershot | SP level | 7 | 10 |
 | Frost | SP level | 1 | 10 |
-| Frost Burst | SP level | 1 | 10 |
-| Grace of Enhancement | SP level | 4 | 10 |
-| Winter's Shackles | SP level | 4 | 10 |
-| Wish of Concentration | SP level | 7 | 10 |
-| Absorb Essence | effective level | 3 | 2 |
-| Cold Snap | effective level | 2 | 11 |
-| Fire Mark | effective level | 13 | 14 |
-| Flame Arrow | effective level | 13 | 14 |
-| Flame Scattershot | effective level | 5 | 12 |
-| Frost | effective level | 2 | 12 |
-| Frost Burst | effective level | 2 | 12 |
-| Grace of Enhancement | effective level | 6 | 14 |
-| Ice Chain | effective level | 3 | 2 |
-| Revitalization Contract | effective level | 3 | 1 |
-| Winter's Shackles | effective level | 8 | 13 |
-| Wish of Concentration | effective level | 11 | 12 |
-| Flame Scattershot | specializations | — | Absorbs 500, 500% HP; Multi-Hit on hit |
-| Frost | specializations | — | Restores 200 MP; -5s cooldown |
-| Frost Burst | specializations | — | Absorbs 700, 700% HP; Ignores Block and Evasion and lands as a Critical Hit |
-| Winter's Shackles | specializations | +20% PvE Damage Boost and +10% PvP Damage Boost for 5s on landing [Winter's Shackles] | Changes to mobile skill; +20% PvE Damage Boost and +10% PvP Damage Boost for 5s on landing [Winter's Shackles] |
-| Wish of Concentration | specializations | +10% additional Attack | +10% additional Attack; +10% Combat Speed |
+| Frost Burst | SP level | 8 | 10 |
+| Grace of Enhancement | SP level | 2 | 10 |
+| Revitalization Contract | SP level | 1 | 5 |
+| Robe of Earth | SP level | 8 | 10 |
+| Vitality Evaporation | SP level | 7 | 10 |
+| Winter's Shackles | SP level | 6 | 10 |
+| Wish of Concentration | SP level | 8 | 10 |
+| Absorb Essence | effective level | 6 | 10 |
+| Bittercold Wind | effective level | 12 | 14 |
+| Cold Snap | effective level | 7 | 13 |
+| Defiance | effective level | 2 | 1 |
+| Fire Mark | effective level | 10 | 13 |
+| Firestorm | effective level | 13 | 14 |
+| Flame Arrow | effective level | 10 | 14 |
+| Flame Scattershot | effective level | 9 | 12 |
+| Frost | effective level | 2 | 10 |
+| Grace of Enhancement | effective level | 5 | 13 |
+| Hellfire | effective level | 13 | 14 |
+| Revitalization Contract | effective level | 1 | 5 |
+| Robe of Cold | effective level | 1 | 3 |
+| Robe of Earth | effective level | 12 | 14 |
+| Vitality Evaporation | effective level | 10 | 14 |
+| Winter's Shackles | effective level | 8 | 12 |
+| Flame Arrow | specializations | +20% MP restored | Absorbs 100, 100% HP; +50% Multi-Hit on hit |
+| Flame Scattershot | specializations | Restores 120 MP | Absorbs 500, 500% HP; Multi-Hit on hit |
+| Frost | specializations | — | Restores 200 MP |
+| Hellfire | specializations | Fire Damage over Time for 10s on hit; Ignores Block and Evasion and lands as Multi-Hit | +30% Skill Speed; Fire Damage over Time for 10s on hit |
+| Winter's Shackles | specializations | +20% PvE Damage Boost and +10% PvP Damage Boost for 5s on landing [Winter's Shackles] | 30% chance to inflict Frost for 3s on landing [Winter's Shackles]; +20% PvE Damage Boost and +10% PvP Damage Boost for 5s on landing [Winter's Shackles] |
 
-Daevanion: 199 nodes shared, 50 only in A, 42 only in B.
+Daevanion: 187 nodes shared, 50 only in A, 57 only in B.
 
 ## Daevanion boards
 
@@ -56,65 +68,70 @@ B:
 
 | # | A | B |
 |---:|---|---|
-| 1 | `wish` | `wish` |
-| 2 | `element_enhancement` | `cold_storm` |
-| 3 | `fire_wall` | `element_enhancement` |
-| 4 | `cold_storm` | `blaze` |
-| 5 | `winters_shackles` | `winters_shackles` |
-| 6 | `blaze` | `fire_wall` |
-| 7 | `firestorm` | `frost_burst [sync_de]` |
-| 8 | `hellfire_c3` | `firestorm` |
-| 9 | `bittercold_wind [in_ee]` | `hellfire_c3` |
-| 10 | `frost_burst` | `bittercold_wind` |
-| 11 | `flame_scattershot` | `frost` |
-| 12 | `delayed_explosion` | `flame_scattershot` |
-| 13 | `flame_arrow` | `delayed_explosion` |
-| 14 |  | `flame_arrow` |
+| 1 | `wish` | `winters_shackles [sync_de]` |
+| 2 | `fire_wall` | `fire_wall` |
+| 3 | `element_enhancement` | `wish` |
+| 4 | `blaze` | `element_enhancement` |
+| 5 | `cold_storm` | `cold_storm` |
+| 6 | `winters_shackles` | `bittercold_wind` |
+| 7 | `bittercold_wind [in_ee]` | `blaze` |
+| 8 | `delayed_explosion` | `delayed_explosion` |
+| 9 | `hellfire_c3 [sync_de]` | `hellfire_c3 [sync_de]` |
+| 10 | `frost` | `firestorm` |
+| 11 | `firestorm` | `frost_burst` |
+| 12 | `frost_burst` | `frost` |
+| 13 | `flame_scattershot` | `flame_scattershot` |
+| 14 | `ice_chain [mp_hi]` | `ice_chain [mp_hi]` |
+| 15 | `flame_arrow` | `flame_arrow` |
 
 ## Stat weights (DPS gain per step)
 
 | Upgrade | A | B |
 |---|---:|---:|
-| Cooldown Reduction +3% | +3.43% | +3.58% |
-| PvE / Damage Boost +3% | +2.51% | +2.51% |
-| Double (Smite) chance +2% | +1.61% | +1.61% |
-| Penetration +300 | +1.61% | +1.58% |
-| PvE Attack +30 | +1.61% | +1.58% |
-| Weapon Damage Boost +3% | +1.55% | +1.56% |
-| Critical Hit +50 | +1.49% | +1.46% |
-| Attack +30 | +1.21% | +1.20% |
-| Weapon max attack +30 (min too) | +1.21% | +1.20% |
-| Illusion +10 (Cooldown -1%) | +1.14% | +1.19% |
-| Combat Speed +3% | +1.07% | +0.90% |
-| Wisdom +10 (Double +1%) | +0.80% | +0.80% |
-| Critical Attack +50 | +0.69% | +0.71% |
-| Might +10 (Attack +1%) | +0.49% | +0.48% |
-| Destruction +10 (Attack +1%) | +0.49% | +0.48% |
-| Critical Damage Boost +3% | +0.43% | +0.46% |
-| Time +10 (Combat Speed +1%) | +0.36% | +0.30% |
-| Multi-hit chance +3% | +0.21% | +0.21% |
-| Death +10 (Crit +1%) | +0.13% | +0.13% |
+| Cooldown Reduction +3% | +3.34% | +3.26% |
+| PvE / Damage Boost +3% | +2.55% | +2.55% |
+| Penetration +300 | +1.71% | +1.66% |
+| PvE Attack +30 | +1.71% | +1.66% |
+| Double (Smite) chance +2% | +1.66% | +1.67% |
+| Weapon Damage Boost +3% | +1.61% | +1.61% |
+| Critical Hit +50 | +1.24% | +1.51% |
+| Weapon max attack +30 (min too) | +1.24% | +1.20% |
+| Attack +30 | +1.24% | +1.20% |
+| Illusion +10 (Cooldown -1%) | +1.11% | +1.09% |
+| Combat Speed +3% | +1.10% | +1.08% |
+| Wisdom +10 (Double +1%) | +0.83% | +0.83% |
+| Critical Attack +50 | +0.68% | +0.73% |
+| Front Attack +30 | +0.64% | +0.62% |
+| Might +10 (Attack +1%) | +0.50% | +0.48% |
+| Destruction +10 (Attack +1%) | +0.50% | +0.48% |
+| Critical Damage Boost +3% | +0.41% | +0.47% |
+| Back Attack +30 | +0.44% | +0.43% |
+| Time +10 (Combat Speed +1%) | +0.37% | +0.36% |
+| Multi-hit chance +3% | +0.24% | +0.29% |
+| Death +10 (Crit +1%) | +0.10% | +0.13% |
+| Precision +10 (Crit +1%) | +0.10% | +0.13% |
 | Perfect chance +3% | +0.01% | +0.01% |
 | Justice +10 (Perfect +1%) | +0.00% | +0.00% |
 | MP +300 | +0.00% | +0.00% |
+| Freedom +10 (Accuracy +1%) | +0.00% | +0.00% |
 
 ## Damage shares
 
 | Source | A | B |
 |---|---:|---:|
-| Hellfire | 18.2% | 18.0% |
-| Blaze | 9.1% | 8.9% |
-| Firestorm | 9.0% | 8.8% |
-| Fire Wall | 8.7% | 7.9% |
-| Bittercold Wind | 7.6% | 7.9% |
-| Fire Wall (Embers) | 7.0% | 6.6% |
-| Cold Storm | 7.0% | 6.2% |
-| Cold Storm (Frostbite) | 5.8% | 6.0% |
-| Fire Mark | 4.9% | 4.6% |
-| Hellfire (DoT) | 3.7% | 3.6% |
-| Vitality Evaporation | 3.6% | 3.4% |
-| Grace of Enhancement | 2.8% | 2.9% |
-| Flame Arrow | 2.5% | 2.3% |
-| Blaze (delayed) | 2.5% | 2.5% |
-| Flame Arrow (Burst) | 2.4% | 1.9% |
-| Flame Arrow (Pyroclasm) | 1.9% | 1.9% |
+| Hellfire | 14.9% | 13.7% |
+| Ice Chain | 12.5% | 13.1% |
+| Bittercold Wind | 7.7% | 7.4% |
+| Blaze | 7.3% | 7.1% |
+| Firestorm | 6.9% | 7.1% |
+| Fire Wall | 6.8% | 6.4% |
+| Cold Storm | 5.8% | 5.7% |
+| Fire Wall (Embers) | 5.8% | 5.5% |
+| Cold Storm (Frostbite) | 4.8% | 4.7% |
+| Fire Mark | 3.7% | 3.8% |
+| Cold Snap | 2.8% | 3.1% |
+| Hellfire (DoT) | 3.0% | 3.0% |
+| Vitality Evaporation | 2.6% | 3.0% |
+| Grace of Enhancement | 2.5% | 2.8% |
+| Flame Scattershot | 2.6% | 2.4% |
+| Frost Burst | 1.9% | 2.1% |

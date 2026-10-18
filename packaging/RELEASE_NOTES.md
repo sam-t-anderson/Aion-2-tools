@@ -1,11 +1,36 @@
-## Fix: a busy machine no longer leaves the optimizer's Daevanion board half spent (0.2.311)
+## Fix: the Daevanion solve starts from the build the optimizer has, and the log says when it was cut short (0.2.312)
 
-**The optimizer finishes the Daevanion board even when your computer is busy.** The Daevanion and skill-point step is an integer program with a two-minute limit, and most classes' solves reached it. The solver then returns the best allocation it has found so far, and on a busy or slow machine that could be poor. While the bundled class builds were regenerated with three optimizer runs at once on four cores, the Spiritmaster's board spent only 195 of 360 points, and 177 in the next iteration. Its build reached 12,687 boss DPS, below the class's typical build (14,781). The log still said "Optimal", which is how PuLP reports a solve that stopped at its time limit with any solution. Now:
-- **the solver starts from the allocation the optimizer already has, completed first.** Unspent points go along the cheapest connected path to the node worth most per point: stat nodes by their stat weights, skill nodes by the next level's gain, never past the end of the skill's curve. The skill points are then retrained for that board, until neither adds value. The result is never worth less to the solver than that start, so an iteration can no longer give back the previous one's board. From a complete start the solver can also rule out far more, and often proves the best allocation well inside the limit;
-- **the solver's own result is completed the same way.** Points that nothing of modeled value can use go on nodes with no modeled DPS effect (defensive stats in PvE), as left-over skill points already did, so the whole board is spent;
-- **the log says when a solve stopped at its time limit**, with the remaining gap to the solver's bound on the best allocation ("time limit, gap 0.05%"), instead of "Optimal".
+**A busy machine no longer changes the Daevanion board you get.** 0.2.311 spends the points a stopped solve leaves unused. But each solve still started from nothing, so on a busy or slow machine it could still stop at its two-minute limit with a poor board: the Spiritmaster's two solves kept 195 and 177 of 360 points, and the second gave back part of the first's board. Now:
+- **the solver starts from the allocation the optimizer already has, completed first.** Its unspent points go to the best connected nodes, as in 0.2.311, and the skill points are then retrained for that board, until neither adds value. The result is never worth less to the solver than that start, so an iteration can no longer give back the previous one's board. From a complete start the solver can also rule out far more, and often proves the best allocation well inside the limit;
+- **points that nothing of modeled value can use go on nodes with no modeled DPS effect** (defensive stats in PvE), as left-over skill points already did, so the whole board is spent;
+- **the log says when a solve stopped at its time limit**, with the remaining gap to the solver's bound on the best allocation ("time limit, gap 0.05%"). Before, it said "Optimal", which is how PuLP reports any solve that stopped with a solution.
 
-**Checked on a four-core machine**, which showed the bad board even with nothing else running: the old optimizer's two Spiritmaster solves stopped at the limit with 195 and 177 points, and the build reached 12,687 boss DPS. With this version, `compare spiritmaster --iterations 2`, run alongside two other optimizer runs, spends all 360 points in both iterations and reaches 15,891 boss DPS, 7.5% above the typical build. The Sorcerer and Gladiator runs beside it spent full boards too (21,055 and 19,427 boss DPS). The Gladiator's two solves proved the best allocation in 5 s and 0.3 s instead of running to the limit.
+## Bundled builds regenerated under the current model (0.2.311)
+
+**The bundled optimized builds are re-optimized.** The builds behind the planner, the log review's comparison with the optimum, the Advice page and the server's canonical presets were made before the measured kit timings (0.2.307), the hit positions (0.2.308) and the kit gaps closed in 0.2.309 and 0.2.310. They were replayed under the current model, but they were no longer what the optimizer finds: the Templar's fell below its own typical build. The seven classes other than the Cleric (re-optimized in 0.2.310) are now re-optimized with the comparison settings (203 skill points, 30 stigma points, 360 Daevanion points, the class's median global loadout, 2 optimizer iterations). Modeled boss DPS:
+
+| Class | Old build, replayed | New build | Typical build |
+|---|---:|---:|---:|
+| Sorcerer | 19,602 | 21,507 | 18,873 |
+| Gladiator | 17,389 | 19,473 | 16,679 |
+| Spiritmaster | 14,325 | 16,032 | 14,781 |
+| Templar | 10,968 | 15,700 | 14,309 |
+| Ranger | 10,095 | 12,175 | 10,701 |
+| Chanter | 9,424 | 11,872 | 10,760 |
+| Assassin | 6,741 | 9,346 | 8,009 |
+| Cleric | 16,342 | 16,342 (re-optimized in 0.2.310) | 12,411 |
+
+Log reviews now compare your skill shares and casts with these builds. The class comparison (`results/compare`) lists all eight classes again from one set of settings. It says that the Cleric's number is a ceiling for a Cleric that never heals. The Templar's simulated damage shares stay furthest from the Korean dummy logs (12% overlap), so treat its build with the most caution ([methodology](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/methodology.md#bundled-builds-regenerated-02311)).
+
+**The optimizer no longer leaves Daevanion points unspent.** The solver that buys Daevanion nodes and skill points stops after 120 seconds and keeps the best board it has found. For the Spiritmaster that board spent only 195 of 360 points, even with the machine to itself, so its optimized build fell below the class's typical build. Points a stopped solve leaves unused now go to the best connected nodes: stat nodes by their stat value, skill-level nodes by what the next skill level adds. A board that already spends its points does not change.
+
+**Overlay: the count of other enemies sits next to the target.** When several enemies are hit at once, the "+N (names)" after the current target was pushed to the far edge beside its HP. It squeezed the target's name down to a few letters, or wrapped onto a line of its own. It now follows the target's name on the same line. The other enemies' names give way first, then the target's name, and the count is never cut.
+
+**The Sorcerer example is regenerated.** The planner and the log review use `results/sorcerer_l45` for the Sorcerer ahead of the class comparison. It dated from 4 October and is re-optimized too (21,722 boss DPS, 3 iterations), with its 383-skill-point and first-month upgrade-gear variants and the example page.
+
+**PvP examples.** Re-scored under the current model, seven of the eight bundled PvP examples score exactly as when they were made; the PvP model has not changed for them. The Assassin's old allocation now scores 8,249 (it was 7,946). A fresh search finds 8,809, which replaces it.
+
+**Community presets are re-seeded.** The preset model version moves to 0.3.6. The evaluator does not change, but a server keeps a comparison scope's winner until the scope changes. The new scope makes it re-seed from the stored winners and the regenerated builds.
 
 ## The Cleric's Condemnation build, World PvP optimization and Genus roll suggestions in optimizer results (0.2.310)
 

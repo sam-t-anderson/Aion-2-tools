@@ -60,15 +60,12 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
     prob = pulp.LpProblem("daevanion", pulp.LpMaximize)
     x, flows, obj = {}, {}, []
     node_skill: dict[int, list] = {}
-    adjacent: dict[int, list] = {}
-    roots = set()
     for b in cd.boards:
         if b["name"] not in boards:
             continue
         M = len(b["nodes"])
         for n in b["nodes"]:
             if n["type"] == "Start":
-                roots.add(n["id"])
                 continue
             x[n["id"]] = pulp.LpVariable(f"x_{n['id']}", cat="Binary")
             if n.get("skillId"):
@@ -79,7 +76,6 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
         inflow: dict[int, list] = {}
         outflow: dict[int, list] = {}
         for u, v in _neighbors(b):
-            adjacent.setdefault(u["id"], []).append(v["id"])
             if v["type"] == "Start":
                 continue
             f = pulp.LpVariable(f"f_{u['id']}_{v['id']}", lowBound=0)
@@ -157,39 +153,6 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
         return (sum(node_value.get(n, 0.0) for n in nodes)
                 + sum(skill_curves[sid][eff[sid]] - skill_curves[sid][0] for sid in y))
 
-    def path_value(path, eff):
-        """What taking ``path`` in order adds; None if it would raise a skill past its curve."""
-        total, extra = 0.0, Counter()
-        for n in path:
-            total += node_value.get(n, 0.0)
-            sid = skill_of.get(n)
-            if sid in eff:
-                level = eff[sid] + extra[sid]
-                if level >= len(z[sid]):
-                    return None
-                total += skill_curves[sid][level + 1] - skill_curves[sid][level]
-                extra[sid] += 1
-        return total
-
-    def fill(nodes, sp, floor=1e-9):
-        """Spend unspent points: repeatedly take the cheapest connected path (by node cost) to the
-        untaken node worth most per point, while one fits the budget and is worth over ``floor``."""
-        nodes = set(nodes)
-        while True:
-            room = daev_budget - points(nodes)
-            eff = effective(nodes, sp)
-            worth = {n: path_value([n], eff) for n in x if n not in nodes}
-            best = None
-            for path in _paths(adjacent, nodes | roots, cost,
-                               {n: w for n, w in worth.items() if w is not None}).values():
-                spent, gain = points(path), path_value(path, eff)
-                if spent <= room and gain is not None and gain > floor and (
-                        best is None or (gain / spent, gain, -spent) > best[0]):
-                    best = (gain / spent, gain, -spent), path
-            if best is None:
-                return nodes
-            nodes.update(best[1])
-
     def trained(nodes):
         """The best trained levels for a fixed board: a knapsack over the skill-point budget."""
         from_nodes = Counter(skill_of[n] for n in nodes if n in skill_of)
@@ -210,7 +173,8 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
     def complete(nodes, sp):
         """Fill the board, then retrain the skill points for it, until neither adds value."""
         while True:
-            nodes = fill(nodes, sp)
+            nodes, _ = fill_unspent(cd, nodes, node_value, skill_curves, sp, bonus, daev_budget,
+                                    max_level=max_level, boards=boards)
             better = trained(nodes)
             if better is None or value(nodes, better) <= value(nodes, sp) + 1e-9:
                 return nodes, sp
@@ -257,7 +221,8 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
         if spend_all:
             # nodes worth nothing here (defensive stats in PvE), as the optimizer spends left-over
             # skill points; not for a feasibility search, where nothing is worth anything
-            nodes = fill(nodes, sp, floor=-1e-9)
+            nodes, _ = fill_unspent(cd, nodes, node_value, skill_curves, sp, bonus, daev_budget,
+                                    max_level=max_level, boards=boards, floor=-1e-9)
         filled = points(nodes) - before
         objective = value(nodes, sp)
         if report["bound"] is not None:
@@ -280,31 +245,94 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
             "warm_start": warm is not None, "filled": filled}
 
 
-def _paths(adjacent: dict, sources: set, cost: dict, worth: dict) -> dict:
-    """Cheapest connected path (by node cost; equal costs by worth) from ``sources`` through the
-    nodes that can be taken (``worth``'s keys) to each one reached: {node: [path, sources' end first]}."""
-    best = dict.fromkeys(sources, (0, 0.0))
-    came = {}
-    heap = [(0, 0.0, s) for s in sources]
-    heapq.heapify(heap)
-    while heap:
-        spent, minus, u = heapq.heappop(heap)
-        if (spent, minus) > best[u]:
-            continue
-        for v in adjacent.get(u, ()):
-            if v not in worth:
+def fill_unspent(cd: ClassData, nodes: set, node_value: dict[int, float], skill_curves: dict[int, list[float]],
+                 sp: dict[int, int], bonus: dict[int, int], daev_budget: int, *, max_level: int = 20,
+                 boards: tuple = CRYSTAL_BOARDS, floor: float = 1e-9) -> tuple[set, float]:
+    """Spend points a solve stopped at its time limit left unused.
+
+    The integer program can stop with an incumbent that leaves points unspent (the Spiritmaster's
+    first solve kept 165 of 360 points even with the machine to itself). Take the cheapest
+    connected path of untaken nodes to the node that adds the most value per point, again and
+    again, while it fits the budget and adds value: stat nodes count their stat value, skill-level
+    nodes their skill curve's next level, never past the curve's end (``max_level`` for skills
+    without a curve). An optimal solution has no such path, so it comes back unchanged. A path
+    must add more than ``floor``: below zero, points that nothing of value can use go to nodes worth
+    nothing, never to ones worth less.
+    """
+    nodes = set(nodes)
+    cost = {n["id"]: n["cost"] for b in cd.boards for n in b["nodes"]}
+    levels = {sid: sp.get(sid, 1) + bonus.get(sid, 0) for sid in cd.skills}
+    for nid in nodes:
+        sid = cd.node_index[nid][1].get("skillId")
+        if sid:
+            levels[sid] = levels.get(sid, 1) + 1
+    cap = {sid: min(max_level, len(curve) - 1) for sid, curve in skill_curves.items()}
+
+    def gains(path):
+        """Value of taking ``path``, or None when it raises a skill past its cap."""
+        extra, total = {}, 0.0
+        for nid in path:
+            total += node_value.get(nid, 0.0)
+            sid = cd.node_index[nid][1].get("skillId")
+            if sid:
+                level = levels.get(sid, 1) + extra.get(sid, 0)
+                if level + 1 > cap.get(sid, max_level):
+                    return None
+                extra[sid] = extra.get(sid, 0) + 1
+                if sid in skill_curves:
+                    total += skill_curves[sid][level + 1] - skill_curves[sid][level]
+        return total
+
+    spent, added = sum(cost[n] for n in nodes), 0.0
+    while True:
+        candidates = []
+        for b in cd.boards:
+            if b["name"] not in boards:
                 continue
-            key = (spent + cost[v], minus - worth[v])
-            if v not in best or key < best[v]:
-                best[v], came[v] = key, u
-                heapq.heappush(heap, (*key, v))
-    paths = {}
-    for v in came:
-        path = [v]
-        while path[-1] in came:
-            path.append(came[path[-1]])
-        paths[v] = path[-2::-1]
-    return paths
+            pos = {(n["row"], n["col"]): n for n in b["nodes"]}
+
+            def around(n):
+                for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    m = pos.get((n["row"] + dr, n["col"] + dc))
+                    if m is not None and m["type"] != "Start" and m["id"] not in nodes:
+                        yield m
+
+            dist, prev, heap = {}, {}, []
+            for n in b["nodes"]:
+                if n["type"] == "Start" or n["id"] in nodes:
+                    for m in around(n):
+                        if cost[m["id"]] < dist.get(m["id"], float("inf")):
+                            dist[m["id"]], prev[m["id"]] = cost[m["id"]], None
+                            heapq.heappush(heap, (dist[m["id"]], m["id"]))
+            while heap:
+                d, nid = heapq.heappop(heap)
+                if d > dist[nid]:
+                    continue
+                if spent + d <= daev_budget:
+                    path, cur = [], nid
+                    while cur is not None:
+                        path.append(cur)
+                        cur = prev[cur]
+                    candidates.append((d, path))
+                for m in around(cd.node_index[nid][1]):
+                    if d + cost[m["id"]] < dist.get(m["id"], float("inf")):
+                        dist[m["id"]], prev[m["id"]] = d + cost[m["id"]], nid
+                        heapq.heappush(heap, (dist[m["id"]], m["id"]))
+        best = None
+        for d, path in candidates:
+            value = gains(path)
+            if value is not None and value > floor and (best is None or value / d > best[0]):
+                best = (value / d, d, path, value)
+        if best is None:
+            return nodes, added
+        _, d, path, value = best
+        for nid in path:
+            sid = cd.node_index[nid][1].get("skillId")
+            if sid:
+                levels[sid] = levels.get(sid, 1) + 1
+        nodes.update(path)
+        spent += d
+        added += value
 
 
 def _tree(cd: ClassData, nodes: set):

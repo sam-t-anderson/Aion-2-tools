@@ -665,24 +665,35 @@ def main(argv: list[str] | None = None) -> int:
                          (summ.get("kr_fidelity") or {}).get("overlap")))
         rows.sort(key=lambda r: -r[1])
         print(f"{'class':14s} {'optimized':>12s} {'community':>12s} {'gain':>7s}")
-        md = [f"# Class comparison ({args.scenario}, same settings, {args.iterations} optimizer "
-              f"iteration{'s' if args.iterations != 1 else ''} per class)\n",
-              "Each class is optimized with the same budgets (203 SP, 30 stigma points, 360 Daevanion) on its own "
-              "median global loadout. **Gain** (optimized vs the typical top global build of that class, same "
-              "rotation optimizer) is the reliable number. Every class now has a hand-written kit (see "
-              "`aion2calc/kit/`) that models its chains, crowd-control combos, pet and damage-amp buffs, so absolute "
-              "DPS across classes is far more comparable than before; the kits' fidelity is still shown as the share "
-              "overlap with Korean A2DIL dummy logs where available. **This is not a class tier list**: absolute "
-              "numbers depend on each kit's audited assumptions (pet cadence, boss-break uptime, DoT spread) and "
-              "await calibration against real combat-log captures.\n",
-              "| Class | Optimized DPS | Typical top build DPS | Gain | KR share overlap | Report |",
-              "|---|---:|---:|---:|---:|---|"]
         for cls, dps, comm, fid in rows:
             print(f"{cls:14s} {dps:12,.0f} {comm:12,.0f} {100 * (dps / comm - 1):6.1f}%")
-            md.append(f"| {cls} | {dps:,.0f} | {comm:,.0f} | {100 * (dps / comm - 1):+.1f}% | "
-                      f"{'—' if fid is None else f'{100 * fid:.0f}%'} | [{cls}]({cls}/README.md) |")
-        Path(args.out, "README.md").write_text("\n".join(md) + "\n", encoding="utf-8")
+        Path(args.out, "README.md").write_text(compare_markdown(rows, args.scenario, args.iterations),
+                                               encoding="utf-8")
     return 0
+
+
+def compare_markdown(rows, scenario: str, iterations: int) -> str:
+    """The class comparison index: ``rows`` are (class, optimized DPS, typical build DPS, KR overlap),
+    best first."""
+    md = [f"# Class comparison ({scenario}, same settings, {iterations} optimizer "
+          f"iteration{'s' if iterations != 1 else ''} per class)\n",
+          "Each class is optimized with the same budgets (203 SP, 30 stigma points, 360 Daevanion) on its own "
+          "median global loadout. **Gain** (optimized vs the typical top global build of that class, same "
+          "rotation optimizer) is the reliable number. Every class has a hand-written kit (see "
+          "`aion2calc/kit/`) that models its chains, crowd-control combos, pet and damage-amp buffs, with action "
+          "times measured from recorded fights where captures exist; the kits' fidelity is shown as the share "
+          "overlap with Korean A2DIL dummy logs where available. **This is not a class tier list**: absolute "
+          "numbers depend on each kit's audited assumptions (pet cadence, boss-break uptime, DoT spread) and "
+          "assume a player doing nothing but damage.\n",
+          "| Class | Optimized DPS | Typical top build DPS | Gain | KR share overlap | Report |",
+          "|---|---:|---:|---:|---:|---|"]
+    for cls, dps, comm, fid in rows:
+        md.append(f"| {cls} | {dps:,.0f} | {comm:,.0f} | {100 * (dps / comm - 1):+.1f}% | "
+                  f"{'—' if fid is None else f'{100 * fid:.0f}%'} | [{cls}]({cls}/README.md) |")
+    if any(r[0] == "cleric" for r in rows):
+        md.append("\nThe Cleric's number is a ceiling for a Cleric that never heals: recorded Clerics heal and fit "
+                  "about a third as many Condemnations into each Earth Punishment window.")
+    return "\n".join(md) + "\n"
 
 
 if __name__ == "__main__":

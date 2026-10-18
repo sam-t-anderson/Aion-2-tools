@@ -89,7 +89,13 @@ html.native-windows #ovbg { border-radius: 0; }
   display: flex; flex-wrap: wrap; align-items: center; gap: 0 5px;
   padding: 6px 10px; border-radius: 10px; border: 1px solid rgba(255, 140, 160, .2);
   background: linear-gradient(180deg, rgba(62, 44, 56, .62), rgba(42, 36, 46, .62)); }
-.ovtarget .ovtname { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 700; font-size: 1.12em; }
+/* The target's name and the "+N (others)" struck with it stay together: the pair takes the row's
+   free space and the name is only as wide as its text, so the count sits right after it. The
+   others' names give way first, then the target's name; the count is never cut. */
+.ovtarget .ovtwho { flex: 1 1 0; min-width: 0; display: flex; align-items: baseline; gap: 0 5px; overflow: hidden; }
+.ovtarget .ovtname { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 700; font-size: 1.12em; }
+.ovtarget .ovalsocount { flex: none; }
+.ovtarget .ovalsonames { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* Second line of the boss card: time-to-kill, damage dealt and the top contributors. */
 .ovtarget .ovtline { flex: 0 0 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; color: #b7aab2; }
 .ovtarget:has(+ .ovhpbar:not([hidden])) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 0; margin-bottom: 0; padding-bottom: 6px; }

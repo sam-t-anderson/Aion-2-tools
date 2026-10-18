@@ -16,7 +16,7 @@ from .model.character import load_loadout
 from .paths import list_names, bundled_model_data
 from .presets import BUDGETS, InvalidPreset, candidate as legacy_candidate, parse
 
-MODEL_VERSION = "0.3.5"  # Bump for evaluator/model changes, not capture/UI releases.
+MODEL_VERSION = "0.3.6"  # Bump for evaluator/model changes, not capture/UI releases.
 # 0.3.0: hand-written kits for all eight classes (was sorcerer only) — see aion2calc/kit/.
 # Changes every class's modeled rotation, so the server re-scores all presets under it.
 # 0.3.3: kit action times measured from recorded casts (0.2.307) and each class's recorded
@@ -25,6 +25,9 @@ MODEL_VERSION = "0.3.5"  # Bump for evaluator/model changes, not capture/UI rele
 # and Lightning and woven basic attacks (0.2.309).
 # 0.3.5: the Cleric's Earth Punishment crits and specializations; target Damage Tolerance
 # reductions in the damage formula (0.2.310).
+# 0.3.6: no evaluator change. The bundled builds were regenerated under the 0.3.5 model (0.2.311);
+# a server keeps a scope's winner until the scope changes, so the new scope makes it re-seed
+# from the stored winners and the regenerated builds.
 VERSION = 2
 POLICY_VERSION = 1
 MODES = {"pve": ("boss", "dummy"), "pvp": ("pvp", "pvp_burst")}

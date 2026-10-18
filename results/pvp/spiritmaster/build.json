@@ -164,7 +164,7 @@
  "score": 16511.48043424444,
  "scoring_policy": {
   "version": 1,
-  "model": "0.2.58",
+  "model": "0.3.6",
   "class": "spiritmaster",
   "mode": "pvp",
   "budgets": {
@@ -187,7 +187,7 @@
   "calibration": "disabled",
   "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
   "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
-  "scope": "f6daa218ce9214a0c6d96b0035a740dae4d5bb5fc8afda152ebe9496736a9cdf"
+  "scope": "77e1075a34bf50cb90f2eb0ba5767a005b795f7a98dd89d6fc08006a59c3b3de"
  },
  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
  "build": {
@@ -1486,8 +1486,8 @@
   "weapon_amp": 0.1
  },
  "evaluation": {
-  "model": "0.2.58",
-  "scope": "f6daa218ce9214a0c6d96b0035a740dae4d5bb5fc8afda152ebe9496736a9cdf",
+  "model": "0.3.6",
+  "scope": "77e1075a34bf50cb90f2eb0ba5767a005b795f7a98dd89d6fc08006a59c3b3de",
   "policy_version": 1
  },
  "candidate_generation": {

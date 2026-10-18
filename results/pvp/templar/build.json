@@ -159,12 +159,12 @@
  "daevanion_budget": 360,
  "dps": {
   "pvp": 5072.24058705099,
-  "pvp_burst": 10513.951534321843
+  "pvp_burst": 10513.951534321845
  },
- "score": 7793.096060686416,
+ "score": 7793.096060686417,
  "scoring_policy": {
   "version": 1,
-  "model": "0.2.58",
+  "model": "0.3.6",
   "class": "templar",
   "mode": "pvp",
   "budgets": {
@@ -187,7 +187,7 @@
   "calibration": "disabled",
   "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
   "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
-  "scope": "1c1fc45121329d10bd259663500f998f537b339c54b1193f34acd8f9e0844db7"
+  "scope": "2d0747fdb723f32fd455b2b68bca418aa689e84ea5cf20c11c371754e4af8d65"
  },
  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
  "build": {
@@ -1347,14 +1347,14 @@
   "Judgment": 0.3997131910836485,
   "Debilitating Smash": 0.12692189503563975,
   "Pummel": 0.11687025972709185,
-  "Annihilate": 0.10764014360801935,
+  "Annihilate": 0.10764014360801938,
   "Punishing Benediction": 0.06831842516445215,
-  "Punishment": 0.058877498641505405,
+  "Punishment": 0.05887749864150542,
   "Executing Blade": 0.04612792211894394,
   "Doom Shield": 0.045485712458508916,
-  "Warding Strike": 0.013753312171430566,
+  "Warding Strike": 0.013753312171430568,
   "Assault Fury": 0.009942198554203132,
-  "Empyrean Lord's Punishment": 0.0063494414365569485
+  "Empyrean Lord's Punishment": 0.006349441436556951
  },
  "opener": [
   [
@@ -1515,8 +1515,8 @@
   "weapon_amp": 0.1
  },
  "evaluation": {
-  "model": "0.2.58",
-  "scope": "1c1fc45121329d10bd259663500f998f537b339c54b1193f34acd8f9e0844db7",
+  "model": "0.3.6",
+  "scope": "2d0747fdb723f32fd455b2b68bca418aa689e84ea5cf20c11c371754e4af8d65",
   "policy_version": 1
  },
  "candidate_generation": {

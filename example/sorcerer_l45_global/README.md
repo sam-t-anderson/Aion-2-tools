@@ -2,21 +2,22 @@
 
 | | Median launch gear, 203 SP | Median gear, 383 SP (all Empyrean Traces) | First-month upgrade gear |
 |---|---:|---:|---:|
-| Optimized build, boss DPS | **17,962** | **18,342** | **25,890** |
-| Typical top global build, same rotation optimizer | 16,512 | — | 23,809 |
+| Optimized build, boss DPS | **21,722** | **22,756** | **31,547** |
+| Typical top global build, same rotation optimizer | 18,873 | — | 26,608 |
 
 * Full reports: [median gear](../../results/sorcerer_l45/README.md) ·
   [383 skill points](../../results/sorcerer_l45_full_sp/README.md) ([what changes](../../results/sorcerer_l45_full_sp/DIFF.md)) ·
   [upgrade gear](../../results/sorcerer_l45_geared/README.md) ([what changes](../../results/sorcerer_l45_geared/DIFF.md))
-* Arcana: Parchment is the slot to chase (core fire skills); two extra Hellfire levels (Lv 16) are
-  worth about +5%
-* Stigmas: Element Enhancement 10, Cold Storm 6, Fire Wall 6, Delayed Explosion 1
-* Priority: Wish → Element Enhancement → Fire Wall → Cold Storm → Winter's Shackles → Blaze →
-  Firestorm → Hellfire (full charge) → Bittercold Wind (inside Element Enhancement) → Frost Burst →
-  Flame Scattershot → Delayed Explosion → Flame Arrow (filler)
-* One-button in-game Skill Macro reaches ~95% of that priority list in simulation
-* Stat priority (median gear): Cooldown Reduction > Damage Boost > Penetration ≈ PvE Attack ≈ Double >
-  Weapon Damage Boost > Crit > Attack; on upgrade gear Crit moves to the top
+* Arcana: Mirror is the slot to chase (Robe of Flame: +1.3% for one level, +2.5% for two); Hellfire and
+  Robe of Flame have the biggest single-level jumps (+1.3% each)
+* Stigmas: Element Enhancement 10, Delayed Explosion 5, Fire Wall 5, Cold Storm 5
+* Priority: Wish → Fire Wall → Element Enhancement → Blaze → Cold Storm → Winter's Shackles →
+  Bittercold Wind (inside Element Enhancement) → Delayed Explosion → Hellfire (full charge, timed to
+  Delayed Explosion) → Frost → Firestorm → Frost Burst → Flame Scattershot → Ice Chain (MP 60% or more)
+  → Flame Arrow (filler)
+* One-button in-game Skill Macro reaches ~92% of that priority list in simulation
+* Stat priority (median gear): Cooldown Reduction > Damage Boost > Penetration ≈ PvE Attack ≈ Double ≈
+  Weapon Damage Boost > Crit ≈ Attack; on upgrade gear Crit moves up to second, behind Cooldown Reduction
 
 ![Sorcerer build card, median gear](images/build_card.png)
 

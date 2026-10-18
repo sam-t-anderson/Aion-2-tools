@@ -17,8 +17,10 @@ def home(tmp_path, monkeypatch):
     learn.reset()
 
 
+# Strong enough to beat what a ring slot takes from the median loadout (half its ring pair and a
+# fifth of its accessory rolls) by a clear margin, whatever the bundled build's stat weights.
 RING = {"slug": "test-ring", "name": "Test Ring", "grade": "Unique", "category": "Ring", "item_level": 70,
-        "fixed": {"Attack": "+100"}, "description": "rolls 2 random stats on top of its fixed stats",
+        "fixed": {"Attack": "+200"}, "description": "rolls 2 random stats on top of its fixed stats",
         "random": [{"stat": "Critical Hit", "range": "+30 – +50", "chance": "50%"},
                    {"stat": "HP", "range": "+200 – +300", "chance": "50%"}],
         "enchant": [{"step": "+0 → +1", "stats": "Attack +5"}, {"step": "+1 → +2", "stats": "Attack +10"},

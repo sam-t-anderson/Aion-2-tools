@@ -164,7 +164,7 @@
  "score": 6301.66104790896,
  "scoring_policy": {
   "version": 1,
-  "model": "0.2.58",
+  "model": "0.3.6",
   "class": "gladiator",
   "mode": "pvp",
   "budgets": {
@@ -187,7 +187,7 @@
   "calibration": "disabled",
   "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
   "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
-  "scope": "4a8592f5414ffa3950cfada5b6b58e05462e8bdd44d67b8591c6e4ffec05f0f4"
+  "scope": "774d30bc43d867d4e7ea753b389287be63f75c63265a82cf4cd2c7f4abced224"
  },
  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
  "build": {
@@ -1340,17 +1340,17 @@
   "rending_blow"
  ],
  "shares": {
-  "Overhead Slam": 0.36559478380179883,
-  "Ankle Slice": 0.14793767835008437,
+  "Overhead Slam": 0.3655947838017988,
+  "Ankle Slice": 0.14793767835008434,
   "Rending Blow": 0.1434064326843083,
-  "Rush Strike": 0.11497053796868809,
-  "Ruinous Blow": 0.07093057183224732,
-  "Leaping Slam": 0.056978103354775884,
+  "Rush Strike": 0.11497053796868806,
+  "Ruinous Blow": 0.07093057183224731,
+  "Leaping Slam": 0.05697810335477587,
   "Mocking Blade": 0.02695161416005506,
-  "Aerial Snare": 0.021970191886977183,
+  "Aerial Snare": 0.021970191886977186,
   "Rage Burst": 0.02145277955747398,
-  "Assault Strike": 0.015346894113781194,
-  "Lifestealing Blade": 0.014460412289810888
+  "Assault Strike": 0.015346894113781196,
+  "Lifestealing Blade": 0.014460412289810886
  },
  "opener": [
   [
@@ -1511,8 +1511,8 @@
   "weapon_amp": 0.1
  },
  "evaluation": {
-  "model": "0.2.58",
-  "scope": "4a8592f5414ffa3950cfada5b6b58e05462e8bdd44d67b8591c6e4ffec05f0f4",
+  "model": "0.3.6",
+  "scope": "774d30bc43d867d4e7ea753b389287be63f75c63265a82cf4cd2c7f4abced224",
   "policy_version": 1
  },
  "candidate_generation": {
