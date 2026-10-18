@@ -556,10 +556,24 @@ character is calibrating against that player's own captures.
 4. **Per-skill level curves** – DPS as a function of each skill's effective
    level (best specialization at each level), plus **stat weights** by finite
    differences.
-5. **Daevanion + skill points** – one integer program (PuLP/CBC): node choices
-   with flow-based connectivity per board, the 360-point budget, the 203 SP
-   budget with the real price table, and ordered "level ≥ k" indicators so
-   specialization breakpoints (non-concave value jumps) are handled exactly.
+5. **Daevanion + skill points** – one integer program (PuLP with the
+   in-process HiGHS solver): node choices with flow-based connectivity per
+   board, the 360-point budget, the 203 SP budget with the real price table,
+   and ordered "level ≥ k" indicators so specialization breakpoints
+   (non-concave value jumps) are handled exactly.  The solve stops after
+   120 s and often gets there, returning the best allocation found so far,
+   which on a busy machine could leave much of the board unspent.  So it
+   starts from the current allocation, completed first: unspent points go
+   along the cheapest connected path (by node cost) to the node worth most per
+   point (stat nodes by their stat weights, skill nodes by the next level's
+   gain on the skill's curve, never past its end), and the skill points are
+   retrained for that board (an exact knapsack over the SP budget), until
+   neither adds value.  The result is never worth less to the program than
+   that start, and the solver's own result is completed the same way; points
+   nothing of modeled value can use then go on nodes with no modeled effect
+   (defensive stats in PvE), as skill points still left after step 6 go to
+   DPS-neutral levels.  The log says when the solve stopped at its time
+   limit, with the remaining gap to the solver's bound on the best allocation.
 6. **Skill-point polish** – after the last iteration, a local search with the
    full simulator moves 1–2 skill levels between skills (or spends left-over
    points) while any move gains DPS.  It catches interactions that the

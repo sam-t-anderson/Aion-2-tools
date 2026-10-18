@@ -429,15 +429,19 @@ class Optimizer:
         # solver works.
         self.log(f"skill allocation: solving Daevanion/SP with {solver_name()} (up to {DAEV_SOLVER_TIME_LIMIT} s)")
         solver_started = time.monotonic()
+        # Start from the current allocation, so a solve cut short by its time limit (likely on a
+        # busy machine) never returns a board worth less to the program than the one it has.
         sol = daev_opt.solve(self.cd, curves, nv, daev_budget=self.daev_budget,
                              sp_budget=self.sp_budget, bonus=bonus,
                              time_limit=DAEV_SOLVER_TIME_LIMIT,
-                             min_node_hp=(self.survival or {}).get("minimum_node_hp", 0), min_sp=self.min_sp, min_effective=self.min_effective)
+                             min_node_hp=(self.survival or {}).get("minimum_node_hp", 0), min_sp=self.min_sp, min_effective=self.min_effective,
+                             start=(build.daevanion, build.sp), spend_all=True)
         self.log(f"skill allocation: solver finished ({sol['status']}, "
-                 f"{time.monotonic() - solver_started:.1f} s)")
-        if sol.get("filled"):
-            self.log(f"skill allocation: the solver left {sol['filled']} Daevanion points unspent; "
-                     f"spent them on the best connected nodes")
+                 f"{time.monotonic() - solver_started:.1f} s"
+                 f"{'; started from the current allocation' if sol['warm_start'] else ''})")
+        if sol["filled"]:
+            self.log(f"skill allocation: filled {sol['filled']} Daevanion point{'s' if sol['filled'] != 1 else ''} "
+                     "the solver left unspent")
         self.log("skill allocation: applying the optimized points")
         b2 = build.copy()
         b2.daevanion = sol["nodes"]
