@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import time
 
+from ..combat.a2log import CLASSES
 from ..paths import home, write_user_json
 
 FORMAT = "aion2calc-settings"
@@ -122,9 +123,7 @@ def _clean(data: dict) -> dict:
                 raise ValueError("overlay_cooldowns_position must be bottom or top")
             clean[key] = value
         elif key == "combat_colors":
-            if not (isinstance(value, dict) and all(isinstance(k, str) and _is_hex(v) for k, v in value.items())):
-                raise ValueError("combat_colors must map class names to six-digit hex colors")
-            clean[key] = {k: v.lower() for k, v in value.items()}
+            clean[key] = clean_class_colors(value)
         elif key == "overlay_presets":
             clean[key] = clean_presets(value)
         elif key == "hotkeys":
@@ -155,6 +154,25 @@ def clean_presets(value) -> list:
             raise ValueError("each overlay preset needs a settings object")
         out.append({"name": name, "settings": _clean({k: v for k, v in settings.items() if k in _VISUAL_KEYS})})
     return out
+
+
+def clean_class_colors(value) -> dict:
+    """Validate the class colours in the shape Settings → Class colors saves them:
+    {"enabled": bool, "colors": {class: "#rrggbb"}}, either part optional ({} is a
+    reset to the defaults)."""
+    if not (isinstance(value, dict) and set(value) <= {"enabled", "colors"}):
+        raise ValueError("combat_colors must be an object with enabled and/or colors")
+    clean: dict = {}
+    if "enabled" in value:
+        if not isinstance(value["enabled"], bool):
+            raise ValueError("combat_colors enabled must be true or false")
+        clean["enabled"] = value["enabled"]
+    if "colors" in value:
+        colors = value["colors"]
+        if not (isinstance(colors, dict) and set(colors) <= set(CLASSES) and all(_is_hex(v) for v in colors.values())):
+            raise ValueError("combat_colors colors must map " + ", ".join(CLASSES) + " to six-digit hex colors")
+        clean["colors"] = {k: v.lower() for k, v in colors.items()}
+    return clean
 
 
 def export_settings() -> dict:
