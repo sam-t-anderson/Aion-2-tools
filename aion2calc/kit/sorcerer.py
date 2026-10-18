@@ -52,6 +52,18 @@ ASSUME = {
     "slow_cold_storm": 3.0,
 }
 
+#: The basic-attack chain's three steps (name, share of the woven steps, damage per press against
+#: the first step), the woven steps after each press and after any press recorded too rarely (the
+#: median of the per-skill rates), from the recorded fights (0.2.309; docs/methodology.md "Woven
+#: basic attacks").
+WEAVE = {
+    "steps": (("Flame Arrow", 0.44, 1.00), ("Burst", 0.30, 1.10), ("Pyroclasm", 0.26, 1.40)),
+    "after": {"ice_chain": 0.39, "blaze": 0.03, "firestorm": 0.04, "bittercold_wind": 0.04, "frost_burst": 0.06,
+              "delayed_explosion": 0.0, "flame_scattershot": 0.15, "frost": 0.04, "winters_shackles": 0.0,
+              "hellfire_c1": 0.10, "hellfire_c2": 0.10, "hellfire_c3": 0.10, "wish": 0.07},
+    "per_press": 0.04,
+}
+
 
 @dataclass
 class Kit:
@@ -63,6 +75,7 @@ class Kit:
     filler: str
     notes: list = field(default_factory=list)
     levels: dict = field(default_factory=dict)
+    essential: tuple = ()     # actions every priority list should hold (see opt.rotation.with_essentials)
 
 
 def _ms(v) -> float:
@@ -461,6 +474,8 @@ def build_kit(build: Build, cd: ClassData, filler: str = "flame_arrow") -> Kit:
                 A[k] = a
                 policy.insert(max(0, len(policy) - 1), k)
                 notes.append(f"{a.name}: not in the hand-written kit, simulated from its tooltip")
+    from .common import add_weave
+    add_weave(A, WEAVE, fa_f, fa_c, mp=100 * (1.2 if has("FA", 1) else 1.0), element="fire", skip=("flame_arrow",))
     return Kit(actions=A, hooks=[hook], cond_mods=[cond], static=static, policy=policy,
                filler=filler, notes=notes, levels=L)
 

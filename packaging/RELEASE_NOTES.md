@@ -1,3 +1,23 @@
+## Spiritmaster summons, Smashing Blow, the Cleric's Thunder and Lightning and woven basic attacks in the damage model (0.2.309)
+
+**The Spiritmaster presses its summons, Dimensional Control and Elemental Fusion.** The kit used to keep one Water Spirit out and fire Dimensional Control and Elemental Fusion on their own, so the time real players spend on those presses (about a quarter of their active time) went to Combustion: the simulation cast it twice as often as recorded players. Now:
+- the four summons are pressed on cooldown, and each Spirit uses its skill on arrival; the Fire and Earth Spirits keep using it, as often as recorded Spiritmasters' Spirits do;
+- every Spirit skill opens Dimensional Control for about a second and adds an element, and four elements open Elemental Fusion; both are presses, with their "Extra damage after 3s" specializations;
+- the Ancient Spirit attacks through its 30 seconds with its skill every seventh attack, and Spirit's Descent is modeled;
+- the caster's procs (Corrode, Consecutive Countercurrent) no longer fire on the Spirits' hits.
+
+The simulated damage now matches the recorded Spiritmasters' fights far better: overlap 0.44 → 0.73, KR fidelity 0.41 → 0.75. Boss DPS rises from 12,977 to 14,325. Saved builds from older versions get the new presses added when replayed, so they keep their Spirits.
+
+**Smashing Blow only after Rending Blow.** Recorded Gladiators press Smashing Blow after 85–94% of their Rending Blows and almost never without one, so it now needs Rending Blow first. The basic-attack chain pressed on its own (Keen Strike → Rupture Strike → Wrathful Strike) is the filler, and Keen Strike's specializations count on its own step only. The bundled Gladiator build loses 20% boss DPS (21,640 → 17,389): its "−1s Ruinous Blow cooldown" Keen Strike specialization had counted on every basic press, casting Ruinous Blow 4 times a minute where recorded Gladiators manage 2.2–2.6 (now 2.3). Overlap with recorded Gladiators rises 0.30 → 0.45, KR fidelity 0.35 → 0.46.
+
+**The Cleric's Thunder and Lightning.** The second step of the Cleric's basic chain, pressed after almost every Earth's Retribution, is modeled at its recorded size. So are Condemnation's cooldown reset on a critical hit and Multi-Hit, and Chain of Torment's longer and faster damage over time; every top KR Cleric takes them.
+
+**Woven basic attacks deal damage.** Most classes tap 20–30 basic-attack steps a minute between skills. Their time was already in the measured skill timings; now their damage and MP are too, at each class's recorded rate after each skill (most after Rending Blow, Combustion, Incandescent Blow, Ice Chain, Tempest Shot and Savage Roar). The Cleric hardly weaves, and there is too little Templar data, so neither changes.
+
+**Checked against the recorded fights and left as it is.** Neither the recorded Cleric nor the KR logs ever press Judgment Thunder, which the model still uses for about 30% of the Cleric's simulated damage; it is flagged for review in the [open investigations](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/open-investigations.md#kit-gaps-from-the-recorded-casts-pets-and-mp-18-october).
+
+Community build presets are scored again under the updated model once the sharing server runs this version.
+
 ## Front and back hits in the boss model: Back Attack and the positional Genus lines now count (0.2.308)
 
 **The boss model now knows where your hits land.** Until now the boss scenario counted every hit as coming from the front. Front Attack lines counted on every hit and Back Attack lines on none; the Back Attack stat never even reached the damage formula. Now each class's direct hits land from the front, from behind and from the side in the shares recorded on bosses. The shares come from 54 characters' boss hits in shared logs and diagnostic captures:

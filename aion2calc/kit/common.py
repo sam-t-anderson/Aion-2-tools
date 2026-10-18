@@ -13,6 +13,8 @@ effective level.  The pieces that are the same for every class live here:
   content is simulated without code changes (exactly as ``sorcerer.py`` does).
 * :func:`spec_options` — the legal specialization combinations per skill, used
   by the optimizer.
+* :func:`add_weave` — the damage of the basic-attack steps players weave between
+  skills, at each class's recorded rate.
 
 Numbers the client does not expose (animation lengths, the size of a few
 "extra damage" effects, how often a boss can be broken) are collected in each
@@ -26,7 +28,7 @@ from dataclasses import replace
 from .base import ClassData, spec_slots
 from .sorcerer import Kit  # single definition of the container; re-exported here
 
-__all__ = ["Kit", "ms", "fallback_to_generic", "spec_options"]
+__all__ = ["Kit", "ms", "fallback_to_generic", "spec_options", "add_weave"]
 
 
 def ms(v) -> float:
@@ -60,6 +62,44 @@ def fallback_to_generic(A: dict, policy: list, build, cd: ClassData, notes: list
             A[k] = replace(a, cast=timing[k]) if timing and k in timing else a
             policy.insert(max(0, len(policy) - 1), k)
             notes.append(f"{a.name}: not in the hand-written kit, simulated from its tooltip")
+
+
+def add_weave(A: dict, weave: dict, flat: float, coef: float, *, mp: float = 0.0,
+              element: str | None = None, skip: tuple = ()) -> None:
+    """Woven basic-attack steps (0.2.309).
+
+    Between two skills players tap a step of the class's basic-attack chain and
+    cancel it after 0.10-0.16 s.  The kits' measured action times already hold
+    that time (docs/methodology.md "Measured action times"); this adds the steps'
+    damage and MP: ``weave["after"][key]`` steps after a skill recorded often
+    enough, ``weave["per_press"]`` after any other, none after ``skip`` (the basic
+    chain pressed on its own).  The rate accumulates and each whole step lands as
+    one hit, so per-hit bonuses (Critical Attack, flat additions) count once a
+    step.  ``weave["steps"]`` gives each step's name, its share of the woven steps
+    and its damage per press against the first step (``flat`` / ``coef``); steps
+    are dealt to keep those shares.  Mutates ``A`` in place.
+    """
+    after, default, steps = weave.get("after", {}), weave.get("per_press", 0.0), weave["steps"]
+    for key, a in list(A.items()):
+        n = after.get(key, default)
+        if key in skip or n <= 0:
+            continue
+
+        def on_cast(sim, act, inner=a.on_cast, n=n):
+            if inner is not None:
+                inner(sim, act)
+            st = sim.kit_state.setdefault("weave", {"due": 0.0, "dealt": [0] * len(steps)})
+            st["due"] += n
+            while st["due"] >= 1.0 - 1e-9:
+                st["due"] -= 1.0
+                total = sum(st["dealt"]) + 1
+                i = max(range(len(steps)), key=lambda j: steps[j][1] * total - st["dealt"][j])
+                st["dealt"][i] += 1
+                name, _, ratio = steps[i]
+                sim.hit(f"{name} (woven)", flat * ratio, coef * ratio, element=element)
+                if mp:
+                    sim.gain_mp(mp)
+        A[key] = replace(a, on_cast=on_cast)
 
 
 def spec_options(cd: ClassData, build) -> dict[int, list[tuple]]:

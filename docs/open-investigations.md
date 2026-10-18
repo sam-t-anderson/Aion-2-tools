@@ -303,6 +303,16 @@ The follow-ups above were checked against the private diagnostics archive: the d
   - Slots 1 and 5: Back Attack is worth 0.11–0.29% and Front Attack 0.05–0.31%, against 0.36–0.86% for PvE Attack.
   - Slots 3, 6 and 9: Back Attack Critical Hit comes close to Critical Hit only for the Assassin (1.44% against 1.53%).
 
+## Kit gaps from the recorded casts, pets and MP (18 October)
+
+The four kit gaps the measured action times exposed (Spiritmaster presses, Smashing Blow, the Cleric's Thunder and Lightning, woven basic attacks) were measured from the diagnostic captures and closed in 0.2.309 ([methodology](methodology.md#kit-gaps-from-the-measured-action-times-02309)). What the records showed, and what stays open:
+
+- **The Spirits cast on their own records.** Each pet's skill uses arrive as casts from the pet, so a summon's Spirit can be followed through its life: it uses its skill about 0.3 s after the summon press, and the Fire and Earth Spirits keep using it on the 3 s Spirit Skill Cooldown for several seconds while Water and Wind rarely do. Several Spirits are out at once. The meter credits the summon's own skill to the summon and leaves the Spirits' other skills on their own rows, as the KR logs do.
+- **Dimensional Control is a reaction, not a rotation slot.** 97% of its presses come within 1 s of a Spirit skill. The recorded players press it after 75–83% of the summons but after a third of the Spirits' other skills, though they had the time (they pressed Combustion instead); the model presses it whenever a window is open.
+- **MP readings settle the Gladiator's sustain.** In the recording player's MP feed, Rending Blow costs 94 and every basic-attack step returns 140–180; Smashing Blow returns nothing of its own (the +50 that sometimes follows it is Rending Blow's "Restores 50 MP on landing a Critical Hit").
+- **The Cleric does not use Judgment Thunder.** The recorded Cleric and all ten KR logs press Earth's Retribution → Thunder and Lightning → Discharge and Condemnation (30–43% of the recorded damage, 53% of KR's), never Judgment Thunder. The kit takes Judgment Thunder and its Divine Punishment companion from a 0.2.256 community parse, and with them it is about 30% of the simulated damage. Condemnation crits 62–87% of the time in the recording, three times the player's other skills; with its cooldown-reset specialization that alone keeps it near continuous, but the median loadout's modelled crit chance is 5%. *Open:* Judgment Thunder's real damage or cast, and where Condemnation's crit comes from.
+- **The KR metric cannot credit basic-chain steps 2 and 3.** They have KR codes but no global catalog entry, so the KR side drops them from its ceiling while the simulated side loses that share; adding the woven steps costs the Assassin, Chanter and Ranger 0.01–0.02 of fidelity by construction. Steps after a Dodge (up to 40% of a class's woven steps) are left out with the Dodge.
+
 ## Classification review of recent uploads (16 October): one real defect, the rest data-gated
 
 The 51 newest public logs on the live server (889 encounter contexts, 15–16 October, all Live Meter sessions) tabulated by instance, difficulty, encounter type and boss role:

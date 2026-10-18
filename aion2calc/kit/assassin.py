@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from ..sim.engine import Action
 from .base import Build, ClassData
-from .common import Kit, fallback_to_generic, ms, spec_options  # noqa: F401
+from .common import Kit, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401
 
 __all__ = ["build_kit", "spec_options"]
 
@@ -60,6 +60,17 @@ ASSUME = {
     "breaking_frac": 0.76,        # Quick Slice -> Breaking Slice combo step (~0.76x the base)
     "savage_roar_cadence": 5.0,   # Savage Roar maintains the Insignia stacks on a cadence; it is not a
                                   #   spammable filler (a real parse put it at ~5% of damage, not a third)
+}
+
+#: The basic-attack chain's three steps (name, share of the woven steps, damage per press against
+#: the first step), the woven steps after each press and after any press recorded too rarely (the
+#: median of the per-skill rates), from the recorded fights (0.2.309; docs/methodology.md "Woven
+#: basic attacks").
+WEAVE = {
+    "steps": (("Quick Slice", 0.37, 1.00), ("Swift Slice", 0.30, 1.49), ("Breaking Slice", 0.33, 1.14)),
+    "after": {"savage_roar": 0.66, "insignia_explosion": 0.04, "heart_gore": 0.02, "ambush": 0.0,
+              "shadowstrike": 0.04, "infiltrate": 0.11, "triniel": 0.06},
+    "per_press": 0.04,
 }
 
 
@@ -264,6 +275,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "quick_slice") -> Kit:
 
     policy = _policy(A, filler)
     fallback_to_generic(A, policy, build, cd, notes)
+    add_weave(A, WEAVE, qs_f, qs_c, mp=100 * (1.2 if has("QS", 1) else 1.0), skip=("quick_slice",))
     return Kit(actions=A, hooks=[hook], cond_mods=[], static=static, policy=policy,
                filler=filler, notes=notes, levels=L)
 

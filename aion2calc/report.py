@@ -215,7 +215,8 @@ def build_from_summary(summary: dict):
                for k, v in data["specs"].items()}
     b.daevanion = set(data["daevanion_nodes"])
     policy = [e if " [" not in e else (e.split(" [")[0], e.split(" [")[1][:-1]) for e in summary["policy"]]
-    return b, policy
+    from .opt.rotation import with_essentials
+    return b, with_essentials(policy, kit_module(cls).build_kit(b, cd))
 
 
 def rerender(out_dir: str) -> str:

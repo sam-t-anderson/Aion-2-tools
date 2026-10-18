@@ -204,8 +204,9 @@ counts casts (`combat/actions.pressed`).
   Keen Strike 0.40, Sorcerer Flame Arrow 0.73, Chanter Onslaught 0.94, and the
   Assassin's Quick Slice, which lands all three steps in one cast, 1.93. A woven
   step's time goes to the skill it follows (0–0.15 s; Rending Blow 0.05 s on
-  average), but it deals no modelled damage. The basic chain as a whole is
-  2.8 % of the Gladiator's KR damage, about 14 % of the Assassin's and 12 % of
+  average); since 0.2.309 its damage is modelled too
+  ([woven basic attacks](#woven-basic-attacks-02309)). The basic chain as a whole
+  is 2.8 % of the Gladiator's KR damage, about 14 % of the Assassin's and 12 % of
   the Chanter's.
 * **Charged skills count their charge:** the extra time into the press over the
   previous skill's usual gap, plus the release (Ranger Deadshot 0.72, Cleric Bolt
@@ -242,15 +243,107 @@ players' boss fights (the same captures the timings came from):
 | Templar | 0.177, unchanged | — |
 
 The measured skills are faster than the estimates, so the simulation casts more
-and the extra time goes to each class's filler. That exposes what the slow
-estimates had absorbed. The Spiritmaster kit does not model Dimensional
-Control, Elemental Fusion casts or the summon presses, about a quarter of a
-recorded Spiritmaster's active time. The Gladiator's Smashing Blow is a free
-filler, although the game opens it only after Rending Blow. The Cleric's
-Thunder and Lightning step is missing. Woven basic-attack damage is not
-modelled. Those are the next kit fixes. Re-fitting `ASSUME` to win the fidelity
-back only pushed knobs to their bounds (for example halving the parse-measured
-Assassin combo fractions), so it was not done.
+and the extra time goes to each class's filler. That exposed what the slow
+estimates had absorbed: the Spiritmaster's Dimensional Control, Elemental Fusion
+and summon presses (about a quarter of a recorded Spiritmaster's active time),
+Smashing Blow (a free filler, although the game opens it only after Rending
+Blow), the Cleric's Thunder and Lightning step and the damage of woven basic
+attacks. 0.2.309 models them (next two sections). Re-fitting `ASSUME` to win the
+fidelity back only pushed knobs to their bounds (for example halving the
+parse-measured Assassin combo fractions), so it was not done.
+
+### Kit gaps from the measured action times (0.2.309)
+
+Measured from the same diagnostic captures, now with the pets' recorded casts
+and hits, the recording player's MP readings and the boss fights' damage.
+
+* **Spiritmaster: the summon cycle.** The recorded Spiritmasters press their four
+  summons on cooldown (16–19 a minute, 0.24 a press). A summon's Spirit uses its
+  skill about 0.3 s after the press (the skill the meter credits to the summon),
+  and the Fire and Earth Spirits stay and use it again on the 3 s Spirit Skill
+  Cooldown: per summon, 1.8 more uses for the Fire Spirit, 1.35 for Earth, 0.5
+  for Wind and 0.15 for Water, with 0.85–3.3 basic attacks at about a tenth of
+  the skill hit. Every Spirit skill opens Dimensional Control for about a second
+  (97 % of the recorded presses come within 1 s of one) and adds an element; four
+  grant Four Elements, which Elemental Fusion spends. Both are presses now (0.36
+  and 0.34) instead of firing on their own, with their "Extra damage after 3s"
+  specializations at the recorded size (0.36 and 0.24 of the hit), Elemental
+  Fusion's 25 % regain and the Ancient Spirit's outright grants. The Ancient
+  Spirit attacks through its 30 s (21 basic attacks, its skill every seventh)
+  instead of casting every 3 s, Spirit's Descent procs on the caster's hits for
+  10 s after a summon (30 s after the Ancient Spirit), and the caster's procs no
+  longer fire on the Spirits' hits. A dummy-optimized rotation presses
+  Dimensional Control about 33 times a minute: an attentive player's rate. The
+  recorded players press it 15–18 times (they catch 75–83 % of the windows a
+  summon opens but a third of the others) and KR's top players about 21.
+* **Gladiator: Smashing Blow.** Smashing Blow follows 85–94 % of the recorded
+  Rending Blows, at most 2.9 s later, and almost never comes without one, so it
+  now needs Rending Blow's chain window. It restores no MP of its own: in the
+  recording player's MP readings Rending Blow costs 94 and every basic-attack
+  step returns 140–180, so the flat restore Smashing Blow carried is gone and the
+  basic chain pressed on its own (Keen Strike → Rupture Strike → Wrathful
+  Strike, one step a press) is the filler. Keen Strike's specializations ride its
+  own step: on every press, the bundled build's "−1s Ruinous Blow cooldown on
+  hit" had Ruinous Blow cast 4 times a minute for 48 % of the damage; the recorded
+  Gladiators cast it 2.2–2.6 times, the model now 2.3.
+* **Cleric: Thunder and Lightning.** The Cleric's basic chain is Earth's
+  Retribution → Thunder and Lightning → Discharge. Thunder and Lightning follows
+  88 % of the recorded Earth's Retributions at 1.09–1.16 times its damage (0.55
+  a press). Condemnation's cooldown reset on a critical hit and Multi-Hit, and
+  Chain of Torment's longer and faster damage over time are modelled too, since
+  every top KR Cleric takes them; the reset follows the modelled crit chance,
+  which for the median loadout is low (5 %).
+* **Saved priority lists.** A kit can name essential actions (the Spiritmaster's
+  summons, Dimensional Control and Elemental Fusion). A saved list with none of
+  them was made before they existed, so the planner, the log review and the
+  bundled results put them in front when they replay it; an older optimization
+  keeps its pets.
+
+Effect on the calibration (optimized rotation, typical build, 180 s dummy; boss
+DPS of the bundled optimized build as the planner replays it):
+
+| Class | KR fidelity | Own-capture overlap | Boss DPS |
+|---|---|---|---|
+| Spiritmaster | 0.409 → 0.753 | 0.44 → 0.73 (2 fights) | 12,977 → 14,325 |
+| Gladiator | 0.346 → 0.462 | 0.30 → 0.45 (7) | 21,640 → 17,389 |
+| Cleric | 0.433 → 0.446 | 0.52 → 0.52 (4) | 6,880 → 7,129 |
+| Assassin | 0.514 → 0.495 | 0.58 → 0.56 (4) | 6,413 → 6,741 |
+| Chanter | 0.871 → 0.841 | 0.53 → 0.50 (5) | 8,652 → 9,424 |
+| Sorcerer | 0.688 → 0.686 | 0.66 → 0.70 (5) | 19,400 → 19,541 |
+| Ranger | 0.697 → 0.629 | no exported fight | 10,035 → 10,095 |
+| Templar | 0.177, unchanged | — | 10,968, unchanged |
+
+The woven steps cost the Assassin, Chanter and Ranger some fidelity partly by
+construction: basic-chain steps 2 and 3 are not catalog skills, so the KR side
+drops them from its ceiling while the simulated side loses that share (taking
+them out restores 0.01–0.02). The Ranger also presses Snipe on its own less,
+because the woven steps return MP for Tempest Shot; that is the recorded
+Rangers' pattern (Tempest Shot 63 a minute, Snipe on its own about 4), not
+KR's.
+
+### Woven basic attacks (0.2.309)
+
+The measured action times already hold the woven steps' time, so the kits add
+their damage and MP (`kit.common.add_weave`): after each press, the steps
+recorded after that skill (15 or more presses), and after any other press the
+median of the class's per-skill rates. The rate accumulates and each whole step
+lands as one hit, so per-hit bonuses count once a step, and the steps are dealt
+in their recorded mix (about 40 / 32 / 28 % for steps 1, 2 and 3). A step deals
+its recorded damage per press against the first step, and restores the first
+step's MP (the Gladiator's MP readings show every step returning at least that).
+
+| Class | Woven steps after the main presses | Any other press | Steps 2 and 3 vs step 1 |
+|---|---|---|---|
+| Gladiator | Rending Blow 0.38, Smashing Blow 0.36, Overhead Slam 0.17 (+ Upward Strike 0.12), Crushing Wave 0.73 | 0.10 | 1.17, 1.60 |
+| Assassin | Savage Roar 0.66, Insignia Explosion 0.04 | 0.04 | 1.49, 1.14 |
+| Chanter | Incandescent Blow 0.64 (+ Bursting Blow 0.51), Dark Crush 0.43 (+ Piercing Strike 0.16) | 0.09 | 1.19, 1.67 |
+| Sorcerer | Ice Chain 0.39, Blaze 0.03, Firestorm 0.04 | 0.04 | 1.10, 1.40 |
+| Ranger | Tempest Shot 0.32, Marking Shot 0.12 | 0.05 | 1.25, 1.45 (the others' average; no exported Ranger fight) |
+| Spiritmaster | Combustion 0.34, Dimensional Control 0.09, summons 0–0.03 | 0.02 | 1.29, 1.45 |
+
+The Cleric weaves almost nothing (8 steps in 873 presses) and the one recorded
+Templar made too few presses, so neither kit weaves. Steps after a Dodge (up to
+40 % of a class's woven steps) are left out with the Dodge.
 
 ### Chain, variant and combo skills, and known catalog gaps
 
@@ -288,9 +381,15 @@ notes / `ASSUME` for when one is available, not yet modelled):
   coefficient first.
 * **Assassin** — Savage Smash (~6%, 3.3x Quick Slice) and Savage Back Kick (~6%,
   1.45x), and Heart Gore's cadence (under-cast vs parses).
-* **Spiritmaster** — the single-Water-Spirit pet stream approximates a real
-  multi-spirit (Fire/Earth/Ancient) rotation; per-spirit skills and pet basic
-  attacks are folded into one stream rather than modelled individually.
+* **Spiritmaster** — the Spirits' cadence is measured per summon from two
+  players' boss fights (0.2.309). The KR logs (a dummy, higher levels) show far
+  larger Spirit basic-attack and Ancient Spirit shares, and the model presses
+  Dimensional Control at an attentive player's rate.
+* **Cleric** — neither the recorded Cleric nor the KR logs ever press Judgment
+  Thunder, which the model takes from a 0.2.256 community parse (with Divine
+  Punishment about 30 % of the simulated damage). Condemnation is 30–53 % of the
+  real damage at a 62–87 % crit rate, far above the median loadout's modelled
+  crit chance.
 * **Sorcerer** — Burst / Pyroclasm / Cold Wave are partly covered by the Flame
   Arrow chain multipliers; a dedicated capture would refine them.
 * **Gladiator** — on the median loadout the kit is MP-tight (Rending Blow costs

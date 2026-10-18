@@ -3,15 +3,21 @@
 The Spiritmaster's damage is half pet, and the generic tooltip model sees none
 of the pet.  This kit adds:
 
-* **The summoned Spirit as a background damage stream.**  Once summoned the
-  Spirit attacks on its own, independent of the caster's global cooldown: a
-  basic-attack stream plus its skill on the Spirit Skill Cooldown.  Each Spirit
-  skill also triggers Dimensional Control and advances the Four Elements gauge.
-* **Elemental Fusion.**  Every four Spirit skills the Four Elements gauge fills
-  and Elemental Fusion fires automatically.
+* **The summon cycle.**  The four summons are pressed on cooldown.  Each brings
+  its Spirit, which uses its skill on arrival and, while it stays, again on the
+  Spirit Skill Cooldown; the Spirits' basic attacks are small.  How many skill
+  uses and basic attacks a summon yields is measured from recorded fights.
+* **Dimensional Control and Elemental Fusion as presses.**  Every Spirit skill
+  opens Dimensional Control for about a second and adds an element; four
+  elements grant Four Elements, which Elemental Fusion spends.  Both are pressed
+  by the caster, so their action time is charged (0.2.309; before, they fired
+  on their own and the time went to Combustion).
+* **The Ancient Spirit** (stigma): 30 s of basic attacks, its skill every seventh
+  one, each skill granting Four Elements.
 * **Jointstrike: Curse** (direct hit + the Spirit's coordinated-assault hit +
-  the Curse damage-over-time), and the caster buffs / crit procs (Spirit Strike,
-  Corrode, Element Unification, Consecutive Countercurrent).
+  the Curse damage-over-time), and the caster buffs / procs (Spirit Strike,
+  Corrode, Element Unification, Consecutive Countercurrent, Spirit's Descent).
+  The caster's procs fire on the caster's own hits, not the Spirits'.
 
 Every damage number comes from ``data/global/classes/spiritmaster.json``; the
 pet cadence and basic-attack size — which the client does not spell out — live
@@ -21,7 +27,7 @@ from __future__ import annotations
 
 from ..sim.engine import EPS, Action
 from .base import Build, ClassData
-from .common import Kit, fallback_to_generic, ms, spec_options  # noqa: F401
+from .common import Kit, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401
 
 __all__ = ["build_kit", "spec_options"]
 
@@ -35,19 +41,32 @@ SID = dict(
     ATERROR=16700000, SIPHON=16060000, ANCIENT=16250000,
 )
 
-#: Action time in seconds at 0% Combat Speed.  Combustion and Jointstrike: Curse are measured (0.2.307)
-#: from recorded casts (docs/methodology.md "Measured action times"); the rest keep their estimates:
-#: the captures only weave Cold Shock between skills, and Soul's Cry and the stigmas have too few presses.
+#: Action time in seconds at 0% Combat Speed.  Combustion, Jointstrike: Curse (0.2.307), the summons,
+#: Dimensional Control and Elemental Fusion (0.2.309) are measured from recorded casts (docs/methodology.md
+#: "Measured action times"); the rest keep their estimates: the captures only weave Cold Shock between
+#: skills, and Soul's Cry and the stigmas have too few presses.
 TIMING = {
     "cold_shock": 0.85, "combustion": 0.50, "jointstrike_curse": 0.46, "soul_cry": 0.95,
     "chain_followup": 0.55, "stigma": 1.00,
+    "summon": 0.24, "dimensional_control": 0.36, "elemental_fusion": 0.34,
+    "spirit_arrival": 0.30,       # summon press -> the Spirit uses its skill (recorded pet casts)
+    "dc_window": 1.0,             # how long a Spirit skill keeps Dimensional Control usable (recorded:
+                                  #   97% of presses within 1 s of a Spirit skill)
     "pet_skill_period": 3.0,      # the Spirit Skill Cooldown listed in the data
-    "pet_swing": 1.8,             # Spirit basic-attack interval
+    "pet_swing": 0.5,             # a Spirit's basic-attack interval (recorded)
+    "ancient_swing": 1.4,         # the Ancient Spirit's basic attacks spread over its 30 s (recorded: 21)
 }
 
 ASSUME = {
-    "spirit": "WATERSP",          # the single-target Spirit a DPS build keeps out
-    "pet_basic_frac": 0.35,       # a Spirit basic attack vs its skill (not in the client data)
+    # Per summon, recorded in two Spiritmasters' boss fights (0.2.309): the Spirit's skill uses after its
+    # arrival skill (the Fire and Earth Spirits stay and keep casting; Water and Wind rarely do) ...
+    "follow_ups": {"FIRESP": 1.8, "EARTHSP": 1.35, "WINDSP": 0.5, "WATERSP": 0.15},
+    # ... and its basic attacks.
+    "basics": {"FIRESP": 3.3, "EARTHSP": 1.9, "WINDSP": 2.3, "WATERSP": 0.85},
+    "pet_basic_frac": 0.10,       # a Spirit basic attack vs its skill hit (recorded 0.06-0.15; was 0.35)
+    "ancient_basic_frac": 0.19,   # an Ancient Spirit basic attack vs its skill hit (recorded 0.18-0.20)
+    "dc_delayed_frac": 0.36,      # Dimensional Control "Extra damage after 3s" vs its hit (recorded 0.35-0.38)
+    "fusion_delayed_frac": 0.24,  # Elemental Fusion "Extra damage after 3s" vs its hit (recorded 0.23-0.25)
     "fusion_every": 4,            # Spirit skills per Four Elements -> Elemental Fusion
     "eunify_stacks": 5,           # Element Unification Critical Damage stacks maintained
     "ancient_duration": 30.0,     # Ancient Spirit stigma: a 30s window of a much stronger pet
@@ -55,6 +74,23 @@ ASSUME = {
     "chain_frac": 1.5,            # Ashy Call (Combustion chain); community L45 parses put detected
                                   #   chains at ~1.4-1.9x, so 1.5 (was 0.60) class-wide
 }
+
+#: The basic-attack chain's three steps (name, share of the woven steps, damage per press against
+#: the first step), the woven steps after each press and after any press recorded too rarely (the
+#: median of the per-skill rates), from the recorded fights (0.2.309; docs/methodology.md "Woven
+#: basic attacks").
+WEAVE = {
+    "steps": (("Cold Shock", 0.44, 1.00), ("Vacuum Explosion", 0.32, 1.29), ("Earth Tremor", 0.24, 1.45)),
+    "after": {"combustion": 0.34, "dimensional_control": 0.09, "elemental_fusion": 0.0, "jointstrike_curse": 0.06,
+              "summon_fire": 0.0, "summon_earth": 0.03, "summon_water": 0.0, "summon_wind": 0.0},
+    "per_press": 0.02,
+}
+
+#: The four summons: kit key, Spirit name, element.
+SPIRITS = (("FIRESP", "Fire", "fire"), ("EARTHSP", "Earth", "earth"), ("WATERSP", "Water", "water"),
+           ("WINDSP", "Wind", "wind"))
+#: Four Elements stays until Elemental Fusion spends it.
+_HELD = 1.0e6
 
 
 def build_kit(build: Build, cd: ClassData, filler: str = "cold_shock") -> Kit:
@@ -102,61 +138,115 @@ def build_kit(build: Build, cd: ClassData, filler: str = "cold_shock") -> Kit:
         ev = cd.vals(SID["EUNIFY"], lv("EUNIFY"))
         static["crit_dmg"] = static.get("crit_dmg", 0.0) + (ev[0] / 100.0) * ASSUME["eunify_stacks"]
 
-    # --- the Spirit: a background damage stream -----------------------------
-    spk = ASSUME["spirit"]
-    sp_f, sp_c = (dmg(spk) if lv(spk) > 0 else (0.0, 0.0))
+    # --- the Spirits ------------------------------------------------------------
     dc_f, dc_c = (dmg("DIMCTRL") if lv("DIMCTRL") > 0 else (0.0, 0.0))
     fu_f, fu_c = (dmg("FUSION") if lv("FUSION") > 0 else (0.0, 0.0))
     # Ancient Spirit (stigma) is the real endgame pet: a much stronger summon for 30s.
-    # While its window is up the pet stream uses its damage instead of the base Spirit's.
     anc_f = anc_c = 0.0
+    anc_mult = 1.0
     if stig("ANCIENT"):
         av = cd.vals(SID["ANCIENT"], build.stigmas[SID["ANCIENT"]])
         anc_f, anc_c = float(av[0][0]), float(av[0][1]) / 100.0
+        anc_mult = (1.1 if st("ANCIENT", 5) else 1.0) * (1.2 if st("ANCIENT", 20) else 1.0)
 
     # crit procs / DoT-rider passives (hooks)
     corrode = _proc(cd, lv, "CORRODE", 1, 2, None)
     counter = _proc(cd, lv, "COUNTER", 0, 1, None)
+    descent = _proc(cd, lv, "SDESCENT", 0, 1, None)
 
-    def start_pet(sim):
-        pet = sim.kit_state.setdefault("spiritmaster_pet", {"started": False, "fusion": 0})
-        if pet["started"] or sp_f <= 0:
+    def spirit_skill(sim, four=False):
+        """A Spirit used its skill: Dimensional Control opens briefly and an element is gained (the
+        Ancient Spirit grants Four Elements outright); none is gained while Four Elements is up."""
+        if dc_f:
+            sim.buff("dc_window", TIMING["dc_window"])
+        if not fu_f or sim.has_buff("four_elements"):
             return
-        pet["started"] = True
-        period, swing = TIMING["pet_skill_period"], TIMING["pet_swing"]
-        base_f, base_c = sp_f * ASSUME["pet_basic_frac"], sp_c * ASSUME["pet_basic_frac"]
+        pet = sim.kit_state.setdefault("spiritmaster_pet", {"elements": 0})
+        pet["elements"] = ASSUME["fusion_every"] if four else pet["elements"] + 1
+        if pet["elements"] >= ASSUME["fusion_every"]:
+            pet["elements"] = 0
+            sim.buff("four_elements", _HELD)
 
-        def pet_skill(t):
-            if t > sim.cfg.duration + EPS:
-                return
-            if anc_f and t < pet.get("ancient_until", -1.0):
-                sim.hit("Ancient Spirit Skill", anc_f, anc_c)
-            else:
-                sim.hit("Spirit Skill", sp_f, sp_c, element="water")
-            if dc_f:
-                sim.hit("Dimensional Control", dc_f, dc_c)
-            pet["fusion"] += 1
-            if fu_f and pet["fusion"] >= ASSUME["fusion_every"]:
-                pet["fusion"] = 0
-                sim.hit("Elemental Fusion", fu_f, fu_c)
-            sim.schedule(t + period, lambda tt=t + period: pet_skill(tt))
-
-        def pet_basic(t):
-            if t > sim.cfg.duration + EPS:
-                return
-            sim.hit("Spirit (basic)", base_f, base_c, element="water")
-            sim.schedule(t + swing, lambda tt=t + swing: pet_basic(tt))
-        sim.schedule(period, lambda: pet_skill(period))
-        sim.schedule(swing, lambda: pet_basic(swing))
+    def descend(sim, seconds):
+        # Spirit's Descent: the caster's hits can proc it for 10 s after a summon (30 s after the Ancient's)
+        cur = sim.buffs.get("spirit_descent")
+        if cur is None or cur.until < sim.t + seconds:
+            sim.buff("spirit_descent", seconds)
 
     def hook(sim, t, info):
-        start_pet(sim)                 # the Spirit is out from the opener
-        if "proc" in info["tags"] or "dot" in info["tags"]:
+        if {"proc", "dot", "pet"} & set(info["tags"]):
             return
         if corrode and sim.proc("corrode", corrode[0] * ASSUME["crit_rate"], 1.0, t):
             sim.hit("Corrode", corrode[1], corrode[2], tags=("proc",))
         if counter and sim.has_debuff("curse", t) and sim.proc("countercurrent", counter[0], 1.0, t):
             sim.hit("Consecutive Countercurrent", counter[1], counter[2], tags=("proc",))
+        if descent and sim.has_buff("spirit_descent", t):
+            boost = 1.5 if sim.has_buff("descent_boost", t) else 1.0     # Ancient Spirit level 10
+            if sim.proc("descent", min(1.0, descent[0] * boost), 1.0, t):
+                sim.hit("Spirit's Descent", descent[1], descent[2], mult=boost, tags=("proc",))
+
+    def summon_action(key, label, element):
+        f, c = dmg(key)
+        if key == "WATERSP" and has(key, 2):
+            c *= 1.1                                  # +10% Water Spirit Attack
+        mods = {"crit_dmg": 0.2} if key == "FIRESP" and has(key, 2) else None
+        name, period = cd.skills[SID[key]]["name"], TIMING["pet_skill_period"]
+        follow, basics = ASSUME["follow_ups"][key], ASSUME["basics"][key]
+        kb = ASSUME["pet_basic_frac"] * basics
+
+        def use(sim):
+            sim.hit(name, f, c, element=element, tags=("pet",), mods=mods)
+            spirit_skill(sim)
+
+        def maybe_use(sim, frac):
+            if sim.proc(f"{key.lower()}_follow_up", frac, 0.0, sim.t):
+                use(sim)
+
+        def summon_cast(sim, a):
+            t0 = sim.t + TIMING["spirit_arrival"]
+            descend(sim, 10.0)
+            sim.schedule(t0, lambda: use(sim))
+            whole = int(follow)
+            for i in range(1, whole + 1):
+                sim.schedule(t0 + i * period, lambda: use(sim))
+            if follow > whole:
+                sim.schedule(t0 + (whole + 1) * period, lambda: maybe_use(sim, follow - whole))
+            if kb:
+                n = max(1, round(basics))
+                sim.hit(f"{label} Spirit (basic)", f * kb, c * kb, element=element, tags=("pet",), mods=mods,
+                        n=n, spread=TIMING["pet_swing"] * (n - 1), delay=TIMING["spirit_arrival"] + TIMING["pet_swing"])
+        return Action(f"summon_{label.lower()}", name, SID[key], TIMING["summon"],
+                      cooldown=cd.cd(SID[key], lv(key)), mp=cd.mp(SID[key], lv(key)) * (0.5 if has(key, 1) else 1.0),
+                      element=element, on_cast=summon_cast)
+
+    for key, label, element in SPIRITS:
+        if lv(key) > 0:
+            A[f"summon_{label.lower()}"] = summon_action(key, label, element)
+
+    if dc_f:
+        dc_mods = {"multihit": 0.5} if has("DIMCTRL", 3) else None
+
+        def dc_cast(sim, a):
+            sim.buff("dc_window", 0.0)                    # spent
+            sim.hit("Dimensional Control", dc_f, dc_c, mods=dc_mods)
+            if has("DIMCTRL", 2):
+                k = ASSUME["dc_delayed_frac"]
+                sim.hit("Dimensional Control (delayed)", dc_f * k, dc_c * k, delay=3.0)
+            sim.gain_mp(100)
+        A["dimensional_control"] = Action("dimensional_control", "Dimensional Control", SID["DIMCTRL"],
+                                          TIMING["dimensional_control"], requires=("dc_window",), on_cast=dc_cast)
+
+    if fu_f:
+        def fusion_cast(sim, a):
+            sim.buff("four_elements", 0.0)                # spent
+            sim.hit("Elemental Fusion", fu_f, fu_c)
+            if has("FUSION", 2):
+                k = ASSUME["fusion_delayed_frac"]
+                sim.hit("Elemental Fusion (delayed)", fu_f * k, fu_c * k, delay=3.0)
+            if has("FUSION", 5) and sim.proc("four_elements_regain", 0.25, 0.0, sim.t):
+                sim.buff("four_elements", _HELD)
+        A["elemental_fusion"] = Action("elemental_fusion", "Elemental Fusion", SID["FUSION"],
+                                       TIMING["elemental_fusion"], requires=("four_elements",), on_cast=fusion_cast)
 
     # ----------------------------------------------------------------- actives
     cs_f, cs_c = dmg("COLD")
@@ -192,7 +282,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "cold_shock") -> Kit:
         mods = {"multihit": 0.5} if has("CURSE", 2) else None
         sim.hit("Jointstrike: Curse", jc_f, jc_c, tags=tags, mods=mods)
         if join_f:
-            sim.hit("Jointstrike: Curse (Spirit)", join_f, join_c, element="water")
+            sim.hit("Jointstrike: Curse (Spirit)", join_f, join_c, element="water", tags=("pet",))
         sim.dot("curse", "Curse", cu_f, cu_c, 1.0, curse_dur)
     A["jointstrike_curse"] = Action("jointstrike_curse", "Jointstrike: Curse", SID["CURSE"],
                                     TIMING["jointstrike_curse"], cooldown=cd.cd(SID["CURSE"], lv("CURSE")) - (2 if has("CURSE", 4) else 0),
@@ -207,11 +297,31 @@ def build_kit(build: Build, cd: ClassData, filler: str = "cold_shock") -> Kit:
                            cooldown=cd.cd(SID["SOULCRY"], lv("SOULCRY")) - (10 if has("SOULCRY", 4) else 0),
                            mp=cd.mp(SID["SOULCRY"], lv("SOULCRY")), on_cast=soulcry_cast)
 
-    # Ancient Spirit (stigma): summon the stronger pet; opens the 30s window used above.
+    # Ancient Spirit (stigma): 30 s of basic attacks with its skill every seventh (fifth at level 15);
+    # each skill grants Four Elements.
     if stig("ANCIENT"):
+        every = 5 if st("ANCIENT", 15) else 7
+        kb = ASSUME["ancient_basic_frac"]
+
+        def ancient_skill(sim, name):
+            sim.hit(name, anc_f, anc_c, mult=anc_mult, tags=("pet",))
+            spirit_skill(sim, four=True)
+
+        def ancient_basic(sim, i, end):
+            if sim.t > end + EPS:
+                return
+            sim.hit("Ancient Spirit (basic)", anc_f * kb, anc_c * kb, mult=anc_mult, tags=("pet",))
+            if i % every == 0:
+                ancient_skill(sim, "Ancient Spirit Skill")
+            sim.schedule(sim.t + TIMING["ancient_swing"], lambda: ancient_basic(sim, i + 1, end))
+
         def ancient_cast(sim, a):
-            pet = sim.kit_state.setdefault("spiritmaster_pet", {"started": False, "fusion": 0})
-            pet["ancient_until"] = sim.t + ASSUME["ancient_duration"]
+            t0, end = sim.t + TIMING["spirit_arrival"], sim.t + ASSUME["ancient_duration"]
+            descend(sim, ASSUME["ancient_duration"])
+            if st("ANCIENT", 10):
+                sim.buff("descent_boost", ASSUME["ancient_duration"])
+            sim.schedule(t0, lambda: ancient_skill(sim, a.name))
+            sim.schedule(t0 + TIMING["ancient_swing"], lambda: ancient_basic(sim, 1, end))
         A["ancient_spirit"] = Action("ancient_spirit", cd.skills[SID["ANCIENT"]]["name"], SID["ANCIENT"],
                                      TIMING["stigma"], cooldown=cd.cd(SID["ANCIENT"], build.stigmas[SID["ANCIENT"]]),
                                      mp=cd.mp(SID["ANCIENT"], build.stigmas[SID["ANCIENT"]]), on_cast=ancient_cast)
@@ -220,12 +330,15 @@ def build_kit(build: Build, cd: ClassData, filler: str = "cold_shock") -> Kit:
     _build_stigmas(A, build, cd, stig, st, notes)
 
     policy = _policy(A, filler)
-    # The Spirit stream (summons), Dimensional Control, Elemental Fusion and the Ancient
-    # Spirit's own hits are accounted for in the pet loop; the generic reading must not re-add them.
+    # The summons, Dimensional Control, Elemental Fusion and the Ancient Spirit are modelled above
+    # (an unlevelled one is left out on purpose); the generic reading must not re-add them.
     pet_ids = {SID[k] for k in ("FIRESP", "WATERSP", "EARTHSP", "WINDSP", "DIMCTRL", "FUSION", "ANCIENT")}
     fallback_to_generic(A, policy, build, cd, notes, exclude=pet_ids)
+    add_weave(A, WEAVE, cs_f, cs_c, mp=100 * (1.2 if has("COLD", 1) else 1.0), element="water", skip=("cold_shock",))
+    essential = tuple(k for k in policy if k == "dimensional_control" or k == "elemental_fusion"
+                      or k.startswith("summon_"))
     return Kit(actions=A, hooks=[hook], cond_mods=[], static=static, policy=policy,
-               filler=filler, notes=notes, levels=L)
+               filler=filler, notes=notes, levels=L, essential=essential)
 
 
 def _proc(cd, lv, key, chance_idx, dmg_idx, icd_idx):
@@ -272,8 +385,11 @@ def _build_stigmas(A, build, cd, stig, st, notes):
 
 
 def _policy(actions: dict, filler: str) -> list:
+    # Dimensional Control's window is brief and an element is lost while Four Elements waits, so both
+    # come before the summons that feed them.
     order = ["ancient_spirit", "enhance", "siphon", "magicblk", "jdestruct", "aterror",
-             "jointstrike_curse", "soul_cry", "combustion"]
+             "dimensional_control", "elemental_fusion", "summon_fire", "summon_earth", "summon_water",
+             "summon_wind", "jointstrike_curse", "soul_cry", "combustion"]
     pol = [k for k in order if k in actions]
     pol.append(filler)
     return pol

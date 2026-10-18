@@ -161,7 +161,7 @@ class PlanContext:
 
     def dps(self, choice: dict | None = None, overrides: dict | None = None, build: Build | None = None,
             loadout: dict | None = None) -> float:
-        from ..opt.rotation import materialize
+        from ..opt.rotation import materialize, with_essentials
         from ..run import prepare
         from ..scenarios import SCENARIOS
         from ..sim.engine import Sim
@@ -172,7 +172,7 @@ class PlanContext:
             return self._cache[key]
         scen = SCENARIOS[self.scenario](lo)
         _, _, kit, stats = prepare(build or self.build, scen)
-        pol = [e for e in self.policy if (e[0] if isinstance(e, tuple) else e) in kit.actions]
+        pol = [e for e in with_essentials(self.policy, kit) if (e[0] if isinstance(e, tuple) else e) in kit.actions]
         res = Sim(stats.derived(), kit.actions, materialize(pol), scen.target, scen.config,
                   hooks=kit.hooks, cond_mods=kit.cond_mods).run()
         self._cache[key] = res.dps

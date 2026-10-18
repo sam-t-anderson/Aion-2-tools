@@ -86,12 +86,12 @@ def test_gladiator_models_upward_strike_and_the_basic_combo():
     b = _gladiator_build()
     res = simulate(b, Scenario(loadout="gladiator_l45_global_median",
                                target=Target(hp_model="dummy"), config=SimConfig(duration=120.0)))
-    dmg = res.damage_by
+    dmg, hits = res.damage_by, res.hits_by
     # The chain and the basic combo now exist and carry real weight (they did not before).
     assert dmg.get("Upward Strike", 0) > 0, sorted(dmg)
     assert dmg.get("Smashing Blow", 0) > 0, sorted(dmg)
     # Upward Strike is the biggest hit in the rotation, as in a real parse (2.1x Overhead).
-    assert dmg["Upward Strike"] >= dmg.get("Overhead Slam", 0)
+    assert dmg["Upward Strike"] / hits["Upward Strike"] > 1.5 * dmg["Overhead Slam"] / hits["Overhead Slam"]
     # Overhead Slam + Upward Strike dominate the single-target rotation.
     assert (dmg["Upward Strike"] + dmg.get("Overhead Slam", 0)) / res.total > 0.4
     # Ruinous Blow is modelled as a multi-strike, so it is a meaningful share (~its
@@ -107,12 +107,13 @@ def test_gladiator_upward_chain_uses_the_measured_fraction():
 
 
 def test_gladiator_basic_string_sustains_mp_and_skips_crowd_control_on_a_dummy():
-    # The weapon basic string restores MP (0.2.257), so the MP-costly Rending Blow weaves at a
-    # real share instead of starving at 0 MP; and because the basic filler is always available
-    # and out-prioritises the low-DPS gap-closers, a dummy rotation skips the crowd-control
-    # skills entirely, as a real parse does.
-    from aion2calc.kit.gladiator import ASSUME
-    assert ASSUME["basic_mp_restore"] > 0
+    # The basic-attack steps restore MP, woven between skills and pressed on their own (0.2.309;
+    # until then a flat restore on Smashing Blow stood in for them), so the MP-costly Rending Blow
+    # weaves at a real share instead of starving at 0 MP; and because the basic chain is always
+    # available and out-prioritises the low-DPS gap-closers, a dummy rotation skips the
+    # crowd-control skills entirely, as a real parse does.
+    from aion2calc.kit.gladiator import WEAVE
+    assert WEAVE["after"]["rending_blow"] > 0
     b = _gladiator_build()
     res = simulate(b, Scenario(loadout="gladiator_l45_global_median",
                                target=Target(hp_model="dummy"), config=SimConfig(duration=120.0)))

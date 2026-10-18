@@ -5,8 +5,11 @@ the generic model does not see the gating or the buffs.  This kit adds:
 
 * **Chain of Torment -> Condemnation.**  Chain of Torment lays a damage-over-time
   debuff that makes Condemnation (a 3s-cooldown nuke) usable; the Cleric spams
-  Condemnation while it is up.
-* **Discharge.**  Earth's Retribution's chain follow-up.
+  Condemnation while it is up, and with its cooldown-reset specialization (every
+  top KR Cleric takes it) again after each critical hit.
+* **The basic chain.**  Earth's Retribution, then Thunder and Lightning (0.2.309;
+  pressed after 88% of Earth's Retributions in the recorded fights), and
+  Discharge, the chain follow-up.
 * **Divine Aura** (a strong cooldown delivered over its duration) and charged
   **Bolt**.
 * **Light of Protection** (+PvE Damage Boost on a 5s cooldown, effectively
@@ -19,6 +22,7 @@ expose live in :data:`TIMING` / :data:`ASSUME`.
 """
 from __future__ import annotations
 
+from ..model.damage import crit_probability
 from ..sim.engine import Action
 from .base import Build, ClassData
 from .common import Kit, fallback_to_generic, ms, spec_options  # noqa: F401
@@ -34,14 +38,14 @@ SID = dict(
     LIGHTPROT=None, ROOTST=None,
 )
 
-#: Action time in seconds at 0% Combat Speed.  Measured (0.2.307) from one recorded global Cleric's
-#: casts (docs/methodology.md "Measured action times"); ``bolt`` is its charge plus the release, and
-#: ``discharge`` the Earth's Retribution chain press, charged to Earth's Retribution at the chain's
-#: chance.  Judgment Thunder keeps its estimate (not pressed in the captures).
+#: Action time in seconds at 0% Combat Speed.  Measured (0.2.307, Thunder and Lightning 0.2.309) from
+#: one recorded global Cleric's casts (docs/methodology.md "Measured action times"); ``bolt`` is its
+#: charge plus the release, and ``discharge`` the Earth's Retribution chain press, charged to Earth's
+#: Retribution at the chain's chance.  Judgment Thunder keeps its estimate (not pressed in the captures).
 TIMING = {
     "earths_retribution": 0.62, "judgment_thunder": 0.85, "chain_of_torment": 0.64,
     "condemnation": 0.52, "debilitating_mark": 0.81, "divine_aura": 0.57, "bolt": 1.56,
-    "chain_followup": 0.55, "stigma": 0.71, "discharge": 0.80,
+    "chain_followup": 0.55, "stigma": 0.71, "discharge": 0.80, "thunder_and_lightning": 0.55,
 }
 
 ASSUME = {
@@ -51,6 +55,8 @@ ASSUME = {
     "chain_frac": 1.5,            # Discharge (Earth's Retribution chain); community L45 parses put
                                   #   detected chains at ~1.4-1.9x, so 1.5 (was 0.85) class-wide
     "discharge_chance": 0.5,      # Earth's Retribution -> Discharge chain trigger
+    "thunder_frac": 1.12,         # Thunder and Lightning (the basic chain's second step, no client
+                                  #   coefficient) per press vs Earth's Retribution — recorded 1.09-1.16
     # Divine Punishment is Judgment Thunder's companion strike (fires "on landing"; the idx5 spec
     # fires it an extra time). A community L45 parse put it ~1.09x Judgment per hit and ~= its total
     # (~11% of damage); it was dropped entirely because the hand cast bypassed the generic reader.
@@ -133,6 +139,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
         mods = {"multihit": 0.5} if has("RETRIB", 3) else None
         sim.hit("Earth's Retribution", re_f, re_c, element="earth", mods=mods)
         sim.gain_mp(110 * (1.2 if has("RETRIB", 1) else 1.0))
+        sim.buff("retribution_chain", sim.cfg.chain_window)
         if sim.proc("discharge", discharge_chance, 0.0, sim.t):
             k = ASSUME["chain_frac"]
             sim.hit("Discharge", re_f * k, re_c * k, element="earth", delay=TIMING["chain_followup"])
@@ -142,6 +149,17 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
     A["earths_retribution"] = Action("earths_retribution", "Earth's Retribution", SID["RETRIB"],
                                      TIMING["earths_retribution"] + discharge_chance * TIMING["discharge"],
                                      element="earth", on_cast=retrib_cast, is_filler=True)
+
+    # Thunder and Lightning: the basic chain's second step, pressed right after Earth's Retribution.
+    # Not in the skill table, so its size is measured against Earth's Retribution.
+    tl = ASSUME["thunder_frac"]
+
+    def thunder_cast(sim, a):
+        sim.buff("retribution_chain", 0.0)            # spent
+        sim.hit("Thunder and Lightning", re_f * tl, re_c * tl)
+    A["thunder_and_lightning"] = Action("thunder_and_lightning", "Thunder and Lightning", 17020000,
+                                        TIMING["thunder_and_lightning"], requires=("retribution_chain",),
+                                        on_cast=thunder_cast)
 
     ju_f, ju_c = dmg("JUDGMENT")
     dp_frac = ASSUME["divine_punishment_frac"]
@@ -162,9 +180,12 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
     tdot_f = float(tv[4][0]) / max(1.0, to_dur)
     tdot_c = float(tv[4][1]) / 100.0 / max(1.0, to_dur) if isinstance(tv[4][1], (int, float)) else 0.0
 
+    to_dur += 3.0 if has("TORMENT", 2) else 0.0           # +3s Damage over Time
+    to_every = 0.5 if has("TORMENT", 5) else 1.0          # Damage over Time interval -50%
+
     def torment_cast(sim, a):
-        sim.hit("Chain of Torment", to_f, to_c, element="earth")
-        sim.dot("torment", "Chain of Torment (DoT)", tdot_f, tdot_c, 1.0, to_dur)
+        sim.hit("Chain of Torment", to_f, to_c, element="earth", tags=("noparry",) if has("TORMENT", 5) else ())
+        sim.dot("torment", "Chain of Torment (DoT)", tdot_f, tdot_c, to_every, to_dur)
     A["chain_of_torment"] = Action("chain_of_torment", "Chain of Torment", SID["TORMENT"],
                                    TIMING["chain_of_torment"], cooldown=cd.cd(SID["TORMENT"], lv("TORMENT")),
                                    mp=cd.mp(SID["TORMENT"], lv("TORMENT")), element="earth", on_cast=torment_cast)
@@ -173,9 +194,14 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
     co_f, co_c = dmg("CONDEMN")
 
     def condemn_cast(sim, a):
-        sim.hit("Condemnation", co_f, co_c, element="earth")
+        sim.hit("Condemnation", co_f, co_c, element="earth", tags=("multi",) if has("CONDEMN", 5) else ())
         if has("CONDEMN", 1):
             sim.gain_mp(100)
+        # "Resets cooldown on landing a Critical Hit": again right away as often as it crits
+        if has("CONDEMN", 4):
+            p = crit_probability(sim.base, sim.target, extra=sim.stat_mods(sim.t).get("crit", 0.0))
+            if sim.proc("condemnation_reset", p, 0.0, sim.t):
+                sim.reset_cd("condemnation")
     A["condemnation"] = Action("condemnation", "Condemnation", SID["CONDEMN"], TIMING["condemnation"],
                                cooldown=cd.cd(SID["CONDEMN"], lv("CONDEMN")), element="earth",
                                requires=("torment",), on_cast=condemn_cast)
@@ -256,7 +282,7 @@ def _build_stigmas(A, build, cd, SID, stig, st, notes):
 def _policy(actions: dict, filler: str) -> list:
     order = ["lightprot", "prayamp", "bolt", "divine_aura", "voice", "epunish", "powerburst",
              "rootst", "assaultmark", "chain_of_torment", "condemnation", "debilitating_mark",
-             "judgment_thunder"]
+             "thunder_and_lightning", "judgment_thunder"]
     pol = [k for k in order if k in actions]
     pol.append(filler)
     return pol

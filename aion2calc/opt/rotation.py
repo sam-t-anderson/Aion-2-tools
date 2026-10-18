@@ -37,6 +37,17 @@ def materialize(policy: list) -> list:
     return out
 
 
+def with_essentials(policy: list, kit) -> list:
+    """A saved priority list made before its kit gained essential actions (the Spiritmaster's
+    summons, Dimensional Control and Elemental Fusion in 0.2.309) holds none of them and would
+    never press them, so they go in front, in the kit's order. A list that holds any of them is
+    left alone: the optimizer may have dropped one on purpose."""
+    keys = {e[0] if isinstance(e, tuple) else e for e in policy}
+    if not kit.essential or keys & set(kit.essential):
+        return list(policy)
+    return [k for k in kit.essential if k in kit.actions] + list(policy)
+
+
 def describe(policy: list) -> list[str]:
     out = []
     for e in policy:

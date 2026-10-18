@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from ..sim.engine import Action
 from .base import Build, ClassData
-from .common import Kit, fallback_to_generic, spec_options  # noqa: F401 (spec_options is the module API)
+from .common import Kit, add_weave, fallback_to_generic, spec_options  # noqa: F401 (spec_options is the module API)
 
 __all__ = ["build_kit", "spec_options"]
 
@@ -49,9 +49,10 @@ SID = dict(
 #: the median time from a press to that player's next press (gaps up to 1.5 s)
 #: plus the basic-attack steps woven in after it, less the 30 ms latency, at the
 #: typical build's Combat Speed — see docs/methodology.md "Measured action
-#: times".  ``keen_strike`` is the basic-attack chain pressed on its own,
-#: ``upward_strike`` the Overhead Slam chain press (charged to Overhead Slam when
-#: the chain is taken) and ``stigma`` the stigma presses pooled.
+#: times".  ``keen_strike`` is a step of the basic-attack chain pressed on its
+#: own, ``basic_combo`` Smashing Blow, ``upward_strike`` the Overhead Slam chain
+#: press (charged to Overhead Slam when the chain is taken) and ``stigma`` the
+#: stigma presses pooled.
 #: ``chain_followup`` is the chain hit's delay, not an action time.
 TIMING = {
     "keen_strike": 0.40, "rending_blow": 0.45, "leaping_slam": 0.47, "mocking_blade": 0.89,
@@ -61,9 +62,9 @@ TIMING = {
 }
 
 #: Effects the tooltips leave out (assumptions; several are calibrated to a real
-#: Gladiator dummy parse in 0.2.254 — see docs/methodology.md).  The four skills
-#: below with no client coefficient (Upward Strike, Smashing Blow and the basic
-#: combo) are measured relative to Overhead Slam from that parse.
+#: Gladiator dummy parse in 0.2.254 — see docs/methodology.md).  The skills
+#: below with no client coefficient (Upward Strike and Smashing Blow) are
+#: measured relative to Overhead Slam from that parse.
 ASSUME = {
     "boss_breakable": True,       # training boss stays knocked down, so Overhead Slam / Aerial Snare are available
     "chain_frac": 0.60,           # a generic chain follow-up vs the base hit (chains with no measured value)
@@ -72,7 +73,7 @@ ASSUME = {
     "overhead_spam_cd": 1.00,     # effective Overhead Slam cycle once "Remove cooldown" is taken — recorded casts
                                   # (0.2.307): never under ~1 s apart (10th percentile 0.97 s, median 1.18 s,
                                   # 223 intervals); the 0.2.254 parse estimate was ~1.5/s
-    "basic_frac": 0.54,           # basic-attack combo (Smashing Blow) per-hit vs Overhead Slam — measured
+    "basic_frac": 0.54,           # Smashing Blow per-hit vs Overhead Slam — measured (recorded fights: 0.43-0.49)
     "ruinous_hits": 3,            # Ruinous Blow lands as a multi-strike (~4 raw hits/cast in the parse,
                                   # ~3 full-coefficient applications of damage ~ its measured 7.7% share);
                                   # modelling one hit undervalued it and, since it is the main
@@ -81,14 +82,23 @@ ASSUME = {
     "stagger_uptime": 0.50,       # share of time the boss carries Stagger/Impact (Destructive Impulse)
     "murderous_stacks": 5,        # attacks to trigger Murderous Burst
     "extra_damage_frac": 0.30,    # "Extra damage on hit" specs that give no number
-    "basic_mp_restore": 90,       # the basic-attack weapon string restores MP (standard melee sustain).
-                                  # Without it the MP-costly Rending Blow starves on median gear and is
-                                  # cast far below its ~14.5% parse share; the basic string is what a real
-                                  # parse sustains Rending with (Keen Strike is barely used).
+}
+
+#: The basic-attack chain's three steps (name, share of the woven steps, damage per press against
+#: Keen Strike), the woven steps after each press and after any press recorded too rarely (the
+#: median of the per-skill rates), from the recorded fights (0.2.309; docs/methodology.md "Woven
+#: basic attacks").  Every step restores MP: the recorded MP reading rises 140-180 a step, Keen
+#: Strike's tooltip says 100.
+WEAVE = {
+    "steps": (("Keen Strike", 0.40, 1.00), ("Rupture Strike", 0.32, 1.17), ("Wrathful Strike", 0.28, 1.60)),
+    "after": {"rending_blow": 0.38, "basic_combo": 0.36, "overhead_slam": 0.17, "leaping_slam": 0.0,
+              "ruinous_blow": 0.0, "rage": 0.0, "crushing_wave": 0.73, "mocking_blade": 0.0, "lunge": 0.10,
+              "rush_strike": 0.10, "zikel": 0.0, "aerial_snare": 0.0, "ankle_slice": 1.06},
+    "per_press": 0.10,
 }
 
 
-def build_kit(build: Build, cd: ClassData, filler: str = "basic_combo") -> Kit:
+def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
     L = build.effective_levels(cd)
     specs = {sid: set(v) for sid, v in build.specs.items()}
 
@@ -164,26 +174,36 @@ def build_kit(build: Build, cd: ClassData, filler: str = "basic_combo") -> Kit:
                 sim.buff("murderous_burst", 3.0, {"crit_dmg": mb_cd})
 
     # ----------------------------------------------------------------- actives
-    # Keen Strike (filler: 4 targets, restores MP, Reckless Strike chain)
+    # The basic-attack chain pressed on its own (the filler): Keen Strike -> Rupture Strike ->
+    # Wrathful Strike, one step a press, each restoring MP. Keen Strike's specs (4 targets, Reckless
+    # Strike chain) ride its own step.
     ke_f, ke_c = dmg("KEEN")
+    keen_mp = 100 * (1.2 if has("KEEN", 1) else 1.0)
 
     def keen_cast(sim, a):
-        mods = {"multihit": 0.5} if has("KEEN", 3) else None
-        sim.hit("Keen Strike", ke_f, ke_c, mods=mods)
-        sim.gain_mp(100 * (1.2 if has("KEEN", 1) else 1.0))
-        if has("KEEN", 4):
+        step, last = sim.chain.get("keen", (0, -99.0))
+        if sim.t - last > sim.cfg.chain_window:
+            step = 0
+        step = step % len(WEAVE["steps"]) + 1
+        sim.chain["keen"] = (step, sim.t)
+        name, _, ratio = WEAVE["steps"][step - 1]
+        mods = {"multihit": 0.5} if step == 1 and has("KEEN", 3) else None
+        sim.hit(name, ke_f * ratio, ke_c * ratio, mods=mods)
+        sim.gain_mp(keen_mp)
+        if step == 1 and has("KEEN", 4):
             sim.reduce_cd("ruinous_blow", 1.0)
-        if has("KEEN", 5):                      # Reckless Strike chain
+        if step == 1 and has("KEEN", 5):        # Reckless Strike chain
             k = ASSUME["chain_frac"]
             sim.hit("Reckless Strike", ke_f * k, ke_c * k, delay=TIMING["chain_followup"])
     A["keen_strike"] = Action("keen_strike", "Keen Strike", SID["KEEN"], TIMING["keen_strike"],
-                              on_cast=keen_cast)
+                              on_cast=keen_cast, is_filler=True)
 
-    # Rending Blow (filler: Stagger-gauge builder, strong single-target coef)
+    # Rending Blow (Stagger-gauge builder, strong single-target coef); Smashing Blow follows it
     re_f, re_c = dmg("REND")
 
     def rend_cast(sim, a):
         sim.hit("Rending Blow", re_f, re_c, mult=1.12 if has("REND", 4) else 1.0)
+        sim.buff("rending_chain", sim.cfg.chain_window)
     A["rending_blow"] = Action("rending_blow", "Rending Blow", SID["REND"], TIMING["rending_blow"],
                                mp=cd.mp(SID["REND"], lv("REND")), on_cast=rend_cast)
 
@@ -268,17 +288,17 @@ def build_kit(build: Build, cd: ClassData, filler: str = "basic_combo") -> Kit:
                                cooldown=ae_cd, mp=cd.mp(SID["AERIAL"], lv("AERIAL")),
                                requires=gated, on_cast=aerial_cast)
 
-    # Basic-attack combo (Smashing Blow, and the Rupture/Wrathful Strike weave): the
-    # fast weapon string a Gladiator fills gaps with. It has no client coefficient, so
-    # it is measured at ~0.54x Overhead Slam from a real parse. This — not Keen Strike —
-    # is the true filler, and it is ~15% of real damage.
+    # Smashing Blow: Rending Blow's follow-up, pressed within a few seconds of it (recorded after
+    # 85-94% of Rending Blows, never more than 2.9 s later, and almost never without one). It has no
+    # client coefficient, so it is measured at ~0.54x Overhead Slam from a real parse; ~14% of real
+    # damage. It restores no MP of its own (recorded MP readings).
     sb_f, sb_c = ov_f * ASSUME["basic_frac"], ov_c * ASSUME["basic_frac"]
 
     def smash_cast(sim, a):
+        sim.buff("rending_chain", 0.0)                # spent
         sim.hit("Smashing Blow", sb_f, sb_c)
-        sim.gain_mp(ASSUME["basic_mp_restore"])   # the weapon string sustains the MP pool
     A["basic_combo"] = Action("basic_combo", "Smashing Blow", 11420000, TIMING["basic_combo"],
-                              on_cast=smash_cast, is_filler=True)
+                              requires=("rending_chain",), on_cast=smash_cast)
 
     # Ruinous Blow (biggest hit; grants Prepare for Battle for 20s)
     rb_f, rb_c = dmg("RUIN")
@@ -302,6 +322,11 @@ def build_kit(build: Build, cd: ClassData, filler: str = "basic_combo") -> Kit:
 
     policy = _policy(A, filler)
     fallback_to_generic(A, policy, build, cd, notes, timing=TIMING)
+    # Upward Strike is folded into Overhead Slam, so the steps woven after it are too.
+    weave = dict(WEAVE, after=dict(WEAVE["after"]))
+    if has("OVER", 3):
+        weave["after"]["overhead_slam"] += ASSUME["upward_chance"] * 0.12
+    add_weave(A, weave, ke_f, ke_c, mp=keen_mp, skip=("keen_strike",))
     return Kit(actions=A, hooks=[hook], cond_mods=[], static=static, policy=policy,
                filler=filler, notes=notes, levels=L)
 
@@ -360,20 +385,19 @@ def _build_stigmas(A, build, cd, stig, st, notes):
 
 
 def _policy(actions: dict, filler: str) -> list:
-    # Buffs, then the Ruinous Blow nuke, the Overhead Slam + Upward Strike core and the
-    # Rending Blow weave (the two highest-frequency damage skills in a real parse), then the
-    # damage stigmas and the Wrathful/Rupture weave. The basic combo comes next: it is the
-    # Gladiator's MP engine (the weapon string restores MP), so it must out-prioritise the
-    # low-damage crowd-control / gap-closers — otherwise, when Rending Blow has drained MP,
-    # the engine would cast a non-restoring CC skill instead of the basic string and the
-    # rotation would starve. A real dummy parse skips the CC skills entirely, so leaving them
-    # below the always-available filler matches it (they stay for completeness / other kits'
-    # callers, but a DPS rotation on a dummy never needs them).
-    damage = ["zikel", "lunge", "ruinous_blow", "overhead_slam", "rending_blow",
+    # Buffs, then the Ruinous Blow nuke, the Overhead Slam + Upward Strike core and Rending Blow
+    # with the Smashing Blow that follows it (the highest-frequency damage skills in a real parse),
+    # then the damage stigmas. The basic chain comes next: it is the Gladiator's MP engine (every
+    # step restores MP), so it must out-prioritise the low-damage crowd-control / gap-closers —
+    # otherwise, when Rending Blow has drained MP, the engine would cast a non-restoring CC skill
+    # instead and the rotation would starve. A real dummy parse skips the CC skills entirely, so
+    # leaving them below the always-available filler matches it (they stay for completeness /
+    # other kits' callers, but a DPS rotation on a dummy never needs them).
+    damage = ["zikel", "lunge", "ruinous_blow", "overhead_slam", "rending_blow", "basic_combo",
               "rage", "lifesteal", "assault", "forcedrest", "wrathwave", "fracrush", "bladetoss"]
     cc = ["aerial_snare", "leaping_slam", "mocking_blade", "rush_strike", "ankle_slice", "crushing_wave"]
     pol = [k for k in damage if k in actions]
     if filler in actions:
-        pol.append(filler)                       # the MP-restoring basic string, above the CC skills
+        pol.append(filler)                       # the MP-restoring basic chain, above the CC skills
     pol += [k for k in cc if k in actions and k != filler]
     return pol

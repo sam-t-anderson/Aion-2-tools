@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from ..sim.engine import Action
 from .base import Build, ClassData
-from .common import Kit, fallback_to_generic, ms, spec_options  # noqa: F401
+from .common import Kit, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401
 
 __all__ = ["build_kit", "spec_options"]
 
@@ -51,6 +51,18 @@ ASSUME = {
     "crit_rate": 0.60,            # for on-crit proc passives (expected-value gate)
     "chain_frac": 1.5,            # Tempest Arrow (Snipe chain); community L45 parses put detected
                                   #   chains at ~1.4-1.9x (ranger Shackling Arrow 1.38x), so 1.5 (was 0.85)
+}
+
+#: The basic-attack chain's three steps (name, share of the woven steps, damage per press against
+#: the first step), the woven steps after each press and after any press recorded too rarely (the
+#: median of the per-skill rates), from the recorded fights (0.2.309; docs/methodology.md "Woven
+#: basic attacks"). No Ranger fight is exported,
+#: so the steps' damage is the five recorded classes' average (1.25x and 1.45x the first step).
+WEAVE = {
+    "steps": (("Snipe", 0.39, 1.00), ("Rapid Fire", 0.33, 1.25), ("Spiral Arrow", 0.28, 1.45)),
+    "after": {"tempest_shot": 0.32, "drill_dart": 0.03, "marking_shot": 0.12, "deadshot": 0.09, "gale_arrow": 0.03,
+              "snare_shot": 0.04, "burst_arrow": 0.0, "suppressing_arrow": 0.06},
+    "per_press": 0.05,
 }
 
 
@@ -243,6 +255,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "snipe") -> Kit:
 
     policy = _policy(A, filler)
     fallback_to_generic(A, policy, build, cd, notes)
+    add_weave(A, WEAVE, sn_f, sn_c, mp=120 * (1.2 if has("SNIPE", 1) else 1.0), skip=("snipe",))
     return Kit(actions=A, hooks=[hook], cond_mods=[], static=static, policy=policy,
                filler=filler, notes=notes, levels=L)
 

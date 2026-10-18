@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from ..sim.engine import Action
 from .base import Build, ClassData
-from .common import Kit, fallback_to_generic, ms, spec_options  # noqa: F401
+from .common import Kit, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401
 
 __all__ = ["build_kit", "spec_options"]
 
@@ -65,6 +65,17 @@ ASSUME = {
     "piercing_frac": 1.65,        # Dark Crush -> Piercing Strike chain hits ~1.65x the base (22% of real damage)
     "bursting_frac": 2.23,        # Incandescent Blow -> Bursting Blow variant hits ~2.23x the base
     "bursting_every": 2,          # Bursting Blow landed ~once per 2 Incandescent Blows (its total ~= Incandescent's)
+}
+
+#: The basic-attack chain's three steps (name, share of the woven steps, damage per press against
+#: the first step), the woven steps after each press and after any press recorded too rarely (the
+#: median of the per-skill rates), from the recorded fights (0.2.309; docs/methodology.md "Woven
+#: basic attacks").
+WEAVE = {
+    "steps": (("Onslaught", 0.36, 1.00), ("Resonance Crush", 0.33, 1.19), ("Bolt Crush", 0.30, 1.67)),
+    "after": {"incandescent_blow": 0.64, "dark_crush": 0.43, "impactful_crush": 0.04, "spinning_strike": 0.09,
+              "rushing_smash": 0.07},
+    "per_press": 0.09,
 }
 
 
@@ -243,6 +254,13 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
 
     policy = _policy(A, filler)
     fallback_to_generic(A, policy, build, cd, notes)
+    # Bursting Blow and Piercing Strike are folded into their parents, so the steps woven after them are too.
+    weave = dict(WEAVE, after=dict(WEAVE["after"]))
+    if has("INCAND", 4):
+        weave["after"]["incandescent_blow"] += 0.51 / ASSUME["bursting_every"]
+    if has("DCRUSH", 4):
+        weave["after"]["dark_crush"] += 0.16
+    add_weave(A, weave, on_f, on_c, mp=100 * (1.2 if has("ONS", 1) else 1.0), skip=("onslaught",))
     return Kit(actions=A, hooks=[hook], cond_mods=[], static=static, policy=policy,
                filler=filler, notes=notes, levels=L)
 
