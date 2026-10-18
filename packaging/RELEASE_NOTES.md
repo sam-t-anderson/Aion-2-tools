@@ -1,3 +1,22 @@
+## The Templar measured from recorded fights; recordings stitch across a restart; appeals against moderation (0.2.315)
+
+**The Templar is modelled from five recorded Templars.** Uploads from meter 0.2.306 or later carry every party member's casts, and the log server now holds five Templars' fights (2,935 presses, 25 boss fights). They showed what the Templar kit got wrong:
+- **The basic-attack chain is woven, a step at a time.** Vicious Strike, Decisive Strike and Desperate Strike come between other skills. The kit dealt all three steps in one 0.8-second action, which outdamaged every other skill, so the optimizer's Templar pressed nothing else and never used Judgment.
+- **Pummel lands three strikes, and Punishing Strike was missing.** Punishing Strike, Pummel's follow-up press, is 14 % of the recorded Templars' damage and 21 % of the KR logs'. It now follows Pummel at its measured strength, and Pummel costs its MP.
+- **Doom Shield opens Judgment and knocks the target down**, as its tooltip says. Each skill's Judgment window now comes from its tooltip.
+- **Action times are measured** for every skill pressed often enough, including Punishment's full charge (about a second before the release).
+- **Vicious Strike's "−2s [Warding Strike] cooldown"** was attached to its second specialization instead of its fourth.
+
+The simulated Templar's damage shares now overlap the KR logs' about three times as much (fidelity 0.18 → 0.54), and the recorded boss fights' too (0.17 → 0.54). The bundled Templar build is re-optimized at 14,785 modeled boss DPS; the old one comes to 8,386 under the corrected kit. Saved priority lists from before Punishing Strike get it when they are replayed. The preset model version moves to 0.3.7, so the log server re-scores the community presets under the new kit.
+
+**Pressing Start again after Stop continues the recording in a new part.** Stop saves the recording's part as finished, and the automatic upload sends it. Recording more into that part left the server's copy short for good: the fights after the restart never reached the server, and the next part could not be stitched to it. A restart now begins the next part, linked to the stopped one.
+
+**An upload keeps its recording key when the server is slow to answer.** Before each upload the app asks the server what it supports. When that request timed out but the upload went through, a recording still in progress was sent without its recording key. The server then kept it as a second copy beside the recording's final upload, and the next part's run could not be stitched. The app now uses what the server said last time, and log server 0.2.112 stitches past a copy stored that way.
+
+**Appeal a moderator's decision.** An upload a moderator has put on hold shows **Appeal this hold** under *My uploads*, and a character claim a moderator has revoked shows **Appeal the revocation** under *Your characters*. Each decision can be appealed once, with the upload's or the claim's own credential, and the decision and the moderator's note appear in the same place. A revoked claim's recordings can no longer claim the character again; newer recordings still can. Appeals need log server 0.2.112.
+
+**The buff contribution estimate stays an estimate.** Checked against 14 uploaded fights, the PvE Damage Boost auras measured +8.9 % against the estimated +16.5 %. The *Buff contribution* tab keeps saying it is an estimate, and rankings keep using recorded damage only.
+
 ## Boss kills reach the server when a recording starts a new part; no false "partial capture" after a final boss (0.2.314)
 
 **The part holding a boss kill is uploaded right after the kill.** A long recording is saved in parts, and a new part waits while you are in combat. The final boss's death ends the run, which lets a waiting new part start right away. The upload that the kill triggers then sent only the new part: a few seconds after the kill, with no damage. The part holding the kill stayed off the server until you pressed Stop or quit. The reported case was Ultimate Berk in Krao Cave. Part 4 went up as a 9-second log with no damage, while the kill in Part 3 waited. Now the upload after a kill first sends the finished part, and sends the new part only once your party has dealt damage in it.
