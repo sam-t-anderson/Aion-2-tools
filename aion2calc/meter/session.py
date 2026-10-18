@@ -1900,6 +1900,21 @@ class CombatSession:
             actor_refs = {}
             opponents = set()
             roster_allowed = set().union(*(allowed_for(r) for r in group["records"]))
+            if identity.get("party_instance"):
+                # A player counted only because a group instance holds just the party (``_allowed``) is a member
+                # of the fights they took part in, not of every fight in the zone context: a party that changed
+                # inside one instance otherwise listed both line-ups in every segment.
+                acted = set()
+                for record in group["records"]:
+                    actor, seen = record.event.actor_id, set()
+                    while actor is not None and actor not in seen:   # a pet's hit counts for its owner
+                        seen.add(actor)
+                        acted.add(actor)
+                        actor = identity["owners"].get(actor)
+                named = set().union(*(set(r.party) for r in group["records"]), identity.get("initial_roster") or ())
+                local = {r.local_id for r in group["records"]} | {identity["local_id"]}
+                roster_allowed = {a for a in roster_allowed if a in acted or a in local or a in identity["owners"]
+                                  or identity["names"].get(a, "").casefold() in named}
             if group["pvp"]:
                 for record in group["records"]:
                     if isinstance(record.event, DamageEvent):

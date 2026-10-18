@@ -108,6 +108,19 @@ def test_in_a_dungeon_every_player_present_is_the_party():
     assert sum(h["damage"] for h in segment["hits"]) == 50_000
 
 
+def test_a_player_counted_through_the_instance_is_a_member_of_the_fights_they_were_in():
+    # A party that changes inside one instance: each line-up is listed for its own fights only, not both for
+    # every fight in the zone context (replaying a recorded two-line-up Krao Cave capture listed 12 members).
+    s, e = CombatSession(), _engine(600001, 600001)
+    s.pvp, s.retain_scope = False, "party"
+    for start, third in ((1_000_000, 5003), (1_200_000, 5004)):   # past the 120 s gap: two fights
+        for i in range(5):
+            t = start + i * 1000
+            s.observe(e, [DamageEvent(a, 9001, 11010000, 100, t + a - 5000) for a in (5001, 5002, third)], timestamp_ms=t + 10)
+    first, second = (sorted(m.rsplit(":", 1)[-1] for m in seg["party_members"]) for seg in s.to_a2log("party")["segments"])
+    assert first == ["12", "5001", "5003"] and second == ["12", "5001", "5004"]     # Ally by roster id, Me, then each third
+
+
 def test_in_the_open_world_the_roster_still_decides():
     s, e = CombatSession(), _engine(111035, 0)                  # an open-world map: other players are strangers
     s.pvp, s.retain_scope = False, "party"
