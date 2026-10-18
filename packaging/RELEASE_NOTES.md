@@ -1,3 +1,15 @@
+## Fix: every party member is recorded in a dungeon; run-speed standings of a party from several worlds (0.2.316)
+
+**Every party member's damage is recorded inside a dungeon.** A party capture keeps only the effects of party members, and the party comes from the game's party list. When that list decoded short, the meter dropped everyone it missed: from the overlay and from the saved and uploaded log. In a reported Krao Cave run the list held one other member of five, not even the recording player. The overlay showed two players, and the log kept under a third of each boss's damage.
+
+Inside a dungeon, transcendence, nightmare, ascension trial or raid only the party is present. So every named player using a class skill there now counts as the party, whatever the party list says, and each is listed in the fights they took part in. In the open world the party list alone still decides, so other players at a world boss stay out.
+
+**The party list is read past a member it cannot fully decode.** A member whose record has an unexpected layout is still listed by name, class and level, and the decoder steps over gaps and empty slots instead of stopping there. Every party list in the recorded diagnostic captures reads as before.
+
+**Run-speed standings say why a scope is missing.** The log review's run-speed table showed "Not a timed run" for any scope without a ranking. That included the Server scope of a complete run whose party came from several worlds, which is most matchmade parties. A timed run's missing scope now says which and why. Log server 0.2.113 ranks such a party on the recording player's world, and the standing names it.
+
+Logs already recorded with a short party list stay as they are: the dropped damage was never stored.
+
 ## The Templar measured from recorded fights; recordings stitch across a restart; appeals against moderation (0.2.315)
 
 **The Templar is modelled from five recorded Templars.** Uploads from meter 0.2.306 or later carry every party member's casts, and the log server now holds five Templars' fights (2,935 presses, 25 boss fights). They showed what the Templar kit got wrong:
