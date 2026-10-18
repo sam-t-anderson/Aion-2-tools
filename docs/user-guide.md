@@ -88,7 +88,7 @@ The profile shows when the upload arrived and when the lookup completed. It repr
 
 ## Example: Sorcerer, level 45 global
 
-The optimized Sorcerer build (boss DPS 17,962 on median launch gear, 25,890 on upgrade gear), with its
+The optimized Sorcerer build (boss DPS 21,722 on median launch gear, 31,547 on upgrade gear), with its
 arcana, stigmas, priority list, macro, stat priority, build card and Daevanion boards, is in
 [`example/sorcerer_l45_global`](../example/sorcerer_l45_global/README.md).
 
