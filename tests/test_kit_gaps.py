@@ -79,12 +79,15 @@ def test_a_saved_priority_list_from_before_the_summons_gets_them_back():
     from aion2calc.kit.sorcerer import build_kit as sorc
     skit = sorc(typical_build("sorcerer"), ClassData("sorcerer"))
     assert with_essentials(["blaze"], skit) == ["blaze"]
-    # and the planner's replay of a saved build does the same
+    # and the planner's replay of a build saved before the summons does the same
     from aion2calc.report import build_from_summary
     import json
     summary = json.loads(open("results/compare/spiritmaster/build.json", encoding="utf-8").read())
-    _, policy = build_from_summary(summary)
-    assert policy[:6] == list(kit.essential)
+    summary["policy"] = ["soul_cry", "ancient_spirit", "jointstrike_curse", "enhance", "siphon", "jdestruct",
+                         "combustion"]
+    b, policy = build_from_summary(summary)
+    essential = list(build_kit(b, ClassData("spiritmaster")).essential)
+    assert essential and policy[:len(essential)] == essential
 
 
 def test_smashing_blow_only_follows_rending_blow():
