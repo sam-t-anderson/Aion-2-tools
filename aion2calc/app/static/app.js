@@ -399,10 +399,19 @@ function winOverview(v) {
     <div class="kpi"><div class="k">Combat speed</div><div class="v">${pct(st.combat_speed)}</div></div></div>`;
   const w = (v.weights || []).map((x) => `<tr><td>${esc(x.label)}</td><td class="r num">${x.pct >= 0 ? "+" : ""}${x.pct.toFixed(2)}%</td><td style="width:45%"><div class="bar"><i style="width:${Math.max(0, Math.min(100, x.pct * 25))}%"></i></div></td></tr>`).join("");
   const sh = Object.entries(v.shares || {}).slice(0, 12).map(([k, x]) => `<tr><td>${esc(k)}</td><td style="width:55%"><div class="bar"><i style="width:${100 * x / Math.max(...Object.values(v.shares))}%"></i><span>${pct(x)}</span></div></td></tr>`).join("");
-  return win("Overview", esc(v.loadout_name || ""), kpis + (v.objective?`<div class="note"><b>${esc(v.objective.label)}: ${n0(v.objective.score)}</b><br>${Object.entries(v.objective.weights||{}).map(([name,weight])=>`${esc(name)} ${pct(weight)}${v.objective.durations?.[name]?" · "+n0(v.objective.durations[name])+"s":""} · ${n0(v.objective.components?.[name])} DPS`).join(' · ')}<p class="small muted">${esc(v.objective.note)}</p></div>`:'') + (v.scoring_policy ? `<div class="note">${v.preset_source==='community'?'Community':'Common comparison'} ${esc((v.scoring_policy.mode||'').toUpperCase())} preset · ${n0(v.score)} weighted modeled DPS<br><span class="small">Equal weighting of ${v.scoring_policy.mode==='pvp'?'sustained and burst player-target damage':'boss and training-dummy damage'}. Common gear and comparison point budgets. ${v.preset_checked_at?'Last checked '+esc(new Date(v.preset_checked_at*1000).toLocaleString()):''}</span><details><summary>Comparison assumptions</summary>${esc(v.scoring_policy.note)}<br>Evaluator ${esc(v.scoring_policy.model)}${v.candidate_generation?`<br>Candidate search: ${esc(v.candidate_generation.objective)} · ${esc(v.candidate_generation.iterations)} iteration(s). Selected by the common weighted score; not a global optimum.${v.candidate_generation.selection?`<br>${esc(v.candidate_generation.selection.method)}${(v.candidate_generation.selection.candidates||[]).map(c=>`<br>${esc(c.objective)}: ${n0(c.score)} weighted modeled DPS`).join('')}`:''}`:""}</details></div>` : '') + (v.model_note?`<p class="small muted">${esc(v.model_note)}</p>`:'') + progressionHTML(v.progression) + actionTimingSummary(v.action_timing) + survivalSummary(v.survival) + skillReserveSummary(v.skill_reserves) + `<div class="grid2" style="margin-top:14px"><div><h4 class="gold small">STAT PRIORITY (DPS PER UPGRADE)</h4><table class="t">${w || `<tr><td data-weight-status>${v.weight_job?'Calculating stat priority…':'Stat priority is unavailable for this build.'}</td></tr>`}</table>${v.scoring_policy?'<p class="small muted">Weighted upgrade gains with the saved rotation held fixed; timing is not re-optimized.</p>':''}</div>
+  return win("Overview", esc(v.loadout_name || ""), kpis + (v.objective?`<div class="note"><b>${esc(v.objective.label)}: ${n0(v.objective.score)}</b><br>${Object.entries(v.objective.weights||{}).map(([name,weight])=>`${esc(name)} ${pct(weight)}${v.objective.durations?.[name]?" · "+n0(v.objective.durations[name])+"s":""} · ${n0(v.objective.components?.[name])} DPS`).join(' · ')}<p class="small muted">${esc(v.objective.note)}</p></div>`:'') + (v.scoring_policy ? `<div class="note">${v.preset_source==='community'?'Community':'Common comparison'} ${esc((v.scoring_policy.mode||'').toUpperCase())} preset · ${n0(v.score)} weighted modeled DPS<br><span class="small">Equal weighting of ${v.scoring_policy.mode==='pvp'?'sustained and burst player-target damage':'boss and training-dummy damage'}. Common gear and comparison point budgets. ${v.preset_checked_at?'Last checked '+esc(new Date(v.preset_checked_at*1000).toLocaleString()):''}</span><details><summary>Comparison assumptions</summary>${esc(v.scoring_policy.note)}<br>Evaluator ${esc(v.scoring_policy.model)}${v.candidate_generation?`<br>Candidate search: ${esc(v.candidate_generation.objective)} · ${esc(v.candidate_generation.iterations)} iteration(s). Selected by the common weighted score; not a global optimum.${v.candidate_generation.selection?`<br>${esc(v.candidate_generation.selection.method)}${(v.candidate_generation.selection.candidates||[]).map(c=>`<br>${esc(c.objective)}: ${n0(c.score)} weighted modeled DPS`).join('')}`:''}`:""}</details></div>` : '') + (v.world_pvp?worldPvpHTML(v.world_pvp):v.model_note?`<p class="small muted">${esc(v.model_note)}</p>`:'') + progressionHTML(v.progression) + actionTimingSummary(v.action_timing) + survivalSummary(v.survival) + skillReserveSummary(v.skill_reserves) + `<div class="grid2" style="margin-top:14px"><div><h4 class="gold small">STAT PRIORITY (DPS PER UPGRADE)</h4><table class="t">${w || `<tr><td data-weight-status>${v.weight_job?'Calculating stat priority…':'Stat priority is unavailable for this build.'}</td></tr>`}</table>${v.scoring_policy?'<p class="small muted">Weighted upgrade gains with the saved rotation held fixed; timing is not re-optimized.</p>':''}</div>
      <div><h4 class="gold small">DAMAGE SHARE</h4><table class="t">${sh}</table></div></div>`, { key: "overview" });
 }
 
+function worldPvpHTML(w) {
+  if(!w)return '';
+  const t=w.typical_build||{};
+  const row=(label,x,y,fmt)=>`<tr><td>${label}</td><td class="r num">${fmt(x)}</td><td class="r num">${y==null?'—':fmt(y)}</td></tr>`;
+  return `<section class="note" data-world-pvp><h4>World PvP</h4><div class="tablewrap"><table class="t small"><tr><th></th><th class="r">This build</th><th class="r">Typical build</th></tr>
+    ${row('Score (DPS × share of the fight survived)',w.score,t.score,n0)}${row('Damage on up to '+esc(w.assumptions?.enemies_in_reach??3)+' players (DPS)',w.dps,t.dps,n0)}
+    ${row('Share of the fight survived',w.alive_share,t.alive_share,pct)}${row('Effective HP',w.effective_hp,t.effective_hp,n0)}${row('Hard crowd control (s per minute)',w.control_s_per_min,t.control_s_per_min,x=>x.toFixed(1))}</table></div>
+    <p class="small muted">${esc(w.attackers)} attackers · ${pct(w.controlled)} of their time under your crowd control · damage taken ${pct(w.damage_taken)} of an undefended player's.</p><p class="small muted">${esc(w.note||'')}</p></section>`;
+}
 function genusTargetsHTML(targets) {
   if(!targets)return '';
   const rows=(targets.rows||[]).map(r=>`<tr><td>${esc(r.genus)} · ${r.level==null?'level not recorded':'Lv '+r.level}</td><td>${r.slot}</td><td>${esc(r.stat)}</td><td>${r.current?esc(r.current.stat)+' '+esc(r.current.value):'Not recorded'}</td><td><b>${esc(r.target)}</b><br><small>Catalog range ${esc(r.range)}</small></td><td>${esc(r.status)}</td></tr>`).join('');
@@ -458,7 +467,7 @@ function mountCharacterGenus(root,key) {
     const mix=Object.fromEntries([...root.querySelectorAll('[data-genus-mix]')].map(e=>[e.dataset.genusMix,Number(e.value)]));
     if(mode==='pve'&&enabled&&(Object.values(mix).some(x=>!Number.isFinite(x)||x<0||x>100)||!Object.values(mix).some(x=>x>0)))throw Error('Set a positive PvE Genus mix using weights from 0 to 100.');
     localStorage.setItem(prefKey,JSON.stringify({enabled,mix}));
-    return mode==='pvp'||!enabled?{enabled}:{enabled,mix};
+    return mode!=='pve'||!enabled?{enabled}:{enabled,mix};
   }};
 }
 
@@ -541,7 +550,7 @@ async function pagePlanner() {
   const st = S.planner;
   app().innerHTML = welcomeCard() + `<section class="win"><div class="wh"><h2>Build planner</h2><a class="btn small" href="#/history">Saved results</a><span class="sub">optimized builds — copy each window into the game</span></div>
     <div class="wb"><div class="row"><label class="muted small">Build</label><select id="res"></select><button class="btn small" id="refresh-presets">Refresh presets</button>
-      <span class="muted small">or optimize:</span><select id="cls"></select><select id="preset-mode" aria-label="Optimization mode"><option value="pve">PvE</option><option value="pvp">PvP damage (experimental)</option></select>
+      <span class="muted small">or optimize:</span><select id="cls"></select><select id="preset-mode" aria-label="Optimization mode"><option value="pve">PvE</option><option value="pvp">PvP damage (experimental)</option><option value="world">World PvP (experimental)</option></select>
       <input id="sp" type="number" min="0" max="10000" placeholder="Skill budget" title="Highest server-reported skill points, or enter explicitly" style="width:150px"><input id="stg" type="number" min="0" max="10000" placeholder="Stigma budget" title="Highest server-reported stigma points, or enter explicitly" style="width:150px">
       <input id="dv" type="number" min="0" max="10000" placeholder="Daevanion budget" aria-label="Daevanion point budget" style="width:180px"><span id="planner-budget-source" class="small muted" role="status"></span><button class="btn primary" id="go">Optimize</button><span id="jobmsg" class="small muted"></span></div></div></section><div id="wins"></div>`;
   if ($("#whide")) $("#whide").onclick = () => { try { localStorage.setItem("welcome-hidden", "1"); } catch (e) {} $("#welcome").remove(); };
@@ -558,7 +567,7 @@ async function pagePlanner() {
     $("#wins").innerHTML = '<div class="empty"><span class="spinner"></span> loading</div>';
     const v = await api("/api/build?path=" + encodeURIComponent(st.path));
     $("#cls").value = v.class;
-    $("#preset-mode").value = String(v.scenario||"").startsWith("pvp")?"pvp":"pve";
+    $("#preset-mode").value = v.scenario==="pvp_world"?"world":String(v.scenario||"").startsWith("pvp")?"pvp":"pve";
     renderWindows(v, st, $("#wins"));
     if(v.weight_job){
       const path=st.path,jobId=v.weight_job,weightTarget=$('#wins');
@@ -634,7 +643,7 @@ async function pageCharacter() {
     const availableBudgets=Object.fromEntries(['skill','stigma','daevanion'].map(k=>[k,Math.max(v.points[k],savedBudgets[k]??v.budgets?.[k]??v.points[k])]));
     const rememberBudgets=()=>{const values=Object.fromEntries([...document.querySelectorAll('[data-character-budget]')].map(e=>[e.dataset.characterBudget,+e.value]));let all={};try{all=JSON.parse(localStorage.getItem('character-point-budgets')||'{}');}catch(_){}all[v.key]=values;localStorage.setItem('character-point-budgets',JSON.stringify(all));return values;};
     $("#cview").innerHTML = `<section class="win"><div class="wh"><h2>${esc(v.name)}</h2><span class="sub">${esc(cap(v.class))} · Lv ${v.level} · ${esc(v.server)} · Combat Power ${n0(v.combat_power)}</span>
-      <div class="tools"><button class="btn primary" id="opt" data-opt-mode="pve">Optimize PvE build</button><button class="btn" id="optpvp" data-opt-mode="pvp">Optimize PvP damage (experimental)</button></div></div><div class="wb">
+      <div class="tools"><button class="btn primary" id="opt" data-opt-mode="pve">Optimize PvE build</button><button class="btn" id="optpvp" data-opt-mode="pvp">Optimize PvP damage (experimental)</button><button class="btn" id="optworld" data-opt-mode="world" title="Large fights: area skills on several players, survival and crowd control weighed in">Optimize World PvP (experimental)</button></div></div><div class="wb">
       <div class="kpis">${Object.entries(v.dps || {}).map(([k, x]) => `<div class="kpi"><div class="k">${esc(k)} ${v.genus?"saved build DPS":"imported DPS (without manual Genus)"}</div><div class="v">${n0(x)}</div></div>`).join("")}
         <div class="kpi"><div class="k">Skill points</div><div class="v">${v.points.skill} / ${v.budgets?.skill??"Unknown"}</div></div><div class="kpi"><div class="k">Stigma points</div><div class="v">${v.points.stigma} / ${v.budgets?.stigma??"Unknown"}</div></div>
         <div class="kpi"><div class="k">Daevanion</div><div class="v">${v.points.daevanion} / ${v.budgets?.daevanion??"Unknown"}</div></div></div>
@@ -692,7 +701,7 @@ function renderOptState() {
   if (o.status === "running") {
     const log = o.log || [];
     const last = log.length ? log[log.length - 1] : "starting…";
-    box.innerHTML = `<p><span class="spinner"></span> Optimizing ${o.mode === "pvp" ? "PvP damage (experimental)" : "PvE build"} — <b>${esc(last)}</b></p>
+    box.innerHTML = `<p><span class="spinner"></span> Optimizing ${o.mode === "world" ? "World PvP (experimental)" : o.mode === "pvp" ? "PvP damage (experimental)" : "PvE build"} — <b>${esc(last)}</b></p>
       <pre class="diff small" style="max-height:150px;overflow:auto;margin-top:6px">${esc(log.slice(-8).join("\n"))}</pre>
       <p class="small faint">Runs the rotation, stigma, Daevanion and skill-point search. Progress stays visible during the stigma and skill-level searches; the full optimization may take a few minutes.</p>`;
   }

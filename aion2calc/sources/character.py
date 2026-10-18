@@ -26,11 +26,18 @@ OFFICIAL_IDS = {
     "AdditionalHitRate": ("multihit", 0.01), "WeaponAccuracy": ("accuracy", 1), "Accuracy": ("accuracy", 1),
     "MPMax": ("mp_max", 1), "PvEFixingDamage": ("pve_atk", 1), "BossFixingDamage": ("boss_atk", 1),
     "FrontFixingDamage": ("front_atk", 1), "BackFixingDamage": ("back_atk", 1),
+    # survival (World PvP); percentages arrive as "8.7%" and are read as fractions
+    "HPMax": ("hp", 1), "ArmorDefense": ("defense", 1), "DefenseRatio": ("defense_pct", 0.01),
+    "CriticalResist": ("crit_resist", 1), "DecreaseCriticalDamage": ("crit_dmg_tol", 0.01),
+    "DecreaseDamage": ("dmg_tol", 0.01), "PvPDecreaseDamage": ("pvp_tol", 0.01),
+    "PvPDamageDefense": ("pvp_defense", 1), "PvPCriticalResist": ("pvp_crit_resist", 1),
+    "Block": ("block", 1), "Evasion": ("evasion", 1), "ArmorEvasion": ("evasion", 1),
+    "AbnormalResistance": ("cc_resist", 0.01),
 }
 #: primary/deity totals on the profile (they already include gear and arcana)
 PROFILE_STATS = {"STR": "might", "AGI": "precision", "Justice": "justice", "Freedom": "freedom",
                  "Illusion": "illusion", "Time": "time", "Destruction": "destruction", "Death": "death",
-                 "Wisdom": "wisdom"}
+                 "Wisdom": "wisdom", "CON": "constitution", "DEX": "dexterity", "Life": "life"}
 #: these ids are part of the profile totals; counting them on items would double count
 SKIP_ON_ITEMS = {"STR", "DEX", "INT", "CON", "AGI", "WIS", "Justice", "Freedom", "Illusion", "Life", "Time",
                  "Destruction", "Death", "Wisdom", "Destiny", "Space"}

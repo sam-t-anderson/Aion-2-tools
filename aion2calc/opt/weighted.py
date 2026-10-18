@@ -79,6 +79,9 @@ class WeightedOptimizer(Optimizer):
 def optimizer_for(cls, primary, secondary, objective="primary", **kwargs):
     if objective not in ("primary", "balanced"):
         raise ValueError("Choose primary or balanced damage optimization")
+    from .world import WorldOptimizer, is_world
+    if is_world(primary):
+        return WorldOptimizer(cls, primary, **kwargs)      # its own survival-weighted objective
     if objective == "balanced":
         return WeightedOptimizer(cls, [(0.5, primary), (0.5, secondary)], **kwargs)
     return Optimizer(cls, primary, **kwargs)

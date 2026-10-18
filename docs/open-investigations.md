@@ -303,6 +303,31 @@ The follow-ups above were checked against the private diagnostics archive: the d
   - Slots 1 and 5: Back Attack is worth 0.11–0.29% and Front Attack 0.05–0.31%, against 0.36–0.86% for PvE Attack.
   - Slots 3, 6 and 9: Back Attack Critical Hit comes close to Critical Hit only for the Assassin (1.44% against 1.53%).
 
+## Cleric builds: online guides against the server logs (18 October)
+
+Six Cleric guides (KR Inven, April and January 2026; GamesFuze, GAMES.GG and Mobalytics, October 2026;
+PixelNitro, September 2026) were compared with the 13 Clerics in the archived sharing-server logs and the
+recorded Cleric. Shipped in 0.2.310 ([methodology](methodology.md#the-clerics-condemnation-build-02310)).
+
+- **Same build, where the logs show it.** The guides build around Condemnation with Earth Punishment, whose
+  first specialization makes every Condemnation on its target crit, and Condemnation's cooldown reset on a
+  critical hit. In the logs 92% of Condemnations within 2 s of an Earth Punishment tick crit (510 of 554)
+  against 21% otherwise (159 of 769). Five of the 13 Clerics play this build (Condemnation 23–38% of their
+  damage) and so does the recorded Cleric (Earth Punishment at stigma level 15 or more, Condemnation 0.59 a
+  second inside its windows against 0.10 outside). The guides' specializations match the ones the logs carry:
+  Chain of Torment's 2 and 4 for nine of the 13, and Divine Aura's speed and duration (13 ticks a cast) for
+  most of them.
+- **Different from the guides:** seven of the 13 carry no Earth Punishment (one tried it briefly) and lean on
+  Judgment Thunder with Divine Punishment (26–45% of their damage), the build the KR guide calls weaker
+  since Earth Punishment (Judgment Thunder was over 50% of the damage before it). They are why the logs
+  show Judgment Thunder for every Cleric.
+- **Different from the model before 0.2.310:** it never modelled Earth Punishment's crit or several Cleric
+  specializations, so its suggested Cleric build took the first two specializations of each skill and
+  Judgment Thunder carried 30% of its damage. It now suggests the guides' build.
+- *Open:* how much of a fight a Cleric spends healing. The model fits about 19 Condemnations into an Earth
+  Punishment window, the recorded Cleric about 6 (up to 14) around its heals and Dodges, so modelled Cleric
+  DPS is a ceiling for a Cleric doing only damage.
+
 ## Kit gaps from the recorded casts, pets and MP (18 October)
 
 The four kit gaps the measured action times exposed (Spiritmaster presses, Smashing Blow, the Cleric's Thunder and Lightning, woven basic attacks) were measured from the diagnostic captures and closed in 0.2.309 ([methodology](methodology.md#kit-gaps-from-the-measured-action-times-02309)). What the records showed, and what stays open:
@@ -310,7 +335,7 @@ The four kit gaps the measured action times exposed (Spiritmaster presses, Smash
 - **The Spirits cast on their own records.** Each pet's skill uses arrive as casts from the pet, so a summon's Spirit can be followed through its life: it uses its skill about 0.3 s after the summon press, and the Fire and Earth Spirits keep using it on the 3 s Spirit Skill Cooldown for several seconds while Water and Wind rarely do. Several Spirits are out at once. The meter credits the summon's own skill to the summon and leaves the Spirits' other skills on their own rows, as the KR logs do.
 - **Dimensional Control is a reaction, not a rotation slot.** 97% of its presses come within 1 s of a Spirit skill. The recorded players press it after 75–83% of the summons but after a third of the Spirits' other skills, though they had the time (they pressed Combustion instead); the model presses it whenever a window is open.
 - **MP readings settle the Gladiator's sustain.** In the recording player's MP feed, Rending Blow costs 94 and every basic-attack step returns 140–180; Smashing Blow returns nothing of its own (the +50 that sometimes follows it is Rending Blow's "Restores 50 MP on landing a Critical Hit").
-- **Two Cleric builds, and Judgment Thunder stays.** The recorded Cleric and all ten KR logs press Earth's Retribution → Thunder and Lightning → Discharge and Condemnation (30–43% of the recorded damage, 53% of KR's), never Judgment Thunder. The archived sharing-server logs disagree: all 13 Clerics whose damage they hold press Judgment Thunder, and with its Divine Punishment companion it is 27% of their pooled damage (19–45% per player), close to the 30% the kit takes from a 0.2.256 community parse, so the kit keeps it. They split into two builds by Condemnation's crit rate: eight crit with Condemnation 0–38% of the time for 0.5–27% of their damage and lean on Judgment Thunder (26–45%), while five crit with it 65–88% of the time for 23–38% of their damage, like the recorded Cleric (62–87%), with Judgment Thunder at 19–26%. Their other skills crit 7–31% of the time, and the median loadout's modelled crit chance is 5%. *Open:* where Condemnation's crit comes from, and which build the optimizer should suggest for a given loadout.
+- **Two Cleric builds, and Judgment Thunder stays.** The recorded Cleric and all ten KR logs press Earth's Retribution → Thunder and Lightning → Discharge and Condemnation (30–43% of the recorded damage, 53% of KR's), never Judgment Thunder. The archived sharing-server logs disagree: all 13 Clerics whose damage they hold press Judgment Thunder, and with its Divine Punishment companion it is 27% of their pooled damage (19–45% per player), close to the 30% the kit takes from a 0.2.256 community parse, so the kit keeps it. They split into two builds by Condemnation's crit rate: eight crit with Condemnation 0–38% of the time for 0.5–27% of their damage and lean on Judgment Thunder (26–45%), while five crit with it 65–88% of the time for 23–38% of their damage, like the recorded Cleric (62–87%), with Judgment Thunder at 19–26%. Their other skills crit 7–31% of the time, and the median loadout's modelled crit chance is 5%. *Answered in 0.2.310:* the crit comes from Earth Punishment ([below](#cleric-builds-online-guides-against-the-server-logs-18-october)).
 - **The KR metric cannot credit basic-chain steps 2 and 3.** They have KR codes but no global catalog entry, so the KR side drops them from its ceiling while the simulated side loses that share; adding the woven steps costs the Assassin, Chanter and Ranger 0.01–0.02 of fidelity by construction. Steps after a Dodge (up to 40% of a class's woven steps) are left out with the Dodge.
 
 ## Classification review of recent uploads (16 October): one real defect, the rest data-gated

@@ -85,6 +85,23 @@ class Stats:
     mp_max_pct: float = 0.0
     mp_regen: float = 0.0          # natural MP regen per second
     mp_cost_red: float = 0.0       # Wisdom: MP consumption reduction
+    # survival (World PvP only; the damage model ignores them). Damage Tolerance values are fractions.
+    hp: float = 0.0                # HP from gear and boards (the class base comes from the class data)
+    hp_pct: float = 0.0            # "HP increase"
+    defense: float = 0.0           # Defense from gear and boards
+    defense_pct: float = 0.0       # "Defense increase"
+    crit_resist: float = 0.0       # Critical Hit Resist
+    crit_dmg_tol: float = 0.0      # Critical Damage Tolerance
+    dmg_tol: float = 0.0           # Damage Tolerance
+    pvp_tol: float = 0.0           # PvP Damage Tolerance
+    pvp_defense: float = 0.0       # PvP Defense
+    pvp_crit_resist: float = 0.0   # PvP Critical Hit Resist
+    block: float = 0.0             # carried, not scored (no verified Block / Evasion formula)
+    evasion: float = 0.0
+    cc_resist: float = 0.0         # Status Effect Resist (carried, not scored)
+    life: float = 0.0              # Life [Yustiel] points: HP increase
+    constitution: float = 0.0      # Constitution points: HP increase
+    dexterity: float = 0.0         # Dexterity points: Evasion / Block / Critical Hit Resist increase
     # deity / primary points (converted in ``derived``)
     might: float = 0.0
     precision: float = 0.0
@@ -151,6 +168,28 @@ class Stats:
             mp_regen=self.mp_regen,
             mp_cost_red=self.mp_cost_red + p * self.wisdom,
         )
+
+
+    def defenses(self, base: dict) -> "Defenses":
+        """Survival totals against player attackers: the class base (``ClassData.base_stats``) plus gear
+        and boards, scaled by the percent increases the deity and primary points give (+0.1% a point,
+        per the official profile's own effect strings)."""
+        p = STAT_POINT_PCT
+        return Defenses(
+            hp=(float(base.get("hp", 0.0)) + self.hp) * (1 + self.hp_pct + p * (self.life + self.constitution)),
+            defense=(float(base.get("defense", 0.0)) + self.defense) * (1 + self.defense_pct + p * self.justice)
+            + self.pvp_defense,
+            crit_resist=self.crit_resist * (1 + p * self.dexterity) + self.pvp_crit_resist,
+            tolerance=self.dmg_tol + self.pvp_tol, crit_dmg_tol=self.crit_dmg_tol)
+
+
+@dataclass
+class Defenses:
+    hp: float
+    defense: float
+    crit_resist: float
+    tolerance: float
+    crit_dmg_tol: float
 
 
 @dataclass

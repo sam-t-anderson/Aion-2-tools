@@ -74,6 +74,11 @@ class Target:
     hp_model: str = "dummy"        # "dummy" (always 100%) or "linear" (100% -> 0% over the fight)
 
     is_player: bool = False
+    # World PvP: how many enemies an area skill reaches, and the windows when no enemy is within
+    # ``reach_m`` (only skills that reach at least that far can be used then)
+    aoe_targets: int = 1
+    out_of_reach: tuple = ()
+    reach_m: float = 10.0
 
     def __post_init__(self):
         if self.positions is not None:
@@ -168,6 +173,9 @@ class Action:
     tags: tuple = ()
     requires_charge: bool = False  # an in-game macro cannot hold the skill button
     charge_level: int | None = None
+    targets: int = 1               # enemies one cast can hit ("up to N enemies")
+    reach: float | None = None     # metres from the caster the skill reaches (None: not stated)
+    control: float = 0.0           # expected seconds of hard crowd control per enemy hit, per cast
 
     def group(self) -> str:
         return self.cd_group or self.key
@@ -240,6 +248,7 @@ class Sim:
         self.mp_floor = self.mp
         self._ver = 0
         self._mods_cache = (None, None, None)
+        self.control_s = 0.0
 
     # ------------------------------------------------------------------ API
     def schedule(self, t: float, fn: Callable) -> None:
@@ -287,6 +296,10 @@ class Sim:
             if a.group() == group:
                 return a.affected_by_cdr
         return True
+
+    def control(self, seconds: float) -> None:
+        """Hard crowd control applied to enemies (seconds, summed over the enemies hit)."""
+        self.control_s += seconds
 
     def gain_mp(self, amount: float) -> None:
         self.mp = min(self.base.mp_max, self.mp + amount)
@@ -462,6 +475,9 @@ class Sim:
     def usable(self, a: Action) -> bool:
         if self.tactical_blocked(a):
             return False
+        if (self.target.out_of_reach and a.reach is not None and a.reach < self.target.reach_m
+                and any(s <= self.t < e for s, e in self.target.out_of_reach)):
+            return False
         if self.action_blocks:
             end = self.t + self.action_time(a)
             if any(self.t < stop-EPS and end > start+EPS for start, stop in self.action_blocks):
@@ -551,7 +567,8 @@ class Sim:
         return SimResult(self.total, T, dict(self.damage_by), dict(self.hits_by),
                          dict(self.casts), {k: v / T for k, v in self.buff_time.items()},
                          idle, self.mp_floor, list(self.timeline), list(self._reservation_report),
-                         sorted([[min(T, max(0.0, t)), amount] for t, amount in self.damage_events]))
+                         sorted([[min(T, max(0.0, t)), amount] for t, amount in self.damage_events]),
+                         control=self.control_s)
 
 
 @dataclass
@@ -567,6 +584,7 @@ class SimResult:
     timeline: list
     action_reservations: list = field(default_factory=list)
     damage_events: list = field(default_factory=list)
+    control: float = 0.0           # seconds of hard crowd control applied to enemies (World PvP)
 
     @property
     def dps(self) -> float:

@@ -215,7 +215,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
     co_f, co_c = dmg("CONDEMN")
     # Earth Punishment from stigma level 5: "[Condemnation] lands as a Critical Hit on targets afflicted
     # with [Earth Punishment]" (in the archived server logs 92% of Condemnations within 2 s of an Earth
-    # Punishment tick crit, against 17% otherwise)
+    # Punishment tick crit, against 21% otherwise)
     sure_crit = st("EPUNISH", 5)
 
     def condemn_cast(sim, a):

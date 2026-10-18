@@ -324,6 +324,7 @@ def build_view(summary: dict) -> dict:
         "equipment_source": "Saved run loadout" if saved_loadout else "Legacy run: current loadout file; original gear snapshot unavailable",
         "model_note": summary.get("model_note"), "objective": summary.get("objective"), "survival": summary.get("survival"), "action_timing": summary.get("action_timing"),
         "skill_reserves": summary.get("skill_reserves"), "genus": summary.get("genus"),
+        "world_pvp": summary.get("world_pvp"),
         "damage_traces": summary.get("damage_traces"), "progression": summary.get("progression"),
         "dps": summary.get("dps"), "baseline": summary.get("baseline"), "budgets": budgets,
         "score": summary.get("score"), "scoring_policy": summary.get("scoring_policy"),

@@ -81,7 +81,8 @@ def main(argv: list[str] | None = None) -> int:
     o = sub.add_parser("optimize", help="optimize build + rotation and write a report")
     o.add_argument("cls", help="class key: gladiator templar assassin ranger sorcerer spiritmaster cleric chanter")
     o.add_argument("--out", help="output folder (default results/<cls>_l45)")
-    o.add_argument("--scenario", default="boss", choices=["boss", "dummy"])
+    o.add_argument("--scenario", default="boss", choices=["boss", "dummy", "pvp", "pvp_world"],
+                   help="pvp_world: large fights (area skills on several players, survival-weighted; experimental)")
     o.add_argument("--daevanion", type=int, default=360, help="Daevanion Crystal points (global launch: 360)")
     o.add_argument("--iterations", type=int, default=3)
     o.add_argument("--loadout", help="loadout file name in data/global/loadouts")
@@ -95,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("simulate", help="simulate a build")
     s.add_argument("cls")
     s.add_argument("--build", help="build.json written by optimize (default: community build)")
-    s.add_argument("--scenario", default="boss", choices=["boss", "dummy"])
+    s.add_argument("--scenario", default="boss", choices=["boss", "dummy", "pvp", "pvp_world"])
     s.add_argument("--loadout")
     s.add_argument("--crit-midpoint", type=float)
 

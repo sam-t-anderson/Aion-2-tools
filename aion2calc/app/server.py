@@ -186,13 +186,17 @@ def _contribute_character_points(body: dict, imp, ev: dict, log) -> None:
         log("Could not share point totals: " + str(exc))
 
 
+#: optimization modes -> scenario (World PvP: several players, survival-weighted; ``opt.world``)
+MODES = {"pve": "boss", "pvp": "pvp", "world": "pvp_world"}
+
+
 @_model_action
 def act_character_optimize(body: dict, log) -> dict:
     from ..charopt import import_character, optimize_character
     mode = body.get("mode", "pve")
-    if mode not in ("pve", "pvp"):
-        raise ValueError("Choose PvE or PvP optimization")
-    scenario = "pvp" if mode == "pvp" else "boss"
+    if mode not in MODES:
+        raise ValueError("Choose PvE, PvP or World PvP optimization")
+    scenario = MODES[mode]
     objective = body.get("objective", "primary")
     if objective not in ("primary", "balanced"):
         raise ValueError("Choose primary or balanced damage optimization")
@@ -203,6 +207,10 @@ def act_character_optimize(body: dict, log) -> dict:
         out = out / "pvp"
         from ..scenarios import PVP_NOTE
         log(PVP_NOTE)
+    elif mode == "world":
+        out = out / "world_pvp"
+        from ..opt.world import note
+        log(note())
     log(f"optimizing {mode.upper()} under the same resources (writes {out})")
     # One pass by default keeps the in-app optimize responsive (serial, no process pool when packaged);
     # the big gains are in pass 1 plus the final polish. The CLI can pass more for an exhaustive search.
@@ -294,10 +302,10 @@ def act_optimize_class(body: dict, log) -> dict:
     from ..report import run_report
     cls = body["class"]
     mode = body.get("mode", "pve")
-    if mode not in ("pve", "pvp"):
-        raise ValueError("Choose PvE or PvP optimization")
-    scenario = "pvp" if mode == "pvp" else "boss"
-    out = results_dir() / (body.get("out") or (f"{cls}_l45_pvp" if mode == "pvp" else f"{cls}_l45"))
+    if mode not in MODES:
+        raise ValueError("Choose PvE, PvP or World PvP optimization")
+    scenario = MODES[mode]
+    out = results_dir() / (body.get("out") or {"pvp": f"{cls}_l45_pvp", "world": f"{cls}_l45_world_pvp"}.get(mode, f"{cls}_l45"))
     if not out.resolve().is_relative_to(results_dir().resolve()):
         raise ValueError("out must stay inside the results folder")
     points = _class_point_budgets(body)

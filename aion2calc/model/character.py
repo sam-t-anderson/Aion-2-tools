@@ -36,6 +36,11 @@ DAEV_MAP = {
     "CombatSpeed": ("combat_speed", 1e-4), "CoolTimeDecrease": ("cdr", 1e-4),
     "AmplifyAllDamage": ("amp_all", 1e-4), "AmplifyCriticalDamage": ("crit_dmg", 1e-4),
     "AdditionalHitRate": ("multihit", 1e-4), "MPMax": ("mp_max", 1),
+    # survival (World PvP): +100 HP, +30 Defense, +5 Critical Hit Resist, +1.5% tolerances a node
+    "HPMax": ("hp", 1), "Defense": ("defense", 1), "CriticalResist": ("crit_resist", 1),
+    "DecreaseDamage": ("dmg_tol", 1e-4), "DecreaseCriticalDamage": ("crit_dmg_tol", 1e-4),
+    "PvPDamageDefense": ("pvp_defense", 1), "PvPDecreaseDamage": ("pvp_tol", 1e-4),
+    "PvPCriticalResist": ("pvp_crit_resist", 1),
 }
 
 #: deity stat display names -> Stats field

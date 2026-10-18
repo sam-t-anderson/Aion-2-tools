@@ -41,11 +41,18 @@ def pvp_burst(loadout: str = "sorcerer_l45_global_median", duration: float = 30.
     return pvp(loadout, duration)
 
 
+def pvp_world(loadout: str = "sorcerer_l45_global_median", duration: float = 180.0) -> Scenario:
+    """World PvP: several player targets in reach of area skills, and recurring windows with no enemy
+    in melee reach (``opt.world``: the assumptions and the survival-weighted objective)."""
+    from .opt.world import with_world
+    return with_world(pvp(loadout, duration))
+
+
 def comparison_scenario(name):
-    return "pvp_burst" if name == "pvp" else "pvp" if name == "pvp_burst" else "dummy" if name == "boss" else "boss"
+    return {"pvp": "pvp_burst", "pvp_burst": "pvp", "pvp_world": "pvp", "boss": "dummy"}.get(name, "boss")
 
 
-SCENARIOS = {"dummy": dummy, "boss": boss, "pvp": pvp, "pvp_burst": pvp_burst}
+SCENARIOS = {"dummy": dummy, "boss": boss, "pvp": pvp, "pvp_burst": pvp_burst, "pvp_world": pvp_world}
 
 
 def decode_metabot_daevanion(cd: ClassData, h: str) -> set:

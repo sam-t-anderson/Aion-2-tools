@@ -53,6 +53,79 @@ PASSIVE_STATS = [
 ]
 CONDITIONAL_PASSIVE = re.compile(r"\bwhen\b|\bfor \{\d+\}|on Block|on Evasion|after", re.I)
 
+#: Crowd control that stops a player acting (World PvP credits it); Root, Slow, Knock Back, Blind and
+#: Seal do not count.
+HARD_CC = ("Stun", "Knockdown", "Airborne", "Fear", "Sleep", "Frost")
+_CC = "|".join(HARD_CC)
+#: a crowd-control clause that only applies in a state the simulation does not track
+_CC_CONDITION = re.compile(r"NPC|on Evasion|on Block|after using|while |when removing|on hitting a target", re.I)
+
+
+def targets_of(tip: str, vals=()) -> int:
+    """Enemies one cast can hit ("up to N enemies", N written out or a tooltip value); 1 when none."""
+    m = re.search(r"up to (\d+) enemies", tip)
+    if m:
+        return int(m.group(1))
+    m = re.search(r"up to \{(\d+)\} enemies", tip)
+    if m and int(m.group(1)) < len(vals) and isinstance(vals[int(m.group(1))], (int, float)):
+        return max(1, int(vals[int(m.group(1))]))
+    return 1
+
+
+def reach_of(tip: str) -> float | None:
+    """How far from the caster the skill reaches: its target range, else its radius around the caster."""
+    n = r"(\d+(?:\.\d+)?)m"
+    m = re.search(rf"target(?: [A-Za-z']+){{0,3}}? within {n}", tip) or re.search(rf"within {n}", tip) \
+        or re.search(rf"(?:Rushes|Moves|Leaps) (?:forward )?{n}", tip)
+    return float(m.group(1)) if m else None
+
+
+def control_of(name: str, tip: str, vals, spec_texts) -> float:
+    """Expected seconds of hard crowd control on each enemy hit, per cast: the tooltip's own Stun /
+    Knockdown / Airborne / Fear / Sleep / Frost at its chance and duration, with the chosen
+    specializations' extra duration and chance. Conditional clauses are left out."""
+    def val(i):
+        i = int(i)
+        return vals[i] if i < len(vals) else None
+    cc: dict[str, list] = {}
+    for clause in re.split(r"(?<=[.])\s+|, and |;", tip):
+        m = re.search(rf"[Ii]nflict(?:s|ing)? ({_CC})(?: on (?:the )?targets?)? for \{{(\d+)\}}", clause)
+        if not m or _CC_CONDITION.search(clause):
+            continue
+        dur = val(m.group(2))
+        if not isinstance(dur, (dict, int, float)):
+            continue
+        mc = re.search(r"\{(\d+)\}% chance", clause)
+        chance = val(mc.group(1)) / 100.0 if mc and isinstance(val(mc.group(1)), (int, float)) else 1.0
+        cc[m.group(1)] = [chance, _ms(dur)]
+    for t in spec_texts:
+        if m := re.search(rf"^\+(\d+)s (?:\[.+?\] )?({_CC}) duration", t):
+            if m.group(2) in cc:
+                cc[m.group(2)][1] += float(m.group(1))
+        elif m := re.search(rf"^\+(\d+)% (?:\[.+?\] )?(?:additional )?(?:PC target )?({_CC}) Chance", t):
+            if m.group(2) in cc:
+                cc[m.group(2)][0] = min(1.0, cc[m.group(2)][0] + float(m.group(1)) / 100)
+        elif m := re.search(rf"^(?:Has a )?(\d+)% chance to (?:rotate and )?inflict ({_CC})(?: on the target)? for (\d+)s(.*)$", t):
+            tail = m.group(4)
+            other = re.search(r"\[(.+?)\]", tail)
+            if _CC_CONDITION.search(tail) or "afflicted with" in tail or (other and other.group(1) != name):
+                continue
+            chance, dur = float(m.group(1)) / 100, float(m.group(3))
+            cur = cc.get(m.group(2))
+            cc[m.group(2)] = [min(1.0, (cur[0] if cur else 0.0) + chance * (1 - (cur[0] if cur else 0.0))),
+                              max(dur, cur[1] if cur else 0.0)]
+    return sum(chance * dur for chance, dur in cc.values())
+
+
+def _target_bonus(more: float, less: float, k: int) -> float:
+    """The "+N% damage when more / less targets hit" factor at ``k`` targets, relative to the single-target
+    value the kit applies: the more-targets bonus grows to its full size at 4 targets, the less-targets
+    bonus shrinks to nothing there (linear in between)."""
+    if k <= 1 or not (more or less):
+        return 1.0
+    frac = (min(k, 4) - 1) / 3
+    return ((1 + more * (0.25 + 0.75 * frac)) / (1 + more * 0.25)) * ((1 + less * (1 - frac)) / (1 + less))
+
 
 def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bool = False) -> Kit:
     boost_kind = "PvP" if pvp else "PvE"
@@ -102,6 +175,7 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bo
 
     # ----------------------------------------------------------------- actives
     fillers = []
+    utility: set = set()
     apply_dur_by: dict[str, float] = {}
     for sid, s in cd.skills.items():
         if s["kind"] not in ("active", "stigma"):
@@ -120,6 +194,7 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bo
         on_hit_cd, on_cast_cd, resets, buffs = [], [], [], []
         dur_buff = None
         chain = False
+        more = less = 0.0
         if s["kind"] == "stigma":
             active_specs = [x["text"] for x in s.get("specs", []) if x["unlock"] <= lvl]
         else:
@@ -149,8 +224,10 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bo
                 tags.append(f"mh{m.group(1)}")
             elif m := re.search(r"Up to \+(\d+)% damage when more targets hit", t):
                 mult *= 1 + float(m.group(1)) / 400   # single target: first quarter
+                more += float(m.group(1)) / 100
             elif m := re.search(r"up to \+?(\d+)% (?:more )?damage when less targets", t, re.I):
                 mult *= 1 + float(m.group(1)) / 100
+                less += float(m.group(1)) / 100
             elif m := re.search(r"\+(\d+)% damage", t):
                 mult *= 1 + float(m.group(1)) / 100
             elif m := re.search(r"(\d+)% more damage", t, re.I):
@@ -181,7 +258,7 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bo
             if m and md:
                 buff_stats["crit"] = v[int(m.group(1))]
                 dur_buff = _ms(v[int(md.group(1))])
-            if not buff_stats:
+            if not buff_stats and not control_of(s["name"], tip, v, active_specs):
                 continue      # utility skill: not part of a DPS rotation
             cast = BUFF_CAST
         hits = cd.hits(sid, 1)
@@ -206,7 +283,14 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bo
 
         def on_cast(sim, a, dmg=dmg, hits=hits, mult=mult, tags=tuple(tags), on_hit_cd=tuple(on_hit_cd),
                     resets=tuple(resets), buffs=tuple(buffs), buff_stats=buff_stats, dur_buff=dur_buff,
-                    on_cast_cd=tuple(on_cast_cd), chain=chain):
+                    on_cast_cd=tuple(on_cast_cd), chain=chain, more=more, less=less):
+            # World PvP: an area skill lands on every enemy it reaches (the scenario's count, at most the
+            # tooltip's); damage and crowd control count once per enemy hit
+            k = min(a.targets, sim.target.aoe_targets) if sim.target.aoe_targets > 1 else 1
+            if k > 1:
+                mult *= k * _target_bonus(more, less, k)
+            if a.control:
+                sim.control(a.control * k)
             for g, sec in on_cast_cd:
                 if g != a.key:
                     sim.reduce_cd(g, sec)
@@ -236,7 +320,11 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bo
         A[key] = Action(key, s["name"], sid, cast, cooldown=cdv, mp=mp, requires=requires,
                         skill_speed=skill_speed, on_cast=on_cast, is_filler=is_filler,
                         requires_charge=bool(re.search(r"\bCharge (?:Levels|Skill)\b", tip)
-                                             or any("Changes to Charge Skill" in t for t in active_specs)))
+                                             or any("Changes to Charge Skill" in t for t in active_specs)),
+                        targets=targets_of(tip, v), reach=reach_of(tip),
+                        control=control_of(s["name"], tip, v, active_specs))
+        if not pairs and not buff_stats:
+            utility.add(key)                  # crowd control only: offered to the rotation search, not the default
 
     def hook(sim, t, info):
         if "proc" in info["tags"] or "dot" in info["tags"]:
@@ -246,7 +334,7 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bo
             if p > 0 and sim.proc(name, p, icd, t):
                 sim.hit(name, f, c / 100.0, tags=("proc",))
 
-    order = sorted((k for k, a in A.items() if not a.is_filler),
+    order = sorted((k for k, a in A.items() if not a.is_filler and k not in utility),
                    key=lambda k: (A[k].cooldown == 0, -A[k].cooldown))
     filler_key = filler if filler in A else (fillers[0] if fillers else None)
     policy = order + ([filler_key] if filler_key else [])

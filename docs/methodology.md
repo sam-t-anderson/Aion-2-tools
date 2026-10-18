@@ -345,6 +345,92 @@ The Cleric weaves almost nothing (8 steps in 873 presses) and the one recorded
 Templar made too few presses, so neither kit weaves. Steps after a Dodge (up to
 40 % of a class's woven steps) are left out with the Dodge.
 
+### The Cleric's Condemnation build (0.2.310)
+
+Online Cleric guides build the class's damage around Condemnation, and the archived server logs and the
+recorded Cleric show why. Earth Punishment's first specialization (stigma level 5) reads "[Condemnation]
+lands as a Critical Hit on targets afflicted with [Earth Punishment]", and Condemnation's level-12
+specialization resets its cooldown on a critical hit, so while Earth Punishment lasts Condemnation is pressed
+back to back.
+
+* **Guides.** A KR Inven PvE guide (16 April 2026) ranks Condemnation first (30 %+ of the damage, Judgment
+  Thunder below 20 %, from over 50 % before Earth Punishment), takes Judgment Thunder to 16 for its extra
+  Divine Punishment, Bolt's Skill Speed and +20 %, Earth's Retribution's specializations 2 and 3, Divine
+  Aura's attacking speed and +3 s, and Chain of Torment's 2 and 4, with Light of Protection, Earth
+  Punishment and Prayer of Amplification as the core stigmas. An older Inven guide (January 2026) already
+  prefers Condemnation 20 to Judgment Thunder 20 "because of Earth Punishment". The global guides on
+  GamesFuze, GAMES.GG and Mobalytics (October 2026) agree on Condemnation with Chain of Torment and
+  Earth Punishment; PixelNitro (September 2026) still calls Judgment Thunder a core investment.
+* **Server logs.** 92 % of the Condemnations landing within 2 s of an Earth Punishment tick crit (510 of
+  554), against 21 % otherwise (159 of 769). Six of the 13 Clerics whose damage the logs hold carry Earth
+  Punishment and five press Condemnation inside its windows (23–38 % of their damage); the other seven play
+  the older Judgment Thunder build (26–45 % with Divine Punishment). Where the logs carry the chosen
+  specializations (damage-over-time skill ids), nine of the 13 take Chain of Torment's 2 and 4, and most
+  Divine Aura casts tick 13 times (both of its damage specializations).
+* **The recorded Cleric** carries Earth Punishment at stigma level 15 or more and presses Condemnation 0.59
+  times a second inside the windows, against 0.10 outside, in chains of 2.7 presses 0.51 s apart, broken by
+  Dodges, heals and debuff refreshes.
+
+The kit models Earth Punishment's hit and damage over time (the listed amount over 10 s, 20 s at level 20;
+the logs show ten ticks of a tenth of the hit), Earth's Blessing (+10 % Double Chance from level 10, +10 %
+Attack from 15) and the guaranteed crit; Condemnation's +12 %; Chain of Torment's PvE Damage Tolerance
+reduction (5 %, +10 % with its specialization; it lowers the target's tolerance, never below zero); Divine
+Aura's ticks (6, 8, 10 and 13 a cast for none, the speed, the duration and both specializations, as the
+logs show, each a fifth of the listed damage); Bolt's Skill Speed, +20 % and crit; Debilitating Mark's
+faster ticks; Prayer of Amplification's listed duration and specializations; and Light of Protection as an
+aura left on (the recorded Cleric pressed it twice in 16 minutes). The optimizer now picks the guides'
+build: Earth Punishment, Prayer of Amplification and Light of Protection, Condemnation's reset, Chain of
+Torment's 2 and 4, Divine Aura's speed and duration and Bolt's speed and +20 %. The bundled Cleric build
+reaches 16,342 boss DPS, Condemnation 47 % of it. Taking each new effect away from it:
+
+| Without | Boss DPS |
+|---|---|
+| Earth Punishment's crit (stigma level 4) | −32 % (Condemnation 13.7 a minute instead of 37) |
+| Condemnation's cooldown reset | −26 % |
+| Chain of Torment's +10 % tolerance reduction | −7.5 % |
+| Prayer of Amplification's Damage Boost | −7.2 % |
+| Divine Aura's speed and duration | −5.6 % |
+| Bolt's +20 % | −1.3 % |
+
+This is a ceiling for a Cleric who does nothing but damage: the model fits about 19 Condemnations into a
+10 s window, the recorded Cleric about 6 (up to 14) around its heals, and the server-log Clerics' median
+boss DPS is 4,930 (the other classes' 7,600–13,600).
+
+### World PvP (0.2.310)
+
+`--scenario pvp_world` (and **Optimize World PvP** in the app) optimizes for large fights. The damage side
+is the PvP kit with three additions read from the tooltips: how many enemies a skill hits ("up to N
+enemies"), how far it reaches ("a target within X m", else its radius around the caster) and its hard crowd
+control (Stun, Knockdown, Airborne, Fear, Sleep, Frost: chance × duration, with the chosen specializations'
+extra chance and duration; conditional clauses are left out). The objective is
+
+    score = world DPS × (1 − exp(−x)),   x = ln 2 × (EHP / typical EHP) × (1.5 / attackers) / (1 − controlled)
+
+| Assumption | Value |
+|---|---|
+| Enemies an area skill reaches | 3 |
+| No enemy within reach | the last 3 s of every 10 s; only skills reaching 10 m or more can be used then |
+| Players hitting you at once | 3 on a melee class (Gladiator, Templar, Assassin, Chanter), 1.5 on a ranged one |
+| Typical build | survives half the fight when played by a ranged class without crowd control |
+| Crowd control | takes away its share of the attackers' time, at most 50 % |
+| Reference attacker | your class's typical build, a 200 % Attack + 1,000 hit |
+
+Effective HP is HP over the share of the reference hit you take through the damage formula (Defense,
+Critical Hit Resist, Critical Damage Tolerance, Damage Tolerance and PvP Damage Tolerance). The class base
+comes from the class data; without recorded gear the loadout gets the median level-45 gear survival stats of
+58 official profiles in the archived logs (`data/global/survival_medians.json`: about 4,400 HP and 7,100
+Defense, plus Constitution, Life and Dexterity points). The board solver values HP, Defense and Critical Hit
+Resist nodes by the survival they add; damage stats by their DPS times the share survived.
+
+With these assumptions a melee class values survival more than a ranged one (a typical melee build survives
+about 30 % of the fight, so each point of effective HP adds more), crowd control pays through survival, and
+melee classes keep their gap closers and ranged skills for the out-of-reach windows. The Gladiator's World
+PvP build takes Assault Strike, Fracturing Rush, Wrath Wave and Blade Toss, Mocking Blade's and Ankle Slice's
+Knockdown specializations, every HP node and most Defense nodes (HP is its best stat); the Sorcerer's
+leans on its area skills and takes every HP node too. Block, Evasion, Status Effect Resist, crowd-control
+immunity, healing, shields, movement and player reactions are not modelled; these are assumptions, not
+measurements, and are shown with every result.
+
 ### Chain, variant and combo skills, and known catalog gaps
 
 metabot's build-planner page exposes 35 skills per class. Several real skills
@@ -385,12 +471,12 @@ notes / `ASSUME` for when one is available, not yet modelled):
   players' boss fights (0.2.309). The KR logs (a dummy, higher levels) show far
   larger Spirit basic-attack and Ancient Spirit shares, and the model presses
   Dimensional Control at an attentive player's rate.
-* **Cleric** — the recorded Cleric and the KR logs never press Judgment Thunder,
-  but all 13 Clerics in the archived sharing-server logs do: with Divine
-  Punishment it is 27 % of their damage, close to the model's 30 % (taken from
-  a 0.2.256 community parse). Five of them, like the recorded Cleric, crit with
-  Condemnation 65–88 % of the time for 23–38 % of their damage, far above the
-  median loadout's modelled crit chance.
+* **Cleric** — since 0.2.310 the Condemnation crits come from Earth Punishment
+  (see *The Cleric's Condemnation build*), and the optimizer suggests the build
+  the guides and five of the 13 server-log Clerics play; the other eight lean on
+  Judgment Thunder (27 % of the server-log Clerics' damage with Divine
+  Punishment, close to the model's 30 %). The kit does not model healing, so its
+  DPS is a ceiling for a Cleric doing only damage.
 * **Sorcerer** — Burst / Pyroclasm / Cold Wave are partly covered by the Flame
   Arrow chain multipliers; a dedicated capture would refine them.
 * **Gladiator** — on the median loadout the kit is MP-tight (Rending Blow costs

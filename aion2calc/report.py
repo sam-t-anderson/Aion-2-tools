@@ -427,6 +427,19 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     if scenario_name.startswith("pvp"):
         from .scenarios import PVP_NOTE
         summary["model_note"] = PVP_NOTE
+    from .opt.world import is_world
+    if is_world(scen):
+        from .opt.world import assess as assess_world
+        if progress:
+            progress("World PvP: scoring survival and crowd control on the final build")
+        world = assess_world(cls, build, scen, policy)
+        typical = assess_world(cls, comm, baseline_scen, comm_rot.policy)
+        summary["world_pvp"] = {**world, "typical_build": {k: typical[k] for k in
+                                                           ("score", "dps", "alive_share", "effective_hp", "control_s_per_min")}}
+        summary["objective"] = {"kind": "world", "weights": {scenario_name: 1.0}, "components": {scenario_name: world["dps"]},
+                                "score": world["score"], "durations": {scenario_name: scen.config.duration},
+                                "label": "World PvP score (DPS x share of the fight survived)", "note": world["note"]}
+        summary["model_note"] = world["note"]
     (out / "build.json").write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
 
     # ---- images

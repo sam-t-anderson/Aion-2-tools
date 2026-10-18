@@ -18,6 +18,8 @@ python -m aion2calc app        # the same app in your browser at http://127.0.0.
 # optimize a class and write results/<class>_l45/ (report, build.json, images)
 python -m aion2calc optimize sorcerer
 python -m aion2calc optimize gladiator --scenario dummy --daevanion 300
+# World PvP (experimental): area skills on several players, survival and crowd control weighed in
+python -m aion2calc optimize gladiator --scenario pvp_world --out results/gladiator_l45_world_pvp
 
 # simulate the typical top global build, or a saved optimized build
 python -m aion2calc simulate ranger

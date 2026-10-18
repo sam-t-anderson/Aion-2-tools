@@ -1,0 +1,76 @@
+{
+ "source": "Median survival stats of level-45 characters' gear (item main stats, sub stats and manastones) and their Constitution, Life and Dexterity points, from 58 official character profiles in the archived sharing-server logs (October 2026). Classes with fewer than 5 profiles use the pooled median.",
+ "pooled": {
+  "n": 58,
+  "hp": 4450.0,
+  "defense": 7103.0,
+  "crit_resist": 127.0,
+  "life": 23.0,
+  "constitution": 11.5,
+  "dexterity": 12.0
+ },
+ "classes": {
+  "assassin": {
+   "n": 6,
+   "hp": 4287.0,
+   "defense": 7362.5,
+   "crit_resist": 131.5,
+   "life": 33.0,
+   "constitution": 9.0,
+   "dexterity": 6.0
+  },
+  "chanter": {
+   "n": 9,
+   "hp": 4577.0,
+   "defense": 7382.0,
+   "crit_resist": 127.0,
+   "life": 19.0,
+   "constitution": 12.0,
+   "dexterity": 12.0
+  },
+  "cleric": {
+   "n": 12,
+   "hp": 4306.5,
+   "defense": 6794.5,
+   "crit_resist": 137.0,
+   "life": 15.0,
+   "constitution": 12.5,
+   "dexterity": 4.5
+  },
+  "gladiator": {
+   "n": 3,
+   "pooled": true
+  },
+  "ranger": {
+   "n": 8,
+   "hp": 4509.5,
+   "defense": 6437.0,
+   "crit_resist": 96.5,
+   "life": 22.0,
+   "constitution": 1.5,
+   "dexterity": 11.0
+  },
+  "sorcerer": {
+   "n": 7,
+   "hp": 4755.0,
+   "defense": 7119.0,
+   "crit_resist": 143.0,
+   "life": 21.0,
+   "constitution": 14.0,
+   "dexterity": 16.0
+  },
+  "spiritmaster": {
+   "n": 9,
+   "hp": 4483.0,
+   "defense": 7067.0,
+   "crit_resist": 138.0,
+   "life": 21.0,
+   "constitution": 13.0,
+   "dexterity": 18.0
+  },
+  "templar": {
+   "n": 4,
+   "pooled": true
+  }
+ }
+}

@@ -1,3 +1,19 @@
+## The Cleric's Condemnation build, World PvP optimization and Genus roll suggestions in optimizer results (0.2.310)
+
+**The Cleric's suggestions follow the guides and the logs.** Online Cleric guides (KR Inven, GamesFuze, GAMES.GG, Mobalytics) build the class around Condemnation: Earth Punishment's first specialization makes every Condemnation on its target a critical hit, and Condemnation's level-12 specialization resets its cooldown on a critical hit, so it is pressed back to back while Earth Punishment lasts. The archived server logs agree: 92% of Condemnations within 2 seconds of an Earth Punishment tick crit, against 21% otherwise, and five of the 13 Clerics there (and the recorded Cleric) play that build, while the other eight lean on Judgment Thunder, the build the KR guide calls weaker. The Cleric kit now models Earth Punishment in full, Chain of Torment's PvE Damage Tolerance reduction, Divine Aura's measured ticks, the damage specializations of Condemnation, Bolt and Debilitating Mark, Prayer of Amplification's specializations, and Light of Protection as an aura left on. The optimizer now suggests the guides' stigmas and specializations, and the bundled Cleric build reaches 16,342 boss DPS (Condemnation 47% of it). That is a ceiling for a Cleric doing nothing but damage; recorded Clerics heal and fit about a third as many Condemnations into each window ([methodology](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/methodology.md#the-clerics-condemnation-build-02310)).
+
+**World PvP optimization (experimental).** A new mode, **Optimize World PvP**, for large fights:
+- area skills land on every enemy they reach (three by default), so builds lean on them;
+- for part of the fight no enemy is in melee reach, so melee classes keep their gap closers and ranged skills;
+- hard crowd control (Stun, Knockdown, Airborne, Fear, Sleep, Frost) takes away the attackers' time;
+- the score weighs damage by the share of the fight you survive, from HP, Defense, Critical Hit Resist and Damage Tolerance, so the optimizer buys HP and Defense nodes; melee classes draw more attackers and value survival most.
+
+The Gladiator's World PvP build takes Assault Strike, Fracturing Rush, Wrath Wave and Blade Toss, Knockdown specializations and every HP node; the Sorcerer's leans on its area skills. Every assumption is listed with the result ([methodology](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/methodology.md#world-pvp-02310)).
+
+**Genus suggestions in optimizer results.** The Pet Genus Insight window of an optimizer result now lists what each slot can roll and what to roll for, scored on the optimized build like the Advice page, with nothing recorded and in PvP too.
+
+**Character imports keep survival stats.** HP, Defense, Critical Hit Resist, Damage Tolerance and the Constitution, Life and Dexterity points from the official profile are read (only World PvP scores them).
+
 ## Spiritmaster summons, Smashing Blow, the Cleric's Thunder and Lightning and woven basic attacks in the damage model (0.2.309)
 
 **The Spiritmaster presses its summons, Dimensional Control and Elemental Fusion.** The kit used to keep one Water Spirit out and fire Dimensional Control and Elemental Fusion on their own, so the time real players spend on those presses (about a quarter of their active time) went to Combustion: the simulation cast it twice as often as recorded players. Now:
