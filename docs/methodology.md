@@ -222,7 +222,7 @@ counts casts (`combat/actions.pressed`).
   20 or more where one player made nearly all of a class's presses (Cleric,
   Spiritmaster).
   Everything else keeps its estimate: the whole Templar kit (one player, at most
-  18 presses a skill), Judgment Thunder (not pressed), Snipe and Cold Shock (only
+  18 presses a skill), Judgment Thunder (not pressed in the captures), Snipe and Cold Shock (only
   ever woven), and skills with too few presses. The Gladiator's "Remove
   cooldown" Overhead Slam cycle (`ASSUME`) is measured too: never under about
   1 s (10th percentile 0.97 s), not the ~0.65 s estimated from a 0.2.254 parse.
@@ -385,11 +385,12 @@ notes / `ASSUME` for when one is available, not yet modelled):
   players' boss fights (0.2.309). The KR logs (a dummy, higher levels) show far
   larger Spirit basic-attack and Ancient Spirit shares, and the model presses
   Dimensional Control at an attentive player's rate.
-* **Cleric** — neither the recorded Cleric nor the KR logs ever press Judgment
-  Thunder, which the model takes from a 0.2.256 community parse (with Divine
-  Punishment about 30 % of the simulated damage). Condemnation is 30–53 % of the
-  real damage at a 62–87 % crit rate, far above the median loadout's modelled
-  crit chance.
+* **Cleric** — the recorded Cleric and the KR logs never press Judgment Thunder,
+  but all 13 Clerics in the archived sharing-server logs do: with Divine
+  Punishment it is 27 % of their damage, close to the model's 30 % (taken from
+  a 0.2.256 community parse). Five of them, like the recorded Cleric, crit with
+  Condemnation 65–88 % of the time for 23–38 % of their damage, far above the
+  median loadout's modelled crit chance.
 * **Sorcerer** — Burst / Pyroclasm / Cold Wave are partly covered by the Flame
   Arrow chain multipliers; a dedicated capture would refine them.
 * **Gladiator** — on the median loadout the kit is MP-tight (Rending Blow costs

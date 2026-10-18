@@ -14,7 +14,7 @@ The simulated damage now matches the recorded Spiritmasters' fights far better: 
 
 **Woven basic attacks deal damage.** Most classes tap 20–30 basic-attack steps a minute between skills. Their time was already in the measured skill timings; now their damage and MP are too, at each class's recorded rate after each skill (most after Rending Blow, Combustion, Incandescent Blow, Ice Chain, Tempest Shot and Savage Roar). The Cleric hardly weaves, and there is too little Templar data, so neither changes.
 
-**Checked against the recorded fights and left as it is.** Neither the recorded Cleric nor the KR logs ever press Judgment Thunder, which the model still uses for about 30% of the Cleric's simulated damage; it is flagged for review in the [open investigations](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/open-investigations.md#kit-gaps-from-the-recorded-casts-pets-and-mp-18-october).
+**Checked against the recorded fights and left as it is.** The recorded Cleric and the KR logs never press Judgment Thunder, but all 13 Clerics whose damage the archived sharing-server logs hold do: with Divine Punishment it is 27% of their damage (19–45% each), close to the model's 30%, so the model keeps it. Five of the 13 also lean on Condemnation as the recorded Cleric does (23–38% of their damage, critting 65–88% of the time), a crit rate the median loadout does not reach ([open investigations](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/open-investigations.md#kit-gaps-from-the-recorded-casts-pets-and-mp-18-october)).
 
 Community build presets are scored again under the updated model once the sharing server runs this version.
 
