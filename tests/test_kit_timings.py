@@ -28,11 +28,13 @@ def test_a_folded_chain_press_is_timed_only_when_the_chain_is_taken():
     assert chained["overhead_slam"].cast == pytest.approx(T["overhead_slam"] + A["upward_chance"] * T["upward_strike"])
 
     plain, mod = _kit("chanter")
-    chained, _ = _kit("chanter", {18040000: (18040040,), 18100000: (18100040,)})   # Bursting Blow, Piercing Strike
+    chained, _ = _kit("chanter", {18100000: (18100040,)})                   # Dark Crush -> Piercing Strike
     T, A = mod.TIMING, mod.ASSUME
-    assert (plain["incandescent_blow"].cast, plain["dark_crush"].cast) == (T["incandescent_blow"], T["dark_crush"])
-    assert chained["incandescent_blow"].cast == pytest.approx(T["incandescent_blow"] + T["bursting_blow"] / A["bursting_every"])
-    assert chained["dark_crush"].cast == pytest.approx(T["dark_crush"] + T["piercing_strike"])
+    assert plain["dark_crush"].cast == T["dark_crush"]
+    assert chained["dark_crush"].cast == pytest.approx(T["dark_crush"] + A["piercing_chance"] * T["piercing_strike"])
+    # Bursting Blow is Incandescent Blow's own chain (0.2.319), so its press is always charged, at its rate.
+    for actions in (plain, chained):
+        assert actions["incandescent_blow"].cast == pytest.approx(T["incandescent_blow"] + A["bursting_chance"] * T["bursting_blow"])
 
     plain, mod = _kit("ranger")
     chained, _ = _kit("ranger", {14020000: (14020050,)})                    # Snipe -> Tempest Arrow

@@ -46,11 +46,12 @@ def test_chain_followup_coefficient_is_a_finisher_not_a_tap():
 
 def test_chanter_models_its_two_dropped_nukes():
     # Piercing Strike (Dark Crush chain, ~22% of real damage) and Bursting Blow (Incandescent
-    # Blow variant, ~15%) were both dropped because the hand-written casts bypassed the generic
-    # chain reader; they are now modelled at their measured coefficients.
+    # Blow's chain, ~21%) were both dropped because the hand-written casts bypassed the generic
+    # chain reader; they are modelled at their measured values, per press against the parent's
+    # press since 0.2.319 (Bursting Blow 1.19x after 90% of Incandescent Blows, for every Chanter).
     from aion2calc.kit.chanter import ASSUME
     assert ASSUME["piercing_frac"] > 1.3
-    assert ASSUME["bursting_frac"] > 1.5
+    assert ASSUME["bursting_frac"] > 1.0 and ASSUME["bursting_chance"] >= 0.85
 
 
 def test_cleric_models_divine_punishment():
@@ -90,20 +91,26 @@ def test_gladiator_models_upward_strike_and_the_basic_combo():
     # The chain and the basic combo now exist and carry real weight (they did not before).
     assert dmg.get("Upward Strike", 0) > 0, sorted(dmg)
     assert dmg.get("Smashing Blow", 0) > 0, sorted(dmg)
-    # Upward Strike is the biggest hit in the rotation, as in a real parse (2.1x Overhead).
-    assert dmg["Upward Strike"] / hits["Upward Strike"] > 1.5 * dmg["Overhead Slam"] / hits["Overhead Slam"]
+    # An Upward Strike press lands a little more than an Overhead Slam press (1.08x in the log
+    # server's uploads, 0.2.319; the 0.2.254 parse's 2.1x set it against one of Overhead Slam's two
+    # records).
+    assert dmg["Upward Strike"] / hits["Upward Strike"] > dmg["Overhead Slam"] / hits["Overhead Slam"]
     # Overhead Slam + Upward Strike dominate the single-target rotation.
     assert (dmg["Upward Strike"] + dmg.get("Overhead Slam", 0)) / res.total > 0.4
-    # Ruinous Blow is modelled as a multi-strike, so it is a meaningful share (~its
-    # measured 7.7%) instead of a single hit — this is what lifts Cooldown Reduction.
-    assert dmg.get("Ruinous Blow", 0) / res.total > 0.04
+    # Ruinous Blow lands its tooltip once a press (with the extra-damage spec's +30%), still a
+    # meaningful share as the main cooldown-bound nuke.
+    assert dmg.get("Ruinous Blow", 0) / res.total > 0.03
 
 
 def test_gladiator_upward_chain_uses_the_measured_fraction():
+    # Measured per press in the log server's uploads (0.2.319).
     from aion2calc.kit.gladiator import ASSUME
-    assert ASSUME["upward_frac"] > 1.5          # measured ~2.1x; never the old 0.60 placeholder
+    assert 1.0 < ASSUME["upward_frac"] < 1.3    # 1.08x an Overhead Slam press; never the old 0.60 placeholder
+    assert ASSUME["upward_chance"] >= 0.85      # it follows ~90% of Overhead Slams once taken
     assert "knockdown_uses" not in ASSUME       # the dead constant was removed
-    assert ASSUME["ruinous_hits"] >= 2          # Ruinous Blow is a multi-strike (lifts Cooldown Reduction)
+    assert ASSUME["ruinous_hits"] == 1          # one tooltip a press (1.33x with the extra-damage spec)
+    assert 0 < ASSUME["skill_crit"] < 1         # "+30% Skill Critical Hit" is not a certain crit
+    assert ASSUME["stagger_uptime"] == 0        # no Destructive Impulse hit lands on a boss
 
 
 def test_gladiator_basic_string_sustains_mp_and_skips_crowd_control_on_a_dummy():

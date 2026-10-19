@@ -19,9 +19,9 @@ def test_every_class_has_a_bundled_build_and_the_index_lists_them_in_order():
         assert dps == f"{summaries[cls]['dps']['boss']:,.0f}"
 
 
-def test_the_index_explains_the_clerics_heals_only_when_it_is_listed():
-    rows = [("sorcerer", 20000.0, 18000.0, 0.8), ("cleric", 16000.0, 12000.0, None)]
+def test_the_index_explains_the_healers_heals_only_when_they_are_listed():
+    rows = [("sorcerer", 20000.0, 18000.0, 0.8), ("cleric", 16000.0, 12000.0, None), ("chanter", 13000.0, 11000.0, 0.4)]
     md = compare_markdown(rows, "boss", 2)
     assert "2 optimizer iterations" in md and "| cleric | 16,000 | 12,000 | +33.3% | — |" in md
-    note = "The Cleric's boss number includes its heals"
-    assert note in md and note not in compare_markdown(rows[:1], "boss", 1)
+    for note in ("The Cleric's boss number includes its heals", "The Chanter's boss number includes its heals"):
+        assert note in md and note not in compare_markdown(rows[:1], "boss", 1)

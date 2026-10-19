@@ -334,9 +334,9 @@ step's MP (the Gladiator's MP readings show every step returning at least that).
 
 | Class | Woven steps after the main presses | Any other press | Steps 2 and 3 vs step 1 |
 |---|---|---|---|
-| Gladiator | Rending Blow 0.38, Smashing Blow 0.36, Overhead Slam 0.17 (+ Upward Strike 0.12), Crushing Wave 0.73 | 0.10 | 1.17, 1.60 |
+| Gladiator | Rending Blow 0.22, Smashing Blow 0.25, Overhead Slam 0.10 (+ Upward Strike 0.01), Ruinous Blow 0.13, Crushing Wave 0.53 (0.2.319; 0.38, 0.36, 0.17 + 0.12, 0 and 0.73 before) | 0.10 | 1.17, 1.60 |
 | Assassin | Savage Roar 0.66, Insignia Explosion 0.04 | 0.04 | 1.49, 1.14 |
-| Chanter | Incandescent Blow 0.64 (+ Bursting Blow 0.51), Dark Crush 0.43 (+ Piercing Strike 0.16) | 0.09 | 1.19, 1.67 |
+| Chanter | Incandescent Blow 0.72 (+ Bursting Blow 0.55), Dark Crush 0.50 (+ Piercing Strike 0.25), Rushing Smash 0.21 (0.2.319; 0.64 + 0.51, 0.43 + 0.16 and 0.07 before) | 0.09 | 1.19, 1.67 |
 | Sorcerer | Ice Chain 0.39, Blaze 0.03, Firestorm 0.04 | 0.04 | 1.10, 1.40 |
 | Ranger | Tempest Shot 0.32, Marking Shot 0.12 | 0.05 | 1.25, 1.45 (the others' average; no exported Ranger fight) |
 | Spiritmaster | Combustion 0.34, Dimensional Control 0.09, summons 0–0.03 | 0.02 | 1.29, 1.45 |
@@ -626,6 +626,96 @@ charge shifts the rotation) and Debilitating Mark's MP (the Cleric's MP never ru
 version moves to 0.3.8, so a server re-seeds the comparison scopes from its stored winners and the
 regenerated build.
 
+### The Gladiator and the Chanter from the log server's uploads (0.2.319)
+
+The log server's uploads from meter 0.2.306 or later and the nine logs of 18 October hold, with cast
+records, 45 boss fights of 7 Gladiators (115 minutes) and 175 boss fights of 14 Chanters (348 minutes);
+a fight several party members uploaded counts once. Two Gladiators and two Chanters made recordings,
+so their MP readings are there too (103 and 230 fights), and the uploads carry each player's official
+profile. The kits are measured against them as the Templar's was in 0.2.315, per press and on bosses:
+
+* **Damage a press.** A hit's damage without its critical, double or perfect roll ("plain"), times
+  the hits a press: the ratio of two skills' values cancels the player's gear and the boss's
+  defences. With the profile's Attack and skill levels, the same ratio can be set against the two
+  skills' tooltips.
+* **Two records, one tooltip.** Overhead Slam, Rending Blow, Smashing Blow, Leaping Slam, Incandescent
+  Blow and Onslaught land each press as two equal records within 0.25 s. Both are damage: on 169 bosses
+  with HP readings the recorded damage matches the HP lost (median ratio 1.000) whatever share the
+  second records make of it (5–25 %). Together they deal the tooltip once: at each player's own level
+  and Attack, Rending Blow lands 0.93 and Leaping Slam 0.87 of its tooltip for Overhead Slam's 1.00, and
+  the Chanter's skills 0.89–1.14 for Incandescent Blow's. The 0.2.254 parse that set Upward Strike at
+  2.09 times Overhead Slam counted one of Overhead Slam's two records.
+* **Certain crits.** Four Gladiators' Overhead Slams crit every time ("Critical Hit on hit"), and
+  the two of them with its chain crit on every Upward Strike too; 16 of 20 Chanters' Dark Crushes crit
+  every time, and so do the Piercing Strikes of those with the chain, and two Chanters' Spinning Strikes
+  ("lands as a Critical Hit"). No Gladiator's Ruinous Blow crits every time, so its "+30% Skill
+  Critical Hit" is now 30 % more Critical Hit for that skill, not a certain crit.
+* **MP.** In the recording players' readings a press changes MP by the same amount every time, and
+  over the fights the MP gained and spent balance (the Gladiators 4,362 and 4,387 a minute, the
+  Chanters 3,145 and 3,192).
+
+The Gladiator:
+
+| | Recorded | Kit before | Kit now |
+|---|---|---|---|
+| An Upward Strike press, against an Overhead Slam press | 1.08 | 2.09 | 1.08 |
+| Upward Strike after Overhead Slam, with the chain taken | 89–97 % | 50 % | 90 % |
+| A Smashing Blow press, against an Overhead Slam press | 0.47 | 0.54 | 0.47 |
+| A Ruinous Blow press | 1.33 of its tooltip for Overhead Slam's 1.00 | three strikes | one strike (1.3 with the extra-damage spec) |
+| Rage Burst's hit | 0.24 of its tooltip, as above | the tooltip | 0.25 |
+| A basic-chain step | 0.65 of Keen Strike's tooltip, as above | the tooltip | 0.65 |
+| Destructive Impulse on a boss | none in 115 minutes, nor in the KR dummy logs | half the hits (1 s apart) | none |
+| MP a press | Rending Blow and Smashing Blow −93, Overhead Slam and Upward Strike +50, a basic step +180 | Rending Blow −96, Smashing Blow and Overhead Slam 0, a step +120 | as recorded |
+| Steps woven after Rending Blow, Smashing Blow, Overhead Slam | 0.22, 0.25, 0.10 | 0.38, 0.36, 0.17 | as recorded |
+
+The two Gladiators with "Remove cooldown" send no cooldown for Overhead Slam and press it 0.95–0.98 s
+apart at the 10th percentile, as the kit's 1 s cycle has it. Smashing Blow now comes before Rending
+Blow in the default priority: it is there only in Rending Blow's chain window and costs the same MP.
+
+The Chanter:
+
+| | Recorded | Kit before | Kit now |
+|---|---|---|---|
+| Incandescent Blow | no cooldown, 12.9 a minute, a median 1.6 s apart | every 6 s at most, no MP cost | its MP cost only |
+| Bursting Blow after Incandescent Blow | 84–97 % for every Chanter: the skill's own chain | every 2nd, with a specialization | 90 % |
+| A Bursting Blow press, against an Incandescent Blow press | 1.19, MP −95 like Incandescent Blow | 2.23, free | 1.19, the same MP |
+| Piercing Strike after Dark Crush, with the chain taken | 92 %, 1.52 times a Dark Crush press | always, 1.65 | 92 %, 1.52 |
+| Dark Crush with "Removes [Dark Crush] cooldown" | 0.6 s apart in a window, 13–19 a minute | its 5 s cooldown | back to back in a window |
+| Marchutan's Wrath | opens Dark Crush for 3 s (its tooltip) | did not | does |
+| Wind's Promise | 7.1 hits a minute; the Chanters crit about 20 % | its 50 % of a 60 % crit rate | its 50 % of the hit's own crit chance |
+| Raging Spell on a boss | 2.0 a minute, 98.8 % of them crits | half the hits (1 s apart) | about 2 a minute, crits |
+| Heals | Recuperation 1.2 a minute, 0.56 s a press | none | as the Cleric's (`Action.heal`) |
+| Undefeated Mantra | 0.1 presses a minute: a toggled aura, its tooltip gives no duration | a 10 s buff re-pressed every 5 s, a tenth of the fight | pressed once |
+| Steps woven after Incandescent Blow (with Bursting Blow's), Dark Crush | 1.22, 0.50 | 0.64 (+0.26 with the spec), 0.43 | as recorded |
+
+Spinning Strike's specializations count too: −5 s (its game cooldown is 24.5 s), up to +20 % on fewer
+targets and the certain crit; so do Incandescent Blow's −20 % MP and up to +12 % on fewer targets, and
+Impactful Crush's +30 % Skill Speed.
+
+Effect on the calibration (optimized rotation, typical build, 180 s dummy, as before), on the overlap
+with the recorded boss fights (the catalog skills only, and by name with the chain and basic steps
+counted) and on the bundled builds (boss DPS as the planner replays them):
+
+| | Gladiator, before → after | Chanter, before → after |
+|---|---:|---:|
+| KR fidelity | 0.462 → 0.516 | 0.841 → 0.534 |
+| Own-capture overlap, catalog skills (182 and 270 fights) | 0.425 → 0.432 | 0.474 → 0.402 |
+| Overlap by name, typical build on the dummy | 0.594 → 0.608 | 0.523 → 0.702 |
+| Overlap by name, typical build with its best specializations in a boss fight | 0.408 → 0.719 | 0.628 → 0.738 |
+| Bundled build, boss DPS | 19,473 → 13,017 replayed, 13,063 re-optimized | 11,872 → 13,485 replayed, 20,469 re-optimized |
+
+Bursting Blow, a fifth of the recorded Chanters' damage, is not a catalog skill, so neither the
+catalog overlap nor the KR fidelity can count it; and the KR dummy logs press Incandescent Blow far
+less (6 % of their damage) and put 43 % on skills the global data lacks. By name the model now matches
+the recorded Chanters much better. The model still presses more than any player: every class spends
+28–43 % of a recorded boss fight pressing nothing ([The Cleric's heals and basic
+chain](#the-clerics-heals-and-basic-chain-02317)), and the bundled builds press Rending Blow 50 times a
+minute where the recorded Gladiators press it 20, and Incandescent Blow 40 where the Chanters press it
+13; over the 180 s fight the Chanter's starting MP pays for the difference. Still estimated: Murderous Burst's rate (8.8 a minute in the recorded boss fights, about 19 in the
+model at the 0.2.254 dummy parse's one per 3 s), and Ankle Slice, Heat Wave Blow, Wave Blow and Tremor
+Crush, which the recorded players rarely press. The canonical preset model version moves to 0.3.9, so
+a server re-seeds the comparison scopes from its stored winners and the regenerated builds.
+
 ### Chain, variant and combo skills, and known catalog gaps
 
 metabot's build-planner page exposes 35 skills per class. Several real skills
@@ -647,7 +737,7 @@ which cancels crit-rate and gear). The ratios drive the per-class knobs added in
 | Class | Added / fixed from parses | Measured ratio |
 | --- | --- | --- |
 | all | `Adds [X] Chain Skill` finishers (generic + kit `chain_frac`) | 1.5x base (was 0.60/0.85; measured 1.38–2.1) |
-| Chanter | Piercing Strike (Dark Crush chain), Bursting Blow (Incandescent Blow variant) | 1.65x, 2.23x |
+| Chanter | Piercing Strike (Dark Crush chain), Bursting Blow (Incandescent Blow variant) | 1.65x, 2.23x (1.52x and 1.19x a press, after 92 % and 90 % of the presses, from 14 recorded Chanters, 0.2.319) |
 | Cleric | Divine Punishment (Judgment Thunder companion), Discharge coefficient | 1.09x, 1.5x |
 | Assassin | Quick Slice basic combo (Swift + Breaking Slice); Savage Roar demoted to a cadenced upkeep skill | 0.67x, 0.76x |
 | Templar | Vicious Strike combo (Decisive + Desperate Strike) | 1.20x, 1.54x (1.18x, 1.41x a press from five recorded Templars, 0.2.315) |
@@ -671,13 +761,11 @@ notes / `ASSUME` for when one is available, not yet modelled):
   recorded share of a boss fight (see *The Cleric's heals and basic chain*).
 * **Sorcerer** — Burst / Pyroclasm / Cold Wave are partly covered by the Flame
   Arrow chain multipliers; a dedicated capture would refine them.
-* **Gladiator** — on the median loadout the kit is MP-tight (Rending Blow costs
-  ~96 MP and the median gear carries little combat speed or MP regen), so Rending
-  Blow is cast at a smaller share than a geared, combat-speed-stacked parse, where
-  the fast basic-attack string sustains the MP pool and Rending weaves ~1.9/s. The
-  shares track once scaled to the player's own gear; a gear-matched capture would
-  let the MP-sustain (basic-attack MP return vs. combat MP regen) be calibrated
-  directly rather than left to the median loadout's economy.
+* **Gladiator** — the MP economy is measured since 0.2.319 from two recording
+  Gladiators' readings: Rending Blow and Smashing Blow cost the same, Overhead Slam
+  and Upward Strike restore 50 a press and a basic step 180 with its specialization
+  (150 without; [The Gladiator and the
+  Chanter from the log server's uploads](#the-gladiator-and-the-chanter-from-the-log-servers-uploads-02319)).
 * DoT ticks already modelled as their parent skill (Debilitating Mark, Chain of
   Torment, Poison) and consumable **theostone** procs are intentionally not
   class-skill damage.

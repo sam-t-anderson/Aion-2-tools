@@ -16,7 +16,7 @@ from .model.character import load_loadout
 from .paths import list_names, bundled_model_data
 from .presets import BUDGETS, InvalidPreset, candidate as legacy_candidate, parse
 
-MODEL_VERSION = "0.3.8"  # Bump for evaluator/model changes, not capture/UI releases.
+MODEL_VERSION = "0.3.9"  # Bump for evaluator/model changes, not capture/UI releases.
 # 0.3.0: hand-written kits for all eight classes (was sorcerer only) — see aion2calc/kit/.
 # Changes every class's modeled rotation, so the server re-scores all presets under it.
 # 0.3.3: kit action times measured from recorded casts (0.2.307) and each class's recorded
@@ -34,6 +34,10 @@ MODEL_VERSION = "0.3.8"  # Bump for evaluator/model changes, not capture/UI rele
 # 0.3.8: a Cleric's heals take their recorded share of a boss fight, Earth's Retribution is never
 # pressed twice running, and the Templar's lone basic-chain step is measured (0.2.317); the
 # bundled Cleric build is regenerated.
+# 0.3.9: the Gladiator and Chanter kits measured from the log server's uploads (0.2.319): per-press
+# chain values and rates, certain-crit specializations, the recorded MP economy, Incandescent Blow
+# limited by its MP with Bursting Blow as its own chain, the Chanter's heals; the bundled Gladiator and
+# Chanter builds are regenerated.
 VERSION = 2
 POLICY_VERSION = 1
 MODES = {"pve": ("boss", "dummy"), "pvp": ("pvp", "pvp_burst")}

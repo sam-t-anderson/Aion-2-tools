@@ -684,8 +684,8 @@ def compare_markdown(rows, scenario: str, iterations: int) -> str:
           "times measured from recorded fights where captures exist; the kits' fidelity is shown as the share "
           "overlap with Korean A2DIL dummy logs where available. **This is not a class tier list**: absolute "
           "numbers depend on each kit's audited assumptions (pet cadence, boss-break uptime, DoT spread) and "
-          "assume a player doing nothing but damage, but for a Cleric's heals at the recorded rate in a boss "
-          "fight.\n",
+          "assume a player doing nothing but damage, but for the Cleric's and the Chanter's heals at their "
+          "recorded rates in a boss fight.\n",
           "| Class | Optimized DPS | Typical top build DPS | Gain | KR share overlap | Report |",
           "|---|---:|---:|---:|---:|---|"]
     for cls, dps, comm, fid in rows:
@@ -695,6 +695,9 @@ def compare_markdown(rows, scenario: str, iterations: int) -> str:
         md.append("\nThe Cleric's boss number includes its heals at the recorded Clerics' rate (4.6 a minute, about "
                   "3.4 % of the fight). Recorded Clerics still fit about a third as many Condemnations into each "
                   "Earth Punishment window: they press Judgment Thunder there as well.")
+    if any(r[0] == "chanter" for r in rows):
+        md.append("\nThe Chanter's boss number includes its heals at the recorded Chanters' rate (1.2 a minute, about "
+                  "1 % of the fight).")
     return "\n".join(md) + "\n"
 
 

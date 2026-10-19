@@ -61,38 +61,60 @@ TIMING = {
     "basic_combo": 0.42, "upward_strike": 0.15,
 }
 
-#: Effects the tooltips leave out (assumptions; several are calibrated to a real
-#: Gladiator dummy parse in 0.2.254 — see docs/methodology.md).  The skills
-#: below with no client coefficient (Upward Strike and Smashing Blow) are
-#: measured relative to Overhead Slam from that parse.
+#: Effects the tooltips leave out (assumptions; several were calibrated to a real
+#: Gladiator dummy parse in 0.2.254 and re-measured on the log server's uploads in
+#: 0.2.319 — see docs/methodology.md).  The skills below with no client coefficient
+#: (Upward Strike and Smashing Blow) are measured relative to an Overhead Slam press.
+#: Overhead Slam, Rending Blow and Smashing Blow land each press as two equal records
+#: (together the tooltip once), so per-press ratios are the ones that hold.
 ASSUME = {
     "boss_breakable": True,       # training boss stays knocked down, so Overhead Slam / Aerial Snare are available
     "chain_frac": 0.60,           # a generic chain follow-up vs the base hit (chains with no measured value)
-    "upward_frac": 2.09,          # Upward Strike (Overhead Slam chain) per-hit vs Overhead Slam — measured
-    "upward_chance": 0.50,        # Upward Strike follows ~half of Overhead Slams — measured
+    "upward_frac": 1.08,          # an Upward Strike press vs an Overhead Slam press, crits aside — measured
+                                  # (0.2.319: 1.08 in the uploads; the 0.2.254 parse's 2.09 set it against one of
+                                  # Overhead Slam's two records)
+    "upward_chance": 0.90,        # Upward Strike follows ~90% of Overhead Slams once the chain is taken (0.2.319: 0.89
+                                  # and 0.97 for the two uploaders with the most presses; 0.50 before)
     "overhead_spam_cd": 1.00,     # effective Overhead Slam cycle once "Remove cooldown" is taken — recorded casts
                                   # (0.2.307): never under ~1 s apart (10th percentile 0.97 s, median 1.18 s,
-                                  # 223 intervals); the 0.2.254 parse estimate was ~1.5/s
-    "basic_frac": 0.54,           # Smashing Blow per-hit vs Overhead Slam — measured (recorded fights: 0.43-0.49)
-    "ruinous_hits": 3,            # Ruinous Blow lands as a multi-strike (~4 raw hits/cast in the parse,
-                                  # ~3 full-coefficient applications of damage ~ its measured 7.7% share);
-                                  # modelling one hit undervalued it and, since it is the main
-                                  # cooldown-bound nuke, undervalued Cooldown Reduction.
+                                  # 223 intervals); the uploaders with the spec send no cooldown and press it
+                                  # 0.95-0.98 s apart at the 10th percentile (0.2.319)
+    "basic_frac": 0.47,           # a Smashing Blow press vs an Overhead Slam press, crits aside — measured (0.2.319
+                                  # uploads: 0.47; 0.54 before)
+    "ruinous_hits": 1,            # Ruinous Blow lands its tooltip once a press: 1.33 of it against Overhead Slam's
+                                  # 1.00 at the uploaders' own levels and Attack (0.2.319), as one hit with the
+                                  # extra-damage spec's +30% makes; its smaller follow-up record is part of that
+                                  # (3 strikes before)
+    "skill_crit": 0.30,           # "+30% Skill Critical Hit": 30% more Critical Hit for that skill, not a certain
+                                  # crit — no uploader's Ruinous Blow crit every time (0.2.319)
     "murderous_icd": 3.0,         # Murderous Burst internal cooldown (parse: ~1 proc / 3s)
-    "stagger_uptime": 0.50,       # share of time the boss carries Stagger/Impact (Destructive Impulse)
+    "stagger_uptime": 0.0,        # share of time the boss carries Stagger/Impact (Destructive Impulse): no Destructive
+                                  # Impulse hit landed on a boss in 115 minutes of the uploads' boss fights, nor in
+                                  # the KR dummy logs; it lands on adds (0.2.319; 0.50 before)
     "murderous_stacks": 5,        # attacks to trigger Murderous Burst
     "extra_damage_frac": 0.30,    # "Extra damage on hit" specs that give no number
+    "rage_frac": 0.25,            # Rage Burst's hit against its tooltip, relative to Overhead Slam's (0.2.319 uploads:
+                                  # 0.24 at the uploaders' own levels, 0.25 at the typical ones)
+    "keen_frac": 0.65,            # the basic chain's steps against Keen Strike's tooltip, relative to Overhead Slam's
+                                  # (0.2.319 uploads: 0.65 at the uploaders' own levels, 0.61 at the typical ones)
+    # MP the recording Gladiators' readings show (0.2.319, two players, 103 fights): Rending Blow and Smashing
+    # Blow cost the same (-93 each, Rending Blow's tooltip 120 less its -20% specialization), Overhead Slam and
+    # Upward Strike restore 50 a press, and a basic-chain step 180 (with its +20% specialization; the
+    # tooltip says 100). Over the fights the MP gained and spent balance (4,362 and 4,387 a minute).
+    "overhead_mp": 50,
+    "step_mp": 150,
 }
 
 #: The basic-attack chain's three steps (name, share of the woven steps, damage per press against
 #: Keen Strike), the woven steps after each press and after any press recorded too rarely (the
-#: median of the per-skill rates), from the recorded fights (0.2.309; docs/methodology.md "Woven
-#: basic attacks").  Every step restores MP: the recorded MP reading rises 140-180 a step, Keen
-#: Strike's tooltip says 100.
+#: median of the per-skill rates), from the recorded fights (0.2.309; the main presses re-measured on
+#: 45 boss fights in the log server's uploads in 0.2.319; docs/methodology.md "Woven basic
+#: attacks").  Every step restores MP: the recorded MP reading rises 140-180 a step, Keen Strike's
+#: tooltip says 100.
 WEAVE = {
     "steps": (("Keen Strike", 0.40, 1.00), ("Rupture Strike", 0.32, 1.17), ("Wrathful Strike", 0.28, 1.60)),
-    "after": {"rending_blow": 0.38, "basic_combo": 0.36, "overhead_slam": 0.17, "leaping_slam": 0.0,
-              "ruinous_blow": 0.0, "rage": 0.0, "crushing_wave": 0.73, "mocking_blade": 0.0, "lunge": 0.10,
+    "after": {"rending_blow": 0.22, "basic_combo": 0.25, "overhead_slam": 0.10, "leaping_slam": 0.06,
+              "ruinous_blow": 0.13, "rage": 0.01, "crushing_wave": 0.53, "mocking_blade": 0.41, "lunge": 0.05,
               "rush_strike": 0.10, "zikel": 0.0, "aerial_snare": 0.0, "ankle_slice": 1.06},
     "per_press": 0.10,
 }
@@ -178,7 +200,8 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
     # Wrathful Strike, one step a press, each restoring MP. Keen Strike's specs (4 targets, Reckless
     # Strike chain) ride its own step.
     ke_f, ke_c = dmg("KEEN")
-    keen_mp = 100 * (1.2 if has("KEEN", 1) else 1.0)
+    kb_f, kb_c = ke_f * ASSUME["keen_frac"], ke_c * ASSUME["keen_frac"]     # the steps as recorded
+    keen_mp = ASSUME["step_mp"] * (1.2 if has("KEEN", 1) else 1.0)
 
     def keen_cast(sim, a):
         step, last = sim.chain.get("keen", (0, -99.0))
@@ -188,7 +211,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
         sim.chain["keen"] = (step, sim.t)
         name, _, ratio = WEAVE["steps"][step - 1]
         mods = {"multihit": 0.5} if step == 1 and has("KEEN", 3) else None
-        sim.hit(name, ke_f * ratio, ke_c * ratio, mods=mods)
+        sim.hit(name, kb_f * ratio, kb_c * ratio, mods=mods)
         sim.gain_mp(keen_mp)
         if step == 1 and has("KEEN", 4):
             sim.reduce_cd("ruinous_blow", 1.0)
@@ -204,8 +227,9 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
     def rend_cast(sim, a):
         sim.hit("Rending Blow", re_f, re_c, mult=1.12 if has("REND", 4) else 1.0)
         sim.buff("rending_chain", sim.cfg.chain_window)
+    rend_mp = cd.mp(SID["REND"], lv("REND")) * (0.8 if has("REND", 1) else 1.0)
     A["rending_blow"] = Action("rending_blow", "Rending Blow", SID["REND"], TIMING["rending_blow"],
-                               mp=cd.mp(SID["REND"], lv("REND")), on_cast=rend_cast)
+                               mp=rend_mp, on_cast=rend_cast)
 
     # Leaping Slam (gap closer; Prepare for Battle on the caster at u8)
     ls_f, ls_c = dmg("LEAP")
@@ -234,8 +258,10 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
     # Overhead Slam (the core single-target spam; its Upward Strike chain is the top
     # damage source). "Remove cooldown" turns its 5s cooldown into a fast spam cycle,
     # not literally 0 — recorded casts never repeat it faster than ~1 s, with Upward Strike
-    # (measured at 2.1x Overhead, following ~half the casts) the biggest hit in the rotation. On a
-    # breakable training target the knockdown it needs is kept up, so it is available.
+    # (measured at 1.08x an Overhead Slam press, following ~90% of them) the biggest hit in the
+    # rotation. "Critical Hit on hit" makes both certain crits: the uploaders with it crit on every
+    # Overhead Slam and every Upward Strike (0.2.319). On a breakable training target the knockdown
+    # it needs is kept up, so it is available.
     ov_f, ov_c = dmg("OVER")
     ov_cd = ASSUME["overhead_spam_cd"] if has("OVER", 5) else cd.cd(SID["OVER"], lv("OVER"))
     gated = () if ASSUME["boss_breakable"] else ("knockdown",)
@@ -243,9 +269,11 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
     def over_cast(sim, a):
         tags = ("crit",) if has("OVER", 4) else ()
         sim.hit("Overhead Slam", ov_f, ov_c, tags=tags)
+        sim.gain_mp(ASSUME["overhead_mp"])
         if has("OVER", 3) and sim.proc("upward_strike", ASSUME["upward_chance"], 0.0, sim.t):
             k = ASSUME["upward_frac"]
-            sim.hit("Upward Strike", ov_f * k, ov_c * k, delay=TIMING["chain_followup"])
+            sim.hit("Upward Strike", ov_f * k, ov_c * k, delay=TIMING["chain_followup"], tags=tags)
+            sim.gain_mp(ASSUME["overhead_mp"])
     # Upward Strike is its own press; the kit folds it into Overhead Slam, so its time is too.
     ov_t = TIMING["overhead_slam"] + (ASSUME["upward_chance"] * TIMING["upward_strike"] if has("OVER", 3) else 0.0)
     A["overhead_slam"] = Action("overhead_slam", "Overhead Slam", SID["OVER"], ov_t,
@@ -290,14 +318,14 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
 
     # Smashing Blow: Rending Blow's follow-up, pressed within a few seconds of it (recorded after
     # 85-94% of Rending Blows, never more than 2.9 s later, and almost never without one). It has no
-    # client coefficient, so it is measured at ~0.54x Overhead Slam from a real parse; ~14% of real
-    # damage. It restores no MP of its own (recorded MP readings).
+    # client coefficient, so it is measured at ~0.47x an Overhead Slam press in the uploads; ~14% of
+    # real damage. It costs what Rending Blow costs (the recorded MP readings, 0.2.319).
     sb_f, sb_c = ov_f * ASSUME["basic_frac"], ov_c * ASSUME["basic_frac"]
 
     def smash_cast(sim, a):
         sim.buff("rending_chain", 0.0)                # spent
         sim.hit("Smashing Blow", sb_f, sb_c)
-    A["basic_combo"] = Action("basic_combo", "Smashing Blow", 11420000, TIMING["basic_combo"],
+    A["basic_combo"] = Action("basic_combo", "Smashing Blow", 11420000, TIMING["basic_combo"], mp=rend_mp,
                               requires=("rending_chain",), on_cast=smash_cast)
 
     # Ruinous Blow (biggest hit; grants Prepare for Battle for 20s)
@@ -307,11 +335,12 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
     def ruin_cast(sim, a):
         tags = ("multi", "noparry") if has("RUIN", 5) else ()
         extra = 1.0 + ASSUME["extra_damage_frac"] if has("RUIN", 4) else 1.0
-        crit = ("crit",) if has("RUIN", 3) else ()      # +30% Skill Critical -> treat as guaranteed-ish
-        # Ruinous Blow lands as several strikes, each the skill's full hit (a real parse shows
-        # ~4/cast). n splits one hit's damage, so mult restores each strike to the full coef.
+        mods = None
+        if has("RUIN", 3):                              # +30% Skill Critical Hit: more Critical Hit, not a certain crit
+            mods = {"crit": ASSUME["skill_crit"] * (sim.base.crit_stat + sim.stat_mods(sim.t).get("crit", 0.0))}
+        # n splits one hit's damage, so mult restores each strike to the full coef (one strike since 0.2.319).
         hits = ASSUME["ruinous_hits"]
-        sim.hit("Ruinous Blow", rb_f, rb_c, n=hits, spread=0.3, mult=extra * hits, tags=tags + crit)
+        sim.hit("Ruinous Blow", rb_f, rb_c, n=hits, spread=0.3, mult=extra * hits, tags=tags, mods=mods)
         sim.buff("prepare_for_battle", 20.0, _prepare_stats(cd, lv("RUIN")))
     A["ruinous_blow"] = Action("ruinous_blow", "Ruinous Blow", SID["RUIN"], TIMING["ruinous_blow"],
                                cooldown=cd.cd(SID["RUIN"], lv("RUIN")), mp=cd.mp(SID["RUIN"], lv("RUIN")),
@@ -325,8 +354,8 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
     # Upward Strike is folded into Overhead Slam, so the steps woven after it are too.
     weave = dict(WEAVE, after=dict(WEAVE["after"]))
     if has("OVER", 3):
-        weave["after"]["overhead_slam"] += ASSUME["upward_chance"] * 0.12
-    add_weave(A, weave, ke_f, ke_c, mp=keen_mp, skip=("keen_strike",))
+        weave["after"]["overhead_slam"] += ASSUME["upward_chance"] * 0.01
+    add_weave(A, weave, kb_f, kb_c, mp=keen_mp, skip=("keen_strike",))
     return Kit(actions=A, hooks=[hook], cond_mods=[], static=static, policy=policy,
                filler=filler, notes=notes, levels=L)
 
@@ -371,6 +400,8 @@ def _build_stigmas(A, build, cd, stig, st, notes):
             continue
         akey = key.lower()
         f, c = sdmg(key)
+        if key == "RAGE":                               # its hit lands a quarter of the tooltip (0.2.319)
+            f, c = f * ASSUME["rage_frac"], c * ASSUME["rage_frac"]
 
         def nuke(sim, a, key=key, f=f, c=c):
             sim.hit(a.name, f, c)
@@ -386,14 +417,15 @@ def _build_stigmas(A, build, cd, stig, st, notes):
 
 def _policy(actions: dict, filler: str) -> list:
     # Buffs, then the Ruinous Blow nuke, the Overhead Slam + Upward Strike core and Rending Blow
-    # with the Smashing Blow that follows it (the highest-frequency damage skills in a real parse),
+    # with the Smashing Blow that follows it (the highest-frequency damage skills in a real parse;
+    # Smashing Blow first, as it is only there in Rending Blow's chain window and costs the same MP),
     # then the damage stigmas. The basic chain comes next: it is the Gladiator's MP engine (every
     # step restores MP), so it must out-prioritise the low-damage crowd-control / gap-closers —
     # otherwise, when Rending Blow has drained MP, the engine would cast a non-restoring CC skill
     # instead and the rotation would starve. A real dummy parse skips the CC skills entirely, so
     # leaving them below the always-available filler matches it (they stay for completeness /
     # other kits' callers, but a DPS rotation on a dummy never needs them).
-    damage = ["zikel", "lunge", "ruinous_blow", "overhead_slam", "rending_blow", "basic_combo",
+    damage = ["zikel", "lunge", "ruinous_blow", "overhead_slam", "basic_combo", "rending_blow",
               "rage", "lifesteal", "assault", "forcedrest", "wrathwave", "fracrush", "bladetoss"]
     cc = ["aerial_snare", "leaping_slam", "mocking_blade", "rush_strike", "ankle_slice", "crushing_wave"]
     pol = [k for k in damage if k in actions]
