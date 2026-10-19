@@ -160,6 +160,13 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
   const isMini = (name, roles) => !!(roles && roles[name] === "mini");
   const patchOf = (g) => String(g || "").replace(/^version:product:/, "");
   const prettyEnc = (s) => String(s || "").replace(/^pve_|^pvp_/, "").replace(/_/g, " ") || "—";
+  // What kind of PvP a fight was: open world (the Abyss and the faction zones), an arena or a
+  // battlefield, from the recorded map; anything unrecognised stays "Other PvP".
+  const PVP_TYPES = { pvp_open_world: "Open world", pvp_arena: "Arena", pvp_battleground: "Battlefield", pvp_abyss: "Abyss", pvp_rift: "Rift" };
+  const pvpType = (t) => PVP_TYPES[t] || "Other PvP";
+  // Without the game's party list (never decoded in the Abyss so far) a fight counts only the players
+  // recorded in it, which can be fewer than the party: the count is marked so it is not read as the party's.
+  const PARTY_UNKNOWN = "The game's party list was not captured in this fight: this counts the players recorded in it, which can be fewer than the party.";
   const day = (ts) => { try { return new Date(ts * 1000).toISOString().slice(0, 10); } catch (e) { return "—"; } };
   const srcOf = (u) => (u && window.A2AssetHealth ? A2AssetHealth.source(u) : u || null);
   const classIconUrl = (cls) => srcOf("https://metabot.gg/web/aion2/classes/" + encodeURIComponent(cls) + ".webp");
@@ -208,8 +215,10 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
         // The encounter's own time (the server sends each segment's start) so the list runs newest
         // to oldest by fight rather than by upload; an older server only gives the upload time.
         const when = typeof c.start === "number" ? c.start : lg.created_at;
-        comm.buf.push({ boss: c.boss, bossIcon: srcOf(iconByName[c.boss]), difficulty: c.difficulty,
-          party: c.party_size || members.length || 0, members, duration: c.duration, date: lg.created_at, when,
+        // A PvP fight has no boss: name it by its zone (the Abyss, a faction zone, an arena) when the
+        // server knows it, else keep its "Combat N" label.
+        comm.buf.push({ boss: (comm.f.combat_mode === "pvp" && c.zone) || c.boss, bossIcon: srcOf(iconByName[c.boss]), difficulty: c.difficulty,
+          party: c.party_size || members.length || 0, partyKnown: !!c.party_size, members, duration: c.duration, date: lg.created_at, when, type: c.encounter_type,
           patch: patchOf(c.game_patch), id: lg.id, segment: c.segment, uploader,
           shared: Number.isInteger(lg.shared_uploads) ? lg.shared_uploads : 0 });   // other uploads of the same fights
       }
@@ -228,12 +237,13 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     const start = (comm.page - 1) * COMM_PER_PAGE;
     const rows = comm.buf.slice(start, start + COMM_PER_PAGE);
     if (!rows.length) { table.innerHTML = '<div class="empty">No encounters match these filters.</div>'; return; }
+    const mode = comm.f.combat_mode || "pve";
     const tr = rows.map((r) => `<tr><td><span class="boss-cell">${r.bossIcon ? `<img class="mob-ic" width="22" height="22" loading="lazy" referrerpolicy="no-referrer" src="${esc(r.bossIcon)}" alt="" onerror="this.remove()">` : ""}${esc(r.boss || "—")}</span></td>
-      <td>${esc(r.difficulty || "—")}</td>
-      <td><span class="party-cell"><b>${n0(r.party)}</b>${r.members.map(classIcon).join("")}</span></td>
+      <td>${esc(mode === "pvp" ? pvpType(r.type) : r.difficulty || "—")}</td>
+      <td><span class="party-cell"><b>${n0(r.party)}${r.partyKnown ? "" : `<span class="muted" title="${esc(PARTY_UNKNOWN)}">?</span>`}</b>${r.members.map(classIcon).join("")}</span></td>
       <td class="r num">${secs(r.duration)}</td><td>${esc(r.uploader || "Anonymous")}${r.shared ? ` <span class="muted small" title="Other public uploads indexed as the same fight; it counts once per character on the leaderboard">+${n0(r.shared)} more</span>` : ""}</td><td class="muted small">${day(r.when)}</td><td class="muted small">${esc(r.patch || "—")}</td>
       <td><a href="log.html?id=${encodeURIComponent(r.id)}${Number.isInteger(r.segment) ? "&segment=" + r.segment : ""}">view</a></td></tr>`).join("");
-    table.innerHTML = `<table class="t"><tr><th>${comm.f.combat_mode === "pvp" ? "Skirmish" : "Boss"}</th><th>Difficulty</th><th>Party</th><th class="r">Time</th><th>Uploaded by</th><th>Date</th><th>Product</th><th></th></tr>${tr}</table>`;
+    table.innerHTML = `<table class="t"><tr><th>${mode === "pvp" ? "Skirmish" : "Boss"}</th><th>${mode === "pvp" ? "Type" : "Difficulty"}</th><th>Party</th><th class="r">Time</th><th>Uploaded by</th><th>Date</th><th>Product</th><th></th></tr>${tr}</table>`;
     const hasNext = comm.buf.length > comm.page * COMM_PER_PAGE || !comm.done;
     if (pager) {
       pager.innerHTML = `<button class="btn small" ${comm.page <= 1 ? "disabled" : ""} id="comm-prev" type="button">← Prev</button>`
@@ -259,7 +269,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
       + (comm.f.combat_mode === "pvp" ? "" : field("Boss", `<select id="cf-boss" style="min-width:170px">${options((f.boss || []).filter(realBoss).filter((b) => comm.mini || !isMini(b, f.boss_roles)), comm.f.boss)}</select>`)
       + `<div class="small muted">Mini-bosses<br><label class="small" title="Earlier bosses of a dungeon whose final boss the catalog knows; hidden unless shown"><input type="checkbox" id="cf-mini"${comm.mini ? " checked" : ""}> show</label></div>`)
       + field("Difficulty", `<select id="cf-difficulty">${options([...(f.difficulty || [])].sort((a, b) => String(a).localeCompare(String(b))), comm.f.difficulty)}</select>`)
-      + field("Encounter", `<select id="cf-encounter_type">${options(encOpts, comm.f.encounter_type, prettyEnc)}</select>`)
+      + field("Encounter", `<select id="cf-encounter_type">${options(encOpts, comm.f.encounter_type, comm.f.combat_mode === "pvp" ? pvpType : prettyEnc)}</select>`)
       + field("Region", `<select id="cf-region">${options(f.region, comm.f.region)}</select>`)
       + field("Product", `<select id="cf-game_patch">${options(f.game_patch, comm.f.game_patch, patchOf)}</select>`)
       + field("Party", `<select id="cf-party_size">${options(f.party_size, comm.f.party_size)}</select>`)

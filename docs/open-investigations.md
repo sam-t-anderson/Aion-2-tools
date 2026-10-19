@@ -354,3 +354,32 @@ The 51 newest public logs on the live server (889 encounter contexts, 15–16 Oc
 - **Ranking eligibility** is 29 of 889 contexts (expedition 21, transcendence 8), one per completed boss kill with clean capture — consistent with the per-run expectation; nothing here points at the gate.
 - **Protocol variants:** no new identity, spawn or roster layout appeared in the eleven captures; the identity records were the known `33 36` / `44 36` / `45 36`, the zone state `21 36` / `23 36`. The census above lists the undecoded records by frequency for the probe.
 
+
+## PvP in the recent uploads: what kind, the dungeon fragments and the missing party (19 October)
+
+The log server listed 39 logs as PvP on 19 October (34 of them from one uploader, recorded with clients
+0.2.255–0.2.317). Read segment by segment, with the counts only:
+
+- **13 of the 39 hold PvP only inside dungeons and raids** (Krao Cave, Ferocious Horn Den, a transcendence
+  and a nightmare instance): hundreds of fragments of a second to a few seconds, the segmentation storm older
+  clients produced when one hit was misread. Only the party is inside a group instance, so since 0.2.320 a
+  PvP flag there is typed by the instance (with a stale open-world map id too), and those logs leave the PvP
+  lists when the server re-indexes.
+- **The other 26 are open-world PvP**, 134 segments in the Abyss (map 20) and 22 in Altgard (map 1110),
+  plus 29 on two maps nothing identifies: map 62 (17 segments of one recording, up to 7 allies and 10 enemy
+  players, with spider mobs about) and map 320024. Since 0.2.320 open-world PvP is named by its zone.
+- **No arena or battlefield fight was uploaded.** Arenas are recognised on maps 60 and 61 (user-confirmed
+  captures); no battlefield map is identified. The type vocabulary already carries `pvp_battleground`, shown
+  as *Battlefield*.
+- **The missing party.** Outside a dungeon the meter keeps the effects of the players in the game's party
+  list (`02 97`). No segment recorded on map 20 has ever held a party list longer than the recording
+  player, in PvP or PvE, across the 105 uploads checked; in Altgard the list does decode
+  (one recording holds a complete six- and seven-player list after a dungeon run). A list decoded before a
+  zone load is carried across it, so a party formed before entering the Abyss would have shown. The archived
+  diagnostic captures hold party lists from dungeon parties only (party names of 14 and 20 bytes, a dungeon
+  id, five members), and the 18 October diagnostic ZIPs, the Abyss sessions, recorded no raw TCP and end
+  with `roster_entries = 0`. Which of the decoder's checks an Abyss party list fails (an empty party name,
+  more than 12 members, another opcode), or whether those sessions were solo, needs a capture with **Record
+  TCP payloads** on while in a party in the Abyss, and one of an arena and a battlefield match.
+- **Shown meanwhile:** the Party column marks a count made without the party list with *?* (it counts the
+  players recorded); the overlay cannot tell a solo player from an undecoded party, so it says nothing.

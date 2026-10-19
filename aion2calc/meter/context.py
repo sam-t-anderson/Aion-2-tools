@@ -8,6 +8,12 @@ PVP_MAPS = {
     60: {"zone":"Fire Temple Arena", "evidence":"User-confirmed arena capture and result screenshot"},
     61: {"zone":"Arena (map 61)", "evidence":"User-confirmed arena capture c9277026181bf976ea62f8438b939cb35aeee34bba192c4208a9aac2c6f1b127; specific arena name unverified"},
 }
+#: Open-world zones named by recorded map id for PvP fights: the Abyss (map 20; the evidence is in
+#: ``engine.OBSERVED_OPEN_WORLD_MAPS``) and the two faction zones the field-boss timers use
+#: (``combat.field_bosses.ZONE_MAPS``).
+OPEN_WORLD_ZONES = {20: "Abyss"}
+PVP_IN_INSTANCE = (" (a PvP flag inside a group instance, which holds only the party: an older client's "
+                   "segmentation artifact)")
 CATEGORIES = {"Dungeon":"expedition", "Transcendence":"transcendence", "Nightmare":"nightmare",
               "Ascension Trial":"ascension", "Raid":"sanctuary"}
 AUTO = "Automatic catalog: "
@@ -67,9 +73,28 @@ def derived_zone_label(instance_id):
     return f"{' / '.join(names[:2])} (instance {instance_id})"
 
 
+def open_world_zone(map_id):
+    """The open-world zone a recorded map id is in ("Abyss", "Altgard", "Verteron"), else None."""
+    from ..combat.field_bosses import ZONE_NAMES, faction_of_map
+    map_id = _id(map_id)
+    return OPEN_WORLD_ZONES.get(map_id) or ZONE_NAMES.get(faction_of_map(map_id))
+
+
 def classify(map_id, instance_id, pvp, entities=()):
     from .a2parser.engine import OPEN_WORLD_MAPS
     map_id, instance_id = _id(map_id), _id(instance_id)
+    entities = list(entities)
+    if pvp and (party_instance(instance_id) or party_instance(map_id)):
+        # Only the party is inside a group instance (a dungeon, a raid), so no one there is an enemy
+        # player: older clients split dungeon fights into "PvP" fragments when one hit was misread.
+        # Type the fight by its instance instead, so it leaves the PvP lists.
+        result = classify(map_id, instance_id, False, entities)
+        result["classification"]["pvp_in_group_instance"] = True
+        if result.get("encounter_type"):
+            result["encounter_type_source"] += PVP_IN_INSTANCE
+        else:
+            result.update(encounter_type="pve_unverified", encounter_type_source=AUTO + "recorded group instance" + PVP_IN_INSTANCE)
+        return result
     result, conflicts = {}, []
     rows = {}
     for entity in entities:
@@ -93,6 +118,8 @@ def classify(map_id, instance_id, pvp, entities=()):
                           encounter_type_source="Recorded map + identified player combat + confirmed arena capture")
         elif map_id in OPEN_WORLD_MAPS:
             result.update(encounter_type="pvp_open_world", encounter_type_source="Recorded map ID + bundled open-world map table")
+            if zone := open_world_zone(map_id):
+                result.update(zone=zone, zone_source=AUTO + "recorded map ID + bundled open-world zone map ids")
         if result.get("encounter_type"):
             evidence.update(status="map_match", basis="recorded_map")
         return result
@@ -186,10 +213,12 @@ def enrich(doc):
         kind = str(segment.get("encounter_type") or meta.get("encounter_type") or "")
         detected = classify(segment.get("map_id"), segment.get("instance_id"), kind.startswith("pvp_"), entities)
         segment["classification"] = detected["classification"]
+        artifact = detected["classification"].get("pvp_in_group_instance")
         for field in ("zone", "encounter_type", "difficulty"):
             old = segment.get(field) or meta.get(field)
             origin = str(segment.get(field+"_source") or "")
-            automatic = origin.startswith(AUTO)
+            # A PvP type inside a group instance is never right, whoever set it: replace it too.
+            automatic = origin.startswith(AUTO) or (artifact and field == "encounter_type")
             if automatic:
                 segment.pop(field, None)
                 segment.pop(field+"_source", None)
