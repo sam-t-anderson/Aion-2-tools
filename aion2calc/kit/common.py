@@ -24,6 +24,7 @@ real combat-log captures are available.
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Callable
 
 from .base import ClassData, spec_slots
 from .sorcerer import Kit  # single definition of the container; re-exported here
@@ -65,7 +66,8 @@ def fallback_to_generic(A: dict, policy: list, build, cd: ClassData, notes: list
 
 
 def add_weave(A: dict, weave: dict, flat: float, coef: float, *, mp: float = 0.0,
-              element: str | None = None, skip: tuple = ()) -> None:
+              element: str | None = None, skip: tuple = (), step_mods: dict | None = None,
+              on_step: Callable | None = None) -> None:
     """Woven basic-attack steps (0.2.309).
 
     Between two skills players tap a step of the class's basic-attack chain and
@@ -77,7 +79,10 @@ def add_weave(A: dict, weave: dict, flat: float, coef: float, *, mp: float = 0.0
     one hit, so per-hit bonuses (Critical Attack, flat additions) count once a
     step.  ``weave["steps"]`` gives each step's name, its share of the woven steps
     and its damage per press against the first step (``flat`` / ``coef``); steps
-    are dealt to keep those shares.  Mutates ``A`` in place.
+    are dealt to keep those shares.  A woven step is a press of that step, so the
+    specializations of the skill it is ride along: ``step_mods`` gives a step
+    index's per-hit stat adds and ``on_step(sim, index)`` runs after each step.
+    Mutates ``A`` in place.
     """
     after, default, steps = weave.get("after", {}), weave.get("per_press", 0.0), weave["steps"]
     for key, a in list(A.items()):
@@ -96,9 +101,12 @@ def add_weave(A: dict, weave: dict, flat: float, coef: float, *, mp: float = 0.0
                 i = max(range(len(steps)), key=lambda j: steps[j][1] * total - st["dealt"][j])
                 st["dealt"][i] += 1
                 name, _, ratio = steps[i]
-                sim.hit(f"{name} (woven)", flat * ratio, coef * ratio, element=element)
+                sim.hit(f"{name} (woven)", flat * ratio, coef * ratio, element=element,
+                        mods=(step_mods or {}).get(i))
                 if mp:
                     sim.gain_mp(mp)
+                if on_step is not None:
+                    on_step(sim, i)
         A[key] = replace(a, on_cast=on_cast)
 
 

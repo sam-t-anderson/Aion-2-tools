@@ -16,7 +16,7 @@ from .model.character import load_loadout
 from .paths import list_names, bundled_model_data
 from .presets import BUDGETS, InvalidPreset, candidate as legacy_candidate, parse
 
-MODEL_VERSION = "0.3.9"  # Bump for evaluator/model changes, not capture/UI releases.
+MODEL_VERSION = "0.3.10"  # Bump for evaluator/model changes, not capture/UI releases.
 # 0.3.0: hand-written kits for all eight classes (was sorcerer only) — see aion2calc/kit/.
 # Changes every class's modeled rotation, so the server re-scores all presets under it.
 # 0.3.3: kit action times measured from recorded casts (0.2.307) and each class's recorded
@@ -38,6 +38,12 @@ MODEL_VERSION = "0.3.9"  # Bump for evaluator/model changes, not capture/UI rele
 # chain values and rates, certain-crit specializations, the recorded MP economy, Incandescent Blow
 # limited by its MP with Bursting Blow as its own chain, the Chanter's heals; the bundled Gladiator and
 # Chanter builds are regenerated.
+# 0.3.10: the Templar's support stigmas and passives from their tooltips (0.2.320): Taunt's Shrink, Noble
+# Armor's x1.5 Insulting Roar and Fury, Fury's PvE Damage Boost on Block in a boss fight, Battlefield
+# Banner's specializations, Pummel's Punishment cooldown cut, woven Vicious Strikes carrying its
+# specializations and Shield Rush only after the recorded dodges; from the recordings, Annihilate's +100% on
+# a boss and Punishment's damage over time, and the Gladiator's measured MP a basic step; the bundled
+# Templar build is regenerated.
 VERSION = 2
 POLICY_VERSION = 1
 MODES = {"pve": ("boss", "dummy"), "pvp": ("pvp", "pvp_burst")}

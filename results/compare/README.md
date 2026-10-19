@@ -6,9 +6,9 @@ Each class is optimized with the same budgets (203 SP, 30 stigma points, 360 Dae
 |---|---:|---:|---:|---:|---|
 | sorcerer | 21,507 | 18,873 | +14.0% | 71% | [sorcerer](sorcerer/README.md) |
 | chanter | 20,469 | 18,443 | +11.0% | 28% | [chanter](chanter/README.md) |
+| templar | 20,293 | 16,903 | +20.1% | 39% | [templar](templar/README.md) |
 | spiritmaster | 16,032 | 14,781 | +8.5% | 47% | [spiritmaster](spiritmaster/README.md) |
 | cleric | 15,937 | 12,137 | +31.3% | 72% | [cleric](cleric/README.md) |
-| templar | 14,785 | 13,029 | +13.5% | 44% | [templar](templar/README.md) |
 | gladiator | 13,063 | 11,593 | +12.7% | 33% | [gladiator](gladiator/README.md) |
 | ranger | 12,175 | 10,701 | +13.8% | 61% | [ranger](ranger/README.md) |
 | assassin | 9,346 | 8,009 | +16.7% | 41% | [assassin](assassin/README.md) |

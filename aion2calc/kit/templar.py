@@ -19,7 +19,14 @@ What the tooltip-driven generic kit misses for a Templar, and this kit adds:
 * **The on-hit passives** Punishing Benediction (bonus-damage proc) and
   Insulting Roar (+Attack on a front attack, effectively permanent: about half a
   Templar's recorded boss hits land from the front), plus Fury's front-attack
-  boost.
+  boost and, in a boss fight, its PvE Damage Boost on Block.
+* **The support stigmas** (0.2.320): Taunt's Shrink lowers the target's PvE
+  Damage Tolerance from stigma level 5, Noble Armor multiplies Insulting Roar
+  (level 10) and Fury (level 15) by 1.5, and Battlefield Banner's
+  specializations add Multi-Hit and Weapon Damage Boost.
+* **Two specializations measured from the recordings** (0.2.320): Annihilate's
+  "+100% damage to targets with Incapacitated Immunity" applies to a dungeon
+  boss, and Punishment's damage over time ticks six times in 3 s.
 
 Every damage number is read from ``data/global/classes/templar.json``; only the
 things the client does not expose live in :data:`TIMING` / :data:`ASSUME`.
@@ -66,6 +73,7 @@ TIMING = {
 
 ASSUME = {
     "boss_breakable": True,       # training boss can be stunned/knocked down (gates Annihilate)
+    "boss_incap_immune": True,    # a dungeon boss has Incapacitated Immunity (Annihilate's third spec; 0.2.320)
     "judgment_window": 2.0,       # seconds Judgment stays usable after a trigger whose tooltip gives none
     "chain_frac": 1.5,            # Threatening Blow (Vicious Strike chain); community parses put
                                   #   detected chains at ~1.4-1.9x, so 1.5 (was 0.85) class-wide
@@ -73,12 +81,28 @@ ASSUME = {
     "punishing_frac": 1.17,       # Punishing Strike per press vs Pummel's (three strikes) — measured (0.2.315):
                                   #   3.52x one strike in plain boss hits, 3.50-3.58 across five Templars
     "extra_damage_frac": 0.30,    # "Extra damage on hit" specs that give no number
+    # Fury's "+PvE Damage Boost ... for the caster and party members on Block" (20 s): up 29% of a boss fight on the
+    # party members recording beside a Templar (31 fights, 9 Templars) and 33% on the Templars (29 fights; 0.2.320).
+    # A training dummy never attacks, so there it is never up.
+    "fury_block_uptime": 0.30,
+    # Shield Rush only "after using [Dodge] or while flying": the recorded Templars press it 0.93 times a minute of
+    # boss fight, against 4.5 dodges (29 fights, 0.2.320), so the model presses it no oftener.
+    "shield_rush_per_minute": 0.93,
+    # MP a basic-chain step restores. Its tooltip says 100, as the Gladiator's Keen Strike does, and the recording
+    # Gladiators' readings rise 150 a step (180 with the same +20% specialization; 0.2.319). The two classes' MP
+    # layouts match (the step's tooltip, the MP specializations, the Daevanion MP nodes) and no recorded Templar made
+    # a recording, so the Templar's step takes the Gladiator's measured value (0.2.320; it was the tooltip's 100).
+    "step_mp": 150,
+    # Punishment's second specialization, "Inflicts Damage over Time to target on hit": in the 11 recorded boss fights of
+    # Templars who take it, every press puts 6 ticks on each target it hits, 0.5 s apart over 3 s, each 0.076 of the
+    # press's plain hit (44 presses), and no tick crits (0.2.320).
+    "punish_dot_tick": 0.076,
 }
 
 #: The basic-attack chain's three steps (name, share of the woven steps, damage per press against
 #: Vicious Strike), the woven steps after each press and after any press recorded too rarely (the
 #: median of the per-skill rates), from the recorded Templars (0.2.315; docs/methodology.md
-#: "Woven basic attacks").  Each step restores Vicious Strike's MP, as the other classes' steps
+#: "Woven basic attacks").  Each step restores ``ASSUME["step_mp"]``, as the other classes' steps
 #: do (no recorded Templar made the recording, so their MP readings are not in the logs).
 WEAVE = {
     "steps": (("Vicious Strike", 0.38, 1.00), ("Decisive Strike", 0.33, 1.18), ("Desperate Strike", 0.29, 1.41)),
@@ -127,6 +151,9 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
                 static[field] = static.get(field, 0.0) + v[idx] * scale
 
     add_static("PBEN", {0: ("crit", 1.0)})               # Punishing Benediction: +Critical Hit
+    roar_atk = float(cd.vals(SID["ROAR"], lv("ROAR"))[1]) / 100.0 if lv("ROAR") > 0 else 0.0
+    fury_v = cd.vals(SID["FURY"], lv("FURY")) if lv("FURY") > 0 else None
+    fury_front, fury_pve = (float(fury_v[0]) / 100.0, float(fury_v[1]) / 100.0) if fury_v else (0.0, 0.0)
     add_static("IMPACT", {1: ("double", 0.01)})
     add_static("FURY", {0: ("front_amp", 0.01)})          # Front Attack Damage Boost (its own bucket)
     # Insulting Roar: +Attack% on a front attack with a short internal cooldown that is
@@ -141,6 +168,16 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
         pb_chance, pb_icd = float(pv[1]) / 100.0, ms(pv[4])
         pb_f, pb_c = float(pv[2][0]), float(pv[2][1]) / 100.0
 
+    noble_fury = st("NOBLE", 15)
+
+    def fury_block(sim, t):
+        # Fury's PvE Damage Boost on Block, at its recorded uptime, where the boss attacks (not on a dummy);
+        # x1.5 while Noble Armor (stigma level 15) lasts.
+        if not fury_pve or not sim.target.party_damage:
+            return {}
+        k = 1.5 if noble_fury and sim.has_buff("noble_armor", t) else 1.0
+        return {"amp": fury_pve * ASSUME["fury_block_uptime"] * k}
+
     def hook(sim, t, info):
         if "proc" in info["tags"] or "dot" in info["tags"]:
             return
@@ -154,7 +191,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
     # deal all three steps in one 0.8 s action, which outdamaged every other skill: the optimized
     # rotation pressed nothing else and never fired Judgment.
     vi_f, vi_c = dmg("VIC")
-    vic_mp = 100 * (1.2 if has("VIC", 1) else 1.0)
+    vic_mp = ASSUME["step_mp"] * (1.2 if has("VIC", 1) else 1.0)
 
     def vic_cast(sim, a):
         step, last = sim.chain.get("vicious", (0, -99.0))
@@ -182,6 +219,8 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
     def pummel_cast(sim, a):
         sim.hit("Pummel", pu_f, pu_c, mult=pu_mult)
         sim.buff("pummel_chain", sim.cfg.chain_window)
+        if has("PUM", 4):                             # "-1s [Punishment] cooldown on hit"
+            sim.reduce_cd("punishment", 1.0)
     A["pummel"] = Action("pummel", "Pummel", SID["PUM"], TIMING["pummel"],
                          mp=cd.mp(SID["PUM"], lv("PUM")) * (0.8 if has("PUM", 1) else 1.0),
                          on_cast=pummel_cast, is_filler=True)
@@ -247,6 +286,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
     # Shield Rush (Stun; triggers Judgment)
     sr_f, sr_c = dmg("SRUSH")
     sr_cd = cd.cd(SID["SRUSH"], lv("SRUSH")) - (10 if has("SRUSH", 4) else 0)
+    sr_dodge = 60.0 / ASSUME["shield_rush_per_minute"]      # only after a Dodge: no oftener than recorded
 
     def srush_cast(sim, a):
         sim.hit("Shield Rush", sr_f, sr_c)
@@ -254,15 +294,21 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
             sim.debuff("incap", 3.0)
         trigger_judgment(sim, "SRUSH")
     A["shield_rush"] = Action("shield_rush", "Shield Rush", SID["SRUSH"], TIMING["shield_rush"],
-                              cooldown=sr_cd, on_cast=srush_cast)
+                              cooldown=max(sr_cd, sr_dodge), affected_by_cdr=sr_cd >= sr_dodge, on_cast=srush_cast)
 
     # Annihilate (only while the target is stunned/knocked down)
     an_f, an_c = dmg("ANNI")
     an_cd = cd.cd(SID["ANNI"], lv("ANNI")) - (10 if has("ANNI", 4) else 0)
 
+    # "+100% damage to targets with Incapacitated Immunity" (its third spec): a dungeon boss has it. The recorded plain
+    # Annihilate hits on bosses are 14-19 plain Pummel strikes in 12 of 18 Templar boss fights and 8-10 in 4 (0.2.320).
+    # A training dummy is taken not to have it.
+    an_immune = 2.0 if has("ANNI", 3) else 1.0
+
     def anni_cast(sim, a):
         mods = {"multihit": 0.5} if has("ANNI", 1) else None
-        sim.hit("Annihilate", an_f, an_c, mods=mods)
+        immune = ASSUME["boss_incap_immune"] and sim.target.party_damage
+        sim.hit("Annihilate", an_f, an_c, mods=mods, mult=an_immune if immune else 1.0)
     A["annihilate"] = Action("annihilate", "Annihilate", SID["ANNI"], TIMING["annihilate"],
                              cooldown=an_cd, mp=cd.mp(SID["ANNI"], lv("ANNI")),
                              requires=("incap",), on_cast=anni_cast)
@@ -274,22 +320,30 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
     ex_amp = float(pv[4]) / 100.0 if len(pv) > 4 and isinstance(pv[4], (int, float)) else 0.20
     pn_speed = 0.30 if has("PUNISH", 3) else 0.0
 
+    pn_dot = ASSUME["punish_dot_tick"] if has("PUNISH", 2) else 0.0
+
     def punish_cast(sim, a):
         tags = ("crit",) if has("PUNISH", 5) else ()
         sim.hit("Punishment", pn_f, pn_c, tags=tags)
+        if pn_dot:
+            sim.dot("punishment_dot", "Punishment (DoT)", pn_f * pn_dot, pn_c * pn_dot, 0.5, 3.0)
         sim.buff("executor", ms(pv[2]) if isinstance(pv[2], dict) else 20.0, {"amp": ex_amp})
     A["punishment"] = Action("punishment", "Punishment", SID["PUNISH"], TIMING["punishment"],
                              cooldown=cd.cd(SID["PUNISH"], lv("PUNISH")), mp=cd.mp(SID["PUNISH"], lv("PUNISH")),
                              skill_speed=pn_speed, on_cast=punish_cast, requires_charge=True, charge_level=3)
 
     # ------------------------------------------------------------- stigmas
-    _build_stigmas(A, build, cd, stig, st, notes)
+    _build_stigmas(A, build, cd, stig, st, notes, roar_atk=roar_atk, fury_front=fury_front)
 
     policy = _policy(A, filler)
     fallback_to_generic(A, policy, build, cd, notes, timing=TIMING)
-    add_weave(A, WEAVE, vi_f, vi_c, mp=vic_mp, skip=("vicious_strike",))
+    # A woven Vicious Strike is a Vicious Strike: its "+50% Multi-Hit on hit" and "-2s [Warding Strike]
+    # cooldown on hit" ride along (the kit used to apply them only to the chain pressed on its own).
+    add_weave(A, WEAVE, vi_f, vi_c, mp=vic_mp, skip=("vicious_strike",),
+              step_mods={0: {"multihit": 0.5}} if has("VIC", 3) else None,
+              on_step=(lambda sim, i: sim.reduce_cd("warding_strike", 2.0) if i == 0 else None) if has("VIC", 4) else None)
     # A saved priority list from before Punishing Strike existed would never press it.
-    return Kit(actions=A, hooks=[hook], cond_mods=[], static=static, policy=policy,
+    return Kit(actions=A, hooks=[hook], cond_mods=[fury_block], static=static, policy=policy,
                filler=filler, notes=notes, levels=L, essential=("punishing_strike",))
 
 
@@ -304,7 +358,8 @@ def _judgment_window(cd: ClassData, sid: int, level: int) -> float:
     return ms(v[i]) if 0 <= i < len(v) and isinstance(v[i], dict) else ASSUME["judgment_window"]
 
 
-def _build_stigmas(A, build, cd, stig, st, notes):
+def _build_stigmas(A, build, cd, stig, st, notes, *, roar_atk=0.0, fury_front=0.0):
+    """Stigma actions. A stigma's specializations come with its level (5 / 10 / 15 / 20), not by choice."""
     def sdmg(key):
         v = cd.vals(SID[key], build.stigmas[SID[key]])
         f, c = v[0]
@@ -314,6 +369,9 @@ def _build_stigmas(A, build, cd, stig, st, notes):
         dv = cd.vals(SID["DOOM"], build.stigmas[SID["DOOM"]])
         doom_down = ms(dv[3]) if len(dv) > 3 and isinstance(dv[3], dict) else 3.0
         doom_window = _judgment_window(cd, SID["DOOM"], build.stigmas[SID["DOOM"]])
+    if stig("TAUNT"):
+        tv = cd.vals(SID["TAUNT"], build.stigmas[SID["TAUNT"]])
+        shrink = (ms(tv[2]) if len(tv) > 2 and isinstance(tv[2], dict) else 15.0) + (5.0 if st("TAUNT", 20) else 0.0)
     for key in ("EXEC", "DOOM", "ELP", "AFURY", "GRAPPLE", "TAUNT"):
         if not stig(key):
             continue
@@ -336,13 +394,47 @@ def _build_stigmas(A, build, cd, stig, st, notes):
                 sim.buff("judgment", doom_window)
                 if st("DOOM", 5):
                     sim.reset_cd("annihilate")
+            elif key == "TAUNT" and st("TAUNT", 5):
+                # Shrink from stigma level 5: "Adds 10% PvE Damage Tolerance reduction" for its 15 s (20 s at 20)
+                sim.debuff("shrink", shrink, {"tol_red": 0.10})
+        cooldown = cd.cd(SID[key], build.stigmas[SID[key]]) - (5.0 if key == "TAUNT" and st("TAUNT", 15) else 0.0)
         A[akey] = Action(akey, cd.skills[SID[key]]["name"], SID[key], TIMING.get(akey, TIMING["stigma"]),
-                         cooldown=cd.cd(SID[key], build.stigmas[SID[key]]),
-                         mp=cd.mp(SID[key], build.stigmas[SID[key]]), on_cast=nuke)
+                         cooldown=cooldown, mp=cd.mp(SID[key], build.stigmas[SID[key]]), on_cast=nuke)
+
+    if stig("NOBLE"):
+        # Noble Armor: x1.5 Insulting Roar for its 120 s from stigma level 10, x1.5 Fury from 15 (Fury's block
+        # buff reads the buff in build_kit). The kit modelled neither; nine of twelve recorded Templars equip it.
+        lvl = build.stigmas[SID["NOBLE"]]
+        nv = cd.vals(SID["NOBLE"], lvl)
+        stats = {}
+        if st("NOBLE", 10) and roar_atk:
+            stats["attack_pct"] = 0.5 * roar_atk
+        if st("NOBLE", 15) and fury_front:
+            stats["front_amp"] = 0.5 * fury_front
+        dur = ms(nv[1]) if len(nv) > 1 and isinstance(nv[1], dict) else 120.0
+        A["noble"] = Action("noble", cd.skills[SID["NOBLE"]]["name"], SID["NOBLE"], TIMING["stigma"],
+                            cooldown=cd.cd(SID["NOBLE"], lvl), mp=cd.mp(SID["NOBLE"], lvl),
+                            on_cast=lambda sim, a, dur=dur, stats=stats: sim.buff("noble_armor", dur, stats))
+
+    if stig("BANNER"):
+        # Battlefield Banner: its own "Attack proportional to Defense" (and +20% of it at stigma level 15) gives no
+        # number and is left out; its +10% Multi-Hit (level 5) and +10% Weapon Damage Boost (level 10) last as long.
+        lvl = build.stigmas[SID["BANNER"]]
+        bv = cd.vals(SID["BANNER"], lvl)
+        dur = ms(bv[0]) if bv and isinstance(bv[0], dict) else 10.0
+        stats = {}
+        if st("BANNER", 5):
+            stats["multihit"] = 0.10
+        if st("BANNER", 10):
+            stats["weapon_amp"] = 0.10
+        A["banner"] = Action("banner", cd.skills[SID["BANNER"]]["name"], SID["BANNER"], TIMING["stigma"],
+                             cooldown=cd.cd(SID["BANNER"], lvl) - (30.0 if st("BANNER", 20) else 0.0),
+                             mp=cd.mp(SID["BANNER"], lvl),
+                             on_cast=lambda sim, a, dur=dur, stats=stats: sim.buff("battlefield_banner", dur, stats))
 
 
 def _policy(actions: dict, filler: str) -> list:
-    order = ["punishment", "exec", "elp", "doom", "afury", "grapple", "taunt",
+    order = ["noble", "punishment", "banner", "exec", "elp", "doom", "afury", "grapple", "taunt",
              "shield_smite", "shield_rush", "warding_strike", "annihilate", "judgment",
              "debilitating_smash", "punishing_strike", "pummel"]
     pol = [k for k in order if k in actions]

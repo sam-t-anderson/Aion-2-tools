@@ -717,6 +717,111 @@ parse's one per 3 s), and Ankle Slice, Heat Wave Blow, Wave Blow and Tremor Crus
 players rarely press. The canonical preset model version moves to 0.3.9, so
 a server re-seeds the comparison scopes from its stored winners and the regenerated builds.
 
+### The Templar guide checked against the recorded Templars (0.2.320)
+
+A Templar guide (the transcript of a video, supplied with this release) gives the specializations,
+stigmas, passives and macro it plays for boss damage. The bundled build disagreed with most of them:
+it took neither of the guide's two must-take stigmas, spent its specializations on MP and pressed no
+Warding Strike. Each difference was checked against the tooltips and the log server's uploads: the
+official profiles of 12 Templars (their stigmas and skill levels; a profile lists no specializations)
+and 29 boss fights of 7 Templars with casts.
+
+* **Taunt and Noble Armor.** The kit counted Taunt's hit only, and Noble Armor only raised HP. From
+  stigma level 5 Taunt's Shrink lowers the target's PvE Damage Tolerance by 10 % for 15 s (20 s at 20,
+  and 5 s off Taunt's cooldown at 15). Noble Armor multiplies Insulting Roar's Attack (from level 10)
+  and Fury (from 15) by 1.5 for its 120 s. 9 of the 12 Templars equip Noble Armor and 5 Taunt.
+* **Fury's block buff.** Fury gives the Templar and the party a PvE Damage Boost on Block for 20 s. It
+  is up 33 % of a boss fight on the Templars (29 fights) and 29 % on the party members recording
+  beside one (31 fights, 9 Templars). The model counts it at 30 % in a boss fight. A training dummy
+  never attacks, so there it never counts.
+* **Shield Rush only after a dodge.** Its tooltip makes it usable only "after using [Dodge] or while
+  flying". The Templars press it 0.93 times a minute of boss fight (against 4.5 dodges), and the model
+  pressed it on cooldown, 6.3 times. It now comes no oftener than recorded.
+* **Annihilate on a boss.** Its third specialization, "+100% damage to targets with Incapacitated
+  Immunity", applies to a dungeon boss. A plain Annihilate hit on a boss equals 14–19 plain Pummel
+  strikes in 12 of 18 Templar boss fights, and 8–10 in 4: twice as much for most Templars. Against the
+  tooltips at each player's own levels and Attack, Annihilate delivers 1.89 times what Pummel does (5
+  fights with a profile, all single hits). Annihilate's tooltip also gives it "a 5% chance to trigger
+  when attacking a target with Incapacitated Immunity", and 30 % of the recorded Annihilates (104
+  presses) follow no stun of the Templar's own in the 4 s before. The model keeps Annihilate behind
+  the Templar's own stuns, which already let it press Annihilate 6.3 times a minute against the
+  recorded 1.7. With the specialization it doubles the hit in a boss fight
+  (`ASSUME["boss_incap_immune"]`) but not on a dummy.
+* **Punishment's damage over time.** Its second specialization ticks 6 times on each target a press
+  hits, 0.5 s apart over 3 s. Each tick is 0.076 of the press's plain hit (44 presses in the 11 boss
+  fights of Templars who take it), and no tick crits. In those fights it adds 29 % to Punishment's
+  damage. The kit left it out.
+* **Judgment's "Extra damage on hit"** delivers 1.29 times its tooltip against Pummel (9 fights), as
+  the kit's 30 % for an unquantified "extra damage" has it.
+* **A woven Vicious Strike is a Vicious Strike.** Its +50 % Multi-Hit and its −2 s Warding Strike
+  cooldown now apply to the woven first steps too, and Pummel's "−1s [Punishment] cooldown on hit" is
+  applied. The kit described both and applied neither.
+* **MP.** The model's Templar ran out of MP: its lowest reading in a boss fight was 95 of 4,700. So
+  the optimizer took Vicious Strike's +20 % MP restored and Shield Smite's free cast, and pressed no
+  Warding Strike: added to that build it cost 3 % of the boss DPS. The guide takes neither
+  specialization. No Templar has made a recording, so no Templar MP readings exist. The Templar's MP
+  layout is the Gladiator's: a basic step whose tooltip says "Restores 100 MP", the same +20 % and −20
+  % MP specializations and the same Daevanion MP nodes. The recording Gladiators' readings rise 150 a
+  step ([0.2.319](#the-gladiator-and-the-chanter-from-the-log-servers-uploads-02319)), so the
+  Templar's step now restores 150 (`ASSUME["step_mp"]`; it was the tooltip's 100). This is an
+  inference until a Templar records.
+
+The guide, the recorded Templars and the bundled build (two specialization slots below skill level 20):
+
+| | Guide | Recorded Templars | Bundled build before | Bundled build now |
+|---|---|---|---|---|
+| Stigmas | Taunt and Noble Armor; Battlefield Banner, Shield of Protection or Doom Shield | equipped: Doom Shield 9 of 12, Noble Armor 9, Battlefield Banner 7, Empyrean Lord's Punishment 6, Taunt 5, Nezekan's Shield 4, Shield of Protection 3, Executing Blade 1 | Assault Fury 5, Doom Shield 10, Executing Blade 7, Battlefield Banner 1 | Taunt 5, Noble Armor 10, Executing Blade 7, Comrade in Arms 1 |
+| Vicious Strike | 3, 4 | level 14 (median) | 1, 2 | 1, 3 |
+| Pummel | 3, 4 | 14 | 1, 3 | 3, 4 |
+| Judgment | 3, 4 (3, 5 at 16) | 15 | 3, 4 | 3, 4 |
+| Punishment | 2, 3 | 14 | 1, 3 | 2, 3 |
+| Annihilate | 3, 4 | 14 | 1, 4 | 3, 4 |
+| Shield Smite | 3, 4 | 13 | 2 | 2 |
+| Warding Strike | 1, 3; pressed in the macro | 13.5; 2.1 presses a minute | 2; 2 presses a minute | 1; 2.7 presses a minute |
+| Shield Rush | 2, 4; only after a dodge | 0.93 presses a minute | 1, 4; 6.3 a minute | none; 1 a minute |
+| Damage passives | Fury, Insulting Roar, Punishing Benediction, Impact Hit | | the same four, Fury 7 | the same four |
+
+Effect on the calibration (optimized rotation, typical build, 180 s dummy) and on the bundled build:
+
+| | Before | After |
+|---|---:|---:|
+| KR fidelity | 0.540 | 0.516 |
+| Own-capture overlap (51 fights) | 0.525 | 0.537 |
+| Typical build, optimized rotation, boss DPS | 13,029 | 16,903 |
+| Bundled build, boss DPS | 14,785 (14,749 under the new kit) | 20,293 |
+| Bundled build, KR share overlap | 44 % | 39 % |
+
+Switched off one at a time on the new build, Annihilate's +100 % on a boss is worth 6.3 % of its boss
+DPS, Punishment's damage over time 5.7 %, Taunt's Shrink 5.3 %, the 150 MP a step 4.9 %, Fury's block
+buff 3.4 % and Noble Armor's ×1.5 2.9 %. The old build barely moves (it gains Fury's block buff and
+loses its six Shield Rushes a minute). The KR fidelity falls because the KR dummy logs put 42 % of
+their damage on Judgment with its cooldown removed, and capping Shield Rush takes Judgment windows
+from the typical build, which has no "Remove cooldown".
+
+What still differs from the guide:
+
+* **Judgment's share.** The guide puts Judgment at 35–40 % of a Templar's damage from level 16, where
+  "Remove cooldown" unlocks. The bundled build has Judgment at 14 and puts 9.9 % on it. The same build
+  with Judgment at 16 and its third and fifth specializations, pressed first as in the guide's macro,
+  puts 34.5 % on Judgment. At 20 with all three it puts 44.7 %, against 42 % in the KR logs.
+* **The last two stigmas.** Within the build's 30 stigma points Noble Armor 15 (35 points) is out of
+  reach. The optimizer fills the other two slots with Executing Blade (1 of the 12 recorded Templars
+  equips it) and Comrade in Arms at level 1, a defensive stigma. Doom Shield, Shield of Protection or
+  Battlefield Banner in their place cost 0.3–1.3 % of the modelled boss DPS. Banner's own effect
+  ("Increases Attack proportional to Defense") gives no number and is left out. Shield of Protection's
+  guaranteed Block feeds Fury's block buff, which the model counts at its recorded uptime whatever the
+  stigmas.
+* **Vicious Strike's and Shield Smite's MP specializations.** The bundled build presses Annihilate 6.3
+  times a minute (recorded: 1.7), Punishment 3.7 (1.1) and Pummel 37 (12): its main skills 1.6 to 3.7
+  times as often as the recorded Templars, as for every class ([The Cleric's heals and basic
+  chain](#the-clerics-heals-and-basic-chain-02317)). That much pressing needs the MP.
+* **Not modelled:** Shield Smite's "50% chance to trigger [Debilitating Smash]", Debilitating Smash's
+  −25 % Defense (the guide notes that bosses have almost none; the model gives them none) and
+  Annihilate's 5 % trigger on an immune target.
+
+The canonical preset model version moves to 0.3.10, so a server re-seeds the comparison scopes from its
+stored winners and the regenerated builds under the new kit.
+
 ### Chain, variant and combo skills, and known catalog gaps
 
 metabot's build-planner page exposes 35 skills per class. Several real skills
@@ -748,6 +853,8 @@ notes / `ASSUME` for when one is available, not yet modelled):
 
 * **Templar** — modelled since 0.2.315: Punishing Strike is Pummel's chain press and
   Pummel's tooltip is the damage of three strikes ([The Templar from the log server's uploads](#the-templar-from-the-log-servers-uploads-02315)).
+  Since 0.2.320 a basic step restores the Gladiator's measured 150 MP (no Templar has made a recording;
+  [The Templar guide checked against the recorded Templars](#the-templar-guide-checked-against-the-recorded-templars-02320)).
 * **Assassin** — Savage Smash (~6%, 3.3x Quick Slice) and Savage Back Kick (~6%,
   1.45x), and Heart Gore's cadence (under-cast vs parses).
 * **Spiritmaster** — the Spirits' cadence is measured per summon from two
