@@ -60,6 +60,8 @@ def prepare(build: Build, scenario: Scenario, policy: list | None = None, filler
         b.bonus[sid] = b.bonus.get(sid, 0) + lv
     mod = kit_module(build.cls, pvp=scenario.target.is_player)
     kit = mod.build_kit(b, cd, filler=filler or "flame_arrow") if filler else mod.build_kit(b, cd)
+    from .kit.common import learned_only
+    kit = learned_only(kit, cd, b.level)
     stats = character_stats(b, cd, scenario, kit.static)
     return cd, b, kit, stats
 

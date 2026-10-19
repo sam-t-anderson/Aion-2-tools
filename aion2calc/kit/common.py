@@ -29,7 +29,23 @@ from typing import Callable
 from .base import ClassData, spec_slots
 from .sorcerer import Kit  # single definition of the container; re-exported here
 
-__all__ = ["Kit", "ms", "fallback_to_generic", "spec_options", "add_weave"]
+__all__ = ["Kit", "ms", "fallback_to_generic", "spec_options", "add_weave", "learned_only"]
+
+
+def learned_only(kit: Kit, cd: ClassData, level: int) -> Kit:
+    """Leave out the active skills a character of ``level`` has not learned yet (``unlock``): the
+    kits are written for a level-45 character, who has every skill. Their passives already drop out
+    at the effective level of 0 :meth:`Build.effective_levels` gives a skill not learned yet."""
+    locked = {key for key, a in kit.actions.items()
+              if (cd.skills.get(a.skill_id) or {}).get("kind") == "active"
+              and (cd.skills[a.skill_id].get("unlock") or 1) > level}
+    if not locked:
+        return kit
+    kept = lambda entry: (entry[0] if isinstance(entry, tuple) else entry) not in locked
+    kit.actions = {key: a for key, a in kit.actions.items() if key not in locked}
+    kit.policy = [entry for entry in kit.policy if kept(entry)]
+    kit.essential = tuple(entry for entry in kit.essential if kept(entry))
+    return kit
 
 
 def ms(v) -> float:

@@ -659,7 +659,10 @@ async function pageCharacter() {
     $("#cpointpatch").onchange=()=>localStorage.setItem("point-game-patch",$("#cpointpatch").value.trim());
     document.querySelectorAll("[data-character-budget]").forEach(e=>e.onchange=rememberBudgets);
     const budgetFields=[...document.querySelectorAll('[data-character-budget]')],before=budgetFields.map(e=>e.value);
-    A2ProgressionBudgets.read(communityAPI,v.class,{region:st.hit?.region||''}).then(result=>{if(S.character.v!==v||!budgetFields.every(e=>e.isConnected))return;budgetFields.forEach((e,i)=>{const total=result.points[e.dataset.characterBudget];if(total!==null&&e.value===before[i])e.value=Math.max(+e.value,total);});const note=document.createElement('p');note.className='small muted';note.textContent=result.note;budgetFields[0]?.closest('.row')?.after(note);}).catch(()=>{});
+    // The community's totals come from characters at the level cap: a lower character cannot have them.
+    const levelCap=v.level_cap||45;
+    if((v.level??levelCap)<levelCap){const note=document.createElement('p');note.className='small muted';note.textContent=`Community point totals are not filled in below level ${levelCap}: they come from characters at the level cap.`;budgetFields[0]?.closest('.row')?.after(note);}
+    else A2ProgressionBudgets.read(communityAPI,v.class,{region:st.hit?.region||''}).then(result=>{if(S.character.v!==v||!budgetFields.every(e=>e.isConnected))return;budgetFields.forEach((e,i)=>{const total=result.points[e.dataset.characterBudget];if(total!==null&&e.value===before[i])e.value=Math.max(+e.value,total);});const note=document.createElement('p');note.className='small muted';note.textContent=result.note;budgetFields[0]?.closest('.row')?.after(note);}).catch(()=>{});
 
     document.querySelectorAll("[data-opt-mode]").forEach(button => button.onclick = async () => {
       if (S.character.opt?.status === "running") return;

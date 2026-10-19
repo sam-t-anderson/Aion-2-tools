@@ -14,7 +14,7 @@ import itertools
 import time
 from dataclasses import dataclass, field, replace
 
-from ..kit.base import Build, ClassData, sp_to_reach, spec_slots, stigma_points_to_reach
+from ..kit.base import Build, ClassData, sp_to_reach, spec_slots, stigma_points_to_reach, trainable_level
 from ..run import Scenario, kit_module, prepare
 from ..sim.engine import Sim
 from . import daevanion as daev_opt
@@ -135,7 +135,7 @@ class Optimizer:
     def __init__(self, cls: str, scenario: Scenario, daev_budget: int = 360,
                  stigma_points: int | None = None, sp_budget: int | None = None,
                  search_duration: float | None = None, verbose: bool = True, gear_bonus: dict | None = None,
-                 progress=None, survival=None, skill_reserves=None):
+                 progress=None, survival=None, skill_reserves=None, level: int = 45):
         from .survival import with_action_timing
         scenario = with_action_timing(scenario, survival)
         self.survival = survival
@@ -143,10 +143,17 @@ class Optimizer:
         self.cd = ClassData(cls)
         self.scenario = scenario
         self.daev_budget = daev_budget
-        bud = self.cd.budget(45)
+        # The character's level gates what it can have: stigma slots, how far each skill trains with
+        # points (its ``need`` levels) and which Daevanion boards are open. A level-45 character
+        # has all of it.
+        self.level = level
+        bud = self.cd.budget(level)
         self.sp_budget = sp_budget if sp_budget is not None else bud["skill"]
         self.stigma_points = stigma_points if stigma_points is not None else bud["stigma"] + 1
         self.slots = bud["slots"]
+        self.sp_caps = {sid: trainable_level(s, level) for sid, s in self.cd.skills.items() if s["kind"] != "stigma"}
+        self.boards = tuple(b["name"] for b in self.cd.boards
+                            if b["name"] in daev_opt.CRYSTAL_BOARDS and (b.get("needLevel") or 1) <= level)
         self.search_cfg = replace(scenario.config, duration=search_duration or scenario.config.duration)
         self.verbose = verbose
         self.progress = progress            # optional callback(str): live phase updates for the app UI
@@ -173,6 +180,16 @@ class Optimizer:
                 pass
 
     # ------------------------------------------------------------ evaluation
+    @property
+    def stigma_slots(self) -> int:
+        """The slots the stigma points can fill: a stigma costs a point at level 1, so a character
+        with fewer points than open slots leaves the rest empty (all of them at 0 points)."""
+        return max(0, min(self.slots, self.stigma_points))
+
+    def _top(self, sid: int) -> int:
+        """The highest level skill points can train ``sid`` to at the character's level."""
+        return min(10, self.cd.skills[sid].get("buyMax", 10), self.sp_caps.get(sid, 10))
+
     def evaluate(self, build: Build, policy: list, cfg=None, filler=None):
         cd, b, kit, stats = prepare(build, self.scenario)
         pol = self._fit_policy(policy, kit)
@@ -206,7 +223,7 @@ class Optimizer:
     def initial_build(self) -> Build:
         cd = self.cd
         tp = cd.raw.get("top_players", {})
-        b = Build(self.cls)
+        b = Build(self.cls, self.level)
         b.bonus = dict(self.gear_bonus)
         avg = {**tp.get("skills", {}), **tp.get("passives", {})}
         ranked = sorted(cd.skills.values(), key=lambda s: -(avg.get(s["name"], {}).get("avg_level") or 0))
@@ -215,19 +232,20 @@ class Optimizer:
         for s in ranked:
             if s["kind"] == "stigma":
                 continue
-            top = min(10, s.get("buyMax", 10))
+            top = self._top(s["id"])
             cost = sp_to_reach(top)-sp_to_reach(b.sp.get(s["id"],1))
             if top > 1 and sp >= cost:
                 b.sp[s["id"]] = top
                 sp -= cost
         stig = [n for n in tp.get("stigmas", {}) if n not in DEFENSIVE_STIGMAS]
+        slots = self.stigma_slots
         stig_ids = list(self.min_stigmas)
-        stig_ids += [cd.by_name[n]["id"] for n in stig if n in cd.by_name and cd.by_name[n]["id"] not in stig_ids][:self.slots-len(stig_ids)]
-        if len(stig_ids) < self.slots:
+        stig_ids += [cd.by_name[n]["id"] for n in stig if n in cd.by_name and cd.by_name[n]["id"] not in stig_ids][:slots-len(stig_ids)]
+        if len(stig_ids) < slots:
             for s in cd.skills.values():
                 if s["kind"] == "stigma" and s["name"] not in DEFENSIVE_STIGMAS and s["id"] not in stig_ids:
                     stig_ids.append(s["id"])
-                if len(stig_ids) >= self.slots:
+                if len(stig_ids) >= slots:
                     break
         while self.min_stigmas and sum(stigma_points_to_reach(self.min_stigmas.get(sid,1)) for sid in stig_ids)>self.stigma_points:
             removable = [sid for sid in stig_ids if sid not in self.min_stigmas]
@@ -296,10 +314,17 @@ class Optimizer:
         cd = self.cd
         cands = [s["id"] for s in cd.skills.values()
                  if s["kind"] == "stigma" and (s["name"] not in DEFENSIVE_STIGMAS or s["id"] in self.min_stigmas)]
-        # level patterns that spend the stigma points (levels unlock specs at 5/10/15)
+        slots = self.stigma_slots
+        if not slots:
+            self.log("stigma search skipped: no stigma slot is open at this level, or no stigma point to fill one")
+            return build
+        # level patterns that spend the stigma points (levels unlock specs at 5/10/15). With fewer than
+        # four slots to fill (a character below level 37, or few points) every level is tried: the
+        # usual subset can leave no pattern that spends the few points there are
         patterns = []
-        levels = sorted({1,3,5,6,7,8,10,11,12,13,15,*self.min_stigmas.values()})
-        for lv in itertools.product(levels, repeat=self.slots):
+        levels = (range(1, 21) if slots < 4 else
+                  sorted({1,3,5,6,7,8,10,11,12,13,15,*self.min_stigmas.values()}))
+        for lv in itertools.product(levels, repeat=slots):
             if sum(stigma_points_to_reach(l) for l in lv) <= self.stigma_points:
                 patterns.append(lv)
         # keep only maximal patterns (no free point left to add a level)
@@ -308,14 +333,14 @@ class Optimizer:
             return all(l>=20 or spent - stigma_points_to_reach(l) + stigma_points_to_reach(l + 1) > self.stigma_points
                        for l in p)
         patterns = sorted({tuple(sorted(p, reverse=True)) for p in patterns if maximal(p)})
-        if not cands or not patterns or self.slots > len(cands):
+        if not cands or not patterns or slots > len(cands):
             self.log("stigma search skipped: no legal candidate sets for this budget")
             return build
         best_b, best = build, self.evaluate(build, policy)
         # stage 1: which set (uniform-ish pattern), stage 2: level assignment for top sets
         base_pat = max(patterns, key=lambda p: (p.count(10), -p.count(1)))
         _CTX["stigma"] = (self, build, policy)
-        combos = [combo for combo in itertools.combinations(cands,self.slots) if set(self.min_stigmas).issubset(combo)]
+        combos = [combo for combo in itertools.combinations(cands,slots) if set(self.min_stigmas).issubset(combo)]
         if self.min_stigmas:
             jobs = []
             for combo in combos:
@@ -353,7 +378,8 @@ class Optimizer:
 
     def level_curves(self, build: Build, policy: list, max_level: int = 20) -> dict[int, list[float]]:
         """DPS as a function of each skill's effective level (best specs at each level)."""
-        sids = [sid for sid, s in self.cd.skills.items() if s["kind"] != "stigma"]
+        sids = [sid for sid, s in self.cd.skills.items()
+                if s["kind"] != "stigma" and (s.get("unlock") or 1) <= self.level]
         _CTX["curve"] = (self, build, policy, max_level)
         self.log(f"skill curves: evaluating {len(sids)} skills through level {max_level}")
         curves = {}
@@ -435,7 +461,7 @@ class Optimizer:
                              sp_budget=self.sp_budget, bonus=bonus,
                              time_limit=DAEV_SOLVER_TIME_LIMIT,
                              min_node_hp=(self.survival or {}).get("minimum_node_hp", 0), min_sp=self.min_sp, min_effective=self.min_effective,
-                             start=(build.daevanion, build.sp), spend_all=True)
+                             start=(build.daevanion, build.sp), spend_all=True, boards=self.boards, max_sp=self.sp_caps)
         self.log(f"skill allocation: solver finished ({sol['status']}, "
                  f"{time.monotonic() - solver_started:.1f} s"
                  f"{'; started from the current allocation' if sol['warm_start'] else ''})")
@@ -458,14 +484,14 @@ class Optimizer:
         """
         cd = self.cd
         trainable = sorted(sid for sid, s in cd.skills.items()
-                           if s["kind"] in ("active", "passive") and s.get("buyMax", 10) > 1)
+                           if s["kind"] in ("active", "passive") and self._top(sid) > 1)
         best = self.evaluate(build, policy)
         for round_no in range(1, rounds + 1):
             slack = self.sp_budget - build.sp_spent()
             effective = self._with_gear(build).effective_levels(cd)
             jobs = []
             for b in trainable:
-                lb, top = build.sp.get(b, 1), cd.skills[b].get("buyMax", 10)
+                lb, top = build.sp.get(b, 1), self._top(b)
                 for db in (1, 2):
                     if lb + db > top:
                         continue
@@ -517,7 +543,7 @@ class Optimizer:
                 continue
             level = build.sp.get(sid, 1)
             options = [(0, level, 0.0)]
-            for new_level in range(level + 1, min(10, skill.get("buyMax", 10)) + 1):
+            for new_level in range(level + 1, self._top(sid) + 1):
                 cost = sp_to_reach(new_level) - sp_to_reach(level)
                 if cost > slack:
                     break
@@ -581,7 +607,8 @@ class Optimizer:
                                  sp_budget=self.sp_budget, bonus=self._with_gear(build).bonus,
                                  time_limit=DAEV_SOLVER_TIME_LIMIT, min_sp=self.min_sp,
                                  min_effective=self.min_effective,
-                                 min_node_hp=(self.survival or {}).get("minimum_node_hp", 0))
+                                 min_node_hp=(self.survival or {}).get("minimum_node_hp", 0),
+                                 boards=self.boards, max_sp=self.sp_caps)
             build.sp, build.daevanion = sol["sp"], sol["nodes"]
             build = self._clean_specs(build)
         policy = (list(initial_policy) if initial_policy is not None else

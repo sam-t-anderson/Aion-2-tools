@@ -219,7 +219,9 @@ def rotation_view(cd: ClassData, build, gear: dict, summary: dict) -> dict:
     with_gear = build.copy()
     for sid, level in gear.items():
         with_gear.bonus[sid] = with_gear.bonus.get(sid, 0) + level
-    kit = kit_module(cd.cls, pvp=str(summary.get("scenario", "")).startswith("pvp")).build_kit(with_gear, cd)
+    from ..kit.common import learned_only
+    kit = learned_only(kit_module(cd.cls, pvp=str(summary.get("scenario", "")).startswith("pvp")).build_kit(with_gear, cd),
+                       cd, with_gear.level)
     levels = with_gear.effective_levels(cd)
     macro = dict(summary.get("macro") or {})
     if not macro:
@@ -466,7 +468,7 @@ def character_view(imp, evaluation: dict | None = None) -> dict:
     lo = imp.loadout
     return {
         "class": imp.cls, "key": imp.key, "name": imp.name, "server": imp.server, "level": imp.level,
-        "combat_power": imp.combat_power, "loadout": imp.loadout_name(),
+        "level_cap": cd.raw.get("level_cap", 45), "combat_power": imp.combat_power, "loadout": imp.loadout_name(),
         "warnings": imp.warnings + (["specializations are not on the official profile; the skill window shows the "
                                      "best legal ones for your levels (used for the as-is score)"] if evaluation else []),
         "dps": (evaluation or {}).get("dps"), "budgets": (evaluation or {}).get("budgets"), "progression": (evaluation or {}).get("progression"),

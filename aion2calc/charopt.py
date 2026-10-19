@@ -52,6 +52,16 @@ def snapshot(imp: ImportedCharacter) -> int:
     return store.put_snapshot(store.connect(), imp.key, imp.name, imp.cls, data)
 
 
+def level_cap(cls: str) -> int:
+    return int(ClassData(cls).raw.get("level_cap", 45))
+
+
+def at_level_cap(imp: ImportedCharacter) -> bool:
+    """The community's point totals and presets describe characters at the level cap: a lower
+    character's totals and builds say nothing about them, so they are not shared."""
+    return imp.build.level >= level_cap(imp.cls)
+
+
 def crystal_cost(cd: ClassData, nodes) -> int:
     return sum(cd.node_index[n][1]["cost"] for n in nodes
                if n in cd.node_index and cd.node_index[n][0]["name"] in CRYSTAL_BOARDS)
@@ -97,8 +107,12 @@ def progression_of(imp, budgets, *, entered=()):
     return {"resources": rows, "note": "Official profiles provide allocations, not verified unspent totals or progression maxima. Remaining points are the selected budget minus observed spend; confirm total points in game. Genus levels are recorded separately and do not grant these point budgets."}
 
 
-def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus: dict | None = None, objective="primary", survival=None) -> dict:
-    """The character as it is (best legal specs for its levels, optimized rotation)."""
+def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus: dict | None = None, objective="primary", survival=None,
+                     progress=None) -> dict:
+    """The character as it is (best legal specs for its levels, optimized rotation).
+
+    It takes a minute or more in the app, which runs it serially, so ``progress`` hears each step."""
+    say = progress or (lambda msg: None)
     cls = imp.cls
     from .opt.genus import apply as apply_genus
     frozen_loadout = apply_genus(imp.loadout, genus)
@@ -112,10 +126,12 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus:
     bud = budgets_of(imp)
     from .opt.weighted import optimizer_for, objective_summary
     opt = optimizer_for(cls, scen, other, objective, verbose=False, sp_budget=bud["skill"],
-                        stigma_points=bud["stigma"], daev_budget=bud["daevanion"])
+                        stigma_points=bud["stigma"], daev_budget=bud["daevanion"], level=b.level)
     from .run import kit_module
     policy = list(kit_module(cls, pvp=scen.target.is_player).build_kit(opt._with_gear(b), opt.cd).policy)
+    say("Current build: choosing the best supporting effects for its skill levels")
     b = opt.optimize_specs(b, policy)
+    say("Current build: searching its best rotation")
     policy, dps, res = opt.optimize_rotation(b, policy)
     cd, bg, kit, stats = prepare(b, scen)
     from .report import _sim
@@ -129,6 +145,7 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus:
     from .model.stats import crit_chance
     eff = bg.effective_levels(cd)
     from .kit.specialties import describe as describe_specialties
+    say("Current build: calculating its stat priority")
     return {
         "class": cls, "loadout": imp.loadout_name(), "loadout_snapshot": frozen_loadout, "scenario": scenario_name, "kind": "current",
         "character": {"name": imp.name, "server": imp.server, "level": imp.level,
@@ -176,7 +193,7 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     genus_plan = prepare_genus(inv.get("genus", {}), "pvp" if scenario_name.startswith("pvp") else "pve", genus)
     if progress:
         progress(f"Genus Insight: {len(genus_plan['lines'])} saved lines; {genus_plan['mode'].upper()} damage model")
-    cur = evaluate_current(imp, scenario_name, genus_plan, objective, survival_plan)
+    cur = evaluate_current(imp, scenario_name, genus_plan, objective, survival_plan, progress=progress)
     (out / "current").mkdir(parents=True, exist_ok=True)
     bud = dict(cur["budgets"])
     for key, value in (budgets or {}).items():
@@ -205,7 +222,8 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     (out / "current" / "build.json").write_text(json.dumps(cur, indent=1, default=str), encoding="utf-8")
     best = run_report(imp.cls, str(out), scenario_name=scenario_name, daev_budget=bud["daevanion"],
                       iterations=iterations, loadout=imp.loadout_name(), sp_budget=bud["skill"],
-                      stigma_points=bud["stigma"], progress=progress, survival=survival_plan, loadout_snapshot=imp.loadout, skill_reserves=reserve_plan, genus=genus_plan, objective=objective, progression=cur["progression"])
+                      stigma_points=bud["stigma"], progress=progress, survival=survival_plan, loadout_snapshot=imp.loadout, skill_reserves=reserve_plan, genus=genus_plan, objective=objective, progression=cur["progression"],
+                      level=imp.build.level)
     write_diff(str(out / "current"), str(out), str(out / "DIFF.md"))
     current_score, optimized_score = cur["objective"]["score"], best["objective"]["score"]
     gain = optimized_score / current_score - 1 if current_score > 0 else None

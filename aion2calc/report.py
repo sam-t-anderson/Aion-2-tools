@@ -208,7 +208,7 @@ def build_from_summary(summary: dict):
     cd = ClassData(cls)
     byname = cd.by_name
     data = summary["build"]
-    b = Build(cls)
+    b = Build(cls, int(summary.get("level") or 45))
     b.sp = {byname[k]["id"]: v for k, v in data["sp"].items()}
     b.stigmas = {byname[k]["id"]: v for k, v in data["stigmas"].items()}
     b.specs = {byname[k]["id"]: tuple(x["id"] for x in byname[k]["specs"] if x["text"] in v)
@@ -216,7 +216,8 @@ def build_from_summary(summary: dict):
     b.daevanion = set(data["daevanion_nodes"])
     policy = [e if " [" not in e else (e.split(" [")[0], e.split(" [")[1][:-1]) for e in summary["policy"]]
     from .opt.rotation import with_essentials
-    return b, with_essentials(policy, kit_module(cls).build_kit(b, cd))
+    from .kit.common import learned_only
+    return b, with_essentials(policy, learned_only(kit_module(cls).build_kit(b, cd), cd, b.level))
 
 
 def rerender(out_dir: str) -> str:
@@ -306,9 +307,11 @@ def sensitivity(build, scenario, policy, samples: int = 12, spread: float = 0.25
 def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget: int = 360,
                iterations: int = 3, loadout: str | None = None, verbose: bool = True,
                sp_budget: int | None = None, stigma_points: int | None = None,
-               current: object | None = None, progress=None, survival=None, loadout_snapshot: dict | None = None, skill_reserves=None, genus=None, objective="primary", progression=None) -> dict:
+               current: object | None = None, progress=None, survival=None, loadout_snapshot: dict | None = None, skill_reserves=None, genus=None, objective="primary", progression=None,
+               level: int = 45) -> dict:
     """``current``: a Build (e.g. an imported character) to evaluate and diff against.
-    ``progress``: optional callback(str) for live phase updates (the app streams these to the UI)."""
+    ``progress``: optional callback(str) for live phase updates (the app streams these to the UI).
+    ``level``: the character's level, which gates its stigma slots, skill levels and boards."""
     t0 = time.time()
     out = Path(out_dir)
     (out / "images").mkdir(parents=True, exist_ok=True)
@@ -327,7 +330,8 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
 
     from .opt.weighted import optimizer_for, objective_summary
     opt = optimizer_for(cls, scen, other, objective, daev_budget=daev_budget, verbose=verbose, sp_budget=sp_budget,
-                        stigma_points=stigma_points, progress=progress, survival=survival, skill_reserves=skill_reserves)
+                        stigma_points=stigma_points, progress=progress, survival=survival, skill_reserves=skill_reserves,
+                        level=level)
     skill_reserves = opt.skill_reserves
     opt.log("Damage objective: " + objective + "; HP and trained-skill reserves remain enforced")
     res = opt.run(iterations=iterations)
@@ -335,8 +339,10 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
 
     # baseline: the typical top global build (live statistics) with the best legal
     # specs for its levels, played with the default priority and with an optimized rotation
-    comm = typical_build(cls, sp_budget=opt.sp_budget, stigma_points=opt.stigma_points)
-    baseline_opt = (optimizer_for(cls, baseline_scen, baseline_other, objective, verbose=False)
+    opt.log("Report: scoring the typical top-player build at the same budgets, for comparison")
+    comm = typical_build(cls, sp_budget=opt.sp_budget, stigma_points=opt.stigma_points, level=level,
+                         daev_budget=daev_budget)
+    baseline_opt = (optimizer_for(cls, baseline_scen, baseline_other, objective, verbose=False, level=level)
                     if (skill_reserves or {}).get("specs") or (survival or {}).get("action_windows") else opt)
     comm = baseline_opt.optimize_specs(comm, list(kit_module(cls, pvp=scen.target.is_player).build_kit(baseline_opt._with_gear(comm), cd).policy))
     cd_, cb, ckit, cstats = prepare(comm, baseline_scen)
@@ -350,6 +356,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     if (survival or {}).get("action_windows") and (final.dps <= 0 or final_other.dps <= 0):
         raise ValueError("No outgoing damage fits the action-time schedule; shorten or move the pauses")
     d = stats.derived()
+    opt.log("Report: planning the macro and measuring sensitivity")
     macro = plan_macro(d, kit, policy, scen.target, scen.config)
     sens = sensitivity(build, scen, policy, samples=8)
 
@@ -372,7 +379,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
         "accuracy": d.accuracy, "mp_max": d.mp_max,
     }
     summary = {
-        "class": cls, "level": 45, "scenario": scenario_name, "daevanion_budget": daev_budget,
+        "class": cls, "level": level, "scenario": scenario_name, "daevanion_budget": daev_budget,
         "progression": copy.deepcopy(progression),
         "budgets": {"skill": opt.sp_budget, "stigma": opt.stigma_points, "daevanion": daev_budget},
         "dps": {scenario_name: final.dps, other_name: final_other.dps},
@@ -420,6 +427,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     summary["action_timing"] = action_timing_summary(survival, {scenario_name: scen, other_name: other}, {scenario_name: final, other_name: final_other})
     from .opt.reserves import describe as describe_reserves
     summary["skill_reserves"] = describe_reserves(cd, opt._with_gear(build), skill_reserves)
+    opt.log("Report: valuing arcana rolls and critical hit")
     summary["arcana_rolls"] = arcana_roll_values(cls, build, scen, policy)
     summary["crit_sensitivity"] = None if scenario_name.startswith("pvp") else crit_sensitivity(build, scen, policy)
     summary["kr_fidelity"] = (None if scenario_name.startswith("pvp") else
@@ -443,6 +451,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     (out / "build.json").write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
 
     # ---- images
+    opt.log("Report: drawing the build images")
     _board_images(cd, build, comm, out, daev_budget)
     _build_card(cd, summary, build, policy, out)
     from .report_md import write_markdown

@@ -60,6 +60,17 @@ Budgets constrain a particular optimization, not the maximum progression availab
 | Daevanion Crystal points | **360** is the example PvE budget, including level, dungeon, quest and other progression sources; it is configurable and is not a verified maximum | metabot board guide; the global top-player "most common" board spends 351 |
 | Daevanion boards | Nezekan (134), Zikel (134), Vaizel (134), Triniel (168) share the crystal pool; Azphel (232) is PvP and uses its own currency | client data |
 
+**A character below level 45 (0.2.322).** The optimizer holds a character to what its level
+gives: the stigma slots its level opens (22/27/32/37), filled only as far as the stigma points go
+since a stigma costs a point at level 1; each skill trained with points no higher than its `need`
+levels allow (Vicious Strike 10 needs character level 25); the boards its level opens (Nezekan 12,
+Zikel 20, Vaizel 30, Triniel 40); and that level's base stats. A skill not learned yet (`unlock`,
+up to level 25) is left out of the kit. The optimizer used to give every character four slots,
+level-45 base stats and every board, and a level-24 Templar with no stigma points stopped with "No
+feasible stigma allocation". Characters below level 45 share no point totals or builds with the
+community: the server compares each class at the highest totals reported, and a level-24
+character's totals were the only Templar report.
+
 Daevanion connectivity rule (same as the in-game window and both public
 planners): a node can be taken only if it touches the board centre or another
 taken node orthogonally.

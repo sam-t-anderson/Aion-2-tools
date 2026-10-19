@@ -46,8 +46,12 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
           daev_budget: int = 360, sp_budget: int = 203, bonus: dict | None = None,
           max_level: int = 20, fixed_sp: dict | None = None, time_limit: int = 120,
           boards: tuple = CRYSTAL_BOARDS, gap: float = 0.0005, min_node_hp: float = 0, min_sp: dict | None = None,
-          min_effective: dict | None = None, start: tuple | None = None, spend_all: bool = False) -> dict:
+          min_effective: dict | None = None, start: tuple | None = None, spend_all: bool = False,
+          max_sp: dict | None = None) -> dict:
     """``skill_curves[sid][L]`` = DPS with skill at effective level L (index 0 unused).
+
+    ``max_sp`` = the highest level skill points can train each skill to (a character below level 45
+    trains no skill past its ``need`` levels); ``boards`` = the boards open to it.
 
     ``start`` = (nodes, trained levels) of the current allocation. When it satisfies the
     program the solver starts from it, and the result is never worth less than it.
@@ -103,8 +107,8 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
     sp_terms = []
     for sid, curve in skill_curves.items():
         s = cd.skills[sid]
-        buy = s.get("buyMax", 10)
-        levels = range(1, buy + 1)
+        buy = min(s.get("buyMax", 10), (max_sp or {}).get(sid, 10))
+        levels = range(1, max(1, buy) + 1)
         if fixed_sp and sid in fixed_sp:
             levels = [fixed_sp[sid]]
         if min_sp and sid in min_sp:

@@ -1,6 +1,8 @@
 """Collecting a character in My Character shares its observed point totals with the
 community "highest observed build points" (on by default). Previously only running an
-Optimize submitted anything, so a plain collect never appeared in the server totals."""
+Optimize submitted anything, so a plain collect never appeared in the server totals.
+Only a character at the level cap shares them: the server compares each class at the
+highest totals reported, and a lower character's were the only ones for a class."""
 import types
 
 import pytest
@@ -15,8 +17,8 @@ def home(tmp_path, monkeypatch):
     return tmp_path
 
 
-def _imp():
-    return types.SimpleNamespace(cls="sorcerer")
+def _imp(level=45):
+    return types.SimpleNamespace(cls="sorcerer", build=types.SimpleNamespace(level=level))
 
 
 def _ev(skill=120, stigma=24, daevanion=36):
@@ -44,6 +46,15 @@ def test_collect_submits_profile_lower_bound(home, monkeypatch):
     assert body["class"] == "sorcerer" and body["source"] == "profile_lower_bound"
     assert body["region"] == "nae" and body["game_patch"] == "2.0.6.0"
     assert body["points"] == {"skill": 120, "stigma": 24, "daevanion": 36}
+
+
+def test_a_character_below_the_level_cap_sends_nothing(home, monkeypatch):
+    # A level-24 Templar's totals were the only Templar report, so the server scored the class's
+    # comparison at no stigma points
+    sent = _capture(monkeypatch)
+    logged = []
+    server._contribute_character_points({"region": "nae"}, _imp(level=24), _ev(70, 0, 40), logged.append)
+    assert sent == [] and logged == []
 
 
 def test_opt_out_sends_nothing(home, monkeypatch):

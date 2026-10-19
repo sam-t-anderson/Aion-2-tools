@@ -152,7 +152,7 @@ def act_character_import(body: dict, log) -> dict:
     imp = import_character(body["character_id"], int(body["server_id"]), body.get("region", "nae"),
                            progress=log, use_cache=float(body.get("cache", 0)))
     log("scoring the build as it is")
-    ev = evaluate_current(imp)
+    ev = evaluate_current(imp, progress=log)
     _contribute_character_points(body, imp, ev, log)
     return views.character_view(imp, ev)
 
@@ -169,6 +169,9 @@ def _contribute_character_points(body: dict, imp, ev: dict, log) -> None:
     server, an opt-out, or any failure just means nothing is sent, and it never raises."""
     try:
         if ui_settings().get("community_contribute_character", True) is False:
+            return
+        from ..charopt import at_level_cap
+        if not at_level_cap(imp):
             return
         points = ev.get("budgets") if isinstance(ev, dict) else None
         if not isinstance(points, dict) or any(
@@ -218,19 +221,28 @@ def act_character_optimize(body: dict, log) -> dict:
     best = json.loads((out / "build.json").read_text(encoding="utf-8"))
     cur = json.loads((out / "current" / "build.json").read_text(encoding="utf-8"))
     from ..combat import share
-    log("Submitting anonymous point observations…")
-    try:
-        points = share.community_request("/api/v1/progression", {"class": imp.cls, "region": body.get("region", ""),
-            "game_patch": body.get("game_patch", ""), "points": summ["budgets"],
-            "source": "user_reported" if body.get("budgets") else "profile_lower_bound"})
-        log("Community point observations updated.")
-    except Exception as exc:
-        points = {"error": str(exc)}
-        log("Could not submit point observations: " + str(exc))
-    from ..combat.preset_sync import submit as submit_canonical
-    preset = submit_canonical(best)
-    if preset is None:
-        preset = share.submit_preset(best)
+    from ..charopt import at_level_cap, level_cap
+    if not at_level_cap(imp):
+        # The community's point totals and presets are for characters at the level cap; a lower
+        # character's would set the class's comparison budgets (the highest reported) on their own.
+        cap = level_cap(imp.cls)
+        log(f"Point totals are shared only from level-{cap} characters; not submitted.")
+        points = {"skipped": f"below level {cap}"}
+        preset = {"submitted": False, "reason": f"only level-{cap} builds are compared"}
+    else:
+        log("Submitting anonymous point observations…")
+        try:
+            points = share.community_request("/api/v1/progression", {"class": imp.cls, "region": body.get("region", ""),
+                "game_patch": body.get("game_patch", ""), "points": summ["budgets"],
+                "source": "user_reported" if body.get("budgets") else "profile_lower_bound"})
+            log("Community point observations updated.")
+        except Exception as exc:
+            points = {"error": str(exc)}
+            log("Could not submit point observations: " + str(exc))
+        from ..combat.preset_sync import submit as submit_canonical
+        preset = submit_canonical(best)
+        if preset is None:
+            preset = share.submit_preset(best)
     if preset.get("submitted"):
         log("Community preset updated." if preset.get("accepted") else preset.get("reason", "Current community preset retained."))
     elif preset.get("reason"):

@@ -209,7 +209,7 @@ Compare multiple local or public logs by choosing the encounter and each same-cl
 
 **Saved Results** reopens completed character/class optimizations and advice after restarting. Export a result JSON and import it on another installation. The latest older build and advice files are recovered automatically when available; overwritten historical files cannot be reconstructed. Advice is a snapshot from that run, so regenerate it when your gear or game data changes.
 
-After character optimization, anonymous point observations update the community's highest observed totals by class, region, build and source. View these under Combat Logs. User-entered totals and allocated profile lower bounds are labelled separately; neither establishes the game's maximum.
+After character optimization, anonymous point observations update the community's highest observed totals by class, region, build and source. Only characters at level 45 send them; a lower character is optimized at its own level. View these under Combat Logs. User-entered totals and allocated profile lower bounds are labelled separately; neither establishes the game's maximum.
 
 ## PvE and PvP optimization
 

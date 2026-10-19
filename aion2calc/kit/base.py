@@ -31,6 +31,20 @@ def spec_slots(level: int) -> int:
     return sum(1 for lv in SPEC_SLOT_LEVELS if level >= lv)
 
 
+def trainable_level(skill: dict, level: int) -> int:
+    """The highest level a character of ``level`` can train a skill to with skill points: each
+    trained level needs the character level its ``need`` entry names (the skill's ``unlock`` level
+    when the entry is blank). A skill not learned yet stays at 1, the untrained level."""
+    need, unlock = skill.get("need") or [], skill.get("unlock") or 1
+    best = 1
+    for trained in range(2, min(10, skill.get("buyMax") or 10) + 1):
+        gate = need[trained - 1] if trained <= len(need) and need[trained - 1] is not None else unlock
+        if gate > level:
+            break
+        best = trained
+    return best
+
+
 def valid_base_stats(rows, level_cap=45) -> bool:
     """Require finite source rows covering the supported character levels."""
     if not isinstance(rows, dict) or not rows:
@@ -197,6 +211,9 @@ class Build:
             if s["kind"] == "stigma":
                 if sid in self.stigmas:
                     out[sid] = self.stigmas[sid]
+                continue
+            if (s.get("unlock") or 1) > self.level:
+                out[sid] = 0              # not learned yet at this character level: kits leave it out
                 continue
             base = self.sp.get(sid, 1)
             out[sid] = base + dv.get(sid, 0) + self.bonus.get(sid, 0)

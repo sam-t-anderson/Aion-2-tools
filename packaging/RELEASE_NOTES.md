@@ -1,3 +1,19 @@
+## Fix: optimizing a character below level 45 (0.2.322)
+
+**Optimizing a character below level 45 no longer stops.** For a level-24 Templar with no stigma points, the optimizer stopped with "No feasible stigma allocation fits the reserved levels and budget". Before that, it spent a minute or more scoring the current build without printing anything, so the run looked stuck on "Genus Insight: 0 saved lines". The optimizer treated every character as level 45: four stigma slots, every skill trainable to level 10, every Daevanion board open and level-45 base stats. It now holds a character to what its level gives:
+- **Stigma slots** open at levels 22, 27, 32 and 37. A slot is filled only if a stigma point is left for it, since a stigma costs a point at level 1. With no stigma points, the build has no stigmas.
+- **Skill levels**: no skill is trained past what the character's level allows; Vicious Strike 10, for example, needs level 25.
+- **Daevanion boards**: only the boards the level opens. Nezekan opens at level 12, Zikel at 20, Vaizel at 30 and Triniel at 40.
+- **Skills not learned yet** are left out of the rotation, and the build uses its level's base stats.
+
+That level-24 Templar's optimized build now spends all of its skill points within its level's limits and all of its Daevanion points on Nezekan and Zikel, with no stigma.
+
+**Progress while the current build is scored and the report is written.** Both steps ran for a minute or more in the app without a new progress line. Each now says what it is doing.
+
+**The typical top build is held to the same budgets.** The report's *Typical top build* took the top players' whole board on every board open to the character, so at level 24 it outscored the optimized build. It now keeps the nodes nearest each board's centre that fit the Daevanion budget. At the default 360 points, the Assassin's, Chanter's and Templar's typical boards drop the 5 to 7 points they had over the budget.
+
+**Point totals and builds are shared only from level-45 characters.** The log server scores each class's community comparison at the highest point totals reported. The only Templar report came from that level-24 character, with no stigma points. The server then had no Templar build that fit those budgets, so it showed no Templar community preset. A character below level 45 no longer sends its totals or its build. The character page also no longer fills a lower character's budgets with the community's totals, which come from level-45 characters.
+
 ## Fix: the update prompt asks once, for the newest release (0.2.321)
 
 **One update prompt per window, for the newest release.** The app asked once per version, so every release published while it ran asked again. A copy several versions behind could be walked through them one at a time: on 18 October three releases went out within 25 minutes. It now asks once per window, re-checking GitHub first, and names the newest release. A release published while the app is open only updates the **Version … available** chip. Installing has always fetched the release that is newest when you choose it, so a copy several versions behind goes straight to the newest, never the versions in between. Copies older than 0.2.321 keep asking once per version until they have updated once.

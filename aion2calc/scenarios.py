@@ -97,7 +97,40 @@ def community_build(cls: str) -> Build:
 _DEFENSIVE = {"Steel Barrier", "Arctic Armor", "Hibernation", "Curse: Tree"}
 
 
-def typical_build(cls: str, sp_budget: int | None = None, stigma_points: int | None = None) -> Build:
+def _fit_board(cd: ClassData, nodes: set, budget: int) -> set:
+    """The nodes of ``nodes`` nearest their board centres that fit ``budget``, kept connected:
+    a node is taken only next to its centre or to a node already taken."""
+    from collections import deque
+    steps = ((1, 0), (-1, 0), (0, 1), (0, -1))
+    order = []
+    for board in cd.boards:
+        mine = {n["id"] for n in board["nodes"]} & nodes
+        start = next((n for n in board["nodes"] if n["type"] == "Start"), None)
+        if not mine or start is None:
+            continue
+        pos = {(n["row"], n["col"]): n for n in board["nodes"]}
+        dist, queue = {start["id"]: 0}, deque([start])
+        while queue:
+            n = queue.popleft()
+            for dr, dc in steps:
+                m = pos.get((n["row"] + dr, n["col"] + dc))
+                if m and m["id"] in mine and m["id"] not in dist:
+                    dist[m["id"]] = dist[n["id"]] + 1
+                    order.append((dist[m["id"]], m["id"]))
+                    queue.append(m)
+    taken, spent = set(), 0
+    for _, nid in sorted(order):
+        board, node = cd.node_index[nid]
+        pos = {(n["row"], n["col"]): n for n in board["nodes"]}
+        near = (pos.get((node["row"] + dr, node["col"] + dc)) for dr, dc in steps)
+        if spent + node["cost"] <= budget and any(m and (m["type"] == "Start" or m["id"] in taken) for m in near):
+            taken.add(nid)
+            spent += node["cost"]
+    return taken
+
+
+def typical_build(cls: str, sp_budget: int | None = None, stigma_points: int | None = None,
+                  level: int | None = None, daev_budget: int | None = None) -> Build:
     """What a typical top tracked global L45 player runs (metabot live statistics).
 
     * Daevanion: the most-picked nodes (metabot preset, crystal boards only)
@@ -108,15 +141,21 @@ def typical_build(cls: str, sp_budget: int | None = None, stigma_points: int | N
       fitted to 30 points (least-picked gives way first)
 
     Specializations are not published; callers give this build the best legal
-    specs for its levels (benefit of the doubt).
+    specs for its levels (benefit of the doubt). ``level`` holds it to what a
+    character of that level can have: the boards it has open, its skill-level
+    gates and its stigma slots. ``daev_budget`` keeps the nodes nearest each
+    board's centre that fit it, when the most-picked nodes cost more.
     """
-    from .kit.base import sp_to_reach, stigma_points_to_reach
+    from .kit.base import sp_to_reach, stigma_points_to_reach, trainable_level
     cd = ClassData(cls)
     tp = cd.raw.get("top_players", {})
     p = cd.raw.get("preset") or {}
-    b = Build(cls, level=p.get("level", 45))
+    b = Build(cls, level=level or p.get("level", 45))
     b.daevanion = {n for n in decode_metabot_daevanion(cd, p.get("daevanion", ""))
-                   if cd.node_index[n][0]["name"] != "Azphel"}
+                   if cd.node_index[n][0]["name"] != "Azphel"
+                   and (cd.node_index[n][0].get("needLevel") or 1) <= b.level}
+    if daev_budget is not None and b.daevanion_cost(cd) > daev_budget:
+        b.daevanion = _fit_board(cd, b.daevanion, daev_budget)
     dv = cd.daevanion_levels(b.daevanion)
     avg = {**tp.get("skills", {}), **tp.get("passives", {})}
     want = {}
@@ -124,22 +163,23 @@ def typical_build(cls: str, sp_budget: int | None = None, stigma_points: int | N
         s = cd.by_name.get(name)
         if not s or s["kind"] == "stigma" or not row.get("avg_level"):
             continue
-        want[s["id"]] = max(1, min(s.get("buyMax", 10), round(row["avg_level"] - dv.get(s["id"], 0))))
+        want[s["id"]] = max(1, min(trainable_level(s, b.level), round(row["avg_level"] - dv.get(s["id"], 0))))
     order = sorted(want, key=lambda sid: -avg[cd.skills[sid]["name"]]["avg_level"])
-    bud = sp_budget or cd.budget(b.level)["skill"]
+    bud = sp_budget if sp_budget is not None else cd.budget(b.level)["skill"]
     while sum(sp_to_reach(v) for v in want.values()) > bud:      # trim the least-levelled skills
         sid = next(x for x in reversed(order) if want[x] > 1)
         want[sid] -= 1
     for sid in order:                                            # spend what is left
-        while want[sid] < cd.skills[sid].get("buyMax", 10) and \
+        while want[sid] < trainable_level(cd.skills[sid], b.level) and \
                 sum(sp_to_reach(v) for v in want.values()) - sp_to_reach(want[sid]) \
                 + sp_to_reach(want[sid] + 1) <= bud:
             want[sid] += 1
     b.sp = {sid: v for sid, v in want.items() if v > 1}
     stig = [(n, r) for n, r in tp.get("stigmas", {}).items() if n not in _DEFENSIVE and n in cd.by_name]
-    stig = sorted(stig, key=lambda nr: -nr[1]["pick"])[: cd.budget(b.level)["slots"]]
+    points = stigma_points if stigma_points is not None else cd.budget(b.level)["stigma"] + 1
+    # a stigma costs a point at level 1: fewer points than slots leave the rest empty
+    stig = sorted(stig, key=lambda nr: -nr[1]["pick"])[: min(cd.budget(b.level)["slots"], points)]
     lv = {cd.by_name[n]["id"]: max(1, round(r.get("avg_level") or 1)) for n, r in stig}
-    points = stigma_points or cd.budget(b.level)["stigma"] + 1
     for sid in reversed(list(lv)):                               # least-picked gives way first
         while sum(stigma_points_to_reach(v) for v in lv.values()) > points and lv[sid] > 1:
             lv[sid] -= 1
