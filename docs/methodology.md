@@ -711,9 +711,10 @@ the recorded Chanters much better. The model still presses more than any player:
 28–43 % of a recorded boss fight pressing nothing ([The Cleric's heals and basic
 chain](#the-clerics-heals-and-basic-chain-02317)), and the bundled builds press Rending Blow 50 times a
 minute where the recorded Gladiators press it 20, and Incandescent Blow 40 where the Chanters press it
-13; over the 180 s fight the Chanter's starting MP pays for the difference. Still estimated: Murderous Burst's rate (8.8 a minute in the recorded boss fights, about 19 in the
-model at the 0.2.254 dummy parse's one per 3 s), and Ankle Slice, Heat Wave Blow, Wave Blow and Tremor
-Crush, which the recorded players rarely press. The canonical preset model version moves to 0.3.9, so
+13; over the 180 s fight the Chanter's starting MP pays for the difference. Still estimated: Murderous
+Burst's rate (8.8 a minute in the recorded boss fights, about 19 in the model at the 0.2.254 dummy
+parse's one per 3 s), and Ankle Slice, Heat Wave Blow, Wave Blow and Tremor Crush, which the recorded
+players rarely press. The canonical preset model version moves to 0.3.9, so
 a server re-seeds the comparison scopes from its stored winners and the regenerated builds.
 
 ### Chain, variant and combo skills, and known catalog gaps
