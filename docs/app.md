@@ -526,7 +526,8 @@ Settings → **Export image coverage** includes observed official references, br
 
 ## Application updates
 
-**Install update** stages the new installer first. When you choose it, the app
+**Install update** asks GitHub for the newest release when you choose it, so a copy several
+versions behind installs that one directly, and stages its installer first. The app
 closes its local server, then a detached helper waits for the desktop process
 to exit before opening the installer. This prevents a running `aion2calc.exe`
 from locking the files the installer needs to replace.

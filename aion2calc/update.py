@@ -226,8 +226,15 @@ def fetch(info: dict) -> Path | None:
 def install_now() -> str:
     """Manual "Install update": download and apply. Ignores the once-per-version guard. The Windows
     installer is launched interactively so a SmartScreen / install prompt on the unsigned build can be
-    approved; portable, macOS and Linux builds are staged for the user to copy."""
-    info = available()
+    approved; portable, macOS and Linux builds are staged for the user to copy.
+
+    It asks GitHub for the latest release when it runs, so a copy several versions behind installs
+    the newest one directly, never the versions in between, even when the prompt named an older one
+    (a release went out since the last check). A check that fails is not "up to date"."""
+    release = latest_release()
+    if release is None:
+        return "check-failed"
+    info = available(release)
     if not info:
         return "up-to-date"
     path = fetch(info)

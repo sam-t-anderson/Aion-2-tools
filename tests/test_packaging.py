@@ -244,6 +244,7 @@ def test_auto_update_stages_without_applying(home, monkeypatch):
 
 def test_install_now_launches_installer_interactively(home, monkeypatch):
     from aion2calc import update
+    monkeypatch.setattr(update, "latest_release", lambda timeout=5: {"tag_name": "v99.0.0"})
     monkeypatch.setattr(update, "available", lambda release=None: {
         "version": "99.0.0", "url": "x", "asset": {"name": "s.exe", "browser_download_url": "u"},
         "kind": "installer", "silent": True})
@@ -256,6 +257,30 @@ def test_install_now_launches_installer_interactively(home, monkeypatch):
     monkeypatch.setattr(update, "apply_installer", fake_apply)
     assert update.install_now() == "launching"
     assert seen.get("silent") is False                         # manual install runs the installer with its UI
+
+
+def test_install_now_installs_the_newest_release_however_far_behind(home, monkeypatch):
+    # A copy several versions behind installs the release that is newest when Install is chosen,
+    # never the versions in between, even when the prompt named an older one.
+    from aion2calc import update
+    monkeypatch.setattr(update, "__version__", "0.2.312")
+    monkeypatch.setattr(update, "install_kind", lambda: "installer")
+    newest = {"tag_name": "v0.2.320", "html_url": "x", "assets": [
+        {"name": "aion2calc-setup-0.2.320.exe", "browser_download_url": "u320"}]}
+    monkeypatch.setattr(update, "latest_release", lambda timeout=5: newest)
+    fetched = {}
+    monkeypatch.setattr(update, "fetch", lambda info: fetched.setdefault("info", info) and home / "s.exe")
+    monkeypatch.setattr(update, "apply_installer", lambda p, silent=True: True)
+    assert update.install_now() == "launching"
+    assert fetched["info"]["version"] == "0.2.320"
+    assert fetched["info"]["asset"]["browser_download_url"] == "u320"
+
+
+def test_install_now_reports_a_failed_check_instead_of_up_to_date(home, monkeypatch):
+    from aion2calc import update
+    monkeypatch.setattr(update, "latest_release", lambda timeout=5: None)    # GitHub unreachable or rate-limited
+    monkeypatch.setattr(update, "fetch", lambda info: (_ for _ in ()).throw(AssertionError("nothing to fetch")))
+    assert update.install_now() == "check-failed"
 
 
 def test_auto_update_portable_stages_only(home, monkeypatch):

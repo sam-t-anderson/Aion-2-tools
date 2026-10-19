@@ -34,11 +34,13 @@ stops it at once. Starting it again while it runs brings the window back instead
 second copy.
 
 **Updating.** When a newer release is out, the app asks within a few seconds of opening whether to
-install it, and a gold **Version … available** chip in the top bar links to its download page. It
-checks the Releases page when it starts or a window opens, then hourly; a check that fails (no
-network yet right after Windows starts, say) is retried within a couple of minutes. **Settings →
-Version** shows what the last check found, with **Check now** and **Install now**. Installing puts
-the new version over the old one. Your data is kept.
+install it, once per window and for the newest release: one that comes out while the app is open
+only updates the gold **Version … available** chip in the top bar, which links to its download page.
+Installing always takes the newest release, however many versions behind you are, so the versions in
+between are never installed one by one. It checks the Releases page when it starts or a window
+opens, then hourly; a check that fails (no network yet right after Windows starts, say) is retried
+within a couple of minutes. **Settings → Version** shows what the last check found, with **Check
+now** and **Install now**. Installing puts the new version over the old one. Your data is kept.
 
 **Your data** stays on your computer, in `%LOCALAPPDATA%\aion2calc` on Windows and
 `~/.aion2calc` on macOS and Linux (details in [app.md](app.md#where-your-data-is-saved)). If the

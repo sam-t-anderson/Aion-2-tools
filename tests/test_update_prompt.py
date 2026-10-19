@@ -103,6 +103,18 @@ def test_check_now_and_status_report_the_check(github):
         srv.shutdown()
 
 
+def test_the_page_prompts_once_a_window_for_the_newest_release():
+    # It asked once per version: every release published while the app ran asked again, and a copy
+    # several versions behind was walked through them one at a time.
+    assert 'sessionStorage.getItem("update-prompted")' in APP_JS
+    assert '"update-prompted:" + s.update.version' not in APP_JS
+    prompt = APP_JS[APP_JS.index('sessionStorage.getItem("update-prompted")'):]
+    prompt = prompt[:prompt.index('api("/api/update", {})')]
+    assert 'api("/api/update/check", {})' in prompt                   # re-checked before it asks
+    assert "the newest version directly, not the versions in between" in prompt
+    assert '"check-failed"' in APP_JS
+
+
 def test_the_page_prompts_soon_after_launch_and_settings_reports_failures():
     assert '"/api/status" + (syncPillFirst ? "?fresh=1" : "")' in APP_JS      # first poll asks for a fresh check
     assert "checking ? 2000 : 20000" in APP_JS                                # quick re-poll while checking

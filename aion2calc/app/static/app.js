@@ -2426,7 +2426,7 @@ async function pageSettings() {
         return;
       }
       $("#instupd").disabled = false;
-      $("#updmsg").textContent = { "launch-failed": "The installer helper did not start. Your app is still running; open the updates folder to run the setup file.", applying: "installing — the app will restart", launching: "closing the app, then opening the installer — follow the prompts (choose “More info → Run anyway” if Windows warns)", downloaded: "downloaded — open your data folder’s “updates” to run it", "download-failed": "download failed", "up-to-date": "already up to date" }[r.status] || r.status;
+      $("#updmsg").textContent = { "launch-failed": "The installer helper did not start. Your app is still running; open the updates folder to run the setup file.", applying: "installing — the app will restart", launching: "closing the app, then opening the installer — follow the prompts (choose “More info → Run anyway” if Windows warns)", downloaded: "downloaded — open your data folder’s “updates” to run it", "download-failed": "download failed", "check-failed": "could not reach GitHub for the update; try again in a minute", "up-to-date": "already up to date" }[r.status] || r.status;
     } catch (e) { if ($("#updmsg")) $("#updmsg").textContent = e.message; if ($("#instupd")) $("#instupd").disabled = false; }
   };
   $$("[data-open]").forEach((b) => (b.onclick = () => api("/api/open", { what: b.dataset.open }).catch((e) => toast(e.message))));
@@ -2533,14 +2533,24 @@ async function syncPill() {
       running ? `updating database · ${esc(sy.phase)} ${sy.total ? `${sy.done}/${sy.total}` : ""}` : `database ${n0(s.db.items)} items`}</span>`;
     const up = $("#update");
     if (s.update && up) { up.hidden = false; up.href = s.update.url; up.textContent = `Version ${s.update.version} available`; }
-    if (s.update && s.update_prompt !== false && !sessionStorage.getItem("update-prompted:" + s.update.version)) {
-      sessionStorage.setItem("update-prompted:" + s.update.version, "1");
+    // One prompt per window, for the newest release. It used to ask once per version, so every
+    // release published while the app ran asked again and a copy several versions behind was walked
+    // through them one at a time. A newer release now only updates the chip; the prompt re-checks
+    // first, so it names the newest one, which is what Install installs.
+    if (s.update && s.update_prompt !== false && !sessionStorage.getItem("update-prompted")) {
+      sessionStorage.setItem("update-prompted", "1");
       setTimeout(async () => {
-        if (!confirm(`Aion 2 Calc ${s.update.version} is ready. Install it now?`)) return;
+        let latest = s.update;
+        try {
+          const c = await api("/api/update/check", {});
+          if (c.update) latest = c.update;
+          else if (!(c.update_state || {}).error) return;            // a fresh check found nothing newer
+        } catch (e) { /* keep what the last check found */ }
+        if (!confirm(`Aion 2 Calc ${latest.version} is ready (you have ${s.version}). Install it now?\n\nThis installs the newest version directly, not the versions in between.`)) return;
         try {
           const r = await api("/api/update", {});
           if (r.status === "launching") document.body.innerHTML = '<div class="empty" style="margin-top:20vh">Aion 2 Calc is closing. The installer will open in a moment.</div>';
-          else toast({ downloaded: "Update downloaded. Open the updates folder to install it.", "download-failed": "The update download failed." }[r.status] || r.status);
+          else toast({ downloaded: "Update downloaded. Open the updates folder to install it.", "download-failed": "The update download failed.", "check-failed": "Could not reach GitHub for the update. Try again in a minute.", "up-to-date": "Already up to date." }[r.status] || r.status);
         } catch (e) { toast("Update failed: " + e.message); }
       }, 250);
     }

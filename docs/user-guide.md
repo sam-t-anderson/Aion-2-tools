@@ -174,7 +174,7 @@ Two overlay readouts are off by default: a **strip of your skills on cooldown**,
 
 After optimization, eligible anonymous builds can improve the class presets used by the Planner. Updated presets are cached for offline use. Character identity and private equipment are not submitted with these build suggestions.
 
-Windows **Install now** stages and validates the installer, starts a detached helper, closes the app, then opens the installer interactively after the process exits. Updates preserve user data. If the helper fails, its log is in the data folder's `updates` directory. macOS/Linux archives are staged for manual replacement.
+Windows **Install now** fetches the newest release (several versions behind, it goes straight to the newest), stages and validates the installer, starts a detached helper, closes the app, then opens the installer interactively after the process exits. Updates preserve user data. If the helper fails, its log is in the data folder's `updates` directory. macOS/Linux archives are staged for manual replacement.
 
 ### Raid plan publishing and playback
 
