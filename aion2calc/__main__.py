@@ -405,15 +405,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.buffs:
             r = C.buff_checks(args.buffs)
             print(f"buff contribution check: {len(r['fights'])} fights with a comparison in {r['files']} files")
-            print("  measured: the same player's same-skill plain hits (no critical, double, perfect or periodic")
-            print("  damage, outside breaks) with only that buff group up, against none of them up")
+            print("  measured: the same player's plain hits with one skill on one target (no critical, double,")
+            print("  perfect or periodic damage, outside breaks) with only that buff group up, against none of them up")
             for f in r["fights"]:
                 print(f"  {f['file'][:40]:40s} #{f['segment']:<3d} {str(f['label'] or '')[:24]:24s} " +
                       "; ".join(f"{c['group']} {c['measured_pct']:+.1f}% vs {c['estimated_pct']:+.1f}% "
                                 f"({c['hits_on']}/{c['hits_off']} hits)" for c in f["checks"]))
             for c in r["pooled"]:
                 print(f"\n  {C.BUFF_GROUPS.get(c['group'], c['group'])}")
-                print(f"    {c['fights']} fights, {c['pairs']} player-skill pairs, {c['hits_on']} hits with / "
+                print(f"    {c['fights']} fights, {c['pairs']} player-skill-target pairs, {c['hits_on']} hits with / "
                       f"{c['hits_off']} without: measured {c['measured_pct']:+.1f}%, estimated {c['estimated_pct']:+.1f}%")
             if not r["pooled"]:
                 print("  no fight had enough plain hits both with and without a credited buff to compare")

@@ -100,15 +100,17 @@ def test_the_casters_level_comes_from_the_profile_then_the_effect_record_then_th
     assert (buff["level"], buff["basis"]) == (12, "effect")    # band 2 -> 10-14
     [buff] = C.summarize(_doc([_effect(MANTRA, "cha", "sor")], _hits("sor")), 0)["buffs"]
     assert (buff["level"], buff["basis"]) == (C.typical_level(MANTRA), "typical")
-    [buff] = C.summarize(_doc([_effect(FURY, "cle", "sor", effect_id=127800071)], _hits("sor")), 0)["buffs"]
-    assert (buff["level"], buff["basis"]) == (7, "effect")     # a passive's effect id carries its level
+    # A passive's effect id does not name its level: Fury's is 01 whatever level the caster's profile lists.
+    [buff] = C.summarize(_doc([_effect(FURY, "cle", "sor", effect_id=127800011)], _hits("sor")), 0)["buffs"]
+    assert (buff["level"], buff["basis"]) == (C.typical_level(FURY), "typical")
 
 
-def test_effect_ids_name_a_level_band_for_auras_and_the_level_for_passives():
+def test_effect_ids_name_a_level_band_for_auras_but_not_a_passives_level():
     assert C.level_from_effect(MANTRA, 181900411) == (22, 20, 24)
     assert C.level_from_effect(MANTRA, 181900111) == (7, 5, 9)
     assert C.level_from_effect(LOP, 174100011) == (2, 1, 4)
-    assert C.level_from_effect(FURY, 127800011) == (1, 1, 1)
+    assert C.level_from_effect(FURY, 127800011) is None
+    assert C.level_from_effect(PROMISE, 187800011) is None
     assert C.level_from_effect(MANTRA, 174100311) is None      # another skill's id
     assert C.level_from_effect(CHAIN, 170700011) is None       # a fixed value needs no level
     assert C.level_from_effect(MANTRA, None) is None
@@ -127,6 +129,16 @@ def test_the_check_compares_plain_hits_with_and_without_the_buff_and_pools_acros
     assert pooled == [{"group": "aura", "fights": 2, "pairs": 2, "hits_on": 12, "hits_off": 12,
                        "measured_pct": 20.0, "estimated_pct": round(expected, 1)}]
     assert math.isclose(pooled[0]["measured_pct"], check["measured_pct"])
+
+
+def test_the_check_compares_a_skills_hits_on_the_same_target_only():
+    # A skill hits a boss (30 % Damage Tolerance, its own Defense) harder or softer than its adds, so hits
+    # with the buff on the boss are not set against hits without it on an add.
+    effects = [_effect(MANTRA, "cha", "sor", t=10.0, end=20.0, effect_id=181900411)]
+    hits = _hits("sor", n=6, damage=1000.0, start=1.0) + _hits("sor", n=6, damage=1200.0, start=11.0)
+    hits += _hits("sor", n=6, damage=3000.0, target="mob", start=1.5)        # an add, only without it
+    [check] = C.summarize(_doc(effects, hits), 0)["checks"]
+    assert (check["pairs"], check["hits_on"], check["hits_off"]) == (1, 6, 6) and check["measured_pct"] == 20.0
 
 
 def test_the_estimate_reaches_the_review_and_the_cli_but_never_the_ranking(tmp_path):

@@ -6,9 +6,9 @@ have been checked against real data (:func:`pool_checks`). The recorded parts ar
 who applied it and the hits it covered (meter 0.2.306 or later). The estimated parts:
 
 * **The buff's size** comes from the caster's skill level: the official profile uploaded with the log
-  when it lists the skill, else the level the effect record carries (inferred: a stigma aura's effect id
-  names the level band it reached, 5-9, 10-14 and so on, and a passive's names its level), else the
-  typical top player's level for that skill.
+  when it lists the skill, else, for a stigma aura, the level band its effect id names (inferred: 5-9,
+  10-14 and so on), else the typical top player's level for that skill. A passive's effect id does not
+  name its level.
 * **How much a +X % boost adds to one hit** follows the damage formula's additive boost bucket: a hit
   with the buff did ``1 + B + X - tolerance`` times its base, so ``X / (1 + B + X - tolerance)`` of it
   came from the buff. ``B`` (the player's other damage boosts) is not recorded, so it is the typical
@@ -29,14 +29,16 @@ from functools import lru_cache
 
 #: The credited buffs. ``field`` is the PvE value's index in the skill's per-level values (percent),
 #: ``group`` the effects that do not stack with each other (the strongest applies), ``on`` whether it
-#: sits on the party ("party") or on the enemy ("enemy"), ``level`` how its effect id encodes the level.
+#: sits on the party ("party") or on the enemy ("enemy"), ``level`` where the caster's level comes from:
+#: "band" (the profile, else the level band its effect id names), "profile" (the profile only) or None
+#: (one value at every level).
 BUFFS = {
     18190000: {"name": "Undefeated Mantra", "cls": "chanter", "field": 0, "group": "aura", "on": "party", "level": "band"},
     17410000: {"name": "Light of Protection", "cls": "cleric", "field": 0, "group": "aura", "on": "party", "level": "band"},
-    12780000: {"name": "Fury", "cls": "templar", "field": 1, "group": "block", "on": "party", "level": "direct"},
-    11780000: {"name": "Experienced Counterstrike", "cls": "gladiator", "field": 1, "group": "block", "on": "party", "level": "direct"},
+    12780000: {"name": "Fury", "cls": "templar", "field": 1, "group": "block", "on": "party", "level": "profile"},
+    11780000: {"name": "Experienced Counterstrike", "cls": "gladiator", "field": 1, "group": "block", "on": "party", "level": "profile"},
     17070000: {"name": "Chain of Torment", "cls": "cleric", "field": 2, "group": "tolerance", "on": "enemy", "level": None},
-    18780000: {"name": "Earth's Promise", "cls": "chanter", "field": 0, "group": "tolerance", "on": "enemy", "level": "direct"},
+    18780000: {"name": "Earth's Promise", "cls": "chanter", "field": 0, "group": "tolerance", "on": "enemy", "level": "profile"},
 }
 #: Earth's Promise's cut does not apply while Chain of Torment's does (its description says so).
 YIELDS = {18780000: 17070000}
@@ -95,23 +97,21 @@ def value_pct(family, level):
 def level_from_effect(family, effect_id):
     """``(level, low, high)`` the effect id names, or None. Effect ids are the skill variant x 10 plus a
     stack digit; a stigma aura's variant names the level band it reached (thresholds at 5, 10, 15, 20,
-    25: ``x1`` = 5-9 ... ``x4`` = 20-24) and a passive's names its level. Inferred from the captures, not a
-    published rule: Power of the Storm's band 1 matched the level 5 its 12 s duration implies, and a
-    passive's code matched the level its duration implies."""
+    25: ``x1`` = 5-9 ... ``x4`` = 20-24). Inferred from the captures, not a published rule: Power of the
+    Storm's band 1 matched the level 5 its 12 s duration implies, and in the log server's uploads the
+    band held the level the caster's profile lists in 36 of 37 cases. A passive's variant does not name
+    its level: Fury's was ``01`` for casters whose profiles list levels 6-17 (0.2.319)."""
     info = BUFFS.get(family)
-    if not info or not info["level"] or not isinstance(effect_id, int) or effect_id < 100_000_000:
+    if not info or info["level"] != "band" or not isinstance(effect_id, int) or effect_id < 100_000_000:
         return None
     variant = effect_id // 10
     if variant - variant % 10_000 != family:
         return None
-    code = variant % 10_000
-    if info["level"] == "band":
-        band = code // 10
-        if not 0 <= band <= 5:
-            return None
-        low, high = (1, 4) if band == 0 else (5 * band, min(25, 5 * band + 4))
-        return (low + high) // 2, low, high
-    return (code, code, code) if 1 <= code <= 40 else None
+    band = variant % 10_000 // 10
+    if not 0 <= band <= 5:
+        return None
+    low, high = (1, 4) if band == 0 else (5 * band, min(25, 5 * band + 4))
+    return (low + high) // 2, low, high
 
 
 def profile_level(player, family):
@@ -219,7 +219,7 @@ def summarize(doc: dict, index: int) -> dict | None:
     received, given = defaultdict(float), defaultdict(float)
     pairs = defaultdict(float)                       # (source, recipient, family) -> damage
     covered = defaultdict(float)
-    check = defaultdict(lambda: defaultdict(lambda: [[], [], 0.0]))   # group -> (player, skill) -> [off, on, pred]
+    check = defaultdict(lambda: defaultdict(lambda: [[], [], 0.0]))   # group -> (player, skill, target) -> [off, on, pred]
     cursor = 0
     for hit in hits:
         t = hit["t"]
@@ -248,17 +248,19 @@ def summarize(doc: dict, index: int) -> dict | None:
             received[player] += credit
             given[source if source is not None else ""] += credit
             pairs[(source if source is not None else "", player, family)] += credit
-        # The check: the same player's same skill with only one buff group up (another player's) against
-        # nothing credited up, on plain hits (no critical, double, perfect or periodic damage) outside breaks.
+        # The check: the same player's same skill on the same target with only one buff group up (another
+        # player's) against nothing credited up, on plain hits (no critical, double, perfect or periodic
+        # damage) outside breaks. Targets differ in Defense and Damage Tolerance, so a skill's hits on a
+        # boss and on its adds are not compared with each other.
         if not (hit.get("crit") or hit.get("double") or hit.get("perfect") or hit.get("dot")
                 or any(a <= t <= b for a, b in breaks.get(hit.get("target"), ()))):
-            skill = (player, hit.get("skill_id"))
+            key = (player, hit.get("skill_id"), hit.get("target"))
             if not applied:
                 for group in GROUPS:
-                    check[group][skill][0].append(damage)
+                    check[group][key][0].append(damage)
             elif all(s != player for _, s, _, _ in applied) and len({BUFFS[f]["group"] for f, _, _, _ in applied}) == 1:
                 group = BUFFS[applied[0][0]]["group"]
-                cell = check[group][skill]
+                cell = check[group][key]
                 cell[1].append(damage)
                 base = max(0.1, 1 + boosts.get(player, 0.2) - tolerance)
                 cell[2] += math.log((base + total) / base)
@@ -288,7 +290,7 @@ def summarize(doc: dict, index: int) -> dict | None:
     for group, cells in check.items():
         weight = weighted_log = weighted_pred = 0.0
         on = off = used = 0
-        for (player, skill), (off_hits, on_hits, pred) in cells.items():
+        for off_hits, on_hits, pred in cells.values():
             if len(off_hits) >= 5 and len(on_hits) >= 5:
                 w = min(len(off_hits), len(on_hits))
                 weight += w
@@ -316,8 +318,8 @@ def summarize(doc: dict, index: int) -> dict | None:
 
 def pool_checks(results) -> list[dict]:
     """Pool the per-fight checks of several fights: per buff group, the measured gain in the same
-    skill's average non-critical hit while the group was up (and no other credited buff was) against
-    the gain the estimate predicts for those hits."""
+    player's average plain hit with one skill on one target while the group was up (and no other
+    credited buff was) against the gain the estimate predicts for those hits."""
     pooled = defaultdict(lambda: {"fights": 0, "pairs": 0, "hits_on": 0, "hits_off": 0, "weight": 0.0,
                                   "weighted_log": 0.0, "weighted_predicted_log": 0.0})
     for result in results:

@@ -896,30 +896,37 @@ later), and every hit inside those windows.
   Toss, Debilitate, Defense Break, Executing Blade, Fracturing Blow) need the boss's Defense, and
   Combat Speed buffs (Power of the Storm) change how many hits land, so neither is credited.
 * **How big.** The value at the caster's skill level, from the official profile uploaded with the log
-  when it lists the skill, else from the effect record, else the typical top player's level. The
-  effect record's level is inferred, not a published rule. An effect id is the skill variant × 10
-  plus a stack digit. A stigma aura's variant carries the level band it has reached (`x1` = levels
-  5–9 … `x4` = 20–24, taken at the band's middle), and a passive's carries its level. In the diagnostic
-  captures the digit took several values across 17 casters, followed combat power where that is known
-  (three casters), differed between one player's stigmas, and matched the level implied by Power of
-  the Storm's and Robe of Cold's durations.
+  when it lists the skill, else (for a stigma aura) from the effect record, else the typical top
+  player's level. The effect record's level is inferred, not a published rule. An effect id is the
+  skill variant × 10 plus a stack digit, and a stigma aura's variant carries the level band it has
+  reached (`x1` = levels 5–9 … `x4` = 20–24, taken at the band's middle). In the diagnostic captures
+  the digit took several values across 17 casters, followed combat power where that is known (three
+  casters), differed between one player's stigmas, and matched the level implied by Power of the
+  Storm's duration; in the log server's uploads it held the level the caster's profile lists in 36 of
+  37 cases. A passive's variant does not carry its level (0.2.319): Fury's was `01` for casters whose
+  profiles list levels 6–17, Experienced Counterstrike's `07` for levels 9–16 and Earth's Promise's
+  `01` for levels 12–16, so a passive takes the profile's level or the typical one.
 * **How much of a hit it made.** The boost bucket is additive (`1 + B + X − tolerance`, see
   [Damage calculation](#damage-calculation)), so a +X% buff made `X / (1 + B + X − tolerance)` of a hit
   landed with it. `B`, the player's other damage boosts, is not recorded: it is the typical build's for
-  their class (0.07–0.26). The Damage Tolerance is 30% against a boss and 10% otherwise, the optimizer's
-  scenario values. A player's own buff on themselves is their own damage. Pet hits are not adjusted,
-  because whether party buffs reach pets is not known.
+  their class (0.07–0.26). Each uploader's own `B`, computed from their official profile, gives nearly
+  the same estimate (below). The Damage Tolerance is 30% against a boss and 10% otherwise, the
+  optimizer's scenario values. A player's own buff on themselves is their own damage. Pet hits are not
+  adjusted, because whether party buffs reach pets is not known.
 
-**The check.** For each credited buff group, the same player's same-skill *plain* hits (no critical,
-double, perfect or periodic damage, and none during a break window, which multiplies everyone's
-damage) with only that group up are compared with those landed with no credited buff up, and the
-measured gain is set against the gain the estimate predicts for the same hits. One fight rarely holds
-enough hits without a buff, so `python -m aion2calc calibrate --buffs <logs or folders>` pools many.
+**The check.** For each credited buff group, the same player's *plain* hits with one skill on one
+target (no critical, double, perfect or periodic damage, and none during a break window, which
+multiplies everyone's damage) with only that group up are compared with those landed with no credited
+buff up, and the measured gain is set against the gain the estimate predicts for the same hits. The
+target is part of the comparison since 0.2.319: a skill's hits on a boss and on its adds differ in
+Defense and Damage Tolerance. One fight rarely holds enough hits without a buff, so
+`python -m aion2calc calibrate --buffs <logs or folders>` pools many.
 
 On the supplied captures:
 
-* **Party PvE Damage Boost on block** (Experienced Counterstrike at level 7, from its effect id)
-  measured **+6.7%** against **+8.5%** estimated, over 345 hits with it and 1,122 without (Vakron).
+* **Party PvE Damage Boost on block** (Experienced Counterstrike, at the level 7 its effect id was
+  then read as) measured **+6.7%** against **+8.5%** estimated, over 345 hits with it and 1,122
+  without (Vakron).
 * **The auras** are not settled. A Transcendent Bakarma fight agreed (+22% measured, +17% estimated)
   on only 33 hits. Four Deus Research Base fights measured +5.5% against +24% (502 hits with an aura,
   66 without), but their unbuffed hits fall in a few short windows of the fight, so a phase effect
@@ -947,7 +954,38 @@ later):
   suspect.
 * **The block buff** still has one fight, **the tolerance cut** two (−1.8% against +11.8%, 282 hits).
 
-Until more fights agree, the tab says it is an estimate and rankings use recorded DPS only.
+0.2.319 re-ran it on 100 logs: the 91 uploads from meter 0.2.306 or later and the nine logs of 18
+October (world and field bosses in the Abyss), each fight counted once however many party members
+uploaded it.
+
+* **The boost bucket is not the cause.** With each player's own `B`, computed from the official
+  profile uploaded with the log as the character import reads it (equipment with its rolls, Daevanion
+  boards, skills; 5,648 of 5,743 comparisons had one), the auras' estimate moved from +20.6% to
+  +20.2%. Six classes' median own `B` is within 0.02 of the typical build's; the Assassins' is higher
+  (0.43 against 0.26) and the Chanters' lower (0.14 against 0.19).
+* **Undefeated Mantra agrees.** Comparing a skill's hits on the same target only, and the two auras
+  apart, the Mantra measured **+20.6%** against **+21.7%** estimated (24 fights, 179 comparisons,
+  7,284 hits with it and 2,436 without): +23.3% against +22.7% in the 18 October logs and +12.7%
+  against +17.3% in the older uploads. The same-target comparison alone moved the older uploads' auras
+  from +5.6% to +9.7% (against +16.9%), and all the logs' from +17.1% to +19.8% (against +21.5%).
+* **Light of Protection** measured −5.3% against +14.8%, in six fights from the older uploads with
+  only 57 hits without it. Its tooltip is the Mantra's, so more fights are needed before reading
+  anything into it.
+* **The block buff** measured **+7.3%** against **+12.6%** (nine fights, 1,924 hits with it and 3,555
+  without), Fury and Experienced Counterstrike alike. Its windows last the 20 s the tooltip gives and
+  its casters' levels come from their profiles, so neither explains the gap.
+* **The tolerance cut** still has two fights (−1.8% against +11.8%).
+* **Fight phases still weigh.** The per-fight results scatter from −28% to +195%. Around a window's
+  edge (no other window within 10 s), the same skill's hits on the same target step up at the start
+  and down at the end, by 10–30%. Far from any edge, hits inside and outside the windows differed by
+  nothing in the older uploads and by +25% in the 18 October logs, so a whole fight mixes the aura
+  with openers and bursts. In the 18 October logs the damage rose about 2 s before a recorded start
+  and fell about 1 s after the end. Leaving out unbuffed hits within 3 s of a window, in case the
+  records' edges lag, raised the 18 October logs to +34.1% against +22.8% and left the older uploads
+  five fights, so the check does not.
+
+Until the block buff and Light of Protection agree too, the tab says it is an estimate and rankings
+use recorded DPS only.
 
 ## Effective healing and overheal (0.2.307)
 

@@ -187,9 +187,9 @@ The eight distinct diagnostic captures with raw TCP recording (10–15 October; 
 
 - Undefeated Mantra's ids end `11`, `21`, `31` or `41` across 9 Chanters, and Light of Protection's end `11`, `21` or `31` across 8 Clerics. Where the caster's combat power is known (three of them), the higher digit goes with the higher combat power. One Chanter's Undefeated Mantra shows `41` while their Sprint Mantra shows `21`, so it is per skill, not per class or build.
 - Power of the Storm, whose duration grows with its level, ran 12.0 s (level 5) with digit `1`: the digit counts the level thresholds reached (5, 10, 15, 20).
-- Passive effects carry the level itself: Robe of Cold showed `07` with the 3.5 s duration of level 7–8, Experienced Counterstrike `07`, Fury `01`.
+- Passive effects carry the level itself: Robe of Cold showed `07` with the 3.5 s duration of level 7–8, Experienced Counterstrike `07`, Fury `01`. **Not so (0.2.319):** in the log server's uploads Fury's id was `01` for casters whose official profiles list levels 6–17, Experienced Counterstrike's `07` for levels 9–16 and Earth's Promise's `01` for levels 12–16, so a passive's id names the skill, not its level. The stigma auras' bands held the profile's level in 36 of 37 cases.
 
-The check compares the same player's same-skill plain hits (outside break windows) with only one credited buff group up against none up:
+The check compares the same player's same-skill plain hits (outside break windows, and since 0.2.319 on the same target) with only one credited buff group up against none up:
 
 - The party PvE Damage Boost on block (Experienced Counterstrike at level 7) measured +6.7% against +8.5% estimated, over 1,467 hits (Vakron).
 - The auras are open. A Transcendent Bakarma fight agreed (+22% against +17%) on only 33 hits. Four Deus Research Base fights measured +5.5% against +24%, but their 66 unbuffed hits fall in a few short windows of each fight.

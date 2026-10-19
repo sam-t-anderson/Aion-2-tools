@@ -414,8 +414,8 @@ BUFF_GROUPS = {"aura": "PvE Damage Boost aura (Undefeated Mantra, Light of Prote
 
 def buff_checks(paths) -> dict:
     """The buff-contribution estimate's check, pooled across saved logs (files or folders of them):
-    per credited buff group, the measured gain in the same player's same-skill plain hits while only
-    that group was up, against the gain the estimate predicts for those hits
+    per credited buff group, the measured gain in the same player's plain hits with one skill on one
+    target while only that group was up, against the gain the estimate predicts for those hits
     (:mod:`aion2calc.combat.contribution`). The estimate stays out of rankings until the two agree."""
     from pathlib import Path
     from .combat import a2log as F
