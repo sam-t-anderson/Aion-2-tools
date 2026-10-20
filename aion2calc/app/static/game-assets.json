@@ -1,11 +1,17 @@
 {
-  "retrieved_at": "2026-10-08T19:02:26.764220+00:00",
+  "retrieved_at": "2026-10-20T09:38:43.780555+00:00",
   "sources": [
     "https://metabot.gg/",
     "https://gamers4.life/aion-2/database/en/crafting-calculator/"
   ],
   "note": "Unmodified game icons referenced by bundled catalogs. Game art belongs to its owners; source URL namespaces are kept separate. Missing assets retain remote-source fallback.",
   "references": {
+    "metabot:item-icon:icon_item_odenergy_a_001a": {
+      "namespace": "metabot",
+      "kind": "item-icon",
+      "id": "icon_item_odenergy_a_001a",
+      "url": "https://metabot.gg/web/aion2/items/icon_item_odenergy_a_001a.webp"
+    },
     "metabot:skill:13010000": {
       "namespace": "metabot",
       "kind": "skill",
@@ -31866,12 +31872,6 @@
       "id": "2980309",
       "url": "https://dbaion2.ru/icons/UT_256_MOB_Hibran_01_B.webp",
       "matched_name": "Lieutenant Hebran"
-    },
-    "metabot:item-icon:icon_item_odenergy_a_001a": {
-      "namespace": "metabot",
-      "kind": "item-icon",
-      "id": "icon_item_odenergy_a_001a",
-      "url": "https://metabot.gg/web/aion2/items/icon_item_odenergy_a_001a.webp"
     }
   },
   "assets": {
@@ -34117,7 +34117,7 @@
   "npc_portrait_source": {
     "url": "https://dbaion2.ru/data-en/npcs.json",
     "sha256": "1246870fb7c9fe2da94e153b794f0898bb691a3b3c45a7d24050f312a0bd4fe7",
-    "retrieved_at": "2026-10-08T19:02:24.549177+00:00",
+    "retrieved_at": "2026-10-20T09:38:36.455735+00:00",
     "matched_npcs": 1321,
     "rule": "Only existing boss-category NPC IDs with exact case-insensitive English name agreement. Portraits do not alter NPC roles, zone, difficulty or game build."
   },
@@ -36925,6 +36925,7 @@
     "https://metabot.gg/web/aion2/items/icon_item_craft_conversion_crystal_l_lv3_01.webp": "5bbf8945f0216876a523d8b795a726e73ca11b0b798d0af807aa98eaf43c2d88",
     "https://metabot.gg/web/aion2/items/icon_item_craft_conversion_crystal_l_lv4_01.webp": "37f25f4d2b0f4da217371709ef79d2727ccde9f778f2481f695342c920e744d2",
     "https://metabot.gg/web/aion2/items/icon_item_craft_conversion_crystal_l_lv5_01.webp": "59a7e3a9f4ed59849d8234a417b586a7f923294e21e0a1cd7586b48de52a87eb",
+    "https://metabot.gg/web/aion2/items/icon_item_odenergy_a_001a.webp": "d83b9b1bbb5390652b02e58c270c78835567c6df12f37c83aea2a731099ad36a",
     "https://metabot.gg/web/aion2/items/icon_weapon_guarder_c_007.webp": "6fcf3ad789dca07285c7d55590cb69a59a8474dadb91f0dd4361ee6503134b92",
     "https://metabot.gg/web/aion2/items/icon_weapon_guarder_c_009.webp": "eddc6cc3bab4494abf8860b98ec13e4e5c1cba0d7bb0bbb1c6be66579acf336d",
     "https://metabot.gg/web/aion2/items/icon_weapon_guarder_c_012.webp": "86bd8be593d1ac78c04b9fc9737008cf53f8401d23ac83b22b0282d0ed580eb5",
