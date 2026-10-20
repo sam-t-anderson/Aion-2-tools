@@ -33,6 +33,7 @@ ACTIONS: dict[str, str] = {
     "toggle_events": "Show / hide overlay event notifications",
     "toggle_field_bosses": "Show / hide field-boss timers on the overlay",
     "toggle_combat_assist": "Show / hide combat assist (skill cooldowns, break gauge)",
+    "toggle_cube_radar": "Turn the Hidden Cube radar on / off",
     "screenshot_lock": "Screenshot lock (freeze the overlay)",
     "quit": "Exit Aion 2 Calc",
 }

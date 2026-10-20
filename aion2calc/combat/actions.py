@@ -224,7 +224,9 @@ def stagger(segment: dict, entities: dict) -> list:
                 share[hit["player"]] += drop * weight / sum(weights)
         breaks = []
         for previous, row in zip(rows, rows[1:]):
-            if previous["current"] <= 0.05 * previous["max"] and row["current"] >= 0.9 * row["max"]:
+            # The gauge never reads 0: a broken boss's last reading is 0.7-5.0 % of its maximum (eleven bosses,
+            # 19 October captures) and the next is a refill. 8 % leaves room above the highest seen.
+            if previous["current"] <= 0.08 * previous["max"] and row["current"] >= 0.9 * row["max"]:
                 breaks.append({"t": previous["t"], "end": row["t"], "seconds": round(row["t"] - previous["t"], 2)})
         in_break = defaultdict(float)
         for hit in hits.get(entity, ()):

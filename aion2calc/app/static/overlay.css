@@ -83,6 +83,15 @@ html.native-windows #ovbg { border-radius: 0; }
 .ovmetrics button { padding: 2px 8px; border: 1px solid rgba(255,255,255,.08); border-radius: 999px; background: rgba(255,255,255,.05); font-size: 10.5px; color: #9aa8bb; }
 .ovmetrics button.on { border-color: rgba(233,203,128,.55); background: rgba(233,203,128,.14); color: #f3dea0; }
 .ovmetrics button:focus-visible { outline: 2px solid #e8cf8e; outline-offset: 1px; }
+/* The Hidden Cube radar: the front half-circle around you, rings for near / close / far, the cube's blip. */
+.ovradar { display: flex; align-items: center; gap: 8px; margin: 2px 0 6px; font-size: 10px; color: #9aa3b5; cursor: default; }
+.ovradar[hidden] { display: none; }
+.ovradar .ovrsvg { width: 72px; height: 38px; flex: none; }
+.ovradar .ovrring { fill: none; stroke: rgba(232, 207, 142, .35); stroke-width: 1.2; }
+.ovradar .ovrtick { stroke: rgba(232, 207, 142, .25); stroke-width: 1; stroke-dasharray: 2 3; }
+.ovradar .ovrme { fill: #cdd6e6; }
+.ovradar .ovrblip { fill: #f0c36a; stroke: #fff3d0; stroke-width: 1; }
+.ovradar .ovrtext { color: var(--ov-label-color, #e8cf8e); font-weight: 600; }
 .ovidentity { color: var(--ov-identity-color, #e8cf8e); font-size: 10px; margin: 3px 0 6px; cursor: default; }
 .ovidentity.ok { color: #dfa7da; font-weight: 600; }
 .ovtarget { color: var(--ov-target-color, #f0d6da); font-size: 12px; margin: 2px 0 7px; cursor: default; white-space: nowrap; overflow: hidden;

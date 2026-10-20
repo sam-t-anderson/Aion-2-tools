@@ -261,10 +261,15 @@ def rotation_view(cd: ClassData, build, gear: dict, summary: dict) -> dict:
         macro.update(dps_macro=None, dps_alt=None)
     actions = {}
     for action in kit.actions.values():
+        # A chain step (Punishing Strike after Pummel) is no skill of its own: it is pressed with its
+        # parent's key while the chain is open, so it shows the parent's icon, level and key.
+        parent = kit.actions.get(action.chain_of) if action.chain_of else None
+        shown = parent or action
         actions[action.key] = {
-            "key": action.key, "name": action.name, "skill_id": action.skill_id,
-            "icon": SKILL_ICON.format(action.skill_id), "level": levels.get(action.skill_id, 1),
+            "key": action.key, "name": action.name, "skill_id": shown.skill_id,
+            "icon": SKILL_ICON.format(shown.skill_id), "level": levels.get(shown.skill_id, 1),
             "charged": action.requires_charge, "charge_level": action.charge_level,
+            "chain_of": parent.name if parent else None,
         }
     # Reserve right-click for the macro itself. Names/icons/key bindings are shared by both tabs.
     # The left mouse button (LMB) is the basic auto-attack, so it is reserved for the kit's
@@ -276,7 +281,7 @@ def rotation_view(cd: ClassData, build, gear: dict, summary: dict) -> dict:
     slots, seen, pool = [], set(), 0
     for entry in manual + steps:
         action = actions.get(key(entry))
-        if not action or action["skill_id"] in seen:
+        if not action or action["chain_of"] or action["skill_id"] in seen:
             continue
         seen.add(action["skill_id"])
         if action["skill_id"] == auto_sid:

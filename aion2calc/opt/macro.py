@@ -4,7 +4,9 @@ The in-game Skill Macro (added in the KR 2026-01-28 build) runs while its key
 is held, trying each step in order with a per-step delay; manual presses always
 take priority.  We put the short-cooldown core in the macro (fillers last) and
 leave long-cooldown burst skills on their own keys, then simulate the macro's
-round-robin behaviour to measure how close it gets to the ideal priority.
+round-robin behaviour to measure how close it gets to the ideal priority.  A
+chain step is its parent's key pressed while the chain is open, so a macro step
+for either presses whichever the key would.
 """
 from __future__ import annotations
 
@@ -26,15 +28,31 @@ class MacroPlan:
     alt_manual: list | None = None
     dps_alt: float = 0.0
     auto_attack: str | None = None      # left mouse button: the basic auto-attack (the kit filler)
+    chains: dict | None = None          # chain step -> the action whose key presses it (Action.chain_of)
 
 
 class MacroPolicy:
-    """Manual keys first (priority order), then the macro steps round-robin."""
+    """Manual keys first (priority order), then the macro steps round-robin.
+
+    A chain step has no key of its own (``Action.chain_of``): a macro step for it is its parent
+    skill added again, and the parent's key presses the chain step while the chain is open and the
+    parent otherwise. So a macro step for either presses whichever of the two is usable. Manual
+    keys stay as listed: the player presses a chain step's key when the chain is open."""
 
     def __init__(self, manual: list, steps: list):
         self.manual = manual
         self.steps = steps
         self.ptr = 0
+        self._keys: dict | None = None
+
+    def _presses(self, sim: Sim, step: str):
+        if self._keys is None:
+            chained: dict = {}
+            for a in sim.actions.values():
+                if a.chain_of in sim.actions:
+                    chained.setdefault(a.chain_of, []).append(a.key)
+            self._keys = {k: steps + [parent] for parent, steps in chained.items() for k in steps + [parent]}
+        return self._keys.get(step, (step,))
 
     def __call__(self, sim: Sim):
         for e in self.manual:
@@ -44,11 +62,11 @@ class MacroPolicy:
                 return a
         n = len(self.steps)
         for k in range(n):
-            key = self.steps[(self.ptr + k) % n]
-            a = sim.actions.get(key)
-            if a and not a.requires_charge and sim.usable(a):
-                self.ptr = (self.ptr + k + 1) % n
-                return a
+            for key in self._presses(sim, self.steps[(self.ptr + k) % n]):
+                a = sim.actions.get(key)
+                if a and not a.requires_charge and sim.usable(a):
+                    self.ptr = (self.ptr + k + 1) % n
+                    return a
         return None
 
 
@@ -68,40 +86,64 @@ def plan_macro(derived, kit, policy: list, target, config, macro_cd_limit: float
                    cond_mods=kit.cond_mods).run().dps
     from .rotation import materialize
     dps_pri = run(materialize(policy))
-    best_steps, best = steps, run(MacroPolicy(manual, steps))
-    # the macro cycles, so a filler that sits first would starve the core: try orders
-    fillers = [s for s in steps if kit.actions[s].is_filler]
-    core = [s for s in steps if not kit.actions[s].is_filler]
     import itertools
-    if len(core) <= 6:
-        for perm in itertools.permutations(core):
-            cand = list(perm) + fillers
-            v = run(MacroPolicy(manual, cand))
-            if v > best:
-                best, best_steps = v, cand
+    # A macro step for a parent skill presses its chain step too while the chain is open (MacroPolicy),
+    # so each layout is also tried without its chain steps: a second step for the same key can help
+    # (the Templar's Pummel) or crowd the macro (the Cleric's Earth's Retribution).
+    chained = {k for k, a in kit.actions.items() if a.chain_of}
+
+    def arrange(manual, steps):
+        best_steps, best = steps, run(MacroPolicy(manual, steps))
+        # the macro cycles, so a filler that sits first would starve the core: try orders
+        fillers = [s for s in steps if kit.actions[s].is_filler]
+        core = [s for s in steps if not kit.actions[s].is_filler]
+        if len(core) <= 6:
+            for perm in itertools.permutations(core):
+                cand = list(perm) + fillers
+                v = run(MacroPolicy(manual, cand))
+                if v > best:
+                    best, best_steps = v, cand
+        return best_steps, manual, best
+
+    split = arrange(manual, steps)
+    lean_steps = [s for s in steps if s not in chained]
+    # a chain step whose parent is in the macro needs no manual press either
+    lean_manual = [e for e in manual if keyf(e) not in chained or kit.actions[keyf(e)].chain_of not in lean_steps]
+    if (lean_steps, lean_manual) != (steps, manual):
+        lean = arrange(lean_manual, lean_steps)
+        if lean[2] > split[2]:
+            split = lean
     # Even the larger macro needs manual charge skills: a macro only taps them.
     charged = [e for e in policy if kit.actions[keyf(e)].requires_charge]
     automatic = [keyf(e) for e in policy if not kit.actions[keyf(e)].requires_charge]
     order = [k for k in automatic if not kit.actions[k].is_filler] + \
         [k for k in automatic if kit.actions[k].is_filler]
-    one, one_v = order, run(MacroPolicy(charged, order))
-    improved = True
-    while improved:
-        improved = False
-        for i in range(len(one) - 1):
-            cand = one[:i] + [one[i + 1], one[i]] + one[i + 2:]
-            v = run(MacroPolicy(charged, cand))
-            if v > one_v * (1 + 1e-6):
-                one, one_v, improved = cand, v, True
-    split = (best_steps, manual, best)
-    single = (one, charged, one_v)
-    first, second = (single, split) if one_v >= best else (split, single)
+
+    def improve(one):
+        one_v = run(MacroPolicy(charged, one))
+        improved = True
+        while improved:
+            improved = False
+            for i in range(len(one) - 1):
+                cand = one[:i] + [one[i + 1], one[i]] + one[i + 2:]
+                v = run(MacroPolicy(charged, cand))
+                if v > one_v * (1 + 1e-6):
+                    one, one_v, improved = cand, v, True
+        return one, charged, one_v
+
+    single = improve(order)
+    if any(k in chained for k in order):
+        lean = improve([k for k in order if k not in chained])
+        if lean[2] > single[2]:
+            single = lean
+    first, second = (single, split) if single[2] >= split[2] else (split, single)
     # Left mouse button is the basic auto-attack: the kit's designated filler, never an
     # arbitrary skill. Fall back to a filler that appears in the chosen layout.
     auto = kit.filler if kit.filler in kit.actions and kit.actions[kit.filler].is_filler else None
     if auto is None:
         auto = next((keyf(e) for e in first[0] if kit.actions[keyf(e)].is_filler), None)
-    return MacroPlan(first[0], first[1], first[2], dps_pri, second[0], second[1], second[2], auto_attack=auto)
+    return MacroPlan(first[0], first[1], first[2], dps_pri, second[0], second[1], second[2], auto_attack=auto,
+                     chains={k: a.chain_of for k, a in kit.actions.items() if a.chain_of})
 
 
 def describe_plan(plan: MacroPlan) -> dict:
@@ -110,4 +152,4 @@ def describe_plan(plan: MacroPlan) -> dict:
     return {"model_version": MODEL_VERSION, "steps": plan.macro_steps, "manual": describe(plan.manual),
             "dps_macro": plan.dps_macro, "dps_priority": plan.dps_priority,
             "alt_steps": plan.alt_steps, "alt_manual": describe(plan.alt_manual or []),
-            "dps_alt": plan.dps_alt, "auto_attack": plan.auto_attack}
+            "dps_alt": plan.dps_alt, "auto_attack": plan.auto_attack, "chains": plan.chains or {}}

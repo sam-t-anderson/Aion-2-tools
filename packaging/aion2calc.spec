@@ -80,6 +80,18 @@ if sys.platform == "win32":
         src = os.path.join(sys32, dll)
         if os.path.isfile(src):
             binaries.append((src, "."))
+# The Hidden Cube radar listens to Windows' sound output through soundcard (WASAPI loopback), imported
+# on its worker thread; soundcard reads its cffi declarations (*.py.h) from its package folder at import.
+# Guarded like pywebview: without it the radar reports itself unavailable and nothing else changes.
+if sys.platform == "win32":
+    for pkg in ("soundcard", "cffi"):
+        try:
+            d, b, h = collect_all(pkg)
+            datas += d
+            binaries += b
+            hiddenimports += h
+        except Exception as err:
+            print(f"aion2calc.spec: skipping {pkg} ({err})")
 # The live meter imports its capture and decompression backends on demand.  Collecting them
 # explicitly keeps the feature available in the desktop bundle as well as in source installs.
 for pkg in ("scapy", "lz4"):

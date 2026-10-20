@@ -774,8 +774,9 @@ and 29 boss fights of 7 Templars with casts.
   layout is the Gladiator's: a basic step whose tooltip says "Restores 100 MP", the same +20 % and −20
   % MP specializations and the same Daevanion MP nodes. The recording Gladiators' readings rise 150 a
   step ([0.2.319](#the-gladiator-and-the-chanter-from-the-log-servers-uploads-02319)), so the
-  Templar's step now restores 150 (`ASSUME["step_mp"]`; it was the tooltip's 100). This is an
-  inference until a Templar records.
+  Templar's step now restores 150 (`ASSUME["step_mp"]`; it was the tooltip's 100). This was an
+  inference until a Templar recorded; a level-27 Templar's readings confirm it
+  ([0.2.323](#the-templars-mp-from-a-recorded-templar-02323)).
 
 The guide, the recorded Templars and the bundled build (two specialization slots below skill level 20):
 
@@ -833,6 +834,26 @@ What still differs from the guide:
 The canonical preset model version moves to 0.3.10, so a server re-seeds the comparison scopes from its
 stored winners and the regenerated builds under the new kit.
 
+### The Templar's MP from a recorded Templar (0.2.323)
+
+The first Templar MP readings come from a level-27 Templar's diagnostic recording (19 October, MP up to
+1,911): its MP record (`00 8d`) against its casts.
+
+| | Recorded | Kit before | Kit now |
+|---|---|---|---|
+| Pummel | −119 a press (120 MP) | 120 MP (96 with its first specialization) | unchanged |
+| Punishing Strike | −119 a press | no cost | Pummel's cost |
+| A basic-chain step | +150 | +150 (the Gladiators' readings, 0.2.320) | unchanged |
+| Regeneration in combat | +50 about every 7.5 s (6.7 a second); out of combat +250 a second | 6.7 a second (`BASE_MP_REGEN`, assumed) | unchanged: now measured |
+
+Punishing Strike is Pummel's key pressed again while Pummel's chain is open, and the game charges it as
+it charges Pummel. For the same reason Pummel cannot repeat while its chain is open, which the kit had
+allowed: with Punishing Strike costing MP, the optimizer pressed 155 Pummels and no Punishing Strike in a
+three-minute fight (19,520 modelled DPS), a rotation no player can press (16,914 once Pummel waits for its
+chain). Pummel now needs its chain closed (`requires=("!pummel_chain",)`), as Earth's Retribution has since
+[0.2.317](#the-clerics-heals-and-basic-chain-02317), and so does the Gladiator's Rending Blow, whose bundled
+build already follows every Rending Blow with Smashing Blow and scores the same 13,063. Re-optimized under both rules (boss, two iterations), the bundled build models 19,418 DPS (20,293 with the free step) and the typical top build 15,572 (16,903): the gain grows from +20.1 % to +24.7 %, and the share overlap with the Korean dummy logs from 39 % to 43 % (Punishing Strike 12.9 % of the damage, Pummel 11.0 %). The canonical preset model version moves to 0.3.11.
+
 ### Chain, variant and combo skills, and known catalog gaps
 
 metabot's build-planner page exposes 35 skills per class. Several real skills
@@ -864,8 +885,8 @@ notes / `ASSUME` for when one is available, not yet modelled):
 
 * **Templar** — modelled since 0.2.315: Punishing Strike is Pummel's chain press and
   Pummel's tooltip is the damage of three strikes ([The Templar from the log server's uploads](#the-templar-from-the-log-servers-uploads-02315)).
-  Since 0.2.320 a basic step restores the Gladiator's measured 150 MP (no Templar has made a recording;
-  [The Templar guide checked against the recorded Templars](#the-templar-guide-checked-against-the-recorded-templars-02320)).
+  Since 0.2.320 a basic step restores 150 MP, measured for a Templar since 0.2.323, and Punishing
+  Strike costs Pummel's MP ([The Templar's MP from a recorded Templar](#the-templars-mp-from-a-recorded-templar-02323)).
 * **Assassin** — Savage Smash (~6%, 3.3x Quick Slice) and Savage Back Kick (~6%,
   1.45x), and Heart Gore's cadence (under-cast vs parses).
 * **Spiritmaster** — the Spirits' cadence is measured per summon from two
@@ -938,7 +959,10 @@ reallocation is accepted only if the full simulation confirms it.
 The in-game **Skill Macro** plan (`opt/macro.py`) keeps short-cooldown skills
 and fillers in the hold-to-run macro and leaves long-cooldown burst skills on
 manual keys, then simulates the macro's round-robin behaviour to check it gets
-close to the ideal priority. Skills requiring charge are kept on manual keys because the game macro only taps them; the macro is not assumed to hold a charge. The suggested macro binding is Right-click; the app does not change game bindings.
+close to the ideal priority. A chain step has no key of its own: a macro step for it is its parent added again,
+and the parent's key presses the chain step while the chain is open and the parent otherwise, so the simulation
+presses whichever the key would for a step of either, and the planner tries each layout with and without its chain
+steps (0.2.323; a step for the chain step had pressed nothing until another step opened the chain). Skills requiring charge are kept on manual keys because the game macro only taps them; the macro is not assumed to hold a charge. The suggested macro binding is Right-click; the app does not change game bindings.
 
 ### Example baseline
 
@@ -1231,6 +1255,8 @@ Numeric Product version suffixes after the fourth component are diagnostic revis
 The executable's ProductVersion resource is stamped by the launcher, so a Steam and a PURPLE install of the same patch can disagree on it. The shipped Unreal content packages are identical on both, so Live Meter also records a launcher-independent **content fingerprint**: the sha256 of the sorted `(name, size)` list of the `.pak`/`.utoc`/`.ucas` files under `Aion2/Content/Paks` (name+size, not a full-file hash, since the packages are gigabytes; the fingerprint still changes on any content patch). `python -m aion2calc install-version` prints every version signal for each detected install and, when two or more are present (e.g. Steam and PURPLE), reports which signal agrees across them — identifying the shared game-version key by observation rather than assumption. The content fingerprint is currently recorded as diagnostic evidence alongside the Product-version cohort; promoting it to the authoritative comparison group is gated on confirming, on real dual-launcher installs, that it agrees where the Product version does not.
 
 Recorded map/instance IDs identify known open-world categories, Fire Temple Arena and available dungeon names. Unmapped content, difficulty, build and match outcomes remain unknown. Detection provenance is visible in shared log review. Opponents without their own server ID are not assigned your server.
+
+The local player comes from the game: its own record, which a zone load sends, or since 0.2.323 its MP record, which the game sends for the local player only (all 1,854 MP records of two long recordings, seven game servers and a dungeon run, were the self record's actor). A meter started inside a zone has no self record until the next load, so the MP record names the local actor meanwhile, and an identity carried over from a capture stopped in another zone gives way after two MP records in a row name another actor. A self record from the game replaces either. Nearby damage, class or name similarity never decide who you are.
 
 Live DPS uses the recorded damage interval and pauses after two seconds without damage while capture continues. Healing after the last damage does not extend the live damage interval. Actual new damage resumes it. Saved logs preserve the full event interval, including healing/deaths, so report rates can differ from the live rate. This does not establish a kill or match result.
 

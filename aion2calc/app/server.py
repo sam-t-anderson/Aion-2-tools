@@ -741,6 +741,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({k: v for k, v in job.items() if k != "log"} | {"log": job["log"][-12:]})
         if path == "/api/rtss":
             return self._json(rtss_state())
+        if path == "/api/radar":
+            return self._json(radar_state())
         if path == "/api/meter":
             from .meter_runner import runner
             current = runner()
@@ -793,6 +795,13 @@ class Handler(BaseHTTPRequestHandler):
             if action == "forget":
                 return self._json(ownership.forget(row["server"],row["id"]))
             return self._json(ownership.request(row,action,body.get("visibility"),body.get("statement")))
+        if path == "/api/radar":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("the Hidden Cube radar listens on this computer only")
+            origin = self.headers.get("Origin")
+            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
+                raise PermissionError("the Hidden Cube radar is controlled from the app")
+            return self._json(radar_control(body))
         if path == "/api/history":
             from .history import save
             return self._json({"id": save(body)})
@@ -1114,7 +1123,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
                               "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_per_fight", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics", "meter_record_packets", "rtss_enabled")
+                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_per_fight", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics", "meter_record_packets", "rtss_enabled", "radar_enabled")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1130,6 +1139,7 @@ class Handler(BaseHTTPRequestHandler):
                               ("overlay_interpolate_ms", 50, 1000),
                               ("overlay_cooldowns_min_s", 1, 120), ("overlay_cooldowns_max", 1, 16),
                               ("rtss_rows", 1, 24), ("rtss_interval_ms", 100, 5000),
+                              ("radar_sensitivity", 1, 10),
                               # Remembered overlay screen positions (per overlay). Wide
                               # bounds cover multi-monitor layouts (can be negative).
                               ("overlay_pos_x", -30000, 30000), ("overlay_pos_y", -30000, 30000),
@@ -1165,6 +1175,11 @@ class Handler(BaseHTTPRequestHandler):
             if any(k.startswith("rtss_") for k in body):
                 try:
                     rtss_sync()
+                except Exception:
+                    traceback.print_exc()
+            if any(k.startswith("radar_") for k in body):
+                try:
+                    radar_sync()
                 except Exception:
                     traceback.print_exc()
             if any(k.startswith("meter_") for k in body):
@@ -1338,6 +1353,57 @@ def rtss_state() -> dict:
     return state
 
 
+_RADAR = None
+_RADAR_LOCK = threading.Lock()
+
+
+def cube_radar():
+    """The one Hidden Cube radar: it listens to the game's sound while Settings → Hidden Cube radar is
+    on, or while it learns the cube's sound (``radar.py``)."""
+    global _RADAR
+    with _RADAR_LOCK:
+        if _RADAR is None:
+            from . import radar
+            from ..paths import home
+            _RADAR = radar.Radar(home() / radar.PROFILE)
+        return _RADAR
+
+
+def radar_sync(stop: bool = False) -> None:
+    """Start or stop listening to match the setting (Windows only; a no-op elsewhere)."""
+    from . import radar
+    if not radar.supported() or (stop and _RADAR is None):
+        return
+    ui = ui_settings()
+    cube_radar().configure(bool(ui.get("radar_enabled")) and not stop, ui.get("radar_sensitivity"))
+
+
+def radar_state() -> dict:
+    state = cube_radar().state()
+    state["setting"] = bool(ui_settings().get("radar_enabled"))
+    return state
+
+
+def radar_control(body: dict) -> dict:
+    """``{"action": "learn", "kind": "background" | "cube"}``, ``{"action": "cancel"}`` or
+    ``{"action": "clear"}``; returns the radar's state."""
+    from . import radar
+    action = body.get("action")
+    if action not in ("learn", "cancel", "clear"):
+        raise ValueError("action must be learn, cancel or clear")
+    if action == "learn":
+        if body.get("kind") not in radar.LEARN_S:
+            raise ValueError("kind must be background or cube")
+        if not radar.supported():
+            raise ValueError("The Hidden Cube radar listens to Windows' sound output; it runs on Windows only.")
+        cube_radar().learn(body["kind"])
+    elif action == "cancel":
+        cube_radar().cancel()
+    else:
+        cube_radar().clear()
+    return radar_state()
+
+
 def schedule_shutdown(upload: bool = True) -> None:
     """Let the response finish, stop capture, close native windows, then stop serving.
 
@@ -1353,6 +1419,10 @@ def schedule_shutdown(upload: bool = True) -> None:
         r = runner()
         try:
             rtss_sync(stop=True)      # take the text out of the game before the meter stops
+        except Exception:
+            pass
+        try:
+            radar_sync(stop=True)
         except Exception:
             pass
         for close in (close_app_browser, r.stop):
@@ -1411,6 +1481,8 @@ def ui_settings() -> dict:
                 "event_region": "", "event_group": "",
                 # In-game text through RivaTuner Statistics Server (Windows; off by default).
                 "rtss_enabled": False, "rtss_rows": 5, "rtss_metric": "dps", "rtss_style": "plain", "rtss_interval_ms": 500,
+                # The Hidden Cube radar: listens to the game's sound for a cube's jingle (Windows; off by default).
+                "radar_enabled": False, "radar_sensitivity": 5,
                 "overlay_max_players": 8, "overlay_width": 340, "overlay_height": 0, "overlay_row_height": 22,
                 "overlay_only_in_combat": False, "overlay_auto_expand": False,
                 # Visual group (all inert by default so the overlay looks unchanged until enabled).
@@ -1577,6 +1649,10 @@ def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: 
     # Players scope default.
     try:
         rtss_sync()    # resume drawing inside the game when the setting is on
+    except Exception:
+        traceback.print_exc()
+    try:
+        radar_sync()   # and listening for Hidden Cubes
     except Exception:
         traceback.print_exc()
     if open_overlay and ui_settings().get("meter_autostart", True):

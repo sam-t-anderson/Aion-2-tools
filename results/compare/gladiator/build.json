@@ -6181,25 +6181,28 @@
   "dps_macro": 12247.026801943333,
   "dps_priority": 13063.330866631984,
   "alt_steps": [
-   "ankle_slice",
-   "rage",
    "lunge",
+   "ankle_slice",
    "zikel",
-   "overhead_slam",
+   "rage",
    "ruinous_blow",
+   "overhead_slam",
    "basic_combo",
-   "rending_blow",
    "leaping_slam",
+   "rending_blow",
    "aerial_snare",
-   "crushing_wave",
    "mocking_blade",
+   "crushing_wave",
+   "assault",
    "rush_strike",
-   "keen_strike",
-   "assault"
+   "keen_strike"
   ],
   "alt_manual": [],
-  "dps_alt": 11875.696690054621,
-  "auto_attack": "keen_strike"
+  "dps_alt": 11929.279798090342,
+  "auto_attack": "keen_strike",
+  "chains": {
+   "basic_combo": "rending_blow"
+  }
  },
  "shares": {
   "Rending Blow": 0.2028545069748264,

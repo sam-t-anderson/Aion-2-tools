@@ -108,7 +108,7 @@ Comparison resources and common gear make eligible builds comparable within a cl
 
 The **Optimize** button runs a new optimization for any class in the selected PvE or experimental PvP damage mode. Outputs are saved separately by mode. Skill, Stigma and Daevanion budgets are configurable. Presets are examples, not character progression maxima.
 
-Set up **Skills hotbar** first, then copy the numbered **Macro & rotation** steps. The macro binding suggestion is **Right-click**. Skills that require charging stay on manual keys; the app does not change game bindings.
+Set up **Skills hotbar** first, then copy the numbered **Macro & rotation** steps. The macro binding suggestion is **Right-click**. Skills that require charging stay on manual keys; the app does not change game bindings. A chain step is not a skill of its own: the Templar's Punishing Strike is Pummel pressed again while Pummel's chain is open, the Gladiator's Smashing Blow Rending Blow's and the Cleric's Thunder and Lightning Earth's Retribution's. Such a step shows with its parent's icon, level and key ("Pummel's chain: press Pummel again while the chain is open"), and gets no hotbar slot (0.2.323). In the macro the parent's key presses its chain step while the chain is open, so the planner may list Pummel twice or leave Punishing Strike to Pummel's step, whichever simulates better.
 
 ## Gear & Advice
 
@@ -298,6 +298,23 @@ Two overlay readouts are off by default under **Settings → Live meter overlay*
 **Settings → Live meter overlay → In-game (RTSS)** draws the meter inside the game itself, through RivaTuner Statistics Server (the on-screen-display server MSI Afterburner installs, also available on its own). Windows only, off by default, and a first draft: please report what you see. With it on, the app writes the meter text — the fight and its elapsed time, then the top rows (name, rate per second, share) for the chosen metric — into RTSS's own shared memory, in an OSD slot it owns under the name `Aion2Calc`, and RTSS draws that text in the game the way it draws its frame counter. Nothing is injected into or loaded by the game by this app; RTSS does its own hooking, under its own terms, and whether to run it is your choice. The text refreshes every half second by default (100 ms to 5 s); **Rows**, **Metric** (DPS, HPS, damage taken) and **Style** (plain text, or class colours through RTSS colour tags) shape it; the status line says whether RTSS was found and which slot the text is in.
 
 What you need: RTSS 7.x running (its *Show On-Screen Display* on, and the game not excluded in its profile), and the shared memory it exposes (v2.0 or later; the extended 4096-character text slot from v2.7). Position, font, size and colour come from RTSS's own settings; the plain style leaves them entirely to RTSS. If RTSS is not running the app says so and keeps checking every five seconds; turning the option off, stopping the app or quitting clears the slot so the text leaves the game. Player names are drawn as plain text (angle brackets are removed so a name can never form an RTSS tag). The overlay window and the OBS browser source keep working alongside; this is a third way to see the same snapshot.
+
+### Hidden Cube radar
+
+**Settings → Overlay → Hidden Cube radar** (Windows, off by default) shows on the overlay which side a Hidden Cube is and how near, from the soft jingle it plays: the sound the cube guides tell players to listen for, headphones on, with the game's music, ambient, monster and own-character sounds muted and the effect volume up.
+
+1. Stand where no cube or Empyrean Trace feather can be heard and press **1. Learn the background**.
+2. Stand beside a Hidden Cube while it jingles and press **2. Learn the cube's sound**.
+
+Each waits 5 seconds, so you can switch back to the game (some setups mute a game in the background), then listens for 4 or 6 seconds; the status line says what was learned, or what to change (stand closer, mute the music) when the jingle did not stand out. Then tick the box. The overlay shows the half-circle ahead of you with the cube's blip: its side from the stereo balance, how near it is from how loud it is against the learned jingle (*right here*, *close*, *nearby*, *far*), and *getting closer* or *moving away* as you walk. It stays on the radar 2.5 seconds after the jingle last sounded, and the line says when it last heard one.
+
+- **Ahead or behind:** a stereo mix cannot tell them apart; a cube 30° to your right sounds like one 150° to your right. Turn towards the sound: if it moves to the middle the cube is ahead, if it moves further out it is behind.
+- **Feathers:** an Empyrean Trace feather's jingle is nearly the cube's, so the radar hears feathers too.
+- **Sensitivity** (1–10, 5 by default): raise it to hear a cube further away, lower it if voice chat sets it off. Music does not hide the jingle; voice chat in the same range can.
+- **Learn again** after changing the game's volume a lot, or with different headphones; **Forget the learned sound** clears it.
+- A hotkey, **Turn the Hidden Cube radar on / off**, can be bound under Settings → Hotkeys.
+
+The app reads what Windows plays (a loopback recording of the default output) in memory and keeps only the learned sound's levels in 40 frequency bands, in `hidden-cube-sound.json` in your data folder. Nothing is recorded or uploaded, and nothing is sent to the game.
 
 ### Overlay refresh and diagnostic export
 
@@ -674,7 +691,7 @@ The report retains up to 200 failed resources and eight distinct references per 
 
 Combat effects can arrive before the first party roster or your identity record. Party view reconciles earlier retained effects against the first roster observed in the same identity context when actor names match. App and overlay show those readings with a late-roster notice; the affected encounters remain unranked because earlier membership is unverified. Later joins/disbands do not rewrite the initial roster. Players without a matching name remain unresolved.
 
-Self requires a recorded local identity or the optional exact character-name override. If you start mid-instance, enter your character name before Start when automatic identity is unavailable. Nearby damage is never used to guess which actor is you. Raw TCP recording is optional and does not control combat decoding.
+Self comes from the game: your character's record, which a zone load sends, or since 0.2.323 your MP record, which the game sends for your character only, every few seconds while your MP changes. So a meter started inside a zone (the app opened, or restarted to update, mid-session) finds you as soon as you fight, and your row reads **You** until the next zone load sends your name. The optional exact character-name override names you sooner. Nearby damage is never used to guess which actor is you. Raw TCP recording is optional and does not control combat decoding.
 
 ### The party inside a dungeon
 

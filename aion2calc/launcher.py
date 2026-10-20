@@ -174,6 +174,13 @@ def smoke_test(out: str | None = None) -> int:
     except Exception as err:
         ok = False
         lines.append(f"{lp.name()} solver FAILED {err}")
+    if sys.platform == "win32":                   # the Hidden Cube radar's sound capture: reported, not required
+        try:
+            import importlib
+            importlib.import_module("soundcard")
+            lines.append("soundcard OK")
+        except Exception as err:
+            lines.append(f"soundcard unavailable ({type(err).__name__}: {err})")
     from . import __version__
     lines.append(f"aion2calc {__version__}: {'OK' if ok else 'FAILED'}")
     srv.shutdown()
@@ -234,6 +241,8 @@ def _start_hotkeys(port: int, open_app, open_settings):
             "toggle_field_bosses": lambda: set_ui(
                 overlay_show_field_bosses=not server.ui_settings().get("overlay_show_field_bosses", True)),
             "toggle_combat_assist": lambda: set_ui(**hotkeys.combat_assist_changes(server.ui_settings(), assist_hidden)),
+            "toggle_cube_radar": lambda: (set_ui(radar_enabled=not server.ui_settings().get("radar_enabled")),
+                                          server.radar_sync()),
             "screenshot_lock": lambda: server.pulse_overlay_lock(),
             "quit": lambda: server.schedule_shutdown(),
         }

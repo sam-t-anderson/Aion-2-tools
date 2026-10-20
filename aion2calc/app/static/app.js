@@ -266,19 +266,20 @@ function winHotbar(v) {
 function winMacro(v) {
   const m = v.macro, r = v.rotation;
   if (!m || !r) return win("Skill Macro", "", '<div class="empty">No macro (run an optimization)</div>');
-  const manual = r.manual.map((s) => `<div class="manual-skill">${rotationIcon(s)}<div><b>${esc(s.name)}</b><div class="small muted">${s.charged ? `Hold this skill’s key${s.charge_level ? ` to charge level ${s.charge_level}` : " to charge"}, then release. Never add it as a macro tap.` : "Press manually when ready."}${s.condition ? ` Use ${esc(s.condition)}.` : ""}</div></div></div>`).join("");
-  const steps = r.steps.map((s, i) => `<div class="macro-step"><strong class="macro-number">${i + 1}</strong><div>${rotationIcon(s)}<b>${esc(s.name)}</b></div><span class="macro-key-label">Hotbar key <kbd>${esc(s.binding)}</kbd></span></div>
+  const chainNote = (s) => s.chain_of ? `<div class="small muted">${esc(s.chain_of)}’s chain: press ${esc(s.chain_of)} again while the chain is open</div>` : "";
+  const manual = r.manual.map((s) => `<div class="manual-skill">${rotationIcon(s)}<div><b>${esc(s.name)}</b>${chainNote(s)}<div class="small muted">${s.charged ? `Hold this skill’s key${s.charge_level ? ` to charge level ${s.charge_level}` : " to charge"}, then release. Never add it as a macro tap.` : "Press manually when ready."}${s.condition ? ` Use ${esc(s.condition)}.` : ""}</div></div></div>`).join("");
+  const steps = r.steps.map((s, i) => `<div class="macro-step"><strong class="macro-number">${i + 1}</strong><div>${rotationIcon(s)}<b>${esc(s.name)}</b>${chainNote(s)}</div><span class="macro-key-label">Hotbar key <kbd>${esc(s.binding)}</kbd></span></div>
     ${i < r.steps.length - 1 ? '<div class="macro-delay"><span></span>Delay <b>10</b> ms<span></span></div>' : ""}`).join("");
-  const copy = r.steps.map((s, i) => `${i + 1}. ${s.name} — hotbar key ${s.binding}; delay 10 ms`).join("\n") +
+  const copy = r.steps.map((s, i) => `${i + 1}. ${s.name}${s.chain_of ? ` (${s.chain_of}’s chain: ${s.chain_of} again)` : ""} — hotbar key ${s.binding}; delay 10 ms`).join("\n") +
     (r.manual.length ? "\nManual: " + r.manual.map((s) => `${s.name} (${s.binding}${s.charged ? "; hold to charge" : ""})`).join(", ") : "");
   const body = `<ol class="macro-instructions"><li>Copy the suggested bindings from <b>Skills hotbar</b>, or substitute your own.</li>
-    <li>Open <b>Settings → Key Settings → General → Skill Macro</b>. Add the skills below once each, from top to bottom. The large numbers are macro steps, not hotbar keys.</li>
+    <li>Open <b>Settings → Key Settings → General → Skill Macro</b>. Add the skills below once each, from top to bottom. The large numbers are macro steps, not hotbar keys. A skill’s key presses its chain step while the chain is open, in the macro too; a chain step listed below is its skill added again.</li>
     <li>Set each step’s delay to <b>10 ms</b>, enable <b>Skill Queue</b>, and save the macro to an unused key (suggested: <kbd>${esc(v.hotbar?.macro_binding || "Right-click")}</kbd>).</li>
     <li>Hold the macro key during combat. Release it to use a manual skill; charge skills need their own button held before release. Resume the macro afterwards.</li></ol>
     <div class="macro-layout"><div class="macro-editor"><h3>Macro</h3>${steps || '<p class="muted">This rotation uses manual skills only.</p>'}<div class="macro-save">Save to ${esc(v.hotbar?.macro_binding || "Right-click")} in game</div></div>
     <div><h4 class="gold">MANUAL SKILLS</h4>${manual || '<p class="muted">No manual skills for this rotation.</p>'}
     <p class="small muted">${m.needs_refresh ? "This saved build predates charge-aware macros. Charged skills have been moved to manual controls; optimize again to recalculate the macro estimate." : `Estimated macro + manual execution: ${pct(m.dps_macro / m.dps_priority)} of the ideal priority rotation. This assumes you use the manual skills, including their charges.`}</p>
-    <h4 class="gold small">WHEN MULTIPLE SKILLS ARE READY</h4><p class="small muted">This priority list explains the optimizer’s decisions. It is not another macro to copy.</p><ol>${r.priority.map((s) => `<li>${esc(s.name)}${s.condition ? ` <span class="muted">(${esc(s.condition)})</span>` : ""}</li>`).join("")}</ol></div></div>`;
+    <h4 class="gold small">WHEN MULTIPLE SKILLS ARE READY</h4><p class="small muted">This priority list explains the optimizer’s decisions. It is not another macro to copy.</p><ol>${r.priority.map((s) => `<li>${esc(s.name)}${s.chain_of ? ` <span class="muted">(${esc(s.chain_of)}’s chain)</span>` : ""}${s.condition ? ` <span class="muted">(${esc(s.condition)})</span>` : ""}</li>`).join("")}</ol></div></div>`;
   return win("Skill Macro & rotation", "", body, { key: "macro", copy });
 }
 
@@ -1957,6 +1958,10 @@ async function pageSettings() {
       <label title="Play a short chime when an event notification appears on the overlay"><input type="checkbox" id="ov-events-sound" ${ui.overlay_events_sound === true?'checked':''}> Play a sound when an event notification appears <span class="muted">(off by default)</span></label>
       <div class="row" style="gap:6px;margin:0 0 4px 22px"><label class="btn small" for="ov-events-sound-file">Upload sound</label><input type="file" id="ov-events-sound-file" accept="audio/mpeg,audio/ogg,audio/wav,audio/webm" style="display:none"><button class="btn small" id="ov-events-sound-test" type="button">Test</button><button class="btn small" id="ov-events-sound-clear" type="button">Use default chime</button><span id="ov-events-sound-msg" class="small muted" role="status">${ui.overlay_events_sound_set?'Custom sound set (≤2s recommended).':'Built-in chime.'}</span></div>
       <label><input type="checkbox" id="ov-plan-autoplay" ${ui.overlay_plan_autoplay !== false?'checked':''}> Auto-play a saved raid plan on the overlay's Plan tab when you fight the boss it is bound to, synced to the pull (on by default)</label><p class="small muted">Bind a plan to a boss in the Raid planner (set its Boss / NPC id). When the meter is in that fight, the Plan tab plays that plan at the encounter's elapsed time; otherwise it loops the latest plan as a preview.</p></div></div>
+    <div class="setrow" data-g="overlay"><div class="lbl">Hidden Cube radar</div><div><label><input type="checkbox" id="radar-enabled" ${ui.radar_enabled === true?'checked':''}> Show on the overlay which side a Hidden Cube is and how near, from the jingle it plays <span class="muted">(Windows; off by default)</span></label>
+      <div class="row" style="gap:6px;margin:4px 0 2px 22px;flex-wrap:wrap"><button class="btn small" id="radar-learn-bg" type="button">1. Learn the background</button><button class="btn small" id="radar-learn-cube" type="button">2. Learn the cube's sound</button><button class="btn small" id="radar-cancel" type="button" hidden>Cancel</button><button class="btn small" id="radar-clear" type="button">Forget the learned sound</button><label>Sensitivity <input type="range" id="radar-sens" min="1" max="10" value="${Number.isInteger(+ui.radar_sensitivity)&&+ui.radar_sensitivity>=1&&+ui.radar_sensitivity<=10?+ui.radar_sensitivity:5}" style="width:110px;vertical-align:middle"></label></div>
+      <p id="radar-status" class="small muted" style="margin:2px 0 4px 22px" role="status">Radar status unknown.</p>
+      <p class="small muted" style="margin:2px 0 6px 22px">Put headphones on and, in the game's sound settings, mute the music, ambient, monster and your own character's sounds, keeping the effect volume up (what the cube guides advise). Stand where no cube or feather can be heard and press <b>1</b>; then stand beside a Hidden Cube while it jingles and press <b>2</b>. Each waits 5 seconds, so you can switch back to the game, then listens for 4 or 6 seconds. The overlay then shows the cube's side and how near it is: louder is closer. Stereo cannot tell ahead from behind: turn towards the sound; if it moves to the middle the cube is ahead, if it moves further out it is behind. Empyrean Trace feathers sound alike. Raise the sensitivity to hear a cube further away, lower it if voice chat sets it off. The app reads what Windows plays, in memory, and keeps only the learned sound's levels in 40 frequency bands: nothing is recorded or uploaded.</p></div></div>
     <div class="setrow" data-g="overlay"><div class="lbl">In-game (RTSS)</div><div><label><input type="checkbox" id="rtss-enabled" ${ui.rtss_enabled === true?'checked':''}> Draw the meter inside the game through RivaTuner Statistics Server <span class="muted">(Windows; off by default; needs RTSS running with its on-screen display enabled)</span></label>
       <div class="row" style="gap:10px;margin:4px 0 2px 22px"><label>Rows <input type="number" id="rtss-rows" min="1" max="24" value="${Number.isFinite(+ui.rtss_rows)?+ui.rtss_rows:5}" style="width:70px"></label><label>Metric <select id="rtss-metric"><option value="dps" ${(ui.rtss_metric||'dps')==='dps'?'selected':''}>DPS</option><option value="hps" ${ui.rtss_metric==='hps'?'selected':''}>HPS</option><option value="dtps" ${ui.rtss_metric==='dtps'?'selected':''}>Damage taken</option></select></label><label>Style <select id="rtss-style"><option value="plain" ${(ui.rtss_style||'plain')==='plain'?'selected':''}>Plain text</option><option value="colored" ${ui.rtss_style==='colored'?'selected':''}>Class colours (RTSS colour tags)</option></select></label><label>Refresh <input type="number" id="rtss-interval" min="100" max="5000" step="50" value="${Number.isFinite(+ui.rtss_interval_ms)?+ui.rtss_interval_ms:500}" style="width:80px"> ms</label></div>
       <p id="rtss-status" class="small muted" style="margin:2px 0 4px 22px" role="status">RTSS status unknown.</p>
@@ -2264,7 +2269,7 @@ async function pageSettings() {
   // sync with aion2calc/app/hotkeys.py ACTIONS.
   (function(){
     const host=$("#hotkey-rows"); if(!host) return;
-    const ACTIONS=[["toggle_overlay","Show / hide the overlay"],["toggle_meter","Start / stop the meter"],["clear_meter","Clear the meter (battle reset)"],["toggle_click_through","Toggle click-through"],["toggle_party_overlay","Show / hide the Party-DPS overlay"],["open_app","Open the app window"],["open_settings","Open the Settings page"],["toggle_events","Show / hide overlay event notifications"],["toggle_field_bosses","Show / hide field-boss timers on the overlay"],["toggle_combat_assist","Show / hide combat assist (skill cooldowns, break gauge)"],["screenshot_lock","Screenshot lock (freeze the overlay)"],["quit","Exit Aion 2 Calc"]];
+    const ACTIONS=[["toggle_overlay","Show / hide the overlay"],["toggle_meter","Start / stop the meter"],["clear_meter","Clear the meter (battle reset)"],["toggle_click_through","Toggle click-through"],["toggle_party_overlay","Show / hide the Party-DPS overlay"],["open_app","Open the app window"],["open_settings","Open the Settings page"],["toggle_events","Show / hide overlay event notifications"],["toggle_field_bosses","Show / hide field-boss timers on the overlay"],["toggle_combat_assist","Show / hide combat assist (skill cooldowns, break gauge)"],["toggle_cube_radar","Turn the Hidden Cube radar on / off"],["screenshot_lock","Screenshot lock (freeze the overlay)"],["quit","Exit Aion 2 Calc"]];
     const saved=(ui && ui.hotkeys && typeof ui.hotkeys==='object')?ui.hotkeys:{};
     host.innerHTML=ACTIONS.map(([a,label])=>`<div class="row" style="gap:8px;margin:2px 0"><span style="min-width:230px">${esc(label)}</span><input type="text" readonly class="hotkey-input" data-action="${esc(a)}" value="${esc(saved[a]||'')}" placeholder="Click, then press keys" style="width:180px"><button type="button" class="btn small hotkey-clear" data-action="${esc(a)}">Clear</button></div>`).join('');
     const NAMED={' ':'Space','Escape':'Esc','ArrowUp':'Up','ArrowDown':'Down','ArrowLeft':'Left','ArrowRight':'Right','Enter':'Enter','Tab':'Tab','Backspace':'Backspace','Delete':'Delete','Insert':'Insert','Home':'Home','End':'End','PageUp':'PageUp','PageDown':'PageDown'};
@@ -2309,6 +2314,40 @@ async function pageSettings() {
   $("#ov-events") && ($("#ov-events").onchange = () => api("/api/ui", { overlay_show_events: $("#ov-events").checked }).then(() => toast("Saved")));
   $("#ov-field-bosses") && ($("#ov-field-bosses").onchange = () => api("/api/ui", { overlay_show_field_bosses: $("#ov-field-bosses").checked }).then(() => toast("Saved")));
   const rtssStatus = async () => { const el = $("#rtss-status"); if (!el) return; try { const s = await api('/api/rtss'); el.textContent = !s.supported ? 'RTSS output is available on Windows only.' : !s.enabled ? 'Off.' : s.connected ? `Drawing in RTSS OSD slot ${s.slot} (shared memory v${s.version}, ${s.updates} updates).` : (s.error || 'Waiting for RTSS…'); } catch (_) { el.textContent = 'RTSS status unavailable.'; } };
+  if ($("#radar-enabled")) {
+    const RADAR_NEAR=[[0.8,"right here"],[0.5,"close"],[0.25,"nearby"],[0,"far"]];
+    const radarStatus = async () => {
+      const el = $("#radar-status"); if (!el) return;
+      let r; try { r = await api("/api/radar"); } catch (e) { el.textContent = "Radar status unavailable."; return; }
+      const learning = r.learning, last = r.last_learn;
+      $("#radar-cancel").hidden = !learning;
+      const what = k => k === "cube" ? "the cube's sound" : "the background";
+      const parts = [];
+      if (!r.supported) parts.push("The radar listens to Windows' sound output; it runs on Windows only.");
+      else if (learning) parts.push(learning.phase === "countdown" ? `Learning ${what(learning.kind)} in ${Math.ceil(learning.seconds)} s: switch to the game.` : `Listening to ${what(learning.kind)}… ${Math.ceil(learning.seconds)} s left.`);
+      else {
+        if (last) parts.push(last.message);
+        parts.push(r.ready ? `Cube sound learned${r.learned && r.learned.cube ? " " + r.learned.cube.replace("T", " ") : ""}${r.learned && r.learned.background ? "; background learned" : "; no background learned (step 1 improves it)"}.` : "Nothing learned yet: step 1, then step 2.");
+        if (r.error) parts.push("Not listening: " + r.error + ".");
+        else if (r.enabled && r.listening) parts.push(r.heard ? `Hearing a cube ${r.side === "middle" ? "ahead or behind" : "to your " + r.side}, ${(RADAR_NEAR.find(([p]) => (r.proximity || 0) >= p) || RADAR_NEAR[3])[1]} (match ${Math.round((r.match || 0) * 100)} %).` : `Listening${r.device ? " to " + r.device : ""}: no cube heard.`);
+        else if (!r.setting) parts.push("Off.");
+      }
+      el.textContent = parts.join(" ");
+    };
+    $("#radar-enabled").onchange = () => api("/api/ui", { radar_enabled: $("#radar-enabled").checked }).then(() => { toast("Saved"); setTimeout(radarStatus, 400); });
+    $("#radar-sens").onchange = () => api("/api/ui", { radar_sensitivity: Math.max(1, Math.min(10, parseInt($("#radar-sens").value, 10) || 5)) }).then(() => toast("Saved"));
+    const radarControl = body => api("/api/radar", body).then(radarStatus).catch(e => toast(String(e.message || e)));
+    $("#radar-learn-bg").onclick = () => radarControl({ action: "learn", kind: "background" });
+    $("#radar-learn-cube").onclick = () => radarControl({ action: "learn", kind: "cube" });
+    $("#radar-cancel").onclick = () => radarControl({ action: "cancel" });
+    $("#radar-clear").onclick = () => { if (confirm("Forget the learned background and cube sound?")) radarControl({ action: "clear" }); };
+    radarStatus();
+    const radarTimer = setInterval(() => {
+      const el = document.getElementById("radar-status");
+      if (!el) { clearInterval(radarTimer); return; }
+      if (el.offsetParent !== null) radarStatus();          // only while the Overlay tab shows it
+    }, 500);
+  }
   if ($("#rtss-enabled")) {
     $("#rtss-enabled").onchange = () => api("/api/ui", { rtss_enabled: $("#rtss-enabled").checked }).then(() => { toast("Saved"); setTimeout(rtssStatus, 800); });
     $("#rtss-rows").onchange = () => api("/api/ui", { rtss_rows: Math.max(1, Math.min(24, parseInt($("#rtss-rows").value, 10) || 5)) }).then(() => toast("Saved"));

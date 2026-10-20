@@ -179,6 +179,8 @@ class Action:
     control: float = 0.0           # expected seconds of hard crowd control per enemy hit, per cast
     heal: bool = False             # a heal press (no damage, ``cooldown`` = its period): never chosen, its time
                                    # spread over the other actions when the party takes damage (Target.party_damage)
+    chain_of: str | None = None    # a chain step: pressed with this action's key while its chain is open, no skill
+                                   # or hotbar slot of its own (Pummel -> Punishing Strike)
 
     def group(self) -> str:
         return self.cd_group or self.key

@@ -88,10 +88,10 @@ ASSUME = {
     # Shield Rush only "after using [Dodge] or while flying": the recorded Templars press it 0.93 times a minute of
     # boss fight, against 4.5 dodges (29 fights, 0.2.320), so the model presses it no oftener.
     "shield_rush_per_minute": 0.93,
-    # MP a basic-chain step restores. Its tooltip says 100, as the Gladiator's Keen Strike does, and the recording
-    # Gladiators' readings rise 150 a step (180 with the same +20% specialization; 0.2.319). The two classes' MP
-    # layouts match (the step's tooltip, the MP specializations, the Daevanion MP nodes) and no recorded Templar made
-    # a recording, so the Templar's step takes the Gladiator's measured value (0.2.320; it was the tooltip's 100).
+    # MP a basic-chain step restores. Its tooltip says 100, as the Gladiator's Keen Strike does; the recording
+    # Gladiators' readings rise 150 a step (180 with the same +20% specialization; 0.2.319), so the Templar took
+    # that value (0.2.320). A level-27 Templar's own readings confirm it (0.2.323): a Vicious Strike step +150, and
+    # +199 with a 50 regeneration tick in between; the other steps sat at full MP.
     "step_mp": 150,
     # Punishment's second specialization, "Inflicts Damage over Time to target on hit": in the 11 recorded boss fights of
     # Templars who take it, every press puts 6 ticks on each target it hits, 0.5 s apart over 3 s, each 0.076 of the
@@ -215,27 +215,34 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
     # boss 0.1 s apart), opening Punishing Strike. It costs MP (20% less with its first spec).
     pu_f, pu_c = dmg("PUM")
     pu_mult = 1.12 if has("PUM", 3) else 1.0
+    pum_mp = cd.mp(SID["PUM"], lv("PUM")) * (0.8 if has("PUM", 1) else 1.0)
 
     def pummel_cast(sim, a):
         sim.hit("Pummel", pu_f, pu_c, mult=pu_mult)
         sim.buff("pummel_chain", sim.cfg.chain_window)
         if has("PUM", 4):                             # "-1s [Punishment] cooldown on hit"
             sim.reduce_cd("punishment", 1.0)
-    A["pummel"] = Action("pummel", "Pummel", SID["PUM"], TIMING["pummel"],
-                         mp=cd.mp(SID["PUM"], lv("PUM")) * (0.8 if has("PUM", 1) else 1.0),
-                         on_cast=pummel_cast, is_filler=True)
+    # While its chain is open Pummel's key presses Punishing Strike, so Pummel comes back only after that
+    # step or once the window lapses (as the Cleric's Earth's Retribution, 0.2.317). The model pressed
+    # Pummel back to back: once Punishing Strike cost MP (0.2.323) the optimizer dropped it for Pummels
+    # alone, which no player can press.
+    A["pummel"] = Action("pummel", "Pummel", SID["PUM"], TIMING["pummel"], mp=pum_mp,
+                         on_cast=pummel_cast, is_filler=True, requires=("!pummel_chain",))
 
     # Punishing Strike: Pummel's chain press, 14% of the recorded Templars' damage and 21% of the KR
     # logs'. 96% of the recorded ones come within 3 s of a Pummel, often with Judgment, Shield Smite
     # or Warding Strike pressed in between. The client data does not list it, so it deals its
-    # measured share of Pummel; Pummel's fifth spec adds damage it does not quantify.
+    # measured share of Pummel; Pummel's fifth spec adds damage it does not quantify. It costs what
+    # Pummel costs: a recording Templar's MP fell 119 at each Pummel and each Punishing Strike
+    # alike (0.2.323; Pummel lists 120).
     ps_mult = pu_mult * ASSUME["punishing_frac"] * (1.0 + ASSUME["extra_damage_frac"] if has("PUM", 5) else 1.0)
 
     def punishing_cast(sim, a):
         sim.buff("pummel_chain", 0.0)                 # spent
         sim.hit("Punishing Strike", pu_f, pu_c, mult=ps_mult)
     A["punishing_strike"] = Action("punishing_strike", "Punishing Strike", PUNISHING_STRIKE,
-                                   TIMING["punishing_strike"], requires=("pummel_chain",), on_cast=punishing_cast)
+                                   TIMING["punishing_strike"], mp=pum_mp, requires=("pummel_chain",),
+                                   on_cast=punishing_cast, chain_of="pummel")
 
     # Judgment (primary nuke; usable in the window the trigger skills open)
     ju_f, ju_c = dmg("JUDG")

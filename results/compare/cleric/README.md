@@ -43,20 +43,24 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `earths_retribution`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Settings → Key Settings → General → Skill Macro. Skill Queue (스킬 예약) **ON**, 10 ms delay on every step, hold the macro key; manual presses always take priority over the macro.
+Settings → Key Settings → General → Skill Macro. Skill Queue (스킬 예약) **ON**, 10 ms delay on every step, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
 | Step | Skill |
 |---:|---|
-| 1 | chain_of_torment |
-| 2 | condemnation |
-| 3 | judgment_thunder |
-| 4 | earths_retribution |
+| 1 | prayamp |
+| 2 | divine_aura |
+| 3 | epunish |
+| 4 | chain_of_torment |
+| 5 | condemnation |
+| 6 | powerburst |
+| 7 | judgment_thunder |
+| 8 | earths_retribution |
 
-Manual keys (press on cooldown, in this priority): prayamp, divine_aura, epunish, bolt, thunder_and_lightning, powerburst
+Manual keys (press on cooldown, in this priority): bolt
 
-Simulated: this layout reaches **74.4%** of the ideal priority list.
+Simulated: this layout reaches **76.3%** of the ideal priority list.
 
-**Alternative — macro with manual keys**: macro divine_aura → epunish → prayamp → chain_of_torment → thunder_and_lightning → condemnation → earths_retribution → powerburst → judgment_thunder; manual: bolt. Simulated: **71.2%** of the ideal priority list.
+**Alternative — macro with manual keys**: macro chain_of_torment → condemnation → judgment_thunder → earths_retribution; manual: prayamp, divine_aura, epunish, bolt, powerburst. Simulated: **75.0%** of the ideal priority list.
 
 ### Opener (first 30 s of the simulated fight)
 
@@ -70,22 +74,22 @@ Skill points used **203 / 203**, stigma points **30 / 30**, Daevanion **360 / 36
 
 | Skill | Trained (SP) | Effective level | Specializations |
 |---|---:|---:|---|
-| Condemnation | 10 | 14 | Up to +12% damage when less targets hit; Resets cooldown on landing a Critical Hit with [Condemnation] |
-| Earth's Grace | 10 | 14 | — |
-| Debilitating Mark | 10 | 14 | -15% target Defense for duration of Damage over Time; Has a 20% chance to inflict Stun on the target for 3s |
+| Bolt | 10 | 14 | 30% chance to inflict Stun for 3s when fully charged; Up to +20% damage when less targets hit |
 | Chain of Torment | 10 | 14 | +3s Damage over Time; +10% PvE Damage Tolerance reduction and +5% PvP Damage Tolerance reduction |
+| Condemnation | 10 | 14 | Up to +12% damage when less targets hit; Resets cooldown on landing a Critical Hit with [Condemnation] |
+| Debilitating Mark | 10 | 14 | -15% target Defense for duration of Damage over Time; Has a 20% chance to inflict Stun on the target for 3s |
+| Divine Aura | 10 | 14 | +50% [Divine Aura] attacking speed; +3s [Divine Aura] duration |
+| Earth's Grace | 10 | 14 | — |
+| Earth's Retribution | 10 | 14 | +20% [Discharge] Chain Skill trigger chance; -7s [Bolt] cooldown on landing [Discharge] |
 | Empyrean Lord's Grace | 10 | 14 | — |
 | Judgment Thunder | 10 | 14 | -20% MP consumed; Deals up to 12% more damage when less targets are hit |
-| Bolt | 10 | 14 | 30% chance to inflict Stun for 3s when fully charged; Up to +20% damage when less targets hit |
-| Earth's Retribution | 10 | 14 | +20% [Discharge] Chain Skill trigger chance; -7s [Bolt] cooldown on landing [Discharge] |
-| Divine Aura | 10 | 14 | +50% [Divine Aura] attacking speed; +3s [Divine Aura] duration |
 | Radiant Benediction | 8 | 9 | — |
 | Prayer of Concentration | 1 | 4 | — |
+| Survival Willpower | 2 | 3 | — |
+| Heal Block | 1 | 3 | — |
 | Healing Light | 1 | 3 | — |
 | Immortal Veil | 1 | 3 | — |
-| Heal Block | 1 | 3 | — |
 | Radiant Recovery | 1 | 3 | — |
-| Survival Willpower | 2 | 3 | — |
 | Defiance | 1 | 2 | — |
 | Light of Regeneration | 1 | 2 | — |
 | Warm Benediction | 1 | 2 | — |

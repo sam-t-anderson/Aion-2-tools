@@ -34,10 +34,14 @@
   let lastRenderAt=performance.now(), projecting=false, curMax=1;   // for live-ticking DPS between polls
   const shownRates=new Map();   // row key -> currently displayed (eased) rate
   const cap=s=>String(s||'').charAt(0).toUpperCase()+String(s||'').slice(1);
+  // Your actor id: known from your MP record before your name, which only a zone load sends, so a
+  // meter started inside a zone shows your row as "You" until then instead of "Player #id".
+  let localId=null;
+  const unnamedSelf=p=>localId!=null&&String(p.id)===String(localId)&&/^Player #\d+$/.test(String(p.name||''));
   const displayName=p=>{
     if(nameMode==="number")return "P"+(p.party_number||"?");
     if(nameMode==="class_number")return (cap(p.class)||"Player")+" "+(p.party_number||"?");
-    return p.name;
+    return unnamedSelf(p)?"You":p.name;
   };
   const clampInt=(v,lo,hi,dflt)=>{v=parseInt(v,10);return Number.isInteger(v)&&v>=lo&&v<=hi?v:dflt;};
   let bgLoaded=false;
@@ -188,6 +192,7 @@
     eventRegion=typeof ui.event_region==="string"?ui.event_region:"";
     eventGroup=typeof ui.event_group==="string"?ui.event_group:"";
     setupEvents();
+    setupRadar(ui.radar_enabled===true);   // the Hidden Cube radar, off by default
     nameMode=["name","class_number","number"].includes(ui.overlay_name_mode)?ui.overlay_name_mode:"name";
     interpolate=ui.overlay_dps_interpolate===true;
     interpolateMs=clampInt(ui.overlay_interpolate_ms,50,1000,50);
@@ -512,6 +517,7 @@
     const duplicate=p=>(names.get(String(p.name||'').toLocaleLowerCase())||0)>1;
     const shownCount = autoExpand ? Math.min(24, Math.max(maxPlayers, visible.length)) : maxPlayers;
     // Your own row (matched by the re-acquired local name) can be highlighted.
+    localId = snap.identity_status && snap.identity_status.local_id != null ? snap.identity_status.local_id : null;
     const meName = highlightMe && snap.identity_status && snap.identity_status.local_name ? String(snap.identity_status.local_name).toLocaleLowerCase() : "";
     const isMe = p => meName && String(p.name||'').toLocaleLowerCase() === meName;
     const ranked = [...visible].sort((a,b)=>rate(b)-rate(a)||amount(b)-amount(a));
@@ -546,7 +552,7 @@
     // Your live standing on the current metric, so you know where you place at a glance.
     const meIdx=selfName?ranked.findIndex(p=>String(p.name||'').toLocaleLowerCase()===String(selfName).toLocaleLowerCase()):-1;
     const rankStr=(meIdx>=0&&ranked.length>1)?` · #${meIdx+1} of ${ranked.length}`:'';
-    const selfLine=selfName?`You: ${selfName}${rankStr}${cp?` · CP ${kfmt(identity.local_combat_power)}`:''}`:'';
+    const selfLine=selfName?(/^Player #\d+$/.test(String(selfName))?`You${rankStr} · your name comes with the next zone load`:`You: ${selfName}${rankStr}${cp?` · CP ${kfmt(identity.local_combat_power)}`:''}`):'';
     $("#ovidentity").hidden=!missing&&!repeated&&!inferred&&!selfName;
     $("#ovidentity").classList.toggle("ok",!missing&&!repeated&&!!selfName);
     $("#ovidentity").textContent=[missing?`${identity.self_identified?"Self identified":"Self identity not received — teleport or change instances to refresh it"} · ${identity.unnamed_actors} unnamed actors · ${identity.linked_pets} linked pets. Grouping needs recorded owner links.`:selfLine,repeated?'Matching names have separate combat actor IDs; names alone do not establish shared identity or ownership.':'',inferred?'Combined a player’s re-registered actor IDs (matched by name, class and timing).':''].filter(Boolean).join(' ');
@@ -951,6 +957,60 @@
     }
     if(!eventTimer)eventTimer=setInterval(renderEvents,1000);
     renderEvents();
+  }
+
+  // The Hidden Cube radar (off by default): which side a cube's jingle comes from and how loud it
+  // is, from the game's sound, which the app listens to in memory (radar.py). It has its own poll so
+  // it keeps up while exploring with the meter collapsed between fights.
+  let radarOn=false, radarTimer=null, radarBusy=false;
+  const RADAR_NEAR=[[0.8,"right here"],[0.5,"close"],[0.25,"nearby"],[0,"far"]];
+  function setupRadar(on){
+    radarOn=on&&!partyMode;
+    if(radarOn&&!radarTimer){radarTimer=setInterval(pollRadar,300);pollRadar();}
+    else if(!radarOn&&radarTimer){clearInterval(radarTimer);radarTimer=null;}
+    const el=$("#ovradar");
+    if(el&&!radarOn&&!el.hidden){el.hidden=true;fit();}
+  }
+  async function pollRadar(){
+    if(radarBusy||locked)return;
+    radarBusy=true;
+    try{const r=await fetch("/api/radar");if(r.ok)renderRadar(await r.json());}
+    catch(e){/* best-effort: the next poll retries */}
+    finally{radarBusy=false;}
+  }
+  function radarText(r){
+    if(r.learning){
+      const what=r.learning.kind==="cube"?"the cube's sound":"the background";
+      return r.learning.phase==="countdown"?`Learning ${what} in ${Math.ceil(r.learning.seconds)} s: switch to the game`:`Listening to ${what}… ${Math.ceil(r.learning.seconds)} s`;
+    }
+    if(!r.supported)return "Hidden Cube radar: Windows only";
+    if(r.error)return "Hidden Cube radar: "+r.error;
+    if(!r.ready)return "Hidden Cube radar: teach it the cube's sound in Settings → Overlay";
+    if(!r.heard)return "Listening for a Hidden Cube…"+(r.since!=null&&r.since<60?` last heard ${Math.round(r.since)} s ago`:"");
+    const near=(RADAR_NEAR.find(([p])=>(r.proximity||0)>=p)||RADAR_NEAR[3])[1];
+    const trend=r.trend==="louder"?" · getting closer":r.trend==="quieter"?" · moving away":"";
+    return `Hidden Cube ${r.side==="middle"?"ahead or behind":"to your "+r.side} · ${near}${trend}`;
+  }
+  function renderRadar(r){
+    const el=$("#ovradar");
+    if(!el)return;
+    const show=radarOn&&!!r;
+    if(el.hidden===show){el.hidden=!show;fit();}
+    if(!show)return;
+    if(!el.firstElementChild){   // built once; each poll moves the blip and changes the text only when it differs
+      el.innerHTML=`<svg class="ovrsvg" viewBox="0 0 120 62" aria-hidden="true"><path class="ovrring" d="M4 58 A56 56 0 0 1 116 58"/><path class="ovrring" d="M22 58 A38 38 0 0 1 98 58"/><path class="ovrring" d="M40 58 A20 20 0 0 1 80 58"/><line class="ovrtick" x1="60" y1="58" x2="60" y2="4"/><circle class="ovrme" cx="60" cy="58" r="3"/><circle class="ovrblip" cx="60" cy="58" r="5" style="display:none"/></svg><span class="ovrtext"></span>`;
+      el.title="The cube's jingle, heard in the game's sound: louder is closer, its side is the stereo balance. Stereo cannot tell ahead from behind: turn towards it; if it moves to the middle it is ahead, if it moves further out it is behind. Empyrean Trace feathers sound alike.";
+    }
+    const blip=el.querySelector(".ovrblip"), label=el.querySelector(".ovrtext");
+    if(r.heard&&!r.learning){
+      const a=(r.angle||0)*Math.PI/180, d=6+50*(1-(r.proximity||0));
+      blip.setAttribute("cx",(60+d*Math.sin(a)).toFixed(1));
+      blip.setAttribute("cy",(58-d*Math.cos(a)).toFixed(1));
+      blip.style.opacity=Math.max(0.35,1-(r.since||0)/2.5).toFixed(2);
+      blip.style.display="";
+    } else blip.style.display="none";
+    const text=radarText(r);
+    if(label.textContent!==text)label.textContent=text;
   }
 
   // Live-ticking DPS: between polls, recompute each row's real average rate with

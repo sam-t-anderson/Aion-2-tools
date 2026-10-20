@@ -228,8 +228,10 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
         sim.hit("Rending Blow", re_f, re_c, mult=1.12 if has("REND", 4) else 1.0)
         sim.buff("rending_chain", sim.cfg.chain_window)
     rend_mp = cd.mp(SID["REND"], lv("REND")) * (0.8 if has("REND", 1) else 1.0)
+    # While its chain is open Rending Blow's key presses Smashing Blow, so Rending Blow comes back only after
+    # that step or once the window lapses (as the Templar's Pummel, 0.2.323).
     A["rending_blow"] = Action("rending_blow", "Rending Blow", SID["REND"], TIMING["rending_blow"],
-                               mp=rend_mp, on_cast=rend_cast)
+                               mp=rend_mp, on_cast=rend_cast, requires=("!rending_chain",))
 
     # Leaping Slam (gap closer; Prepare for Battle on the caster at u8)
     ls_f, ls_c = dmg("LEAP")
@@ -326,7 +328,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
         sim.buff("rending_chain", 0.0)                # spent
         sim.hit("Smashing Blow", sb_f, sb_c)
     A["basic_combo"] = Action("basic_combo", "Smashing Blow", 11420000, TIMING["basic_combo"], mp=rend_mp,
-                              requires=("rending_chain",), on_cast=smash_cast)
+                              requires=("rending_chain",), on_cast=smash_cast, chain_of="rending_blow")
 
     # Ruinous Blow (biggest hit; grants Prepare for Battle for 20s)
     rb_f, rb_c = dmg("RUIN")

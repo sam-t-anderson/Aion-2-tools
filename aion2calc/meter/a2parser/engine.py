@@ -46,6 +46,10 @@ class MeterEngine:
         self._local_name_hint = ""
         self.local_identity_rebound = False
         self.local_identity_from_game = False
+        # The local player named by its MP record rather than a self record (see
+        # ``_observe_local_mp``), and the other actor the last MP record was for.
+        self.local_identity_from_mp = False
+        self._mp_candidate: int | None = None
         self.local_profile: dict[str, int | str] = {}
         self.telemetry: list[dict] = []
         # Combat actions decoded in the last read (casts, cast ends, chain windows, effects added
@@ -175,6 +179,11 @@ class MeterEngine:
         client_to_server = (stream_id.lower().startswith("client:") or
                             stream_id.rsplit("->", 1)[-1].endswith(f":{self.server_port}"))
         self.ping_tracker.observe(complete, client_to_server=client_to_server, captured_at_ms=timestamp_ms)
+        if client_to_server:
+            # The client's direction is encrypted: none of it is a game record, and a byte run that happens to
+            # frame as one read as a map id (a 2h replay of both directions named six maps that do not exist) or
+            # could reset the zone. Only the round trip is read from it.
+            return []
         zone_change, map_id = scan_zone_state(complete)
         if (zone_change
                 and (self.last_damage_time_ms is None or timestamp_ms - self.last_damage_time_ms >= 1_500)
@@ -191,6 +200,7 @@ class MeterEngine:
             if is_self:
                 self.local_player_id = actor_id
                 self.local_identity_from_game = True
+                self.local_identity_from_mp = False
         self._observe_self_profile(complete)
         self._bind_hinted_name()
         self._bind_character_list(complete)
@@ -269,6 +279,7 @@ class MeterEngine:
                 if is_self:
                     self.local_player_id = actor_id
                     self.local_identity_from_game = True
+                    self.local_identity_from_mp = False
             vitals = scan_self_vitals(packet)
             if vitals and vitals[0] == self.local_player_id:
                 # The local player's maximum HP and MP: the HP feed never carries its maximum, and
@@ -444,6 +455,7 @@ class MeterEngine:
             self.roster_complete = bool(getattr(previous, "roster_complete", False))
             self.local_player_id = getattr(previous, "local_player_id", None)
             self.local_identity_from_game = bool(getattr(previous, "local_identity_from_game", False))
+            self.local_identity_from_mp = bool(getattr(previous, "local_identity_from_mp", False))
             self.local_character_name = getattr(previous, "local_character_name", "") or self.local_character_name
             self._local_name_hint = getattr(previous, "_local_name_hint", "") or self._local_name_hint
             self.map_id = getattr(previous, "map_id", 0) or self.map_id
@@ -496,12 +508,40 @@ class MeterEngine:
                                       "cooldown_ms": action["cooldown_ms"]}
             if len(self.cooldowns) > 256:          # bound: forget the stalest
                 del self.cooldowns[min(self.cooldowns, key=lambda k: self.cooldowns[k]["cast_ms"])]
+        elif kind == "mp":
+            self._observe_local_mp(action["entity"])
         elif kind == "chain_open":
             self.chain_windows[action["next"]] = action["timestamp_ms"]
             if len(self.chain_windows) > 64:
                 del self.chain_windows[min(self.chain_windows, key=self.chain_windows.get)]
         elif kind == "chain_close":
             self.chain_windows.pop(action["next"], None)
+
+    def _observe_local_mp(self, entity: int) -> None:
+        """The game sends the MP record for the local player only (all 1,854 MP records of two
+        long recordings, seven game servers and a dungeon run, were the self record's actor), every
+        few seconds while its MP changes. The self record comes only with a zone load, so a meter
+        started inside a zone (the app opened, or restarted to update, after the load) knew the
+        party from the roster and spawn records but not its own player until the next load: the
+        overlay listed everyone but the recorder, whose hits went uncredited. The MP record names
+        the local actor meanwhile, and a self record from the game still replaces it. A local id
+        that no longer fits (adopted from a capture stopped in another zone, or a zone load the
+        capture missed) gives way once two MP records in a row name another actor."""
+        if entity == self.local_player_id:
+            self._mp_candidate = None
+            return
+        if entity in self.summons or (self.spawn_info.get(entity) or {}).get("mobCode"):
+            return
+        if self.local_player_id is not None and self._mp_candidate != entity:
+            self._mp_candidate = entity
+            return
+        self._mp_candidate = None
+        self.local_player_id = entity
+        self.local_identity_from_game = True
+        self.local_identity_from_mp = True
+        self.local_identity_rebound = False
+        self.known_players.add(entity)
+        self.known_entities.add(entity)
 
     def _reset_zone(self, timestamp_ms: int) -> None:
         if self.local_identity_from_game and self.local_player_id is not None and self.names.get(self.local_player_id):
@@ -534,6 +574,8 @@ class MeterEngine:
         self.roster_complete = False
         self.local_player_id = None
         self.local_identity_from_game = False
+        self.local_identity_from_mp = False
+        self._mp_candidate = None
         self.local_profile.clear()
         # Remember the instance this load left; a reload into the same map restores it.
         self._left_instance = (self.map_id, self.dungeon_id) if self.dungeon_id and self.map_id not in OPEN_WORLD_MAPS else None
@@ -606,6 +648,7 @@ class MeterEngine:
         self.known_players.add(actor_id)
         self.known_entities.add(actor_id)
         self.local_identity_from_game = True
+        self.local_identity_from_mp = False
         self.local_profile = {"serverId": server_id, "job": job, "level": level}
 
     def _actor_for(self, actor_id: int) -> ActorStats:

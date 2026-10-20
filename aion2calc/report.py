@@ -167,8 +167,16 @@ def _build_card(cd, summary: dict, build, policy, out: Path) -> None:
                 continue
             a = kit.actions[k]
             note = notes.get(e[1], "") if isinstance(e, tuple) else ("filler" if a.is_filler else "")
-            pr.append({"id": a.skill_id, "label": a.name, "note": note})
+            # a chain step has no icon or key of its own: its parent's, pressed again while the chain is open
+            parent = kit.actions.get(a.chain_of) if a.chain_of else None
+            pr.append({"id": (parent or a).skill_id, "label": a.name,
+                       "note": f"{parent.name}'s chain" if parent else note})
         names = {k: a.name for k, a in kit.actions.items()}
+        chained = {k: kit.actions[a.chain_of].name for k, a in kit.actions.items() if a.chain_of in kit.actions}
+
+        def named(entry, how):
+            k = entry.split(" [")[0]
+            return names.get(k, entry) + (f" ({how.format(chained[k])})" if k in chained else "")
         st, dps, base, m = summary["stats"], summary["dps"], summary["baseline"], summary["macro"]
         other = next(k for k in dps if k != scen_name)
         stat_lines = [f"Attack (avg / max roll): {st['attack_avg']:.0f} / {st['attack_max']:.0f}",
@@ -184,14 +192,14 @@ def _build_card(cd, summary: dict, build, policy, out: Path) -> None:
         links = summary["links"]
         render_build_card(
             str(out / "images" / "build_card.png"),
-            title=f"{cls.capitalize()} · Level 45 · Global client data",
+            title=f"{cls.capitalize()} · Level {summary.get('level') or 45} · Global client data",
             subtitle=f"Optimized for: {scen_name} · Daevanion {build.daevanion_cost(cd)}/{summary['daevanion_budget']}"
                      f" · SP {build.sp_spent()}/{summary.get('budgets', {}).get('skill', 203)}"
                      f" · Stigma {build.stigma_spent()}/{summary.get('budgets', {}).get('stigma', 30)}"
                      f" · Gear: {lo.get('name', loadout).split(' - ')[-1]}",
             skills=skill_rows("active"), passives=skill_rows("passive"), stigmas=stig_rows, priority=pr,
-            macro={"steps": [names.get(x, x) for x in m["steps"]],
-                   "manual": [names.get(x.split(" [")[0], x) for x in m["manual"]],
+            macro={"steps": [named(x, "{0} again") for x in m["steps"]],
+                   "manual": [named(x, "{0}'s chain") for x in m["manual"]],
                    "note": ("Hold the macro key; press the manual skills when they come off cooldown."
                             if m["manual"] else "Hold the macro key all fight; steps on cooldown are skipped.")},
             stat_lines=stat_lines, weights=summary["weights"],

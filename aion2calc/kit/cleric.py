@@ -190,7 +190,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
         sim.hit("Thunder and Lightning", re_f * tl, re_c * tl)
     A["thunder_and_lightning"] = Action("thunder_and_lightning", "Thunder and Lightning", 17020000,
                                         TIMING["thunder_and_lightning"], requires=("retribution_chain",),
-                                        on_cast=thunder_cast)
+                                        on_cast=thunder_cast, chain_of="earths_retribution")
 
     ju_f, ju_c = dmg("JUDGMENT")
     dp_frac = ASSUME["divine_punishment_frac"]

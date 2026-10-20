@@ -269,6 +269,17 @@ def test_the_break_gauge_is_shared_by_skill_stagger_values_with_its_breaks():
     assert {p["player"]: p["break_damage"] for p in boss["players"]} == {"me": 100, "ally": 500}
 
 
+def test_a_break_is_a_refill_from_near_the_bottom():
+    # the gauge never reads 0: the 19 October captures' last readings before a refill were up to 5.0 % (60 of 1200)
+    def gauge(*values):
+        rows = [{"t": float(i), "entity": "boss", "max": 1200, "current": v} for i, v in enumerate(values)]
+        return {"duration": 10.0, "gauge": rows, "hits": []}
+    [boss] = summarize(gauge(1200, 400, 60, 1200), set(), set(), {})["stagger"]
+    assert [b["t"] for b in boss["breaks"]] == [2.0]
+    [boss] = summarize(gauge(1200, 400, 180, 1200), set(), set(), {})["stagger"]     # 15 %: a leash reset, not a break
+    assert boss["breaks"] == []
+
+
 def test_encounter_insights_keep_imported_buff_windows_beside_the_action_summaries():
     from aion2calc.combat.insights import summarize as insights
     segment = {**_review_segment(), "buffs": [{"player": "me", "name": "Imported Buff", "start": 0.0, "end": 12.0}]}
