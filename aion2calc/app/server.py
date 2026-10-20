@@ -827,8 +827,8 @@ class Handler(BaseHTTPRequestHandler):
                 settings = effective()
                 if body.get("server") != settings.get("url"):
                     raise ValueError("Upload server changed. Start a new batch with the intended server.")
-                return self._json(upload(doc, url=settings["url"], key=settings.get("key"), visibility=body.get("visibility", "unlisted"), request_id=body.get("request_id")))
-            return self._json(upload(doc, visibility=body.get("visibility", "unlisted")))
+                return self._json(upload(doc, url=settings["url"], key=settings.get("key"), visibility=body.get("visibility"), request_id=body.get("request_id")))
+            return self._json(upload(doc, visibility=body.get("visibility")))
         if path == "/api/community":
             from ..combat.share import community_request
             return self._json(community_request(body.get("path", ""), body.get("body")))
@@ -892,7 +892,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(identity.replace(body.get("claims")))
         if path == "/api/logserver":
             from ..combat import share
-            st = share.save_settings(body.get("url"), body.get("key"), body.get("visibility"))
+            st = share.dismiss_visibility_notice() if body.get("action") == "notice-seen" else \
+                share.save_settings(body.get("url"), body.get("key"), body.get("visibility"))
             return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
         if path == "/api/overlay":
             from .overlay_launch import launch, close
@@ -1385,8 +1386,9 @@ def radar_state() -> dict:
 
 
 def radar_control(body: dict) -> dict:
-    """``{"action": "learn", "kind": "background" | "cube"}``, ``{"action": "cancel"}`` or
-    ``{"action": "clear"}``; returns the radar's state."""
+    """``{"action": "learn", "kind": "background" | "cube"}`` (with ``"countdown"``, the seconds
+    before it listens: 5 by default, 0 from the hotkeys pressed in the game), ``{"action": "cancel"}``
+    or ``{"action": "clear"}``; returns the radar's state."""
     from . import radar
     action = body.get("action")
     if action not in ("learn", "cancel", "clear"):
@@ -1394,9 +1396,12 @@ def radar_control(body: dict) -> dict:
     if action == "learn":
         if body.get("kind") not in radar.LEARN_S:
             raise ValueError("kind must be background or cube")
+        countdown = body.get("countdown", radar.COUNTDOWN_S)
+        if isinstance(countdown, bool) or not isinstance(countdown, (int, float)) or not 0 <= countdown <= 30:
+            raise ValueError("countdown must be 0 to 30 seconds")
         if not radar.supported():
             raise ValueError("The Hidden Cube radar listens to Windows' sound output; it runs on Windows only.")
-        cube_radar().learn(body["kind"])
+        cube_radar().learn(body["kind"], delay=float(countdown))
     elif action == "cancel":
         cube_radar().cancel()
     else:

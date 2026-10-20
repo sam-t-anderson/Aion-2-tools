@@ -28,19 +28,44 @@ _DEFAULT_CACHE = ("cache", "default_server.json")
 _OBSOLETE_HOST = "try" + "cloudflare.com"  # retired quick-tunnel host
 
 
+#: Uploads are public by default from 0.2.323: listed in the community logs and counted in the rankings.
+#: Every install saved the old default, unlisted, on its first launch (``launcher.apply_client_config``), so
+#: a saved "unlisted" is switched to public once; this key marks the switch done, and a visibility chosen
+#: after it is kept. A chosen "private" is never changed. ``VISIBILITY_NOTICE`` asks the app to tell the
+#: user once (Settings → Log server changes it back).
+PUBLIC_DEFAULT_KEY, VISIBILITY_NOTICE = "public_by_default", "visibility_notice"
+
+
 def settings() -> dict:
     """The user's own saved log-server settings (empty until they save any)."""
     if not data_file(*_FILE).exists():
         return {}
     settings = read_json(*_FILE)
+    changed = False
     # Retired quick-tunnel addresses expire. Migrate an old saved choice so it cannot
     # indefinitely override the project's live Tailscale default.
     if _OBSOLETE_HOST in str(settings.get("url", "")).casefold():
         replacement = _bundled_default().get("url", "")
         if replacement:
             settings["url"] = replacement.rstrip("/")
-            write_user_json(settings, *_FILE)
+            changed = True
+    if not settings.get(PUBLIC_DEFAULT_KEY):
+        if settings.get("visibility") == "unlisted":
+            settings["visibility"] = "public"
+            settings[VISIBILITY_NOTICE] = True
+        settings[PUBLIC_DEFAULT_KEY] = True
+        changed = True
+    if changed:
+        write_user_json(settings, *_FILE)
     return settings
+
+
+def dismiss_visibility_notice() -> dict:
+    """The app has told the user that uploads became public."""
+    s = settings()
+    if s.pop(VISIBILITY_NOTICE, None) is not None:
+        write_user_json(s, *_FILE)
+    return s
 
 
 def _remote_default(max_age: float = 21600) -> dict:
@@ -71,7 +96,7 @@ def default_server() -> dict:
     client = _client_json()
     for src in (_remote_default(), _bundled_default(), client):
         if src.get("url") and _OBSOLETE_HOST not in str(src["url"]).casefold():
-            result = {"url": src["url"].rstrip("/"), "visibility": src.get("visibility") or "unlisted"}
+            result = {"url": src["url"].rstrip("/"), "visibility": src.get("visibility") or "public"}
             # The deliberately public community-upload key is scoped to its
             # configured server. Never transfer it to a changed/custom server.
             if client.get("key") and str(client.get("url") or "").rstrip("/") == result["url"]:
@@ -123,6 +148,7 @@ def save_settings(url: str | None = None, key: str | None = None, visibility: st
         s["key"] = key
     if visibility is not None:
         s["visibility"] = visibility
+    s[PUBLIC_DEFAULT_KEY] = True                    # a choice made now is never switched
     write_user_json(s, *_FILE)
     return s
 
@@ -249,7 +275,7 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
     s = effective()
     url = (url or s.get("url") or "").rstrip("/")
     key = key or (s.get("key") if url == str(s.get("url") or "").rstrip("/") else None)
-    vis = visibility or s.get("visibility") or "unlisted"
+    vis = visibility or s.get("visibility") or "public"
     if not url:
         raise ValueError("no log server set: pass --server (or set it on the Combat Logs page)")
     doc = validate(doc)

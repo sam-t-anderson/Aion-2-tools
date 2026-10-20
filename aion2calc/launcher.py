@@ -66,7 +66,7 @@ def apply_client_config(cfg: dict) -> bool:
     from .combat import share
     if not cfg.get("logserver_url") or share.settings().get("url"):
         return False
-    share.save_settings(cfg["logserver_url"], cfg.get("key"), cfg.get("visibility") or "unlisted")
+    share.save_settings(cfg["logserver_url"], cfg.get("key"), cfg.get("visibility") or "public")
     return True
 
 
@@ -196,7 +196,8 @@ def _start_hotkeys(port: int, open_app, open_settings):
 
     Best-effort and off the main thread, so it can never block or break startup.
     Dispatch runs in-process — each hotkey calls the same code the matching UI
-    action does — and defaults to no bindings until the user assigns keys.
+    action does — and defaults to no bindings until the user assigns keys, but for
+    the Hidden Cube radar's learn steps while the radar is on (``hotkeys.effective``).
     Returns the manager (kept alive by the caller) or None.
     """
     try:
@@ -243,10 +244,13 @@ def _start_hotkeys(port: int, open_app, open_settings):
             "toggle_combat_assist": lambda: set_ui(**hotkeys.combat_assist_changes(server.ui_settings(), assist_hidden)),
             "toggle_cube_radar": lambda: (set_ui(radar_enabled=not server.ui_settings().get("radar_enabled")),
                                           server.radar_sync()),
+            # pressed in the game, so the radar listens at once instead of counting down
+            "radar_learn_background": lambda: server.radar_control({"action": "learn", "kind": "background", "countdown": 0}),
+            "radar_learn_cube": lambda: server.radar_control({"action": "learn", "kind": "cube", "countdown": 0}),
             "screenshot_lock": lambda: server.pulse_overlay_lock(),
             "quit": lambda: server.schedule_shutdown(),
         }
-        manager = hotkeys.HotkeyManager(lambda: server.ui_settings().get("hotkeys") or {}, dispatch)
+        manager = hotkeys.HotkeyManager(lambda: hotkeys.effective(server.ui_settings()), dispatch)
         manager.start()
         return manager
     except Exception:

@@ -312,7 +312,10 @@ Each waits 5 seconds, so you can switch back to the game (some setups mute a gam
 - **Feathers:** an Empyrean Trace feather's jingle is nearly the cube's, so the radar hears feathers too.
 - **Sensitivity** (1–10, 5 by default): raise it to hear a cube further away, lower it if voice chat sets it off. Music does not hide the jingle; voice chat in the same range can.
 - **Learn again** after changing the game's volume a lot, or with different headphones; **Forget the learned sound** clears it.
-- A hotkey, **Turn the Hidden Cube radar on / off**, can be bound under Settings → Hotkeys.
+- Hotkeys (Settings → Hotkeys): **Ctrl+1** learns the background and **Ctrl+2** the cube's sound, at once and without the
+  5-second countdown, so you can teach it without leaving the game; the overlay shows what was learned. These two keys
+  are taken only while the radar is on, and you can rebind or clear them. **Turn the Hidden Cube radar on / off** can be
+  bound there too.
 
 The app reads what Windows plays (a loopback recording of the default output) in memory and keeps only the learned sound's levels in 40 frequency bands, in `hidden-cube-sound.json` in your data folder. Nothing is recorded or uploaded, and nothing is sent to the game.
 
@@ -531,7 +534,7 @@ The bundled schedule is a dated community snapshot from [Shugo.GG](https://shugo
 | Theme | **Follow computer** (light or dark with your system), **Light** (parchment and gold) or **Dark** (night sky and gold). The ◐ button in the top bar switches between them too. The choice is kept in this browser |
 | Open as its own window | choose a desktop window or your browser; close the app with Quit |
 | Your data | the data folder, with buttons to open it, the combat logs and the results |
-| Log server | where **Share link** uploads fights, an optional upload key, and the default visibility. **Save** checks the server answers |
+| Log server | where **Share link** uploads fights, an optional upload key, and the visibility every upload uses (**public** unless you change it: listed in the community logs and ranked). **Save** checks the server answers |
 | Game database | item count, last update, and **Check now** |
 | Version | the app version, and a link when a newer release is out |
 | Stop the app | the same as **Quit** in the top bar |

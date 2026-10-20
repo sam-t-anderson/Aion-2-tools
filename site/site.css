@@ -1,14 +1,15 @@
 /* Styles for the GitHub Pages site (landing, docs, planner chrome). Builds on app.css tokens. */
 .site { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
-/* Combat-log pages opt into a full-browser-width, 150%-scaled layout so the dense
-   per-encounter tables and the combat review read comfortably on big screens. */
-.site.wide-2x { max-width: none; zoom: 1.5; }
+/* Combat-log pages opt into a full-browser-width, 125%-scaled layout so the dense
+   per-encounter tables and the combat review read comfortably on big screens (150% until 0.2.323).
+   The app's combat logs use the same scale (app.css main.logs-zoom). */
+.site.wide-2x { max-width: none; zoom: 1.25; }
 .hero2 { display: grid; grid-template-columns: 120px 1fr; gap: 24px; align-items: center; padding: 20px 0 10px; }
 .herologo { width: 120px; height: 120px; }
 .hero2 h1 { font-family: var(--display); color: var(--gold); letter-spacing: 2px; font-size: 40px; margin: 0 0 6px; }
 .lead { font-size: 17px; max-width: 60ch; margin: 0 0 14px; }
 .cta { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
-.cta .btn { padding: 10px 18px; font-size: 15px; }
+.cta .btn { padding: 10px 18px; font-size: 16px; }
 .cards3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 28px 0; }
 .scard { border: 1px solid var(--frame); border-radius: 10px; padding: 16px 18px; background: linear-gradient(180deg, var(--card-a), var(--card-b)); }
 .scard h3 { font-family: var(--display); letter-spacing: .6px; margin: 0 0 8px; color: var(--gold); font-size: 17px; }
@@ -35,7 +36,7 @@ details[open] > summary { margin-bottom:2px; }
 
 /* Daily-active-meters count in the top-right header (Pages site only). */
 .topbar .dau {
-  font-size: 12px; font-weight: 600; color: #4bbf87;
+  font-size: 16px; font-weight: 600; color: #4bbf87;
   white-space: nowrap; margin-right: 4px; letter-spacing: .2px;
 }
 @media (max-width: 640px) { .topbar .dau { display: none; } }

@@ -71,7 +71,7 @@ jobs:
           default = json.loads(Path('aion2calc/data/global/default_server.json').read_text())
           url = os.environ.get('URL') or default.get('url', '')
           key = os.environ.get('PUBLIC_COMMUNITY_KEY') or ''
-          Path('packaging/client.json').write_text(json.dumps({'logserver_url':url, 'visibility':'unlisted', 'key':key}), encoding='utf-8')
+          Path('packaging/client.json').write_text(json.dumps({'logserver_url':url, 'visibility':default.get('visibility') or 'public', 'key':key}), encoding='utf-8')
           print('Desktop server configured:', bool(url), 'community upload key configured:', bool(key))
       - run: pyinstaller packaging/aion2calc.spec --noconfirm
       - name: Version
@@ -111,7 +111,37 @@ jobs:
           s=0; ./dist/aion2calc/aion2calc --smoke-test smoke.txt || s=$?
           cat smoke.txt; exit $s
 
-      - name: Windows installer and portable zip
+      # Code signing (Windows), once an Azure Artifact Signing account is set up (docs/code-signing.md):
+      # Smart App Control on Windows 11 blocks a file with no valid signature outright, with no "Run
+      # anyway", and SmartScreen warns. Every file of the bundle that runs as code and is not signed
+      # already (the app's exe, the Python extension modules) is signed before the installer is built
+      # from them, then the installer. Without the repository variable these steps are skipped.
+      - name: List the files to sign (Windows)
+        id: unsigned
+        if: runner.os == 'Windows' && vars.AZURE_SIGNING_ENDPOINT != ''
+        shell: pwsh
+        run: |
+          $root = (Resolve-Path dist).Path
+          $files = @(Get-ChildItem -Recurse -File -Path dist\aion2calc -Include *.exe,*.dll,*.pyd |
+            Where-Object { (Get-AuthenticodeSignature $_.FullName).Status -ne 'Valid' })
+          $files | ForEach-Object { $_.FullName.Substring($root.Length + 1) } | Set-Content -Path dist\to-sign.txt -Encoding utf8
+          Write-Host "$($files.Count) unsigned files to sign"
+          "count=$($files.Count)" >> $env:GITHUB_OUTPUT
+      - name: Sign the app's files (Windows)
+        if: runner.os == 'Windows' && vars.AZURE_SIGNING_ENDPOINT != '' && steps.unsigned.outputs.count != '0'
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_SIGNING_PROFILE }}
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          files-catalog: dist\to-sign.txt
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -119,7 +149,34 @@ jobs:
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
           & $iscc /DAppVersion=${{ steps.v.outputs.version }} packaging\windows\aion2calc.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Compress-Archive -Path dist\aion2calc -DestinationPath dist\aion2calc-${{ steps.v.outputs.version }}-windows-portable.zip
+      - name: Sign the installer (Windows)
+        if: runner.os == 'Windows' && vars.AZURE_SIGNING_ENDPOINT != ''
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_SIGNING_PROFILE }}
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          files-folder: dist
+          files-folder-filter: aion2calc-setup-*.exe
+          files-folder-recurse: false
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Check the signatures (Windows)
+        if: runner.os == 'Windows' && vars.AZURE_SIGNING_ENDPOINT != ''
+        shell: pwsh
+        run: |
+          $bad = @(@(Get-ChildItem dist\aion2calc-setup-*.exe) + @(Get-ChildItem -Recurse -File -Path dist\aion2calc -Include *.exe,*.dll,*.pyd) |
+            Where-Object { (Get-AuthenticodeSignature $_.FullName).Status -ne 'Valid' })
+          if ($bad.Count) { $bad | ForEach-Object { Write-Host "::error::Not signed: $($_.FullName)" }; exit 1 }
+          Write-Host "Every file is signed"
+      - name: Windows portable zip
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist\aion2calc -DestinationPath dist\aion2calc-${{ steps.v.outputs.version }}-windows-portable.zip
       - name: macOS zip
         if: runner.os == 'macOS'
         run: cd dist && ditto -c -k --keepParent aion2calc.app aion2calc-${{ steps.v.outputs.version }}-macos.zip

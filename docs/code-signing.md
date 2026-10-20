@@ -1,23 +1,30 @@
 # Code signing policy
 
-Windows warns about downloads that are not code-signed ("Windows protected your PC"). Until the
-builds are signed, choose **More info → Run anyway** on the first launch.
+The Windows releases are not code-signed yet, so Windows names no publisher for them:
+- **SmartScreen** warns about the download ("Windows protected your PC"): choose **More info → Run
+  anyway** on the first launch.
+- **Smart App Control** (Windows 11) blocks the app outright ("Smart App Control blocked an app
+  that may be unsafe … could not verify its publisher"). It has no "Run anyway" and no per-app
+  exception. Until the releases are signed, the only way to run the app on such a computer is to
+  turn Smart App Control off: **Windows Security → App & browser control → Smart App Control
+  settings → Off**. Builds of Windows 11 updated from April 2026 let you turn it back on there
+  later; on older builds, turning it off stays off until Windows is reset or reinstalled. See
+  [installing on Windows](install.md#windows-11-smart-app-control).
 
-The Windows releases are going to be signed through [SignPath Foundation](https://signpath.org),
-which signs open-source projects for free: free code signing provided by
-[SignPath.io](https://about.signpath.io), certificate by
-[SignPath Foundation](https://signpath.org). Signed files show **SignPath Foundation** as the
-publisher.
+A valid signature is what Smart App Control accepts for an app it has no reputation for, so signing
+the releases is the fix. The release workflow is ready to sign them with
+[Azure Artifact Signing](https://learn.microsoft.com/azure/artifact-signing/) (below);
+[SignPath Foundation](https://signpath.org) signs open-source projects for free, on application.
 
 ## Team roles
 
 | Role | Members |
 |---|---|
 | Committers and reviewers | [sam-t-anderson](https://github.com/sam-t-anderson) |
-| Approvers (approve each signing request) | [sam-t-anderson](https://github.com/sam-t-anderson) |
+| Approvers (merge the release pull requests that publish a release) | [sam-t-anderson](https://github.com/sam-t-anderson) |
 
 Every release is built from this repository by GitHub Actions (`.github/workflows/ci.yml`); only
-files that workflow builds are signed, and each signing request is approved by hand.
+files that workflow builds are signed, from the repository's own release variables and secrets.
 
 ## Privacy
 
@@ -40,46 +47,52 @@ Apps** (Windows) or by deleting it; your data folder is kept until you delete it
 
 ## Turning on signing (maintainers)
 
-The release workflow already contains the signing step. It runs only when the secret below
-exists, so releases are published unsigned until then.
+The Windows build in `.github/workflows/ci.yml` signs the release once an Azure Artifact Signing
+account is set up; until the repository variable below exists, those steps are skipped and the
+release is published unsigned. When they run, the build:
+1. signs every file of the app bundle that runs as code and is not signed already (`aion2calc.exe`
+   and the Python extension modules; Python's own DLLs and the Visual C++ runtime come signed);
+2. builds the installer from the signed files and signs the installer;
+3. fails if any of those files is left without a valid signature.
 
-1. Turn on two-factor authentication for GitHub (and later SignPath) on every account with write
-   access.
-2. Apply at <https://signpath.org/apply.html> for this repository. SignPath Foundation reviews the
-   project; this takes a while.
-3. Once accepted, in SignPath:
-   * note the **organization ID**;
-   * create the project `aion2calc`, add **GitHub.com** as its trusted build system, and install
-     the SignPath GitHub App on this repository;
-   * give the project this artifact configuration (the Windows build artifact holds the
-     installer and the portable zip):
+The signed files name the account's validated identity as their publisher. Artifact Signing costs
+about 10 USD a month (the Basic plan) and, for an individual, validates a person living in the
+United States or Canada; an organization needs three years of verifiable history.
 
-     ```xml
-     <artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
-       <zip-file>
-         <pe-file path="aion2calc-setup-*.exe">
-           <authenticode-sign/>
-         </pe-file>
-         <zip-file path="aion2calc-*-windows-portable.zip">
-           <pe-file path="aion2calc/aion2calc.exe">
-             <authenticode-sign/>
-           </pe-file>
-         </zip-file>
-       </zip-file>
-     </artifact-configuration>
-     ```
+1. Turn on two-factor authentication on every account with write access to this repository.
+2. In the [Azure portal](https://portal.azure.com), create an **Artifact Signing account** (the
+   service was called Trusted Signing). Note its **endpoint** (it depends on the region, for example
+   `https://eus.codesigning.azure.net/`) and its name.
+3. In the account, complete **identity validation** (Public, for the person or organization that
+   publishes the app), then create a **certificate profile** of type **Public Trust** from it.
+4. In **Microsoft Entra ID → App registrations**, register an app for the release workflow and
+   create a client secret for it. In the signing account's **Access control (IAM)**, give that app
+   the role **Artifact Signing Certificate Profile Signer**.
+5. In this repository, **Settings → Secrets and variables → Actions**:
+   * variables `AZURE_SIGNING_ENDPOINT` (the endpoint), `AZURE_SIGNING_ACCOUNT` (the account name)
+     and `AZURE_SIGNING_PROFILE` (the certificate profile's name);
+   * secrets `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` (the app registration's
+     directory ID, application ID and secret).
+6. Publish a release as usual and check that the Windows build's **Check the signatures** step
+   passed. Right-click the installed `aion2calc.exe` → **Properties → Digital Signatures** shows the
+   signer.
 
-   * create the signing policy `release-signing` with manual approval, and an API token for a
-     user with submitter rights on it.
-4. In this repository (**Settings → Secrets and variables → Actions**), add the secret
-   `SIGNPATH_API_TOKEN` and the variable `SIGNPATH_ORGANIZATION_ID`. Different slugs go in the
-   variables `SIGNPATH_PROJECT_SLUG` and `SIGNPATH_SIGNING_POLICY_SLUG`.
-5. Publish a release as usual. The release job sends the Windows build to SignPath and waits:
-   approve the request in SignPath, and the signed installer and portable zip are published.
+Not signed yet: the uninstaller Inno Setup writes at install time (`unins000.exe`). Signing it
+needs a sign tool the installer compiler runs (`SignTool` with `SignedUninstaller=yes` in
+`packaging/windows/aion2calc.iss`), which is the next step once the account exists. Until then,
+Smart App Control can block uninstalling from **Settings → Apps**; deleting the install folder
+removes the app.
 
 The executable and the installer carry the product name `aion2calc` and the release version in
-their file properties, which SignPath checks.
+their file properties.
 
-A paid alternative that does not require an application is Microsoft's Azure Trusted Signing
-(about 10 USD a month; individuals in the US and Canada): it signs in your own name, with a
-different workflow step.
+### SignPath Foundation (free, on application)
+
+[SignPath Foundation](https://signpath.org) signs open-source projects for free: free code signing
+provided by [SignPath.io](https://about.signpath.io), certificate by SignPath Foundation, and signed
+files name **SignPath Foundation** as the publisher. It reviews each project before accepting it
+(apply at <https://signpath.org/apply.html>), and each signing request is approved by hand. Its
+GitHub integration signs a build artifact after it is built, so the installer would have to be
+built from files SignPath had already signed: the workflow would send the app bundle for signing
+first, then build and send the installer. That workflow is not written yet; Azure Artifact Signing
+above needs no application.

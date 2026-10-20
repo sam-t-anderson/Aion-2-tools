@@ -34,6 +34,35 @@ OBSERVED_OPEN_WORLD_MAPS = {
 OPEN_WORLD_MAPS |= set(OBSERVED_OPEN_WORLD_MAPS)
 
 
+#: The cast-ends an actor needs before it is guessed to be the local player, and the lead over the
+#: guess another actor needs to take it over (``MeterEngine._observe_local_cast``). Replaying the 19
+#: October recordings from 12 points each with no spawns or summon links (an app started inside a
+#: zone): with 2 a pet whose owner link came before the start was guessed in 2 of 12 Templar starts,
+#: with 3 in 1, with 4 in none, and 4 found the player within a second of 3 in every start.
+CAST_GUESS_MIN, CAST_GUESS_LEAD = 4, 3
+#: Each class's auto attack, the left-click chain the kits weave (``WEAVE`` in ``aion2calc/kit``):
+#: Gladiator Keen / Rupture / Wrathful Strike, Templar Vicious / Decisive / Desperate Strike, Assassin
+#: Quick / Breaking / Swift Slice, Ranger Snipe / Rapid Fire / Spiral Arrow, Sorcerer Burst / Flame Arrow
+#: / Pyroclasm, Spiritmaster Cold Shock / Vacuum Explosion / Earth Tremor, Cleric Earth's Retribution /
+#: Thunder and Lightning, Chanter Onslaught / Resonance Crush / Bolt Crush. In the 19 October recordings
+#: all 1,849 cast-ends of these were the recording player's and none a pet's or an NPC's, so one names
+#: the local player at once.
+AUTO_ATTACKS = frozenset({11020000, 11030000, 11040000, 12010000, 12020000, 12030000, 13010000, 13030000,
+                          13040000, 14020000, 14030000, 14040000, 15030000, 15210000, 15250000, 16010000,
+                          16020000, 16030000, 17010000, 17020000, 18010000, 18020000, 18030000})
+#: Seconds with no keyboard or mouse input (and no mouse button held) after which a cast-end is not
+#: the player's own press: longer than any cast, so a long cast's end still counts.
+INPUT_IDLE_S = 8.0
+
+
+def _own_class_skill(skill: int) -> bool:
+    """A skill a player casts with its own class (``1C SS xxxx``: a class prefix and a skill
+    number), not one of the ranges a summon casts with (the spirits' ``1009xx``–``1035xx`` and
+    ``1093xx``, a class prefix with skill number 00), which ``job_from_skill`` files under the owner's
+    class for crediting: a mid-zone start in the Templar recording saw twelve spirit pets cast those."""
+    return 10_000_000 <= skill <= 19_999_999 and skill // 10_000 % 100 != 0 and job_from_skill(skill) is not None
+
+
 class MeterEngine:
     def __init__(self, *, perf_clock: Callable[[], tuple[int, int]] | None = None) -> None:
         self.targets: dict[int, TargetStats] = {}
@@ -46,10 +75,21 @@ class MeterEngine:
         self._local_name_hint = ""
         self.local_identity_rebound = False
         self.local_identity_from_game = False
-        # The local player named by its MP record rather than a self record (see
-        # ``_observe_local_mp``), and the other actor the last MP record was for.
+        # The local player named by its MP or cast-end records rather than a self record (see
+        # ``_observe_local_mp`` and ``_observe_local_cast``), and the other actor the last MP record was for.
         self.local_identity_from_mp = False
         self._mp_candidate: int | None = None
+        # While the local player is only a guess from cast-ends (``_observe_local_cast``): each
+        # candidate's class-skill cast-ends since the guess, and the actors seen casting an auto attack.
+        self._cast_guess: dict[int, int] | None = None
+        self._auto_casters: set[int] = set()
+        # Live capture only: a callable giving (last keyboard/mouse input, wall-clock seconds or None;
+        # whether a mouse button is held), see ``aion2calc.meter.input_activity``. Actors that cast while
+        # nobody touched either are "not my player"; the rule is dropped once the player turns out to be
+        # one of them (a gamepad's presses never reach the input clock).
+        self.input_activity: Callable[[], tuple[float | None, bool]] | None = None
+        self.not_local: set[int] = set()
+        self._idle_rule_off = False
         self.local_profile: dict[str, int | str] = {}
         self.telemetry: list[dict] = []
         # Combat actions decoded in the last read (casts, cast ends, chain windows, effects added
@@ -201,6 +241,7 @@ class MeterEngine:
                 self.local_player_id = actor_id
                 self.local_identity_from_game = True
                 self.local_identity_from_mp = False
+                self._cast_guess = None
         self._observe_self_profile(complete)
         self._bind_hinted_name()
         self._bind_character_list(complete)
@@ -280,6 +321,7 @@ class MeterEngine:
                     self.local_player_id = actor_id
                     self.local_identity_from_game = True
                     self.local_identity_from_mp = False
+                    self._cast_guess = None
             vitals = scan_self_vitals(packet)
             if vitals and vitals[0] == self.local_player_id:
                 # The local player's maximum HP and MP: the HP feed never carries its maximum, and
@@ -510,6 +552,8 @@ class MeterEngine:
                 del self.cooldowns[min(self.cooldowns, key=lambda k: self.cooldowns[k]["cast_ms"])]
         elif kind == "mp":
             self._observe_local_mp(action["entity"])
+        elif kind == "cast_end":
+            self._observe_local_cast(action["actor"], action["skill"], action.get("timestamp_ms"))
         elif kind == "chain_open":
             self.chain_windows[action["next"]] = action["timestamp_ms"]
             if len(self.chain_windows) > 64:
@@ -526,22 +570,96 @@ class MeterEngine:
         overlay listed everyone but the recorder, whose hits went uncredited. The MP record names
         the local actor meanwhile, and a self record from the game still replaces it. A local id
         that no longer fits (adopted from a capture stopped in another zone, or a zone load the
-        capture missed) gives way once two MP records in a row name another actor."""
+        capture missed) gives way once two MP records in a row name another actor, and a guess from
+        cast-ends (``_observe_local_cast``) to the first."""
         if entity == self.local_player_id:
             self._mp_candidate = None
+            self._cast_guess = None                    # the guess is confirmed
             return
         if entity in self.summons or (self.spawn_info.get(entity) or {}).get("mobCode"):
             return
-        if self.local_player_id is not None and self._mp_candidate != entity:
+        # A guess from cast-ends gives way to the first MP record naming another actor; an identity a
+        # record gave (or carried from another zone) to two in a row.
+        if self.local_player_id is not None and self._cast_guess is None and self._mp_candidate != entity:
             self._mp_candidate = entity
             return
         self._mp_candidate = None
+        self._cast_guess = None
+        if entity in self.not_local:
+            self._idle_rule_off = True               # its presses never reached the input clock (a gamepad)
+            self.not_local.clear()
+        self._bind_inferred_local(entity)
+
+    def _bind_inferred_local(self, entity: int) -> None:
+        """Name the local player from its own records (MP, cast-ends) rather than a self record."""
         self.local_player_id = entity
         self.local_identity_from_game = True
         self.local_identity_from_mp = True
         self.local_identity_rebound = False
         self.known_players.add(entity)
         self.known_entities.add(entity)
+
+    def _observe_local_cast(self, actor: int, skill: int, timestamp_ms: int | None = None) -> None:
+        """The game sends a cast's end (``06 38``) for the local player's casts and NPCs', never for
+        another player's: in a two-hour recording 17,108 were the recorder's, 16,400 NPCs' and their
+        summons' and none another player's. So the first cast-end of a class skill by an actor that
+        is no NPC names the local player at its first skill press, before its first hit lands and
+        often well before its MP record (16 s against 46 s, and 0.6 s against 266 s, from two starts
+        inside a zone). Only a meter that knows no local player takes it, as a guess: a pet summoned
+        before the meter started has no owner link yet and casts its owner's class skills, so an actor
+        casting three class skills more than the guess takes it over, the first MP record naming
+        another actor corrects it and a self record replaces it; the session then credits the
+        hits recorded under the guess to the corrected player."""
+        if actor in self.summons or not _own_class_skill(skill) or (self.spawn_info.get(actor) or {}).get("mobCode"):
+            return
+        if self.local_player_id is not None and self._cast_guess is None:
+            return                                   # named by a self or MP record: casts do not move it
+        if self._input_idle(timestamp_ms):
+            # Nobody touched the keyboard or mouse: not the player's press. Only cast-ends count here,
+            # never a damage-over-time tick or a pet's hit, so the player's own DoTs and pets never
+            # put it on the list.
+            if len(self.not_local) < 512:
+                self.not_local.add(actor)
+            if actor == self.local_player_id:
+                self._cast_guess.pop(actor, None)
+                self.local_player_id = None          # the guess cast on its own: drop it
+            return
+        if actor in self.not_local:
+            return
+        counts = self._cast_guess if self._cast_guess is not None else {}
+        if actor not in counts and len(counts) >= 64:
+            return
+        counts[actor] = counts.get(actor, 0) + 1
+        self._cast_guess = counts
+        auto = skill // 10_000 * 10_000 in AUTO_ATTACKS
+        if auto and len(self._auto_casters) < 64:
+            self._auto_casters.add(actor)
+        if self.local_player_id is None:
+            if auto or counts[actor] >= CAST_GUESS_MIN:
+                self._mp_candidate = None
+                self._bind_inferred_local(actor)
+        elif actor != self.local_player_id and (
+                (auto and self.local_player_id not in self._auto_casters)
+                or counts[actor] >= counts.get(self.local_player_id, 0) + CAST_GUESS_LEAD):
+            # An auto attack outranks a guess no auto attack backs. Otherwise the player casts far more
+            # class skills than any pet (29 against 1 to 8 a pet in the Templar recording's first
+            # minute): an actor that many cast-ends ahead of the guess takes it over.
+            self._bind_inferred_local(actor)
+
+    def _input_idle(self, timestamp_ms: int | None) -> bool:
+        """Whether nobody touched the keyboard or mouse for ``INPUT_IDLE_S`` before this record and no
+        mouse button is held: never in a replay (no input clock), when the record is not current, or
+        once the player turned out to be an actor this rule had ruled out."""
+        if self.input_activity is None or self._idle_rule_off or timestamp_ms is None:
+            return False
+        try:
+            last, held = self.input_activity()
+        except Exception:
+            return False
+        at = timestamp_ms / 1000
+        if last is None or held or abs(time.time() - at) > 2.0:
+            return False
+        return at - last > INPUT_IDLE_S
 
     def _reset_zone(self, timestamp_ms: int) -> None:
         if self.local_identity_from_game and self.local_player_id is not None and self.names.get(self.local_player_id):
@@ -576,6 +694,9 @@ class MeterEngine:
         self.local_identity_from_game = False
         self.local_identity_from_mp = False
         self._mp_candidate = None
+        self._cast_guess = None
+        self._auto_casters.clear()
+        self.not_local.clear()
         self.local_profile.clear()
         # Remember the instance this load left; a reload into the same map restores it.
         self._left_instance = (self.map_id, self.dungeon_id) if self.dungeon_id and self.map_id not in OPEN_WORLD_MAPS else None
@@ -649,6 +770,7 @@ class MeterEngine:
         self.known_entities.add(actor_id)
         self.local_identity_from_game = True
         self.local_identity_from_mp = False
+        self._cast_guess = None
         self.local_profile = {"serverId": server_id, "job": job, "level": level}
 
     def _actor_for(self, actor_id: int) -> ActorStats:

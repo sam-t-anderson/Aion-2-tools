@@ -747,6 +747,13 @@ def scan_party_roster(data: bytes) -> tuple[dict[str, dict], bool, int] | None:
             if next_pos is None:
                 break
             pos = next_pos
+        if members and not complete:
+            # A blank slot (no database id, no name) is a member who is away or has left: lists with one came
+            # between full lists while a party formed, and in a two-hour recording none of the 112 members they
+            # left out fought before a later list named them again. With every other slot read, the list holds
+            # the whole party present.
+            read = {member["slot"] for member in members.values()}
+            complete = all(bytes([slot]) + bytes(9) in data[count[1]:] for slot in range(1, count[0] + 1) if slot not in read)
         if members:
             return members, complete, dungeon_id
         i += 1

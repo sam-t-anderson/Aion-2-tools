@@ -24,6 +24,8 @@ Checking installation reads the registered Npcap service and does not elevate th
 
 Open **Combat Logs → My uploads** on desktop or **Logs → My uploads** on the website. New desktop uploads automatically save a separate private credential. Click **Refresh** to check the original server, then change visibility, rotate a private link, or delete the uploaded copy. Your local combat file remains after server deletion.
 
+Uploads are **public** by default (since 0.2.323), so your fights appear in the community logs and count in the rankings: the Stop, quit, per-fight and before-delete uploads, the live rank refresh and the **Upload** button all use the visibility chosen in **Settings → Log server**. Installs that still had the old default, unlisted, were switched to public once, with a message in the app; a visibility chosen after that, or **Private**, is kept.
+
 - **Public:** listed; eligible samples contribute to community comparisons.
 - **Unlisted:** anyone with the link can view; not listed or ranked publicly. Legacy anonymous calibration may contribute.
 - **Private:** requires its secret view link or owner credential; excluded from public comparisons and calibration. Rotating the link revokes the previous private view link. Changing back to Private creates a new link.
@@ -101,7 +103,8 @@ Windows, macOS and Linux are there too. No Python and no command line needed. Th
 computer's light or dark mode. Details and updating: [`docs/install.md`](install.md).
 
 Windows may warn that the download is unrecognized until the builds are code-signed: choose **More info →
-Run anyway**. [Code signing policy](code-signing.md).
+Run anyway**. Windows 11's Smart App Control blocks the app outright, with no Run anyway: see
+[installing with Smart App Control on](install.md#windows-11-smart-app-control). [Code signing policy](code-signing.md).
 
 | Dark | Light |
 |---|---|

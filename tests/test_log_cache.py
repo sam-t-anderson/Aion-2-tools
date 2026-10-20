@@ -119,4 +119,4 @@ def test_upload_evictor_uploads_the_recording_before_delete(home, monkeypatch):
     assert evict(f) is True
     assert len(uploaded) == 1
     doc, kw = uploaded[0]
-    assert doc["segments"] == [] and kw.get("visibility") == "unlisted"
+    assert doc["segments"] == [] and kw.get("visibility") is None     # the visibility set for uploads

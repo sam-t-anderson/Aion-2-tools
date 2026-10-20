@@ -45,7 +45,7 @@
     const s = document.createElement("style"); s.id = "saved-logs-style";
     s.textContent = ".sl-sec{margin:10px 0}.sl-sec>summary{cursor:pointer;font-weight:600}"
       + ".sl-boss{display:inline-flex;align-items:center;gap:6px}.sl-ic{border-radius:4px;vertical-align:middle}"
-      + ".sl-badge{display:inline-block;padding:1px 6px;border-radius:10px;font-size:11px;border:1px solid currentColor;opacity:.85}";
+      + ".sl-badge{display:inline-block;padding:1px 6px;border-radius:10px;font-size:16px;border:1px solid currentColor;opacity:.85}";
     document.head.appendChild(s);
   }
 

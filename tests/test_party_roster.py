@@ -67,12 +67,19 @@ def test_a_member_record_with_an_unexpected_layout_is_still_listed():
 
 
 def test_an_empty_slot_does_not_hide_the_members_after_it():
-    # The members after it are read. The count then is not met, so the roster is merged rather than replacing
-    # the one known (and a wipe is never inferred from it), as it already was for an empty last slot.
+    # The members after it are read, and a list whose unread slots are all blank holds the whole party present:
+    # a blank slot is a member who is away or has left (in a two-hour recording, none of the 112 members left out
+    # of such a list fought before a later list named them again). The list then replaces the roster, so its
+    # party size is known.
     middle = [member(1, "Alpha"), empty_slot(2), member(3, "Charlie"), member(4, "Delta")]
-    assert names(roster(middle)) == (["Alpha", "Charlie", "Delta"], False, 600001)
+    assert names(roster(middle)) == (["Alpha", "Charlie", "Delta"], True, 600001)
     assert names(roster([empty_slot(1), member(2, "Bravo"), member(3, "Charlie")])) == (["Bravo", "Charlie"], True, 600001)
-    assert names(roster([member(1, "Alpha"), member(2, "Bravo"), empty_slot(3)])) == (["Alpha", "Bravo"], False, 600001)
+    assert names(roster([member(1, "Alpha"), member(2, "Bravo"), empty_slot(3)])) == (["Alpha", "Bravo"], True, 600001)
+
+
+def test_a_list_cut_short_stays_incomplete():
+    # A slot that is neither read nor blank (a record the capture cut off) leaves the list incomplete: merged.
+    assert names(roster([member(1, "Alpha"), member(2, "Bravo")], count=3)) == (["Alpha", "Bravo"], False, 600001)
 
 
 def _engine(map_id, dungeon_id):

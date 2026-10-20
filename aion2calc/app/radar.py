@@ -401,6 +401,7 @@ class Radar:
         self.input_db = None
         self._learn = None            # {"kind", "starts" (monotonic), "steps", "levels"}
         self.last_learn = None        # {"kind", "ok", "message"}
+        self._learned_at = None       # monotonic time last_learn was set: the overlay shows it a few seconds
         self._reset_matching()
 
     # -- control (any thread) --
@@ -453,6 +454,8 @@ class Radar:
                    "learned": {"background": learned.get("background") if self.profile.get("background") is not None else None,
                                "cube": learned.get("cube") if self.profile.get("jingle") is not None else None},
                    "quality": self.profile.get("quality"), "learning": learning, "last_learn": self.last_learn,
+                   "last_learn_s": None if self.last_learn is None or self._learned_at is None
+                   else round(time.monotonic() - self._learned_at, 1),
                    "input_db": self.input_db}
             out.update(self.track.view() if self.matcher is not None else Track().view())
             return out
@@ -491,6 +494,7 @@ class Radar:
                     if self._learn is not None and self._learn["starts"] <= time.monotonic():
                         self.last_learn = {"kind": self._learn["kind"], "ok": False,
                                            "message": f"Listening stopped: {self.error}"}
+                        self._learned_at = time.monotonic()
                         self._learn = None
                 if not isinstance(err, RuntimeError):
                     traceback.print_exc()
@@ -541,9 +545,11 @@ class Radar:
                            f"loudest near {quality['peak_hz']} Hz.")
         except LearnError as err:
             self.last_learn = {"kind": kind, "ok": False, "message": str(err)}
+            self._learned_at = time.monotonic()
             return
         self.profile.setdefault("learned", {})[kind] = stamp
         self.last_learn = {"kind": kind, "ok": True, "message": message}
+        self._learned_at = time.monotonic()
         self._reset_matching()
         try:
             save_profile(self.path, self.profile)

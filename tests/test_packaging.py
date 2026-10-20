@@ -58,7 +58,7 @@ def test_client_config_presets_the_log_server_once(home, monkeypatch, tmp_path):
     cfg = launcher.client_config()
     assert cfg["logserver_url"] == "https://logs.test/"
     assert launcher.apply_client_config(cfg)
-    assert share.settings() == {"url": "https://logs.test", "visibility": "public"}
+    assert share.settings() == {"url": "https://logs.test", "visibility": "public", share.PUBLIC_DEFAULT_KEY: True}
     share.save_settings("https://mine.test")
     assert not launcher.apply_client_config(cfg)                    # the user's own choice is kept
     assert share.settings()["url"] == "https://mine.test"

@@ -1,6 +1,6 @@
 /* Build allocation workspace shared by the app and Pages. */
 .bw-skill{padding:12px;border:1px solid var(--line);border-radius:6px;min-width:0;background:var(--panel)}
-.bw-skill .row{margin:10px 0;gap:8px}.bw-skill input[type=number]{width:65px}
+.bw-skill .row{margin:10px 0;gap:8px}.bw-skill input[type=number]{width:75px}
 .bw-effects{display:flex;flex-direction:column;gap:7px}.bw-effects label{display:block;line-height:1.5;overflow-wrap:anywhere}.bw-effects small{color:var(--muted)}
 .bw-board-scroll{overflow:auto;margin:12px 0;padding:5px}.bw-board{display:grid;gap:6px;width:max-content}
 .bw-node{position:relative;width:48px;height:48px;border:2px solid var(--line);border-radius:5px;background:var(--bg1);color:var(--text);padding:3px;cursor:pointer}

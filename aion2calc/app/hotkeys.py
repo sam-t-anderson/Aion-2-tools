@@ -8,9 +8,10 @@ of ``action -> callable`` so a hotkey calls the same code the UI does, with no
 network hop.
 
 Default is no bindings, so nothing changes until the user assigns keys in
-Settings. Only the actions in ``ACTIONS`` can be bound, and every combo is
-validated, so a settings file can never register an arbitrary or unparseable
-key.
+Settings, but for the Hidden Cube radar's two learn steps: Ctrl+1 and Ctrl+2
+while the radar is on (``RADAR_DEFAULTS``). Only the actions in ``ACTIONS`` can
+be bound, and every combo is validated, so a settings file can never register an
+arbitrary or unparseable key.
 """
 from __future__ import annotations
 
@@ -34,9 +35,15 @@ ACTIONS: dict[str, str] = {
     "toggle_field_bosses": "Show / hide field-boss timers on the overlay",
     "toggle_combat_assist": "Show / hide combat assist (skill cooldowns, break gauge)",
     "toggle_cube_radar": "Turn the Hidden Cube radar on / off",
+    "radar_learn_background": "Hidden Cube radar: learn the background (step 1)",
+    "radar_learn_cube": "Hidden Cube radar: learn the cube's sound (step 2)",
     "screenshot_lock": "Screenshot lock (freeze the overlay)",
     "quit": "Exit Aion 2 Calc",
 }
+
+#: The radar's learn steps, pressed in the game beside a cube: bound to these while the radar is on and
+#: never while it is off, so the keys reach the game then. Settings can rebind them or clear them ("").
+RADAR_DEFAULTS = {"radar_learn_background": "Ctrl+1", "radar_learn_cube": "Ctrl+2"}
 
 #: The overlay's combat-assist parts, shown and hidden together by ``toggle_combat_assist``.
 COMBAT_ASSIST = ("overlay_show_cooldowns", "overlay_show_break_gauge")
@@ -125,10 +132,28 @@ def clean_hotkeys(value) -> dict:
         if action not in ACTIONS:
             continue                   # unknown action: ignore, don't trust
         if combo in (None, "", False):
+            if action in RADAR_DEFAULTS:
+                out[action] = ""       # kept: it clears the default binding
             continue                   # explicit unbind
         if not isinstance(combo, str) or not valid_combo(combo):
             raise ValueError(f"hotkey for {action} is not a valid key combo")
         out[action] = combo
+    return out
+
+
+def effective(ui: dict) -> dict:
+    """The bindings to register from the settings: the saved ones, and while the Hidden Cube radar is
+    on its learn steps on their saved keys or ``RADAR_DEFAULTS`` (a saved "" leaves one unbound, and a
+    default another action already uses is skipped)."""
+    saved = ui.get("hotkeys") if isinstance(ui.get("hotkeys"), dict) else {}
+    out = {action: combo for action, combo in saved.items() if combo and action not in RADAR_DEFAULTS}
+    if ui.get("radar_enabled") is True:
+        taken = {str(combo).lower() for combo in out.values()}
+        for action, default in RADAR_DEFAULTS.items():
+            combo = saved.get(action, default)
+            if combo and (action in saved or default.lower() not in taken):
+                out[action] = combo
+                taken.add(combo.lower())
     return out
 
 

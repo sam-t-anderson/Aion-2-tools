@@ -24,7 +24,7 @@
   }
   const browserFingerprint=async row=>{if(!row.input)throw Error('Reselect the original JSON files before resuming.');if(!crypto.subtle)throw Error('Secure file fingerprints require HTTPS or localhost.');return [...new Uint8Array(await crypto.subtle.digest('SHA-256',await row.input.arrayBuffer()))].map(v=>v.toString(16).padStart(2,'0')).join('');};
   function mount(root, io) {
-    let rows=[], offset=0, more=false, busy=false, cancel=false, message='', filter='', type='', recording='', chosenVisibility='unlisted', batch=null,retryUnknown=false,writes=Promise.resolve();
+    let rows=[], offset=0, more=false, busy=false, cancel=false, message='', filter='', type='', recording='', chosenVisibility='public', batch=null,retryUnknown=false,writes=Promise.resolve();
     const selected=new Map(), results=new Map();
     const label=r=>r.title || r.file;
     const checkpoint=()=>cleanCheckpoint({format:'a2log-upload-checkpoint',version:1,server:batch?.url||'',visibility:batch?.visibility||chosenVisibility,
@@ -120,7 +120,7 @@
         ${visible.map((r,i)=>`<tr><td><input type="checkbox" data-pick="${i}" aria-label="Select ${esc(label(r))}" ${selected.has(r.file)?'checked':''} ${busy||r.unfinished?'disabled':''}></td>
         <td>${esc(label(r))}${r.archive?`<br><span class="small muted">${esc(r.archive.id)} · Part ${esc(r.archive.part)}</span> <button class="btn small" data-recording="${i}" ${disabled}>Show recording</button>`:''}</td>
         <td>${r.segments??'—'}</td><td>${r.unfinished?'Unfinished checkpoint':'Saved file'}</td><td><button class="btn small" data-open="${i}" ${disabled}>Open</button></td></tr>`).join('')||'<tr><td colspan="5">No matching files on this page.</td></tr>'}</table></div>
-        <div class="row"><span>${selected.size} selected</span><label>Visibility <select data-visibility ${disabled}>${['unlisted','public','private'].map(v=>`<option ${v===chosenVisibility?'selected':''}>${v}</option>`).join('')}</select></label>
+        <div class="row"><span>${selected.size} selected</span><label>Visibility <select data-visibility ${disabled}>${['public','unlisted','private'].map(v=>`<option ${v===chosenVisibility?'selected':''}>${v}</option>`).join('')}</select></label>
         <button class="btn primary" data-upload ${busy||!selected.size?'disabled':''}>Upload selected / retry remaining</button>
         <button class="btn small" data-cancel ${!busy?'disabled':''}>Cancel after current upload</button>
         <button class="btn small" data-clear ${disabled}>Clear queue</button><button class="btn small" data-manifest ${busy||!results.size?'disabled':''}>Export upload results</button></div>

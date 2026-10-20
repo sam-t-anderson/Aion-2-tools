@@ -18,7 +18,10 @@ urls={s['icon'] for c in build['classes'].values() for s in c['skills'] if s['ic
 urls|={s['icon'] for s in craft['items'].values() if s['icon']}
 urls|={s['icon'] for s in build.get('items',[]) if s.get('icon','').startswith('https://metabot.gg/web/aion2/items/')}
 urls|={'https://metabot.gg/web/aion2/classes/'+c+'.webp' for c in build['classes']}
-references={}
+# The dungeon Odyle Energy icon (the game's Odyle Energy recharge item), shown beside an Odyle Energy readout.
+ODYLE_ENERGY='https://metabot.gg/web/aion2/items/icon_item_odenergy_a_001a.webp'
+urls.add(ODYLE_ENERGY)
+references={'metabot:item-icon:icon_item_odenergy_a_001a':{'namespace':'metabot','kind':'item-icon','id':'icon_item_odenergy_a_001a','url':ODYLE_ENERGY}}
 for c in build['classes'].values():
  for skill in c['skills']:
   if skill['icon']:references['metabot:skill:'+str(skill['id'])]={'namespace':'metabot','kind':'skill','id':str(skill['id']),'url':skill['icon']}

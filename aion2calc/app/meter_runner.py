@@ -1,6 +1,7 @@
 """Background runner for the live meter and its embedded A2Tools capture engine."""
 from __future__ import annotations
 
+import sys
 import threading
 import copy
 import json
@@ -55,8 +56,9 @@ def upload_evictor():
     they are reclaimed. Returns ``None`` — meaning "just delete" — when the feature is
     off (``meter_upload_before_prune``, on by default) or no share server is set.
 
-    The returned callable reads the file, uploads it unlisted, and returns whether the
-    upload succeeded; it never raises and is safe to call from the prune loop."""
+    The returned callable reads the file, uploads it at the visibility set for uploads (public
+    unless changed), and returns whether the upload succeeded; it never raises and is safe to
+    call from the prune loop."""
     try:
         from .server import ui_settings
         if ui_settings().get("meter_upload_before_prune", True) is False:
@@ -76,7 +78,7 @@ def upload_evictor():
                 return True            # a finished part the server already holds: nothing to send
             if share.automatic_uploads_paused():
                 return False           # the server's upload bucket is spent: don't add a rejection
-            share.upload(doc, visibility="unlisted")
+            share.upload(doc)
             return True
         except Exception:
             return False
@@ -112,7 +114,7 @@ class Runner:
         self._snap_cache: tuple | None = None
         self._community_rank: dict = {}   # player id -> {text, scope, percentile} after an upload
         # Live community-rank refresh (opt-in): after a ranked fight ends mid-capture, upload the
-        # snapshot unlisted and refresh the badge, throttled, so it updates without a manual Upload.
+        # snapshot and refresh the badge, throttled, so it updates without a manual Upload.
         self._fight_upload_at = float("-inf")   # monotonic of the last per-fight upload / rank refresh (-inf: never)
         self._fight_upload_key = None     # signature of the fights last sent by the rank refresh
         self._fight_upload_kills = 0      # session.boss_kills at the last per-fight upload
@@ -291,6 +293,11 @@ class Runner:
         if self.packet_engine is not None:
             self.session.begin_capture()
             self.packet_engine.set_server_port(port)
+            if sys.platform == "win32":
+                # Live capture only: a cast-end that comes while nobody touched the keyboard or mouse in the
+                # game is not the player's press (see meter/input_activity.py); replays have no input clock.
+                from ..meter import input_activity
+                self.packet_engine.input_activity = input_activity.read
             previous, self._previous_engine = self._previous_engine, None
             if previous is not None and self._continuing and hasattr(previous, "adopt_identity"):
                 # Restarting mid-recording (to export, after a hiccup): the party, your own actor

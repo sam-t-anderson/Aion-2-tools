@@ -50,6 +50,10 @@ content may not yet fully meet every criterion.
 - **Text alternatives.** Meaningful images provide alternative text, and
   decorative elements are hidden from assistive technology with
   `aria-hidden`.
+- **Text size.** Since 0.2.323 no text in the app or on the website is smaller
+  than 16 px (the page text, tables, labels, notes and code included), and the
+  combat logs and their reviews are drawn at 125 %. The overlay keeps its own
+  size setting, below.
 - **Theming and readable defaults.** The transparent overlay honors the
   operating system's light/dark preference (`prefers-color-scheme`), and the
   overlay now offers user-adjustable **font family, size (80–160%) and weight**,

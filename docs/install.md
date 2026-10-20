@@ -23,8 +23,27 @@ can also pick a theme with the ◐ button in the top bar or on the **Settings** 
 launch may need one extra click:
 
 * Windows SmartScreen ("Windows protected your PC"): **More info → Run anyway**.
+* Windows 11 Smart App Control: see [below](#windows-11-smart-app-control).
 * macOS ("cannot be opened" or "Apple could not verify"): open **System Settings → Privacy &
   Security**, scroll down to the message about aion2calc and choose **Open Anyway**.
+
+### Windows 11 Smart App Control
+
+If Windows says **"Smart App Control blocked an app that may be unsafe"** (or that it could not
+verify the publisher of `aion2calc.exe`), Smart App Control is on. It blocks an app whose files
+are not signed and that it has no reputation for, and unlike SmartScreen it has no **Run anyway**
+and no way to allow one app. Until the releases are signed, the only way to run aion2calc on that
+computer is to turn Smart App Control off:
+
+1. Open **Windows Security** (Start → type "Windows Security").
+2. Choose **App & browser control → Smart App Control settings**.
+3. Choose **Off**, then start aion2calc again.
+
+On Windows 11 updated from April 2026 you can turn Smart App Control back on in the same place
+later, but it then blocks aion2calc again. On older builds, turning it off stays off until Windows
+is reset or reinstalled. Microsoft Defender and SmartScreen keep protecting the computer either way.
+Signed releases are the real fix; the release workflow is ready for a signing certificate
+([code signing](code-signing.md)).
 
 **Using it.** The first page has three steps: import your character, get gear advice, add your
 fights. **Settings** holds the theme, the data folder (with buttons to open it), the log server

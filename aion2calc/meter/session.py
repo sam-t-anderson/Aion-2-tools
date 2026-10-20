@@ -276,6 +276,33 @@ class CombatSession:
         # uses it to know, after the fact, that a group was a boss / mini-boss fight.
         self._major_history = set()
 
+    @staticmethod
+    def _corrected(identity, local):
+        """The local id a record was stamped with, after the corrections its epoch made to a
+        guessed identity (``local_corrections``: guessed id -> the corrected one)."""
+        corrections = identity.get("local_corrections") or {}
+        seen = set()
+        while local in corrections and local not in seen:
+            seen.add(local)
+            local = corrections[local]
+        return local
+
+    def _first_party_hit(self, ekey, allowed_in, default_ms):
+        """When the party first hit this enemy in the open fight, by the identities known now. A
+        recorder the meter named only after its first hits (a meter started inside a zone, named by
+        its first cast or MP record) or a member a late roster named hit the boss before it counted
+        as the party's: dating the engagement from that first hit starts the live view there, so
+        those hits stay on it instead of the view resetting at the first hit after the naming."""
+        first = default_ms
+        for record in reversed(self.records):
+            if record.epoch != ekey[0] or record.run != self.run or record.split != self.manual_split:
+                break
+            event = record.event
+            if (isinstance(event, DamageEvent) and event.target_id == ekey[1] and event.timestamp_ms < first
+                    and event.actor_id in allowed_in(record, "party")):
+                first = event.timestamp_ms
+        return first
+
     def _engage_major(self, ekey, engaged_ms):
         """Mark a boss / mini-boss as engaged. If a previous boss was killed earlier in the
         same segment and this engagement is after that kill, split first so each boss is its
@@ -650,6 +677,13 @@ class CombatSession:
         identity["owners"].update(engine.summon_owners)
         identity["profile"] = dict(engine.local_profile)
         if engine.local_player_id is not None:
+            previous = identity["local_id"]
+            if previous is not None and previous != engine.local_player_id:
+                # The local player changed inside one zone: a best guess from cast-ends that the self or MP
+                # record superseded, an identity carried from another zone, or the player re-registered.
+                # Either way the effects recorded under the old id belong to the player named now.
+                identity.setdefault("local_corrections", {})[previous] = engine.local_player_id
+                identity["local_corrections"].pop(engine.local_player_id, None)   # never a loop back
             identity["local_id"] = engine.local_player_id
         self._check_boss_wipe(timestamp_ms, engine)
         party = frozenset(name.casefold() for name in engine.roster) or identity.get("carried_roster", frozenset())
@@ -736,7 +770,7 @@ class CombatSession:
                         self._boss_hit_ms = {ekey: event.timestamp_ms}
                 if event.actor_id in allowed and target_code and ekey not in self._engaged_major:
                     if npc_info(target_code).get("isBoss"):
-                        self._engage_major(ekey, event.timestamp_ms)
+                        self._engage_major(ekey, self._first_party_hit(ekey, allowed_in, event.timestamp_ms))
                     elif ekey not in self._engage_span:
                         if len(self._engage_span) > 512:   # bound: forget stale trash contacts
                             self._engage_span.clear()
@@ -927,6 +961,47 @@ class CombatSession:
         return (not record.party and bool(identity.get("initial_roster"))
                 and 0 < record.sequence <= identity.get("initial_roster_sequence", 0))
 
+    def _fought_alone(self, group, identity, members, scope) -> bool:
+        """A PvE fight the recording player fought alone, with no party list: its party is the player.
+        The game sends no party list to a player outside a party (a two-hour recording had none until
+        its party formed), so every solo fight was exported with an incomplete roster and listed with an
+        unknown party size. A party list can also stay unsent for minutes while in a party, so the fight
+        must hold nobody else: every actor that hit, healed or was hit is the player, one of its pets or
+        an NPC the game named, and no other player hit its enemies meanwhile (with no party list every
+        effect is kept, so those hits are in the session even though the fight leaves them out). Another
+        player, or an actor with no NPC record, keeps the party unknown."""
+        if (scope != "party" or group["pvp"] or any(r.party for r in group["records"]) or identity["roster"]
+                or identity.get("carried_entries") or identity.get("initial_roster")):
+            return False
+        local = {self._corrected(identity, r.local_id) for r in group["records"]} | {identity["local_id"]}
+        local.discard(None)
+        if len(local) != 1 or set(members) != local:
+            return False
+        owners = identity["owners"]
+
+        def owner(actor):
+            seen = set()
+            while actor in owners and actor not in seen:
+                seen.add(actor)
+                actor = owners[actor]
+            return actor
+
+        # In a PvE fight whatever the player hits, or is hit by, is an enemy, even one whose spawn record the
+        # capture missed (a meter started inside a zone); another player can only be beside the player.
+        enemies = {r.event.target_id for r in group["records"] if isinstance(r.event, DamageEvent) and owner(r.event.actor_id) in local}
+        enemies |= {owner(r.event.actor_id) for r in group["records"] if isinstance(r.event, DamageEvent) and r.event.target_id in local}
+
+        def stranger(actor):
+            actor = owner(actor)
+            return (bool(actor) and actor not in local and actor not in enemies
+                    and not identity["spawns"].get(actor, {}).get("mobCode"))
+
+        if any(stranger(r.event.actor_id) or stranger(r.event.target_id) for r in group["records"]):
+            return False
+        start, end = group["start"] - 2_000, group["end"] + 2_000
+        return not any(r.epoch == group["epoch"] and start <= r.event.timestamp_ms <= end
+                       and r.event.target_id in enemies | local and stranger(r.event.actor_id) for r in self.records)
+
     @staticmethod
     def _roster_info(identity, name) -> dict:
         """A party member's roster entry (server, character id, class, gear): this epoch's own
@@ -966,7 +1041,7 @@ class CombatSession:
     def _allowed(self, record, scope):
         identity = self.identities[record.epoch]
         scope = self._effective_scope(scope, record.epoch)
-        local = record.local_id if record.local_id is not None else identity["local_id"]
+        local = self._corrected(identity, record.local_id if record.local_id is not None else identity["local_id"])
         allowed = {local} if local is not None else set()
         if scope == "party":
             late = self._late_roster(record)
@@ -1195,7 +1270,8 @@ class CombatSession:
         # a tele/port/revive — so this folds in only IDs the engine itself confirmed as
         # yours. It never merges by name, so a different player who shares your name is
         # never counted as you.
-        self_ids = {r.local_id for g in groups for r in g["records"] if r.local_id is not None}
+        self_ids = {self._corrected(self.identities.get(r.epoch, {}), r.local_id)
+                    for g in groups for r in g["records"] if r.local_id is not None}
         self_canon = self_name = None
         for g in reversed(groups):
             lid = self.identities.get(g["epoch"], {}).get("local_id")
@@ -1921,7 +1997,7 @@ class CombatSession:
                 named = set().union(*(set(r.party) for r in group["records"]))
                 if any(self._late_roster(r) for r in group["records"]):        # matched to the first roster seen
                     named |= set(identity.get("initial_roster") or ())
-                local = {r.local_id for r in group["records"]} | {identity["local_id"]}
+                local = {self._corrected(identity, r.local_id) for r in group["records"]} | {identity["local_id"]}
                 roster_allowed = {a for a in roster_allowed if a in acted or a in local or a in identity["owners"]
                                   or identity["names"].get(a, "").casefold() in named}
             if group["pvp"]:
@@ -2007,7 +2083,7 @@ class CombatSession:
             group_scope = self._effective_scope(scope, group["epoch"])
             roster_late = group_scope == "party" and any(self._late_roster(r) for r in group["records"])
             roster_complete = (group_scope == "party" and expected <= known and bool(expected) and bool(members) and not roster_late
-                               and len({r.party for r in group["records"]}) == 1)
+                               and len({r.party for r in group["records"]}) == 1) or self._fought_alone(group, identity, members, group_scope)
             health = []
             # Preserve the latest pre-pull HP evidence, bounded to 30 seconds.
             # A stale earlier full-HP sample must never override a newer low-HP sample.

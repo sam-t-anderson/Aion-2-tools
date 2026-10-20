@@ -104,7 +104,7 @@
       const groups = ((d && d.groups) || []).slice().sort((a, b) =>
         String(a.boss || "").localeCompare(String(b.boss || "")) || String(a.difficulty || "").localeCompare(String(b.difficulty || "")));
       const filters = '<div class="row comm-filters" style="gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap">'
-        + field("Boss", `<select id="pf-boss" style="min-width:170px">${options((f.boss || []).filter(realBoss), prog.f.boss)}</select>`)
+        + field("Boss", `<select id="pf-boss" style="min-width:195px">${options((f.boss || []).filter(realBoss), prog.f.boss)}</select>`)
         + field("Difficulty", `<select id="pf-difficulty">${options([...(f.difficulty || [])].sort((a, b) => String(a).localeCompare(String(b))), prog.f.difficulty)}</select>`)
         + field("Region", `<select id="pf-region">${options(f.region, prog.f.region)}</select>`)
         + field("Product", `<select id="pf-game_patch">${options(f.game_patch, prog.f.game_patch, patchOf)}</select>`)
@@ -230,7 +230,7 @@
       const encOpts = (f.encounter_type || []).filter((t) => (comm.f.combat_mode === "pvp") === String(t).startsWith("pvp_"));
       r.innerHTML = '<div class="row comm-filters" style="gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap">'
         + field("Mode", `<select id="cf-mode"><option value="pve"${comm.f.combat_mode !== "pvp" ? " selected" : ""}>PvE</option><option value="pvp"${comm.f.combat_mode === "pvp" ? " selected" : ""}>PvP</option></select>`)
-        + (comm.f.combat_mode === "pvp" ? "" : field("Boss", `<select id="cf-boss" style="min-width:170px">${options((f.boss || []).filter(realBoss).filter((b) => comm.mini || !isMini(b, f.boss_roles)), comm.f.boss)}</select>`)
+        + (comm.f.combat_mode === "pvp" ? "" : field("Boss", `<select id="cf-boss" style="min-width:195px">${options((f.boss || []).filter(realBoss).filter((b) => comm.mini || !isMini(b, f.boss_roles)), comm.f.boss)}</select>`)
         + `<div class="small muted">Mini-bosses<br><label class="small" title="Earlier bosses of a dungeon whose final boss the catalog knows; hidden unless shown"><input type="checkbox" id="cf-mini"${comm.mini ? " checked" : ""}> show</label></div>`)
         + field("Difficulty", `<select id="cf-difficulty">${options([...(f.difficulty || [])].sort((a, b) => String(a).localeCompare(String(b))), comm.f.difficulty)}</select>`)
         + field("Encounter", `<select id="cf-encounter_type">${options(encOpts, comm.f.encounter_type, comm.f.combat_mode === "pvp" ? pvpType : prettyEnc)}</select>`)

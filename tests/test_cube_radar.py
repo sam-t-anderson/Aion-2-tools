@@ -373,3 +373,38 @@ def test_the_overlay_settings_hotkey_and_bundle_are_wired():
     assert "toggle_cube_radar" in hotkeys.ACTIONS and '"toggle_cube_radar"' in app
     assert "soundcard>=0.4.6; sys_platform == 'win32'" in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert '"soundcard"' in (ROOT / "packaging" / "aion2calc.spec").read_text(encoding="utf-8")
+
+
+def test_the_learn_hotkeys_listen_at_once_and_the_overlay_shows_how_it_went(fresh_radar, monkeypatch):
+    # Ctrl+1 / Ctrl+2 are pressed in the game beside the cube, so they skip the countdown the Settings
+    # buttons give for switching back to the game; the overlay then shows the result for a few seconds
+    calls = []
+
+    class Fake:
+        def learn(self, kind, delay):
+            calls.append((kind, delay))
+
+        def state(self):
+            return {"learning": None}
+
+    monkeypatch.setattr(server, "_RADAR", Fake())
+    monkeypatch.setattr(R, "supported", lambda: True)
+    for bad in (-1, 31, "now", True):
+        with pytest.raises(ValueError, match="countdown"):
+            server.radar_control({"action": "learn", "kind": "cube", "countdown": bad})
+    server.radar_control({"action": "learn", "kind": "cube", "countdown": 0})
+    server.radar_control({"action": "learn", "kind": "background"})
+    assert calls == [("cube", 0.0), ("background", float(R.COUNTDOWN_S))]
+    launcher = (ROOT / "aion2calc" / "launcher.py").read_text(encoding="utf-8")
+    assert '"radar_learn_cube": lambda: server.radar_control({"action": "learn", "kind": "cube", "countdown": 0})' in launcher
+    assert "hotkeys.effective(server.ui_settings())" in launcher
+    js = (STATIC / "overlay.js").read_text(encoding="utf-8")
+    assert "r.last_learn_s<6" in js
+
+
+def test_a_finished_learning_says_when_it_finished(tmp_path):
+    radar = R.Radar(tmp_path / R.PROFILE, source=lambda: FakeSource({"audio": background(4, np.random.default_rng(16))}))
+    assert radar.state()["last_learn_s"] is None
+    radar.learn("background", delay=0, seconds=1.0)
+    assert _wait(lambda: radar.state()["last_learn"] is not None)
+    assert 0 <= radar.state()["last_learn_s"] < 5

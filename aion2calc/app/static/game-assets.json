@@ -31866,6 +31866,12 @@
       "id": "2980309",
       "url": "https://dbaion2.ru/icons/UT_256_MOB_Hibran_01_B.webp",
       "matched_name": "Lieutenant Hebran"
+    },
+    "metabot:item-icon:icon_item_odenergy_a_001a": {
+      "namespace": "metabot",
+      "kind": "item-icon",
+      "id": "icon_item_odenergy_a_001a",
+      "url": "https://metabot.gg/web/aion2/items/icon_item_odenergy_a_001a.webp"
     }
   },
   "assets": {
@@ -33349,6 +33355,7 @@
     "https://metabot.gg/web/aion2/items/icon_item_craft_conversion_crystal_l_lv3_01.webp": "game-assets/cf376ac67a532bf6d49f3d36.webp",
     "https://metabot.gg/web/aion2/items/icon_item_craft_conversion_crystal_l_lv4_01.webp": "game-assets/8c99788f8468217d5866d462.webp",
     "https://metabot.gg/web/aion2/items/icon_item_craft_conversion_crystal_l_lv5_01.webp": "game-assets/7ecb387c8e158d287b017a3d.webp",
+    "https://metabot.gg/web/aion2/items/icon_item_odenergy_a_001a.webp": "game-assets/250c374582a7a15ed53831d8.webp",
     "https://metabot.gg/web/aion2/items/icon_weapon_guarder_c_007.webp": "game-assets/4ddc92603b8dc0b3ebf677eb.webp",
     "https://metabot.gg/web/aion2/items/icon_weapon_guarder_c_009.webp": "game-assets/abbfff583b2a6111a703aaa5.webp",
     "https://metabot.gg/web/aion2/items/icon_weapon_guarder_c_012.webp": "game-assets/20388e8cce5e4bfc9aeba140.webp",

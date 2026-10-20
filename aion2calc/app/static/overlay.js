@@ -983,6 +983,7 @@
       const what=r.learning.kind==="cube"?"the cube's sound":"the background";
       return r.learning.phase==="countdown"?`Learning ${what} in ${Math.ceil(r.learning.seconds)} s: switch to the game`:`Listening to ${what}… ${Math.ceil(r.learning.seconds)} s`;
     }
+    if(r.last_learn&&r.last_learn_s!=null&&r.last_learn_s<6)return r.last_learn.message;   // a learn just finished (Ctrl+1 / Ctrl+2)
     if(!r.supported)return "Hidden Cube radar: Windows only";
     if(r.error)return "Hidden Cube radar: "+r.error;
     if(!r.ready)return "Hidden Cube radar: teach it the cube's sound in Settings → Overlay";
