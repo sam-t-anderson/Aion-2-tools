@@ -119,19 +119,24 @@ def test_field_boss_timers_and_combat_assist_hotkeys_are_wired():
     assert 'id="ov-field-bosses"' in APP_JS and "overlay_show_field_bosses" in APP_JS
 
 
-def test_the_radar_learn_steps_are_ctrl_1_and_ctrl_2_while_the_radar_is_on():
-    defaults = {"radar_learn_background": "Ctrl+1", "radar_learn_cube": "Ctrl+2"}
+def test_the_radar_learn_steps_are_ctrl_1_to_ctrl_4_while_the_radar_is_on():
+    defaults = {"radar_learn_background": "Ctrl+1", "radar_learn_cube": "Ctrl+2",
+                "radar_learn_cube_behind": "Ctrl+3", "radar_learn_other": "Ctrl+4"}
     assert hotkeys.RADAR_DEFAULTS == defaults
     assert all(action in hotkeys.ACTIONS for action in defaults)
     assert hotkeys.effective({"hotkeys": {}, "radar_enabled": True}) == defaults
     # off: the keys reach the game, even ones the player chose for the radar
     assert hotkeys.effective({"hotkeys": {"radar_learn_cube": "F7"}, "radar_enabled": False}) == {}
     saved = {"toggle_meter": "Ctrl+Alt+S", "radar_learn_background": "", "radar_learn_cube": "F7"}
-    assert hotkeys.effective({"hotkeys": saved, "radar_enabled": True}) == {"toggle_meter": "Ctrl+Alt+S", "radar_learn_cube": "F7"}
+    assert hotkeys.effective({"hotkeys": saved, "radar_enabled": True}) == {
+        "toggle_meter": "Ctrl+Alt+S", "radar_learn_cube": "F7", "radar_learn_cube_behind": "Ctrl+3", "radar_learn_other": "Ctrl+4"}
     # a default another action already uses gives way; the player's own keys keep theirs
     taken = {"hotkeys": {"toggle_overlay": "Ctrl+1"}, "radar_enabled": True}
-    assert hotkeys.effective(taken) == {"toggle_overlay": "Ctrl+1", "radar_learn_cube": "Ctrl+2"}
+    assert hotkeys.effective(taken) == {"toggle_overlay": "Ctrl+1", "radar_learn_cube": "Ctrl+2",
+                                        "radar_learn_cube_behind": "Ctrl+3", "radar_learn_other": "Ctrl+4"}
     # a cleared learn step is kept as "" so it stays cleared; other cleared actions are dropped
     assert hotkeys.clean_hotkeys({"radar_learn_cube": "", "clear_meter": ""}) == {"radar_learn_cube": ""}
-    assert "RADAR_KEYS={radar_learn_background:\"Ctrl+1\",radar_learn_cube:\"Ctrl+2\"}" in APP_JS
+    assert ('const RADAR_STEPS = { radar_learn_background: "Ctrl+1", radar_learn_cube: "Ctrl+2", '
+            'radar_learn_cube_behind: "Ctrl+3", radar_learn_other: "Ctrl+4" };') in APP_JS
+    assert "const RADAR_KEYS=RADAR_STEPS;" in APP_JS
     assert "is bound to two actions" in APP_JS

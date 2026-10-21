@@ -1,3 +1,23 @@
+## The Hidden Cube radar all the way round, taught by samples (0.2.324)
+
+**A full circle.** The overlay's Hidden Cube radar now draws the whole circle around you, ahead of you at the top, with rings for *right here*, *close*, *nearby* and *far*, and its line names the direction: *ahead to your right*, *behind you to the left*.
+
+**Ahead or behind, from the game's 3D audio.** A stereo mix alone cannot tell a cube ahead from one behind (one 30° to your right sounds like one 150° to your right), so until the radar knows, it draws two hollow blips, one in each place, and reads *to your right, ahead or behind*. The game's 3D audio dulls a sound behind you, and a new step teaches the radar how much: press **Ctrl+3** with your back to the cube, from where you took a sample facing it (**Ctrl+2**). It compares two-second runs of the jingle's low, middle and high notes and keeps what it learned only when it sorts the runs it did not learn from, 85 % on their own side; when your samples ahead and behind sound alike, the status line says so (turn the game's 3D audio on and learn both again a few steps from the cube). On a **surround output** (5.1 or 7.1, such as a virtual-surround headset) the radar records the output's own channels, and once the game has played the jingle on the rear ones, the speakers it plays on tell its direction all the way round, with no sample behind needed.
+
+**Samples, kept and added to.** Each learn step now adds a sample instead of replacing what was learned:
+- **Backgrounds in several places** (**Ctrl+1**): the radar takes their median off before it listens for the jingle, and asks more of each band the more that band varied in them.
+- **The cube near and far** (**Ctrl+2**): beside it, a few steps away and as far off as you can still hear it. The faintest sample sets the radar's rim. A faint sample must be the same jingle (most of its peaks on the jingle's notes) and only the jingle's notes and bands are kept of it.
+- **Sounds that are not a cube** (**Ctrl+4**), such as an Empyrean Trace feather or a voice: the radar stops taking that sound for a cube, by the notes or bands only it plays. A sound the radar cannot tell from the cube's is not kept, since it would hide the cube too.
+- Settings → Overlay lists every sample with **Forget** beside it; **Forget every sample** clears them all.
+- **Ctrl+3** and **Ctrl+4** join **Ctrl+1** and **Ctrl+2**, taken only while the radar is on; Settings → Hotkeys rebinds or clears them.
+
+**The jingle's notes.** Beside its 40 bands, the radar now learns the jingle's notes, the peaks of the fine spectrum. A note stands out of the background far better than a band does: on synthetic sound the radar hears a cube about 6 dB fainter than by its bands alone, and another chime, or a feather a semitone off the cube's notes, no longer passes for one.
+
+**Each step named by its key.** The radar's settings said "press 1" and "press 2" beside "Ctrl+1 (step 1)". Each step now names its key, the one Settings → Hotkeys gives it (its button only when it has none), and the notes say to turn the game's 3D audio on, and what the radar shows when stereo cannot tell ahead from behind.
+
+- What 0.2.323 learned is kept: it becomes a background and a cube sample, heard by its bands until a new cube sample adds the notes.
+- Still in memory only: the app keeps each sample's levels in 40 frequency bands and the jingle's peak frequencies; nothing is recorded or uploaded.
+
 ## Uploads public by default; solo fights listed as a party of one; your player from your own casts; a Hidden Cube radar; chain steps in the macro (0.2.323)
 
 **Uploads are public by default.** Every install saved "unlisted" as its upload visibility on its first launch, so other players' fights reached the log server without ever showing in the community logs or counting in the rankings. Uploads now default to **public**: the Stop, quit, per-fight and before-delete uploads, the live rank refresh and the Upload button all use the visibility in **Settings → Log server**. An install that still had the old default is switched to public once, and the app says so when it opens; a visibility chosen after that, and **private**, are kept. Logs already on the server keep the visibility they were uploaded with.

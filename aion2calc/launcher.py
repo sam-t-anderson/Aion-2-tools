@@ -247,6 +247,9 @@ def _start_hotkeys(port: int, open_app, open_settings):
             # pressed in the game, so the radar listens at once instead of counting down
             "radar_learn_background": lambda: server.radar_control({"action": "learn", "kind": "background", "countdown": 0}),
             "radar_learn_cube": lambda: server.radar_control({"action": "learn", "kind": "cube", "countdown": 0}),
+            "radar_learn_cube_behind": lambda: server.radar_control(
+                {"action": "learn", "kind": "cube", "facing": "behind", "countdown": 0}),
+            "radar_learn_other": lambda: server.radar_control({"action": "learn", "kind": "other", "countdown": 0}),
             "screenshot_lock": lambda: server.pulse_overlay_lock(),
             "quit": lambda: server.schedule_shutdown(),
         }

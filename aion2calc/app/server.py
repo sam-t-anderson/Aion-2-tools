@@ -1386,22 +1386,29 @@ def radar_state() -> dict:
 
 
 def radar_control(body: dict) -> dict:
-    """``{"action": "learn", "kind": "background" | "cube"}`` (with ``"countdown"``, the seconds
-    before it listens: 5 by default, 0 from the hotkeys pressed in the game), ``{"action": "cancel"}``
-    or ``{"action": "clear"}``; returns the radar's state."""
+    """``{"action": "learn", "kind": "background" | "cube" | "other"}`` (a cube sample ``"facing"`` it,
+    ``"ahead"``, the default, or ``"behind"``; ``"countdown"``, the seconds before it listens: 5 by
+    default, 0 from the hotkeys pressed in the game), ``{"action": "forget", "sample": id}``,
+    ``{"action": "cancel"}`` or ``{"action": "clear"}``; returns the radar's state."""
     from . import radar
     action = body.get("action")
-    if action not in ("learn", "cancel", "clear"):
-        raise ValueError("action must be learn, cancel or clear")
+    if action not in ("learn", "forget", "cancel", "clear"):
+        raise ValueError("action must be learn, forget, cancel or clear")
     if action == "learn":
         if body.get("kind") not in radar.LEARN_S:
-            raise ValueError("kind must be background or cube")
+            raise ValueError("kind must be background, cube or other")
+        facing = body.get("facing", "ahead")
+        if facing not in radar.FACINGS:
+            raise ValueError("facing must be ahead or behind")
         countdown = body.get("countdown", radar.COUNTDOWN_S)
         if isinstance(countdown, bool) or not isinstance(countdown, (int, float)) or not 0 <= countdown <= 30:
             raise ValueError("countdown must be 0 to 30 seconds")
         if not radar.supported():
             raise ValueError("The Hidden Cube radar listens to Windows' sound output; it runs on Windows only.")
-        cube_radar().learn(body["kind"], delay=float(countdown))
+        cube_radar().learn(body["kind"], delay=float(countdown), facing=facing)
+    elif action == "forget":
+        if not isinstance(body.get("sample"), str) or not cube_radar().forget(body["sample"]):
+            raise ValueError("no such sample")
     elif action == "cancel":
         cube_radar().cancel()
     else:

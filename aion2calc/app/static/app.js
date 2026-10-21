@@ -1916,6 +1916,25 @@ function customProfileGallery(){
     `<button type="button" class="custtile" data-cust-tile="${esc(p.name)}" title="Apply ${esc(p.name)}"><span class="custtile-img" style="background-image:url('${esc(p.bg)}')"></span><span class="custtile-name">${esc(p.name)}</span></button>`
   ).join('')+`</div>`;
 }
+// The Hidden Cube radar's learn steps and their keys: hotkeys.py RADAR_DEFAULTS unless Settings -> Hotkeys
+// changed them ("" leaves one unbound), so the settings name the keys the game actually gives the app.
+const RADAR_STEPS = { radar_learn_background: "Ctrl+1", radar_learn_cube: "Ctrl+2", radar_learn_cube_behind: "Ctrl+3", radar_learn_other: "Ctrl+4" };
+function radarKey(ui, action) {
+  const saved = ui && ui.hotkeys && typeof ui.hotkeys === "object" ? ui.hotkeys : {};
+  return action in saved ? (saved[action] || "") : RADAR_STEPS[action];
+}
+function radarNotes(ui) {
+  const key = (action, button) => radarKey(ui, action) ? `<b>${esc(radarKey(ui, action))}</b>` : button;
+  return `<div class="small muted" style="margin:2px 0 6px 22px">
+      <p style="margin:0 0 4px">Put headphones on and, in the game's sound settings, turn 3D audio on and mute the music, ambient, monster and your own character's sounds, keeping the effect volume up (what the cube guides advise). Then teach the radar the game's sound in samples. In the game, while the radar is on, each step's key listens at once; its button here waits 5 seconds first, so you can switch back to the game.</p>
+      <ol style="margin:0 0 4px;padding-left:18px">
+        <li>${key("radar_learn_background", "Button 1")} where no cube or feather can be heard, for the background (it listens 4 seconds). Take one in each kind of place you search: the radar takes off what it learned of each before it listens for the jingle.</li>
+        <li>${key("radar_learn_cube", "Button 2")} facing a Hidden Cube while it jingles (8 seconds): first beside it, then a few steps away, then as far off as you can still hear it. The farther samples teach it the jingle at a distance and set how far its rings reach.</li>
+        <li>${key("radar_learn_cube_behind", "Button 3")} from where you took one, with your back to the cube: it learns how the game's 3D audio changes the jingle behind you, and then shows whether the cube is ahead of you or behind.</li>
+      </ol>
+      <p style="margin:0 0 4px">${key("radar_learn_other", "The “not a cube” button")} while a sound the radar takes for a cube plays (an Empyrean Trace feather, a voice in voice chat; 6 seconds): it no longer takes that sound for one, unless it sounds the same as the cube's.</p>
+      <p style="margin:0">The overlay then shows the cube on a circle around you, ahead of you at the top: louder is closer. Without the game's 3D audio or a surround output, stereo cannot tell ahead from behind: the radar shows both places the cube can be, and turning towards it tells which (a cube ahead moves to the middle, one behind further out), as does walking forward (one ahead grows louder). Raise the sensitivity to hear a cube farther away, lower it if voice chat sets it off. Settings → Hotkeys changes the keys. The app reads what Windows plays, in memory, and keeps only the samples' levels in 40 frequency bands and the jingle's peak frequencies: nothing is recorded or uploaded.</p></div>`;
+}
 async function pageSettings() {
   const [s, srv, ui] = await Promise.all([api("/api/status"), api("/api/logserver").catch(() => ({})), api("/api/ui").catch(() => ({}))]);
   const t = getTheme();
@@ -1958,10 +1977,11 @@ async function pageSettings() {
       <label title="Play a short chime when an event notification appears on the overlay"><input type="checkbox" id="ov-events-sound" ${ui.overlay_events_sound === true?'checked':''}> Play a sound when an event notification appears <span class="muted">(off by default)</span></label>
       <div class="row" style="gap:6px;margin:0 0 4px 22px"><label class="btn small" for="ov-events-sound-file">Upload sound</label><input type="file" id="ov-events-sound-file" accept="audio/mpeg,audio/ogg,audio/wav,audio/webm" style="display:none"><button class="btn small" id="ov-events-sound-test" type="button">Test</button><button class="btn small" id="ov-events-sound-clear" type="button">Use default chime</button><span id="ov-events-sound-msg" class="small muted" role="status">${ui.overlay_events_sound_set?'Custom sound set (≤2s recommended).':'Built-in chime.'}</span></div>
       <label><input type="checkbox" id="ov-plan-autoplay" ${ui.overlay_plan_autoplay !== false?'checked':''}> Auto-play a saved raid plan on the overlay's Plan tab when you fight the boss it is bound to, synced to the pull (on by default)</label><p class="small muted">Bind a plan to a boss in the Raid planner (set its Boss / NPC id). When the meter is in that fight, the Plan tab plays that plan at the encounter's elapsed time; otherwise it loops the latest plan as a preview.</p></div></div>
-    <div class="setrow" data-g="overlay"><div class="lbl">Hidden Cube radar</div><div><label><input type="checkbox" id="radar-enabled" ${ui.radar_enabled === true?'checked':''}> Show on the overlay which side a Hidden Cube is and how near, from the jingle it plays <span class="muted">(Windows; off by default)</span></label>
-      <div class="row" style="gap:6px;margin:4px 0 2px 22px;flex-wrap:wrap"><button class="btn small" id="radar-learn-bg" type="button">1. Learn the background</button><button class="btn small" id="radar-learn-cube" type="button">2. Learn the cube's sound</button><button class="btn small" id="radar-cancel" type="button" hidden>Cancel</button><button class="btn small" id="radar-clear" type="button">Forget the learned sound</button><label>Sensitivity <input type="range" id="radar-sens" min="1" max="10" value="${Number.isInteger(+ui.radar_sensitivity)&&+ui.radar_sensitivity>=1&&+ui.radar_sensitivity<=10?+ui.radar_sensitivity:5}" style="width:110px;vertical-align:middle"></label></div>
+    <div class="setrow" data-g="overlay"><div class="lbl">Hidden Cube radar</div><div><label><input type="checkbox" id="radar-enabled" ${ui.radar_enabled === true?'checked':''}> Show on the overlay where a Hidden Cube is around you and how near, from the jingle it plays <span class="muted">(Windows; off by default)</span></label>
+      <div class="row" style="gap:6px;margin:4px 0 2px 22px;flex-wrap:wrap"><button class="btn small" id="radar-learn-bg" type="button">1. Learn the background</button><button class="btn small" id="radar-learn-cube" type="button">2. Learn the cube, facing it</button><button class="btn small" id="radar-learn-behind" type="button">3. Learn the cube behind you</button><button class="btn small" id="radar-learn-other" type="button">Learn a sound that is not a cube</button><button class="btn small" id="radar-cancel" type="button" hidden>Cancel</button><button class="btn small" id="radar-clear" type="button">Forget every sample</button><label>Sensitivity <input type="range" id="radar-sens" min="1" max="10" value="${Number.isInteger(+ui.radar_sensitivity)&&+ui.radar_sensitivity>=1&&+ui.radar_sensitivity<=10?+ui.radar_sensitivity:5}" style="width:110px;vertical-align:middle"></label></div>
       <p id="radar-status" class="small muted" style="margin:2px 0 4px 22px" role="status">Radar status unknown.</p>
-      <p class="small muted" style="margin:2px 0 6px 22px">Put headphones on and, in the game's sound settings, mute the music, ambient, monster and your own character's sounds, keeping the effect volume up (what the cube guides advise). Stand where no cube or feather can be heard and press <b>1</b>; then stand beside a Hidden Cube while it jingles and press <b>2</b>. Each waits 5 seconds, so you can switch back to the game, then listens for 4 or 6 seconds. In the game, Ctrl+1 (step 1) and Ctrl+2 (step 2) listen at once, while the radar is on (Settings → Hotkeys to change them). The overlay then shows the cube's side and how near it is: louder is closer. Stereo cannot tell ahead from behind: turn towards the sound; if it moves to the middle the cube is ahead, if it moves further out it is behind. Empyrean Trace feathers sound alike. Raise the sensitivity to hear a cube further away, lower it if voice chat sets it off. The app reads what Windows plays, in memory, and keeps only the learned sound's levels in 40 frequency bands: nothing is recorded or uploaded.</p></div></div>
+      <ul id="radar-samples" class="small" style="margin:2px 0 4px 22px;padding-left:18px" aria-label="Learned sound samples" hidden></ul>
+      ${radarNotes(ui)}</div></div>
     <div class="setrow" data-g="overlay"><div class="lbl">In-game (RTSS)</div><div><label><input type="checkbox" id="rtss-enabled" ${ui.rtss_enabled === true?'checked':''}> Draw the meter inside the game through RivaTuner Statistics Server <span class="muted">(Windows; off by default; needs RTSS running with its on-screen display enabled)</span></label>
       <div class="row" style="gap:10px;margin:4px 0 2px 22px"><label>Rows <input type="number" id="rtss-rows" min="1" max="24" value="${Number.isFinite(+ui.rtss_rows)?+ui.rtss_rows:5}" style="width:80px"></label><label>Metric <select id="rtss-metric"><option value="dps" ${(ui.rtss_metric||'dps')==='dps'?'selected':''}>DPS</option><option value="hps" ${ui.rtss_metric==='hps'?'selected':''}>HPS</option><option value="dtps" ${ui.rtss_metric==='dtps'?'selected':''}>Damage taken</option></select></label><label>Style <select id="rtss-style"><option value="plain" ${(ui.rtss_style||'plain')==='plain'?'selected':''}>Plain text</option><option value="colored" ${ui.rtss_style==='colored'?'selected':''}>Class colours (RTSS colour tags)</option></select></label><label>Refresh <input type="number" id="rtss-interval" min="100" max="5000" step="50" value="${Number.isFinite(+ui.rtss_interval_ms)?+ui.rtss_interval_ms:500}" style="width:92px"> ms</label></div>
       <p id="rtss-status" class="small muted" style="margin:2px 0 4px 22px" role="status">RTSS status unknown.</p>
@@ -2269,14 +2289,14 @@ async function pageSettings() {
   // sync with aion2calc/app/hotkeys.py ACTIONS.
   (function(){
     const host=$("#hotkey-rows"); if(!host) return;
-    const ACTIONS=[["toggle_overlay","Show / hide the overlay"],["toggle_meter","Start / stop the meter"],["clear_meter","Clear the meter (battle reset)"],["toggle_click_through","Toggle click-through"],["toggle_party_overlay","Show / hide the Party-DPS overlay"],["open_app","Open the app window"],["open_settings","Open the Settings page"],["toggle_events","Show / hide overlay event notifications"],["toggle_field_bosses","Show / hide field-boss timers on the overlay"],["toggle_combat_assist","Show / hide combat assist (skill cooldowns, break gauge)"],["toggle_cube_radar","Turn the Hidden Cube radar on / off"],["radar_learn_background","Hidden Cube radar: learn the background (step 1)"],["radar_learn_cube","Hidden Cube radar: learn the cube's sound (step 2)"],["screenshot_lock","Screenshot lock (freeze the overlay)"],["quit","Exit Aion 2 Calc"]];
+    const ACTIONS=[["toggle_overlay","Show / hide the overlay"],["toggle_meter","Start / stop the meter"],["clear_meter","Clear the meter (battle reset)"],["toggle_click_through","Toggle click-through"],["toggle_party_overlay","Show / hide the Party-DPS overlay"],["open_app","Open the app window"],["open_settings","Open the Settings page"],["toggle_events","Show / hide overlay event notifications"],["toggle_field_bosses","Show / hide field-boss timers on the overlay"],["toggle_combat_assist","Show / hide combat assist (skill cooldowns, break gauge)"],["toggle_cube_radar","Turn the Hidden Cube radar on / off"],["radar_learn_background","Hidden Cube radar: learn the background (step 1)"],["radar_learn_cube","Hidden Cube radar: learn the cube's sound, facing it (step 2)"],["radar_learn_cube_behind","Hidden Cube radar: learn the cube's sound with it behind you (step 3)"],["radar_learn_other","Hidden Cube radar: learn a sound that is not a cube"],["screenshot_lock","Screenshot lock (freeze the overlay)"],["quit","Exit Aion 2 Calc"]];
     const saved=(ui && ui.hotkeys && typeof ui.hotkeys==='object')?ui.hotkeys:{};
     // The radar's learn steps are bound by default while the radar is on (hotkeys.py RADAR_DEFAULTS); a cleared
     // one is saved as "" so it stays cleared.
-    const RADAR_KEYS={radar_learn_background:"Ctrl+1",radar_learn_cube:"Ctrl+2"};
+    const RADAR_KEYS=RADAR_STEPS;
     const shown=a=>a in RADAR_KEYS&&!(a in saved)?RADAR_KEYS[a]:(saved[a]||'');
     host.innerHTML=ACTIONS.map(([a,label])=>`<div class="row" style="gap:8px;margin:2px 0"><span style="min-width:230px">${esc(label)}</span><input type="text" readonly class="hotkey-input" data-action="${esc(a)}" value="${esc(shown(a))}" placeholder="Click, then press keys" style="width:206px"><button type="button" class="btn small hotkey-clear" data-action="${esc(a)}">Clear</button></div>`).join('')
-      +`<p class="small muted">The Hidden Cube radar's learn steps work only while the radar is on, and are Ctrl+1 and Ctrl+2 unless you change them. While they are bound, Windows gives those keys to this app instead of the game: clear them or pick other keys if the game uses them.</p>`;
+      +`<p class="small muted">The Hidden Cube radar's learn steps work only while the radar is on, and are Ctrl+1 to Ctrl+4 unless you change them. While they are bound, Windows gives those keys to this app instead of the game: clear them or pick other keys if the game uses them.</p>`;
     const NAMED={' ':'Space','Escape':'Esc','ArrowUp':'Up','ArrowDown':'Down','ArrowLeft':'Left','ArrowRight':'Right','Enter':'Enter','Tab':'Tab','Backspace':'Backspace','Delete':'Delete','Insert':'Insert','Home':'Home','End':'End','PageUp':'PageUp','PageDown':'PageDown'};
     function comboFromEvent(e){
       if(['Control','Alt','Shift','Meta','OS'].includes(e.key)) return null;   // modifier alone
@@ -2324,31 +2344,68 @@ async function pageSettings() {
   const rtssStatus = async () => { const el = $("#rtss-status"); if (!el) return; try { const s = await api('/api/rtss'); el.textContent = !s.supported ? 'RTSS output is available on Windows only.' : !s.enabled ? 'Off.' : s.connected ? `Drawing in RTSS OSD slot ${s.slot} (shared memory v${s.version}, ${s.updates} updates).` : (s.error || 'Waiting for RTSS…'); } catch (_) { el.textContent = 'RTSS status unavailable.'; } };
   if ($("#radar-enabled")) {
     const RADAR_NEAR=[[0.8,"right here"],[0.5,"close"],[0.25,"nearby"],[0,"far"]];
+    const near = r => (RADAR_NEAR.find(([p]) => (r.proximity || 0) >= p) || RADAR_NEAR[3])[1];
+    const what = l => l.kind === "background" ? "the background" : l.kind === "other" ? "a sound that is not a cube"
+      : l.facing === "behind" ? "the cube's sound behind you" : "the cube's sound";
+    const plural = (n, one, many) => `${n} ${n === 1 ? one : (many || one + "s")}`;
+    const LAYOUTS = { 4: "quad", 6: "5.1", 8: "7.1" };
+    const learnedText = r => {
+      const m = r.model || {};
+      if (!r.ready) return m.backgrounds ? `${plural(m.backgrounds, "background sample")} learned: now learn the cube's sound (step 2).` : "Nothing learned yet: step 1, then step 2.";
+      const bits = [plural(m.cubes, "cube sample") + (m.behind ? ` (${m.ahead} facing it, ${m.behind} behind you)` : ""),
+        m.backgrounds ? plural(m.backgrounds, "background sample") : "no background (step 1 improves it)"];
+      if (m.others) bits.push(plural(m.others, "sound that is not a cube", "sounds that are not a cube"));
+      const facing = { learned: "It tells ahead from behind.",
+        alike: "Ahead and behind sound alike to it: turn on the game's 3D audio, then learn both again a few steps from the cube.",
+        need_ahead: "Learn it facing the cube too (step 2) to tell ahead from behind.",
+        need_more: "Too little of the jingle was heard to tell ahead from behind: learn both again a little closer." }[m.front_back]
+        || (r.channels >= 4 ? "" : "Learn it behind you too (step 3) to tell ahead from behind.");
+      return `Learned ${bits.join(", ")}${m.notes ? ", with the jingle's notes" : ""}. ${facing}`.trim();
+    };
+    const sampleRow = s => {
+      const bits = [s.kind === "cube" ? (s.facing === "behind" ? "Cube, behind you" : "Cube, facing it") : s.kind === "other" ? "Not a cube" : "Background"];
+      if (s.kind === "cube" && s.level_db != null) bits.push(s.level_db >= -1 ? "the loudest" : `${-s.level_db} dB below the loudest`);
+      if (s.kind !== "background" && s.notes) bits.push("with its notes");
+      if (s.alike) bits.push("sounds the same as the cube, so it is not used");
+      if (s.at) bits.push(s.at.replace("T", " "));
+      return `<li>${esc(bits.join(" · "))} <button class="btn small radar-forget" type="button" data-id="${esc(s.id)}" aria-label="Forget this sample">Forget</button></li>`;
+    };
+    let shownSamples = null;
     const radarStatus = async () => {
       const el = $("#radar-status"); if (!el) return;
       let r; try { r = await api("/api/radar"); } catch (e) { el.textContent = "Radar status unavailable."; return; }
       const learning = r.learning, last = r.last_learn;
       $("#radar-cancel").hidden = !learning;
-      const what = k => k === "cube" ? "the cube's sound" : "the background";
       const parts = [];
       if (!r.supported) parts.push("The radar listens to Windows' sound output; it runs on Windows only.");
-      else if (learning) parts.push(learning.phase === "countdown" ? `Learning ${what(learning.kind)} in ${Math.ceil(learning.seconds)} s: switch to the game.` : `Listening to ${what(learning.kind)}… ${Math.ceil(learning.seconds)} s left.`);
+      else if (learning) parts.push(learning.phase === "countdown" ? `Learning ${what(learning)} in ${Math.ceil(learning.seconds)} s: switch to the game.` : `Listening to ${what(learning)}… ${Math.ceil(learning.seconds)} s left.`);
       else {
         if (last) parts.push(last.message);
-        parts.push(r.ready ? `Cube sound learned${r.learned && r.learned.cube ? " " + r.learned.cube.replace("T", " ") : ""}${r.learned && r.learned.background ? "; background learned" : "; no background learned (step 1 improves it)"}.` : "Nothing learned yet: step 1, then step 2.");
+        parts.push(learnedText(r));
         if (r.error) parts.push("Not listening: " + r.error + ".");
-        else if (r.enabled && r.listening) parts.push(r.heard ? `Hearing a cube ${r.side === "middle" ? "ahead or behind" : "to your " + r.side}, ${(RADAR_NEAR.find(([p]) => (r.proximity || 0) >= p) || RADAR_NEAR[3])[1]} (match ${Math.round((r.match || 0) * 100)} %).` : `Listening${r.device ? " to " + r.device : ""}: no cube heard.`);
+        else if (r.enabled && r.listening) parts.push(r.heard ? `Hearing a cube ${r.direction}, ${near(r)} (match ${Math.round((r.match || 0) * 100)} %).`
+          : `Listening${r.device ? " to " + r.device : ""}${r.channels >= 4 ? ` (${LAYOUTS[r.channels] || r.channels + " channels"}: it hears the rear channels)` : ""}: no cube heard.`);
         else if (!r.setting) parts.push("Off.");
       }
       el.textContent = parts.join(" ");
+      const samples = r.samples || [], key = JSON.stringify(samples);
+      if (key !== shownSamples) {          // rebuilt only when the samples change, so a Forget button keeps its focus
+        shownSamples = key;
+        const list = $("#radar-samples");
+        list.innerHTML = samples.map(sampleRow).join("");
+        list.hidden = !samples.length;
+        list.querySelectorAll(".radar-forget").forEach(b => { b.onclick = () => radarControl({ action: "forget", sample: b.dataset.id }); });
+      }
     };
     $("#radar-enabled").onchange = () => api("/api/ui", { radar_enabled: $("#radar-enabled").checked }).then(() => { toast("Saved"); setTimeout(radarStatus, 400); });
     $("#radar-sens").onchange = () => api("/api/ui", { radar_sensitivity: Math.max(1, Math.min(10, parseInt($("#radar-sens").value, 10) || 5)) }).then(() => toast("Saved"));
     const radarControl = body => api("/api/radar", body).then(radarStatus).catch(e => toast(String(e.message || e)));
     $("#radar-learn-bg").onclick = () => radarControl({ action: "learn", kind: "background" });
     $("#radar-learn-cube").onclick = () => radarControl({ action: "learn", kind: "cube" });
+    $("#radar-learn-behind").onclick = () => radarControl({ action: "learn", kind: "cube", facing: "behind" });
+    $("#radar-learn-other").onclick = () => radarControl({ action: "learn", kind: "other" });
     $("#radar-cancel").onclick = () => radarControl({ action: "cancel" });
-    $("#radar-clear").onclick = () => { if (confirm("Forget the learned background and cube sound?")) radarControl({ action: "clear" }); };
+    $("#radar-clear").onclick = () => { if (confirm("Forget every learned sample: the backgrounds, the cube's sound and the sounds that are not a cube?")) radarControl({ action: "clear" }); };
     radarStatus();
     const radarTimer = setInterval(() => {
       const el = document.getElementById("radar-status");

@@ -301,23 +301,29 @@ What you need: RTSS 7.x running (its *Show On-Screen Display* on, and the game n
 
 ### Hidden Cube radar
 
-**Settings → Overlay → Hidden Cube radar** (Windows, off by default) shows on the overlay which side a Hidden Cube is and how near, from the soft jingle it plays: the sound the cube guides tell players to listen for, headphones on, with the game's music, ambient, monster and own-character sounds muted and the effect volume up.
+**Settings → Overlay → Hidden Cube radar** (Windows, off by default) shows on the overlay where a Hidden Cube is around you and how near, from the soft jingle it plays: the sound the cube guides tell players to listen for, headphones on, with the game's music, ambient, monster and own-character sounds muted and the effect volume up. Turn the game's **3D audio** on too: it is what lets the radar tell a cube ahead from one behind.
 
-1. Stand where no cube or Empyrean Trace feather can be heard and press **1. Learn the background**.
-2. Stand beside a Hidden Cube while it jingles and press **2. Learn the cube's sound**.
+Teach it the game's sound in samples. In the game, while the radar is on, each step's key listens at once; its button in Settings waits 5 seconds first, so you can switch back to the game (some setups mute a game in the background).
 
-Each waits 5 seconds, so you can switch back to the game (some setups mute a game in the background), then listens for 4 or 6 seconds; the status line says what was learned, or what to change (stand closer, mute the music) when the jingle did not stand out. Then tick the box. The overlay shows the half-circle ahead of you with the cube's blip: its side from the stereo balance, how near it is from how loud it is against the learned jingle (*right here*, *close*, *nearby*, *far*), and *getting closer* or *moving away* as you walk. It stays on the radar 2.5 seconds after the jingle last sounded, and the line says when it last heard one.
+1. **Ctrl+1**, where no cube or Empyrean Trace feather can be heard: the background (4 seconds). Take one in each kind of place you search: the radar takes the median of them off before it listens for the jingle, and asks more of each band the more that band varied.
+2. **Ctrl+2**, facing a Hidden Cube while it jingles (8 seconds): first beside it, then a few steps away and as far off as you can still hear it. The loudest sample is *right here*, and the faintest sets the radar's rim (30 dB below the loudest, or 6 dB past the faintest, up to 50 dB). A later sample may be faint, but it must be the same jingle (most of its peaks on the jingle's notes, or its bands shaped like the jingle's), and only those notes and bands are kept of it: far off, a footstep is as loud as the jingle.
+3. **Ctrl+3**, from where you took one, with your back to the cube (8 seconds): the radar learns how the game's 3D audio changes the jingle behind you, and then shows whether a cube is ahead of you or behind.
 
-- **Ahead or behind:** a stereo mix cannot tell them apart; a cube 30° to your right sounds like one 150° to your right. Turn towards the sound: if it moves to the middle the cube is ahead, if it moves further out it is behind.
-- **Feathers:** an Empyrean Trace feather's jingle is nearly the cube's, so the radar hears feathers too.
-- **Sensitivity** (1–10, 5 by default): raise it to hear a cube further away, lower it if voice chat sets it off. Music does not hide the jingle; voice chat in the same range can.
-- **Learn again** after changing the game's volume a lot, or with different headphones; **Forget the learned sound** clears it.
-- Hotkeys (Settings → Hotkeys): **Ctrl+1** learns the background and **Ctrl+2** the cube's sound, at once and without the
-  5-second countdown, so you can teach it without leaving the game; the overlay shows what was learned. These two keys
-  are taken only while the radar is on, and you can rebind or clear them. **Turn the Hidden Cube radar on / off** can be
-  bound there too.
+**Ctrl+4**, while a sound the radar takes for a cube plays (an Empyrean Trace feather, a voice in voice chat, a skill; 6 seconds): it no longer takes that sound for one, by the notes or bands only that sound plays. A sound the radar cannot tell from the cube's (the same notes) is not kept, since it would hide the cube too.
 
-The app reads what Windows plays (a loopback recording of the default output) in memory and keeps only the learned sound's levels in 40 frequency bands, in `hidden-cube-sound.json` in your data folder. Nothing is recorded or uploaded, and nothing is sent to the game.
+The status line says what each sample taught, or what to change (stand closer, mute the music), and the list under it shows every sample (what it is, how far below the loudest, whether its notes were found, when) with **Forget** beside each; **Forget every sample** clears them all. The newest 6 background, 6 facing, 4 behind and 6 not-a-cube samples are kept.
+
+**On the overlay**, a circle around you, ahead of you at the top, with rings for *right here*, *close*, *nearby* and *far*, carries the cube's blip: its side from the stereo balance, how near it is from how loud it is against the loudest sample, and *getting closer* or *moving away* as you walk. It stays on the radar 2.5 seconds after the jingle last sounded, and the line says when it last heard one.
+
+- **Ahead or behind.** A stereo mix alone cannot tell them apart: a cube 30° to your right sounds like one 150° to your right. Until the radar knows, it draws two hollow blips, one in each place, and the line reads *to your right, ahead or behind*: turn towards the sound (a cube ahead moves to the middle, one behind further out) or walk forward (one ahead grows louder). It draws one solid blip (*ahead to your right*, *behind you to the left*) once it can tell:
+  - **The game's 3D audio** dulls a sound behind you. Steps 2 and 3 teach the radar how much: it compares two-second runs of the jingle's low, middle and high notes, and keeps what it learned only when it sorts the runs it did not learn from (85 % on their own side). If your samples ahead and behind sound alike (3D audio off, or taken right beside the cube, where the game may not place the sound), the status line says so: learn both again a few steps from the cube.
+  - **A surround output** (5.1 or 7.1, such as a virtual-surround headset): the radar records its own channels, and once it has heard the jingle on the rear ones (so the game renders it in surround), the speakers it plays on tell its direction all the way round, with no sample behind needed.
+- **Notes.** When the jingle is a sparkle of notes, as a cube's is, the radar learns the notes themselves (the peaks of the fine spectrum) beside its bands. A note stands out of the background far better than a band does: on synthetic sound the radar hears a cube about 6 dB fainter than by its bands alone, and another chime, or a feather a semitone off the cube's notes, is not taken for one. A profile learned by 0.2.323 keeps working by its bands until a new sample adds the notes.
+- **Sensitivity** (1–10, 5 by default): raise it to hear a cube further away, lower it if voice chat sets it off. Music does not hide the jingle.
+- **Learn again** after changing the game's volume a lot, or with different headphones.
+- Hotkeys (Settings → Hotkeys): **Ctrl+1** to **Ctrl+4** are the steps above, taken only while the radar is on; rebind or clear them there, and the Settings notes name the keys you chose. **Turn the Hidden Cube radar on / off** can be bound there too.
+
+The app reads what Windows plays (a loopback recording of the default output) in memory and keeps only each sample's levels in 40 frequency bands and the jingle's peak frequencies, in `hidden-cube-sound.json` in your data folder. Nothing is recorded or uploaded, and nothing is sent to the game.
 
 ### Overlay refresh and diagnostic export
 

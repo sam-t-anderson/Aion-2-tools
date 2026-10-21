@@ -959,9 +959,9 @@
     renderEvents();
   }
 
-  // The Hidden Cube radar (off by default): which side a cube's jingle comes from and how loud it
-  // is, from the game's sound, which the app listens to in memory (radar.py). It has its own poll so
-  // it keeps up while exploring with the meter collapsed between fights.
+  // The Hidden Cube radar (off by default): where a cube's jingle comes from, on a circle around you, and
+  // how loud it is, from the game's sound, which the app listens to in memory (radar.py). It has its own poll
+  // so it keeps up while exploring with the meter collapsed between fights.
   let radarOn=false, radarTimer=null, radarBusy=false;
   const RADAR_NEAR=[[0.8,"right here"],[0.5,"close"],[0.25,"nearby"],[0,"far"]];
   function setupRadar(on){
@@ -980,17 +980,23 @@
   }
   function radarText(r){
     if(r.learning){
-      const what=r.learning.kind==="cube"?"the cube's sound":"the background";
-      return r.learning.phase==="countdown"?`Learning ${what} in ${Math.ceil(r.learning.seconds)} s: switch to the game`:`Listening to ${what}… ${Math.ceil(r.learning.seconds)} s`;
+      const l=r.learning, what=l.kind==="background"?"the background":l.kind==="other"?"a sound that is not a cube"
+        :l.facing==="behind"?"the cube's sound behind you":"the cube's sound";
+      return l.phase==="countdown"?`Learning ${what} in ${Math.ceil(l.seconds)} s: switch to the game`:`Listening to ${what}… ${Math.ceil(l.seconds)} s`;
     }
-    if(r.last_learn&&r.last_learn_s!=null&&r.last_learn_s<6)return r.last_learn.message;   // a learn just finished (Ctrl+1 / Ctrl+2)
+    if(r.last_learn&&r.last_learn_s!=null&&r.last_learn_s<6)return r.last_learn.message;   // a learn just finished (its hotkey)
     if(!r.supported)return "Hidden Cube radar: Windows only";
     if(r.error)return "Hidden Cube radar: "+r.error;
     if(!r.ready)return "Hidden Cube radar: teach it the cube's sound in Settings → Overlay";
     if(!r.heard)return "Listening for a Hidden Cube…"+(r.since!=null&&r.since<60?` last heard ${Math.round(r.since)} s ago`:"");
     const near=(RADAR_NEAR.find(([p])=>(r.proximity||0)>=p)||RADAR_NEAR[3])[1];
     const trend=r.trend==="louder"?" · getting closer":r.trend==="quieter"?" · moving away":"";
-    return `Hidden Cube ${r.side==="middle"?"ahead or behind":"to your "+r.side} · ${near}${trend}`;
+    return `Hidden Cube ${r.direction||"nearby"} · ${near}${trend}`;
+  }
+  function placeBlip(blip,angle,proximity){   // 0° ahead (up), clockwise; the rim is the farthest it hears
+    const a=(angle||0)*Math.PI/180, d=6+50*(1-(proximity||0));
+    blip.setAttribute("cx",(60+d*Math.sin(a)).toFixed(1));
+    blip.setAttribute("cy",(60-d*Math.cos(a)).toFixed(1));
   }
   function renderRadar(r){
     const el=$("#ovradar");
@@ -998,18 +1004,20 @@
     const show=radarOn&&!!r;
     if(el.hidden===show){el.hidden=!show;fit();}
     if(!show)return;
-    if(!el.firstElementChild){   // built once; each poll moves the blip and changes the text only when it differs
-      el.innerHTML=`<svg class="ovrsvg" viewBox="0 0 120 62" aria-hidden="true"><path class="ovrring" d="M4 58 A56 56 0 0 1 116 58"/><path class="ovrring" d="M22 58 A38 38 0 0 1 98 58"/><path class="ovrring" d="M40 58 A20 20 0 0 1 80 58"/><line class="ovrtick" x1="60" y1="58" x2="60" y2="4"/><circle class="ovrme" cx="60" cy="58" r="3"/><circle class="ovrblip" cx="60" cy="58" r="5" style="display:none"/></svg><span class="ovrtext"></span>`;
-      el.title="The cube's jingle, heard in the game's sound: louder is closer, its side is the stereo balance. Stereo cannot tell ahead from behind: turn towards it; if it moves to the middle it is ahead, if it moves further out it is behind. Empyrean Trace feathers sound alike.";
+    if(!el.firstElementChild){   // built once; each poll moves the blips and changes the text only when it differs
+      el.innerHTML=`<svg class="ovrsvg" viewBox="0 0 120 120" aria-hidden="true"><circle class="ovrring" cx="60" cy="60" r="56"/><circle class="ovrring" cx="60" cy="60" r="38"/><circle class="ovrring" cx="60" cy="60" r="20"/><line class="ovrtick" x1="60" y1="60" x2="60" y2="4"/><line class="ovrtick ovrside" x1="4" y1="60" x2="116" y2="60"/><path class="ovrme" d="M60 53 L65 65 L60 62 L55 65 Z"/><circle class="ovrblip" cx="60" cy="60" r="5" style="display:none"/><circle class="ovrblip ovrghost" cx="60" cy="60" r="5" style="display:none"/></svg><span class="ovrtext"></span>`;
+      el.title="The cube's jingle, heard in the game's sound, on a circle around you (ahead at the top): louder is closer. Once the radar has learned the cube's sound with it behind you (Settings → Overlay, step 3) and the game's 3D audio is on, or the sound plays in surround, it shows whether the cube is ahead or behind; until then two hollow marks show both places it can be: turn towards it (a cube ahead moves to the middle) or walk forward (one ahead grows louder). Empyrean Trace feathers sound alike: teach the radar one as a sound that is not a cube.";
     }
-    const blip=el.querySelector(".ovrblip"), label=el.querySelector(".ovrtext");
+    const [blip,ghost]=el.querySelectorAll(".ovrblip"), label=el.querySelector(".ovrtext");
     if(r.heard&&!r.learning){
-      const a=(r.angle||0)*Math.PI/180, d=6+50*(1-(r.proximity||0));
-      blip.setAttribute("cx",(60+d*Math.sin(a)).toFixed(1));
-      blip.setAttribute("cy",(58-d*Math.cos(a)).toFixed(1));
-      blip.style.opacity=Math.max(0.35,1-(r.since||0)/2.5).toFixed(2);
+      const mirrored=r.mirror!=null, opacity=Math.max(0.35,1-(r.since||0)/2.5).toFixed(2);
+      placeBlip(blip,r.angle,r.proximity);
+      blip.classList.toggle("ovrhollow",mirrored);
+      blip.style.opacity=opacity;
       blip.style.display="";
-    } else blip.style.display="none";
+      if(mirrored){placeBlip(ghost,r.mirror,r.proximity);ghost.style.opacity=opacity;ghost.style.display="";}
+      else ghost.style.display="none";
+    } else {blip.style.display="none";ghost.style.display="none";}
     const text=radarText(r);
     if(label.textContent!==text)label.textContent=text;
   }

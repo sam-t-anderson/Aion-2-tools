@@ -8,8 +8,8 @@ of ``action -> callable`` so a hotkey calls the same code the UI does, with no
 network hop.
 
 Default is no bindings, so nothing changes until the user assigns keys in
-Settings, but for the Hidden Cube radar's two learn steps: Ctrl+1 and Ctrl+2
-while the radar is on (``RADAR_DEFAULTS``). Only the actions in ``ACTIONS`` can
+Settings, but for the Hidden Cube radar's learn steps: Ctrl+1 to Ctrl+4 while
+the radar is on (``RADAR_DEFAULTS``). Only the actions in ``ACTIONS`` can
 be bound, and every combo is validated, so a settings file can never register an
 arbitrary or unparseable key.
 """
@@ -36,14 +36,17 @@ ACTIONS: dict[str, str] = {
     "toggle_combat_assist": "Show / hide combat assist (skill cooldowns, break gauge)",
     "toggle_cube_radar": "Turn the Hidden Cube radar on / off",
     "radar_learn_background": "Hidden Cube radar: learn the background (step 1)",
-    "radar_learn_cube": "Hidden Cube radar: learn the cube's sound (step 2)",
+    "radar_learn_cube": "Hidden Cube radar: learn the cube's sound, facing it (step 2)",
+    "radar_learn_cube_behind": "Hidden Cube radar: learn the cube's sound with it behind you (step 3)",
+    "radar_learn_other": "Hidden Cube radar: learn a sound that is not a cube",
     "screenshot_lock": "Screenshot lock (freeze the overlay)",
     "quit": "Exit Aion 2 Calc",
 }
 
 #: The radar's learn steps, pressed in the game beside a cube: bound to these while the radar is on and
 #: never while it is off, so the keys reach the game then. Settings can rebind them or clear them ("").
-RADAR_DEFAULTS = {"radar_learn_background": "Ctrl+1", "radar_learn_cube": "Ctrl+2"}
+RADAR_DEFAULTS = {"radar_learn_background": "Ctrl+1", "radar_learn_cube": "Ctrl+2",
+                  "radar_learn_cube_behind": "Ctrl+3", "radar_learn_other": "Ctrl+4"}
 
 #: The overlay's combat-assist parts, shown and hidden together by ``toggle_combat_assist``.
 COMBAT_ASSIST = ("overlay_show_cooldowns", "overlay_show_break_gauge")
