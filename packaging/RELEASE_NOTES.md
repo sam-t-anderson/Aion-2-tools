@@ -1,3 +1,7 @@
+## Rounded bars keep the skill breakdown readable (0.2.325)
+
+**Rounded bar corners no longer clip a player's skill breakdown.** With *Rounded bar corners* on (Settings → Overlay layout, and the themes with rounded bars), clicking a player's bar on the live meter overlay opened their skill breakdown inside a capsule-shaped row whose curved sides cut off the skill names and numbers. Now only the bar is round: the open breakdown keeps the plain row's corners, and every skill reads in full.
+
 ## The Hidden Cube radar all the way round, taught by samples (0.2.324)
 
 **A full circle.** The overlay's Hidden Cube radar now draws the whole circle around you, ahead of you at the top, with rings for *right here*, *close*, *nearby* and *far*, and its line names the direction: *ahead to your right*, *behind you to the left*.

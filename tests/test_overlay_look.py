@@ -77,3 +77,14 @@ def test_layout_setting_hooks_survive_the_restyle():
                      "#ovcapture", "#ovsplit", "#ovcopy", "#ovlock", "#ovhide", ".ovfoot", ".ovping", ".ovidentity",
                      ".ovcontribution", "--ov-width", "--ov-row-h", "--ov-font-scale", "--ov-hp-color", "--ov-ttk-color"):
         assert selector in CSS, selector
+
+
+def test_rounded_bars_round_the_bar_not_the_open_skill_breakdown():
+    # A 999px radius on the row turned an open row, which also holds the player's skill breakdown,
+    # into a capsule that clipped the skill names and numbers at its sides: the row now rounds by
+    # half the bar's height, and an open row keeps the plain row's bottom corners
+    rule = re.search(r"#ov\.ov-bars-rounded \.ovrow, #ov\.ov-bars-rounded \.ovbar i \{ border-radius: ([^;]+); \}", CSS)
+    assert rule and rule.group(1) == "calc(var(--ov-row-h, 22px) / 2)"
+    assert "#ov.ov-bars-rounded .ovrow-open { border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }" in CSS
+    assert "expanded.has(key)?' ovrow-open':''" in JS                 # re-applied on every render
+    assert 'row.classList.toggle("ovrow-open",!panel.hidden);' in JS   # and on the click that opens or closes it

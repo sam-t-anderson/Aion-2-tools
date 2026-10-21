@@ -209,9 +209,13 @@ html.native-windows #ovbg { border-radius: 0; }
   transition: width .18s linear; }
 @media (prefers-reduced-motion: reduce) { .ovbar i, .ovhpbar i, .ovttkbar i { transition: none; } }
 /* Optional bar styles (Settings → Overlay layout). Gradient darkens toward the
-   right; rounded makes the track a pill. Both compose with any class colour. */
+   right; rounded makes the bar a pill. Both compose with any class colour. The row's
+   corners round by half the bar's height, not more: an open row also holds the skill
+   breakdown, which a larger radius would clip into a capsule, and its bottom corners
+   keep the plain row's radius, so only the bar is round. */
 #ov.ov-bars-gradient .ovbar i { background: linear-gradient(90deg, var(--bar, #b9984f), color-mix(in srgb, var(--bar, #b9984f) 40%, #000)); }
-#ov.ov-bars-rounded .ovrow, #ov.ov-bars-rounded .ovbar i { border-radius: 999px; }
+#ov.ov-bars-rounded .ovrow, #ov.ov-bars-rounded .ovbar i { border-radius: calc(var(--ov-row-h, 22px) / 2); }
+#ov.ov-bars-rounded .ovrow-open { border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
 .ovbar > span { position: relative; z-index: 1; display: flex; align-items: baseline; gap: 7px; padding: 0 9px 0 6px; line-height: var(--ov-row-h, 22px);
   font-weight: 800; color: var(--ov-rate-text, #ffffff); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 1.12em; }
 .muted { color: #9aa3b5; }
