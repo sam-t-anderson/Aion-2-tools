@@ -173,6 +173,58 @@ jobs:
             Where-Object { (Get-AuthenticodeSignature $_.FullName).Status -ne 'Valid' })
           if ($bad.Count) { $bad | ForEach-Object { Write-Host "::error::Not signed: $($_.FullName)" }; exit 1 }
           Write-Host "Every file is signed"
+      - name: Install, update and a failed update (Windows)
+        # An update sets the installed copy aside and puts it back when it does not finish; deleting it
+        # first used to leave an app that could not start ("Failed to load Python DLL"). Install the
+        # app, update it over itself, then fail an update at its last step (its uninstaller held open,
+        # which Setup cancels on in a silent run and rolls back) and check each time that the copy
+        # left behind starts, and that the update replaced the old files or put them back whole.
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem dist\aion2calc-setup-*.exe).FullName
+          $app = Join-Path $env:LOCALAPPDATA 'Programs\aion2calc'
+          $logs = Join-Path $env:RUNNER_TEMP 'setup-logs'
+          New-Item -ItemType Directory -Force -Path $logs | Out-Null
+          function Install([string]$run) {
+            $p = Start-Process -FilePath $setup -Wait -PassThru -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES',
+              '/NORESTART', '/NOLAUNCH', '/MERGETASKS=!npcap,!desktopicon', "/LOG=$(Join-Path $logs "$run.log")")
+            return $p.ExitCode
+          }
+          function Expect([string]$run, [bool]$ok, [string]$what) {
+            if (-not $ok) {
+              Get-ChildItem $logs -Filter *.log | ForEach-Object { Write-Host "--- $($_.Name)"; Get-Content $_.FullName -Tail 80 }
+              throw "${run}: $what"
+            }
+          }
+          function Starts([string]$run) {
+            $out = Join-Path $env:RUNNER_TEMP "smoke-$run.txt"
+            $p = Start-Process -FilePath (Join-Path $app 'aion2calc.exe') -ArgumentList '--smoke-test', $out -Wait -PassThru -NoNewWindow
+            if (Test-Path $out) { Get-Content $out }
+            Expect $run ($p.ExitCode -eq 0) "the installed app did not start (exit code $($p.ExitCode))"
+          }
+          $old = Join-Path $app '_internal\left-by-the-copy-before.txt'
+          $aside = Join-Path $app '_previous'
+
+          $code = Install 'install'
+          Expect 'install' ($code -eq 0) "Setup exited with $code"
+          Starts 'install'
+
+          Set-Content -Path $old -Value 'old'
+          $code = Install 'update'
+          Expect 'update' ($code -eq 0) "Setup exited with $code"
+          Expect 'update' (-not (Test-Path $old)) 'files of the copy it replaced are still in _internal'
+          Expect 'update' (-not (Test-Path $aside)) 'the copy it replaced was not deleted'
+          Starts 'update'
+
+          Set-Content -Path $old -Value 'old'
+          $held = [IO.File]::Open((Join-Path $app 'unins000.exe'), 'Open', 'Read', 'None')
+          try { $code = Install 'failed-update' } finally { $held.Dispose() }
+          Expect 'failed update' ($code -eq 5) "Setup exited with $code, not 5 (cancelled and rolled back)"
+          Expect 'failed update' (Test-Path $old) 'the copy it was replacing was not put back'
+          Expect 'failed update' (-not (Test-Path $aside)) 'the copy it set aside is still in _previous'
+          Starts 'failed-update'
+          Write-Host 'An install, an update and a failed update each leave an app that starts'
       - name: Windows portable zip
         if: runner.os == 'Windows'
         shell: pwsh

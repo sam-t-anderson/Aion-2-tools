@@ -1,3 +1,10 @@
+## An update that does not finish keeps the app you had (0.2.326)
+
+**"Failed to load Python DLL" after an update.** The installer deleted the installed app's Python runtime folder (`_internal`) before copying the new one. When an update did not finish (cancelled, an error answered with Cancel, a file an antivirus held, or the computer turning off), Setup's rollback removed what it had copied but could not bring back what it had deleted. That left an `aion2calc.exe` that cannot start: *"Failed to load Python DLL ... `_internal\python312.dll`. LoadLibrary: The specified module could not be found."* The installer now sets the installed copy aside while it copies the new one, puts it back if the update does not finish, and deletes it only once the new copy is in place. A copy that is already broken is fixed by running this version's installer once from the Releases page; your data is kept ([installing](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/install.md#failed-to-load-python-dll)).
+
+- Setup now writes a log of each run to `%TEMP%` (`Setup Log <date> #<n>.txt`).
+- Every Windows build is installed, updated over itself and put through an update that fails at its last step, and the installed app must start after each.
+
 ## Rounded bars keep the skill breakdown readable (0.2.325)
 
 **Rounded bar corners no longer clip a player's skill breakdown.** With *Rounded bar corners* on (Settings → Overlay layout, and the themes with rounded bars), clicking a player's bar on the live meter overlay opened their skill breakdown inside a capsule-shaped row whose curved sides cut off the skill names and numbers. Now only the bar is round: the open breakdown keeps the plain row's corners, and every skill reads in full.

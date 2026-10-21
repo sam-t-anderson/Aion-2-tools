@@ -155,6 +155,12 @@ The Windows installer needs [Inno Setup 6](https://jrsoftware.org/isdl.php):
 "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" /DAppVersion=0.2.2 packaging\windows\aion2calc.iss
 ```
 
+An update sets the installed copy (`aion2calc.exe` and `_internal`) aside in `_previous` just before
+it copies the new files, puts it back if the update does not finish and deletes it once the new copy is
+in place. CI installs the built installer, updates over it, and then makes an update fail at its last
+step by holding `unins000.exe` open. Each time it checks that the installed app passes `--smoke-test`.
+`/NOLAUNCH` keeps a scripted install from starting the app afterwards.
+
 PuLP's bundled CBC solver runs on Windows and Linux. On macOS, PuLP ships only an Intel CBC, so the
 app uses HiGHS instead (the `highspy` package, installed automatically on macOS).
 

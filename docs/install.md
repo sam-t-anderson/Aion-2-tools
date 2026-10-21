@@ -45,6 +45,22 @@ is reset or reinstalled. Microsoft Defender and SmartScreen keep protecting the 
 Signed releases are the real fix; the release workflow is ready for a signing certificate
 ([code signing](code-signing.md)).
 
+### "Failed to load Python DLL"
+
+If starting aion2calc shows **"Failed to load Python DLL ... `_internal\python312.dll`. LoadLibrary:
+The specified module could not be found."**, the copy in `%LOCALAPPDATA%\Programs\aion2calc` has lost
+its Python runtime. Either an update run with an installer older than 0.2.326 did not finish (it was
+cancelled, an error was answered with Cancel, or the computer turned off) after it had deleted the old
+runtime, or an antivirus removed the file. Download `aion2calc-setup-<version>.exe` from the
+[Releases page](https://github.com/sam-t-anderson/Aion-2-tools/releases/latest) and run it. It installs
+over the broken copy, and your data in `%LOCALAPPDATA%\aion2calc` is kept. If the message comes back,
+look for files from that folder in your antivirus's quarantine (**Windows Security → Virus & threat
+protection → Protection history**).
+
+From 0.2.326 on, an update that does not finish puts back the copy it was replacing, so the app you had
+still starts. Setup also writes a log of each run to `%TEMP%` (`Setup Log <date> #<n>.txt`), which says
+what went wrong.
+
 **Using it.** The first page has three steps: import your character, get gear advice, add your
 fights. **Settings** holds the theme, the data folder (with buttons to open it), the log server
 for sharing fights, the game-database update and the version. Closing the app window stops the
@@ -63,7 +79,8 @@ now** and **Install now**. Installing puts the new version over the old one. You
 
 **Your data** stays on your computer, in `%LOCALAPPDATA%\aion2calc` on Windows and
 `~/.aion2calc` on macOS and Linux (details in [app.md](app.md#where-your-data-is-saved)). If the
-app fails to start, the reason is in `aion2calc.log` in that folder.
+app fails to start, the reason is in `aion2calc.log` in that folder. When Windows instead says it
+failed to load the Python DLL, see [above](#failed-to-load-python-dll).
 
 **Uninstalling.** Windows: **Settings → Apps → Installed apps → aion2calc → Uninstall** (or
 delete the portable folder). Other systems: delete the app. Uninstalling keeps your data folder;

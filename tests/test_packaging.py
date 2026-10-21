@@ -116,6 +116,32 @@ def test_spec_requires_highspy_to_be_bundled():
     assert "skipping highspy" not in spec                        # no silent-skip fallback for a required dep
 
 
+def _installer_source():
+    import pathlib
+    return (pathlib.Path(__file__).resolve().parents[1] / "packaging" / "windows" / "aion2calc.iss").read_text(encoding="utf-8")
+
+
+def test_installer_keeps_the_installed_copy_until_the_new_one_is_in_place():
+    # Deleting {app}\_internal before copying ([InstallDelete]) left an app that could not start
+    # ("Failed to load Python DLL ... python312.dll") whenever an update was cancelled or failed:
+    # Setup's rollback removes what it copied but cannot bring back what it deleted. The installer
+    # sets the installed copy aside just before the first file is copied, puts it back when the update
+    # does not finish and deletes it once the new copy is in place; CI runs all three on Windows.
+    import pathlib
+    iss = _installer_source()
+    assert 'Name: "{app}\\_internal"' not in iss                    # no delete before the copy
+    files = next(line for line in iss.splitlines() if line.startswith('Source: "..\\..\\dist\\aion2calc\\*"'))
+    assert "BeforeInstall: SetPreviousAside" in files
+    done = iss[iss.index("procedure CurStepChanged"):iss.index("procedure DeinitializeSetup")]
+    assert "ssPostInstall" in done and "NewCopyInstalled := True" in done
+    undone = iss[iss.index("procedure DeinitializeSetup"):]
+    assert "PutBack('_internal')" in undone and "PutBack('aion2calc.exe')" in undone
+    assert 'Type: filesandordirs; Name: "{app}\\_previous"' in iss  # the uninstaller removes a leftover
+    assert "SetupLogging=yes" in iss
+    ci = (pathlib.Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert "'/NOLAUNCH'" in ci and "unins000.exe" in ci and "($code -eq 5)" in ci
+
+
 def test_update_check_reads_github_releases(home, monkeypatch):
     from http.server import BaseHTTPRequestHandler
 
