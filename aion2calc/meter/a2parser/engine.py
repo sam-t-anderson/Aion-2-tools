@@ -10,7 +10,7 @@ from copy import deepcopy
 import time
 
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
-from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_self_vitals, _damage_frames
+from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_self_vitals, scan_odyle_energy, _damage_frames
 from .framing import walk, bundle_batch
 from .lookup import job_from_skill, skill_family, skill_name, npc_info, npc_name, dungeon_final_bosses
 from .ping import PingTracker
@@ -137,6 +137,9 @@ class MeterEngine:
         self._saved_encounters: set[tuple[int, int]] = set()
         self.last_damage_time_ms: int | None = None
         self.last_zone_reset_ms: int | None = None
+        # The recording player's Odyle Energy ({"regular", "bonus", "timestamp_ms"}), from the counter table
+        # sent on entering the world or a zone and its updates. The character's, so a zone reset keeps it.
+        self.odyle_energy: dict | None = None
         self.map_id = 0
         self.server_port = 50349
         self.damage_events = 0
@@ -322,6 +325,9 @@ class MeterEngine:
                     self.local_identity_from_game = True
                     self.local_identity_from_mp = False
                     self._cast_guess = None
+            odyle = scan_odyle_energy(packet)
+            if odyle is not None:
+                self.odyle_energy = {"regular": odyle[0], "bonus": odyle[1], "timestamp_ms": timestamp_ms}
             vitals = scan_self_vitals(packet)
             if vitals and vitals[0] == self.local_player_id:
                 # The local player's maximum HP and MP: the HP feed never carries its maximum, and
@@ -502,6 +508,7 @@ class MeterEngine:
             self._local_name_hint = getattr(previous, "_local_name_hint", "") or self._local_name_hint
             self.map_id = getattr(previous, "map_id", 0) or self.map_id
             self.dungeon_id = getattr(previous, "dungeon_id", 0) or self.dungeon_id
+            self.odyle_energy = getattr(previous, "odyle_energy", None) or self.odyle_energy
 
     def _scan_spawns(self, data: bytes, timestamp_ms: int) -> dict:
         scan = {"records": [], "candidates": 0}

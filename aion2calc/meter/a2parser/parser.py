@@ -1143,6 +1143,59 @@ def scan_self_vitals(frame: bytes) -> tuple[int, int, int] | None:
     return None
 
 
+ODYLE_ENERGY_ID = 60_000_001
+_ODYLE_KEY = ODYLE_ENERGY_ID.to_bytes(4, "little")
+_ODYLE_NEXT = (ODYLE_ENERGY_ID + 1).to_bytes(4, "little")
+
+
+def _counter_values(body: bytes, at: int, flags: int) -> tuple[int, int, int] | None:
+    """A counter entry's values after its id: the flags name which are sent (``04`` the first, ``08``
+    the second, varints); one left out is 0. Returns (first, second, end)."""
+    values = [0, 0]
+    for slot, bit in enumerate((0x04, 0x08)):
+        if flags & bit:
+            value = _var(body, at)
+            if value is None or value[0] > 100_000:
+                return None
+            values[slot], at = value
+    return values[0], values[1], at
+
+
+def scan_odyle_energy(frame: bytes) -> tuple[int, int] | None:
+    """The recording player's Odyle Energy, (regular, bonus), or None.
+
+    It is a counter, id 60000001: a flags byte, the u32 id and the values the flags name. The regular
+    value regenerates 15 every three hours up to the cap (560, 840 with the membership) and a claimed
+    reward cube spends it first (80 for an Expedition); the bonus, from rewards and recharges, is spent
+    once the regular is gone. ``0b 61`` lists the counters on entering the world and every zone (the
+    id after Odyle Energy's, 60000002, confirms the table). ``0c 61`` sends one when it changes: a kind
+    byte (0, or 1 with a byte and the u32 amount added after the values), the entry, then a reason
+    byte for kind 0 (``02`` a gain, ``03`` a spend). In the 19 and 20 October recordings: 840 and 50
+    noted in game, 15 added on the hour at 01:00 and 04:00 UTC, and 80 spent at each cube."""
+    length = read_varint(frame, 0)
+    opcode = frame[length.length:length.length + 2] if length.length > 0 else b""
+    if opcode not in (b"\x0c\x61", b"\x0b\x61"):
+        return None
+    body = frame[length.length + 2:]
+    if opcode == b"\x0c\x61":
+        if len(body) < 7 or body[0] > 1 or body[1] & ~0x0C or body[2:6] != _ODYLE_KEY:
+            return None
+        found = _counter_values(body, 6, body[1])
+        if found is None or len(body) - found[2] != (5 if body[0] else 1):
+            return None
+        return found[0], found[1]
+    if opcode == b"\x0b\x61":
+        at = body.find(_ODYLE_KEY)
+        while at >= 1:
+            flags = body[at - 1]
+            if not flags & ~0x0C:
+                found = _counter_values(body, at + 4, flags)
+                if found is not None and body[found[2] + 1:found[2] + 5] == _ODYLE_NEXT:
+                    return found[0], found[1]
+            at = body.find(_ODYLE_KEY, at + 1)
+    return None
+
+
 def _effect(body: bytes) -> list[dict]:
     """``2b 38``: target, type, instance (varint), effect (u32), duration (u64 ms), start (u64), source,
     a byte, the skill that applied it (u32), two bytes, then a position (3 x f32)."""

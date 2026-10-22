@@ -87,6 +87,17 @@ def _tls_record_size(data: bytes) -> int | None:
     return 5 + size if 0 < size <= 16_384 + 256 else None
 
 
+def _awaits_bundle(data: bytes, payload_at: int) -> bool:
+    """A frame longer than MAX_FRAGMENT_WAIT_BYTES is still awaited when it is a bundle: ``ff ff`` and an
+    LZ4 size the decoder accepts. Each zone load sends one of 13-18 KB (40 KB unpacked) over several TCP
+    segments; resyncing inside it lost it and misframed the bundle that follows, the one with the
+    counter table (Odyle Energy). True too while its header has not arrived."""
+    header = data[payload_at:payload_at + 6]
+    if len(header) < 6:
+        return True
+    return header[:2] == b"\xff\xff" and 0 < int.from_bytes(header[2:6], "little") <= MAX_DECOMPRESSED_BYTES
+
+
 def _walk(data: bytes, *, inner: bool) -> Framing:
     frames: list[Frame] = []
     offset = 0
@@ -119,7 +130,7 @@ def _walk(data: bytes, *, inner: bool) -> Framing:
             continue
         end = offset + total
         if end > len(data):
-            if inner or total <= MAX_FRAGMENT_WAIT_BYTES:
+            if inner or total <= MAX_FRAGMENT_WAIT_BYTES or _awaits_bundle(data, offset + length.length):
                 break
             offset += 1
             continue

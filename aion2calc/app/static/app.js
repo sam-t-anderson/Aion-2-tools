@@ -761,6 +761,14 @@ function replaceMeterHtml(element, html) {
   element.replaceChildren(template.content);
 }
 
+// The recording player's Odyle Energy (from the game's own counter records) beside its recharge-item icon.
+const ODYLE_ICON = "https://metabot.gg/web/aion2/items/icon_item_odenergy_a_001a.webp";
+function odyleLine(o) {
+  if (!o) return "";
+  const src = window.A2AssetHealth ? A2AssetHealth.source(ODYLE_ICON) : ODYLE_ICON;
+  const regular = Number(o.regular) || 0, bonus = Number(o.bonus) || 0;
+  return `<p class="small muted odyle" title="Your Odyle Energy, as the game sent it: the regular energy regenerates 15 every 3 hours, and a claimed reward cube spends it first, then the bonus"><img src="${esc(src)}" alt="" width="20" height="20"> Odyle Energy ${(regular + bonus).toLocaleString()}${bonus ? ` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)` : ""}</p>`;
+}
 function kfmt(x) {
   if (x == null || isNaN(x)) return "—";
   const a = Math.abs(x);
@@ -1443,7 +1451,7 @@ function renderMeter(s) {
       <div class="bar"><i style="width:${100 * p.dps / mx}%"></i><span>${kfmt(p.dps)}/s · ${pct(p.share, 0)}</span></div></div>`).join("");
   const enemyTable = snap.enemies?.length ? win("Enemies", "select an enemy to show each player's damage against it", `<table class="t"><tr><th>Enemy</th><th>Party damage dealt</th><th>Party DPS</th></tr>${snap.enemies.map((enemy) => `<tr class="${enemy.key === snap.selected_enemy ? "sel" : ""}"><td><button class="btn small" data-enemy="${esc(enemy.key)}">${esc(enemy.name)}</button></td><td>${kfmt(enemy.damage)}</td><td>${kfmt(enemy.dps)}</td></tr>`).join("")}</table>`) : "";
   replaceMeterHtml(view, (snap.warning ? `<p class="note">${esc(snap.warning)}</p>` : "") + enemyTable + win("Players", `${esc(snap.boss || "")}${snap.boss ? " · " : ""}${(snap.duration || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)} raid DPS`,
-    `<div class="pmeters">${rows}</div>${snap.ping ? `<p class="small muted">Ping ${kfmt(snap.ping.current)} ms now · ${kfmt(snap.ping.avg)} ms capture avg · ${kfmt(snap.ping.min)}–${kfmt(snap.ping.max)} ms range (${snap.ping.samples} samples across this recording connection, logged over time)</p>` : ""}`) + `<div id="pbd">${renderParse(parseFromMeter(snap, st.sel))}</div>`);
+    `<div class="pmeters">${rows}</div>${snap.ping ? `<p class="small muted">Ping ${kfmt(snap.ping.current)} ms now · ${kfmt(snap.ping.avg)} ms capture avg · ${kfmt(snap.ping.min)}–${kfmt(snap.ping.max)} ms range (${snap.ping.samples} samples across this recording connection, logged over time)</p>` : ""}${odyleLine(snap.odyle)}`) + `<div id="pbd">${renderParse(parseFromMeter(snap, st.sel))}</div>`);
   $$("[data-enemy]").forEach((el) => (el.onclick = async () => { try { renderMeter(await api("/api/meter", {action: "view", enemy: el.dataset.enemy})); } catch (e) { $("#mnotice").textContent = e.message; } }));
   $$("[data-sel]").forEach((el) => (el.onclick = () => {
     st.sel = +el.dataset.sel; st.selectedPlayerKey = snap.players[st.sel].key || snap.players[st.sel].id;
@@ -1970,6 +1978,7 @@ async function pageSettings() {
       <div class="row" style="gap:10px;margin:0 0 2px 22px"><label>Shortest cooldown shown <input type="number" id="ov-cd-min" min="1" max="120" value="${Number.isFinite(+ui.overlay_cooldowns_min_s)?+ui.overlay_cooldowns_min_s:3}" style="width:74px"> s</label><label>Icons <input type="number" id="ov-cd-max" min="1" max="16" value="${Number.isFinite(+ui.overlay_cooldowns_max)?+ui.overlay_cooldowns_max:8}" style="width:74px"></label><label>Position <select id="ov-cd-pos"><option value="bottom" ${ui.overlay_cooldowns_position!=='top'?'selected':''}>Below the meter</option><option value="top" ${ui.overlay_cooldowns_position==='top'?'selected':''}>Above the player rows</option></select></label></div>
       <p class="small muted" style="margin:0 0 6px 22px">Uses the cooldown the game sends with each of your casts, so your cooldown reduction is already included and there is nothing to set up. It only knows skills you have used since Start. A skill lights up as it comes off cooldown, and an open chain-skill window shows first. If a proc resets a cooldown, the strip catches up on your next cast.</p>
       <label><input type="checkbox" id="ov-cp" ${ui.overlay_show_combat_power !== false?'checked':''}> Show your combat power beside your name (when the game reports it)</label>
+      <label title="The game's own count, sent when you enter the world, at every zone load and whenever it changes"><input type="checkbox" id="ov-odyle" ${ui.overlay_show_odyle !== false?'checked':''}> Show your Odyle Energy on the overlay and the Live Meter page <span class="muted">(on by default)</span></label>
       <label title="After a fight auto-uploads, show your community standing (e.g. “World Top 8%”) for that encounter beside your name"><input type="checkbox" id="ov-community-rank" ${ui.overlay_show_community_rank === true?'checked':''}> Show your community rank for your last uploaded fight <span class="muted">(needs auto-upload; off by default)</span></label>
       <label title="While capturing, refresh your community-rank badge after each ranked fight by uploading it, instead of only when you press Upload"><input type="checkbox" id="ov-live-rank" ${ui.overlay_live_community_rank === true?'checked':''}> Update the rank live after each fight <span class="muted">(needs the rank badge on + a share server; uploads each ranked fight at your upload visibility; off by default)</span></label>
       <label title="Shows the next rift / Shugo / battlefield / field-boss windows for your region when one is active or within 15 minutes"><input type="checkbox" id="ov-events" ${ui.overlay_show_events !== false?'checked':''}> Show regional event notifications on the overlay <span class="muted">(uses the region you pick on the Timers page; community forecast, on by default)</span></label>
@@ -2337,6 +2346,7 @@ async function pageSettings() {
   $("#ov-cd-max").onchange = () => api("/api/ui", { overlay_cooldowns_max: Math.max(1, Math.min(16, parseInt($("#ov-cd-max").value, 10) || 8)) }).then(() => toast("Saved"));
   $("#ov-cd-pos").onchange = () => api("/api/ui", { overlay_cooldowns_position: $("#ov-cd-pos").value }).then(() => toast("Saved"));
   $("#ov-cp").onchange = () => api("/api/ui", { overlay_show_combat_power: $("#ov-cp").checked }).then(() => toast("Saved"));
+  $("#ov-odyle").onchange = () => api("/api/ui", { overlay_show_odyle: $("#ov-odyle").checked }).then(() => toast("Saved"));
   $("#ov-community-rank") && ($("#ov-community-rank").onchange = () => api("/api/ui", { overlay_show_community_rank: $("#ov-community-rank").checked }).then(() => toast("Saved")));
   $("#ov-live-rank") && ($("#ov-live-rank").onchange = () => api("/api/ui", { overlay_live_community_rank: $("#ov-live-rank").checked }).then(() => toast("Saved")));
   $("#ov-events") && ($("#ov-events").onchange = () => api("/api/ui", { overlay_show_events: $("#ov-events").checked }).then(() => toast("Saved")));

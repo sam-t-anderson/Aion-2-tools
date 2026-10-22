@@ -709,3 +709,7 @@ details[open] > summary { margin-bottom:2px; }
     scroll-behavior: auto !important;
   }
 }
+
+/* The Live Meter page's Odyle Energy line: the recharge-item icon beside the value. */
+p.odyle { display: flex; align-items: center; gap: 6px; }
+p.odyle img { flex: 0 0 auto; }

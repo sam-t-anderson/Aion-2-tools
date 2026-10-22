@@ -19,6 +19,7 @@ html, body { overflow: hidden; }
 .ovcard > * { flex: 0 0 100%; min-width: 0; }
 .ovcard > #ovidentity { order: 60; flex: 1 1 auto; margin: 6px 8px 0 0; }
 .ovcard > #ovping { order: 60; flex: 0 1 auto; margin: 6px 0 0 auto; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ovcard > #ovodyle { order: 60; }
 .ovcard > #ovcontribution { order: 61; }
 .ovcard > .ovfoot { order: 90; }
 /* In the native overlay window the card IS the window, so it must be free to grow
@@ -261,6 +262,10 @@ html.native-windows #ovbg { border-radius: 0; }
 #ovretry { margin: 2px; border: 1px solid #b9984f66; border-radius: 4px;
   background: #1c2438; color: #e9e6df; cursor: pointer; }
 
+/* Odyle Energy: the ping's colour and font settings, the recharge-item icon scaled with the text. */
+.ovodyle{display:flex;align-items:center;gap:5px;color:var(--ov-ping-color, #76c59d);line-height:1.5;margin:2px 0 0;cursor:default}
+.ovodyle[hidden]{display:none}
+.ovodicon{width:1.4em;height:1.4em;flex:0 0 1.4em;background:center/contain no-repeat}
 .ovping{font-size:10px;color:var(--ov-ping-color, #76c59d);line-height:1.5;margin:4px 0 6px;white-space:normal;overflow-wrap:anywhere;cursor:default;font-weight:600}
 
 /* Drag-to-resize grips (shown only when the resize setting is on). The frameless
@@ -296,7 +301,7 @@ html.native-windows #ovbg { border-radius: 0; }
 .ovtarget .ovttk { font-family: var(--ov-ttk-ff, inherit); font-weight: var(--ov-ttk-fw, 600); font-size: calc(1em * var(--ov-ttk-fs, 1)); }
 .ovtarget .ovtlabel, .ovdummy .ovtlabel { font-family: var(--ov-label-ff, inherit); font-weight: var(--ov-label-fw, 600); font-size: calc(1em * var(--ov-label-fs, 1)); }
 .ovtarget .ovalso { font-family: var(--ov-also-ff, inherit); font-weight: var(--ov-also-fw, 600); font-size: calc(.92em * var(--ov-also-fs, 1)); }
-.ovping { font-family: var(--ov-ping-ff, inherit); font-weight: var(--ov-ping-fw, 400); font-size: calc(10px * var(--ov-ping-fs, 1)); }
+.ovping, .ovodyle { font-family: var(--ov-ping-ff, inherit); font-weight: var(--ov-ping-fw, 400); font-size: calc(10px * var(--ov-ping-fs, 1)); }
 .ovidentity { font-family: var(--ov-identity-ff, inherit); font-weight: var(--ov-identity-fw, 400); font-size: calc(10px * var(--ov-identity-fs, 1)); }
 
 /* Halo: a soft luminous ring around the card's text, layered on top of any glow. */
@@ -320,6 +325,6 @@ html.native-windows #ovbg { border-radius: 0; }
    the game outside a transparent window. Only meaningful with a background image set. */
 #ov.ov-ac-blend .ovcard { isolation: isolate; }
 #ov.ov-ac-blend :is(.ovsub, .ovname, .ovactor, .ovbar span, .ovrow .sub, .ovskname, .ovskval,
-  .ovrank, .ovcrank, .ovdead, .ovtarget, .ovtarget *, .ovidentity, .ovping, .ovcontribution,
+  .ovrank, .ovcrank, .ovdead, .ovtarget, .ovtarget *, .ovidentity, .ovping, .ovodyle, .ovcontribution,
   .ovdummy, .ovdummy *, .ovevents, .ovevents *, .ovpstat .ovplabel, .ovpstat .ovpval, .ovfps,
   .muted, .ovbrand) { mix-blend-mode: difference; }

@@ -413,7 +413,7 @@
   function renderParty() {
     // The separate Party-DPS overlay: raid-wide aggregates, not per-player rows.
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
-    for(const id of ["#ovmetrics","#ovping","#ovidentity","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovconnection","#ovcooldowns"])$(id).hidden=true;
+    for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovidentity","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovconnection","#ovcooldowns"])$(id).hidden=true;
     const totalDps=players.reduce((n,p)=>n+(Number(p.dps)||0),0);
     const totalHps=players.reduce((n,p)=>n+(Number(p.hps)||0),0);
     const totalTaken=players.reduce((n,p)=>n+(Number(p.dtps)||0),0);
@@ -488,6 +488,14 @@
     if(pref.enabled===false||/^#[0-9a-f]{6}$/i.test(own||'')||!OVERLAY_CLASS_COLORS[key]) return A2CombatReview.color(key);
     return OVERLAY_CLASS_COLORS[key];
   }
+  // The recording player's Odyle Energy beside the game's Odyle Energy recharge-item icon.
+  const ODYLE_ICON='https://metabot.gg/web/aion2/items/icon_item_odenergy_a_001a.webp';
+  function odyleLine(o){
+    const files=window.A2BundledAssets&&window.A2BundledAssets.files, base=window.A2BundledAssets&&window.A2BundledAssets.base;
+    const file=files&&files[ODYLE_ICON], regular=Number(o.regular)||0, bonus=Number(o.bonus)||0;
+    const icon=file&&base?`<i class="ovodicon" style="background-image:url(${esc(base+file)})" aria-hidden="true"></i>`:'';
+    return `${icon}<span>Odyle Energy ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span>`;
+  }
   function classIcon(cls){
     const key=String(cls||'').toLowerCase(); if(!key) return '';
     const files=window.A2BundledAssets&&window.A2BundledAssets.files, base=window.A2BundledAssets&&window.A2BundledAssets.base;
@@ -505,6 +513,8 @@
     const ping=snap.ping;$('#ovping').hidden=false;
     $('#ovping').textContent=ping?`Ping ${Number(ping.current).toFixed(0)} ms · Avg ${Number(ping.avg).toFixed(0)} ms · Min ${Number(ping.min).toFixed(0)} / Max ${Number(ping.max).toFixed(0)} ms`:'Ping: no recorded samples';
     $('#ovping').title='Passive TCP RTT for this recording connection; average/minimum/maximum across the capture';
+    const odyle=snap.odyle;$('#ovodyle').hidden=!odyle;
+    if(odyle){$('#ovodyle').innerHTML=odyleLine(odyle);$('#ovodyle').title='Your Odyle Energy, as the game sent it: the regular energy regenerates 15 every 3 hours, and a claimed reward cube spends it first, then the bonus';}
     document.querySelectorAll("[data-metric]").forEach(b=>{b.classList.toggle("on",b.dataset.metric===metric);b.setAttribute("aria-pressed",String(b.dataset.metric===metric));});
     if(!$("#ovcombine").disabled) $("#ovcombine").checked=s.combine_pets!==false;
     const amount=p=>Number(metric==="hps"?p.healing:metric==="taken"?p.incoming?.damage:p.damage)||0;
@@ -659,7 +669,7 @@
     // the fight, so keep the meter open through it — never collapse mid-boss.
     if(onlyInCombat && (!s.running || over || (snap.paused && snap.boss_alive!==true))){
       $("#ovcontent").innerHTML='';
-      for(const id of ["#ovmetrics","#ovping","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovidentity","#ovgraph","#ovcooldowns"])$(id).hidden=true;
+      for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovidentity","#ovgraph","#ovcooldowns"])$(id).hidden=true;
       $("#ovstatus").textContent=s.running?'Idle · waiting for combat':'Idle';
       $("#ovstatus").title=$("#ovstatus").textContent;
     }
@@ -717,7 +727,7 @@
   }
   setInterval(()=>{ if(showCooldowns&&!locked&&tab==="meter")renderCooldowns(); },250);
   function renderPlan() {
-    $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovidentity").hidden=true;
+    $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovodyle").hidden=true;$("#ovidentity").hidden=true;
     $("#ovtarget").hidden=true;$("#ovhpbar").hidden=true;$("#ovttkbar").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
     $("#ovgraph").hidden=true;$("#ovgauge").hidden=true;$("#ovcooldowns").hidden=true;
     $("#ovconnection").hidden=true;
