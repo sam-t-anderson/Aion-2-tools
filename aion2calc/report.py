@@ -222,6 +222,9 @@ def build_from_summary(summary: dict):
     b.specs = {byname[k]["id"]: tuple(x["id"] for x in byname[k]["specs"] if x["text"] in v)
                for k, v in data["specs"].items()}
     b.daevanion = set(data["daevanion_nodes"])
+    # bonus levels from gear rolls and arcana cards a community preset names (0.2.328); a personal
+    # build carries its own in the loadout's "Gear skill rolls" component instead
+    b.bonus = {byname[k]["id"]: v for k, v in (data.get("bonus") or {}).items() if k in byname}
     policy = [e if " [" not in e else (e.split(" [")[0], e.split(" [")[1][:-1]) for e in summary["policy"]]
     from .opt.rotation import with_essentials
     from .kit.common import learned_only

@@ -18,6 +18,8 @@ from . import items as I
 from .context import PROFILE_DEITY, PlanContext
 
 BASE_ROLLS = {"Common": 1, "Rare": 2, "Legend": 3, "Unique": 4}
+#: An arcana enhances to +5; every step adds one skill option (a Unique +5 holds nine).
+ARCANA_MAX_ENHANCE = 5
 TIMING = ("time", "illusion")
 
 
@@ -60,6 +62,20 @@ def deity_value(ctx: PlanContext, field: str | None, points: float) -> float:
         lo["components"].append(comp)
     comp["stats"] = I._add(dict(comp["stats"]), {field: points})
     return ctx.dps(loadout=lo) / ctx.dps(ctx.equipped) - 1
+
+
+def pool_slots(cls: str) -> dict[str, list[str]]:
+    """Which arcana cards can roll each skill: ``{skill name: ["Chalice", "Bell", …]}`` from the bundled
+    option pools, so a preset's bonus levels can say where to look for them."""
+    pools_all = read_json("global", "arcana_skill_pools.json")
+    out: dict[str, list[str]] = {}
+    for slot in I.ARCANA_SLOTS:
+        cat = I.SLOTS[slot][0]
+        pool = next((p[cls] for slug, p in pools_all.items() if slug.startswith(cat.lower()) and cls in p), None)
+        for name in (pool or {}).get("skills", []):
+            if cat not in out.setdefault(name, []):
+                out[name].append(cat)
+    return out
 
 
 def _ideal(pool: dict, values: dict, rolls: int, cap: int) -> tuple[dict, float]:
@@ -118,7 +134,7 @@ def _variants(category: str) -> list[dict]:
     return out
 
 
-def plan_arcana(ctx: PlanContext, inv: dict | None = None, enhance: int = 5) -> dict:
+def plan_arcana(ctx: PlanContext, inv: dict | None = None, enhance: int = ARCANA_MAX_ENHANCE) -> dict:
     """Per arcana slot: the variant to use, the options to chase, the ideal and
     expected gain of a Unique +``enhance``, and advice on the arcana you own."""
     pools_all = read_json("global", "arcana_skill_pools.json")

@@ -122,6 +122,12 @@ pantheon deities and the genus insight grids. The
 model is calibrated from the character's fights when there are enough. Details:
 [planner.md](planner.md).
 
+A goal item and a reroll step name the rolls to chase (0.2.328): the stats of the item's roll pool
+worth the most to your damage, as many as the item rolls, shown on the Next goal and Best in slot
+cards, on the upgrade path's step (*reroll Ring of X toward Critical Hit +30 – +50*) and in the copied
+text. A stat worth nothing to damage, such as HP, is never one to chase, so an item can list fewer
+rolls than it has.
+
 Gear & Advice shows calculation stages and elapsed time beside Run advice in a sticky status panel. The bar is indeterminate; it does not predict a completion percentage. When complete, scroll below the inventory or choose **View results**. Progress and completed results survive navigation within the current app session. Errors appear in the same panel.
 
 ### Pet Genus Insight
@@ -513,6 +519,8 @@ Completed-run speed and Boss progression require supported evidence. Boss progre
 
 Planner's **Contribute community comparison** action generates an anonymous build with common gear and fixed comparison budgets for the selected class and mode. It first searches the two comparison scenarios, then refines their weighted objective and retains the highest independently evaluated score. The extra refinement takes longer; phase progress remains visible. Completed contributions are cached for the same scoring scope and search revision. They do not replace your personal saved build or use its Genus, HP or skill reserves. PvP comparisons remain experimental damage proxies.
 
+**Bonus skill levels from gear rolls and arcana cards (0.2.328).** The common loadout carries no skill options, so until 0.2.327 no skill in a community preset passed level 14 (10 trained plus the Daevanion levels) and the fifth supporting effect (level 16) and the third selection slot (level 20) were never reached. The anonymous point observation a collected or optimized level-45 character sends now also carries the skill levels its gear rolls and its arcana cards give (skill names and levels only, by source). The server keeps the highest total and the most on one skill per class and publishes them as the comparison's **bonus allowance** in the scoring policy; the comparison search places that many bonus levels on the skills whose levels gain most, solves the trained levels and Daevanion nodes around them and polishes the placement with full simulations, and the preset lists them under **Bonus levels to chase** in its Skills window with the arcana cards whose option pools hold each skill. A personal build submitted as a preset carries its own gear and arcana levels, cut to the allowance. The allowance is the highest reported, not a verified cap. This needs server 0.2.120; an older server's presets stay as before.
+
 ### Recorded boss defeats
 
 Expand **Recorded boss defeats** under **Combat Logs → Community Combat Logs** in PvE mode to view public defeat observations. Desktop and GitHub Pages share the same panel. The game-build and region filters apply; other combat-log filters do not. Search filters the displayed boss names/NPC IDs, and **Refresh boss observations** retrieves a new snapshot. **Open log** shows the source combat report.
@@ -827,7 +835,7 @@ An observed build is collection context, not proof that a community database app
 
 ### Visual build editing
 
-Build budgets appear with their skill, stigma or Daevanion allocations. Equipment and arcana use inventory-slot selection with catalog icons and enhancement choices. Catalog selections apply fixed stats and listed enchantment bonuses. Select random-roll lines and enter their values in the item panel, then Apply rolls; duplicate lines and values outside the bundled source ranges are rejected. Unsupported effects are retained but unscored. Imported aggregate contributions need explicit review to avoid overlap. Pantheon tiles edit modeled deity contributions, while recorded profile totals remain read-only. The current catalog does not reconstruct the in-game Pantheon node board.
+Build budgets appear with their skill, stigma or Daevanion allocations. Equipment and arcana use inventory-slot selection with catalog icons and enhancement choices. Catalog selections apply fixed stats and listed enchantment bonuses. An arcana card enhances to +5 (0.2.328): each step adds one skill option (a Unique +5 holds nine), the panel says how many the card holds at its level, and the catalog lists no stat change per step, so the card's stats stay those of +0. Select random-roll lines and enter their values in the item panel, then Apply rolls; duplicate lines and values outside the bundled source ranges are rejected. Unsupported effects are retained but unscored. Imported aggregate contributions need explicit review to avoid overlap. Pantheon tiles edit modeled deity contributions, while recorded profile totals remain read-only. The current catalog does not reconstruct the in-game Pantheon node board.
 
 The Maps, Crafting and Build Workspace views expand with the available browser/window width.
 

@@ -135,12 +135,39 @@ def roll_options(item: dict) -> list[dict]:
     return out
 
 
+def good_rolls(item: dict, value, count: int | None = None) -> list[dict]:
+    """The rolls worth chasing on ``item``: the most valuable distinct stats of its roll pool (each
+    scored by ``value(fields)`` at the middle of its range), best first, as many as the item rolls.
+    Each is ``{stat, range, fields, chance}`` as :func:`roll_options` lists it. A stat worth nothing
+    to the damage model (HP, defence) is never one to chase, so an item can have fewer than it rolls;
+    an item that rolls nothing has none.
+    """
+    n = roll_count(item) if count is None else count
+    if n <= 0 or value is None:
+        return []
+    out, seen = [], set()
+    for o in sorted(roll_options(item), key=lambda o: -value(o["fields"])):
+        if o["stat"] in seen or value(o["fields"]) <= 0:
+            continue
+        seen.add(o["stat"])
+        out.append(o)
+        if len(out) >= n:
+            break
+    return out
+
+
+def roll_names(rolls: list) -> str:
+    """``[{stat, range}, …]`` -> "Critical Hit +30 – +50, Attack +20 – +40" for advice text."""
+    return ", ".join(f"{r['stat']} {r['range']}" if r.get("range") else str(r["stat"]) for r in rolls or [])
+
+
 def roll_stats(item: dict, mode: str = "expected", value=None, rolls: list | None = None) -> dict:
     """Stats from random rolls.
 
     ``rolls`` (``[[stat, value], …]``) are the item's actual rolls. Otherwise
     ``mode`` is ``expected`` (average over the pool), ``good`` (the most
-    valuable distinct stats at mid range, scored by ``value(fields)``) or ``none``.
+    valuable distinct stats at mid range, scored by ``value(fields)``: see
+    :func:`good_rolls`) or ``none``.
     Items that roll 0 random stats list fixed sub-stats in the pool; those always count.
     """
     if rolls is not None:
@@ -158,15 +185,9 @@ def roll_stats(item: dict, mode: str = "expected", value=None, rolls: list | Non
     if mode == "none" or not opts:
         return {}
     if mode == "good" and value is not None:
-        best = sorted(opts, key=lambda o: -value(o["fields"]))
-        out, seen = {}, set()
-        for o in best:
-            if o["stat"] in seen:
-                continue
-            seen.add(o["stat"])
+        out = {}
+        for o in good_rolls(item, value, n):
             _add(out, o["fields"])
-            if len(seen) >= n:
-                break
         return out
     tot = sum(o["chance"] for o in opts) or float(len(opts))
     out = {}

@@ -5,6 +5,7 @@ import copy
 import math
 
 from .kit.base import ClassData, spec_slots
+from .opt.bonus import MAX_PER_SKILL, valid_pool
 from .paths import list_names
 
 BUDGETS = {"skill": 203, "stigma": 30, "daevanion": 360}
@@ -18,15 +19,22 @@ class InvalidPreset(ValueError):
 def candidate(summary: dict) -> dict:
     """Strip character loadout names, gear, scores and report metadata at the source."""
     data = summary.get("build") or {}
+    build = {k: copy.deepcopy(data.get(k, {} if k != "daevanion_nodes" else []))
+             for k in ("sp", "stigmas", "specs", "daevanion_nodes")}
+    if isinstance(data.get("bonus"), dict) and data["bonus"]:
+        build["bonus"] = copy.deepcopy(data["bonus"])     # bonus levels from gear rolls and arcana cards, by skill
     return {"format": "a2preset", "version": 1, "class": summary.get("class"),
-            "build": {"class": summary.get("class"), "scenario": "boss",
-                      "build": {k: copy.deepcopy(data.get(k, {} if k != "daevanion_nodes" else []))
-                                for k in ("sp", "stigmas", "specs", "daevanion_nodes")},
+            "build": {"class": summary.get("class"), "scenario": "boss", "build": build,
                       "policy": copy.deepcopy(summary.get("policy", []))}}
 
 
-def parse(doc: dict, *, scenario_name: str = "boss", loadout_snapshot: dict | None = None, budgets: dict | None = None):
-    """Accept only known skills, legal levels, connected boards and bounded policies."""
+def parse(doc: dict, *, scenario_name: str = "boss", loadout_snapshot: dict | None = None, budgets: dict | None = None,
+          bonus: dict | None = None):
+    """Accept only known skills, legal levels, connected boards and bounded policies.
+
+    ``bonus`` is the comparison's bonus-level allowance (``{"levels", "per_skill"}``): a build's
+    ``bonus`` (levels from gear rolls and arcana cards, by skill name) must fit it, and is refused
+    outright when the comparison allows none."""
     from .opt.daevanion import CRYSTAL_BOARDS, connected
     from .opt.rotation import CONDITIONS
     from .report import build_from_summary
@@ -84,10 +92,26 @@ def parse(doc: dict, *, scenario_name: str = "boss", loadout_snapshot: dict | No
     policy = summary.get("policy")
     if not isinstance(policy, list) or not 1 <= len(policy) <= 64 or any(not isinstance(p, str) or len(p) > 120 for p in policy):
         raise InvalidPreset("invalid rotation")
+    if bonus is not None and not valid_pool(bonus):
+        raise InvalidPreset("invalid comparison bonus-level allowance")
+    extra = data.get("bonus", {})
+    if not isinstance(extra, dict) or len(extra) > len(cd.skills):
+        raise InvalidPreset("invalid bonus levels")
+    for name, level in extra.items():
+        skill = cd.by_name.get(name)
+        if not skill or skill["kind"] == "stigma" or type(level) is not int or not 1 <= level <= MAX_PER_SKILL:
+            raise InvalidPreset("invalid bonus skill or level")
+    if extra and not bonus:
+        raise InvalidPreset("bonus levels from gear rolls and arcana cards are outside this comparison's scope")
+    if extra and (sum(extra.values()) > bonus["levels"] or max(extra.values()) > bonus["per_skill"]):
+        raise InvalidPreset("bonus levels exceed the comparison's allowance")
     clean = candidate(summary)["build"]
     build, rotation = build_from_summary(clean)
     if build.sp_spent() > budgets["skill"] or build.stigma_spent() > budgets["stigma"] or build.daevanion_cost(cd) > budgets["daevanion"]:
         raise InvalidPreset("build exceeds the current comparison skill / stigma / Daevanion budgets")
+    for sid, level in build.effective_levels(cd).items():
+        if cd.skills[sid]["kind"] != "stigma" and level > (cd.skills[sid].get("max") or 40):
+            raise InvalidPreset("a skill exceeds its maximum level")
     scen = SCENARIOS[scenario_name](loadout_snapshot if loadout_snapshot is not None else f"{cls}_l45_global_median")
     _, geared, kit, _ = prepare(build, scen)
     # A real character may unlock more specializations through gear. Keep only those

@@ -30,16 +30,19 @@ def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
     if base:
         remote = _request(base, f"/api/v2/presets/{cls}/{mode}/policy")
         selected = remote.get("budgets") if remote.get("version") == 2 else None
-        expected = scoring_policy(cls, mode, selected)
+        allowance = remote.get("bonus") if remote.get("version") == 2 else None
+        expected = scoring_policy(cls, mode, selected, allowance)
         if remote.get("scope") != expected["scope"]:
-            different = [key for key in ("model", "version", "class", "mode", "budgets", "loadout_fingerprint", "data_fingerprint", "weights", "durations")
+            different = [key for key in ("model", "version", "class", "mode", "budgets", "bonus", "loadout_fingerprint", "data_fingerprint", "weights", "durations")
                          if remote.get(key) != expected.get(key)]
             raise ValueError("Community comparison policy differs from this evaluator (" + ", ".join(different or ["scope"]) +
                              "); check client/server releases and their bundled game data")
         policy = expected
     observed_budgets = policy["budgets"] if policy["version"] == 2 else None
+    # the bonus skill levels (gear rolls, arcana cards) the server's contributors reported: the search places them
+    observed_bonus = policy.get("bonus")
     def score(document):
-        return evaluate(document, observed_budgets)
+        return evaluate(document, observed_budgets, observed_bonus)
     cache = home() / "cache" / "community-comparisons" / (policy["scope"] + ".json")
     try:
         if cache.stat().st_size <= MAX_BYTES:
@@ -57,21 +60,25 @@ def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
     cd = ClassData(cls)
     lo = load_loadout(policy["loadout"])
     scores = []
+
+    def described(build, scenario, rotation):
+        return {"class": cls, "scenario": scenario, "policy": describe(rotation),
+                "build": {"sp": {cd.skills[k]["name"]: v for k, v in build.sp.items()},
+                          "stigmas": {cd.skills[k]["name"]: v for k, v in build.stigmas.items()},
+                          "specs": {cd.skills[k]["name"]: [_spec_text(cd, k, x) for x in v]
+                                    for k, v in build.specs.items()},
+                          "daevanion_nodes": sorted(build.daevanion),
+                          "bonus": {cd.skills[k]["name"]: v for k, v in sorted(build.bonus.items()) if v > 0}}}
+
     with uncalibrated():
         for index, objective in enumerate(MODES[mode], 1):
             if progress:
                 progress(f"Common comparison seed {index}/2: optimizing {objective}; personal gear and constraints are not inputs")
             opt = Optimizer(cls, SCENARIOS[objective](lo), verbose=False, progress=progress,
                             sp_budget=policy["budgets"]["skill"], stigma_points=policy["budgets"]["stigma"],
-                            daev_budget=policy["budgets"]["daevanion"])
+                            daev_budget=policy["budgets"]["daevanion"], bonus_pool=observed_bonus)
             result = opt.run(iterations=1)
-            build = result.build
-            summary = {"class": cls, "scenario": objective, "policy": describe(result.policy),
-                       "build": {"sp": {cd.skills[k]["name"]: v for k, v in build.sp.items()},
-                                 "stigmas": {cd.skills[k]["name"]: v for k, v in build.stigmas.items()},
-                                 "specs": {cd.skills[k]["name"]: [_spec_text(cd, k, x) for x in v]
-                                           for k, v in build.specs.items()},
-                                 "daevanion_nodes": sorted(build.daevanion)}}
+            summary = described(result.build, objective, result.policy)
             scored = score(candidate(summary, policy))
             scored["candidate_generation"] = {"objective": objective, "iterations": 1, "calibration": "disabled"}
             scores.append(scored)
@@ -79,20 +86,16 @@ def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
         primary = MODES[mode][0]
         document = candidate(seed, policy)
         build, rotation = parse({"format": "a2preset", "version": 1, "class": cls,
-                                 "build": document["build"]}, scenario_name=primary, loadout_snapshot=lo, budgets=policy["budgets"])
+                                 "build": document["build"]}, scenario_name=primary, loadout_snapshot=lo, budgets=policy["budgets"],
+                                bonus=observed_bonus)
         if progress:
             progress("Common comparison refinement: optimizing the weighted objective across both scenarios")
         scenarios = [(policy["weights"][name], SCENARIOS[name](lo, duration=policy["durations"][name])) for name in MODES[mode]]
         opt = WeightedOptimizer(cls, scenarios, verbose=False, progress=progress,
                                 sp_budget=policy["budgets"]["skill"], stigma_points=policy["budgets"]["stigma"],
-                                daev_budget=policy["budgets"]["daevanion"])
+                                daev_budget=policy["budgets"]["daevanion"], bonus_pool=observed_bonus)
         result = opt.run(iterations=1, initial_build=build, initial_policy=rotation)
-        refined = {"class": cls, "scenario": primary, "policy": describe(result.policy),
-                   "build": {"sp": {cd.skills[k]["name"]: v for k, v in result.build.sp.items()},
-                             "stigmas": {cd.skills[k]["name"]: v for k, v in result.build.stigmas.items()},
-                             "specs": {cd.skills[k]["name"]: [_spec_text(cd, k, x) for x in v]
-                                       for k, v in result.build.specs.items()},
-                             "daevanion_nodes": sorted(result.build.daevanion)}}
+        refined = described(result.build, primary, result.policy)
         scored = score(candidate(refined, policy))
         scored["candidate_generation"] = {"objective": "weighted", "iterations": 1, "calibration": "disabled"}
         scores.append(scored)

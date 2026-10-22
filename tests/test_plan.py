@@ -76,6 +76,31 @@ def test_best_equip_and_goal_gear(home):
     assert p["end_dps"] >= p["start_dps"] and all(s["gain"] > 0 for s in p["steps"])
 
 
+def test_goal_items_and_rerolls_name_the_rolls_to_chase(home):
+    """"Reroll toward good rolls" says which rolls: the item's roll stats worth the most to damage."""
+    from aion2calc.plan import inventory as INV
+    from aion2calc.plan.context import PlanContext
+    from aion2calc.plan.gear import goal_gear, upgrade_path
+    from aion2calc.plan import items as I
+    _catalog(RING, WEAK, BOOK)
+    crit = [{"stat": "Critical Hit", "range": "+30 – +50"}]
+    assert [o["stat"] for o in I.good_rolls(RING, lambda f: f.get("crit", 0))] == ["Critical Hit"]   # HP is worth nothing: not chased
+    assert I.good_rolls(BOOK, lambda f: 1.0) == [] and I.roll_names(crit) == "Critical Hit +30 – +50"
+    ctx = PlanContext.for_class("sorcerer")
+    g = goal_gear(ctx)
+    best = g["slots"]["Ring1"]["best"][0]
+    assert best["rolls"] == crit
+    p = upgrade_path(ctx, g["slots"], steps=2, target="best")
+    assert p["steps"][0]["kind"] == "replace" and p["steps"][0]["action"].endswith("(+0, rolls: Critical Hit +30 – +50)")
+    assert p["steps"][0]["rolls"] == crit
+    inv = {"profile": "t", "class": "sorcerer", "items": []}
+    worn = INV.add(inv, "weak-ring", 2, rolls=[["HP", 250], ["HP", 250]])          # rolled the worthless stat twice
+    ctx.equipped = {"Ring1": worn}
+    p = upgrade_path(ctx, {"Ring1": {"best": [], "next": None}}, steps=2)
+    assert p["steps"] and p["steps"][0]["kind"] == "reroll" and p["steps"][0]["rolls"] == crit
+    assert p["steps"][0]["action"] == "reroll Weak Ring toward Critical Hit +30 – +50"
+
+
 def test_median_loadout_groups_scale_with_chosen_slots(home):
     from aion2calc.plan.context import PlanContext
     _catalog(RING)

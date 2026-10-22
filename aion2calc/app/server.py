@@ -157,6 +157,40 @@ def act_character_import(body: dict, log) -> dict:
     return views.character_view(imp, ev)
 
 
+def _skill_bonus_observation(imp) -> dict:
+    """The bonus skill levels the collected character's gear carries, for the point observation:
+    ``{"gear": {skill name: levels}, "arcana": {skill name: levels}}`` from the skill options rolled on its
+    equipment and the options of its arcana cards (the official profile lists both per item). The server
+    keeps the highest total and the most on one skill per class, so community presets can place that
+    many (0.2.328). Only names of the class's known non-stigma skills; never an item, name or id."""
+    from ..kit.base import ClassData
+    cd = ClassData(imp.cls)
+    out = {"gear": {}, "arcana": {}}
+    systems = getattr(imp, "systems", None) or {}
+    for key, rows in (("gear", systems.get("equipment") or []), ("arcana", systems.get("arcana") or [])):
+        for row in rows:
+            for entry in (row.get("skills") or []) if isinstance(row, dict) else []:
+                try:
+                    name, level = entry[0], int(entry[1])
+                except (TypeError, ValueError, IndexError):
+                    continue
+                skill = cd.by_name.get(name)
+                if skill and skill["kind"] != "stigma" and level > 0:
+                    out[key][skill["name"]] = out[key].get(skill["name"], 0) + level
+    return {k: v for k, v in out.items() if v}
+
+
+def _point_observation(body: dict, imp, points: dict, source: str) -> dict:
+    """The anonymous ``/api/v1/progression`` body: class, region, game version, the point totals and,
+    since 0.2.328, the bonus skill levels the character's gear rolls and arcana cards give."""
+    observation = {"class": imp.cls, "region": body.get("region", ""), "game_patch": body.get("game_patch", ""),
+                   "points": {k: points[k] for k in ("skill", "stigma", "daevanion")}, "source": source}
+    bonus = _skill_bonus_observation(imp)
+    if bonus:
+        observation["skill_bonus"] = bonus
+    return observation
+
+
 def _contribute_character_points(body: dict, imp, ev: dict, log) -> None:
     """Share the collected character's observed point allocations with the community
     "highest observed build points", on by default (``community_contribute_character``).
@@ -165,8 +199,9 @@ def _contribute_character_points(body: dict, imp, ev: dict, log) -> None:
     running an Optimize did — so a user who just imported never appeared in the server's
     observed totals. This sends the same anonymous ``profile_lower_bound`` observation an
     optimize would (class, region, game version and the skill/stigma/Daevanion points the
-    profile has spent; no name, character id, IP or build detail). Best-effort: a missing
-    server, an opt-out, or any failure just means nothing is sent, and it never raises."""
+    profile has spent, plus the skill levels its gear rolls and arcana cards give; no name,
+    character id, IP or build detail). Best-effort: a missing server, an opt-out, or any
+    failure just means nothing is sent, and it never raises."""
     try:
         if ui_settings().get("community_contribute_character", True) is False:
             return
@@ -181,10 +216,8 @@ def _contribute_character_points(body: dict, imp, ev: dict, log) -> None:
         from ..combat import share
         if not str(share.effective().get("url") or "").strip():
             return
-        share.community_request("/api/v1/progression", {
-            "class": imp.cls, "region": body.get("region", ""), "game_patch": body.get("game_patch", ""),
-            "points": {k: points[k] for k in ("skill", "stigma", "daevanion")}, "source": "profile_lower_bound"})
-        log("Shared your build's point totals with the community (anonymous).")
+        share.community_request("/api/v1/progression", _point_observation(body, imp, points, "profile_lower_bound"))
+        log("Shared your build's point totals and gear skill levels with the community (anonymous).")
     except Exception as exc:   # a community beacon must never break collecting a character
         log("Could not share point totals: " + str(exc))
 
@@ -232,9 +265,8 @@ def act_character_optimize(body: dict, log) -> dict:
     else:
         log("Submitting anonymous point observations…")
         try:
-            points = share.community_request("/api/v1/progression", {"class": imp.cls, "region": body.get("region", ""),
-                "game_patch": body.get("game_patch", ""), "points": summ["budgets"],
-                "source": "user_reported" if body.get("budgets") else "profile_lower_bound"})
+            points = share.community_request("/api/v1/progression", _point_observation(
+                body, imp, summ["budgets"], "user_reported" if body.get("budgets") else "profile_lower_bound"))
             log("Community point observations updated.")
         except Exception as exc:
             points = {"error": str(exc)}

@@ -10,6 +10,7 @@ import time
 import urllib.error
 import urllib.request
 
+from ..opt.bonus import valid_pool
 from ..paths import list_names, read_json, write_user_json, bundled_model_data
 from ..presets import BUDGETS, MAX_BYTES, InvalidPreset, candidate as legacy_candidate, parse
 from .share import effective
@@ -83,6 +84,7 @@ def _validate(remote, cls, mode, scope):
             or not isinstance(policy.get("budgets"), dict) or set(policy["budgets"]) != set(BUDGETS)
             or any(type(v) is not int or not 0 <= v <= 10000 for v in policy["budgets"].values())
             or (policy.get("version") == 1 and policy["budgets"] != BUDGETS)
+            or (policy.get("bonus") is not None and (policy.get("version") != 2 or not valid_pool(policy["bonus"])))
             or policy.get("weights") != {primary: .5, secondary: .5}
             or policy.get("durations") != {primary: 180, secondary: 30 if mode == "pvp" else 180}
             or policy.get("calibration") != "disabled"):
@@ -111,7 +113,7 @@ def _validate(remote, cls, mode, scope):
             elif field not in Stats.__dataclass_fields__ or not _number(value) or abs(value) > 1e9:
                 raise ValueError("Invalid preset stats")
     parse({"format": "a2preset", "version": 1, "class": cls, "build": legacy_candidate(summary)["build"]},
-          scenario_name=primary, loadout_snapshot=lo, budgets=policy["budgets"])
+          scenario_name=primary, loadout_snapshot=lo, budgets=policy["budgets"], bonus=policy.get("bonus"))
     if not _number(remote.get("updated_at")):
         raise ValueError("Invalid preset update time")
     return summary

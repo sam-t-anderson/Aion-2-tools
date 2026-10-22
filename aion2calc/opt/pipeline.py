@@ -18,6 +18,7 @@ from ..kit.base import Build, ClassData, sp_to_reach, spec_slots, stigma_points_
 from ..run import Scenario, kit_module, prepare
 from ..sim.engine import Sim
 from . import daevanion as daev_opt
+from .bonus import allocate_pool, valid_pool
 from .rotation import describe, materialize, optimize_rotation
 from .solver import name as solver_name, require as solver_require
 from .statweights import node_values, stat_weights
@@ -100,6 +101,30 @@ def _stigma_worker(job):
     return job, opt.evaluate(b2, policy)
 
 
+def _bonus_worker(moves):
+    """One bonus-level move: a level taken from one skill and given to another, or placed from the
+    pool's slack. The raised skill's supporting effects are chosen again when the move crosses an
+    effect's unlock level or opens a slot."""
+    opt, build, policy = _CTX["bonus"]
+    cd = opt.cd
+    b2 = build.copy()
+    for sid, d in moves:
+        b2.bonus[sid] = b2.bonus.get(sid, 0) + d
+        if b2.bonus[sid] <= 0:
+            b2.bonus.pop(sid)
+    b2 = opt._clean_specs(b2)
+    before = opt._with_gear(build).effective_levels(cd)
+    after = opt._with_gear(b2).effective_levels(cd)
+    crossed = [sid for sid, d in moves if d > 0 and (
+        spec_slots(after.get(sid, 1)) > spec_slots(before.get(sid, 1))
+        or any(before.get(sid, 1) < x["unlock"] <= after.get(sid, 1) for x in cd.skills[sid].get("specs", [])))]
+    if crossed:
+        b2, v = opt._respec(b2, policy, crossed)
+    else:
+        v = opt.evaluate(b2, policy)
+    return moves, v, b2
+
+
 def _sp_worker(moves):
     opt, build, policy = _CTX["sp"]
     cd = opt.cd
@@ -135,7 +160,11 @@ class Optimizer:
     def __init__(self, cls: str, scenario: Scenario, daev_budget: int = 360,
                  stigma_points: int | None = None, sp_budget: int | None = None,
                  search_duration: float | None = None, verbose: bool = True, gear_bonus: dict | None = None,
-                 progress=None, survival=None, skill_reserves=None, level: int = 45):
+                 progress=None, survival=None, skill_reserves=None, level: int = 45,
+                 bonus_pool: dict | None = None):
+        """``bonus_pool`` = ``{"levels", "per_skill"}``: bonus skill levels from gear rolls and arcana cards
+        the search may place itself (a community comparison's allowance); the result's ``Build.bonus``
+        then holds where they go. Without it, ``Build.bonus`` is the fixed ``gear_bonus`` only."""
         from .survival import with_action_timing
         scenario = with_action_timing(scenario, survival)
         self.survival = survival
@@ -158,6 +187,10 @@ class Optimizer:
         self.verbose = verbose
         self.progress = progress            # optional callback(str): live phase updates for the app UI
         self.gear_bonus = gear_bonus or {}
+        if bonus_pool is not None and not valid_pool(bonus_pool):
+            raise ValueError("The bonus-level allowance needs whole-number levels and per_skill from 1 up")
+        self.bonus_pool = dict(bonus_pool) if bonus_pool else None
+        self._curve_sids: set = set()      # skills whose level curves showed a measurable gain
         from .reserves import include_survival
         skill_reserves = include_survival(self.cd, skill_reserves, survival,
                                          {"skill": self.sp_budget, "stigma": self.stigma_points})
@@ -289,6 +322,27 @@ class Optimizer:
             if not changed:
                 break
         return build
+
+    def _respec(self, build: Build, policy: list, sids) -> tuple[Build, float]:
+        """The best supporting effects for ``sids`` alone (their levels just changed), everything else
+        as it is: cheaper than :meth:`optimize_specs` over every skill."""
+        mod = kit_module(self.cls, pvp=self.scenario.target.is_player)
+        best = self.evaluate(build, policy)
+        for sid in sids:
+            s = self.cd.skills[sid]
+            if s["kind"] != "active" or not s.get("specs"):
+                continue
+            for combo in mod.spec_options(self.cd, self._with_gear(build)).get(sid, [()]):
+                if not set(self.required_specs.get(sid, ())) <= set(combo):
+                    continue
+                if tuple(sorted(combo)) == tuple(sorted(build.specs.get(sid, ()))):
+                    continue
+                b3 = build.copy()
+                b3.specs[sid] = tuple(combo)
+                v = self.evaluate(b3, policy)
+                if v > best * (1 + 1e-9):
+                    best, build = v, b3
+        return build, best
 
     def _with_gear(self, build: Build) -> Build:
         from ..model.character import load_loadout, loadout_stats
@@ -445,35 +499,100 @@ class Optimizer:
         self.log("skill allocation: calculating stat weights")
         weights = self._stat_weights(build, policy)
         nv = node_values(self.cd, weights)
-        # bonus from gear stays outside the program; Daevanion/SP replace the build's
+        self._curve_sids = set(curves)
+        # bonus from gear stays outside the program; Daevanion/SP replace the build's. With a bonus pool
+        # the build's own bonus is the pool's last placement, re-placed below: only the fixed gear bonus stays.
         gear = self._gear_bonus()
-        bonus = dict(gear)
-        for k, v in build.bonus.items():
-            bonus[k] = bonus.get(k, 0) + v
-        # This is a mixed integer program and can be the longest single step.
-        # Keep the UI's phase indicator current while the in-process HiGHS
-        # solver works.
-        self.log(f"skill allocation: solving Daevanion/SP with {solver_name()} (up to {DAEV_SOLVER_TIME_LIMIT} s)")
-        solver_started = time.monotonic()
-        # Start from the current allocation, so a solve cut short by its time limit (likely on a
-        # busy machine) never returns a board worth less to the program than the one it has.
-        sol = daev_opt.solve(self.cd, curves, nv, daev_budget=self.daev_budget,
-                             sp_budget=self.sp_budget, bonus=bonus,
-                             time_limit=DAEV_SOLVER_TIME_LIMIT,
-                             min_node_hp=(self.survival or {}).get("minimum_node_hp", 0), min_sp=self.min_sp, min_effective=self.min_effective,
-                             start=(build.daevanion, build.sp), spend_all=True, boards=self.boards, max_sp=self.sp_caps)
-        self.log(f"skill allocation: solver finished ({sol['status']}, "
-                 f"{time.monotonic() - solver_started:.1f} s"
-                 f"{'; started from the current allocation' if sol['warm_start'] else ''})")
-        if sol["filled"]:
-            self.log(f"skill allocation: filled {sol['filled']} Daevanion point{'s' if sol['filled'] != 1 else ''} "
-                     "the solver left unspent")
+        fixed = dict(gear)
+        for k, v in (self.gear_bonus if self.bonus_pool else build.bonus).items():
+            fixed[k] = fixed.get(k, 0) + v
+
+        def solve(bonus, start):
+            # This is a mixed integer program and can be the longest single step.
+            # Keep the UI's phase indicator current while the in-process HiGHS
+            # solver works.
+            self.log(f"skill allocation: solving Daevanion/SP with {solver_name()} (up to {DAEV_SOLVER_TIME_LIMIT} s)")
+            solver_started = time.monotonic()
+            # Start from the current allocation, so a solve cut short by its time limit (likely on a
+            # busy machine) never returns a board worth less to the program than the one it has.
+            sol = daev_opt.solve(self.cd, curves, nv, daev_budget=self.daev_budget,
+                                 sp_budget=self.sp_budget, bonus=bonus,
+                                 time_limit=DAEV_SOLVER_TIME_LIMIT,
+                                 min_node_hp=(self.survival or {}).get("minimum_node_hp", 0), min_sp=self.min_sp, min_effective=self.min_effective,
+                                 start=start, spend_all=True, boards=self.boards, max_sp=self.sp_caps)
+            self.log(f"skill allocation: solver finished ({sol['status']}, "
+                     f"{time.monotonic() - solver_started:.1f} s"
+                     f"{'; started from the current allocation' if sol['warm_start'] else ''})")
+            if sol["filled"]:
+                self.log(f"skill allocation: filled {sol['filled']} Daevanion point{'s' if sol['filled'] != 1 else ''} "
+                         "the solver left unspent")
+            return sol
+
+        sol = solve(fixed, (build.daevanion, build.sp))
+        pool: dict = {}
+        if self.bonus_pool:
+            # The bonus levels gear rolls and arcana cards can add (the comparison's allowance) go on the
+            # same curves, by the run of levels that gains most; then the points are solved again around them.
+            dv = self.cd.daevanion_levels(sol["nodes"])
+            eff = {sid: sol["sp"].get(sid, 1) + dv.get(sid, 0) + fixed.get(sid, 0) for sid in curves}
+            pool = allocate_pool(curves, eff, self.bonus_pool,
+                                 max_level={sid: self.cd.skills[sid].get("max") or 40 for sid in curves})
+            placed = ", ".join(f"{self.cd.skills[sid]['name']} +{n}"
+                               for sid, n in sorted(pool.items(), key=lambda kv: (-kv[1], kv[0])))
+            self.log(f"bonus levels: {sum(pool.values())} of {self.bonus_pool['levels']} from gear rolls and arcana "
+                     f"cards placed ({placed or 'none worth a level'}); solving the points around them")
+            with_pool = {k: fixed.get(k, 0) + pool.get(k, 0) for k in set(fixed) | set(pool)}
+            sol = solve(with_pool, (sol["nodes"], sol["sp"]))
         self.log("skill allocation: applying the optimized points")
         b2 = build.copy()
         b2.daevanion = sol["nodes"]
         b2.sp = {sid: lv for sid, lv in sol["sp"].items() if lv > 1}
+        if self.bonus_pool:
+            b2.bonus = {k: v for k, v in ((k, self.gear_bonus.get(k, 0) + pool.get(k, 0))
+                                          for k in set(self.gear_bonus) | set(pool)) if v > 0}
         # skills without a value curve keep level 1 (no points)
         return b2, sol, curves, weights
+
+    def polish_bonus(self, build: Build, policy: list, rounds: int = 4) -> Build:
+        """Full-simulation local search on the pool's bonus levels after the integer program: move one
+        level from one skill to another, or place one the program left unspent, keeping the single move
+        that gains most, round after round, until none does. Moves go between the skills whose level
+        curves showed a gain."""
+        pool = self.bonus_pool
+        if not pool:
+            return build
+        cd = self.cd
+        skills = sorted(sid for sid, s in cd.skills.items()
+                        if s["kind"] in ("active", "passive") and (s.get("unlock") or 1) <= self.level
+                        and (not self._curve_sids or sid in self._curve_sids))
+        best = self.evaluate(build, policy)
+        for round_no in range(1, rounds + 1):
+            placed = {sid: n - self.gear_bonus.get(sid, 0) for sid, n in build.bonus.items()
+                      if n - self.gear_bonus.get(sid, 0) > 0}
+            slack = pool["levels"] - sum(placed.values())
+            eff = self._with_gear(build).effective_levels(cd)
+            jobs = []
+            for b in skills:
+                if (placed.get(b, 0) >= pool["per_skill"] or eff.get(b, 1) < 1
+                        or eff.get(b, 1) >= (cd.skills[b].get("max") or 40)):
+                    continue
+                if slack > 0:
+                    jobs.append(((b, 1),))
+                jobs += [((a, -1), (b, 1)) for a in sorted(placed) if a != b]
+            if not jobs:
+                break
+            _CTX["bonus"] = (self, build, policy)
+            self.log(f"polish bonus levels: round {round_no}/{rounds}, evaluating {len(jobs)} moves")
+            moves, v, b2 = max(_pmap(
+                _bonus_worker, jobs, ctx={"bonus": _CTX["bonus"]},
+                progress=lambda done, total: self.log(f"polish bonus levels: {done}/{total} moves"),
+                fallback=self.log), key=lambda r: r[1], default=(None, 0, None))
+            if not moves or v <= best * (1 + 1e-4):     # ignore noise-level moves
+                break
+            self.log("polish bonus levels: " + ", ".join(f"{cd.skills[s]['name']} {d:+d}" for s, d in moves)
+                     + f" -> {v:.0f} (was {best:.0f})")
+            build, best = b2, v
+        return build
 
     def polish_sp(self, build: Build, policy: list, rounds: int = 6) -> Build:
         """Full-simulation local search on skill points after the integer program.
@@ -639,6 +758,7 @@ class Optimizer:
             raise ValueError("The optimized allocation does not meet the requested HP reserve")
         build = self.polish_sp(build, policy)
         build = self.spend_remaining_sp(build, policy)
+        build = self.polish_bonus(build, policy)
         build = self.optimize_specs(build, policy, passes=3)
         policy, dps, res = self.optimize_rotation(build, policy, restarts=4)
         from .reserves import meets

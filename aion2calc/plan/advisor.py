@@ -107,10 +107,10 @@ def doll_view(inv: dict, equip: dict, goals: dict, path: dict) -> dict:
         out[slot] = {"worn": _card(worn.get(slot)),
                      "wear": _card(rec) if rec is not None and rec is not worn.get(slot) else None,
                      "wear_gain": gains.get(slot),
-                     "next": g.get("next") and {k: g["next"][k] for k in ("name", "grade", "icon", "enchant",
-                                                                           "item_level", "gain", "url")},
-                     "best": g.get("best") and {k: g["best"][0][k] for k in ("name", "grade", "icon", "enchant",
-                                                                              "item_level", "gain", "url")},
+                     "next": g.get("next") and {k: g["next"].get(k) for k in ("name", "grade", "icon", "enchant",
+                                                                               "item_level", "gain", "url", "rolls")},
+                     "best": g.get("best") and {k: g["best"][0].get(k) for k in ("name", "grade", "icon", "enchant",
+                                                                                  "item_level", "gain", "url", "rolls")},
                      "steps": [s["step"] for s in path["steps"] if s["slot"] == slot]}
     return out
 

@@ -36,8 +36,8 @@ sub-stats (for example the Spiritforged weapons) always count them.
 | Planner | Answers |
 |---|---|
 | Best set from inventory | which owned item to wear in every slot. Rings, earrings, bracelets and runes fill both slots of their pair |
-| Goal gear | per slot, the best catalog item at its max enchant (up to +15) with good rolls (the most valuable distinct stats of its pool, at mid range). **Next** is the nearest item level that still gains at least 2%, so you have a goal before end-game |
-| Upgrade path | one change at a time, always the biggest simulated gain: an enchant level, a reroll toward good rolls, or the slot's next goal |
+| Goal gear | per slot, the best catalog item at its max enchant (up to +15) with good rolls (the most valuable distinct stats of its pool, at mid range; named on the card as the rolls to chase). **Next** is the nearest item level that still gains at least 2%, so you have a goal before end-game |
+| Upgrade path | one change at a time, always the biggest simulated gain: an enchant level, a reroll toward the named good rolls, or the slot's next goal |
 | Arcana | per slot: the variant whose deity stat is worth more, the skill options to chase, the ideal Unique +5 (9 options, at most 4 per skill), the expected value of random options, and whether each owned arcana is above the average for its grade and level |
 | Pantheon | the ten deity stats by DPS per point (Life, Destiny and Space do nothing for damage), your current split, the arcana variant choices and the best bracelet deity roll |
 | Titles | per title slot (Attack, Defense, Other): the equipped title, the best one you own, the best in the game with how to earn it, and the titles worth collecting for their owned bonus |

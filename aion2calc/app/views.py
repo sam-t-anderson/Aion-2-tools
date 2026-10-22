@@ -107,7 +107,7 @@ def skills_view(cd: ClassData, build, gear_bonus: dict, levels_override: dict | 
         chosen = set(build.specs.get(sid, ()))
         rows[s["kind"]].append({
             "id": sid, "name": s["name"], "icon": SKILL_ICON.format(sid), "sp": sp, "daev": dv.get(sid, 0),
-            "gear": gear_bonus.get(sid, 0), "buy_max": min(10, s.get("buyMax", 10)), "eff": eff, "slots": spec_slots(eff),
+            "gear": gear_bonus.get(sid, 0) + build.bonus.get(sid, 0), "buy_max": min(10, s.get("buyMax", 10)), "eff": eff, "slots": spec_slots(eff),
             "next_effect_level": min((x["unlock"] for x in s.get("specs", []) if x["unlock"] > eff),default=None),
             "specs": [{"id": x["id"], "n": i + 1, "unlock": x["unlock"], "text": x["text"],
                        "chosen": x["id"] in chosen, "available": x["unlock"] <= eff}
@@ -323,6 +323,15 @@ def build_view(summary: dict) -> dict:
                              for c in snapshot["components"]))
     lo = snapshot if saved_loadout else load_loadout(loadout)
     gear = loadout_stats(lo).skill_bonus
+    # bonus levels a community preset names (gear rolls and arcana cards to chase), with the arcana
+    # slots whose option pools hold each skill
+    from ..plan.arcana import pool_slots
+    try:
+        pools = pool_slots(cls)
+    except (OSError, ValueError, KeyError):
+        pools = {}
+    bonus_levels = [{"name": cd.skills[k]["name"], "levels": v, "arcana": pools.get(cd.skills[k]["name"], [])}
+                    for k, v in sorted(build.bonus.items(), key=lambda kv: (-kv[1], kv[0])) if k in cd.skills and v > 0]
     weights = summary.get("weights") or []
     budgets = summary.get("budgets") or {"skill": 203, "stigma": 30,
                                          "daevanion": summary.get("daevanion_budget", 360)}
@@ -348,6 +357,7 @@ def build_view(summary: dict) -> dict:
         "stats": summary.get("stats"), "weights": weights[:12], "shares": summary.get("shares"),
         "links": summary.get("links"), "gear_skill_rolls": [{"name": cd.skills[k]["name"], "levels": v}
                                                             for k, v in gear.items() if k in cd.skills],
+        "bonus_levels": bonus_levels,
     }
 
 

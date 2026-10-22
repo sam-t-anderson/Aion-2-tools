@@ -13,10 +13,11 @@ import math
 
 from .kit.base import ClassData
 from .model.character import load_loadout
+from .opt.bonus import trim, valid_pool
 from .paths import list_names, bundled_model_data
 from .presets import BUDGETS, InvalidPreset, candidate as legacy_candidate, parse
 
-MODEL_VERSION = "0.3.11"  # Bump for evaluator/model changes, not capture/UI releases.
+MODEL_VERSION = "0.3.12"  # Bump for evaluator/model changes, not capture/UI releases.
 # 0.3.0: hand-written kits for all eight classes (was sorcerer only) — see aion2calc/kit/.
 # Changes every class's modeled rotation, so the server re-scores all presets under it.
 # 0.3.3: kit action times measured from recorded casts (0.2.307) and each class's recorded
@@ -44,6 +45,10 @@ MODEL_VERSION = "0.3.11"  # Bump for evaluator/model changes, not capture/UI rel
 # specializations and Shield Rush only after the recorded dodges; from the recordings, Annihilate's +100% on
 # a boss and Punishment's damage over time, and the Gladiator's measured MP a basic step; the bundled
 # Templar build is regenerated.
+# 0.3.12: bonus skill levels from gear rolls and arcana cards (0.2.328). A policy can carry the highest
+# bonus levels the server's contributors reported (``bonus``: the total and the most on one skill); a
+# preset then names the skills to put them on (``build.bonus``), so skills pass level 14 and reach the
+# fifth supporting effect (16) and the third slot (20). A build's own levels are still trained with points.
 VERSION = 2
 POLICY_VERSION = 1
 MODES = {"pve": ("boss", "dummy"), "pvp": ("pvp", "pvp_burst")}
@@ -59,16 +64,20 @@ def _digest(value) -> str:
 
 
 @bundled_model_data
-def _context(cls: str, mode: str, budgets: dict | None = None):
+def _context(cls: str, mode: str, budgets: dict | None = None, bonus: dict | None = None):
+    """``bonus`` = the bonus-level allowance ``{"levels", "per_skill"}`` the server observed for the class
+    (gear rolls and arcana cards); None scores builds with no bonus levels, as before 0.3.12."""
     if not isinstance(cls, str) or cls not in list_names("global", "classes"):
         raise InvalidPreset("unknown class")
     if not isinstance(mode, str) or mode not in MODES:
         raise InvalidPreset("choose pve or pvp")
-    observed = budgets is not None
+    observed = budgets is not None or bonus is not None
     budgets = dict(BUDGETS) if budgets is None else budgets
     if (not isinstance(budgets, dict) or set(budgets) != set(BUDGETS)
             or any(type(v) is not int or not 0 <= v <= 10000 for v in budgets.values())):
         raise InvalidPreset("invalid comparison point budgets")
+    if bonus is not None and not valid_pool(bonus):
+        raise InvalidPreset("invalid comparison bonus-level allowance")
     cd = ClassData(cls)
     loadout_name = f"{cls}_l45_global_median"
     lo = copy.deepcopy(load_loadout(loadout_name))
@@ -79,10 +88,14 @@ def _context(cls: str, mode: str, budgets: dict | None = None):
               "score_kind": "weighted_modeled_dps", "weights": {s: .5 for s in MODES[mode]},
               "durations": {s: 30 if s == "pvp_burst" else 180 for s in MODES[mode]},
               "calibration": "disabled", "note": NOTE}
+    if bonus is not None:
+        policy["bonus"] = dict(bonus)
     if observed:
         policy["note"] = ("Common-loadout comparison using the highest server-reported resources for this class, "
                           "pooled across available region/build contexts. Reports and allocated lower bounds are not verified game caps. "
-                          "Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. "
+                          + ("Bonus skill levels from gear rolls and arcana cards are allowed up to the highest reported total and per-skill count; "
+                             "a preset names the skills to put them on. " if bonus is not None else "")
+                          + "Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. "
                           "Personal gear, Genus and survival constraints are excluded. Best evaluated eligible candidate, not proof of a global optimum.")
     if mode == "pvp":
         from .scenarios import PVP_NOTE
@@ -91,9 +104,27 @@ def _context(cls: str, mode: str, budgets: dict | None = None):
     return policy, lo
 
 
-def scoring_policy(cls: str, mode: str, budgets: dict | None = None) -> dict:
+def scoring_policy(cls: str, mode: str, budgets: dict | None = None, bonus: dict | None = None) -> dict:
     """Publish the exact comparison scope without exposing local inventory."""
-    return _context(cls, mode, budgets)[0]
+    return _context(cls, mode, budgets, bonus)[0]
+
+
+def candidate_bonus(cls: str, summary: dict, allowance: dict | None) -> dict:
+    """The bonus levels a candidate carries, by skill name: the summary's own (``build.bonus``), else
+    the skill rolls of its loadout snapshot (a personal build's gear and arcana), cut to the policy's
+    allowance; none without an allowance."""
+    data = summary.get("build") or {}
+    bonus = {k: v for k, v in data.get("bonus", {}).items()} if isinstance(data.get("bonus"), dict) else {}
+    if not bonus and allowance:
+        cd = ClassData(cls)
+        snapshot = summary.get("loadout_snapshot")
+        for comp in (snapshot.get("components") or []) if isinstance(snapshot, dict) else []:
+            rolls = ((comp.get("stats") or {}) if isinstance(comp, dict) else {}).get("skill_bonus") or {}
+            for sid, lv in rolls.items() if isinstance(rolls, dict) else []:
+                s = cd.skills.get(int(sid)) if str(sid).isdigit() else None
+                if s and s["kind"] != "stigma" and type(lv) is int and lv > 0:
+                    bonus[s["name"]] = bonus.get(s["name"], 0) + lv
+    return trim(bonus, allowance)
 
 
 @bundled_model_data
@@ -113,20 +144,27 @@ def candidate(summary: dict, policy: dict | None = None) -> dict:
         raise InvalidPreset("missing preset scoring policy")
     if policy.get("class") != cls or policy.get("mode") != mode or not isinstance(policy.get("scope"), str):
         raise InvalidPreset("preset policy does not match class and mode")
+    if cls not in list_names("global", "classes"):
+        raise InvalidPreset("unknown class")
     build = legacy_candidate(summary)["build"]
     build["scenario"] = MODES[mode][0]
+    bonus = candidate_bonus(cls, summary, policy.get("bonus"))
+    if bonus:
+        build["build"]["bonus"] = bonus
+    else:
+        build["build"].pop("bonus", None)
     return {"format": "a2preset", "version": VERSION, "class": cls, "mode": mode,
             "scope": policy["scope"], "build": build}
 
 
 @bundled_model_data
-def evaluate(document: dict, budgets: dict | None = None) -> dict:
+def evaluate(document: dict, budgets: dict | None = None, bonus: dict | None = None) -> dict:
     """Recompute the weighted score using only the server's current policy."""
     from .learn import uncalibrated
     if not isinstance(document, dict) or document.get("format") != "a2preset" or document.get("version") != VERSION:
         raise InvalidPreset("not an a2preset v2 document")
     cls, mode = document.get("class"), document.get("mode")
-    policy, lo = _context(cls, mode, budgets)
+    policy, lo = _context(cls, mode, budgets, bonus)
     if document.get("scope") != policy["scope"]:
         raise InvalidPreset("preset scoring scope changed; fetch the current policy and resubmit")
     with uncalibrated():
@@ -143,7 +181,8 @@ def _evaluate(document: dict, policy: dict, lo: dict) -> dict:
 
     primary, secondary = MODES[policy["mode"]]
     legacy = {"format": "a2preset", "version": 1, "class": document["class"], "build": document.get("build")}
-    build, rotation = parse(legacy, scenario_name=primary, loadout_snapshot=lo, budgets=policy["budgets"])
+    build, rotation = parse(legacy, scenario_name=primary, loadout_snapshot=lo, budgets=policy["budgets"],
+                            bonus=policy.get("bonus"))
     scen = SCENARIOS[primary](lo)
     first, _, _ = _sim(build, scen, rotation)
     second, _, _ = _sim(build, SCENARIOS[secondary](lo), rotation)
@@ -163,6 +202,7 @@ def _evaluate(document: dict, policy: dict, lo: dict) -> dict:
                       "specs": {cd.skills[k]["name"]: [_spec_text(cd, k, x) for x in v] for k, v in build.specs.items()},
                       "daevanion_nodes": sorted(build.daevanion), "sp_spent": build.sp_spent(),
                       "stigma_spent": build.stigma_spent(), "daevanion_cost": build.daevanion_cost(cd),
+                      "bonus": {cd.skills[k]["name"]: v for k, v in sorted(build.bonus.items()) if v > 0},
                       "effective_levels": {cd.skills[k]["name"]: v for k, v in geared.effective_levels(cd).items()},
                       "specialties": describe_specialties(cd, geared)},
             "policy": describe(rotation), "shares": first.shares(),

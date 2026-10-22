@@ -119,10 +119,13 @@ function winSkills(v, tab = "active") {
     .map((s) => `${s.name}: train to ${s.sp} (Lv ${s.eff})${s.specs.some((x) => x.chosen) ? " — specialties " + s.specs.filter((x) => x.chosen).map((x) => `${x.n}: ${x.text} (effect Lv ${esc(x.unlock)})`).join("; ") : ""}`).join("\n");
   const tabs = `<div class="tabs">${["active", "passive"].map((t) => `<button data-skilltab="${t}" class="${t === tab ? "on" : ""}">${cap(t)}</button>`).join("")}</div>`;
   const rolls = (v.gear_skill_rolls || []).map((r) => `${r.name} +${r.levels}`).join(", ");
+  // a community preset's bonus levels: the skills to put gear rolls and arcana card options on
+  const chase = (v.bonus_levels || []).map((r) => `${r.name} +${r.levels}${(r.arcana || []).length ? ` (${r.arcana.join(", ")})` : ""}`).join(", ");
   return win("Skills", counter, tabs + `<div class="skilllist">${rows}</div>` +
     statGrid([{ label: "Skill points spent", text: `${n0(v.points?.skill)} / ${n0(bud.skill)}` },
-              ...(rolls ? [{ label: "Skill levels from gear", text: rolls }] : [])], "From this system"),
-    { key: "skills", copy });
+              ...(rolls ? [{ label: "Skill levels from gear", text: rolls }] : []),
+              ...(chase ? [{ label: "Bonus levels to chase: gear rolls and arcana cards (the cards that can roll each skill)", text: chase }] : [])], "From this system"),
+    { key: "skills", copy: copy + (chase ? "\nBonus levels from gear rolls and arcana cards: " + chase : "") });
 }
 
 function winStigmas(v) {
@@ -1593,17 +1596,19 @@ function advDoll(a) {
         <div class="legend2"><span class="badge up">▲</span> better item in your inventory<br><span class="badge goal">◆</span> next goal gain<br><span class="badge step">#</span> upgrade path step</div>
         <div class="arow">${arc.map((s) => { const it = d[s]?.worn; return `<button class="dslot mini" data-dslot="${s}" title="${esc(s)}">${itemIcon(it, "sm")}</button>`; }).join("")}</div></div>
       <div class="dcol">${DOLL_RIGHT.map(tile).join("")}</div></div><div id="dslotinfo" class="dinfo"></div>`,
-    { key: "adv-equip", copy: Object.entries(d).filter(([, x]) => x.wear || x.next).map(([s, x]) => `${s}: ${x.wear ? "wear " + x.wear.name + " +" + x.wear.enchant + "; " : ""}${x.next ? "next goal " + x.next.name : ""}`).join("\n") });
+    { key: "adv-equip", copy: Object.entries(d).filter(([, x]) => x.wear || x.next).map(([s, x]) => `${s}: ${x.wear ? "wear " + x.wear.name + " +" + x.wear.enchant + "; " : ""}${x.next ? "next goal " + x.next.name + ((x.next.rolls || []).length ? " (roll toward " + x.next.rolls.map(rollText).join(", ") + ")" : "") : ""}`).join("\n") });
 }
 function bindDoll(a) {
   const show = (slot) => {
     const x = a.doll[slot] || {};
     $$("[data-dslot]").forEach((b) => b.classList.toggle("on", b.dataset.dslot === slot));
-    const chips = (it) => it ? `${(it.skills || []).map(([k, l]) => `<span class="chip gold">${esc(k)} +${l}</span>`).join("")}${(it.rolls || []).map((r) => `<span class="chip">${esc(Array.isArray(r) ? r.join(" ") : r)}</span>`).join("")}` : "";
+    const chips = (it) => it ? `${(it.skills || []).map(([k, l]) => `<span class="chip gold">${esc(k)} +${l}</span>`).join("")}${(it.rolls || []).map((r) => `<span class="chip">${esc(rollText(r))}</span>`).join("")}` : "";
+    // a goal item's rolls are the ones to chase (its best roll stats), not rolls it has
+    const chase = (it) => it && (it.rolls || []).length ? `<div class="small faint">roll toward</div><div>${(it.rolls || []).map((r) => `<span class="chip gold" title="a roll worth chasing on this item">${esc(rollText(r))}</span>`).join("")}</div>` : "";
     $("#dslotinfo").innerHTML = `<h4 class="gold small">${esc(SLOT_NAME[slot] || slot).toUpperCase()}</h4><div class="iflow">
       ${itemCard(x.worn, "Wearing", null, `<div>${chips(x.worn)}</div>`)}<div class="arr">➜</div>
       ${itemCard(x.wear, "From your inventory", x.wear_gain, `<div>${chips(x.wear)}</div>`)}<div class="arr">➜</div>
-      ${itemCard(x.next, "Next goal", x.next?.gain)}<div class="arr">➜</div>${itemCard(x.best, "Best in slot", x.best?.gain)}</div>
+      ${itemCard(x.next, "Next goal", x.next?.gain, chase(x.next))}<div class="arr">➜</div>${itemCard(x.best, "Best in slot", x.best?.gain, chase(x.best))}</div>
       ${x.steps.length ? `<p class="small muted">Upgrade path steps for this slot: ${x.steps.map((n) => "#" + n).join(", ")}</p>` : ""}`;
   };
   $$("[data-dslot]").forEach((b) => (b.onclick = () => show(b.dataset.dslot)));
@@ -1611,13 +1616,20 @@ function bindDoll(a) {
   show(first);
 }
 
+// A roll as the advice lists it: {stat, range} (a roll to chase), [stat, value] (a roll an item has) or text.
+function rollText(r) {
+  if (r && typeof r === "object" && !Array.isArray(r)) return `${r.stat || ""}${r.range ? " " + r.range : ""}`.trim();
+  return Array.isArray(r) ? r.join(" ") : String(r ?? "");
+}
+
 function advPath(a) {
   const steps = a.upgrade_path.steps;
   const kind = { enchant: "＋1", reroll: "⟳", replace: "⇄" };
-  return win("Upgrade path", "one change at a time, biggest gain first, toward the next goals",
+  const rolls = (s) => (s.rolls || []).length ? `<div class="prolls">${s.rolls.map((r) => `<span class="chip gold" title="a roll worth chasing">${esc(rollText(r))}</span>`).join("")}</div>` : "";
+  return win("Upgrade path", "one change at a time, biggest gain first, toward the next goals; a reroll names the stats to chase",
     `<div class="path">${steps.map((s) => `<div class="pstep" data-grade="${esc(s.item?.grade || "")}"><div class="pn">#${s.step}</div>
       <div class="sl">${esc(SLOT_NAME[s.slot] || s.slot)}</div>${itemIcon(s.item, "lg")}<span class="kind" title="${esc(s.kind || "")}">${kind[s.kind] || ""}</span>
-      <div class="gname small">${esc(s.item?.name || "")}</div><div class="small faint">${esc(s.action)}</div>
+      <div class="gname small">${esc(s.item?.name || "")}</div><div class="small faint">${esc(s.action)}</div>${rolls(s)}
       <div class="gain up">${sp(s.gain)}</div><div class="cum"><i style="width:${Math.min(100, 100 * s.total_gain / Math.max(0.0001, steps[steps.length - 1].total_gain))}%"></i><span>${sp(s.total_gain)}</span></div></div>`).join("")}</div>`,
     { key: "adv-path", copy: steps.map((s) => `${s.step}. ${s.slot}: ${s.action} (${sp(s.gain)})`).join("\n") });
 }

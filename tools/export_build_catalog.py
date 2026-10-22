@@ -36,6 +36,7 @@ import gzip
 from dataclasses import fields
 from aion2calc.model.stats import Stats
 from aion2calc.plan import items as I
+from aion2calc.plan.arcana import ARCANA_MAX_ENHANCE, BASE_ROLLS
 from aion2calc.plan.pantheon import DEITIES, PROFILE_TYPES
 allowed={f.name for f in fields(Stats)}-{'level','pvp','skill_bonus'}
 items=[]
@@ -46,6 +47,10 @@ for entry in json.loads(gzip.decompress((root/'aion2calc/data/seed/items.json.gz
  for level in range(min(20,I.max_enchant(item))+1):
   stats=I.item_stats(item,level,mode='none')
   levels.append({k:v for k,v in stats.items() if k in allowed and v>=0})
+ if category in I.ARCANA_CATEGORIES:
+  # An arcana card enhances to +5 (the catalog lists no "Max enhance" for it); each step adds one skill
+  # option, so the planner must offer +0..+5. The catalog lists no stat change per step: the same stats.
+  levels=[dict(levels[0]) for _ in range(ARCANA_MAX_ENHANCE+1)]
  rolls=[]
  for option in I.roll_options(item) if I.roll_count(item) else []:
   numbers=[abs(n) for n in I._numbers(option['range'])]
@@ -55,9 +60,9 @@ for entry in json.loads(gzip.decompress((root/'aion2calc/data/seed/items.json.gz
                 'unit':{k:v for k,v in unit.items() if k in allowed and v>=0}})
  items.append({'roll_count':min(20,I.roll_count(item)),'roll_options':rolls,'slug':item['slug'],'name':item.get('name',item['slug']),'icon':item.get('icon',''),'category':category,'grade':item.get('grade',''),'required_level':int((I._numbers(item.get('meta',{}).get('Required Level','0')) or [0])[0]),'levels':levels})
 payload['items']=sorted(items,key=lambda x:x['slug'])
-from aion2calc.plan.arcana import BASE_ROLLS
 pools=json.loads((root/'aion2calc/data/global/arcana_skill_pools.json').read_text(encoding='utf-8'))
 payload['arcana_base_rolls']=BASE_ROLLS
+payload['arcana_max_enhance']=ARCANA_MAX_ENHANCE
 payload['arcana_pools']={}
 for name,cd in classes.items():
  mapped={}
