@@ -1085,5 +1085,16 @@
   }
   setFpsLoop(showFps&&!partyMode);
 
+  // The page's own errors go to the app's overlay log (logs/overlay.log, beside the watchdog's notes
+  // on a page that went blank), at most 20 a load, so a fault that shows only after hours is on record.
+  let reported=0;
+  const report=(kind,message)=>{
+    if(reported++>=20)return;
+    try{fetch("/api/overlay/health",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,
+      body:JSON.stringify({kind,message:String(message||"").slice(0,512)})}).catch(()=>{});}catch(_){}
+  };
+  window.addEventListener("error",e=>report("error",(e.message||"")+(e.filename?` @ ${e.filename}:${e.lineno}`:"")));
+  window.addEventListener("unhandledrejection",e=>report("rejection",(e.reason&&(e.reason.stack||e.reason.message))||e.reason));
+
   applyOpacity(); renderMeter(); pollMeter();
 })();

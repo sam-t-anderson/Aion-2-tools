@@ -329,6 +329,10 @@ The status line says what each sample taught, or what to change (stand closer, m
 
 The app reads what Windows plays (a loopback recording of the default output) in memory and keeps only each sample's levels in 40 frequency bands and the jingle's peak frequencies, in `hidden-cube-sound.json` in your data folder. Nothing is recorded or uploaded, and nothing is sent to the game.
 
+### If the overlay goes blank
+
+Reported on 21 October: after hours open, the overlay could turn into a dark card-coloured rectangle with nothing in it. That is the overlay's browser control (WebView2) no longer drawing: its page's process has died or hung, or the control has stopped presenting after the graphics driver or the display changed. Since 0.2.327 the overlay watches its own page every five seconds (does it answer, and, while shown, does the window draw anything but the card colour) and heals it in steps: hide and show the control, reload the page, open it afresh, and at last restart the overlay process, which the app starts again (at most five times in ten minutes). A process failure WebView2 reports is acted on at once. **Open overlay** while the overlay is already open now reloads its page, so a blank overlay can also be brought back by hand. What the watchdog saw and did is written to `logs/overlay.log` in the app's data folder, and the capture diagnostics ZIP includes it: if an overlay still goes blank, export diagnostics afterwards and send the ZIP.
+
 ### Overlay refresh and diagnostic export
 
 The overlay retains its last readings if a refresh fails. Its warning shows the HTTP error, invalid response or timeout, the age of the last successful refresh, and a Retry button. This warning means capture status is unknown; it is separate from a decoder error saying capture stopped.

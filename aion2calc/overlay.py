@@ -4,12 +4,16 @@ from __future__ import annotations
 import argparse
 import ctypes
 from dataclasses import dataclass
+import json
 import logging
 import ntpath
 import os
 import sys
 import threading
+import time
 import webbrowser
+
+from .overlay_health import RESTART_EXIT_CODE, BlankDetector, HealPolicy, OverlayLog
 
 
 _LOG = logging.getLogger(__name__)
@@ -26,6 +30,13 @@ class _GameWindow:
     hwnd: int
     bounds: tuple[int, int, int, int]
     minimized: bool = False
+
+
+class _BITMAPINFOHEADER(ctypes.Structure):
+    _fields_ = [("biSize", ctypes.c_uint32), ("biWidth", ctypes.c_int32), ("biHeight", ctypes.c_int32),
+                ("biPlanes", ctypes.c_uint16), ("biBitCount", ctypes.c_uint16), ("biCompression", ctypes.c_uint32),
+                ("biSizeImage", ctypes.c_uint32), ("biXPelsPerMeter", ctypes.c_int32),
+                ("biYPelsPerMeter", ctypes.c_int32), ("biClrUsed", ctypes.c_uint32), ("biClrImportant", ctypes.c_uint32)]
 
 
 class _NativeOverlay:
@@ -118,6 +129,22 @@ class _Windows(_NativeOverlay):
         self.kernel32.QueryFullProcessImageNameW.restype = w.BOOL
         self.kernel32.CloseHandle.argtypes = [w.HANDLE]
         self.kernel32.CloseHandle.restype = w.BOOL
+        # Capturing the overlay window for the watchdog's blank check: PrintWindow with
+        # PW_RENDERFULLCONTENT reads what DWM composes, the WebView2 child included.
+        self.gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
+        self.user32.GetDC.argtypes, self.user32.GetDC.restype = [w.HWND], ctypes.c_void_p
+        self.user32.ReleaseDC.argtypes, self.user32.ReleaseDC.restype = [w.HWND, ctypes.c_void_p], ctypes.c_int
+        self.user32.PrintWindow.argtypes, self.user32.PrintWindow.restype = [w.HWND, ctypes.c_void_p, w.UINT], w.BOOL
+        for name, (args, result) in {
+            "CreateCompatibleDC": ([ctypes.c_void_p], ctypes.c_void_p),
+            "CreateCompatibleBitmap": ([ctypes.c_void_p, ctypes.c_int, ctypes.c_int], ctypes.c_void_p),
+            "SelectObject": ([ctypes.c_void_p, ctypes.c_void_p], ctypes.c_void_p),
+            "GetDIBits": ([ctypes.c_void_p, ctypes.c_void_p, w.UINT, w.UINT, ctypes.c_void_p, ctypes.c_void_p, w.UINT], ctypes.c_int),
+            "DeleteObject": ([ctypes.c_void_p], w.BOOL),
+            "DeleteDC": ([ctypes.c_void_p], w.BOOL),
+        }.items():
+            fn = getattr(self.gdi32, name)
+            fn.argtypes, fn.restype = args, result
 
     def process_name(self, pid: int) -> str:
         handle = self.kernel32.OpenProcess(0x1000, False, pid)
@@ -215,6 +242,42 @@ class _Windows(_NativeOverlay):
         new = (style | WS_EX_TRANSPARENT) if enabled else (style & ~WS_EX_TRANSPARENT)
         if new != style:
             self.user32.SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new)
+
+    def capture(self, hwnd):
+        """The overlay window's pixels as a top-down 32-bit BGRA buffer, or None when it cannot be read.
+        PrintWindow with PW_RENDERFULLCONTENT (Windows 8.1 and later) renders what DWM composes for the
+        window, so the WebView2 child's content is in it; its own opacity is not applied."""
+        rect = self.w.RECT()
+        if not self.user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+            return None
+        width, height = rect.right - rect.left, rect.bottom - rect.top
+        if width <= 0 or height <= 0 or width * height > 4_000_000:
+            return None
+        screen = self.user32.GetDC(None)
+        if not screen:
+            return None
+        memory = bitmap = previous = None
+        try:
+            memory = self.gdi32.CreateCompatibleDC(screen)
+            bitmap = self.gdi32.CreateCompatibleBitmap(screen, width, height)
+            if not memory or not bitmap:
+                return None
+            previous = self.gdi32.SelectObject(memory, bitmap)
+            if not self.user32.PrintWindow(hwnd, memory, 2):      # PW_RENDERFULLCONTENT
+                return None
+            info = _BITMAPINFOHEADER(biSize=ctypes.sizeof(_BITMAPINFOHEADER), biWidth=width, biHeight=-height,
+                                     biPlanes=1, biBitCount=32, biCompression=0)
+            buffer = ctypes.create_string_buffer(width * height * 4)
+            lines = self.gdi32.GetDIBits(memory, bitmap, 0, height, buffer, ctypes.byref(info), 0)
+            return buffer.raw if lines == height else None
+        finally:
+            if previous:
+                self.gdi32.SelectObject(memory, previous)
+            if bitmap:
+                self.gdi32.DeleteObject(bitmap)
+            if memory:
+                self.gdi32.DeleteDC(memory)
+            self.user32.ReleaseDC(None, screen)
 
 
 class _MacOS(_NativeOverlay):
@@ -420,6 +483,42 @@ class _OverlayAPI:
         # new objects so the loop thread never sees a half-updated value.
         self._click_through = False
         self._interactive = ()
+        # The watchdog's state (overlay_health): whether the tracking loop has the window shown, a
+        # WebView2 process failure waiting to be acted on, reloads the app asked for, and whether the
+        # process is ending to be started again.
+        self.url = ""
+        self.log = OverlayLog(os.devnull)
+        self._visible = True
+        self._failure = None
+        self._hooked = False
+        self._reload_requested = 0
+        self._restart = False
+
+    def hook_process_failures(self):
+        """Subscribe to WebView2's ProcessFailed once its core exists (it is created after the window is
+        shown). Called from the probe thread, which has a timeout, never from the watchdog itself."""
+        if self._hooked or self._window is None:
+            return
+
+        def hook():
+            core = getattr(self._window.native.webview, "CoreWebView2", None)
+            if core is None:
+                return
+            core.ProcessFailed += self._on_process_failed
+            self._hooked = True
+
+        try:
+            self._on_ui(hook)
+        except Exception:
+            pass
+
+    def _on_process_failed(self, sender, args):
+        try:
+            kind = str(args.ProcessFailedKind)
+            detail = f"{kind} (reason {getattr(args, 'Reason', '?')}, exit code {getattr(args, 'ExitCode', '?')})"
+        except Exception:
+            kind = detail = "an unknown process failure"
+        self._failure = (kind, detail)
 
     def set_locked(self, value):
         # Screenshot lock: keep the overlay visible and stationary while locked.
@@ -496,19 +595,24 @@ class _OverlayAPI:
             self._window.resize(*size)
 
 
-def _watch_parent(app_base: str, closed: threading.Event, window) -> None:
-    """Close the overlay once the app that launched it is gone.
+def _watch_parent(app_base: str, closed: threading.Event, window, api=None) -> None:
+    """Close the overlay once the app that launched it is gone, and take the app's commands.
 
     The overlay is a separate process; if the main window is closed, the app is
     quit, or its process is killed outright, the normal teardown that terminates
     this process can be missed and a stale meter would otherwise stay pinned on
     top forever. Polling the app keeps the overlay's lifetime tied to the app on
-    every platform, independent of process-termination signals.
+    every platform, independent of process-termination signals. The same poll reads
+    the app's command counters: a bumped ``reload_seq`` (Open overlay pressed while
+    the overlay is already open) makes the watchdog reload the page, which a page
+    that no longer runs its own poll could not do for itself.
     """
     import urllib.request
 
     status = f"{app_base.rstrip('/')}/api/status"
+    commands = f"{app_base.rstrip('/')}/api/overlay/commands"
     misses = 0
+    seen = None
     while not closed.wait(2.0):
         try:
             with urllib.request.urlopen(status, timeout=2) as response:
@@ -522,6 +626,148 @@ def _watch_parent(app_base: str, closed: threading.Event, window) -> None:
                 except Exception:
                     pass
                 return
+            continue
+        if api is None:
+            continue
+        try:
+            with urllib.request.urlopen(commands, timeout=2) as response:
+                seq = int(json.loads(response.read(4096).decode("utf-8")).get("reload_seq") or 0)
+            if seen is None:
+                seen = seq                  # the first reading is the baseline, never a command
+            elif seq > seen:
+                seen = seq
+                api._reload_requested += 1
+        except Exception:
+            pass
+
+
+class _Probe(threading.Thread):
+    """One look at the page: does it answer (``document.readyState`` straight through WebView2, with no
+    pywebview script needed) and, while the window is shown, what the window draws. It runs apart from the
+    watchdog so a hang is a timeout there, not a stall."""
+
+    def __init__(self, window, api, win32, shown):
+        super().__init__(daemon=True, name="overlay-probe")
+        self.window, self.api, self.win32, self.shown = window, api, win32, shown
+        self.alive, self.capture = False, None
+
+    def run(self):
+        self.api.hook_process_failures()
+        try:
+            state = self.window.native.browser.evaluate_js("document.readyState", False)
+            self.alive = state in ("complete", "interactive")
+        except Exception:
+            self.alive = False
+        if self.alive and self.shown and self.win32 is not None:
+            try:
+                self.capture = self.win32.capture(self.window.native.Handle.ToInt64())
+            except Exception:
+                self.capture = None
+
+
+class _Watchdog:
+    """The overlay's watchdog (see ``overlay_health``): each tick asks the page whether it is loaded and,
+    while the window is shown, captures the window to see whether it drew anything, then heals in steps
+    when it did not. Probes and heal steps run in their own threads with timeouts, so a hung UI thread
+    counts as a miss and ends in a restart instead of stalling the watchdog. ``tick`` is separate from
+    the loop so it can be exercised with stand-ins."""
+
+    PROBE_TIMEOUT = 6.0
+    HEAL_TIMEOUT = 10.0
+
+    def __init__(self, window, api, win32, clock=time.time):
+        self.window, self.api, self.win32, self.clock = window, api, win32, clock
+        self.policy, self.detector = HealPolicy(), BlankDetector()
+        self.probe = None
+        self.exit = os._exit
+
+    def tick(self):
+        api, now = self.api, self.clock()
+        action, note = None, ""
+        failure, api._failure = api._failure, None
+        if failure:
+            kind, detail = failure
+            api.log.write(f"WebView2 reported {detail}")
+            if "Browser" in kind:
+                action = self.policy.force(now, "restart", f"WebView2 {kind}")
+            elif "Render" in kind:
+                action = self.policy.force(now, "reload", f"WebView2 {kind}")
+        if action is None and api._reload_requested:
+            api._reload_requested = 0
+            action = self.policy.force(now, "reload", "the app asked for a reload")
+        if action is None:
+            if self.probe is None or not self.probe.is_alive():
+                self.probe = _Probe(self.window, api, self.win32, api._visible)
+                self.probe.start()
+            self.probe.join(self.PROBE_TIMEOUT)
+            if self.probe.is_alive():
+                alive, blank, note = False, None, f"no answer in {self.PROBE_TIMEOUT:.0f} s"
+            else:
+                probe, self.probe = self.probe, None
+                alive = probe.alive
+                armed = self.detector.armed
+                blank = self.detector.verdict(probe.capture) if alive and probe.shown else None
+                fraction = self.detector.last_fraction
+                if self.detector.armed and not armed:
+                    api.log.write(f"blank detection armed: the window's capture shows content (host colour {fraction:.4f})")
+                note = ("the page answered" if alive else "the page did not answer") + (
+                    f", host colour {fraction:.4f}" if fraction is not None else "")
+            action = self.policy.observe(now, alive, blank)
+        if action:
+            api.log.write(f"{action}: {self.policy.reason}" + (f" ({note})" if note else ""))
+            self.heal(action)
+        return action
+
+    def heal(self, action):
+        window, api = self.window, self.api
+
+        def act():
+            try:
+                native = window.native
+                if action == "nudge":
+                    def nudge():
+                        native.webview.Visible = False
+                        native.webview.Visible = True
+                    api._on_ui(nudge)
+                elif action == "reload":
+                    def reload():
+                        core = getattr(native.webview, "CoreWebView2", None)
+                        if core is not None:
+                            core.Reload()
+                        else:
+                            native.browser.load_url(api.url)
+                    api._on_ui(reload)
+                elif action == "navigate":
+                    window.load_url(api.url)
+                elif action == "restart":
+                    api._restart = True
+                    window.destroy()
+            except Exception as err:
+                api.log.write(f"{action} failed: {type(err).__name__}: {err}")
+
+        worker = threading.Thread(target=act, daemon=True, name="overlay-heal")
+        worker.start()
+        worker.join(self.HEAL_TIMEOUT)
+        if worker.is_alive() and action != "restart":
+            api.log.write(f"{action} did not finish in {self.HEAL_TIMEOUT:.0f} s; restarting the overlay")
+            action = "restart"
+            api._restart = True
+            threading.Thread(target=window.destroy, daemon=True, name="overlay-destroy").start()
+        if action == "restart":
+            # Closing the window ends the process with the restart code; a dead UI thread cannot close it.
+            timer = threading.Timer(5.0, lambda: self.exit(RESTART_EXIT_CODE))
+            timer.daemon = True
+            timer.start()
+
+
+def _health_loop(window, api, win32, closed: threading.Event) -> None:
+    watchdog = _Watchdog(window, api, win32)
+    api.log.write("watching the page")
+    while not closed.wait(5.0):
+        try:
+            watchdog.tick()
+        except Exception as err:
+            api.log.write(f"watchdog error: {type(err).__name__}: {err}")
 
 
 def _save_overlay_position(app_base, party, pos, layout=None) -> None:
@@ -588,7 +834,7 @@ def _run_overlay(window, api, app_base: str | None = None, party: bool = False) 
     closed = threading.Event()
     window.events.closed += closed.set
     if app_base:
-        threading.Thread(target=_watch_parent, args=(app_base, closed, window),
+        threading.Thread(target=_watch_parent, args=(app_base, closed, window, api),
                          daemon=True, name="overlay-parent-watch").start()
     # pywebview starts this worker before constructing its native window.
     if not window.events.shown.wait(30):
@@ -612,6 +858,10 @@ def _run_overlay(window, api, app_base: str | None = None, party: bool = False) 
             threading.Thread(target=_click_through_loop, args=(window, api, win32, closed),
                              daemon=True, name="overlay-click-through").start()
     window.show()
+    api._visible = True
+    if sys.platform == "win32":
+        threading.Thread(target=_health_loop, args=(window, api, win32, closed),
+                         daemon=True, name="overlay-watchdog").start()
     prefs = _overlay_prefs()
     snap, expand_up = prefs["snap_edge"], prefs["expand_up"]
     always_visible = prefs["always_visible"]
@@ -659,11 +909,11 @@ def _run_overlay(window, api, app_base: str | None = None, party: bool = False) 
             # when the game is not the foreground window.
             if not visible:
                 win32.user32.ShowWindow(hwnd, 4)
-                visible = True
+                visible = api._visible = True
             continue
         if visible != should_show:
             win32.user32.ShowWindow(hwnd, 4 if should_show else 0)  # no activation
-            visible = should_show
+            visible = api._visible = should_show
         if game is None:
             previous = previous_hwnd = None
             continue
@@ -703,6 +953,14 @@ def _run_overlay(window, api, app_base: str | None = None, party: bool = False) 
         previous, previous_hwnd = game.bounds, game.hwnd
 
 
+def _log_path():
+    try:
+        from .paths import logs_dir
+        return logs_dir() / "overlay.log"
+    except Exception:
+        return os.path.join(os.path.expanduser("~"), "aion2calc-overlay.log")
+
+
 def _default_url() -> str:
     env = os.environ.get("AION2CALC_OVERLAY_URL")
     if env:
@@ -736,6 +994,9 @@ def main(argv=None) -> int:
         return 0
     try:
         api = _OverlayAPI()
+        api.url = url
+        api.log = OverlayLog(_log_path(), "overlay[party]" if party else "overlay")
+        api.log.write(f"started (pid {os.getpid()})")
         # Stable card content is draggable; JS stops events at the tabs and slider.
         webview.settings["DRAG_REGION_DIRECT_TARGET_ONLY"] = False
         window = webview.create_window("Aion 2 Calc Party Overlay" if party else "Aion 2 Calc Overlay",
@@ -747,6 +1008,9 @@ def main(argv=None) -> int:
         api._window = window
         webview.start(_run_overlay, args=(window, api, app_base, party),
                       gui="edgechromium" if sys.platform == "win32" else None)
+        if api._restart:
+            api.log.write("ending so the app starts the overlay again")
+            return RESTART_EXIT_CODE
     except Exception as err:
         print(f"Could not open the overlay ({type(err).__name__}: {err}); using the browser instead.")
         webbrowser.open(url)

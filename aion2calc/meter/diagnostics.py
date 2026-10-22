@@ -147,6 +147,16 @@ class RecordingSwitch:
             recorder.record(*segment)
 
 
+
+def _overlay_log_tail() -> str:
+    """The end of ``logs/overlay.log`` (the overlay watchdog's notes), or an empty string."""
+    try:
+        from ..overlay_health import OverlayLog
+        from ..paths import logs_dir
+        return OverlayLog(logs_dir() / "overlay.log").tail()
+    except Exception:
+        return ""
+
 def export(status: dict, recorder: Recorder | None):
     from .. import __version__
     from ..paths import home
@@ -180,6 +190,7 @@ def export(status: dict, recorder: Recorder | None):
                "Read diagnostics.json for full counters and pipeline/status details.\n"
                "This ZIP does not contain a decoded combat session or character-build snapshot.\n")
     partial = path.with_suffix(".zip.part")
+    overlay_log = _overlay_log_tail()
     with zipfile.ZipFile(partial, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         if recorder:
             recording = recorder.archive_payloads(archive)
@@ -196,7 +207,11 @@ def export(status: dict, recorder: Recorder | None):
                          "Recording is limited by available disk space; check diagnostics.json for write errors.\n"
                          "Raw payloads may contain character names, IP addresses and other network traffic.\n"
                          "Review before sharing. Nothing is uploaded automatically.\n"
-                         "These are original TCP segments: use sequence numbers to reassemble each direction.\n")
+                         "These are original TCP segments: use sequence numbers to reassemble each direction.\n"
+                         "overlay.log, when present, is the overlay watchdog's log: an overlay that went blank or\n"
+                         "stopped answering, and what was done about it.\n")
+        if overlay_log:
+            archive.writestr("overlay.log", overlay_log)
     # Verify small metadata entries before publishing; do not reread a potentially
     # unlimited raw recording just to validate these required diagnostic files.
     with zipfile.ZipFile(partial, "r") as archive:
@@ -211,7 +226,7 @@ def export(status: dict, recorder: Recorder | None):
     return {"file": str(path), **recording, "size_bytes": path.stat().st_size,
             "capture_packets": capture.get("packets"), "decoded_events": capture.get("decoded_events"),
             "retained_effects": capture.get("retained_effects"),
-            "contents": ["capture-summary.txt", "diagnostics.json", "tcp-payloads.jsonl", "README.txt"],
+            "contents": ["capture-summary.txt", "diagnostics.json", "tcp-payloads.jsonl", "README.txt"] + (["overlay.log"] if overlay_log else []),
             "download_url": "/api/meter/diagnostics?name=" + quote(path.name)}
 
 
