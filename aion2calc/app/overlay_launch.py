@@ -78,7 +78,10 @@ def _watch(proc: subprocess.Popen, url: str, party: bool) -> None:
     The slot is compared under the lock, so a process the app terminated (its slot already cleared) is
     never relaunched, and a normal close (code 0: Hide, or the app gone) is left alone."""
     global _PROCESS, _PARTY_PROCESS
-    code = proc.wait()
+    wait = getattr(proc, "wait", None)
+    if wait is None:                 # not a process (a test's stand-in): nothing to supervise
+        return
+    code = wait()
     with _LOCK:
         if (_PARTY_PROCESS if party else _PROCESS) is not proc:
             return
