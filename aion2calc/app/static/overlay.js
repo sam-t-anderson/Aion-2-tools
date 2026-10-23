@@ -39,6 +39,11 @@
   let clearedFight=null;
   const expanded=new Set();   // row keys whose per-skill breakdown is expanded (DPS view)
   let interpolate=false, interpolateMs=100, showFps=false, locked=false, userWidth=null, userHeight=null;
+  // The Hidden Cube radar's state, declared with the rest of the page state: nativeInit() reads radarSetting, and in
+  // the native host it runs during the page's own startup (the bridge is there before the script), so a declaration
+  // lower down was still in its temporal dead zone — the ReferenceError aborted the startup after the first fit, and
+  // the window never resized again (0.2.329's broken meter overlay).
+  let radarOn=false, radarTimer=null, radarBusy=false, radarSetting=false;
   let lastRenderAt=performance.now(), projecting=false, curMax=1;   // for live-ticking DPS between polls
   const shownRates=new Map();   // row key -> currently displayed (eased) rate
   const cap=s=>String(s||'').charAt(0).toUpperCase()+String(s||'').slice(1);
@@ -998,7 +1003,6 @@
   // The Hidden Cube radar (off by default): where a cube's jingle comes from, on a circle around you, and
   // how loud it is, from the game's sound, which the app listens to in memory (radar.py). It has its own poll
   // so it keeps up while exploring with the meter collapsed between fights.
-  let radarOn=false, radarTimer=null, radarBusy=false, radarSetting=false;
   const RADAR_NEAR=[[0.8,"right here"],[0.5,"close"],[0.25,"nearby"],[0,"far"]];
   // Since 0.2.329 the radar has its own small window (?view=radar), opened beside the meter overlay while the
   // radar is on; the meter overlay draws it only in the browser fallback, where no native windows exist.
