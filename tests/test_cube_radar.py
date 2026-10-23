@@ -668,7 +668,7 @@ def test_the_overlay_settings_hotkey_and_bundle_are_wired():
     css = (STATIC / "overlay.css").read_text(encoding="utf-8")
     app = (STATIC / "app.js").read_text(encoding="utf-8")
     assert 'id="ovradar"' in html and ".ovradar" in css and ".ovrblip" in css and ".ovrghost" in css
-    assert "setupRadar(ui.radar_enabled===true)" in js and 'fetch("/api/radar")' in js
+    assert "radarSetting=ui.radar_enabled===true;" in js and "setupRadar(radarSetting);" in js and 'fetch("/api/radar")' in js
     assert 'viewBox="0 0 120 120"' in js and "r.mirror!=null" in js and "r.direction" in js   # the full circle
     for control in ('id="radar-enabled"', 'id="radar-learn-bg"', 'id="radar-learn-cube"', 'id="radar-learn-behind"',
                     'id="radar-learn-other"', 'id="radar-sens"', 'id="radar-clear"', 'id="radar-status"', 'id="radar-samples"',
