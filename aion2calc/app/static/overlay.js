@@ -1,6 +1,20 @@
 /* Persistent controls keep tab clicks and slider drags intact while the live content refreshes. */
 (function () {
   "use strict";
+  // The page's own errors go to the app's overlay log (logs/overlay.log, beside the watchdog's notes on a page
+  // that went blank), at most 20 a load, so a fault that shows only after hours is on record. Installed before
+  // anything else runs: an error in the startup itself came before the reporter and was never logged (0.2.331).
+  let reported=0;
+  const report=(kind,message)=>{
+    if(reported++>=20)return;
+    try{fetch("/api/overlay/health",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,
+      body:JSON.stringify({kind,message:String(message||"").slice(0,512)})}).catch(()=>{});}catch(_){}
+  };
+  window.addEventListener("error",e=>report("error",(e.message||"")+(e.filename?` @ ${e.filename}:${e.lineno}`:"")));
+  window.addEventListener("unhandledrejection",e=>report("rejection",(e.reason&&(e.reason.stack||e.reason.message))||e.reason));
+  // The page's startup guard (overlay.html) and the overlay's watchdog read this: "starting" while the script runs
+  // its startup, "ready" once it is through. A page that never reaches "starting" came up without its script.
+  window.A2OverlayUp="starting";
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const kfmt = (x) => { if (x == null || isNaN(x)) return "—"; const a = Math.abs(x); return a >= 1e6 ? (x / 1e6).toFixed(2) + "M" : a >= 1e3 ? (x / 1e3).toFixed(2) + "K" : Math.round(x).toString(); };
@@ -39,10 +53,10 @@
   let clearedFight=null;
   const expanded=new Set();   // row keys whose per-skill breakdown is expanded (DPS view)
   let interpolate=false, interpolateMs=100, showFps=false, locked=false, userWidth=null, userHeight=null;
-  // The Hidden Cube radar's state, declared with the rest of the page state: nativeInit() reads radarSetting, and in
-  // the native host it runs during the page's own startup (the bridge is there before the script), so a declaration
-  // lower down was still in its temporal dead zone — the ReferenceError aborted the startup after the first fit, and
-  // the window never resized again (0.2.329's broken meter overlay).
+  // The Hidden Cube radar's state, declared with the rest of the page state: nativeInit() reads radarSetting. In
+  // pywebview's WebView2 host the bridge arrives once the page has loaded (nativeInit() then runs on pywebviewready);
+  // a host with the bridge in place before the script runs it during the startup, where a declaration lower down
+  // was still in its temporal dead zone.
   let radarOn=false, radarTimer=null, radarBusy=false, radarSetting=false;
   let lastRenderAt=performance.now(), projecting=false, curMax=1;   // for live-ticking DPS between polls
   const shownRates=new Map();   // row key -> currently displayed (eased) rate
@@ -367,6 +381,8 @@
     if (clickThrough) reportInteractiveRects();
     setupRadar(radarSetting);   // in the native host the radar is drawn by its own window, never by the meter's
   }
+  // pywebview injects its bridge once the navigation has completed and fires pywebviewready; the direct call
+  // covers a host that has the bridge in place before the page's script runs.
   window.addEventListener("pywebviewready", nativeInit);
   if (window.pywebview?.api?.fit) nativeInit();
   new ResizeObserver(fit).observe($("#ov"));
@@ -1117,16 +1133,10 @@
   }
   setFpsLoop(showFps&&!partyMode&&!radarMode);
 
-  // The page's own errors go to the app's overlay log (logs/overlay.log, beside the watchdog's notes
-  // on a page that went blank), at most 20 a load, so a fault that shows only after hours is on record.
-  let reported=0;
-  const report=(kind,message)=>{
-    if(reported++>=20)return;
-    try{fetch("/api/overlay/health",{method:"POST",headers:{"Content-Type":"application/json"},keepalive:true,
-      body:JSON.stringify({kind,message:String(message||"").slice(0,512)})}).catch(()=>{});}catch(_){}
-  };
-  window.addEventListener("error",e=>report("error",(e.message||"")+(e.filename?` @ ${e.filename}:${e.lineno}`:"")));
-  window.addEventListener("unhandledrejection",e=>report("rejection",(e.reason&&(e.reason.stack||e.reason.message))||e.reason));
-
   applyOpacity(); renderMeter(); if(!radarMode)pollMeter();
+  // The startup is through: the page's guard (overlay.html) and the overlay's watchdog read this, and the guard's
+  // count of reloads starts over for the next load.
+  window.A2OverlayUp="ready";
+  try{sessionStorage.removeItem("a2-overlay-reloads");}catch(e){/* optional storage */}
+  try{if(/a2-overlay-reloads/.test(window.name))window.name="";}catch(e){/* the guard's fallback counter */}
 })();
