@@ -19,7 +19,9 @@ Two companion windows open beside the meter overlay while their settings are on:
 Each overlay process is watched: one that ends on its own with a non-zero code (its watchdog asked
 for a restart because the page went blank or stopped answering, or it crashed) is started again, at
 most five times in ten minutes; one the app closed, or that closed itself normally (Hide), is left
-alone. Open overlay while the overlay is already open asks it to reload its page.
+alone. Open overlay while the overlay is already open asks it to reload its page. The overlay
+process watches the app's process in turn (its PID goes along in the environment) and ends with it,
+so no overlay outlives the app, even a quit that never reached :func:`close`.
 """
 from __future__ import annotations
 
@@ -52,7 +54,10 @@ def available() -> bool:
 
 
 def _spawn(url: str) -> subprocess.Popen:
-    env = {**os.environ, "AION2CALC_OVERLAY": "1", "AION2CALC_OVERLAY_URL": url}
+    # The app's PID goes along so the overlay process can watch it and end the moment the app's process is
+    # gone, whether or not the app got to close it (0.2.331): an overlay that only polled the app's address
+    # outlived a quit that skipped the close, and attached itself to the next launch on the same port.
+    env = {**os.environ, "AION2CALC_OVERLAY": "1", "AION2CALC_OVERLAY_URL": url, "AION2CALC_PARENT_PID": str(os.getpid())}
     if getattr(sys, "frozen", False):
         return subprocess.Popen([sys.executable], env=env, close_fds=True)
     return subprocess.Popen([sys.executable, "-m", "aion2calc.overlay", "--url", url], env=env, close_fds=True)

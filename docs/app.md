@@ -288,9 +288,13 @@ If a partial capture lacks identity or pet-owner packets, the overlay and Live M
 
 **Live Meter → Open overlay** opens one compact overlay that shows the live meter and plays your most
 recent raid plan. On the installed Windows app it is frameless, transparent, always on top, and follows
-the Aion 2 game window when it starts or moves. It closes with the desktop app. Where a native overlay
-is not available it opens as a normal small window instead. From source, `python -m aion2calc.overlay`
-does the same (`pip install pywebview` for the transparent window).
+the Aion 2 game window when it starts or moves. It closes with the desktop app: when the app quits it
+closes its overlay windows first, before it stops the capture and sends the quit upload, and each overlay
+process watches the app's process and ends within seconds of it, even when the app was ended outright or
+its quit never reached the close (since 0.2.331; before, an overlay that only polled the app's address
+could outlive a quit, and an app launched again within twelve seconds adopted it beside its own). Where a
+native overlay is not available it opens as a normal small window instead. From source,
+`python -m aion2calc.overlay` does the same (`pip install pywebview` for the transparent window).
 
 Use **Hide overlay** to hide it and **Open overlay** to show it again. Drag its non-interactive background to reposition it; use the opacity slider directly to change opacity. Repeated Open requests reuse the existing overlay.
 
@@ -344,6 +348,12 @@ The app reads what Windows plays (a loopback recording of the default output) in
 ### If the overlay goes blank
 
 Reported on 21 October: after hours open, the overlay could turn into a dark card-coloured rectangle with nothing in it. That is the overlay's browser control (WebView2) no longer drawing: its page's process has died or hung, or the control has stopped presenting after the graphics driver or the display changed. Since 0.2.327 the overlay watches its own page every five seconds (does it answer, and, while shown, does the window draw anything but the card colour) and heals it in steps: hide and show the control, reload the page, open it afresh, and at last restart the overlay process, which the app starts again (at most five times in ten minutes). A process failure WebView2 reports is acted on at once. **Open overlay** while the overlay is already open now reloads its page, so a blank overlay can also be brought back by hand. What the watchdog saw and did is written to `logs/overlay.log` in the app's data folder, and the capture diagnostics ZIP includes it: if an overlay still goes blank, export diagnostics afterwards and send the ZIP.
+
+### If the overlay opens as a bare header
+
+Reported on 23 October (0.2.329 and 0.2.330): with the app opening its overlay at launch, the meter overlay and the Hidden Cube radar's window both came up as the meter's header, the metric pills and the pet option, nothing under them, the window never growing and the radar's window showing no radar. The overlay log's watchdog lines showed what it was: at one launch both windows captured an identical 0.7008 share of card-coloured pixels, the bare page at its first size in both, and only a page whose script never ran leaves the radar's window with the meter's header. The page's script had not loaded. The app's server took connections five at a time (the Python server's default backlog); every request is a connection of its own, a page load opens six at once for its stylesheet and scripts, and since 0.2.329 two overlay pages load together at the moment the app is busiest (the launch sync, the capture starting, the radar listening). On Windows a connection that finds the backlog full is refused outright, and a browser never fetches a refused script again.
+
+Since 0.2.331 the server holds the launch burst (a backlog of 128), the page guards its own startup, and the watchdog covers the rest: a page that has finished loading without its script having started (or without its stylesheet) reports it to `logs/overlay.log` (*the page loaded without its script; reloading (1)*, after a *failed to load …overlay.js* line) and reloads itself, at most three times a window; the overlay's watchdog reloads a page whose script never reached the end of its startup, twice a process and a minute apart, then says so and leaves it. The page's own error reporter is installed before anything else runs, so an error in the startup itself reaches the log too. If an overlay still opens bare, export diagnostics afterwards: the ZIP carries the log.
 
 ### Overlay refresh and diagnostic export
 

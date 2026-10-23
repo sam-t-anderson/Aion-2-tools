@@ -597,25 +597,108 @@ class _OverlayAPI:
             self._window.resize(*size)
 
 
-def _watch_parent(app_base: str, closed: threading.Event, window, api=None) -> None:
+class _ParentProcess:
+    """The app process that started this overlay, watched so the overlay ends with it (0.2.331).
+
+    On Windows a handle is opened on it while it is alive, so a PID the system hands out again later is
+    never mistaken for it; elsewhere the process is our parent, and a parent that has gone leaves us
+    reparented. An overlay whose app cannot be identified (no PID in the environment, the handle refused)
+    keeps to the address poll alone, as before."""
+
+    SYNCHRONIZE = 0x00100000
+    WAIT_OBJECT_0 = 0
+
+    def __init__(self, pid):
+        self.pid = int(pid) if pid else None
+        self._handle = None
+        self._kernel = None
+        self._is_parent = False
+        if not self.pid:
+            return
+        if sys.platform == "win32":
+            try:
+                kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+                kernel.OpenProcess.restype = ctypes.c_void_p
+                kernel.OpenProcess.argtypes = [ctypes.c_uint32, ctypes.c_int, ctypes.c_uint32]
+                kernel.WaitForSingleObject.restype = ctypes.c_uint32
+                kernel.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+                self._handle = kernel.OpenProcess(self.SYNCHRONIZE, False, self.pid) or None
+                self._kernel = kernel
+            except Exception:
+                self._handle = None
+        else:
+            try:
+                self._is_parent = os.getppid() == self.pid
+            except Exception:
+                self._is_parent = False
+
+    def watched(self) -> bool:
+        """Whether the process can be told from a reused PID and so watched at all."""
+        return bool(self.pid) and (self._handle is not None or sys.platform != "win32")
+
+    def alive(self) -> bool:
+        """False once the process has ended; True while it runs, and when it cannot be watched."""
+        if not self.watched():
+            return True
+        if sys.platform == "win32":
+            try:   # signalled (WAIT_OBJECT_0) once the process has ended; a wait that fails is not a verdict
+                return self._kernel.WaitForSingleObject(self._handle, 0) != self.WAIT_OBJECT_0
+            except Exception:
+                return True
+        if self._is_parent:
+            return os.getppid() == self.pid
+        try:
+            os.kill(self.pid, 0)
+        except ProcessLookupError:
+            return False
+        except Exception:
+            return True
+        return True
+
+
+def _end(window, api, why: str, closed: threading.Event, exit=os._exit, grace: float = 5.0) -> None:
+    """End the overlay because the app is gone: close the window, and end the process outright if the
+    window has not closed within ``grace`` seconds (a hung UI thread cannot close its window)."""
+    if api is not None:
+        api.log.write(f"closing: {why}")
+    try:
+        threading.Thread(target=window.destroy, daemon=True, name="overlay-destroy").start()
+    except Exception:
+        pass
+    timer = threading.Timer(grace, lambda: None if closed.is_set() else exit(0))
+    timer.daemon = True
+    timer.start()
+
+
+def _watch_parent(app_base: str | None, closed: threading.Event, window, api=None, parent=None, exit=os._exit,
+                  interval: float = 2.0) -> None:
     """Close the overlay once the app that launched it is gone, and take the app's commands.
 
     The overlay is a separate process; if the main window is closed, the app is
     quit, or its process is killed outright, the normal teardown that terminates
     this process can be missed and a stale meter would otherwise stay pinned on
-    top forever. Polling the app keeps the overlay's lifetime tied to the app on
-    every platform, independent of process-termination signals. The same poll reads
-    the app's command counters: a bumped ``reload_seq`` (Open overlay pressed while
-    the overlay is already open) makes the watchdog reload the page, which a page
-    that no longer runs its own poll could not do for itself.
+    top forever. The app's process is watched directly (``parent``), so the overlay
+    ends within seconds of it on every platform, independent of process-termination
+    signals; polling the app's address covers an overlay with no process to watch,
+    and an app that runs but no longer serves. The address poll alone was not enough:
+    an app launched again within the poll's twelve seconds answered it, and the
+    overlay of the previous launch lived on beside the new launch's own (0.2.331).
+    The same poll reads the app's command counters: a bumped ``reload_seq`` (Open
+    overlay pressed while the overlay is already open) makes the watchdog reload the
+    page, which a page that no longer runs its own poll could not do for itself.
     """
     import urllib.request
 
-    status = f"{app_base.rstrip('/')}/api/status"
-    commands = f"{app_base.rstrip('/')}/api/overlay/commands"
+    status = f"{app_base.rstrip('/')}/api/status" if app_base else None
+    commands = f"{app_base.rstrip('/')}/api/overlay/commands" if app_base else None
     misses = 0
     seen = None
-    while not closed.wait(2.0):
+    while not closed.wait(interval):
+        if parent is not None and not parent.alive():
+            _end(window, api, "the app's process has ended", closed, exit)
+            return
+        if status is None:
+            continue
         try:
             with urllib.request.urlopen(status, timeout=2) as response:
                 response.read(1)
@@ -623,10 +706,7 @@ def _watch_parent(app_base: str, closed: threading.Event, window, api=None) -> N
         except Exception:
             misses += 1
             if misses >= 6:                 # ~12s unreachable: the app is gone, not just busy
-                try:
-                    window.destroy()
-                except Exception:
-                    pass
+                _end(window, api, "the app has not answered for twelve seconds", closed, exit)
                 return
             continue
         if api is None:
@@ -660,6 +740,12 @@ class _Probe(threading.Thread):
             self.alive = state in ("complete", "interactive")
         except Exception:
             self.alive = False
+        self.script = None
+        if self.alive:
+            try:   # what the page's own script says of itself: "starting" once it runs, "ready" once its startup is through
+                self.script = self.window.native.browser.evaluate_js("window.A2OverlayUp || null", False)
+            except Exception:
+                self.script = None
         if self.alive and self.shown and self.win32 is not None:
             try:
                 self.capture = self.win32.capture(self.window.native.Handle.ToInt64())
@@ -676,12 +762,19 @@ class _Watchdog:
 
     PROBE_TIMEOUT = 6.0
     HEAL_TIMEOUT = 10.0
+    #: A page that answers but whose script never reached the end of its startup (its stylesheet or script
+    #: refused at launch, see ``overlay.html``'s guard) is reloaded after this many looks (30 s), at most
+    #: twice a process and a minute apart: a script that fails every time is left, and logged, not looped.
+    SCRIPT_MISSES = 6
+    SCRIPT_RELOADS = 2
+    SCRIPT_SPACING = 60.0
 
     def __init__(self, window, api, win32, clock=time.time):
         self.window, self.api, self.win32, self.clock = window, api, win32, clock
         self.policy, self.detector = HealPolicy(), BlankDetector()
         self.probe = None
         self.exit = os._exit
+        self.script_misses, self.script_reloads, self.script_last = 0, 0, None
 
     def tick(self):
         api, now = self.api, self.clock()
@@ -714,7 +807,17 @@ class _Watchdog:
                     api.log.write(f"blank detection armed: the window's capture shows content (host colour {fraction:.4f})")
                 note = ("the page answered" if alive else "the page did not answer") + (
                     f", host colour {fraction:.4f}" if fraction is not None else "")
+                self.script_misses = self.script_misses + 1 if alive and probe.script != "ready" else 0
             action = self.policy.observe(now, alive, blank)
+            if action is None and self.script_misses >= self.SCRIPT_MISSES:
+                self.script_misses = 0
+                if self.script_reloads < self.SCRIPT_RELOADS and (self.script_last is None or now - self.script_last >= self.SCRIPT_SPACING):
+                    self.script_reloads += 1
+                    self.script_last = now
+                    action = self.policy.force(now, "reload", "the page loaded without its script")
+                elif self.script_reloads >= self.SCRIPT_RELOADS and self.script_last is not None:
+                    api.log.write("the page still runs without its script; not reloading it again")
+                    self.script_last = None
         if action:
             api.log.write(f"{action}: {self.policy.reason}" + (f" ({note})" if note else ""))
             self.heal(action)
@@ -842,11 +945,12 @@ def _click_through_loop(window, api, win32, closed: threading.Event) -> None:
             continue
 
 
-def _run_overlay(window, api, app_base: str | None = None, party: bool = False) -> None:
+def _run_overlay(window, api, app_base: str | None = None, party: bool = False, parent_pid=None) -> None:
     closed = threading.Event()
     window.events.closed += closed.set
-    if app_base:
-        threading.Thread(target=_watch_parent, args=(app_base, closed, window, api),
+    parent = _ParentProcess(parent_pid)
+    if app_base or parent.watched():
+        threading.Thread(target=_watch_parent, args=(app_base, closed, window, api, parent),
                          daemon=True, name="overlay-parent-watch").start()
     # pywebview starts this worker before constructing its native window.
     if not window.events.shown.wait(30):
@@ -999,6 +1103,10 @@ def main(argv=None) -> int:
     app_base = url.split("/overlay")[0] if "/overlay" in url else None
     prefs = _overlay_prefs()
     party = "party" if "view=party" in url else "radar" if "view=radar" in url else "meter"
+    try:                                 # the app that started this overlay, to end with it (overlay_launch sets it)
+        parent_pid = int(os.environ.get("AION2CALC_PARENT_PID") or 0) or None
+    except ValueError:
+        parent_pid = None
     try:
         import webview
     except Exception:
@@ -1018,7 +1126,7 @@ def main(argv=None) -> int:
                                        width=a.width, height=a.height, min_size=(180 if party == "radar" else 260, 70),
                                        resizable=bool(prefs["resizable"]) and party != "radar", js_api=api)
         api._window = window
-        webview.start(_run_overlay, args=(window, api, app_base, party),
+        webview.start(_run_overlay, args=(window, api, app_base, party, parent_pid),
                       gui="edgechromium" if sys.platform == "win32" else None)
         if api._restart:
             api.log.write("ending so the app starts the overlay again")

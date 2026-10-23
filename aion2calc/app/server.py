@@ -1520,6 +1520,12 @@ def schedule_shutdown(upload: bool = True) -> None:
             radar_sync(stop=True)
         except Exception:
             pass
+        # The overlay windows go first: closing the app's window, stopping the capture and the quit
+        # upload can take many seconds, and the overlays have nothing to show meanwhile (0.2.331).
+        try:
+            overlay_launch.close()
+        except Exception:
+            traceback.print_exc()
         for close in (close_app_browser, r.stop):
             try:
                 close()
@@ -1533,10 +1539,6 @@ def schedule_shutdown(upload: bool = True) -> None:
                 _auto_upload_on_quit()
             except Exception:
                 traceback.print_exc()
-        try:
-            overlay_launch.close()
-        except Exception:
-            traceback.print_exc()
         proc = APP_WINDOW.get("process")
         if proc is not None and proc.poll() is None:
             try:
@@ -1682,9 +1684,21 @@ def set_overlay_event_sound(body: dict) -> dict:
     return {"overlay_events_sound_set": True}
 
 
+class AppServer(ThreadingHTTPServer):
+    """The app's HTTP server: a thread a connection, daemon threads, and a listen backlog that holds the
+    bursts of short connections the app's own pages make. The handler speaks HTTP/1.0, so every request is
+    a connection of its own: a page load opens six at once for its stylesheet and scripts, and the overlay
+    windows poll several times a second. socketserver's default backlog of five was enough until the radar's
+    window opened beside the meter overlay at launch (0.2.329), two pages loading at the moment the app is
+    busiest: on Windows a connection that finds the backlog full is refused outright, a refused script is
+    never retried, and the window showed the page without its script, the meter's header and nothing under
+    it (0.2.331)."""
+    daemon_threads = True
+    request_queue_size = 128
+
+
 def make_server(host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServer:
-    httpd = ThreadingHTTPServer((host, port), Handler)
-    httpd.daemon_threads = True
+    httpd = AppServer((host, port), Handler)
     HTTPD["server"] = httpd
     HTTPD["closing"] = False
     return httpd
@@ -1789,11 +1803,17 @@ def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: 
     except KeyboardInterrupt:
         pass
     finally:
+        # The overlay windows close first and on their own: the capture's stop can take seconds (the
+        # final save, a join that times out) or fail, and until 0.2.331 a failure there skipped the
+        # close and left the overlays on screen after the app had gone.
         try:
             from . import overlay_launch
+            overlay_launch.close()
+        except Exception:
+            pass
+        try:
             from .meter_runner import runner
             runner().stop()
-            overlay_launch.close()
         except Exception:
             pass
         httpd.server_close()

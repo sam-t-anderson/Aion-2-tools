@@ -69,3 +69,46 @@ def test_update_shutdown_skips_the_quit_upload(monkeypatch):
 def test_schedule_shutdown_defaults_to_uploading():
     import inspect
     assert inspect.signature(server.schedule_shutdown).parameters["upload"].default is True
+
+
+class _FailingRunner(_FakeRunner):
+    """A capture whose stop times out (the final save of a long recording), as 0.2.329's quits saw."""
+
+    def __init__(self, order):
+        self.order = order
+
+    def stop(self):
+        self.order.append("capture")
+        raise TimeoutError("Capture is still shutting down")
+
+
+def test_the_overlays_close_first_even_when_the_capture_stop_fails(monkeypatch):
+    order = []
+    monkeypatch.setattr("aion2calc.app.meter_runner.runner", lambda: _FailingRunner(order))
+    monkeypatch.setattr("aion2calc.app.overlay_launch.close", lambda: order.append("overlays"))
+    monkeypatch.setattr(server, "_auto_upload_on_quit", lambda: order.append("upload"))
+    icon = _FakeIcon()
+    server.TRAY["icon"] = icon
+    _run_shutdown()
+    assert icon.stopped is True
+    assert order == ["overlays", "capture", "upload"]
+
+
+def test_serve_closes_the_overlays_before_the_capture_stops_and_despite_its_failure(monkeypatch):
+    """The window-close path: serve() ends, and its teardown used to stop the capture first and close the
+    overlays in the same try, so a capture stop that raised left the overlays open after the app had gone."""
+    order = []
+    monkeypatch.setattr("aion2calc.app.meter_runner.runner", lambda: _FailingRunner(order))
+    monkeypatch.setattr("aion2calc.app.overlay_launch.close", lambda: order.append("overlays"))
+
+    class _Httpd:
+        server_address = ("127.0.0.1", 1)
+
+        def serve_forever(self):
+            raise KeyboardInterrupt
+
+        def server_close(self):
+            order.append("server")
+
+    server.serve(open_browser=False, sync=False, httpd=_Httpd(), open_overlay=False)
+    assert order == ["overlays", "capture", "server"]

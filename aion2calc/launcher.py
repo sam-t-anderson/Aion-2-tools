@@ -394,9 +394,12 @@ def main(argv=None) -> int:
                 # since the process exits below before that worker may finish.
                 try:
                     from .app import overlay_launch
+                    overlay_launch.close()
+                except Exception:
+                    pass
+                try:
                     from .app.meter_runner import runner
                     runner().stop()
-                    overlay_launch.close()
                 except Exception:
                     pass
                 srv_thread.join(timeout=5)

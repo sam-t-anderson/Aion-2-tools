@@ -39,6 +39,49 @@
   <div id="ovcooldowns" class="ovcooldowns" role="status" aria-label="Skill cooldowns" hidden></div>
   <div class="ovfoot"><label for="ovop">Opacity</label><input type="range" id="ovop" min="20" max="100" value="72"><span class="ovbrand">Aion 2 Calc</span></div>
 </div><div id="ovresize" class="ovgrip" title="Drag to resize the overlay width" aria-hidden="true"></div><div id="ovresize-b" class="ovgrip" title="Drag to resize the overlay height" aria-hidden="true"></div><div id="ovresize-c" class="ovgrip" title="Drag to resize the overlay" aria-hidden="true"></div></div>
+<script>
+// The page's startup guard (0.2.331). At launch the app's server could refuse one of this page's connections (its
+// listen backlog held five), and a stylesheet or script that is refused is never fetched again: the window showed
+// the bare page, the meter's header and nothing under it, with no script left to recover it. This reports a failed
+// load to the app's overlay log and, once the document has finished loading without the page's script having
+// started (or without its stylesheet), reloads the page, at most three times a window.
+(function () {
+  var KEY = "a2-overlay-reloads";
+  function count() {
+    try { var n = parseInt(sessionStorage.getItem(KEY) || "0", 10); if (n > 0) return n; } catch (e) {}
+    var m = /a2-overlay-reloads:(\d+)/.exec(window.name || "");
+    return m ? parseInt(m[1], 10) : 0;
+  }
+  function remember(n) {
+    try { sessionStorage.setItem(KEY, String(n)); } catch (e) {}
+    try { window.name = "a2-overlay-reloads:" + n; } catch (e) {}
+  }
+  function note(kind, message) {
+    try {
+      fetch("/api/overlay/health", { method: "POST", headers: { "Content-Type": "application/json" }, keepalive: true,
+        body: JSON.stringify({ kind: kind, message: String(message || "").slice(0, 512) }) }).catch(function () {});
+    } catch (e) {}
+  }
+  window.addEventListener("error", function (event) {
+    var el = event && event.target;
+    if (el && el !== window && (el.src || el.href)) note("load", "failed to load " + (el.src || el.href));
+  }, true);
+  window.A2OverlayUp = null;   // overlay.js sets "starting" when it runs and "ready" once its startup is through
+  function styled() {
+    try { return getComputedStyle(document.documentElement).overflow === "hidden"; } catch (e) { return true; }
+  }
+  function check() {
+    if (window.A2OverlayUp && styled()) return;
+    if (document.readyState !== "complete") { setTimeout(check, 3000); return; }
+    var what = window.A2OverlayUp ? "its stylesheet" : "its script", n = count();
+    if (n >= 3) { note("startup", "the page loaded without " + what + "; not reloading again after " + n + " reloads"); return; }
+    remember(n + 1);
+    note("startup", "the page loaded without " + what + "; reloading (" + (n + 1) + ")");
+    setTimeout(function () { window.location.reload(); }, 300);
+  }
+  setTimeout(check, 5000);
+})();
+</script>
 <script src="/static/game-assets.js"></script><script src="/static/asset-health.js"></script><script src="/static/npc-portraits.js"></script><script src="/static/event-schedule.js"></script><script src="/static/server-names.js"></script><script src="/static/combat-review.js"></script><script src="/static/overlay.js"></script>
 </body>
 </html>

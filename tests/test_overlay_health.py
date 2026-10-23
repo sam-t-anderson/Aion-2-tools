@@ -87,6 +87,7 @@ class _Native:
 
     def __init__(self):
         self.state = "complete"
+        self.script = "ready"                                              # what window.A2OverlayUp answers
         self.hang = None                                                   # an Event the page answer waits on
         self.calls = []
         self.browser = types.SimpleNamespace(evaluate_js=self._evaluate, load_url=lambda url: self.calls.append(("load_url", url)))
@@ -98,6 +99,8 @@ class _Native:
             self.hang.wait()
         if isinstance(self.state, Exception):
             raise self.state
+        if "A2OverlayUp" in script:
+            return self.script
         return self.state
 
 
@@ -302,3 +305,76 @@ def test_the_page_reports_its_errors_and_the_app_writes_them(monkeypatch, tmp_pa
     static = os.path.join(os.path.dirname(overlay.__file__), "app", "static", "overlay.js")
     script = open(static, encoding="utf-8").read()
     assert '"/api/overlay/health"' in script and 'addEventListener("unhandledrejection"' in script
+
+
+def test_a_page_without_its_script_is_reloaded_twice_a_minute_apart_then_left(tmp_path):
+    """The overlay window as the meter's header and nothing under it (0.2.329): the page answered, its script had
+    never run (refused at launch). The watchdog reloads such a page after six looks, at most twice a process and a
+    minute apart, then leaves it and says so; a page whose script is through its startup is never touched."""
+    frame = {"bytes": _frame(40_800, 2_000)}
+    watchdog, native, window, api, clock = _watchdog(frame)
+    api.log = OverlayLog(tmp_path / "overlay.log")
+    native.script = None
+    actions = []
+    for _ in range(60):
+        actions.append(watchdog.tick())
+        clock["now"] += 5
+    assert actions.count("reload") == 2 and native.calls == ["reload", "reload"]
+    first, second = (i for i, action in enumerate(actions) if action == "reload")
+    assert first == 5 and (second - first) * 5 >= 60
+    log = api.log.tail()
+    assert "reload: the page loaded without its script" in log and log.count("not reloading it again") == 1
+    native.script = "ready"
+    native.calls.clear()
+    for _ in range(20):
+        assert watchdog.tick() is None
+        clock["now"] += 5
+    assert native.calls == []
+
+
+def test_the_overlay_knows_whether_the_apps_process_still_runs():
+    import subprocess
+    import sys as _sys
+    child = subprocess.Popen([_sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        parent = overlay._ParentProcess(child.pid)
+        assert parent.watched() and parent.alive()
+        child.kill()
+        child.wait()
+        assert not parent.alive()
+    finally:
+        if child.poll() is None:
+            child.kill()
+            child.wait()
+    unknown = overlay._ParentProcess(None)                                  # no PID: nothing to watch, never "gone"
+    assert not unknown.watched() and unknown.alive()
+
+
+def test_the_overlay_closes_when_the_apps_process_is_gone_and_ends_a_window_that_will_not_close(tmp_path):
+    closed = threading.Event()
+    exits = []
+    window = types.SimpleNamespace(destroy=closed.set)
+    api = overlay._OverlayAPI()
+    api.log = OverlayLog(tmp_path / "overlay.log")
+    gone = types.SimpleNamespace(alive=lambda: False)
+    overlay._watch_parent(None, closed, window, api, gone, exit=exits.append, interval=0.02)
+    assert _wait_for(closed.is_set) and "closing: the app's process has ended" in api.log.tail()
+    time.sleep(0.05)
+    assert exits == []                                                      # the window closed: no need to end the process
+    stuck = threading.Event()
+    overlay._end(types.SimpleNamespace(destroy=lambda: None), api, "a test", stuck, exit=exits.append, grace=0.05)
+    assert _wait_for(lambda: exits == [0])                                  # a window that stays is ended outright
+
+
+def test_the_overlay_process_is_told_which_app_started_it(monkeypatch):
+    seen = {}
+
+    def popen(args, **kwargs):
+        seen.update(kwargs, args=args)
+        return _Popen()
+
+    monkeypatch.setattr(overlay_launch.subprocess, "Popen", popen)
+    overlay_launch._spawn("http://127.0.0.1:1/overlay?view=radar")
+    env = seen["env"]
+    assert env["AION2CALC_OVERLAY"] == "1" and env["AION2CALC_OVERLAY_URL"].endswith("view=radar")
+    assert env["AION2CALC_PARENT_PID"] == str(os.getpid())
