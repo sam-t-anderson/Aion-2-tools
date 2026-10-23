@@ -733,6 +733,8 @@ A Party capture keeps only the effects of party members, so the party roster dec
 
 In the open world the roster alone still decides, so other players at a world boss stay out. The roster decoder also lists a member whose record has an unusual layout, and reads past gaps in the slots and empty slots, instead of ending the party there.
 
+**An open-world party** (since 0.2.329) is read from the records the game does send outside a dungeon, where no party list comes: every other member's status record, every two seconds or so wherever they are (their character, class, level and legion), and the party HP feed, the HP records of the members in view. A batch that holds an HP record for every member pairs each member with their character in the game world, and the character's name from the zone's records names them; a member in view before that is a party member by the HP feed alone. The party's count, classes and names then show on the overlay and in the log as a dungeon party's do, and the members' damage is kept. A member who is never in view stays unnamed, and the log marks the party as not fully resolved. A member whose status stops for thirty seconds has left; a dungeon's party list still rules while it comes.
+
 ### Partial mid-dungeon metrics
 
 You can start Live Meter inside a dungeon. The default **Automatic · allow partial metrics** view shows observed players when your local identity is missing. Unknown names remain actor numbers; nearby players may be included, and this does not identify you or confirm party membership. Self + Party and Self only remain available as stricter filters.

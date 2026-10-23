@@ -10,8 +10,8 @@ from copy import deepcopy
 import time
 
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
-from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, _damage_frames
-from .framing import walk, bundle_batch
+from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, scan_party_status, hp_record_entity, _damage_frames
+from .framing import walk, bundle_batch, read_varint
 from .lookup import job_from_skill, skill_family, skill_name, npc_info, npc_name, dungeon_final_bosses
 from .ping import PingTracker
 import json
@@ -61,6 +61,11 @@ def _own_class_skill(skill: int) -> bool:
     ``1093xx``, a class prefix with skill number 00), which ``job_from_skill`` files under the owner's
     class for crediting: a mid-zone start in the Templar recording saw twelve spirit pets cast those."""
     return 10_000_000 <= skill <= 19_999_999 and skill // 10_000 % 100 != 0 and job_from_skill(skill) is not None
+
+
+#: A party member whose status record (1c 92, every two seconds or so) has not come for this long has
+#: left the party, or the party has disbanded (0.2.329).
+PARTY_STATUS_TTL_MS = 30_000
 
 
 class MeterEngine:
@@ -116,6 +121,16 @@ class MeterEngine:
         self.jobs: dict[int, str] = {}
         self.roster: dict[str, dict] = {}
         self.roster_complete = False
+        # Where the roster came from: "packet" (the 02 97 party list a dungeon party sends) or "status" (the
+        # per-member 1c 92 status records, the only party record an open-world party sends; 0.2.329).
+        self.roster_source: str | None = None
+        # The party by its status records: database id -> {"serverId", "job", "level", "last_ms", and once
+        # bound, "entity" and "name"}. A member whose status has not come for PARTY_STATUS_TTL_MS has left.
+        self.party_status: dict[int, dict] = {}
+        # The party HP feed (1b 92): the entities of the members in view, entity -> the last record's time.
+        # Only party members are in it, so a named entity in it is a party member even before its status
+        # record is paired with it.
+        self.party_feed: dict[int, int] = {}
         self.dungeon_id = 0
         self.healers: dict[int, ActorStats] = {}
         self.summons: set[int] = set()
@@ -290,7 +305,30 @@ class MeterEngine:
         for entity_id, value in current_hp.items():
             if entity_id in self.targets:
                 self.targets[entity_id].current_hp = value
+        # The party's records come in batches: the HP records (1b 92) of the members in view, then every
+        # member's status record (1c 92), both in the party's slot order. A batch with as many HP records as
+        # statuses pairs each member with their entity, and the entity's name names the member.
+        run_hp, run_status = [], []
+
+        def end_party_run():
+            if run_status:
+                self._observe_party_batch(run_hp if len(run_hp) == len(run_status) else [], run_status)
+            run_hp.clear()
+            run_status.clear()
         for packet in _damage_frames(complete, inner=False):
+            hp_entity = hp_record_entity(packet)
+            if hp_entity is not None:
+                if run_status:
+                    end_party_run()
+                run_hp.append(hp_entity)
+                self._observe_party_feed(hp_entity, timestamp_ms)
+            else:
+                status = scan_party_status(packet)
+                if status is not None:
+                    run_status.append(status)
+                    self._observe_party_status(status, timestamp_ms)
+                elif packet[read_varint(packet, 0).length:read_varint(packet, 0).length + 2] != b"\x00\x8d":
+                    end_party_run()           # an MP record may sit between the batch's records; anything else ends it
             # Spawn/HP records inside compressed bundles were previously
             # scanned only as compressed bytes, losing the NPC database key.
             for entity_id, info in self._scan_spawns(packet, timestamp_ms).items():
@@ -360,7 +398,10 @@ class MeterEngine:
             self.summon_owners.update(links)
             self.known_entities.update(summons)
             self.known_entities.update(links.values())
+        end_party_run()
         self._bind_named_character()
+        if (self.party_status or self.party_feed) and self.roster_source != "packet":
+            self._sync_status_roster(timestamp_ms)
         events = list(decode_stream(complete, timestamp_ms, self.known_entities,
                                    self.seen_embedded_damage, self.seen_embedded_order,
                                    self.known_players))
@@ -508,11 +549,12 @@ class MeterEngine:
         stay valid while the client stays in the zone, and the next real zone load resets this
         state anyway, so adopting the last engine's view is safe and restores the party at once."""
         with self._lock:
-            for attr in ("names", "jobs", "roster", "spawn_info", "summon_owners", "local_profile", "live_hp", "boss_hp_seen"):
+            for attr in ("names", "jobs", "roster", "spawn_info", "summon_owners", "local_profile", "live_hp", "boss_hp_seen", "party_status", "party_feed"):
                 getattr(self, attr).update(getattr(previous, attr, {}) or {})
             for attr in ("known_players", "known_entities", "summons"):
                 getattr(self, attr).update(getattr(previous, attr, ()) or ())
             self.roster_complete = bool(getattr(previous, "roster_complete", False))
+            self.roster_source = getattr(previous, "roster_source", None) or self.roster_source
             self.local_player_id = getattr(previous, "local_player_id", None)
             self.local_identity_from_game = bool(getattr(previous, "local_identity_from_game", False))
             self.local_identity_from_mp = bool(getattr(previous, "local_identity_from_mp", False))
@@ -711,6 +753,13 @@ class MeterEngine:
         self.power_scalars.clear()
         self.roster.clear()
         self.roster_complete = False
+        self.roster_source = None
+        # The party stays across a zone load; its members' entities and names do not (the next status
+        # records, paired with the HP records of the new entities, name them again within seconds).
+        for member in self.party_status.values():
+            member.pop("entity", None)
+            member.pop("name", None)
+        self.party_feed.clear()
         self.local_player_id = None
         self.local_identity_from_game = False
         self.local_identity_from_mp = False
@@ -776,10 +825,66 @@ class MeterEngine:
         if dungeon_id:
             self.instance_restored = False               # the instance came from the game, not a restore
         self.roster_complete = complete
+        self.roster_source = "packet"
         if complete:
             self.roster = members
         else:
             self.roster.update(members)
+
+    def _observe_party_feed(self, entity: int, timestamp_ms: int) -> None:
+        """An HP record of the party feed: the entity is a party member in view."""
+        if entity == self.local_player_id or entity in self.summons:
+            return
+        self.party_feed[entity] = timestamp_ms
+        self.known_players.add(entity)
+
+    def _observe_party_status(self, status: dict, timestamp_ms: int) -> None:
+        """One member's status record: the member is in the party, with the class and level it says."""
+        member = self.party_status.setdefault(status["dbid"], {})
+        member.update(serverId=status["serverId"], job=status["job"] or member.get("job"), level=status["level"],
+                      mapId=status["mapId"], last_ms=timestamp_ms)
+
+    def _observe_party_batch(self, entities: list[int], statuses: list[dict]) -> None:
+        """A batch whose HP records are as many as its statuses: the i-th status is the i-th entity's."""
+        for entity, status in zip(entities, statuses):
+            if entity == self.local_player_id or entity in self.summons:
+                continue
+            member = self.party_status.get(status["dbid"])
+            if member is not None:
+                member["entity"] = entity
+
+    def _sync_status_roster(self, timestamp_ms: int) -> None:
+        """The roster an open-world party gets, when no party-list packet rules: the members whose status came
+        within PARTY_STATUS_TTL_MS, by the name of the entity paired with them, and the named entities of the
+        party HP feed not paired with a member yet (a member in view before a full batch paired them). Complete
+        when every present member is paired and named."""
+        stale = [d for d, m in self.party_status.items() if timestamp_ms - m.get("last_ms", 0) > PARTY_STATUS_TTL_MS]
+        for dbid in stale:
+            del self.party_status[dbid]
+        for entity in [e for e, ms in self.party_feed.items() if timestamp_ms - ms > PARTY_STATUS_TTL_MS]:
+            del self.party_feed[entity]
+        roster: dict[str, dict] = {}
+        paired = set()
+        for dbid, member in self.party_status.items():
+            entity = member.get("entity")
+            name = self.names.get(entity) if entity is not None else None
+            if name:
+                member["name"] = name
+                paired.add(entity)
+                roster[name] = {"dbid": dbid, "serverId": member["serverId"], "job": member.get("job") or self.jobs.get(entity, ""),
+                                "level": member["level"], "gearScore": 0, "source": "status"}
+        for entity in self.party_feed:
+            name = self.names.get(entity)
+            if name and entity not in paired and name not in roster:
+                roster[name] = {"dbid": None, "serverId": int(self.local_profile.get("serverId", 0) or 0),
+                                "job": self.jobs.get(entity, ""), "level": 0, "gearScore": 0, "source": "feed"}
+        if not self.party_status and not self.party_feed:
+            if self.roster_source == "status":
+                self.roster, self.roster_complete, self.roster_source = {}, False, None
+            return
+        self.roster = roster
+        self.roster_source = "status"
+        self.roster_complete = bool(self.party_status) and len(paired) == len(self.party_status)
 
     def _observe_self_profile(self, data: bytes) -> None:
         profile = scan_self_profile(data)

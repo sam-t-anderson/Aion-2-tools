@@ -760,6 +760,59 @@ def scan_party_roster(data: bytes) -> tuple[dict[str, dict], bool, int] | None:
     return None
 
 
+def hp_record_entity(frame: bytes) -> int | None:
+    """The entity an HP record (``<len> 1B 92 <entity> <current> <maximum>``) is about, else None."""
+    length = read_varint(frame, 0)
+    if length.length <= 0:
+        return None
+    pos = length.length
+    if frame[pos:pos + 2] != b"\x1b\x92":
+        return None
+    actor = _var(frame, pos + 2)
+    if actor is None or not 100 <= actor[0] <= 9_999_999:
+        return None
+    return actor[0]
+
+
+def scan_party_status(frame: bytes) -> dict | None:
+    """One party member's status record (``1c 92``), which the game sends every two seconds or so for each
+    *other* member of your party wherever they are, in the open world as in a dungeon (0.2.329, from the 21
+    October Abyss recording: 551 of them in twenty minutes for the two party members, none for the legion
+    mates who were not in the party, none for the recording player). The body is the member's character
+    (an 8-byte database id, the server in its top 16 bits, as in the ``02 97`` roster), the class code the
+    roster uses, the map id, two u32 fields, the position (three floats), the level, a u32, a u32, the legion
+    name (a length byte and UTF-8), a u32, a byte, a u64 that grew through the fight and a byte: 63 bytes
+    plus the legion name. It names no entity and no character name: while the member is in view, the HP
+    record (``1b 92``) of the member's entity comes just before it, and the engine binds the two.
+
+    Returns ``{"dbid", "serverId", "characterId", "job", "classCode", "mapId", "level", "legion"}`` or None."""
+    length = read_varint(frame, 0)
+    if length.length <= 0:
+        return None
+    pos = length.length
+    if frame[pos:pos + 2] != b"\x1c\x92":
+        return None
+    body = frame[pos + 2:]
+    if len(body) < 63:
+        return None
+    legion_len = body[48]
+    if len(body) != 63 + legion_len:
+        return None
+    dbid = int.from_bytes(body[0:8], "little")
+    server_id, character_id = dbid >> 48, dbid & 0xFFFFFFFFFFFF
+    class_code = int.from_bytes(body[8:12], "little")
+    map_id = int.from_bytes(body[12:16], "little")
+    level = int.from_bytes(body[36:40], "little")
+    if not character_id or not 1 <= server_id <= 65535 or not 1 <= level <= 200 or class_code > 255 or map_id > 99_999_999:
+        return None
+    try:
+        legion = body[49:49 + legion_len].decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    return {"dbid": dbid, "serverId": server_id, "characterId": character_id, "job": job_from_roster(class_code),
+            "classCode": class_code, "mapId": map_id, "level": level, "legion": legion}
+
+
 def scan_summon_links(data: bytes, names: dict[int, str], known_summons: set[int] | None = None) -> tuple[set[int], dict[int, int]]:
     """Read common summon-spawn parent keys and 04/8D owner links."""
     summon_ids: set[int] = set()
