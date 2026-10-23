@@ -515,7 +515,7 @@ A moderator can revoke a claim. The panel then shows the moderator's note, and t
 
 ## Community comparisons
 
-Use Combat Logs to browse public submissions by type, boss, build, difficulty and region. Class distributions stay in separate encounter buckets and show parse counts. Search personal records using server ID plus name, or database character ID. World ranks cover this community's public submissions only. Missing classification prevents ranking; open a local saved session to add verified metadata.
+Use Combat Logs to browse public submissions by type, boss, build, difficulty and region. Class distributions stay in separate encounter buckets and show parse counts. A parse is a run's percentile among every ranked run of the same class on the same encounter, category, game version and difficulty, by every character (log server 0.2.122; before it, each character's best alone), and the website's leaderboard opens sorted by parse across all of PvE, the best parses first whatever the class or encounter; its dropdowns narrow the list and **Sort by → Metric** restores the DPS order. Search personal records using server ID plus name, or database character ID. World ranks cover this community's public submissions only. Missing classification prevents ranking; open a local saved session to add verified metadata.
 
 Add multiple comparison logs and select matching encounters and players explicitly. Differences are recorded DPS, not gear-adjusted scores.
 

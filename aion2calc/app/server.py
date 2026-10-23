@@ -667,9 +667,11 @@ class Handler(BaseHTTPRequestHandler):
             from . import capture_setup
             return self._json(capture_setup.status())
         if path == "/api/overlay/commands":
-            # Fast one-shot command channel for the overlay (hotkey-driven). Tiny and
-            # uncached so the overlay sees a bumped counter within its poll interval.
-            return self._json(dict(OVERLAY_COMMANDS), cache=0)
+            # Fast one-shot command channel for the overlay (hotkey-driven). Tiny and uncached
+            # (_send marks JSON no-store) so the overlay sees a bumped counter within its poll
+            # interval. Until 0.2.330 this passed a keyword _json does not take and answered 500
+            # on every poll, so Open overlay never reloaded an overlay that was already open.
+            return self._json(dict(OVERLAY_COMMANDS))
         if path == "/api/meter/installations":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Game installations are available only on this computer")

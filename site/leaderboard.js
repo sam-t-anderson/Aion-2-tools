@@ -7,13 +7,14 @@
   const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "");
   const CLASSES = ["Templar", "Gladiator", "Assassin", "Ranger", "Sorcerer", "Spiritmaster", "Cleric", "Chanter"];
   $("#cls").innerHTML = '<option value="">All classes</option>' + CLASSES.map((c) => `<option>${c}</option>`).join("");
-  // WCL-style parse colours: the percentile of this parse among every character's best on the
-  // same boss / category / game version / difficulty for the same class (100 = the best).
+  // WCL-style parse colours: the percentile of this run among every ranked run of the same class on the
+  // same boss / category / game version / difficulty, by every character (100 = above them all). The page
+  // opens sorted by it across all of PvE, so the best parses lead whatever the class or encounter.
   const parseTier=p=>p>=100?'gold':p>=99?'pink':p>=95?'orange':p>=75?'purple':p>=50?'blue':p>=25?'green':'grey';
   const parseHTML=e=>{
     if(e.parse===null || e.parse===undefined)return '<span class="parse q-none" title="No parse: this metric is not ranked, or the encounter has no comparable public parses yet">·</span>';
-    const few=(e.parse_characters||0)<5;
-    return `<span class="parse q-${parseTier(e.parse)}${few?' provisional':''}" title="${e.parse} percentile among ${n0(e.parse_characters)} ${esc(cap(e.class||''))} character${e.parse_characters===1?'':'s'} on this encounter${few?' (provisional: fewer than 5 characters)':''}">${Math.round(e.parse)}</span>`;
+    const runs=e.parse_runs??e.parse_characters??0, few=runs<5;
+    return `<span class="parse q-${parseTier(e.parse)}${few?' provisional':''}" title="${e.parse} percentile among ${n0(runs)} ranked ${esc(cap(e.class||''))} run${runs===1?'':'s'} on this encounter${few?' (provisional: fewer than 5 runs)':''}">${Math.round(e.parse)}</span>`;
   };
   const killTime=s=>(s===null || s===undefined || isNaN(s))?"—":`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`;
   // The date with the time of day, in the computer's clock: 2026-10-23 15:04:05.
@@ -34,7 +35,7 @@
         <td style="width:40%"><div class="bar"><i style="width:${100 * (e.score ?? e.dps ?? 0) / mx}%"></i><span>${n0(e.score??e.dps)}</span></div></td>
         <td>${esc(e.boss || "")} · ${esc(e.difficulty||"Unknown ruleset")} · ${esc(String(e.game_patch||"Unknown game version").replace(/version:product:([0-9.]+)/g,(_,v)=>"Product version "+v.split(".").slice(0,4).join(".")).replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})/g,"Legacy build $1 · Steam"))} · party ${e.party_size||'unknown'} · instance ${e.instance_id||'unknown'}<br><small>${esc((e.comparison?.reasons||[]).join(' '))}</small></td><td class="r">${killTime(e.duration)}</td><td class="muted small">${esc(day(e.created_at))}</td><td class="r muted small">${e.comparison?.rank??'—'} / ${e.comparison?.count??'—'}<br>${e.comparison?.percentile!==null && e.comparison?.percentile!==undefined?e.comparison.percentile.toFixed(1)+' percentile':'Percentile unavailable'}</td></tr>`).join("");
       $("#list").innerHTML = rows
-        ? `<table class="t"><tr><th class="r">#</th><th class="r">Parse</th><th>Player</th><th>Class</th><th>${esc($("#metric").value.toUpperCase())}</th><th>Encounter / ruleset / build</th><th class="r">Kill time</th><th>Date</th><th class="r">Matched cohort rank</th></tr>${rows}</table><p class="small muted">Parse: this parse's percentile among every character's best ${esc($("#metric").value.toUpperCase())} on the same encounter, category, game version and difficulty for the same class — 100 is the class best; comparable across encounters, so "Sort by parse" ranks a Sorcerer on one boss against a Templar on another. Dimmed parses have fewer than 5 characters to compare with. The matched cohort rank keeps the strict comparison (same party size and instance too).</p>`
+        ? `<table class="t"><tr><th class="r">#</th><th class="r">Parse</th><th>Player</th><th>Class</th><th>${esc($("#metric").value.toUpperCase())}</th><th>Encounter / ruleset / build</th><th class="r">Kill time</th><th>Date</th><th class="r">Matched cohort rank</th></tr>${rows}</table><p class="small muted">Parse: this run's percentile among every ranked ${esc($("#metric").value.toUpperCase())} run of the same class on the same encounter, category, game version and difficulty, by every character — 100 is above them all; comparable across encounters, so the page opens sorted by parse across all of PvE and a Sorcerer on one boss ranks against a Templar on another. Dimmed parses have fewer than 5 runs to compare with. The matched cohort rank keeps the strict comparison (same party size and instance too).</p>`
         : '<div class="empty">No parses yet. Share public logs from the app to populate the leaderboard.</div>';
       $("#msg").textContent = `${entries.length} parses. ${data.note||""}`;
     } catch (e) { $("#list").innerHTML = `<div class="note">${esc(e.message)}</div>`; }

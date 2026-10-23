@@ -1,9 +1,10 @@
 """The WCL-style parse on the website leaderboard and in the combat review's player table.
 
-Both read the log server's ``parse`` (percentile among every character's best on the same
-encounter / category / game version / difficulty for the same class; 100 = class best) and
-``parse_characters``, colour it in the usual tiers (gold 100, pink 99+, orange 95+, purple 75+,
-blue 50+, green 25+, grey) and dim brackets with fewer than five characters.
+Both read the log server's ``parse`` (percentile among every ranked run of the same class on the
+same encounter / category / game version / difficulty, by every character; 100 = above them all) and
+``parse_runs`` (``parse_characters`` on older servers), colour it in the usual tiers (gold 100, pink
+99+, orange 95+, purple 75+, blue 50+, green 25+, grey) and dim brackets with fewer than five runs.
+The leaderboard opens sorted by parse across all of PvE (0.2.330); Metric stays a choice.
 """
 import pathlib
 import re
@@ -32,10 +33,12 @@ def test_both_renderers_share_the_same_parse_tiers():
 
 def test_leaderboard_shows_parse_kill_time_date_and_can_sort_by_parse():
     assert "<th class=\"r\">Parse</th>" in LEADERBOARD_JS and "parseHTML(e)" in LEADERBOARD_JS
-    assert "e.parse_characters" in LEADERBOARD_JS and "provisional" in LEADERBOARD_JS
+    assert "e.parse_runs??e.parse_characters" in LEADERBOARD_JS and "provisional" in LEADERBOARD_JS and "fewer than 5 runs" in LEADERBOARD_JS
     assert "Kill time" in LEADERBOARD_JS and "killTime(e.duration)" in LEADERBOARD_JS and "day(e.created_at)" in LEADERBOARD_JS
     assert 'sort:$("#sort").value' in LEADERBOARD_JS and '$("#sort").onchange=load' in LEADERBOARD_JS
-    assert '<select id="sort"><option value="score">Metric</option><option value="parse">Parse</option></select>' in LEADERBOARD_HTML
+    # Parse is the first option, so the page opens on the best parses across all of PvE; Metric stays.
+    assert '<select id="sort"><option value="parse">Parse</option><option value="score">Metric</option></select>' in LEADERBOARD_HTML
+    assert "every ranked" in LEADERBOARD_JS and "every character's best" not in LEADERBOARD_JS
     assert ".parse{" in SITE_CSS and ".q-gold{--q:#e5cc80}" in SITE_CSS
 
 
