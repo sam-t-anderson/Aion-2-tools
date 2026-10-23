@@ -928,9 +928,12 @@ class Handler(BaseHTTPRequestHandler):
                 share.save_settings(body.get("url"), body.get("key"), body.get("visibility"))
             return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
         if path == "/api/overlay":
-            from .overlay_launch import launch, close
+            from .overlay_launch import launch, close, close_view
             if body.get("action") == "hide":
-                close()
+                # The meter overlay's Hide closes every overlay window; a companion window's Hide (the
+                # Party-DPS overlay, the radar's window) closes that window alone.
+                view = body.get("view")
+                close_view(view) if isinstance(view, str) and view in ("party", "radar") else close()
                 return self._json({"hidden": True})
             port = self.server.server_address[1]
             # Open overlay while it is open asks the overlay to reload its page (a blank one comes back).
@@ -1184,7 +1187,8 @@ class Handler(BaseHTTPRequestHandler):
                               # Remembered overlay screen positions (per overlay). Wide
                               # bounds cover multi-monitor layouts (can be negative).
                               ("overlay_pos_x", -30000, 30000), ("overlay_pos_y", -30000, 30000),
-                              ("overlay_party_pos_x", -30000, 30000), ("overlay_party_pos_y", -30000, 30000))
+                              ("overlay_party_pos_x", -30000, 30000), ("overlay_party_pos_y", -30000, 30000),
+                              ("overlay_radar_pos_x", -30000, 30000), ("overlay_radar_pos_y", -30000, 30000))
             for key, lo, hi in _ui_int_ranges:
                 if key in body:
                     if not isinstance(body[key], int) or isinstance(body[key], bool) or not lo <= body[key] <= hi:
@@ -1202,7 +1206,7 @@ class Handler(BaseHTTPRequestHandler):
                 cur["hotkeys"] = _hotkeys.clean_hotkeys(body["hotkeys"])
             # Remembered monitor layout for each overlay (machine-specific; restores the
             # position by the monitor layout). A list of [left, top, width, height] rects.
-            for key in ("overlay_pos_layout", "overlay_party_pos_layout"):
+            for key in ("overlay_pos_layout", "overlay_party_pos_layout", "overlay_radar_pos_layout"):
                 if key in body:
                     layout = body[key]
                     if not (isinstance(layout, list) and len(layout) <= 16 and all(
@@ -1224,6 +1228,12 @@ class Handler(BaseHTTPRequestHandler):
             if any(k.startswith("radar_") for k in body):
                 try:
                     radar_sync()
+                except Exception:
+                    traceback.print_exc()
+            if "overlay_party_enabled" in body:        # the Party-DPS window follows its setting while the overlay is open
+                try:
+                    from .overlay_launch import sync_companions
+                    sync_companions()
                 except Exception:
                     traceback.print_exc()
             if any(k.startswith("meter_") for k in body):
@@ -1435,8 +1445,15 @@ def cube_radar():
 
 
 def radar_sync(stop: bool = False) -> None:
-    """Start or stop listening to match the setting (Windows only; a no-op elsewhere)."""
+    """Start or stop listening to match the setting (Windows only; a no-op elsewhere), and open or close
+    the radar's own overlay window with it while the meter overlay is open."""
     from . import radar
+    if not stop:
+        try:
+            from .overlay_launch import sync_companions
+            sync_companions()
+        except Exception:
+            traceback.print_exc()
     if not radar.supported() or (stop and _RADAR is None):
         return
     ui = ui_settings()

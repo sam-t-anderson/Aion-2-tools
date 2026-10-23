@@ -445,7 +445,7 @@ def _overlay_prefs() -> dict:
     # Remembered drag positions (per overlay), restored at launch instead of
     # re-anchoring to the game window. Machine/monitor-specific, so they live only
     # in ui.json (never the shareable settings backup).
-    positions = {"meter": None, "party": None}
+    positions = {"meter": None, "party": None, "radar": None}
     try:
         from .paths import data_file, read_json
         if data_file("ui.json").exists():
@@ -462,6 +462,7 @@ def _overlay_prefs() -> dict:
                 return {"xy": (int(x), int(y)), "layout": layout}
             positions["meter"] = _pos("overlay_pos_x", "overlay_pos_y", "overlay_pos_layout")
             positions["party"] = _pos("overlay_party_pos_x", "overlay_party_pos_y", "overlay_party_pos_layout")
+            positions["radar"] = _pos("overlay_radar_pos_x", "overlay_radar_pos_y", "overlay_radar_pos_layout")
     except Exception:
         pass
     prefs["positions"] = positions
@@ -469,10 +470,11 @@ def _overlay_prefs() -> dict:
 
 
 class _OverlayAPI:
-    def __init__(self):
+    def __init__(self, min_width: int = 260):
         self._window = None
         self._opacity = 0.72
         self._size = None
+        self._min_width = min_width          # the radar's small window may be narrower than the meter's
         self._windows_ready = False
         self._locked = False
         # Click-through: when on, the window ignores mouse input (WS_EX_TRANSPARENT)
@@ -589,7 +591,7 @@ class _OverlayAPI:
             self._on_ui(lambda: setattr(self._window.native, "Opacity", self._opacity))
 
     def fit(self, width, height):
-        size = (max(260, min(800, int(width))), max(70, min(800, int(height))))
+        size = (max(self._min_width, min(800, int(width))), max(70, min(800, int(height))))
         if size != self._size:
             self._size = size
             self._window.resize(*size)
@@ -770,17 +772,27 @@ def _health_loop(window, api, win32, closed: threading.Event) -> None:
             api.log.write(f"watchdog error: {type(err).__name__}: {err}")
 
 
+def _view_key(party) -> str:
+    """The window a flag or name means: ``"meter"``, ``"party"`` or ``"radar"``."""
+    if isinstance(party, str):
+        return party
+    return "party" if party else "meter"
+
+
 def _save_overlay_position(app_base, party, pos, layout=None) -> None:
     """Persist a dragged overlay position to the app (ui.json) via its local API,
-    keyed per overlay, so it is restored next launch. ``layout`` is the current monitor
-    rectangles, stored alongside so the position can be restored by the monitor layout.
-    Best-effort; failures are swallowed so a transient app hiccup never disturbs the
-    overlay."""
+    keyed per overlay (``party`` is the window: a flag for the Party-DPS one, or its name,
+    ``"radar"`` for the radar's window), so it is restored next launch. ``layout`` is the
+    current monitor rectangles, stored alongside so the position can be restored by the
+    monitor layout. Best-effort; failures are swallowed so a transient app hiccup never
+    disturbs the overlay."""
     if not app_base:
         return
     import json as _json, urllib.request
-    keys = ("overlay_party_pos_x", "overlay_party_pos_y") if party else ("overlay_pos_x", "overlay_pos_y")
-    layout_key = "overlay_party_pos_layout" if party else "overlay_pos_layout"
+    view = _view_key(party)
+    prefix = {"meter": "overlay_pos", "party": "overlay_party_pos", "radar": "overlay_radar_pos"}[view]
+    keys = (prefix + "_x", prefix + "_y")
+    layout_key = prefix + "_layout"
     payload = {keys[0]: int(pos[0]), keys[1]: int(pos[1])}
     if layout:
         payload[layout_key] = [[int(v) for v in m] for m in layout]
@@ -869,7 +881,7 @@ def _run_overlay(window, api, app_base: str | None = None, party: bool = False) 
     # of following the game window. Off by default (the game-follow behaviour below
     # is unchanged). Windows-only (needs the native window rect).
     remember_position = prefs["remember_position"]
-    saved_pos = prefs["positions"].get("party" if party else "meter")
+    saved_pos = prefs["positions"].get(_view_key(party))
     last_pos, pending_pos, pending_ticks, anchored = None, None, 0, False
     if win32 and remember_position and saved_pos and saved_pos.get("xy"):
         try:
@@ -982,29 +994,29 @@ def main(argv=None) -> int:
     ap.add_argument("--height", type=int, default=120)
     a = ap.parse_args(argv)
     url = a.url or _default_url()
-    # The overlay URL is the app's own /overlay page (optionally ?view=party); its
-    # base is the app to watch, derived without the path/query.
+    # The overlay URL is the app's own /overlay page (optionally ?view=party, or ?view=radar for the
+    # Hidden Cube radar's own small window); its base is the app to watch, derived without the path/query.
     app_base = url.split("/overlay")[0] if "/overlay" in url else None
     prefs = _overlay_prefs()
-    party = "view=party" in url
+    party = "party" if "view=party" in url else "radar" if "view=radar" in url else "meter"
     try:
         import webview
     except Exception:
         webbrowser.open(url)
         return 0
     try:
-        api = _OverlayAPI()
+        api = _OverlayAPI(min_width=180 if party == "radar" else 260)
         api.url = url
-        api.log = OverlayLog(_log_path(), "overlay[party]" if party else "overlay")
+        api.log = OverlayLog(_log_path(), "overlay" if party == "meter" else f"overlay[{party}]")
         api.log.write(f"started (pid {os.getpid()})")
         # Stable card content is draggable; JS stops events at the tabs and slider.
         webview.settings["DRAG_REGION_DIRECT_TARGET_ONLY"] = False
-        window = webview.create_window("Aion 2 Calc Party Overlay" if party else "Aion 2 Calc Overlay",
-                                       url, frameless=True, easy_drag=False,
+        title = {"meter": "Aion 2 Calc Overlay", "party": "Aion 2 Calc Party Overlay", "radar": "Aion 2 Calc Radar Overlay"}[party]
+        window = webview.create_window(title, url, frameless=True, easy_drag=False,
                                        shadow=False, on_top=True, hidden=True, focus=False,
                                        transparent=sys.platform != "win32", background_color="#010203",
-                                       width=a.width, height=a.height, min_size=(260, 70),
-                                       resizable=bool(prefs["resizable"]), js_api=api)
+                                       width=a.width, height=a.height, min_size=(180 if party == "radar" else 260, 70),
+                                       resizable=bool(prefs["resizable"]) and party != "radar", js_api=api)
         api._window = window
         webview.start(_run_overlay, args=(window, api, app_base, party),
                       gui="edgechromium" if sys.platform == "win32" else None)

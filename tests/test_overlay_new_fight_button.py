@@ -24,3 +24,16 @@ def test_button_posts_the_split_action():
 def test_button_is_styled_with_the_other_header_controls():
     # Grouped into the framed button selectors (also fixes the older unstyled Copy).
     assert "#ovsplit" in CSS and "#ovcopy" in CSS
+
+
+def test_new_clears_the_overlays_meter_until_the_next_fight_begins():
+    # 0.2.329: New empties this overlay's meter at once (the app keeps every fight) and keeps it empty
+    # until the live encounter's id changes, which the next fight's first hit does.
+    assert "let clearedFight=null;" in JS
+    assert 'clearedFight=String((lastSnap&&lastSnap.snapshot&&lastSnap.snapshot.selected_segment)??"");' in JS
+    assert 'if(clearedFight!==null&&String(snap.selected_segment??"")!==clearedFight)clearedFight=null;' in JS
+    assert "const players = cleared?[]:(snap.players || []);" in JS
+    assert '"New fight · waiting for combat"' in JS and '"New fight — waiting for the first hit."' in JS
+    for panel in ("const showT=showTarget&&!over&&!cleared&&", "const showD=showDummy&&!over&&!cleared&&", "const showC=showContribution&&!over&&!cleared&&"):
+        assert panel in JS                       # the target, dummy and contribution panels clear with the rows
+    assert "shownRates.clear();playerHist.clear();" in JS

@@ -6,10 +6,15 @@
   const kfmt = (x) => { if (x == null || isNaN(x)) return "—"; const a = Math.abs(x); return a >= 1e6 ? (x / 1e6).toFixed(2) + "M" : a >= 1e3 ? (x / 1e3).toFixed(2) + "K" : Math.round(x).toString(); };
   let tab = "meter", metric = "dps", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false, meterUnavailable = false, refreshError = "", lastSuccess = null;
   let clickThrough = false, rectTimer = 0;
-  const partyMode = new URLSearchParams(location.search).get("view") === "party";
+  // Which window this page is: the meter overlay, the separate Party-DPS overlay (?view=party) or the
+  // Hidden Cube radar's own small window (?view=radar, 0.2.329): the radar with Lock, Hide and its own opacity.
+  const view = new URLSearchParams(location.search).get("view") || "meter";
+  const partyMode = view === "party", radarMode = view === "radar";
   if (partyMode) document.getElementById("ov").classList.add("ov-party");
+  if (radarMode) { document.getElementById("ov").classList.add("ov-radar"); const vt=$("#ovviewtitle"); if(vt){vt.textContent="Hidden Cube radar";vt.hidden=false;} }
+  const OPACITY_KEY = radarMode ? "ovopacity-radar" : "ovopacity";   // the radar window keeps its own opacity
   try { const saved=localStorage.getItem("ovmetric"); if(["dps","hps","taken"].includes(saved))metric=saved; } catch(e) { /* optional storage */ }
-  try { const v = parseFloat(localStorage.getItem("ovopacity")); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
+  try { const v = parseFloat(localStorage.getItem(OPACITY_KEY)); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
   let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false, showDummy=true, showCombatPower=true, planAutoplay=true;
   let showGraph=false;
   // Skill-cooldown strip and the target's break gauge (both off by default), and when the
@@ -29,6 +34,9 @@
   let eventsSound=false, eventsSoundCustom=false, eventsPrimed=false, actx=null;
   const announcedEvents=new Set();
   let copyText="";   // plain-text leaderboard of the current view, for the Copy button
+  // New pressed on this overlay: the live encounter's id at that moment. Until the next fight begins (a
+  // different id), the meter shows empty; the app keeps every fight, only this view clears (0.2.329).
+  let clearedFight=null;
   const expanded=new Set();   // row keys whose per-skill breakdown is expanded (DPS view)
   let interpolate=false, interpolateMs=100, showFps=false, locked=false, userWidth=null, userHeight=null;
   let lastRenderAt=performance.now(), projecting=false, curMax=1;   // for live-ticking DPS between polls
@@ -183,7 +191,7 @@
     showDummy=ui.meter_show_dummy_parse!==false;
     showCombatPower=ui.overlay_show_combat_power!==false;
     showCommunityRank=ui.overlay_show_community_rank===true;
-    showEvents=ui.overlay_show_events!==false;   // on by default
+    showEvents=ui.overlay_show_events!==false&&!radarMode;   // on by default; not in the radar's window
     showFieldBosses=ui.overlay_show_field_bosses!==false;   // observed kills in the strip, on by default
     eventsSound=ui.overlay_events_sound===true;  // chime off by default (opt-in audio)
     eventsSoundCustom=ui.overlay_events_sound_set===true;
@@ -192,31 +200,33 @@
     eventRegion=typeof ui.event_region==="string"?ui.event_region:"";
     eventGroup=typeof ui.event_group==="string"?ui.event_group:"";
     setupEvents();
-    setupRadar(ui.radar_enabled===true);   // the Hidden Cube radar, off by default
+    radarSetting=ui.radar_enabled===true;
+    setupRadar(radarSetting);   // the Hidden Cube radar, off by default
     nameMode=["name","class_number","number"].includes(ui.overlay_name_mode)?ui.overlay_name_mode:"name";
     interpolate=ui.overlay_dps_interpolate===true;
     interpolateMs=clampInt(ui.overlay_interpolate_ms,50,1000,50);
     showFps=ui.overlay_show_fps===true;
     planAutoplay=ui.overlay_plan_autoplay!==false;   // on by default
-    $("#ovfps").hidden=!showFps||partyMode;
-    setFpsLoop(showFps&&!partyMode);   // only drive a per-frame loop while the FPS readout is shown
+    $("#ovfps").hidden=!showFps||partyMode||radarMode;
+    setFpsLoop(showFps&&!partyMode&&!radarMode);   // only drive a per-frame loop while the FPS readout is shown
     applyClickThrough(ui.overlay_click_through===true);   // pass clicks to the game, keeping the overlay's buttons live
     // Layout
     maxPlayers=clampInt(ui.overlay_max_players,1,24,8);
     onlyInCombat=ui.overlay_only_in_combat===true;
     autoExpand=ui.overlay_auto_expand===true;
-    document.documentElement.style.setProperty('--ov-width',(userWidth??clampInt(ui.overlay_width,260,800,340))+'px');
+    document.documentElement.style.setProperty('--ov-width',radarMode?'232px':(userWidth??clampInt(ui.overlay_width,260,800,340))+'px');
     const h=userHeight??clampInt(ui.overlay_height,0,800,0);
     document.documentElement.style.setProperty('--ov-height',h>0?h+'px':'0px');
     document.documentElement.style.setProperty('--ov-row-h',clampInt(ui.overlay_row_height,14,48,22)+'px');
-    document.getElementById("ov").classList.toggle("ov-resizable",ui.overlay_resizable===true&&!partyMode);
+    document.getElementById("ov").classList.toggle("ov-resizable",ui.overlay_resizable===true&&!partyMode&&!radarMode);
     if(lastSnap)renderMeter();
     fit();
   }).catch(()=>{});
   const fmtTtk=(s)=>{s=Math.round(s);return s>=3600?`${Math.floor(s/3600)}h${Math.floor(s%3600/60)}m`:s>=60?`${Math.floor(s/60)}m${String(s%60).padStart(2,'0')}s`:`${s}s`;};
   syncColors();setInterval(syncColors,10000);
   const slider = $("#ovop");
-  $("#ovhide").onclick = () => fetch("/api/overlay", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"hide"})}).then(()=>window.close());
+  // Hide: the meter overlay's closes every overlay window; a companion window's (party, radar) closes itself alone.
+  $("#ovhide").onclick = () => fetch("/api/overlay", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"hide",view})}).then(()=>window.close());
   const copyBtn=$("#ovcopy");
   if(copyBtn)copyBtn.onclick=async()=>{
     if(!copyText)return;
@@ -234,6 +244,8 @@
       if(!r.ok)throw Error("split failed");
       await r.json();
       graphHist=[];   // the live graph starts clean for the new fight
+      clearedFight=String((lastSnap&&lastSnap.snapshot&&lastSnap.snapshot.selected_segment)??"");
+      shownRates.clear();playerHist.clear();
       splitBtn.textContent="New ✓";
       await pollMeter();
     }catch(_){splitBtn.textContent="Error";}
@@ -348,6 +360,7 @@
     // the click-through state (and the control rects) now that native calls land.
     nativeCall("set_click_through", clickThrough);
     if (clickThrough) reportInteractiveRects();
+    setupRadar(radarSetting);   // in the native host the radar is drawn by its own window, never by the meter's
   }
   window.addEventListener("pywebviewready", nativeInit);
   if (window.pywebview?.api?.fit) nativeInit();
@@ -359,7 +372,7 @@
   });
   slider.oninput = () => {
     op = Math.max(0.2, Math.min(1, slider.value / 100)); applyOpacity();
-    try { localStorage.setItem("ovopacity", op); } catch (e) { /* optional storage */ }
+    try { localStorage.setItem(OPACITY_KEY, op); } catch (e) { /* optional storage */ }
   };
 
   function tokenPos(tk, time) {
@@ -509,7 +522,12 @@
   }
   function renderMeter() {
     if(partyMode)return renderParty();
-    const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
+    if(radarMode)return;                       // the radar's window shows the radar alone (its own poll)
+    const s = lastSnap || {}, snap = s.snapshot || {};
+    // After New, an empty meter until the next fight begins: the live encounter's id changes with its first hit.
+    if(clearedFight!==null&&String(snap.selected_segment??"")!==clearedFight)clearedFight=null;
+    const cleared=clearedFight!==null;
+    const players = cleared?[]:(snap.players || []);
     // Anchor the live-ticking DPS to this snapshot: between polls the displayed
     // average DPS is recomputed from real damage and the elapsing clock (not
     // invented), and only while combat is actually running and unpaused.
@@ -554,7 +572,7 @@
     copyText=`${label} · ${snap.boss||'combat'} · ${(Number(duration)||0).toFixed(0)}s\n`+
       ranked.map((p,i)=>`${i+1}. ${displayName(p)}  ${kfmt(rate(p))}/s  (${Math.round(100*amount(p)/(total||1))}%)`).join("\n")+
       `\n— Aion 2 Calc`;
-    $("#ovstatus").textContent = `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
+    $("#ovstatus").textContent = cleared ? "New fight · waiting for combat" : `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
     // During a big fight the decoder can fall behind the packet backlog; show it is
     // catching up (and how deep the queue is) so the live view does not look frozen.
     if (snap.decode_backlog && snap.decode_backlog.catching_up) $("#ovstatus").textContent += ` · ⏳ catching up (${snap.decode_backlog.queue_depth})`;
@@ -581,12 +599,12 @@
     // Reset after battle: once combat has been idle past the delay, clear the live
     // view to a ready state (the data is kept; a selected segment still shows it).
     const over=snap.battle_over===true;
-    const empty = s.error || (over ? "Ready — waiting for the next fight." : players.length?`No recorded ${metric==='hps'?'healing':metric==='taken'?'incoming damage':'outgoing damage'} in this combat.`:snap.warning || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app."));
+    const empty = s.error || (cleared ? "New fight — waiting for the first hit." : over ? "Ready — waiting for the next fight." : players.length?`No recorded ${metric==='hps'?'healing':metric==='taken'?'incoming damage':'outgoing damage'} in this combat.`:snap.warning || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app."));
     $("#ovcontent").innerHTML = over ? `<div class="muted">${esc(empty)}</div>` : (players.length && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`);
     // Current target (the enemy you are hitting most) with each contributor's DPS
     // to it; packet-sourced, shown when there is recorded damage and enabled.
     const target=snap.current_target;
-    const showT=showTarget&&!over&&target&&!target.is_player&&(target.contributors||[]).length;
+    const showT=showTarget&&!over&&!cleared&&target&&!target.is_player&&(target.contributors||[]).length;
     $("#ovtarget").hidden=!showT;
     if(showT){
       const top=(target.contributors||[]).slice(0,3)
@@ -654,7 +672,7 @@
     }
     // Training-dummy parse: elapsed vs the standard window, your DPS and the total.
     const dummy=snap.dummy_parse;
-    const showD=showDummy&&!over&&dummy&&metric==='dps';
+    const showD=showDummy&&!over&&!cleared&&dummy&&metric==='dps';
     $("#ovdummy").hidden=!showD;
     if(showD){
       const dur=Math.round(dummy.duration||0), win=Math.round(dummy.window_seconds||0);
@@ -665,7 +683,7 @@
     }
     // Your contribution: your share of the shown encounter's damage.
     const c=snap.contribution;
-    const showC=showContribution&&!over&&c&&c.damage>0&&metric==='dps';
+    const showC=showContribution&&!over&&!cleared&&c&&c.damage>0&&metric==='dps';
     $("#ovcontribution").hidden=!showC;
     if(showC) $("#ovcontribution").textContent=`Your contribution: ${Math.round((c.share||0)*100)}% · ${kfmt(c.damage)} (${kfmt(c.dps)}/s)`;
     recordGraph(s, snap, players);
@@ -808,7 +826,7 @@
   $("#ovretry").onclick=()=>pollMeter();
   // Poll on the meter tab, and on the plan tab when auto-play is on, so the plan can
   // sync to the live pull.
-  setInterval(() => { if (tab === "meter" || (tab === "plan" && planAutoplay)) pollMeter(); }, 500);
+  setInterval(() => { if (!radarMode && (tab === "meter" || (tab === "plan" && planAutoplay))) pollMeter(); }, 500);
   setInterval(() => { t += 0.1; if (tab === "plan") renderPlan(); }, 100);
   window.addEventListener("storage", (event) => { if (event.key === "aion2calc-closing") window.close(); });
 
@@ -980,10 +998,13 @@
   // The Hidden Cube radar (off by default): where a cube's jingle comes from, on a circle around you, and
   // how loud it is, from the game's sound, which the app listens to in memory (radar.py). It has its own poll
   // so it keeps up while exploring with the meter collapsed between fights.
-  let radarOn=false, radarTimer=null, radarBusy=false;
+  let radarOn=false, radarTimer=null, radarBusy=false, radarSetting=false;
   const RADAR_NEAR=[[0.8,"right here"],[0.5,"close"],[0.25,"nearby"],[0,"far"]];
+  // Since 0.2.329 the radar has its own small window (?view=radar), opened beside the meter overlay while the
+  // radar is on; the meter overlay draws it only in the browser fallback, where no native windows exist.
   function setupRadar(on){
-    radarOn=on&&!partyMode;
+    const nativeHost=nativeReady||!!window.pywebview;
+    radarOn=on&&(radarMode||(!partyMode&&!nativeHost));
     if(radarOn&&!radarTimer){radarTimer=setInterval(pollRadar,300);pollRadar();}
     else if(!radarOn&&radarTimer){clearInterval(radarTimer);radarTimer=null;}
     const el=$("#ovradar");
@@ -1090,7 +1111,7 @@
     if(on&&!fpsRunning){fpsRunning=true;frames=0;fpsAt=performance.now();requestAnimationFrame(fpsTick);}
     else if(!on){fpsRunning=false;}
   }
-  setFpsLoop(showFps&&!partyMode);
+  setFpsLoop(showFps&&!partyMode&&!radarMode);
 
   // The page's own errors go to the app's overlay log (logs/overlay.log, beside the watchdog's notes
   // on a page that went blank), at most 20 a load, so a fault that shows only after hours is on record.
@@ -1103,5 +1124,5 @@
   window.addEventListener("error",e=>report("error",(e.message||"")+(e.filename?` @ ${e.filename}:${e.lineno}`:"")));
   window.addEventListener("unhandledrejection",e=>report("rejection",(e.reason&&(e.reason.stack||e.reason.message))||e.reason));
 
-  applyOpacity(); renderMeter(); pollMeter();
+  applyOpacity(); renderMeter(); if(!radarMode)pollMeter();
 })();

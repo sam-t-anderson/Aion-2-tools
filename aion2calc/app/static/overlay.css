@@ -39,6 +39,22 @@ html.native-windows .ovcard { max-width: none; }
 .ovcard > *:not(#ovbg) { position: relative; z-index: 1; }
 /* Separate Party-DPS overlay view. */
 #ov.ov-party .ovtabs, #ov.ov-party .ovmetrics, #ov.ov-party .ovoptions { display: none; }
+/* The Hidden Cube radar's own small window (0.2.329): the radar with its Lock, Hide and opacity slider, and
+   nothing of the meter. The card is narrow and never resizable; the window fits it. */
+#ov.ov-radar .ovtabs, #ov.ov-radar .ovmetrics, #ov.ov-radar .ovoptions, #ov.ov-radar #ovsplit, #ov.ov-radar #ovcopy,
+#ov.ov-radar #ovcapture, #ov.ov-radar #ovping, #ov.ov-radar #ovodyle, #ov.ov-radar #ovshugo, #ov.ov-radar #ovfps,
+#ov.ov-radar #ovidentity, #ov.ov-radar #ovevents, #ov.ov-radar #ovtarget, #ov.ov-radar #ovhpbar, #ov.ov-radar #ovttkbar,
+#ov.ov-radar #ovgauge, #ov.ov-radar #ovdummy, #ov.ov-radar #ovcontent, #ov.ov-radar #ovcontribution, #ov.ov-radar #ovgraph,
+#ov.ov-radar #ovcooldowns, #ov.ov-radar #ovconnection, #ov.ov-radar .ovgrip { display: none; }
+#ov.ov-radar .ovcard { width: var(--ov-width, 232px); padding: 7px 9px 6px; }
+#ov.ov-radar .ovhd { margin-bottom: 4px; }
+#ov.ov-radar .ovradar { margin: 2px 0 2px; align-items: center; }
+#ov.ov-radar .ovradar .ovrsvg { width: 76px; height: 76px; }
+#ov.ov-radar .ovradar .ovrtext { white-space: normal; font-size: 11px; }
+#ov.ov-radar .ovfoot { margin-top: 5px; }
+.ovviewtitle { color: var(--ov-header-color, #e8cf8e); font-weight: 700; margin-right: 6px; flex: 1 1 auto; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ovviewtitle[hidden] { display: none; }
 .ovpstat { display: flex; justify-content: space-between; align-items: baseline; padding: 2px 0; }
 .ovpstat .ovplabel { color: #9aa3b5; }
 .ovpstat .ovpval { color: var(--ov-rate-text, #e8cf8e); font-weight: var(--ov-font-weight, 700); font-size: 1.15em; }
