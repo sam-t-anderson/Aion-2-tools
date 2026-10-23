@@ -521,6 +521,10 @@ Add multiple comparison logs and select matching encounters and players explicit
 
 Completed-run speed and Boss progression require supported evidence. Boss progression excludes players, linked pets, dummies and known non-bosses; the catalog does not yet distinguish every miniboss from a major or world boss. See the [user guide](user-guide.md#run-timing-and-boss-progression) for eligibility and missing-data limits.
 
+### Dates and world names
+
+Every date the app and the website show carries the time of day in your computer's clock, as `2026-10-23 15:04:05`: the community logs, Saved Logs, My uploads, Your characters, the review's upload and profile times, Saved Results, the news and the timers (the timers' second stamp is the event's own zone). A server is named by its world, Zikel rather than 2102, wherever a recording or a report carries only the ID: the review's player labels, the **All matching public attempts** table, Your characters, the Live Meter identity line and the field-boss lines on the overlay and the Timers page. The names come from the bundled official server list (`aion2calc/meter/a2parser/data/servers.json`, rendered as `server-names.js` by `tools/export_server_names.py`); an ID the list does not know keeps its number.
+
 ### Contributing a class build
 
 Planner's **Contribute community comparison** action generates an anonymous build with common gear and fixed comparison budgets for the selected class and mode. It first searches the two comparison scenarios, then refines their weighted objective and retains the highest independently evaluated score. The extra refinement takes longer; phase progress remains visible. Completed contributions are cached for the same scoring scope and search revision. They do not replace your personal saved build or use its Genus, HP or skill reserves. PvP comparisons remain experimental damage proxies.

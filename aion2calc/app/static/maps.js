@@ -5,6 +5,8 @@
 (function(){
  'use strict';
  const zones={verteron:'Verteron',altgard:'Altgard',poeta:'Poeta',ishalgen:'Ishalgen'};
+ // The date with the time of day, in the computer's clock: 2026-10-23 15:04:05.
+ const whenAt = (x) => { if (x == null || x === "") return "—"; const d = new Date(x); if (!Number.isFinite(d.getTime())) return "—"; const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
  const CATALOG_URL=(()=>{try{return new URL('farming-routes.json',document.currentScript.src).href;}catch(e){return 'farming-routes.json';}})();
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  let catalogPromise=null;
@@ -44,7 +46,7 @@
    if(!data)return;
    const zone=data.zones.find(z=>z.id===select.value)||data.zones[0];
    if(!zone){body.innerHTML='<p class="small muted">The catalog has no zones.</p>';return;}
-   body.innerHTML=routesHTML(zone,data)+`<p class="small muted">${esc(data.note||'')} Catalog built ${esc(String(data.generated_at||'').slice(0,10))}.</p>`;
+   body.innerHTML=routesHTML(zone,data)+`<p class="small muted">${esc(data.note||'')} Catalog built ${esc(whenAt(data.generated_at))}.</p>`;
    body.querySelectorAll('[data-copy-route]').forEach(b=>b.onclick=async()=>{const i=+b.dataset.copyRoute,msg=body.querySelector(`[data-route-msg="${i}"]`);try{await navigator.clipboard.writeText(routeText(zone,zone.routes[i],(data.sources||{})[zone.routes[i].source]));if(msg)msg.textContent='Copied.';}catch(e){if(msg)msg.textContent='Clipboard blocked; select the list and copy it.';}});
   };
   catalog().then(d=>{

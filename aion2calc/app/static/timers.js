@@ -4,7 +4,13 @@
   const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const build=x=>String(x||'Unknown game version').replace(/version:product:([0-9.]+)/g,(_,v)=>'Product version '+v.split('.').slice(0,4).join('.')).replace(/build:steam:[0-9]{1,12}:([0-9]{1,20})/g,'Legacy build $1 · Steam').replace(/build:purple:A2_[A-Z0-9_]{1,80}_PURPLE:([0-9]{1,20})/g,'Legacy build $1 · PURPLE');
-  const local=t=>new Date(t).toLocaleString();
+  // The date with the time of day, in the computer's clock: 2026-10-23 15:04:05.
+  const whenAt = (x) => { if (x == null || x === "") return "—"; const d = new Date(x); if (!Number.isFinite(d.getTime())) return "—"; const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+  const local=t=>whenAt(t);
+  // The same stamp in another time zone (the event's own), for the zone column beside the local one.
+  const localIn=(t,zone)=>{try{const v={};for(const part of new Intl.DateTimeFormat('en-GB',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date(t)))v[part.type]=part.value;return `${v.year}-${v.month}-${v.day} ${v.hour}:${v.minute}:${v.second}`;}catch(_){return local(t);}};
+  // A server by its world name (2102 -> Zikel) from the bundled list, else the given fallback.
+  const worldFor=(id,fallback)=>window.A2Servers?A2Servers.label(id,fallback):fallback;
   // The DST-aware occurrence calc and countdown live in the shared event-schedule
   // engine (also used by the overlay), loaded before this script.
   const {occurrences,countdown}=window.A2EventSchedule;
@@ -84,7 +90,7 @@
         const end=active!==undefined?(e.entry_minutes&&now<entryEnd?entryEnd:active+e.duration_minutes*60000):next;
         $(`[data-status="${i}"]`).textContent=status;
         $(`[data-countdown="${i}"]`).textContent=end===undefined?'No upcoming start in the calculated horizon':countdown(end-now);
-        $(`[data-next="${i}"]`).textContent=next===undefined?'':`Next: ${local(next)} local · ${new Date(next).toLocaleString(undefined,{timeZone:zone})} (${zone})`;
+        $(`[data-next="${i}"]`).textContent=next===undefined?'':`Next: ${local(next)} local · ${localIn(next,zone)} (${zone})`;
         $(`[data-upcoming="${i}"]`).textContent='Upcoming local starts: '+times.filter(t=>t>now).slice(0,3).map(local).join(' · ');
       });
     }
@@ -105,7 +111,7 @@
       catch(e){if(n===bossSerial&&!disposed&&root.isConnected){bossData=null;$('[data-boss-rows]').replaceChildren();$('[data-boss-status]').textContent='Could not load observations: '+e.message;}}
       finally{if(n===bossSerial&&!disposed&&root.isConnected)$('[data-boss-refresh]').disabled=false;}
     }
-    const serverLabel=k=>(k.server_name||'Server '+k.server)+(k.region?' · '+String(k.region).toUpperCase():'');
+    const serverLabel=k=>(k.server_name||worldFor(k.server,'Server '+k.server))+(k.region?' · '+String(k.region).toUpperCase():'');
     // The bundled reference says which faction's zone a field boss stands in ("abyss": both). A name
     // listed in both Verteron and Altgard is told apart by the map the kill was recorded on.
     const ZONE_MAPS={asmodian:m=>m===1100||m===1110||m===1111||(m>=110001&&m<112000),elyos:m=>m===1000||m===1010||m===1011||(m>=100001&&m<102000)};
@@ -128,7 +134,7 @@
       if(!el)return;
       if(identified&&identified.server){
         const who=identified.character?`${identified.character} on `:'';
-        el.textContent=`Identified from your live meter: ${who}${identified.server_name||('server '+identified.server)}${identified.faction?' · '+identified.faction.charAt(0).toUpperCase()+identified.faction.slice(1):' · faction not resolved yet'}. Kills come from Live Meter recordings and corroborated auto-reports only; the Discord bot's manual timers are never used.`;
+        el.textContent=`Identified from your live meter: ${who}${identified.server_name||worldFor(identified.server,'server '+identified.server)}${identified.faction?' · '+identified.faction.charAt(0).toUpperCase()+identified.faction.slice(1):' · faction not resolved yet'}. Kills come from Live Meter recordings and corroborated auto-reports only; the Discord bot's manual timers are never used.`;
       }else el.textContent=killFaction==='mine'?'Start the live meter so your server and faction are identified, or choose a faction and server here.':'';
     }
     async function loadIdentity(){

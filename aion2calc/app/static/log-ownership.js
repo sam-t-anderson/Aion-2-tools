@@ -35,7 +35,9 @@ function mount(root,io={}){
  const forget=io.forget||(row=>{localStorage.setItem(KEY,JSON.stringify(browserRows().filter(r=>r.server!==row.server||r.id!==row.id)));});
  const request=io.request||direct;
  async function load(){try{rows=await list();render();}catch(e){root.textContent=e.message;}}
- const day=t=>t?new Date(t*1000).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'';
+ // The date with the time of day, in the computer's clock: 2026-10-23 15:04:05.
+ const whenAt = (x) => { if (x == null || x === "") return "—"; const d = new Date(x); if (!Number.isFinite(d.getTime())) return "—"; const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+ const day=t=>t?whenAt(t*1000):'';
  // A moderation hold, and the owner's one appeal against it (proven by this upload's private credential).
  function held(s,index){
   const a=s?.appeal,decision=a&&a.status!=='open'?`Appeal ${esc(a.status)} ${esc(day(a.decided_at))}${a.note?': '+esc(a.note):''}.`:'';

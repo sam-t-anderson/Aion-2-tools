@@ -8,7 +8,9 @@
  function mount(root,io){
   let data=null,busy=false,error='',filter='All',serial=0,disposed=false,region='global';
   try{const saved=localStorage.getItem('a2-news-region');if(regions[saved])region=saved;}catch(_){}
-  const date=x=>{const d=new Date(x);return Number.isFinite(d.getTime())?d.toLocaleString():'Date unavailable';};
+  // The date with the time of day, in the computer's clock: 2026-10-23 15:04:05.
+  const whenAt = (x) => { if (x == null || x === "") return "—"; const d = new Date(x); if (!Number.isFinite(d.getTime())) return "—"; const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+  const date=x=>{const s=whenAt(x);return s==='—'?'Date unavailable':s;};
   function render(){
    if(disposed||!root.isConnected)return;
    const rows=(Array.isArray(data?.entries)?data.entries:[]).slice(0,20).filter(r=>(!r.region?region==='global':r.region===region)&&(filter==='All'||r.category===filter));

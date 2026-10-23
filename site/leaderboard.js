@@ -16,7 +16,9 @@
     return `<span class="parse q-${parseTier(e.parse)}${few?' provisional':''}" title="${e.parse} percentile among ${n0(e.parse_characters)} ${esc(cap(e.class||''))} character${e.parse_characters===1?'':'s'} on this encounter${few?' (provisional: fewer than 5 characters)':''}">${Math.round(e.parse)}</span>`;
   };
   const killTime=s=>(s===null || s===undefined || isNaN(s))?"—":`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`;
-  const day=t=>t?new Date(t*1000).toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"}):"—";
+  // The date with the time of day, in the computer's clock: 2026-10-23 15:04:05.
+  const whenAt = (x) => { if (x == null || x === "") return "—"; const d = new Date(x); if (!Number.isFinite(d.getTime())) return "—"; const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+  const day=t=>t?whenAt(t*1000):"—";
 
   async function load() {
     const cls = $("#cls").value, boss = $("#boss").value.trim();

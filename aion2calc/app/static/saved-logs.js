@@ -19,7 +19,9 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "");
   const secs = (x) => { if (x == null || isNaN(x)) return "—"; x = Math.round(x); const m = Math.floor(x / 60); return m + ":" + String(x % 60).padStart(2, "0"); };
-  const day = (ts) => { try { return new Date(ts * 1000).toLocaleDateString(); } catch (e) { return "—"; } };
+  // The date with the time of day, in the computer's clock: 2026-10-23 15:04:05.
+  const whenAt = (x) => { if (x == null || x === "") return "—"; const d = new Date(x); if (!Number.isFinite(d.getTime())) return "—"; const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+  const day = (ts) => whenAt(ts * 1000);
   const srcOf = (u) => (u && window.A2AssetHealth ? A2AssetHealth.source(u) : u || null);
   const LOGO = "/static/logo.png";
   // Section order and headings. The key is the server's `category`; a recorded encounter lands in

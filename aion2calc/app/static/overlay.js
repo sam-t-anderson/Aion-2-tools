@@ -941,7 +941,7 @@
       const who=Number(k.reports)===1?'1 uploader':`${Number(k.reports)||0} uploaders`;
       out.push({id:'fb:'+k.boss+':'+Math.round(k.killed_at),name:k.boss,zone:k.zone||'',observed:true,
         active:startsInMs<=0,startsInMs:startsInMs,endsAt:at+OBSERVED_GRACE_MS,
-        tip:`${k.boss} — observed kill ${ago} ago by ${who} on ${doc.server_name||('server '+doc.server)} (live meter recordings, not Discord timers)${k.respawn_basis==='reference'?`; community respawn reference ${k.respawn_minutes} min, unverified`:k.respawn_basis==='measured'?'; respawn measured from repeated kills':''}${k.zone?' · '+k.zone:''}`});
+        tip:`${k.boss} — observed kill ${ago} ago by ${who} on ${doc.server_name||(window.A2Servers?A2Servers.label(doc.server,'server '+doc.server):'server '+doc.server)} (live meter recordings, not Discord timers)${k.respawn_basis==='reference'?`; community respawn reference ${k.respawn_minutes} min, unverified`:k.respawn_basis==='measured'?'; respawn measured from repeated kills':''}${k.zone?' · '+k.zone:''}`});
     }
     return out;
   }

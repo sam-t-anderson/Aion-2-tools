@@ -6,7 +6,11 @@
 "use strict";
 const KEY='a2id-claims-v1',LIMIT=200,TOKEN=/^a2id_[A-Za-z0-9_-]{20,128}$/;
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const when=t=>t?new Date(t*1000).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):'';
+// The date with the time of day, in the computer's clock: 2026-10-23 15:04:05.
+const whenAt = (x) => { if (x == null || x === "") return "—"; const d = new Date(x); if (!Number.isFinite(d.getTime())) return "—"; const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+const when=t=>t?whenAt(t*1000):'';
+// A claim names its server by ID; show the world name (2102 -> Zikel) when the bundled list knows it.
+const worldFor=id=>id?(window.A2Servers?A2Servers.label(id,String(id)):String(id)):'';
 function clean(row){
  if(!row||typeof row!=='object')throw Error('Invalid identity credential');
  const server=String(row.server||'').replace(/\/+$/,''),u=new URL(server);
@@ -79,7 +83,7 @@ function mount(root,io={}){
     state=claimable?'Not claimed yet':`Needs ${Math.max(0,minimum-recordings)} more public recording${minimum-recordings===1?'':'s'} where you are the recording player`;
     actions=`<button class="btn small" data-claim="${i}" ${claimable?'':'disabled'}>Claim</button>`;
    }
-   return `<tr><td>${esc(r.name)}${r.server_name?' <span class="muted">· '+esc(r.server_name)+'</span>':''}</td><td>${recordings}${info?' of '+minimum:''}</td><td>${state}</td><td>${actions}</td></tr>`;
+   return `<tr><td>${esc(r.name)}${r.server_name?' <span class="muted">· '+esc(worldFor(r.server_name))+'</span>':''}</td><td>${recordings}${info?' of '+minimum:''}</td><td>${state}</td><td>${actions}</td></tr>`;
   }).join('')||`<tr><td colspan="4">No characters yet. Upload public recordings where you are the recording player; three of them let you claim the character.</td></tr>`;
   root.innerHTML=`<details open class="note"><summary>Your characters · ${rows.size}</summary><p class="small muted">A claim is proven by your own recordings: the private credentials under My uploads of ${minimum} public recordings where you were the recording player. It marks the character verified wherever it is listed, and lets you hide it in other uploaders' public logs, leaderboards and parse brackets (your own uploads always show your name). Newer recordings win a contested character after a seven-day notice. Claims live on ${esc(base)}; nothing here changes who recorded a log or its ranking.</p><div class="tablewrap"><table class="t"><tr><th>Character</th><th>Public recordings</th><th>Status</th><th>Actions</th></tr>${body}</table></div><div class="row"><button class="btn small" data-reload>Refresh</button><span class="small muted" data-message role="status">${esc(message)}</span></div></details>`;
   const list=[...rows.values()];

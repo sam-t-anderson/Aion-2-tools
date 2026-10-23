@@ -167,7 +167,9 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
   // Without the game's party list (never decoded in the Abyss so far) a fight counts only the players
   // recorded in it, which can be fewer than the party: the count is marked so it is not read as the party's.
   const PARTY_UNKNOWN = "The game's party list was not captured in this fight: this counts the players recorded in it, which can be fewer than the party.";
-  const day = (ts) => { try { return new Date(ts * 1000).toISOString().slice(0, 10); } catch (e) { return "—"; } };
+  // The date with the time of day, in the computer's clock: 2026-10-23 15:04:05.
+  const whenAt = (x) => { if (x == null || x === "") return "—"; const d = new Date(x); if (!Number.isFinite(d.getTime())) return "—"; const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+  const day = (ts) => whenAt(ts * 1000);
   const srcOf = (u) => (u && window.A2AssetHealth ? A2AssetHealth.source(u) : u || null);
   const classIconUrl = (cls) => srcOf("https://metabot.gg/web/aion2/classes/" + encodeURIComponent(cls) + ".webp");
   // A party member as their class icon, with the player name (and class) on hover; drops to nothing
