@@ -1074,6 +1074,9 @@ class Runner:
                 # Your Odyle Energy, the game's own count, for the overlay and the Live Meter page (on by default).
                 if self.packet_engine.odyle_energy and ui.get("overlay_show_odyle") is not False:
                     snap["odyle"] = dict(self.packet_engine.odyle_energy)
+                # Your Shugo Festival keys, the game's own count too (on by default).
+                if self.packet_engine.shugo_keys and ui.get("overlay_show_shugo_keys") is not False:
+                    snap["shugo_keys"] = dict(self.packet_engine.shugo_keys)
             # When the viewer turns the option on, label each player's home world next to their
             # name, resolved from their captured server id via the same official server list used
             # for region. Off by default; best-effort and local (no network in this path).

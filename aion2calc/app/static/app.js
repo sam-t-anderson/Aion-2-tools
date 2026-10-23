@@ -530,7 +530,17 @@ function renderWindows(v, state, host) {
 }
 
 // ------------------------------------------------------------------ pages
-const S = { commonComparisons: {}, planner: { win: "overview" }, character: { win: "overview" }, combat: {}, database: {}, gear: {}, raid: {}, meter: {} };
+const S = { commonComparisons: {}, planner: { win: "overview" }, character: { win: "overview" }, combat: {}, database: {}, gear: {}, raid: {}, meter: {}, ui: {} };
+// The navigation's pages (id, label): the choices for the page the app opens on at launch.
+const PAGES = [["meter", "Live Meter"], ["planner", "Planner"], ["builds", "Builds"], ["character", "My Character"], ["gear", "Gear & Advice"],
+  ["history", "Saved Results"], ["combat", "Combat Logs"], ["raid", "Raid Planner"], ["database", "Database"], ["maps", "Maps"],
+  ["crafting", "Crafting"], ["timers", "Timers"], ["news", "News"], ["settings", "Settings"]];
+// The app's text size (Settings → Text size): a percentage applied as the page's zoom, so every word and the
+// layout around it scale together, as the browser's own zoom would. 100 is the size the app ships with.
+function applyTextScale(ui) {
+  const pct = Math.max(70, Math.min(150, parseInt((ui || {}).app_text_scale, 10) || 100));
+  document.body.style.zoom = pct === 100 ? "" : String(pct / 100);
+}
 
 function welcomeCard() {
   let hidden = false;
@@ -621,7 +631,7 @@ async function pageCharacter() {
       <select id="rg"><option value="nae">North America</option><option value="eu">Europe</option><option value="as">Asia</option><option value="la">Latin America</option></select>
       <button class="btn primary" id="find">Search</button><span id="cmsg" class="small muted"></span></div>
       <div id="hits" style="margin-top:10px"></div><div id="known" style="margin-top:10px"></div></div></section><div id="cview"></div>`;
-  const known = await api("/api/characters").catch(() => []);
+  const [known, ui] = await Promise.all([api("/api/characters").catch(() => []), api("/api/ui").catch(() => ({}))]);
   if (known.length) $("#known").innerHTML = `<div class="small muted">Imported before · newest first (click to fetch current profile): <div class="row">${known.slice(0, 8).map((c,i) => `<button class="btn small" data-known-character="${i}">${esc(c.name)} · ${esc(c.class_name)} · ${n0(c.combat_power)}</button>`).join("")}</div></div>`;
   $("#find").onclick = async () => {
     $("#cmsg").innerHTML = '<span class="spinner"></span>';
@@ -633,10 +643,12 @@ async function pageCharacter() {
       $$("[data-imp]").forEach((b) => (b.onclick = () => doImport(hits[+b.dataset.imp])));
     } catch (e) { $("#cmsg").textContent = e.message; }
   };
-  const doImport = async (h) => {
-    $("#cview").innerHTML = '<div class="empty"><span class="spinner"></span> importing from the official site…</div>';
+  // ``cache``: how old (seconds) a saved profile may be to be shown without asking the official site; the
+  // auto-open of the last character shows its last snapshot this way unless the refresh setting is on.
+  const doImport = async (h, cache) => {
+    $("#cview").innerHTML = `<div class="empty"><span class="spinner"></span> ${cache ? "opening the last snapshot of " + esc(h.name || "the character") + "…" : "importing from the official site…"}</div>`;
     try {
-      const v = await runJob("/api/character/import", h, (log) => ($("#cmsg").textContent = log[log.length - 1] || ""));
+      const v = await runJob("/api/character/import", cache ? { ...h, cache } : h, (log) => ($("#cmsg").textContent = log[log.length - 1] || ""));
       st.v = v; st.hit = h; showChar();
     } catch (e) { $("#cview").innerHTML = `<div class="note">${esc(e.message)}</div>`; }
   };
@@ -682,6 +694,14 @@ async function pageCharacter() {
     renderOptState();                 // show a job that is still running (or finished) after returning to this tab
   };
   if (st.v) showChar();
+  else if (ui.character_auto_open && known.length && !st.autoOpened) {
+    // Settings → My Character at launch: the character opened last (the newest import), from its last
+    // snapshot, or refreshed from the official site when that setting is on too. Once per app session.
+    st.autoOpened = true;
+    const c = known[0];
+    doImport({ character_id: c.character_id, server_id: c.server_id, region: c.region, name: c.name },
+             ui.character_auto_refresh ? 0 : 10 * 365 * 86400);
+  }
 }
 
 // The character optimize runs for minutes on the server; keep its state in S.character so it survives
@@ -771,6 +791,12 @@ function odyleLine(o) {
   const src = window.A2AssetHealth ? A2AssetHealth.source(ODYLE_ICON) : ODYLE_ICON;
   const regular = Number(o.regular) || 0, bonus = Number(o.bonus) || 0;
   return `<p class="small muted odyle" title="Your Odyle Energy, as the game sent it: the regular energy regenerates 15 every 3 hours, and a claimed reward cube spends it first, then the bonus"><img src="${esc(src)}" alt="" width="20" height="20"> Odyle Energy ${(regular + bonus).toLocaleString()}${bonus ? ` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)` : ""}</p>`;
+}
+// Your Shugo Festival Reward Keys (the game's counter 4), on the Live Meter page under the Odyle line.
+function shugoLine(o) {
+  if (!o) return "";
+  const regular = Number(o.regular) || 0, bonus = Number(o.bonus) || 0;
+  return `<p class="small muted odyle" title="Your Shugo Festival Reward Keys, as the game sent them: the keys that refill each day, then the extra ones, which are spent after them when a festival reward is claimed"><i class="keyicon" aria-hidden="true"></i> Shugo Keys ${(regular + bonus).toLocaleString()}${bonus ? ` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)` : ""}</p>`;
 }
 function kfmt(x) {
   if (x == null || isNaN(x)) return "—";
@@ -1102,10 +1128,10 @@ async function pageMeter() {
 
         <label class="small muted">Name override (optional) <input id="mchar" type="text" placeholder="Auto-detect" style="width:138px"></label></div>
       <div class="row" style="margin-top:8px"><label class="small muted">Players <select id="mscope"><option value="auto">Automatic · allow partial metrics</option><option value="party" selected>Self + Party</option><option value="self">Self only</option><option value="all">All observed players</option></select></label><label class="small muted"><input id="mcombinepets" type="checkbox" checked> Combine pets with owner</label><label class="small muted"><input id="mautosplit" type="checkbox" checked> Automatic splits</label><label class="small muted">Split after no outgoing damage for <input id="msegap" type="number" min="120" max="3600" value="120" style="width:69px"> seconds</label><label class="small muted">Combat <select id="msegments"><option value="">Latest combat</option><option value="all">Whole session</option></select></label><button class="btn small" id="mallenemies">All enemies</button><button class="btn small" id="mfollow" hidden>Follow latest combat</button><span id="mviewstate" class="small muted" role="status"></span></div>
-      <div class="row"><label class="small">Game installation <select id="minstall"><option value="">Auto (one installed copy)</option></select></label><button class="btn small" id="minstallrefresh">Refresh installations</button><span class="small muted" id="minstallstatus" role="status"></span></div><div class="row" style="margin-top:6px"><label class="small">Add install folder manually <input id="minstallpath" type="text" placeholder="C:\\Program Files (x86)\\NC\\AION 2" style="min-width:366px"></label><button class="btn small" id="minstalladd">Add path</button><span class="small muted" id="minstalladdstatus" role="status"></span></div><div class="note small" id="mautometa" role="status"></div><div class="row" style="margin-top:4px"><button class="btn small" id="mregionretry" style="display:none">Retry region detection</button><span class="small muted" id="mregionmsg" role="status"></span></div><div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
-      <div class="note" style="margin-top:10px"><b>Capture diagnostics</b><div id="mdriverstats" class="small muted" role="status"></div>
+      <div class="row"><label class="small">Game installation <select id="minstall"><option value="">Auto (one installed copy)</option></select></label><button class="btn small" id="minstallrefresh">Refresh installations</button><span class="small muted" id="minstallstatus" role="status"></span></div><div class="row" style="margin-top:6px"><label class="small">Add install folder manually <input id="minstallpath" type="text" placeholder="C:\\Program Files (x86)\\NC\\AION 2" style="min-width:366px"></label><button class="btn small" id="minstalladd">Add path</button><span class="small muted" id="minstalladdstatus" role="status"></span></div><details class="note small"><summary id="mautometa-sum">Installed game version and capture context</summary><div id="mautometa" role="status"></div></details><div class="row" style="margin-top:4px"><button class="btn small" id="mregionretry" style="display:none">Retry region detection</button><span class="small muted" id="mregionmsg" role="status"></span></div><div class="row" id="mcustom" style="display:none;margin-top:6px"><label class="small muted">Decoder file <input id="mcustomdec" type="file" accept=".py"></label><span id="mdecodername" class="small muted">Choose a trusted Python decoder. Its code runs when capture starts.</span></div>
+      <details class="note" style="margin-top:10px"><summary><b>Capture diagnostics</b> <span class="small muted">capture counters, TCP recording for diagnostics, diagnostics export</span></summary><div id="mdriverstats" class="small muted" role="status"></div>
         <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads for diagnostics (optional; remembered, and every capture records while it is ticked)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><button class="btn small" id="mdiagfolder">Open diagnostics folder</button><span id="mrecordstatus" class="small muted"></span></div>
-        <p class="small faint">Diagnostic ZIPs include capture counters, status errors and a readable summary even with TCP recording off. Open diagnostics folder to find saved ZIPs. Ticked, TCP recording additionally writes raw payloads without a record or size limit, even when no combat events are decoded: for every capture however it starts (here, the overlay's Start, the Start/Stop hotkey or the start at launch), and from the moment you tick it during a capture. Available disk space limits recording. Saves a diagnostic ZIP automatically when capture stops; long recordings take longer to compress. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></div><div id="npcap" class="small faint" style="margin-top:8px"></div>
+        <p class="small faint">Diagnostic ZIPs include capture counters, status errors and a readable summary even with TCP recording off. Open diagnostics folder to find saved ZIPs. Ticked, TCP recording additionally writes raw payloads without a record or size limit, even when no combat events are decoded: for every capture however it starts (here, the overlay's Start, the Start/Stop hotkey or the start at launch), and from the moment you tick it during a capture. Available disk space limits recording. Saves a diagnostic ZIP automatically when capture stops; long recordings take longer to compress. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></details><div id="npcap" class="small faint" style="margin-top:8px"></div>
       <p class="small faint">Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, and capture permission. Export writes an open a2log file; Upload uses the log server configured in Settings.</p>
       <div class="row"><label class="small"><input id="mautofinish" type="checkbox" checked> Finish on configured final-boss death</label><label class="small">Final-boss NPC type IDs <input id="mfinalboss" placeholder="Comma-separated verified NPC IDs"></label></div><p class="small muted">Final-boss order and PvP match-end packets are not yet verified. Configure the final boss before Start, or use Finish run. Map/instance changes create separate runs without claiming completion. Capture keeps running.</p><div id="mrun" class="small" role="status"></div><div id="midentity" class="small" role="status"></div><div id="msaved" class="small" role="status"></div><div id="mnotice" class="small" role="status"></div>
     </div></section><div id="mview"></div><div id="mlog-review"></div>`;
@@ -1385,6 +1411,7 @@ function renderMeter(s) {
 
   if($("#mcombinepets")) $("#mcombinepets").checked=s.combine_pets!==false;
   if($('#minstall')) $('#minstall').disabled = !!s.installation_locked;
+  if($("#mautometa-sum")) { const m=s.automatic_metadata || {}; $("#mautometa-sum").textContent = `Installed game version: ${m.installed_build || m.status || "unavailable"}${m.installed_build_source ? " ("+m.installed_build_source+")" : ""} · ${(s.automatic_context || {}).zone || "zone not identified"} · expand for the comparison version, region and catalog coverage`; }
   if($("#mautometa")) { const m=s.automatic_metadata || {}; $("#mautometa").textContent = `Installed game version: ${m.installed_build || m.status || "unavailable"}${m.installed_build_source ? " ("+m.installed_build_source+")" : ""}. Comparison version: ${m.game_patch ? (String(m.game_patch).replace(/^version:product:/, "")) : "unavailable"}. Automatic region: ${m.region || (m.region_status === "ready" ? "waiting for recorded server ID" : m.region_status) || "unavailable"}. World: ${m.server_name || (m.region_status === "ready" ? "waiting for recorded server ID" : "unavailable")}. Zone: ${(s.automatic_context || {}).zone || "not identified"}. Content: ${(s.automatic_context || {}).encounter_type || "not identified"}. Difficulty: ${(s.automatic_context || {}).difficulty || "not identified"}. Map / instance IDs: ${s.catalog_coverage?.map_id || "not recorded"} / ${s.catalog_coverage?.instance_id || "not recorded"}. ${s.catalog_coverage?.unmapped?.length || 0} unmapped catalog IDs and ${s.catalog_coverage?.npc_entities_without_type || 0} enemy references without an NPC type in this view (included in diagnostics). ${s.automatic_context?.classification?.conflicts?.length ? "Context conflict: "+s.automatic_context.classification.conflicts.join("; ")+". " : ""}${s.automatic_context?.classification?.basis === "npc_only" ? "NPC-only instance suggestion; entry remains unverified. " : ""}${m.reason ? m.reason+" " : ""}Product version identifies comparison groups across launchers; legacy capture metadata is retained.`;
     // Offer a manual retry only when the official lookup failed (offline/blocked at launch); a
     // "ready" map that simply hasn't matched a server ID yet, or an in-progress fetch, needs no button.
@@ -1454,7 +1481,7 @@ function renderMeter(s) {
       <div class="bar"><i style="width:${100 * p.dps / mx}%"></i><span>${kfmt(p.dps)}/s · ${pct(p.share, 0)}</span></div></div>`).join("");
   const enemyTable = snap.enemies?.length ? win("Enemies", "select an enemy to show each player's damage against it", `<table class="t"><tr><th>Enemy</th><th>Party damage dealt</th><th>Party DPS</th></tr>${snap.enemies.map((enemy) => `<tr class="${enemy.key === snap.selected_enemy ? "sel" : ""}"><td><button class="btn small" data-enemy="${esc(enemy.key)}">${esc(enemy.name)}</button></td><td>${kfmt(enemy.damage)}</td><td>${kfmt(enemy.dps)}</td></tr>`).join("")}</table>`) : "";
   replaceMeterHtml(view, (snap.warning ? `<p class="note">${esc(snap.warning)}</p>` : "") + enemyTable + win("Players", `${esc(snap.boss || "")}${snap.boss ? " · " : ""}${(snap.duration || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)} raid DPS`,
-    `<div class="pmeters">${rows}</div>${snap.ping ? `<p class="small muted">Ping ${kfmt(snap.ping.current)} ms now · ${kfmt(snap.ping.avg)} ms capture avg · ${kfmt(snap.ping.min)}–${kfmt(snap.ping.max)} ms range (${snap.ping.samples} samples across this recording connection, logged over time)</p>` : ""}${odyleLine(snap.odyle)}`) + `<div id="pbd">${renderParse(parseFromMeter(snap, st.sel))}</div>`);
+    `<div class="pmeters">${rows}</div>${snap.ping ? `<p class="small muted">Ping ${kfmt(snap.ping.current)} ms now · ${kfmt(snap.ping.avg)} ms capture avg · ${kfmt(snap.ping.min)}–${kfmt(snap.ping.max)} ms range (${snap.ping.samples} samples across this recording connection, logged over time)</p>` : ""}${odyleLine(snap.odyle)}${shugoLine(snap.shugo_keys)}`) + `<div id="pbd">${renderParse(parseFromMeter(snap, st.sel))}</div>`);
   $$("[data-enemy]").forEach((el) => (el.onclick = async () => { try { renderMeter(await api("/api/meter", {action: "view", enemy: el.dataset.enemy})); } catch (e) { $("#mnotice").textContent = e.message; } }));
   $$("[data-sel]").forEach((el) => (el.onclick = () => {
     st.sel = +el.dataset.sel; st.selectedPlayerKey = snap.players[st.sel].key || snap.players[st.sel].id;
@@ -1965,7 +1992,12 @@ async function pageSettings() {
     <div class="settabs" role="tablist">${[["appearance","Appearance"],["overlay","Overlay"],["meter","Meter"],["server","Server"],["backup","Profiles &amp; backup"],["system","App &amp; data"]].map(([g,l])=>`<button type="button" data-settab="${g}">${l}</button>`).join("")}</div>
     <div class="setrow" data-g="appearance"><div class="lbl">Theme</div><div><div class="seg">${THEMES.map((x) => `<button data-th="${x}" class="${x === t ? "on" : ""}">${{ system: "Follow computer", light: "Light", dark: "Dark" }[x]}</button>`).join("")}</div></div></div>
     <div class="setrow" data-g="appearance"><div class="lbl">Accent colour</div><div><div class="seg">${ACCENTS.map((x) => `<button data-accent-btn="${x}" class="${x === getAccent() ? "on" : ""}">${x[0].toUpperCase() + x.slice(1)}</button>`).join("")}</div><p class="small muted">Recolours the app's accent on top of your light/dark theme.</p></div></div>
-    <div class="setrow" data-g="system"><div class="lbl">Open as its own window</div><div><label><input type="checkbox" id="appwin" ${ui.app_window !== false ? "checked" : ""}> start in a separate app window (Edge or Chrome) instead of a browser tab; closing it stops the app</label></div></div>
+    <div class="setrow" data-g="system"><div class="lbl">Open as its own window</div><div><label><input type="checkbox" id="appwin" ${ui.app_window !== false ? "checked" : ""}> start in a separate app window (Edge or Chrome) instead of a browser tab; closing it stops the app</label><p class="small muted">The window opens at 1920×1080, or as large as the screen allows when it is smaller, centred; it is not maximized, so you can place and size it.</p></div></div>
+    <div class="setrow" data-g="system"><div class="lbl">Text size</div><div><label>Size of the app's text <select id="textscale">${[70, 80, 90, 100, 110, 120, 130, 140, 150].map((p) => `<option value="${p}" ${(parseInt(ui.app_text_scale, 10) || 100) === p ? "selected" : ""}>${p}%</option>`).join("")}</select></label><p class="small muted">Scales every word in the app, and the layout with it, like the browser's zoom; 100% is the size the app ships with. The overlay's text has its own size under Live meter overlay.</p></div></div>
+    <div class="setrow" data-g="system"><div class="lbl">Page at launch</div><div><label>Open the app on <select id="defaultpage">${PAGES.map(([id, label]) => `<option value="${id}" ${(ui.app_default_page || "meter") === id ? "selected" : ""}>${label}</option>`).join("")}</select></label><p class="small muted">The page the app shows when it starts, and when the tray icon or the Open-app hotkey brings it back. Links to the other pages work as before.</p></div></div>
+    <div class="setrow" data-g="system"><div class="lbl">My Character at launch</div><div><label><input type="checkbox" id="char-auto-open" ${ui.character_auto_open === true ? "checked" : ""}> Show the character you opened last when My Character opens <span class="muted">(off by default)</span></label>
+      <p class="small muted">With My Character as the page at launch, the app opens straight on your character: the newest of the characters imported before, from the snapshot saved at its last import, so it shows at once and without the official site.</p>
+      <label><input type="checkbox" id="char-auto-refresh" ${ui.character_auto_refresh === true ? "checked" : ""}> Refresh that character from the official site when the app opens, instead of showing the last snapshot <span class="muted">(off by default; needs the setting above)</span></label></div></div>
     <div class="setrow" data-g="system"><div class="lbl">Collapse to tray</div><div><label><input type="checkbox" id="trayclose" ${ui.tray_on_close ? "checked" : ""}> keep running in the system tray when the window is closed (Windows, macOS, Linux); Quit from the tray icon. Takes effect on next launch.</label></div></div>
     <div class="setrow" data-g="system"><div class="lbl">Your data</div><div><code>${esc(s.home)}</code> <button class="btn small" data-open="data">Open folder</button> <button class="btn small" data-open="logs">Combat logs</button> <button class="btn small" data-open="results">Advice &amp; results</button></div></div>
     <div class="setrow" data-g="server"><div class="lbl">Log server</div><div><div class="row"><input id="surl" type="text" placeholder="${srv.is_default && srv.url ? esc(srv.url) + " (default)" : "https://logs.example.com"}" value="${srv.is_default ? "" : esc(srv.url || "")}" style="width:320px">
@@ -1991,6 +2023,7 @@ async function pageSettings() {
       <p class="small muted" style="margin:0 0 6px 22px">Uses the cooldown the game sends with each of your casts, so your cooldown reduction is already included and there is nothing to set up. It only knows skills you have used since Start. A skill lights up as it comes off cooldown, and an open chain-skill window shows first. If a proc resets a cooldown, the strip catches up on your next cast.</p>
       <label><input type="checkbox" id="ov-cp" ${ui.overlay_show_combat_power !== false?'checked':''}> Show your combat power beside your name (when the game reports it)</label>
       <label title="The game's own count, sent when you enter the world, at every zone load and whenever it changes"><input type="checkbox" id="ov-odyle" ${ui.overlay_show_odyle !== false?'checked':''}> Show your Odyle Energy on the overlay and the Live Meter page <span class="muted">(on by default)</span></label>
+      <label title="The game's own count of your Shugo Festival Reward Keys, sent with the same counters as Odyle Energy"><input type="checkbox" id="ov-shugo" ${ui.overlay_show_shugo_keys !== false?'checked':''}> Show your Shugo Festival keys on the overlay and the Live Meter page <span class="muted">(on by default)</span></label>
       <label title="After a fight auto-uploads, show your community standing (e.g. “World Top 8%”) for that encounter beside your name"><input type="checkbox" id="ov-community-rank" ${ui.overlay_show_community_rank === true?'checked':''}> Show your community rank for your last uploaded fight <span class="muted">(needs auto-upload; off by default)</span></label>
       <label title="While capturing, refresh your community-rank badge after each ranked fight by uploading it, instead of only when you press Upload"><input type="checkbox" id="ov-live-rank" ${ui.overlay_live_community_rank === true?'checked':''}> Update the rank live after each fight <span class="muted">(needs the rank badge on + a share server; uploads each ranked fight at your upload visibility; off by default)</span></label>
       <label title="Shows the next rift / Shugo / battlefield / field-boss windows for your region when one is active or within 15 minutes"><input type="checkbox" id="ov-events" ${ui.overlay_show_events !== false?'checked':''}> Show regional event notifications on the overlay <span class="muted">(uses the region you pick on the Timers page; community forecast, on by default)</span></label>
@@ -2343,6 +2376,10 @@ async function pageSettings() {
   })();
   $('#ov-stream-copy').onclick = () => { const u=$('#ov-stream-url'); u.select?.(); copyText(u.value); const m=$('#ov-stream-msg'); if(m){m.textContent='Copied — paste into an OBS Browser Source.';setTimeout(()=>{if(m.isConnected)m.textContent='';},2000);} };
   $("#appwin").onchange = () => api("/api/ui", { app_window: $("#appwin").checked }).then(() => toast("Saved"));
+  $("#textscale").onchange = () => { const v = parseInt($("#textscale").value, 10) || 100; S.ui.app_text_scale = v; applyTextScale(S.ui); api("/api/ui", { app_text_scale: v }).then(() => toast("Saved")); };
+  $("#defaultpage").onchange = () => api("/api/ui", { app_default_page: $("#defaultpage").value }).then(() => { S.ui.app_default_page = $("#defaultpage").value; toast("Saved"); });
+  $("#char-auto-open").onchange = () => api("/api/ui", { character_auto_open: $("#char-auto-open").checked }).then(() => toast("Saved"));
+  $("#char-auto-refresh").onchange = () => api("/api/ui", { character_auto_refresh: $("#char-auto-refresh").checked }).then(() => toast("Saved"));
   $("#community-heartbeat").onchange = () => api("/api/ui", { community_heartbeat: $("#community-heartbeat").checked }).then(() => toast("Saved"));
   $("#contribute-character").onchange = () => api("/api/ui", { community_contribute_character: $("#contribute-character").checked }).then(() => toast("Saved"));
   $("#trayclose").onchange = () => api("/api/ui", { tray_on_close: $("#trayclose").checked }).then(() => toast("Saved · applies on next launch"));
@@ -2359,6 +2396,7 @@ async function pageSettings() {
   $("#ov-cd-pos").onchange = () => api("/api/ui", { overlay_cooldowns_position: $("#ov-cd-pos").value }).then(() => toast("Saved"));
   $("#ov-cp").onchange = () => api("/api/ui", { overlay_show_combat_power: $("#ov-cp").checked }).then(() => toast("Saved"));
   $("#ov-odyle").onchange = () => api("/api/ui", { overlay_show_odyle: $("#ov-odyle").checked }).then(() => toast("Saved"));
+  $("#ov-shugo").onchange = () => api("/api/ui", { overlay_show_shugo_keys: $("#ov-shugo").checked }).then(() => toast("Saved"));
   $("#ov-community-rank") && ($("#ov-community-rank").onchange = () => api("/api/ui", { overlay_show_community_rank: $("#ov-community-rank").checked }).then(() => toast("Saved")));
   $("#ov-live-rank") && ($("#ov-live-rank").onchange = () => api("/api/ui", { overlay_live_community_rank: $("#ov-live-rank").checked }).then(() => toast("Saved")));
   $("#ov-events") && ($("#ov-events").onchange = () => api("/api/ui", { overlay_show_events: $("#ov-events").checked }).then(() => toast("Saved")));
@@ -2697,7 +2735,15 @@ $("#quit").onclick = async () => {
   document.body.innerHTML = '<div class="empty" style="margin-top:20vh">aion2calc has stopped. You can close this tab.</div>';
   setTimeout(() => window.close(), 250);
 };
-route();
+// At launch: the text size and the page to open on come from the UI settings; an empty hash (the app's
+// own window, the tray icon, the Open-app hotkey) opens the chosen page, a hash in the URL wins as before.
+(async () => {
+  try { S.ui = await api("/api/ui"); } catch (e) { S.ui = {}; }
+  applyTextScale(S.ui);
+  const page = PAGES.some(([id]) => id === S.ui.app_default_page) ? S.ui.app_default_page : "meter";
+  if (!location.hash && page !== "meter") { location.hash = "/" + page; return; }   // hashchange routes it
+  route();
+})();
 syncPill();
 // Uploads became public by default (0.2.323): an install that had the old default, unlisted, is told once.
 api("/api/logserver").then((c) => {

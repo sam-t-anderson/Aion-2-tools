@@ -413,7 +413,7 @@
   function renderParty() {
     // The separate Party-DPS overlay: raid-wide aggregates, not per-player rows.
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
-    for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovidentity","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovconnection","#ovcooldowns"])$(id).hidden=true;
+    for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovshugo","#ovidentity","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovconnection","#ovcooldowns"])$(id).hidden=true;
     const totalDps=players.reduce((n,p)=>n+(Number(p.dps)||0),0);
     const totalHps=players.reduce((n,p)=>n+(Number(p.hps)||0),0);
     const totalTaken=players.reduce((n,p)=>n+(Number(p.dtps)||0),0);
@@ -496,6 +496,11 @@
     const icon=file&&base?`<i class="ovodicon" style="background-image:url(${esc(base+file)})" aria-hidden="true"></i>`:'';
     return `${icon}<span>Odyle Energy ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span>`;
   }
+  // Your Shugo Festival Reward Keys (counter 4): the keys that refill, then the extra ones, spent after them.
+  function shugoLine(o){
+    const regular=Number(o.regular)||0, bonus=Number(o.bonus)||0;
+    return `<i class="ovkeyicon" aria-hidden="true"></i><span>Shugo Keys ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span>`;
+  }
   function classIcon(cls){
     const key=String(cls||'').toLowerCase(); if(!key) return '';
     const files=window.A2BundledAssets&&window.A2BundledAssets.files, base=window.A2BundledAssets&&window.A2BundledAssets.base;
@@ -515,6 +520,8 @@
     $('#ovping').title='Passive TCP RTT for this recording connection; average/minimum/maximum across the capture';
     const odyle=snap.odyle;$('#ovodyle').hidden=!odyle;
     if(odyle){$('#ovodyle').innerHTML=odyleLine(odyle);$('#ovodyle').title='Your Odyle Energy, as the game sent it: the regular energy regenerates 15 every 3 hours, and a claimed reward cube spends it first, then the bonus';}
+    const shugo=snap.shugo_keys;$('#ovshugo').hidden=!shugo;
+    if(shugo){$('#ovshugo').innerHTML=shugoLine(shugo);$('#ovshugo').title='Your Shugo Festival Reward Keys, as the game sent them: the keys that refill each day, then the extra ones, which are spent after them when a festival reward is claimed';}
     document.querySelectorAll("[data-metric]").forEach(b=>{b.classList.toggle("on",b.dataset.metric===metric);b.setAttribute("aria-pressed",String(b.dataset.metric===metric));});
     if(!$("#ovcombine").disabled) $("#ovcombine").checked=s.combine_pets!==false;
     const amount=p=>Number(metric==="hps"?p.healing:metric==="taken"?p.incoming?.damage:p.damage)||0;
@@ -669,7 +676,7 @@
     // the fight, so keep the meter open through it — never collapse mid-boss.
     if(onlyInCombat && (!s.running || over || (snap.paused && snap.boss_alive!==true))){
       $("#ovcontent").innerHTML='';
-      for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovidentity","#ovgraph","#ovcooldowns"])$(id).hidden=true;
+      for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovshugo","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovidentity","#ovgraph","#ovcooldowns"])$(id).hidden=true;
       $("#ovstatus").textContent=s.running?'Idle · waiting for combat':'Idle';
       $("#ovstatus").title=$("#ovstatus").textContent;
     }
@@ -727,7 +734,7 @@
   }
   setInterval(()=>{ if(showCooldowns&&!locked&&tab==="meter")renderCooldowns(); },250);
   function renderPlan() {
-    $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovodyle").hidden=true;$("#ovidentity").hidden=true;
+    $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovodyle").hidden=true;$("#ovshugo").hidden=true;$("#ovidentity").hidden=true;
     $("#ovtarget").hidden=true;$("#ovhpbar").hidden=true;$("#ovttkbar").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
     $("#ovgraph").hidden=true;$("#ovgauge").hidden=true;$("#ovcooldowns").hidden=true;
     $("#ovconnection").hidden=true;

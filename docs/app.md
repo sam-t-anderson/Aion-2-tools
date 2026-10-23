@@ -65,6 +65,8 @@ What the profile does not show, and how it is handled:
 
 **Imported before** lists the newest eight imports. Click one to fetch its current official profile again. This refresh is separate from reopening a saved optimization snapshot.
 
+**At launch** (since 0.2.329). Two settings under **Settings → App & data → My Character at launch**, both off by default: *Show the character you opened last when My Character opens* opens the page straight on the newest of the characters imported before, from the snapshot saved at its last import, so it shows at once and without asking the official site; *Refresh that character from the official site when the app opens* fetches its current profile instead of showing that snapshot. With **Page at launch** set to My Character, the app starts on your character. The character opens once per app session; **Imported before** and **Search** work as before.
+
 ### Personal damage objectives
 
 My Character's **Damage objective** selects the existing primary scenario or balanced equal-weight boss/dummy (PvE) or sustained/burst (PvP) damage. The choice is remembered locally. Both scenarios use the same imported gear, fixed saved Genus lines, entered budgets and HP/trained-skill constraints. Balanced search takes longer and can trade primary DPS for the combined score. Results and recovered builds show the weights, component DPS and objective score; the gain compares the current and optimized builds using the same objective. Shares, macro, opener and sensitivity remain primary-scenario views. PvP remains experimental.
@@ -252,7 +254,7 @@ Use **Split now** for a manual encounter boundary or configure automatic splits.
 
 ### Capture-stage diagnostics
 
-Raw TCP payload recording is optional and controls only the diagnostic payload file; leave it off for ordinary live combat capture. **Export capture diagnostics** still includes counters without raw data. The live capture details show payload packets, forwarded chunks, decoded effects and players visible under the selected filters. The ZIP also includes scope, retained-effect count, roster count and whether a local identity was observed. These cumulative indicators distinguish capture, flow detection, decoding and view filtering; idle time or zero visible players alone does not prove capture failed. When reporting an empty meter, export immediately after combat with the original settings.
+**Capture diagnostics** on the Live Meter page is folded away until you expand it (since 0.2.329), as is the line above it with the installed game version and capture context; folded, that line still names the installed version and the zone. Raw TCP payload recording is optional and controls only the diagnostic payload file; leave it off for ordinary live combat capture. **Export capture diagnostics** still includes counters without raw data. The live capture details show payload packets, forwarded chunks, decoded effects and players visible under the selected filters. The ZIP also includes scope, retained-effect count, roster count and whether a local identity was observed. These cumulative indicators distinguish capture, flow detection, decoding and view filtering; idle time or zero visible players alone does not prove capture failed. When reporting an empty meter, export immediately after combat with the original settings.
 
 
 ### Finding capture diagnostics
@@ -302,6 +304,10 @@ Two overlay readouts are off by default under **Settings → Live meter overlay*
 ### Odyle Energy
 
 Your character's Odyle Energy shows beside the game's Odyle Energy icon on the overlay, under the ping, and on the Live Meter page, under the ping line: the total you can spend, then its regular and bonus parts, such as *Odyle Energy 145 (40 + 105 bonus)*. It is the game's own count, sent when you enter the world, at every zone load and whenever it changes. The reading follows the 15 the regular energy regains every three hours and what each claimed reward cube spends (80 in every claim recorded so far, taken from the regular energy first and then from the bonus). Until the first of these records arrives the line stays hidden. A meter started inside a zone shows it at the next change or zone load. A zone load keeps it, and logging in on another character replaces it. **Settings → Live meter overlay → Show your Odyle Energy** (on by default) hides it in both places.
+
+### Shugo Festival keys
+
+Your Shugo Festival Reward Keys (since 0.2.329) show the same way, under the Odyle Energy line on the overlay and on the Live Meter page, beside a key icon: the total, then the keys that refill each day and the extra ones, such as *Shugo Keys 5 (3 + 2 bonus)*. They come from the same counter records as Odyle Energy, sent at login, at every zone load and whenever they change: in the 19 October recording the two values went from 3 and 2 to 0 and 0 one key at a time, the first value first, a minute or two apart while the festival's rewards were claimed, and came back one at a time. The line stays hidden until the game has sent the counters, so a meter started inside a zone shows it at the next zone load or change. Only that spend pattern identified the counter: if the number differs from the one the festival window shows, say so with a diagnostics export. **Settings → Live meter overlay → Show your Shugo Festival keys** (on by default) hides it in both places.
 
 ### In-game through RivaTuner Statistics Server (RTSS)
 
@@ -554,7 +560,10 @@ The bundled schedule is a dated community snapshot from [Shugo.GG](https://shugo
 | Setting | What it does |
 |---|---|
 | Theme | **Follow computer** (light or dark with your system), **Light** (parchment and gold) or **Dark** (night sky and gold). The ◐ button in the top bar switches between them too. The choice is kept in this browser |
-| Open as its own window | choose a desktop window or your browser; close the app with Quit |
+| Open as its own window | choose a desktop window or your browser; close the app with Quit. Since 0.2.329 the window opens at 1920×1080, or as large as the screen allows when it is smaller, centred and not maximized, so you can place and size it |
+| Text size | the size of the app's text, 70–150 % (100 % is the size the app ships with); every word and the layout around it scale together, like the browser's zoom. The overlay's text has its own size under Live meter overlay |
+| Page at launch | the page the app opens on, and shows when the tray icon or the Open-app hotkey brings it back: Live Meter unless you choose another, such as My Character. Links to the other pages work as before |
+| My Character at launch | *Show the character you opened last when My Character opens* (the newest import, from its last snapshot) and *Refresh that character from the official site when the app opens* instead; both off by default (see My Character) |
 | Your data | the data folder, with buttons to open it, the combat logs and the results |
 | Log server | where **Share link** uploads fights, an optional upload key, and the visibility every upload uses (**public** unless you change it: listed in the community logs and ranked). **Save** checks the server answers |
 | Game database | item count, last update, and **Check now** |
@@ -637,7 +646,7 @@ folders.
 
 Capture diagnostics separate decoder failures, shutdown payload discards and payloads successfully decoded during shutdown. Only failures/discards are loss evidence. The legacy combined error/discard count overlaps those fields; do not sum them. Older logs without separate fields show **not recorded**. TCP payload recording is optional for this behavior.
 
-If capture sees no combat, inspect the selected interface/host/port and dependency permissions. Under **Capture diagnostics**, tick **Record TCP payloads** (best before the capture starts, so the recording covers it from the beginning), record the problem, then stop or export diagnostics. The ZIP includes raw TCP diagnostics and metadata; ordinary app logs do not contain TCP payloads.
+If capture sees no combat, inspect the selected interface/host/port and dependency permissions. Expand **Capture diagnostics** and tick **Record TCP payloads** (best before the capture starts, so the recording covers it from the beginning), record the problem, then stop or export diagnostics. The ZIP includes raw TCP diagnostics and metadata; ordinary app logs do not contain TCP payloads.
 
 TCP diagnostics record the entire session to disk with no record-count or size cap. Writes use a bounded buffer to reduce capture-thread disk traffic, flushed during recording and before export; a sudden process exit can lose the unflushed raw diagnostic tail. Available disk space is the limit; the UI shows recording size and write errors. Long sessions take longer to compress on Stop or export. Export during capture takes a fixed snapshot while recording continues. Raw `tcp-session-*.jsonl` files stay recoverable after a crash or failed export; successful stopped-session exports remove their raw temporary copy. ZIPs remain until you delete them. Raw traffic can contain character names and network addresses; review before sharing. This changes raw diagnostic retention, not the separate decoded combat-history limits.
 

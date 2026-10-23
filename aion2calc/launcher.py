@@ -110,15 +110,56 @@ def app_browser() -> str | None:
     return next((str(c) for c in cands if c.exists()), None)
 
 
+#: The app window's size at launch: 1080p, or the screen's work area when that is smaller (0.2.329).
+WINDOW_SIZE = (1920, 1080)
+
+
+def work_area() -> tuple[int, int] | None:
+    """The primary screen's work area (the screen less the taskbar) in the logical pixels the browser's
+    ``--window-size`` takes, or None when it cannot be read (then the window gets the 1080p size)."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+            rect = wintypes.RECT()
+            if ctypes.windll.user32.SystemParametersInfoW(48, 0, ctypes.byref(rect), 0):      # SPI_GETWORKAREA
+                return rect.right - rect.left, rect.bottom - rect.top
+            return ctypes.windll.user32.GetSystemMetrics(0), ctypes.windll.user32.GetSystemMetrics(1)
+        except Exception:
+            return None
+    try:
+        import tkinter
+        root = tkinter.Tk()
+        root.withdraw()
+        size = root.winfo_screenwidth(), root.winfo_screenheight()
+        root.destroy()
+        return size
+    except Exception:
+        return None
+
+
+def window_geometry(area: tuple[int, int] | None) -> tuple[int, int, int, int]:
+    """(width, height, left, top) for the app window: 1920x1080, or as much of the work area as there
+    is, centred on it. The window used to open maximized; a window that fills a 4K screen is too large
+    to read comfortably, and users asked for a 1080p window that they can place."""
+    width, height = WINDOW_SIZE
+    if not area or area[0] <= 0 or area[1] <= 0:
+        return width, height, 0, 0
+    width, height = min(width, area[0]), min(height, area[1])
+    return width, height, max(0, (area[0] - width) // 2), max(0, (area[1] - height) // 2)
+
+
 def open_window(url: str, prefer_app: bool = True):
     """Open the UI: its own app window when Edge/Chrome is there (returns the process), else a browser tab."""
     import subprocess
     from .paths import home
     exe = app_browser() if prefer_app else None
     if exe:
+        width, height, left, top = window_geometry(work_area())
         try:
             return subprocess.Popen([exe, f"--app={url}", f"--user-data-dir={home() / 'window'}", "--no-first-run",
-                                     "--no-default-browser-check", "--start-maximized"])
+                                     "--no-default-browser-check", f"--window-size={width},{height}",
+                                     f"--window-position={left},{top}"])
         except OSError:
             pass
     webbrowser.open(url)

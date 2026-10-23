@@ -52,6 +52,12 @@ BOSS_HOLD_MS = 120_000
 #: of tiny dead-pet rows that push off the overlay's row cap, so that damage vanishes from
 #: view. Pets attack frequently, so an idle gap this long reliably means the summon is gone.
 PET_DESPAWN_IDLE_MS = 8_000
+#: Your own hits of both kinds -- on the other faction's players and on NPCs -- within this long of
+#: each other are one fight: at a contested field boss an area skill lands on both in the same cast,
+#: and the 21 October Kaira recording cut 68 "encounters" out of a minute that way, 54 of them a second
+#: or less, one to three hits each. A fight changes kind only once your hits have been of the new kind
+#: alone for this long; a hit on a catalog boss still starts the boss fight at once.
+MIXED_KIND_WINDOW_MS = 5_000
 
 
 def _summon_label(skill_id: int) -> str:
@@ -1151,6 +1157,16 @@ class CombatSession:
                 # The hits you took before your own first one belong to that fight.
                 groups[-1]["pvp"] = pvp
                 switched = False
+            elif (switched and groups[-1]["epoch"] == record.epoch and groups[-1]["split"] == record.split
+                    and groups[-1]["kind_damage"] is not None
+                    and 0 <= event.timestamp_ms - groups[-1]["kind_damage"] <= MIXED_KIND_WINDOW_MS
+                    and not (not pvp and is_major(record.epoch, event.target_id))):
+                # Your own hits of both kinds within seconds of each other: an area skill at a
+                # contested field boss strikes the other faction's players and the NPCs around it in
+                # the same cast. The hit joins the fight; its kind changes only once your hits have
+                # been of the new kind alone for MIXED_KIND_WINDOW_MS. A hit on a boss is the exception:
+                # it starts the boss fight, whatever you struck just before.
+                switched = False
             if (switched and pvp and groups[-1]["epoch"] == record.epoch and groups[-1]["split"] == record.split
                     and any(death_ms.get((record.epoch, enemy), float("inf")) > event.timestamp_ms
                             for enemy in groups[-1]["majors"])):
@@ -1167,12 +1183,15 @@ class CombatSession:
                     or switched
                     or (self.automatic_splits and outgoing and event.timestamp_ms - groups[-1]["last_damage"] > self.gap_seconds * 1000)):
                 groups.append({"id": f"{record.epoch}-{event.timestamp_ms}-{record.sequence}", "epoch": record.epoch,
-                               "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "damage_start": None, "split": record.split, "run":record.run, "pvp":pvp, "records": [], "majors": set()})
+                               "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "damage_start": None, "split": record.split, "run":record.run, "pvp":pvp, "records": [], "majors": set(),
+                               "kind_damage": None})       # your last hit of the fight's own kind
             group = groups[-1]
             if outgoing:
                 if group["damage_start"] is None:
                     group["damage_start"] = event.timestamp_ms
                 group["last_damage"] = max(group["last_damage"], event.timestamp_ms)
+                if pvp == group["pvp"]:
+                    group["kind_damage"] = max(group["kind_damage"] or 0, event.timestamp_ms)
                 if is_major(record.epoch, event.target_id):
                     group["majors"].add(event.target_id)
             group["end"] = max(group["end"], event.timestamp_ms)

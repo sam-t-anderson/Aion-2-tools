@@ -16,10 +16,15 @@ from ..paths import home, write_user_json
 FORMAT = "aion2calc-settings"
 VERSION = 1
 
+#: The pages the app can open on at launch (``app_default_page``): the navigation's ids, Live Meter first.
+APP_PAGES = ("meter", "planner", "builds", "character", "gear", "history", "combat", "raid", "database",
+             "maps", "crafting", "timers", "news", "settings")
+
 _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close", "community_heartbeat",
               "overlay_show_contribution", "overlay_show_target",
               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
-              "overlay_show_cooldowns", "overlay_show_break_gauge", "overlay_show_odyle",
+              "overlay_show_cooldowns", "overlay_show_break_gauge", "overlay_show_odyle", "overlay_show_shugo_keys",
+              "character_auto_open", "character_auto_refresh",
               "meter_reset_after_battle", "meter_show_dummy_parse", "overlay_show_combat_power",
               "overlay_only_in_combat", "overlay_auto_expand",
               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
@@ -32,7 +37,7 @@ _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close", 
               "overlay_highlight_me", "overlay_dps_graph", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "overlay_open_on_app_start", "meter_auto_upload", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "overlay_plan_autoplay", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics")
 
 # key -> (min, max) for whole-number settings.
-_INT_KEYS = {"meter_reset_delay": (1, 120), "meter_max_records": (1, 500),
+_INT_KEYS = {"app_text_scale": (70, 150), "meter_reset_delay": (1, 120), "meter_max_records": (1, 500),
              "meter_dummy_record_seconds": (5, 3600), "meter_log_cache_mb": (0, 1048576),
              "overlay_max_players": (1, 24), "overlay_width": (260, 800), "overlay_height": (0, 800),
              "overlay_row_height": (14, 48),
@@ -113,6 +118,10 @@ def _clean(data: dict) -> dict:
         elif key == "overlay_name_mode":
             if value not in ("name", "class_number", "number"):
                 raise ValueError("overlay_name_mode must be name, class_number or number")
+            clean[key] = value
+        elif key == "app_default_page":
+            if value not in APP_PAGES:
+                raise ValueError("app_default_page must be one of the app's pages")
             clean[key] = value
         elif key == "overlay_bar_style":
             if value not in ("flat", "gradient"):

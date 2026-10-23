@@ -77,7 +77,29 @@ def test_the_hits_taken_before_your_first_belong_to_your_fight():
 
 def test_turning_on_a_player_yourself_still_starts_a_pvp_encounter():
     s = _session()
-    s.records = [_rec(_dmg(ME, MOB, 1000), 1), _rec(_dmg(ME, RIVAL, 2000), 2),
-                 _rec(_dmg(MOB, ME, 2500, CLAW), 3),      # a mob's hit taken mid player fight joins it
-                 _rec(_dmg(ME, MOB, 3000), 4)]
-    assert [(g["pvp"], len(g["records"])) for g in s.groups("self")] == [(False, 1), (True, 2), (False, 1)]
+    s.records = [_rec(_dmg(ME, MOB, 1000), 1),
+                 _rec(_dmg(ME, RIVAL, 2000), 2),          # a second after your mob hit: still that fight
+                 _rec(_dmg(ME, RIVAL, 7000), 3),          # on the player alone past the window: PvP
+                 _rec(_dmg(MOB, ME, 7500, CLAW), 4),      # a mob's hit taken mid player fight joins it
+                 _rec(_dmg(ME, RIVAL, 8000), 5),
+                 _rec(_dmg(ME, MOB, 14000), 6)]           # back on the mobs, past the window: PvE again
+    assert [(g["pvp"], len(g["records"])) for g in s.groups("self")] == [(False, 2), (True, 3), (False, 1)]
+
+
+def test_your_area_skill_striking_players_and_mobs_at_once_is_one_fight():
+    # 21 October, Watcher Kaira's crowd: each cast struck the other faction's players and the NPCs about
+    # within the same fraction of a second, and every hit of the other kind cut a segment, 68 in a minute.
+    s = _session()
+    records, seq = [], 0
+    for t in range(1000, 21000, 400):
+        for target, offset in ((RIVAL, 0), (MOB, 150)):
+            seq += 1
+            records.append(_rec(_dmg(ME, target, t + offset), seq))
+    s.records = list(records)
+    groups = s.groups("self")
+    assert [(g["pvp"], len(g["records"])) for g in groups] == [(True, len(records))]
+    # Striking the boss starts its fight at once, whatever you struck a moment before, and the players you
+    # keep hitting while it lives stay inside that fight.
+    s.records = records + [_rec(_dmg(ME, BOSS, 21100), seq + 1), _rec(_dmg(ME, RIVAL, 21300), seq + 2),
+                           _rec(_dmg(ME, BOSS, 22000), seq + 3)]
+    assert [(g["pvp"], len(g["records"])) for g in s.groups("self")] == [(True, len(records)), (False, 3)]

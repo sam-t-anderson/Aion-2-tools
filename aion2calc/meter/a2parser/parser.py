@@ -1144,56 +1144,83 @@ def scan_self_vitals(frame: bytes) -> tuple[int, int, int] | None:
 
 
 ODYLE_ENERGY_ID = 60_000_001
-_ODYLE_KEY = ODYLE_ENERGY_ID.to_bytes(4, "little")
-_ODYLE_NEXT = (ODYLE_ENERGY_ID + 1).to_bytes(4, "little")
+#: Shugo Festival Reward Keys: counter 4, two values spent one at a time (the first before the second) a
+#: minute or two apart while the festival's rewards are claimed, and gained one at a time (0.2.329).
+SHUGO_KEYS_ID = 4
+_COUNTER_FLAGS = 0x0F
+_COUNTER_MAX = 1_000_000_000
 
 
-def _counter_values(body: bytes, at: int, flags: int) -> tuple[int, int, int] | None:
-    """A counter entry's values after its id: the flags name which are sent (``04`` the first, ``08``
-    the second, varints); one left out is 0. Returns (first, second, end)."""
+def _counter_entry(body: bytes, at: int) -> tuple[int, int, int, int] | None:
+    """One counter entry at ``at``: (id, first, second, end). The flags byte names the values sent, in
+    this order: ``01`` the first as a u64 and ``02`` the second (Kinah-sized counters), ``04`` the first
+    as a varint and ``08`` the second; a value left out is 0."""
+    if at + 5 > len(body):
+        return None
+    flags = body[at]
+    if flags & ~_COUNTER_FLAGS:
+        return None
+    counter_id = int.from_bytes(body[at + 1:at + 5], "little")
+    at += 5
     values = [0, 0]
-    for slot, bit in enumerate((0x04, 0x08)):
+    for slot, bit in ((0, 0x01), (1, 0x02)):
+        if flags & bit:
+            if at + 8 > len(body):
+                return None
+            values[slot], at = int.from_bytes(body[at:at + 8], "little"), at + 8
+    for slot, bit in ((0, 0x04), (1, 0x08)):
         if flags & bit:
             value = _var(body, at)
-            if value is None or value[0] > 100_000:
+            if value is None or value[0] > _COUNTER_MAX:
                 return None
             values[slot], at = value
-    return values[0], values[1], at
+    return counter_id, values[0], values[1], at
 
 
-def scan_odyle_energy(frame: bytes) -> tuple[int, int] | None:
-    """The recording player's Odyle Energy, (regular, bonus), or None.
+def scan_counters(frame: bytes) -> dict[int, tuple[int, int]] | None:
+    """The game's counters in a frame, ``{id: (first, second)}``: every entry of a counter table, or the
+    one entry of an update; None for any other frame or a layout that does not parse to its end.
 
-    It is a counter, id 60000001: a flags byte, the u32 id and the values the flags name. The regular
-    value regenerates 15 every three hours up to the cap (560, 840 with the membership) and a claimed
-    reward cube spends it first (80 for an Expedition); the bonus, from rewards and recharges, is spent
-    once the regular is gone. ``0b 61`` lists the counters on entering the world and every zone (the
-    id after Odyle Energy's, 60000002, confirms the table). ``0c 61`` sends one when it changes: a kind
-    byte (0, or 1 with a byte and the u32 amount added after the values), the entry, then a reason
-    byte for kind 0 (``02`` a gain, ``03`` a spend). In the 19 and 20 October recordings: 840 and 50
-    noted in game, 15 added on the hour at 01:00 and 04:00 UTC, and 80 spent at each cube."""
+    ``0b 61`` lists the counters on entering the world and every zone: a count, then the entries (73 in
+    the October recordings: Kinah as counter 3 with two u64 values, the Shugo Festival keys as 4, the
+    weekly dungeon entries as 60000002 onwards, Odyle Energy as 60000001). ``0c 61`` sends one when it
+    changes: a kind byte (0, or 1 with a byte and the u32 amount added after the entry), the entry, then
+    a reason byte for kind 0 (``02`` a gain, ``03`` a spend)."""
     length = read_varint(frame, 0)
     opcode = frame[length.length:length.length + 2] if length.length > 0 else b""
     if opcode not in (b"\x0c\x61", b"\x0b\x61"):
         return None
     body = frame[length.length + 2:]
     if opcode == b"\x0c\x61":
-        if len(body) < 7 or body[0] > 1 or body[1] & ~0x0C or body[2:6] != _ODYLE_KEY:
+        if len(body) < 7 or body[0] > 1:
             return None
-        found = _counter_values(body, 6, body[1])
-        if found is None or len(body) - found[2] != (5 if body[0] else 1):
+        found = _counter_entry(body, 1)
+        if found is None or len(body) - found[3] != (5 if body[0] else 1):
             return None
-        return found[0], found[1]
-    if opcode == b"\x0b\x61":
-        at = body.find(_ODYLE_KEY)
-        while at >= 1:
-            flags = body[at - 1]
-            if not flags & ~0x0C:
-                found = _counter_values(body, at + 4, flags)
-                if found is not None and body[found[2] + 1:found[2] + 5] == _ODYLE_NEXT:
-                    return found[0], found[1]
-            at = body.find(_ODYLE_KEY, at + 1)
-    return None
+        return {found[0]: (found[1], found[2])}
+    count = _var(body, 0)
+    if count is None or not 1 <= count[0] <= 1024:
+        return None
+    out, at = {}, count[1]
+    for _ in range(count[0]):
+        found = _counter_entry(body, at)
+        if found is None:
+            return None
+        out[found[0]] = (found[1], found[2])
+        at = found[3]
+    return out if at == len(body) else None
+
+
+def scan_odyle_energy(frame: bytes) -> tuple[int, int] | None:
+    """The recording player's Odyle Energy, (regular, bonus), or None.
+
+    It is counter 60000001 (see :func:`scan_counters`). The regular value regenerates 15 every three
+    hours up to the cap (560, 840 with the membership) and a claimed reward cube spends it first (80 for
+    an Expedition); the bonus, from rewards and recharges, is spent once the regular is gone. In the 19
+    and 20 October recordings: 840 and 50 noted in game, 15 added on the hour at 01:00 and 04:00 UTC,
+    and 80 spent at each cube."""
+    counters = scan_counters(frame)
+    return counters.get(ODYLE_ENERGY_ID) if counters else None
 
 
 def _effect(body: bytes) -> list[dict]:
