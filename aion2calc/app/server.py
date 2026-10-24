@@ -1622,7 +1622,7 @@ def ui_settings() -> dict:
                 "meter_record_packets": False,
                 "meter_show_server_name": False,
                 "overlay_name_mode": "name",
-                "overlay_dps_interpolate": True, "overlay_interpolate_ms": 50, "overlay_show_fps": False,
+                "overlay_dps_interpolate": True, "overlay_interpolate_ms": 200, "overlay_show_fps": False,
                 "overlay_presets": [], "hotkeys": {}}
     return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}
 

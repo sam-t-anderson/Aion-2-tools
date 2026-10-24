@@ -5,6 +5,7 @@ from collections import Counter, deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import bisect
+from itertools import islice
 import time
 import copy
 import math
@@ -58,6 +59,9 @@ PET_DESPAWN_IDLE_MS = 8_000
 #: or less, one to three hits each. A fight changes kind only once your hits have been of the new kind
 #: alone for this long; a hit on a catalog boss still starts the boss fight at once.
 MIXED_KIND_WINDOW_MS = 5_000
+#: Each special-damage flag and the per-hit counter it feeds in a player's row.
+_SPECIAL_COUNTS = ((SpecialDamage.CRITICAL, "crit"), (SpecialDamage.BACK, "back"), (SpecialDamage.FRONTAL, "front"),
+                   (SpecialDamage.DOUBLE, "double"), (SpecialDamage.PERFECT, "perfect"), (SpecialDamage.PARRY, "parry"))
 
 
 def _summon_label(skill_id: int) -> str:
@@ -87,6 +91,58 @@ class NoIdentifiedPlayerData(ValueError):
     """The selected scope cannot yet form an identified combat report."""
 
 
+def _newest(items, count):
+    """The last ``count`` of ``items`` in order, taken from a deque's right end without walking the rest."""
+    if count <= 0:
+        return ()
+    if count >= len(items):
+        return items
+    return list(islice(reversed(items), count))[::-1]
+
+
+class _Grouping:
+    """What ``CombatSession.groups`` computed last, so the next call walks only the records that arrived
+    since. A value: never changed once built (the next call copies what it continues), so a detached copy
+    of the session shares it, and the groups in it reach callers on the same terms. Besides the fights
+    it holds what the current epoch's grouping read of its identity -- a record of each kind of scope
+    membership with the set it got (``allowed``), the owner links, every actor the records involve
+    (``actors``), which of them were known players, their NPC types and the epoch's count of engaged
+    majors -- so ``_carry_grouping`` can tell whether a fresh walk would still read the same."""
+    __slots__ = ("scope", "config", "first_seq", "last_seq", "groups", "actors_of", "peak", "death_ms", "deaths",
+                 "settled", "seen_telemetry", "epoch", "identity", "allowed", "owners", "actors", "players", "codes", "majors")
+
+    def __init__(self, scope, config, first_seq, last_seq, groups, actors_of, peak, death_ms, deaths, settled,
+                 seen_telemetry, epoch, identity, allowed, owners, actors, players, codes, majors):
+        self.scope, self.config, self.first_seq, self.last_seq = scope, config, first_seq, last_seq
+        self.groups, self.actors_of, self.peak = groups, actors_of, peak
+        self.death_ms, self.deaths, self.settled, self.seen_telemetry = death_ms, deaths, settled, seen_telemetry
+        self.epoch, self.identity, self.allowed, self.owners = epoch, identity, allowed, owners
+        self.actors, self.players, self.codes, self.majors = actors, players, codes, majors
+
+    def trimmed(self, records):
+        """The carried fights as fresh copies, less the records the history cap evicted since:
+        ``(groups, actors_of, peak, deaths, settled)``. The oldest surviving fight keeps the start and
+        the id it had, where a full walk would open it at its first surviving record."""
+        groups, actors_of, peak = list(self.groups), list(self.actors_of), list(self.peak)
+        deaths, settled = list(self.deaths), self.settled
+        first = records[0].sequence
+        if first > self.first_seq:
+            while groups and groups[0]["records"][-1].sequence < first:
+                del groups[0], actors_of[0], peak[0]
+            if groups and groups[0]["records"][0].sequence < first:
+                kept = [r for r in groups[0]["records"] if r.sequence >= first]
+                groups[0] = {**groups[0], "records": kept}
+                actors_of[0] = {a for r in kept for a in (r.event.actor_id, r.event.target_id)}
+            if groups:   # a death closes only a fight it did not precede
+                floor = groups[0]["start"]
+                keep = [i for i, d in enumerate(deaths) if d["timestamp_ms"] >= floor]
+                settled = sum(1 for i in keep if i < settled)
+                deaths = [deaths[i] for i in keep]
+            else:
+                deaths, settled = [], 0
+        return groups, actors_of, peak, deaths, settled
+
+
 class CombatSession:
     def __deepcopy__(self, memo):
         """A detached copy for checkpoint saves and rollovers, taken under the capture lock.
@@ -96,7 +152,8 @@ class CombatSession:
         copied element by element: a true deep copy of a 100k-record session took 4.6 s with the
         lock held, stalling the decoder and the overlay every 15 s and overflowing the capture
         buffer on busy fights. Everything else (identities, runs, counters) is small and copied.
-        A copy only exports, so it needs no held-effect state (that is for pairing what arrives next)."""
+        A copy only exports, so it needs no held-effect state (that is for pairing what arrives next).
+        The carried ``groups`` result and the clock inputs are values (never changed once built): shared."""
         clone = CombatSession.__new__(CombatSession)
         memo[id(self)] = clone
         for key, value in vars(self).items():
@@ -104,6 +161,8 @@ class CombatSession:
                 setattr(clone, key, deque(value, maxlen=value.maxlen))
             elif key == "_effects_held":
                 setattr(clone, key, {})
+            elif key in ("_grouping", "clock_inputs"):
+                setattr(clone, key, value)
             else:
                 setattr(clone, key, copy.deepcopy(value, memo))
         return clone
@@ -157,6 +216,10 @@ class CombatSession:
 
     def __init__(self):
         self.records = deque(maxlen=400_000)
+        #: The last ``groups`` result, carried on by the records that arrive after it (see ``groups``).
+        self._grouping = None
+        #: What the last ``snapshot`` kept for ``refresh_clock``: the small sets its wall-clock fields read.
+        self.clock_inputs = None
         #: Per selectable scope, when that scope last landed outgoing damage (capture wall-clock
         #: ms), kept as records arrive so "is combat still active" never walks the history.
         self._last_outgoing: dict[str, int] = {}
@@ -898,11 +961,11 @@ class CombatSession:
                 if key in self._dead:
                     continue
                 self._dead.add(key)
-            if len(self.telemetry) == self.telemetry.maxlen:
-                self.discarded_telemetry += 1
             if not self._retained(probe, party, identity, allowed_in, entity=sample.get("entity")):
                 self.out_of_scope += 1
                 continue
+            if len(self.telemetry) == self.telemetry.maxlen:
+                self.discarded_telemetry += 1   # the append evicts the oldest sample
             self.telemetry.append({**sample, "epoch": self.epoch})
             code = identity["spawns"].get(sample["entity"], {}).get("mobCode")
             # A dungeon run finishes (and becomes rankable) when the party kills the final boss.
@@ -1085,18 +1148,28 @@ class CombatSession:
         return allowed
 
     def _allowances(self, scope):
-        """Reuse membership sets within one locked read, never across updates."""
-        cache = {}
-        def allowed(record):
+        """Reuse membership sets within one locked read, never across updates. The callable's
+        ``key_of`` names what a record's membership depends on (``groups`` keeps one record per key)."""
+        cache, by_record = {}, {}
+        def key_of(record):
             effective = self._effective_scope(scope, record.epoch)
             actor = (record.event.actor_id if effective == "all"
                      and isinstance(record.event, DamageEvent)
                      and job_from_skill(record.event.skill_code) else None)
-            key = (record.epoch, record.local_id, record.party,
-                   self._late_roster(record) if effective == "party" else False, actor)
+            return (record.epoch, record.local_id, record.party,
+                    self._late_roster(record) if effective == "party" else False, actor)
+        def allowed(record):
+            # A summary asks for the same record's membership several times over; the second
+            # answer is a lookup by its sequence rather than the key computed again (0.2.336).
+            found = by_record.get(record.sequence)
+            if found is not None:
+                return found
+            key = key_of(record)
             if key not in cache:
                 cache[key] = self._allowed(record, scope)
-            return cache[key]
+            found = by_record[record.sequence] = cache[key]
+            return found
+        allowed.key_of = key_of
         return allowed
 
     def _pvp_damage(self, record, allowed):
@@ -1111,13 +1184,40 @@ class CombatSession:
                 and not identity["spawns"].get(opponent,{}).get("mobCode"))
 
     def groups(self, scope="party", allowed_for=None):
+        """The scope's records cut into fights: a new epoch or manual split, a PvE/PvP switch or, with
+        automatic splits, a lull longer than ``gap_seconds`` between your side's hits starts the next
+        one, and each enemy's death closes the one fight still fighting it. Returns the newest 200.
+
+        Carried on from the previous call (``_Grouping``) by the records that arrived since, so the
+        live view's cost follows the current fight rather than the session: walking every record each
+        time cost a two-hour session a quarter second per reading, most of a core (0.2.336). What is
+        carried is what a fresh walk gives. Earlier epochs are frozen (``observe`` writes only the
+        current epoch's identity); the current epoch's records are kept while every input their
+        grouping read still reads the same (``_carry_grouping``), else they are walked again. Of the
+        enemy deaths, those since the open fight began are re-applied each call; an earlier one is
+        settled, since it can close none of the fights to come."""
         allowed_for = allowed_for or self._allowances(scope)
-        groups = []
+        key_of = getattr(allowed_for, "key_of", None)
+        config = (self.pvp, self.gap_seconds, self.automatic_splits)
+        carried = self._carry_grouping(scope, config, allowed_for) if key_of is not None else None
+        records = self.records
+        if carried is None:
+            groups, actors_of, peak, death_ms, deaths, settled, seen_telemetry = [], [], [], {}, [], 0, 0
+            new_records = records
+        else:
+            groups, actors_of, peak, deaths, settled = carried.trimmed(records)
+            death_ms, seen_telemetry = dict(carried.death_ms), carried.seen_telemetry
+            new_records = _newest(records, records[-1].sequence - carried.last_seq)
+            if groups:   # the open fight continues on a copy: the carried one is a shared value
+                last = groups[-1]
+                groups[-1] = {**last, "records": list(last["records"]), "majors": set(last["majors"])}
+                actors_of[-1] = set(actors_of[-1])
         # When each enemy died, (epoch, entity) -> ms, from the recorded deaths. A boss fight is
         # live until its boss dies; that decides below whether a stray effect may cut it.
-        death_ms = {}
-        for sample in self.telemetry:
+        seen_now = len(self.telemetry) + self.discarded_telemetry
+        for sample in _newest(self.telemetry, seen_now - seen_telemetry):
             if sample["kind"] == "death":
+                deaths.append(sample)
                 death_ms.setdefault((sample["epoch"], sample["entity"]), sample["timestamp_ms"])
         major_cache = {}
         def is_major(epoch, enemy):
@@ -1126,9 +1226,23 @@ class CombatSession:
                 code = self.identities.get(epoch, {}).get("spawns", {}).get(enemy, {}).get("mobCode")
                 major_cache[key] = key in self._major_history or bool(code and npc_info(code).get("isBoss"))
             return major_cache[key]
-        for record in self.records:
+        # What the current epoch's grouping reads of its identity, for the next call's check.
+        current = self.epoch
+        identity_now = self.identities.get(current) or {}
+        owners_now = identity_now.get("owners", {})
+        if carried is not None and carried.epoch == current:
+            reps, actors = dict(carried.allowed), set(carried.actors)
+        else:
+            reps, actors = {}, set()
+        for record in new_records:
             event = record.event
             allowed = allowed_for(record)
+            if record.epoch == current and key_of is not None:
+                key = key_of(record)
+                if key not in reps:
+                    reps[key] = (record, frozenset(allowed))
+                actor, target = event.actor_id, event.target_id
+                actors.update((actor, target, owners_now.get(actor, actor), owners_now.get(target, target)))
             pvp = self._pvp_damage(record,allowed)
             if self.pvp and isinstance(event,DamageEvent) and not pvp:
                 continue  # Explicit PvP mode excludes unknown NPC/player opponents.
@@ -1143,6 +1257,7 @@ class CombatSession:
                         and 0 <= event.timestamp_ms - groups[-1]["last_damage"] <= self.gap_seconds * 1000):
                     groups[-1]["records"].append(record)
                     groups[-1]["end"] = max(groups[-1]["end"], event.timestamp_ms)
+                    actors_of[-1].update((event.actor_id, event.target_id))
                 continue
             outgoing = event.actor_id in allowed and event.target_id not in allowed
             switched = bool(groups) and groups[-1]["pvp"] != pvp
@@ -1185,35 +1300,188 @@ class CombatSession:
                 groups.append({"id": f"{record.epoch}-{event.timestamp_ms}-{record.sequence}", "epoch": record.epoch,
                                "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "damage_start": None, "split": record.split, "run":record.run, "pvp":pvp, "records": [], "majors": set(),
                                "kind_damage": None})       # your last hit of the fight's own kind
+                actors_of.append(set())
+                peak.append(max(peak[-1], event.timestamp_ms) if peak else event.timestamp_ms)
             group = groups[-1]
             if outgoing:
                 if group["damage_start"] is None:
                     group["damage_start"] = event.timestamp_ms
                 group["last_damage"] = max(group["last_damage"], event.timestamp_ms)
+                peak[-1] = max(peak[-1], group["last_damage"])
                 if pvp == group["pvp"]:
                     group["kind_damage"] = max(group["kind_damage"] or 0, event.timestamp_ms)
                 if is_major(record.epoch, event.target_id):
                     group["majors"].add(event.target_id)
             group["end"] = max(group["end"], event.timestamp_ms)
             group["records"].append(record)
-        deaths = [s for s in self.telemetry if s["kind"] == "death"]
+            actors_of[-1].update((event.actor_id, event.target_id))
         # A death closes exactly one encounter: the latest group still fighting that enemy
         # (its records end at or before the death, within the pull gap). Extending every earlier
         # group that ever touched the enemy -- a leashed or wiped attempt, or the pieces of one
         # fight cut by an earlier boundary -- stretched each of them to the kill and marked
         # every one "killed", so a single kill was counted many times over.
-        actors_of = [{r.event.actor_id for r in g["records"]} | {r.event.target_id for r in g["records"]} for g in groups]
-        for sample in deaths:
-            chosen = None
-            for group, actors in zip(groups, actors_of):
-                if (sample["epoch"] == group["epoch"] and sample["entity"] in actors
-                        and group["end"] <= sample["timestamp_ms"] <= group["last_damage"] + self.gap_seconds*1000
-                        and (chosen is None or group["last_damage"] >= chosen["last_damage"])):
-                    chosen = group
-            if chosen is not None:
-                chosen["end"] = sample["timestamp_ms"]
+        gap_ms = self.gap_seconds * 1000
+
+        def closes(sample, ends):
+            """The fight this death closes, as the full pass picks it: of the fights still fighting the
+            entity when it died (hit within the pull gap before it, not ended past it), the one hit
+            last, the later on a tie. ``peak`` (the latest hit up to each fight) bounds the scan: once
+            no earlier fight was hit late enough, none can match. ``ends`` holds the deaths applied
+            before this one that are not settled in the fights themselves."""
+            at, epoch, entity = sample["timestamp_ms"], sample["epoch"], sample["entity"]
+            best = None
+            for index in range(len(groups) - 1, -1, -1):
+                if peak[index] + gap_ms < at:
+                    break
+                group = groups[index]
+                if (group["epoch"] == epoch and entity in actors_of[index]
+                        and ends.get(index, group["end"]) <= at <= group["last_damage"] + gap_ms
+                        and (best is None or group["last_damage"] > groups[best]["last_damage"])):
+                    best = index
+            return best
+
+        # A death before the open fight began can close none of the fights to come, so its effect
+        # is settled into the fight it closes (a copy; the carried fights are shared values).
+        open_start = groups[-1]["start"] if groups else None
+        while settled < len(deaths) and open_start is not None and deaths[settled]["timestamp_ms"] < open_start:
+            index = closes(deaths[settled], {})
+            if index is not None:
+                groups[index] = {**groups[index], "end": deaths[settled]["timestamp_ms"]}
+            settled += 1
+        ends = {}
+        for sample in deaths[settled:]:
+            index = closes(sample, ends)
+            if index is not None:
+                ends[index] = sample["timestamp_ms"]
+        spawns_now = identity_now.get("spawns", {})
+        player_ids = identity_now.get("player_ids", ())
+        self._grouping = _Grouping(scope, config, records[0].sequence if records else 0, records[-1].sequence if records else 0,
+                                   groups, actors_of, peak, death_ms, deaths, settled, seen_now, current,
+                                   self._identity_key(identity_now), reps, dict(owners_now), frozenset(actors),
+                                   frozenset(a for a in actors if a in player_ids),
+                                   {a: spawns_now.get(a, {}).get("mobCode") for a in actors},
+                                   sum(1 for key in self._major_history if key[0] == current))
+        shown = groups
+        if ends:
+            shown = list(groups)
+            for index, at in ends.items():
+                shown[index] = {**groups[index], "end": at}
         self.discarded_segments = max(self.discarded_segments, len(groups) - 200)
-        return groups[-200:]
+        return shown[-200:]
+
+    def _carry_grouping(self, scope, config, allowed_for):
+        """The previous ``groups`` result when it can be carried on: the same scope and settings, its
+        records still in the history and, for the current epoch (the one ``observe`` still writes),
+        every input its grouping read reading the same now: each kind of record's scope membership,
+        the owner links, which of the actors involved are known players, their NPC types and the
+        epoch's count of engaged majors. Earlier epochs' identities are frozen, so their fights need
+        no check. None means walk afresh."""
+        state = self._grouping
+        records = self.records
+        if (state is None or state.scope != scope or state.config != config or not records
+                or records[0].sequence > state.last_seq or records[-1].sequence < state.last_seq):
+            return None
+        if state.epoch != self.epoch:
+            return state
+        identity = self.identities.get(self.epoch)
+        if identity is None or state.identity != self._identity_key(identity) or identity["owners"] != state.owners:
+            return None
+        player_ids = identity.get("player_ids", ())
+        spawns = identity["spawns"]
+        if (any((actor in player_ids) != (actor in state.players) for actor in state.actors)
+                or any(spawns.get(actor, {}).get("mobCode") != code for actor, code in state.codes.items())
+                or sum(1 for key in self._major_history if key[0] == self.epoch) != state.majors
+                or any(allowed_for(record) != allowed for record, allowed in state.allowed.values())):
+            return None
+        return state
+
+    @staticmethod
+    def _identity_key(identity):
+        """The identity fields that decide which of an epoch's records belong to which kind of membership."""
+        return (identity.get("local_id"), tuple(sorted((identity.get("local_corrections") or {}).items())),
+                identity.get("initial_roster"), identity.get("initial_roster_sequence"))
+
+    def adopt_grouping(self, state):
+        """Take over the ``groups`` result a detached copy of this session computed (the live runner's
+        recompute runs on one), so the next call here carries on from it rather than from an older one.
+        It holds for this session on the terms ``_carry_grouping`` checks, as the session's own would."""
+        if state is not None and (self._grouping is None or state.last_seq >= self._grouping.last_seq):
+            self._grouping = state
+
+    def state_signature(self):
+        """A cheap fingerprint of what ``snapshot`` reads. While it is unchanged, a reading taken earlier
+        is still exact but for its wall-clock fields (``refresh_clock``): the live runner serves it again
+        instead of recomputing. Lengths stand in for the collections that only grow, the current epoch's
+        identity included; anything the snapshot reads must be represented here."""
+        identity = self.identities.get(self.epoch) or {}
+        run = self.runs.get(self.run) or {}
+        profile = identity.get("profile") or {}
+        return (len(self.records), self.sequence, self.records[0].sequence if self.records else None,
+                len(self.telemetry), self.discarded_telemetry, self.epoch, self.run, self.run_closed, self.manual_split,
+                len(self.identities), self.discarded, self.discarded_segments, len(self._dead), len(self._engaged_major),
+                len(self._major_below), len(self._engage_span), self._pending_reset, self._live_boss_reset_ms,
+                len(self._major_history), self.boss_kills, self.wipe_splits, self.reset_splits, self.boss_splits,
+                self._pull_ended_ms, len(self._pull_leftovers), self._gauge_mode,
+                self.pvp, self.gap_seconds, self.automatic_splits, self.reset_after_battle, self.reset_on_boss_start,
+                self.reset_delay_seconds, self.max_records, self.dummy_record_seconds, self.retain_scope,
+                run.get("map_id"), run.get("instance_id"), run.get("start_observed"), run.get("recorded_entry"),
+                identity.get("local_id"), len(identity.get("names", ())), len(identity.get("jobs", ())),
+                len(identity.get("spawns", ())), len(identity.get("owners", ())), len(identity.get("roster", ())),
+                len(identity.get("player_ids", ())), len(identity.get("observed_players", ())),
+                len(identity.get("fighters", ())), identity.get("party_instance"), identity.get("initial_roster_sequence"),
+                len(identity.get("local_corrections", ())), len(identity.get("carried_entries", ())),
+                tuple(sorted((key, str(value)) for key, value in profile.items())))
+
+    def refresh_clock(self, summary, clock):
+        """Set a ``snapshot`` reading's wall-clock fields as of now: ``idle_ms``, ``boss_alive``,
+        ``potential_reset``, ``battle_over`` and ``paused``. ``clock`` is what ``snapshot`` kept for it in
+        ``clock_inputs`` (None for an empty view): the newest fight's epoch, its last hit, its attackers and
+        its targets, and whether the view follows the latest fight. The live runner calls this on a reading
+        it serves again, so the fields advance between recomputes exactly as a recompute sets them."""
+        now_ms = time.time() * 1000
+        if clock is None:
+            summary.update(idle_ms=None, boss_alive=False, potential_reset=self._pending_reset, battle_over=False, paused=False)
+            return
+        epoch, last_damage, attackers, targets, latest = clock
+        idle_ms = now_ms - last_damage
+        summary["idle_ms"] = idle_ms
+        # A major fight (boss OR a sustained mini-boss/elite) is still "live" — so a
+        # multi-second pause in damage is a mechanic (shield/phase/forced movement), not
+        # the end — only while BOTH the engaged enemy is still below full HP and at least
+        # one party attacker is alive. Requiring a living attacker is what makes a wipe end
+        # the fight: a gradual wipe holds until the last member dies, then clears;
+        # respawning and re-engaging (which revives the attacker in ``_dead``) makes it
+        # live again. An enemy back at full HP has leashed/reset (dropped from
+        # ``_major_below``), and a dead one is not live. ``_dead`` is cleared on revive, so
+        # membership in it means currently-dead. Used below to hold off "battle over".
+        attacker_alive = any((epoch, actor) not in self._dead for actor in attackers)
+        fight_live = False
+        for target in targets:
+            ekey = (epoch, target)
+            # Major = a flagged boss / already-promoted engagement, OR a contact that
+            # has been engaged >= MAJOR_ENGAGE_MS (covers an early mechanic lull before
+            # the promotion pass runs). Live only while it is still below full HP.
+            major = ekey in self._engaged_major or (
+                ekey in self._engage_span and now_ms - self._engage_span[ekey] >= MAJOR_ENGAGE_MS)
+            if major and ekey not in self._dead and ekey in self._major_below:
+                fight_live = True
+                break
+        boss_alive = fight_live and attacker_alive
+        summary["boss_alive"] = boss_alive
+        # A local respawn mid-engagement staged a reset that the boss returning to full
+        # has not yet confirmed (e.g. a battle-rez, or still running back). Surfaced so
+        # the live view can hint "attempt may be resetting" without clearing anything —
+        # the actual reset only lands when boss_alive turns false.
+        summary["potential_reset"] = self._pending_reset
+        # Reset-after-battle: once combat has been idle past the delay, signal that
+        # the fight is over so the live view can clear to a ready state. The data is
+        # unchanged — a selected segment or the whole-session view still shows it. While
+        # an engaged boss is still alive we hold this off until the pull is genuinely
+        # abandoned (idle past the pull-gap), so a boss mechanic that halts damage for a
+        # few seconds never clears or hides the overlay mid-fight.
+        summary["battle_over"] = bool(self.reset_after_battle and latest and idle_ms >= self.reset_delay_seconds * 1000
+                                      and (not boss_alive or idle_ms >= self.gap_seconds * 1000))
+        summary["paused"] = bool(now_ms - last_damage >= 2000)
 
     @staticmethod
     def _actor(actor_id, name, job=None):
@@ -1289,8 +1557,8 @@ class CombatSession:
         # a tele/port/revive — so this folds in only IDs the engine itself confirmed as
         # yours. It never merges by name, so a different player who shares your name is
         # never counted as you.
-        self_ids = {self._corrected(self.identities.get(r.epoch, {}), r.local_id)
-                    for g in groups for r in g["records"] if r.local_id is not None}
+        stamped = {(r.epoch, r.local_id) for g in groups for r in g["records"] if r.local_id is not None}
+        self_ids = {self._corrected(self.identities.get(epoch, {}), local) for epoch, local in stamped}
         self_canon = self_name = None
         for g in reversed(groups):
             lid = self.identities.get(g["epoch"], {}).get("local_id")
@@ -1361,115 +1629,136 @@ class CombatSession:
             replaced_basic.update(a for a in spirits if first_act.get(a, 0) < newest)
         timeline = {}
         offset = 0
+        # The rows of the fights' records, one pass. The helpers below are defined once (a long fight has
+        # ten thousand records; defining them per record, and building each row's, enemy's and skill's
+        # empty entry on every hit whether or not it existed, was a third of this summary's time, 0.2.336).
+        names_seen = {}
+
+        def named(epoch, actor_id, enemy=False):
+            found = names_seen.get((epoch, actor_id, enemy))
+            if found is None:
+                found = names_seen[(epoch, actor_id, enemy)] = self.name(epoch, actor_id, enemy)
+            return found
+
+        def resolve(identity, epoch, actor_id):
+            # The row an actor's effects land on: (actor_id, name, key, pet_collapsed,
+            # inferred). IDs may be reused after a zone/socket change: don't merge
+            # unnamed actors from unrelated contexts into one person.
+            original = actor_id
+            # Collapse a pet into its owner when pets are combined, and — even when
+            # they are shown separately — once a pet has gone quiet long enough to be
+            # de-spawned, or (for a Spiritmaster's basic spirit) once a newer basic spirit
+            # has replaced it, so its damage stays on the owner instead of lingering as a
+            # dead row that falls off the overlay. The owner's still-active pets (recent
+            # activity, and the current basic spirit) keep their own rows.
+            despawned = (original in identity["owners"]
+                         and now_ms - last_act.get(original, now_ms) >= PET_DESPAWN_IDLE_MS)
+            superseded = original in replaced_basic
+            if combine_pets or despawned or superseded:
+                seen = set()
+                while actor_id in identity["owners"] and actor_id not in seen:
+                    seen.add(actor_id)
+                    actor_id = identity["owners"][actor_id]
+                if actor_id in seen:
+                    actor_id = original  # Never collapse a cyclic owner reference.
+            pet_collapsed = original != actor_id
+            inferred = False
+            if self_canon is not None and actor_id in self_ids:
+                # All of your re-registered actor IDs are one person: one "you" row.
+                actor_id, name, key = self_canon, self_name, "self"
+            elif actor_id in rereg:
+                # A party member's re-registered IDs, correlated by behaviour.
+                actor_id = rereg[actor_id]
+                name, key, inferred = rereg_name[actor_id], f"id:{actor_id}", True
+            else:
+                name = named(epoch, actor_id)
+                key = key_of(epoch, actor_id)
+            return actor_id, name, key, pet_collapsed, inferred
+
+        def player(identity, epoch, actor_id, resolved=None):
+            actor_id, name, key, pet_collapsed, inferred = resolved or resolve(identity, epoch, actor_id)
+            row = players.get(key)
+            if row is None:
+                job = identity["jobs"].get(actor_id) or identity["jobs"].get(identity["owners"].get(actor_id))
+                row = players[key] = self._actor(actor_id, name, job)
+            if inferred:
+                row["inferred_identity"] = True
+            if pet_collapsed:
+                row["includes_pets"] = True
+            elif actor_id in identity["owners"]:
+                row["owner"] = str(identity["owners"][actor_id])
+            if not row.get("server"):
+                # Carry each player's home server id (from the party roster, or the local
+                # profile for yourself), so the live view can show the world next to a name.
+                info = self._roster_info(identity, name)
+                srv = info.get("serverId") or (identity.get("profile", {}).get("serverId")
+                                                if actor_id == identity.get("local_id") else None)
+                if srv:
+                    row["server"] = str(srv)
+            row["key"] = key
+            return row
+
         for group in groups:
-            identity = self.identities[group["epoch"]]
+            identity, epoch = self.identities[group["epoch"]], group["epoch"]
             for record in group["records"]:
                 event, allowed = record.event, allowed_for(record)
-                def resolve(actor_id):
-                    # The row an actor's effects land on: (actor_id, name, key, pet_collapsed,
-                    # inferred). IDs may be reused after a zone/socket change: don't merge
-                    # unnamed actors from unrelated contexts into one person.
-                    original = actor_id
-                    # Collapse a pet into its owner when pets are combined, and — even when
-                    # they are shown separately — once a pet has gone quiet long enough to be
-                    # de-spawned, or (for a Spiritmaster's basic spirit) once a newer basic spirit
-                    # has replaced it, so its damage stays on the owner instead of lingering as a
-                    # dead row that falls off the overlay. The owner's still-active pets (recent
-                    # activity, and the current basic spirit) keep their own rows.
-                    despawned = (original in identity["owners"]
-                                 and now_ms - last_act.get(original, now_ms) >= PET_DESPAWN_IDLE_MS)
-                    superseded = original in replaced_basic
-                    if combine_pets or despawned or superseded:
-                        seen = set()
-                        while actor_id in identity["owners"] and actor_id not in seen:
-                            seen.add(actor_id)
-                            actor_id = identity["owners"][actor_id]
-                        if actor_id in seen:
-                            actor_id = original  # Never collapse a cyclic owner reference.
-                    pet_collapsed = original != actor_id
-                    inferred = False
-                    if self_canon is not None and actor_id in self_ids:
-                        # All of your re-registered actor IDs are one person: one "you" row.
-                        actor_id, name, key = self_canon, self_name, "self"
-                    elif actor_id in rereg:
-                        # A party member's re-registered IDs, correlated by behaviour.
-                        actor_id = rereg[actor_id]
-                        name, key, inferred = rereg_name[actor_id], f"id:{actor_id}", True
-                    else:
-                        name = self.name(record.epoch, actor_id)
-                        key = key_of(record.epoch, actor_id)
-                    return actor_id, name, key, pet_collapsed, inferred
-                def player(actor_id, resolved=None):
-                    actor_id, name, key, pet_collapsed, inferred = resolved or resolve(actor_id)
-                    job = identity["jobs"].get(actor_id) or identity["jobs"].get(identity["owners"].get(actor_id))
-                    row = players.setdefault(key, self._actor(actor_id, name, job))
-                    if inferred:
-                        row["inferred_identity"] = True
-                    if pet_collapsed:
-                        row["includes_pets"] = True
-                    elif actor_id in identity["owners"]:
-                        row["owner"] = str(identity["owners"][actor_id])
-                    if not row.get("server"):
-                        # Carry each player's home server id (from the party roster, or the local
-                        # profile for yourself), so the live view can show the world next to a name.
-                        info = self._roster_info(identity, name)
-                        srv = info.get("serverId") or (identity.get("profile", {}).get("serverId")
-                                                        if actor_id == identity.get("local_id") else None)
-                        if srv:
-                            row["server"] = str(srv)
-                    row["key"] = key
-                    return row
                 if isinstance(event, HealEvent):
                     if event.actor_id in allowed:
-                        player(event.actor_id)["healing"] += event.amount
+                        player(identity, epoch, event.actor_id)["healing"] += event.amount
                     continue
+                damage = event.total_damage
                 if event.actor_id in allowed and event.target_id not in allowed:
-                    target_key = key_of(record.epoch, event.target_id)
-                    enemy = enemies.setdefault(target_key, {"key": target_key, "id": str(event.target_id),
-                        "name": self.name(record.epoch, event.target_id, True), "damage": 0, "hits": 0,
-                        "mob_code": identity["spawns"].get(event.target_id, {}).get("mobCode"),
-                        "is_player": group["pvp"] or event.target_id in identity["names"],
-                        "owner": identity["owners"].get(event.target_id), "players": {},
-                        "last_ms": 0, "players_last": {}})
-                    enemy["damage"] += event.total_damage; enemy["hits"] += 1
+                    target_key = key_of(epoch, event.target_id)
+                    enemy = enemies.get(target_key)
+                    if enemy is None:
+                        enemy = enemies[target_key] = {"key": target_key, "id": str(event.target_id),
+                            "name": named(epoch, event.target_id, True), "damage": 0, "hits": 0,
+                            "mob_code": identity["spawns"].get(event.target_id, {}).get("mobCode"),
+                            "is_player": group["pvp"] or event.target_id in identity["names"],
+                            "owner": identity["owners"].get(event.target_id), "players": {},
+                            "last_ms": 0, "players_last": {}}
+                    enemy["damage"] += damage; enemy["hits"] += 1
                     # Each player's damage to this enemy (the overlay's target panel) goes to their
                     # row's id, so a summon counts for its owner and a re-registered ID for its
                     # player, as in the rows -- not as a "Player #id" of its own.
-                    resolved = resolve(event.actor_id)
+                    resolved = resolve(identity, epoch, event.actor_id)
                     who = str(resolved[0])
-                    enemy["players"][who] = enemy["players"].get(who, 0) + event.total_damage
+                    enemy["players"][who] = enemy["players"].get(who, 0) + damage
                     # Track recency so the overlay's "current target" follows the enemy
                     # being hit now, not whichever accumulated the most damage earlier.
                     enemy["last_ms"] = max(enemy["last_ms"], event.timestamp_ms)
                     enemy["players_last"][str(event.actor_id)] = event.timestamp_ms
                     if enemy_id and target_key != enemy_id:
                         continue
-                    row = player(event.actor_id, resolved)
+                    row = player(identity, epoch, event.actor_id, resolved)
                     row["class"] = row["class"] or (job_from_skill(event.skill_code) or "").lower().replace("elementalist", "spiritmaster") or None
-                    row["damage"] += event.total_damage; row["hits"] += 1
-                    skill = row["skills"].setdefault((event.skill_code, event.is_dot), {
-                        "skill_id": event.skill_code, "skill": skill_name(event.skill_code), "damage": 0, "hits": 0,
-                        "min": event.total_damage, "max": 0})
-                    skill["damage"] += event.total_damage; skill["hits"] += 1
-                    skill["min"] = min(skill["min"], event.total_damage); skill["max"] = max(skill["max"], event.total_damage)
-                    for flag, key in ((SpecialDamage.CRITICAL, "crit"), (SpecialDamage.BACK, "back"),
-                                      (SpecialDamage.FRONTAL, "front"), (SpecialDamage.DOUBLE, "double"),
-                                      (SpecialDamage.PERFECT, "perfect"), (SpecialDamage.PARRY, "parry")):
-                        row["counts"][key] += int(flag in event.specials)
-                    row["counts"]["multi"] += int(event.multi_hit_count > 0)
+                    row["damage"] += damage; row["hits"] += 1
+                    skill = row["skills"].get((event.skill_code, event.is_dot))
+                    if skill is None:
+                        skill = row["skills"][(event.skill_code, event.is_dot)] = {
+                            "skill_id": event.skill_code, "skill": skill_name(event.skill_code), "damage": 0, "hits": 0,
+                            "min": damage, "max": 0}
+                    skill["damage"] += damage; skill["hits"] += 1
+                    skill["min"] = min(skill["min"], damage); skill["max"] = max(skill["max"], damage)
+                    counts, specials = row["counts"], event.specials
+                    for flag, key in _SPECIAL_COUNTS:
+                        if flag in specials:
+                            counts[key] += 1
+                    if event.multi_hit_count > 0:
+                        counts["multi"] += 1
                     second = (event.timestamp_ms - group["start"]) // 1000
                     points = timeline.setdefault(row["key"], {})
                     # A whole-session graph joins combat intervals without counting idle gaps.
-                    points[second + offset] = points.get(second + offset, 0) + event.total_damage
+                    points[second + offset] = points.get(second + offset, 0) + damage
                 elif event.target_id in allowed:
-                    if enemy_id and key_of(record.epoch, event.actor_id) != enemy_id:
+                    if enemy_id and key_of(epoch, event.actor_id) != enemy_id:
                         continue
-                    row = player(event.target_id)
+                    row = player(identity, epoch, event.target_id)
                     incoming = row["incoming"]
-                    incoming["damage"] += event.total_damage; incoming["hits"] += 1
+                    incoming["damage"] += damage; incoming["hits"] += 1
                     incoming["parries"] += int(SpecialDamage.PARRY in event.specials)
-                    source = self.name(record.epoch, event.actor_id, True)
-                    incoming["sources"][source] = incoming["sources"].get(source, 0) + event.total_damage
+                    source = named(epoch, event.actor_id, True)
+                    incoming["sources"][source] = incoming["sources"].get(source, 0) + damage
             offset += max(1, int((group["end"] - group["start"]) / 1000) + 1)
         total = sum(row["damage"] for row in players.values())
         elapsed = sum(max(1, (group["end"] - group["start"]) / 1000) for group in groups)
@@ -1554,13 +1843,20 @@ class CombatSession:
         (this mirrors reference meters, which record max HP only when currentHp >=
         maxHp). Only when the entity was never seen at full (e.g. we joined the
         fight mid-pull) does it fall back to the largest max value seen, so a lone
-        mid-fight sample can't inflate the max."""
+        mid-fight sample can't inflate the max.
+
+        Walks the telemetry from its newest sample back to the oldest shown epoch (samples are
+        in epoch order), not the whole history."""
         current, maximum, full_max, latest = None, 0, None, -1
-        for sample in self.telemetry:
-            if sample.get("kind") != "hp" or sample.get("entity") != entity_id or sample.get("epoch") not in epochs:
+        floor = min(epochs) if epochs else None
+        for sample in reversed(self.telemetry):
+            epoch = sample.get("epoch")
+            if floor is None or (epoch is not None and epoch < floor):
+                break
+            if sample.get("kind") != "hp" or sample.get("entity") != entity_id or epoch not in epochs:
                 continue
             cur, mx = sample.get("current"), sample.get("max")
-            if sample["timestamp_ms"] >= latest:
+            if sample["timestamp_ms"] > latest:   # the newest sample; of equal times, the one recorded last
                 latest, current = sample["timestamp_ms"], cur
             if mx:
                 maximum = max(maximum, mx)
@@ -1574,10 +1870,26 @@ class CombatSession:
         rate the enemy is dying at — all damage sources, not just the observed party —
         so a time-to-kill built on it is accurate even when other players (whose
         damage the meter never sees) are also hitting it. Returns None when HP wasn't
-        sampled enough to measure a drop, or when HP is flat/rising (healed/reset)."""
-        samples = sorted((s["timestamp_ms"], s["current"]) for s in self.telemetry
-                         if s.get("kind") == "hp" and s.get("entity") == entity_id
-                         and s.get("epoch") in epochs and s.get("current") is not None)
+        sampled enough to measure a drop, or when HP is flat/rising (healed/reset).
+
+        Reads the newest samples back only as far as the window and the five-sample fallback
+        reach (the telemetry is in time order), not the whole history."""
+        floor = min(epochs) if epochs else None
+        collected, newest = [], None
+        for sample in reversed(self.telemetry):
+            epoch = sample.get("epoch")
+            if floor is None or (epoch is not None and epoch < floor):
+                break
+            if (sample.get("kind") != "hp" or sample.get("entity") != entity_id or epoch not in epochs
+                    or sample.get("current") is None):
+                continue
+            at = sample["timestamp_ms"]
+            if newest is None:
+                newest = at
+            if len(collected) >= 5 and newest - at > window_ms:
+                break
+            collected.append((at, sample["current"]))
+        samples = sorted(collected)
         if len(samples) < 2:
             return None
         last_t, last_hp = samples[-1]
@@ -1643,54 +1955,22 @@ class CombatSession:
             "local_combat_power": (self.identities[current_epoch]["spawns"].get(local_id, {}).get("combatPower")
                                    if current_epoch is not None and local_id is not None else None) or None,
         }
-        idle_ms = (time.time() * 1000 - chosen[-1]["last_damage"]) if chosen else None
-        summary["idle_ms"] = idle_ms
-        # A major fight (boss OR a sustained mini-boss/elite) is still "live" — so a
-        # multi-second pause in damage is a mechanic (shield/phase/forced movement), not
-        # the end — only while BOTH the engaged enemy is still below full HP and at least
-        # one party attacker is alive. Requiring a living attacker is what makes a wipe end
-        # the fight: a gradual wipe holds until the last member dies, then clears;
-        # respawning and re-engaging (which revives the attacker in ``_dead``) makes it
-        # live again. An enemy back at full HP has leashed/reset (dropped from
-        # ``_major_below``), and a dead one is not live. ``_dead`` is cleared on revive, so
-        # membership in it means currently-dead. Used below to hold off "battle over".
-        boss_alive = False
+        # The wall-clock fields -- the idle time, whether a major fight is still live, the
+        # reset-after-battle signal and the pause flag -- are set by ``refresh_clock`` from the
+        # newest fight's attackers and targets, kept in ``clock_inputs`` so the live runner can
+        # bring a reading it serves again up to date without this walk.
+        clock = None
         if chosen:
-            epoch = chosen[-1]["epoch"]
-            now_ms = time.time() * 1000
-            attacker_alive = fight_live = False
+            attackers, targets = set(), set()
             for record in chosen[-1]["records"]:
                 event = record.event
-                if not isinstance(event, DamageEvent):
-                    continue
-                allowed = allowed_for(record)
-                if event.actor_id in allowed and (epoch, event.actor_id) not in self._dead:
-                    attacker_alive = True
-                ekey = (epoch, event.target_id)
-                # Major = a flagged boss / already-promoted engagement, OR a contact that
-                # has been engaged >= MAJOR_ENGAGE_MS (covers an early mechanic lull before
-                # the promotion pass runs). Live only while it is still below full HP.
-                major = ekey in self._engaged_major or (
-                    ekey in self._engage_span and now_ms - self._engage_span[ekey] >= MAJOR_ENGAGE_MS)
-                if major and ekey not in self._dead and ekey in self._major_below:
-                    fight_live = True
-            boss_alive = fight_live and attacker_alive
-        summary["boss_alive"] = boss_alive
-        # A local respawn mid-engagement staged a reset that the boss returning to full
-        # has not yet confirmed (e.g. a battle-rez, or still running back). Surfaced so
-        # the live view can hint "attempt may be resetting" without clearing anything —
-        # the actual reset only lands when boss_alive turns false.
-        summary["potential_reset"] = self._pending_reset
-        # Reset-after-battle: once combat has been idle past the delay, signal that
-        # the fight is over so the live view can clear to a ready state. The data is
-        # unchanged — a selected segment or the whole-session view still shows it. While
-        # an engaged boss is still alive we hold this off until the pull is genuinely
-        # abandoned (idle past the pull-gap), so a boss mechanic that halts damage for a
-        # few seconds never clears or hides the overlay mid-fight.
-        summary["battle_over"] = bool(self.reset_after_battle and segment_id is None
-                                      and idle_ms is not None and idle_ms >= self.reset_delay_seconds * 1000
-                                      and (not boss_alive or idle_ms >= self.gap_seconds * 1000))
-        summary["paused"] = bool(chosen and time.time() * 1000 - chosen[-1]["last_damage"] >= 2000)
+                if isinstance(event, DamageEvent):
+                    if event.actor_id in allowed_for(record):
+                        attackers.add(event.actor_id)
+                    targets.add(event.target_id)
+            clock = (chosen[-1]["epoch"], chosen[-1]["last_damage"], frozenset(attackers), frozenset(targets), segment_id is None)
+        self.clock_inputs = clock
+        self.refresh_clock(summary, clock)
         summary["recorded_pvp"] = bool(chosen and chosen[-1]["pvp"])
         summary["dps_clock"] = "Shared one-second buckets with outgoing player damage; idle buckets are excluded; deaths do not reset players"
         summary["boss"] = next((row["name"] for row in summary["enemies"] if row["key"] == enemy_id), "All enemies")
@@ -1753,10 +2033,12 @@ class CombatSession:
             # the target keeps earlier pulls and the time before it was engaged out of the
             # rate; an untargetable phase inside the fight counts, as it does on that clock.
             # (Counting only the seconds in which it was hit read about 8% high on a boss
-            # with untargetable phases next to other meters.)
+            # with untargetable phases next to other meters.) Only the shown encounter's
+            # fights count: every fight the entity was ever in put a wiped attempt's time
+            # under this pull's damage, and walked the whole session for it (0.2.336).
             target_secs = 0
             if entity is not None:
-                for group in groups:
+                for group in chosen:
                     times = [record.event.timestamp_ms for record in group["records"]
                              if isinstance(record.event, DamageEvent) and record.event.target_id == entity
                              and record.event.actor_id in allowed_for(record)]

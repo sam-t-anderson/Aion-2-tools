@@ -10,10 +10,22 @@ from aion2calc.app.meter_runner import Runner
 class _StubSession:
     def __init__(self):
         self.calls = 0
+        self.signature = 0        # what a reading depends on; a test bumps it to stand for a change
+        self.clock_inputs = None
+        self._grouping = None
 
     def snapshot(self, scope, segment_id, enemy_id, combine_pets):
         self.calls += 1
         return {"players": [], "call": self.calls}
+
+    def state_signature(self):
+        return self.signature
+
+    def refresh_clock(self, summary, clock):
+        pass
+
+    def adopt_grouping(self, state):
+        pass
 
     def __deepcopy__(self, memo):
         return self       # a recompute off the lock counts on this same stub
@@ -42,7 +54,10 @@ def test_snapshot_recomputes_after_the_adaptive_interval():
     r.session = _StubSession()
     r._live_snapshot(True)
     assert r.session.calls == 1
-    time.sleep(0.27)                       # past the 250ms floor → a fresh reading, on a worker
+    time.sleep(0.55)                       # past the half-second floor, but nothing changed: no recompute
+    r._live_snapshot(True)
+    assert r.session.calls == 1 and r._snap_thread is None
+    r.session.signature += 1               # the session changed → a fresh reading, on a worker
     r._live_snapshot(True)
     r._snap_thread.join(2)
     assert r.session.calls == 2

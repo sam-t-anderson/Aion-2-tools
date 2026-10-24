@@ -39,7 +39,7 @@ def test_a_users_own_class_colour_and_the_class_colour_switch_still_win():
 
 
 def test_the_boss_panel_keeps_its_readouts_in_order():
-    row = JS.split("$(\"#ovtarget\").innerHTML=", 1)[1].split("\n", 1)[0]
+    row = JS.split("setHtml($(\"#ovtarget\"),", 1)[1].split("\n", 1)[0]
     for piece in ("ovtlabel", "${portrait}", "ovtname", "${also}", "${hp}", "ovtline", "${ttk}", "class=\"sub\"", "${top"):
         assert piece in row
     assert row.index("ovtname") < row.index("${hp}") < row.index("ovtline") < row.index("${ttk}")
@@ -47,7 +47,7 @@ def test_the_boss_panel_keeps_its_readouts_in_order():
 
 
 def test_the_struck_enemies_count_sits_next_to_the_target_name():
-    row = JS.split("$(\"#ovtarget\").innerHTML=", 1)[1].split("\n", 1)[0]
+    row = JS.split("setHtml($(\"#ovtarget\"),", 1)[1].split("\n", 1)[0]
     who = row.split('<span class="ovtwho">', 1)[1]
     assert who.index("ovtname") < who.index("${also}") < who.index("</span>${hp}")
     also = JS.split("const also=", 1)[1].split(":'';", 1)[0]

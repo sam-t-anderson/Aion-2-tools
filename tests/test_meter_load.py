@@ -141,25 +141,44 @@ def test_checkpoint_cadence_stretches_with_slow_saves(home, monkeypatch):
 
 class _CountingSession:
     computed = []
+    signature = 0            # a test bumps it to stand for a change the reading depends on
+    clock_inputs = None
+    _grouping = None
 
     def snapshot(self, scope, segment_id, enemy_id, combine_pets):
         _CountingSession.computed.append(threading.current_thread().name)
         return {"players": [], "reading": len(_CountingSession.computed)}
 
+    def state_signature(self):
+        return _CountingSession.signature
+
+    def refresh_clock(self, summary, clock):
+        summary["clock_refreshed"] = summary.get("clock_refreshed", 0) + 1
+
+    def adopt_grouping(self, state):
+        pass
+
 
 def test_snapshot_recomputes_off_the_lock_and_serves_the_last_reading():
     _CountingSession.computed.clear()
+    _CountingSession.signature = 0
     r = MR.Runner()
     r.session = _CountingSession()
     first = r._live_snapshot(True)
     assert first["reading"] == 1 and _CountingSession.computed == ["MainThread"]   # the first reading is immediate
-    assert r._live_snapshot(True) is first                                          # within the interval: cached
-    time.sleep(0.27)
+    _CountingSession.signature = 1                                                   # the session changed...
+    assert r._live_snapshot(True) is first and len(_CountingSession.computed) == 1  # ...within the interval: the reading is kept
+    assert first["clock_refreshed"] == 1                                             # with its clock fields brought up to date
+    time.sleep(0.55)
     served = r._live_snapshot(True)
     assert served is first                                                          # stale reading served at once...
     r._snap_thread.join(2)
     assert _CountingSession.computed[-1] == "live-snapshot"                         # ...while a worker recomputed
-    assert r._live_snapshot(True)["reading"] == 2                                   # the new reading replaces it
+    second = r._live_snapshot(True)
+    assert second["reading"] == 2                                                   # the new reading replaces it
+    time.sleep(0.55)
+    assert r._live_snapshot(True) is second and len(_CountingSession.computed) == 2  # nothing changed since: never recomputed
+    assert second["clock_refreshed"] >= 2
 
 
 class _SlowSession(_CountingSession):
@@ -177,7 +196,8 @@ def test_a_recompute_for_a_previous_session_is_discarded():
     r = MR.Runner()
     r.session = _SlowSession()
     first = r._live_snapshot(True)
-    time.sleep(0.27)
+    _CountingSession.signature += 1
+    time.sleep(0.55)
     r._live_snapshot(True)             # the worker starts its reading of this session...
     r.session = _SlowSession()         # ...a rollover/restart swaps the live session meanwhile
     _SlowSession.release.set()
