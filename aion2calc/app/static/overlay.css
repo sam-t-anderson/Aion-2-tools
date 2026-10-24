@@ -20,7 +20,8 @@ html, body { overflow: hidden; }
 .ovcard > #ovidentity { order: 60; flex: 1 1 auto; margin: 6px 8px 0 0; }
 .ovcard > #ovping { order: 60; flex: 0 1 auto; margin: 6px 0 0 auto; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ovcard > #ovodyle { order: 60; }
-.ovcard > #ovshugo { order: 61; }
+.ovcard > #ovshugo { order: 60; }   /* under the Odyle line, above the identity line (0.2.332) */
+.ovcard > #ovnightmare { order: 60; }
 .ovcard > #ovcontribution { order: 61; }
 .ovcard > .ovfoot { order: 90; }
 /* In the native overlay window the card IS the window, so it must be free to grow
@@ -42,7 +43,7 @@ html.native-windows .ovcard { max-width: none; }
 /* The Hidden Cube radar's own small window (0.2.329): the radar with its Lock, Hide and opacity slider, and
    nothing of the meter. The card is narrow and never resizable; the window fits it. */
 #ov.ov-radar .ovtabs, #ov.ov-radar .ovmetrics, #ov.ov-radar .ovoptions, #ov.ov-radar #ovsplit, #ov.ov-radar #ovcopy,
-#ov.ov-radar #ovcapture, #ov.ov-radar #ovping, #ov.ov-radar #ovodyle, #ov.ov-radar #ovshugo, #ov.ov-radar #ovfps,
+#ov.ov-radar #ovcapture, #ov.ov-radar #ovping, #ov.ov-radar #ovodyle, #ov.ov-radar #ovshugo, #ov.ov-radar #ovnightmare, #ov.ov-radar #ovfps,
 #ov.ov-radar #ovidentity, #ov.ov-radar #ovevents, #ov.ov-radar #ovtarget, #ov.ov-radar #ovhpbar, #ov.ov-radar #ovttkbar,
 #ov.ov-radar #ovgauge, #ov.ov-radar #ovdummy, #ov.ov-radar #ovcontent, #ov.ov-radar #ovcontribution, #ov.ov-radar #ovgraph,
 #ov.ov-radar #ovcooldowns, #ov.ov-radar #ovconnection, #ov.ov-radar .ovgrip { display: none; }
@@ -283,6 +284,7 @@ html.native-windows #ovbg { border-radius: 0; }
 .ovodyle{display:flex;align-items:center;gap:5px;color:var(--ov-ping-color, #76c59d);line-height:1.5;margin:2px 0 0;cursor:default}
 .ovodyle[hidden]{display:none}
 .ovkeyicon{display:inline-block;width:1.2em;height:1.2em;flex:0 0 auto;background:url("data:image/svg+xml;utf8,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Cpath fill=%27%23e8cf8e%27 d=%27M14.5 2a7.5 7.5 0 0 0-7.1 9.9L2 17.3V22h4.7l1.3-1.3v-2h2v-2h2l1.4-1.4A7.5 7.5 0 1 0 14.5 2zm2.5 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z%27/%3E%3C/svg%3E") center/contain no-repeat}
+.ovticketicon{display:inline-block;width:1.2em;height:1.2em;flex:0 0 auto;background:url("data:image/svg+xml;utf8,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Cpath fill=%27%23e8cf8e%27 d=%27M22 10V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v4a2 2 0 0 1 0 4v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4a2 2 0 0 1 0-4zm-9 7.5h-2v-2h2v2zm0-4.5h-2v-2h2v2zm0-4.5h-2v-2h2v2z%27/%3E%3C/svg%3E") center/contain no-repeat}
 .ovodicon{width:1.4em;height:1.4em;flex:0 0 1.4em;background:center/contain no-repeat}
 .ovping{font-size:10px;color:var(--ov-ping-color, #76c59d);line-height:1.5;margin:4px 0 6px;white-space:normal;overflow-wrap:anywhere;cursor:default;font-weight:600}
 

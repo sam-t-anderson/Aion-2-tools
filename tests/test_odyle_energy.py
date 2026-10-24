@@ -1,5 +1,5 @@
-"""The game's counters: Odyle Energy and the Shugo Festival keys from the counter records, and the framing
-of the large bundle a zone load sends.
+"""The game's counters: Odyle Energy, the Shugo Festival keys and the Nightmare tickets from the counter
+records, and the framing of the large bundle a zone load sends.
 
 The counter table (``0b 61``) comes on entering the world and every zone, inside a bundle: a count, then
 one entry per counter (73 in the October recordings), each a flags byte, the u32 id and the values the
@@ -7,9 +7,11 @@ flags name (``01``/``02`` a u64 first and second value, Kinah-sized; ``04``/``08
 second). The update (``0c 61``) sends one entry when a counter changes. Odyle Energy is counter 60000001:
 in the 19 and 20 October recordings its two values were the 840 and 50 noted in game, 15 more on the hour
 every three hours, and 80 less at each claimed reward cube (the regular value first, then the bonus). The
-Shugo Festival Reward Keys are counter 4 (0.2.329): in the 19 October recording its two values went from
-(3, 2) to (0, 0) one key at a time, the first value first, a minute or two apart while festival rewards
-were claimed, and came back one at a time. Each zone load also sends a 13-18 KB bundle; the framing gave
+Shugo Festival Reward Keys are counter 1 (0.2.332): (21, 5) in the 23 October recording, the count the
+festival window showed, and the same for every character of the 19 October recording. Counter 4, which
+0.2.329 took for the keys from its spend pattern, is the Nightmare tickets: in the 19 October recording its
+two values went from (3, 2) to (0, 0) one at a time, the first value first, and came back one at a time.
+Each zone load also sends a 13-18 KB bundle; the framing gave
 up on frames over 16 KB that had not fully arrived and resynced inside it, which lost it and misframed the
 bundle after it, the one with the table."""
 import os
@@ -21,7 +23,7 @@ from aion2calc.app import server
 from aion2calc.app.settings_backup import _clean
 from aion2calc.meter.a2parser import framing
 from aion2calc.meter.a2parser.engine import MeterEngine
-from aion2calc.meter.a2parser.parser import ODYLE_ENERGY_ID, SHUGO_KEYS_ID, scan_counters, scan_odyle_energy
+from aion2calc.meter.a2parser.parser import NIGHTMARE_TICKETS_ID, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, scan_counters, scan_odyle_energy
 
 SERVER = "1.2.3.4:13328->192.168.1.9:57424"
 KINAH = 1_234_567_890_123                                           # more than any varint counter may hold
@@ -64,12 +66,16 @@ def _update(regular, bonus, reason=2, kind=0, amount=0, counter_id=ODYLE_ENERGY_
     return _frame(b"\x0c\x61", body)
 
 
-def _table(regular, bonus, keys=None):
-    """The counter table as the recordings send it: a count, then Kinah (counter 3, two u64 values), the
-    Shugo Festival keys when given, Odyle Energy and the weekly dungeon entries after it."""
-    entries = [bytes([0x03]) + (3).to_bytes(4, "little") + KINAH.to_bytes(8, "little") + bytes(8)]
+def _table(regular, bonus, keys=None, tickets=None):
+    """The counter table as the recordings send it: a count, then the Shugo Festival keys (counter 1) when
+    given, Kinah (counter 3, two u64 values), the Nightmare tickets (counter 4) when given, Odyle Energy and
+    the weekly dungeon entries after it."""
+    entries = []
     if keys is not None:
         entries.append(_counter(*_pair(*keys)[:1], SHUGO_KEYS_ID, *_pair(*keys)[1]))
+    entries.append(bytes([0x03]) + (3).to_bytes(4, "little") + KINAH.to_bytes(8, "little") + bytes(8))
+    if tickets is not None:
+        entries.append(_counter(*_pair(*tickets)[:1], NIGHTMARE_TICKETS_ID, *_pair(*tickets)[1]))
     flags, values = _pair(regular, bonus)
     entries.append(_counter(flags, ODYLE_ENERGY_ID, *values))
     entries += [_counter(0x04, ODYLE_ENERGY_ID + i, 14) for i in range(1, 10)]
@@ -126,26 +132,58 @@ def test_the_engine_follows_the_table_and_its_updates_across_zones():
     assert restarted.odyle_energy == engine.odyle_energy
 
 
-def test_the_shugo_festival_keys_are_counter_4_spent_one_at_a_time():
+def test_the_shugo_festival_keys_are_counter_1_and_the_nightmare_tickets_counter_4():
+    """The 23 October table: counter 1 (21, 5), the keys the festival window showed; counter 4 (4, 8), the
+    Nightmare tickets, which 0.2.329 had shown as the keys."""
+    assert (SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID) == (1, 4)
     engine = MeterEngine()
     engine.set_server_port(13328)
-    assert engine.shugo_keys is None and engine.counters == {}
-    engine.consume(_bundle([_table(840, 50, keys=(3, 2))]), 1_000, SERVER)
-    assert engine.shugo_keys == {"regular": 3, "bonus": 2, "timestamp_ms": 1_000}
+    assert engine.shugo_keys is None and engine.nightmare_tickets is None and engine.counters == {}
+    engine.consume(_bundle([_table(840, 50, keys=(21, 5), tickets=(4, 8))]), 1_000, SERVER)
+    assert engine.shugo_keys == {"regular": 21, "bonus": 5, "timestamp_ms": 1_000}
+    assert engine.nightmare_tickets == {"regular": 4, "bonus": 8, "timestamp_ms": 1_000}
     assert engine.counters[ODYLE_ENERGY_ID + 1] == {"first": 14, "second": 0, "timestamp_ms": 1_000}
-    # 19 October, 02:54 to 03:02 UTC: one key spent at each festival reward, the first value first.
-    for at, keys in enumerate([(2, 2), (1, 2), (0, 2), (0, 1), (0, 0)], start=2):
-        engine.consume(_update(*keys, reason=3, counter_id=SHUGO_KEYS_ID), at * 1_000, SERVER)
-        assert (engine.shugo_keys["regular"], engine.shugo_keys["bonus"]) == keys
-    engine.consume(_update(1, 0, kind=1, amount=1, counter_id=SHUGO_KEYS_ID), 9_000, SERVER)   # one key back
-    assert engine.shugo_keys == {"regular": 1, "bonus": 0, "timestamp_ms": 9_000}
-    assert (engine.odyle_energy["regular"], engine.odyle_energy["bonus"]) == (840, 50)        # untouched
-    engine._reset_zone(10_000)
-    assert engine.shugo_keys["regular"] == 1
+    engine._reset_zone(2_000)                                       # the character's, not the zone's
+    assert engine.shugo_keys["regular"] == 21 and engine.nightmare_tickets["bonus"] == 8
     restarted = MeterEngine()
     restarted.adopt_identity(engine)
-    assert restarted.shugo_keys == engine.shugo_keys
-    assert restarted.counters[SHUGO_KEYS_ID] == engine.counters[SHUGO_KEYS_ID] == {"first": 1, "second": 0, "timestamp_ms": 9_000}
+    assert restarted.shugo_keys == engine.shugo_keys and restarted.nightmare_tickets == engine.nightmare_tickets
+
+
+def test_the_nightmare_tickets_are_spent_one_at_a_time_and_the_keys_stay():
+    engine = MeterEngine()
+    engine.set_server_port(13328)
+    engine.consume(_bundle([_table(840, 50, keys=(21, 5), tickets=(3, 2))]), 1_000, SERVER)
+    assert engine.nightmare_tickets == {"regular": 3, "bonus": 2, "timestamp_ms": 1_000}
+    # 19 October, 02:54 to 03:02 UTC: one ticket spent at a time, the first value first.
+    for at, tickets in enumerate([(2, 2), (1, 2), (0, 2), (0, 1), (0, 0)], start=2):
+        engine.consume(_update(*tickets, reason=3, counter_id=NIGHTMARE_TICKETS_ID), at * 1_000, SERVER)
+        assert (engine.nightmare_tickets["regular"], engine.nightmare_tickets["bonus"]) == tickets
+    engine.consume(_update(1, 0, kind=1, amount=1, counter_id=NIGHTMARE_TICKETS_ID), 9_000, SERVER)   # one back
+    assert engine.nightmare_tickets == {"regular": 1, "bonus": 0, "timestamp_ms": 9_000}
+    assert engine.shugo_keys == {"regular": 21, "bonus": 5, "timestamp_ms": 1_000}                  # untouched
+    assert (engine.odyle_energy["regular"], engine.odyle_energy["bonus"]) == (840, 50)                # untouched
+    assert engine.counters[NIGHTMARE_TICKETS_ID] == {"first": 1, "second": 0, "timestamp_ms": 9_000}
+
+
+STATIC = os.path.join(os.path.dirname(__file__), "..", "aion2calc", "app", "static")
+
+
+def _static(name):
+    with open(os.path.join(STATIC, name), encoding="utf-8") as fh:
+        return fh.read()
+
+
+def test_the_overlay_shows_the_keys_under_odyle_above_the_identity_line_and_the_tickets_too():
+    css, html, js, app = _static("overlay.css"), _static("overlay.html"), _static("overlay.js"), _static("app.js")
+    # The rows share flex order 60 and follow the markup: ping, Odyle, keys, tickets, then the identity line.
+    assert ".ovcard > #ovshugo { order: 60; }" in css and ".ovcard > #ovnightmare { order: 60; }" in css
+    assert html.index('id="ovodyle"') < html.index('id="ovshugo"') < html.index('id="ovnightmare"') < html.index('id="ovidentity"')
+    assert "snap.nightmare_tickets" in js and "Nightmare Tickets" in js and "#ov.ov-radar #ovnightmare" in css
+    for hidden in ('"#ovshugo","#ovnightmare"', '$("#ovnightmare").hidden=true'):
+        assert hidden in js                                         # the party, plan and idle views hide it too
+    assert "nightmareLine(snap.nightmare_tickets)" in app and 'id="ov-nightmare"' in app
+    assert '"overlay_show_nightmare_tickets": True' in open(server.__file__, encoding="utf-8").read()   # on by default
 
 
 def _in_segments(data, size=1_460):

@@ -86,10 +86,10 @@ def test_the_ui_route_validates_and_stores_them(monkeypatch, tmp_path):
             return json.loads(r.read())
     try:
         saved = post({"app_text_scale": 80, "app_default_page": "character", "character_auto_open": True,
-                      "character_auto_refresh": True, "overlay_show_shugo_keys": False})
+                      "character_auto_refresh": True, "overlay_show_shugo_keys": False, "overlay_show_nightmare_tickets": False})
         assert (saved["app_text_scale"], saved["app_default_page"]) == (80, "character")
         assert saved["character_auto_open"] is True and saved["character_auto_refresh"] is True
-        assert saved["overlay_show_shugo_keys"] is False
+        assert saved["overlay_show_shugo_keys"] is False and saved["overlay_show_nightmare_tickets"] is False
         assert server.ui_settings()["app_default_page"] == "character"
         for bad in ({"app_text_scale": 50}, {"app_text_scale": 100.5}, {"app_default_page": "nowhere"},
                     {"character_auto_open": "yes"}):
