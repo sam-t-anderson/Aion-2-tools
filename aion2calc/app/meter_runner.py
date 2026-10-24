@@ -40,9 +40,13 @@ _DECODE_BATCH_MAX = 256
 # decoder reclaims the shared lock to drain the burst. Normal play sits near zero.
 _DECODE_BACKLOG_QUEUE = 48
 # While backlogged, stretch the live-snapshot interval by this factor so the recompute
-# holds the shared lock ~1/(1+N) of the time (N=3 -> ~25%, vs the ~50% it may take when the
-# decoder is keeping up), handing that lock time back to the decoder.
+# (on its own worker, off the lock) hands its processor time back to the decoder.
 _SNAPSHOT_BACKLOG_DUTY = 3.0
+# The live reading is recomputed only when something it reads has changed, and then no more
+# often than the fastest poller asks (the overlay, every half second) nor than this many
+# times what the last recompute took (so it never holds more than a quarter of a core).
+_SNAPSHOT_MIN_INTERVAL_S = 0.5
+_SNAPSHOT_DUTY = 3.0
 #: Distinct players in scope that make a storage part due (rolled over at the next combat pause)
 #: and that force it regardless; both below the a2log export limit of 1024 identities.
 _ROLLOVER_PLAYERS_DUE = 400
@@ -112,6 +116,7 @@ class Runner:
         # never recompute more often than the last recompute took — so snapshot work
         # can't exceed ~50% duty no matter how big the fight gets.
         self._snap_cache: tuple | None = None
+        self._review_cache: tuple | None = None   # (view and state key, the last live combat log exported for the review panel)
         self._community_rank: dict = {}   # player id -> {text, scope, percentile} after an upload
         # Live community-rank refresh (opt-in): after a ranked fight ends mid-capture, upload the
         # snapshot and refresh the badge, throttled, so it updates without a manual Upload.
@@ -892,34 +897,42 @@ class Runner:
         return result
 
     def _live_snapshot(self, follow_latest: bool) -> dict:
-        """The live session snapshot, memoized for a short, self-tuning interval so
-        the app and overlay polling together never drive the costly full-session
-        recompute more than once per the time that recompute itself takes. Must be
-        called with ``self.lock`` held (the caller holds it). The cache only serves
-        the live display; save/export/upload call the session directly."""
+        """The live session snapshot, memoized: served again, with its wall-clock fields brought
+        up to date, for as long as nothing it reads has changed (between pulls that is most of the
+        time), and otherwise recomputed no more often than the fastest poller asks nor than a
+        few times what the recompute itself takes. Must be called with ``self.lock`` held (the
+        caller holds it). The cache only serves the live display; save/export/upload call the
+        session directly. A cache entry is ``(view key, taken at, reading, state signature, clock
+        inputs)``."""
         key = (self.scope, "__latest__" if follow_latest else self.segment_id,
                None if follow_latest else self.enemy_id, self.combine_pets)
         now = time.monotonic()
         cached = self._snap_cache
         if cached is not None and cached[0] == key:
-            # Never recompute more often than the last recompute cost (floor 250ms). When packets
-            # have backed up (a heavy fight the decoder is behind on), stretch that interval so
-            # the recompute steps further aside — the live number simply updates a little less
-            # often until it catches up. The recompute itself runs on a worker from a detached
-            # copy of the session (``_schedule_snapshot``): it walks every record, which held the
-            # capture lock for seconds in a big fight and starved the decoder. Meanwhile the last
-            # completed reading is served.
-            busy = self.packet_queue is not None and self.packet_queue.qsize() >= _DECODE_BACKLOG_QUEUE
-            interval = max(0.25, self._last_snap_cost) * (_SNAPSHOT_BACKLOG_DUTY if busy else 1.0)
-            if now - cached[1] > interval:
-                self._schedule_snapshot(key, follow_latest)
-            return cached[2]
+            _, taken, snap, signature, clock = cached
+            if signature != self.session.state_signature():
+                # Something the reading depends on changed. Recompute, but never more often than the
+                # fastest poller asks (half a second) nor than three times what the last recompute
+                # took, and when packets have backed up (a heavy fight the decoder is behind on)
+                # stretch that interval so the recompute steps further aside — the live number simply
+                # updates a little less often until it catches up. The recompute runs on a worker from
+                # a detached copy of the session (``_schedule_snapshot``); meanwhile the last completed
+                # reading is served.
+                busy = self.packet_queue is not None and self.packet_queue.qsize() >= _DECODE_BACKLOG_QUEUE
+                interval = (max(_SNAPSHOT_MIN_INTERVAL_S, _SNAPSHOT_DUTY * self._last_snap_cost)
+                            * (_SNAPSHOT_BACKLOG_DUTY if busy else 1.0))
+                if now - taken > interval:
+                    self._schedule_snapshot(key, follow_latest)
+            # The served reading's idle time, pause and reset flags keep moving: microseconds, from
+            # the small sets the reading kept, so an idle session costs nothing to poll.
+            self.session.refresh_clock(snap, clock)
+            return snap
         # The first reading of a view (a fresh capture, a changed selection): compute it now.
         started = time.monotonic()
         snap = self.session.snapshot(self.scope, None if follow_latest else self.segment_id,
                                      None if follow_latest else self.enemy_id, self.combine_pets)
         self._last_snap_cost = time.monotonic() - started
-        self._snap_cache = (key, time.monotonic(), snap)
+        self._snap_cache = (key, time.monotonic(), snap, self.session.state_signature(), self.session.clock_inputs)
         return snap
 
     def _schedule_snapshot(self, key, follow_latest: bool) -> bool:
@@ -935,15 +948,16 @@ class Runner:
             detached = copy.deepcopy(source)
         except Exception:   # noqa: BLE001 - a view that cannot be detached is recomputed in place next time
             return False
-        args = (key, source, self._capture_generation, detached, self.scope,
+        args = (key, source, self._capture_generation, detached, source.state_signature(), self.scope,
                 None if follow_latest else self.segment_id, None if follow_latest else self.enemy_id, self.combine_pets)
         self._snap_thread = threading.Thread(target=self._compute_snapshot, args=args, daemon=True, name="live-snapshot")
         self._snap_thread.start()
         return True
 
-    def _compute_snapshot(self, key, source, generation, session, scope, segment_id, enemy_id, combine_pets) -> None:
+    def _compute_snapshot(self, key, source, generation, session, signature, scope, segment_id, enemy_id, combine_pets) -> None:
         # ``source`` is the live session the copy was taken from, held so it cannot be freed and
         # its identity reused by a continuation; the reading is kept only while it is still live.
+        # ``signature`` is the live state the copy was taken in: the reading stands for that state.
         started = time.monotonic()
         try:
             snap = session.snapshot(scope, segment_id, enemy_id, combine_pets)
@@ -953,9 +967,12 @@ class Runner:
         cost = time.monotonic() - started
         with self.lock:
             self._last_snap_cost = cost
-            if self.session is source and self._capture_generation == generation and (
-                    self._snap_cache is None or self._snap_cache[0] == key):
-                self._snap_cache = (key, time.monotonic(), snap)
+            if self.session is source and self._capture_generation == generation:
+                # The copy walked the records that arrived since the last reading; the live session
+                # carries on from there, so no reading walks the session over again.
+                source.adopt_grouping(session._grouping)
+                if self._snap_cache is None or self._snap_cache[0] == key:
+                    self._snap_cache = (key, time.monotonic(), snap, signature, session.clock_inputs)
 
     _BOSS_HP_FILE = ("community", "boss_hp_seen.json")
 
@@ -1711,14 +1728,31 @@ class Runner:
         return current, [doc for _, doc in sources[:-1]]
 
     def review_log(self) -> dict:
+        """The live combat log for the Live Meter page's review panel. Exporting a long fight takes
+        most of a second, and the page asked every four seconds whether or not anything had changed,
+        so the last export is served again while the session's state signature and the view are the
+        ones it was taken from; the page spaces its asks by ``review_cost_ms`` (0.2.336)."""
         with self.lock:
-            session = copy.deepcopy(self.session if self.packet_engine is not None else self.meter)
+            live = self.session if self.packet_engine is not None else self.meter
+            # The key holds the live session itself (not its id alone), so a reading of a session
+            # since replaced never answers for its successor; the protocol meter has no signature.
+            key = (live, self.scope, self.segment_id, live.state_signature()) if isinstance(live, CombatSession) else None
+            cached = self._review_cache
+            if key is not None and cached is not None and cached[0] is not None and cached[0][0] is key[0] and cached[0][1:] == key[1:]:
+                return cached[1]
+            session = copy.deepcopy(live)
             metadata = dict(self.metadata)
             profile = dict(self.packet_engine.local_profile) if self.packet_engine else {}
             scope, segment_id = self.scope, self.segment_id
             collector = self.capture_metadata
+        started = time.monotonic()
         doc = session.to_a2log(scope, segment_id=segment_id) if isinstance(session, CombatSession) else session.to_a2log()
-        return self._metadata(doc, metadata=metadata, profile=profile, collector=collector)
+        doc = self._metadata(doc, metadata=metadata, profile=profile, collector=collector)
+        doc["review_cost_ms"] = int((time.monotonic() - started) * 1000)
+        if key is not None:
+            with self.lock:
+                self._review_cache = (key, doc)
+        return doc
 
     def _metadata(self, doc, *, metadata=None, profile=None, collector=None):
         metadata = self.metadata if metadata is None else metadata

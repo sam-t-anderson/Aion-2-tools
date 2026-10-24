@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import queue
+import socket
 import threading
 import time
 
@@ -279,6 +280,149 @@ def tcp_payload(ip, tcp) -> bytes:
     return raw[:max(0, size)]
 
 
+#: A frame that carries no TCP segment for the capture (another protocol, a truncated header).
+NOT_TCP = ()
+_IPV6_EXTENSIONS = frozenset((0, 43, 44, 50, 51, 60, 135, 139, 140))
+
+
+def parse_frame(link: str, data: bytes):
+    """The TCP segment in one captured frame, read from its bytes: ``(source, destination, source port,
+    destination port, flags, sequence, acknowledgement, payload)``, with the addresses and lengths as
+    scapy's dissection gives them (``segment_of``). ``link`` is the frame's link-layer class name as
+    the capture handle reports it (``Ether``, the Linux cooked captures, the BSD/Npcap loopback
+    ``Loopback`` and raw IP). ``NOT_TCP`` for a frame that holds no TCP segment; None for a frame this
+    parser does not take (another link layer, a stacked VLAN tag, an IP fragment, an IPv6 extension
+    header), which the caller hands to scapy.
+
+    scapy dissects a frame into packet objects in about 150 microseconds; this reads the few header
+    fields the capture uses in under two. Before the game connection is located the capture filter is
+    the broad ``tcp``, so a stream or a download beside the game was thousands of dissections a second
+    (0.2.336)."""
+    n = len(data)
+    if link == "Ether":
+        if n < 14:
+            return None
+        ethertype = (data[12] << 8) | data[13]
+        offset = 14
+        if ethertype in (0x8100, 0x88A8):
+            if n < 18:
+                return None
+            ethertype = (data[16] << 8) | data[17]
+            offset = 18
+        if ethertype == 0x0800:
+            version = 4
+        elif ethertype == 0x86DD:
+            version = 6
+        elif ethertype in (0x8100, 0x88A8):
+            return None
+        else:
+            return NOT_TCP
+    elif link == "CookedLinux":
+        if n < 16:
+            return None
+        ethertype = (data[14] << 8) | data[15]
+        offset, version = 16, 4 if ethertype == 0x0800 else 6 if ethertype == 0x86DD else 0
+    elif link == "CookedLinuxV2":
+        if n < 20:
+            return None
+        ethertype = (data[0] << 8) | data[1]
+        offset, version = 20, 4 if ethertype == 0x0800 else 6 if ethertype == 0x86DD else 0
+    elif link == "Loopback":
+        if n < 5:
+            return None
+        offset, version = 4, data[4] >> 4
+    elif link in ("IP", "IPv6", "RawIP"):
+        if n < 1:
+            return None
+        offset, version = 0, data[0] >> 4
+    else:
+        return None
+    if version == 4:
+        if n < offset + 20 or data[offset] >> 4 != 4:
+            return None
+        ihl = (data[offset] & 0x0F) * 4
+        if ihl < 20 or n < offset + ihl:
+            return None
+        if data[offset + 9] != 6:
+            return NOT_TCP
+        if ((data[offset + 6] << 8) | data[offset + 7]) & 0x3FFF:
+            return None   # a fragment
+        total = (data[offset + 2] << 8) | data[offset + 3]
+        source = socket.inet_ntoa(data[offset + 12:offset + 16])
+        destination = socket.inet_ntoa(data[offset + 16:offset + 20])
+        start, size = offset + ihl, total - ihl
+    elif version == 6:
+        if n < offset + 40 or data[offset] >> 4 != 6:
+            return None
+        next_header = data[offset + 6]
+        if next_header != 6:
+            return None if next_header in _IPV6_EXTENSIONS else NOT_TCP
+        total = (data[offset + 4] << 8) | data[offset + 5]
+        source = socket.inet_ntop(socket.AF_INET6, data[offset + 8:offset + 24])
+        destination = socket.inet_ntop(socket.AF_INET6, data[offset + 24:offset + 40])
+        start, size = offset + 40, total
+    else:
+        return NOT_TCP if version else None
+    if n < start + 20:
+        return NOT_TCP
+    header = (data[start + 12] >> 4) * 4
+    if header < 20 or n < start + header:
+        return NOT_TCP
+    flags = ((data[start + 12] & 0x01) << 8) | data[start + 13]
+    payload = data[start + header:start + header + max(0, size - header)]
+    return (source, destination, (data[start] << 8) | data[start + 1], (data[start + 2] << 8) | data[start + 3],
+            flags, int.from_bytes(data[start + 4:start + 8], "big"), int.from_bytes(data[start + 8:start + 12], "big"), payload)
+
+
+def segment_of(packet):
+    """The TCP segment of a scapy-dissected packet, as ``parse_frame`` returns it (``NOT_TCP`` for none)."""
+    from scapy.all import IP, IPv6, TCP
+    if TCP not in packet:
+        return NOT_TCP
+    ip = packet[IP] if IP in packet else packet[IPv6] if IPv6 in packet else None
+    if ip is None:
+        return NOT_TCP
+    tcp = packet[TCP]
+    return (ip.src, ip.dst, int(tcp.sport), int(tcp.dport), int(tcp.flags), int(tcp.seq), int(tcp.ack), tcp_payload(ip, tcp))
+
+
+class AdapterSniffer:
+    """One adapter's receive loop: the raw frames from its capture handle, with the handle's own
+    readiness wait, handed to ``on_frame(link, data)`` on this thread. scapy's ``AsyncSniffer`` did the
+    same but dissected every frame into packet objects first (see ``parse_frame``). ``thread``,
+    ``running``, ``exception`` and ``stop`` are what the capture's supervision reads of a sniffer."""
+
+    def __init__(self, name: str, capture_socket, on_frame):
+        self.name, self.socket, self.on_frame = name, capture_socket, on_frame
+        self.running = False
+        self.exception = None
+        self.thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        self.running = True
+        self.thread = threading.Thread(target=self._run, daemon=True, name=f"a2tools-sniff-{self.name}")
+        self.thread.start()
+
+    def stop(self, join: bool = False) -> None:
+        self.running = False
+        if join and self.thread is not None:
+            self.thread.join(2)
+
+    def _run(self) -> None:
+        capture_socket = self.socket
+        try:
+            while self.running:
+                if not capture_socket.select([capture_socket], 0.25):
+                    continue
+                link, data, _ = capture_socket.recv_raw()
+                if data:
+                    self.on_frame(link, data)
+        except Exception as exc:   # noqa: BLE001 - the capture's supervision reports it and carries on without this adapter
+            self.exception = exc
+        finally:
+            self.running = False
+
+
 def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                     interface: str | None = None, server_port: int = 50349,
                     generation: int | None = None, host: str | None = None,
@@ -300,7 +444,6 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
             emit("error", "Game host must be an IPv4 or IPv6 address, or any.")
             return
     try:
-        from scapy.all import AsyncSniffer, IP, IPv6, TCP
         from scapy.interfaces import resolve_iface
         from .capture_stats import PcapStats, FIELDS, NOTE
         interfaces = [interface] if interface else available_interfaces()
@@ -325,30 +468,33 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
 
     kernel: KernelFilter | None = None   # set once the broad filter is known (below)
 
-    def on_packet(packet, adapter: str | None = None, capture_socket=None) -> None:
-        if TCP not in packet:
+    def on_frame(link, data: bytes, adapter: str | None = None, capture_socket=None) -> None:
+        """One captured frame from ``adapter``: its TCP segment read from the bytes (``parse_frame``);
+        scapy dissects only a frame the parser does not take."""
+        segment = parse_frame(getattr(link, "__name__", link), data)
+        if segment is None:
+            try:
+                segment = segment_of(link(data))
+            except Exception:   # noqa: BLE001 - a frame scapy cannot dissect holds no segment for us
+                return
+        if segment:
+            on_segment(adapter, capture_socket, *segment)
+
+    def on_segment(adapter, capture_socket, source, destination, sport, dport, flags, seq, ack, payload) -> None:
+        if not auto_port and sport != server_port and dport != server_port:
             return
-        ip = packet[IP] if IP in packet else packet[IPv6] if IPv6 in packet else None
-        if ip is None:
-            return
-        tcp = packet[TCP]
-        if not auto_port and tcp.sport != server_port and tcp.dport != server_port:
-            return
-        source, destination = ip.src, ip.dst
-        key = (str(getattr(packet, "sniffed_on", "")), source, int(tcp.sport), destination, int(tcp.dport))
-        payload = tcp_payload(ip, tcp)
-        syn = bool(int(tcp.flags) & 0x02)
+        key = (str(adapter or ""), source, sport, destination, dport)
+        syn = bool(flags & 0x02)
         if recorder is not None:
-            recorder.record(key, int(tcp.seq), int(tcp.flags), payload, time.time_ns() // 1_000_000)
+            recorder.record(key, seq, flags, payload, time.time_ns() // 1_000_000)
         with callback_lock:
             # Auto mode measures only the selected game connection, not every socket
             # sharing its port. Fixed-port mode respects the configured host filter.
             selected = not auto_port or detector.selected and detector.is_connection(key)
             srv_port = detector.selected[2] if auto_port and detector.selected else server_port
             if selected and srv_port:
-                connection = frozenset(((source, int(tcp.sport)), (destination, int(tcp.dport))))
-                rtt_ms = rtt.observe(connection, int(tcp.seq), int(tcp.ack), int(tcp.flags),
-                                     len(payload), int(tcp.dport) == srv_port, time.monotonic())
+                connection = frozenset(((source, sport), (destination, dport)))
+                rtt_ms = rtt.observe(connection, seq, ack, flags, len(payload), dport == srv_port, time.monotonic())
                 if rtt_ms is not None:
                     emit("ping", rtt_ms, time.time_ns() // 1_000_000)
             stats["packets"] += 1
@@ -356,13 +502,13 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
             stats["bytes"] += len(payload)
             stats["signature_packets"] += int(any(marker in payload for marker in detector.signatures))
             if auto_port:
-                chunks = detector.feed(key, payload, int(tcp.seq), syn, time.monotonic())
+                chunks = detector.feed(key, payload, seq, syn, time.monotonic())
                 stats["port"] = detector.selected[2] if detector.selected else None
                 if detector.selected:
                     stats["interface"] = detector.selected[0]
                     stats["flow_detected"] = True   # the game flow was located (so the kernel filter could be narrowed to it)
             else:
-                chunks = [(key, int(tcp.seq), payload, syn)]
+                chunks = [(key, seq, payload, syn)]
             for stream_key, sequence, chunk, has_syn in chunks:
                 # Shared sequence state suppresses duplicate fixed-port packets
                 # seen on several adapters (e.g. VPN plus physical interface).
@@ -381,7 +527,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                 if reassembled:
                     emit("packet", stream_id, reassembled, time.time_ns() // 1_000_000)
                     stats["forwarded"] += 1
-            if int(tcp.flags) & (0x01 | 0x04):
+            if flags & (0x01 | 0x04):
                 closed = flows.pop(key if auto_port else key[1:], None)
                 stats["tcp_unresolved_flows"] += int(bool(closed and closed.waiting))
                 if auto_port and detector.is_connection(key):
@@ -410,10 +556,10 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                 "pcap_stats_partial": len(resources) < len(interfaces) or any(row["pcap_stats_partial"] for row in rows),
                 "pcap_interfaces": rows, "pcap_stats_note": NOTE}
 
-    def packet_callback(monitor, adapter=None, capture_socket=None):
-        def receive(packet):
+    def frame_callback(monitor, adapter, capture_socket):
+        def receive(link, data):
             monitor.sample()  # Same thread as libpcap recv; no cross-thread handle calls.
-            on_packet(packet, adapter, capture_socket)
+            on_frame(link, data, adapter, capture_socket)
         return receive
 
     try:
@@ -431,7 +577,7 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                 if monitor.buffer_warning:
                     stats["warnings"].append(f"{name}: {monitor.buffer_warning}")
                 monitor.sample(force=True)
-                sniffer = AsyncSniffer(opened_socket={capture_socket: name}, prn=packet_callback(monitor, name, capture_socket), store=False)
+                sniffer = AdapterSniffer(name, capture_socket, frame_callback(monitor, name, capture_socket))
                 sniffer.start()
                 resources.append((name, capture_socket, monitor, sniffer))
                 sniffers.append((name, sniffer))

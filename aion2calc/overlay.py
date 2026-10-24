@@ -96,9 +96,13 @@ class _Windows(_NativeOverlay):
         self.user32 = ctypes.WinDLL("user32", use_last_error=True)
         self.kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         self.callback = ctypes.WINFUNCTYPE(w.BOOL, w.HWND, w.LPARAM)
+        self._process_names: dict[int, tuple[bool, float]] = {}   # pid -> (is the game, remembered until)
+        self._game_hwnd = None          # the game window found last, measured directly while it lasts
+        self._rescan_at = 0.0           # when every window is enumerated again
         signatures = {
             "EnumWindows": ([self.callback, w.LPARAM], w.BOOL),
             "IsWindowVisible": ([w.HWND], w.BOOL),
+            "IsWindow": ([w.HWND], w.BOOL),
             "IsIconic": ([w.HWND], w.BOOL),
             "GetWindowThreadProcessId": ([w.HWND, ctypes.POINTER(w.DWORD)], w.DWORD),
             "GetClientRect": ([w.HWND, ctypes.POINTER(w.RECT)], w.BOOL),
@@ -159,7 +163,53 @@ class _Windows(_NativeOverlay):
             self.kernel32.CloseHandle(handle)
         return ""
 
+    #: How long a process id's image name is remembered, and how long a found game window is
+    #: followed before every top-level window is enumerated again for a larger one.
+    _PROCESS_NAME_TTL_S = 10.0
+    _RESCAN_S = 3.0
+
+    def _is_game_pid(self, pid: int) -> bool:
+        """Whether ``pid`` is the game, from a cache of process image names: the follow loop
+        asked four times a second, and each ask opened every visible window's process
+        (0.2.336). A process id is reused only after its process has gone, so a name is
+        remembered for a few seconds."""
+        if pid == os.getpid():
+            return False
+        now = time.monotonic()
+        known = self._process_names.get(pid)
+        if known is None or known[1] <= now:
+            if len(self._process_names) > 512:
+                self._process_names.clear()
+            known = (_is_game_process(self.process_name(pid)), now + self._PROCESS_NAME_TTL_S)
+            self._process_names[pid] = known
+        return known[0]
+
+    def _measure(self, hwnd) -> _GameWindow | None:
+        """The game window's client bounds on screen, or None once it is gone or too small."""
+        if not self.user32.IsWindowVisible(hwnd):
+            return None
+        rect, point = self.w.RECT(), self.w.POINT()
+        if not self.user32.GetClientRect(hwnd, ctypes.byref(rect)):
+            return None
+        minimized = bool(self.user32.IsIconic(hwnd))
+        if not minimized and (rect.right < 400 or rect.bottom < 300):
+            return None
+        self.user32.ClientToScreen(hwnd, ctypes.byref(point))
+        return _GameWindow(hwnd, (point.x, point.y, rect.right, rect.bottom), minimized)
+
     def game_window(self) -> _GameWindow | None:
+        # The window found last is measured again directly while it is still the game's; every
+        # top-level window is enumerated only every few seconds (a larger game window may have
+        # appeared) or once it is gone.
+        now = time.monotonic()
+        last = self._game_hwnd
+        if last is not None and now < self._rescan_at and self.user32.IsWindow(last):
+            pid = self.w.DWORD()
+            self.user32.GetWindowThreadProcessId(last, ctypes.byref(pid))
+            if self._is_game_pid(pid.value):
+                game = self._measure(last)
+                if game is not None:
+                    return game
         found = []
 
         @self.callback
@@ -168,20 +218,18 @@ class _Windows(_NativeOverlay):
                 return True
             pid = self.w.DWORD()
             self.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-            if pid.value == os.getpid() or not _is_game_process(self.process_name(pid.value)):
+            if not self._is_game_pid(pid.value):
                 return True
-            rect, point = self.w.RECT(), self.w.POINT()
-            if not self.user32.GetClientRect(hwnd, ctypes.byref(rect)):
-                return True
-            minimized = bool(self.user32.IsIconic(hwnd))
-            if not minimized and (rect.right < 400 or rect.bottom < 300):
-                return True
-            self.user32.ClientToScreen(hwnd, ctypes.byref(point))
-            found.append(_GameWindow(hwnd, (point.x, point.y, rect.right, rect.bottom), minimized))
+            game = self._measure(hwnd)
+            if game is not None:
+                found.append(game)
             return True
 
         self.user32.EnumWindows(visit, 0)
-        return max(found, key=lambda g: g.bounds[2] * g.bounds[3], default=None)
+        game = max(found, key=lambda g: g.bounds[2] * g.bounds[3], default=None)
+        self._game_hwnd = game.hwnd if game is not None else None
+        self._rescan_at = now + self._RESCAN_S
+        return game
 
     def rect(self, hwnd) -> tuple[int, int, int, int]:
         rect = self.w.RECT()

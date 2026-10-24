@@ -18,6 +18,12 @@
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const kfmt = (x) => { if (x == null || isNaN(x)) return "—"; const a = Math.abs(x); return a >= 1e6 ? (x / 1e6).toFixed(2) + "M" : a >= 1e3 ? (x / 1e3).toFixed(2) + "K" : Math.round(x).toString(); };
+  // Write a readout only when its text or markup changes: a write of the same content still costs the page a
+  // style and layout pass, and the meter rewrote every readout and every row on every poll (0.2.336). Every
+  // write to these elements goes through here, so the remembered content is what the element shows.
+  const setText=(el,text)=>{ if(el&&el._a2text!==text){ el._a2text=text; el.textContent=text; return true; } return false; };
+  const setHtml=(el,html)=>{ if(el&&el._a2html!==html){ el._a2html=html; el.innerHTML=html; return true; } return false; };
+  const setWidth=(el,width)=>{ if(el&&el._a2width!==width){ el._a2width=width; el.style.width=width; } };
   let tab = "meter", metric = "dps", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false, meterUnavailable = false, refreshError = "", lastSuccess = null;
   let clickThrough = false, rectTimer = 0;
   // Which window this page is: the meter overlay, the separate Party-DPS overlay (?view=party) or the
@@ -52,7 +58,7 @@
   // different id), the meter shows empty; the app keeps every fight, only this view clears (0.2.329).
   let clearedFight=null;
   const expanded=new Set();   // row keys whose per-skill breakdown is expanded (DPS view)
-  let interpolate=false, interpolateMs=100, showFps=false, locked=false, userWidth=null, userHeight=null;
+  let interpolate=false, interpolateMs=200, showFps=false, locked=false, userWidth=null, userHeight=null;
   // The Hidden Cube radar's state, declared with the rest of the page state: nativeInit() reads radarSetting. In
   // pywebview's WebView2 host the bridge arrives once the page has loaded (nativeInit() then runs on pywebviewready);
   // a host with the bridge in place before the script runs it during the startup, where a declaration lower down
@@ -223,7 +229,8 @@
     setupRadar(radarSetting);   // the Hidden Cube radar, off by default
     nameMode=["name","class_number","number"].includes(ui.overlay_name_mode)?ui.overlay_name_mode:"name";
     interpolate=ui.overlay_dps_interpolate===true;
-    interpolateMs=clampInt(ui.overlay_interpolate_ms,50,1000,50);
+    interpolateMs=clampInt(ui.overlay_interpolate_ms,50,1000,200);
+    document.getElementById("ov").classList.toggle("ov-ticking",interpolate);   // the tick eases the bars; no CSS transition on top
     showFps=ui.overlay_show_fps===true;
     planAutoplay=ui.overlay_plan_autoplay!==false;   // on by default
     $("#ovfps").hidden=!showFps||partyMode||radarMode;
@@ -345,8 +352,9 @@
     clearInterval(rectTimer); rectTimer = 0;
     if (clickThrough) {
       reportInteractiveRects();
-      // Controls move as rows/targets appear; refresh the reported rects while on.
-      rectTimer = setInterval(reportInteractiveRects, 400);
+      // Controls move as rows/targets appear: the rects are reported after each render that changed the
+      // page (renderMeter); this slow timer is the safety net for anything else that moves them.
+      rectTimer = setInterval(reportInteractiveRects, 2000);
     }
   }
   // Coalesce native window-resize calls to one per animation frame. Both the
@@ -452,12 +460,12 @@
     const totalHps=players.reduce((n,p)=>n+(Number(p.hps)||0),0);
     const totalTaken=players.reduce((n,p)=>n+(Number(p.dtps)||0),0);
     const total=players.reduce((n,p)=>n+(Number(p.damage)||0),0);
-    $("#ovstatus").textContent=`Party · ${snap.boss||(s.running?"recording":"idle")} · ${players.length} players`;
+    setText($("#ovstatus"),`Party · ${snap.boss||(s.running?"recording":"idle")} · ${players.length} players`);
     $("#ovstatus").title=$("#ovstatus").textContent;
     const stat=(label,val,unit)=>`<div class="ovpstat"><span class="ovplabel">${label}</span><span class="ovpval">${kfmt(val)}${unit||''}</span></div>`;
-    $("#ovcontent").innerHTML = players.length
+    setHtml($("#ovcontent"), players.length
       ? stat("Party DPS",totalDps,"/s")+stat("Party HPS",totalHps,"/s")+stat("Damage taken/s",totalTaken,"/s")+stat("Total damage",total,"")
-      : `<div class="muted">${esc(s.running?"Waiting for combat data…":"No fight yet. Start the meter in the app.")}</div>`;
+      : `<div class="muted">${esc(s.running?"Waiting for combat data…":"No fight yet. Start the meter in the app.")}</div>`);
     recordGraph(s, snap, players);
   }
   // Live DPS/HPS graph: accumulate one real reading of the party total per poll
@@ -560,14 +568,14 @@
     lastRenderAt=performance.now(); projecting=!!(s&&s.running)&&!snap.paused;
     $("#ovmetrics").hidden=false;
     const ping=snap.ping;$('#ovping').hidden=false;
-    $('#ovping').textContent=ping?`Ping ${Number(ping.current).toFixed(0)} ms · Avg ${Number(ping.avg).toFixed(0)} ms · Min ${Number(ping.min).toFixed(0)} / Max ${Number(ping.max).toFixed(0)} ms`:'Ping: no recorded samples';
+    setText($('#ovping'),ping?`Ping ${Number(ping.current).toFixed(0)} ms · Avg ${Number(ping.avg).toFixed(0)} ms · Min ${Number(ping.min).toFixed(0)} / Max ${Number(ping.max).toFixed(0)} ms`:'Ping: no recorded samples');
     $('#ovping').title='Passive TCP RTT for this recording connection; average/minimum/maximum across the capture';
     const odyle=snap.odyle;$('#ovodyle').hidden=!odyle;
-    if(odyle){$('#ovodyle').innerHTML=odyleLine(odyle);$('#ovodyle').title='Your Odyle Energy, as the game sent it: the regular energy regenerates 15 every 3 hours, and a claimed reward cube spends it first, then the bonus';}
+    if(odyle){setHtml($('#ovodyle'),odyleLine(odyle));$('#ovodyle').title='Your Odyle Energy, as the game sent it: the regular energy regenerates 15 every 3 hours, and a claimed reward cube spends it first, then the bonus';}
     const shugo=snap.shugo_keys;$('#ovshugo').hidden=!shugo;
-    if(shugo){$('#ovshugo').innerHTML=shugoLine(shugo);$('#ovshugo').title='Your Shugo Festival Reward Keys, as the game sent them: the regular keys, then the bonus ones (the same count the festival window shows)';}
+    if(shugo){setHtml($('#ovshugo'),shugoLine(shugo));$('#ovshugo').title='Your Shugo Festival Reward Keys, as the game sent them: the regular keys, then the bonus ones (the same count the festival window shows)';}
     const tickets=snap.nightmare_tickets;$('#ovnightmare').hidden=!tickets;
-    if(tickets){$('#ovnightmare').innerHTML=nightmareLine(tickets);$('#ovnightmare').title='Your Nightmare tickets, as the game sent them: the regular tickets, then the bonus ones, spent one at a time, the regular first';}
+    if(tickets){setHtml($('#ovnightmare'),nightmareLine(tickets));$('#ovnightmare').title='Your Nightmare tickets, as the game sent them: the regular tickets, then the bonus ones, spent one at a time, the regular first';}
     document.querySelectorAll("[data-metric]").forEach(b=>{b.classList.toggle("on",b.dataset.metric===metric);b.setAttribute("aria-pressed",String(b.dataset.metric===metric));});
     if(!$("#ovcombine").disabled) $("#ovcombine").checked=s.combine_pets!==false;
     const amount=p=>Number(metric==="hps"?p.healing:metric==="taken"?p.incoming?.damage:p.damage)||0;
@@ -600,10 +608,10 @@
     copyText=`${label} · ${snap.boss||'combat'} · ${(Number(duration)||0).toFixed(0)}s\n`+
       ranked.map((p,i)=>`${i+1}. ${displayName(p)}  ${kfmt(rate(p))}/s  (${Math.round(100*amount(p)/(total||1))}%)`).join("\n")+
       `\n— Aion 2 Calc`;
-    $("#ovstatus").textContent = cleared ? "New fight · waiting for combat" : `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
+    let status = cleared ? "New fight · waiting for combat" : `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
     // During a big fight the decoder can fall behind the packet backlog; show it is
     // catching up (and how deep the queue is) so the live view does not look frozen.
-    if (snap.decode_backlog && snap.decode_backlog.catching_up) $("#ovstatus").textContent += ` · ⏳ catching up (${snap.decode_backlog.queue_depth})`;
+    if (snap.decode_backlog && snap.decode_backlog.catching_up) status += ` · ⏳ catching up (${snap.decode_backlog.queue_depth})`;
     const identity=snap.identity_status, missing=players.length>0&&identity&&(!identity.self_identified||identity.unnamed_actors>0), repeated=visible.some(duplicate);
     // A player whose combat actor id changed mid-fight (death/revive, instance swap) was
     // correlated into one row by name, class and non-overlapping timing — flagged inferred.
@@ -618,17 +626,19 @@
     const selfLine=selfName?(/^Player #\d+$/.test(String(selfName))?`You${rankStr} · your name comes with the next zone load`:`You: ${selfName}${rankStr}${cp?` · CP ${kfmt(identity.local_combat_power)}`:''}`):'';
     $("#ovidentity").hidden=!missing&&!repeated&&!inferred&&!selfName;
     $("#ovidentity").classList.toggle("ok",!missing&&!repeated&&!!selfName);
-    $("#ovidentity").textContent=[missing?`${identity.self_identified?"Self identified":"Self identity not received — teleport or change instances to refresh it"} · ${identity.unnamed_actors} unnamed actors · ${identity.linked_pets} linked pets. Grouping needs recorded owner links.`:selfLine,repeated?'Matching names have separate combat actor IDs; names alone do not establish shared identity or ownership.':'',inferred?'Combined a player’s re-registered actor IDs (matched by name, class and timing).':''].filter(Boolean).join(' ');
-    if(s.error) $("#ovstatus").textContent='Capture stopped: '+s.error;
-    if(meterUnavailable) $("#ovstatus").textContent='Refresh failed · retrying';
-    $("#ovstatus").title=$("#ovstatus").textContent;
+    setText($("#ovidentity"),[missing?`${identity.self_identified?"Self identified":"Self identity not received — teleport or change instances to refresh it"} · ${identity.unnamed_actors} unnamed actors · ${identity.linked_pets} linked pets. Grouping needs recorded owner links.`:selfLine,repeated?'Matching names have separate combat actor IDs; names alone do not establish shared identity or ownership.':'',inferred?'Combined a player’s re-registered actor IDs (matched by name, class and timing).':''].filter(Boolean).join(' '));
+    if(s.error) status='Capture stopped: '+s.error;
+    if(meterUnavailable) status='Refresh failed · retrying';
+    if(setText($("#ovstatus"),status)) $("#ovstatus").title=status;
     $("#ovconnection").hidden=!meterUnavailable;
-    if(meterUnavailable) $("#ovreason").textContent=refreshError+' · '+(lastSuccess ? Math.floor((Date.now()-lastSuccess)/1000)+'s since last refresh. ' : '')+'Last readings retained; capture status unknown.';
+    if(meterUnavailable) setText($("#ovreason"),refreshError+' · '+(lastSuccess ? Math.floor((Date.now()-lastSuccess)/1000)+'s since last refresh. ' : '')+'Last readings retained; capture status unknown.');
     // Reset after battle: once combat has been idle past the delay, clear the live
     // view to a ready state (the data is kept; a selected segment still shows it).
     const over=snap.battle_over===true;
     const empty = s.error || (cleared ? "New fight — waiting for the first hit." : over ? "Ready — waiting for the next fight." : players.length?`No recorded ${metric==='hps'?'healing':metric==='taken'?'incoming damage':'outgoing damage'} in this combat.`:snap.warning || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app."));
-    $("#ovcontent").innerHTML = over ? `<div class="muted">${esc(empty)}</div>` : (players.length && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`);
+    // The rows are rebuilt only when their markup changed (the same fight between two readings, or an
+    // idle meter, rebuilds nothing); the live-ticking numbers write into the rows in place.
+    let changed = setHtml($("#ovcontent"), over ? `<div class="muted">${esc(empty)}</div>` : (players.length && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`));
     // Current target (the enemy you are hitting most) with each contributor's DPS
     // to it; packet-sourced, shown when there is recorded damage and enabled.
     const target=snap.current_target;
@@ -674,20 +684,20 @@
       // Same content as always; the name and the secondary readouts are wrapped so the
       // stylesheet can lay the panel out as a boss card (name + HP on top, TTK, damage
       // and contributors beneath). Hidden readouts stay hidden exactly as before.
-      $("#ovtarget").innerHTML=`<span class="ovtlabel">Target</span> ${portrait}<span class="ovtwho"><span class="ovtname">${esc(target.name)}</span>${also}</span>${hp}<span class="ovtline">${ttk}${gaugeText} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}</span>`;
+      changed = setHtml($("#ovtarget"),`<span class="ovtlabel">Target</span> ${portrait}<span class="ovtwho"><span class="ovtname">${esc(target.name)}</span>${also}</span>${hp}<span class="ovtline">${ttk}${gaugeText} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}</span>`) || changed;
       $("#ovtarget").title=`Most-hit enemy this encounter${alsoNames.length?` (and ${alsoNames.length} more struck in the same instant)`:''}, its remaining HP and time-to-kill from its observed HP-decline rate (all damage sources, so it reflects how fast it is really dying — not just your party's DPS), and each contributor's DPS to it`;
     }
     // Drawn remaining-over-max enemy HP bar, shown with the enemy-HP readout when real HP was captured.
     const showBar=showT&&showEnemyHp&&target&&target.hp_pct!=null;
     $("#ovhpbar").hidden=!showBar;
-    if(showBar)$("#ovhpbar").firstElementChild.style.width=Math.max(0,Math.min(100,target.hp_pct*100))+"%";
+    if(showBar)setWidth($("#ovhpbar").firstElementChild,Math.max(0,Math.min(100,target.hp_pct*100)).toFixed(1)+"%");
     // Drawn time-to-kill bar: how far through the estimated whole kill we are by time
     // (seconds engaged so far over engaged + remaining). Shown with the TTK readout
     // when a TTK is available; distinct from the HP bar (health remaining).
     const showTtkBar=showT&&showTtk&&target&&target.ttk_fraction!=null&&isFinite(target.ttk_fraction);
     $("#ovttkbar").hidden=!showTtkBar;
     if(showTtkBar){
-      $("#ovttkbar").firstElementChild.style.width=Math.max(0,Math.min(100,target.ttk_fraction*100))+"%";
+      setWidth($("#ovttkbar").firstElementChild,Math.max(0,Math.min(100,target.ttk_fraction*100)).toFixed(1)+"%");
       $("#ovttkbar").title=`Estimated kill progress by time — how much of the whole kill has elapsed (engaged time so far vs the time-to-kill still remaining). Packet-sourced; it can run ahead of or behind the HP bar when the fight starts slow or finishes fast.`;
     }
     // Drawn break gauge: what is left before the target breaks (bosses and elites carry one).
@@ -696,7 +706,7 @@
     if(gauge){
       const pct=Math.max(0,Math.min(100,Number(gauge.pct)||0));
       $("#ovgauge").classList.toggle("broken",pct<=5);
-      $("#ovgauge").firstElementChild.style.width=pct+"%";
+      setWidth($("#ovgauge").firstElementChild,pct.toFixed(1)+"%");
     }
     // Training-dummy parse: elapsed vs the standard window, your DPS and the total.
     const dummy=snap.dummy_parse;
@@ -706,25 +716,27 @@
       const dur=Math.round(dummy.duration||0), win=Math.round(dummy.window_seconds||0);
       const you=dummy.your_dps!=null?` · You ${kfmt(dummy.your_dps)}/s`:'';
       $("#ovdummy").classList.toggle("ok",!!dummy.window_reached);
-      $("#ovdummy").innerHTML=`<span class="ovtlabel">Dummy parse</span> ${dur}s / ${win}s${dummy.window_reached?' ✓':''}${you} · Total ${kfmt(dummy.target_dps)}/s`;
+      setHtml($("#ovdummy"),`<span class="ovtlabel">Dummy parse</span> ${dur}s / ${win}s${dummy.window_reached?' ✓':''}${you} · Total ${kfmt(dummy.target_dps)}/s`);
       $("#ovdummy").title=`Training-dummy parse: elapsed vs the standard window (Settings), your DPS and the party total to the dummy`;
     }
     // Your contribution: your share of the shown encounter's damage.
     const c=snap.contribution;
     const showC=showContribution&&!over&&!cleared&&c&&c.damage>0&&metric==='dps';
     $("#ovcontribution").hidden=!showC;
-    if(showC) $("#ovcontribution").textContent=`Your contribution: ${Math.round((c.share||0)*100)}% · ${kfmt(c.damage)} (${kfmt(c.dps)}/s)`;
+    if(showC) setText($("#ovcontribution"),`Your contribution: ${Math.round((c.share||0)*100)}% · ${kfmt(c.damage)} (${kfmt(c.dps)}/s)`);
     recordGraph(s, snap, players);
     renderCooldowns();
+    // Click-through keeps the overlay's controls live through the rects the page reports; a render that
+    // moved them (rows came or went, the target panel appeared) reports them again once laid out.
+    if(changed&&clickThrough) requestAnimationFrame(reportInteractiveRects);
     // Show meter only during combat: collapse to the header when idle (the window
     // then shrinks via fit), so the overlay is unobtrusive between pulls. A brief
     // damage pause while an engaged boss is still alive is a mechanic, not the end of
     // the fight, so keep the meter open through it — never collapse mid-boss.
     if(onlyInCombat && (!s.running || over || (snap.paused && snap.boss_alive!==true))){
-      $("#ovcontent").innerHTML='';
+      setHtml($("#ovcontent"),'');
       for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovshugo","#ovnightmare","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovidentity","#ovgraph","#ovcooldowns"])$(id).hidden=true;
-      $("#ovstatus").textContent=s.running?'Idle · waiting for combat':'Idle';
-      $("#ovstatus").title=$("#ovstatus").textContent;
+      if(setText($("#ovstatus"),s.running?'Idle · waiting for combat':'Idle')) $("#ovstatus").title=$("#ovstatus").textContent;
     }
   }
   // Skill-cooldown strip: your skills on cooldown, soonest ready first, each counting down
@@ -786,8 +798,8 @@
     $("#ovconnection").hidden=true;
     const view = planView(), p = view.plan;
     if (!p) {
-      $("#ovstatus").textContent = "";
-      $("#ovcontent").innerHTML = '<div class="muted">No saved plan yet.</div>';
+      setText($("#ovstatus"), "");
+      setHtml($("#ovcontent"), '<div class="muted">No saved plan yet.</div>');
       return;
     }
     const dur = view.dur, now = view.time;
@@ -801,8 +813,8 @@
     }
     svg.push("</svg>");
     // "live" marks the plan as auto-synced to the real pull (vs the looping preview).
-    $("#ovstatus").textContent = `${view.live ? "▶ live · " : ""}${p.meta?.name || "plan"} · ${now.toFixed(0)}/${dur.toFixed(0)}s`;
-    $("#ovcontent").innerHTML = `<div class="ovarena">${svg.join("")}</div>`;
+    setText($("#ovstatus"), `${view.live ? "▶ live · " : ""}${p.meta?.name || "plan"} · ${now.toFixed(0)}/${dur.toFixed(0)}s`);
+    setHtml($("#ovcontent"), `<div class="ovarena">${svg.join("")}</div>`);
   }
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.onclick = () => {
@@ -853,8 +865,12 @@
   }
   $("#ovretry").onclick=()=>pollMeter();
   // Poll on the meter tab, and on the plan tab when auto-play is on, so the plan can
-  // sync to the live pull.
-  setInterval(() => { if (!radarMode && (tab === "meter" || (tab === "plan" && planAutoplay))) pollMeter(); }, 500);
+  // sync to the live pull: every half second while a capture runs (a new fight's first hit
+  // shows within it), once a second while nothing is being captured.
+  (function meterPollLoop() {
+    if (!radarMode && (tab === "meter" || (tab === "plan" && planAutoplay))) pollMeter();
+    setTimeout(meterPollLoop, lastSnap && lastSnap.running ? 500 : 1000);
+  })();
   setInterval(() => { t += 0.1; if (tab === "plan") renderPlan(); }, 100);
   window.addEventListener("storage", (event) => { if (event.key === "aion2calc-closing") window.close(); });
 
@@ -1093,30 +1109,35 @@
   // moving in real time instead of freezing on the last poll value, then ease the
   // displayed number toward it for smoothness. Still packet-sourced: the amount is
   // the recorded damage/healing, only the time denominator advances. The refresh
-  // interval is user-set so weaker machines can slow or disable it.
-  setInterval(()=>{
-    if(!interpolate||tab!=="meter"||locked)return;
-    const dt=projecting?Math.max(0,(performance.now()-lastRenderAt)/1000):0;
-    const seen=new Set();
-    document.querySelectorAll("#ovcontent .ovrate").forEach(el=>{
-      const key=el.getAttribute("data-k"), target=parseFloat(el.getAttribute("data-target"))||0;
-      const amt=parseFloat(el.getAttribute("data-amt"))||0;
-      seen.add(key);
-      // Project the average rate forward: amount/(amount/target + dt). Decays while
-      // no new damage arrives, snaps back up on the next poll's fresh amount/target.
-      const live=(dt>0&&amt>0&&target>0)?(amt*target)/(amt+target*dt):target;
-      const cur=shownRates.has(key)?shownRates.get(key):live;
-      const next=cur+(live-cur)*0.4;   // ease toward the live value (snappier at the higher frame rate)
-      const shown=Math.abs(next-live)<0.5?live:next;
-      shownRates.set(key,shown);
-      el.textContent=kfmt(shown);
-      // Ease the bar fill the same way so the length tracks the live number
-      // instead of snapping each poll (CSS transition smooths the final step).
-      const bar=el.closest(".ovbar");
-      if(bar&&bar.firstElementChild)bar.firstElementChild.style.width=Math.max(0,Math.min(100,100*shown/curMax))+"%";
-    });
-    for(const k of [...shownRates.keys()])if(!seen.has(k))shownRates.delete(k);
-  },interpolateMs);
+  // interval is user-set (200 ms unless changed) so weaker machines can slow or
+  // disable it; each tick writes only the numbers and bar lengths that changed, so a
+  // paused or idle meter costs nothing between polls. Until 0.2.336 the tick ran ten
+  // times a second whatever the setting, and rewrote every row each time.
+  (function liveTick(){
+    if(interpolate&&tab==="meter"&&!locked){
+      const dt=projecting?Math.max(0,(performance.now()-lastRenderAt)/1000):0;
+      const seen=new Set();
+      document.querySelectorAll("#ovcontent .ovrate").forEach(el=>{
+        const key=el.getAttribute("data-k"), target=parseFloat(el.getAttribute("data-target"))||0;
+        const amt=parseFloat(el.getAttribute("data-amt"))||0;
+        seen.add(key);
+        // Project the average rate forward: amount/(amount/target + dt). Decays while
+        // no new damage arrives, snaps back up on the next poll's fresh amount/target.
+        const live=(dt>0&&amt>0&&target>0)?(amt*target)/(amt+target*dt):target;
+        const cur=shownRates.has(key)?shownRates.get(key):live;
+        const next=cur+(live-cur)*0.4;   // ease toward the live value
+        const shown=Math.abs(next-live)<0.5?live:next;
+        shownRates.set(key,shown);
+        setText(el,kfmt(shown));
+        // Ease the bar fill the same way so the length tracks the live number
+        // instead of snapping each poll (CSS transition smooths the final step).
+        const bar=el.closest(".ovbar");
+        if(bar&&bar.firstElementChild)setWidth(bar.firstElementChild,Math.max(0,Math.min(100,100*shown/curMax)).toFixed(1)+"%");
+      });
+      for(const k of [...shownRates.keys()])if(!seen.has(k))shownRates.delete(k);
+    }
+    setTimeout(liveTick,interpolate?interpolateMs:1000);
+  })();
 
   // Overlay render FPS (the overlay's own frame rate, not the game's — packet
   // capture cannot see game FPS). Off by default. The frame loop runs ONLY while

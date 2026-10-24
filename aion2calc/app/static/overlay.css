@@ -227,6 +227,9 @@ html.native-windows #ovbg { border-radius: 0; }
   background: linear-gradient(90deg, color-mix(in srgb, var(--bar, #b9984f) 62%, #1b202a) 0%, color-mix(in srgb, var(--bar, #b9984f) 44%, #1b202a) 70%, color-mix(in srgb, var(--bar, #b9984f) 16%, transparent) 100%);
   transition: width .18s linear; }
 @media (prefers-reduced-motion: reduce) { .ovbar i, .ovhpbar i, .ovttkbar i { transition: none; } }
+/* While the live-ticking numbers are on, the tick eases each bar's length itself, so the transition only
+   added a 180 ms width animation (a style and layout pass every frame) after each of its writes. */
+#ov.ov-ticking .ovbar i { transition: none; }
 /* Optional bar styles (Settings → Overlay layout). Gradient darkens toward the
    right; rounded makes the bar a pill. Both compose with any class colour. The row's
    corners round by half the bar's height, not more: an open row also holds the skill

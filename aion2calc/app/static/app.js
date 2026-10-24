@@ -1390,8 +1390,10 @@ async function pageMeter() {
     catch (e) { if($('#mmsg')) $('#mmsg').textContent='Could not refresh the meter: '+e.message+'. Last readings retained; capture status is unknown. Export capture diagnostics, or wait for automatic retry.'; }
     // Poll briskly for the first few seconds after opening the page so the Start/Stop button
     // catches the launch-time auto-start (it fires ~1.6s after launch) as promptly as the overlay.
+    // A window that is minimized or behind another (document.hidden) polls every few seconds: the
+    // overlay shows the fight; the page catches up when it is looked at again (0.2.336).
     const warming = Date.now() - meterMountedAt < 6000;
-    setTimeout(poll, st.running ? 700 : warming ? 300 : 1200);
+    setTimeout(poll, document.hidden ? 3000 : st.running ? 700 : warming ? 300 : 1200);
   };
   const initial = await meterStatus().catch(() => ({snapshot: {players: []}}));
   if (initial.source) { $("#msrc").value = initial.source; live(); }
@@ -1444,9 +1446,13 @@ function renderMeter(s) {
   if($("#midentity")){const worldName=(s.automatic_metadata||{}).server_name;$("#midentity").textContent=who?.id ? `${who.verified ? "Detected automatically" : "Matched name override"}: ${who.name || "Player #"+who.id}${who.serverId ? " · "+(worldName||worldFor(who.serverId, "server "+who.serverId)) : ""} · combat entity #${who.id} (changes between instances)` : "Auto-detecting your character. Start before entering an instance or use the optional name override.";}
   if($("#midentity") && s.snapshot?.identity_status){const i=s.snapshot.identity_status;$("#midentity").textContent+=` Selected combat: ${i.self_identified?'Self identified':'Self identity not received'} · ${i.unnamed_actors} unnamed actors · ${i.linked_pets} linked pets. Unknown actors remain separate until identity/owner links arrive.`;}
   if($("#msaved"))$("#msaved").textContent=s.diagnostics?.log_save_error || ((s.diagnostics?.archive_parts_saved ? `${s.diagnostics.archive_parts_saved} earlier archive part(s) saved in Combat Logs. Upload combines every part into one recording; live view and export show the current part. ` : "") + (s.saved_log ? "Latest saved part: "+s.saved_log : "Current part checkpoints every 15 seconds and saves on Stop."));
-  if(s.snapshot?.players?.length && $("#mlog-review") && !st.reviewLoading && Date.now()-(st.reviewAt || 0)>4000) {
+  // The live review panel: refreshed every four seconds, or every eight times what the last export
+  // took when that is longer (a long fight's log takes most of a second to export), and never while
+  // this window is hidden; the server serves the last export again while nothing changed (0.2.336).
+  if(s.snapshot?.players?.length && $("#mlog-review") && !st.reviewLoading && !document.hidden
+     && Date.now()-(st.reviewAt || 0)>Math.max(4000, 8*(st.reviewCostMs || 0))) {
     st.reviewLoading=true;st.reviewAt=Date.now();
-    api("/api/meter/log").then(doc=>{const target=$("#mlog-review");if(!target)return;if(st.liveReviewRoot!==target){if(st.liveReview)st.liveReview.dispose();st.liveReview=A2CombatReview.mount(target,doc,{...localReviewOptions(),live:true});st.liveReviewRoot=target;}else st.liveReview.update(doc);}).catch(()=>{}).finally(()=>{st.reviewLoading=false;});
+    api("/api/meter/log").then(doc=>{st.reviewCostMs=Number(doc.review_cost_ms)||0;const target=$("#mlog-review");if(!target)return;if(st.liveReviewRoot!==target){if(st.liveReview)st.liveReview.dispose();st.liveReview=A2CombatReview.mount(target,doc,{...localReviewOptions(),live:true});st.liveReviewRoot=target;}else st.liveReview.update(doc);}).catch(()=>{}).finally(()=>{st.reviewLoading=false;});
   }
   const record = $("#mrecord"); if (record) record.disabled = !!s.finalizing || !!st.recordBusy;
   if ($("#mclear")) $("#mclear").disabled = st.running || !!s.finalizing;
@@ -2131,7 +2137,7 @@ async function pageSettings() {
       <label><input type="checkbox" id="ov-compact" ${ui.overlay_compact_rows === true?'checked':''}> Compact rows (hide the total &amp; percent, keep the per-second rate)</label>
       <label><input type="checkbox" id="ov-rank" ${ui.overlay_rank_numbers === true?'checked':''}> Show rank numbers (1., 2., 3. …) before each name</label>
       <label><input type="checkbox" id="ov-highlight-me" ${ui.overlay_highlight_me === true?'checked':''}> Highlight my own row (accent bar, so you can find yourself at a glance)</label>
-      <label><input type="checkbox" id="ov-interp" ${ui.overlay_dps_interpolate === true?'checked':''}> Live-ticking DPS numbers (recompute between polls for a real-time feel; on by default) <input type="number" id="ov-interp-ms" min="50" max="1000" value="${Number(ui.overlay_interpolate_ms)||50}" style="width:74px"> ms</label>
+      <label><input type="checkbox" id="ov-interp" ${ui.overlay_dps_interpolate === true?'checked':''}> Live-ticking DPS numbers (recompute between polls for a real-time feel; on by default) <input type="number" id="ov-interp-ms" min="50" max="1000" value="${Number(ui.overlay_interpolate_ms)||200}" style="width:74px"> ms</label>
       <label><input type="checkbox" id="ov-dps-graph" ${ui.overlay_dps_graph === true?'checked':''}> Show a live DPS/HPS graph (a sparkline of the party total over the fight, from real per-poll readings)</label>
       <label><input type="checkbox" id="ov-fps" ${ui.overlay_show_fps === true?'checked':''}> Show the overlay's own render FPS (the game's FPS can't be read from capture)</label>
       <label><input type="checkbox" id="ov-clickthrough" ${ui.overlay_click_through === true?'checked':''}> Click through the overlay — let the mouse pass through to the game, so the overlay never eats a click <span class="muted small">(Windows; the overlay's own buttons/sliders still work when you hover them)</span></label>
