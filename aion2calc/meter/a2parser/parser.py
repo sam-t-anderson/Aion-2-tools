@@ -1197,9 +1197,15 @@ def scan_self_vitals(frame: bytes) -> tuple[int, int, int] | None:
 
 
 ODYLE_ENERGY_ID = 60_000_001
-#: Shugo Festival Reward Keys: counter 4, two values spent one at a time (the first before the second) a
-#: minute or two apart while the festival's rewards are claimed, and gained one at a time (0.2.329).
-SHUGO_KEYS_ID = 4
+#: Shugo Festival Reward Keys: counter 1 (0.2.332). Its two values read (21, 5) in the 23 October recording,
+#: the count the festival window showed its owner, (21, 5) for all three characters of the 19 October
+#: recording (an account's count, then), (20, 5) on 20 October, (19, 2) and (21, 2) on 10 and 11 October;
+#: no update to it was recorded. 0.2.329 had taken counter 4 for the keys from its spend pattern alone.
+SHUGO_KEYS_ID = 1
+#: Nightmare tickets: counter 4, the owner's identification (24 October). A character's count: (3, 2),
+#: (0, 0) and (2, 0) for the three characters of the 19 October recording, (4, 8) on 23 October; the two
+#: values are spent one at a time, the first before the second, and gained one at a time (kind-1 updates).
+NIGHTMARE_TICKETS_ID = 4
 _COUNTER_FLAGS = 0x0F
 _COUNTER_MAX = 1_000_000_000
 
@@ -1235,7 +1241,8 @@ def scan_counters(frame: bytes) -> dict[int, tuple[int, int]] | None:
     one entry of an update; None for any other frame or a layout that does not parse to its end.
 
     ``0b 61`` lists the counters on entering the world and every zone: a count, then the entries (73 in
-    the October recordings: Kinah as counter 3 with two u64 values, the Shugo Festival keys as 4, the
+    the October recordings: the Shugo Festival keys as counter 1, Kinah as 3 with two u64 values, the
+    Nightmare tickets as 4, the
     weekly dungeon entries as 60000002 onwards, Odyle Energy as 60000001). ``0c 61`` sends one when it
     changes: a kind byte (0, or 1 with a byte and the u32 amount added after the entry), the entry, then
     a reason byte for kind 0 (``02`` a gain, ``03`` a spend)."""

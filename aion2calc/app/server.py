@@ -1159,7 +1159,7 @@ class Handler(BaseHTTPRequestHandler):
             _ui_bool_flags = ("tray_on_close", "overlay_show_contribution", "overlay_show_target",
                               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
                               "overlay_show_cooldowns", "overlay_show_break_gauge", "overlay_show_odyle",
-                              "overlay_show_shugo_keys", "character_auto_open", "character_auto_refresh",
+                              "overlay_show_shugo_keys", "overlay_show_nightmare_tickets", "character_auto_open", "character_auto_refresh",
                               "meter_reset_after_battle", "meter_reset_on_boss_start", "meter_show_dummy_parse", "overlay_show_combat_power",
                               "overlay_only_in_combat", "overlay_auto_expand",
                               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
@@ -1574,8 +1574,8 @@ def ui_settings() -> dict:
                 # Skill-cooldown strip and boss break-gauge bar (both off by default).
                 "overlay_show_cooldowns": False, "overlay_cooldowns_min_s": 3, "overlay_cooldowns_max": 8,
                 "overlay_cooldowns_position": "bottom", "overlay_show_break_gauge": False,
-                # Your Odyle Energy and Shugo Keys on the overlay and the Live Meter page (on by default).
-                "overlay_show_odyle": True, "overlay_show_shugo_keys": True,
+                # Your Odyle Energy, Shugo Keys and Nightmare tickets on the overlay and the Live Meter page (on by default).
+                "overlay_show_odyle": True, "overlay_show_shugo_keys": True, "overlay_show_nightmare_tickets": True,
                 "meter_reset_after_battle": False, "meter_reset_on_boss_start": True, "meter_reset_delay": 5, "meter_max_records": 20,
                 "meter_show_dummy_parse": True, "meter_dummy_record_seconds": 60,
                 "overlay_show_combat_power": True, "overlay_show_community_rank": False, "overlay_live_community_rank": False,

@@ -1077,6 +1077,9 @@ class Runner:
                 # Your Shugo Festival keys, the game's own count too (on by default).
                 if self.packet_engine.shugo_keys and ui.get("overlay_show_shugo_keys") is not False:
                     snap["shugo_keys"] = dict(self.packet_engine.shugo_keys)
+                # Your Nightmare tickets (counter 4), the game's own count too (on by default).
+                if self.packet_engine.nightmare_tickets and ui.get("overlay_show_nightmare_tickets") is not False:
+                    snap["nightmare_tickets"] = dict(self.packet_engine.nightmare_tickets)
             # When the viewer turns the option on, label each player's home world next to their
             # name, resolved from their captured server id via the same official server list used
             # for region. Off by default; best-effort and local (no network in this path).

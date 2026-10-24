@@ -10,7 +10,7 @@ from copy import deepcopy
 import time
 
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
-from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, scan_party_status, hp_record_entity, _damage_frames
+from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, scan_party_status, hp_record_entity, _damage_frames
 from .framing import walk, bundle_batch, read_varint
 from .lookup import job_from_skill, skill_family, skill_name, npc_info, npc_name, dungeon_final_bosses
 from .ping import PingTracker
@@ -156,10 +156,12 @@ class MeterEngine:
         # sent on entering the world or a zone and its updates. The character's, so a zone reset keeps it.
         self.odyle_energy: dict | None = None
         # The game's counters (the table every zone load sends and the updates), id -> {first, second,
-        # timestamp_ms}: Odyle Energy and the Shugo Festival keys are read out of them; the rest is kept
-        # for the diagnostics, so a counter can be identified from a recording later.
+        # timestamp_ms}: Odyle Energy, the Shugo Festival keys (counter 1) and the Nightmare tickets (counter 4)
+        # are read out of them; the rest is kept for the diagnostics, so a counter can be identified from a
+        # recording later.
         self.counters: dict[int, dict] = {}
         self.shugo_keys: dict | None = None
+        self.nightmare_tickets: dict | None = None
         self.map_id = 0
         self.server_port = 50349
         self.damage_events = 0
@@ -378,6 +380,9 @@ class MeterEngine:
                 if SHUGO_KEYS_ID in counters:
                     regular, bonus = counters[SHUGO_KEYS_ID]
                     self.shugo_keys = {"regular": regular, "bonus": bonus, "timestamp_ms": timestamp_ms}
+                if NIGHTMARE_TICKETS_ID in counters:
+                    regular, bonus = counters[NIGHTMARE_TICKETS_ID]
+                    self.nightmare_tickets = {"regular": regular, "bonus": bonus, "timestamp_ms": timestamp_ms}
             vitals = scan_self_vitals(packet)
             if vitals and vitals[0] == self.local_player_id:
                 # The local player's maximum HP and MP: the HP feed never carries its maximum, and
@@ -564,6 +569,7 @@ class MeterEngine:
             self.dungeon_id = getattr(previous, "dungeon_id", 0) or self.dungeon_id
             self.odyle_energy = getattr(previous, "odyle_energy", None) or self.odyle_energy
             self.shugo_keys = getattr(previous, "shugo_keys", None) or self.shugo_keys
+            self.nightmare_tickets = getattr(previous, "nightmare_tickets", None) or self.nightmare_tickets
             self.counters = {**(getattr(previous, "counters", None) or {}), **self.counters}
 
     def _scan_spawns(self, data: bytes, timestamp_ms: int) -> dict:
