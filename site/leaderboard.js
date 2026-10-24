@@ -7,14 +7,17 @@
   const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "");
   const CLASSES = ["Templar", "Gladiator", "Assassin", "Ranger", "Sorcerer", "Spiritmaster", "Cleric", "Chanter"];
   $("#cls").innerHTML = '<option value="">All classes</option>' + CLASSES.map((c) => `<option>${c}</option>`).join("");
-  // WCL-style parse colours: the percentile of this run among every ranked run of the same class on the
-  // same boss / category / game version / difficulty, by every character (100 = above them all). The page
-  // opens sorted by it across all of PvE, so the best parses lead whatever the class or encounter.
-  const parseTier=p=>p>=100?'gold':p>=99?'pink':p>=95?'orange':p>=75?'purple':p>=50?'blue':p>=25?'green':'grey';
+  // WCL-style parse colours: this run against every ranked run of the same class on the same boss /
+  // category / game version / difficulty, by every character. Log server 0.2.127 shrinks a small
+  // bracket's parses toward 50 (two runs read 67 and 33, the best of 30 reads 97), so exactly 100 is out
+  // of reach until a bracket is thousands deep: gold marks the bracket's best run by its rank
+  // (parse_rank; a plain 100 from an older server stays gold). The page opens sorted by parse across
+  // all of PvE, so the best parses lead whatever the class or encounter.
+  const parseTier=(p,rank)=>(rank===1||p>=100)?'gold':p>=99?'pink':p>=95?'orange':p>=75?'purple':p>=50?'blue':p>=25?'green':'grey';
   const parseHTML=e=>{
     if(e.parse===null || e.parse===undefined)return '<span class="parse q-none" title="No parse: this metric is not ranked, or the encounter has no comparable public parses yet">·</span>';
-    const runs=e.parse_runs??e.parse_characters??0, few=runs<5;
-    return `<span class="parse q-${parseTier(e.parse)}${few?' provisional':''}" title="${e.parse} percentile among ${n0(runs)} ranked ${esc(cap(e.class||''))} run${runs===1?'':'s'} on this encounter${few?' (provisional: fewer than 5 runs)':''}">${Math.round(e.parse)}</span>`;
+    const runs=e.parse_runs??e.parse_characters??0, few=runs<5, rank=e.parse_rank;
+    return `<span class="parse q-${parseTier(e.parse,rank)}${few?' provisional':''}" title="Parse ${e.parse}${rank?` · rank ${n0(rank)} of`:' among'} ${n0(runs)} ranked ${esc(cap(e.class||''))} run${runs===1?'':'s'} on this encounter${few?' (provisional: fewer than 5 runs; small brackets read toward the middle)':''}">${Math.round(e.parse)}</span>`;
   };
   const killTime=s=>(s===null || s===undefined || isNaN(s))?"—":`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`;
   // The date with the time of day, in the computer's clock: 2026-10-23 15:04:05.

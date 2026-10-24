@@ -1,9 +1,11 @@
 """The WCL-style parse on the website leaderboard and in the combat review's player table.
 
-Both read the log server's ``parse`` (percentile among every ranked run of the same class on the
-same encounter / category / game version / difficulty, by every character; 100 = above them all) and
-``parse_runs`` (``parse_characters`` on older servers), colour it in the usual tiers (gold 100, pink
-99+, orange 95+, purple 75+, blue 50+, green 25+, grey) and dim brackets with fewer than five runs.
+Both read the log server's ``parse`` (this run against every ranked run of the same class on the
+same encounter / category / game version / difficulty, by every character; shrunk toward 50 in small
+brackets since log server 0.2.127) and ``parse_runs`` (``parse_characters`` on older servers), colour
+it in the usual tiers (gold for the bracket's best run by ``parse_rank``, or a plain 100 from an older
+server; pink 99+, orange 95+, purple 75+, blue 50+, green 25+, grey) and dim brackets with fewer than
+five runs.
 The leaderboard opens sorted by parse across all of PvE (0.2.330); Metric stays a choice.
 """
 import pathlib
@@ -16,19 +18,24 @@ LEADERBOARD_HTML = (ROOT / "site" / "leaderboard.html").read_text(encoding="utf-
 REVIEW_JS = (ROOT / "aion2calc" / "app" / "static" / "combat-review.js").read_text(encoding="utf-8")
 SITE_CSS = (ROOT / "site" / "site.css").read_text(encoding="utf-8")
 REVIEW_CSS = (ROOT / "aion2calc" / "app" / "static" / "combat-review.css").read_text(encoding="utf-8")
-TIER = re.compile(r"const parseTier=p=>[^;]+;")
+TIER = re.compile(r"const parseTier=\(p,rank\)=>[^;]+;")
+# (parse, rank) pairs: the bracket's best run is gold whatever its shrunk parse reads; a plain 100 from
+# an older server without parse_rank stays gold; every other tier follows the number.
+PROBE = "[[88.9,1],[66.7,1],[100,undefined],[99.5,2],[99,3],[98,2],[95,5],[94.9,2],[75,2],[60,2],[50,2],[30,2],[25,2],[10,2],[0,2]]"
 
 
 def _tiers(script):
     expr = TIER.search(script).group(0)
-    probe = expr + "console.log(JSON.stringify([100,99.5,99,98,95,94.9,75,60,50,30,25,10,0].map(parseTier)))"
+    probe = expr + "console.log(JSON.stringify(" + PROBE + ".map(([p,r])=>parseTier(p,r))))"
     return subprocess.run(["node", "-e", probe], capture_output=True, text=True, check=True).stdout.strip()
 
 
 def test_both_renderers_share_the_same_parse_tiers():
-    expected = '["gold","pink","pink","orange","orange","purple","purple","blue","blue","green","green","grey","grey"]'
+    expected = '["gold","gold","gold","pink","pink","orange","orange","purple","purple","blue","blue","green","green","grey","grey"]'
     assert _tiers(LEADERBOARD_JS) == expected
     assert _tiers(REVIEW_JS) == expected
+    for script in (LEADERBOARD_JS, REVIEW_JS):
+        assert "parse_rank" in script and "rank ${" in script           # the tooltip names the rank
 
 
 def test_leaderboard_shows_parse_kill_time_date_and_can_sort_by_parse():
