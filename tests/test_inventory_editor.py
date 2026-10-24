@@ -191,3 +191,48 @@ def test_gear_page_statics_carry_the_item_panel():
         assert needle in js, needle
     assert '$("#gen")' not in js and '$("#gsk")' not in js                    # the old global enchant/skills inputs
     assert ".gedit" in css and ".gedit .gelines" in css
+
+
+def test_inventory_cli_takes_rolls_skill_options_and_edits(home, monkeypatch, capsys):
+    """``python -m aion2calc inventory``: --options shows the pool, --add/--edit take --roll/--skill/--note through
+    the same catalog check as the Gear page, a refusal says why and exits 1."""
+    from aion2calc import charopt
+    from aion2calc.__main__ import main
+    from aion2calc.plan import inventory as INV
+    _catalog(RING, BELL)
+    inv = {"profile": "t", "class": "sorcerer", "items": []}
+
+    class Imp:
+        cls = "sorcerer"
+    monkeypatch.setattr(charopt, "find", lambda name, region, server: [{"character_id": 1, "server_id": 1, "region": region}])
+    monkeypatch.setattr(charopt, "import_character", lambda *a, **k: Imp())
+    monkeypatch.setattr(INV, "from_character", lambda imp, keep=None: inv)
+    args = ["inventory", "Name"]
+    assert main(args + ["--options", "test-ring"]) == 0
+    out = capsys.readouterr().out
+    assert "enchant: +0 to +16" in out and "Critical Hit" in out and "+30 – +50" in out
+    assert "not scored" in out and "pool: Hellfire, Blaze" in out
+    assert main(args + ["--options", "test-bell"]) == 0
+    assert "4 option levels for a Unique card plus one per enchant level" in capsys.readouterr().out
+    assert main(args + ["--add", "test-ring", "--enchant", "12", "--roll", "Critical Hit=41", "--roll", "Damage Boost=1.5%",
+                        "--skill", "Hellfire", "--note", "warehouse"]) == 0
+    out = capsys.readouterr().out
+    [e] = inv["items"]
+    assert (e["enchant"], e["rolls"], e["skills"], e["note"]) == (12, [["Critical Hit", 41], ["Damage Boost", 1.5]],
+                                                                 [["Hellfire", 1]], "warehouse")
+    assert "added" in out and "rolls Critical Hit +41, Damage Boost +1.5%" in out
+    assert "skills Hellfire +1" in out and "note warehouse" in out
+    assert main(args + ["--add", "test-ring", "--roll", "Critical Hit=99"]) == 1        # refused: says why, exits 1
+    assert "not changed: Critical Hit rolls +30 – +50 on Test Ring" in capsys.readouterr().out and len(inv["items"]) == 1
+    assert main(args + ["--add", "test-ring", "--roll", "Critical Hit"]) == 1           # a roll needs its value
+    assert "STAT=VALUE" in capsys.readouterr().out and len(inv["items"]) == 1
+    assert main(args + ["--edit", e["id"], "--roll", "Critical Hit=50", "--no-skills", "--note", ""]) == 0
+    assert (e["enchant"], e["rolls"], e["skills"], e["note"]) == (12, [["Critical Hit", 50]], [], None)   # level kept
+    assert "changed" in capsys.readouterr().out
+    assert main(args + ["--edit", e["id"], "--enchant", "15", "--no-rolls"]) == 0
+    assert (e["enchant"], e["rolls"], e["rolls_text"]) == (15, None, None)
+    assert main(args + ["--edit", "nope", "--enchant", "1"]) == 1
+    assert "no inventory entry" in capsys.readouterr().out
+    saved = json.loads((home / "inventory" / "t.json").read_text(encoding="utf-8"))
+    assert saved["items"][0]["enchant"] == 15                                              # written on every change
+    assert main(args + ["--remove", e["id"]]) == 0 and inv["items"] == []

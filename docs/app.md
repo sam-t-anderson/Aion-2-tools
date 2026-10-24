@@ -144,6 +144,9 @@ reason, and the entry keeps its previous values. Leave every roll line empty if 
 rolls: the planner then assumes the expected rolls of the pool, as before. The inventory table shows
 each item's rolls, skill options and note, and the advice cards show the rolls you entered. Items
 read from the official page are not edited: add a copy from the catalog to plan one with other rolls.
+The command line does the same (0.2.334): `python -m aion2calc inventory "Name" --options <item>` shows what an
+item can take, `--add`/`--edit` take `--roll "Critical Hit=41"`, `--skill Hellfire=1` and `--note`, with the same
+catalog check ([cli.md](cli.md)).
 
 Gear & Advice shows calculation stages and elapsed time beside Run advice in a sticky status panel. The bar is indeterminate; it does not predict a completion percentage. When complete, scroll below the inventory or choose **View results**. Progress and completed results survive navigation within the current app session. Errors appear in the same panel.
 
