@@ -512,8 +512,10 @@ def inventory_post(path: str, body: dict) -> dict:
     from ..plan import inventory as INV
     imp, inv = _inventory(body["character"])
     if path.endswith("/add"):
-        INV.add(inv, body["slug"], int(body.get("enchant") or 0), body.get("rolls") or None,
-                body.get("skills") or [], body.get("note"))
+        INV.add(inv, body["slug"], body.get("enchant") or 0, body.get("rolls") or None,
+                body.get("skills") or [], body.get("note"), strict=True)
+    elif path.endswith("/update"):
+        INV.update(inv, body.get("id"), body.get("enchant"), body.get("rolls"), body.get("skills"), body.get("note"))
     elif path.endswith("/remove"):
         INV.remove(inv, body["id"])
     elif path.endswith("/genus"):
@@ -765,6 +767,14 @@ class Handler(BaseHTTPRequestHandler):
             from ..db import store
             return self._json(store.items(store.connect(), q.get("category"), q.get("class"), q.get("search"),
                                           int(q.get("limit", 200))))
+        if path.startswith("/api/items/") and path.endswith("/options"):
+            # What the Gear page's item panel may set on a catalog item for a class.
+            from ..db import store
+            from ..plan import inventory as INV
+            it = store.item(store.connect(), path[len("/api/items/"):-len("/options")])
+            if not it:
+                raise FileNotFoundError(path)
+            return self._json(INV.options(it, q.get("class") or None))
         if path.startswith("/api/items/"):
             from ..db import store
             return self._json(store.item(store.connect(), path.rsplit("/", 1)[1]) or {})

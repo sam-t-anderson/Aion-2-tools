@@ -121,17 +121,24 @@ def roll_count(item: dict) -> int:
 
 
 def roll_options(item: dict) -> list[dict]:
-    """Random roll pool: [{stat, fields (at the middle of the range), chance}]."""
+    """Random roll pool: [{stat, range, min, max, percent, fields (at the middle of the range), chance}].
+
+    ``min`` and ``max`` are the range's numbers ("+30 – +50" -> 30, 50), ``percent`` whether the
+    range is a percentage ("+1% – +2%"), so an entered roll can be checked against the pool.
+    """
     out = []
     for r in item.get("random") or []:
         nums = _numbers(r.get("range", ""))
         if not nums:
             continue
         mid = sum(nums) / len(nums)
-        val = f"{mid}{'%' if '%' in r.get('range', '') else ''}"
+        pct = "%" in (r.get("range") or "")
+        val = f"{mid}{'%' if pct else ''}"
         f = _label_value(r["stat"], val, False)
         ch = _numbers(r.get("chance", "0"))
-        out.append({"stat": r["stat"], "range": r.get("range"), "fields": f, "chance": ch[0] / 100 if ch else 0.0})
+        bounds = [abs(x) for x in nums]
+        out.append({"stat": r["stat"], "range": r.get("range"), "min": min(bounds), "max": max(bounds), "percent": pct,
+                    "fields": f, "chance": ch[0] / 100 if ch else 0.0})
     return out
 
 

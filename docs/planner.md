@@ -20,7 +20,7 @@ The advice is saved in the data folder, under `results/characters/<name>_<server
 
 The official character page shows only what is equipped. Those items are imported with their exact
 rolls, manastones, skill options and deity points. Bag and warehouse items have to be added, either
-on the Gear & Advice page (search the catalog, set the enchant level and any skill options) or by
+on the Gear & Advice page (search the catalog, then set the enchant level, the rolls and the skill options in the item panel) or by
 editing `inventory/<character>.json` in the data folder:
 
 ```json

@@ -130,6 +130,21 @@ cards, on the upgrade path's step (*reroll Ring of X toward Critical Hit +30 –
 text. A stat worth nothing to damage, such as HP, is never one to chase, so an item can list fewer
 rolls than it has.
 
+**Adding an item with its enchant level, rolls and skill options (0.2.333).** **Add…** on a catalog
+search result, or **Edit** on an item you added before, opens the item panel: the enchant level up to
+the catalog's limit for that item (+5 for an arcana card), with the catalog's stat line for the chosen
+level; one line per random roll the item has, each a stat from the item's own pool with its range and
+the value you see in game (a percentage range takes the number before the %, and a stat the damage
+model does not score says so); the skill options, from the pool the catalog lists for your class first
+and the class's other skills after, with their levels (an arcana card holds its grade's base options
+plus one per enchant level, at most +4 on one skill; other gear's options reach +1); and a note. What
+you enter is checked against the catalog: an enchant level past the item's limit, a stat the item
+cannot roll, a value outside its range or more skill options than the item holds is refused with the
+reason, and the entry keeps its previous values. Leave every roll line empty if you do not know the
+rolls: the planner then assumes the expected rolls of the pool, as before. The inventory table shows
+each item's rolls, skill options and note, and the advice cards show the rolls you entered. Items
+read from the official page are not edited: add a copy from the catalog to plan one with other rolls.
+
 Gear & Advice shows calculation stages and elapsed time beside Run advice in a sticky status panel. The bar is indeterminate; it does not predict a completion percentage. When complete, scroll below the inventory or choose **View results**. Progress and completed results survive navigation within the current app session. Errors appear in the same panel.
 
 ### Pet Genus Insight
@@ -721,12 +736,13 @@ CSV needs these columns: `t, skill, damage`, plus optionally `skill_id, crit, do
 `/api/character/search?name=&region=`, `/api/characters`, `/api/encounters`,
 `/api/encounters/<id>`, `/api/logs`, `/api/logserver`, `/api/inventory?character=`,
 `/api/calibration?class=`, `/api/items?search=&category=`,
-`/api/items/<slug>`, `/api/jobs/<id>`, `/api/icon?u=`
+`/api/items/<slug>`, `/api/items/<slug>/options?class=` (what the Gear page's item panel may set: enchant
+levels, roll pool with ranges, skill options), `/api/jobs/<id>`, `/api/icon?u=`
 
 `POST /api/sync`, `/api/optimize`, `/api/character/import`,
 `/api/character/optimize`, `/api/encounters/import` (`{"ref": link, "player": name}`
 or `{"text": file contents, "name": file name, "player": name}`), `/api/encounters/<id>/share`,
-`/api/logserver`, `/api/inventory/add|remove|genus`, `/api/advice` (job), `/api/logs/open`
+`/api/logserver`, `/api/inventory/add|update|remove|genus|titles`, `/api/advice` (job), `/api/logs/open`
 
 Long requests return a job id; poll `/api/jobs/<id>` until its status is `done`.
 
