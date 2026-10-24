@@ -48,6 +48,44 @@ def _load_local_docs(paths, on_skip=print):
     return docs
 
 
+def _pairs(values: list[str], kind: str, default=None) -> list[list]:
+    """``["Critical Hit=41", "Hellfire=1"]`` -> ``[["Critical Hit", "41"], ["Hellfire", "1"]]`` for the inventory
+    command; a skill without ``=`` takes ``default`` (level 1), a roll must name its value."""
+    out = []
+    for x in values:
+        name, sep, value = x.rpartition("=")
+        if not sep:
+            if default is None:
+                raise ValueError(f"give the {kind} as STAT=VALUE, e.g. \"Critical Hit=41\" (got {x!r})")
+            name, value = x, default
+        out.append([name.strip(), value.strip() if isinstance(value, str) else value])
+    return out
+
+
+def _print_item_options(slug: str, cls: str) -> None:
+    """What the Gear page's item panel offers, in text: the enchant limit, the roll pool, the skill options."""
+    from .plan import inventory as INV
+    it = INV.catalog_item(slug)
+    if not it:
+        raise ValueError(f"unknown item {slug!r}; search the catalog (Database page) for its id")
+    o = INV.options(it, cls)
+    print(f"{o['name']}  ({o['grade']} {o['category']}, item level {o['item_level']})")
+    print(f"  enchant: +0 to +{o['max_enchant']}" + ("" if o["enchant_known"] else "  (the catalog lists no limit)"))
+    if o["roll_count"]:
+        print(f"  rolls: {o['roll_count']} random stats, each a different one of")
+        for r in o["rolls"]:
+            print(f"    {r['stat']:28s} {r['range']}" + ("" if r["scored"] else "  (not scored by the damage model)"))
+    else:
+        print("  rolls: none")
+    sk = o["skills"]
+    if o["arcana"]:
+        print(f"  skill options ({cls}): {sk['base']} option levels for a {o['grade']} card plus one per enchant level, "
+              f"at most +{sk['max_level']} on one skill")
+    else:
+        print(f"  skill options ({cls}): one option reaches +{sk['max_level']}; at most {sk['base']} on the item")
+    print("    pool: " + (", ".join(sk["pool"]) or "none listed for this class; any class skill is accepted"))
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="aion2calc", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -142,9 +180,20 @@ def main(argv: list[str] | None = None) -> int:
     iv.add_argument("--region", default="nae", choices=["nae", "eu", "as", "la"])
     iv.add_argument("--server")
     iv.add_argument("--add", metavar="ITEM", help="catalog item id (slug), e.g. aulamus-ring")
-    iv.add_argument("--enchant", type=int, default=0)
-    iv.add_argument("--skill", action="append", default=[], metavar="NAME=LEVELS",
-                    help="skill option on the item (repeatable), e.g. Hellfire=2")
+    iv.add_argument("--edit", metavar="ID", help="change an entry you added (its id from the listing)")
+    iv.add_argument("--options", metavar="ITEM",
+                    help="show what an item can take: enchant limit, roll pool with ranges, skill options")
+    iv.add_argument("--enchant", type=int, default=None, help="enchant level (default 0 when adding)")
+    iv.add_argument("--roll", action="append", default=[], metavar="STAT=VALUE",
+                    help="a rolled stat as the item shows it (repeatable), e.g. \"Critical Hit=41\" or "
+                         "\"Damage Boost=1.5\"; with --edit, the given rolls replace the entry's")
+    iv.add_argument("--skill", action="append", default=[], metavar="NAME=LEVEL",
+                    help="skill option on the item (repeatable), e.g. Hellfire=1; with --edit, the given options "
+                         "replace the entry's")
+    iv.add_argument("--note", help="a note on the entry (\"\" clears it)")
+    iv.add_argument("--no-rolls", action="store_true",
+                    help="with --edit: forget the entry's rolls (the planner assumes the expected rolls again)")
+    iv.add_argument("--no-skills", action="store_true", help="with --edit: remove the entry's skill options")
     iv.add_argument("--remove", metavar="ID")
 
     sh = sub.add_parser("share", help="upload a saved fight to a log server (a2log) and print its link")
@@ -354,16 +403,29 @@ def main(argv: list[str] | None = None) -> int:
                                progress=lambda m: print("  ..", m))
         inv = INV.from_character(imp)
         if args.cmd == "inventory":
-            if args.add:
-                skills = [[x.split("=")[0], int(x.split("=")[1]) if "=" in x else 1] for x in args.skill]
-                e = INV.add(inv, args.add, args.enchant, skills=skills)
-                print("added", e["id"], e["name"], f"+{e['enchant']}")
+            try:
+                if args.options:
+                    _print_item_options(args.options, imp.cls)
+                if args.add:
+                    e = INV.add(inv, args.add, args.enchant or 0, _pairs(args.roll, "roll") or None,
+                                _pairs(args.skill, "skill", default=1), args.note, strict=True)
+                    print("added", e["id"], e["name"], f"+{e['enchant']}")
+                if args.edit:
+                    e = INV.update(inv, args.edit, args.enchant, [] if args.no_rolls else _pairs(args.roll, "roll") or None,
+                                   [] if args.no_skills else _pairs(args.skill, "skill", default=1) or None, args.note)
+                    print("changed", e["id"], e["name"], f"+{e['enchant']}")
+            except ValueError as err:
+                print("not changed:", err)
+                return 1
             if args.remove:
                 print("removed" if INV.remove(inv, args.remove) else "no such entry", args.remove)
             print("inventory file:", INV.save(inv))
             for e in inv["items"]:
+                rolls = e.get("rolls_text") or (", ".join(f"{s} +{v}" for s, v in e["rolls"]) if e.get("rolls") else "")
+                skills = ", ".join(f"{n} +{lv}" for n, lv in e.get("skills") or [])
                 print(f"  {e['id']:12s} {e.get('slot') or e.get('category') or '':18s} {e['name']} +{e.get('enchant', 0)}"
-                      + (f"  skills {e['skills']}" if e.get("skills") else "") + f"  [{e['source']}]")
+                      + (f"  rolls {rolls}" if rolls else "") + (f"  skills {skills}" if skills else "")
+                      + (f"  note {e['note']}" if e.get("note") else "") + f"  [{e['source']}]")
         else:
             from .paths import results_dir
             from .plan.advisor import advise, write_markdown

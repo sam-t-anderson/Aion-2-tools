@@ -72,7 +72,14 @@ python -m aion2calc defeats ./logs                    # from your own saved a2lo
 
 # gear / arcana / pantheon / genus / rotation advice for a character, and its inventory
 python -m aion2calc advise "Name" --server Zikel
-python -m aion2calc inventory "Name" --add aulamus-ring --enchant 8
+python -m aion2calc inventory "Name"                                  # the inventory: equipped items and the ones you added
+python -m aion2calc inventory "Name" --options aulamus-ring           # what the item can take: enchant limit, roll pool with
+                                                                   # ranges, skill options for the character's class
+python -m aion2calc inventory "Name" --add aulamus-ring --enchant 8 --roll "Critical Hit=35" --roll "Attack=24" \
+                                     --skill Hellfire --note warehouse   # checked against the catalog, as the Gear page does
+python -m aion2calc inventory "Name" --edit <id> --enchant 12 --roll "Critical Hit=39"   # the given rolls replace the entry's;
+                                                                   # --no-rolls forgets them, --no-skills the options, --note "" the note
+python -m aion2calc inventory "Name" --remove <id>
 
 # share a saved fight on a log server (open a2log format) and print the link
 python -m aion2calc share 12 --server https://logs.example.com --key a2l_...
