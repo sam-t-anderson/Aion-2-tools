@@ -2,10 +2,11 @@
    Tracker page, where the colours follow the app's light or dark theme. The family colours follow Pet Tracker's
    crystal colours: Cogni blue, Fera red, Natura green, Varian violet, Special gold. */
 :root { --pt-accent: #d9b24c; --pt-ink: #e9edf4; --pt-dim: #9aa3b5; --pt-row: rgba(255, 255, 255, .035);
-  --pt-row-line: rgba(255, 255, 255, .06); --pt-track: rgba(255, 255, 255, .09); --pt-max: #919baa; }
+  --pt-row-line: rgba(255, 255, 255, .06); --pt-track: rgba(255, 255, 255, .09); --pt-max: #919baa;
+  --pt-cogni: #6fb4f0; --pt-fera: #f08a7a; --pt-natura: #7fd38a; --pt-varian: #c39af0; --pt-special: #e8cf8e; }
 
 /* ---- the window */
-#ov.ov-pets .ovcard { width: var(--ov-width, 300px); padding: 8px 10px 7px; }
+#ov.ov-pets .ovcard { width: var(--ov-width, 320px); padding: 8px 10px 7px; }
 #ov.ov-pets .ovhd { margin-bottom: 2px; }
 .ptstatus { color: var(--pt-dim); margin: 0 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; }
 .ptstatus[data-tone="ok"] { color: #76c59d; }
@@ -31,11 +32,11 @@
 .ptname { color: var(--pt-ink); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .ptrow.max .ptname { color: var(--pt-max); }
 .ptfam { flex-shrink: 0; font-weight: 700; border-radius: 4px; padding: 0 4px; border: 1px solid currentColor; line-height: 1.3; opacity: .9; }
-.ptfam.cogni { color: #6fb4f0; }
-.ptfam.fera { color: #f08a7a; }
-.ptfam.natura { color: #7fd38a; }
-.ptfam.varian { color: #c39af0; }
-.ptfam.special { color: #e8cf8e; }
+.ptfam.cogni { color: var(--pt-cogni); }
+.ptfam.fera { color: var(--pt-fera); }
+.ptfam.natura { color: var(--pt-natura); }
+.ptfam.varian { color: var(--pt-varian); }
+.ptfam.special { color: var(--pt-special); }
 .ptrank { margin-left: auto; flex-shrink: 0; color: var(--pt-dim); white-space: nowrap; }
 .ptsub { color: var(--pt-dim); }
 .ptprog { color: var(--pt-ink); font-variant-numeric: tabular-nums; flex-shrink: 0; }
@@ -55,8 +56,13 @@
 .ptpage .ptrows { max-width: 640px; }
 .ptpage .ptpic { width: 48px; height: 48px; }
 .ptpage .ptstatus { white-space: normal; }
-.ptpage .ptfam.special { color: var(--gold); }
-.ptpage .ptgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 6px; }
+.ptpage .ptnotice { color: var(--gold); }
+/* the page's light theme: the family colours darkened to read on parchment (the overlay window is always dark) */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme=dark]) .ptpage { --pt-cogni: #1f6fb5; --pt-fera: #b23a2a; --pt-natura: #2d7a37; --pt-varian: #7343b0; --pt-special: #8a6119; }
+}
+:root[data-theme=light] .ptpage { --pt-cogni: #1f6fb5; --pt-fera: #b23a2a; --pt-natura: #2d7a37; --pt-varian: #7343b0; --pt-special: #8a6119; }
+.ptpage .ptgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 6px; }
 .ptpage .ptfilters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0 10px; }
 .ptpage .ptfilters input[type=search] { min-width: 220px; }
 .ptpage .ptsummary { display: flex; flex-wrap: wrap; gap: 14px; margin: 4px 0 8px; color: var(--muted); }

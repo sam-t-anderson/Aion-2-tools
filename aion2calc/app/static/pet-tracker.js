@@ -19,7 +19,7 @@
     return { text: who + (state.status || "Connected"), tone: state.status === "Live" ? "ok" : "wait", title: state.detail || "" };
   }
 
-  // One pet: portrait, name, family, rank, souls toward the next rank and the bar, and Pet Tracker's notice.
+  // One pet: portrait, name and rank, then souls toward the next rank, family and Pet Tracker's notice, and the bar.
   function row(r, opts) {
     opts = opts || {};
     const fam = FAMILIES[r.family] || "";
@@ -32,8 +32,8 @@
     const pin = opts.pins === false ? "" :
       `<button type="button" class="ptpin${r.pinned ? " on" : ""}" data-pin="${r.id}" aria-pressed="${r.pinned}" title="${r.pinned ? "Unpin this pet" : "Pin this pet to the top"}">${r.pinned ? "★" : "☆"}</button>`;
     return `<div class="ptrow${r.max ? " max" : ""}"${tip ? ` title="${esc(tip)}"` : ""}>${pic}<div class="ptbody">
-      <div class="ptline"><span class="ptname">${esc(r.name)}</span>${r.family ? `<span class="ptfam ${fam}">${esc(r.family)}</span>` : ""}<span class="ptrank">${esc(r.rank_text)}</span></div>
-      <div class="ptline ptsub"><span class="ptprog">${r.max ? "✓ MAX" : (r.estimated ? "≈" : "") + esc(r.progress)}</span>${r.notice ? `<span class="ptnotice">${esc(r.notice)}</span>` : ""}</div>
+      <div class="ptline"><span class="ptname">${esc(r.name)}</span><span class="ptrank">${esc(r.rank_text)}</span></div>
+      <div class="ptline ptsub"><span class="ptprog">${r.max ? "✓ MAX" : (r.estimated ? "≈" : "") + esc(r.progress)}</span>${r.family ? `<span class="ptfam ${fam}">${esc(r.family)}</span>` : ""}${r.notice ? `<span class="ptnotice">${esc(r.notice)}</span>` : ""}</div>
       ${bar}</div>${pin}</div>`;
   }
 
