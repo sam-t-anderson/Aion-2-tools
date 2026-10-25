@@ -7,6 +7,7 @@ import base64
 import hashlib
 import io
 import json
+import os
 import pathlib
 import threading
 import urllib.error
@@ -408,6 +409,7 @@ def test_names_and_farming_goals():
 class FakePlatform:
     def __init__(self, local):
         self.local, self.procs, self.spawned, self.sent, self.paths = str(local), {}, [], [], {}
+        self.versions, self.version_reads = {}, []
         self.view = _view()
         self.answers = []
 
@@ -422,6 +424,10 @@ class FakePlatform:
 
     def image_path(self, pid):
         return self.paths.get(pid)
+
+    def file_version(self, path):
+        self.version_reads.append(path)
+        return self.versions.get(path)
 
     def spawn(self, args, cwd, hidden):
         self.spawned.append((args, cwd, hidden))
@@ -600,6 +606,32 @@ def test_the_update_notice_compares_the_signed_release_with_the_installed_one(pl
     assert pt.newer_version("0.1.10", "0.1.9") and not pt.newer_version("0.1.9", "0.1.10")
     assert not pt.newer_version("0.1.58", None) and not pt.newer_version(None, "0.1.57")   # unknown: no notice
     assert pt.Service(platform=None).state().get("update") is None
+
+
+def test_a_copy_without_sq_version_takes_its_version_from_the_program(platform, tmp_path):
+    plat, service, clock = platform
+    app = str(_program(tmp_path / "Local" / "Programs" / "PetTracker") / pt.APP_EXE)   # Pet Tracker's offline installer
+    plat.versions[app] = "0.1.56"
+    service.configure(True)
+    plat.procs[pt.WORKER_EXE.lower()] = [2]
+    service.background = lambda fn: fn()
+    service.release_source = lambda: {"version": "0.1.58"}
+    state = service.state()
+    assert state["installed"]["version"] == "0.1.56"
+    assert state["update"] == {"available": True, "latest": "0.1.58", "installed": "0.1.56", "kind": "offline",
+                               "checked": NOW.isoformat(), "error": ""}
+    reads = len(plat.version_reads)
+    service.state()
+    assert len(plat.version_reads) == reads                                      # read once while it is unchanged
+    plat.versions[app] = "0.1.58"
+    stat = os.stat(app)
+    os.utime(app, ns=(stat.st_atime_ns, stat.st_mtime_ns + 10**9))               # installed over
+    assert service.state()["update"]["available"] is False
+    _program(tmp_path / "Local" / "PetTracker.Desktop" / "current", "0.1.58")      # the installer's copy has sq.version
+    plat.version_reads.clear()
+    assert service.state()["installed"] == {"kind": "installer", "version": "0.1.58",
+                                            "folder": str(tmp_path / "Local" / "PetTracker.Desktop" / "current")}
+    assert plat.version_reads == []
 
 
 def test_the_update_button_hands_the_install_to_pet_trackers_own_updater(platform, tmp_path, monkeypatch):

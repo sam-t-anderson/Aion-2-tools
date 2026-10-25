@@ -1,3 +1,7 @@
+## Pet Tracker's update notice for every copy (0.2.339)
+
+**The notice for every copy of Pet Tracker.** 0.2.338's update notice read the installed version from the file Pet Tracker's installer keeps beside it. A copy from Pet Tracker's older offline installer, or one in a folder of your own, has no such file, so it never got the notice, and the page and Settings showed no version for it. Aion 2 Calc now reads the version from `PetTracker.exe`'s Windows file properties for such a copy, so the notice and **Install Pet Tracker** (or the link to Pet Tracker's releases) show for it too.
+
 ## Pet Tracker's updates, and its capture left to its own window (0.2.338)
 
 **Pet Tracker's update notice.** Pet Tracker updates itself, but only from its own window, so a player who used only Aion 2 Calc's Pet Tracker window and page never heard of a new version. While Pet Tracker is on, Aion 2 Calc now reads the release record Pet Tracker's publisher signs (verified as the installer is) at launch and every 6 hours. When a newer version is out, the Pet Tracker page and Settings → Pet Tracker say *Pet Tracker 0.1.58 is available (you have 0.1.57)*. **Update Pet Tracker** opens Pet Tracker, whose own updater saves your collection and stops its capture before it installs: double-click its paw icon in the Windows tray, then **Updates → Download update → Restart to update**. A copy from Pet Tracker's older offline installer gets **Install Pet Tracker 0.1.58** instead, and a copy in a folder of your own a link to Pet Tracker's releases.

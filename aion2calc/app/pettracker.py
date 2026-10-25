@@ -155,7 +155,16 @@ class _Win32:
         for name, (args, result) in signatures.items():
             fn = getattr(k, name)
             fn.argtypes, fn.restype = args, result
-        self.k = k
+        v = ctypes.WinDLL("version", use_last_error=True)
+        for name, (args, result) in {
+            "GetFileVersionInfoSizeW": ([w.LPCWSTR, ctypes.POINTER(w.DWORD)], w.DWORD),
+            "GetFileVersionInfoW": ([w.LPCWSTR, w.DWORD, w.DWORD, ctypes.c_void_p], w.BOOL),
+            "VerQueryValueW": ([ctypes.c_void_p, w.LPCWSTR, ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(w.UINT)],
+                               w.BOOL),
+        }.items():
+            fn = getattr(v, name)
+            fn.argtypes, fn.restype = args, result
+        self.k, self.v = k, v
         self.invalid = ctypes.c_void_p(-1).value
 
         class OVERLAPPED(ctypes.Structure):
@@ -237,6 +246,25 @@ class _Win32:
             return buffer.value if k.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)) else None
         finally:
             k.CloseHandle(handle)
+
+    def file_version(self, path: str) -> str | None:
+        """The file version in a program's Windows file properties (``0.1.57`` for 0.1.57.0), or None when it
+        has none."""
+        ctypes, v, w = self.ctypes, self.v, self.w
+        size = v.GetFileVersionInfoSizeW(path, None)
+        if not size:
+            return None
+        data = ctypes.create_string_buffer(size)
+        block, length = ctypes.c_void_p(), w.UINT()
+        if (not v.GetFileVersionInfoW(path, 0, size, data)
+                or not v.VerQueryValueW(data, "\\", ctypes.byref(block), ctypes.byref(length))
+                or not block.value or length.value < 16):
+            return None
+        signature, _, high, low = (w.DWORD * 4).from_address(block.value)     # VS_FIXEDFILEINFO's first fields
+        if signature != 0xFEEF04BD:
+            return None
+        parts = [high >> 16, high & 0xFFFF, low >> 16, low & 0xFFFF]
+        return ".".join(str(part) for part in (parts if parts[3] else parts[:3]))
 
     # -- one request on the pipe
     def request(self, name: str, payload: bytes, timeout: float) -> bytes:
@@ -423,7 +451,12 @@ def self_check(win=None) -> str:
         raise PetTrackerError(f"folder {bool(folder)}, user name {bool(user)}, this program listed as {mine}")
     if not path or ntpath.basename(path).lower() != mine[0]:
         raise PetTrackerError(f"this program's path read as {path!r}")
-    return f"OK (round trip, timeout, busy, missing worker; {mine[0]} in {len(programs)} programs, at its path)"
+    from .. import __version__
+    version = win.file_version(path)
+    if not version or (getattr(sys, "frozen", False) and version != __version__):
+        raise PetTrackerError(f"this program's file version read as {version!r}")
+    return (f"OK (round trip, timeout, busy, missing worker; {mine[0]} in {len(programs)} programs, at its path, "
+            f"version {version})")
 
 
 # ------------------------------------------------------------------ the protocol
@@ -795,6 +828,7 @@ class Service:
         #: what this app did to Pet Tracker's own overlay: "hidden" (for Aion 2 Calc's window) or "shown" (its style)
         self.own_window: str | None = None
         self._client: Client | None = None
+        self._versions: dict[str, tuple[int, str | None]] = {}   # PetTracker.exe → (its mtime, its file version)
         self._roots: tuple | None = None
 
     # -- configuration and discovery
@@ -806,7 +840,23 @@ class Service:
 
     def install(self) -> dict | None:
         local = self.platform.local_appdata() if self.platform else None
-        return find_install(self.custom_path, local or os.environ.get("LOCALAPPDATA"))
+        info = find_install(self.custom_path, local or os.environ.get("LOCALAPPDATA"))
+        if info is not None and info["version"] is None and self.platform is not None:
+            info["version"] = self._program_version(info["app"])
+        return info
+
+    def _program_version(self, app: str) -> str | None:
+        """The version in PetTracker.exe's file properties, for a copy without Velopack's ``sq.version`` (from
+        Pet Tracker's offline installer, or a folder of the player's own); read again when the program changes."""
+        try:
+            stamp = os.stat(app).st_mtime_ns
+        except OSError:
+            return None
+        known = self._versions.get(app)
+        if known is None or known[0] != stamp:
+            reader = getattr(self.platform, "file_version", None)
+            known = self._versions[app] = (stamp, reader(app) if reader else None)
+        return known[1]
 
     def roots(self) -> list[str]:
         """Pet Tracker's data folder as .NET finds it (the known LocalAppData folder) and as the environment
