@@ -16,6 +16,9 @@ Two companion windows open beside the meter overlay while their settings are on:
 (``view=radar``, ``radar_enabled``). They follow their settings while the meter overlay is open
 (:func:`sync_companions`), and each one's Hide closes that window alone (:func:`close_view`).
 
+The Pet Tracker window (``view=pets``, Settings → Pet Tracker) is separate from those: it opens and closes with
+its own setting whether or not the meter overlay is open (:func:`sync_pets`), and closes with the app.
+
 Each overlay process is watched: one that ends on its own with a non-zero code (its watchdog asked
 for a restart because the page went blank or stopped answering, or it crashed) is started again, at
 most five times in ten minutes; one the app closed, or that closed itself normally (Hide), is left
@@ -38,6 +41,7 @@ from ..overlay_health import OverlayLog, RelaunchLimiter
 _PROCESS: subprocess.Popen | None = None
 _PARTY_PROCESS: subprocess.Popen | None = None
 _RADAR_PROCESS: subprocess.Popen | None = None
+_PETS_PROCESS: subprocess.Popen | None = None      # the Pet Tracker window: its own lifetime, not the meter's
 _LOCK = threading.Lock()
 _RELAUNCHES = RelaunchLimiter()
 _URL = ""                       # the overlay URL of the last launch, for the companions' syncs
@@ -88,22 +92,24 @@ def _radar_enabled() -> bool:
 
 
 def _kind(party) -> str:
-    """The window a slot name or flag means: ``"meter"``, ``"party"`` or ``"radar"``."""
+    """The window a slot name or flag means: ``"meter"``, ``"party"``, ``"radar"`` or ``"pets"``."""
     if isinstance(party, str):
         return party
     return "party" if party else "meter"
 
 
 def _get(kind: str):
-    return {"meter": _PROCESS, "party": _PARTY_PROCESS, "radar": _RADAR_PROCESS}[kind]
+    return {"meter": _PROCESS, "party": _PARTY_PROCESS, "radar": _RADAR_PROCESS, "pets": _PETS_PROCESS}[kind]
 
 
 def _set(kind: str, proc) -> None:
-    global _PROCESS, _PARTY_PROCESS, _RADAR_PROCESS
+    global _PROCESS, _PARTY_PROCESS, _RADAR_PROCESS, _PETS_PROCESS
     if kind == "party":
         _PARTY_PROCESS = proc
     elif kind == "radar":
         _RADAR_PROCESS = proc
+    elif kind == "pets":
+        _PETS_PROCESS = proc
     else:
         _PROCESS = proc
 
@@ -137,7 +143,7 @@ def _watch(proc: subprocess.Popen, url: str, party="meter") -> None:
         _set(kind, None)
         if code == 0:
             return
-        which = {"meter": "overlay", "party": "party overlay", "radar": "radar overlay"}[kind]
+        which = {"meter": "overlay", "party": "party overlay", "radar": "radar overlay", "pets": "Pet Tracker overlay"}[kind]
         if not _RELAUNCHES.allow(time.time()):
             _log(f"the {which} ended with code {code}; not started again (five restarts in ten minutes)")
             return
@@ -183,9 +189,36 @@ def sync_companions() -> None:
             _log(f"could not sync the companion overlays: {type(err).__name__}: {err}")
 
 
+def sync_pets(url: str, wanted: bool) -> bool:
+    """Open or close the Pet Tracker window (``view=pets``) to match Settings → Pet Tracker. Unlike the
+    companions it does not wait for the meter overlay: it opens and closes with its setting alone, and the
+    app's close takes it with the rest. Returns True when this call opened it."""
+    if not available():
+        return False
+    with _LOCK:
+        try:
+            if wanted and not _alive("pets"):
+                _set("pets", _start(url, "pets"))
+                return True
+            if not wanted and _alive("pets"):
+                proc = _get("pets")
+                _set("pets", None)
+                proc.terminate()
+        except Exception as err:                                              # noqa: BLE001 - report, keep serving
+            _log(f"could not open or close the Pet Tracker overlay: {type(err).__name__}: {err}")
+        return False
+
+
 def close_view(kind: str) -> None:
     """A companion window's own Hide: close that window alone and keep it closed until Open overlay is
     pressed or its setting is turned off and on again. ``"meter"`` closes everything, as Hide there always did."""
+    if kind == "pets":                         # its Hide also turns its setting off (the server does that)
+        with _LOCK:
+            proc = _get("pets")
+            _set("pets", None)
+            if proc is not None and proc.poll() is None:
+                proc.terminate()
+        return
     if kind not in COMPANIONS:
         close()
         return
@@ -235,10 +268,10 @@ def launch(url: str, reload_if_open: bool = False) -> dict:
 
 def close() -> None:
     """Close the native overlay(s) when the main desktop application exits."""
-    global _PROCESS, _PARTY_PROCESS, _RADAR_PROCESS
+    global _PROCESS, _PARTY_PROCESS, _RADAR_PROCESS, _PETS_PROCESS
     with _LOCK:
-        procs = (_PROCESS, _PARTY_PROCESS, _RADAR_PROCESS)
-        _PROCESS = _PARTY_PROCESS = _RADAR_PROCESS = None
+        procs = (_PROCESS, _PARTY_PROCESS, _RADAR_PROCESS, _PETS_PROCESS)
+        _PROCESS = _PARTY_PROCESS = _RADAR_PROCESS = _PETS_PROCESS = None
         for proc in procs:
             if proc is not None and proc.poll() is None:
                 proc.terminate()

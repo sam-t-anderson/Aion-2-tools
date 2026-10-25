@@ -18,7 +18,7 @@ VERSION = 1
 
 #: The pages the app can open on at launch (``app_default_page``): the navigation's ids, Live Meter first.
 APP_PAGES = ("meter", "planner", "builds", "character", "gear", "history", "combat", "raid", "database",
-             "maps", "crafting", "timers", "news", "settings")
+             "maps", "crafting", "timers", "pets", "news", "settings")
 
 _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close", "community_heartbeat",
               "overlay_show_contribution", "overlay_show_target",
@@ -35,7 +35,10 @@ _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close", 
               "overlay_close_on_stop", "overlay_text_outline", "overlay_text_halo", "overlay_text_retro",
               "overlay_bar_rounded", "overlay_class_color_names", "overlay_color_cycle",
               "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers",
-              "overlay_highlight_me", "overlay_dps_graph", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "overlay_open_on_app_start", "meter_auto_upload", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "overlay_plan_autoplay", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics")
+              "overlay_highlight_me", "overlay_dps_graph", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "overlay_open_on_app_start", "meter_auto_upload", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "overlay_plan_autoplay", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics",
+              # Pet Tracker (0Fox2Give's program): whether Aion 2 Calc runs it and shows its overlay. Its folder is
+              # machine-specific, so it is not part of a backup.
+              "pettracker_enabled", "pettracker_overlay")
 
 # key -> (min, max) for whole-number settings.
 _INT_KEYS = {"app_text_scale": (70, 150), "meter_reset_delay": (1, 120), "meter_max_records": (1, 500),
@@ -123,6 +126,10 @@ def _clean(data: dict) -> dict:
         elif key == "app_default_page":
             if value not in APP_PAGES:
                 raise ValueError("app_default_page must be one of the app's pages")
+            clean[key] = value
+        elif key == "pettracker_overlay_style":
+            if value not in ("app", "pettracker"):
+                raise ValueError("pettracker_overlay_style must be app or pettracker")
             clean[key] = value
         elif key == "overlay_bar_style":
             if value not in ("flat", "gradient"):

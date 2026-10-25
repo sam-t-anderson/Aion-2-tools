@@ -222,6 +222,12 @@ def smoke_test(out: str | None = None) -> int:
             lines.append("soundcard OK")
         except Exception as err:
             lines.append(f"soundcard unavailable ({type(err).__name__}: {err})")
+        try:                                      # Pet Tracker's pipe client, on pipes made the way its worker makes them
+            from .app import pettracker
+            lines.append("Pet Tracker pipe " + pettracker.self_check())
+        except Exception as err:
+            ok = False
+            lines.append(f"Pet Tracker pipe FAILED {type(err).__name__}: {err}")
     from . import __version__
     lines.append(f"aion2calc {__version__}: {'OK' if ok else 'FAILED'}")
     srv.shutdown()
@@ -285,6 +291,10 @@ def _start_hotkeys(port: int, open_app, open_settings):
             "toggle_combat_assist": lambda: set_ui(**hotkeys.combat_assist_changes(server.ui_settings(), assist_hidden)),
             "toggle_cube_radar": lambda: (set_ui(radar_enabled=not server.ui_settings().get("radar_enabled")),
                                           server.radar_sync()),
+            # Pet Tracker's overlay, in whichever window Settings → Pet Tracker chose; turning it on turns Pet Tracker on
+            "toggle_pet_tracker": lambda: (set_ui(**(
+                {"pettracker_overlay": False} if server.ui_settings().get("pettracker_overlay")
+                else {"pettracker_overlay": True, "pettracker_enabled": True})), server.pettracker_sync()),
             # pressed in the game, so the radar listens at once instead of counting down
             "radar_learn_background": lambda: server.radar_control({"action": "learn", "kind": "background", "countdown": 0}),
             "radar_learn_cube": lambda: server.radar_control({"action": "learn", "kind": "cube", "countdown": 0}),
@@ -302,6 +312,24 @@ def _start_hotkeys(port: int, open_app, open_settings):
         return None
 
 
+def install_pettracker() -> int:
+    """The installer's optional "Pet Tracker" task: download Pet Tracker's official installer, verify it against
+    the release its publisher signed, run it, and turn Pet Tracker on in Aion 2 Calc, with its overlay in
+    Aion 2 Calc's own window, since the user asked for it."""
+    from .app import pettracker_setup, server
+    from .paths import write_user_json
+    result = pettracker_setup.install(wait=900)
+    if result.get("status") not in ("installed", "started"):
+        _log_to_file()
+        _alert("Pet Tracker was not installed. " + str(result.get("error") or "")
+               + " You can install it later under Settings → Pet Tracker.")
+        return 1
+    cur = server.ui_settings()
+    cur.update(pettracker_enabled=True, pettracker_overlay=True)
+    write_user_json(cur, "ui.json")
+    return 0
+
+
 def main(argv=None) -> int:
     if os.environ.get("AION2CALC_OVERLAY"):       # the app re-ran the bundle to open the native overlay
         from . import overlay
@@ -311,6 +339,8 @@ def main(argv=None) -> int:
     p.add_argument("--no-browser", action="store_true")
     p.add_argument("--no-sync", action="store_true", help="skip the launch-time database update")
     p.add_argument("--install-npcap", action="store_true", help="download and open the current Npcap installer")
+    p.add_argument("--install-pettracker", action="store_true",
+                   help="download Pet Tracker's installer, verify it against its signed release, and run it")
     p.add_argument("--smoke-test", nargs="?", const="", metavar="OUT", help="check the app starts, then exit")
     args = p.parse_args(argv)
     for name in ("stdout", "stderr"):            # the windowed build has no console
@@ -324,6 +354,8 @@ def main(argv=None) -> int:
             _alert("Npcap setup did not open. " + str(result.get("error") or "Open Live Meter to retry installation."))
             return 1
         return 0
+    if args.install_pettracker:
+        return install_pettracker()
     if args.smoke_test is not None:
         return smoke_test(args.smoke_test or None)
     log = _log_to_file()

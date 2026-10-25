@@ -19,6 +19,13 @@ can also pick a theme with the ◐ button in the top bar or on the **Settings** 
 ![Dark theme](screenshots/app_dark.png)
 ![Light theme](screenshots/app_light.png)
 
+**Optional: Pet Tracker.** The Windows installer offers *Download and install Pet Tracker by 0Fox2Give*,
+unticked by default. [Pet Tracker](https://github.com/0Fox2Give/PetTracker) is a separate program that shows
+your pet ranks and the souls you still need. Tick it and the installer downloads Pet Tracker's official
+installer, checks it against the release its publisher signed, runs it, and turns Pet Tracker on in Aion 2 Calc.
+It is skipped during silent updates, and greyed out when Pet Tracker is installed already. **Settings → Pet
+Tracker** installs it later instead. See [Pet Tracker](app.md#pet-tracker).
+
 **Unsigned builds.** The builds are not code-signed yet ([plan](code-signing.md)), so the first
 launch may need one extra click:
 

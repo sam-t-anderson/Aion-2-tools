@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aion 2 Calc Pet Tracker</title>
+<link rel="stylesheet" href="/static/overlay.css">
+<link rel="stylesheet" href="/static/pet-tracker.css">
+</head>
+<body class="overlay">
+<!-- The Pet Tracker window (Settings → Pet Tracker): Pet Tracker's pets, drawn on the overlay's card, with its own
+     Lock, Hide and opacity. Pet Tracker is 0Fox2Give's program; Aion 2 Calc reads its capture's data. -->
+<div id="ov" class="ov-pets"><div class="ovcard pywebview-drag-region" title="Drag the card to move the Pet Tracker window">
+  <div class="ovhd"><span class="ovviewtitle">Pet Tracker</span><button id="ovlock" title="Freeze the window in place for a screenshot">Lock</button><button id="ovhide" title="Hide the Pet Tracker window (Settings → Pet Tracker shows it again)">Hide</button></div>
+  <div id="ptstatus" class="ptstatus" role="status">Loading Pet Tracker…</div>
+  <div class="pttools ovtabs" role="group" aria-label="Pet Tracker view">
+    <button type="button" data-mode="Recent" aria-pressed="true" class="on" title="Your recent pet rewards and tracked kills">Recent</button><button type="button" data-mode="Nearby" aria-pressed="false" title="Pet mobs the game reported around you (distance is not measured)">Nearby</button>
+    <label title="Hide pets at Rank 3 / MAX"><input type="checkbox" id="pthidemax"> Hide maxed</label>
+  </div>
+  <div id="ptsync" class="ptsync" role="alert" hidden><b>Totals paused.</b> Return to character selection, then log back in.</div>
+  <div id="ptrows" class="ptrows"><div class="ptempty">Loading Pet Tracker…</div></div>
+  <div class="ovfoot"><label for="ovop">Opacity</label><input type="range" id="ovop" min="20" max="100" value="90"><span class="ovbrand" title="Pet Tracker is 0Fox2Give's program; Aion 2 Calc shows its data here">Pet Tracker · 0Fox2Give</span></div>
+</div></div>
+<script>
+// The startup guard the meter overlay's page has (overlay.html, 0.2.331): a stylesheet or script the app's server
+// refused at launch is never fetched again, so the page reloads itself, at most three times, when it finished
+// loading without them, and says so in the overlay log.
+(function () {
+  var KEY = "a2-pets-reloads";
+  function count() {
+    try { var n = parseInt(sessionStorage.getItem(KEY) || "0", 10); if (n > 0) return n; } catch (e) {}
+    var m = /a2-pets-reloads:(\d+)/.exec(window.name || "");
+    return m ? parseInt(m[1], 10) : 0;
+  }
+  function remember(n) {
+    try { sessionStorage.setItem(KEY, String(n)); } catch (e) {}
+    try { window.name = "a2-pets-reloads:" + n; } catch (e) {}
+  }
+  function note(kind, message) {
+    try {
+      fetch("/api/overlay/health", { method: "POST", headers: { "Content-Type": "application/json" }, keepalive: true,
+        body: JSON.stringify({ kind: kind, message: String(message || "").slice(0, 512) }) }).catch(function () {});
+    } catch (e) {}
+  }
+  window.addEventListener("error", function (event) {
+    var el = event && event.target;
+    if (el && el !== window && (el.src || el.href)) note("load", "Pet Tracker window: failed to load " + (el.src || el.href));
+  }, true);
+  window.A2OverlayUp = null;   // pet-overlay.js sets "starting" when it runs and "ready" once its startup is through
+  function styled() {
+    try { return getComputedStyle(document.documentElement).overflow === "hidden"; } catch (e) { return true; }
+  }
+  function check() {
+    if (window.A2OverlayUp && styled()) return;
+    if (document.readyState !== "complete") { setTimeout(check, 3000); return; }
+    var what = window.A2OverlayUp ? "its stylesheet" : "its script", n = count();
+    if (n >= 3) { note("startup", "the Pet Tracker window loaded without " + what + "; not reloading again after " + n + " reloads"); return; }
+    remember(n + 1);
+    note("startup", "the Pet Tracker window loaded without " + what + "; reloading (" + (n + 1) + ")");
+    setTimeout(function () { window.location.reload(); }, 300);
+  }
+  setTimeout(check, 5000);
+})();
+</script>
+<script src="/static/pet-tracker.js"></script><script src="/static/pet-overlay.js"></script>
+</body>
+</html>

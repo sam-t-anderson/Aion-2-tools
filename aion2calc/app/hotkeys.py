@@ -35,6 +35,7 @@ ACTIONS: dict[str, str] = {
     "toggle_field_bosses": "Show / hide field-boss timers on the overlay",
     "toggle_combat_assist": "Show / hide combat assist (skill cooldowns, break gauge)",
     "toggle_cube_radar": "Turn the Hidden Cube radar on / off",
+    "toggle_pet_tracker": "Show / hide the Pet Tracker overlay",
     "radar_learn_background": "Hidden Cube radar: learn the background (step 1)",
     "radar_learn_cube": "Hidden Cube radar: learn the cube's sound, facing it (step 2)",
     "radar_learn_cube_behind": "Hidden Cube radar: learn the cube's sound with it behind you (step 3)",

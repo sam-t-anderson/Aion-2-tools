@@ -38,6 +38,9 @@ SetupLogging=yes
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
 Name: "npcap"; Description: "Download and install Npcap for Live Capture"; GroupDescription: "Live Meter:"
+; Pet Tracker (0Fox2Give's program, GPL-3.0) is never bundled: the app downloads its official installer, verifies it
+; against the release its publisher signed, runs it, and turns Pet Tracker on in Aion 2 Calc. Off unless chosen.
+Name: "pettracker"; Description: "Download and install Pet Tracker by 0Fox2Give, and show its pets in Aion 2 Calc"; GroupDescription: "Pet Tracker (a separate program, optional):"; Flags: unchecked
 
 [InstallDelete]
 ; An update no longer deletes the installed _internal here: SetPreviousAside (below) moves it aside
@@ -62,6 +65,8 @@ Name: "{autodesktop}\Aion 2 Calc"; Filename: "{app}\aion2calc.exe"; Tasks: deskt
 ; Npcap is separately licensed and is fetched only after the user explicitly opts in. The app resolves
 ; the current official installer at npcap.com, then opens Npcap's own interactive installer.
 Filename: "{app}\aion2calc.exe"; Parameters: "--install-npcap"; Description: "Download and install Npcap now"; Tasks: npcap; Check: NeedsNpcap; Flags: postinstall waituntilterminated
+; Never during a silent auto-update (skipifsilent): Pet Tracker installs once, when the user picks it.
+Filename: "{app}\aion2calc.exe"; Parameters: "--install-pettracker"; Description: "Download and install Pet Tracker now"; Tasks: pettracker; Check: NeedsPetTracker; Flags: postinstall waituntilterminated skipifsilent
 ; runs after a normal install (the checkbox) and after a silent auto-update, so the app relaunches;
 ; a scripted install that should not start it (the CI install test) passes /NOLAUNCH
 Filename: "{app}\aion2calc.exe"; Description: "Start Aion 2 Calc now"; Flags: nowait postinstall; Check: Launch
@@ -75,6 +80,14 @@ var
 function NeedsNpcap: Boolean;
 begin
   Result := not RegKeyExists(HKLM, 'SYSTEM\CurrentControlSet\Services\npcap');
+end;
+
+{ Pet Tracker's own installer puts it in %LOCALAPPDATA%\PetTracker.Desktop\current; its older offline installer
+  used %LOCALAPPDATA%\Programs\PetTracker. }
+function NeedsPetTracker: Boolean;
+begin
+  Result := not FileExists(ExpandConstant('{localappdata}\PetTracker.Desktop\current\PetTracker.exe'))
+        and not FileExists(ExpandConstant('{localappdata}\Programs\PetTracker\PetTracker.exe'));
 end;
 
 function Launch: Boolean;
@@ -212,6 +225,13 @@ begin
       if Pos('Npcap', WizardForm.TasksList.ItemCaption[I]) > 0 then begin
         WizardForm.TasksList.ItemEnabled[I] := NeedsNpcap;
         if not NeedsNpcap then begin
+          WizardForm.TasksList.Checked[I] := False;
+          WizardForm.TasksList.ItemSubItem[I] := 'Already installed';
+        end;
+      end
+      else if Pos('Pet Tracker by', WizardForm.TasksList.ItemCaption[I]) > 0 then begin
+        WizardForm.TasksList.ItemEnabled[I] := NeedsPetTracker;
+        if not NeedsPetTracker then begin
           WizardForm.TasksList.Checked[I] := False;
           WizardForm.TasksList.ItemSubItem[I] := 'Already installed';
         end;

@@ -642,7 +642,8 @@ def test_the_radar_is_off_by_default_and_its_settings_are_checked(fresh_radar):
     ui = server.ui_settings()
     assert ui["radar_enabled"] is False and ui["radar_sensitivity"] == 5
     source = (ROOT / "aion2calc" / "app" / "server.py").read_text(encoding="utf-8")
-    assert '"rtss_enabled", "radar_enabled")' in source and '("radar_sensitivity", 1, 10)' in source
+    flags = source[source.index("_ui_bool_flags = ("):source.index("for flag in _ui_bool_flags:")]
+    assert '"radar_enabled"' in flags and '("radar_sensitivity", 1, 10)' in source
     assert 'if any(k.startswith("radar_") for k in body):' in source and "radar_sync(stop=True)" in source
     state = server.radar_state()
     assert state["setting"] is False and state["enabled"] is False and not state["ready"] and state["samples"] == []

@@ -116,7 +116,8 @@ def test_the_hide_route_tells_the_windows_apart():
 def test_the_native_host_knows_the_radar_window(monkeypatch, tmp_path):
     monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
     from aion2calc.paths import write_user_json
-    assert overlay._overlay_prefs()["positions"] == {"meter": None, "party": None, "radar": None}
+    # (the Pet Tracker window, 0.2.337, has a remembered position of its own too)
+    assert overlay._overlay_prefs()["positions"] == {"meter": None, "party": None, "radar": None, "pets": None}
     write_user_json({"overlay_radar_pos_x": 300, "overlay_radar_pos_y": 40,
                      "overlay_radar_pos_layout": [[0, 0, 2560, 1440]]}, "ui.json")
     assert overlay._overlay_prefs()["positions"]["radar"] == {"xy": (300, 40), "layout": [[0, 0, 2560, 1440]]}
@@ -150,7 +151,8 @@ def test_the_native_host_knows_the_radar_window(monkeypatch, tmp_path):
     api.fit(232, 120)
     assert api._window.size == (260, 120)
     src = open(os.path.join(STATIC, "..", "..", "overlay.py"), encoding="utf-8").read()
-    assert '"radar": "Aion 2 Calc Radar Overlay"' in src and 'min_size=(180 if party == "radar" else 260, 70)' in src
+    assert '"radar": "Aion 2 Calc Radar Overlay"' in src
+    assert 'min_width = {"radar": 180, "pets": 240}.get(party, 260)' in src and "min_size=(min_width, 70)" in src
 
 
 def test_the_radar_position_is_accepted_by_the_app_and_stays_out_of_backups(monkeypatch, tmp_path):
