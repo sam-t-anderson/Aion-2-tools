@@ -69,3 +69,6 @@
 .ptpage .ptsummary b { color: var(--text); }
 .ptpage .ptgoal { margin-left: 6px; }
 .ptpage .ptattrib { color: var(--muted); margin-top: 10px; }
+/* the update notice (a newer Pet Tracker was released), on the page and under Settings → Pet Tracker */
+.ptupdate { margin: 6px 0; }
+.ptupdate .btn { margin-left: 6px; }

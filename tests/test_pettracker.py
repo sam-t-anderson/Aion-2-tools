@@ -407,7 +407,7 @@ def test_names_and_farming_goals():
 
 class FakePlatform:
     def __init__(self, local):
-        self.local, self.procs, self.spawned, self.sent = str(local), {}, [], []
+        self.local, self.procs, self.spawned, self.sent, self.paths = str(local), {}, [], [], {}
         self.view = _view()
         self.answers = []
 
@@ -419,6 +419,9 @@ class FakePlatform:
 
     def processes(self):
         return dict(self.procs)
+
+    def image_path(self, pid):
+        return self.paths.get(pid)
 
     def spawn(self, args, cwd, hidden):
         self.spawned.append((args, cwd, hidden))
@@ -441,6 +444,7 @@ def platform(tmp_path, monkeypatch):
     plat = FakePlatform(tmp_path / "Local")
     clock = {"t": 1000.0}
     service = pt.Service(platform=plat, clock=lambda: clock["t"], now=lambda: NOW)
+    service.background = lambda fn: None                                       # no update check reaches the network
     monkeypatch.setattr(pt, "_SERVICE", service)
     return plat, service, clock
 
@@ -495,6 +499,130 @@ def test_the_state_says_what_is_missing(platform, tmp_path):
     assert pt.Service(platform=None).state()["problem"] == "Pet Tracker runs on Windows only."
     _program(tmp_path / "Local" / "PetTracker.Desktop" / "current")
     assert service.state()["installed"] is not None and plat.sent == []               # off: the worker is never asked
+
+
+def test_the_capture_is_left_to_pet_trackers_own_window_and_its_updater(platform, tmp_path):
+    plat, service, clock = platform
+    folder = _program(tmp_path / "Local" / "PetTracker.Desktop" / "current", "0.1.57")
+    service.configure(True)
+    plat.procs[pt.APP_EXE.lower()] = [1]
+    assert service.ensure_worker() == "owned" and plat.spawned == []           # its window starts its own capture
+    assert service.state()["problem"] == "Pet Tracker's own window is running; waiting for it to start its capture."
+    del plat.procs[pt.APP_EXE.lower()]                                         # it closed to install an update
+    plat.procs["update.exe"] = [7, 8]
+    plat.paths = {7: "C:\\Discord\\Update.exe", 8: str(folder.parent / "Update.exe")}
+    assert service.ensure_worker() == "updating" and plat.spawned == []        # its updater replaces its files
+    clock["t"] += 1
+    assert service.state()["problem"] == "Pet Tracker is installing an update; its capture starts again when it finishes."
+    plat.paths[8] = "C:\\Other\\Update.exe"                                    # another program's updater
+    assert service.ensure_worker() == "deferred" and plat.spawned == []        # its window closed a moment ago
+    clock["t"] += service.APP_GRACE
+    assert service.ensure_worker() == "started" and len(plat.spawned) == 1
+
+
+def test_a_capture_that_cannot_start_says_why(platform, tmp_path):
+    plat, service, clock = platform
+    _program(tmp_path / "Local" / "PetTracker.Desktop" / "current")
+    service.configure(True)
+    tries = []
+
+    def blocked(args, cwd, hidden):
+        tries.append(args)
+        raise OSError(1260, "This program is blocked by group policy")
+    plat.spawn = blocked
+    state = service.state()
+    assert state["connected"] is False and state["start"] == "failed" and len(tries) == 1
+    assert state["problem"] == ("Windows did not start Pet Tracker's capture: This program is blocked by group policy. "
+                                "If Smart App Control or your antivirus blocked it, allow Pet Tracker there.")
+    clock["t"] += 1
+    assert service.ensure_worker() == "failed" and len(tries) == 1             # tried again after the spacing only
+    clock["t"] += service.LAUNCH_SPACING
+    plat.spawn = lambda args, cwd, hidden: (_ for _ in ()).throw(FileNotFoundError(2, "No such file or directory"))
+    service.ensure_worker()
+    assert service.start_error.startswith("Pet Tracker's capture could not start: its program is missing")
+    with pytest.raises(pt.PetTrackerError, match="Windows did not start Pet Tracker: Access is denied"):
+        plat.spawn = lambda args, cwd, hidden: (_ for _ in ()).throw(OSError(5, "Access is denied"))
+        service.launch_app()
+
+
+def test_a_capture_that_stops_at_startup_shows_its_reason(platform, tmp_path):
+    import os
+    plat, service, clock = platform
+    _program(tmp_path / "Local" / "PetTracker.Desktop" / "current")
+    service.configure(True)
+    assert service.state()["problem"] == "Starting Pet Tracker's capture…"
+    data = pathlib.Path(service.roots()[0])
+    data.mkdir(parents=True)
+    note = data / "startup-error.json"
+    note.write_text(json.dumps({"Error": "Npcap is not installed."}), encoding="utf-8")
+    clock["t"] += 1
+    state = service.state()
+    assert state["problem"] == "Pet Tracker's capture stopped: Npcap is not installed." and state["start"] == "stopped"
+    clock["t"] += service.LAUNCH_SPACING
+    assert service.ensure_worker() == "waiting" and len(plat.spawned) == 1     # not every 15 s: a minute later
+    clock["t"] += 3 * service.LAUNCH_SPACING
+    os.utime(note, (service.launched_wall - 600, service.launched_wall - 600))  # written before the next start
+    assert service.ensure_worker() == "started" and len(plat.spawned) == 2
+    clock["t"] += 1
+    assert service.state()["problem"] == "Starting Pet Tracker's capture…"     # an older note is not this start's
+    plat.procs[pt.WORKER_EXE.lower()] = [9]
+    plat.answers.append(pt.NotRunning("no pipe yet"))
+    clock["t"] += 1
+    assert service.state()["problem"] == "Waiting for Pet Tracker's capture to answer…"
+
+
+def test_the_update_notice_compares_the_signed_release_with_the_installed_one(platform, tmp_path):
+    plat, service, clock = platform
+    _program(tmp_path / "Local" / "PetTracker.Desktop" / "current", "0.1.57")
+    service.configure(True)
+    plat.procs[pt.WORKER_EXE.lower()] = [2]
+    asked = []
+    service.background = lambda fn: fn()
+    service.release_source = lambda: asked.append(1) or {"version": "0.1.58"}
+    notice = service.state()["update"]
+    assert notice == {"available": True, "latest": "0.1.58", "installed": "0.1.57", "kind": "installer",
+                      "checked": NOW.isoformat(), "error": ""}
+    service.state()
+    assert len(asked) == 1                                                       # read again in six hours
+    clock["t"] += service.UPDATE_EVERY
+    service.state()
+    assert len(asked) == 2
+
+    def unreadable():
+        raise setup.SetupError("Pet Tracker's release feed could not be read.")
+    service.release_source = unreadable
+    clock["t"] += service.UPDATE_EVERY
+    failed = service.state()["update"]
+    assert failed["available"] and failed["latest"] == "0.1.58" and failed["error"].startswith("Pet Tracker's release feed")
+    service.release_source = lambda: {"version": "0.1.57"}
+    clock["t"] += service.UPDATE_RETRY                                           # an hour after a failure
+    assert service.state()["update"]["available"] is False                       # up to date
+    assert pt.newer_version("0.1.10", "0.1.9") and not pt.newer_version("0.1.9", "0.1.10")
+    assert not pt.newer_version("0.1.58", None) and not pt.newer_version(None, "0.1.57")   # unknown: no notice
+    assert pt.Service(platform=None).state().get("update") is None
+
+
+def test_the_update_button_hands_the_install_to_pet_trackers_own_updater(platform, tmp_path, monkeypatch):
+    plat, service, clock = platform
+    folder = _program(tmp_path / "Local" / "PetTracker.Desktop" / "current", "0.1.57")
+    service.configure(True)
+    message = service.open_for_update()
+    assert plat.spawned[-1] == ([str(folder / pt.APP_EXE)], str(folder), False)  # opened for its updater
+    assert message.startswith("Pet Tracker is opening") and "Updates → Download update → Restart to update" in message
+    plat.procs[pt.APP_EXE.lower()] = [1]
+    assert service.open_for_update().startswith("Pet Tracker is running: double-click") and len(plat.spawned) == 1
+    installs = []
+    monkeypatch.setattr(setup, "begin_install", lambda: installs.append(1))
+    older = FakePlatform(tmp_path / "Older")
+    _program(tmp_path / "Older" / "Programs" / "PetTracker")                      # the older offline installer's copy
+    offline = pt.Service(platform=older, clock=lambda: clock["t"], now=lambda: NOW)
+    assert offline.open_for_update().startswith("Installing the new Pet Tracker") and installs == [1]
+    portable = _program(tmp_path / "Portable")
+    mine = pt.Service(platform=FakePlatform(tmp_path / "None"), clock=lambda: clock["t"], now=lambda: NOW)
+    mine.configure(True, str(portable))
+    assert "folder of your own" in mine.open_for_update()
+    with pytest.raises(pt.PetTrackerError, match="not installed"):
+        pt.Service(platform=FakePlatform(tmp_path / "Empty")).open_for_update()
 
 
 def test_quitting_stops_only_a_worker_this_app_started_and_no_one_else_uses(platform, tmp_path):
@@ -629,6 +757,9 @@ def test_the_pet_tracker_routes(app, tmp_path):
     for bad in ({"action": "mode", "value": "Sideways"}, {"action": "pin", "pet": "x", "value": True},
                 {"action": "goal", "pet": 1, "rank": 4}, {"action": "explode"}):
         assert call("/api/pettracker", bad)[0] == 500
+    code, body = call("/api/pettracker", {"action": "update"})
+    assert code == 200 and json.loads(body)["message"].startswith("Pet Tracker is opening")
+    assert plat.spawned[-1][0] == [str(folder / pt.APP_EXE)]
     code, body = call("/overlay?view=pets")
     assert code == 200 and b"pet-overlay.js" in body
     assert b"overlay.js" in call("/overlay")[1] and b"pet-overlay.js" not in call("/overlay")[1]
@@ -747,3 +878,6 @@ def test_the_pages():
     app_js = (STATIC / "app.js").read_text(encoding="utf-8")
     assert '["pets", "Pet Tracker"]' in app_js and 'else if (page === "pets") await pagePets();' in app_js
     assert '["pettracker","Pet Tracker"]' in app_js and 'id="pt-set-enabled"' in app_js
+    assert 'petUpdateNotice(s, "pt-update")' in app_js and 'petUpdateNotice(s, "pt-set-update")' in app_js
+    assert app_js.count('action: "update"') == 2 and 'id="pt-note"' in app_js and 'id="pt-set-note"' in app_js
+    assert 'text: state.problem || "Starting Pet Tracker\'s capture…"' in shared

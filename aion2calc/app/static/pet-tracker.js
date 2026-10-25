@@ -14,7 +14,8 @@
     if (!state.supported) return { text: "Pet Tracker runs on Windows only.", tone: "off" };
     if (!state.installed) return { text: "Pet Tracker is not installed. Install it under Settings → Pet Tracker.", tone: "off" };
     if (!state.enabled) return { text: "Pet Tracker is off. Turn it on under Settings → Pet Tracker.", tone: "off" };
-    if (!state.connected) return { text: state.problem ? state.problem + " Starting it…" : "Starting Pet Tracker's capture…", tone: "wait" };
+    // the server words why no capture answers: starting, waiting on Pet Tracker's own window or its update, or failed
+    if (!state.connected) return { text: state.problem || "Starting Pet Tracker's capture…", tone: state.start === "failed" || state.start === "stopped" ? "off" : "wait" };
     const who = state.character ? state.character + " · " : "";
     return { text: who + (state.status || "Connected"), tone: state.status === "Live" ? "ok" : "wait", title: state.detail || "" };
   }

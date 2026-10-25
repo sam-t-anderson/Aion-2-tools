@@ -64,7 +64,12 @@ the fields may have changed. Aion 2 Calc reads `Ready`, `CollectionSynced`, `Sta
 ## Lifecycle
 
 * **Start.** With *Use Pet Tracker* on, the app starts the worker (`PetTracker.Capture.exe --data <folder>`, no
-  window) at launch and when the setting turns on, unless one runs, and at most once every 15 seconds.
+  window) at launch and when the setting turns on, unless one runs, and at most once every 15 seconds. It starts
+  none while Pet Tracker's own window runs (that window owns the worker: it starts it, and stops it to install an
+  update), while Pet Tracker's updater runs (Velopack's `Update.exe` beside its installed versions, found by its
+  path), or for 20 seconds after the window was last seen (since 0.2.338). If Windows refuses the start, the status
+  says why; if the worker gives up at startup, the reason it wrote to `startup-error.json` in its data folder is
+  shown.
 * **Polling.** The view is fetched at most once every 0.8 seconds, shared by the overlay window (every second
   while connected) and the page; a failure is shared for as long, so a missing worker is not asked twice.
 * **Stop.** When the app quits, or *Use Pet Tracker* turns off, a worker the app started is sent `exit`, unless
@@ -74,6 +79,18 @@ the fields may have changed. Aion 2 Calc reads `Ready`, `CollectionSynced`, `Sta
   quits. With the *Pet Tracker's own window* style the app shows it instead, launching `PetTracker.exe` when it
   is not running, and never a second copy (Pet Tracker allows one). A normal launch of Pet Tracker shows its
   overlay again by itself; one started `--minimized` keeps it hidden until it is shown from its tray icon.
+
+## Pet Tracker's updates
+
+Pet Tracker's own window updates it: it reads the same signed feed 30 seconds after it opens and every 6 hours,
+announces an update from its tray icon, and installs it when the player chooses *Restart to update*, after saving
+and stopping the worker (it never kills the worker to install). Since 0.2.338 the app reads the feed too, while Pet
+Tracker is on (at launch, then every 6 hours, an hour after a failed read), verified as for the install below, and
+compares its newest version with the installed one (`sq.version`). `GET /api/pettracker` then carries `update`:
+`available`, `latest`, `installed`, `kind`, `checked` and `error`. `POST /api/pettracker {"action": "update"}` opens
+Pet Tracker's window for its own updater (an installer copy), installs the current release over a copy from the
+older offline installer, or says to download one for a copy in a folder of the player's own; its `message` says
+what to do next.
 
 ## Installing Pet Tracker
 
@@ -98,7 +115,7 @@ The desktop app's local server (`127.0.0.1`), for its own pages; changes are ref
 
 | Field | |
 |---|---|
-| `supported`, `enabled`, `installed` (`kind`, `folder`, `version`), `running` (`app`, `worker`), `connected`, `problem`, `setup`, `source` | how Pet Tracker is doing |
+| `supported`, `enabled`, `installed` (`kind`, `folder`, `version`), `running` (`app`, `worker`, `updating`), `connected`, `problem`, `start`, `setup`, `update`, `source` | how Pet Tracker is doing |
 | `status`, `detail`, `character`, `ready`, `synced`, `sync_notice`, `capture` | the worker's state |
 | `rows`, `empty` | the overlay's rows, by Pet Tracker's rules, or what it says when it lists none |
 | `options` | `mode`, `hide_maxed`, `sort`, `row_limit`, `pin_limit`, `pins`, `portraits`, `progress_bars`, `compact`, `accent`, `own_window_visible` |
@@ -111,8 +128,8 @@ A row is `id`, `name`, `family`, `level`, `rank`, `rank_text`, `max`, `souls`, `
 
 `POST /api/pettracker` takes `{"action": ...}`: `install`, `start`, `open` (Pet Tracker's window), `mode`
 (`"value"`: `Recent` or `Nearby`), `hide_maxed` (`"value"`: true or false), `pin` (`"pet"`, `"value"`), `goal`
-(`"pet"`, `"rank"`: 1 to 3 or null) or `reset_session`, and returns the same as the GET. Pet Tracker's refusals
-come back as `400 {"error": "..."}` in its own words.
+(`"pet"`, `"rank"`: 1 to 3 or null), `reset_session` or `update` (with a `message`), and returns the same as the
+GET. Pet Tracker's refusals come back as `400 {"error": "..."}` in its own words.
 
 Settings (`GET`/`POST /api/ui`): `pettracker_enabled`, `pettracker_overlay` (both off by default),
 `pettracker_overlay_style` (`app` or `pettracker`), `pettracker_path` (empty, or a full folder path holding both
@@ -137,3 +154,9 @@ Suggestions for Pet Tracker, none of them needed today:
   traffic and the delay.
 * **The portraits' location in the view.** Aion 2 Calc looks in the data folder and beside the program, where
   Pet Tracker's window looks.
+* **A sign that an update is installing.** Other clients hold off starting the worker by watching for Pet Tracker's
+  window and its updater's process; a lock file or an answer on the pipe saying an update is under way would
+  replace that guess.
+* **Opening its windows from another client.** A launch switch (or a pipe command) for Find a pet, Settings and
+  its Updates page would let the app's buttons open them directly; today a second launch only shows *Pet Tracker
+  is already running*, so the app points players to the tray icon.
