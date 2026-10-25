@@ -24,6 +24,7 @@ A task-oriented guide to the desktop app and shared review controls. Detailed co
 - [Editing shared raid plans](#editing-shared-raid-plans)
 - [Official news](#official-news)
 - [Regional event timers](#regional-event-timers)
+- [Pet Tracker](#pet-tracker)
 - [Settings](#settings)
 - [Application updates](#application-updates)
 - [Database and data sync](#database-and-data-sync)
@@ -597,6 +598,27 @@ The bundled schedule is a dated community snapshot from [Shugo.GG](https://shugo
 
 **On the overlay**, with *Show regional event notifications* on (the default), the event strip also counts down these observed kills for your identified server and faction: a boss joins the strip when its expected return is within fifteen minutes (*back in 7m*, then *now*, with the same chime as the scheduled events) and stays for half an hour past it; the tooltip says who observed the kill, when, and which respawn reference was used. Nothing is shown until the faction has resolved, and the strip never uses manual Discord timers. *Include observed field-boss timers in the event strip* (Settings → Overlay, on by default) takes these kills out of the strip and leaves the scheduled events; the Timers page keeps them. Two global hotkeys (Settings → Hotkeys, since 0.2.317) flip that setting (*Show / hide field-boss timers on the overlay*) and show or hide the overlay's skill-cooldown strip and break-gauge bar together (*Show / hide combat assist*: it hides whichever are on and brings back the ones it hid, or both). An Abyss artifact status is not available: no record of artifact ownership is decoded yet.
 
+## Pet Tracker
+
+[Pet Tracker](https://github.com/0Fox2Give/PetTracker), by 0Fox2Give, is a separate Windows program (open source, GPL-3.0) that shows your pet ranks and how many souls you still need while you farm. Since 0.2.337 Aion 2 Calc works with it, with its author's permission: it installs it on request, runs its capture, and shows its pets in an overlay window of its own and on the **Pet Tracker** page. Pet Tracker reads the game's traffic, as the Live Meter does (it needs Npcap too); like any third-party tool it is unofficial, and using it can put your game account at risk.
+
+**Installing it.** Tick *Download and install Pet Tracker by 0Fox2Give* in the Aion 2 Calc installer (off by default, and greyed out when Pet Tracker is installed already), or press **Install Pet Tracker** under **Settings → Pet Tracker** or on the Pet Tracker page. Aion 2 Calc fetches the release record Pet Tracker's publisher signs (`releases.win-stable.signed.json`, on its GitHub release), checks the signature with the key Pet Tracker's own updater uses, and checks that the record names Pet Tracker's stable channel and has not expired. It then downloads Pet Tracker's installer and starts it only if the installer's SHA-256 is the one the record signs. Pet Tracker installs for your user, in `%LOCALAPPDATA%\PetTracker.Desktop`, and updates itself from then on; the downloaded installer is deleted once it finishes. Aion 2 Calc never bundles or changes Pet Tracker. A copy unpacked from Pet Tracker's portable ZIP works too: enter its folder under **Pet Tracker folder**.
+
+**Turning it on.** **Use Pet Tracker** (Settings → Pet Tracker, or the Pet Tracker page; off by default, and turned on by the installer task) starts Pet Tracker's capture, `PetTracker.Capture.exe`, with the app: in the background, before you log into your character, so your collection syncs at login. Aion 2 Calc talks to the capture the way Pet Tracker's own window does, over a named pipe only your Windows account can open. When the app quits, or you turn this off, a capture the app started saves and stops, unless Pet Tracker's own window is still using it. Pet Tracker's window and Aion 2 Calc can run together: they share the one capture and its data, in `%LOCALAPPDATA%\PetTracker`.
+
+**The overlay.** *Show the Pet Tracker overlay while the game runs* opens it in the window you choose:
+
+- **In Aion 2 Calc's own window** (the default): an overlay window apart from the meter's, with its own Lock, Hide and opacity. It remembers where you drag it, fits its rows and follows the overlay's click-through setting. It lists your pets by the rules Pet Tracker's own overlay uses: pinned pets first, then your **Recent** soul rewards (which leave after Pet Tracker's inactive time) or the pet mobs the game reported **Nearby**, maxed pets last or hidden with **Hide maxed**, sorted and limited as Pet Tracker's settings say. Each row shows the pet's portrait, name, family (Cogni, Fera, Natura, Varian or Special), rank, and souls toward the next rank with a bar, plus Pet Tracker's notices (*Rank increased*, *Rank increase pending*, *Last seen 30s ago*); the star pins a pet. While this window is open, a running Pet Tracker's own overlay is hidden, so one shows, not two. It comes back when the window closes, when the app quits, or when you turn Pet Tracker off here.
+- **As Pet Tracker's own window**: Pet Tracker's overlay, with its direction arrow, launched if Pet Tracker is not running. If Pet Tracker started minimized, show its overlay once from its tray icon.
+
+Recent or Nearby, Hide maxed, pins and farming goals are Pet Tracker's own settings, so both windows show the same pets. **Hide** closes Aion 2 Calc's window and turns its setting off. The hotkey *Show / hide the Pet Tracker overlay* (Settings → Hotkeys) shows and hides the chosen window, and turns Pet Tracker on if it was off.
+
+**The Pet Tracker page** (in the top bar) shows the same rows, Pet Tracker's status (your character and the capture's state) and the farming session: souls gained, pets ranked up and **Reset session**. Below them is your whole collection, with a search, family and rank filters, a sort by name or by closest to the next rank, and a farming goal for each pet (Rank 1, 2 or 3), for which Pet Tracker counts the souls still needed. **Open Pet Tracker** opens Pet Tracker's own window for its Find a pet, farming maps, Black Cloud Merchant list and settings.
+
+**If it does not connect.** The status line says what is missing: Pet Tracker not installed, turned off, or its capture still starting. *Totals paused* means Pet Tracker needs your collection again: return to character selection and log back in. *This Pet Tracker speaks protocol N* means one of the two programs is older than the other: update it. Pet Tracker runs on Windows only.
+
+How the two programs talk, and the app's local endpoints for it, are in [Pet Tracker integration](pettracker-integration.md).
+
 ## Settings
 
 | Setting | What it does |
@@ -676,6 +698,7 @@ Everything the app writes goes in one folder:
 | `aion2.db` | item catalog, imported characters, encounter history |
 | `history\` | saved optimization/advice snapshots |
 | `diagnostics\`, `updates\` | capture diagnostics and staged app updates |
+| `downloads\pettracker\` | Pet Tracker's verified installer while it runs (deleted when it finishes) |
 | `cache\`, `icons\` | downloaded pages and icons |
 
 Earlier versions kept this folder in `C:\Users\<you>\.aion2calc` on Windows too. The first launch
@@ -709,6 +732,7 @@ Optimization runs locally. Character import, data sync, icon retrieval and shari
 | abysslogs.com / a2dil.com | supported external combat-log imports |
 | Configured community server | uploads, shared reviews and community data |
 | GitHub Releases | application update checks and downloads |
+| github.com/0Fox2Give/PetTracker releases | Pet Tracker's signed release record and installer, only when you install Pet Tracker |
 
 Reading a local log is separate from uploading it. Diagnostic exports are not automatically sent. See the [user guide](user-guide.md) for visibility, credentials and reporting.
 
@@ -747,6 +771,8 @@ CSV needs these columns: `t, skill, damage`, plus optionally `skill_id, crit, do
 `/api/calibration?class=`, `/api/items?search=&category=`,
 `/api/items/<slug>`, `/api/items/<slug>/options?class=` (what the Gear page's item panel may set: enchant
 levels, roll pool with ranges, skill options), `/api/jobs/<id>`, `/api/icon?u=`
+
+`GET /api/pettracker` (`?collection=1` adds every pet), `/api/pettracker/portrait/<id>.png`; `POST /api/pettracker` (`{"action": ...}`); see [Pet Tracker integration](pettracker-integration.md)
 
 `POST /api/sync`, `/api/optimize`, `/api/character/import`,
 `/api/character/optimize`, `/api/encounters/import` (`{"ref": link, "player": name}`

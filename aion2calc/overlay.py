@@ -493,7 +493,7 @@ def _overlay_prefs() -> dict:
     # Remembered drag positions (per overlay), restored at launch instead of
     # re-anchoring to the game window. Machine/monitor-specific, so they live only
     # in ui.json (never the shareable settings backup).
-    positions = {"meter": None, "party": None, "radar": None}
+    positions = {"meter": None, "party": None, "radar": None, "pets": None}
     try:
         from .paths import data_file, read_json
         if data_file("ui.json").exists():
@@ -511,6 +511,7 @@ def _overlay_prefs() -> dict:
             positions["meter"] = _pos("overlay_pos_x", "overlay_pos_y", "overlay_pos_layout")
             positions["party"] = _pos("overlay_party_pos_x", "overlay_party_pos_y", "overlay_party_pos_layout")
             positions["radar"] = _pos("overlay_radar_pos_x", "overlay_radar_pos_y", "overlay_radar_pos_layout")
+            positions["pets"] = _pos("overlay_pets_pos_x", "overlay_pets_pos_y", "overlay_pets_pos_layout")
     except Exception:
         pass
     prefs["positions"] = positions
@@ -924,7 +925,7 @@ def _health_loop(window, api, win32, closed: threading.Event) -> None:
 
 
 def _view_key(party) -> str:
-    """The window a flag or name means: ``"meter"``, ``"party"`` or ``"radar"``."""
+    """The window a flag or name means: ``"meter"``, ``"party"``, ``"radar"`` or ``"pets"``."""
     if isinstance(party, str):
         return party
     return "party" if party else "meter"
@@ -941,7 +942,8 @@ def _save_overlay_position(app_base, party, pos, layout=None) -> None:
         return
     import json as _json, urllib.request
     view = _view_key(party)
-    prefix = {"meter": "overlay_pos", "party": "overlay_party_pos", "radar": "overlay_radar_pos"}[view]
+    prefix = {"meter": "overlay_pos", "party": "overlay_party_pos", "radar": "overlay_radar_pos",
+              "pets": "overlay_pets_pos"}[view]
     keys = (prefix + "_x", prefix + "_y")
     layout_key = prefix + "_layout"
     payload = {keys[0]: int(pos[0]), keys[1]: int(pos[1])}
@@ -1094,6 +1096,9 @@ def _run_overlay(window, api, app_base: str | None = None, party: bool = False, 
                 # spot, record it, then stay put. Without this the frameless window
                 # would open at the OS default corner and never follow the game.
                 anchor = _follow_position(None, game.bounds, win32.rect(hwnd), snap=snap, expand_up=expand_up)
+                if _view_key(party) == "pets":
+                    # the Pet Tracker window opens with or without the meter: below the meter's corner, not on it
+                    anchor = (anchor[0], game.bounds[1] + max(48, int(game.bounds[3] * 0.4)))
                 if anchor != cur:
                     win32.move(hwnd, *anchor)
                     cur = anchor
@@ -1146,11 +1151,13 @@ def main(argv=None) -> int:
     ap.add_argument("--height", type=int, default=120)
     a = ap.parse_args(argv)
     url = a.url or _default_url()
-    # The overlay URL is the app's own /overlay page (optionally ?view=party, or ?view=radar for the
-    # Hidden Cube radar's own small window); its base is the app to watch, derived without the path/query.
+    # The overlay URL is the app's own /overlay page (optionally ?view=party, ?view=radar for the Hidden Cube
+    # radar's own small window, or ?view=pets for the Pet Tracker window); its base is the app to watch,
+    # derived without the path/query.
     app_base = url.split("/overlay")[0] if "/overlay" in url else None
     prefs = _overlay_prefs()
-    party = "party" if "view=party" in url else "radar" if "view=radar" in url else "meter"
+    party = ("party" if "view=party" in url else "radar" if "view=radar" in url
+             else "pets" if "view=pets" in url else "meter")
     try:                                 # the app that started this overlay, to end with it (overlay_launch sets it)
         parent_pid = int(os.environ.get("AION2CALC_PARENT_PID") or 0) or None
     except ValueError:
@@ -1161,18 +1168,20 @@ def main(argv=None) -> int:
         webbrowser.open(url)
         return 0
     try:
-        api = _OverlayAPI(min_width=180 if party == "radar" else 260)
+        min_width = {"radar": 180, "pets": 240}.get(party, 260)
+        api = _OverlayAPI(min_width=min_width)
         api.url = url
         api.log = OverlayLog(_log_path(), "overlay" if party == "meter" else f"overlay[{party}]")
         api.log.write(f"started (pid {os.getpid()})")
         # Stable card content is draggable; JS stops events at the tabs and slider.
         webview.settings["DRAG_REGION_DIRECT_TARGET_ONLY"] = False
-        title = {"meter": "Aion 2 Calc Overlay", "party": "Aion 2 Calc Party Overlay", "radar": "Aion 2 Calc Radar Overlay"}[party]
+        title = {"meter": "Aion 2 Calc Overlay", "party": "Aion 2 Calc Party Overlay", "radar": "Aion 2 Calc Radar Overlay",
+                 "pets": "Aion 2 Calc Pet Tracker"}[party]
         window = webview.create_window(title, url, frameless=True, easy_drag=False,
                                        shadow=False, on_top=True, hidden=True, focus=False,
                                        transparent=sys.platform != "win32", background_color="#010203",
-                                       width=a.width, height=a.height, min_size=(180 if party == "radar" else 260, 70),
-                                       resizable=bool(prefs["resizable"]) and party != "radar", js_api=api)
+                                       width=a.width, height=a.height, min_size=(min_width, 70),
+                                       resizable=bool(prefs["resizable"]) and party not in ("radar", "pets"), js_api=api)
         api._window = window
         webview.start(_run_overlay, args=(window, api, app_base, party, parent_pid),
                       gui="edgechromium" if sys.platform == "win32" else None)

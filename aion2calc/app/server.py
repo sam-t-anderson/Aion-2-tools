@@ -580,7 +580,8 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             return self._static("index.html")
         if path == "/overlay":
-            return self._static("overlay.html")
+            # The Pet Tracker window (?view=pets) has a page of its own; every other view is the meter overlay's.
+            return self._static("pet-overlay.html" if q.get("view") == "pets" else "overlay.html")
         if path == "/overlay-background":
             # The user's chosen overlay background photo, stored locally (never in ui.json).
             for name in ("overlay-background.png", "overlay-background.jpg"):
@@ -785,6 +786,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({k: v for k, v in job.items() if k != "log"} | {"log": job["log"][-12:]})
         if path == "/api/rtss":
             return self._json(rtss_state())
+        if path == "/api/pettracker":
+            from . import pettracker
+            return self._json(pettracker.service().state(collection=q.get("collection") == "1"))
+        if path.startswith("/api/pettracker/portrait/") and path.endswith(".png"):
+            return self._pettracker_portrait(path[len("/api/pettracker/portrait/"):-len(".png")])
         if path == "/api/radar":
             return self._json(radar_state())
         if path == "/api/meter":
@@ -839,6 +845,14 @@ class Handler(BaseHTTPRequestHandler):
             if action == "forget":
                 return self._json(ownership.forget(row["server"],row["id"]))
             return self._json(ownership.request(row,action,body.get("visibility"),body.get("statement")))
+        if path == "/api/pettracker":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("Pet Tracker is controlled only on the computer running the app")
+            from .pettracker import PetTrackerError
+            try:
+                return self._json(pettracker_control(body))
+            except (PetTrackerError, TimeoutError) as err:     # Pet Tracker's own words, e.g. "Pin limit reached…"
+                return self._json({"error": str(err)}, 400)
         if path == "/api/radar":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("the Hidden Cube radar listens on this computer only")
@@ -941,6 +955,16 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
         if path == "/api/overlay":
             from .overlay_launch import launch, close, close_view
+            if body.get("action") == "hide" and body.get("view") == "pets":
+                # The Pet Tracker window's Hide turns its setting off, so Settings and the hotkey agree with it,
+                # and puts back Pet Tracker's own overlay if the window had hidden it.
+                from ..paths import write_user_json
+                cur = ui_settings()
+                cur["pettracker_overlay"] = False
+                write_user_json(cur, "ui.json")
+                close_view("pets")
+                pettracker_sync()
+                return self._json({"hidden": True})
             if body.get("action") == "hide":
                 # The meter overlay's Hide closes every overlay window; a companion window's Hide (the
                 # Party-DPS overlay, the radar's window) closes that window alone.
@@ -1178,7 +1202,8 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
                               "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_per_fight", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics", "meter_record_packets", "rtss_enabled", "radar_enabled")
+                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_per_fight", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics", "meter_record_packets", "rtss_enabled", "radar_enabled",
+                              "pettracker_enabled", "pettracker_overlay")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1200,7 +1225,8 @@ class Handler(BaseHTTPRequestHandler):
                               # bounds cover multi-monitor layouts (can be negative).
                               ("overlay_pos_x", -30000, 30000), ("overlay_pos_y", -30000, 30000),
                               ("overlay_party_pos_x", -30000, 30000), ("overlay_party_pos_y", -30000, 30000),
-                              ("overlay_radar_pos_x", -30000, 30000), ("overlay_radar_pos_y", -30000, 30000))
+                              ("overlay_radar_pos_x", -30000, 30000), ("overlay_radar_pos_y", -30000, 30000),
+                              ("overlay_pets_pos_x", -30000, 30000), ("overlay_pets_pos_y", -30000, 30000))
             for key, lo, hi in _ui_int_ranges:
                 if key in body:
                     if not isinstance(body[key], int) or isinstance(body[key], bool) or not lo <= body[key] <= hi:
@@ -1210,15 +1236,24 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError(f"{key} must be a short string")
             from .settings_backup import APP_PAGES
             for key, allowed in (("rtss_metric", ("dps", "hps", "dtps")), ("rtss_style", ("plain", "colored")),
-                                 ("app_default_page", APP_PAGES)):
+                                 ("app_default_page", APP_PAGES), ("pettracker_overlay_style", ("app", "pettracker"))):
                 if key in body and body[key] not in allowed:
                     raise ValueError(f"{key} must be one of " + ", ".join(allowed))
+            if "pettracker_path" in body:
+                # A folder holding Pet Tracker (a portable copy); empty looks in its installers' folders.
+                import ntpath
+                import posixpath
+                folder = body["pettracker_path"]
+                if not isinstance(folder, str) or len(folder) > 260 or "\x00" in folder or (
+                        folder.strip() and not (ntpath.isabs(folder.strip()) or posixpath.isabs(folder.strip()))):
+                    raise ValueError("pettracker_path must be empty or a full folder path")
+                cur["pettracker_path"] = folder.strip()
             if "hotkeys" in body:
                 from . import hotkeys as _hotkeys
                 cur["hotkeys"] = _hotkeys.clean_hotkeys(body["hotkeys"])
             # Remembered monitor layout for each overlay (machine-specific; restores the
             # position by the monitor layout). A list of [left, top, width, height] rects.
-            for key in ("overlay_pos_layout", "overlay_party_pos_layout", "overlay_radar_pos_layout"):
+            for key in ("overlay_pos_layout", "overlay_party_pos_layout", "overlay_radar_pos_layout", "overlay_pets_pos_layout"):
                 if key in body:
                     layout = body[key]
                     if not (isinstance(layout, list) and len(layout) <= 16 and all(
@@ -1229,7 +1264,7 @@ class Handler(BaseHTTPRequestHandler):
                     cur[key] = layout
             cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update",
                                                                "event_region", "event_group", "rtss_metric", "rtss_style",
-                                                               "app_default_page",
+                                                               "app_default_page", "pettracker_overlay_style",
                                                                *(k for k, _, _ in _ui_int_ranges), *_ui_bool_flags)})
             write_user_json(cur, "ui.json")
             if any(k.startswith("rtss_") for k in body):
@@ -1242,6 +1277,8 @@ class Handler(BaseHTTPRequestHandler):
                     radar_sync()
                 except Exception:
                     traceback.print_exc()
+            if any(k in body for k in ("pettracker_enabled", "pettracker_overlay", "pettracker_overlay_style", "pettracker_path")):
+                pettracker_sync()                      # the worker and the Pet Tracker window follow their settings
             if "overlay_party_enabled" in body:        # the Party-DPS window follows its setting while the overlay is open
                 try:
                     from .overlay_launch import sync_companions
@@ -1321,6 +1358,17 @@ class Handler(BaseHTTPRequestHandler):
             raise FileNotFoundError(rel)
         ctype = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
         self._send(200, p.read_bytes(), ctype)
+
+    def _pettracker_portrait(self, pet: str):
+        """A pet's portrait from the installed Pet Tracker (it ships them; Aion 2 Calc does not)."""
+        from . import pettracker
+        if not pet.isdigit() or len(pet) > 9:
+            raise FileNotFoundError(pet)
+        svc = pettracker.service()
+        path = pettracker.portrait_path(int(pet), svc.install(), svc.roots())
+        if path is None:
+            raise FileNotFoundError(pet)
+        self._send(200, path.read_bytes(), "image/png", cache=3600)
 
     def _icon(self, u: str):
         """Fetch and cache game icons locally so the UI keeps working offline."""
@@ -1509,6 +1557,91 @@ def radar_control(body: dict) -> dict:
     return radar_state()
 
 
+def _app_base() -> str | None:
+    server = HTTPD.get("server")
+    return f"http://127.0.0.1:{server.server_address[1]}" if server is not None else None
+
+
+def pettracker_sync() -> None:
+    """Settings → Pet Tracker, applied at launch, on a change and from its hotkey. Turned on, Pet Tracker's
+    capture is started if it does not run yet (before the player logs in, so the collection syncs), and its
+    overlay opens as chosen: in Aion 2 Calc's own window (``view=pets``), or as Pet Tracker's own window, which
+    is otherwise hidden while Aion 2 Calc's window is open (``Service.follow_overlay``). Turned off, what this
+    app did to Pet Tracker is put back. Starting programs and talking to the pipe can take a moment, so this
+    runs off the request thread."""
+    def run():
+        try:
+            from . import overlay_launch, pettracker
+            ui = ui_settings()
+            enabled = ui.get("pettracker_enabled") is True
+            svc = pettracker.service()
+            svc.configure(enabled, ui.get("pettracker_path") or "")
+            wanted = enabled and ui.get("pettracker_overlay") is True
+            ours = wanted and ui.get("pettracker_overlay_style", "app") != "pettracker"
+            base = _app_base()
+            if base:
+                overlay_launch.sync_pets(base + "/overlay?view=pets", ours)
+            if not enabled:
+                svc.shutdown()
+                return
+            if svc.ensure_worker() in ("started", "waiting"):
+                svc.wait_ready(10)
+            try:
+                svc.follow_overlay(ours, wanted and not ours)
+            except (pettracker.PetTrackerError, TimeoutError, OSError):
+                pass                      # its capture is still starting; the window catches up on the next change
+        except Exception:
+            traceback.print_exc()
+    threading.Thread(target=run, daemon=True, name="pettracker-sync").start()
+
+
+def pettracker_control(body: dict) -> dict:
+    """Settings → Pet Tracker, its page and its overlay window: ``{"action": ...}``, one of ``install``
+    (download Pet Tracker's installer, verify it against its publisher's signed release and start it),
+    ``start`` (its capture), ``open`` (Pet Tracker's own window: finder, maps, merchant list, settings),
+    ``mode`` (``"value"``: ``Recent`` or ``Nearby``), ``hide_maxed`` (``"value"``: true/false), ``pin``
+    (``"pet"``, ``"value"``: true pins, false unpins), ``goal`` (``"pet"``, ``"rank"``: 1 to 3, or null to
+    clear) or ``reset_session``. Returns what ``GET /api/pettracker`` returns (with the whole collection when
+    ``"collection"`` is true)."""
+    from . import pettracker, pettracker_setup
+    svc = pettracker.service()
+    action, collection = body.get("action"), body.get("collection") is True
+
+    def pet_id():
+        pet = body.get("pet")
+        if not isinstance(pet, int) or isinstance(pet, bool) or not 0 < pet < 1_000_000_000:
+            raise ValueError("pet must be a pet id")
+        return pet
+    if action == "install":
+        pettracker_setup.begin_install()
+    elif action == "start":
+        svc.ensure_worker()
+    elif action == "open":
+        svc.launch_app()
+    elif action == "mode":
+        if body.get("value") not in ("Recent", "Nearby"):
+            raise ValueError("value must be Recent or Nearby")
+        svc.patch(TrackerMode=body["value"])
+    elif action == "hide_maxed":
+        if type(body.get("value")) is not bool:
+            raise ValueError("value must be true or false")
+        svc.patch(HideMaxed=body["value"])
+    elif action == "pin":
+        if type(body.get("value")) is not bool:
+            raise ValueError("value must be true or false")
+        svc.send({"Action": "pin" if body["value"] else "unpin", "PetId": pet_id()})
+    elif action == "goal":
+        rank = body.get("rank")
+        if rank is not None and (not isinstance(rank, int) or isinstance(rank, bool) or not 1 <= rank <= 3):
+            raise ValueError("rank must be 1, 2, 3 or null")
+        svc.send({"Action": "farming-goal", "PetId": pet_id(), "TargetRank": rank})
+    elif action == "reset_session":
+        svc.send({"Action": "reset-farming"})
+    else:
+        raise ValueError("action must be install, start, open, mode, hide_maxed, pin, goal or reset_session")
+    return svc.state(collection=collection)
+
+
 def schedule_shutdown(upload: bool = True) -> None:
     """Let the response finish, stop capture, close native windows, then stop serving.
 
@@ -1534,6 +1667,11 @@ def schedule_shutdown(upload: bool = True) -> None:
         # upload can take many seconds, and the overlays have nothing to show meanwhile (0.2.331).
         try:
             overlay_launch.close()
+        except Exception:
+            traceback.print_exc()
+        try:
+            from . import pettracker
+            pettracker.service().shutdown()   # a capture this app started saves and stops, unless Pet Tracker's window uses it
         except Exception:
             traceback.print_exc()
         for close in (close_app_browser, r.stop):
@@ -1597,6 +1735,10 @@ def ui_settings() -> dict:
                 "rtss_enabled": False, "rtss_rows": 5, "rtss_metric": "dps", "rtss_style": "plain", "rtss_interval_ms": 500,
                 # The Hidden Cube radar: listens to the game's sound for a cube's jingle (Windows; off by default).
                 "radar_enabled": False, "radar_sensitivity": 5,
+                # Pet Tracker, 0Fox2Give's separate program (Settings → Pet Tracker; Windows): off until turned on.
+                # "app" draws its overlay in Aion 2 Calc's own window; "pettracker" shows Pet Tracker's window.
+                "pettracker_enabled": False, "pettracker_overlay": False, "pettracker_overlay_style": "app",
+                "pettracker_path": "",
                 "overlay_max_players": 8, "overlay_width": 340, "overlay_height": 0, "overlay_row_height": 22,
                 "overlay_only_in_combat": False, "overlay_auto_expand": False,
                 # Visual group (all inert by default so the overlay looks unchanged until enabled).
@@ -1781,6 +1923,8 @@ def serve(port: int = 8765, open_browser: bool = True, sync: bool = True, host: 
         radar_sync()   # and listening for Hidden Cubes
     except Exception:
         traceback.print_exc()
+    if open_overlay:
+        pettracker_sync()   # Pet Tracker's capture, before the player logs in, and its window
     if open_overlay and ui_settings().get("meter_autostart", True):
         def _meter_on_app_start():
             try:
