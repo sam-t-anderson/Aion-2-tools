@@ -84,7 +84,9 @@ the fields may have changed. Aion 2 Calc reads `Ready`, `CollectionSynced`, `Sta
 
 Pet Tracker's own window updates it: it reads the same signed feed 30 seconds after it opens and every 6 hours,
 announces an update from its tray icon, and installs it when the player chooses *Restart to update*, after saving
-and stopping the worker (it never kills the worker to install). Since 0.2.338 the app reads the feed too, while Pet
+and stopping the worker (it never kills the worker to install). Velopack's updater then force-stops anything still
+running from Pet Tracker's folder before it swaps the versions, so a worker another client started in that gap
+would be killed without saving: hence the start rules above. Since 0.2.338 the app reads the feed too, while Pet
 Tracker is on (at launch, then every 6 hours, an hour after a failed read), verified as for the install below, and
 compares its newest version with the installed one (`sq.version`). `GET /api/pettracker` then carries `update`:
 `available`, `latest`, `installed`, `kind`, `checked` and `error`. `POST /api/pettracker {"action": "update"}` opens
