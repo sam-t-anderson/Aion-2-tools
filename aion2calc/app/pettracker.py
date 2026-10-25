@@ -149,6 +149,8 @@ class _Win32:
             "CreateToolhelp32Snapshot": ([w.DWORD, w.DWORD], w.HANDLE),
             "Process32FirstW": ([w.HANDLE, ctypes.c_void_p], w.BOOL),
             "Process32NextW": ([w.HANDLE, ctypes.c_void_p], w.BOOL),
+            "OpenProcess": ([w.DWORD, w.BOOL, w.DWORD], w.HANDLE),
+            "QueryFullProcessImageNameW": ([w.HANDLE, w.DWORD, w.LPWSTR, ctypes.POINTER(w.DWORD)], w.BOOL),
         }
         for name, (args, result) in signatures.items():
             fn = getattr(k, name)
@@ -222,6 +224,19 @@ class _Win32:
             return found
         finally:
             k.CloseHandle(snap)
+
+    def image_path(self, pid: int) -> str | None:
+        """The full path of a running program, or None when Windows does not say (it ended, or it is not ours)."""
+        ctypes, k, w = self.ctypes, self.k, self.w
+        handle = k.OpenProcess(0x1000, False, pid)          # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return None
+        try:
+            size = w.DWORD(32768)
+            buffer = ctypes.create_unicode_buffer(size.value)
+            return buffer.value if k.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)) else None
+        finally:
+            k.CloseHandle(handle)
 
     # -- one request on the pipe
     def request(self, name: str, payload: bytes, timeout: float) -> bytes:
@@ -403,9 +418,12 @@ def self_check(win=None) -> str:
 
     folder, user, programs = win.local_appdata(), win.user_name(), win.processes()
     mine = [exe for exe, pids in programs.items() if os.getpid() in pids]
+    path = win.image_path(os.getpid())
     if not folder or not user or len(mine) != 1 or not mine[0].endswith(".exe"):
         raise PetTrackerError(f"folder {bool(folder)}, user name {bool(user)}, this program listed as {mine}")
-    return f"OK (round trip, timeout, busy, missing worker; {mine[0]} in {len(programs)} programs)"
+    if not path or ntpath.basename(path).lower() != mine[0]:
+        raise PetTrackerError(f"this program's path read as {path!r}")
+    return f"OK (round trip, timeout, busy, missing worker; {mine[0]} in {len(programs)} programs, at its path)"
 
 
 # ------------------------------------------------------------------ the protocol
@@ -709,16 +727,48 @@ def render(view: dict, now: datetime, collection: bool = False) -> dict:
     return out
 
 
+def _start_failure(err: OSError, what: str) -> str:
+    """Why Windows did not start one of Pet Tracker's programs, in words for the status line."""
+    reason = (getattr(err, "strerror", None) or str(err) or type(err).__name__).strip().rstrip(".")
+    if getattr(err, "winerror", None) in (2, 3) or isinstance(err, FileNotFoundError):
+        return f"{what} could not start: its program is missing ({reason}). Install Pet Tracker again."
+    return (f"Windows did not start {what}: {reason}. If Smart App Control or your antivirus blocked it, allow "
+            "Pet Tracker there.")
+
+
+def _in_background(fn) -> None:
+    threading.Thread(target=fn, daemon=True, name="pettracker-update-check").start()
+
+
+def _version_key(text) -> tuple | None:
+    match = re.match(r"\s*v?(\d+(?:\.\d+)*)", text) if isinstance(text, str) else None
+    return tuple(int(part) for part in match.group(1).split(".")) if match else None
+
+
+def newer_version(latest, installed) -> bool:
+    """Whether release ``latest`` (``0.1.58``) is newer than ``installed``; False when either is unknown."""
+    a, b = _version_key(latest), _version_key(installed)
+    return a is not None and b is not None and a > b
+
+
 # ------------------------------------------------------------------ the service the app runs
 
 class Service:
     """Pet Tracker for the running app. Off until Settings → Pet Tracker turns it on; then the worker is
     started if it does not run yet (so the collection syncs when you log in), its view is fetched when the
     overlay or the app asks (at most once per ``MAX_AGE``, shared between them), and a worker this app
-    started is asked to save and stop when the app quits, unless Pet Tracker's own window still uses it."""
+    started is asked to save and stop when the app quits, unless Pet Tracker's own window still uses it.
+
+    While Pet Tracker's own window runs, it owns the worker (it starts it, and stops it to install an update), so
+    this app starts none then, nor while Pet Tracker's updater replaces its files, nor for ``APP_GRACE`` seconds
+    after its window closed. Pet Tracker's signed release feed is read at launch and every ``UPDATE_EVERY`` seconds
+    while it is on, for the update notice."""
 
     MAX_AGE = 0.8
     LAUNCH_SPACING = 15.0
+    APP_GRACE = 20.0
+    UPDATE_EVERY = 6 * 3600.0
+    UPDATE_RETRY = 3600.0
 
     def __init__(self, platform=None, clock=time.monotonic, now=None):
         self.platform = platform if platform is not None else _platform()
@@ -731,7 +781,17 @@ class Service:
         self.error = ""
         self.failed_at: float | None = None
         self.launched_at: float | None = None
+        self.launched_wall: float | None = None   # time.time() of the last start, beside Pet Tracker's files' times
+        self.start_error = ""                      # why Windows did not start the worker, from the last try
+        self.last_start = ""                       # what ensure_worker last found, for the page's status line
+        self.app_seen_at: float | None = None      # when Pet Tracker's own window was last seen running
         self.started_worker = False
+        #: the newest release Pet Tracker's publisher signed, as last read: {"latest", "checked", "error"}
+        self.update: dict = {"latest": None, "checked": None, "error": ""}
+        self.update_at: float | None = None
+        self.update_running = False
+        self.release_source = None                 # the feed reader (pettracker_setup.latest_release unless a test sets one)
+        self.background = _in_background           # how the update check runs: on a thread of its own
         #: what this app did to Pet Tracker's own overlay: "hidden" (for Aion 2 Calc's window) or "shown" (its style)
         self.own_window: str | None = None
         self._client: Client | None = None
@@ -762,13 +822,31 @@ class Service:
         return self._client
 
     def running(self) -> dict:
+        """Which of Pet Tracker's programs run: its window (``app``), its capture (``worker``) and its updater
+        (``updating``: Velopack's Update.exe beside its installed versions, replacing its files)."""
         names = self.platform.processes() if self.platform else {}
-        return {"app": APP_EXE.lower() in names, "worker": WORKER_EXE.lower() in names}
+        app = APP_EXE.lower() in names
+        if app:
+            self.app_seen_at = self.clock()
+        return {"app": app, "worker": WORKER_EXE.lower() in names, "updating": self._updating(names)}
+
+    def _updating(self, names: dict) -> bool:
+        pids = names.get("update.exe")
+        info = self.install() if pids else None
+        if not pids or info is None or info["kind"] != "installer":
+            return False
+        root = ntpath.normcase(ntpath.dirname(info["folder"]))
+        return any(path and ntpath.normcase(ntpath.dirname(path)) == root
+                   for path in (self.platform.image_path(pid) for pid in pids))
 
     # -- the worker
     def ensure_worker(self) -> str:
-        """Start the worker when it should run and does not: ``running``, ``started``, ``waiting`` (started a
-        moment ago), ``off``, ``missing`` (not installed) or ``unsupported``."""
+        """Start the worker when it should run and does not. Returns ``running``, ``started``, ``waiting``
+        (started a moment ago), ``owned`` (Pet Tracker's own window runs: it starts its capture itself),
+        ``updating`` (Pet Tracker's updater is replacing its files), ``deferred`` (its window closed a moment ago,
+        perhaps to update), ``failed`` (Windows did not start it: ``start_error`` says why; tried again after
+        ``LAUNCH_SPACING``, or four times that after it gave up at startup), ``off``, ``missing`` (not installed)
+        or ``unsupported``."""
         with self.lock:
             if self.platform is None:
                 return "unsupported"
@@ -777,17 +855,69 @@ class Service:
             info = self.install()
             if info is None:
                 return "missing"
-            if self.running()["worker"]:
+            run = self.running()
+            if run["worker"]:
                 return "running"
+            if run["app"]:
+                return "owned"
+            if run["updating"]:
+                return "updating"
             now = self.clock()
-            if self.launched_at is not None and now - self.launched_at < self.LAUNCH_SPACING:
-                return "waiting"
+            if self.app_seen_at is not None and now - self.app_seen_at < self.APP_GRACE:
+                return "deferred"
+            # a capture that gave up at startup (Npcap missing, say) is tried again a minute later, not every 15 s
+            spacing = self.LAUNCH_SPACING * (4 if self._startup_error() else 1)
+            if self.launched_at is not None and now - self.launched_at < spacing:
+                return "failed" if self.start_error else "waiting"
             roots = self.roots()
             if not roots:
                 return "missing"
-            self.platform.spawn([info["worker"], "--data", roots[0]], info["folder"], True)
-            self.launched_at, self.started_worker = now, True
+            self.launched_at, self.launched_wall = now, time.time()
+            try:
+                self.platform.spawn([info["worker"], "--data", roots[0]], info["folder"], True)
+            except OSError as err:
+                self.start_error = _start_failure(err, "Pet Tracker's capture")
+                return "failed"
+            self.start_error, self.started_worker = "", True
             return "started"
+
+    def _not_running(self, outcome: str) -> str:
+        """What the status line says while no worker answers, after ``ensure_worker`` returned ``outcome``."""
+        if outcome == "failed":
+            self.last_start = "failed"
+            return self.start_error
+        if outcome == "owned":
+            return "Pet Tracker's own window is running; waiting for it to start its capture."
+        if outcome == "updating":
+            return "Pet Tracker is installing an update; its capture starts again when it finishes."
+        if outcome == "deferred":
+            return "Pet Tracker closed a moment ago; Aion 2 Calc starts its capture again in a few seconds."
+        if outcome == "running":
+            return "Waiting for Pet Tracker's capture to answer…"
+        stopped = self._startup_error()
+        if stopped:
+            self.last_start = "stopped"
+            return f"Pet Tracker's capture stopped: {stopped}"
+        if outcome in ("started", "waiting"):
+            return "Starting Pet Tracker's capture…"
+        return "Pet Tracker's capture is not running."
+
+    def _startup_error(self) -> str:
+        """The reason Pet Tracker's capture wrote when it stopped at startup (``startup-error.json`` in its data
+        folder), if it wrote one since this app last started it."""
+        roots = self.roots()
+        if self.launched_wall is None or not roots:
+            return ""
+        path = Path(roots[0]) / "startup-error.json"
+        try:
+            if path.stat().st_mtime < self.launched_wall - 1:
+                return ""
+            with path.open("rb") as handle:
+                doc = json.loads(handle.read(65536).decode("utf-8-sig"))
+        except (OSError, ValueError):
+            return ""
+        error = doc.get("Error") if isinstance(doc, dict) else None
+        return error.strip()[:300] if isinstance(error, str) and error.strip() else ""
 
     def send(self, command: dict, timeout: float = 4.0) -> dict:
         """One command; the answer is the worker's fresh view, which becomes the cached one."""
@@ -811,9 +941,10 @@ class Service:
                 return None
             try:
                 return self.send({"Action": "status"})
-            except NotRunning as err:
-                self.view, self.view_at, self.error, self.failed_at = None, None, str(err), self.clock()
-                self.ensure_worker()
+            except NotRunning:
+                self.last_start = outcome = self.ensure_worker()
+                self.view, self.view_at, self.failed_at = None, None, self.clock()
+                self.error = self._not_running(outcome)
             except (PetTrackerError, TimeoutError, OSError) as err:
                 self.view, self.view_at, self.error, self.failed_at = None, None, str(err), self.clock()
             return None
@@ -870,8 +1001,33 @@ class Service:
             info = self.install()
             if self.platform is None or info is None or self.running()["app"]:
                 return False
-            self.platform.spawn([info["app"]] + (["--minimized"] if minimized else []), info["folder"], False)
+            try:
+                self.platform.spawn([info["app"]] + (["--minimized"] if minimized else []), info["folder"], False)
+            except OSError as err:
+                raise PetTrackerError(_start_failure(err, "Pet Tracker")) from None
             return True
+
+    def open_for_update(self) -> str:
+        """The update notice's button: Pet Tracker's own updater installs its updates (it saves and stops its
+        capture first), so its window is opened for it, or the player is told where to find it. A copy without
+        that updater is replaced by Pet Tracker's installer (the older offline installer's), or left to its owner
+        (a folder of the player's own). Returns what to tell the player."""
+        from . import pettracker_setup
+        info = self.install() if self.platform is not None else None
+        if info is None:
+            raise PetTrackerError("Pet Tracker is not installed.")
+        if info["kind"] == "offline":
+            pettracker_setup.begin_install()
+            return "Installing the new Pet Tracker over the older offline copy; its installer opens in a moment."
+        if info["kind"] == "custom":
+            return ("This Pet Tracker is a copy in a folder of your own: download the new version from Pet Tracker's "
+                    "releases page and unpack it there.")
+        where = ("double-click Pet Tracker's paw icon in the Windows tray, then choose Updates → Download update → "
+                 "Restart to update.")
+        if self.running()["app"]:
+            return "Pet Tracker is running: " + where
+        self.launch_app()
+        return "Pet Tracker is opening and checks for its update within a minute. Then " + where
 
     def shutdown(self) -> None:
         """App quitting, or Pet Tracker turned off in it: Pet Tracker's own overlay shows again if this app hid it,
@@ -895,6 +1051,38 @@ class Service:
             except (PetTrackerError, TimeoutError, OSError):
                 pass
 
+    # -- Pet Tracker's updates
+    def check_updates(self) -> dict:
+        """Read Pet Tracker's signed release feed for its newest version (in the background, from ``state``)."""
+        from . import pettracker_setup
+        try:
+            release = (self.release_source or pettracker_setup.latest_release)()
+            result = {"latest": release.get("version"), "error": ""}
+        except Exception as err:                                  # noqa: BLE001 - shown beside the notice, retried
+            result = {"latest": self.update.get("latest"), "error": str(err) or type(err).__name__}
+        with self.lock:
+            self.update = dict(result, checked=self.now().isoformat())
+            self.update_running = False
+            return dict(self.update)
+
+    def _start_update_check(self) -> None:
+        with self.lock:
+            if self.update_running:
+                return
+            if self.update_at is not None:
+                wait = self.UPDATE_RETRY if self.update.get("error") else self.UPDATE_EVERY
+                if self.clock() - self.update_at < wait:
+                    return
+            self.update_running, self.update_at = True, self.clock()
+        self.background(self.check_updates)
+
+    def update_notice(self, info: dict | None) -> dict:
+        """Whether a newer Pet Tracker than the installed one has been released, for the page and Settings."""
+        latest, installed = self.update.get("latest"), (info or {}).get("version")
+        return {"available": newer_version(latest, installed), "latest": latest, "installed": installed,
+                "kind": (info or {}).get("kind"), "checked": self.update.get("checked"),
+                "error": self.update.get("error") or ""}
+
     # -- the app's view
     def state(self, collection: bool = False) -> dict:
         from . import pettracker_setup
@@ -909,8 +1097,10 @@ class Service:
         out["running"] = self.running()
         if not self.enabled or info is None:
             return out
+        self._start_update_check()
+        out["update"] = self.update_notice(info)
         view = self.fetch()
-        out["problem"] = self.error
+        out["problem"], out["start"] = self.error, self.last_start
         if view is not None:
             out["connected"] = True
             out.update(render(view, self.now(), collection))

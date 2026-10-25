@@ -2117,7 +2117,7 @@ async function pageSettings() {
       <p id="radar-status" class="small muted" style="margin:2px 0 4px 22px" role="status">Radar status unknown.</p>
       <ul id="radar-samples" class="small" style="margin:2px 0 4px 22px;padding-left:18px" aria-label="Learned sound samples" hidden></ul>
       ${radarNotes(ui)}</div></div>
-    <div class="setrow" data-g="pettracker"><div class="lbl">Pet Tracker</div><div><p>Pet Tracker, by 0Fox2Give, shows your pet ranks and how many souls you still need while you farm. Aion 2 Calc can install it, run its capture, and show its pets in an overlay window of its own and on the <a href="#/pets">Pet Tracker page</a>.</p><div id="pt-set-status" class="small muted" role="status">Checking Pet Tracker…</div></div></div>
+    <div class="setrow" data-g="pettracker"><div class="lbl">Pet Tracker</div><div><p>Pet Tracker, by 0Fox2Give, shows your pet ranks and how many souls you still need while you farm. Aion 2 Calc can install it, run its capture, and show its pets in an overlay window of its own and on the <a href="#/pets">Pet Tracker page</a>.</p><div id="pt-set-status" class="small muted" role="status">Checking Pet Tracker…</div><p id="pt-set-note" class="small" role="status"></p></div></div>
     <div class="setrow" data-g="pettracker"><div class="lbl">Use Pet Tracker</div><div><label><input type="checkbox" id="pt-set-enabled" ${ui.pettracker_enabled === true ? "checked" : ""}> Run Pet Tracker's capture with Aion 2 Calc <span class="muted">(Windows; off by default)</span></label><p class="small muted">It starts with the app, before you log into your character, so your collection syncs at login. When the app quits it stops too, unless Pet Tracker's own window is open and still using it.</p></div></div>
     <div class="setrow" data-g="pettracker"><div class="lbl">Pet Tracker overlay</div><div><div class="row"><label><input type="checkbox" id="pt-set-overlay" ${ui.pettracker_overlay === true ? "checked" : ""}> Show the Pet Tracker overlay while the game runs</label><select id="pt-set-style" aria-label="Which window"><option value="app" ${ui.pettracker_overlay_style !== "pettracker" ? "selected" : ""}>in Aion 2 Calc's own window</option><option value="pettracker" ${ui.pettracker_overlay_style === "pettracker" ? "selected" : ""}>as Pet Tracker's own window</option></select></div><p class="small muted">Aion 2 Calc's window is a separate overlay with its own Lock, Hide and opacity, and it remembers where you put it. While it is open, a running Pet Tracker's own overlay is hidden, so one shows, not two; it comes back when the window closes. Pet Tracker's own window adds Find a pet, farming maps and the Black Cloud Merchant list; if Pet Tracker started minimized, show it once from its tray icon. A hotkey can show and hide either (Overlay → Hotkeys).</p></div></div>
     <div class="setrow" data-g="pettracker"><div class="lbl">Pet Tracker folder</div><div><div class="row"><input id="pt-set-path" type="text" placeholder="Found automatically" value="${esc(ui.pettracker_path || "")}" style="width:380px" aria-label="Pet Tracker folder"><button class="btn small" id="pt-set-path-save">Save</button><span id="pt-set-msg" class="small muted" role="status"></span></div><p class="small muted">Only for a copy of Pet Tracker unpacked in a folder of your own (its portable ZIP). Leave it empty to use the installed one.</p></div></div>
@@ -2479,13 +2479,14 @@ async function pageSettings() {
         const s = await (await fetch("/api/pettracker", { cache: "no-store" })).json();
         const setup = petSetupText(s.setup), busy = ["finding", "downloading", "installing", "started"].includes((s.setup || {}).status);
         box.innerHTML = !s.supported ? "Pet Tracker runs on Windows only."
-          : s.installed ? `Installed${s.installed.version ? ": version " + esc(s.installed.version) : ""}, in ${esc(s.installed.folder)}. ${esc(window.A2Pets ? window.A2Pets.status(s).text : "")}`
+          : s.installed ? `Installed${s.installed.version ? ": version " + esc(s.installed.version) : ""}, in ${esc(s.installed.folder)}. ${esc(window.A2Pets ? window.A2Pets.status(s).text : "")}${petUpdateNotice(s, "pt-set-update")}`
           : `Not installed on this computer. <button type="button" class="btn small" id="pt-set-install" ${busy && s.setup.status !== "started" ? "disabled" : ""}>Install Pet Tracker</button> ${esc(setup)}<br>It downloads Pet Tracker's official installer and starts it only once it matches the release its publisher signed.`;
         if (busy) ptTimer = setTimeout(ptStatus, 2000);
       } catch (e) { box.textContent = e.message; }
     };
     $("#pt-set-status").addEventListener("click", (e) => {
       if (e.target.closest("#pt-set-install")) window.A2Pets.control({ action: "install" }).then(ptStatus).catch((err) => { $("#pt-set-status").textContent = err.message; });
+      if (e.target.closest("#pt-set-update")) window.A2Pets.control({ action: "update" }).then((s) => { $("#pt-set-note").textContent = s.message || ""; ptStatus(); }).catch((err) => { $("#pt-set-note").textContent = err.message; });
     });
     $("#pt-set-enabled").onchange = () => api("/api/ui", { pettracker_enabled: $("#pt-set-enabled").checked }).then(() => { toast("Saved"); setTimeout(ptStatus, 800); });
     $("#pt-set-overlay").onchange = () => api("/api/ui", { pettracker_overlay: $("#pt-set-overlay").checked }).then(() => toast("Saved"));
@@ -2772,6 +2773,17 @@ let petsView = null;
 const PET_SETUP = { finding: "Checking Pet Tracker's signed release…", downloading: "Downloading Pet Tracker…",
   installing: "Pet Tracker's installer is running…", started: "Pet Tracker's installer is running; this page notices when it finishes.",
   installed: "Pet Tracker is installed." };
+// The update notice (GET /api/pettracker's "update"): a newer Pet Tracker than the installed one. Its button opens
+// Pet Tracker for its own updater (installer copies), installs the new one over an older offline copy, or, for a
+// copy in a folder of the player's own, the notice links to Pet Tracker's releases.
+function petUpdateNotice(s, id) {
+  const u = s && s.update;
+  if (!u || !u.available) return "";
+  const what = `Pet Tracker ${esc(u.latest)} is available (you have ${esc(u.installed)}).`;
+  if (u.kind === "custom") return `<div class="note ptupdate">${what} <a href="${esc((s.source || "") + "/releases")}" target="_blank" rel="noopener">Download it from Pet Tracker's releases</a></div>`;
+  const label = u.kind === "offline" ? `Install Pet Tracker ${esc(u.latest)}` : "Update Pet Tracker";
+  return `<div class="note ptupdate">${what} <button type="button" class="btn small" id="${id}">${label}</button></div>`;
+}
 function petSetupText(setup) {
   if (!setup) return "";
   if (setup.status === "error") return setup.error || "Pet Tracker could not be installed.";
@@ -2783,7 +2795,7 @@ async function pagePets() {
   const st = { state: null, collection: null, alive: true, timer: 0, ctimer: 0, filters: { q: "", family: "", rank: "all", sort: "name" } };
   const ui = await api("/api/ui").catch(() => ({}));
   app().innerHTML = `<section class="win ptpage"><div class="wh"><h2>Pet Tracker</h2><span class="sub">by 0Fox2Give · your pet ranks and the souls you still need, inside Aion 2 Calc</span></div>
-    <div class="setrow"><div class="lbl">Pet Tracker</div><div id="pt-head">Loading Pet Tracker…</div></div>
+    <div class="setrow"><div class="lbl">Pet Tracker</div><div><div id="pt-head">Loading Pet Tracker…</div><p id="pt-note" class="small" role="status"></p></div></div>
     <div class="setrow"><div class="lbl">Now</div><div>
       <div class="row"><div class="seg" id="pt-modes"><button type="button" data-mode="Recent">Recent</button><button type="button" data-mode="Nearby">Nearby</button></div>
         <label><input type="checkbox" id="pt-hidemax"> Hide maxed</label><span id="pt-msg" class="small muted" role="status"></span></div>
@@ -2812,11 +2824,12 @@ async function pagePets() {
     }
     const line = P.status(s), run = s.running || {}, style = ui.pettracker_overlay_style === "pettracker" ? "pettracker" : "app";
     return `<div class="row"><b>Pet Tracker${s.installed.version ? " " + esc(s.installed.version) : ""}</b><span class="small muted">${esc(s.installed.folder)}</span></div>
+      ${petUpdateNotice(s, "pt-update")}
       <div class="row"><label><input type="checkbox" id="pt-enabled" ${s.enabled ? "checked" : ""}> Use Pet Tracker with Aion 2 Calc</label>
         <label><input type="checkbox" id="pt-overlay" ${ui.pettracker_overlay === true ? "checked" : ""} ${s.enabled ? "" : "disabled"}> Show the Pet Tracker overlay</label>
         <select id="pt-style" aria-label="Which window" ${s.enabled ? "" : "disabled"}><option value="app" ${style === "app" ? "selected" : ""}>in Aion 2 Calc's own window</option><option value="pettracker" ${style === "pettracker" ? "selected" : ""}>as Pet Tracker's own window</option></select></div>
       <div class="row"><span class="ptstatus" data-tone="${line.tone}" title="${esc(line.title || "")}">${esc(line.text)}</span>
-        <button type="button" class="btn small" id="pt-open" ${run.app ? "disabled" : ""} title="Pet Tracker's own window: Find a pet, farming maps, the Black Cloud Merchant list and its settings">${run.app ? "Pet Tracker's window is open" : "Open Pet Tracker"}</button></div>`;
+        <button type="button" class="btn small" id="pt-open" ${run.app ? "disabled" : ""} title="${run.app ? "Pet Tracker is running: its paw icon in the Windows tray opens Find a pet, its settings and more" : "Starts Pet Tracker: its overlay, and its paw icon in the Windows tray with Find a pet, its settings and more"}">${run.app ? "Pet Tracker is running (tray icon)" : "Open Pet Tracker"}</button></div>`;
   }
   function session(s) {
     const se = s.session;
@@ -2868,6 +2881,10 @@ async function pagePets() {
   $("#pt-head").addEventListener("click", (e) => {
     if (e.target.closest("#pt-install")) act({ action: "install" });
     else if (e.target.closest("#pt-open")) act({ action: "open" });
+    else if (e.target.closest("#pt-update")) {
+      P.control({ action: "update" }).then((s) => { st.state = s; draw(); $("#pt-note").textContent = s.message || ""; })
+        .catch((err) => { $("#pt-note").textContent = err.message; });
+    }
   });
   $("#pt-head").addEventListener("change", (e) => {
     if (e.target.id === "pt-enabled") setUi({ pettracker_enabled: e.target.checked });

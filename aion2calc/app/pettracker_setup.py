@@ -173,6 +173,12 @@ def verify_feed(envelope: bytes, now: datetime | None = None, key_pem: str = PUB
             "published": published.isoformat(), "expires": expires.isoformat()}
 
 
+def latest_release(opener=None, now: datetime | None = None) -> dict:
+    """The newest release Pet Tracker's publisher signed, checked exactly as ``install`` checks it (the app's
+    update notice compares it with the installed version)."""
+    return verify_feed(_fetch(FEED_ROOT + SIGNED_FEED, MAX_FEED_BYTES, opener), now=now)
+
+
 def _feed_version(feed) -> str | None:
     """The newest version the signed Velopack feed lists (for the status line only)."""
     try:

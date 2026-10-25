@@ -1601,11 +1601,12 @@ def pettracker_control(body: dict) -> dict:
     ``start`` (its capture), ``open`` (Pet Tracker's own window: finder, maps, merchant list, settings),
     ``mode`` (``"value"``: ``Recent`` or ``Nearby``), ``hide_maxed`` (``"value"``: true/false), ``pin``
     (``"pet"``, ``"value"``: true pins, false unpins), ``goal`` (``"pet"``, ``"rank"``: 1 to 3, or null to
-    clear) or ``reset_session``. Returns what ``GET /api/pettracker`` returns (with the whole collection when
-    ``"collection"`` is true)."""
+    clear), ``reset_session`` or ``update`` (the update notice's button: Pet Tracker's own updater installs it,
+    so its window is opened for it; ``"message"`` says what to do next). Returns what ``GET /api/pettracker``
+    returns (with the whole collection when ``"collection"`` is true)."""
     from . import pettracker, pettracker_setup
     svc = pettracker.service()
-    action, collection = body.get("action"), body.get("collection") is True
+    action, collection, message = body.get("action"), body.get("collection") is True, ""
 
     def pet_id():
         pet = body.get("pet")
@@ -1637,9 +1638,14 @@ def pettracker_control(body: dict) -> dict:
         svc.send({"Action": "farming-goal", "PetId": pet_id(), "TargetRank": rank})
     elif action == "reset_session":
         svc.send({"Action": "reset-farming"})
+    elif action == "update":
+        message = svc.open_for_update()
     else:
-        raise ValueError("action must be install, start, open, mode, hide_maxed, pin, goal or reset_session")
-    return svc.state(collection=collection)
+        raise ValueError("action must be install, start, open, mode, hide_maxed, pin, goal, reset_session or update")
+    state = svc.state(collection=collection)
+    if message:
+        state["message"] = message
+    return state
 
 
 def schedule_shutdown(upload: bool = True) -> None:
