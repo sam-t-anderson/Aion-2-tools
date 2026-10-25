@@ -88,11 +88,13 @@ and stopping the worker (it never kills the worker to install). Velopack's updat
 running from Pet Tracker's folder before it swaps the versions, so a worker another client started in that gap
 would be killed without saving: hence the start rules above. Since 0.2.338 the app reads the feed too, while Pet
 Tracker is on (at launch, then every 6 hours, an hour after a failed read), verified as for the install below, and
-compares its newest version with the installed one (`sq.version`). `GET /api/pettracker` then carries `update`:
-`available`, `latest`, `installed`, `kind`, `checked` and `error`. `POST /api/pettracker {"action": "update"}` opens
-Pet Tracker's window for its own updater (an installer copy), installs the current release over a copy from the
-older offline installer, or says to download one for a copy in a folder of the player's own; its `message` says
-what to do next.
+compares its newest version with the installed one: Velopack's `sq.version` beside an installer copy, or, for a copy
+without one (from the older offline installer, or in a folder of the player's own), the file version in
+`PetTracker.exe`'s Windows file properties, which Pet Tracker's build sets to its release (since 0.2.339).
+`GET /api/pettracker` then carries `update`: `available`, `latest`, `installed`, `kind`, `checked` and `error`.
+`POST /api/pettracker {"action": "update"}` opens Pet Tracker's window for its own updater (an installer copy),
+installs the current release over a copy from the older offline installer, or says to download one for a copy in
+a folder of the player's own; its `message` says what to do next.
 
 ## Installing Pet Tracker
 
@@ -140,7 +142,8 @@ programs) and `overlay_pets_pos_x`/`_y`. The window is `/overlay?view=pets`; `PO
 
 The packaged app's smoke test (`aion2calc.exe --smoke-test`, run by CI on Windows) checks the pipe client against
 pipes made the way the worker makes its own: a round trip, a worker that never answers, a busy pipe and a missing
-worker (`pettracker.self_check`).
+worker (`pettracker.self_check`). It also reads its own program's path and file version, as the updater check and
+the installed version do.
 
 ## What would make this sturdier upstream
 
