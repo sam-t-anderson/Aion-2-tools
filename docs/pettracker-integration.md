@@ -113,7 +113,8 @@ a folder of the player's own; its `message` says what to do next.
 
 ## Aion 2 Calc's local API
 
-The desktop app's local server (`127.0.0.1`), for its own pages; changes are refused from other computers.
+The desktop app's local server (`127.0.0.1`), for its own pages; changes are refused from other computers, and every
+request from a web page on another site (since 0.2.340, see [SECURITY.md](../SECURITY.md)).
 
 `GET /api/pettracker` (add `?collection=1` for every pet) returns:
 

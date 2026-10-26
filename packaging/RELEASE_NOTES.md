@@ -1,3 +1,7 @@
+## Web pages on other sites can no longer control the app (0.2.340)
+
+**A security fix: update to this version.** The app's window is a page served by a small server on your computer. Any website open in your browser could send that server requests too, and a few of them were enough to change the app's settings, switch the log server your recordings upload to, start or stop capture, or quit the app. The server now answers only the app's own pages (its window, the overlays, an OBS browser source on the overlay) and the programs on your computer, and refuses every request from a page on another site, including one that points its own web address at your computer. Nothing changes in how you use the app.
+
 ## Pet Tracker's update notice for every copy (0.2.339)
 
 **The notice for every copy of Pet Tracker.** 0.2.338's update notice read the installed version from the file Pet Tracker's installer keeps beside it. A copy from Pet Tracker's older offline installer, or one in a folder of your own, has no such file, so it never got the notice, and the page and Settings showed no version for it. Aion 2 Calc now reads the version from `PetTracker.exe`'s Windows file properties for such a copy, so the notice and **Install Pet Tracker** (or the link to Pet Tracker's releases) show for it too.
