@@ -1,0 +1,5 @@
+# Commits that only reformatted code: git blame skips them (GitHub does too; locally,
+# git config blame.ignoreRevsFile .git-blame-ignore-revs).
+
+# Prettier for app.js and the page scripts (#408)
+7c3f5a67a4052bfc1f1f4725a5085e092d589a08

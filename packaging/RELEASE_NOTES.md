@@ -1,3 +1,15 @@
+## Settings backups that keep every setting, and steadier page changes (0.2.343)
+
+**A settings backup keeps every setting.** An exported settings file now carries the overlay's auto-contrast, the RTSS in-game overlay's and the Hidden Cube radar's settings, the meter's reset when a boss fight starts and the upload choices it used to leave out, and a saved overlay look keeps its auto-contrast and colour cycle. What belongs to one computer stays out of the file you share: the Pet Tracker folder, the overlay's background image and event sound, whether raw game traffic is recorded, and the Timers page's region and group. Importing settings now starts RTSS, the radar and Pet Tracker when the imported settings turn them on, as changing them in Settings does.
+
+**Status lines that say why.** When RTSS or the Hidden Cube radar was not running, Settings showed only *RTSS status unavailable.* or *Radar status unavailable.*, although the app knew the reason. It now shows the reason.
+
+**Changing pages quickly.** Leaving the Live Meter or the Build Planner before it had loaded could raise a script error, and a page left while it was still loading could draw itself over the page you went to, or show its error there. A page now draws only while it is the one shown.
+
+**Reports.** In the build report, the HP-reserve line for the same healing without added reductions names the scenario it is about, and a scenario name with a line break no longer splits its cooldown line. Gear & Advice's ADVICE.md says the model was calibrated "from fights" rather than "from your fights", as the calibration can come from the community's.
+
+**For contributors.** Each page of the app now has its own script in `aion2calc/app/static/pages/`, browser tests drive the pages in Chromium, and CI checks the scripts with ESLint and Prettier. CONTRIBUTING.md has the commands.
+
 ## A tidier top bar and Live Meter page (0.2.342)
 
 **The pages are grouped.** The fifteen tabs that wrapped onto three rows are now three sections and Settings: **Combat** (Live Meter, Combat Logs, Raid Planner), **Character** (Build Planner, Builds, My Character, Gear & Advice, Saved Results) and **Game** (Timers, Maps, Database, Crafting, Pet Tracker, News). The row under them lists the section's pages, and a section's link takes you back to the page you last used in it. **Planner** is now called **Build Planner**, so it no longer reads like the Raid Planner.
