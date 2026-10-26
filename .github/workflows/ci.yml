@@ -23,6 +23,9 @@ jobs:
     # a pull request from this repository is already tested by its branch's push run
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read                 # main's last coverage figures, for the comparison below
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -31,10 +34,35 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - run: pip install -e ".[dev]" pyflakes
-      - run: python -m pyflakes aion2calc tests
-      - run: python -m pytest -q
+      - run: python -m pyflakes aion2calc tools tests
+      - name: Tests, measuring coverage
+        env:
+          COVERAGE_CORE: sysmon     # Python 3.12's low-overhead tracer
+        run: python -m coverage run -m pytest -q
       - name: Check the frontend scripts parse
         run: for f in aion2calc/app/static/*.js site/*.js; do node --check "$f"; done
+      # The coverage summary: the total against main's last successful run and the modules whose coverage
+      # fell, in the job summary and as a notice with the checks (a warning when it fell). Each run keeps
+      # its figures as the coverage-total artifact; main's are what later runs compare with.
+      - name: Main's coverage
+        if: ${{ !cancelled() && hashFiles('.coverage') != '' && github.ref != 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main --event push --status success \
+                --limit 1 --json databaseId --jq '.[0].databaseId') || run=""
+          # none yet (or no artifact on it): the summary then shows this run's figures alone
+          if [ -n "$run" ]; then gh run download "$run" --repo "$GITHUB_REPOSITORY" --name coverage-total --dir coverage-main || true; fi
+      - name: Coverage summary
+        if: ${{ !cancelled() && hashFiles('.coverage') != '' }}
+        run: python tools/coverage_summary.py --baseline coverage-main/coverage-total.json --out coverage-total.json
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && hashFiles('coverage-total.json') != '' }}
+        with:
+          name: coverage-total
+          path: coverage-total.json
+          retention-days: 90
+          overwrite: true
 
   site:
     name: Website
@@ -49,7 +77,10 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install playwright==1.56.0 pyyaml==6.0.2
-      - run: python -m playwright install --with-deps chromium
+      # The browser alone: the runner image already has the system libraries Chromium needs (it ships
+      # Google Chrome), and --with-deps fetched fonts from Ubuntu's mirror, which stalled for 10 minutes or more.
+      - run: python -m playwright install chromium
+        timeout-minutes: 10
       - name: axe-core
         run: npm install --no-save --no-audit --no-fund --prefix "$RUNNER_TEMP/axe" axe-core@4.10.2
       - name: Check every page of the site
@@ -70,7 +101,8 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - run: pip install -e ".[dev]" playwright==1.56.0
-      - run: python -m playwright install --with-deps chromium
+      - run: python -m playwright install chromium     # without --with-deps: see the Website job
+        timeout-minutes: 10
       - name: axe-core
         run: npm install --no-save --no-audit --no-fund --prefix "$RUNNER_TEMP/axe" axe-core@4.10.2
       - name: Browser tests

@@ -218,7 +218,7 @@ def write_markdown(adv: dict, out: Path) -> Path:
     c = adv["character"]
     L = [f"# Advice for {c['name']} ({c['server']}), {c['class'].title()} Lv {c['level']}", "",
          f"Simulated boss DPS as equipped: **{adv['dps']:,.0f}**"
-         + (" (model calibrated from your fights)" if adv["calibrated"] else ""), "",
+         + (" (model calibrated from fights)" if adv["calibrated"] else ""), "",
          "## Top changes", "", "| Area | Change | DPS |", "|---|---|---:|"]
     L += [f"| {r['area']} | {r['text']} | {_pct(r['gain'])} |" for r in adv["top"]]
     L += ["", "## Skill specialties", "", "Recommended for the imported equipped build; official profiles do not disclose your selected specialties. Effective levels include trained, Daevanion and gear bonuses. Stigma effects activate automatically. Recalculate after changing gear or points.", ""]

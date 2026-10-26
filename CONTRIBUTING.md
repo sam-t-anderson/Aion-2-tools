@@ -67,6 +67,15 @@ python -m pyflakes aion2calc tools tests      # lint
 node --check path/to/edited_file.js           # for any JavaScript you changed
 ```
 
+CI runs the suite under `coverage` and writes the total to the "Tests and lint"
+job's summary. It compares the total with main's last successful run and lists the
+modules whose coverage fell; a fall also shows as a warning with the checks. To see
+the same figures locally (`pip install -e ".[dev]"` includes coverage):
+
+```bash
+python -m coverage run -m pytest && python -m coverage report --skip-covered --sort=cover
+```
+
 The browser tests in `tests/browser` open the app's real pages in Chromium and
 are skipped until Playwright is installed. To run them as CI does (its "App in a
 browser" job, which also runs axe-core accessibility checks):
