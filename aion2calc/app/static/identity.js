@@ -56,7 +56,7 @@ function mount(root,io={}){
   for(const c of mine){const k=ckey(c.name,c.server_name);rows.set(k,{...(rows.get(k)||{name:c.name,server_name:c.server_name,info:null}),stored:c,status:statuses.get(k)});}
   const body=[...rows.values()].map((r,i)=>{
    const info=r.info,s=r.status,st=s&&!s.error?s:null,recordings=info?info.recordings:0,claimable=!!(info&&info.claimable);
-   let state='',actions='';
+   let state,actions;
    if(st&&st.status==='active'){
     state=`<b>Verified</b> since ${esc(when(st.verified_at))} · ${st.recordings} recording${st.recordings===1?'':'s'}`;
     if(st.challenge)state+=`<p class="note">Another uploader claimed this character with newer recordings. Upload a public recording of yours that is newer than theirs and press <b>Renew</b> before ${esc(when(st.challenge.until))}, or the claim passes to them.</p>`;

@@ -59,7 +59,7 @@
   function mount(root, options) {
     const api = options.api, open = options.open || (() => {});
     style();
-    let encounters = [], offset = 0, hasMore = true, loading = false, started = false;
+    let encounters = [], offset = 0, hasMore = true, loading = false;
     const types = () => (window.A2Community && A2Community.types) || {};
 
     // The label shown as a row's "role": a boss's role in a dungeon, or the PvP sub-type.
@@ -87,7 +87,7 @@
       for (const e of encounters) (groups[e.category] = groups[e.category] || []).push(e);
       for (const list of Object.values(groups)) list.sort((a, b) => (b.date || 0) - (a.date || 0));
       const present = SECTIONS.filter(([k]) => (groups[k] || []).length);
-      let html = "";
+      let html;
       if (!encounters.length) {
         html = loading ? '<div class="empty">Loading…</div>'
           : '<div class="empty">No recorded encounters yet. Record a fight with the live meter and it will appear here, grouped by type.</div>';

@@ -28,7 +28,7 @@
 
 - [ ] `python -m pytest` passes locally.
 - [ ] `python -m pyflakes aion2calc tools tests` is clean.
-- [ ] JavaScript changes pass `node --check` on the edited files.
+- [ ] JavaScript changes pass `node --check` on the edited files and `npm run lint`.
 - [ ] Docs / release notes updated if user-facing behavior changed.
 - [ ] No secrets, tokens, credentials or personal data in the diff.
 

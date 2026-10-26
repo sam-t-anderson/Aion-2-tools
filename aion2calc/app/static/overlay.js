@@ -525,7 +525,7 @@
   const OVERLAY_CLASS_COLORS={sorcerer:"#3a86c8",assassin:"#4caf6e",templar:"#c9772b",ranger:"#b9962a",chanter:"#b84f9e",gladiator:"#c8474f",spiritmaster:"#7a63d8",cleric:"#3fb4b0"};
   function barColor(cls){
     const key=String(cls||'').toLowerCase();
-    let pref={}; try{pref=JSON.parse(localStorage.getItem("a2-combat-colors"))||{};}catch(_){pref={};}
+    let pref; try{pref=JSON.parse(localStorage.getItem("a2-combat-colors"))||{};}catch(_){pref={};}
     const own=(pref.colors||{})[key];
     if(pref.enabled===false||/^#[0-9a-f]{6}$/i.test(own||'')||!OVERLAY_CLASS_COLORS[key]) return A2CombatReview.color(key);
     return OVERLAY_CLASS_COLORS[key];
@@ -851,7 +851,7 @@
       const response = await fetch("/api/meter?view=latest", { signal: controller.signal });
       let next;
       try { next=await response.json(); }
-      catch(e) { throw Error('Invalid meter JSON (HTTP '+response.status+')'); }
+      catch(e) { throw Error('Invalid meter JSON (HTTP '+response.status+')', { cause: e }); }
       if (!response.ok) throw Error('HTTP '+response.status+': '+String(next.error||response.statusText).slice(0,512));
       if(!next||typeof next.running!=='boolean'||!next.snapshot) throw Error('Invalid meter response');
       lastSnap=next;meterUnavailable=false;refreshError="";lastSuccess=cooldownsAt=Date.now();

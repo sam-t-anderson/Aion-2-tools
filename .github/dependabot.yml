@@ -21,6 +21,22 @@ updates:
         patterns:
           - "*"
 
+  # The JavaScript lint tools in package.json (npm ecosystem).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "deps"
+    groups:
+      javascript-tools:
+        patterns:
+          - "*"
+
   # GitHub Actions used by the workflows in .github/workflows.
   - package-ecosystem: "github-actions"
     directory: "/"

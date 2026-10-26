@@ -1,4 +1,5 @@
 /* Render the current application document, including content below the fold. */
+/* global html2canvas -- html2canvas.min.js, which index.html loads before this script */
 (function(){
   'use strict';
   let busy=false;
