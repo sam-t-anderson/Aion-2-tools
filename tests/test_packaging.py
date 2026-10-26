@@ -132,6 +132,18 @@ def test_every_file_of_the_app_pages_is_in_the_package_data():
     assert [str(p.relative_to(static)) for p in sorted(static.rglob("*")) if p.is_file() and p not in packaged] == []
 
 
+def test_the_package_version_is_read_from_aion2calc():
+    # pyproject.toml carried a version of its own, left at 0.2.150 while releases moved on, so an installed
+    # copy's metadata (pip, importlib.metadata, the log server's pinned analyzer) named the wrong release.
+    # It reads aion2calc.__version__ instead, the one place a release changes the version.
+    import pathlib
+    import tomllib
+    root = pathlib.Path(__file__).resolve().parents[1]
+    config = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    assert "version" not in config["project"] and config["project"]["dynamic"] == ["version"]
+    assert config["tool"]["setuptools"]["dynamic"]["version"] == {"attr": "aion2calc.__version__"}
+
+
 def _installer_source():
     import pathlib
     return (pathlib.Path(__file__).resolve().parents[1] / "packaging" / "windows" / "aion2calc.iss").read_text(encoding="utf-8")

@@ -173,7 +173,7 @@ app uses HiGHS instead (the `highspy` package, installed automatically on macOS)
 
 ## Releasing
 
-1. Raise the version in **both** `aion2calc/__init__.py` (`__version__`) and `pyproject.toml`.
+1. Raise `__version__` in `aion2calc/__init__.py`; `pyproject.toml` reads the version from there.
 2. Merge to `main`. CI builds, tests and publishes release `v<version>` (a merge that keeps the
    version builds and tests but publishes nothing). To publish without changing `main`, push a tag:
    `git tag v0.2.3 && git push origin v0.2.3`.

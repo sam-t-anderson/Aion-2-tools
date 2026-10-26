@@ -151,6 +151,13 @@ catalog check ([cli.md](cli.md)).
 
 Gear & Advice shows calculation stages and elapsed time beside Run advice in a sticky status panel. The bar is indeterminate; it does not predict a completion percentage. When complete, scroll below the inventory or choose **View results**. Progress and completed results survive navigation within the current app session. Errors appear in the same panel.
 
+**The last advice, kept (0.2.344).** Gear & Advice opens on the advice it calculated last for the character, from
+this session of the app or an earlier one (it is the `advice.json` written beside `ADVICE.md`, so advice from the
+command line counts too). A line above the inventory says when it was calculated, and whether the character's gear,
+inventory, Genus lines or titles have changed since or another version of the app calculated it; **Run advice**
+calculates it again with the current gear and fights. When no advice is kept for the character, or the kept advice
+cannot be shown by this version, opening the page or choosing the character runs the advice.
+
 ### Pet Genus Insight
 
 The Pet Genus results view uses five genus selectors, a nine-slot ring and an analysis list. Gold nodes have saved lines; gray nodes are not recorded, and dim nodes are locked according to the saved Insight level. These colors do not indicate rarity. The editor shows the same ring alongside its inputs. The official profile supplies the equipped pet but not these Insight levels or rolls, so enter them from the in-game window. Missing data remains explicitly not recorded. Saving new lines does not change an old result: optimize or calculate advice again.
