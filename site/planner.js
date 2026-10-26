@@ -9,7 +9,7 @@
   // (config.js -> window.A2CONFIG). The visitor's own entry, if any, overrides it.
   const DEFAULT = (window.A2CONFIG || {});
   const cfg = () => {
-    let saved = null;
+    let saved;
     try { saved = JSON.parse(localStorage.getItem(LS) || "null"); } catch (e) { saved = null; }
     if (saved && (saved.url || saved.key)) return saved;
     return { url: DEFAULT.server || "", key: DEFAULT.key || "" };
@@ -57,7 +57,7 @@
 
   // server config
   const c = cfg();
-  let usingDefault = true;
+  let usingDefault;
   try { const s = JSON.parse(localStorage.getItem(LS) || "null"); usingDefault = !(s && (s.url || s.key)); } catch (e) { usingDefault = true; }
   if ($("#srvurl")) $("#srvurl").value = c.url || "";
   if ($("#srvkey") && c.key) $("#srvkey").placeholder = "key saved";

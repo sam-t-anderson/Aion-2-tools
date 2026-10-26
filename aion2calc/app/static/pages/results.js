@@ -301,7 +301,7 @@ function renderCommonComparisons() {
 
 function renderWindows(v, state, host) {
   const side = `<section class="win sidemenu"><div class="wb">${WINDOWS.map(([k, t, ic]) => `<a href="javascript:void 0" data-win="${k}" class="${state.win === k ? "on" : ""}"><span class="ic">${ic}</span>${t}</a>`).join("")}</div></section>`;
-  let body = "";
+  let body;
   switch (state.win) {
     case "skills": body = winSkills(v, state.skilltab || "active"); break;
     case "stigma": body = winStigmas(v); break;

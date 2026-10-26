@@ -43,7 +43,7 @@ This repository contains the **client** and the **GitHub Pages website**. The
 log-sharing server lives in a
 [separate repository](https://github.com/sam-t-anderson/Aion-2-tools-server).
 
-Requirements: Python 3.12+, and Node.js for the quick JavaScript syntax check.
+Requirements: Python 3.12+, and Node.js 20.19 or later for the JavaScript checks.
 
 ```bash
 # From a clone of the repo:
@@ -72,7 +72,13 @@ Run the same checks CI runs:
 python -m pytest                              # full test suite
 python -m pyflakes aion2calc tools tests      # lint
 node --check path/to/edited_file.js           # for any JavaScript you changed
+npm ci && npm run lint                        # ESLint, for the app's and the website's scripts
 ```
+
+The scripts of a page share one global scope, so ESLint reads the names each script
+declares at its top level, or hands out as `window.A2…`, from the scripts
+themselves (`eslint.config.mjs`). `app.js` and the page scripts may use each other's
+names; the other modules, which the website loads too, only what the modules hand out.
 
 CI runs the suite under `coverage` and writes the total to the "Tests and lint"
 job's summary. It compares the total with main's last successful run and lists the

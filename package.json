@@ -1,0 +1,14 @@
+{
+  "name": "aion2calc-script-checks",
+  "private": true,
+  "description": "Lint for the app's and the website's scripts, which ship as they are written (no build step).",
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.12.0",
+    "espree": "11.2.0",
+    "globals": "17.13.0"
+  }
+}

@@ -89,7 +89,7 @@ window.A2 = (function () {
           const live = await liveDefault();
           if (live && live !== b) { resolved = b = live; continue; }
         }
-        if (networkFail) throw new Error("Can't reach the share server at " + b + ". It may be offline, or its Tailscale address changed. The live project default is retried automatically.");
+        if (networkFail) throw new Error("Can't reach the share server at " + b + ". It may be offline, or its Tailscale address changed. The live project default is retried automatically.", { cause: e });
         throw e;
       }
     }

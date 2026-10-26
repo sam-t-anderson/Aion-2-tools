@@ -51,7 +51,7 @@ function mountSurvivalOptions(root,key,v={}) {
         const scale=root.querySelector('[data-opponent-scale]');if(scale.value==='')throw Error('Enter an explicit incoming damage scale; your mitigation is not inferred.');
         const imported=[];
         for(const file of files){status.textContent=`Reading opponent ${imported.length+1} of ${files.length}: ${file.name}`;
-          try{const result=await api('/api/character/opponent-pressure',{result:JSON.parse(await file.text()),metric:root.querySelector('[data-opponent-metric]').value,scale:Number(scale.value),window_s:Number(root.querySelector('[data-opponent-window]').value),method:root.querySelector('[data-opponent-method]').value});imported.push(result.scenario);}catch(e){throw Error(`${file.name}: ${e.message}. No scenarios from this batch were added.`);}}
+          try{const result=await api('/api/character/opponent-pressure',{result:JSON.parse(await file.text()),metric:root.querySelector('[data-opponent-metric]').value,scale:Number(scale.value),window_s:Number(root.querySelector('[data-opponent-window]').value),method:root.querySelector('[data-opponent-method]').value});imported.push(result.scenario);}catch(e){throw Error(`${file.name}: ${e.message}. No scenarios from this batch were added.`,{cause:e});}}
         settings.opponents.push(...imported);saveState();render();root.querySelector('details').open=true;toast(`${imported.length} opponent benchmarks imported. Review current HP, healing and defensive windows before optimizing.`);
       }catch(e){status.textContent='Import failed: '+e.message;button.disabled=false;}
     };
