@@ -9,7 +9,8 @@ For every page, at desktop width and at phone width (390 px):
   - with --axe, axe-core reports no serious or critical accessibility problem, in the light theme and
     again in the dark one.
 Requests to any other site are blocked, so the check never depends on the log server or a third party.
-The Maps page must not contact the interactive-map provider until the visitor asks for the map.
+The Maps page must not contact the interactive-map provider until the visitor asks for the map, and a log
+page must offer the log server's own link for the log (its preview shows the fight).
 
     python tools/site_smoke.py [--axe node_modules/axe-core/axe.min.js] [--out DIR] [--keep]
 
@@ -21,6 +22,7 @@ from __future__ import annotations
 import argparse
 import functools
 import http.server
+import json
 import os
 import pathlib
 import shutil
@@ -168,6 +170,45 @@ def check_maps_button(context, base: str, problems: list) -> None:
     page.close()
 
 
+SHARED_LOG = {"format": "a2log", "version": 1, "meta": {"source": "site-smoke", "title": "Boss fight"},
+              "players": [{"id": "a", "name": "Sorc", "class": "Sorcerer"}],
+              "segments": [{"label": "Boss", "boss": "Boss", "duration": 10,
+                            "hits": [{"t": i, "player": "a", "skill": "Hellfire", "damage": 1000} for i in range(10)]}]}
+
+
+def check_log_share(browser, base: str, problems: list) -> None:
+    """A log page offers the log server's own link for the log, which chat apps preview with the fight."""
+    context = browser.new_context(permissions=["clipboard-read", "clipboard-write"])
+    server = "https://logs.example"
+
+    def route(r):
+        url = r.request.url
+        if url.endswith("/config.js"):
+            r.fulfill(content_type="text/javascript", body=f'window.A2CONFIG = {{"server": "{server}", "key": ""}};')
+        elif url.startswith(server + "/api/v1/logs/abcdef12/raw"):
+            r.fulfill(content_type="application/json", body=json.dumps(SHARED_LOG),
+                      headers={"Access-Control-Allow-Origin": "*"})
+        elif urllib.parse.urlsplit(url).hostname in ("127.0.0.1", "localhost") or url.startswith(("data:", "blob:")):
+            r.continue_()
+        else:
+            r.abort()
+
+    context.route("**/*", route)
+    page = context.new_page()
+    page.goto(base + "log.html?id=abcdef12", wait_until="load")
+    button = page.locator("#share-log")
+    try:
+        button.wait_for(state="visible", timeout=8000)
+        button.click()
+        page.wait_for_function("document.getElementById('share-msg').textContent.length > 0")
+        copied = page.evaluate("navigator.clipboard.readText()")
+        if copied != server + "/l/abcdef12":
+            problems.append(f"log.html: Copy share link copied {copied!r}, expected the server's /l/ link")
+    except Exception as exc:                     # the page never offered the button
+        problems.append(f"log.html: no working Copy share link ({str(exc).splitlines()[0]})")
+    context.close()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--axe", help="path to axe-core's axe.min.js, to run the accessibility checks")
@@ -193,6 +234,8 @@ def main() -> int:
                     check_page(dark, base, name, DESKTOP, args.axe, problems, scheme="dark")
             if "maps.html" in pages:
                 check_maps_button(context, base, problems)
+            if "log.html" in pages:
+                check_log_share(browser, base, problems)
             browser.close()
     finally:
         server.shutdown()
