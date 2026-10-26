@@ -67,7 +67,7 @@ def test_no_date_only_or_computer_style_render_remains():
     (STATIC / "identity.js", "const when=t=>t?whenAt(t*1000):'';"),               # Your characters
     (STATIC / "log-ownership.js", "const day=t=>t?whenAt(t*1000):'';"),           # My uploads holds and appeals
     (SITE / "leaderboard.js", 'const day=t=>t?whenAt(t*1000):"—";'),              # the leaderboard's Date column
-    (STATIC / "pages" / "history.js", "whenAt(r.created*1000)"),                  # Saved Results
+    (STATIC / "pages" / "history.js", "whenAt(r.created * 1000)"),                # Saved Results
     (STATIC / "pages" / "settings.js", "whenAt(s.db.last_sync.at * 1000)"),       # Settings: the game database
     (STATIC / "pages" / "meter.js", "clockAt(segment.start)"),                    # the Live Meter's segment list
     (STATIC / "timers.js", "const local=t=>whenAt(t);"),

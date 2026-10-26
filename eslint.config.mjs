@@ -8,8 +8,19 @@ import globals from "globals";
 
 const STATIC = "aion2calc/app/static";
 const VENDORED = `${STATIC}/html2canvas.min.js`;
-const scripts = (dir) => readdirSync(dir).filter((f) => f.endsWith(".js")).map((f) => `${dir}/${f}`).filter((f) => f !== VENDORED);
-const parse = (file) => espree.parse(readFileSync(file, "utf8"), { ecmaVersion: 2022, sourceType: "script" });
+const scripts = (dir) =>
+  readdirSync(dir)
+    .filter((f) => f.endsWith(".js"))
+    .map((f) => `${dir}/${f}`)
+    .filter((f) => f !== VENDORED);
+// A script that does not parse adds no names here; ESLint then reports its parsing error, as for any script.
+const parse = (file) => {
+  try {
+    return espree.parse(readFileSync(file, "utf8"), { ecmaVersion: 2022, sourceType: "script" });
+  } catch {
+    return { type: "Program", body: [] };
+  }
+};
 
 // The names scripts declare at their top level: a const, function or class is read-only to the others, a let
 // or var writable.
@@ -31,7 +42,13 @@ function handedOut(files) {
   const visit = (node) => {
     if (!node || typeof node.type !== "string") return;
     const left = node.type === "AssignmentExpression" ? node.left : null;
-    if (left && left.type === "MemberExpression" && !left.computed && left.object.type === "Identifier" && left.object.name === "window")
+    if (
+      left &&
+      left.type === "MemberExpression" &&
+      !left.computed &&
+      left.object.type === "Identifier" &&
+      left.object.name === "window"
+    )
       names[left.property.name] = "readonly";
     for (const value of Object.values(node))
       if (Array.isArray(value)) value.forEach(visit);
@@ -57,8 +74,8 @@ export default [
       globals: { ...globals.browser, ...handedOut([...modules, ...site]) },
     },
     rules: {
-      "no-empty": ["error", { allowEmptyCatch: true }],                 // storage that may be blocked is tried, not needed
-      "no-redeclare": ["error", { builtinGlobals: false }],              // a script declares the names the others use
+      "no-empty": ["error", { allowEmptyCatch: true }], // storage that may be blocked is tried, not needed
+      "no-redeclare": ["error", { builtinGlobals: false }], // a script declares the names the others use
       "no-unused-vars": ["error", { vars: "local", args: "none", caughtErrors: "none", ignoreRestSiblings: true }],
     },
   },
