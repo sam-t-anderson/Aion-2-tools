@@ -217,7 +217,7 @@ best fidelity, copy `kit/sorcerer.py` to `kit/<class>.py` and encode the class's
 | Combat logs | `combat/adapters.py`, `combat/abysslogs.py`, `combat/a2log.py`, `combat/analyze.py`, `combat/logs.py`, `combat/live.py` | log formats and AbyssLogs import, breakdown, comparison with the optimum and top logs, the logs folder, live-source interface |
 | Planners | `plan/*` | inventory, best set, goal gear, upgrade path, arcana, pantheon, genus insight, advice |
 | Learning | `learn.py` | fights matched to equipped-gear snapshots; calibration of crit curve, rates and skill damage |
-| App | `app/server.py`, `app/views.py`, `app/static/*` | local server (stdlib) and the game-styled UI |
+| App | `app/server.py`, `app/views.py`, `app/static/*` | local server (stdlib) and the game-styled UI: `app.js` holds what every page shares, `pages/*.js` one page each |
 | Desktop app | `launcher.py`, `packaging/*` | app window, single instance, smoke test; PyInstaller and Inno Setup builds |
 
 Formulas, sources, and every assumption: [methodology.md](methodology.md).

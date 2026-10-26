@@ -2,7 +2,7 @@
 combat-review.js) must stay well-formed: every inline palette assigns all eight
 classes a six-digit hex colour, so applying one can never leave a class
 uncoloured. Extracted from the JS the same way the bundled overlay-preset test
-reads app.js."""
+reads pages/settings.js."""
 import pathlib
 import re
 

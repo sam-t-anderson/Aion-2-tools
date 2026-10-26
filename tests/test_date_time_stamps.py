@@ -44,7 +44,8 @@ def test_the_stamp_is_the_local_date_with_a_24_hour_clock(path):
 
 
 def test_no_date_only_or_computer_style_render_remains():
-    scripts = [p for p in STATIC.glob("*.js") if p.name not in ("html2canvas.min.js", "server-names.js")] + list(SITE.glob("*.js"))
+    scripts = ([p for p in STATIC.glob("*.js") if p.name not in ("html2canvas.min.js", "server-names.js")]
+               + list(STATIC.glob("pages/*.js")) + list(SITE.glob("*.js")))
     computer_style = re.compile(r"new Date\([^()]*(?:\([^()]*\)[^()]*)*\)\s*\.toLocale(?:Date|Time)?String\(")
     for path in scripts:
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -66,9 +67,9 @@ def test_no_date_only_or_computer_style_render_remains():
     (STATIC / "identity.js", "const when=t=>t?whenAt(t*1000):'';"),               # Your characters
     (STATIC / "log-ownership.js", "const day=t=>t?whenAt(t*1000):'';"),           # My uploads holds and appeals
     (SITE / "leaderboard.js", 'const day=t=>t?whenAt(t*1000):"—";'),              # the leaderboard's Date column
-    (STATIC / "app.js", "whenAt(r.created*1000)"),                                # Saved Results
-    (STATIC / "app.js", "whenAt(s.db.last_sync.at * 1000)"),                      # Settings: the game database
-    (STATIC / "app.js", "clockAt(segment.start)"),                                # the Live Meter's segment list
+    (STATIC / "pages" / "history.js", "whenAt(r.created*1000)"),                  # Saved Results
+    (STATIC / "pages" / "settings.js", "whenAt(s.db.last_sync.at * 1000)"),       # Settings: the game database
+    (STATIC / "pages" / "meter.js", "clockAt(segment.start)"),                    # the Live Meter's segment list
     (STATIC / "timers.js", "const local=t=>whenAt(t);"),
     (STATIC / "timers.js", "${localIn(next,zone)}"),                              # the event zone's own stamp
     (STATIC / "news.js", "const date=x=>{const s=whenAt(x);return s==='—'?'Date unavailable':s;};"),

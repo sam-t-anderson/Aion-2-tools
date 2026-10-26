@@ -40,7 +40,7 @@ jobs:
           COVERAGE_CORE: sysmon     # Python 3.12's low-overhead tracer
         run: python -m coverage run -m pytest -q
       - name: Check the frontend scripts parse
-        run: for f in aion2calc/app/static/*.js site/*.js; do node --check "$f"; done
+        run: for f in aion2calc/app/static/*.js aion2calc/app/static/pages/*.js site/*.js; do node --check "$f"; done
       # The coverage summary: the total against main's last successful run and the modules whose coverage
       # fell, in the job summary and as a notice with the checks (a warning when it fell). Each run keeps
       # its figures as the coverage-total artifact; main's are what later runs compare with.

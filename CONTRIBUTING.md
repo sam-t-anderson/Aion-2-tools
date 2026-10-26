@@ -57,6 +57,13 @@ See [`docs/cli.md`](docs/cli.md) for running from source, the architecture
 overview, and packaging details, and [`docs/install.md`](docs/install.md) for
 platform specifics.
 
+The app's pages are plain scripts with no build step. `aion2calc/app/static/app.js`
+holds what every page shares (the helpers, the navigation, the router and the
+launch), and each page draws itself from its own script in
+`aion2calc/app/static/pages/`, which `index.html` loads after `app.js`. A new page
+gets its own script there, a `<script>` line in `index.html` and a branch in
+`route()`.
+
 ## Before you open a pull request
 
 Run the same checks CI runs:
