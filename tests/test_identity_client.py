@@ -76,9 +76,7 @@ def test_the_panel_is_shared_by_the_app_and_the_site():
         assert path in js
     assert "'X-Identity-Token'" in js and "redirect:'error'" in js and "credentials:'omit'" in js
     assert "rows:browserRows" in (STATIC / "log-ownership.js").read_text(encoding="utf-8")   # the recordings' credentials feed the claim
-    app = (STATIC / "app.js").read_text(encoding="utf-8")
-    assert '<div id="my-characters"></div>' in app and "A2Identity.mount($('#my-characters')" in app
-    assert "api('/api/identity-claims')" in app
+    # the app mounts it on My Uploads, with the claims it keeps: tests/browser/test_browser_logs.py
     assert 'src="/static/identity.js"' in (STATIC / "index.html").read_text(encoding="utf-8")
     site_html = (ROOT / "site" / "logs.html").read_text(encoding="utf-8")
     assert '<div id="my-characters"></div>' in site_html and 'src="static/identity.js"' in site_html

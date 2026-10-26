@@ -34,6 +34,13 @@ async function api(path, body, signal) {
   if (!r.ok || (j.error && !captureStatus)) throw new Error(j.error || r.statusText);
   return j;
 }
+// A status document whose "error" is part of what it reports (why RTSS or the radar is not running), not a
+// failed request, which api() would make of it.
+async function apiState(path) {
+  const r = await fetch(path);
+  if (!r.ok) throw new Error(r.statusText);
+  return r.json();
+}
 async function meterStatus() {
   const controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),8000);
   try { return await api('/api/meter',undefined,controller.signal); }
@@ -620,6 +627,7 @@ async function pagePlanner() {
     if (!st.path) { $("#wins").innerHTML = '<div class="empty">No optimized builds yet — pick a class and press Optimize.</div>'; return; }
     $("#wins").innerHTML = '<div class="empty"><span class="spinner"></span> loading</div>';
     const v = await api("/api/build?path=" + encodeURIComponent(st.path));
+    if (!$("#cls")) return;                       // the page was left while the build loaded
     $("#cls").value = v.class;
     $("#preset-mode").value = v.scenario==="pvp_world"?"world":String(v.scenario||"").startsWith("pvp")?"pvp":"pve";
     renderWindows(v, st, $("#wins"));
@@ -661,7 +669,7 @@ async function pagePlanner() {
     } catch (e) { $("#jobmsg").textContent = e.message; }
     $("#go").disabled = false;
   };
-  load().catch((e) => ($("#wins").innerHTML = `<div class="note">${esc(e.message)}</div>`));
+  load().catch((e) => { if ($("#wins")) $("#wins").innerHTML = `<div class="note">${esc(e.message)}</div>`; });
 }
 
 async function pageCharacter() {
@@ -1135,7 +1143,9 @@ async function pageDatabase() {
 // The raid & boss planner is a shared module (raid.js), used here and on the planner site. In the
 // app it is wired to your saved combat logs so a fight can be overlaid on the plan's timeline.
 async function pageRaid() {
+  const shown = stillShown();
   const publicationServer=await api("/api/logserver");
+  if (!shown()) return;
   await window.A2Raid.mount(app(), {
     encounters: () => api("/api/encounters"),
     encounter: (id) => api("/api/encounters/" + id),
@@ -1155,8 +1165,9 @@ async function pageRaid() {
 
 // ------------------------------------------------------------- live meter
 async function pageMeter() {
-  const st = S.meter;
+  const st = S.meter, shown = stillShown();
   const ui = await api('/api/ui');
+  if (!shown()) return;
   st.lastMeterRender = null; // The previous DOM was removed when leaving this page.
   app().innerHTML = `<section class="win"><div class="wh"><h2>Live damage meter</h2><span class="sub">built-in A2Tools packet capture, live analysis and a2log sharing</span></div>
     <div class="wb"><div class="row"><label class="muted small" for="msrc">Source</label>
@@ -1240,7 +1251,7 @@ async function pageMeter() {
     if (r.selection_required) $('#madvanced').open = true;   // the choice is under Advanced capture
     $('#minstallstatus').textContent = r.selection_required ? 'Multiple copies found: choose the copy you play.' : (r.installations||[]).length ? 'Selection applies to the next capture. Save and clear retained combat before changing it.' : 'No registered installation found. Capture can still run; Product version remains unavailable.';
   };
-  const refreshInstallations = async()=>{try{renderInstallations(await api('/api/meter/installations'));}catch(e){$('#minstallstatus').textContent=e.message;}};
+  const refreshInstallations = async()=>{try{renderInstallations(await api('/api/meter/installations'));}catch(e){const status=$('#minstallstatus');if(status)status.textContent=e.message;}};
   $('#minstallrefresh').onclick=refreshInstallations;
   $('#minstall').onchange=async()=>{try{renderInstallations(await api('/api/meter',{action:'installation',id:$('#minstall').value}));}catch(e){await refreshInstallations();$('#minstallstatus').textContent=e.message;}};
   if($('#mregionretry'))$('#mregionretry').onclick=async()=>{const b=$('#mregionretry'),msg=$('#mregionmsg');b.disabled=true;if(msg)msg.textContent='Re-checking official region and world list…';try{await api('/api/meter',{action:'retry-region'});if(msg)msg.textContent='Retrying — the region and world update here when it resolves.';}catch(e){if(msg)msg.textContent=e.message;}finally{if(b.isConnected)b.disabled=false;}};
@@ -1254,10 +1265,12 @@ async function pageMeter() {
   const refreshInterfaces = async () => {
     try {
       const r = await api("/api/meter/interfaces");
-      const select = $("#miface"), selected = select.value;
+      const select = $("#miface");
+      if (!select) return;                          // the page was left while the list loaded
+      const selected = select.value;
       select.innerHTML = `<option value="auto">Auto</option>` + (r.devices || (r.interfaces || []).map((name) => ({name, label: name}))).map((device) => `<option value="${esc(device.name)}">${esc(device.label)}${device.address ? " · " + esc(device.address) : ""}</option>`).join("");
       if ([...select.options].some((option) => option.value === selected)) select.value = selected;
-    } catch (e) { $("#mnotice").textContent = "Could not list capture interfaces: " + e.message; }
+    } catch (e) { const notice = $("#mnotice"); if (notice) notice.textContent = "Could not list capture interfaces: " + e.message; }
   };
   $("#mifacesrefresh").onclick = refreshInterfaces;
   refreshInterfaces();
@@ -1580,8 +1593,9 @@ function renderAdviceProgress(){
 }
 
 async function pageGear() {
-  const st = S.gear || (S.gear = {});
+  const st = S.gear || (S.gear = {}), shown = stillShown();
   const chars = await api("/api/characters").catch(() => []);
+  if (!shown()) return;
   app().innerHTML = `<section class="win"><div class="wh"><h2>Gear &amp; advice</h2><a class="btn small" href="#/history">Saved advice</a><span class="sub">what to wear from your inventory, goal gear, upgrade path, arcana, pantheon, genus insight — on simulated DPS</span></div>
     <div class="wb">${chars.length ? `<div class="row"><select id="gchar" aria-label="Character">${chars.map((c) => `<option value="${esc(c.key)}" ${c.key === st.key ? "selected" : ""}>${esc(c.name)} · ${esc(c.class_name)} · ${esc(c.region)}</option>`).join("")}</select>
       <button class="btn primary" id="gadv">Run advice</button><span id="gmsg" class="small muted"></span></div>
@@ -2111,7 +2125,9 @@ function radarNotes(ui) {
       <p style="margin:0">The overlay then shows the cube on a circle around you, ahead of you at the top: louder is closer. Without the game's 3D audio or a surround output, stereo cannot tell ahead from behind: the radar shows both places the cube can be, and turning towards it tells which (a cube ahead moves to the middle, one behind further out), as does walking forward (one ahead grows louder). Raise the sensitivity to hear a cube farther away, lower it if voice chat sets it off. Settings → Hotkeys changes the keys. The app reads what Windows plays, in memory, and keeps only the samples' levels in 40 frequency bands and the jingle's peak frequencies: nothing is recorded or uploaded.</p></div>`;
 }
 async function pageSettings() {
+  const shown = stillShown();
   const [s, srv, ui] = await Promise.all([api("/api/status"), api("/api/logserver").catch(() => ({})), api("/api/ui").catch(() => ({}))]);
+  if (!shown()) return;
   const t = getTheme();
   // Pickers show the overlay stylesheet's own defaults until a colour is chosen (saving writes every key).
   const OVERLAY_TEXT_DEFAULTS={rate:'#ffffff',total:'#9bb1c1',name:'#e9f7ff',header:'#e8cf8e',target:'#f0d6da',hp:'#e9a4b6',ttk:'#e3ad7f',label:'#b39aa2',also:'#c9a86a',ping:'#76c59d',identity:'#e8cf8e'};
@@ -2563,7 +2579,7 @@ async function pageSettings() {
   $("#ov-live-rank") && ($("#ov-live-rank").onchange = () => api("/api/ui", { overlay_live_community_rank: $("#ov-live-rank").checked }).then(() => toast("Saved")));
   $("#ov-events") && ($("#ov-events").onchange = () => api("/api/ui", { overlay_show_events: $("#ov-events").checked }).then(() => toast("Saved")));
   $("#ov-field-bosses") && ($("#ov-field-bosses").onchange = () => api("/api/ui", { overlay_show_field_bosses: $("#ov-field-bosses").checked }).then(() => toast("Saved")));
-  const rtssStatus = async () => { const el = $("#rtss-status"); if (!el) return; try { const s = await api('/api/rtss'); el.textContent = !s.supported ? 'RTSS output is available on Windows only.' : !s.enabled ? 'Off.' : s.connected ? `Drawing in RTSS OSD slot ${s.slot} (shared memory v${s.version}, ${s.updates} updates).` : (s.error || 'Waiting for RTSS…'); } catch (_) { el.textContent = 'RTSS status unavailable.'; } };
+  const rtssStatus = async () => { const el = $("#rtss-status"); if (!el) return; try { const s = await apiState('/api/rtss'); el.textContent = !s.supported ? 'RTSS output is available on Windows only.' : !s.enabled ? 'Off.' : s.connected ? `Drawing in RTSS OSD slot ${s.slot} (shared memory v${s.version}, ${s.updates} updates).` : (s.error || 'Waiting for RTSS…'); } catch (_) { el.textContent = 'RTSS status unavailable.'; } };
   if ($("#radar-enabled")) {
     const RADAR_NEAR=[[0.8,"right here"],[0.5,"close"],[0.25,"nearby"],[0,"far"]];
     const near = r => (RADAR_NEAR.find(([p]) => (r.proximity || 0) >= p) || RADAR_NEAR[3])[1];
@@ -2595,7 +2611,7 @@ async function pageSettings() {
     let shownSamples = null;
     const radarStatus = async () => {
       const el = $("#radar-status"); if (!el) return;
-      let r; try { r = await api("/api/radar"); } catch (e) { el.textContent = "Radar status unavailable."; return; }
+      let r; try { r = await apiState("/api/radar"); } catch (e) { el.textContent = "Radar status unavailable."; return; }
       const learning = r.learning, last = r.last_learn;
       $("#radar-cancel").hidden = !learning;
       const parts = [];
@@ -2842,7 +2858,9 @@ function petSetupText(setup) {
 async function pagePets() {
   const P = window.A2Pets;
   const st = { state: null, collection: null, alive: true, timer: 0, ctimer: 0, filters: { q: "", family: "", rank: "all", sort: "name" } };
+  const shown = stillShown();
   const ui = await api("/api/ui").catch(() => ({}));
+  if (!shown()) return;
   app().innerHTML = `<section class="win ptpage"><div class="wh"><h2>Pet Tracker</h2><span class="sub">by 0Fox2Give · your pet ranks and the souls you still need, inside Aion 2 Calc</span></div>
     <div class="setrow"><div class="lbl">Pet Tracker</div><div><div id="pt-head">Loading Pet Tracker…</div><p id="pt-note" class="small" role="status"></p></div></div>
     <div class="setrow"><div class="lbl">Now</div><div>
@@ -2956,7 +2974,13 @@ async function pagePets() {
   refresh();
   refreshCollection();
 }
+// Each page shown counts up: a page left while it still loads can fail on the page that replaced it, and its
+// error is no longer the current page's to show.
+let routeSerial = 0;
+// For a page that waits before it draws: whether it is still the page shown, or the player has moved on.
+const stillShown = () => { const serial = routeSerial; return () => serial === routeSerial; };
 async function route() {
+  const serial = ++routeSerial;
   if(workshopView){workshopView.dispose();workshopView=null;}
   if(buildWorkspaceView){buildWorkspaceView.dispose();buildWorkspaceView=null;}
   if(eventTimerView){eventTimerView.dispose();eventTimerView=null;}
@@ -2982,7 +3006,10 @@ async function route() {
     else if (page === "news") await pageNews();
     else if (page === "pets") await pagePets();
     else await pagePlanner();
-  } catch (e) { app().innerHTML = `${page==="combat-log"?'<p><a class="btn small" href="#/combat">← Back to combat logs</a></p>':""}<div class="note">${esc(e.message)}</div>`; }
+  } catch (e) {
+    if (serial !== routeSerial) return;
+    app().innerHTML = `${page==="combat-log"?'<p><a class="btn small" href="#/combat">← Back to combat logs</a></p>':""}<div class="note">${esc(e.message)}</div>`;
+  }
 }
 window.addEventListener("hashchange", route);
 

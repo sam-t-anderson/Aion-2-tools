@@ -165,7 +165,7 @@ def test_the_radar_position_is_accepted_by_the_app_and_stays_out_of_backups(monk
 
 
 def test_the_overlay_page_draws_the_radar_in_its_own_window_only():
-    js, css, html, app = _read("overlay.js"), _read("overlay.css"), _read("overlay.html"), _read("app.js")
+    js, css, html = _read("overlay.js"), _read("overlay.css"), _read("overlay.html")
     assert 'const partyMode = view === "party", radarMode = view === "radar";' in js
     assert 'document.getElementById("ov").classList.add("ov-radar")' in js
     assert 'const OPACITY_KEY = radarMode ? "ovopacity-radar" : "ovopacity";' in js      # its own opacity
@@ -176,7 +176,6 @@ def test_the_overlay_page_draws_the_radar_in_its_own_window_only():
     assert 'id="ovviewtitle"' in html and 'vt.textContent="Hidden Cube radar"' in js
     assert "#ov.ov-radar .ovcard { width: var(--ov-width, 232px);" in css and "#ov.ov-radar #ovcapture" in css
     assert "#ov.ov-radar .ovtabs" in css and "#ov.ov-radar #ovcontent" in css        # nothing of the meter in it
-    assert "The radar is its own small overlay window" in app
     # The radar's settings still reach the window: the server syncs the companions on every radar_ change.
     src = open(os.path.join(STATIC, "..", "server.py"), encoding="utf-8").read()
     assert "from .overlay_launch import sync_companions" in src

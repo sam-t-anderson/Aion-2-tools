@@ -175,15 +175,15 @@ def _static(name):
 
 
 def test_the_overlay_shows_the_keys_under_odyle_above_the_identity_line_and_the_tickets_too():
-    css, html, js, app = _static("overlay.css"), _static("overlay.html"), _static("overlay.js"), _static("app.js")
+    css, html, js = _static("overlay.css"), _static("overlay.html"), _static("overlay.js")
     # The rows share flex order 60 and follow the markup: ping, Odyle, keys, tickets, then the identity line.
     assert ".ovcard > #ovshugo { order: 60; }" in css and ".ovcard > #ovnightmare { order: 60; }" in css
     assert html.index('id="ovodyle"') < html.index('id="ovshugo"') < html.index('id="ovnightmare"') < html.index('id="ovidentity"')
     assert "snap.nightmare_tickets" in js and "Nightmare Tickets" in js and "#ov.ov-radar #ovnightmare" in css
     for hidden in ('"#ovshugo","#ovnightmare"', '$("#ovnightmare").hidden=true'):
         assert hidden in js                                         # the party, plan and idle views hide it too
-    assert "nightmareLine(snap.nightmare_tickets)" in app and 'id="ov-nightmare"' in app
     assert '"overlay_show_nightmare_tickets": True' in open(server.__file__, encoding="utf-8").read()   # on by default
+    # The Live Meter page and Settings show them too: tests/browser/test_browser_live_meter.py, test_browser_settings.py
 
 
 def _in_segments(data, size=1_460):
@@ -213,15 +213,15 @@ def test_only_a_bundle_header_holds_a_large_frame_back():
 def test_the_overlay_and_the_live_meter_show_it_with_the_icon():
     static = os.path.join(os.path.dirname(__file__), "..", "aion2calc", "app", "static")
     read = lambda name: open(os.path.join(static, name), encoding="utf-8").read()
-    overlay, app, html = read("overlay.js"), read("app.js"), read("overlay.html")
-    assert 'id="ovodyle"' in html and "snap.odyle" in overlay and "odyleLine(snap.odyle)" in app
+    overlay, html = read("overlay.js"), read("overlay.html")
+    assert 'id="ovodyle"' in html and "snap.odyle" in overlay
     icon = "https://metabot.gg/web/aion2/items/icon_item_odenergy_a_001a.webp"
-    assert icon in overlay and icon in app and f'"{icon}":' in read("game-assets.js")
+    assert icon in overlay and f'"{icon}":' in read("game-assets.js")          # served from the bundled copy
     runner = open(os.path.join(static, "..", "meter_runner.py"), encoding="utf-8").read()
     assert 'snap["odyle"] = dict(self.packet_engine.odyle_energy)' in runner
     # The Shugo Festival keys, the same way, under the Odyle line, with a key icon of their own.
-    assert 'id="ovshugo"' in html and "snap.shugo_keys" in overlay and "shugoLine(snap.shugo_keys)" in app
-    assert 'class="ovkeyicon"' in overlay and 'class="keyicon"' in app
+    assert 'id="ovshugo"' in html and "snap.shugo_keys" in overlay
+    assert 'class="ovkeyicon"' in overlay
     assert ".ovkeyicon{" in read("overlay.css") and "p.odyle .keyicon {" in read("app.css")
     assert 'snap["shugo_keys"] = dict(self.packet_engine.shugo_keys)' in runner
     assert overlay.count('"#ovshugo"') == 3 and overlay.count('"#ovodyle"') == 3   # hidden with the rest, in every view
@@ -238,9 +238,6 @@ def test_a_setting_on_by_default_shows_or_hides_it(monkeypatch, tmp_path):
     with pytest.raises(ValueError):
         _clean({"overlay_show_shugo_keys": "no"})
     static = os.path.join(os.path.dirname(__file__), "..", "aion2calc", "app", "static")
-    app = open(os.path.join(static, "app.js"), encoding="utf-8").read()
-    assert 'id="ov-odyle"' in app and "overlay_show_odyle: $(\"#ov-odyle\").checked" in app
-    assert 'id="ov-shugo"' in app and "overlay_show_shugo_keys: $(\"#ov-shugo\").checked" in app
     runner = open(os.path.join(static, "..", "meter_runner.py"), encoding="utf-8").read()
     assert 'self.packet_engine.odyle_energy and ui.get("overlay_show_odyle") is not False' in runner
     assert 'self.packet_engine.shugo_keys and ui.get("overlay_show_shugo_keys") is not False' in runner

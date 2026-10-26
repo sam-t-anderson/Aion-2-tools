@@ -26,6 +26,16 @@ def open_context(browser, base: str, scheme: str = "dark", width: int = 1600):
     return context
 
 
+def close_context(context) -> None:
+    """Close a profile without its route handlers outliving it: a page that polls (the Live Meter) can have a
+    request inside a test's handler as the test ends, and that handler would then fail the next test's first
+    call on the closed context."""
+    for page in context.pages:
+        page.unroute_all(behavior="ignoreErrors")
+    context.unroute_all(behavior="ignoreErrors")
+    context.close()
+
+
 def watched_page(context, base: str) -> tuple:
     page, watch = context.new_page(), Watch(base)
     page.on("pageerror", lambda err: watch.note(f"script error: {err}"))
@@ -45,6 +55,17 @@ def go(page, base: str, hash_: str) -> None:
     page.wait_for_timeout(1200)                     # its first requests (some pages poll, so no "network idle")
 
 
+def until(page, done, timeout_ms: int = 10000):
+    """Let the page run until done() is true or the time is up, and return done()'s last value: for what a test
+    waits on outside the page (a request a route saw, a dialog), which a slow computer brings later."""
+    for _ in range(timeout_ms // 100):
+        result = done()
+        if result:
+            return result
+        page.wait_for_timeout(100)
+    return done()
+
+
 def on_page(page, name: str) -> None:
     """Wait until the app shows the page with this name (its main heading)."""
     page.wait_for_function("name => (document.querySelector('#page-title') || {}).textContent === name", arg=name)
@@ -58,3 +79,25 @@ def axe_findings(page, axe_path: str, impacts=("serious", "critical")) -> list[s
                                       nodes: v.nodes.slice(0, 3).map(n => n.target.join(' '))}));
     }""")
     return [f"{v['impact']} {v['id']}: {v['help']} — {', '.join(v['nodes'])}" for v in found if v["impact"] in impacts]
+
+
+def open_settings(page, base: str, section: str) -> None:
+    """Open Settings afresh on one of its sections (the buttons above it: overlay, meter, system…)."""
+    go(page, base, "#/settings")
+    page.click(f'[data-settab="{section}"]')
+    page.wait_for_selector(f'.setrow[data-g="{section}"]:not([hidden])')
+
+
+def posted(page, action, path: str = "/api/ui") -> dict:
+    """The JSON the page posts to ``path`` while ``action`` runs, once the app has answered it (leaving the
+    page before then would cancel the request)."""
+    import json
+    with page.expect_request(lambda r: r.method == "POST" and r.url.split("?")[0].endswith(path)) as request:
+        action()
+    request.value.response()
+    return json.loads(request.value.post_data or "{}")
+
+
+def put_back(page, settings: dict) -> None:
+    """Save settings as the page saves them, to put back what a test changed (the tests share one app)."""
+    page.evaluate("settings => api('/api/ui', settings)", settings)

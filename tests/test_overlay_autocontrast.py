@@ -1,14 +1,14 @@
 """Overlay auto-contrast text (0.2.262): keep the overlay text legible against an uploaded
 background image, either with mix-blend-mode:difference (dynamic, per-pixel) or a solid
 colour computed from the image's WCAG relative luminance. Covers the backend default +
-enum validation and the overlay/settings wiring that drives both modes."""
+enum validation and the overlay wiring that drives both modes (Settings saves it, and a saved look and a
+settings backup carry it: tests/browser/test_browser_settings.py, test_settings_backup.py)."""
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SERVER = (ROOT / "aion2calc" / "app" / "server.py").read_text(encoding="utf-8")
 OVERLAY_JS = (ROOT / "aion2calc" / "app" / "static" / "overlay.js").read_text(encoding="utf-8")
 OVERLAY_CSS = (ROOT / "aion2calc" / "app" / "static" / "overlay.css").read_text(encoding="utf-8")
-APP_JS = (ROOT / "aion2calc" / "app" / "static" / "app.js").read_text(encoding="utf-8")
 
 
 def test_setting_defaults_off_and_validates_the_enum(tmp_path, monkeypatch):
@@ -30,8 +30,3 @@ def test_overlay_drives_both_modes():
     # The WCAG relative-luminance coefficients compute the "by brightness" colour.
     assert "0.2126" in OVERLAY_JS and "0.7152" in OVERLAY_JS and "0.0722" in OVERLAY_JS
 
-
-def test_settings_page_offers_and_saves_it():
-    assert 'id="ov-bg-autocontrast"' in APP_JS                      # the control exists
-    assert "overlay_text_autocontrast: " in APP_JS                  # saved to /api/ui on change
-    assert '"overlay_text_autocontrast"' in APP_JS                  # and rides the overlay look presets

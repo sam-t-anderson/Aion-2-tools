@@ -667,29 +667,13 @@ def test_the_overlay_settings_hotkey_and_bundle_are_wired():
     html = (STATIC / "overlay.html").read_text(encoding="utf-8")
     js = (STATIC / "overlay.js").read_text(encoding="utf-8")
     css = (STATIC / "overlay.css").read_text(encoding="utf-8")
-    app = (STATIC / "app.js").read_text(encoding="utf-8")
     assert 'id="ovradar"' in html and ".ovradar" in css and ".ovrblip" in css and ".ovrghost" in css
     assert "radarSetting=ui.radar_enabled===true;" in js and "setupRadar(radarSetting);" in js and 'fetch("/api/radar")' in js
     assert 'viewBox="0 0 120 120"' in js and "r.mirror!=null" in js and "r.direction" in js   # the full circle
-    for control in ('id="radar-enabled"', 'id="radar-learn-bg"', 'id="radar-learn-cube"', 'id="radar-learn-behind"',
-                    'id="radar-learn-other"', 'id="radar-sens"', 'id="radar-clear"', 'id="radar-status"', 'id="radar-samples"',
-                    '"/api/radar"', 'action: "forget"', 'facing: "behind"', 'kind: "other"'):
-        assert control in app
-    assert "nothing is recorded or uploaded" in app
-    assert "toggle_cube_radar" in hotkeys.ACTIONS and '"toggle_cube_radar"' in app
+    # Settings → Overlay: its controls, notes and hotkey row are checked in a browser (test_browser_overlay_settings.py)
+    assert "toggle_cube_radar" in hotkeys.ACTIONS
     assert "soundcard>=0.4.6; sys_platform == 'win32'" in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert '"soundcard"' in (ROOT / "packaging" / "aion2calc.spec").read_text(encoding="utf-8")
-
-
-def test_the_settings_name_each_learn_step_by_its_key():
-    # the notes said "press 1" and "press 2" beside "Ctrl+1 (step 1)": each step now names the key
-    # Settings -> Hotkeys gives it (its button only when it has none), and the 3D audio advice is there
-    app = (STATIC / "app.js").read_text(encoding="utf-8")
-    assert "press <b>1</b>" not in app and "press <b>2</b>" not in app
-    assert "function radarKey(ui, action)" in app and "${radarNotes(ui)}" in app
-    for action in hotkeys.RADAR_DEFAULTS:
-        assert f'key("{action}", ' in app
-    assert "turn 3D audio on" in app and "stereo cannot tell ahead from behind" in app
 
 
 def test_the_learn_hotkeys_listen_at_once_and_the_overlay_shows_how_it_went(fresh_radar, monkeypatch):

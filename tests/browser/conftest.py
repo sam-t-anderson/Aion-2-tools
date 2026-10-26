@@ -1,5 +1,6 @@
 """Browser tests: the app's own pages in Chromium, served by the real app (``python -m aion2calc app``) from a
-fresh data folder, with every request to another site blocked.
+fresh data folder, with every request to another site blocked. The app's log server is a stand-in run by the
+tests (community.py), so the community pages show known, made-up fights and no test reaches a real server.
 
 They need Playwright and its Chromium (``pip install playwright`` then ``python -m playwright install
 chromium``) and are skipped without them, except where ``AION2CALC_BROWSER_TESTS=1`` (CI's "App in a
@@ -20,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from apphelpers import open_context, watched_page
+from apphelpers import close_context, open_context, watched_page
 
 ROOT = Path(__file__).resolve().parents[2]
 REQUIRED = os.environ.get("AION2CALC_BROWSER_TESTS") == "1"
@@ -33,12 +34,34 @@ def _unavailable(why: str):
 
 
 @pytest.fixture(scope="session")
-def app_url(tmp_path_factory):
+def community():
+    """The stand-in log server the app under test uses."""
+    from community import Community
+    server = Community()
+    yield server
+    server.close()
+
+
+@pytest.fixture(scope="session")
+def app_home(tmp_path_factory, community):
+    """The data folder the app under test runs with (its settings, logs and caches), its log server set to the
+    stand-in with an upload key, as a player's saved choice is (the project's default server is never asked)."""
+    import json
+    from aion2calc.combat.share import PUBLIC_DEFAULT_KEY
+    home = tmp_path_factory.mktemp("home")
+    (home / "data").mkdir()
+    (home / "data" / "logserver.json").write_text(json.dumps({"url": community.url, "key": "a2l_browser-tests",
+                                                              "visibility": "public", PUBLIC_DEFAULT_KEY: True}), encoding="utf-8")
+    return home
+
+
+@pytest.fixture(scope="session")
+def app_url(app_home, tmp_path_factory):
     """The app, started as a player starts it without a window: its own server on a free port."""
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
-    env = {**os.environ, "AION2CALC_HOME": str(tmp_path_factory.mktemp("home")), "PYTHONUNBUFFERED": "1"}
+    env = {**os.environ, "AION2CALC_HOME": str(app_home), "PYTHONUNBUFFERED": "1"}
     log = open(tmp_path_factory.mktemp("log") / "app.log", "w+", encoding="utf-8")
     proc = subprocess.Popen([sys.executable, "-m", "aion2calc", "app", "--no-browser", "--no-sync", "--port", str(port)],
                             cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT)
@@ -89,7 +112,7 @@ def app_page(browser, app_url):
     page, watch = watched_page(context, app_url)
     page.watch = watch
     yield page
-    context.close()
+    close_context(context)
     assert not watch.unexpected(), watch.unexpected()
 
 

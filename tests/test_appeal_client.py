@@ -81,7 +81,6 @@ def test_both_panels_offer_the_appeal():
     assert "action==='appeal'){path+='/appeal';method='POST'" in owned            # the Pages site calls the server directly
     ident = (STATIC / "identity.js").read_text(encoding="utf-8")
     assert "Appeal the revocation" in ident and "'/api/v1/identity/appeal'" in ident and "st.revocation" in ident
-    app = (STATIC / "app.js").read_text(encoding="utf-8")
-    assert "action==='appeal'?{owner,action,statement:value}" in app              # the desktop app goes through its proxy
+    # the desktop app's own panel goes through its proxy: tests/browser/test_browser_logs.py
     for name in ("log-ownership.js", "identity.js"):
         subprocess.run(["node", "--check", str(STATIC / name)], check=True)

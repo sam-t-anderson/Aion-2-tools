@@ -5,8 +5,6 @@ with "No feasible stigma allocation fits the reserved levels and budget" after a
 silently scoring the current build, which looked like the optimizer hanging there. The
 character's level now gates the stigma slots, each skill's trained level (its ``need`` levels),
 the boards and the base stats, and a skill not learned yet is left out of the kit."""
-from pathlib import Path
-
 import pytest
 
 from aion2calc.kit.base import Build, ClassData, stigma_points_to_reach, trainable_level
@@ -15,7 +13,6 @@ from aion2calc.opt.pipeline import Optimizer
 from aion2calc.run import prepare
 from aion2calc.scenarios import SCENARIOS, typical_build
 
-APP_JS = (Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static" / "app.js").read_text(encoding="utf-8")
 
 
 @pytest.fixture(scope="module")
@@ -116,11 +113,4 @@ def test_a_saved_result_is_rebuilt_at_its_characters_level():
     assert all((e[0] if isinstance(e, tuple) else e) in kit.actions for e in policy)
     assert build_from_summary({**summary, "level": None})[0].level == 45                # older results
 
-
-def test_the_page_fills_community_totals_only_at_the_level_cap():
-    # the highest reported totals come from level-45 characters; the only Templar report was a
-    # level-24 character's, which the page then offered every Templar as the budget
-    guard = APP_JS[APP_JS.index("const levelCap=v.level_cap||45;"):]
-    guard = guard[:guard.index("A2ProgressionBudgets.read(communityAPI,v.class")]
-    assert "(v.level??levelCap)<levelCap" in guard and "else " in guard
-    assert "Community point totals are not filled in below level" in guard
+# My Character offers the community's point totals only at the level cap: tests/browser/test_browser_pages.py

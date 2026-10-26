@@ -11,7 +11,6 @@ from aion2calc.combat import sessions
 
 STATIC = pathlib.Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static"
 SAVED_JS = (STATIC / "saved-logs.js").read_text(encoding="utf-8")
-APP_JS = (STATIC / "app.js").read_text(encoding="utf-8")
 INDEX_HTML = (STATIC / "index.html").read_text(encoding="utf-8")
 
 
@@ -102,14 +101,6 @@ def test_saved_logs_module_groups_by_category():
     assert "data-seg" in SAVED_JS and "open(b.dataset.open" in SAVED_JS   # opens an encounter at its segment
     assert "Final boss" in SAVED_JS and "Mini-boss" in SAVED_JS           # role labels
     assert "A2BundledAssets" in SAVED_JS                  # boss portrait
-
-
-def test_app_mounts_saved_logs_in_saved_panel():
-    assert 'id="saved-browse"' in APP_JS
-    assert "A2SavedLogs.mount($('#saved-browse')" in APP_JS
-    assert "Recorded encounters by type" in APP_JS
-    # opens the local recording at the chosen segment
-    assert "'/combat-log/local/'+encodeURIComponent(file)" in APP_JS and "?segment='+segment" in APP_JS
 
 
 def test_index_loads_saved_logs_script():

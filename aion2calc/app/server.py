@@ -1314,7 +1314,16 @@ class Handler(BaseHTTPRequestHandler):
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("settings import runs only on the computer running the app")
             from .settings_backup import import_settings
-            return self._json(import_settings(body.get("document", body)))
+            result = import_settings(body.get("document", body))
+            imported = result["imported"]
+            # what follows its settings follows the imported ones too, as after a change in Settings
+            for prefix, sync in (("rtss_", rtss_sync), ("radar_", radar_sync), ("pettracker_", pettracker_sync)):
+                if any(k.startswith(prefix) for k in imported):
+                    try:
+                        sync()
+                    except Exception:
+                        traceback.print_exc()
+            return self._json(result)
         if path == "/api/update/check":           # Settings "Check now": re-check the latest release
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("update checks run only on the computer running the app")

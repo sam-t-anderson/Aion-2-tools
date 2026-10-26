@@ -882,8 +882,6 @@ def test_a_settings_backup_carries_the_switches_but_not_the_folder(monkeypatch, 
 def test_the_hotkey_launcher_flag_and_installer_task():
     from aion2calc.app import hotkeys
     assert hotkeys.ACTIONS["toggle_pet_tracker"] == "Show / hide the Pet Tracker overlay"
-    app_js = (STATIC / "app.js").read_text(encoding="utf-8")
-    assert '["toggle_pet_tracker","Show / hide the Pet Tracker overlay"]' in app_js
     launcher = (ROOT / "aion2calc" / "launcher.py").read_text(encoding="utf-8")
     assert '"toggle_pet_tracker":' in launcher and "server.pettracker_sync()" in launcher
     assert '"--install-pettracker"' in launcher and "pettracker_setup.install(wait=900)" in launcher
@@ -907,9 +905,5 @@ def test_the_pages():
     assert "window.A2Pets = { esc, status, row, rows, accent, control }" in shared
     index = (STATIC / "index.html").read_text(encoding="utf-8")
     assert '<a href="#/pets" data-page="pets">Pet Tracker</a>' in index and "/static/pet-tracker.js" in index
-    app_js = (STATIC / "app.js").read_text(encoding="utf-8")
-    assert '["pets", "Pet Tracker"]' in app_js and 'else if (page === "pets") await pagePets();' in app_js
-    assert '["pettracker","Pet Tracker"]' in app_js and 'id="pt-set-enabled"' in app_js
-    assert 'petUpdateNotice(s, "pt-update")' in app_js and 'petUpdateNotice(s, "pt-set-update")' in app_js
-    assert app_js.count('action: "update"') == 2 and 'id="pt-note"' in app_js and 'id="pt-set-note"' in app_js
     assert 'text: state.problem || "Starting Pet Tracker\'s capture…"' in shared
+    # the app's page, its Settings section and their update notice: tests/browser/test_browser_pages.py

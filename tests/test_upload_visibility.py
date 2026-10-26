@@ -75,6 +75,5 @@ def test_the_default_server_and_the_app_offer_public_first():
     root = Path(__file__).resolve().parents[1]
     default = json.loads((root / "aion2calc" / "data" / "global" / "default_server.json").read_text(encoding="utf-8"))
     assert default["visibility"] == "public"
-    js = (root / "aion2calc" / "app" / "static" / "app.js").read_text(encoding="utf-8")
-    assert '["public", "unlisted", "private"]' in js and 'action: "notice-seen"' in js
+    # the app's own choices and its one-time notice: tests/browser/test_browser_settings.py, test_browser_launch.py
     assert "chosenVisibility='public'" in (root / "aion2calc" / "app" / "static" / "archive-upload.js").read_text(encoding="utf-8")

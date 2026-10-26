@@ -9,7 +9,6 @@ from aion2calc.app.meter_runner import Runner
 from aion2calc.app.settings_backup import _clean
 
 ROOT = pathlib.Path(__file__).resolve().parents[1] / "aion2calc" / "app"
-APPJS = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
 OVJS = (ROOT / "static" / "overlay.js").read_text(encoding="utf-8")
 OVHTML = (ROOT / "static" / "overlay.html").read_text(encoding="utf-8")
 OVCSS = (ROOT / "static" / "overlay.css").read_text(encoding="utf-8")
@@ -39,12 +38,8 @@ def test_the_backup_round_trips_and_checks_them():
         raise AssertionError(f"accepted {bad}")
 
 
-def test_the_settings_page_and_the_overlay_are_wired():
-    for control in ('id="ov-cooldowns"', 'id="ov-cd-min"', 'id="ov-cd-max"', 'id="ov-cd-pos"', 'id="ov-break-gauge"'):
-        assert control in APPJS
-    for key in ("overlay_show_cooldowns:", "overlay_cooldowns_min_s:", "overlay_cooldowns_max:",
-                "overlay_cooldowns_position:", "overlay_show_break_gauge:"):
-        assert key in APPJS
+def test_the_overlay_is_wired():
+    # Settings → Overlay saves them: tests/browser/test_browser_settings.py
     assert 'id="ovcooldowns"' in OVHTML and 'id="ovgauge"' in OVHTML
     assert "ui.overlay_show_cooldowns===true" in OVJS and "ui.overlay_show_break_gauge===true" in OVJS
     assert "function renderCooldowns" in OVJS and "snap.chain_windows" in OVJS and "target.break_gauge" in OVJS
