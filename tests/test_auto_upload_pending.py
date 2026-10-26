@@ -188,8 +188,7 @@ def test_the_launch_catch_up_has_its_own_setting(home, monkeypatch):
 def test_the_catch_up_setting_is_offered_accepted_and_on_by_default():
     import pathlib
     from aion2calc.app import server
-    app_js = (pathlib.Path(server.__file__).parent / "static" / "app.js").read_text(encoding="utf-8")
-    assert 'id="rec-catchup"' in app_js and "meter_catch_up_uploads" in app_js
+    # Settings → Meter offers it: tests/browser/test_browser_settings.py
     src = pathlib.Path(server.__file__).read_text(encoding="utf-8")
     assert '"meter_catch_up_uploads": True' in src                 # default on
     assert '"meter_auto_upload", "meter_catch_up_uploads"' in src   # accepted by /api/ui

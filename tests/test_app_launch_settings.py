@@ -1,6 +1,8 @@
 """The app window and the launch settings of 0.2.329: a 1080p window instead of a maximized one, the text
 size, the page the app opens on, My Character opening the character you opened last, and the two notes on
-the Live Meter page (Capture diagnostics, the installed game version) folded away until opened."""
+the Live Meter page (Capture diagnostics, the installed game version) folded away until opened. What the
+pages do with them is checked in a browser (tests/browser: test_browser_launch.py, test_browser_settings.py,
+test_browser_pages.py and test_browser_live_meter.py)."""
 import json
 import os
 import re
@@ -73,8 +75,6 @@ def test_the_pages_offered_at_launch_are_the_navigations_pages():
     nav = tuple(re.findall(r'data-page="([a-z]+)"', rows[:rows.index("</nav>")])) + ("settings",)
     assert nav == APP_PAGES                                         # the same ids in the same order, Live Meter first
     assert '<a href="#/settings" data-page="settings">Settings</a>' in index
-    pages = re.search(r"const PAGES = \[(.*?)\];", _read("app.js"), re.S).group(1)
-    assert tuple(re.findall(r'\["([a-z]+)", "', pages)) == APP_PAGES
 
 
 def test_the_ui_route_validates_and_stores_them(monkeypatch, tmp_path):
@@ -104,31 +104,11 @@ def test_the_ui_route_validates_and_stores_them(monkeypatch, tmp_path):
         srv.server_close()
 
 
-def test_the_app_applies_them_at_launch_and_offers_them_in_settings():
-    app = _read("app.js")
-    # Launch: the text size is applied before the first page, and an empty hash opens the chosen page.
-    assert 'document.body.style.zoom = pct === 100 ? "" : String(pct / 100);' in app
-    assert "applyTextScale(S.ui);" in app
-    assert 'if (!location.hash && page !== "meter") { location.hash = "/" + page; return; }' in app
-    # Settings → App & data: the four controls and what each saves.
-    assert 'id="textscale"' in app and 'api("/api/ui", { app_text_scale: v })' in app
-    assert 'id="defaultpage"' in app and 'api("/api/ui", { app_default_page: $("#defaultpage").value })' in app
-    assert 'id="char-auto-open"' in app and 'api("/api/ui", { character_auto_open: $("#char-auto-open").checked })' in app
-    assert 'id="char-auto-refresh"' in app and 'api("/api/ui", { character_auto_refresh: $("#char-auto-refresh").checked })' in app
-    assert "1920×1080" in app and "not maximized" in app              # the window note under Open as its own window
-    # My Character: the newest import opens once per app session, from its snapshot unless the refresh is on.
-    assert "ui.character_auto_open && known.length && !st.autoOpened" in app
-    assert "ui.character_auto_refresh ? 0 : 10 * 365 * 86400" in app
-    assert "cache ? { ...h, cache } : h" in app
+def test_the_import_takes_how_old_a_saved_snapshot_may_be():
+    # My Character's auto-open asks for the last snapshot with the age it accepts (test_browser_pages.py)
     with open(os.path.join(STATIC, "..", "server.py"), encoding="utf-8") as fh:
         assert 'use_cache=float(body.get("cache", 0))' in fh.read()
 
 
-def test_the_capture_diagnostics_and_game_version_notes_start_folded():
-    app, css = _read("app.js"), _read("app.css")
-    assert '<details class="note" style="margin-top:10px"><summary><b>Capture diagnostics</b>' in app
-    assert '<details class="note small"><summary id="mautometa-sum">' in app
-    assert '<div id="mautometa" role="status"></div></details>' in app
-    assert "<details open" not in app and 'class="note" open' not in app
-    assert '$("#mautometa-sum").textContent' in app               # the installed version reads while folded
-    assert "details.note > summary { cursor: pointer; }" in css
+def test_a_folded_note_shows_that_it_opens():
+    assert "details.note > summary { cursor: pointer; }" in _read("app.css")

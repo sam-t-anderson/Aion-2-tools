@@ -14,7 +14,6 @@ from aion2calc.app import server, settings_backup
 STATIC = pathlib.Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static"
 OVERLAY_JS = (STATIC / "overlay.js").read_text(encoding="utf-8")
 OVERLAY_HTML = (STATIC / "overlay.html").read_text(encoding="utf-8")
-APP_JS = (STATIC / "app.js").read_text(encoding="utf-8")
 NAV_JS = (pathlib.Path(__file__).resolve().parents[1] / "site" / "navigation.js").read_text(encoding="utf-8")
 
 
@@ -66,11 +65,6 @@ def test_overlay_has_a_start_stop_button():
     assert "syncCapture" in OVERLAY_JS
 
 
-def test_app_has_the_autostart_toggle():
-    assert 'id="rec-autostart"' in APP_JS
-    assert "meter_autostart" in APP_JS
-
-
 def test_status_text_sits_in_the_metric_row_right_of_dtaken():
     # The "Latest combat" status moved out of the header into the metric row, after
     # the D.Taken button (right-aligned via .ovsub margin-left:auto).
@@ -105,25 +99,6 @@ def test_meters_today_sits_left_of_the_colour_switcher():
     assert 'document.getElementById("accent") || theme' in NAV_JS
 
 
-def test_profile_bundles_the_overlay_background_locally():
-    # Saving a customization profile snapshots the overlay background into the
-    # profile (stored in this browser, on the user's machine), and applying a
-    # profile restores (or clears) that bundled image.
-    assert "captureOverlayBackground" in APP_JS
-    assert "fetch('/overlay-background?'" in APP_JS
-    assert "fresh.overlay_bg_set?await captureOverlayBackground()" in APP_JS
-    # Apply pushes the bundled image back (or clears it) via the local background API.
-    assert "await api('/api/overlay/background',prof.bg?{data:prof.bg}:{clear:true})" in APP_JS
-
-
-def test_profile_share_code_strips_the_background_image():
-    # The portable share code (and therefore any export to a server) must not carry
-    # the bundled background — only colours and settings.
-    assert "const encodeProfile=prof=>{const {bg,...rest}=prof;" in APP_JS
-    # The decoder rebuilds a clean object with no bg field, so imports never bring one in.
-    assert "return {name:String(obj.name||'').slice(0,40)" in APP_JS
-
-
 OVERLAY_PY = (pathlib.Path(__file__).resolve().parents[1] / "aion2calc" / "overlay.py").read_text(encoding="utf-8")
 SERVER_PY = (pathlib.Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "server.py").read_text(encoding="utf-8")
 
@@ -138,11 +113,9 @@ def test_click_through_setting_defaults_off_and_backs_up(home):
         settings_backup.import_settings({"overlay_click_through": "yes"})
 
 
-def test_click_through_toggle_is_wired_in_settings_and_overlay():
-    # App settings toggle.
-    assert 'id="ov-clickthrough"' in APP_JS
-    assert "overlay_click_through" in APP_JS
-    # Overlay page reports its controls and the mode across the native bridge.
+def test_click_through_is_wired_in_the_overlay():
+    # The overlay page reports its controls and the mode across the native bridge (Settings offers it:
+    # tests/browser/test_browser_settings.py).
     assert "applyClickThrough" in OVERLAY_JS
     assert "set_click_through" in OVERLAY_JS
     assert "set_interactive_rects" in OVERLAY_JS
@@ -185,9 +158,7 @@ def test_stop_keeps_the_overlay_open_by_default(home, monkeypatch):
         settings_backup.import_settings({"overlay_close_on_stop": "nope"})
 
 
-def test_close_on_stop_toggle_is_wired_in_settings():
-    assert 'id="ov-close-on-stop"' in APP_JS
-    assert "overlay_close_on_stop" in APP_JS
+def test_stop_closes_the_overlay_only_when_settings_ask_it_to():
     # Server only closes the overlay on stop when opted in AND the stop wasn't from the overlay.
     assert 'ui_settings().get("overlay_close_on_stop") and not body.get("from_overlay")' in SERVER_PY
 
@@ -202,11 +173,7 @@ def test_click_through_native_hit_test_present():
     assert "0x00000020" in OVERLAY_PY   # WS_EX_TRANSPARENT
 
 
-def test_settings_has_a_square_selector_for_bundled_backgrounds():
-    # A clickable square (background preview + profile name) per profile that
-    # bundles a background, wired to apply that profile.
-    assert "function customProfileGallery()" in APP_JS
-    assert "custgallery" in APP_JS
-    assert "data-cust-tile" in APP_JS
-    assert '$$("[data-cust-tile]")' in APP_JS
+def test_the_profile_squares_have_their_look():
+    # A square (background preview + profile name) per profile that bundles a background applies that
+    # profile; the profile keeps the background and its share code leaves it out: test_browser_settings.py.
     assert ".custtile" in (STATIC / "app.css").read_text(encoding="utf-8")

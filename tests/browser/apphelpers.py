@@ -58,3 +58,25 @@ def axe_findings(page, axe_path: str, impacts=("serious", "critical")) -> list[s
                                       nodes: v.nodes.slice(0, 3).map(n => n.target.join(' '))}));
     }""")
     return [f"{v['impact']} {v['id']}: {v['help']} — {', '.join(v['nodes'])}" for v in found if v["impact"] in impacts]
+
+
+def open_settings(page, base: str, section: str) -> None:
+    """Open Settings afresh on one of its sections (the buttons above it: overlay, meter, system…)."""
+    go(page, base, "#/settings")
+    page.click(f'[data-settab="{section}"]')
+    page.wait_for_selector(f'.setrow[data-g="{section}"]:not([hidden])')
+
+
+def posted(page, action, path: str = "/api/ui") -> dict:
+    """The JSON the page posts to ``path`` while ``action`` runs, once the app has answered it (leaving the
+    page before then would cancel the request)."""
+    import json
+    with page.expect_request(lambda r: r.method == "POST" and r.url.split("?")[0].endswith(path)) as request:
+        action()
+    request.value.response()
+    return json.loads(request.value.post_data or "{}")
+
+
+def put_back(page, settings: dict) -> None:
+    """Save settings as the page saves them, to put back what a test changed (the tests share one app)."""
+    page.evaluate("settings => api('/api/ui', settings)", settings)

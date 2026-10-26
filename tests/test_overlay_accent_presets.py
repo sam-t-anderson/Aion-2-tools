@@ -2,7 +2,7 @@
 Azure, Amethyst, Rose) must actually match those accents: each preset's header
 and glow colour equals the accent's `--gold` value defined in app.css, so the
 "matched to the accent" promise can't silently drift when an accent is retuned.
-Each also needs a dropdown description and must validate as a visual preset."""
+Each must validate as a visual preset (and has a dropdown description: tests/browser/test_browser_overlay_settings.py)."""
 import re
 import pathlib
 
@@ -11,7 +11,6 @@ from tests.test_settings_backup import _extract_bundled_presets
 
 STATIC = pathlib.Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static"
 CSS = (STATIC / "app.css").read_text(encoding="utf-8")
-APPJS = (STATIC / "app.js").read_text(encoding="utf-8")
 
 ACCENTS = ["Crimson", "Emerald", "Azure", "Amethyst", "Rose"]
 
@@ -39,7 +38,3 @@ def test_accent_presets_validate_as_visual_presets():
         cleaned = settings_backup.clean_presets([{"name": name, "settings": presets[name]}])[0]["settings"]
         assert set(cleaned) == set(presets[name]), f"{name} carries an unrecognised visual key"
 
-
-def test_accent_presets_have_descriptions():
-    for name in ACCENTS:
-        assert re.search(rf'"{name}":"[^"]+"', APPJS), f"{name} missing a preset description"

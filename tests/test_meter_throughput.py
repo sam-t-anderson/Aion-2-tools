@@ -20,7 +20,6 @@ import threading
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RUNNER_SRC = (ROOT / "aion2calc" / "app" / "meter_runner.py").read_text(encoding="utf-8")
 OVERLAY_JS = (ROOT / "aion2calc" / "app" / "static" / "overlay.js").read_text(encoding="utf-8")
-APP_JS = (ROOT / "aion2calc" / "app" / "static" / "app.js").read_text(encoding="utf-8")
 
 
 class _RaisingEngine:
@@ -61,9 +60,9 @@ def test_constants_and_wiring_are_present():
     assert '"decode_backlog"' in RUNNER_SRC and '"catching_up"' in RUNNER_SRC
 
 
-def test_both_views_render_a_catching_up_indicator():
-    for js in (OVERLAY_JS, APP_JS):
-        assert "decode_backlog" in js and "catching up" in js
+def test_the_overlay_renders_a_catching_up_indicator():
+    # the Live Meter page's: tests/browser/test_browser_live_meter.py
+    assert "decode_backlog" in OVERLAY_JS and "catching up" in OVERLAY_JS
 
 
 def test_recovered_decode_skip_does_not_poison_the_numeric_counter(monkeypatch, tmp_path):

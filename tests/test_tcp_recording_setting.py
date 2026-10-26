@@ -123,13 +123,12 @@ def test_ticking_the_box_while_stopped_applies_at_the_next_start(home, switches)
 
 
 def test_the_overlay_hotkey_and_launch_starts_make_no_choice_of_their_own():
+    # the Live Meter page's Start makes none either: tests/browser/test_browser_live_meter.py
     overlay = (ROOT / "aion2calc/app/static/overlay.js").read_text(encoding="utf-8")
-    page = (ROOT / "aion2calc/app/static/app.js").read_text(encoding="utf-8")
-    calls = [*re.findall(r'\{action:"start"[^}]*\}', overlay),
-             *re.findall(r'\{ action: "start"[^;]*\};', page)]
+    calls = re.findall(r'\{action:"start"[^}]*\}', overlay)
     for name in ("aion2calc/launcher.py", "aion2calc/app/server.py"):
         calls += re.findall(r'r\.start\("a2tools"[^)]*\)', (ROOT / name).read_text(encoding="utf-8"))
-    assert len(calls) == 4 and not [call for call in calls if "record_packets" in call]
+    assert len(calls) == 3 and not [call for call in calls if "record_packets" in call]
 
 
 def test_the_setting_defaults_off_and_stays_out_of_settings_backups(home):

@@ -10,7 +10,6 @@ from pathlib import Path
 STATIC = Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static"
 CSS = (STATIC / "overlay.css").read_text(encoding="utf-8")
 JS = (STATIC / "overlay.js").read_text(encoding="utf-8")
-APP = (STATIC / "app.js").read_text(encoding="utf-8")
 REVIEW = (STATIC / "combat-review.js").read_text(encoding="utf-8")
 CLASSES = {"gladiator", "templar", "assassin", "ranger", "sorcerer", "spiritmaster", "cleric", "chanter"}
 
@@ -62,9 +61,7 @@ def test_the_struck_enemies_count_sits_next_to_the_target_name():
 
 def test_number_colour_defaults_are_light_and_agree_everywhere():
     assert "--ov-rate-text, #ffffff" in CSS and "--ov-total-text, #9bb1c1" in CSS
-    assert "rate:'#ffffff',total:'#9bb1c1'" in APP                 # the settings pickers' defaults
-    assert "\"Default (gold)\":{overlay_text_colors:{rate:\"#ffffff\",total:\"#9bb1c1\"" in APP
-    assert "Reset numbers to black" not in APP
+    # the Settings pickers, their reset and the Default (gold) preset: tests/browser/test_browser_overlay_settings.py
     # Blank (unset) text colours fall through to the stylesheet, never to black.
     assert "'#000000'" not in JS.split("const syncColors", 1)[1].split("\n", 1)[0]
 

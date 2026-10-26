@@ -87,6 +87,12 @@ AXE_CORE_JS=/tmp/axe/node_modules/axe-core/axe.min.js python -m pytest tests/bro
 python tools/site_smoke.py --axe /tmp/axe/node_modules/axe-core/axe.min.js   # the website (needs PyYAML)
 ```
 
+Test what an app page does there, in the browser, rather than by searching the
+page's script for its text. The app under test reaches only a stand-in log server
+(`tests/browser/community.py`) with made-up fights, plans and kills; when a page
+starts reading another community route, add its answer there (the every-page test
+names a route the stand-in does not serve).
+
 Please also:
 
 - Keep the change **focused** — one logical change per PR reviews far faster.

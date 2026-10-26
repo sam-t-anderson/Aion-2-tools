@@ -6,7 +6,6 @@ import pathlib
 from aion2calc.app import server
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-APP = (ROOT / "aion2calc" / "app" / "static" / "app.js").read_text(encoding="utf-8")
 SERVER = (ROOT / "aion2calc" / "app" / "server.py").read_text(encoding="utf-8")
 
 
@@ -35,8 +34,3 @@ def test_state_and_sync_off_windows(monkeypatch, tmp_path):
     state = server.rtss_state()
     assert state["supported"] is False and state["setting"] is False and "last_text" not in state
 
-
-def test_settings_page_has_the_group():
-    assert 'id="rtss-enabled"' in APP and 'id="rtss-rows"' in APP and 'id="rtss-metric"' in APP
-    assert 'id="rtss-style"' in APP and 'id="rtss-interval"' in APP and "api('/api/rtss')" in APP
-    assert "Nothing is injected into or loaded by the game" in APP

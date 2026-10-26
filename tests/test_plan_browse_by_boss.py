@@ -9,7 +9,6 @@ from aion2calc.combat import share
 
 STATIC = pathlib.Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static"
 RAID = (STATIC / "raid.js").read_text(encoding="utf-8")
-APP = (STATIC / "app.js").read_text(encoding="utf-8")
 SERVER = (pathlib.Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "server.py").read_text(encoding="utf-8")
 
 
@@ -55,8 +54,7 @@ def test_bosses_menu_url(monkeypatch):
 def test_client_route_and_io_forward_the_filter():
     assert 'path == "/api/plans/bosses"' in SERVER
     assert "plan_request(plan_id=q.get(\"id\"), boss=q.get(\"boss\"), npc=q.get(\"npc\"))" in SERVER
-    assert "bosses: async () =>" in APP and '"/api/plans/bosses"' in APP
-    assert "npc=" in APP and "boss=" in APP               # browse() forwards the filter
+    # the Raid Planner's browse view sends its boss filter: tests/browser/test_browser_pages.py
 
 
 def test_browse_view_offers_a_boss_filter_menu():

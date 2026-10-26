@@ -6,14 +6,14 @@ the site's per-encounter facet table and aggregate leaderboards, reaching the se
 app's ``/api/community`` proxy and opening logs through the SPA router. The app-only extras the
 website omits (boss defeats, class performance, personal records, consistency) move to a dedicated
 "Personal records" tab, rendered by A2Community restricted to just those sections. This guards the
-new module, the page wiring, the preserved app extras, and the section allow-list in community.js.
+new module and the section allow-list in community.js; the page itself (its tabs, the extras, opening a
+log at its fight) is checked in a browser, in tests/browser/test_browser_logs.py.
 """
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 STATIC = ROOT / "aion2calc" / "app" / "static"
 VIEW_JS = (STATIC / "logs-view.js").read_text(encoding="utf-8")
-APP_JS = (STATIC / "app.js").read_text(encoding="utf-8")
 COMMUNITY_JS = (STATIC / "community.js").read_text(encoding="utf-8")
 INDEX_HTML = (STATIC / "index.html").read_text(encoding="utf-8")
 
@@ -71,34 +71,6 @@ def test_logs_view_progression_tab_has_portraits_filters_and_alpha_sort():
     assert 'String(a.boss || "").localeCompare(String(b.boss || "")' in VIEW_JS
 
 
-def test_app_combat_page_has_the_website_outer_tabs_and_panels():
-    for tab in ("community", "speed", "progression", "points"):
-        assert f'data-tab="{tab}"' in APP_JS, f"missing outer tab button {tab}"
-        assert f'data-logs-panel="{tab}"' in APP_JS, f"missing outer panel {tab}"
-    for anchor in ('id="logs-tabs"', 'id="logs-view"', 'id="speed-body"', 'id="progression-body"', 'id="points-body"'):
-        assert anchor in APP_JS, f"missing page anchor {anchor}"
-
-
-def test_app_mounts_logs_view_and_keeps_inner_community_workflow():
-    # The new module drives the page; the inner Community/My Uploads/Saved tabs and their app
-    # extras are preserved (not replaced by the monolith).
-    assert "A2LogsView.mount($('#logs-view')" in APP_JS
-    for anchor in ('id="combat-log-tabs"', 'id="owned-logs"', 'id="community"', 'id="sessions"',
-                   'id="hist"', 'id="ref"'):
-        assert anchor in APP_JS, f"lost app workflow anchor {anchor}"
-    assert "A2LogTabs.mount($('#combat-log-tabs')" in APP_JS
-
-
-def test_app_extras_tab_is_a_sectioned_community_mount():
-    # The app-only extras (boss defeats, class performance, personal records, consistency) render on
-    # a dedicated tab, via A2Community restricted to just those sections so nothing duplicates the
-    # website-style tabs above.
-    assert 'data-tab="extras"' in APP_JS and 'data-logs-panel="extras"' in APP_JS
-    assert 'id="records-extra"' in APP_JS
-    assert "A2Community.mount($('#records-extra')" in APP_JS
-    assert "sections:['bosses','performance','records']" in APP_JS
-
-
 def test_community_module_supports_a_section_allow_list():
     # A2Community.mount honours an optional sections allow-list and guards every block/fetch by it,
     # so a subset render (the extras tab) never touches the omitted sections' DOM or endpoints.
@@ -127,5 +99,3 @@ def test_view_opens_the_specific_encounter_segment():
     assert "segment: c.segment" in VIEW_JS
     assert "data-logs-seg" in VIEW_JS
     assert 'openBtn(r.id, mode, "view", r.segment)' in VIEW_JS
-    # The app's shared-log open handler threads the segment into the route.
-    assert "'&segment='+segment" in APP_JS

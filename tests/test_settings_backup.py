@@ -387,3 +387,63 @@ def test_a_fresh_install_backup_imports(isolated_home):
     # Every default the export writes passes the import's checks.
     document = json.loads(Path(settings_backup.export_settings()["file"]).read_text(encoding="utf-8"))
     assert settings_backup.import_settings(document)["imported"]
+
+
+def test_every_setting_is_in_a_backup_or_kept_on_this_computer_for_a_reason(isolated_home):
+    # A default the import refuses, or a new setting left out of the backup, shows up here.
+    from aion2calc.app.server import ui_settings
+    settings = ui_settings()
+    assert set(settings) - set(settings_backup.backed_up(settings)) == set(settings_backup.LOCAL_ONLY)
+
+
+def test_an_export_holds_nothing_of_this_computers_own(isolated_home):
+    from aion2calc.paths import write_user_json
+    write_user_json({"pettracker_path": "C:\\Games\\PetTracker", "overlay_pos_layout": [[0, 0, 1920, 1080]],
+                     "meter_record_packets": True, "radar_enabled": True}, "ui.json")
+    exported = settings_backup.export_settings()["settings"]
+    assert not {"pettracker_path", "overlay_pos_layout", "meter_record_packets"} & set(exported)
+    assert exported["radar_enabled"] is True
+
+
+def test_rtss_radar_and_upload_choices_ride_a_backup(isolated_home):
+    chosen = {"rtss_enabled": True, "rtss_rows": 8, "rtss_metric": "hps", "rtss_style": "colored", "rtss_interval_ms": 250,
+              "radar_enabled": True, "radar_sensitivity": 7, "meter_reset_on_boss_start": False,
+              "meter_catch_up_uploads": False, "meter_upload_per_fight": False, "overlay_text_autocontrast": "blend"}
+    assert settings_backup.import_settings(chosen)["imported"] == sorted(chosen)
+    for bad in ({"rtss_rows": 30}, {"rtss_metric": "fps"}, {"rtss_style": "bold"}, {"rtss_interval_ms": 50},
+                {"radar_sensitivity": 0}, {"radar_enabled": "on"}, {"overlay_text_autocontrast": "loud"}):
+        with pytest.raises(ValueError):
+            settings_backup.import_settings(bad)
+
+
+def test_a_saved_look_keeps_its_auto_contrast_and_colour_cycle(isolated_home):
+    # Settings → Overlay look presets saves these two with the rest of the look; the check dropped them.
+    look = {"overlay_text_autocontrast": "luminance", "overlay_color_cycle": True, "overlay_glow": True}
+    stored = settings_backup.import_settings({"overlay_presets": [{"name": "Look", "settings": look}]})
+    assert stored["settings"]["overlay_presets"][0]["settings"] == look
+
+
+def test_an_import_starts_what_follows_the_imported_settings(isolated_home, monkeypatch):
+    import threading
+    import urllib.request
+    from http.server import ThreadingHTTPServer
+    from aion2calc.app import server as app
+    synced = []
+    for name in ("rtss_sync", "radar_sync", "pettracker_sync"):
+        monkeypatch.setattr(app, name, lambda name=name: synced.append(name))
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), app.Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+
+    def post(body):
+        req = urllib.request.Request(f"http://127.0.0.1:{srv.server_address[1]}/api/ui/import", json.dumps(body).encode(),
+                                     {"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read())
+    try:
+        post({"document": {"settings": {"radar_enabled": True, "rtss_rows": 6}}})
+        assert synced == ["rtss_sync", "radar_sync"]
+        synced.clear()
+        post({"document": {"settings": {"overlay_glow": True}}})
+        assert synced == []
+    finally:
+        srv.shutdown()

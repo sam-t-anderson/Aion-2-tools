@@ -37,6 +37,7 @@ _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close", 
               "overlay_bar_rounded", "overlay_class_color_names", "overlay_color_cycle",
               "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers",
               "overlay_highlight_me", "overlay_dps_graph", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "overlay_open_on_app_start", "meter_auto_upload", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "overlay_plan_autoplay", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics",
+              "meter_reset_on_boss_start", "meter_catch_up_uploads", "meter_upload_per_fight", "rtss_enabled", "radar_enabled",
               # Pet Tracker (0Fox2Give's program): whether Aion 2 Calc runs it and shows its overlay. Its folder is
               # machine-specific, so it is not part of a backup.
               "pettracker_enabled", "pettracker_overlay")
@@ -49,7 +50,22 @@ _INT_KEYS = {"app_text_scale": (70, 150), "meter_reset_delay": (1, 120), "meter_
              "overlay_font_scale": (80, 160), "overlay_font_weight": (400, 800),
              "overlay_bg_opacity": (0, 100), "overlay_bg_zoom": (50, 200), "overlay_bg_darken": (0, 100),
              "overlay_interpolate_ms": (50, 1000),
-             "overlay_cooldowns_min_s": (1, 120), "overlay_cooldowns_max": (1, 16)}
+             "overlay_cooldowns_min_s": (1, 120), "overlay_cooldowns_max": (1, 16),
+             "rtss_rows": (1, 24), "rtss_interval_ms": (100, 5000), "radar_sensitivity": (1, 10)}
+
+# key -> the values a choice setting takes.
+_CHOICE_KEYS = {"overlay_text_autocontrast": ("off", "blend", "luminance"), "rtss_metric": ("dps", "hps", "dtps"),
+                "rtss_style": ("plain", "colored")}
+
+#: The settings a backup leaves on this computer, and why (every other setting is in a backup).
+LOCAL_ONLY = {
+    "pettracker_path": "a folder on this computer",
+    "overlay_bg_set": "the overlay's background image stays on this computer",
+    "overlay_events_sound_set": "the event sound stays on this computer",
+    "meter_record_packets": "recording raw game traffic is chosen on each computer",
+    "event_region": "the Timers page keeps its own choice; this copy is for the overlay",
+    "event_group": "the Timers page keeps its own choice; this copy is for the overlay",
+}
 
 _FONT_FAMILIES = ("", "Segoe UI", "Arial", "Verdana", "Georgia", "Trebuchet MS", "Consolas", "Tahoma")
 
@@ -61,7 +77,8 @@ _VISUAL_KEYS = ("overlay_text_colors", "overlay_glow", "overlay_glow_color", "ov
                 "overlay_text_fonts", "overlay_text_halo", "overlay_halo_color", "overlay_text_retro",
                 "overlay_font_family", "overlay_font_scale", "overlay_font_weight",
                 "overlay_bg_opacity", "overlay_bg_zoom", "overlay_bg_darken",
-                "overlay_name_mode", "overlay_long_names_scroll", "combat_colors")
+                "overlay_name_mode", "overlay_long_names_scroll", "combat_colors",
+                "overlay_color_cycle", "overlay_text_autocontrast")
 
 
 def _is_hex(value) -> bool:
@@ -119,6 +136,10 @@ def _clean(data: dict) -> dict:
         elif key == "overlay_font_family":
             if value not in _FONT_FAMILIES:
                 raise ValueError("overlay_font_family must be one of the available fonts")
+            clean[key] = value
+        elif key in _CHOICE_KEYS:
+            if value not in _CHOICE_KEYS[key]:
+                raise ValueError(f"{key} must be one of " + ", ".join(_CHOICE_KEYS[key]))
             clean[key] = value
         elif key == "overlay_name_mode":
             if value not in ("name", "class_number", "number"):
@@ -193,12 +214,24 @@ def clean_class_colors(value) -> dict:
     return clean
 
 
+def backed_up(settings: dict) -> dict:
+    """The settings a backup carries: each one an import takes, as it takes it. What is kept on this computer
+    (``LOCAL_ONLY``, window positions) or fails its check is left out, so a shared file holds no folder paths."""
+    out: dict = {}
+    for key, value in settings.items():
+        try:
+            out.update(_clean({key: value}))
+        except ValueError:
+            pass
+    return out
+
+
 def export_settings() -> dict:
     """Write the current settings to a shareable file; return its path and contents."""
     from .server import ui_settings
     from .. import __version__
 
-    settings = ui_settings()
+    settings = backed_up(ui_settings())
     document = {"format": FORMAT, "version": VERSION, "app_version": __version__,
                 "exported_at": time.strftime("%Y-%m-%dT%H:%M:%S"), "settings": settings}
     path = home() / f"aion2calc-settings-{time.strftime('%Y%m%d-%H%M%S')}.json"

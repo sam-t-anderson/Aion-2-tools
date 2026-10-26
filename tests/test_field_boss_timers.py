@@ -12,7 +12,6 @@ from aion2calc.combat import field_bosses as fb
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OVERLAY = (ROOT / "aion2calc" / "app" / "static" / "overlay.js").read_text(encoding="utf-8")
 TIMERS = (ROOT / "aion2calc" / "app" / "static" / "timers.js").read_text(encoding="utf-8")
-APP = (ROOT / "aion2calc" / "app" / "static" / "app.js").read_text(encoding="utf-8")
 RUNNER = (ROOT / "aion2calc" / "app" / "meter_runner.py").read_text(encoding="utf-8")
 
 NOW = 1_800_000_000.0
@@ -216,4 +215,4 @@ def test_snapshot_and_pages_are_wired():
     assert "data-kill-faction" in TIMERS and "Mine (from the live meter)" in TIMERS
     assert "loadIdentity" in TIMERS and "io.identity" in TIMERS and "ZONE_MAPS" in TIMERS
     assert "Discord bot's manual timers are never used" in TIMERS
-    assert "identity:async()=>{const m=await api('/api/meter?view=latest')" in APP
+    # The app's Timers page takes the identity from the live meter: tests/browser/test_browser_pages.py

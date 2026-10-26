@@ -183,13 +183,9 @@ def test_gear_page_endpoints(home, monkeypatch):
         srv.shutdown()
 
 
-def test_gear_page_statics_carry_the_item_panel():
-    js = (ROOT / "aion2calc/app/static/app.js").read_text(encoding="utf-8")
+def test_the_item_panel_has_its_look():
+    # what the Gear page's item panel does is checked in a browser: tests/browser/test_browser_pages.py
     css = (ROOT / "aion2calc/app/static/app.css").read_text(encoding="utf-8")
-    for needle in ("/options?class=", "/api/inventory/update", "data-ge-enchant", "data-ge-roll=", "data-ge-skill=",
-                   "data-ge-save", 'data-edit="', "<th>Rolls</th>"):
-        assert needle in js, needle
-    assert '$("#gen")' not in js and '$("#gsk")' not in js                    # the old global enchant/skills inputs
     assert ".gedit" in css and ".gedit .gelines" in css
 
 

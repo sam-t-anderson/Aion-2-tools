@@ -12,7 +12,6 @@ import pytest
 from aion2calc.app import hotkeys, server, settings_backup
 
 STATIC = pathlib.Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static"
-APP_JS = (STATIC / "app.js").read_text(encoding="utf-8")
 LAUNCHER = (pathlib.Path(__file__).resolve().parents[1] / "aion2calc" / "launcher.py").read_text(encoding="utf-8")
 
 
@@ -71,15 +70,10 @@ def test_manager_is_inert_off_windows():
     mgr.stop()
 
 
-def test_every_action_has_a_label_and_is_wired():
-    # The UI action list and the launcher dispatch must cover exactly ACTIONS.
+def test_every_action_is_wired():
+    # The launcher dispatches every action (Settings has a row for each: test_browser_overlay_settings.py).
     for action in hotkeys.ACTIONS:
-        assert action in APP_JS                 # Settings capture row
-        assert f'"{action}"' in LAUNCHER        # launcher dispatch entry
-    # Settings UI scaffolding + save.
-    assert 'id="hotkey-rows"' in APP_JS
-    assert 'id="hotkeys-save"' in APP_JS
-    assert "hotkeys:map" in APP_JS
+        assert f'"{action}"' in LAUNCHER
 
 
 def test_newly_wired_actions_present():
@@ -116,7 +110,6 @@ def test_field_boss_timers_and_combat_assist_hotkeys_are_wired():
     overlay_js = (STATIC / "overlay.js").read_text(encoding="utf-8")
     assert "showFieldBosses=ui.overlay_show_field_bosses!==false" in overlay_js
     assert "if(!showFieldBosses||" in overlay_js                # observed kills leave the strip; forecasts stay
-    assert 'id="ov-field-bosses"' in APP_JS and "overlay_show_field_bosses" in APP_JS
 
 
 def test_the_radar_learn_steps_are_ctrl_1_to_ctrl_4_while_the_radar_is_on():
@@ -136,7 +129,3 @@ def test_the_radar_learn_steps_are_ctrl_1_to_ctrl_4_while_the_radar_is_on():
                                         "radar_learn_cube_behind": "Ctrl+3", "radar_learn_other": "Ctrl+4"}
     # a cleared learn step is kept as "" so it stays cleared; other cleared actions are dropped
     assert hotkeys.clean_hotkeys({"radar_learn_cube": "", "clear_meter": ""}) == {"radar_learn_cube": ""}
-    assert ('const RADAR_STEPS = { radar_learn_background: "Ctrl+1", radar_learn_cube: "Ctrl+2", '
-            'radar_learn_cube_behind: "Ctrl+3", radar_learn_other: "Ctrl+4" };') in APP_JS
-    assert "const RADAR_KEYS=RADAR_STEPS;" in APP_JS
-    assert "is bound to two actions" in APP_JS

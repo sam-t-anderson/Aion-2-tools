@@ -75,7 +75,6 @@ def test_the_pages_build_copies_the_script():
     ("community.js", "· ${esc(worldFor(x.server))}"),                            # All matching public attempts: Character · server
     ("combat-review.js", 'worldFor(e.server, e.server_name)'),                   # player labels in the review
     ("combat-review.js", "Server ${esc(worldFor(snapshot.identity?.server))}"),  # the saved profile's server line
-    ("app.js", 'worldFor(who.serverId, "server "+who.serverId)'),                # the Live Meter identity line
     ("overlay.js", "A2Servers.label(doc.server,'server '+doc.server)"),          # field-boss tips on the overlay
     ("timers.js", "worldFor(k.server,'Server '+k.server)"),                      # field-boss kill rows
     ("timers.js", "worldFor(identified.server,'server '+identified.server)"),    # the identified-server line
@@ -87,6 +86,6 @@ def test_the_scripts_show_the_world_name(path, needle):
 
 
 def test_the_number_no_longer_shows_where_a_name_is_known():
-    assert '" · server "+who.serverId+(worldName' not in (STATIC / "app.js").read_text(encoding="utf-8")
+    # the Live Meter's identity line: tests/browser/test_browser_live_meter.py
     assert '" · " + e.server + (e.server_name' not in (STATIC / "combat-review.js").read_text(encoding="utf-8")
     assert "· ${esc(x.server)}" not in (STATIC / "community.js").read_text(encoding="utf-8")

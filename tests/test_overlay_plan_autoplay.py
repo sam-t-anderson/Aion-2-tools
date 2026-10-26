@@ -6,7 +6,6 @@ import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 JS = (ROOT / "aion2calc" / "app" / "static" / "overlay.js").read_text(encoding="utf-8")
-APP = (ROOT / "aion2calc" / "app" / "static" / "app.js").read_text(encoding="utf-8")
 SERVER = (ROOT / "aion2calc" / "app" / "server.py").read_text(encoding="utf-8")
 
 
@@ -27,8 +26,7 @@ def test_overlay_resolves_a_plan_by_npc_and_syncs_to_elapsed():
 def test_autoplay_is_a_setting_on_by_default():
     assert "planAutoplay=ui.overlay_plan_autoplay!==false" in JS
     assert '"overlay_plan_autoplay": True' in SERVER
-    assert "overlay_plan_autoplay" in SERVER            # in the bool allowlist too
-    assert 'id="ov-plan-autoplay"' in APP
+    assert "overlay_plan_autoplay" in SERVER            # in the bool allowlist too (Settings: tests/browser)
 
 
 def test_plan_tab_polls_for_live_data_when_autoplaying():
