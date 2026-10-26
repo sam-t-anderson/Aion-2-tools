@@ -3,10 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>aion2calc — AION 2 build planner, combat analyzer & raid planner</title>
-<meta name="description" content="Plan AION 2 builds, analyze your fights, and plan raids on a visual timelapse map. Free, open source, runs on your computer or in your browser.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Aion 2 Calc — AION 2 damage meter, combat logs, builds and raid planner</title>
+<meta name="description" content="Free, open-source AION 2 tools: a live damage meter with an in-game overlay, combat log reviews, community leaderboards, a build optimizer and a raid planner.">
+<link rel="canonical" href="https://sam-t-anderson.github.io/Aion-2-tools/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Aion 2 Calc">
+<meta property="og:title" content="Aion 2 Calc — AION 2 damage meter, combat logs, builds and raid planner">
+<meta property="og:description" content="Free, open-source AION 2 tools: a live damage meter with an in-game overlay, combat log reviews, community leaderboards, a build optimizer and a raid planner.">
+<meta property="og:url" content="https://sam-t-anderson.github.io/Aion-2-tools/">
+<meta property="og:image" content="https://sam-t-anderson.github.io/Aion-2-tools/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Aion 2 Calc: AION 2 damage meter, combat logs, builds and raid planner">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="static/logo.png">
 <script>try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; const a = localStorage.getItem("accent"); if (["crimson","emerald","azure","amethyst","rose"].includes(a)) document.documentElement.dataset.accent = a; } catch (e) {}</script>
 <link rel="stylesheet" href="static/app.css">
@@ -18,34 +27,39 @@
   <section class="hero2">
     <img src="static/logo.png" alt="" class="herologo">
     <div>
-      <h1>aion2calc</h1>
-      <p class="lead">Plan your <b>AION 2</b> build, learn from your fights, and plan raids on a visual <b>timelapse</b> map — free and open source.</p>
+      <h1>Aion 2 Calc</h1>
+      <p class="lead">A live <b>damage meter</b> with an in-game overlay, combat log reviews, build optimization and a raid planner for <b>AION 2</b>. Free and open source.</p>
       <div class="cta">
-        <a class="btn primary" href="planner.html">Open the Raid Planner</a>
-        <a class="btn" href="https://github.com/sam-t-anderson/Aion-2-tools/releases/latest" target="_blank" rel="noopener">Download the app</a>
+        <a class="btn primary" href="https://github.com/sam-t-anderson/Aion-2-tools/releases/latest" target="_blank" rel="noopener">Download the app</a>
+        <a class="btn" href="logs.html">Browse combat logs</a>
+        <a class="btn" href="planner.html">Open the Raid Planner</a>
       </div>
-      <p class="small muted">The raid planner runs right here in your browser — no install. The desktop app adds build optimization, gear advice and combat-log analysis.</p>
+      <p class="small muted">Combat logs, leaderboards, timers and the raid planner work right here in your browser. The desktop app adds the live meter and overlay, build optimization and gear advice.</p>
     </div>
   </section>
 
   <section class="cards3">
-    <div class="scard"><h3>Build &amp; rotation optimizer</h3><p class="muted">Best skills, stigmas, Daevanion, arcana, stat priority, a copy-paste macro and a priority rotation for any class — in the desktop app.</p></div>
-    <div class="scard"><h3>Combat-log analyzer</h3><p class="muted">Paste an AbyssLogs link for an AionFlex-style breakdown: per-skill share, crit/double/perfect, cooldown use, timeline and idle time, compared with the optimum.</p></div>
-    <div class="scard"><h3>Raid &amp; boss planner</h3><p class="muted">Drop player, enemy, marker and AoE tokens on a map, scrub a timelapse slider and drag each to plan movement over time. Lay out party buffs; overlay a real fight.</p></div>
+    <div class="scard"><h3>Live meter &amp; overlay</h3><p class="muted">Party DPS, healing and damage taken as you fight, with an in-game overlay that starts fresh each pull and shows boss HP, cooldowns and the break bar.</p></div>
+    <div class="scard"><h3>Combat log reviews</h3><p class="muted">Every fight is saved: per-skill damage, buffs, crowd control, the timeline and your parse against the community's runs. Share a log with one link.</p></div>
+    <div class="scard"><h3>Builds &amp; gear</h3><p class="muted">Best skills, stigmas, Daevanion, arcana and stat priority for any class, a copy-paste macro, and gear advice from your own character and fights.</p></div>
+    <div class="scard"><h3>Community logs</h3><p class="muted">Public combat logs, leaderboards, completed-run speed, boss progression and class stats from everyone who shares their fights.</p></div>
+    <div class="scard"><h3>Raid planner</h3><p class="muted">Drop players, enemies, markers and AoE zones on a map, scrub a timelapse to plan movement, lay out party buffs and publish the plan.</p></div>
+    <div class="scard"><h3>Timers &amp; news</h3><p class="muted">Field and world boss timers for your region, recorded boss defeats, and the official AION 2 news from Global, Korea and Taiwan.</p></div>
   </section>
 
   <section class="shots">
     <h2>The desktop app</h2>
     <div class="shotgrid">
-      <figure><img src="screenshots/app_dark.png" alt="aion2calc dark theme" loading="lazy"><figcaption class="small muted">Dark theme</figcaption></figure>
-      <figure><img src="screenshots/app_light.png" alt="aion2calc light theme" loading="lazy"><figcaption class="small muted">Light theme</figcaption></figure>
+      <figure><img src="screenshots/overlay.png" width="720" height="460" alt="The in-game overlay: party DPS for the current boss, with each player's share" loading="lazy"><figcaption class="small muted">The in-game overlay</figcaption></figure>
+      <figure><img src="screenshots/live_meter.png" width="1260" height="605" alt="The Live Meter page: players' DPS bars and one player's damage by skill" loading="lazy"><figcaption class="small muted">The Live Meter: each player's damage by skill</figcaption></figure>
     </div>
   </section>
 
   <section class="dl">
     <h2>Download</h2>
     <div id="downloads" class="dlrow"><a class="btn" href="https://github.com/sam-t-anderson/Aion-2-tools/releases/latest" target="_blank" rel="noopener">All downloads on the Releases page</a></div>
-    <p class="small muted">Windows, macOS and Linux. No Python and no command line. The app follows your computer's light or dark mode. Builds are unsigned, so the first launch may need one extra click.</p>
+    <p class="small muted">Windows, macOS and Linux, with no Python or command line needed. The app follows your computer's light or dark mode and updates itself.</p>
+    <p class="small muted">The Windows builds are not code-signed yet. SmartScreen asks once (<b>More info → Run anyway</b>), and Windows&nbsp;11's <b>Smart App Control</b> blocks the app outright until it is turned off. <a href="https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/install.md#windows-11-smart-app-control" target="_blank" rel="noopener">How to install on Windows</a>.</p>
   </section>
 
   <footer class="sitefoot">

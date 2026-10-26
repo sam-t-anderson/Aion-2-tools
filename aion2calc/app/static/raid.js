@@ -125,14 +125,14 @@
     const hint = io.publish
       ? `<span class="faint small">Public: listed in Browse plans. Unlisted: anyone with the link. Private: requires the secret link.</span>`
       : `<span class="faint small">Plans are saved on this computer.</span>`;
-    const header = `<div class="row"><label class="muted small">Plan</label><select id="rplan" style="min-width:206px">${planOpts}</select>
+    const header = `<div class="row"><label class="muted small" for="rplan">Plan</label><select id="rplan" style="min-width:206px">${planOpts}</select>
         <button class="btn small" id="rnew">New</button><button class="btn small" id="rdup">Duplicate</button><button class="btn small" id="rdel">Delete</button></div>
-      <div class="row" style="margin-top:8px"><input id="rname" type="text" value="${esc(p.meta?.name || "")}" placeholder="Plan name" style="width:229px">
-        <input id="rauthor" type="text" value="${esc(p.meta?.author || "")}" placeholder="Author (optional)" style="width:183px">
-        <label class="muted small">Length</label><input id="rdur" type="number" min="5" max="1800" value="${dur}" style="width:92px"><span class="muted small">s</span>
-        <label class="muted small">Arena</label><select id="rarena"><option value="square" ${p.arena?.kind !== "circle" ? "selected" : ""}>Square</option><option value="circle" ${p.arena?.kind === "circle" ? "selected" : ""}>Circle</option></select></div>
-      <div class="row" style="margin-top:8px"><label class="muted small">Boss</label><input id="rbossname" type="text" value="${esc(enc.boss || "")}" placeholder="Boss / mini-boss name" style="width:206px">
-        <label class="muted small">NPC id</label><input id="rbossnpc" type="number" min="0" value="${enc.npc_id || ""}" placeholder="mob code" style="width:126px">
+      <div class="row" style="margin-top:8px"><input id="rname" type="text" value="${esc(p.meta?.name || "")}" placeholder="Plan name" aria-label="Plan name" style="width:229px">
+        <input id="rauthor" type="text" value="${esc(p.meta?.author || "")}" placeholder="Author (optional)" aria-label="Author" style="width:183px">
+        <label class="muted small" for="rdur">Length</label><input id="rdur" type="number" min="5" max="1800" value="${dur}" style="width:92px"><span class="muted small">s</span>
+        <label class="muted small" for="rarena">Arena</label><select id="rarena"><option value="square" ${p.arena?.kind !== "circle" ? "selected" : ""}>Square</option><option value="circle" ${p.arena?.kind === "circle" ? "selected" : ""}>Circle</option></select></div>
+      <div class="row" style="margin-top:8px"><label class="muted small" for="rbossname">Boss</label><input id="rbossname" type="text" value="${esc(enc.boss || "")}" placeholder="Boss / mini-boss name" style="width:206px">
+        <label class="muted small" for="rbossnpc">NPC id</label><input id="rbossnpc" type="number" min="0" value="${enc.npc_id || ""}" placeholder="mob code" style="width:126px">
         ${st.actual && (st.actual.boss || st.actual.npc_id) ? `<button class="btn small" id="rbossfromfight">Use selected fight</button>` : ""}
         <span class="faint small">Link this plan to an encounter so the overlay can auto-play it for that fight.</span></div>
       <div class="row" style="margin-top:8px"><button class="btn small" id="rexport">Export file</button>
@@ -159,8 +159,8 @@
         ${p.tokens.length ? "" : '<div class="arenahint">Add players, enemies, markers or AoE zones from the panel, then drag them on the map.</div>'}</div>
       <div class="rtransport"><button class="btn small" id="rstart" title="Back to start">⏮</button>
         <button class="btn small primary" id="rplay">${st.playing ? "⏸ Pause" : "▶ Play"}</button>
-        <select id="rspeed" title="Playback speed">${[0.5, 1, 2, 4].map((x) => `<option value="${x}" ${st.speed === x ? "selected" : ""}>${x}×</option>`).join("")}</select>
-        <input type="range" id="rscrub" min="0" max="${dur}" step="0.1" value="${st.t}" style="flex:1">
+        <select id="rspeed" title="Playback speed" aria-label="Playback speed">${[0.5, 1, 2, 4].map((x) => `<option value="${x}" ${st.speed === x ? "selected" : ""}>${x}×</option>`).join("")}</select>
+        <input type="range" id="rscrub" aria-label="Moment in the fight" min="0" max="${dur}" step="0.1" value="${st.t}" style="flex:1">
         <span id="rtime" class="small muted mono"></span></div>
       <div class="rlane"><div class="lanehd">Party buffs</div><div class="lanebody" id="buflane">${buffBars || '<span class="faint small" style="padding:0 6px">add buffs in the panel →</span>'}</div></div>
       <div class="row small" id="bufnow"></div>${actualLane}`;
@@ -188,15 +188,15 @@
         <p class="small faint">Overlay a saved combat log so its skill casts and buff windows play on the same timeline. Choose visibility before publishing; attaching a fight shares its timeline too.</p>` : "";
 
     const side = `<div class="rpanel"><h4 class="gold small">ADD</h4>
-        <div class="row"><select id="rcls">${RAID_CLASSES.map((c) => `<option>${c}</option>`).join("")}</select><button class="btn small primary" id="raddp">+ Player</button></div>
+        <div class="row"><select id="rcls" aria-label="Class of the player to add">${RAID_CLASSES.map((c) => `<option>${c}</option>`).join("")}</select><button class="btn small primary" id="raddp">+ Player</button></div>
         <div class="row" style="margin-top:6px"><button class="btn small" id="radde">+ Enemy</button><button class="btn small" id="raddm">+ Marker</button><button class="btn small" id="radda">+ AoE</button></div>
         <p class="small faint">Move the slider to a moment, then drag a token to where it should be then. The planner interpolates the movement in between.</p>
         <h4 class="gold small">SELECTED TOKEN</h4>${editor}
         <h4 class="gold small">PARTY BUFFS</h4><div class="bufedits">${buffList || '<div class="faint small">none yet</div>'}</div>
-        <div class="row small" style="margin-top:6px"><input id="bfname" placeholder="Buff name" style="width:126px"><select id="bfby" style="width:103px"><option value="">source…</option>${players.map((pl) => { const nm = pl.label || pl.cls; return `<option>${esc(nm)}</option>`; }).join("")}</select>
-          <input id="bfstart" type="number" min="0" value="0" style="width:60px"><span class="faint">–</span><input id="bfend" type="number" min="0" value="10" style="width:60px"><button class="btn small" id="bfadd">Add</button></div>
+        <div class="row small" style="margin-top:6px"><input id="bfname" placeholder="Buff name" aria-label="Buff name" style="width:126px"><select id="bfby" style="width:103px" aria-label="Who gives the buff"><option value="">source…</option>${players.map((pl) => { const nm = pl.label || pl.cls; return `<option>${esc(nm)}</option>`; }).join("")}</select>
+          <input id="bfstart" type="number" min="0" value="0" aria-label="Buff starts at (seconds)" style="width:60px"><span class="faint">–</span><input id="bfend" type="number" min="0" value="10" aria-label="Buff ends at (seconds)" style="width:60px"><button class="btn small" id="bfadd">Add</button></div>
         ${fightRow}
-        <h4 class="gold small">NOTES</h4><textarea id="rnotes" rows="4" style="width:100%" placeholder="Callouts, phases, assignments…"></textarea></div>`;
+        <h4 class="gold small">NOTES</h4><textarea id="rnotes" aria-label="Notes" rows="4" style="width:100%" placeholder="Callouts, phases, assignments…"></textarea></div>`;
 
     st.root.innerHTML = win("Raid & boss planner", "drag player tokens on the map and scrub the timeline to plan movement, cooldowns and party buffs",
       header + `<div class="raidwrap"><div>${left}</div>${side}</div>`);

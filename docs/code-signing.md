@@ -34,10 +34,10 @@ requested by the user or the person installing or operating it. In detail:
 | When | Connects to | Sends |
 |---|---|---|
 | At launch (skip with `--no-sync`) | metabot.gg | requests for public game data and icons; nothing about you |
-| When the app window opens | fonts.googleapis.com | a request for the Noto Sans font; nothing about you |
 | At launch, when a window opens, then hourly (a failed check is retried within minutes) | api.github.com | a request for the latest release of this app; nothing about you |
 | When you import a character | the official AION 2 site | the character name and server you search for |
 | When you import a fight by link | abysslogs.com or a2dil.com | the link you paste |
+| When you press **Load the interactive map** on the Maps page (or chose to load it automatically) | interactivemap.app | a request for the provider's map page, which loads its own scripts; nothing about you |
 | When you share a fight | the log server you set in **Settings** | that fight (and the character's stats when known) |
 | With a log server set | that log server | requests for its public class statistics; nothing about you |
 

@@ -7,3 +7,7 @@
 @media(max-width:800px){.craft-workspace,.craft-output{grid-template-columns:1fr}.craft-workspace [data-recipe-list]{flex:none;height:340px;min-height:0;max-height:340px}}
 
 .craft-item-stats{margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:5px;min-width:0}.craft-item-stats h4{margin:0 0 8px}.craft-item-stats details{margin-top:10px}.craft-stat-scroll{overflow:auto;max-width:100%;margin-top:8px}.craft-item-stats .t{width:100%;font-size:16px}.craft-item-stats .t th,.craft-item-stats .t td{padding:6px;text-align:left}.craft-item-stats .t td{white-space:nowrap}
+
+/* The interactive map loads only when asked (maps.js): until then this notice stands in its place. */
+.map-gate{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:260px;padding:24px;text-align:center}
+.map-gate p{max-width:62ch;margin:0}

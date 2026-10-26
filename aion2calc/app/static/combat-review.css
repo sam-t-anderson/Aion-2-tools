@@ -38,5 +38,8 @@
 /* Parse (WCL-style percentile colours) in the player table; the website's leaderboard shares these. */
 .parse{display:inline-block;min-width:2.4em;padding:1px 7px;border-radius:999px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;color:var(--q);border:1px solid color-mix(in srgb,var(--q) 55%,transparent);background:color-mix(in srgb,var(--q) 14%,transparent)}
 .parse.provisional{opacity:.6;font-weight:600}
-.q-grey{--q:#8a8f9c}.q-green{--q:#1eff00}.q-blue{--q:#3d8bff}.q-purple{--q:#b04cf2}.q-orange{--q:#ff8000}.q-pink{--q:#e268a8}.q-gold{--q:#e5cc80}.q-none{--q:#6b7080}
+.q-grey{--q:#999ea9}.q-green{--q:#1eff00}.q-blue{--q:#5c9eff}.q-purple{--q:#c67ef6}.q-orange{--q:#ff8000}.q-pink{--q:#e577b1}.q-gold{--q:#e5cc80}.q-none{--q:#9a9ea9}
+/* Light theme: darker shades of the same colours, so a parse reads at 4.5:1 or better on a light page. */
+@media (prefers-color-scheme: light){:root:not([data-theme=dark]) .q-grey{--q:#54575f}:root:not([data-theme=dark]) .q-green{--q:#0c6600}:root:not([data-theme=dark]) .q-blue{--q:#26569e}:root:not([data-theme=dark]) .q-purple{--q:#7b35a9}:root:not([data-theme=dark]) .q-orange{--q:#8a4500}:root:not([data-theme=dark]) .q-pink{--q:#883e65}:root:not([data-theme=dark]) .q-gold{--q:#735510}:root:not([data-theme=dark]) .q-none{--q:#555865}}
+:root[data-theme=light] .q-grey{--q:#54575f}:root[data-theme=light] .q-green{--q:#0c6600}:root[data-theme=light] .q-blue{--q:#26569e}:root[data-theme=light] .q-purple{--q:#7b35a9}:root[data-theme=light] .q-orange{--q:#8a4500}:root[data-theme=light] .q-pink{--q:#883e65}:root[data-theme=light] .q-gold{--q:#735510}:root[data-theme=light] .q-none{--q:#555865}
 .cr-skill-icon{vertical-align:middle;border-radius:3px}.cr-gauge{display:block;width:100%;height:110px;background:#8881;margin:6px 0 10px;border-radius:4px}
