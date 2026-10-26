@@ -3,10 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Raid Planner — aion2calc</title>
+<title>Raid Planner — Aion 2 Calc</title>
 <meta name="description" content="Plan AION 2 raids in your browser: drag player tokens on a map, scrub a timelapse slider to plan movement over time, lay out party buffs, and publish to share.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Aion 2 Calc">
+<meta property="og:title" content="Raid Planner — Aion 2 Calc">
+<meta property="og:description" content="Plan AION 2 raids in your browser: drag player tokens on a map, scrub a timelapse slider to plan movement over time, lay out party buffs, and publish to share.">
+<meta property="og:image" content="https://sam-t-anderson.github.io/Aion-2-tools/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Aion 2 Calc: AION 2 damage meter, combat logs, builds and raid planner">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="static/logo.png">
 <script>try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; const a = localStorage.getItem("accent"); if (["crimson","emerald","azure","amethyst","rose"].includes(a)) document.documentElement.dataset.accent = a; } catch (e) {}</script>
 <link rel="stylesheet" href="static/app.css">
@@ -21,6 +28,7 @@
   <button class="btn small" id="srvsave">Save</button>
   <span id="srvmsg" class="small muted"></span>
 </div>
+<h1 class="sr-only">Raid Planner</h1>
 <main id="app" class="plannerwrap"><div class="empty">Loading…</div></main>
 <script src="config.js"></script>
 <script src="static/raid.js"></script>

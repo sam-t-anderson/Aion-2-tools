@@ -310,7 +310,7 @@ Updater maintenance retains two recognized release packages, helpers for seven d
 
 ## Maps and crafting
 
-**Maps** embeds the provider-supported InteractiveMap.app viewer for Verteron, Altgard, Poeta and Ishalgen. Use its marker filters, zoom and route controls, or **Open provider** if embedding/storage restrictions prevent use. Shugo.GG/A2DB links provide additional regional references. This online view does not transfer application profiles, combat logs or credentials; account/checklist state and data belong to the provider. It does not classify encounters or verify marker/build applicability.
+**Maps** embeds the provider-supported InteractiveMap.app viewer for Verteron, Altgard, Poeta and Ishalgen. The provider's page is heavy (10–14 MB, with its own advertising and tracking scripts), so it loads only when you press **Load the interactive map**; tick **Load the map automatically** to skip the button on this computer or browser. Use its marker filters, zoom and route controls, or **Open provider** if embedding/storage restrictions prevent use. Shugo.GG/A2DB links provide additional regional references. This online view does not transfer application profiles, combat logs or credentials; account/checklist state and data belong to the provider. It does not classify encounters or verify marker/build applicability.
 
 **Crafting** provides a dated Gamers4Life recipe snapshot with profession/faction search, mastery gates, materials, normal/combo product icons and listed fees. Enter the number of planned completed crafts. Optionally expand source-linked same-faction intermediates without combo outcomes. Each branch rounds to whole crafts; surplus is not credited. Owned quantities subtract from final material rows only. Export the plan as JSON.
 

@@ -1,3 +1,11 @@
+## The Maps page asks before loading the map, and easier reading (0.2.341)
+
+**The interactive map loads when you ask.** The Maps page's map comes from InteractiveMap.app, whose page downloads 10 to 14 MB including its advertising and tracking scripts. The Maps page, in the app and on the website, now shows **Load the interactive map** in its place; **Load the map automatically** skips the button from then on.
+
+**Easier to read.** In the light theme, links, table headings, the dimmer text and the parse colours are a little darker, and in the dark theme the purple, blue, pink and grey parses a little lighter, so all of them read at the contrast accessibility guidelines ask for (4.5 to 1). The Noto Sans font now comes with the app instead of being fetched from Google each time a window opens. Screen readers now name every control of the Raid Planner. On the Combat Logs page, the first tab is now **Browse logs**, so it no longer reads the same as the **Community Combat Logs** list inside it.
+
+**The website.** It now works on a phone (the menu folds behind a **Menu** button, and a wide table scrolls inside its own box instead of the whole page), a link shared in Discord shows a title, description and picture, a missing page has its own page, and the home page shows the live meter and overlay. Before the site is published, a check now opens every page in a browser, at desktop and phone size, and fails on a missing file, a script error or an accessibility problem.
+
 ## Web pages on other sites can no longer control the app (0.2.340)
 
 **A security fix: update to this version.** The app's window is a page served by a small server on your computer. Any website open in your browser could send that server requests too, and a few of them were enough to change the app's settings, switch the log server your recordings upload to, start or stop capture, or quit the app. The server now answers only the app's own pages (its window, the overlays, an OBS browser source on the overlay) and the programs on your computer, and refuses every request from a page on another site, including one that points its own web address at your computer. Nothing changes in how you use the app.

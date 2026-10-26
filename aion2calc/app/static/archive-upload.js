@@ -116,7 +116,7 @@
         <label>Encounter type <select data-type ${disabled}><option value="">All</option>${Object.entries(io.types||{}).map(([v,l])=>`<option value="${esc(v)}" ${v===type?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
         <button class="btn small" data-select ${disabled}>Select eligible rows on this page</button>
         ${io.list?`<button class="btn small" data-prev ${busy||!offset?'disabled':''}>${recording?'Previous parts':'Newer'}</button><span>File slots ${offset+1}–${offset+25}</span><button class="btn small" data-next ${busy||!more?'disabled':''}>${recording?'Next parts':'Older'}</button>`:''}</div>
-        <div class="cr-scroll"><table class="t"><tr><th>Select</th><th>Session / archive part</th><th>Encounters</th><th>State</th><th></th></tr>
+        <div class="cr-scroll"><table class="t"><tr><th>Select</th><th>Session / archive part</th><th>Encounters</th><th>State</th><th><span class="sr-only">Actions</span></th></tr>
         ${visible.map((r,i)=>`<tr><td><input type="checkbox" data-pick="${i}" aria-label="Select ${esc(label(r))}" ${selected.has(r.file)?'checked':''} ${busy||r.unfinished?'disabled':''}></td>
         <td>${esc(label(r))}${r.archive?`<br><span class="small muted">${esc(r.archive.id)} · Part ${esc(r.archive.part)}</span> <button class="btn small" data-recording="${i}" ${disabled}>Show recording</button>`:''}</td>
         <td>${r.segments??'—'}</td><td>${r.unfinished?'Unfinished checkpoint':'Saved file'}</td><td><button class="btn small" data-open="${i}" ${disabled}>Open</button></td></tr>`).join('')||'<tr><td colspan="5">No matching files on this page.</td></tr>'}</table></div>

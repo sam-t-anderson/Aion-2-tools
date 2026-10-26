@@ -82,7 +82,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
       const party = s.party_size != null ? s.party_size : r.party_size;
       return `<tr><td class="r">${n0(r.rank)}</td><td>${esc(boss)}</td><td class="r num">${secs(elapsed)}</td><td class="r">${n0(party)}</td><td>${r.log ? `<a href="log.html?id=${encodeURIComponent(r.log)}">view</a>` : ""}</td></tr>`;
     }).join("");
-    body.innerHTML = `<table class="t"><tr><th class="r">Rank</th><th>Boss / route</th><th class="r">Time</th><th class="r">Party</th><th></th></tr>${tr}</table>` + srcNote(d);
+    body.innerHTML = `<table class="t"><tr><th class="r">Rank</th><th>Boss / route</th><th class="r">Time</th><th class="r">Party</th><th><span class="sr-only">Log</span></th></tr>${tr}</table>` + srcNote(d);
   }
 
   // Boss progression: one row per (boss, difficulty, region, product) engagement group, sorted
@@ -245,7 +245,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
       <td><span class="party-cell"><b>${n0(r.party)}${r.partyKnown ? "" : `<span class="muted" title="${esc(PARTY_UNKNOWN)}">?</span>`}</b>${r.members.map(classIcon).join("")}</span></td>
       <td class="r num">${secs(r.duration)}</td><td>${esc(r.uploader || "Anonymous")}${r.shared ? ` <span class="muted small" title="Other public uploads indexed as the same fight; it counts once per character on the leaderboard">+${n0(r.shared)} more</span>` : ""}</td><td class="muted small">${day(r.when)}</td><td class="muted small">${esc(r.patch || "—")}</td>
       <td><a href="log.html?id=${encodeURIComponent(r.id)}${Number.isInteger(r.segment) ? "&segment=" + r.segment : ""}">view</a></td></tr>`).join("");
-    table.innerHTML = `<table class="t"><tr><th>${mode === "pvp" ? "Skirmish" : "Boss"}</th><th>${mode === "pvp" ? "Type" : "Difficulty"}</th><th>Party</th><th class="r">Time</th><th>Uploaded by</th><th>Date</th><th>Product</th><th></th></tr>${tr}</table>`;
+    table.innerHTML = `<table class="t"><tr><th>${mode === "pvp" ? "Skirmish" : "Boss"}</th><th>${mode === "pvp" ? "Type" : "Difficulty"}</th><th>Party</th><th class="r">Time</th><th>Uploaded by</th><th>Date</th><th>Product</th><th><span class="sr-only">Log</span></th></tr>${tr}</table>`;
     const hasNext = comm.buf.length > comm.page * COMM_PER_PAGE || !comm.done;
     if (pager) {
       pager.innerHTML = `<button class="btn small" ${comm.page <= 1 ? "disabled" : ""} id="comm-prev" type="button">← Prev</button>`

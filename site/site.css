@@ -15,8 +15,10 @@
 .scard h3 { font-family: var(--display); letter-spacing: .6px; margin: 0 0 8px; color: var(--gold); font-size: 17px; }
 .shots h2, .dl h2 { font-family: var(--display); color: var(--gold); letter-spacing: 1px; margin: 32px 0 14px; }
 .shotgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.shotgrid img { width: 100%; border: 1px solid var(--frame); border-radius: 8px; display: block; }
+.shotgrid img { width: 100%; height: auto; border: 1px solid var(--frame); border-radius: 8px; display: block; }
 .dlrow { display: flex; flex-wrap: wrap; gap: 10px; }
+/* The header's name links home; it keeps the brand's gold and spacing rather than a link's colour. */
+.brand a { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
 .sitefoot { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
 /* planner page chrome */
 .srvbar { max-width: 1100px; margin: 0 auto; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-bottom: 1px solid var(--line-soft); }
@@ -45,4 +47,20 @@ details[open] > summary { margin-bottom:2px; }
 /* Parse (WCL-style percentile colours), shared with the combat review's player table. */
 .parse{display:inline-block;min-width:2.4em;padding:1px 7px;border-radius:999px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;color:var(--q);border:1px solid color-mix(in srgb,var(--q) 55%,transparent);background:color-mix(in srgb,var(--q) 14%,transparent)}
 .parse.provisional{opacity:.6;font-weight:600}
-.q-grey{--q:#8a8f9c}.q-green{--q:#1eff00}.q-blue{--q:#3d8bff}.q-purple{--q:#b04cf2}.q-orange{--q:#ff8000}.q-pink{--q:#e268a8}.q-gold{--q:#e5cc80}.q-none{--q:#6b7080}
+.q-grey{--q:#999ea9}.q-green{--q:#1eff00}.q-blue{--q:#5c9eff}.q-purple{--q:#c67ef6}.q-orange{--q:#ff8000}.q-pink{--q:#e577b1}.q-gold{--q:#e5cc80}.q-none{--q:#9a9ea9}
+/* Light theme: darker shades of the same colours, so a parse reads at 4.5:1 or better on a light page. */
+@media (prefers-color-scheme: light){:root:not([data-theme=dark]) .q-grey{--q:#54575f}:root:not([data-theme=dark]) .q-green{--q:#0c6600}:root:not([data-theme=dark]) .q-blue{--q:#26569e}:root:not([data-theme=dark]) .q-purple{--q:#7b35a9}:root:not([data-theme=dark]) .q-orange{--q:#8a4500}:root:not([data-theme=dark]) .q-pink{--q:#883e65}:root:not([data-theme=dark]) .q-gold{--q:#735510}:root:not([data-theme=dark]) .q-none{--q:#555865}}
+:root[data-theme=light] .q-grey{--q:#54575f}:root[data-theme=light] .q-green{--q:#0c6600}:root[data-theme=light] .q-blue{--q:#26569e}:root[data-theme=light] .q-purple{--q:#7b35a9}:root[data-theme=light] .q-orange{--q:#8a4500}:root[data-theme=light] .q-pink{--q:#883e65}:root[data-theme=light] .q-gold{--q:#735510}:root[data-theme=light] .q-none{--q:#555865}
+
+/* Phones (0.2.341): the menu folds behind a Menu button (navigation.js), a wide table scrolls inside
+   its own box instead of the whole page, and the combat-log pages drop their 125% scale. */
+.navtoggle { display: none; }
+@media (max-width: 700px) {
+  .topbar.navfold .navtoggle { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+  .topbar.navfold > .nav { display: none; }
+  .topbar.navfold.navopen > .nav { display: flex; }
+}
+@media (max-width: 900px) {
+  .site.wide-2x { zoom: 1; }
+  main table.t { display: block; max-width: 100%; overflow-x: auto; }
+}

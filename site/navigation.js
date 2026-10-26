@@ -130,3 +130,26 @@
     document.body.insertBefore(link, document.body.firstChild);
   } catch (e) { /* non-critical enhancement */ }
 })();
+
+// Phones: the menu folds behind one Menu button instead of filling the top of every page. Without
+// this script (or on a wide screen) the links show as before.
+(function () {
+  try {
+    const bar = document.querySelector(".topbar");
+    const nav = bar && bar.querySelector(".nav");
+    if (!nav) return;
+    if (!nav.id) nav.id = "site-menu";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn small navtoggle";
+    btn.setAttribute("aria-controls", nav.id);
+    btn.setAttribute("aria-expanded", "false");
+    btn.innerHTML = '<span aria-hidden="true">☰</span> Menu';
+    btn.onclick = () => {
+      const open = bar.classList.toggle("navopen");
+      btn.setAttribute("aria-expanded", String(open));
+    };
+    nav.parentNode.insertBefore(btn, nav);
+    bar.classList.add("navfold");
+  } catch (e) { /* the full menu stays */ }
+})();

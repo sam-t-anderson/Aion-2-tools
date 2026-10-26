@@ -3,10 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Leaderboard — aion2calc</title>
+<title>Leaderboard — Aion 2 Calc</title>
 <meta name="description" content="AION 2 DPS leaderboard: top parses across shared public logs, by class and boss.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="canonical" href="https://sam-t-anderson.github.io/Aion-2-tools/leaderboard.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Aion 2 Calc">
+<meta property="og:title" content="Leaderboard — Aion 2 Calc">
+<meta property="og:description" content="AION 2 DPS leaderboard: top parses across shared public logs, by class and boss.">
+<meta property="og:url" content="https://sam-t-anderson.github.io/Aion-2-tools/leaderboard.html">
+<meta property="og:image" content="https://sam-t-anderson.github.io/Aion-2-tools/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Aion 2 Calc: AION 2 damage meter, combat logs, builds and raid planner">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="static/logo.png">
 <script>try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; const a = localStorage.getItem("accent"); if (["crimson","emerald","azure","amethyst","rose"].includes(a)) document.documentElement.dataset.accent = a; } catch (e) {}</script>
 <link rel="stylesheet" href="static/app.css">
@@ -15,7 +24,7 @@
 <body>
 <header class="topbar"><div class="brand"><a href="index.html"><img src="static/logo.png" alt="">Aion 2 Calc</a><small>AION 2 combat tools</small></div><nav class="nav"><a href="index.html">Home</a><a href="logs.html">Logs</a><a href="leaderboard.html" class="on" aria-current="page">Leaderboard</a><a href="stats.html">Class stats</a><a href="builds.html">Builds</a><a href="plans.html">Plans</a><a href="planner.html">Raid Planner</a><a href="maps.html">Maps</a><a href="crafting.html">Crafting</a><a href="timers.html">Timers</a><a href="news.html">News</a><a href="docs.html">Docs</a><a href="https://github.com/sam-t-anderson/Aion-2-tools" target="_blank" rel="noopener">GitHub</a><a href="https://discord.gg/9y6zkUyvBv" target="_blank" rel="noopener">Discord</a></nav><button class="iconbtn" id="theme" title="Theme: follow computer, light or dark" aria-label="Change theme">◐</button></header>
 <main class="site"><h1 class="pagetitle">Combat leaderboards</h1>
-  <div class="row"><label>Mode <select id="mode"><option value="pve">PvE</option><option value="pvp">PvP</option></select></label><label>Metric <select id="metric"><option value="dps">Damage done / DPS</option><option value="hps">Healing / HPS</option><option value="dtps">Damage taken / DTPS</option></select></label><label>Sort by <select id="sort"><option value="parse">Parse</option><option value="score">Metric</option></select></label><label>Encounter category <select id="type"><option value="">All in mode</option></select></label><input id="build" placeholder="Game version"><input id="difficulty" placeholder="Difficulty / ruleset"><label class="muted small">Class</label><select id="cls"><option value="">All classes</option></select>
+  <div class="row"><label>Mode <select id="mode"><option value="pve">PvE</option><option value="pvp">PvP</option></select></label><label>Metric <select id="metric"><option value="dps">Damage done / DPS</option><option value="hps">Healing / HPS</option><option value="dtps">Damage taken / DTPS</option></select></label><label>Sort by <select id="sort"><option value="parse">Parse</option><option value="score">Metric</option></select></label><label>Encounter category <select id="type"><option value="">All in mode</option></select></label><input id="build" placeholder="Game version" aria-label="Game version"><input id="difficulty" placeholder="Difficulty / ruleset" aria-label="Difficulty or ruleset"><label class="muted small" for="cls">Class</label><select id="cls"><option value="">All classes</option></select>
     <label>Party size <input id="party-size" type="number" min="1" max="64" placeholder="All sizes"></label><input id="boss" type="text" placeholder="Encounter / arena"><button class="btn" id="go">Show</button><span id="msg" class="small muted"></span></div>
   <div id="list" style="margin-top:14px"><div class="empty">Loading…</div></div>
 </main>

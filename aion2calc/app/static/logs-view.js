@@ -83,7 +83,7 @@
         const party = s.party_size != null ? s.party_size : r.party_size;
         return `<tr><td class="r">${n0(r.rank)}</td><td>${esc(boss)}</td><td class="r num">${secs(elapsed)}</td><td class="r">${n0(party)}</td><td>${openBtn(r.log, "pve")}</td></tr>`;
       }).join("");
-      body.innerHTML = `<table class="t"><tr><th class="r">Rank</th><th>Boss / route</th><th class="r">Time</th><th class="r">Party</th><th></th></tr>${tr}</table>` + srcNote(d);
+      body.innerHTML = `<table class="t"><tr><th class="r">Rank</th><th>Boss / route</th><th class="r">Time</th><th class="r">Party</th><th><span class="sr-only">Log</span></th></tr>${tr}</table>` + srcNote(d);
       bindOpen(body);
     }
 
@@ -211,7 +211,7 @@
         <td><span class="party-cell"><b>${n0(r.party)}${r.partyKnown ? "" : `<span class="muted" title="${esc(PARTY_UNKNOWN)}">?</span>`}</b>${r.members.map(classIcon).join("")}</span></td>
         <td class="r num">${secs(r.duration)}</td><td>${esc(r.uploader || "Anonymous")}</td><td class="muted small">${day(r.when)}</td><td class="muted small">${esc(r.patch || "—")}</td>
         <td>${openBtn(r.id, mode, "view", r.segment)}</td></tr>`).join("");
-      table.innerHTML = `<table class="t"><tr><th>${mode === "pvp" ? "Skirmish" : "Boss"}</th><th>${mode === "pvp" ? "Type" : "Difficulty"}</th><th>Party</th><th class="r">Time</th><th>Uploaded by</th><th>Date</th><th>Product</th><th></th></tr>${tr}</table>`;
+      table.innerHTML = `<table class="t"><tr><th>${mode === "pvp" ? "Skirmish" : "Boss"}</th><th>${mode === "pvp" ? "Type" : "Difficulty"}</th><th>Party</th><th class="r">Time</th><th>Uploaded by</th><th>Date</th><th>Product</th><th><span class="sr-only">Log</span></th></tr>${tr}</table>`;
       bindOpen(table);
       const hasNext = comm.buf.length > comm.page * COMM_PER_PAGE || !comm.done;
       if (pager) {

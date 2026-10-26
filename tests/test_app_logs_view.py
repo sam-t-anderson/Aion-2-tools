@@ -1,6 +1,6 @@
 """The desktop app's Combat Logs page mirrors the public GitHub Pages logs page.
 
-The app page gains the website's outer tabs — Community combat logs, Completed-run speed, Boss
+The app page gains the website's outer tabs — Browse logs, Completed-run speed, Boss
 progression, Highest observed build points — rendered by a new ``A2LogsView`` module that ports
 the site's per-encounter facet table and aggregate leaderboards, reaching the server through the
 app's ``/api/community`` proxy and opening logs through the SPA router. The app-only extras the

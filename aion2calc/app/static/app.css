@@ -1,5 +1,12 @@
 @font-face { font-family: "Cinzel"; font-style: normal; font-weight: 400 900; font-display: swap;
   src: url("/static/fonts/cinzel-latin.woff2") format("woff2"); }   /* SIL OFL, see fonts/OFL.txt */
+/* Noto Sans ships with the app and the site (no font request to Google): Latin and Latin Extended. */
+@font-face { font-family: "Noto Sans"; font-style: normal; font-weight: 400 700; font-stretch: 100%; font-display: swap;
+  src: url("/static/fonts/noto-sans-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Noto Sans"; font-style: normal; font-weight: 400 700; font-stretch: 100%; font-display: swap;
+  src: url("/static/fonts/noto-sans-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 /* aion2calc — game-styled UI. Colors follow the official AION 2 site (dark mode)
    and the in-game windows: dark glass panels, muted gold frames, grade colors. */
 :root {
@@ -11,7 +18,7 @@
   --topbar-a: rgba(10,14,22,.97); --topbar-b: rgba(10,14,22,.85); --shadow: rgba(0,0,0,.45);
   --board-a: #18233a; --board-b: #0a0f19; --node-off: #232c42;
   --frame: rgba(206, 182, 122, .28); --frame-hi: rgba(233, 203, 128, .65);
-  --gold: #e8cf8e; --gold-dim: #b49a5c; --text: #e9e6df; --muted: #9aa3b5; --faint: #6b7385;
+  --gold: #e8cf8e; --gold-dim: #b49a5c; --text: #e9e6df; --muted: #9aa3b5; --faint: #848b9a;
   --accent: #39c2e0; --good: #6fcf7a; --bad: #e66a5a; --warn: #e9a43a; --chip-fg: #9fe3f2; --gain: #8fe08f;
   --chart-bar: rgba(57,194,224,.28); --chart-line: #e8cf8e;
   --line-soft: #1d2539; --row-hover: rgba(255,255,255,.025); --note-fg: #f1d4a3;
@@ -31,8 +38,8 @@
   --topbar-a: rgba(252,248,239,.97); --topbar-b: rgba(247,241,229,.9); --shadow: rgba(110, 85, 35, .14);
   --board-a: #fbf4e4; --board-b: #e9dcc0; --node-off: #cfc3a8;
   --frame: rgba(160, 120, 45, .32); --frame-hi: rgba(170, 125, 40, .75);
-  --gold: #8a6119; --gold-dim: #a8843f; --text: #1f2330; --muted: #5b6273; --faint: #8b8f9b;
-  --accent: #0f7898; --good: #2e8b3a; --bad: #c0392b; --warn: #b76e0c; --chip-fg: #0d6a85; --gain: #23853a;
+  --gold: #8a6119; --gold-dim: #7b602e; --text: #1f2330; --muted: #5b6273; --faint: #61646c;
+  --accent: #0e6d8a; --good: #2e8b3a; --bad: #c0392b; --warn: #b76e0c; --chip-fg: #0d6a85; --gain: #23853a;
   --chart-bar: rgba(15,120,152,.30); --chart-line: #a5701a;
   --line-soft: #ebe1cd; --row-hover: rgba(160,120,45,.06); --note-fg: #7a4b05;
   --g-common: #4a4f5c; --g-rare: #2f8a3a; --g-legend: #1f6fb5; --g-unique: #b7791f;
@@ -48,8 +55,8 @@
   --topbar-a: rgba(252,248,239,.97); --topbar-b: rgba(247,241,229,.9); --shadow: rgba(110, 85, 35, .14);
   --board-a: #fbf4e4; --board-b: #e9dcc0; --node-off: #cfc3a8;
   --frame: rgba(160, 120, 45, .32); --frame-hi: rgba(170, 125, 40, .75);
-  --gold: #8a6119; --gold-dim: #a8843f; --text: #1f2330; --muted: #5b6273; --faint: #8b8f9b;
-  --accent: #0f7898; --good: #2e8b3a; --bad: #c0392b; --warn: #b76e0c; --chip-fg: #0d6a85; --gain: #23853a;
+  --gold: #8a6119; --gold-dim: #7b602e; --text: #1f2330; --muted: #5b6273; --faint: #61646c;
+  --accent: #0e6d8a; --good: #2e8b3a; --bad: #c0392b; --warn: #b76e0c; --chip-fg: #0d6a85; --gain: #23853a;
   --chart-bar: rgba(15,120,152,.30); --chart-line: #a5701a;
   --line-soft: #ebe1cd; --row-hover: rgba(160,120,45,.06); --note-fg: #7a4b05;
   --g-common: #4a4f5c; --g-rare: #2f8a3a; --g-legend: #1f6fb5; --g-unique: #b7791f;
@@ -61,25 +68,27 @@
    of whichever light/dark theme is active. No data-accent = the default gold.
    Each accent gives dark values first, then a light override that mirrors the
    theme's own light rules (OS-light-and-not-forced-dark, or forced light). */
-:root[data-accent=crimson] { --gold:#e98a8a; --gold-dim:#b85c5c; --accent:#ff7a7a; --note-fg:#f3c0c0; --chart-line:#e98a8a; }
+:root[data-accent=crimson] { --gold:#e98a8a; --gold-dim:#c37676; --accent:#ff7a7a; --note-fg:#f3c0c0; --chart-line:#e98a8a; }
 :root[data-accent=emerald] { --gold:#8fe0a8; --gold-dim:#5ab47a; --accent:#3fe0b0; --note-fg:#bdeccb; --chart-line:#8fe0a8; }
 :root[data-accent=azure]   { --gold:#8fc3e8; --gold-dim:#5c93b4; --accent:#49c8ff; --note-fg:#c0dcf3; --chart-line:#8fc3e8; }
-:root[data-accent=amethyst]{ --gold:#c6a8f0; --gold-dim:#8f7cc3; --accent:#b07cff; --note-fg:#ddc0f3; --chart-line:#c6a8f0; }
+:root[data-accent=amethyst]{ --gold:#c6a8f0; --gold-dim:#9381c5; --accent:#b07cff; --note-fg:#ddc0f3; --chart-line:#c6a8f0; }
 :root[data-accent=rose]    { --gold:#f0a8c6; --gold-dim:#c37c9b; --accent:#ff7cae; --note-fg:#f3c0d6; --chart-line:#f0a8c6; }
 @media (prefers-color-scheme: light) {
-  :root[data-accent=crimson]:not([data-theme=dark])  { --gold:#a12b2b; --gold-dim:#b85c5c; --accent:#c0392b; --note-fg:#7a1f1f; --chart-line:#a12b2b; }
-  :root[data-accent=emerald]:not([data-theme=dark])  { --gold:#1f7a44; --gold-dim:#3f8a5c; --accent:#0f986a; --note-fg:#0b5a30; --chart-line:#1f7a44; }
-  :root[data-accent=azure]:not([data-theme=dark])    { --gold:#1f5a8a; --gold-dim:#3f6f98; --accent:#0f7898; --note-fg:#0b3a5a; --chart-line:#1f5a8a; }
-  :root[data-accent=amethyst]:not([data-theme=dark]) { --gold:#5a3a9e; --gold-dim:#6f5cb4; --accent:#7a3fe0; --note-fg:#3a1f7a; --chart-line:#5a3a9e; }
-  :root[data-accent=rose]:not([data-theme=dark])     { --gold:#9e2a6a; --gold-dim:#b45c8a; --accent:#c03972; --note-fg:#7a1f4a; --chart-line:#9e2a6a; }
+  :root[data-accent=crimson]:not([data-theme=dark])  { --gold:#a12b2b; --gold-dim:#9b4d4d; --accent:#b63629; --note-fg:#7a1f1f; --chart-line:#a12b2b; }
+  :root[data-accent=emerald]:not([data-theme=dark])  { --gold:#1f7a44; --gold-dim:#33704b; --accent:#0b7250; --note-fg:#0b5a30; --chart-line:#1f7a44; }
+  :root[data-accent=azure]:not([data-theme=dark])    { --gold:#1f5a8a; --gold-dim:#3b688f; --accent:#0e6d8a; --note-fg:#0b3a5a; --chart-line:#1f5a8a; }
+  :root[data-accent=amethyst]:not([data-theme=dark]) { --gold:#5a3a9e; --gold-dim:#6957ab; --accent:#793ede; --note-fg:#3a1f7a; --chart-line:#5a3a9e; }
+  :root[data-accent=rose]:not([data-theme=dark])     { --gold:#9e2a6a; --gold-dim:#954c73; --accent:#b13469; --note-fg:#7a1f4a; --chart-line:#9e2a6a; }
 }
-:root[data-accent=crimson][data-theme=light]  { --gold:#a12b2b; --gold-dim:#b85c5c; --accent:#c0392b; --note-fg:#7a1f1f; --chart-line:#a12b2b; }
-:root[data-accent=emerald][data-theme=light]  { --gold:#1f7a44; --gold-dim:#3f8a5c; --accent:#0f986a; --note-fg:#0b5a30; --chart-line:#1f7a44; }
-:root[data-accent=azure][data-theme=light]    { --gold:#1f5a8a; --gold-dim:#3f6f98; --accent:#0f7898; --note-fg:#0b3a5a; --chart-line:#1f5a8a; }
-:root[data-accent=amethyst][data-theme=light] { --gold:#5a3a9e; --gold-dim:#6f5cb4; --accent:#7a3fe0; --note-fg:#3a1f7a; --chart-line:#5a3a9e; }
-:root[data-accent=rose][data-theme=light]     { --gold:#9e2a6a; --gold-dim:#b45c8a; --accent:#c03972; --note-fg:#7a1f4a; --chart-line:#9e2a6a; }
+:root[data-accent=crimson][data-theme=light]  { --gold:#a12b2b; --gold-dim:#9b4d4d; --accent:#b63629; --note-fg:#7a1f1f; --chart-line:#a12b2b; }
+:root[data-accent=emerald][data-theme=light]  { --gold:#1f7a44; --gold-dim:#33704b; --accent:#0b7250; --note-fg:#0b5a30; --chart-line:#1f7a44; }
+:root[data-accent=azure][data-theme=light]    { --gold:#1f5a8a; --gold-dim:#3b688f; --accent:#0e6d8a; --note-fg:#0b3a5a; --chart-line:#1f5a8a; }
+:root[data-accent=amethyst][data-theme=light] { --gold:#5a3a9e; --gold-dim:#6957ab; --accent:#793ede; --note-fg:#3a1f7a; --chart-line:#5a3a9e; }
+:root[data-accent=rose][data-theme=light]     { --gold:#9e2a6a; --gold-dim:#954c73; --accent:#b13469; --note-fg:#7a1f4a; --chart-line:#9e2a6a; }
 
 * { box-sizing: border-box; }
+/* Read by screen readers, not shown. */
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 html, body { margin: 0; height: 100%; }
 html { background: var(--bg0); }
 body {
