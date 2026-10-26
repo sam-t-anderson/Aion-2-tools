@@ -12,6 +12,7 @@ TABS = ("community", "speed", "progression", "points", "extras")
 
 def test_each_tab_shows_its_own_panel(app_page, app_url, community):
     page = app_page
+    since = len(community.requests)
     go(page, app_url, "#/combat")
     for tab in TABS:
         page.click(f'#logs-tabs [data-tab="{tab}"]')
@@ -20,9 +21,8 @@ def test_each_tab_shows_its_own_panel(app_page, app_url, community):
         assert page.locator(f'#logs-tabs [data-tab="{tab}"]').get_attribute("aria-selected") == "true"
     page.wait_for_function("document.querySelector('#records-extra h3')")         # the app's extras, sectioned
     assert "Personal records" in page.locator("#records-extra").inner_text()
-    asked = [path for method, path in community.requests if method == "GET"]
     for route in ("/api/v1/run-leaderboard", "/api/v1/encounter-progression", "/api/v1/progression", "/api/v1/performance"):
-        assert any(path.startswith(route) for path in asked), f"no {route} request reached the log server"
+        assert community.reached(page, route, since), f"no {route} request reached the log server"
 
 
 def test_the_extras_tab_holds_only_the_apps_own_sections(app_page, app_url):

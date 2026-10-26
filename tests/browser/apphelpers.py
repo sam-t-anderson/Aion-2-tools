@@ -26,6 +26,16 @@ def open_context(browser, base: str, scheme: str = "dark", width: int = 1600):
     return context
 
 
+def close_context(context) -> None:
+    """Close a profile without its route handlers outliving it: a page that polls (the Live Meter) can have a
+    request inside a test's handler as the test ends, and that handler would then fail the next test's first
+    call on the closed context."""
+    for page in context.pages:
+        page.unroute_all(behavior="ignoreErrors")
+    context.unroute_all(behavior="ignoreErrors")
+    context.close()
+
+
 def watched_page(context, base: str) -> tuple:
     page, watch = context.new_page(), Watch(base)
     page.on("pageerror", lambda err: watch.note(f"script error: {err}"))
@@ -43,6 +53,17 @@ def go(page, base: str, hash_: str) -> None:
     page.goto(base + hash_, wait_until="load")
     page.wait_for_function("document.querySelector('#page-body') && document.querySelector('#page-body').children.length > 0")
     page.wait_for_timeout(1200)                     # its first requests (some pages poll, so no "network idle")
+
+
+def until(page, done, timeout_ms: int = 10000):
+    """Let the page run until done() is true or the time is up, and return done()'s last value: for what a test
+    waits on outside the page (a request a route saw, a dialog), which a slow computer brings later."""
+    for _ in range(timeout_ms // 100):
+        result = done()
+        if result:
+            return result
+        page.wait_for_timeout(100)
+    return done()
 
 
 def on_page(page, name: str) -> None:

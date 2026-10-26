@@ -3,7 +3,7 @@ the current section in a row underneath; every page opens without an error, unde
 after it, and without a serious accessibility problem in either theme."""
 import pytest
 
-from apphelpers import axe_findings, go, on_page, open_context, watched_page
+from apphelpers import axe_findings, close_context, go, on_page, open_context, watched_page
 
 # Each page with its section and the name it shows; the order is the navigation's.
 PAGES = [("meter", "combat", "Live Meter"), ("combat", "combat", "Combat Logs"), ("raid", "combat", "Raid Planner"),
@@ -105,4 +105,4 @@ def test_every_page_opens_cleanly_under_one_heading(browser, app_url, axe_js, co
         problems += [f"the test log server does not serve {path}" for path in community.unknown[unknown:]]
         assert not problems, "\n".join(problems)
     finally:
-        context.close()
+        close_context(context)

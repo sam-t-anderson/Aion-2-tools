@@ -11,7 +11,7 @@ import zlib
 
 import pytest
 
-from apphelpers import open_settings, posted, put_back
+from apphelpers import open_settings, posted, put_back, until
 
 # section -> (checkbox, setting)
 SWITCHES = {
@@ -161,10 +161,7 @@ def test_a_profile_keeps_the_overlay_background_here_and_its_share_code_leaves_i
            {k: profile[k] for k in ("name", "theme", "accent", "ui")}                  # everything but the image
     look = posted(page, tile.click)                                                 # the square applies it…
     assert look == profile["ui"]
-    for _ in range(30):                                                             # its answer on its way
-        if backgrounds:
-            break
-        page.wait_for_timeout(100)
+    until(page, lambda: backgrounds)                                                # its answer on its way
     assert backgrounds == [{"data": profile["bg"]}]                               # …with its background
 
 

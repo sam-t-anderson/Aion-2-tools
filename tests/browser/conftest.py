@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from apphelpers import open_context, watched_page
+from apphelpers import close_context, open_context, watched_page
 
 ROOT = Path(__file__).resolve().parents[2]
 REQUIRED = os.environ.get("AION2CALC_BROWSER_TESTS") == "1"
@@ -112,7 +112,7 @@ def app_page(browser, app_url):
     page, watch = watched_page(context, app_url)
     page.watch = watch
     yield page
-    context.close()
+    close_context(context)
     assert not watch.unexpected(), watch.unexpected()
 
 

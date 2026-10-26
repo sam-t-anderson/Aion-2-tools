@@ -7,7 +7,7 @@ on a heavy fight says so."""
 import json
 import urllib.request
 
-from apphelpers import go
+from apphelpers import go, until
 
 
 def visible(page, selector: str) -> bool:
@@ -73,8 +73,8 @@ def test_the_maps_page_loads_the_provider_only_when_asked(app_page, app_url):
     go(page, app_url, "#/maps")
     assert not asked and page.locator("[data-map-frame]").is_hidden()
     page.get_by_role("button", name="Load the interactive map").click()
-    page.wait_for_timeout(500)
-    assert asked and page.locator("[data-map-frame]").is_visible()
+    page.locator("[data-map-frame]").wait_for(state="visible")
+    assert until(page, lambda: asked)
 
 
 def meter_says(page, snapshot: dict = None, **status) -> None:

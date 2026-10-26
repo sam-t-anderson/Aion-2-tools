@@ -4,7 +4,7 @@ release, and it tells an install whose uploads became public so, once. Each test
 since the tests share one running app."""
 import json
 
-from apphelpers import go, on_page, open_context, open_settings, posted, watched_page
+from apphelpers import close_context, go, on_page, open_context, open_settings, posted, until, watched_page
 
 
 def test_the_text_size_applies_at_once_and_at_each_launch(app_page, app_url):
@@ -56,7 +56,7 @@ def test_a_waiting_update_is_offered_once_a_window_naming_the_newest_release(bro
         go(page, app_url, "#/meter")
         page.wait_for_function("document.querySelector('#update') && !document.querySelector('#update').hidden")
         assert page.locator("#update").inner_text() == "Version 99.0.0 available"
-        page.wait_for_timeout(800)
+        until(page, lambda: prompts)
         assert len(prompts) == 1 and prompts[0].startswith("Aion 2 Calc 99.1.0 is ready (you have ")
         assert "This installs the newest version directly, not the versions in between." in prompts[0]
         assert asked[0].endswith("/api/status?fresh=1")               # the window's first look asks for a fresh check
@@ -67,11 +67,11 @@ def test_a_waiting_update_is_offered_once_a_window_naming_the_newest_release(bro
         with_update(other)
         other.on("dialog", lambda d: (prompts.append(d.message), d.dismiss()))
         go(other, app_url, "#/meter")
-        page.wait_for_timeout(800)
+        until(page, lambda: len(prompts) == 2)
         assert len(prompts) == 2
         assert not watch.unexpected(), watch.unexpected()
     finally:
-        context.close()
+        close_context(context)
 
 
 def test_an_update_is_not_offered_when_a_fresh_check_finds_none_and_an_accepted_one_says_how_it_went(browser, app_url):
@@ -95,7 +95,7 @@ def test_an_update_is_not_offered_when_a_fresh_check_finds_none_and_an_accepted_
         assert len(prompts) == 1
         assert not watch.unexpected(), watch.unexpected()
     finally:
-        context.close()
+        close_context(context)
 
 
 def test_a_check_still_running_is_looked_at_again_soon(app_page, app_url):
@@ -107,7 +107,7 @@ def test_a_check_still_running_is_looked_at_again_soon(app_page, app_url):
         route.fulfill(json={**body, "update": None, "update_state": {"checking": True}})
     app_page.route("**/api/status*", status)
     go(app_page, app_url, "#/maps")
-    app_page.wait_for_timeout(2600)
+    until(app_page, lambda: len(asked) >= 2, timeout_ms=8000)
     assert len(asked) >= 2                                            # every 2 s while checking, not every 20 s
     assert asked[1].endswith("/api/status")
 

@@ -8,7 +8,7 @@ import re
 
 from aion2calc.app import hotkeys
 
-from apphelpers import open_settings, posted, put_back
+from apphelpers import open_settings, posted, put_back, until
 
 
 def hotkey(page, action):
@@ -120,10 +120,7 @@ def test_the_radar_buttons_ask_the_radar_and_its_line_says_how_it_is(app_page, a
     page.click("#radar-clear")                                                       # asked first: kept
     page.once("dialog", lambda d: d.accept())
     page.click("#radar-clear")
-    for _ in range(30):                                                              # the last answer on its way
-        if len(sent) == 7:
-            break
-        page.wait_for_timeout(100)
+    until(page, lambda: len(sent) == 7)                                              # the last answer on its way
     assert sent == [{"action": "learn", "kind": "background"}, {"action": "learn", "kind": "cube"},
                     {"action": "learn", "kind": "cube", "facing": "behind"}, {"action": "learn", "kind": "other"},
                     {"action": "cancel"}, {"action": "forget", "sample": "s1"}, {"action": "clear"}]

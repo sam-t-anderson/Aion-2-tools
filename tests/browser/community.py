@@ -142,5 +142,13 @@ class Community:
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
 
+    def reached(self, page, prefix: str, since: int = 0, timeout_ms: int = 10000) -> bool:
+        """Whether a GET for a path starting with `prefix` reaches this server (after its first `since` requests)
+        within the time. The page keeps running meanwhile: a page asks as it draws, and on a slow computer it can
+        still be asking after the part a test waited for is drawn."""
+        from apphelpers import until
+        return until(page, lambda: any(method == "GET" and path.startswith(prefix) for method, path in self.requests[since:]),
+                     timeout_ms)
+
     def close(self):
         self.server.shutdown()

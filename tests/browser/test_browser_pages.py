@@ -273,7 +273,10 @@ def test_my_character_offers_the_reported_point_totals_only_at_the_level_cap(app
     page.click('[data-known-character="0"]')
     page.locator("#cview h2", has_text="Testsorc").wait_for()
     assert page.locator("#cview .wh .sub").first.inner_text() == f"Sorcerer · Lv {level} · Zikel · Combat Power 12,345"
-    page.wait_for_timeout(800)                                                   # the reported totals arrive
+    if level == 45:                                                              # the reported totals arrive
+        page.wait_for_function("(document.querySelector('[data-character-budget=skill]') || {}).value === '130'")
+    else:
+        page.wait_for_timeout(800)                                               # as long as they would take to
     budgets = page.eval_on_selector_all("[data-character-budget]", "es => Object.fromEntries(es.map(e => [e.dataset.characterBudget, e.value]))")
     assert budgets == offered
     note = "Community point totals are not filled in below level 45: they come from characters at the level cap."
