@@ -77,8 +77,10 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install playwright==1.56.0 pyyaml==6.0.2
-      - run: python -m playwright install --with-deps chromium
-        timeout-minutes: 10       # a minute or two normally; a stalled package mirror fails here, not hours later
+      # The browser alone: the runner image already has the system libraries Chromium needs (it ships
+      # Google Chrome), and --with-deps fetched fonts from Ubuntu's mirror, which stalled for 10 minutes or more.
+      - run: python -m playwright install chromium
+        timeout-minutes: 10
       - name: axe-core
         run: npm install --no-save --no-audit --no-fund --prefix "$RUNNER_TEMP/axe" axe-core@4.10.2
       - name: Check every page of the site
@@ -99,7 +101,7 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - run: pip install -e ".[dev]" playwright==1.56.0
-      - run: python -m playwright install --with-deps chromium
+      - run: python -m playwright install chromium     # without --with-deps: see the Website job
         timeout-minutes: 10
       - name: axe-core
         run: npm install --no-save --no-audit --no-fund --prefix "$RUNNER_TEMP/axe" axe-core@4.10.2
