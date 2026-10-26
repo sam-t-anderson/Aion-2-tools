@@ -104,7 +104,8 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
                 w(f"- {name}: assumed HPS {row['healing_hps']:g}; delay {row.get('healing_delay_s', 0):g}s; duration {duration_label}; peak ongoing pressure {row.get('peak_pressure_hp', 0):,.0f} HP at {row.get('peak_pressure_at_s', 0):g}s.\n")
             for row in hp["opponents"]:
                 if row.get("reductions"):
-                    w(f"- Same healing without added reductions: {row['unprotected_required_hp']:,.0f} HP required; assumed reduction {row['assumed_requirement_reduction_hp']:,.0f} HP. Initial hit unchanged; strongest overlap only.\n")
+                    name = row["name"].replace("\n", " ")
+                    w(f"- {name}, same healing without added reductions: {row['unprotected_required_hp']:,.0f} HP required; assumed reduction {row['assumed_requirement_reduction_hp']:,.0f} HP. Initial hit unchanged; strongest overlap only.\n")
                     for effect in row["reductions"]:
                         label = effect["name"].replace("\n", " ")
                         w(f"  - {label} ({effect['kind']}): assumed {effect['reduction_pct']:g}% pressure reduction from {effect['start_s']:g}s to {effect['end_s']:g}s.\n")
@@ -127,7 +128,8 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
                         reuse = "no repeated activation" if gap is None else f"shortest reuse gap {gap:g}s"
                         status = f"Assumed effective cooldown {cooldown:g}s; {reuse}; assumed spacing satisfied"
                     mixed = "; largest of differing assumptions used" if check["mixed_assumptions"] else ""
-                    w(f"- {row['name']} / {check['skill']}: starts {starts}; {status}{mixed}.\n")
+                    name = row["name"].replace("\n", " ")
+                    w(f"- {name} / {check['skill']}: starts {starts}; {status}{mixed}.\n")
             for row in hp["opponents"]:
                 benchmark = row.get("opponent_benchmark")
                 if benchmark:

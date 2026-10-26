@@ -14,7 +14,7 @@ dependencies = ["numpy>=1.24", "matplotlib>=3.7", "pulp>=2.8,<4", "pillow>=9.1",
                 "soundcard>=0.4.6; sys_platform == 'win32'"]    # in-process MILP solver; avoids CBC's subprocess hang in the packaged app; pystray powers collapse-to-tray; soundcard hears the Hidden Cube radar's jingle (WASAPI loopback)
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+dev = ["pytest>=7", "coverage>=7.6"]
 
 [project.scripts]
 aion2calc = "aion2calc.__main__:main"
@@ -27,3 +27,10 @@ aion2calc = ["data/**/*.json", "data/seed/*.gz", "app/static/*", "app/static/fon
 
 [tool.pytest.ini_options]
 filterwarnings = ["ignore::DeprecationWarning:pulp.*"]
+
+[tool.coverage.run]
+# every module of the package, so one no test imports counts as uncovered
+source = ["aion2calc"]
+
+[tool.coverage.report]
+skip_empty = true
