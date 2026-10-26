@@ -104,7 +104,7 @@
           }).join("");
           const more = list.length > PER_SECTION ? `<p class="small muted">+${list.length - PER_SECTION} more in this category.</p>` : "";
           return `<details class="sl-sec" ${idx === 0 ? "open" : ""}><summary>${esc(title)} <span class="small muted">(${list.length})</span></summary>`
-            + `<table class="t"><tr><th>Boss / encounter</th><th>Role</th><th>Difficulty</th><th class="r">Time</th><th>Date</th><th></th></tr>${rows}</table>${more}</details>`;
+            + `<table class="t"><tr><th>Boss / encounter</th><th>Role</th><th>Difficulty</th><th class="r">Time</th><th>Date</th><th><span class="sr-only">Actions</span></th></tr>${rows}</table>${more}</details>`;
         }).join("");
       }
       root.innerHTML = `<p class="small muted">Your recorded encounters, grouped by type. Each row opens that encounter.</p>${html}`

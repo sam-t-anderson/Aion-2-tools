@@ -37,7 +37,7 @@ A task-oriented guide to the desktop app and shared review controls. Detailed co
 
 ## Start here
 
-Install a desktop build using the [installation guide](install.md). The app opens to **Live Meter** (the first tab) so you can record combat right away; **My Character** imports and optimizes a character, **Planner** shows an example class build, and **Saved Results** holds previous optimizations and advice.
+Install a desktop build using the [installation guide](install.md). The app opens to **Live Meter** so you can record combat right away. The top bar has three sections and Settings: **Combat** (Live Meter, Combat Logs, Raid Planner), **Character** (Build Planner, Builds, My Character, Gear & Advice, Saved Results) and **Game** (Timers, Maps, Database, Crafting, Pet Tracker, News). The row underneath lists the current section's pages, and a section's link returns to the page you last used in it (since 0.2.342). **My Character** imports and optimizes a character, **Build Planner** shows an example class build, and **Saved Results** holds previous optimizations and advice. **Settings → App & data → Page at launch** picks the page the app opens on.
 
 Combat Logs has separate Saved Parts, My Uploads and Community Combat Logs lists. Open a log for a focused detail page and use Back to return. Settings controls the theme, data folders, community server and game-data sync.
 
@@ -245,10 +245,14 @@ Skill minimums apply to trained levels. Reserved supporting effects additionally
 The **Live Meter** tab includes the migrated A2Tools packet engine. Choose
 **Live Capture** (the default), then press the yellow **Start** button. While capture runs it becomes the red **Stop** button; click it to stop. Its built-in encoder,
 automatic interface and game-host selection, and port `50349` are filled in
-for the standard connection. Set a specific interface or game-host address
-only when automatic selection cannot see the game traffic; the **Interfaces**
-button lists the identifiers Npcap exposes on this computer. Choose the target
-mode and optionally name your character to improve local-player detection.
+for the standard connection. These capture settings sit under **Advanced
+capture**, a section that is closed until you open it (since 0.2.342) and
+remembers being opened; it also holds the name override, the game
+installation, the final boss and **Capture diagnostics**. Set a specific
+interface or game-host address only when automatic selection cannot see the
+game traffic; **Refresh interfaces** lists the identifiers Npcap exposes on
+this computer. Choose the target mode above it and, if the meter does not find
+your character, enter its name as the override.
 
 The Windows desktop build includes Scapy. Windows setup offers an optional
 **Download and install Npcap for Live Capture** choice, and Live Meter asks
@@ -273,7 +277,7 @@ Use **Split now** for a manual encounter boundary or configure automatic splits.
 
 ### Capture-stage diagnostics
 
-**Capture diagnostics** on the Live Meter page is folded away until you expand it (since 0.2.329), as is the line above it with the installed game version and capture context; folded, that line still names the installed version and the zone. Raw TCP payload recording is optional and controls only the diagnostic payload file; leave it off for ordinary live combat capture. **Export capture diagnostics** still includes counters without raw data. The live capture details show payload packets, forwarded chunks, decoded effects and players visible under the selected filters. The ZIP also includes scope, retained-effect count, roster count and whether a local identity was observed. These cumulative indicators distinguish capture, flow detection, decoding and view filtering; idle time or zero visible players alone does not prove capture failed. When reporting an empty meter, export immediately after combat with the original settings.
+**Capture diagnostics** is under **Advanced capture** on the Live Meter page (since 0.2.342) and folded away until you expand it (since 0.2.329), as is the line with the installed game version and capture context; folded, that line still names the installed version and the zone. Raw TCP payload recording is optional and controls only the diagnostic payload file; leave it off for ordinary live combat capture. **Export capture diagnostics** still includes counters without raw data. The live capture details show payload packets, forwarded chunks, decoded effects and players visible under the selected filters. The ZIP also includes scope, retained-effect count, roster count and whether a local identity was observed. These cumulative indicators distinguish capture, flow detection, decoding and view filtering; idle time or zero visible players alone does not prove capture failed. When reporting an empty meter, export immediately after combat with the original settings.
 
 
 ### Finding capture diagnostics
@@ -416,7 +420,7 @@ Generic executable/engine versions do not identify a unique game build; PURPLE i
 
 ### Choosing a game installation
 
-In Live Meter, **Game installation → Refresh installations** lists Steam library manifests and recognized Windows game registrations. Select the copy you play if several are installed. Auto chooses only when one copy is found. The choice is stored locally and takes effect at capture start. A missing selected installation stays unavailable until you choose another; a launcher installation without a recognized game registration may not appear.
+In Live Meter, under **Advanced capture**, **Game installation → Refresh installations** lists Steam library manifests and recognized Windows game registrations. Select the copy you play if several are installed; Advanced capture opens by itself while that choice is needed. Auto chooses only when one copy is found. The choice is stored locally and takes effect at capture start. A missing selected installation stays unavailable until you choose another; a launcher installation without a recognized game registration may not appear.
 
 Save or export retained combat, stop capture, then clear the session before changing the installation. Restarting live capture with retained combat keeps that session's installed-version evidence. The selected Steam Build ID supplies the comparison build; executable versions alone are insufficient. Region resolves from the recorded home-server ID and official server metadata. Other actors retain their own recorded identities.
 
@@ -715,7 +719,7 @@ folders.
 
 Capture diagnostics separate decoder failures, shutdown payload discards and payloads successfully decoded during shutdown. Only failures/discards are loss evidence. The legacy combined error/discard count overlaps those fields; do not sum them. Older logs without separate fields show **not recorded**. TCP payload recording is optional for this behavior.
 
-If capture sees no combat, inspect the selected interface/host/port and dependency permissions. Expand **Capture diagnostics** and tick **Record TCP payloads** (best before the capture starts, so the recording covers it from the beginning), record the problem, then stop or export diagnostics. The ZIP includes raw TCP diagnostics and metadata; ordinary app logs do not contain TCP payloads.
+If capture sees no combat, inspect the selected interface/host/port and dependency permissions. Open **Advanced capture**, expand **Capture diagnostics** and tick **Record TCP payloads** (best before the capture starts, so the recording covers it from the beginning), record the problem, then stop or export diagnostics. The ZIP includes raw TCP diagnostics and metadata; ordinary app logs do not contain TCP payloads.
 
 TCP diagnostics record the entire session to disk with no record-count or size cap. Writes use a bounded buffer to reduce capture-thread disk traffic, flushed during recording and before export; a sudden process exit can lose the unflushed raw diagnostic tail. Available disk space is the limit; the UI shows recording size and write errors. Long sessions take longer to compress on Stop or export. Export during capture takes a fixed snapshot while recording continues. Raw `tcp-session-*.jsonl` files stay recoverable after a crash or failed export; successful stopped-session exports remove their raw temporary copy. ZIPs remain until you delete them. Raw traffic can contain character names and network addresses; review before sharing. This changes raw diagnostic retention, not the separate decoded combat-history limits.
 

@@ -16,9 +16,10 @@ from ..paths import home, write_user_json
 FORMAT = "aion2calc-settings"
 VERSION = 1
 
-#: The pages the app can open on at launch (``app_default_page``): the navigation's ids, Live Meter first.
-APP_PAGES = ("meter", "planner", "builds", "character", "gear", "history", "combat", "raid", "database",
-             "maps", "crafting", "timers", "pets", "news", "settings")
+#: The pages the app can open on at launch (``app_default_page``): the navigation's ids in its order, section
+#: by section (Combat, Character, Game), then Settings.
+APP_PAGES = ("meter", "combat", "raid", "planner", "builds", "character", "gear", "history",
+             "timers", "maps", "database", "crafting", "pets", "news", "settings")
 
 _BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close", "community_heartbeat",
               "overlay_show_contribution", "overlay_show_target",

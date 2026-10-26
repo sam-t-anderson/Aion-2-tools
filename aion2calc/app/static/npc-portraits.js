@@ -11,9 +11,12 @@
   'use strict';
   const bundled = (window.A2BundledAssets = window.A2BundledAssets || { npcs: {}, files: {}, base: location.href });
   if (!bundled.npcs) bundled.npcs = {};
-  // Same-origin on server-hosted log pages; the client app has no such route, so
-  // fall back to its community proxy, which reads the configured log server.
-  const endpoints = ['/api/v1/npc-portraits', '/api/community?path=' + encodeURIComponent('/api/v1/npc-portraits')];
+  // Same-origin on server-hosted log pages. The app has no such route: its pages load this script with
+  // data-via="community" and ask only its community proxy, which reads the configured log server (asking
+  // /api/v1 first logged a 404 on every app page).
+  const proxy = '/api/community?path=' + encodeURIComponent('/api/v1/npc-portraits');
+  const script = document.currentScript;
+  const endpoints = script && script.dataset.via === 'community' ? [proxy] : ['/api/v1/npc-portraits', proxy];
   async function load() {
     let doc = null;
     for (const url of endpoints) {

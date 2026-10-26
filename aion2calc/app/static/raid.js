@@ -171,20 +171,20 @@
           <span class="small muted">x ${(k.x * 100).toFixed(0)} · y ${(k.y * 100).toFixed(0)}</span>${(sel.keyframes.length > 1) ? `<button class="btn small" data-kdel="${i}" title="Delete this keyframe">✕</button>` : ""}</div>`).join("");
       editor = `<div class="row"><input id="slabel" type="text" value="${esc(sel.label || "")}" placeholder="Label" style="width:138px">
           <input id="scolor" type="color" value="${esc(sel.color || "#39c2e0")}" style="width:46px;padding:2px">
-          ${sel.kind === "player" ? `<select id="scls">${RAID_CLASSES.map((c) => `<option ${c === sel.cls ? "selected" : ""}>${c}</option>`).join("")}</select>` : ""}</div>
+          ${sel.kind === "player" ? `<select id="scls" aria-label="Class">${RAID_CLASSES.map((c) => `<option ${c === sel.cls ? "selected" : ""}>${c}</option>`).join("")}</select>` : ""}</div>
         ${sel.kind === "aoe" ? `<div class="row" style="margin-top:6px"><label class="muted small">Radius</label><input id="srad" type="range" min="4" max="50" value="${Math.round((sel.radius || 0.14) * 100)}" style="flex:1"></div>` : ""}
         <div class="kflist" style="margin-top:8px"><div class="small muted">Keyframes (position over time)</div>${kfs || '<div class="faint small">none</div>'}
           <button class="btn small" id="kadd" style="margin-top:4px">Set position at ${st.t.toFixed(1)}s</button></div>
         <button class="btn small" id="sdel" style="margin-top:8px">Remove token</button>`;
     }
 
-    const buffList = p.buffs.map((bf, i) => `<div class="row small bufedit"><input data-bf="${i}" data-k="name" value="${esc(bf.name)}" style="width:126px">
-        <select data-bf="${i}" data-k="by" style="width:103px"><option value="">—</option>${players.map((pl) => { const nm = pl.label || pl.cls; return `<option ${nm === bf.by ? "selected" : ""}>${esc(nm)}</option>`; }).join("")}</select>
-        <input data-bf="${i}" data-k="start" type="number" min="0" value="${bf.start}" style="width:67px"><span class="faint">–</span>
-        <input data-bf="${i}" data-k="end" type="number" min="0" value="${bf.end}" style="width:67px"><button class="btn small" data-bfdel="${i}">✕</button></div>`).join("");
+    const buffList = p.buffs.map((bf, i) => `<div class="row small bufedit"><input data-bf="${i}" data-k="name" value="${esc(bf.name)}" aria-label="Buff name" style="width:126px">
+        <select data-bf="${i}" data-k="by" aria-label="Who gives the buff" style="width:103px"><option value="">—</option>${players.map((pl) => { const nm = pl.label || pl.cls; return `<option ${nm === bf.by ? "selected" : ""}>${esc(nm)}</option>`; }).join("")}</select>
+        <input data-bf="${i}" data-k="start" type="number" min="0" value="${bf.start}" aria-label="Buff starts at (seconds)" style="width:67px"><span class="faint">–</span>
+        <input data-bf="${i}" data-k="end" type="number" min="0" value="${bf.end}" aria-label="Buff ends at (seconds)" style="width:67px"><button class="btn small" data-bfdel="${i}" aria-label="Remove buff">✕</button></div>`).join("");
 
     const fightRow = io.encounters ? `<h4 class="gold small">COMPARE WITH A FIGHT</h4>
-        <div class="row"><select id="ractual"><option value="">— none —</option>${(st.encounters || []).map((e) => `<option value="${e.id}" ${st.actual && st.actual.id === e.id ? "selected" : ""}>#${e.id} ${esc(e.player || "")} ${esc(e.boss || "")} ${(e.duration || 0).toFixed(0)}s</option>`).join("")}</select></div>
+        <div class="row"><select id="ractual" aria-label="Saved fight to compare with"><option value="">— none —</option>${(st.encounters || []).map((e) => `<option value="${e.id}" ${st.actual && st.actual.id === e.id ? "selected" : ""}>#${e.id} ${esc(e.player || "")} ${esc(e.boss || "")} ${(e.duration || 0).toFixed(0)}s</option>`).join("")}</select></div>
         <p class="small faint">Overlay a saved combat log so its skill casts and buff windows play on the same timeline. Choose visibility before publishing; attaching a fight shares its timeline too.</p>` : "";
 
     const side = `<div class="rpanel"><h4 class="gold small">ADD</h4>
