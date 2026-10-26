@@ -68,8 +68,11 @@ def test_text_size_page_at_launch_and_my_character_settings_have_defaults_and_bo
 
 
 def test_the_pages_offered_at_launch_are_the_navigations_pages():
-    nav = tuple(dict.fromkeys(re.findall(r'href="#/([a-z]+)"', _read("index.html"))))
+    index = _read("index.html")
+    rows = index[index.index('<nav class="subnav"'):]
+    nav = tuple(re.findall(r'data-page="([a-z]+)"', rows[:rows.index("</nav>")])) + ("settings",)
     assert nav == APP_PAGES                                         # the same ids in the same order, Live Meter first
+    assert '<a href="#/settings" data-page="settings">Settings</a>' in index
     pages = re.search(r"const PAGES = \[(.*?)\];", _read("app.js"), re.S).group(1)
     assert tuple(re.findall(r'\["([a-z]+)", "', pages)) == APP_PAGES
 

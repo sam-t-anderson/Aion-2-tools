@@ -1,3 +1,11 @@
+## A tidier top bar and Live Meter page (0.2.342)
+
+**The pages are grouped.** The fifteen tabs that wrapped onto three rows are now three sections and Settings: **Combat** (Live Meter, Combat Logs, Raid Planner), **Character** (Build Planner, Builds, My Character, Gear & Advice, Saved Results) and **Game** (Timers, Maps, Database, Crafting, Pet Tracker, News). The row under them lists the section's pages, and a section's link takes you back to the page you last used in it. **Planner** is now called **Build Planner**, so it no longer reads like the Raid Planner.
+
+**The Live Meter page shows what you use.** Start, the overlay, the session buttons, the view controls and the run's status stay at the top. The capture settings (network interface, game host and port, the name override, the game installation, the final boss) and **Capture diagnostics** are under **Advanced capture**, which stays closed until you open it and remembers being opened. It opens by itself when you have several copies of the game and need to choose the one you play, and a missing Npcap still shows above it with **Install Npcap**.
+
+**Smaller fixes.** Pages no longer log an error while loading community NPC portraits. Screen readers find a main heading on every page, a name for every dropdown and table column, and the Settings section buttons as buttons. The welcome card's third step now points to the Live Meter.
+
 ## The Maps page asks before loading the map, and easier reading (0.2.341)
 
 **The interactive map loads when you ask.** The Maps page's map comes from InteractiveMap.app, whose page downloads 10 to 14 MB including its advertising and tracking scripts. The Maps page, in the app and on the website, now shows **Load the interactive map** in its place; **Load the map automatically** skips the button from then on.

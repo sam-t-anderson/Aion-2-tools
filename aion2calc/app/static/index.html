@@ -12,21 +12,10 @@
 <a class="skip-link" href="#app">Skip to content</a>
 <header class="topbar">
   <div class="brand"><img src="/static/logo.png" alt="">Aion 2 Calc <small>AION 2 build planner &amp; combat analyzer</small></div>
-  <nav class="nav">
-    <a href="#/meter" data-page="meter">Live Meter</a>
-    <a href="#/planner" data-page="planner">Planner</a>
-    <a href="#/builds" data-page="builds">Builds</a>
-    <a href="#/character" data-page="character">My Character</a>
-    <a href="#/gear" data-page="gear">Gear &amp; Advice</a>
-    <a href="#/history" data-page="history">Saved Results</a>
-    <a href="#/combat" data-page="combat">Combat Logs</a>
-    <a href="#/raid" data-page="raid">Raid Planner</a>
-    <a href="#/database" data-page="database">Database</a>
-    <a href="#/maps" data-page="maps">Maps</a>
-    <a href="#/crafting" data-page="crafting">Crafting</a>
-    <a href="#/timers" data-page="timers">Timers</a>
-    <a href="#/pets" data-page="pets">Pet Tracker</a>
-    <a href="#/news" data-page="news">News</a>
+  <nav class="nav sections" aria-label="Sections">
+    <a href="#/meter" data-section="combat">Combat</a>
+    <a href="#/planner" data-section="character">Character</a>
+    <a href="#/timers" data-section="game">Game</a>
     <a href="#/settings" data-page="settings">Settings</a>
   </nav>
   <div class="syncpill" id="syncpill"><span class="dot"></span><span>database</span></div>
@@ -35,11 +24,18 @@
   <button class="btn small" id="app-screenshot" data-html2canvas-ignore>Application screenshot</button><span id="app-screenshot-status" class="small muted" role="status" data-html2canvas-ignore></span>
   <button class="iconbtn" id="theme" title="Theme: follow the computer">◐</button>
   <button class="btn small" id="quit" title="Stop the app">Quit</button>
+  <!-- The pages of the section shown above; app.js shows the current page's section (Settings keeps the last one). -->
+  <nav class="subnav" aria-label="Combat pages">
+    <div data-pages="combat"><a href="#/meter" data-page="meter">Live Meter</a><a href="#/combat" data-page="combat">Combat Logs</a><a href="#/raid" data-page="raid">Raid Planner</a></div>
+    <div data-pages="character" hidden><a href="#/planner" data-page="planner">Build Planner</a><a href="#/builds" data-page="builds">Builds</a><a href="#/character" data-page="character">My Character</a><a href="#/gear" data-page="gear">Gear &amp; Advice</a><a href="#/history" data-page="history">Saved Results</a></div>
+    <div data-pages="game" hidden><a href="#/timers" data-page="timers">Timers</a><a href="#/maps" data-page="maps">Maps</a><a href="#/database" data-page="database">Database</a><a href="#/crafting" data-page="crafting">Crafting</a><a href="#/pets" data-page="pets">Pet Tracker</a><a href="#/news" data-page="news">News</a></div>
+  </nav>
 </header>
-<main id="app"></main>
+<!-- The page's main heading (app.js names it after the page; the pages' own titles are window headings), then the page. -->
+<main id="app"><h1 class="sr-only" id="page-title">Aion 2 Calc</h1><div id="page-body"></div></main>
 <script src="/static/raid.js"></script>
 <link rel="stylesheet" href="/static/combat-review.css">
-<script src="/static/game-assets.js"></script><script src="/static/asset-health.js"></script><script src="/static/npc-portraits.js"></script>
+<script src="/static/game-assets.js"></script><script src="/static/asset-health.js"></script><script src="/static/npc-portraits.js" data-via="community"></script>
 <script src="/static/character-view.js"></script>
 <link rel="stylesheet" href="/static/build-workspace.css">
 <script src="/static/progression-budgets.js"></script><script src="/static/build-workspace.js"></script>

@@ -74,7 +74,7 @@ Public **Completed-run speed** compares eligible elapsed times within the same i
 
 Capture can stay running across encounters and runs. **Finish run** closes the current run; the next damage starts another without clearing earlier fights. Map or dungeon-ID changes separate runs and label their completion as unverified. Desktop and Pages review have a **Run** selector; a single uploaded a2log retains the run boundaries and all included encounter splits.
 
-For automatic final-boss completion, enter verified final-boss NPC type IDs before Start and leave **Finish on configured final-boss death** enabled. Completion requires a recorded death of that boss, recorded damage against it and a matching dungeon ID. The bundled NPC tables identify bosses but do not identify which boss is final; no final-boss rule is guessed from NPC ordering. PvP arenas/battlegrounds currently use **Finish run** or map/instance transitions until match-end packets are verified.
+For automatic final-boss completion, open **Advanced capture**, enter verified final-boss NPC type IDs before Start and leave **Finish on configured final-boss death** enabled. Completion requires a recorded death of that boss, recorded damage against it and a matching dungeon ID. The bundled NPC tables identify bosses but do not identify which boss is final; no final-boss rule is guessed from NPC ordering. PvP arenas/battlegrounds currently use **Finish run** or map/instance transitions until match-end packets are verified.
 
 Known open-world maps receive separate PvE/PvP open-world categories; unresolved sources use **PvE · Unverified source** or **PvP · Unverified / other** unless you supply a category. Damage involving an identified opponent outside Self/Party scope is grouped separately as PvP; unknown actors are never assumed to be opponents. Arenas are recognised by map; no battlefield map is identified yet. Long captures roll over into saved archive parts before retained-history limits are reached. See [Long live sessions](#long-live-sessions) for storage boundaries and per-file limits.
 
@@ -112,7 +112,7 @@ Run anyway**. Windows 11's Smart App Control blocks the app outright, with no Ru
 
 ## The app
 
-* **Planner**: each optimized build is laid out like the in-game windows (skills with numbered spec
+* **Build Planner**: each optimized build is laid out like the in-game windows (skills with numbered spec
   chips, stigma, Daevanion boards, equipment, arcana, titles and wings, macro). Below each window is
   a "stats from this system" summary, a copy-as-text button, and a slot to pin your own in-game
   screenshot next to it.
@@ -177,7 +177,7 @@ The **Hidden Cube radar** (Settings → Overlay, Windows, off by default) shows 
 
 **Skills hotbar** shows suggested bindings. **Macro & rotation** shows numbered macro steps with matching keys and 10 ms delays. Charged skills are manual: hold their own key and release after charging. The optimizer fills all legally reachable skill-point allocations; points can remain only when no further purchasable level fits.
 
-After optimization, eligible anonymous builds can improve the class presets used by the Planner. Updated presets are cached for offline use. Character identity and private equipment are not submitted with these build suggestions.
+After optimization, eligible anonymous builds can improve the class presets used by the Build Planner. Updated presets are cached for offline use. Character identity and private equipment are not submitted with these build suggestions.
 
 Windows **Install now** fetches the newest release (several versions behind, it goes straight to the newest), stages and validates the installer, starts a detached helper, closes the app, then opens the installer interactively after the process exits. Updates preserve user data. If the helper fails, its log is in the data folder's `updates` directory. macOS/Linux archives are staged for manual replacement.
 
@@ -189,7 +189,7 @@ Combat logs containing recorded normalized positions offer **Open in Raid Planne
 
 Shared `/p/<id>` pages support **Play/Pause**, **Rewind**, playback speed and a timeline scrub bar with moving tokens and active buffs.
 
-Live Meter uses one yellow **Start** / red **Stop** button. Under **Capture diagnostics**, tick **Record TCP payloads**, enter combat, then stop. The box is remembered, and while it is ticked every capture records, whether it was started here, from the overlay, by hotkey or at launch; ticked during a capture, it records from that moment. The diagnostic ZIP saves automatically; the recorded payload count, saved path and ZIP download link remain visible. Use Export capture diagnostics for a manual archive. The Windows copy is also saved under `%LOCALAPPDATA%\aion2calc\diagnostics`; ordinary application logs do not contain TCP payloads. Export does not require decoded combat events.
+Live Meter uses one yellow **Start** / red **Stop** button. Under **Advanced capture → Capture diagnostics**, tick **Record TCP payloads**, enter combat, then stop. The box is remembered, and while it is ticked every capture records, whether it was started here, from the overlay, by hotkey or at launch; ticked during a capture, it records from that moment. The diagnostic ZIP saves automatically; the recorded payload count, saved path and ZIP download link remain visible. Use Export capture diagnostics for a manual archive. The Windows copy is also saved under `%LOCALAPPDATA%\aion2calc\diagnostics`; ordinary application logs do not contain TCP payloads. Export does not require decoded combat events.
 
 TCP diagnostics record the entire session to disk with no record-count or size cap. Available disk space is the limit; the UI shows recording size and write errors. Long sessions take longer to compress on Stop or export. Export during capture takes a fixed snapshot while recording continues. Raw `tcp-session-*.jsonl` files stay recoverable after a crash or failed export; successful stopped-session exports remove their raw temporary copy. ZIPs remain until you delete them. Raw traffic can contain character names and network addresses; review before sharing. This changes raw diagnostic retention, not the separate decoded combat-history limits.
 
@@ -244,7 +244,7 @@ Official desktop builds use the configured community upload key for the default 
 
 ### Choosing a game installation
 
-In Live Meter, **Game installation → Refresh installations** lists Steam library manifests and recognized Windows game registrations. Select the copy you play if several are installed. Auto chooses only when one copy is found. The choice is stored locally and takes effect at capture start. A missing selected installation stays unavailable until you choose another; a launcher installation without a recognized game registration may not appear.
+In Live Meter, under **Advanced capture**, **Game installation → Refresh installations** lists Steam library manifests and recognized Windows game registrations. Select the copy you play if several are installed; Advanced capture opens by itself while that choice is needed. Auto chooses only when one copy is found. The choice is stored locally and takes effect at capture start. A missing selected installation stays unavailable until you choose another; a launcher installation without a recognized game registration may not appear.
 
 Save or export retained combat, stop capture, then clear the session before changing the installation. Restarting live capture with retained combat keeps that session's installed-version evidence. New captures use the selected executable’s first four Product version components for comparisons across Steam and PURPLE; engine file versions and launcher IDs do not substitute for it. Current installation evidence is never assigned to historical logs. Region resolves automatically from the recorded home-server ID and official server metadata. Classification corrections belong to completed saved logs, per encounter or recorded run. Other actors retain their own recorded identities.
 

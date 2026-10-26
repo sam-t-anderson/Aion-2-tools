@@ -67,6 +67,17 @@ python -m pyflakes aion2calc tools tests      # lint
 node --check path/to/edited_file.js           # for any JavaScript you changed
 ```
 
+The browser tests in `tests/browser` open the app's real pages in Chromium and
+are skipped until Playwright is installed. To run them as CI does (its "App in a
+browser" job, which also runs axe-core accessibility checks):
+
+```bash
+pip install playwright && python -m playwright install chromium
+npm install --no-save --prefix /tmp/axe axe-core@4.10.2
+AXE_CORE_JS=/tmp/axe/node_modules/axe-core/axe.min.js python -m pytest tests/browser
+python tools/site_smoke.py --axe /tmp/axe/node_modules/axe-core/axe.min.js   # the website (needs PyYAML)
+```
+
 Please also:
 
 - Keep the change **focused** — one logical change per PR reviews far faster.
