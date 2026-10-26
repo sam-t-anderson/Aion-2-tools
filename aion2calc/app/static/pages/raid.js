@@ -5,14 +5,14 @@
 
 async function pageRaid() {
   const shown = stillShown();
-  const publicationServer=await api("/api/logserver");
+  const publicationServer = await api("/api/logserver");
   if (!shown()) return;
   await window.A2Raid.mount(app(), {
     encounters: () => api("/api/encounters"),
     encounter: (id) => api("/api/encounters/" + id),
-    server:()=>publicationServer.url.replace(/\/+$/, ""),
-    publish: (plan, visibility, owner) => api("/api/plans", {plan, visibility,owner}),
-    refresh:owner=>api("/api/plans",{id:owner.id,owner}),
+    server: () => publicationServer.url.replace(/\/+$/, ""),
+    publish: (plan, visibility, owner) => api("/api/plans", { plan, visibility, owner }),
+    refresh: (owner) => api("/api/plans", { id: owner.id, owner }),
     browse: async (filter) => {
       const q = [];
       if (filter && filter.npc) q.push("npc=" + encodeURIComponent(filter.npc));

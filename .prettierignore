@@ -1,0 +1,10 @@
+# Prettier formats app.js, the page scripts and the lint config (npm run format). The other scripts keep their own
+# formatting for now: some of them are shared with the website, and tests read parts of their text.
+*
+!aion2calc/
+!aion2calc/app/
+!aion2calc/app/static/
+!aion2calc/app/static/app.js
+!aion2calc/app/static/pages/
+!aion2calc/app/static/pages/*.js
+!eslint.config.mjs

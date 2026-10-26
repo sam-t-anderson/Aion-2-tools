@@ -17,7 +17,7 @@ def _extract_bundled_presets() -> dict:
     The literal uses bare identifier keys and simple string/number/bool/{} values,
     so quoting the identifier keys yields valid JSON."""
     text = _SETTINGS_JS.read_text(encoding="utf-8")
-    start = text.index("const BUNDLED_PRESETS=") + len("const BUNDLED_PRESETS=")
+    start = re.search(r"const BUNDLED_PRESETS\s*=\s*", text).end()
     depth, i = 0, start
     while i < len(text):
         if text[i] == "{":

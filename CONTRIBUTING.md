@@ -73,6 +73,7 @@ python -m pytest                              # full test suite
 python -m pyflakes aion2calc tools tests      # lint
 node --check path/to/edited_file.js           # for any JavaScript you changed
 npm ci && npm run lint                        # ESLint, for the app's and the website's scripts
+npm run format:check                          # Prettier, for app.js and the page scripts (npm run format fixes it)
 ```
 
 The scripts of a page share one global scope, so ESLint reads the names each script
@@ -112,8 +113,9 @@ Please also:
 - **Add or update tests** for behavior changes.
 - Update **docs and release notes** (`packaging/RELEASE_NOTES.md`) when behavior
   changes that users would notice.
-- Match the surrounding **code style** (naming, comment density, idioms). There
-  is no separate formatter step beyond pyflakes; mirror the existing code.
+- Match the surrounding **code style** (naming, comment density, idioms).
+  Prettier formats `app.js` and the page scripts (`npm run format`); elsewhere,
+  mirror the existing code.
 - Make sure the diff contains **no secrets** — tokens, credentials, private
   upload keys or personal data.
 
