@@ -9,14 +9,14 @@ import pytest
 
 from aion2calc.app import settings_backup
 
-_APP_JS = Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static" / "app.js"
+_SETTINGS_JS = Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static" / "pages" / "settings.js"
 
 
 def _extract_bundled_presets() -> dict:
-    """Pull the BUNDLED_PRESETS object literal out of app.js and parse it as JSON.
+    """Pull the BUNDLED_PRESETS object literal out of the Settings page's script and parse it as JSON.
     The literal uses bare identifier keys and simple string/number/bool/{} values,
     so quoting the identifier keys yields valid JSON."""
-    text = _APP_JS.read_text(encoding="utf-8")
+    text = _SETTINGS_JS.read_text(encoding="utf-8")
     start = text.index("const BUNDLED_PRESETS=") + len("const BUNDLED_PRESETS=")
     depth, i = 0, start
     while i < len(text):

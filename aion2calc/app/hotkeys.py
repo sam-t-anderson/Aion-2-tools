@@ -22,7 +22,7 @@ import threading
 _LOG = logging.getLogger(__name__)
 
 # Bindable actions -> the human label shown in Settings. Keep in sync with the
-# dispatch map the launcher builds and the Settings UI in app.js.
+# dispatch map the launcher builds and the Settings UI in pages/settings.js.
 ACTIONS: dict[str, str] = {
     "toggle_overlay": "Show / hide the overlay",
     "toggle_meter": "Start / stop the meter",

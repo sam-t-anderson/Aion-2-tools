@@ -18,7 +18,7 @@ Aion 2 Calc is a third client of the same worker, beside Pet Tracker's window:
 ```
 PetTracker.Capture.exe ──pipe──┬── PetTracker.exe (Pet Tracker's window)
    (one per data folder)       └── Aion 2 Calc: aion2calc/app/pettracker.py ── local HTTP API ──┬── its Pet Tracker window (pet-overlay.html)
-                                                                                                └── its Pet Tracker page (app.js)
+                                                                                                └── its Pet Tracker page (pages/pets.js)
 ```
 
 Nothing of Pet Tracker is bundled, linked or changed. `aion2calc/app/pettracker.py` speaks the worker's protocol

@@ -116,6 +116,22 @@ def test_spec_requires_highspy_to_be_bundled():
     assert "skipping highspy" not in spec                        # no silent-skip fallback for a required dep
 
 
+def test_every_file_of_the_app_pages_is_in_the_package_data():
+    # An installed copy holds only what package-data names (the release bundle collects the installed
+    # package's data files), and its patterns do not reach into folders: a page script in static/pages/
+    # that no pattern names would be missing from the release, and that page would not open.
+    import glob
+    import pathlib
+    import tomllib
+    root = pathlib.Path(__file__).resolve().parents[1]
+    patterns = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["setuptools"]["package-data"]["aion2calc"]
+    package = root / "aion2calc"
+    packaged = {pathlib.Path(p) for pattern in patterns for p in glob.glob(str(package / pattern), recursive=True)}
+    static = package / "app" / "static"
+    assert (static / "pages" / "settings.js") in packaged
+    assert [str(p.relative_to(static)) for p in sorted(static.rglob("*")) if p.is_file() and p not in packaged] == []
+
+
 def _installer_source():
     import pathlib
     return (pathlib.Path(__file__).resolve().parents[1] / "packaging" / "windows" / "aion2calc.iss").read_text(encoding="utf-8")
