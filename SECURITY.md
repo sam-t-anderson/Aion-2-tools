@@ -77,3 +77,12 @@ process, or automate play. Captured data stays on your machine unless you choose
 to upload a log, and uploads follow the privacy controls described in the
 [user guide](docs/user-guide.md). Please keep these boundaries in mind when
 assessing and reporting security concerns.
+
+The app's window is a web page served by a small server on this computer
+(`127.0.0.1`, port 8765 by default). Since 0.2.340 that server answers only the
+app's own pages and the programs on this computer. It refuses any request a web
+page on another site sends (the browser names that site in `Origin`), and any
+request whose `Host` is not this computer's own name, so a site that points its
+own domain name at 127.0.0.1 cannot pass as the app. Actions that touch private
+data or the computer (upload credentials, folders, capture, updates, quitting)
+are also refused from other computers. A way around these checks is in scope.

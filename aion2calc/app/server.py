@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 from functools import wraps
+import ipaddress
 import json
 import mimetypes
 import re
@@ -558,20 +559,53 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("Application PNG request exceeds 28 MiB.")
         return json.loads(self.rfile.read(n) or b"{}") if n else {}
 
+    def _refusal(self) -> str | None:
+        """Why a request from a web page on another site is refused, or None to serve the request.
+
+        Any page open in the player's browser can send requests to this port (and the browser sends a POST
+        without asking first, if it looks like a form), so a site could otherwise change the settings,
+        swap the log server or quit the app. A browser names the page's site in ``Origin``: the app's own
+        pages are served (the same address as ``Host``), and so are programs that are not browsers, which
+        send no ``Origin`` (the overlay and launcher, the smoke test). ``Host`` must be this computer's own
+        name, localhost or an IP address: a site that points its own domain name at 127.0.0.1 would pass
+        the ``Origin`` check as its own address (DNS rebinding) and then read the answers too."""
+        host = self.headers.get("Host")
+        if host is not None:
+            try:
+                name = urllib.parse.urlsplit("//" + host).hostname or ""
+                if name != "localhost":
+                    ipaddress.ip_address(name)
+            except ValueError:
+                return "This request requires the local application origin (it named another host)."
+        origin = self.headers.get("Origin")
+        if origin is not None and (host is None or urllib.parse.urlsplit(origin).netloc.lower() != host.lower()):
+            return "This request requires the local application origin."
+        return None
+
     def do_GET(self):
         url = urllib.parse.urlparse(self.path)
         q = {k: v[0] for k, v in urllib.parse.parse_qs(url.query).items()}
+        refusal = self._refusal()
+        if refusal:
+            return self._json({"error": f"PermissionError: {refusal}"}, 403)
         try:
             self.route_get(url.path, q)
         except FileNotFoundError:
             self._json({"error": "not found"}, 404)
+        except PermissionError as err:
+            self._json({"error": f"PermissionError: {err}"}, 403)
         except Exception as err:
             self._json({"error": f"{type(err).__name__}: {err}"}, 500)
 
     def do_POST(self):
         url = urllib.parse.urlparse(self.path)
+        refusal = self._refusal()
+        if refusal:                      # refused unread: HTTP/1.0 closes the connection after the answer
+            return self._json({"error": f"PermissionError: {refusal}"}, 403)
         try:
             self.route_post(url.path, self._body())
+        except PermissionError as err:
+            self._json({"error": f"PermissionError: {err}"}, 403)
         except Exception as err:
             self._json({"error": f"{type(err).__name__}: {err}"}, 500)
 
@@ -689,25 +723,16 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/upload-queue":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Upload recovery is local to this computer")
-            origin = self.headers.get("Origin")
-            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
-                raise PermissionError("Upload recovery requires the local application origin")
             from ..combat import upload_queue
             return self._json(upload_queue.load())
         if path == "/api/log-ownership":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Private upload credentials are local to this computer")
-            origin = self.headers.get("Origin")
-            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
-                raise PermissionError("Upload credentials require the local application origin")
             from ..combat.ownership import entries
             return self._json(entries())
         if path == "/api/identity-claims":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Identity credentials are local to this computer")
-            origin = self.headers.get("Origin")
-            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
-                raise PermissionError("Identity credentials require the local application origin")
             from ..combat.identity import entries
             return self._json(entries())
         if path == "/api/logserver":
@@ -826,17 +851,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/upload-queue":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Upload recovery is local to this computer")
-            origin = self.headers.get("Origin")
-            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
-                raise PermissionError("Upload recovery requires the local application origin")
             from ..combat import upload_queue
             return self._json(upload_queue.save(body))
         if path == "/api/log-ownership":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Private upload credentials are local to this computer")
-            origin = self.headers.get("Origin")
-            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
-                raise PermissionError("Upload management requires the local application origin")
             from ..combat import ownership
             action = body.get("action")
             if action == "import":
@@ -856,9 +875,6 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/radar":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("the Hidden Cube radar listens on this computer only")
-            origin = self.headers.get("Origin")
-            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
-                raise PermissionError("the Hidden Cube radar is controlled from the app")
             return self._json(radar_control(body))
         if path == "/api/history":
             from .history import save
@@ -941,9 +957,6 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/identity-claims":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Identity credentials are local to this computer")
-            origin = self.headers.get("Origin")
-            if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host"):
-                raise PermissionError("Identity credentials require the local application origin")
             from ..combat import identity
             if body.get("action") != "replace":
                 raise ValueError("Unknown identity action")

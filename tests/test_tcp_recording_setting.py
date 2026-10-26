@@ -4,6 +4,7 @@ Live Meter page, the overlay's Start button, the Start/Stop hotkey or the start 
 capture, so a capture started any other way recorded nothing with the box ticked."""
 import json
 import re
+import time
 import zipfile
 from pathlib import Path
 
@@ -36,7 +37,15 @@ def _tick(on: bool) -> None:
 
 
 def _start(runner, **opts):
+    """Start a capture and wait for its capture thread to finish. The runner's worker thread creates and
+    starts that thread a moment after ``start`` returns, so joining it at once raced the worker on a slow
+    machine ("cannot join thread before it is started")."""
+    previous = runner.packet_capture_thread                 # a runner started before keeps its old thread
     runner.start("a2tools", auto_port=True, **opts)
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline and (runner.packet_capture_thread in (None, previous)
+                                           or runner.packet_capture_thread.ident is None):
+        time.sleep(0.005)
     runner.packet_capture_thread.join(2)
 
 
