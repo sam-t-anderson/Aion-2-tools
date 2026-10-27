@@ -125,6 +125,7 @@ async function pageCombatLog() {
       },
       report: (body) => communityAPI("/api/v1/logs/" + encodeURIComponent(value) + "/reports", body),
       rankings: (segment) => communityAPI("/api/v1/logs/" + encodeURIComponent(value) + "/rankings?segment=" + segment),
+      movement: (segment) => communityAPI("/api/v1/logs/" + encodeURIComponent(value) + "/movement?segment=" + segment),
     };
   } else if (kind === "opened" && S.combat.openedLog) doc = S.combat.openedLog;
   else {

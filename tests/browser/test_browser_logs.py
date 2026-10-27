@@ -225,3 +225,37 @@ def test_the_movement_replay_plays_the_recorded_positions(app_page, app_url, app
     finally:
         page.goto("about:blank")
         path.unlink()
+
+
+def test_a_shared_fights_replay_adds_the_other_recordings_of_it(app_page, app_url, community):
+    """Log server 0.2.144 merges a fight's movement from every public recording of it: the recording player's own
+    path comes from a party member's upload."""
+    page = app_page
+    go(page, app_url, f"#/combat-log/shared/{LOG_ID}?segment=2")
+    box = page.locator("[data-replay]")
+    box.locator("[data-merge]").wait_for()
+    assert "does not send the recording player's own movement" in box.locator("p").first.inner_text()
+    since = len(community.requests)
+    box.locator("[data-merge]").click()
+    page.wait_for_function("document.querySelector('[data-replay]').textContent.includes('Merged with 1 of 1 other recordings')")
+    assert community.reached(page, f"/api/v1/logs/{LOG_ID}/movement", since)
+    text = box.inner_text()
+    assert "Testcleric's recording (clock -3.00 s from 40 shared hits, 45 positions)" in text
+    assert "comes from 45 positions in the other recordings" in text and box.locator("[data-merge]").count() == 0
+    page.evaluate("t => {const s = document.querySelector('[data-scrub]'); s.value = t; s.dispatchEvent(new Event('input'));}", 31)
+    assert box.locator("svg circle", has=page.locator("title", has_text="from Testcleric's recording")).count() == 1
+
+
+def test_a_recording_without_movement_takes_it_from_the_others(app_page, app_url, community):
+    """A recording made before 0.2.350 holds no movement, but the log server merges a newer recording of the same
+    fight into it."""
+    page = app_page
+    go(page, app_url, f"#/combat-log/shared/{LOG_ID}?segment=1")
+    box = page.locator("[data-replay]")
+    box.locator("[data-merge]").wait_for()
+    assert "holds no movement" in box.inner_text() and box.locator("svg").count() == 0
+    box.locator("[data-merge]").click()
+    page.wait_for_function("document.querySelector('[data-replay] svg circle')")
+    text = box.inner_text()
+    assert "Testcleric's recording (clock -3.00 s from 40 shared hits, 40 positions)" in text
+    assert box.locator("svg circle").count() == 2 and box.locator("[data-merge]").count() == 0

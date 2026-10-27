@@ -55,8 +55,30 @@ def _raw_log() -> dict:
                  "damage": 1500.0} for t in range(int(secs))]
         segments.append({"label": boss, "boss": boss, "duration": secs, "killed": True, "encounter_type": "dungeon",
                          "hits": hits})
+    # The final boss fight's movement (0.2.350): Testcleric moves; Testsorc, who recorded it, is placed only by
+    # the effects they apply.
+    segments[2].update(ping_recorder="p1", movement=sorted(
+        [{"t": float(t), "entity": "p2", "x": 1000.0 + 10 * t, "y": 900.0, "z": 50.0, "src": "move"} for t in range(0, 90, 2)]
+        + [{"t": float(t), "entity": "p1", "x": 1200.0, "y": 950.0 + 5 * t, "z": 50.0, "src": "applied"} for t in range(0, 90, 10)],
+        key=lambda m: m["t"]))
     return {"format": "a2log", "version": 1, "meta": {"title": "Test run", "uploader": {"name": "Testsorc", "verified": False}},
             "players": PLAYERS, "segments": segments}
+
+
+def _merged_movement(q: dict) -> dict:
+    """A fight's movement merged with Testcleric's recording of it (log server 0.2.144). In the final boss fight
+    Testsorc's own path comes from there; the mini boss fight, recorded here without movement, has only theirs."""
+    segment = int(q.get("segment", ["0"])[0])
+    theirs = {"log": "TestLog002", "segment": 0, "title": "Their run", "uploader": "Testcleric", "shared_hits": 40, "offset": -3.0}
+    if segment == 1:
+        rows = [{"t": float(t), "entity": ref, "x": 500.0 + 6 * t + 40 * i, "y": 700.0, "z": 50.0, "src": "move", "via": 1}
+                for t in range(0, 40, 2) for i, ref in enumerate(("p1", "p2"))]
+    else:
+        rows = [m for m in _raw_log()["segments"][2]["movement"] if m["entity"] == "p2"]
+        rows += [{"t": float(t), "entity": "p1", "x": 1200.0 + 4 * t, "y": 950.0, "z": 50.0, "src": "move", "via": 1} for t in range(1, 90, 2)]
+    return {"segment": segment, "movement": sorted(rows, key=lambda m: m["t"]), "note": "Merged from public recordings of the same fight.",
+            "sources": [{"log": LOG_ID, "segment": segment, "title": "Test run", "uploader": "Testsorc"},
+                        {**theirs, "positions": sum(1 for m in rows if m.get("via"))}]}
 
 
 def _plans(q: dict) -> dict:
@@ -80,6 +102,7 @@ ANSWERS = {
     f"/api/v1/logs/{LOG_ID}/raw": lambda q: _raw_log(),
     f"/api/v1/logs/{LOG_ID}/parts": lambda q: {"parts": []},
     f"/api/v1/logs/{LOG_ID}/rankings": lambda q: {"segments": {}},
+    f"/api/v1/logs/{LOG_ID}/movement": _merged_movement,
     "/api/v1/run-leaderboard": lambda q: {"entries": [], "samples": 0, "truncated": False, "note": ""},
     "/api/v1/encounter-progression": lambda q: {"groups": [], "truncated": False, "note": ""},
     "/api/v1/progression": lambda q: {"observations": [o for o in PROGRESSION if q.get("class", [o["class_name"]])[0] == o["class_name"]],
