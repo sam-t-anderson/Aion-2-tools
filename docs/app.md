@@ -751,6 +751,8 @@ Optimization runs locally. Character import, data sync, icon retrieval and shari
 
 Reading a local log is separate from uploading it. Diagnostic exports are not automatically sent. See the [user guide](user-guide.md) for visibility, credentials and reporting.
 
+Every HTTPS connection checks the server's certificate with the operating system's own verifier, as the browser does (the Windows chain engine, the macOS Security framework, the system's certificates on Linux), with Mozilla's root certificates, bundled with the app, as a second check (0.2.345). Earlier versions checked against Python's copy of the Windows certificate stores, which can lack a root Windows downloads only when it first needs it: see ["could not check for updates"](install.md#settings-says-could-not-check-for-updates).
+
 ## Screenshots
 
 | Planner: skills | Planner: Daevanion |

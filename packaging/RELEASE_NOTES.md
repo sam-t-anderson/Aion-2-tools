@@ -1,3 +1,9 @@
+## Update checks that work on every computer (0.2.345)
+
+**The app finds new versions again.** On some Windows computers, Settings said *could not check for updates (… CERTIFICATE_VERIFY_FAILED … unable to get issuer certificate)*, so the app never offered a new version. It checked GitHub's certificate with its own copy of the certificates stored in Windows, and on those computers that copy was missing a root certificate that Windows downloads only the first time it needs one. The app now asks Windows (or macOS, or Linux) to check each certificate, as your browser does, with Mozilla's root certificates as a second check. The same goes for everything else the app fetches: uploads, the log server, character imports and game data.
+
+**On an earlier version and seeing that message?** Download 0.2.345 or later from the [Releases page](https://github.com/sam-t-anderson/Aion-2-tools/releases/latest) and run it once. It installs over your copy and keeps your data, and the app updates itself again from then on.
+
 ## Gear & Advice opens on your last advice, and the overlay's header fits the overlay (0.2.344)
 
 **Your last advice, at once.** Gear & Advice now opens on the advice it calculated last for the character, kept from one session of the app to the next, instead of waiting for **Run advice**. A line above it says when it was calculated, and whether the character's gear, inventory, Genus lines or titles have changed since or another version of the app calculated it; **Run advice** calculates it again with your current gear and fights. With no advice kept for a character, opening the page or choosing the character runs it, as pressing Run advice did.

@@ -9,7 +9,9 @@ top bar has a Quit button; there is no console window.
   "visibility": "unlisted"}`` (an upload ``key`` may be added for trusted users).
 * Errors go to ``aion2calc.log`` in the data folder, and on Windows a message box.
 * ``--smoke-test`` starts the server on a free port, checks it answers, and
-  exits with 0 (used by the build pipeline on every platform).
+  exits with 0 (used by the build pipeline on every platform). With
+  ``AION2CALC_SMOKE_HTTPS`` set to an address it also makes one request there
+  through the app's certificate check (CI's builds use the update check's).
 """
 from __future__ import annotations
 
@@ -21,6 +23,7 @@ import sys
 import threading
 import time
 import traceback
+import urllib.error
 import urllib.request
 import webbrowser
 from pathlib import Path
@@ -184,6 +187,19 @@ def watch(proc, stop, idle_after: float = 180.0) -> None:
             return
 
 
+def _https_check(url: str) -> tuple[bool, str]:
+    """One request through the app's certificate check. Any answer, an error page included, means the
+    server's certificate was verified; a refused certificate or no connection fails."""
+    try:
+        with urllib.request.urlopen(url, timeout=30) as r:
+            return True, f"HTTPS request verified ({r.status} from {url})"
+    except urllib.error.HTTPError as err:
+        err.close()
+        return True, f"HTTPS request verified ({err.code} from {url})"
+    except Exception as err:
+        return False, f"HTTPS request to {url} FAILED {type(err).__name__}: {err}"
+
+
 def smoke_test(out: str | None = None) -> int:
     """Start the server on a free port and check the main routes answer."""
     from .app import server
@@ -215,6 +231,16 @@ def smoke_test(out: str | None = None) -> int:
     except Exception as err:
         ok = False
         lines.append(f"{lp.name()} solver FAILED {err}")
+    from . import tls                             # HTTPS certificates: the system's verifier, Mozilla's roots second
+    state = tls.status()
+    checked = state["system"] and state["bundled"] and state["roots_present"]
+    ok &= checked
+    lines.append("HTTPS certificates: system verifier and bundled roots " + ("OK" if checked else f"FAILED {state}"))
+    url = os.environ.get("AION2CALC_SMOKE_HTTPS")  # CI's builds: one real request through that check
+    if url:
+        verified, line = _https_check(url)
+        ok &= verified
+        lines.append(line)
     if sys.platform == "win32":                   # the Hidden Cube radar's sound capture: reported, not required
         try:
             import importlib
@@ -331,6 +357,8 @@ def install_pettracker() -> int:
 
 
 def main(argv=None) -> int:
+    from . import tls
+    tls.install()                                 # the system's certificate check for HTTPS, before any request
     if os.environ.get("AION2CALC_OVERLAY"):       # the app re-ran the bundle to open the native overlay
         from . import overlay
         return overlay.main([])

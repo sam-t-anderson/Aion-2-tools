@@ -87,6 +87,8 @@ def _print_item_options(slug: str, cls: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from . import tls
+    tls.install()                     # the system's certificate check for HTTPS, before any request
     p = argparse.ArgumentParser(prog="aion2calc", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
