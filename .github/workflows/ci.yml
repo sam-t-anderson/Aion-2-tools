@@ -197,10 +197,34 @@ jobs:
       # Smart App Control on Windows 11 blocks a file with no valid signature outright, with no "Run
       # anyway", and SmartScreen warns. Every file of the bundle that runs as code and is not signed
       # already (the app's exe, the Python extension modules) is signed before the installer is built
-      # from them, then the installer. Without the repository variable these steps are skipped.
+      # from them; the installer compiler then signs Setup and the uninstaller it writes. Without the
+      # repository variable these steps are skipped.
+      - name: Sign this build? (Windows)
+        # Each file signed takes one of the plan's monthly signatures (about 44 a build), so only a build
+        # that publishes a new release is signed, and a manual run (Actions -> CI -> Run workflow) to test
+        # the setup. Branch pushes, pull requests and pushes to main that release nothing are not.
+        id: sign
+        if: runner.os == 'Windows' && vars.AZURE_SIGNING_ENDPOINT != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          sign=0
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            sign=1; why="a manual run"
+          elif [ "$GITHUB_EVENT_NAME" != push ] || { [ "$GITHUB_REF" != refs/heads/main ] && [[ "$GITHUB_REF" != refs/tags/v* ]]; }; then
+            why="it publishes no release"
+          elif gh release view "v$VERSION" >/dev/null 2>&1; then
+            why="v$VERSION is released already"
+          else
+            sign=1; why="it publishes v$VERSION"
+          fi
+          echo "yes=$sign" >> "$GITHUB_OUTPUT"
+          if [ "$sign" = 1 ]; then echo "Signing this build: $why"; else echo "Not signing this build: $why"; fi
       - name: List the files to sign (Windows)
         id: unsigned
-        if: runner.os == 'Windows' && vars.AZURE_SIGNING_ENDPOINT != ''
+        if: steps.sign.outputs.yes == '1'
         shell: pwsh
         run: |
           $root = (Resolve-Path dist).Path
@@ -210,7 +234,7 @@ jobs:
           Write-Host "$($files.Count) unsigned files to sign"
           "count=$($files.Count)" >> $env:GITHUB_OUTPUT
       - name: Sign the app's files (Windows)
-        if: runner.os == 'Windows' && vars.AZURE_SIGNING_ENDPOINT != '' && steps.unsigned.outputs.count != '0'
+        if: steps.sign.outputs.yes == '1' && steps.unsigned.outputs.count != '0'
         uses: azure/artifact-signing-action@v2
         with:
           endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
@@ -223,32 +247,64 @@ jobs:
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
+      - name: Sign tool for the installer (Windows)
+        # Inno Setup signs the uninstaller it writes (unins000.exe) only while it compiles the installer, so
+        # the compiler signs Setup and the uninstaller itself: with SignTool from the Windows SDK build tools
+        # and Artifact Signing's SignTool plugin (versions pinned), as the account metadata.json names.
+        id: signtool
+        if: steps.sign.outputs.yes == '1'
+        shell: pwsh
+        env:
+          SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          SIGNING_PROFILE: ${{ vars.AZURE_SIGNING_PROFILE }}
+        run: |
+          $tools = Join-Path $env:RUNNER_TEMP 'signtools'
+          $nuget = (Get-Command nuget -ErrorAction SilentlyContinue).Source
+          if (-not $nuget) {
+            $nuget = Join-Path $env:RUNNER_TEMP 'nuget.exe'
+            Invoke-WebRequest https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile $nuget
+          }
+          foreach ($package in @(@('Microsoft.Windows.SDK.BuildTools', '10.0.28000.2705'), @('Microsoft.ArtifactSigning.Client', '1.0.146'))) {
+            & $nuget install $package[0] -Version $package[1] -ExcludeVersion -OutputDirectory $tools -NonInteractive
+            if ($LASTEXITCODE -ne 0) { Write-Error "nuget could not install $($package[0])"; exit 1 }
+          }
+          $signtool = Get-ChildItem -Recurse -File -Path (Join-Path $tools 'Microsoft.Windows.SDK.BuildTools') -Filter signtool.exe |
+            Where-Object { $_.Directory.Name -eq 'x64' } | Select-Object -First 1
+          $dlib = Get-ChildItem -Recurse -File -Path (Join-Path $tools 'Microsoft.ArtifactSigning.Client') -Filter Azure.CodeSigning.Dlib.dll |
+            Where-Object { $_.Directory.Name -eq 'x64' } | Select-Object -First 1
+          if (-not $signtool -or -not $dlib) { Write-Error 'SignTool or the Artifact Signing plugin is missing from its package'; exit 1 }
+          $metadata = Join-Path $tools 'metadata.json'
+          # the client secret in the environment (EnvironmentCredential), and no other way to sign in
+          [ordered]@{
+            Endpoint = $env:SIGNING_ENDPOINT; CodeSigningAccountName = $env:SIGNING_ACCOUNT; CertificateProfileName = $env:SIGNING_PROFILE
+            ExcludeCredentials = @('ManagedIdentityCredential', 'WorkloadIdentityCredential', 'SharedTokenCacheCredential',
+              'VisualStudioCredential', 'VisualStudioCodeCredential', 'AzureCliCredential', 'AzurePowerShellCredential',
+              'AzureDeveloperCliCredential', 'InteractiveBrowserCredential')
+          } | ConvertTo-Json | Set-Content -Path $metadata -Encoding utf8
+          # The command the compiler runs for each file it signs: $q stands for a quote, $p for the script's
+          # parameters (the file).
+          $command = '$q' + $signtool.FullName + '$q sign /v /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib $q' +
+            $dlib.FullName + '$q /dmdf $q' + $metadata + '$q $p'
+          "command=$command" >> $env:GITHUB_OUTPUT
       - name: Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          SIGN_COMMAND: ${{ steps.signtool.outputs.command }}
+          # read by SignTool's Artifact Signing plugin while the compiler signs, on a signed build only
+          AZURE_TENANT_ID: ${{ steps.sign.outputs.yes == '1' && secrets.AZURE_TENANT_ID || '' }}
+          AZURE_CLIENT_ID: ${{ steps.sign.outputs.yes == '1' && secrets.AZURE_CLIENT_ID || '' }}
+          AZURE_CLIENT_SECRET: ${{ steps.sign.outputs.yes == '1' && secrets.AZURE_CLIENT_SECRET || '' }}
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
-          & $iscc /DAppVersion=${{ steps.v.outputs.version }} packaging\windows\aion2calc.iss
+          $sign = @()
+          if ($env:SIGN_COMMAND) { $sign = @('/DSign', "/Saion2calcsign=$env:SIGN_COMMAND") }
+          & $iscc /DAppVersion=${{ steps.v.outputs.version }} @sign packaging\windows\aion2calc.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Sign the installer (Windows)
-        if: runner.os == 'Windows' && vars.AZURE_SIGNING_ENDPOINT != ''
-        uses: azure/artifact-signing-action@v2
-        with:
-          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
-          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
-          certificate-profile-name: ${{ vars.AZURE_SIGNING_PROFILE }}
-          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          files-folder: dist
-          files-folder-filter: aion2calc-setup-*.exe
-          files-folder-recurse: false
-          file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-          timestamp-digest: SHA256
       - name: Check the signatures (Windows)
-        if: runner.os == 'Windows' && vars.AZURE_SIGNING_ENDPOINT != ''
+        if: steps.sign.outputs.yes == '1'
         shell: pwsh
         run: |
           $bad = @(@(Get-ChildItem dist\aion2calc-setup-*.exe) + @(Get-ChildItem -Recurse -File -Path dist\aion2calc -Include *.exe,*.dll,*.pyd) |
@@ -262,6 +318,8 @@ jobs:
         # which Setup cancels on in a silent run and rolls back) and check each time that the copy
         # left behind starts, and that the update replaced the old files or put them back whole.
         if: runner.os == 'Windows'
+        env:
+          SIGNED: ${{ steps.sign.outputs.yes }}
         shell: pwsh
         run: |
           $setup = (Get-ChildItem dist\aion2calc-setup-*.exe).FullName
@@ -291,6 +349,10 @@ jobs:
           $code = Install 'install'
           Expect 'install' ($code -eq 0) "Setup exited with $code"
           Starts 'install'
+          if ($env:SIGNED -eq '1') {
+            $uninstaller = Get-AuthenticodeSignature (Join-Path $app 'unins000.exe')
+            Expect 'install' ($uninstaller.Status -eq 'Valid') "the uninstaller is not signed ($($uninstaller.Status))"
+          }
 
           Set-Content -Path $old -Value 'old'
           $code = Install 'update'
@@ -307,6 +369,32 @@ jobs:
           Expect 'failed update' (-not (Test-Path $aside)) 'the copy it set aside is still in _previous'
           Starts 'failed-update'
           Write-Host 'An install, an update and a failed update each leave an app that starts'
+      - name: Rehearse signing the installer (Windows)
+        # The signed build's path with a throwaway certificate in place of the signing account, on every
+        # build not signed for real: the compiler signs Setup and the uninstaller it writes, and an update
+        # installed from that Setup leaves an uninstaller signed by the certificate. Nobody trusts the
+        # certificate (the status reads UnknownError); the check is that the signature is there, and whose.
+        if: runner.os == 'Windows' && steps.sign.outputs.yes != '1'
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=aion2calc signing rehearsal' -CertStoreLocation Cert:\CurrentUser\My
+          $pfx = Join-Path $env:RUNNER_TEMP 'rehearsal.pfx'
+          Export-PfxCertificate -Cert $cert -FilePath $pfx -Password (ConvertTo-SecureString 'rehearsal' -AsPlainText -Force) | Out-Null
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { Write-Error 'No SignTool in the Windows SDK on this runner'; exit 1 }
+          $command = '$q' + $signtool.FullName + '$q sign /fd SHA256 /f $q' + $pfx + '$q /p rehearsal $p'
+          $out = Join-Path $env:RUNNER_TEMP 'rehearsal'
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc /DAppVersion=${{ steps.v.outputs.version }} /DSign "/Saion2calcsign=$command" "/O$out" packaging\windows\aion2calc.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $setup = (Get-ChildItem $out -Filter 'aion2calc-setup-*.exe').FullName
+          $p = Start-Process -FilePath $setup -Wait -PassThru -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/NOLAUNCH', '/MERGETASKS=!npcap,!desktopicon')
+          if ($p.ExitCode -ne 0) { Write-Error "The rehearsal's Setup exited with $($p.ExitCode)"; exit 1 }
+          foreach ($file in @($setup, (Join-Path $env:LOCALAPPDATA 'Programs\aion2calc\unins000.exe'))) {
+            $signer = (Get-AuthenticodeSignature $file).SignerCertificate
+            if (-not $signer -or $signer.Thumbprint -ne $cert.Thumbprint) { Write-Error "Not signed by the rehearsal certificate: $file"; exit 1 }
+          }
+          Write-Host 'The compiler signs Setup and the uninstaller it writes'
       - name: Windows portable zip
         if: runner.os == 'Windows'
         shell: pwsh

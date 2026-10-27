@@ -34,6 +34,13 @@ WizardStyle=modern
 CloseApplications=yes
 ; a log of every run, "Setup Log <date> #<n>.txt" in %TEMP%, for when an install goes wrong
 SetupLogging=yes
+#ifdef Sign
+; A signed release (docs/code-signing.md): the compiler signs Setup and the uninstaller it writes
+; (unins000.exe), which can be signed only here, with the sign tool the workflow defines on the command
+; line (/Saion2calcsign=<command ending in $p>). Smart App Control blocks an unsigned uninstaller.
+SignTool=aion2calcsign $f
+SignedUninstaller=yes
+#endif
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
