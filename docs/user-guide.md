@@ -187,7 +187,12 @@ Combat logs recorded since 0.2.350 hold where the party, their pets and the boss
 - A token fades when its last known position is more than 8 seconds old, or when it is outside the fight area (for example a player back at a respawn point).
 - The game never sends a player their own movement. The recording player is placed by the effects they apply and the casts aimed at them, so their path is coarser than the others'. A party member's recording of the same fight holds theirs.
 
-Logs recorded before 0.2.350 have no movement. **Open in Raid Planner** (desktop and Pages) turns the replay into a new local editable plan, its positions scaled to the fight's area.
+On a log from the log server (log server 0.2.144 or later), **Add other recordings of this fight** merges the movement of the other public uploads of the same fight, matched by their identical hits:
+- Each player's path comes from the recording that holds their own movement, so a party member's upload gives the recording player their real path.
+- Each recording's clock is set by the hits both recordings hold.
+- The note lists each recording with its clock offset and the positions it gave, or why it was left out. A token's tooltip names the recording a position came from.
+
+Logs recorded before 0.2.350 have no movement of their own, but on a log from the log server **Add other recordings of this fight** still brings in a newer recording's. **Open in Raid Planner** (desktop and Pages) turns the replay into a new local editable plan, its positions scaled to the fight's area.
 
 Shared `/p/<id>` pages support **Play/Pause**, **Rewind**, playback speed and a timeline scrub bar with moving tokens and active buffs.
 

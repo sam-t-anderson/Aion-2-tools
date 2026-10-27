@@ -1,2 +1,2 @@
 """aion2calc: Aion 2 build / rotation simulator and optimizer."""
-__version__ = "0.2.350"
+__version__ = "0.2.351"

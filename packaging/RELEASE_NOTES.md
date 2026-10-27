@@ -1,3 +1,12 @@
+## Your own path, from your party's recordings (0.2.351)
+
+**Add other recordings of this fight.** A log you open from the log server now offers this under its movement replay. It merges the movement from the other public uploads of the same fight, matched by the hits they share (log server 0.2.144):
+- The game never sends you your own movement, so your recording places you only by the effects you apply and the casts aimed at you. A party member's upload of the same fight holds where you really went, and the replay now draws that.
+- Each recording's clock is set by the hits both recordings hold, to within a fraction of a second.
+- The note lists every recording that was merged, with its clock offset and how many positions it gave, or why it was left out. A token's tooltip names the recording each position came from.
+- A log recorded before 0.2.350 has no movement of its own, but the button still brings in a newer recording's of the same fight.
+- Uploads under moderator review are never merged, and a character whose player hides it comes only from that player's own uploads.
+
 ## Where everyone was: movement in every fight you record (0.2.350)
 
 **Recorded movement replay.** Each fight you record now holds where your party, their pets and the bosses were, and the log review replays it from above, north up, with Play, Rewind and a scrub bar. Bosses are drawn largest, players in their class colour, and you with a dashed ring. A player who was last seen more than 8 seconds ago, or who is outside the fight area (back at a respawn point, say), is drawn faded. **Open in Raid Planner** turns the replay into a plan you can edit. Logs recorded before this version have no movement.

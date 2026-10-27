@@ -59,10 +59,13 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     return nm;
   };
   function mount(root, doc, options={}) {
-    if(doc.meta?.reconstruction || doc.meta?.capture_quality?.reconstructed)options={...options,rankings:undefined,lookupProfile:undefined,publish:undefined,saveMetadata:undefined,report:undefined};
+    if(doc.meta?.reconstruction || doc.meta?.capture_quality?.reconstructed)options={...options,rankings:undefined,lookupProfile:undefined,publish:undefined,saveMetadata:undefined,report:undefined,movement:undefined};
     let state={followLatest:!!options.live,mode:["pve","pvp"].includes(options.mode)?options.mode:"",run:"",segment:0,metric:"summary",view:"table",graph:true,timeline:true,graphMode:"total",timelineWindow:30,timelineStart:0,skills:true,deaths:true,heals:true,pets:true,combine:true,actor:"",page:0,enemy:"",hidden:new Set(),actions:"rotation",hideProcs:true, ...options.state};
     let sourceView=null,archiveFirst=1,archiveLast=doc.meta?.archive?.part || 1;
     let comparisons=[], ranks=null, rankRequest=0, replayFrame=null, profileRequest=0;
+    // per document and segment: the movement the log server merged from other recordings of the fight (log server
+    // 0.2.144), so a combined review never shows a part's merge
+    const mergedMoves=new WeakMap(),mergedFor=()=>{let moves=mergedMoves.get(doc);if(!moves)mergedMoves.set(doc,moves=new Map());return moves;};
     let reportReason='privacy',reportDetails='',reportStatus='',reportBusy=false;
     const previews=new Map();
     let timelineDetail="",graphModel=null;
@@ -725,8 +728,24 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     // north up; older logs' arena-normalized ``positions`` play as before. The recording player's own movement is
     // not in the traffic, so their path runs between the points their effects and the casts at them give.
     function replay(d) {
-      const world=d.segment.movement || [],flat=d.segment.positions || [];if(!world.length&&!flat.length)return;
-      const box=root.querySelector("[data-replay]"),tokens={};let at=p=>[100*p.x,100*p.y,false],note="";
+      // the fight's movement merged with other public recordings of it, once asked for: each row from another
+      // recording carries ``via``, its place in ``sources``
+      const merged=mergedFor().get(state.segment),fromOthers=Array.isArray(merged?.movement)?merged:null;
+      const world=fromOthers?.movement || d.segment.movement || [],flat=d.segment.positions || [],box=root.querySelector("[data-replay]");if(!box)return;
+      const sourceName=i=>{const src=fromOthers?.sources?.[i];return src?`${src.uploader || "Anonymous"}'s recording`:"another recording";};
+      const sourcesHTML=fromOthers?(()=>{const others=(fromOthers.sources || []).slice(1);if(!others.length)return `<p class="small muted">No other public recording of this fight was found.</p>`;
+        return `<p class="small muted">Merged with ${others.filter(o=>!o.skipped).length} of ${others.length} other recordings of this fight: ${others.map((o,i)=>`${esc(sourceName(i+1))} (${o.skipped?esc(o.skipped):`clock ${o.offset>=0?"+":""}${Number(o.offset).toFixed(2)} s from ${number(o.shared_hits)} shared hits, ${number(o.positions)} positions`})`).join("; ")}. ${esc(fromOthers.note || "")}</p>`;})():"";
+      const mergeHTML=options.movement&&!fromOthers?`<button class="btn small" data-merge ${merged?.loading?"disabled":""}>${merged?.loading?"Looking for other recordings…":"Add other recordings of this fight"}</button>${merged?.error?` <span class="small muted" role="status">${esc(merged.error)}</span>`:""}`:"";
+      const bindMerge=()=>{const button=box.querySelector("[data-merge]");if(button)button.onclick=async()=>{const moves=mergedFor(),index=state.segment;moves.set(index,{loading:true});render();
+        try{const out=await options.movement(index);moves.set(index,Array.isArray(out?.movement)?out:{error:"The log server sent no movement."});}
+        catch(e){moves.set(index,{error:e.message || String(e)});}
+        if(!disposed&&root.isConnected)render();};};
+      if(!world.length&&!flat.length){
+        // A recording made before 0.2.350 holds no movement of its own, but a newer recording of the same fight can.
+        if(options.movement){box.innerHTML=`<h3>Recorded movement replay</h3><p class="small muted">This recording holds no movement (recordings made before 0.2.350 have none).${fromOthers?"":" Another public recording of this fight may hold it."}</p>${sourcesHTML}${mergeHTML}`;bindMerge();}
+        return;
+      }
+      const tokens={};let at=p=>[100*p.x,100*p.y,false],note="";
       if(world.length){
         // Frame the fight: the bosses' ground with room around it, or without a boss the middle 90% of the
         // positions. Anything outside (a party member back at a respawn point) is drawn faded at the edge.
@@ -740,10 +759,11 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         at=p=>{const x=50+100*(p.x-cx)/span,y=50-100*(p.y-cy)/span;return [Math.min(99,Math.max(1,x)),Math.min(99,Math.max(1,y)),x<0||x>100||y<0||y>100];};
         for(const p of world)(tokens[p.entity] ||= []).push(p);
         const own=tokens[d.segment.ping_recorder] || [],stamps=own.filter(p=>p.src==="applied"||p.src==="targeted").length;
-        note=`${world.length} recorded positions of ${Object.keys(tokens).length} players and enemies.`+(own.length?` The game does not send the recording player's own movement: ${stamps} of their ${own.length} positions are where they applied an effect or a cast aimed at them, and the path is drawn between them. A party member's upload of the same fight records their movement.`:"");
+        const borrowed=own.filter(p=>p.via).length;
+        note=`${world.length} recorded positions of ${Object.keys(tokens).length} players and enemies.`+(own.length?(borrowed?` The recording player's own movement comes from ${borrowed} positions in the other recordings of this fight; ${stamps} more are where they applied an effect or a cast aimed at them.`:` The game does not send the recording player's own movement: ${stamps} of their ${own.length} positions are where they applied an effect or a cast aimed at them, and the path is drawn between them. A party member's upload of the same fight records their movement.`):"");
       }else for(const p of flat)(tokens[p.entity] ||= []).push(p);
       for(const frames of Object.values(tokens))frames.sort((a,b)=>a.t-b.t);
-      box.innerHTML=`<h3>Recorded movement replay</h3>${note?`<p class="small muted">${esc(note)}</p>`:""}<button class="btn small" data-play>Play</button> <button class="btn small" data-rewind>Rewind</button><input data-scrub type="range" min="0" step="0.1" value="0" aria-label="Replay time"><output data-clock></output><svg class="cr-arena" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-label="Recorded positions"></svg><button class="btn small" data-plan>Import into Raid Planner</button><span data-plan-status role="status"></span>`;
+      box.innerHTML=`<h3>Recorded movement replay</h3>${note?`<p class="small muted">${esc(note)}</p>`:""}${sourcesHTML}${mergeHTML}<button class="btn small" data-play>Play</button> <button class="btn small" data-rewind>Rewind</button><input data-scrub type="range" min="0" step="0.1" value="0" aria-label="Replay time"><output data-clock></output><svg class="cr-arena" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-label="Recorded positions"></svg><button class="btn small" data-plan>Import into Raid Planner</button><span data-plan-status role="status"></span>`;
       const scrub=box.querySelector("[data-scrub]");scrub.max=d.segment.duration;
       const shade=id=>{const e=d.r[id];return e?.is_boss?"#ef6262":e&&(character(e)||e.kind==="pet")?color(e.class):"#9a9a9a";};
       // the last frame at or before t (frames are sorted by time), then a step between it and the next one
@@ -756,10 +776,10 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         const here=place(frames,t);if(!here)return "";const [x,y,stale,last,i,out]=here,e=d.r[id],r=e?.is_boss?3:e&&character(e)?2:1.4;
         let first=i;while(first>0&&frames[first-1].t>=t-6)first--;
         const trail=world.length&&(e?.is_boss||character(e))?frames.slice(first,i+1).map(at).concat([[x,y]]).map(([a,b])=>`${a.toFixed(2)},${b.toFixed(2)}`).join(" "):"";
-        return `${trail?`<polyline points="${trail}" fill="none" stroke="${shade(id)}" stroke-opacity=".35" stroke-width=".6"/>`:""}<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${r}" fill="${shade(id)}" fill-opacity="${stale>8||out?.35:1}"${id===d.segment.ping_recorder?' stroke="#fff" stroke-dasharray="1 1" stroke-width=".5"':""}><title>${esc(label(e))}${last.src?` · ${esc(last.src)} at ${last.t.toFixed(1)}s`:""}${out?" · outside the fight area":""}</title></circle>`;}).join("");};
+        return `${trail?`<polyline points="${trail}" fill="none" stroke="${shade(id)}" stroke-opacity=".35" stroke-width=".6"/>`:""}<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${r}" fill="${shade(id)}" fill-opacity="${stale>8||out?.35:1}"${id===d.segment.ping_recorder?' stroke="#fff" stroke-dasharray="1 1" stroke-width=".5"':""}><title>${esc(label(e))}${last.src?` · ${esc(last.src)} at ${last.t.toFixed(1)}s`:""}${last.via?` · from ${esc(sourceName(last.via))}`:""}${out?" · outside the fight area":""}</title></circle>`;}).join("");};
       const pause=()=>{if(replayFrame)cancelAnimationFrame(replayFrame);replayFrame=null;box.querySelector("[data-play]").textContent="Play";};
       box.querySelector("[data-play]").onclick=()=>{if(replayFrame){pause();return;}let last=performance.now();box.querySelector("[data-play]").textContent="Pause";const tick=now=>{const t=Math.min(d.segment.duration,clock+Math.max(0,now-last)/1000);last=now;draw(t);if(t>=d.segment.duration)pause();else replayFrame=requestAnimationFrame(tick);};replayFrame=requestAnimationFrame(tick);};
-      box.querySelector("[data-rewind]").onclick=()=>{pause();draw(0);};scrub.oninput=()=>{pause();draw(+scrub.value);};
+      box.querySelector("[data-rewind]").onclick=()=>{pause();draw(0);};scrub.oninput=()=>{pause();draw(+scrub.value);};bindMerge();
       box.querySelector("[data-plan]").onclick=()=>{const plan={format:"a2plan",version:1,meta:{name:d.segment.boss || d.segment.label || "Recorded replay"},duration:d.segment.duration,arena:{kind:"square"},tokens:Object.entries(tokens).map(([id,frames])=>({id,kind:d.r[id]?.kind==="enemy"?"enemy":"player",label:label(d.r[id]),cls:d.r[id]?.class,color:color(d.r[id]?.class),keyframes:frames.map(p=>{const [x,y]=at(p);return {t:p.t,x:Math.min(1,Math.max(0,x/100)),y:Math.min(1,Math.max(0,y/100))};})})),buffs:[]};if(options.importPlan){try{options.importPlan(plan);}catch(e){box.querySelector("[data-plan-status]").textContent=e.message;}return;}const blob=new Blob([JSON.stringify(plan)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="recorded-replay.a2plan.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};box.querySelector("[data-plan]").textContent=options.importPlan?"Open in Raid Planner":"Export Raid Planner file";draw(0);
     }
     // Swap the single-part view for a combined recording review (keeping the source part so
@@ -767,7 +787,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     function applyCombined(next,first,last){
       sourceView={doc,options,state};doc=next;archiveFirst=first;archiveLast=last;
       rankRequest++;profileRequest++;ranks=null;previews.clear();comparisons=[];
-      options={...options,rankings:undefined,lookupProfile:undefined,publish:undefined,saveMetadata:undefined,report:undefined};
+      options={...options,rankings:undefined,lookupProfile:undefined,publish:undefined,saveMetadata:undefined,report:undefined,movement:undefined};
       state={...state,segment:0,run:'',actor:'',enemy:'',character:'',page:0,hidden:new Set()};
     }
     // Viewing one part of a multi-part recording, open the complete stitched recording as the

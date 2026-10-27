@@ -541,9 +541,10 @@ The heading that ends `1c 37` and `1d 37` is the direction of travel between con
 4. Each fight's a2log segment gets them as `movement`: t, entity, X, Y and Z in game units, the record they came from (`src`) and the heading. Every entity also gets the last place known in the ten seconds before the fight, at t = 0. Replayed through the meter, the run's eight boss fights hold 1,235–2,756 positions each, 79–206 of them the recording player's.
 5. The replay panel draws them north up. It frames the fight on the bosses' ground, so a player back at a respawn point is drawn faded at its edge. Between two positions at most 6 s apart a token moves in a straight line; otherwise it waits where it was last seen, fading after 8 s.
 
+6. Since log server 0.2.144 and the app's 0.2.351, the review merges a fight's movement with the other public uploads of it. The clocks are set by the hits both recordings hold once each, and each player's path comes from the recording that holds their own movement records. A party member's upload gives the recording player their path.
+
 Still open:
 - `1d 37`'s middle bytes, which would place moving entities ten times a second.
-- Merging the recordings of one fight, which fills in the recording player's own path from a party member's upload.
 - The map transform: a fight's own extent needs none, but showing the map under it does.
 - Floors (Z).
 
