@@ -194,6 +194,44 @@ def test_installer_keeps_the_installed_copy_until_the_new_one_is_in_place():
     assert "'/NOLAUNCH'" in ci and "unins000.exe" in ci and "($code -eq 5)" in ci
 
 
+
+def _ci_step(ci, name):
+    """One step of the CI workflow, from its ``- name:`` line to the next step."""
+    start = ci.index(f"      - name: {name}\n")
+    end = ci.find("\n      - ", start + 1)
+    return ci[start:] if end == -1 else ci[start:end]
+
+
+def test_only_a_release_is_signed_and_the_compiler_signs_the_uninstaller():
+    # Each file signed takes one signature from the plan's monthly allowance (about 44 a Windows build),
+    # so only a build that publishes a new release is signed, or a run started by hand to test the setup.
+    # Inno Setup signs the uninstaller it writes (unins000.exe) only while it compiles, so the compiler
+    # signs Setup and the uninstaller through SignTool, and every build not signed for real rehearses that
+    # with a throwaway certificate (docs/code-signing.md).
+    import pathlib
+    ci = (pathlib.Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    decide = _ci_step(ci, "Sign this build? (Windows)")
+    assert "id: sign" in decide and "workflow_dispatch" in decide and 'gh release view "v$VERSION"' in decide
+    for name in ("List the files to sign (Windows)", "Sign the app's files (Windows)",
+                 "Sign tool for the installer (Windows)", "Check the signatures (Windows)"):
+        assert "        if: steps.sign.outputs.yes == '1'" in _ci_step(ci, name)
+    assert "- name: Sign the installer (Windows)" not in ci           # the compiler signs Setup itself
+    tool = _ci_step(ci, "Sign tool for the installer (Windows)")
+    assert "@('Microsoft.Windows.SDK.BuildTools', '10.0.28000.2705')" in tool       # versions pinned
+    assert "@('Microsoft.ArtifactSigning.Client', '1.0.146')" in tool
+    assert "/dlib $q" in tool and "/dmdf $q" in tool and "$q $p'" in tool
+    installer = _ci_step(ci, "Windows installer")
+    assert "@('/DSign', \"/Saion2calcsign=$env:SIGN_COMMAND\")" in installer
+    assert "AZURE_CLIENT_SECRET: ${{ steps.sign.outputs.yes == '1' && secrets.AZURE_CLIENT_SECRET || '' }}" in installer
+    installed = _ci_step(ci, "Install, update and a failed update (Windows)")
+    assert "SIGNED: ${{ steps.sign.outputs.yes }}" in installed and "Get-AuthenticodeSignature (Join-Path $app 'unins000.exe')" in installed
+    rehearsal = _ci_step(ci, "Rehearse signing the installer (Windows)")
+    assert "        if: runner.os == 'Windows' && steps.sign.outputs.yes != '1'" in rehearsal
+    assert "/DSign \"/Saion2calcsign=$command\"" in rehearsal and "Programs\\aion2calc\\unins000.exe" in rehearsal
+    iss = _installer_source()
+    signing = iss[iss.index("#ifdef Sign"):iss.index("#endif", iss.index("#ifdef Sign"))]
+    assert "SignTool=aion2calcsign $f" in signing and "SignedUninstaller=yes" in signing
+
 def test_update_check_reads_github_releases(home, monkeypatch):
     from http.server import BaseHTTPRequestHandler
 

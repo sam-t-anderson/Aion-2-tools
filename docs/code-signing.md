@@ -52,8 +52,18 @@ account is set up; until the repository variable below exists, those steps are s
 release is published unsigned. When they run, the build:
 1. signs every file of the app bundle that runs as code and is not signed already (`aion2calc.exe`
    and the Python extension modules; Python's own DLLs and the Visual C++ runtime come signed);
-2. builds the installer from the signed files and signs the installer;
-3. fails if any of those files is left without a valid signature.
+2. builds the installer from the signed files; the installer compiler signs Setup and the
+   uninstaller it writes (`unins000.exe`) with SignTool and Artifact Signing's SignTool plugin, since
+   Inno Setup can sign the uninstaller only while it compiles;
+3. fails if any of those files, or the uninstaller of the copy it installs, is left without a valid
+   signature.
+
+Each file signed takes one signature from the plan's monthly allowance (5,000 on the Basic plan),
+about 44 a build. So only a build that publishes a new release is signed (a push to `main` with a new
+version, or a `v*` tag), and a run started by hand (**Actions → CI → Run workflow**) to test the
+setup. Pushes to other branches, pull requests and pushes to `main` that release nothing are not.
+Every build that is not signed rehearses step 2 with a throwaway certificate instead, so a change
+that would break signing the uninstaller shows up before a release.
 
 The signed files name the account's validated identity as their publisher. Artifact Signing costs
 about 10 USD a month (the Basic plan) and, for an individual, validates a person living in the
@@ -73,15 +83,10 @@ United States or Canada; an organization needs three years of verifiable history
      and `AZURE_SIGNING_PROFILE` (the certificate profile's name);
    * secrets `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` (the app registration's
      directory ID, application ID and secret).
-6. Publish a release as usual and check that the Windows build's **Check the signatures** step
-   passed. Right-click the installed `aion2calc.exe` → **Properties → Digital Signatures** shows the
+6. Start **Actions → CI → Run workflow** on any branch and check that the Windows build's **Check
+   the signatures** step passed; releases from then on are signed the same way. Right-click the
+   installed `aion2calc.exe` (or `unins000.exe`) → **Properties → Digital Signatures** shows the
    signer.
-
-Not signed yet: the uninstaller Inno Setup writes at install time (`unins000.exe`). Signing it
-needs a sign tool the installer compiler runs (`SignTool` with `SignedUninstaller=yes` in
-`packaging/windows/aion2calc.iss`), which is the next step once the account exists. Until then,
-Smart App Control can block uninstalling from **Settings → Apps**; deleting the install folder
-removes the app.
 
 The executable and the installer carry the product name `aion2calc` and the release version in
 their file properties.
