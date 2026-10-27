@@ -260,6 +260,9 @@ class CombatSession:
         self.automatic_splits = True
         self.pvp = False
         self.manual_split = 0
+        # The splits the player asked for (New on the overlay, Split now in the app): the value
+        # ``manual_split`` took at each. The live view never re-joins a fight across one.
+        self._user_splits = set()
         self.telemetry = deque(maxlen=100_000)
         # The party's combat actions: skill casts and cast ends, chain windows, effects added and
         # removed (buffs on the party, debuffs and crowd control the party applied), break-gauge
@@ -592,7 +595,10 @@ class CombatSession:
         self.run_closed = False
 
     def split_now(self):
+        """The player's own split (New on the overlay, Split now in the app): the next combat starts
+        a new encounter, and the live view starts with it (``_live_encounter``)."""
         self.manual_split += 1
+        self._user_splits.add(self.manual_split)
 
     def note_capture_loss(self, key, count, timestamp_ms):
         """A capture counter moved by ``count`` at ``timestamp_ms`` (capture wall-clock ms)."""
@@ -1418,6 +1424,7 @@ class CombatSession:
         profile = identity.get("profile") or {}
         return (len(self.records), self.sequence, self.records[0].sequence if self.records else None,
                 len(self.telemetry), self.discarded_telemetry, self.epoch, self.run, self.run_closed, self.manual_split,
+                len(self._user_splits),
                 len(self.identities), self.discarded, self.discarded_segments, len(self._dead), len(self._engaged_major),
                 len(self._major_below), len(self._engage_span), self._pending_reset, self._live_boss_reset_ms,
                 len(self._major_history), self.boss_kills, self.wipe_splits, self.reset_splits, self.boss_splits,
@@ -1789,15 +1796,18 @@ class CombatSession:
 
     def _live_encounter(self, groups):
         """The trailing groups of the current continuing run, re-joined across
-        mid-fight epoch splits. Stops at a run change or a real combat gap wider
-        than ``gap_seconds`` (a genuinely separate pull), so only a mechanic's
-        same-run zone transition is merged — never two distinct fights."""
+        mid-fight epoch splits. Stops at a run change, a real combat gap wider
+        than ``gap_seconds`` (a genuinely separate pull) or a split the player
+        asked for (New, Split now), so only a mechanic's same-run zone transition
+        is merged — never two distinct fights. Re-joining across the player's own
+        split brought the fight before New back at the first hit after it."""
         if not groups:
             return []
         chosen = [groups[-1]]
         for group in reversed(groups[:-1]):
             nxt = chosen[0]
-            if group["run"] == nxt["run"] and 0 <= nxt["start"] - group["last_damage"] <= self.gap_seconds * 1000:
+            if (group["run"] == nxt["run"] and 0 <= nxt["start"] - group["last_damage"] <= self.gap_seconds * 1000
+                    and not any(group["split"] < split <= nxt["split"] for split in self._user_splits)):
                 chosen.insert(0, group)
             else:
                 break
