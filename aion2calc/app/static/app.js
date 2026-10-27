@@ -201,7 +201,7 @@ function sectionOf(page) {
   return link ? link.closest("[data-pages]").dataset.pages : null;
 }
 function showNavigation(page) {
-  const current = page === "combat-log" ? "combat" : page,
+  const current = page === "combat-log" || page === "featured" ? "combat" : page,
     section = sectionOf(current);
   let last = {};
   try {
@@ -237,7 +237,9 @@ function showNavigation(page) {
   // The page's main heading (index.html), for screen readers.
   const title = $("#page-title"),
     label = (PAGES.find(([id]) => id === current) || [])[1];
-  if (title) title.textContent = page === "combat-log" ? "Combat log" : label || "Aion 2 Calc";
+  if (title)
+    title.textContent =
+      page === "combat-log" ? "Combat log" : page === "featured" ? "Featured encounter" : label || "Aion 2 Calc";
 }
 // The app's text size (Settings → Text size): a percentage applied as the page's zoom, so every word and the
 // layout around it scale together, as the browser's own zoom would. 100 is the size the app ships with.
@@ -323,14 +325,19 @@ async function route() {
   const page = (location.hash.replace(/^#\//, "") || "meter").split("/")[0];
   $("#app").classList.toggle(
     "workspace-wide",
-    page === "crafting" || page === "builds" || page === "maps" || page === "combat-log",
+    page === "crafting" || page === "builds" || page === "maps" || page === "combat-log" || page === "featured",
   );
-  $("#app").classList.toggle("logs-zoom", page === "combat" || page === "combat-log"); // 125%, as on the website
-  showNavigation(PAGES.some(([id]) => id === page) || page === "combat-log" ? page : "planner"); // an unknown page shows the planner
+  $("#app").classList.toggle("logs-zoom", page === "combat" || page === "combat-log" || page === "featured"); // 125%, as on the website
+  showNavigation(PAGES.some(([id]) => id === page) || page === "combat-log" || page === "featured" ? page : "planner"); // an unknown page shows the planner
   if (page !== "combat-log" && S.combat.review) {
     S.combat.review.dispose();
     S.combat.review = null;
   }
+  for (const view of ["featured", "featuredPage"])
+    if (S.combat[view]) {
+      S.combat[view].dispose();
+      S.combat[view] = null;
+    }
   try {
     if (page === "character") await pageCharacter();
     else if (page === "history") await pageHistory();
@@ -338,6 +345,7 @@ async function route() {
     else if (page === "settings") await pageSettings();
     else if (page === "combat") await pageCombat();
     else if (page === "combat-log") await pageCombatLog();
+    else if (page === "featured") await pageFeatured();
     else if (page === "raid") await pageRaid();
     else if (page === "meter") await pageMeter();
     else if (page === "database") await pageDatabase();
@@ -350,7 +358,7 @@ async function route() {
     else await pagePlanner();
   } catch (e) {
     if (serial !== routeSerial) return;
-    app().innerHTML = `${page === "combat-log" ? '<p><a class="btn small" href="#/combat">← Back to combat logs</a></p>' : ""}<div class="note">${esc(e.message)}</div>`;
+    app().innerHTML = `${page === "combat-log" || page === "featured" ? '<p><a class="btn small" href="#/combat">← Back to combat logs</a></p>' : ""}<div class="note">${esc(e.message)}</div>`;
   }
 }
 

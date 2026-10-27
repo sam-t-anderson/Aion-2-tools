@@ -1,6 +1,16 @@
 /* Combat Logs (#/combat) and one combat log (#/combat-log/...): the community's logs, saved logs, AbyssLogs
-   imports and a fight's review. */
+   imports and a fight's review. A featured encounter's pages are #/featured/<id>/<view>. */
 "use strict";
+
+// #/featured/<id>/<view>?metric=…: a featured encounter's race summary, progress, reports, rankings or statistics
+const featuredLink = (id, view, metric) =>
+  "#/featured/" +
+  encodeURIComponent(id) +
+  "/" +
+  (view || "race") +
+  (metric ? "?metric=" + encodeURIComponent(metric) : "");
+const sharedLogLink = (id, segment) =>
+  "#/combat-log/shared/" + encodeURIComponent(id) + (Number.isInteger(segment) ? "?segment=" + segment : "");
 
 function parseFromEncounter(a) {
   const s = a.summary,
@@ -139,10 +149,31 @@ async function pageCombatLog() {
   S.combat.review = A2CombatReview.mount(target, doc, options);
   window.scrollTo(0, 0);
 }
+async function pageFeatured() {
+  const [path, query] = location.hash.replace(/^#\//, "").split("?"),
+    parts = path.split("/"),
+    id = decodeURIComponent(parts[1] || ""),
+    view = parts[2] || "race";
+  app().innerHTML =
+    '<p><a class="btn small" href="#/combat">← Back to combat logs</a></p><div id="featured-page"></div>';
+  if (!/^fe_[0-9a-f]{10}$/.test(id)) {
+    $("#featured-page").innerHTML = '<div class="note">There is no featured encounter at this address.</div>';
+    return;
+  }
+  S.combat.featuredPage = A2Featured.page($("#featured-page"), {
+    api: communityAPI,
+    id,
+    view,
+    metric: new URLSearchParams(query || "").get("metric"),
+    link: featuredLink,
+    logLink: sharedLogLink,
+  });
+  window.scrollTo(0, 0);
+}
 async function pageCombat() {
   const st = S.combat;
   app().innerHTML = `<section class="win"><div class="wh"><h2>Combat logs</h2><span class="sub">per-skill breakdown, timeline, rates, idle time — compared with your optimal rotation</span></div>
-    <div class="wb"><div id="logs-view"><div class="row" role="tablist" id="logs-tabs" aria-label="Combat log views" style="flex-wrap:wrap;gap:6px"><button class="btn small" role="tab" type="button" data-tab="community" aria-selected="true">Browse logs</button><button class="btn small" role="tab" type="button" data-tab="speed" aria-selected="false">Completed-run speed</button><button class="btn small" role="tab" type="button" data-tab="progression" aria-selected="false">Boss progression</button><button class="btn small" role="tab" type="button" data-tab="points" aria-selected="false">Highest observed build points</button><button class="btn small" role="tab" type="button" data-tab="extras" aria-selected="false">Personal records</button></div>
+    <div class="wb"><div id="featured"></div><div id="logs-view"><div class="row" role="tablist" id="logs-tabs" aria-label="Combat log views" style="flex-wrap:wrap;gap:6px"><button class="btn small" role="tab" type="button" data-tab="community" aria-selected="true">Browse logs</button><button class="btn small" role="tab" type="button" data-tab="speed" aria-selected="false">Completed-run speed</button><button class="btn small" role="tab" type="button" data-tab="progression" aria-selected="false">Boss progression</button><button class="btn small" role="tab" type="button" data-tab="points" aria-selected="false">Highest observed build points</button><button class="btn small" role="tab" type="button" data-tab="extras" aria-selected="false">Personal records</button></div>
     <div data-logs-panel="community" style="margin-top:12px"><div id="combat-log-tabs"><div class="row" role="tablist" aria-label="Combat log sources"><button class="btn small" role="tab" id="log-tab-community" data-log-tab="community" aria-controls="log-panel-community">Community Combat Logs</button><button class="btn small" role="tab" id="log-tab-owned" data-log-tab="owned" aria-controls="log-panel-owned">My Uploads</button><button class="btn small" role="tab" id="log-tab-saved" data-log-tab="saved" aria-controls="log-panel-saved">Saved Logs</button><button class="btn small" role="tab" id="log-tab-identities" data-log-tab="identities" aria-controls="log-panel-identities">My Character Identities</button></div><div id="log-panel-saved" data-log-panel="saved" role="tabpanel" aria-labelledby="log-tab-saved"><div class="row"><input id="ref" type="text" placeholder="AbyssLogs link (abysslogs.com/e/…) or A2DIL link" style="width:458px">
       <input id="player" type="text" placeholder="player (party logs)" style="width:172px"><button class="btn primary" id="imp">Analyze</button>
       <span class="muted small">or</span><input id="file" type="file" accept=".json,.gz,.csv"><span id="lmsg" class="small muted"></span></div>
@@ -157,6 +188,8 @@ async function pageCombat() {
     <div data-logs-panel="points" hidden><div id="points-body" style="margin-top:12px"><div class="empty">Loading…</div></div></div>
     <div data-logs-panel="extras" hidden><div id="records-extra" style="margin-top:12px"></div></div>
     </div></div></section><div id="enc"></div>`;
+  // the encounters the log server's operator features, above the lists (nothing when there is none)
+  st.featured = A2Featured.section($("#featured"), { api: communityAPI, link: featuredLink, logLink: sharedLogLink });
   // #/combat/<list tab> opens one of the lists directly (the Account page's legions point at My Character Identities)
   const askedTab = location.hash.replace(/^#\//, "").split(/[/?]/)[1];
   if (["community", "owned", "saved", "identities"].includes(askedTab)) st.listTab = askedTab;

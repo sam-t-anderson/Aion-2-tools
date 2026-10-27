@@ -1,0 +1,88 @@
+/* Featured encounters (featured.js): the landing cards on the Combat Logs pages and each encounter's pages. */
+.fe-heading { margin: 0 0 10px; font-family: var(--display); color: var(--gold); letter-spacing: 1px; }
+.fe-zone { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; margin: 0 0 16px; }
+.fe-zone-main, .fe-page { border: 1px solid var(--line2); border-radius: var(--r); background: var(--panel); padding: 12px; min-width: 0; }
+.fe-page { margin: 0 0 16px; }
+.fe-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.fe-zone-head { padding: 0 0 10px; border-bottom: 1px solid var(--line2); }
+.fe-head h2, .fe-head h3 { margin: 0; font-family: var(--display); color: var(--gold); }
+.fe-title small, .fe-sub { display: block; color: var(--muted); font-size: 0.85em; }
+.fe-portrait { border-radius: var(--r); border: 1px solid var(--frame); background: var(--icon-bg); object-fit: cover; flex: none; }
+.fe-portrait-none { display: inline-block; }
+.fe-nav { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-left: auto; }
+.fe-nav a { color: var(--text); text-decoration: none; padding: 4px 2px; border-bottom: 2px solid transparent; }
+.fe-nav a:hover, .fe-nav a[aria-current="page"] { color: var(--gold); border-bottom-color: var(--gold); }
+/* three cards a row, as fflogs' zone cards: progress, speed, execution; the all-stars by role; the classes by role */
+.fe-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.fe-card { border: 1px solid var(--line2); border-radius: var(--r); background: linear-gradient(180deg, var(--card-a), var(--card-b)); padding: 10px 12px; display: flex; flex-direction: column; }
+.fe-card h4 { margin: 0 0 8px; font-size: 1.05em; color: var(--text); }
+.fe-rows { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; flex: 1; align-content: start; }
+.fe-rows li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
+.fe-who { min-width: 0; overflow-wrap: anywhere; }
+.fe-val { color: var(--good); font-variant-numeric: tabular-nums; text-align: right; }
+.fe-more { align-self: center; color: var(--accent); }
+.fe-medal { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; font-weight: 700; font-size: 0.85em; color: #1b1b1b; background: #b9bec8; }
+.fe-medal-1 { background: linear-gradient(180deg, #ffe08a, #c99a2e); }
+.fe-medal-2 { background: linear-gradient(180deg, #f1f3f6, #a8adb6); }
+.fe-medal-3 { background: linear-gradient(180deg, #f0b98a, #a8642e); }
+.fe-class { vertical-align: middle; border-radius: 4px; margin-right: 4px; }
+.fe-team { font-weight: 600; color: var(--accent); }
+.fe-legion { color: var(--gold); }
+.fe-note { margin-top: 10px; }
+.fe-controls { flex-wrap: wrap; gap: 8px 14px; margin: 0 0 10px; }
+.fe-pager { gap: 10px; align-items: center; margin: 8px 0 14px; }
+.fe-table caption { text-align: left; font-weight: 600; color: var(--gold); padding: 6px 0; }
+.fe-killed img { margin-right: 3px; vertical-align: middle; }
+.fe-comp { white-space: nowrap; }
+.fe-comp span { margin-right: 8px; font-variant-numeric: tabular-nums; }
+/* the race: the phases side by side over one bar, filled as far as the leading team got, the teams under where they are */
+.fe-race-wrap { overflow-x: auto; margin-bottom: 14px; border: 1px solid var(--line2); border-radius: var(--r); background: var(--panel2); padding: 12px; }
+.fe-race, .fe-race-track { display: grid; grid-template-columns: repeat(var(--phases), minmax(140px, 1fr)) minmax(160px, 1fr); column-gap: 4px; }
+.fe-race { row-gap: 8px; min-width: min-content; }
+.fe-race > * { min-width: 0; margin: 0; }
+.fe-race-head { display: flex; gap: 8px; align-items: center; justify-content: center; text-align: center; }
+.fe-race-head small { display: block; color: var(--muted); }
+.fe-race-done { font-size: 1.15em; color: var(--gold); }
+.fe-race-track { grid-column: 1 / -1; }
+.fe-race-seg { display: block; height: 14px; background: var(--inset); overflow: hidden; }
+.fe-race-seg:first-child { border-radius: 7px 0 0 7px; }
+.fe-race-seg:last-child { border-radius: 0 7px 7px 0; }
+.fe-race-seg > span { display: block; height: 100%; background: var(--gold); }
+.fe-race > p { text-align: center; }
+.fe-standing { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 3px; align-content: start; }
+.fe-standing small { color: var(--muted); }
+.fe-rank { color: var(--muted); }
+/* a closer look: one card a team, its standing at the corners, the encounter's boss faint behind it */
+.fe-closers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.fe-closer { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 6px; min-height: 180px; border: 1px solid var(--line2); border-radius: var(--r); padding: 12px 14px; background: linear-gradient(180deg, var(--card-a), var(--card-b)); }
+.fe-closer > * { position: relative; }
+.fe-closer > .fe-closer-art { position: absolute; right: 0; top: 0; height: 100%; width: auto; max-width: 60%; object-fit: cover; opacity: 0.22; pointer-events: none; }
+.fe-closer header { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; }
+.fe-closer h4 { margin: 0; font-size: 1.35em; text-transform: uppercase; letter-spacing: 1px; }
+.fe-closer-rank { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 2.2em; height: 2.2em; border-radius: 50%; border: 2px solid var(--frame-hi); background: var(--inset); font-family: var(--display); font-size: 1.3em; color: var(--gold); }
+.fe-members { margin: 0; }
+.fe-closer footer { margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.fe-closer-label { display: block; color: var(--muted); font-size: 0.85em; text-transform: uppercase; letter-spacing: 1px; }
+.fe-closer-big { font-size: 1.5em; }
+.fe-closer-end { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 2px; }
+.fe-closer-end strong { text-transform: uppercase; letter-spacing: 1px; }
+/* the statistics: each class's middle half and median against the best 95th percentile */
+.fe-bar-cell { min-width: 140px; }
+.fe-bar { position: relative; display: block; height: 12px; border-radius: 6px; background: var(--inset); }
+.fe-bar-iqr { position: absolute; top: 2px; bottom: 2px; border-radius: 4px; opacity: 0.85; background: var(--cls, var(--gold)); }
+.fe-bar-median { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text); }
+@media (max-width: 1100px) { .fe-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) {
+  .fe-zone { grid-template-columns: minmax(0, 1fr); }
+  .fe-zone-art .fe-portrait { width: 64px; height: 64px; }
+  .fe-cards, .fe-closers { grid-template-columns: minmax(0, 1fr); }
+  .fe-nav { margin-left: 0; }
+}
+/* the class colours are made for the dark theme: the light one darkens them, so white and yellow stay readable */
+.fe-classed { color: var(--cls, inherit); }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme=dark]) .fe-classed { color: color-mix(in srgb, var(--cls, currentColor) 40%, #000); }
+  :root:not([data-theme=dark]) .fe-bar-iqr { background: color-mix(in srgb, var(--cls, var(--gold)) 60%, #000); }
+}
+:root[data-theme=light] .fe-classed { color: color-mix(in srgb, var(--cls, currentColor) 40%, #000); }
+:root[data-theme=light] .fe-bar-iqr { background: color-mix(in srgb, var(--cls, var(--gold)) 60%, #000); }
