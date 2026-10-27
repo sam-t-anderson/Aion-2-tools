@@ -92,7 +92,7 @@ function mount(root,io={}){
   root.querySelectorAll('[data-claim]').forEach(b=>b.onclick=()=>run(async()=>{
    const r=list[+b.dataset.claim];
    const out=await call(base,'/api/v1/identity/claim',{method:'POST',body:{name:r.name,server:r.server_name||'',evidence:await evidence()},token:r.stored?.token});
-   if(out.token)await remember({server:base,name:r.name,server_name:r.server_name||'',token:out.token,status:out.status,claimed_at:out.claimed_at});
+   if(out.token){const row={server:base,name:r.name,server_name:r.server_name||'',token:out.token,status:out.status,claimed_at:out.claimed_at};await remember(row);if(io.claimed)await io.claimed(row);}
    else if(r.stored)await remember({...r.stored,status:out.status});
    message=out.status==='pending'?'Claim recorded; it takes over after the notice period unless the holder renews.':'Claim verified.';
   }));

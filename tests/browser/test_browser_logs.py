@@ -40,13 +40,17 @@ def test_the_lists_tabs_show_the_servers_logs_the_uploads_and_the_saved_logs(app
     go(page, app_url, "#/combat")
     shown = lambda: page.eval_on_selector_all("[data-log-panel]", "ps => ps.filter(p => !p.hidden).map(p => p.dataset.logPanel)")
     assert shown() == ["community"]
-    for tab in ("owned", "saved", "community"):
+    for tab in ("owned", "saved", "identities", "community"):
         page.click(f"#log-tab-{tab}")
         assert shown() == [tab] and page.locator(f"#log-tab-{tab}").get_attribute("aria-selected") == "true"
+    assert page.locator("#log-tab-identities").inner_text() == "My Character Identities"
+    assert page.locator("#log-panel-owned #my-characters").count() == 0                # its own tab, not under My Uploads
     page.focus("#log-tab-community")
     page.keyboard.press("ArrowRight")                                                 # the arrow keys move along them
     assert shown() == ["owned"] and page.evaluate("document.activeElement.id") == "log-tab-owned"
     page.keyboard.press("End")
+    assert shown() == ["identities"]
+    page.keyboard.press("ArrowLeft")
     assert shown() == ["saved"]
     saved = page.locator("#log-panel-saved")
     for words in ("Recorded encounters by type", "Upload recordings", "Analyzed encounters"):
@@ -164,6 +168,13 @@ def test_your_characters_reads_the_claims_kept_by_the_app(app_page, app_url):
     page = app_page
     with page.expect_response(lambda r: r.url.endswith("/api/identity-claims") and r.request.method == "GET") as answer:
         go(page, app_url, "#/combat")
-        page.click("#log-tab-owned")
+        page.click("#log-tab-identities")
     assert answer.value.ok
-    page.wait_for_function("document.querySelector('#my-characters').children.length > 0")
+    page.wait_for_function("document.querySelector('#log-panel-identities #my-characters').children.length > 0")
+
+
+def test_a_link_opens_my_character_identities_directly(app_page, app_url):
+    page = app_page
+    go(page, app_url, "#/combat/identities")
+    page.wait_for_selector("#log-panel-identities:not([hidden])")
+    assert page.locator("#log-tab-identities").get_attribute("aria-selected") == "true"

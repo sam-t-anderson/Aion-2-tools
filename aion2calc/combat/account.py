@@ -40,7 +40,11 @@ _ALLOWED = {
                        r"|role|remove|leave|disband))"),
 }
 _QUERY = re.compile(r"[A-Za-z0-9_=&%.+-]{0,300}")
+#: where Discord's sign-in returns: this app's own page on this computer (app/server.py serves it)
+DISCORD_BACK = re.compile(r"http://127\.0\.0\.1:[0-9]{1,5}/api/account/discord-done")
+_HANDOFF = re.compile(r"[A-Za-z0-9_-]{20,100}")
 _pending = {}                         # the Discord sign-in this app waits for: request, secret (never sent to the page)
+_POLL = threading.Lock()              # one poll of the server at a time: the page's and the browser's return
 
 
 class SignedOut(Exception):
@@ -154,6 +158,8 @@ def status() -> dict:
         return out
     try:
         found = _call(row["server"], "GET", "/api/v1/account", token=row["token"], timeout=15)
+        if _offer_claims(row):                  # claims made before 0.2.349 reached the account only with a sync
+            found = _call(row["server"], "GET", "/api/v1/account", token=row["token"], timeout=15)
         out["account"], out["session"] = found.get("account"), found.get("session")
         if out["account"] and out["account"].get("name") != row["name"]:
             _save(row["server"], row["token"], out["account"])
@@ -199,12 +205,16 @@ def recover() -> dict:
     return _signed_on(server, _call(server, "POST", "/api/v1/account/recover", {"evidence": evidence, "label": label()}))
 
 
-def discord_start() -> dict:
-    """Open Discord's sign-in in the browser; ``discord_poll`` then waits for the browser to finish."""
+def discord_start(return_to: str) -> dict:
+    """Open Discord's sign-in in the browser. The browser comes back to this app's own page on this computer
+    (``return_to``) with a one-time handoff, which ``discord_finish`` takes; the server issues the app's
+    credential only for it, so a Discord link sent to someone else signs nobody in here."""
     server = _server()
     if _load():
         raise ValueError("This app is already signed in; sign out first")
-    started = _call(server, "POST", "/api/v1/account/discord/start", {"purpose": "app"})
+    if not DISCORD_BACK.fullmatch(str(return_to or "")):
+        raise ValueError("Discord sign-in returns only to this app on this computer")
+    started = _call(server, "POST", "/api/v1/account/discord/start", {"purpose": "app", "return_to": return_to})
     url = str(started.get("url") or "")
     if not url.startswith("https://discord.com/"):
         raise ValueError("The server did not start a Discord sign-in")
@@ -215,33 +225,100 @@ def discord_start() -> dict:
     return {"waiting": True, "interval": max(2, int(started.get("interval") or 3))}
 
 
-def discord_poll() -> dict:
-    with LOCK:
-        waiting = dict(_pending)
-    if not waiting:
-        return {"status": "expired"}
-    result = _call(waiting["server"], "POST", "/api/v1/account/discord/poll",
-                   {"request": waiting["request"], "secret": waiting["secret"], "label": label()})
-    if result.get("status") != "pending":
-        with LOCK:
-            _pending.clear()
+def _poll_server(waiting) -> dict:
+    body = {"request": waiting["request"], "secret": waiting["secret"], "label": label()}
+    if waiting.get("handoff"):
+        body["handoff"] = waiting["handoff"]
+    result = _call(waiting["server"], "POST", "/api/v1/account/discord/poll", body)
     if result.get("status") == "approved":
         return {"status": "approved"} | _signed_on(waiting["server"], result)
-    return {"status": result.get("status") or "expired"}
+    return {"status": result.get("status") or "expired"} | ({"error": str(result["error"])[:200]} if result.get("error") else {})
+
+
+def discord_finish(handoff=None, error=None) -> dict:
+    """The browser came back from Discord to this app with its one-time handoff, or Discord's refusal: finish
+    the sign-in now (the Account page need not be open); the page's next poll reads how it went."""
+    with _POLL:
+        with LOCK:
+            waiting = dict(_pending)
+        if not waiting or waiting.get("result"):
+            return {"status": "expired"}
+        if error:
+            out = {"status": "error", "error": str(error)[:200]}
+        elif not _HANDOFF.fullmatch(str(handoff or "")):
+            out = {"status": "error", "error": "The browser came back from Discord without a sign-in"}
+        else:
+            out = _poll_server(waiting | {"handoff": handoff})
+        if out["status"] != "pending":
+            with LOCK:
+                _pending["result"] = out
+        return out
+
+
+def discord_poll() -> dict:
+    """The Discord sign-in this app waits for: pending until the browser comes back to this app."""
+    with _POLL:
+        with LOCK:
+            waiting = dict(_pending)
+        if not waiting:
+            return {"status": "expired"}
+        out = waiting.get("result") or _poll_server(waiting)
+        if out["status"] != "pending":
+            with LOCK:
+                _pending.clear()
+        return out
 
 
 def sync() -> dict:
     """Add the uploads (ownership backup) and characters (identity claims) this app holds to the account."""
-    from . import identity, ownership
+    from . import ownership
     row = _signed_in()
     owned = [{"id": r["id"], "delete_token": r["delete_token"]} for r in ownership.entries() if r["server"] == row["server"]]
     out = {"logs": 0, "characters": 0}
     for start in range(0, len(owned), 500):
         out["logs"] += int(_authed("POST", "/api/v1/account/logs/attach", {"evidence": owned[start:start + 500]}).get("attached") or 0)
-    tokens = [c["token"] for c in identity.entries() if c["server"] == row["server"]][:200]
-    if tokens:
-        out["characters"] = int(_authed("POST", "/api/v1/account/claims/attach", {"tokens": tokens}).get("added") or 0)
+    out["characters"] = _attach_claims(row)
     return out
+
+
+def _attach_claims(row) -> int:
+    from . import identity
+    tokens = [c["token"] for c in identity.entries() if c["server"] == row["server"]][:200]
+    if not tokens:
+        return 0
+    added = int(_authed("POST", "/api/v1/account/claims/attach", {"tokens": tokens}).get("added") or 0)
+    _offered.update((row["server"], t) for t in tokens)
+    return added
+
+
+_offered = set()                      # (server, claim credential) this run already gave the account
+
+
+def _offer_claims(row) -> int:
+    """Once per run, the account is given every claim this app holds for its server, so a character claimed
+    before signing in, or before claims joined the account at once, reaches it (and its legions) by itself."""
+    from . import identity
+    held = {(row["server"], c["token"]) for c in identity.entries() if c["server"] == row["server"]}
+    if held <= _offered:
+        return 0
+    _offered.update(held)                 # offered once, even when the server is unreachable now
+    try:
+        return _attach_claims(row)
+    except (ValueError, OSError):
+        return 0
+
+
+def attach_claims_quietly() -> int:
+    """After a claim: add this app's claimed characters to the account, when the app is signed in on the server
+    it claims on, so the account (and its legions) know the character at once. A failure only waits for the
+    next sync; it never undoes the claim."""
+    row = _load()
+    if not row or row["server"] != _server():
+        return 0
+    try:
+        return _attach_claims(row)
+    except (SignedOut, ValueError, OSError):
+        return 0
 
 
 def open_website(page: str = "account.html") -> dict:

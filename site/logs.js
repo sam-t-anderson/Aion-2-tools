@@ -1,7 +1,11 @@
-let logSource='community';
+// logs.html#identities (or #owned, #saved) opens that list: the account page's legions point at My Character Identities.
+let logSource=['owned','saved','identities'].includes(location.hash.slice(1))?location.hash.slice(1):'community';
 A2LogTabs.mount(document.getElementById('combat-log-tabs'),logSource,value=>{logSource=value;});
 A2LogOwnership.mount(document.getElementById("owned-logs"));
-A2Identity.mount(document.getElementById("my-characters"));
+// A claim made here joins this browser's account at once, when it is signed in to the same server.
+A2Identity.mount(document.getElementById("my-characters"),{claimed:async row=>{
+  if(window.A2Session&&A2Session.token(row.server))await A2Session.call("POST","/api/v1/account/claims/attach",{tokens:[row.token]}).catch(()=>{});
+}});
 // The "Community Combat Logs" sub-tab is rendered as a one-row-per-encounter table by the tab
 // controller below (renderCommunity); A2Community stays loaded for its upload types (used below).
 

@@ -263,6 +263,9 @@ window.A2Session = (function () {
       return "log.html?id=" + encodeURIComponent(l.id) + (view ? "&t=" + encodeURIComponent(view) : "");
     },
     inviteLink: (token) => page() + "#a2invite=" + token,
+    // the desktop app holds the upload credentials a claim needs, so the website names it
+    claimHint: "A legion needs one of your claimed characters. Claim yours in the desktop app, on Combat Logs → My Character Identities, and it joins your account.",
+    claimHref: "logs.html#identities",
     signout: () => S.signout(),
     onSignedOut() {
       if (view) view.render();
@@ -284,17 +287,30 @@ window.A2Session = (function () {
     security,
   };
 
-  // Hand-overs that arrive in the address's fragment: a one-time sign-in ticket, Discord's refusal, an invite.
+  // Hand-overs that arrive in the address's fragment: a one-time sign-in ticket, Discord's refusal, the code that
+  // finishes linking Discord (with this browser's own session: a link started elsewhere is refused), an invite.
+  let opened = null;
   async function arrivals() {
     const hash = new URLSearchParams(location.hash.slice(1));
     const ticket = hash.get("a2ticket"),
       error = hash.get("a2error"),
+      link = hash.get("a2link"),
       invite = hash.get("a2invite");
-    if (ticket || error) history.replaceState(null, "", location.pathname + location.search);
+    if (ticket || error || link) history.replaceState(null, "", location.pathname + location.search);
     if (ticket) {
       try {
         if (window.A2 && A2.ensure) await A2.ensure();
         await S.finish(await S.send("POST", "/api/v1/account/ticket/redeem", { ticket }));
+      } catch (e) {
+        notice = e.message;
+      }
+    }
+    if (link) {
+      opened = "security";
+      try {
+        if (window.A2 && A2.ensure) await A2.ensure();
+        await S.call("POST", "/api/v1/account/discord/link/finish", { code: link });
+        notice = t("Discord linked");
       } catch (e) {
         notice = e.message;
       }
@@ -333,7 +349,7 @@ window.A2Session = (function () {
     if (!root) return;
     const [tab, legion] = location.hash.slice(1).split("/");
     view = window.A2Account.mount(root, io, {
-      tab: invite ? "legions" : ["logs", "legions", "security"].includes(tab) ? tab : "logs",
+      tab: invite ? "legions" : opened || (["logs", "legions", "security"].includes(tab) ? tab : "logs"),
       legion: /^lg_[0-9a-f]{12}$/.test(legion || "") ? legion : null,
       invite,
     });

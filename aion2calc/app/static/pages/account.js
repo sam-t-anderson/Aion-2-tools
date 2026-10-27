@@ -56,6 +56,7 @@ const accountIO = {
   call: accountCall,
   href: (tab) => "#/account/" + (tab === "signin" ? "" : tab),
   logHref: (l) => "#/combat-log/shared/" + encodeURIComponent(l.id),
+  claimHref: "#/combat/identities",
   inviteLink: (token) => ACCOUNT_SITE + "account.html#a2invite=" + token,
   menuItems: [
     ["approve", accountText("Approve a website sign-in")],

@@ -9,6 +9,7 @@ Long jobs (optimizing a character) run in worker threads; the UI polls them.
 from __future__ import annotations
 
 import hashlib
+import html
 from functools import wraps
 import ipaddress
 import json
@@ -538,6 +539,23 @@ def inventory_post(path: str, body: dict) -> dict:
     return inv
 
 
+def _discord_done_page(out: dict) -> bytes:
+    """What the browser shows when Discord's sign-in comes back to the app."""
+    status = out.get("status")
+    if status == "approved":
+        name = (out.get("account") or {}).get("name") or ""
+        text = f"Signed in with Discord{' as ' + name if name else ''}. Return to Aion 2 Calc; you can close this tab."
+    elif status == "pending":
+        text = "Discord has not confirmed this sign-in yet. Return to Aion 2 Calc, which keeps waiting."
+    elif status == "expired":
+        text = "No Discord sign-in is waiting in Aion 2 Calc. Start it again from the app's Account page."
+    else:
+        text = out.get("error") or "The Discord sign-in ended. Start it again from the app's Account page."
+    return ("<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\">"
+            "<title>Aion 2 Calc</title><body style=\"font:16px system-ui,sans-serif;margin:3em auto;max-width:36em;padding:0 1em\">"
+            f"<h1 style=\"font-size:1.3em\">Aion 2 Calc</h1><p>{html.escape(text)}</p></body></html>").encode("utf-8")
+
+
 # --------------------------------------------------------------------- server
 class Handler(BaseHTTPRequestHandler):
     server_version = "aion2calc"
@@ -685,6 +703,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/community":
             from ..combat.share import community_request
             return self._json(community_request(q.get("path", "")))
+        if path == "/api/account/discord-done":
+            # Discord's sign-in comes back here, in the player's browser on this computer (account.discord_start)
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("Discord sign-in returns only to the computer running the app")
+            from ..combat import account
+            return self._send(200, _discord_done_page(account.discord_finish(q.get("a2handoff"), q.get("a2error"))),
+                              "text/html; charset=utf-8")
         if path == "/api/sessions/reconstruction":
             from ..combat.sessions import reconstruct
             return self._json(reconstruct(q.get("file", ""), int(q.get("first", 1)), int(q.get("last", 1))))
@@ -993,10 +1018,12 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/identity-claims":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Identity credentials are local to this computer")
-            from ..combat import identity
+            from ..combat import account, identity
             if body.get("action") != "replace":
                 raise ValueError("Unknown identity action")
-            return self._json(identity.replace(body.get("claims")))
+            saved = identity.replace(body.get("claims"))
+            account.attach_claims_quietly()      # a claim joins the signed-in account at once
+            return self._json(saved)
         if path == "/api/logserver":
             from ..combat import share
             st = share.dismiss_visibility_notice() if body.get("action") == "notice-seen" else \
@@ -1414,7 +1441,8 @@ class Handler(BaseHTTPRequestHandler):
         work = {"register": lambda: account.register(body.get("name")),
                 "link": lambda: account.link(body.get("code")),
                 "recover": account.recover,
-                "discord-start": account.discord_start,
+                "discord-start": lambda: account.discord_start(
+                    f"http://127.0.0.1:{self.server.server_address[1]}/api/account/discord-done"),
                 "discord-poll": account.discord_poll,
                 "sync": account.sync,
                 "website": lambda: account.open_website(body.get("page") or "account.html"),

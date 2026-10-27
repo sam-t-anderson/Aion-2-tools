@@ -205,8 +205,11 @@
         ? list.map((c) => `<option value="${esc(c.id)}">${esc(c.name)} (${esc(world(c.server))})</option>`).join("")
         : `<option value="">${esc(server ? tr("No claimed character on {0}", world(server)) : tr("No claimed character yet"))}</option>`;
     };
+    // Where characters are claimed: Combat Logs → My Character Identities (io.claimHref), named and linked here.
     const noCharacter = () =>
-      characters().length ? "" : box(tr("A legion needs one of your claimed characters. Claim yours in the app (Combat Logs → Your characters), and it joins your account."));
+      characters().length
+        ? ""
+        : `<div class="note" role="status">${esc(tr(io.claimHint || "A legion needs one of your claimed characters. Claim yours on Combat Logs → My Character Identities, and it joins your account."))}${io.claimHref ? ` <a href="${esc(io.claimHref)}">${esc(tr("Open My Character Identities"))}</a>` : ""}</div>`;
 
     async function renderLegions(el) {
       if (st.legion) return renderLegion(el, st.legion);
