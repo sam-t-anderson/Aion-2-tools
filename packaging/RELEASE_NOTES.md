@@ -1,3 +1,7 @@
+## New starts the overlay over (0.2.346)
+
+**The fight before New stays gone.** The overlay's **New** button, and **Split now** on the Live Meter page, emptied the meter, but the first hit after it brought the previous fight's damage back when it came within two minutes of the last one (or the longer gap set under the meter's automatic splits). The live view joins a fight back together across a zone change in the middle of it, and it was joining across your split too. It no longer reaches back past a split you asked for: after **New**, the overlay and the Live Meter page show only the combat since. The fight before stays in the list of encounters.
+
 ## Update checks that work on every computer (0.2.345)
 
 **The app finds new versions again.** On some Windows computers, Settings said *could not check for updates (… CERTIFICATE_VERIFY_FAILED … unable to get issuer certificate)*, so the app never offered a new version. It checked GitHub's certificate with its own copy of the certificates stored in Windows, and on those computers that copy was missing a root certificate that Windows downloads only the first time it needs one. The app now asks Windows (or macOS, or Linux) to check each certificate, as your browser does, with Mozilla's root certificates as a second check. The same goes for everything else the app fetches: uploads, the log server, character imports and game data.
