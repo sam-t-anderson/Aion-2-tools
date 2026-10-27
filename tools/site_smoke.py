@@ -6,6 +6,8 @@ For every page, at desktop width and at phone width (390 px):
   - no script error and nothing logged as an error by the page;
   - one main heading (h1);
   - on a phone nothing scrolls sideways, even with a wide table on the page;
+  - on a phone the header's name and buttons share one row, and the opened menu lists the pages one under
+    another;
   - with --axe, axe-core reports no serious or critical accessibility problem, in the light theme and
     again in the dark one.
 Requests to any other site are blocked, so the check never depends on the log server or a third party.
@@ -89,6 +91,16 @@ WIDE_TABLE = """() => {
 }"""
 
 
+# How far apart, top to bottom, the header's visible parts other than the menu sit (0 on one row).
+PHONE_HEADER = """() => {
+  const tops = [...document.querySelector('.topbar').children]
+    .filter(e => !e.matches('.nav') && getComputedStyle(e).display !== 'none').map(e => e.getBoundingClientRect().top);
+  return Math.max(...tops) - Math.min(...tops);
+}"""
+PHONE_MENU = """() => [...document.querySelectorAll('.topbar > .nav a')].map(a => {
+  const r = a.getBoundingClientRect(); return [r.left, r.top]; })"""
+
+
 def check_page(context, base: str, name: str, viewport: dict, axe: str | None, problems: list, scheme: str = "light") -> None:
     page = context.new_page()
     page.set_viewport_size(viewport)
@@ -135,6 +147,16 @@ def check_page(context, base: str, name: str, viewport: dict, axe: str | None, p
             over = page.evaluate(WIDE_TABLE)
             if over > 1:
                 problems.append(f"{label}: a wide table makes the page scroll sideways by {over}px on a phone")
+        toggle = page.locator(".topbar .navtoggle")
+        if toggle.count():
+            if page.evaluate(PHONE_HEADER) > 10:
+                problems.append(f"{label}: the header's name and buttons take more than one row on a phone")
+            toggle.click()
+            links = page.evaluate(PHONE_MENU)
+            if not links or any(abs(left - links[0][0]) > 1 for left, _ in links) or any(
+                    below <= above for (_, above), (_, below) in zip(links, links[1:])):
+                problems.append(f"{label}: the opened menu does not list the pages one under another")
+            toggle.click()
     if any(MAP_PROVIDER in url for url in external):
         problems.append(f"{label}: contacted {MAP_PROVIDER} before the visitor asked for the map")
     if axe and viewport is DESKTOP:

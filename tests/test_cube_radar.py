@@ -553,7 +553,9 @@ def test_the_radar_learns_from_the_sound_and_tracks_a_cube(tmp_path):
     assert state["ready"] and state["last_learn"]["ok"] and "dB over the background" in state["last_learn"]["message"]
     assert [s["kind"] for s in state["samples"]] == ["background", "cube"] and state["model"]["notes"]
     assert (tmp_path / R.PROFILE).exists()
-    assert not _wait(lambda: radar.state()["listening"], timeout=0.5)      # not on: it stopped listening
+    # not on: it stops listening once the sample is learned (its thread winds down just after) and stays stopped
+    assert _wait(lambda: not radar.state()["listening"])
+    assert not _wait(lambda: radar.state()["listening"], timeout=0.5)
     scene["audio"] = quiet + jingle(4, rng, level=0.02, pan=-50)
     radar.configure(True, 5)
     assert _wait(lambda: radar.state()["heard"])
