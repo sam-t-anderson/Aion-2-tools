@@ -1,3 +1,18 @@
+## Featured encounters (0.2.352)
+
+**Featured encounters at the top of Combat Logs.** When the log server's operator features a boss (log server 0.2.145), Combat Logs shows it above **Browse logs**, in the app and on the website. It appears as the boss's portrait and nine cards, each with its top three: progress, speed, execution, the all-stars by role, and the classes' recorded DPS by role. Its pages work like fflogs' zone pages:
+- **Race Summary**: the phases (the mini bosses, then the final boss) over one progress bar. Each phase shows the teams that reached it and killed it, its first kill on record and the teams still on it; the teams that finished stand under **Complete!**. A closer look at the leading teams follows.
+- **Progress**: every team by how far it got. Then come the final-boss kills in the order they happened, with the party's classes, the game version, the duration and the deaths.
+- **All Reports**: the encounter's public logs.
+- **Rankings**: the players by boss, class, and damage or healing per second, or the teams' speed.
+- **Statistics**: each class's recorded rates.
+
+The race, progress, rankings and statistics can be narrowed to one region.
+
+**Legions in the race.** A legion counts on these pages only when its leader turns on **Show this legion on the featured encounters' race and progress pages** in the legion's page. Otherwise a fight counts for its party, named after its first member. A legion's members are never listed.
+
+**Roles** arrange the cards as the developers group the classes for party synergy: Gladiator and Templar tank, Cleric and Chanter support, and the other four deal damage. See [Featured encounters](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/app.md#featured-encounters).
+
 ## Your own path, from your party's recordings (0.2.351)
 
 **Add other recordings of this fight.** A log you open from the log server now offers this under its movement replay. It merges the movement from the other public uploads of the same fight, matched by the hits they share (log server 0.2.144):

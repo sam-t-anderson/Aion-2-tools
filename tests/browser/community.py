@@ -36,6 +36,65 @@ KILLS = [
 ]
 
 
+# A featured encounter (log server 0.2.145): two phases, a legion that cleared it and a party still on the mini boss.
+FEATURED_ID = "fe_0123456789"
+ROLES = {"gladiator": "tank", "templar": "tank", "cleric": "support", "chanter": "support", "assassin": "dps", "ranger": "dps",
+         "sorcerer": "dps", "spiritmaster": "dps"}
+_LEGION = {"key": "legion:t1", "kind": "legion", "name": "Testers", "server": "2102", "members": [], "region": "nae"}
+_PARTY = {"key": "party:t2", "kind": "party", "name": "Testsorc's party", "server": "2102", "region": "nae",
+          "members": [{"name": p["name"], "class": p["class"], "server": "2102"} for p in PLAYERS]}
+_PHASES = [{"boss_key": "npc:2390002", "boss": FIGHTS[1][1], "icon": ""}, {"boss_key": "npc:2390001", "boss": FIGHTS[0][1], "icon": ""}]
+FEATURED = {"id": FEATURED_ID, "title": "Testlord race", "boss": FIGHTS[0][1], "boss_key": "npc:2390001", "difficulty": "Normal",
+            "encounter_type": "dungeon", "instance_id": 600999, "starts_at": NOW - 86400, "ends_at": None, "icon": "", "phases": _PHASES}
+_TEAMS = [{"rank": 1, "team": _LEGION, "killed": 2, "phases": 2, "complete": True, "best_hp": None, "next_phase": None,
+           "first_kill_at": NOW - 3600, "progress_at": NOW - 3600, "position": 1.0, "pulls": 5, "final_pulls": 3, "log": LOG_ID},
+          {"rank": 2, "team": _PARTY, "killed": 0, "phases": 2, "complete": False, "best_hp": 35.5, "next_phase": 0,
+           "first_kill_at": None, "progress_at": NOW - 1800, "position": 0.3225, "pulls": 2, "final_pulls": 0, "log": LOG_ID}]
+_RATES = {"dps": [{"class": "sorcerer", "role": "dps", "count": 3, "p25": 12000.0, "median": 15000.0, "p75": 16000.0, "p95": 17000.0,
+                   "max": 17500.0}],
+          "tank": [],
+          "support": [{"class": "cleric", "role": "support", "count": 2, "p25": 4000.0, "median": 5000.0, "p75": 5500.0, "p95": 5900.0,
+                       "max": 6000.0}]}
+_SUMMARY = {"progress": _TEAMS, "speed": [{"team": _LEGION, "elapsed": 754.0, "log": LOG_ID, "at": NOW - 3600}],
+            "execution": [{"team": _LEGION, "log": LOG_ID, "at": NOW - 3600, "seconds": 95.0, "deaths": 1}],
+            "all_stars": {"dps": [{"name": "Testsorc", "class": "sorcerer", "server": "2102", "points": 187.5, "bosses": 2}], "tank": [],
+                          "support": [{"name": "Testcleric", "class": "cleric", "server": "2102", "points": 120.0, "bosses": 2}]},
+            "classes": _RATES, "teams": 2, "complete": 1, "pulls": 7}
+_FEATURED_NOTE = "Built from the public uploads."
+_REGIONS = ["kr", "nae"]
+
+
+def _race(q: dict) -> dict:
+    return {"featured": FEATURED, "region": None, "regions": _REGIONS, "total": len(_TEAMS), "teams": _TEAMS, "note": _FEATURED_NOTE,
+            "phases": [{**_PHASES[0], "teams": 2, "killed_by": 1, "first_kill": {"team": _LEGION, "at": NOW - 4200}},
+                       {**_PHASES[1], "teams": 1, "killed_by": 1, "first_kill": {"team": _LEGION, "at": NOW - 3600}}]}
+
+
+def _progress(q: dict) -> dict:
+    return {"featured": FEATURED, "region": None, "regions": _REGIONS, "page": int(q.get("page", ["1"])[0]), "total": len(_TEAMS),
+            "note": _FEATURED_NOTE,
+            "progress": [{**t, "killed_bosses": [0, 1] if t["complete"] else []} for t in _TEAMS],
+            "kills": [{"rank": 1, "team": _LEGION, "log": LOG_ID, "at": NOW - 3600, "seconds": 95.0, "patch": "version:product:2.0.8.0",
+                       "composition": {"cleric": 1, "sorcerer": 1}, "deaths": 1}]}
+
+
+def _rankings(q: dict) -> dict:
+    if q.get("metric", ["dps"])[0] == "speed":
+        return {"featured": FEATURED, "metric": "speed", "boss_key": FEATURED["boss_key"], "regions": _REGIONS, "note": _FEATURED_NOTE,
+                "entries": [{"rank": 1, "team": _LEGION, "elapsed": 754.0, "log": LOG_ID, "at": NOW - 3600,
+                             "patch": "version:product:2.0.8.0"}]}
+    boss, wanted = q.get("boss", [FEATURED["boss_key"]])[0], q.get("class", [""])[0]
+    rows = [{"log": LOG_ID, "segment": 2 if boss == FEATURED["boss_key"] else 1, "name": p["name"], "class": p["class"], "server": "2102",
+             "score": 15000.0 - 5000 * i, "parse": 90.0 - 30 * i, "duration": 95.0, "created_at": NOW} for i, p in enumerate(PLAYERS)]
+    return {"featured": FEATURED, "boss_key": boss, "regions": _REGIONS, "entries": [r for r in rows if not wanted or r["class"] == wanted]}
+
+
+def _statistics(q: dict) -> dict:
+    return {"featured": FEATURED, "boss_key": q.get("boss", [FEATURED["boss_key"]])[0], "metric": q.get("metric", ["dps"])[0],
+            "region": None, "regions": _REGIONS, "classes": [*_RATES["dps"], *_RATES["support"]], "truncated": False, "roles": ROLES,
+            "note": "Recorded rates of the public uploads."}
+
+
 def _log_row() -> dict:
     return {"id": LOG_ID, "created_at": NOW, "title": "Test run", "region": "nae", "source": "Aion 2 Calc live session",
             "uploader": "Testsorc", "boss": FIGHTS[0][1], "duration": 160.0, "players": PLAYERS, "top_dps": 15000.0,
@@ -126,6 +185,13 @@ ANSWERS = {
                                "region": q.get("region", ["global"])[0], "region_label": "Global",
                                "regions": [{"id": "global", "label": "Global"}, {"id": "kr", "label": "Korea"}],
                                "sources": ["test"]},
+    "/api/v1/featured": lambda q: {"featured": [{**FEATURED, "summary": _SUMMARY}], "roles": ROLES, "note": _FEATURED_NOTE},
+    f"/api/v1/featured/{FEATURED_ID}": lambda q: {**FEATURED, "summary": _SUMMARY, "roles": ROLES, "note": _FEATURED_NOTE},
+    f"/api/v1/featured/{FEATURED_ID}/race": _race,
+    f"/api/v1/featured/{FEATURED_ID}/progress": _progress,
+    f"/api/v1/featured/{FEATURED_ID}/reports": lambda q: {"featured": FEATURED, "logs": [_log_row()], "total": 1, "page": 1, "limit": 30},
+    f"/api/v1/featured/{FEATURED_ID}/rankings": _rankings,
+    f"/api/v1/featured/{FEATURED_ID}/statistics": _statistics,
     "/.well-known/a2log.json": lambda q: {"format": "a2log", "canonical_presets_version": 1},
     "/api/v1/account/config": lambda q: {"methods": {"app": True, "passkey": False, "discord": False}, "origins": [],
                                          "note": ""},

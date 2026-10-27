@@ -341,8 +341,15 @@
           <label>${esc(tr("Admits"))} <select data-uses>${[1, 5, 10, 25, 50, 100].map((u) => `<option value="${u}" ${u === 25 ? "selected" : ""}>${esc(many(u, "{0} player", "{0} players"))}</option>`).join("")}</select></label>
           <button class="btn small primary" data-invite-new>${esc(tr("New invite link"))}</button></div><div data-invite-link></div>`
         : "";
+      // The featured encounters' race and progress pages (log server 0.2.145) show a legion only when its leader says so.
+      const featured = lead
+        ? `<h4>${esc(tr("Featured encounters"))}</h4><label><input type="checkbox" data-show-progress ${L.show_progress ? "checked" : ""}> ${esc(tr("Show this legion on the featured encounters' race and progress pages"))}</label>
+          <p class="small muted">${esc(tr("Off until you turn it on. When on, a featured boss fought by a member with the character they joined with counts for the legion, under its name; its members are never listed."))}</p>`
+        : L.show_progress
+          ? `<p class="small muted">${esc(tr("The leader shows this legion on the featured encounters' race and progress pages."))}</p>`
+          : "";
       el.innerHTML = `${back}${head}<h4>${esc(tr("Members"))}</h4><table class="t"><thead><tr><th>${esc(tr("Character"))}</th><th>${esc(tr("Role"))}</th><th>${esc(tr("Joined"))}</th><th></th></tr></thead><tbody>${roster}</tbody></table>
-        ${requests}${invites}<h4>${esc(tr("The legion's logs"))}</h4><div data-legion-logs>${esc(tr("Loading…"))}</div>
+        ${requests}${invites}${featured}<h4>${esc(tr("The legion's logs"))}</h4><div data-legion-logs>${esc(tr("Loading…"))}</div>
         <div class="row" style="margin-top:12px"><button class="btn small" data-leave>${esc(tr("Leave the legion"))}</button>${lead ? `<button class="btn small" data-disband>${esc(tr("Disband"))}</button>` : ""}</div>`;
       wireBack(el);
       el.querySelectorAll("[data-role]").forEach(
@@ -363,6 +370,10 @@
         (b) => (b.onclick = () => act(() => call("POST", `/api/v1/legions/${id}/requests/decide`, { id: b.dataset.decide, approve: !!b.dataset.approve }), b.dataset.approve ? tr("Approved") : tr("Declined"))),
       );
       el.querySelectorAll("[data-revoke]").forEach((b) => (b.onclick = () => act(() => call("POST", `/api/v1/legions/${id}/invites/revoke`, { id: b.dataset.revoke }), tr("Invite link revoked"))));
+      const showProgress = el.querySelector("[data-show-progress]");
+      if (showProgress)
+        showProgress.onchange = () =>
+          act(() => call("POST", `/api/v1/legions/${id}/progress`, { show: showProgress.checked }), showProgress.checked ? tr("Shown on the featured encounters' pages") : tr("Hidden from the featured encounters' pages"));
       const make = el.querySelector("[data-invite-new]");
       if (make)
         make.onclick = async () => {

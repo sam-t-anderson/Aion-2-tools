@@ -21,6 +21,7 @@ A task-oriented guide to the desktop app and shared review controls. Detailed co
 - [Pet and spirit grouping](#pet-and-spirit-grouping)
 - [Sharing logs and recovering upload queues](#sharing-logs-and-recovering-upload-queues)
 - [Your account and legions](#your-account-and-legions)
+- [Featured encounters](#featured-encounters)
 - [Community comparisons](#community-comparisons)
 - [Editing shared raid plans](#editing-shared-raid-plans)
 - [Official news](#official-news)
@@ -597,6 +598,34 @@ Once signed in, the app adds to the account the uploads its ownership backup hol
 **Another computer** joins the account with **Link with a code** (a code made on the signed-in website, Sign-in & security → **Make a link code**) or **Sign in with Discord**, if you linked Discord. Finish the Discord sign-in in the browser on the same computer: Discord sends the browser back to the app itself (`http://127.0.0.1:<port>/api/account/discord-done`, served by the app, 0.2.349 and log server 0.2.142), and the server gives the app its sign-in only for what that page receives, so a Discord link someone sends you never signs their app in to your account. Linking Discord on the website is likewise finished by the signed-in website that started it. An app that lost its credential uses **Recover with my uploads**: the private credentials of three of the account's uploads, from your ownership backup, prove the account is yours.
 
 **Legions.** A legion is founded on one of your claimed characters' servers, with its name as in the game (unique on that server); you lead it. The game does not say who is in a legion, so the leader decides who joins: an **invite link** (made by the leader or an officer) joins at once, and a **request** waits for the leader or an officer to approve it. Members are known by their claimed character, never by account. The leader names officers, can hand the legion to another member (staying on as an officer) and disbands it by typing its name; the leader removes anyone and an officer removes members. Anyone can leave, the leader once someone else leads; the last member to leave ends the legion. Members see each other's public and **Legion only** logs on the legion's page, newest first. Invites made by someone who leaves or stops being an officer stop working. Closing the account (Sign-in & security) leaves every legion and ends every sign-in.
+
+## Featured encounters
+
+The log server's operator can feature the latest bosses (0.2.352, log server 0.2.145). Each one sits at the top of **Combat Logs**, above **Browse logs**, in the app and on the website: the boss's portrait and nine cards, each with its top three.
+- **Progress**: the teams that got furthest.
+- **Speed**: each team's fastest complete run.
+- **Execution**: each team's final-boss kill with the fewest deaths.
+- **All Stars (DPS)**, **All Stars (Tank)** and **All Stars (Support)**: for each character, their best parse on each of the encounter's bosses, added up.
+- **DPS**, **Tank Damage** and **Support Damage**: the classes' median recorded DPS.
+
+**View more…** and the links beside the encounter's title open its pages:
+- **Race Summary**: the phases (the mini bosses, then the final boss) side by side over one bar, filled as far as the leading team got. Each phase shows how many teams reached and killed it, its first kill on record, and the teams still working on it. The teams that finished stand under **Complete!**. **A closer look** then shows the leading teams: their progress, their pulls, and the boss they are on or when they finished.
+- **Progress**: every team by how far it got, with the bosses it killed, its pulls and when it last made progress. Then come the final-boss kills, first first, with the party's classes, the game version, the duration and the deaths.
+- **All Reports**: the encounter's public logs, newest first.
+- **Rankings**: the players on one of its bosses by damage or healing per second, for one class or all of them, or each team's fastest run (**Speed (teams)**). A player's log opens at the ranked fight.
+- **Statistics**: each class's recorded rate on one of its bosses: the samples, the 25th, 50th, 75th and 95th percentiles, the best, and a bar showing the middle half.
+
+The race, progress, rankings and statistics can be narrowed to one **Region**. Everything comes from public uploads that are not under moderator review. A fight counts at the time it ended, never after its upload. It counts once, however many party members uploaded it.
+
+**Teams.** A fight counts for its party, named after its first member by name. It counts for a legion instead when two things hold:
+- the legion's leader shows it on these pages, under **Account → Legions →** the legion **→ Featured encounters**;
+- the member who uploaded the fight played it with the character they joined the legion with.
+
+The setting is off until the leader turns it on, since who is in a legion is for its members to know. A legion's members are never listed.
+
+**Roles** only arrange the cards. Gladiator and Templar tank, Cleric and Chanter support, and the other four deal damage. This is how the developers group the classes for party synergy (the party-synergy screen of an official AION 2 live broadcast, reported on [Inven](https://www.inven.co.kr/board/aion2/6451/19644)).
+
+On the website, an encounter's pages are at `encounter.html?f=<id>&view=race|progress|reports|rankings|statistics`; in the app, at `#/featured/<id>/<view>`. The log server's operator adds, orders and removes the encounters on the server's command line or its private dashboard.
 
 ## Community comparisons
 

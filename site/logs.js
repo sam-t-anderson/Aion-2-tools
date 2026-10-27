@@ -6,6 +6,11 @@ A2LogOwnership.mount(document.getElementById("owned-logs"));
 A2Identity.mount(document.getElementById("my-characters"),{claimed:async row=>{
   if(window.A2Session&&A2Session.token(row.server))await A2Session.call("POST","/api/v1/account/claims/attach",{tokens:[row.token]}).catch(()=>{});
 }});
+// The encounters the log server's operator features sit above the tabs (nothing when there is none); each has its
+// pages on encounter.html.
+A2Featured.section(document.getElementById('featured'),{api:A2.api,link:featuredLink,logLink:featuredLogLink});
+function featuredLogLink(id,segment){return 'log.html?id='+encodeURIComponent(id)+(Number.isInteger(segment)?'&segment='+segment:'');}
+function featuredLink(id,view,metric){return 'encounter.html?'+new URLSearchParams({f:id,view:view||'race',...(metric?{metric}:{})});}
 // The "Community Combat Logs" sub-tab is rendered as a one-row-per-encounter table by the tab
 // controller below (renderCommunity); A2Community stays loaded for its upload types (used below).
 

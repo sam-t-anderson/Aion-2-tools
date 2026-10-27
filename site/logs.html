@@ -21,6 +21,7 @@
 <link rel="stylesheet" href="static/app.css"><script src="static/i18n.js"></script>
 <link rel="stylesheet" href="site.css">
 <link rel="stylesheet" href="static/combat-review.css">
+<link rel="stylesheet" href="static/featured.css">
 </head>
 <body>
 <header class="topbar"><div class="brand"><a href="index.html"><img src="static/logo.png" alt="">Aion 2 Calc</a><small>AION 2 combat tools</small></div><nav class="nav"><a href="index.html">Home</a><a href="logs.html" class="on" aria-current="page">Logs</a><a href="leaderboard.html">Leaderboard</a><a href="stats.html">Class stats</a><a href="builds.html">Builds</a><a href="plans.html">Plans</a><a href="planner.html">Raid Planner</a><a href="maps.html">Maps</a><a href="crafting.html">Crafting</a><a href="timers.html">Timers</a><a href="news.html">News</a><a href="docs.html">Docs</a><a href="https://github.com/sam-t-anderson/Aion-2-tools" target="_blank" rel="noopener">GitHub</a><a href="https://discord.gg/9y6zkUyvBv" target="_blank" rel="noopener">Discord</a></nav><button class="iconbtn" id="theme" title="Theme: follow computer, light or dark" aria-label="Change theme">◐</button></header>
@@ -28,6 +29,7 @@
   <div id="logs-ui">
     <h1 class="pagetitle">Combat logs</h1>
     <p class="small muted">Learned from shared public uploads (anonymous — no names kept). Browse community parses, or see the aggregate leaderboards below.</p>
+    <div id="featured"></div>
     <div class="row" role="tablist" id="logs-tabs" aria-label="Combat log views" style="margin-top:10px">
       <button class="btn small" role="tab" type="button" data-tab="community" aria-selected="true">Browse logs</button>
       <button class="btn small" role="tab" type="button" data-tab="speed" aria-selected="false">Completed-run speed</button>
@@ -47,6 +49,7 @@
 <script src="static/community.js"></script>
 <script src="static/archive-upload.js"></script>
 <script src="static/log-tabs.js"></script>
+<script src="static/featured.js"></script>
 <script src="logs.js"></script>
 <script src="navigation.js"></script><script src="static/account-view.js"></script><script src="account.js"></script>
 </body>
