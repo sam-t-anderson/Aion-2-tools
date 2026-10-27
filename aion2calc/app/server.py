@@ -490,6 +490,17 @@ def _imported(key: str):
     return from_profile(ch)
 
 
+def character_faction(key) -> str | None:
+    """``"elyos"`` or ``"asmodian"`` for an imported character, from its official profile; None when
+    unknown (the titles a screen read finds tell it then)."""
+    if not key:
+        return None
+    try:
+        return _imported(str(key)).systems.get("faction")
+    except Exception:  # noqa: BLE001 - not imported, or an old profile: the title pages tell the faction
+        return None
+
+
 def _inventory(key: str) -> tuple:
     from ..plan import inventory as INV
     imp = _imported(key)
@@ -554,8 +565,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def _body(self) -> dict:
         n = int(self.headers.get("Content-Length") or 0)
-        if self.path.split("?", 1)[0] == "/api/screenshot" and not 0 <= n <= 28 * 1024 * 1024:
-            raise ValueError("Application PNG request exceeds 28 MiB.")
+        # the two requests that carry a picture: an app screenshot, a game screenshot to read (screenread)
+        if self.path.split("?", 1)[0] in ("/api/screenshot", "/api/screen-read") and not 0 <= n <= 28 * 1024 * 1024:
+            raise ValueError("The request exceeds 28 MiB.")
         return json.loads(self.rfile.read(n) or b"{}") if n else {}
 
     def _refusal(self) -> str | None:
@@ -820,6 +832,16 @@ class Handler(BaseHTTPRequestHandler):
             return self._pettracker_portrait(path[len("/api/pettracker/portrait/"):-len(".png")])
         if path == "/api/radar":
             return self._json(radar_state())
+        if path == "/api/screen-read":
+            from ..screenread import service
+            try:
+                since = int(q.get("since") or 0)
+            except ValueError:
+                since = 0
+            return self._json(service.status(since))
+        if path == "/api/screen-read/titles":
+            from ..screenread import service
+            return self._json(service.title_summary(faction=character_faction(q.get("character"))))
         if path == "/api/meter":
             from .meter_runner import runner
             current = runner()
@@ -878,6 +900,11 @@ class Handler(BaseHTTPRequestHandler):
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("the Hidden Cube radar listens on this computer only")
             return self._json(radar_control(body))
+        if path == "/api/screen-read":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("the game screen is read on this computer only")
+            from ..screenread import service
+            return self._json(service.control(body, faction=character_faction(body.get("character"))))
         if path == "/api/history":
             from .history import save
             return self._json({"id": save(body)})

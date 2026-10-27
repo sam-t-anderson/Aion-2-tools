@@ -1,3 +1,13 @@
+## Genus Insight and titles read from the game (0.2.347)
+
+**No more typing your Genus lines.** Above the Genus editor (Gear & Advice and My Character), **Read from the game** reads the game's Genus Insight panel with the text recognition built into Windows, offline: press **Read the game screen** and switch to the game within 3 seconds, press the new **Read the game screen into the app** hotkey in the game (Settings → Hotkeys), or paste or choose a screenshot. The read opens the genus's tab and fills its level and every slot it read. Each line is checked against what that slot can roll, and one that does not fit (a misread name, a value out of range) is marked on its slot for you to check. Nothing is saved until you press **Save genus lines**.
+
+**The titles you own, from the Title window.** In the game, tick **Show unacquired titles only** in the Title window and read each page the same way. Every title of your faction that no page lists is one you own. The game's *Total Collection Status* count checks the list, and each page's box can be corrected in the app. **Put these in the list** fills the titles list for you to check before **Save titles**.
+
+Reading the screen needs Windows 10 or 11 with English (United States) installed; elsewhere the row says why. See [reading the game](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/app.md#reading-genus-insight-and-titles-from-the-game).
+
+**Code signing.** Signed releases now sign the uninstaller too, which Smart App Control blocks unsigned, and builds that publish no release are no longer signed (docs/code-signing.md).
+
 ## New starts the overlay over (0.2.346)
 
 **The fight before New stays gone.** The overlay's **New** button, and **Split now** on the Live Meter page, emptied the meter, but the first hit after it brought the previous fight's damage back when it came within two minutes of the last one (or the longer gap set under the meter's automatic splits). The live view joins a fight back together across a zone change in the middle of it, and it was joining across your split too. It no longer reaches back past a split you asked for: after **New**, the overlay and the Live Meter page show only the combat since. The fight before stays in the list of encounters.

@@ -1535,6 +1535,7 @@ async function pageSettings() {
       ["radar_learn_cube", "Hidden Cube radar: learn the cube's sound, facing it (step 2)"],
       ["radar_learn_cube_behind", "Hidden Cube radar: learn the cube's sound with it behind you (step 3)"],
       ["radar_learn_other", "Hidden Cube radar: learn a sound that is not a cube"],
+      ["read_screen", "Read the game screen into the app (Genus Insight, Title window)"],
       ["screenshot_lock", "Screenshot lock (freeze the overlay)"],
       ["quit", "Exit Aion 2 Calc"],
     ];

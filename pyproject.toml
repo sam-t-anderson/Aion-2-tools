@@ -13,7 +13,14 @@ license = {text = "GPL-3.0"}
 dependencies = ["numpy>=1.24", "matplotlib>=3.7", "pulp>=2.8,<4", "pillow>=9.1",
                 "highspy>=1.7", "lz4>=4.3", "scapy>=2.5", "pystray>=0.19",
                 "soundcard>=0.4.6; sys_platform == 'win32'",
-                "truststore>=0.10", "certifi>=2024.8.30"]    # in-process MILP solver; avoids CBC's subprocess hang in the packaged app; pystray powers collapse-to-tray; soundcard hears the Hidden Cube radar's jingle (WASAPI loopback); truststore checks HTTPS certificates with the system's verifier, certifi's roots second (aion2calc/tls.py)
+                "truststore>=0.10", "certifi>=2024.8.30",
+                "winrt-runtime>=3.2.1,<4; sys_platform == 'win32'",
+                "winrt-Windows.Foundation>=3.2.1,<4; sys_platform == 'win32'",
+                "winrt-Windows.Foundation.Collections>=3.2.1,<4; sys_platform == 'win32'",
+                "winrt-Windows.Globalization>=3.2.1,<4; sys_platform == 'win32'",
+                "winrt-Windows.Graphics.Imaging>=3.2.1,<4; sys_platform == 'win32'",
+                "winrt-Windows.Media.Ocr>=3.2.1,<4; sys_platform == 'win32'",
+                "winrt-Windows.Storage.Streams>=3.2.1,<4; sys_platform == 'win32'"]    # in-process MILP solver; avoids CBC's subprocess hang in the packaged app; pystray powers collapse-to-tray; soundcard hears the Hidden Cube radar's jingle (WASAPI loopback); truststore checks HTTPS certificates with the system's verifier, certifi's roots second (aion2calc/tls.py); the winrt modules read the game screen with Windows' own text recognition (aion2calc/screenread)
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "coverage>=7.6", "cryptography>=42"]    # cryptography: the test certificates of tests/test_tls.py

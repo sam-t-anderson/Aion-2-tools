@@ -126,7 +126,8 @@ computer's light or dark mode. Details and updating: [`docs/install.md`](install
   genus insight (which lines to reroll, which genus to level) and what your fights show, all ranked
   by simulated DPS gain, shown as game-style windows with the game's icons. Fights you import are
   matched to the gear you wore and calibrate the model
-  ([details](planner.md)).
+  ([details](planner.md)). On Windows, your Genus Insight lines and the titles you own can be read
+  from the game's screen instead of typed ([how](app.md#reading-genus-insight-and-titles-from-the-game)).
 * **Live Meter**: capture the game connection with the included A2Tools packet engine. It starts in
   **Live Capture** mode with the built-in encoder, automatic interface and game-host detection, and
   port `50349`. Windows users can choose **Download and install Npcap** in setup or approve the

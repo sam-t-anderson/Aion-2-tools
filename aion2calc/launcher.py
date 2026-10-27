@@ -254,6 +254,12 @@ def smoke_test(out: str | None = None) -> int:
         except Exception as err:
             ok = False
             lines.append(f"Pet Tracker pipe FAILED {type(err).__name__}: {err}")
+        try:                                      # reading the game screen: the bundled pywinrt modules, and Windows'
+            from .screenread import ocr          # engine on a picture of known words where this Windows has one
+            lines.append("Screen read " + ocr.self_check())
+        except Exception as err:
+            ok = False
+            lines.append(f"Screen read FAILED {type(err).__name__}: {err}")
     from . import __version__
     lines.append(f"aion2calc {__version__}: {'OK' if ok else 'FAILED'}")
     srv.shutdown()
@@ -302,6 +308,20 @@ def _start_hotkeys(port: int, open_app, open_settings):
             if overlay_open():
                 overlay_launch.launch(url)        # re-sync the party overlay with the new setting
 
+        def read_screen():
+            # pressed in the game: the Genus Insight panel or a Title window page is read for the app's pages to
+            # pick up, with a beep for a read (the plain one) or for nothing read (the error one)
+            from .screenread import service
+            try:
+                record = service.read(source="hotkey")
+            except Exception:  # noqa: BLE001 - another read still running: the error beep says so
+                record = {"kind": None}
+            try:
+                import winsound
+                winsound.MessageBeep(winsound.MB_OK if record.get("kind") else winsound.MB_ICONHAND)
+            except Exception:  # noqa: BLE001 - no sound device, or not Windows
+                pass
+
         dispatch = {
             "toggle_overlay": toggle_overlay,
             "toggle_meter": toggle_meter,
@@ -327,6 +347,7 @@ def _start_hotkeys(port: int, open_app, open_settings):
             "radar_learn_cube_behind": lambda: server.radar_control(
                 {"action": "learn", "kind": "cube", "facing": "behind", "countdown": 0}),
             "radar_learn_other": lambda: server.radar_control({"action": "learn", "kind": "other", "countdown": 0}),
+            "read_screen": lambda: threading.Thread(target=read_screen, name="screen-read", daemon=True).start(),
             "screenshot_lock": lambda: server.pulse_overlay_lock(),
             "quit": lambda: server.schedule_shutdown(),
         }
