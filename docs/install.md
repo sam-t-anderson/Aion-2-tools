@@ -27,7 +27,8 @@ It is skipped during silent updates, and greyed out when Pet Tracker is installe
 Tracker** installs it later instead. See [Pet Tracker](app.md#pet-tracker).
 
 **Signed builds.** The Windows installer and the app are code-signed ([code signing](code-signing.md)),
-so Windows names their publisher. The macOS build is not signed: if macOS says it "cannot be opened"
+so Windows names their publisher. To check a download before you run it, compare its SHA-256 with the
+values in the README ([verify your download](../README.md#verify-your-download)). The macOS build is not signed: if macOS says it "cannot be opened"
 or "Apple could not verify" it, open **System Settings → Privacy & Security**, scroll down to the
 message about aion2calc and choose **Open Anyway**.
 

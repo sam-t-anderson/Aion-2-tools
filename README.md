@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/sam-t-anderson/Aion-2-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/sam-t-anderson/Aion-2-tools/actions/workflows/ci.yml)
 [![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/9y6zkUyvBv)
+[![Signed with Azure Artifact Signing](https://img.shields.io/badge/signed%20with-Azure%20Artifact%20Signing-0078D4)](docs/code-signing.md)
 
 A desktop companion and community website for **AION 2**: optimize your build, review combat, and plan encounters.
 
@@ -14,6 +15,35 @@ Download the Windows installer or a portable Windows, macOS or Linux build from 
 Live capture requires **Npcap on Windows** or **libpcap on macOS/Linux**. Setup and the app offer dependency guidance; Npcap is downloaded separately from its official source. Windows requests administrator approval when installing the driver.
 
 See [installation and updates](docs/install.md) for platform instructions, permissions and troubleshooting.
+
+## Verify your download
+
+Before you run a download, check that it is the file this repository's release built: its SHA-256 must
+match the one below exactly.
+
+<!-- checksums:start -->
+Latest release: **[v0.2.347](https://github.com/sam-t-anderson/Aion-2-tools/releases/tag/v0.2.347)**
+
+| File | SHA-256 |
+|---|---|
+| `aion2calc-setup-0.2.347.exe` | `7556415e71b4edecbd3d55d84b1bad6fbcafbd48f942712a86f130f74e79f06f` |
+| `aion2calc-0.2.347-windows-portable.zip` | `f27cb0633cc3c0d2ec3cc68609ac08121b5bef9894382f20d613e6358507c76f` |
+| `aion2calc-0.2.347-macos.zip` | `7232b7088998c4055b8cfa89be819f21ac9f6154b4fa476c10199343aa435a59` |
+| `aion2calc-0.2.347-linux.tar.gz` | `cfa948ef90f3fd93349c234cb9cabb645d50101296e779d215508955dcd10f89` |
+<!-- checksums:end -->
+
+| Your computer | Command |
+|---|---|
+| Windows (PowerShell) | `Get-FileHash .\aion2calc-setup-<version>.exe` |
+| macOS (Terminal) | `shasum -a 256 aion2calc-<version>-macos.zip` |
+| Linux | `sha256sum aion2calc-<version>-linux.tar.gz` |
+
+`Get-FileHash` prints the hash in capitals; letter case does not matter. The release page shows each file's
+SHA-256 beside it, and from 0.2.348 each release also lists them in its notes and in `SHA256SUMS.txt`
+(`sha256sum -c SHA256SUMS.txt` checks every file at once). On Windows, the
+signature is the stronger check: right-click the installer or `aion2calc.exe` → **Properties → Digital
+Signatures** shows the publisher, signed with Azure Artifact Signing and timestamped by Microsoft
+([code signing](docs/code-signing.md)).
 
 ## What you can do
 
