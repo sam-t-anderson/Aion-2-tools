@@ -123,6 +123,7 @@ def https_server(tmp_path, monkeypatch):
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Hello)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(files["server"])
     server.socket = context.wrap_socket(server.socket, server_side=True)
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -136,6 +137,7 @@ def test_the_old_check_fails_where_the_new_one_verifies(https_server, monkeypatc
     # included. Holding the cross-signed copy of the root but not the root itself, it stops at the older
     # root above that copy, with the error players saw.
     stores = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    stores.minimum_version = ssl.TLSVersion.TLSv1_2
     stores.load_verify_locations(cafile=files["cross"])
     with pytest.raises(urllib.error.URLError) as refused:
         urllib.request.urlopen(url, timeout=10, context=stores)
