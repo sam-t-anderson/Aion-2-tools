@@ -417,7 +417,7 @@ function mountCharacterGenus(root, key) {
   try {
     saved = JSON.parse(localStorage.getItem(prefKey) || "{}");
   } catch (_) {}
-  root.innerHTML = `<details><summary>Pet Genus Insight · PvE and PvP</summary><p class="small muted">Use the saved analysis lines from this character's Gear &amp; Advice inventory. Save edits before optimizing. Current-build and optimized scores use identical lines; Genus rolls are held fixed.</p><label><input type="checkbox" data-use-genus ${saved.enabled === false ? "" : "checked"}> Include saved Genus lines</label><p class="small muted">PvE enemy mix (relative weights; default equal). PvP ignores this mix and excludes genus-specific effects whose applicability to players is unverified.</p><div class="row">${["Cogni", "Fera", "Natura", "Varian", "Special"].map((g) => `<label>${g} <input data-genus-mix="${g}" type="number" min="0" max="100" step="any" value="${esc(saved.mix?.[g] ?? (g === "Special" ? 0 : 25))}" style="width:86px"></label>`).join("")}</div><div data-character-genus-editor role="status">Loading saved lines…</div></details>`;
+  root.innerHTML = `<details><summary>Pet Genus Insight · PvE and PvP</summary><p class="small muted">Use the saved analysis lines from this character's Gear &amp; Advice inventory. Save edits before optimizing. Current-build and optimized scores use identical lines; Genus rolls are held fixed.</p><label><input type="checkbox" data-use-genus ${saved.enabled === false ? "" : "checked"}> Include saved Genus lines</label><p class="small muted">PvE enemy mix (relative weights; default equal). PvP ignores this mix and excludes genus-specific effects whose applicability to players is unverified.</p><div class="row">${["Cogni", "Fera", "Natura", "Varian", "Special"].map((g) => `<label>${g} <input data-genus-mix="${g}" type="number" min="0" max="100" step="any" value="${esc(saved.mix?.[g] ?? (g === "Special" ? 0 : 25))}" style="width:86px"></label>`).join("")}</div><div data-character-genus-read></div><div data-character-genus-editor role="status">Loading saved lines…</div></details>`;
   const host = root.querySelector("[data-character-genus-editor]");
   api("/api/inventory?character=" + encodeURIComponent(key))
     .then((inv) => {
@@ -425,6 +425,10 @@ function mountCharacterGenus(root, key) {
       editor = A2GenusEditor.mount(host, inv.genus || {}, async (draft) => {
         const result = await api("/api/inventory/genus", { character: key, genus: draft });
         return result.genus || {};
+      });
+      screenReadPanel(root.querySelector("[data-character-genus-read]"), {
+        kind: "genus",
+        onRead: (record) => editor.applyRead(record),
       });
       ready = true;
     })

@@ -103,9 +103,13 @@ async function pageGear() {
       <div class="row" style="margin-top:8px"><input id="gq" type="text" placeholder="search the catalog to add an item" style="width:320px"><button class="btn small" id="gsrch">Search</button></div>
       <div id="gres"></div>
       <h4 class="gold small" style="margin-top:12px">GENUS INSIGHT</h4>
+      <div id="genus-read"></div>
       <div id="genus-editor"></div>
       <h4 class="gold small" style="margin-top:12px">TITLES YOU OWN</h4>
-      <p class="small faint">The official page shows only equipped titles. One title name per line (copy them from the in-game Titles window).</p>
+      <p class="small faint">The official page shows only equipped titles. To read the ones you own from the game, open its Title window, tick <b>Show unacquired titles only</b> and read every page (scroll for the next): each title of your faction that no page lists is one you own, and the game's <i>Total Collection Status</i> checks the count.</p>
+      <div id="gtread"></div>
+      <div id="gtread-summary"></div>
+      <p class="small faint">One title name per line: type them, or put the titles read above in the list. Nothing is saved until you press Save titles.</p>
       <textarea id="gtit" rows="4" style="width:100%">${esc((inv.titles_owned || []).join("\n"))}</textarea>
       <button class="btn small" id="gtsave">Save titles</button>`;
     // The item panel: enchant level, rolls and skill options of an item being added or edited.
@@ -292,6 +296,10 @@ async function pageGear() {
       }
       return saved.genus || {};
     });
+    // Reads of the game's screen: the Genus Insight panel into the editor, Title window pages into the titles read.
+    screenReadPanel($("#genus-read"), { kind: "genus", onRead: (record) => genusEditor?.applyRead(record) });
+    const titleReads = titleReadSummary($("#gtread-summary"), inventoryKey, $("#gtit"));
+    screenReadPanel($("#gtread"), { kind: "titles", onRead: () => titleReads.refresh() });
   };
   // Opening the page, or another character, shows the advice kept from the last run, an earlier session of the
   // app included; with none kept, or one this version cannot show, the advice runs.

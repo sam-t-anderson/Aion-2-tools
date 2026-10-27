@@ -5,7 +5,7 @@ import os
 import re
 import sys
 
-from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_dynamic_libs, collect_submodules
 
 ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
 PLAT = {"win32": "win", "darwin": "osx"}.get(sys.platform, "linux")
@@ -92,6 +92,15 @@ if sys.platform == "win32":
             hiddenimports += h
         except Exception as err:
             print(f"aion2calc.spec: skipping {pkg} ({err})")
+# Reading the game screen (aion2calc/screenread) uses the text recognition built into Windows through pywinrt.
+# winrt is a namespace package whose extension modules import one another from C (an OCR result's Rect and
+# lists come from Windows.Foundation), which PyInstaller's analysis cannot see, so every installed module is
+# named, with the C++ runtime the package carries. It is a required dependency on Windows: a missing one fails
+# the build here, and the smoke test imports every module a read uses (ocr.MODULES).
+if sys.platform == "win32":
+    import winrt.runtime
+    hiddenimports += collect_submodules("winrt")
+    binaries += collect_dynamic_libs("winrt")
 # The live meter imports its capture and decompression backends on demand.  Collecting them
 # explicitly keeps the feature available in the desktop bundle as well as in source installs.
 for pkg in ("scapy", "lz4"):

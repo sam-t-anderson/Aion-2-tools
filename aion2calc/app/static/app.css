@@ -677,6 +677,12 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 16px; backgrou
 .genus-editor-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0;}
 .genus-editor-grid .gslot {gap:8px;align-items:stretch;text-align:left;padding:12px;}
 .genus-editor-grid label {display:grid;grid-template-columns:40px minmax(0,1fr);align-items:center;gap:8px;}
+/* a slot a read of the game's screen is unsure of, and the read row (pages/screen-read.js) */
+.genus-editor-grid .gslot.gflag {border-color:var(--warn);box-shadow:inset 0 0 0 1px var(--warn);}
+.gflag-text {color:var(--warn);}
+.screen-read {border:1px dashed var(--line2);border-radius:var(--r);padding:8px 10px;margin:8px 0;}
+.screen-read:focus-visible {outline:2px solid var(--accent);outline-offset:2px;}
+.screen-read pre {white-space:pre-wrap;max-height:240px;overflow:auto;}
 .genus-editor-grid input {min-width:0;width:100%;box-sizing:border-box;}
 #genus-editor textarea {width:100%;box-sizing:border-box;margin:8px 0;}
 @media(max-width:680px){.genus-editor-grid{grid-template-columns:1fr;}}

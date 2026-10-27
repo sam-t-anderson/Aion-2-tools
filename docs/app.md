@@ -117,7 +117,8 @@ Set up **Skills hotbar** first, then copy the numbered **Macro & rotation** step
 
 Pick an imported character to see its inventory: the equipped items come from the official page,
 and you add the rest from the catalog, with enchant level and skill options. You also enter its
-Genus Insight lines and the titles you own here. **Run advice** then plans gear (best set from
+Genus Insight lines and the titles you own here, typed in or [read from the game's
+screen](#reading-genus-insight-and-titles-from-the-game) (Windows, since 0.2.347). **Run advice** then plans gear (best set from
 the inventory, goal gear, upgrade path), arcana, titles, pantheon, genus insight and your fights,
 ranked by simulated DPS gain. The results are shown as game-style windows with the game's icons:
 an equipment paper doll, the upgrade path as item cards, arcana cards, title plates, the
@@ -170,6 +171,22 @@ Optimization holds your lines fixed while choosing skills, specialties and board
 In **Gear & Advice**, choose a genus tab, enter its in-game Insight level and fill its unlocked analysis slots with the stat and exact value (including `%` when shown). All five genus drafts stay available while switching tabs. **Clear slot** removes a line; clear occupied higher slots before lowering the level. **Save genus lines** saves all genera together, then run advice again to recalculate. Invalid saves retain the previous inventory.
 
 The official profile does not provide Genus Insight allocations. **Advanced JSON** lets you repair older entries; apply it to the draft before saving. Defensive lines are retained for reference, but current advice evaluates damage effects only. Recovered saved advice shows the allocation snapshot used at calculation time.
+
+### Reading Genus Insight and titles from the game
+
+Since 0.2.347 the app can read the game's **Genus Insight** panel and its **Title** window from your screen, with the text recognition built into Windows (offline, nothing is sent anywhere), so you need not type them. It works on Windows 10 and 11 with English (United States) installed under Settings → Time & language → Language & region; the row says so when it is missing. Nothing it reads is saved until you press **Save genus lines** or **Save titles**.
+
+Above the Genus editor (on Gear & Advice and on My Character) and above the titles list, **Read from the game** offers three ways:
+
+- **Read the game screen**: press it, then switch to the game within 3 seconds; the app reads the game window, or the main screen when it cannot find the game.
+- The **Read the game screen into the app** hotkey (Settings → Hotkeys; none is set until you choose one): press it in the game with the panel open, and Windows' plain beep says it read something, its error sound that it did not. The app's pages pick the read up when you come back, including reads made before you opened the page.
+- A screenshot: **Choose a screenshot…**, or click the row and paste one (Ctrl+V). PNG, JPEG, BMP or WebP, up to 24 MB.
+
+**Genus Insight.** Open Pets → Genus Insight on the genus you want, with its analysis lines showing. The read opens that genus's tab, sets its Insight level and fills each slot it read; slots it did not read keep what you had. Each name is matched to the lines that slot can roll and each value checked against their ranges, so a misread is marked on its slot with what to check (*250 is outside what slot 2 rolls for Boss Defense*, *the stat name was not recognised*) rather than filled in silently. A line you edit loses its mark. Correct what is marked, then save. When the level is not read, it is set from the slots read, and the message asks you to check it.
+
+**Titles you own.** The game's Title window shows every title, owned or not, so the app reads it with **Show unacquired titles only** ticked: open the window, tick the box, and read each page (scroll for the next one) until you have read them all. Every title of your character's faction in the app's title catalog that no page listed is one you own. The faction comes from the character's official profile, or else from the titles the pages showed. Each page read is listed with whether its box was ticked, which you can correct; **Forget** drops a page and **Start over** drops them all (the app keeps them until it closes). The game's *Total Collection Status* count, when on screen, checks the result: the panel says whether the list matches it. **Put these in the list** replaces the titles list with the ones you own, **Add them to the list** adds the ones missing from it; check the list, then **Save titles**. Without a known faction, pages read with the box unticked give the titles you own instead: those seen there and on no ticked page.
+
+Text recognition can misread small or stylised text. Only names that match the catalog are taken, and a name too far from any (a stream overlay, chat, another window) is left out. If a read finds nothing, the row shows what was read, under **What was read**; reading again with the panel larger on screen, or a screenshot, usually helps.
 
 
 ### Genus coverage and safe candidates
@@ -790,6 +807,8 @@ CSV needs these columns: `t, skill, damage`, plus optionally `skill_id, crit, do
 levels, roll pool with ranges, skill options), `/api/jobs/<id>`, `/api/icon?u=`
 
 `GET /api/pettracker` (`?collection=1` adds every pet), `/api/pettracker/portrait/<id>.png`; `POST /api/pettracker` (`{"action": ...}`); see [Pet Tracker integration](pettracker-integration.md)
+
+`GET /api/screen-read?since=<id>` (whether reads work here, and the reads newer than `id`), `/api/screen-read/titles?character=` (the Title window pages read and the titles they say are owned); `POST /api/screen-read` with `{"action": "read", "delay": seconds}` (the game screen), `{"action": "image", "image": "data:image/png;base64,..."}` (a screenshot), `{"action": "page", "page": id, "unacquired_only": true|false|null}`, `{"action": "forget-page", "page": id}` or `{"action": "clear-titles"}`. See [reading the game](#reading-genus-insight-and-titles-from-the-game)
 
 `POST /api/sync`, `/api/optimize`, `/api/character/import`,
 `/api/character/optimize`, `/api/encounters/import` (`{"ref": link, "player": name}`
