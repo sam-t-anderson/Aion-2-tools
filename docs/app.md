@@ -20,6 +20,7 @@ A task-oriented guide to the desktop app and shared review controls. Detailed co
 - [Importing external logs](#importing-external-logs)
 - [Pet and spirit grouping](#pet-and-spirit-grouping)
 - [Sharing logs and recovering upload queues](#sharing-logs-and-recovering-upload-queues)
+- [Your account and legions](#your-account-and-legions)
 - [Community comparisons](#community-comparisons)
 - [Editing shared raid plans](#editing-shared-raid-plans)
 - [Official news](#official-news)
@@ -562,7 +563,7 @@ Live Meter and the overlay both have **Combine pets with owner**, enabled by def
 
 ## Sharing logs and recovering upload queues
 
-Upload a retained fight or saved part to the server selected in Settings. Choose **Public**, **Unlisted** or **Private** deliberately; uploads default to Unlisted. The GitHub Pages site reviews logs through that server API rather than storing uploads itself; its log page's **Copy share link** gives the log's link on that server (`/l/<id>`), which chat apps such as Discord show with a picture of the fight (log server 0.2.133 or later), where a link to the static site can only show the site's own card. Official desktop builds provide the community upload configuration for the default server; custom servers may require a key.
+Upload a retained fight or saved part to the server selected in Settings. Choose **Public**, **Unlisted**, **Legion only** or **Private** deliberately; uploads default to Public. **Legion only** (0.2.348, log server 0.2.140) needs an account: the log opens only for you and the members of your legions, and is never listed or ranked; signed out, a legion upload goes up as private and the result says so. The GitHub Pages site reviews logs through that server API rather than storing uploads itself; its log page's **Copy share link** gives the log's link on that server (`/l/<id>`), which chat apps such as Discord show with a picture of the fight (log server 0.2.133 or later), where a link to the static site can only show the site's own card. Official desktop builds provide the community upload configuration for the default server; custom servers may require a key.
 
 **My Uploads** uses separate ownership credentials to change visibility, rotate private links or delete uploads. An upload a moderator has put on hold shows the moderator's note and **Appeal this hold**: a short explanation sent with the upload's own credential, once per hold, which a moderator upholds or overturns with a note shown in the same place. An overturned hold leaves the upload private until you choose its visibility again. Export a private credential backup before moving devices. A shared upload key or character name does not recover ownership. See [privacy and ownership](user-guide.md#my-uploads-and-privacy).
 
@@ -579,6 +580,23 @@ Another uploader can claim a character you hold only with recordings newer than 
 Recovery needs no extra secret: on another computer, restore your ownership backup (My uploads → export/import) and press **Recover**; the credentials of three of the claim's own recordings reissue the identity credential. The website's Combat Logs page offers the same panel from the credentials saved in that browser.
 
 A moderator can revoke a claim. The panel then shows the moderator's note, and the recordings the claim was built on can no longer claim the character; newer recordings of yours still can (**Claim with newer recordings**). **Appeal the revocation** asks a moderator to look again, once, with this claim's own credential; the panel shows when it was sent and, once decided, whether it was upheld or overturned with the moderator's note. An overturned revocation gives you the character back, unless someone has claimed it in the meantime.
+
+## Your account and legions
+
+An account is optional (0.2.348, log server 0.2.139; legions need 0.2.140). With one, your uploads from every computer are in one place under your name, in the app and on the website, and you can share logs with a legion. There is no password. Open **Sign in** at the top right of the app and press **Create my account** (a name is optional; you can change it later). The app keeps the account's credential in `account.json` in its data folder, never in a settings export, and its pages never see it: they ask the app, which talks to the server, and only for the account's own routes. The account belongs to the log server it was made on; with another server in Settings, the app shows itself signed out.
+
+Once signed in, the app adds to the account the uploads its ownership backup holds and the characters it has claimed (*Your characters*), and every later upload joins the account. **Add this app's uploads** on My logs does it again, for example after importing an ownership backup. Signing in proves nothing about a character: a character still joins the account only by a claim made with your own recordings.
+
+**The menu with your name** (top right) opens **My logs**, **Legions** and **Sign-in & security**, approves a website sign-in, opens the website signed in, and signs out.
+
+- **My logs** lists every upload of the account, newest first, with its visibility, which you can change, and lets you rename, delete or detach one (detaching keeps the log but takes it out of the account).
+- **Sign-in & security** shows the computers and browsers signed in, ends any of them, and lists the account's recent activity: sign-ins, approvals, new ways in, legion changes.
+
+**The website** (**Sign in** at the top right of every page; on a phone, **Account** in the menu) signs in four ways. **Approve in the app**: the website shows an eight-character code; in the app, open the menu with your name → **Approve a website sign-in** and enter it. The app shows which browser asks and whether it started on this computer's internet connection, so a code someone else asks you for can be denied. **Open the website signed in** from the app's menu does the same without a code, with a one-time ticket in the part of the address browsers never send to a site. A **passkey** (Windows Hello, a phone or a security key) and **Discord** work once added on the website under Sign-in & security; adding a way in needs a sign-in from the last 15 minutes. The website keeps its sign-in in that browser alone, sends it only to the log server, as a header rather than a cookie, so another site's page cannot use it, and ends it after 30 days unused.
+
+**Another computer** joins the account with **Link with a code** (a code made on the signed-in website, Sign-in & security → **Make a link code**) or **Sign in with Discord**, if you linked Discord. An app that lost its credential uses **Recover with my uploads**: the private credentials of three of the account's uploads, from your ownership backup, prove the account is yours.
+
+**Legions.** A legion is founded on one of your claimed characters' servers, with its name as in the game (unique on that server); you lead it. The game does not say who is in a legion, so the leader decides who joins: an **invite link** (made by the leader or an officer) joins at once, and a **request** waits for the leader or an officer to approve it. Members are known by their claimed character, never by account. The leader names officers, can hand the legion to another member (staying on as an officer) and disbands it by typing its name; the leader removes anyone and an officer removes members. Anyone can leave, the leader once someone else leads; the last member to leave ends the legion. Members see each other's public and **Legion only** logs on the legion's page, newest first. Invites made by someone who leaves or stops being an officer stop working. Closing the account (Sign-in & security) leaves every legion and ends every sign-in.
 
 ## Community comparisons
 
@@ -657,6 +675,7 @@ How the two programs talk, and the app's local endpoints for it, are in [Pet Tra
 |---|---|
 | Theme | **Follow computer** (light or dark with your system), **Light** (parchment and gold) or **Dark** (night sky and gold). The ◐ button in the top bar switches between them too. The choice is kept in this browser |
 | Open as its own window | choose a desktop window or your browser; close the app with Quit. Since 0.2.329 the window opens at 1920×1080, or as large as the screen allows when it is smaller, centred and not maximized, so you can place and size it |
+| Language | English, Deutsch, Français, Español, Português (Brasil) or 日本語, the languages of the official site, here or at the top of every page (0.2.348); choosing one reloads the app in it. The pages' buttons, headings and short texts change language; long explanations, the game's names (skills, bosses, items, servers), players', legions' and characters' names, the overlay and the reports stay as they are. The website has the same choice at the top of each page; each keeps its own |
 | Text size | the size of the app's text, 70–150 % (100 % is the size the app ships with); every word and the layout around it scale together, like the browser's zoom. The overlay's text has its own size under Live meter overlay |
 | Page at launch | the page the app opens on, and shows when the tray icon or the Open-app hotkey brings it back: Live Meter unless you choose another, such as My Character. Links to the other pages work as before |
 | My Character at launch | *Show the character you opened last when My Character opens* (the newest import, from its last snapshot) and *Refresh that character from the official site when the app opens* instead; both off by default (see My Character) |
@@ -809,6 +828,8 @@ levels, roll pool with ranges, skill options), `/api/jobs/<id>`, `/api/icon?u=`
 `GET /api/pettracker` (`?collection=1` adds every pet), `/api/pettracker/portrait/<id>.png`; `POST /api/pettracker` (`{"action": ...}`); see [Pet Tracker integration](pettracker-integration.md)
 
 `GET /api/screen-read?since=<id>` (whether reads work here, and the reads newer than `id`), `/api/screen-read/titles?character=` (the Title window pages read and the titles they say are owned); `POST /api/screen-read` with `{"action": "read", "delay": seconds}` (the game screen), `{"action": "image", "image": "data:image/png;base64,..."}` (a screenshot), `{"action": "page", "page": id, "unacquired_only": true|false|null}`, `{"action": "forget-page", "page": id}` or `{"action": "clear-titles"}`. See [reading the game](#reading-genus-insight-and-titles-from-the-game)
+
+`GET /api/account` (whether the app is signed in, and the account as the server sees it; never the credential); `POST /api/account` with `{"action": ...}`: `register`, `link` (`code`), `recover`, `discord-start`, `discord-poll`, `sync`, `website`, `signout`, or `request` (`method`, `path`, `body`) for the account's and the legions' own routes on the log server, which the app lists. Both answer only on the computer running the app. See [Your account and legions](#your-account-and-legions)
 
 `POST /api/sync`, `/api/optimize`, `/api/character/import`,
 `/api/character/optimize`, `/api/encounters/import` (`{"ref": link, "player": name}`

@@ -1,3 +1,15 @@
+## Accounts, legions and the app in your language (0.2.348)
+
+**An account, if you want one.** Open **Sign in** at the top right of the app and press **Create my account**. There is no password: the app keeps the account and approves your sign-ins on the website. Your uploads from this app, the ones it made before and your claimed characters join the account, so **My logs** lists them in one place, in the app and on the website, where you can change a log's visibility, rename it or delete it. The menu with your name at the top right opens your logs, your legions and **Sign-in & security**, which lists every computer and browser signed in, ends any of them, and shows what happened on the account.
+
+**Signing in on the website.** The website shows a code, and the app approves it (the menu with your name → **Approve a website sign-in**) after showing which browser asks and whether it is on your own internet connection; or open the website signed in straight from the app's menu. A passkey (Windows Hello, your phone or a security key) and Discord can be added on the website as further ways in. Adding a way in needs a recent sign-in, the website's sign-in never leaves that browser except to the log server, and another computer's app joins with a link code from the website. An app that lost its sign-in recovers the account from your ownership backup.
+
+**Legions.** Found a legion on one of your claimed characters, with its name as in the game, and invite your members: an invite link joins at once, and a request waits for the leader or an officer. Members see each other's logs on the legion's page. A new visibility, **Legion only**, shares a log with your legions alone: it is never listed or ranked. Choose it when you upload, under Settings → Log server, or for a log already uploaded on My logs.
+
+**Your language.** The app and the website now come in English, Deutsch, Français, Español, Português (Brasil) and 日本語, the languages of the official site: choose one at the top of the page (in the app, also under Settings → System). Buttons, headings, menus and short texts change language; the game's names, players' names, long explanations, the overlay and the reports stay in English for now.
+
+Accounts need log server 0.2.139 or later, and legions 0.2.140. See [Your account and legions](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/app.md#your-account-and-legions).
+
 ## Genus Insight and titles read from the game (0.2.347)
 
 **No more typing your Genus lines.** Above the Genus editor (Gear & Advice and My Character), **Read from the game** reads the game's Genus Insight panel with the text recognition built into Windows, offline: press **Read the game screen** and switch to the game within 3 seconds, press the new **Read the game screen into the app** hotkey in the game (Settings → Hotkeys), or paste or choose a screenshot. The read opens the genus's tab and fills its level and every slot it read. Each line is checked against what that slot can roll, and one that does not fit (a misread name, a value out of range) is marked on its slot for you to check. Nothing is saved until you press **Save genus lines**.

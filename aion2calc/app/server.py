@@ -749,6 +749,11 @@ class Handler(BaseHTTPRequestHandler):
                 raise PermissionError("Identity credentials are local to this computer")
             from ..combat.identity import entries
             return self._json(entries())
+        if path == "/api/account":
+            if self.client_address[0] not in ("127.0.0.1", "::1"):
+                raise PermissionError("The account is managed on the computer running the app")
+            from ..combat import account
+            return self._json(account.status())
         if path == "/api/logserver":
             from ..combat import share
             st = share.effective()
@@ -983,6 +988,8 @@ class Handler(BaseHTTPRequestHandler):
                 raise PermissionError("Private upload credentials are local to this computer")
             from ..combat.ownership import entries
             return self._json(entries())
+        if path == "/api/account":
+            return self._account(body)
         if path == "/api/identity-claims":
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("Identity credentials are local to this computer")
@@ -1397,6 +1404,30 @@ class Handler(BaseHTTPRequestHandler):
             from ..combat.logs import open_folder
             return self._json({"folder": str(open_folder())})
         raise FileNotFoundError(path)
+
+    def _account(self, body: dict):
+        """The optional account (combat/account.py): this app's pages ask, the module holds the credential."""
+        if self.client_address[0] not in ("127.0.0.1", "::1"):
+            raise PermissionError("The account is managed on the computer running the app")
+        from ..combat import account
+        action = body.get("action")
+        work = {"register": lambda: account.register(body.get("name")),
+                "link": lambda: account.link(body.get("code")),
+                "recover": account.recover,
+                "discord-start": account.discord_start,
+                "discord-poll": account.discord_poll,
+                "sync": account.sync,
+                "website": lambda: account.open_website(body.get("page") or "account.html"),
+                "signout": account.signout,
+                "request": lambda: account.request(body.get("method"), body.get("path"), body.get("body"))}.get(action)
+        if work is None:
+            raise ValueError("Unknown account action")
+        try:
+            return self._json(work())
+        except account.SignedOut as err:
+            return self._json({"error": str(err), "signed_out": True}, 401)
+        except ValueError as err:
+            return self._json({"error": str(err)}, 400)
 
     # -------------------------------------------------------------- files
     def _static(self, rel: str):

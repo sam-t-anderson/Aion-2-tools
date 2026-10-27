@@ -104,6 +104,8 @@ ANSWERS = {
                                "regions": [{"id": "global", "label": "Global"}, {"id": "kr", "label": "Korea"}],
                                "sources": ["test"]},
     "/.well-known/a2log.json": lambda q: {"format": "a2log", "canonical_presets_version": 1},
+    "/api/v1/account/config": lambda q: {"methods": {"app": True, "passkey": False, "discord": False}, "origins": [],
+                                         "note": ""},
 }
 
 

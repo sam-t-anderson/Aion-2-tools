@@ -170,7 +170,7 @@ const S = {
   meter: {},
   ui: {},
 };
-// The navigation's pages (id, label): the choices for the page the app opens on at launch.
+// The navigation's pages (id, label), and Account, which the header's menu opens.
 const PAGES = [
   ["meter", "Live Meter"],
   ["combat", "Combat Logs"],
@@ -187,7 +187,10 @@ const PAGES = [
   ["pets", "Pet Tracker"],
   ["news", "News"],
   ["settings", "Settings"],
+  ["account", "Account"],
 ];
+// The pages the app can open on at launch (settings_backup.APP_PAGES): the navigation's.
+const LAUNCH_PAGES = PAGES.filter(([id]) => id !== "account");
 // The navigation (index.html) has three sections, Combat, Character and Game, and Settings. The row under
 // them lists the pages of the current page's section; a section's link opens the page last used in it, and
 // on Settings, which is in no section, the row keeps the last section's pages.
@@ -265,6 +268,7 @@ function setTheme(t) {
   }
 }
 $("#theme").onclick = () => setTheme(THEMES[(THEMES.indexOf(getTheme()) + 1) % THEMES.length]);
+if (window.A2I18n) window.A2I18n.picker($("#lang-slot")); // the language (i18n.js): changing it reloads the page
 setTheme(getTheme());
 
 // Accent-colour preset for the whole app UI (works alongside the light/dark
@@ -342,6 +346,7 @@ async function route() {
     else if (page === "timers") await pageTimers();
     else if (page === "news") await pageNews();
     else if (page === "pets") await pagePets();
+    else if (page === "account") await pageAccount();
     else await pagePlanner();
   } catch (e) {
     if (serial !== routeSerial) return;
@@ -459,7 +464,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     S.ui = {};
   }
   applyTextScale(S.ui);
-  const page = PAGES.some(([id]) => id === S.ui.app_default_page) ? S.ui.app_default_page : "meter";
+  const page = LAUNCH_PAGES.some(([id]) => id === S.ui.app_default_page) ? S.ui.app_default_page : "meter";
   if (!location.hash && page !== "meter") {
     location.hash = "/" + page;
     return;

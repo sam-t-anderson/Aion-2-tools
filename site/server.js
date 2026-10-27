@@ -79,7 +79,9 @@ window.A2 = (function () {
     }
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const r = await fetch(b + path);
+        // Signed in (account.js), a log shared with the visitor's legion opens: its routes carry the session.
+        const session = /^\/api\/v1\/logs\/[A-Za-z0-9]+/.test(path) && window.A2Session ? window.A2Session.token(b) : null;
+        const r = await fetch(b + path, session ? { headers: { "X-Account-Token": session }, credentials: "omit" } : undefined);
         const j = await r.json().catch(() => ({ error: r.statusText }));
         if (!r.ok || j.error) throw new Error(j.error || r.statusText);
         return j;
@@ -94,5 +96,5 @@ window.A2 = (function () {
       }
     }
   }
-  return { cfg, base, api };
+  return { cfg, base, api, ensure: ensureBase };
 })();

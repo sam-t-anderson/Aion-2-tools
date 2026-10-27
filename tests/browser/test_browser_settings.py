@@ -109,7 +109,7 @@ def test_uploads_offer_public_first_and_the_choice_is_saved_with_the_server(app_
         route.fulfill(json={"url": community.url, "visibility": "unlisted", "has_key": True})
     page.route("**/api/logserver", logserver)
     open_settings(page, app_url, "server")
-    assert page.eval_on_selector_all("#svis option", "os => os.map(o => o.value)") == ["public", "unlisted", "private"]
+    assert page.eval_on_selector_all("#svis option", "os => os.map(o => o.value)") == ["public", "unlisted", "legion", "private"]
     assert page.locator("#svis").input_value() == "public" and page.locator("#surl").input_value() == community.url
     page.select_option("#svis", "unlisted")
     page.click("#ssave")

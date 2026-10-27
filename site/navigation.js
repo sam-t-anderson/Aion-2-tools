@@ -153,3 +153,27 @@
     bar.classList.add("navfold");
   } catch (e) { /* the full menu stays */ }
 })();
+
+// The language (static/i18n.js): a menu in the header, and on a phone in the folded menu, where the header
+// keeps one row. Changing it reloads the page in that language.
+(function () {
+  function place() {
+    try {
+      const bar = document.querySelector(".topbar");
+      if (!bar || !window.A2I18n || bar.querySelector(".lang-slot")) return;
+      const slot = document.createElement("span");
+      slot.className = "lang-slot";
+      const before = document.getElementById("account-menu") || document.getElementById("dau") || document.getElementById("accent") || document.getElementById("theme");
+      if (before && before.parentNode === bar) bar.insertBefore(slot, before); else bar.appendChild(slot);
+      window.A2I18n.picker(slot);
+      const nav = bar.querySelector(".nav");
+      if (nav) {
+        const row = document.createElement("div");
+        row.className = "lang-navrow";
+        nav.appendChild(row);
+        window.A2I18n.picker(row, { compact: true });
+      }
+    } catch (e) { /* the page works in English without it */ }
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", place); else place();
+})();

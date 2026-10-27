@@ -91,7 +91,7 @@ def request(row, action, visibility=None, statement=None):
         headers["Content-Type"] = "application/json"
         body = json.dumps({"statement": statement.strip()}).encode()
     else:
-        if visibility not in ("public","unlisted","private"):
+        if visibility not in ("public","unlisted","legion","private"):
             raise ValueError("Invalid visibility")
         target += "/visibility"
         method = "PUT"
