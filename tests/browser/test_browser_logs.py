@@ -178,3 +178,50 @@ def test_a_link_opens_my_character_identities_directly(app_page, app_url):
     go(page, app_url, "#/combat/identities")
     page.wait_for_selector("#log-panel-identities:not([hidden])")
     assert page.locator("#log-tab-identities").get_attribute("aria-selected") == "true"
+
+
+def moving_recording():
+    """A boss fight with recorded movement (0.2.350): the boss walks east, the party member moves and once shows
+    up far away (back at a respawn point), and the recording player is placed only by the effects they apply."""
+    doc = recording()
+    me, ally = "p:1101:1", "p:1101:2"
+    doc["players"].append({"id": ally, "name": "Testally", "class": "Cleric", "server": "1101"})
+    fight = doc["segments"][1]
+    fight["movement"] = (
+        [{"t": float(t), "entity": "boss", "x": 1000.0 + 20 * t, "y": 1000.0, "z": 50.0, "src": "move", "heading": 90.0} for t in range(30)]
+        + [{"t": float(t), "entity": ally, "x": 900.0, "y": 900.0 + 10 * t, "z": 50.0, "src": "move"} for t in range(0, 30, 2) if t != 20]
+        + [{"t": 20.0, "entity": ally, "x": 50000.0, "y": 50000.0, "z": 50.0, "src": "party"}]
+        + [{"t": float(t), "entity": me, "x": 1100.0, "y": 950.0 + 5 * t, "z": 50.0, "src": "applied"} for t in range(0, 30, 3)])
+    fight["movement"].sort(key=lambda m: m["t"])
+    return doc
+
+
+def test_the_movement_replay_plays_the_recorded_positions(app_page, app_url, app_home):
+    page = app_page
+    name = "session-20261027-200000-abcdef.a2log.json"
+    path = app_home / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(moving_recording()), encoding="utf-8")
+    try:
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        box = page.locator("[data-replay]")
+        box.locator("svg circle").first.wait_for()
+        note = box.locator("p").first.inner_text()
+        assert "of 3 players and enemies" in note and "does not send the recording player's own movement" in note
+        assert box.locator("svg circle").count() == 3
+        assert box.locator("svg circle[stroke-dasharray]").count() == 1          # the recording player is marked
+
+        def scrub(t):
+            page.evaluate("t => {const s = document.querySelector('[data-scrub]'); s.value = t; s.dispatchEvent(new Event('input'));}", t)
+        scrub(20.5)                  # the party member's far position is drawn faded at the edge, not stretching the view
+        far = box.locator("svg circle", has=page.locator("title", has_text="outside the fight area"))
+        assert far.count() == 1 and far.get_attribute("fill-opacity") == "0.35"
+        scrub(10)
+        assert box.locator("svg circle", has=page.locator("title", has_text="outside the fight area")).count() == 0
+        page.click("[data-play]")
+        page.wait_for_function("parseFloat(document.querySelector('[data-clock]').textContent) >= 10.5")
+        page.click("[data-play]")                                               # pauses
+        assert page.locator("[data-play]").inner_text() == "Play"
+    finally:
+        page.goto("about:blank")
+        path.unlink()

@@ -1,3 +1,13 @@
+## Where everyone was: movement in every fight you record (0.2.350)
+
+**Recorded movement replay.** Each fight you record now holds where your party, their pets and the bosses were, and the log review replays it from above, north up, with Play, Rewind and a scrub bar. Bosses are drawn largest, players in their class colour, and you with a dashed ring. A player who was last seen more than 8 seconds ago, or who is outside the fight area (back at a respawn point, say), is drawn faded. **Open in Raid Planner** turns the replay into a plan you can edit. Logs recorded before this version have no movement.
+
+**Your own path is coarser than the others'.** The game never sends a player their own movement, so you are placed by the effects you apply and the casts aimed at you: in a boss fight, a point every one to two seconds on average, with longer gaps while you only move. A party member's recording of the same fight holds yours, and merging the recordings of one fight on the log server is the next step.
+
+**Fixes.**
+- The replay's **Play** button now plays: it stalled on the first frame in every version that had it.
+- A long session in a crowded zone keeps the movement it records small (31 bytes a position), and it counts toward when the meter starts a new archive part.
+
 ## My Character Identities, and Discord sign-in that only you can finish (0.2.349)
 
 **My Character Identities.** Claiming your characters has its own tab now, after Saved Logs under Combat Logs, in the app and on the website (it used to sit at the bottom of My Uploads). The Account page's Legions tab says where to go when you have no claimed character yet and links straight there. A character you claim while signed in joins your account at once, so you can found or join a legion with it right away: before, it reached the account only when you signed in again or pressed **Add this app's uploads**, so a legion could say *No claimed character yet* for a character you had claimed. Characters you claimed earlier join the account by themselves once this version runs. On the website, the tab claims with the uploads made from that browser; for uploads the app made, claim in the app, which holds their credentials.

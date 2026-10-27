@@ -632,11 +632,13 @@ class Runner:
             players = len(self.session._storage_players.get(self.scope, self.session.storage_players))
             groups = self.session._storage_groups.get(self.scope, self.session.storage_groups)
             due = (len(self.session.records) >= 100_000 or len(self.session.telemetry) >= 20_000
-                   or len(self.session.actions) >= 150_000 or groups >= 100 or players >= _ROLLOVER_PLAYERS_DUE)
+                   or len(self.session.actions) >= 150_000 or len(self.session.positions) >= 150_000
+                   or groups >= 100 or players >= _ROLLOVER_PLAYERS_DUE)
             if not due:
                 return
             hard = (len(self.session.records) >= 350_000 or len(self.session.telemetry) >= 40_000
-                    or len(self.session.actions) >= 300_000 or groups >= 180 or players >= _ROLLOVER_PLAYERS_HARD)
+                    or len(self.session.actions) >= 300_000 or len(self.session.positions) >= 300_000
+                    or groups >= 180 or players >= _ROLLOVER_PLAYERS_HARD)
             active = self._recent_outgoing(120_000)
             if due and active and not hard and not self.session.run_closed:
                 self.diagnostics["archive_deferred"] = "Archive part will be saved after combat pauses; live totals continue."

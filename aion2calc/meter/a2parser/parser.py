@@ -785,7 +785,8 @@ def scan_party_status(frame: bytes) -> dict | None:
     plus the legion name. It names no entity and no character name: while the member is in view, the HP
     record (``1b 92``) of the member's entity comes just before it, and the engine binds the two.
 
-    Returns ``{"dbid", "serverId", "characterId", "job", "classCode", "mapId", "level", "legion"}`` or None."""
+    Returns ``{"dbid", "serverId", "characterId", "job", "classCode", "mapId", "level", "legion"}``, with
+    ``position`` (X, Y, Z) when the three floats read as one, or None."""
     length = read_varint(frame, 0)
     if length.length <= 0:
         return None
@@ -809,8 +810,12 @@ def scan_party_status(frame: bytes) -> dict | None:
         legion = body[49:49 + legion_len].decode("utf-8")
     except UnicodeDecodeError:
         return None
-    return {"dbid": dbid, "serverId": server_id, "characterId": character_id, "job": job_from_roster(class_code),
-            "classCode": class_code, "mapId": map_id, "level": level, "legion": legion}
+    out = {"dbid": dbid, "serverId": server_id, "characterId": character_id, "job": job_from_roster(class_code),
+           "classCode": class_code, "mapId": map_id, "level": level, "legion": legion}
+    position = _position(body, 24)
+    if position is not None:
+        out["position"] = position
+    return out
 
 
 def scan_summon_links(data: bytes, names: dict[int, str], known_summons: set[int] | None = None) -> tuple[set[int], dict[int, int]]:
@@ -1130,10 +1135,11 @@ def _cast(body: bytes) -> list[dict]:
     facing = _f32(rest, 0)
     if facing is not None and 0 <= facing <= 360:
         cast["facing"] = round(facing, 1)
-    if kind == 2 and len(rest) >= 16:
-        position = [_f32(rest, 4 * i) for i in (1, 2, 3)]
-        if None not in position:
-            cast["position"] = [round(v, 1) for v in position]
+    if kind == 2 and (position := _position(rest, 4)) is not None:
+        # Some skills (each class's basic family) send a direction there instead: x and y a unit vector times
+        # 100 and z zero, in 830 of the 13,464 targeted casts of the 20 October capture, never mixed within a skill.
+        if not (position[2] == 0 and 98 <= math.hypot(position[0], position[1]) <= 102):
+            cast["position"] = position
     cooldown = _final_varint(rest, 4)
     if cooldown is not None and cooldown <= 3_600_000:
         cast["cooldown_ms"] = cooldown
@@ -1285,7 +1291,7 @@ def scan_odyle_energy(frame: bytes) -> tuple[int, int] | None:
 
 def _effect(body: bytes) -> list[dict]:
     """``2b 38``: target, type, instance (varint), effect (u32), duration (u64 ms), start (u64), source,
-    a byte, the skill that applied it (u32), two bytes, then a position (3 x f32)."""
+    a byte, the skill that applied it (u32), a byte or two, then the applier's position (3 x f32)."""
     target = _var(body, 0)
     if target is None or not 100 <= target[0] <= 9_999_999 or target[1] >= len(body):
         return []
@@ -1309,6 +1315,12 @@ def _effect(body: bytes) -> list[dict]:
         skill = int.from_bytes(body[at + 1:at + 5], "little")
         if _skill_id(skill):
             row["skill"] = skill
+    # The record ends with a position, the applier's (the source's), not the target's: within a median 89
+    # units of the applier's own movement records against 1,003 of the target's (docs/open-investigations.md).
+    if len(body) - 12 >= at + 5:
+        position = _position(body, len(body) - 12)
+        if position is not None:
+            row["position"] = position
     return [row]
 
 
@@ -1366,6 +1378,66 @@ def scan_actions(frame: bytes) -> list[dict]:
     except (IndexError, struct.error):
         return []
     return []
+
+
+def _position(data: bytes, at: int) -> list[float] | None:
+    """Three f32 (X, Y on the ground, Z up) when they read as a world position."""
+    if at < 0 or at + 12 > len(data):
+        return None
+    x, y, z = struct.unpack_from("<3f", data, at)
+    if not all(math.isfinite(v) and abs(v) < 1_000_000 for v in (x, y, z)) or (abs(x) < 1 and abs(y) < 1):
+        return None
+    return [round(x, 1), round(y, 1), round(z, 1)]
+
+
+#: movement records: opcode -> (what they are, the bytes between the entity id and X)
+_MOVES = {b"\x1c\x37": "move", b"\x1a\x37": "start", b"\x1b\x37": "stop", b"\x2f\x37": "fast", b"\x3c\x37": "land",
+          b"\x41\x36": "spawn"}
+
+
+def scan_positions(frame: bytes) -> list[dict]:
+    """Where an entity is, from one frame: ``{"kind": "position", "entity", "x", "y", "z", "src"}`` and, where the
+    record gives it, ``heading`` in degrees. ``src`` says which record: ``move`` (``1c 37``, a moving entity
+    about once a second), ``start`` and ``stop`` (``1a``/``1b 37``, a move begins or ends), ``fast`` (``2f 37``,
+    a fast mover every 50 ms), ``land`` (``3c 37``, where a movement skill lands, with its ``skill``) and
+    ``spawn`` (``41 36``, where an entity appears). The server sends these for every entity but the recording
+    player, whose own movement goes out from the game encrypted; effects (``2b 38``) and casts (``02 38``) carry
+    the applier's and the target's positions as well (docs/open-investigations.md, 27 October)."""
+    length = read_varint(frame, 0)
+    if length.length <= 0 or length.length + 2 > len(frame):
+        return []
+    pos = length.length
+    src = _MOVES.get(frame[pos:pos + 2])
+    if src is None:
+        return []
+    entity = _var(frame, pos + 2)
+    if entity is None or not 100 <= entity[0] <= 9_999_999 or entity[1] >= len(frame):
+        return []
+    at = entity[1]
+    if src == "move":
+        at += 2 if frame[at] & 1 else 1          # one flag byte, two when the first is odd
+    elif src in ("start", "stop"):
+        at += 2
+    elif src == "spawn":
+        at += 9
+    else:
+        at += 1
+    xyz = _position(frame, at)
+    if xyz is None:
+        return []
+    row = {"kind": "position", "entity": entity[0], "x": xyz[0], "y": xyz[1], "z": xyz[2], "src": src}
+    if src == "move" and at + 14 <= len(frame):
+        # the u16 after X, Y, Z is the direction of travel (65536 = 360 degrees): within a median 3 degrees
+        row["heading"] = round(int.from_bytes(frame[at + 12:at + 14], "little") * 360 / 65536, 1)
+    elif src in ("land", "spawn"):
+        heading = _f32(frame, at + 12)
+        if heading is not None and 0 <= heading <= 360:
+            row["heading"] = round(heading, 1)
+        if src == "land" and at + 23 <= len(frame):
+            skill = int.from_bytes(frame[at + 19:at + 23], "little")
+            if _skill_id(skill):
+                row["skill"] = skill
+    return [row]
 
 
 def scan_zone_state(data: bytes) -> tuple[bool, int | None]:

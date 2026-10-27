@@ -42,7 +42,12 @@ CLASS_ALIASES = {"elementalist": "spiritmaster", "brawler": "brawler"}
 PLAYER_STATS = ("critical_hit", "attack", "double_pct", "perfect_pct", "multihit_pct", "combat_speed_pct",
                 "cooldown_pct", "accuracy")
 LIMITS = {"players": 1024, "segments": 200, "hits": 400_000, "buffs": 100_000, "hp": 50_000, "text": 200,
-          "casts": 200_000, "effects": 100_000, "gauge": 50_000, "chains": 20_000, "resources": 50_000, "npc_casts": 20_000}
+          "casts": 200_000, "effects": 100_000, "gauge": 50_000, "chains": 20_000, "resources": 50_000, "npc_casts": 20_000,
+          "movement": 100_000}
+#: where a ``movement`` position comes from: the entity's own movement records (``move`` about once a
+#: second, ``start``/``stop`` of a move, ``fast`` movers, a movement skill's ``land``ing point, its ``spawn``),
+#: a party member's status (``party``), or where it stood when it ``applied`` an effect or a cast ``targeted`` it
+MOVEMENT_SOURCES = ("move", "start", "stop", "fast", "land", "spawn", "party", "applied", "targeted")
 
 
 def _count(value):
@@ -146,6 +151,7 @@ _segment_properties.update({
     "ping_source": {"type": "string"}, "ping_recorder": {"type": "string"},
     "ping": {"type": "array", "maxItems": LIMITS["hp"], "description": "Round-trip latency over time: [t seconds, milliseconds] pairs"},
     "positions": {"type": "array", "maxItems": LIMITS["hp"], "description": "Verified arena-normalized replay positions: t, entity, x and y in [0,1]"},
+    "movement": {"type": "array", "maxItems": LIMITS["movement"], "description": "Recorded world positions: t, entity, x and y on the ground and z up (game units), src (MOVEMENT_SOURCES: the entity's own movement records, a party member's status, or where it applied an effect or a cast at it aimed), optional heading in degrees. The recording player's own movement is not in the traffic: theirs comes from the effects they apply and the casts aimed at them, and a party member's recording of the same fight holds the rest"},
     "casts": {"type": "array", "maxItems": LIMITS["casts"], "description": "Recorded skill casts by players and their pets: t (may be up to 10 s before the segment), source, skill_id, skill, optional target, cooldown_ms the game sent with the cast, cast_ms from cast start to cast end (the recording player)"},
     "effects": {"type": "array", "maxItems": LIMITS["effects"], "description": "Recorded effect instances (buffs, debuffs, crowd control) on segment actors: t and end clipped to the segment, target, optional source, skill_id, skill, effect_id, duration_ms (absent when permanent; one application's), refreshes (re-applications while held, which extend the window), ended expired/removed, before when applied before the segment"},
     "gauge": {"type": "array", "maxItems": LIMITS["gauge"], "description": "Boss break (stagger) gauge readings: t, entity, max, current"},
@@ -470,6 +476,16 @@ def validate(doc) -> dict:
                     and all(_num(sample.get(k)) for k in ("t", "x", "y"))
                     and 0 <= sample["t"] <= s["duration"] and 0 <= sample["x"] <= 1 and 0 <= sample["y"] <= 1):
                 positions.append({k: sample[k] for k in ("t", "entity", "x", "y")})
+        movement = []
+        for sample in (s.get("movement") or [])[:LIMITS["movement"]]:
+            if (isinstance(sample, dict) and sample.get("entity") in references and sample.get("src") in MOVEMENT_SOURCES
+                    and all(_num(sample.get(k)) for k in ("t", "x", "y", "z")) and 0 <= sample["t"] <= s["duration"]
+                    and all(abs(sample[k]) < 1_000_000 for k in ("x", "y", "z"))):
+                row = {"t": float(sample["t"]), "entity": sample["entity"], "x": float(sample["x"]), "y": float(sample["y"]),
+                       "z": float(sample["z"]), "src": sample["src"]}
+                if _num(sample.get("heading")) and 0 <= sample["heading"] <= 360:
+                    row["heading"] = float(sample["heading"])
+                movement.append(row)
         casts, effects, gauge, chains, resources, npc_casts = _clean_actions(s, ids, references)
         from .latency import clean as clean_ping
         ping = clean_ping(s.get("ping"), s["duration"], LIMITS["hp"])
@@ -477,7 +493,7 @@ def validate(doc) -> dict:
                          "label": _text(s.get("label"), "segment label"), "boss": _text(s.get("boss"), "segment boss"),
                          "start": _text(s.get("start"), "segment start"), "duration": float(s["duration"]),
                          "killed": s.get("killed") is True, "hits": out_hits, "buffs": buffs, "hp": hp,
-                         "entities": entities, "events": events, "health": health, "positions": positions, "ping": ping,
+                         "entities": entities, "events": events, "health": health, "positions": positions, "movement": movement, "ping": ping,
                          "casts": casts, "effects": effects, "gauge": gauge, "chains": chains,
                          "resources": resources, "npc_casts": npc_casts})
         if s.get("ping_source") == "passive_tcp_ack":
@@ -515,7 +531,7 @@ def validate(doc) -> dict:
         previous = s.get("validation") if isinstance(s.get("validation"), dict) else {}
         capped = filtered = 0
         for key, cap in (("buffs", LIMITS["buffs"]), ("hp", LIMITS["hp"]), ("entities", 2000), ("events", LIMITS["hits"]),
-                         ("health", LIMITS["hp"]), ("positions", LIMITS["hp"]), ("casts", LIMITS["casts"]),
+                         ("health", LIMITS["hp"]), ("positions", LIMITS["hp"]), ("movement", LIMITS["movement"]), ("casts", LIMITS["casts"]),
                          ("effects", LIMITS["effects"]), ("gauge", LIMITS["gauge"]), ("chains", LIMITS["chains"]),
                          ("resources", LIMITS["resources"]), ("npc_casts", LIMITS["npc_casts"])):
             given = s.get(key)

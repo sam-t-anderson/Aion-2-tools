@@ -182,7 +182,12 @@ Windows **Install now** fetches the newest release (several versions behind, it 
 
 In **Raid Planner**, choose **Visibility** beside **Publish plan**: **Public** lists the plan in Browse plans; **Unlisted** shares it only by link; **Private** requires the secret link. The desktop uses the server and upload key from Settings. Publishing saves an owner credential on this device. **Update published plan** changes the same link; **Publish new copy** creates a separate plan. Keep a **Private ownership backup** to edit from another device. Import that backup through Import file. A revision conflict requires Refresh published plan before trying again; export local edits first. Clearing browser data without a backup loses editing access.
 
-Combat logs containing recorded normalized positions offer **Open in Raid Planner** on desktop and Pages; the replay becomes a new local editable plan. Imported coordinates must already match the normalized arena. Live position decoding is not yet available.
+Combat logs recorded since 0.2.350 hold where the party, their pets and the bosses were during each fight. The review's **Recorded movement replay** plays them from above, north up, with **Play/Pause**, **Rewind** and a scrub bar:
+- Bosses are drawn largest, players in their class colour, and the recording player with a dashed ring.
+- A token fades when its last known position is more than 8 seconds old, or when it is outside the fight area (for example a player back at a respawn point).
+- The game never sends a player their own movement. The recording player is placed by the effects they apply and the casts aimed at them, so their path is coarser than the others'. A party member's recording of the same fight holds theirs.
+
+Logs recorded before 0.2.350 have no movement. **Open in Raid Planner** (desktop and Pages) turns the replay into a new local editable plan, its positions scaled to the fight's area.
 
 Shared `/p/<id>` pages support **Play/Pause**, **Rewind**, playback speed and a timeline scrub bar with moving tokens and active buffs.
 

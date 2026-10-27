@@ -9,11 +9,19 @@ from itertools import islice
 import time
 import copy
 import math
+import struct
 import uuid
 
+from ..combat.a2log import MOVEMENT_SOURCES
 from .a2parser.lookup import dungeon_final_bosses, has_skill, is_heal_skill, job_from_skill, normalize_skill, npc_info, npc_name, skill_name, spirit_skill_category
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
 from .context import party_instance
+
+
+#: A kept position: epoch, ms, entity, x, y, z, its MOVEMENT_SOURCES index, heading in tenths of a degree.
+_POSITION = struct.Struct("<IqIfffBH")
+_SOURCE_INDEX = {src: i for i, src in enumerate(MOVEMENT_SOURCES)}
+_NO_HEADING = 0xFFFF
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,10 +165,12 @@ class CombatSession:
         clone = CombatSession.__new__(CombatSession)
         memo[id(self)] = clone
         for key, value in vars(self).items():
-            if key in ("records", "telemetry", "actions"):
+            if key in ("records", "telemetry", "actions", "positions"):
                 setattr(clone, key, deque(value, maxlen=value.maxlen))
-            elif key == "_effects_held":
+            elif key in ("_effects_held", "_position_kept"):
                 setattr(clone, key, {})
+            elif key == "_kept_from":
+                setattr(clone, key, (None, None))
             elif key in ("_grouping", "clock_inputs"):
                 setattr(clone, key, value)
             else:
@@ -269,6 +279,15 @@ class CombatSession:
         # readings. Exported per segment for the rotation, buff and break-gauge reviews.
         self.actions = deque(maxlen=400_000)
         self.discarded_actions = 0
+        # Where the party, their pets and the enemies that matter were (the engine's positions), at most one
+        # point per entity every POSITION_EVERY_MS, packed as _POSITION rows (a tuple of Python numbers
+        # takes four times the memory): each segment's ``movement``. The recording player's own come from
+        # the effects they apply and the casts aimed at them: their movement is not in the traffic
+        # (docs/open-investigations.md).
+        self.positions = deque(maxlen=400_000)
+        self.discarded_positions = 0
+        self._position_kept = {}
+        self._kept_from = (None, None)
         # The held effect on each (epoch, target, instance): the game re-sends a held effect on the
         # same instance (an aura every second, a re-applied debuff), which extends the kept row
         # instead of adding one, and a removal names only the instance.
@@ -493,6 +512,36 @@ class CombatSession:
                 if len(self._effects_held) >= 10_000:
                     self._forget_lapsed_effects(action["timestamp_ms"])
                 self._effects_held[(epoch, action["target"], action["instance"])] = stored
+
+    #: one kept position per entity at most this often; a move's start and stop, a landing and a spawn always
+    POSITION_EVERY_MS = 250
+
+    def _keep_positions(self, positions, identity):
+        """Keep where the party's players and pets were, and the enemies that matter: catalog bosses, and
+        anything the party has hit (an open-world crowd's other movement is left out)."""
+        players, owners, spawns, epoch = identity["names"], identity["owners"], identity["spawns"], self.epoch
+        local = identity.get("local_id")
+        if len(self._position_kept) > 50_000:
+            self._position_kept.clear()
+        for p in positions:
+            entity, ms = p["entity"], p.get("timestamp_ms")
+            if ms is None or p["src"] not in _SOURCE_INDEX or not 0 <= entity <= 0xFFFFFFFF:
+                continue
+            ms = int(ms)
+            if not (entity in players or entity in owners or entity == local or (epoch, entity) in self._boss_hit_ms):
+                code = (spawns.get(entity) or {}).get("mobCode")
+                if not (code and npc_info(code).get("isBoss")):
+                    continue
+            key = (epoch, entity)
+            last = self._position_kept.get(key)
+            if last is not None and ms - last < self.POSITION_EVERY_MS and p["src"] not in ("start", "stop", "land", "spawn"):
+                continue
+            self._position_kept[key] = ms
+            if len(self.positions) == self.positions.maxlen:
+                self.discarded_positions += 1
+            heading = p.get("heading")
+            self.positions.append(_POSITION.pack(epoch, ms, entity, p["x"], p["y"], p["z"], _SOURCE_INDEX[p["src"]],
+                                                 _NO_HEADING if heading is None else round(heading * 10) % 3600))
 
     def _forget_lapsed_effects(self, now_ms):
         """Drop held effects that have run out: most expiries send no removal. Permanent effects
@@ -985,8 +1034,14 @@ class CombatSession:
                     and any(r.run == self.run and isinstance(r.event,DamageEvent) and r.event.target_id == sample["entity"] and r.event.actor_id in self._allowed(r,"party") for r in self.records)):
                 self.runs[self.run]["recorded_final_boss"] = code
                 self.finish_run("configured_final_boss_death", timestamp_ms=sample["timestamp_ms"])
-        if engine_actions := getattr(engine, "actions", None):
+        # The engine's lists hold one read's actions and positions: an observe without a new read (a settings
+        # change names the character) must not keep them a second time.
+        engine_actions, engine_positions = getattr(engine, "actions", None), getattr(engine, "positions", None)
+        if engine_actions and engine_actions is not self._kept_from[0]:
             self._keep_actions(engine_actions, identity)
+        if engine_positions and engine_positions is not self._kept_from[1]:
+            self._keep_positions(engine_positions, identity)
+        self._kept_from = (engine_actions, engine_positions)
         # Promote a sustained engagement to "major" by elapsed time since first contact,
         # not just by a hit span — so a mini-boss crosses the threshold and is held even
         # when its mechanic pause comes early (the crossing lands during the lull, driven
@@ -2157,6 +2212,38 @@ class CombatSession:
             rows.append(action)
         return out
 
+    def _positions_by_epoch(self):
+        """The kept positions per epoch, unpacked, in arrival (time) order, with a parallel list of times."""
+        out = {}
+        for packed in self.positions:
+            row = _POSITION.unpack(packed)
+            times, rows = out.setdefault(row[0], ([], []))
+            times.append(row[1])
+            rows.append(row)
+        return out
+
+    def _segment_movement(self, group, actor_refs, players, entities, by_epoch):
+        """A segment's ``movement``: where its players, their pets and its enemies were, on the segment's clock.
+        Each also gets the last position known in the ten seconds before the fight, at t = 0, so a replay starts
+        with everyone placed."""
+        from ..combat.a2log import LIMITS
+        times, rows = by_epoch.get(group["epoch"], ([], []))
+        start, end = group["start"], group["end"]
+        before, during = {}, []
+        for epoch, ms, entity, x, y, z, src, heading in rows[bisect.bisect_left(times, start - 10_000):bisect.bisect_right(times, end)]:
+            ref = actor_refs.get(entity, f"{epoch}:{entity}")
+            if ref not in players and ref not in entities:
+                continue
+            row = {"t": round(max(0, ms - start) / 1000, 3), "entity": ref, "x": round(x, 1), "y": round(y, 1),
+                   "z": round(z, 1), "src": MOVEMENT_SOURCES[src]}
+            if heading != _NO_HEADING:
+                row["heading"] = heading / 10
+            if ms < start:
+                before[ref] = row
+            else:
+                during.append(row)
+        return (list(before.values()) + during)[:LIMITS["movement"]]
+
     def _segment_actions(self, group, identity, actor_refs, players, entities, by_epoch):
         """A segment's casts, effects, break-gauge readings and chain windows for its a2log, on the
         segment's clock (seconds from its start). Only actors the segment already references appear:
@@ -2291,6 +2378,7 @@ class CombatSession:
             groups = [g for g in groups if g["id"] == segment_id] if segment_id else groups[-1:]
         players, segments = {}, []
         by_epoch = self._actions_by_epoch()
+        positions_by_epoch = self._positions_by_epoch()
         for index, group in enumerate(groups):
             identity = self.identities[group["epoch"]]
             hits, events, entities = [], [], {}
@@ -2431,6 +2519,7 @@ class CombatSession:
                     health.append({"t": t, "entity": eid, "current": sample["current"],
                         "max": sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("reportedMaxHp")})
             casts, effects, gauge, chains, resources, npc_casts = self._segment_actions(group, identity, actor_refs, players, entities, by_epoch)
+            movement = self._segment_movement(group, actor_refs, players, entities, positions_by_epoch)
             if hits or events:
                 bosses = [e for e in entities.values() if e.get("is_boss")]
                 run = self.runs[group["run"]]
@@ -2462,7 +2551,7 @@ class CombatSession:
                     "killed": any(e["kind"] == "death" and e["target"] in {b["id"] for b in bosses} for e in events),
                     "hits": hits, "events": sorted(events, key=lambda e: e["t"]), "entities": list(entities.values()), "health": health,
                     "casts": casts, "effects": effects, "gauge": gauge, "chains": chains,
-                    "resources": resources, "npc_casts": npc_casts,
+                    "resources": resources, "npc_casts": npc_casts, "movement": movement,
                     "start": datetime.fromtimestamp(group["start"] / 1000, timezone.utc).isoformat(),
                     "duration": max(0.001, (group["end"] - group["start"]) / 1000),
                     "capture_loss": self.losses_within(group["start"], group["end"])})
@@ -2475,6 +2564,7 @@ class CombatSession:
         evidence = {**self.capture_evidence, "decoder":DECODER, "app_version":__version__,
                     "discarded_effects":self.discarded, "discarded_segments":self.discarded_segments, "out_of_scope_effects":self.out_of_scope,
                     "discarded_telemetry":self.discarded_telemetry, "discarded_actions":self.discarded_actions,
+                    "discarded_positions":self.discarded_positions,
                     "loss_attribution": "segment"}
         npc_diagnostics = self.npc_diagnostics(g["epoch"] for g in groups)
         exported_scope = scope
