@@ -161,7 +161,7 @@ The eight distinct diagnostic captures with raw TCP recording (10–15 October; 
 | `05 e0` | boss · `03` · `01` · maximum (u32) · current (u32) · state | **boss break (stagger) gauge** | 99–100% of the gauge's drops share a read with a hit on that boss, and each skill takes a fixed amount (Rending Blow 2, Overhead Slam 5, Condemnation 7, Debilitating Mark 10, Rage Burst 20, Ruinous Blow 25; some hits 1.5×). Maxima differ by boss: 1200 (Vakron, Gelcos, Nazmun), 750 (the Krao Cave bosses), 317 (Transcendent Bakarma), 240, 150. Near zero the gauge stays down 5.1–6.7 s and refills; party damage in the ten seconds after a break was 1.2–2.1× the ten seconds before. |
 | `09 38` | actor · `00` · skill (u32) · sequence · kind (2) · target · facing · position — the `02 38` layout | **an NPC's skill cast** (NPCs send `02 38` too) | 345 in the 15 October capture, every one aimed at a target. A boss's casts carry its named abilities (Nazmun: Ultra Laser, Trap Install, Reaction Speed Test; Transcendent Bakarma: Swipe, Subspace Dominion). Recorded per fight for catalog bosses since 0.2.307. |
 | `2e 37`, `3c 37` | entity · skill · positions and direction | dodge rolls and boss charges; skill-driven leaps and dashes (Leaping Slam, Rushing Smash, Infiltrate) | Samples only. |
-| `1a 37`, `1b 37`, `1c 37`, `2f 37` | entity · x/y/z (f32), with a heading on `2f 37` | position and movement updates for players and NPCs | Samples only; units and map transforms unverified. |
+| `1a 37`, `1b 37`, `1c 37`, `2f 37` | entity · x/y/z (f32), with a heading on `2f 37` | position and movement updates for players and NPCs | Samples only; units and map transforms unverified. Decoded and measured since: [movement for encounter replay](#movement-for-encounter-replay-27-october). |
 | `00 36` | u64 | server clock in epoch milliseconds, about every 50 ms | The values track the capture clock. |
 | `00 8d` | entity · subtype · value (u32) | `02 01 00` is the decoded HP feed (party members included). `01 01 01` is the recording player's **MP**, the only player's the game sends. `01 01 03` and `01 01 06` count down by 500 and 750 per update | MP drops by each MP-costing skill's listed cost: Combustion 120 → a median drop of 119 (18 casts), Curse 80 → 79, Summon: Fire Spirit 150 → 149, Ruinous Blow 250 → 246. It rises by +50 regeneration ticks and with MP-restoring skills. Recorded per fight since 0.2.307. The other two subtypes are probe targets. |
 | `33 36` | the recording player's own record, sent on entering a zone: … `01` · HP · maximum HP (varints, equal on entry) · maximum MP (u32), about 200 bytes in | the recording player's **maximum HP and MP** (the HP feed carries neither for them) | Found in five captures; in the three with HP and MP readings to compare, they matched the player's highest readings (23,467 / 3,077; 22,022 / 3,035; 6,610 / 1,816). Read since 0.2.307. |
@@ -500,3 +500,42 @@ A ten-minute recording with raw TCP, from the Abyss: Watcher Kaira killed (199 s
 **What this does not give yet.** The HUD's Artifact UI shows which faction holds each artifact and the corridor usage time left (patch notes of 26 August 2026). No record in the recording changed when a corridor run ended, none carries three per-artifact holder states that could be told from the activity record above, and the per-second total rises rather than counting down, so none of these is the artifact status or the usage time by itself. The hotkey waits on a matched value.
 
 - **Still wanted:** the numbers on screen during a corridor run, noted with the time — the Artifact UI's holders and usage time at entry and at exit, and the character window's Abyss Points before and after — in a recording with raw TCP on. With them the value probe can confirm `73 e2` as the points total (it would show the same rise) and find the usage time where it changes, and the overlay can show both.
+
+## Movement for encounter replay (27 October)
+
+The a2log format already has a slot for replay positions (`positions`: time, entity, and x and y normalized to the arena) and the combat review a **Recorded movement replay** panel that plays them, but no decoder fills the slot. Two recordings with raw TCP were walked for movement with the client's own framing: the 20 October dungeon run (a party of five, eight boss fights in 600092 and 600022, 39 minutes) and the 23 October Abyss recording (Watcher Kaira with 77 attackers, then two corridor runs).
+
+**The recording player's own movement is not in the traffic.** What the client sends is encrypted: 64,422 records carry 40,996 distinct leading byte pairs. A 10-byte record goes out about every 50 ms and 30- and 40-byte ones about every 105 ms, which is where its movement would be. The server does not send it back: of the 35,819 `1d 37` movement updates in the dungeon run, 23 name the recording player, and of the 4,160 `1a 37`, 16.
+
+**Everyone else's movement is in the server's records,** in one coordinate frame: X and Y on the ground, Z up (a fast mover crosses the map at a constant Z). Entities that move between fixes cover a median 413 units a second, which fits centimetres.
+
+| Record | After the entity id | What it is | How often |
+|---|---|---|---|
+| `1c 37` | flags (one byte, or two when the first is odd: all 7,307), X, Y, Z (f32), heading (u16, 65536 = 360°) twice, and a byte after one-byte flags | a moving entity's position | about once a second each; 7,307 in the run |
+| `1a 37`, `1b 37` | two bytes, X, Y, Z, heading (once on `1a`, twice on `1b`) | a position when a move starts or ends | 4,160 and 4,043 |
+| `1d 37` | flags, a byte, one to three bytes, heading twice | the movement update between positions | 0.17 per interval between two positions while the entity stands still, 3.9 while it moves; 35,819 |
+| `2f 37` | a byte, X, Y, Z, a direction (three floats: a unit vector, or zero), a float (226 to 65,229) and sometimes a byte | a fast mover's position every 50 ms (about 2,000 units a second) | 2,386, for 34 entities |
+| `3c 37` | a byte, X, Y, Z, heading (f32, degrees), `00 00 01`, the skill (u32), a float and a byte | where a movement skill lands: Leaping Slam, Ruinous Blow, Rush Strike, Ankle Slice | 1,288 in the Abyss recording, 310 of them the recording player's |
+| `41 36` | among the spawn fields: X, Y, Z, heading (f32, degrees) | where an entity appears | once per entity |
+| `1c 92` | the member status of 0.2.329: X, Y, Z at bytes 24–35 | each other party member every two seconds, in view or not | 2,893 |
+
+The heading that ends `1c 37` and `1d 37` is the direction of travel between consecutive positions: within a median 3° on `1c 37` and 9° on `1d 37` (81% and 78% within 30°). The one to three bytes before it on `1d 37` are not decoded yet; the speed is the likely candidate.
+
+**The recording player's position from what the server does send.** Three records stamp it:
+- The effect record (`2b 38`) carries its **applier's** position, not its target's: a median 89 units from the applier's own movement records against 1,003 from the target's (10,480 and 4,604 pairs). So every buff and debuff the recording player applies stamps where they stand: 154–386 times in each of the eight boss fights of the run, and 468 times at Kaira.
+- The cast record (`02 38`, at a target) carries the target's position: others aimed 85 casts at the recording player, and the 52 that came within half a second of one of the player's own stamps agree with it within a median 9 units. Every cast at a boss stamps the boss the same way.
+- `3c 37` gives the landing point of the player's own leaps and dashes, and `1a`, `1c` and `1d 37` name the player now and then.
+
+**How much each fight has** (the eight boss fights of the run, then Kaira):
+- *Each other party member:* 55–672 positions and 115–1,349 `1d 37` updates a fight. The longest gap without any position is 0.7–54 s; an entity standing still sends nothing.
+- *The boss:* 5–323 positions. A boss that does not move sends none for up to two minutes; its spawn position and the casts aimed at it place it.
+- *The recording player:* 3–27 positions and 154–386 stamps a fight, with gaps of 7–51 s while they apply nothing and nobody targets them.
+- *Kaira, in the open world:* 181 of the 316 entities casting player skills have at least one position (a median of five); the recording player has 22 positions and 468 stamps in 199 s.
+
+**What a replay needs**, in order:
+1. Decode `1c`, `1a`, `1b`, `2f` and `3c 37`, `41 36` and the `1c 92` position into a track per entity, with its heading.
+2. Stamp the recording player from the effects they apply and the casts aimed at them, and the bosses from the casts aimed at them.
+3. Per fight: keep the players, their pets and the bosses, thin each track to about two points a second, scale X and Y to the fight's own bounding box (the a2log slot takes x and y in [0, 1], up to 50,000 points), and fill `positions`.
+4. Decode `1d 37`'s middle bytes to place moving entities ten times a second; until then, move them along their heading between two positions.
+
+Still open: the map transform (a fight's own bounding box needs none, but showing the map under it does), floors (Z), and whether some arenas should come from the catalog instead of the fight's extent. The scripts are archived in the diagnostics repository under `scripts/movement/`.
