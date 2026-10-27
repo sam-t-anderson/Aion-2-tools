@@ -12,7 +12,7 @@ from .runs import stamp
 
 MAX_PARTS = 32
 #: The recorded action lists (0.2.306; MP readings and boss casts since 0.2.307) a combined review may leave out.
-ACTION_KEYS = ("casts", "effects", "gauge", "chains", "resources", "npc_casts")
+ACTION_KEYS = ("casts", "effects", "gauge", "chains", "resources", "npc_casts", "movement")
 MAX_BYTES = 64 * 1024 * 1024
 NOTE = ("Combined review of submitted recording parts. Source encounters and run boundaries remain separate. "
         "Counters do not establish loss-free capture; entry, completion and rankings are not inherited. "
@@ -105,7 +105,7 @@ def combine(sources):
             start = stamp(segment.get("start"))
             if start is None or last_end is not None and start < last_end-0.001:
                 raise ValueError("Encounter timestamps are missing, overlapping or out of order")
-            if any(e.get("t", 0) > segment["duration"] for key in ("hits", "events", "health", "positions") for e in segment.get(key, [])):
+            if any(e.get("t", 0) > segment["duration"] for key in ("hits", "events", "health", "positions", "movement") for e in segment.get(key, [])):
                 raise ValueError("Recorded effects extend beyond an encounter boundary")
             last_end = start+segment["duration"]
         previous = archive, c
@@ -154,7 +154,7 @@ def combine(sources):
                 if entity.get("owner"):
                     entity["owner"] = ref(entity["owner"])
             for key, fields in (("hits", ("player", "source", "target", "pet")), ("events", ("source", "target")),
-                                ("buffs", ("player",)), ("health", ("entity",)), ("positions", ("entity",)),
+                                ("buffs", ("player",)), ("health", ("entity",)), ("positions", ("entity",)), ("movement", ("entity",)),
                                 ("casts", ("source", "target")), ("effects", ("target", "source")),
                                 ("gauge", ("entity",)), ("chains", ("player",)), ("resources", ("entity",)),
                                 ("npc_casts", ("source", "target"))):

@@ -10,7 +10,7 @@ from copy import deepcopy
 import time
 
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
-from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, scan_party_status, hp_record_entity, _damage_frames
+from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_positions, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, scan_party_status, hp_record_entity, _damage_frames
 from .framing import walk, bundle_batch, read_varint
 from .lookup import job_from_skill, skill_family, skill_name, npc_info, npc_name, dungeon_final_bosses
 from .ping import PingTracker
@@ -101,6 +101,9 @@ class MeterEngine:
         # and removed, break-gauge readings), each stamped with the read's time. The session keeps
         # the party's; the live state below serves the overlay.
         self.actions: list[dict] = []
+        # Where entities were in the last read (``scan_positions``, the applier of an effect, the target of a
+        # cast, a party member's status), each stamped with the read's time; the session keeps them per fight.
+        self.positions: list[dict] = []
         # The local player's skill cooldowns, by skill family: the cast time and the cooldown the
         # game sent with the cast (cooldown reduction included). Kept across zone loads.
         self.cooldowns: dict[int, dict] = {}
@@ -232,6 +235,7 @@ class MeterEngine:
     def _consume_locked(self, buffer: bytes, timestamp_ms: int | None, stream_id: str) -> list[DamageEvent | HealEvent]:
         self.telemetry = []
         self.actions = []
+        self.positions = []
         self.last_framing_errors = 0
         pending = self._pending[stream_id]
         pending.extend(buffer)
@@ -315,6 +319,13 @@ class MeterEngine:
         def end_party_run():
             if run_status:
                 self._observe_party_batch(run_hp if len(run_hp) == len(run_status) else [], run_status)
+                # where each member is, once the batch has paired them with their entities
+                for status in run_status:
+                    entity = (self.party_status.get(status["dbid"]) or {}).get("entity")
+                    if status.get("position") and entity is not None:
+                        x, y, z = status["position"]
+                        self.positions.append({"kind": "position", "entity": entity, "x": x, "y": y, "z": z,
+                                               "src": "party", "timestamp_ms": timestamp_ms})
             run_hp.clear()
             run_status.clear()
         for packet in _damage_frames(complete, inner=False):
@@ -348,6 +359,16 @@ class MeterEngine:
                 action["timestamp_ms"] = timestamp_ms
                 self._note_action(action)
                 self.actions.append(action)
+                # an effect's position is its applier's, a targeted cast's its target's
+                where = action.get("position")
+                who = action.get("source") if action["kind"] == "effect" else action.get("target") if action["kind"] == "cast" else None
+                if where and who:
+                    self.positions.append({"kind": "position", "entity": who, "x": where[0], "y": where[1], "z": where[2],
+                                           "src": "applied" if action["kind"] == "effect" else "targeted",
+                                           "timestamp_ms": timestamp_ms})
+            for position in scan_positions(packet):
+                position["timestamp_ms"] = timestamp_ms
+                self.positions.append(position)
             self.live_hp.update(current)
             for entity_id, value in maximum.items():
                 self.spawn_info.setdefault(entity_id, {})["maxHp"] = value

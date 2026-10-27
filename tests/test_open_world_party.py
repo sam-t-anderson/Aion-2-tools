@@ -44,7 +44,7 @@ def _hp(entity, current=27_061, maximum=27_061):
 def test_the_status_record_gives_the_member_their_class_level_map_and_legion():
     status = scan_party_status(_status(322_274, class_code=20, level=45))
     assert status == {"dbid": (SERVER << 48) | 322_274, "serverId": SERVER, "characterId": 322_274, "job": "Assassin",
-                      "classCode": 20, "mapId": 20, "level": 45, "legion": LEGION}
+                      "classCode": 20, "mapId": 20, "level": 45, "legion": LEGION, "position": [50148.0, -48674.9, 20422.0]}
     assert scan_party_status(_status(287_766, class_code=36, legion=""))["job"] == "Chanter"   # no legion: a 63-byte body
     assert scan_party_status(_status(304_105, class_code=8))["job"] == "Gladiator"
 
