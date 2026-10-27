@@ -12,11 +12,13 @@ calibrated from its fights when there are enough):
 """
 from __future__ import annotations
 
+import dataclasses
+import hashlib
 import json
 import time
 from pathlib import Path
 
-from .. import learn
+from .. import __version__, learn
 from ..db import store
 from . import inventory as INV
 from .arcana import plan_arcana
@@ -120,6 +122,7 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
     say = progress or (lambda m: None)
     t0 = time.time()
     inv = inv or INV.from_character(imp)
+    calculated = {"at": t0, "version": __version__, "inputs": inputs_of(imp, inv)}
     say("your recorded fights")
     try:
         from ..combat.history import sync_sessions
@@ -207,7 +210,53 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
                 [learn.community(imp.cls, fetch=False)] if c and c.get("active")], "calibrated": bool(cal),
             "top": top, "doll": doll, "equip": equip, "goals": goals, "upgrade_path": path, "arcana": arc,
             "pantheon": pan, "titles": tit, "genus": gen, "skill_specialties": specialties, "rotation": rot, "community": cs,
-            "fights": fight_summary(fights, synced), "seconds": time.time() - t0}
+            "fights": fight_summary(fights, synced), "seconds": time.time() - t0, "calculated": calculated}
+
+
+def inputs_of(imp, inv: dict) -> str:
+    """A digest of what advice is calculated from: the imported character (its level, build, stats and
+    systems) and its inventory (items, Genus lines, titles). Saved advice whose digest differs from the
+    character's now was calculated on gear, points or lines the character no longer has."""
+    def plain(value):
+        if dataclasses.is_dataclass(value) and not isinstance(value, type):
+            value = dataclasses.asdict(value)
+        if isinstance(value, dict):
+            return {str(k): plain(v) for k, v in value.items()}
+        if isinstance(value, (set, frozenset)):
+            return sorted((plain(v) for v in value), key=repr)
+        if isinstance(value, (list, tuple)):
+            return [plain(v) for v in value]
+        return value
+    doc = {"level": imp.level, "build": imp.build, "loadout": imp.loadout, "systems": imp.systems,
+           "inventory": {k: inv.get(k) for k in ("items", "genus", "titles_owned")}}
+    return hashlib.sha256(json.dumps(plain(doc), sort_keys=True, default=str).encode("utf-8")).hexdigest()
+
+
+def folder(imp) -> Path:
+    """Where a character's advice is written (ADVICE.md and advice.json)."""
+    from ..paths import results_dir
+    return results_dir() / "characters" / imp.loadout_name()[5:]
+
+
+def last(imp, inv: dict) -> dict:
+    """The advice last written for the character (its advice.json), so the app can show it again without
+    calculating it. ``inputs_changed`` when the character or its inventory differ from what it was calculated
+    on, ``version_changed`` when another version of the app calculated it (advice written before 0.2.344
+    records neither, so only the second is known: its ``at`` is the file's time). ``advice`` is None when
+    none was written or the file cannot be read."""
+    target = folder(imp) / "advice.json"
+    try:
+        advice = json.loads(target.read_text(encoding="utf-8"))
+        written = target.stat().st_mtime
+    except (OSError, ValueError):
+        return {"advice": None}
+    if not isinstance(advice, dict) or not isinstance(advice.get("character"), dict):
+        return {"advice": None}
+    stamp = advice.get("calculated") if isinstance(advice.get("calculated"), dict) else {}
+    at = stamp.get("at") if isinstance(stamp.get("at"), (int, float)) else written
+    return {"advice": advice, "at": at, "version": stamp.get("version"),
+            "inputs_changed": bool(stamp.get("inputs")) and stamp.get("inputs") != inputs_of(imp, inv),
+            "version_changed": stamp.get("version") != __version__}
 
 
 def _pct(x) -> str:

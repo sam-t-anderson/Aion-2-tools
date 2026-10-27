@@ -32,6 +32,19 @@ function renderAdviceProgress() {
     };
 }
 
+// The line over advice kept from an earlier run: when it was calculated, and what has changed since.
+function keptAdviceText(kept) {
+  const since = [
+    kept.inputs_changed ? "Your gear, inventory, Genus lines or titles have changed since." : "",
+    !kept.version_changed
+      ? ""
+      : kept.version
+        ? `Version ${esc(kept.version)} of the app calculated it.`
+        : "An earlier version of the app calculated it.",
+  ].filter(Boolean);
+  return `Your last advice, calculated ${esc(whenAt(kept.at * 1000))}. ${since.map((t) => t + " ").join("")}<b>Run advice</b> calculates it again with your current gear and fights.`;
+}
+
 async function pageGear() {
   const st = S.gear || (S.gear = {}),
     shown = stillShown();
@@ -42,12 +55,28 @@ async function pageGear() {
       chars.length
         ? `<div class="row"><select id="gchar" aria-label="Character">${chars.map((c) => `<option value="${esc(c.key)}" ${c.key === st.key ? "selected" : ""}>${esc(c.name)} · ${esc(c.class_name)} · ${esc(c.region)}</option>`).join("")}</select>
       <button class="btn primary" id="gadv">Run advice</button><span id="gmsg" class="small muted"></span></div>
+      <p id="gkept" class="small" hidden></p>
       <p class="small faint">Import the character on My Character first. The official page shows only equipped items: add bag and warehouse items below so the planner can use them. Fights you import on Combat Logs are matched to the gear the character wore and calibrate the model.</p>`
         : '<div class="note">Import a character on My Character first.</div>'
     }
     <div id="gadvice-progress" class="note advice-progress" hidden></div><div id="ginv"></div></div></section><div id="gout" tabindex="-1"></div>`;
   if (!chars.length) return;
   const key = () => (st.key = $("#gchar").value);
+  const keptLine = (kept) => {
+    const line = $("#gkept");
+    if (!line) return;
+    line.hidden = !kept;
+    line.innerHTML = kept ? keptAdviceText(kept) : "";
+  };
+  // Advice on the page: one just calculated, or (with `kept`) the one kept from the last run, under a line saying
+  // when it was calculated and what has changed since.
+  const showAdvice = (advice, kept) => {
+    $("#gout").innerHTML = renderAdvice(advice);
+    bindAdvice(advice);
+    st.adv = advice;
+    st.kept = kept;
+    keptLine(kept);
+  };
   let genusEditor = null;
   const showInv = async () => {
     const inventoryKey = key();
@@ -257,18 +286,36 @@ async function pageGear() {
       st.genusRevision = (st.genusRevision || 0) + 1;
       if (st.key === inventoryKey && genusRoot.isConnected) {
         st.inv = saved;
-        st.adv = null;
+        st.adv = st.kept = null;
+        keptLine(null);
         $("#gout").innerHTML = '<p class="note">Genus lines saved. Run advice again to update recommendations.</p>';
       }
       return saved.genus || {};
     });
   };
+  // Opening the page, or another character, shows the advice kept from the last run, an earlier session of the
+  // app included; with none kept, or one this version cannot show, the advice runs.
+  const openKept = async () => {
+    const busy = () => st.adviceJob?.status === "running";
+    if (!shown() || busy()) return;
+    const characterKey = key();
+    const kept = await api("/api/advice/last?character=" + encodeURIComponent(characterKey)).catch(() => null);
+    if (!shown() || $("#gchar")?.value !== characterKey || st.adv || busy()) return;
+    if (kept?.advice)
+      try {
+        return showAdvice(kept.advice, kept);
+      } catch (e) {
+        // kept by a version whose advice this one cannot show: calculated again below
+      }
+    $("#gadv").click();
+  };
   $("#gchar").onchange = () => {
-    st.adv = null;
+    st.adv = st.kept = null;
+    keptLine(null);
     $("#gout").innerHTML = "";
     key();
     renderAdviceProgress();
-    showInv();
+    showInv().then(openKept);
   };
   $("#gadv").onclick = async () => {
     if (st.adviceJob?.status === "running") return;
@@ -278,7 +325,8 @@ async function pageGear() {
       return;
     }
     $("#gmsg").textContent = "";
-    st.adv = null;
+    st.adv = st.kept = null;
+    keptLine(null);
     $("#gout").innerHTML = '<div class="empty"><span class="spinner"></span> Calculating advice…</div>';
     const characterKey = key(),
       revision = st.genusRevision || 0,
@@ -294,10 +342,10 @@ async function pageGear() {
       if ((st.genusRevision || 0) !== revision)
         throw Error("Genus allocations changed during calculation. Run advice again.");
       st.adv = advice;
+      st.kept = null;
       job.status = "done";
       if ($("#gout")) {
-        $("#gout").innerHTML = renderAdvice(advice);
-        bindAdvice(advice);
+        showAdvice(advice, null);
         toast("Advice complete. Scroll down or choose View results.", 7000);
       }
     } catch (e) {
@@ -311,8 +359,7 @@ async function pageGear() {
   };
   renderAdviceProgress();
   await showInv();
-  if (st.adv) {
-    $("#gout").innerHTML = renderAdvice(st.adv);
-    bindAdvice(st.adv);
-  }
+  if (!shown()) return;
+  if (st.adv) showAdvice(st.adv, st.kept || null);
+  else await openKept();
 }

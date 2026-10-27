@@ -53,7 +53,9 @@ html.native-windows .ovcard { max-width: none; }
 #ov.ov-radar .ovradar .ovrsvg { width: 76px; height: 76px; }
 #ov.ov-radar .ovradar .ovrtext { white-space: normal; font-size: 11px; }
 #ov.ov-radar .ovfoot { margin-top: 5px; }
-.ovviewtitle { color: var(--ov-header-color, #e8cf8e); font-weight: 700; margin-right: 6px; flex: 1 1 auto; min-width: 0;
+/* No width of its own (flex-basis 0): it takes what the buttons leave and shortens with an ellipsis, so it never
+   wraps the header's buttons onto a second line. */
+.ovviewtitle { color: var(--ov-header-color, #e8cf8e); font-weight: 700; margin-right: 6px; flex: 1 1 0; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ovviewtitle[hidden] { display: none; }
 .ovpstat { display: flex; justify-content: space-between; align-items: baseline; padding: 2px 0; }
@@ -82,11 +84,12 @@ html.native-windows #ovbg { border-radius: 0; }
    text takes the remaining space on the right (margin-left:auto). Using an explicit
    gap instead of justify-content:space-between keeps the buttons grouped and stops
    Lock/Hide from floating into the middle (and visually overlapping the tabs) at
-   narrow widths or larger fonts. */
-.ovhd { display: flex; align-items: center; gap: 2px; color: var(--ov-header-color, #e8cf8e); font-weight: 700; margin-bottom: 6px; }
+   narrow widths or larger fonts. A header too wide for the card wraps onto a second line
+   (Start/Stop right-aligned there) rather than running past the card's right edge. */
+.ovhd { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 1px; color: var(--ov-header-color, #e8cf8e); font-weight: 700; margin-bottom: 6px; }
 .ovhd::before { content: ""; width: 8px; height: 8px; border-radius: 50%; margin: 0 7px 0 1px; flex-shrink: 0;
   background: #51e18c; box-shadow: 0 0 6px rgba(81, 225, 140, .9); }
-.ovtabs button { background: transparent; border: 0; color: #7f8aa3; cursor: pointer; font-weight: 700; padding: 0 5px 0 0; font-size: 14px; letter-spacing: .1px; }
+.ovtabs button { background: transparent; border: 0; color: #7f8aa3; cursor: pointer; font-weight: 700; padding: 0 4px 0 0; font-size: 14px; letter-spacing: .1px; }
 .ovtabs button.on { color: var(--ov-header-color, #e8cf8e); }
 .ovsub { color: #8fb3b4; font-weight: 500; font-size: 11px; min-width: 0; flex: 1 1 auto; margin-left: auto; text-align: right; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
 .ovtabs { flex-shrink: 0; }
@@ -253,17 +256,17 @@ html.native-windows #ovbg { border-radius: 0; }
 #ov.ov-compact .ovbar .sub { display: none; }
 
 /* Match the desktop's compact framed buttons without changing the transparent page. */
-#ovhide, #ovlock, #ovcopy, #ovsplit { flex-shrink: 0; margin: 0 2px 0 0; padding: 2px 6px; border-radius: 6px;
+#ovhide, #ovlock, #ovcopy, #ovsplit { flex-shrink: 0; margin: 0 1px 0 0; padding: 2px 5px; border-radius: 6px;
   border: 1px solid transparent; background: transparent;
   color: #8e97ad; font: 600 10.5px/1.35 "Segoe UI", system-ui, sans-serif; cursor: pointer; }
-#ovhide { margin: 0 4px 0 2px; }
+#ovhide { margin: 0 2px 0 1px; }
 #ovhide:hover, #ovlock:hover, #ovcopy:hover, #ovsplit:hover { border-color: rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: #f1f3f8; }
 #ovhide:focus-visible, #ovlock:focus-visible, #ovcopy:focus-visible, #ovsplit:focus-visible { outline: 2px solid #e8cf8e; outline-offset: 2px; }
 #ovhide:active, #ovlock:active, #ovcopy:active, #ovsplit:active { background: #1c2438; }
 #ovlock.on { color: #8fd0a0; border-color: rgba(143,208,160,.6); }
 /* Start/Stop capture toggle, pinned to the right end of the header. Green while
    stopped (Start), red while running (Stop), mirroring the app's button. */
-#ovcapture { flex-shrink: 0; margin: 0 0 0 auto; padding: 2px 10px; border-radius: 999px;
+#ovcapture { flex-shrink: 0; margin: 0 0 0 auto; padding: 2px 8px; border-radius: 999px;
   border: 1px solid rgba(81,225,140,.5); background: rgba(81,225,140,.12);
   color: #6fe3a3; font: 700 10.5px/1.35 "Segoe UI", system-ui, sans-serif; cursor: pointer; }
 #ovcapture.on { color: #ff8585; border-color: rgba(255,110,110,.5); background: rgba(255,110,110,.1); }

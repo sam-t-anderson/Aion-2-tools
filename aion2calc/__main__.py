@@ -427,10 +427,9 @@ def main(argv: list[str] | None = None) -> int:
                       + (f"  rolls {rolls}" if rolls else "") + (f"  skills {skills}" if skills else "")
                       + (f"  note {e['note']}" if e.get("note") else "") + f"  [{e['source']}]")
         else:
-            from .paths import results_dir
-            from .plan.advisor import advise, write_markdown
+            from .plan.advisor import advise, folder, write_markdown
             adv = advise(imp, inv, progress=lambda m: print("  ..", m))
-            out = Path(args.out) if args.out else results_dir() / "characters" / imp.loadout_name()[5:]
+            out = Path(args.out) if args.out else folder(imp)
             p = write_markdown(adv, out)
             for r in adv["top"][:12]:
                 g = "" if r["gain"] is None else f"{100 * r['gain']:+.1f}%"

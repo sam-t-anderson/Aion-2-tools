@@ -1,3 +1,13 @@
+## Gear & Advice opens on your last advice, and the overlay's header fits the overlay (0.2.344)
+
+**Your last advice, at once.** Gear & Advice now opens on the advice it calculated last for the character, kept from one session of the app to the next, instead of waiting for **Run advice**. A line above it says when it was calculated, and whether the character's gear, inventory, Genus lines or titles have changed since or another version of the app calculated it; **Run advice** calculates it again with your current gear and fights. With no advice kept for a character, opening the page or choosing the character runs it, as pressing Run advice did.
+
+**The overlay's buttons stay on the overlay.** At the overlay's default width, **Stop** ran past its right edge, and further on a narrower overlay. The header now moves onto a second line when the overlay is too narrow for it, with Start/Stop at the right end.
+
+**The website.** The home page shows the overlay as it looks now, with the boss being fought, its portrait, HP and time to kill. On a phone the header's name and buttons fit on one row, and **Menu** lists the pages one under another.
+
+**For contributors.** `pyproject.toml` reads the package's version from `aion2calc/__init__.py`, the one place a release changes it: an installed copy reported version 0.2.150 whatever its release.
+
 ## Settings backups that keep every setting, and steadier page changes (0.2.343)
 
 **A settings backup keeps every setting.** An exported settings file now carries the overlay's auto-contrast, the RTSS in-game overlay's and the Hidden Cube radar's settings, the meter's reset when a boss fight starts and the upload choices it used to leave out, and a saved overlay look keeps its auto-contrast and colour cycle. What belongs to one computer stays out of the file you share: the Pet Tracker folder, the overlay's background image and event sound, whether raw game traffic is recorded, and the Timers page's region and group. Importing settings now starts RTSS, the radar and Pet Tracker when the imported settings turn them on, as changing them in Settings does.

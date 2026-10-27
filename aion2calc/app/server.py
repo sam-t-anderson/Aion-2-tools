@@ -500,12 +500,11 @@ def _inventory(key: str) -> tuple:
 
 @_model_action
 def act_advice(body: dict, log) -> dict:
-    from ..plan.advisor import advise, write_markdown
+    from ..plan.advisor import advise, folder, write_markdown
     imp, inv = _inventory(body["character"])
     adv = advise(imp, inv, progress=log, genus_mix=body.get("genus_mix"))
-    out = results_dir() / "characters" / imp.loadout_name()[5:]
     adv["inventory_snapshot"] = {"genus": inv.get("genus", {})}
-    adv["file"] = str(write_markdown(adv, out))
+    adv["file"] = str(write_markdown(adv, folder(imp)))
     return json.loads(json.dumps(adv, default=str))
 
 
@@ -691,6 +690,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(runner().review_log())
         if path == "/api/inventory":
             return self._json(_inventory(q["character"])[1])
+        if path == "/api/advice/last":
+            from ..plan.advisor import last
+            return self._json(last(*_inventory(q["character"])))
         if path == "/api/ui":
             return self._json(ui_settings())
         if path == "/api/update":

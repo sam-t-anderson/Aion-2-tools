@@ -5,6 +5,7 @@ Network access is never needed: sources are replaced by fakes.
 import json
 import threading
 import time
+import urllib.parse
 import urllib.request
 
 import pytest
@@ -185,6 +186,35 @@ def test_app_server_endpoints(home):
         assert j["result"]["summary"]["casts"] >= 2
         assert j["result"]["file"].startswith(str(home / "logs"))          # written to the logs folder
         assert get("/api/logs")["files"] == 1
+    finally:
+        srv.shutdown()
+
+
+def test_the_app_reads_back_the_advice_kept_for_a_character(home):
+    # Gear & Advice opens on the advice kept from the last run (/api/advice/last), saying whether the character or
+    # its inventory changed since; with none written, it runs the advice.
+    from http.server import ThreadingHTTPServer
+
+    from aion2calc import __version__
+    from aion2calc.app.server import Handler
+    from aion2calc.db import store
+    from aion2calc.plan import inventory as INV
+    from aion2calc.plan.advisor import folder, inputs_of
+    from aion2calc.sources.character import from_profile
+    key = "nae:1101:test="
+    store.put_character(store.connect(), key, _profile())
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_address[1]}/api/advice/last?character=" + urllib.parse.quote(key)
+    try:
+        assert json.loads(urllib.request.urlopen(url, timeout=30).read()) == {"advice": None}
+        imp = from_profile(_profile())
+        advice = {"character": {"name": "TestSorc"}, "top": [],
+                  "calculated": {"at": 1.0, "version": __version__, "inputs": inputs_of(imp, INV.from_character(imp))}}
+        folder(imp).mkdir(parents=True)
+        (folder(imp) / "advice.json").write_text(json.dumps(advice), encoding="utf-8")
+        assert json.loads(urllib.request.urlopen(url, timeout=30).read()) == {
+            "advice": advice, "at": 1.0, "version": __version__, "inputs_changed": False, "version_changed": False}
     finally:
         srv.shutdown()
 

@@ -14,7 +14,9 @@
 .scard { border: 1px solid var(--frame); border-radius: 10px; padding: 16px 18px; background: linear-gradient(180deg, var(--card-a), var(--card-b)); }
 .scard h3 { font-family: var(--display); letter-spacing: .6px; margin: 0 0 8px; color: var(--gold); font-size: 17px; }
 .shots h2, .dl h2 { font-family: var(--display); color: var(--gold); letter-spacing: 1px; margin: 32px 0 14px; }
-.shotgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+/* The overlay is a narrow window: shown near its own size beside the Live Meter, not stretched to half the page. */
+.shotgrid { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); align-items: start; gap: 14px; }
+.shotoverlay { max-width: 360px; }
 .shotgrid img { width: 100%; height: auto; border: 1px solid var(--frame); border-radius: 8px; display: block; }
 .dlrow { display: flex; flex-wrap: wrap; gap: 10px; }
 /* The header's name links home; it keeps the brand's gold and spacing rather than a link's colour. */
@@ -56,10 +58,19 @@ details[open] > summary { margin-bottom:2px; }
    its own box instead of the whole page, and the combat-log pages drop their 125% scale. */
 .navtoggle { display: none; }
 @media (max-width: 700px) {
-  .topbar.navfold .navtoggle { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+  .topbar.navfold .navtoggle { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding-inline: 6px; }
+  /* One row for the name, Menu and the round buttons (accent, theme, download) on a phone: the download
+     button used to drop onto a line of its own under the name. */
+  .topbar { column-gap: 8px; padding-inline: 12px; }
+  .topbar .brand { letter-spacing: 1px; gap: 8px; font-size: 16px; }
   .topbar.navfold > .nav { display: none; }
-  .topbar.navfold.navopen > .nav { display: flex; }
+  /* The open menu lists the pages one under another, each a full-width row easy to tap, rather than
+     wrapping them into uneven rows. */
+  .topbar.navfold.navopen > .nav { display: flex; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 2px; }
+  .topbar.navfold.navopen > .nav a { display: block; padding: 10px 12px; }
 }
+/* Narrow phones: the name gives way to the logo (still the Home link, named for screen readers). */
+@media (max-width: 380px) { .topbar .brand a { font-size: 0; } }
 @media (max-width: 900px) {
   .site.wide-2x { zoom: 1; }
   main table.t { display: block; max-width: 100%; overflow-x: auto; }

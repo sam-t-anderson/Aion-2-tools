@@ -127,8 +127,8 @@ integrity confirmation.
 - Base your work on `main` and open the PR against `main`.
 - Write clear, descriptive commit messages explaining the *why*, not just the
   *what*.
-- Releases are cut by bumping the version in `pyproject.toml` and
-  `aion2calc/__init__.py` and adding a `packaging/RELEASE_NOTES.md` entry; the
+- Releases are cut by bumping `__version__` in `aion2calc/__init__.py` (which
+  `pyproject.toml` reads) and adding a `packaging/RELEASE_NOTES.md` entry; the
   release pipeline tags and builds on merge to `main`. Maintainers handle the
   version bump for external contributions if you don't.
 

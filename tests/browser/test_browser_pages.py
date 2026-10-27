@@ -1,9 +1,11 @@
 """Pages that read the app's own state: the Pet Tracker page and Settings → Pet Tracker say when a newer Pet
 Tracker is out and hand its update over; the Raid Planner browses the log server's plans by boss; the Timers
 page names the server and faction the live meter found and lists that server's field-boss kills; the Gear
-page's item panel takes an item's enchant level, rolls and skill options when it is added or edited; and My
-Character opens the character opened last, from its snapshot or afresh, when Settings asks it to."""
+page's item panel takes an item's enchant level, rolls and skill options when it is added or edited, and the page
+opens on the advice kept from the last run, or runs it when none is kept; and My Character opens the character
+opened last, from its snapshot or afresh, when Settings asks it to."""
 import json
+import pathlib
 import re
 
 import pytest
@@ -127,10 +129,19 @@ OPTIONS = {"name": "Test Ring", "category": "Ring", "item_level": 40, "grade": "
            "skills": {"base": 3, "per_enchant": 0, "max_level": 3, "pool": ["Hellfire", "Blaze"], "others": ["Frost"]}, "arcana": False}
 
 
-def gear(page) -> list:
-    """A character with one ring in the inventory, the ring's catalog options, and the inventory's saves."""
+# Advice for the test character as the advisor wrote it (tests/test_advice.py's run, its lists cut short), kept
+# from a run on 25 Oct 2026 by an earlier version, on gear the character has changed since.
+KEPT = json.loads((pathlib.Path(__file__).parent / "kept_advice.json").read_text(encoding="utf-8"))
+KEPT_AT = 1792951200.0
+KEPT_LAST = {"advice": KEPT, "at": KEPT_AT, "version": "0.2.343", "inputs_changed": True, "version_changed": True}
+
+
+def gear(page, last=None) -> list:
+    """A character with one ring in the inventory, the ring's catalog options, and the inventory's saves; its kept
+    advice is ``last`` (by default KEPT_LAST, so the page does not run the advice)."""
     saved = []
     page.route("**/api/characters", lambda route: route.fulfill(json=[CHARACTER]))
+    page.route(re.compile(r"/api/advice/last\?character="), lambda route: route.fulfill(json=last or KEPT_LAST))
     page.route(re.compile(r"/api/inventory\?character="), lambda route: route.fulfill(
         json={"class": "sorcerer", "items": [RING], "genus": {}, "titles_owned": []}))
     page.route(re.compile(r"/api/items/test-ring/options\?class=sorcerer$"), lambda route: route.fulfill(json=OPTIONS))
@@ -184,6 +195,50 @@ def test_the_gear_pages_item_panel_takes_enchant_rolls_and_skill_options(app_pag
     page.click("[data-ge-save]")
     page.get_by_text("Added", exact=True).wait_for()
     assert saved[1] == ("add", {"character": CHARACTER["key"], "enchant": 0, "rolls": [], "skills": [], "note": "", "slug": "test-ring"})
+
+
+def advice_runs(page) -> list:
+    """The advice runs the page asks for, each answered at once with KEPT as the result."""
+    runs = []
+
+    def run(route):
+        runs.append(json.loads(route.request.post_data))
+        route.fulfill(json={"job": "a1"})
+    page.route(re.compile(r"/api/advice$"), run)
+    page.route(re.compile(r"/api/jobs/a1$"), lambda route: route.fulfill(json={"id": "a1", "status": "done", "log": [], "result": KEPT}))
+    return runs
+
+
+def test_gear_and_advice_opens_on_the_advice_kept_from_the_last_run(app_page, app_url):
+    """The advice kept from the last run, an earlier session of the app included, shows at once under a line that
+    says when it was calculated and what has changed since. It is calculated again only when Run advice is pressed."""
+    page = app_page
+    gear(page)
+    runs = advice_runs(page)
+    go(page, app_url, "#/gear")
+    page.locator("#gout .pdoll").wait_for()
+    stamp = page.evaluate("at => whenAt(at * 1000)", KEPT_AT)
+    assert page.locator("#gkept").inner_text() == (
+        f"Your last advice, calculated {stamp}. Your gear, inventory, Genus lines or titles have changed since. "
+        "Version 0.2.343 of the app calculated it. Run advice calculates it again with your current gear and fights.")
+    assert "TestSorc" in page.locator("#gout .pdoll").inner_text() and runs == []
+    page.click("#gadv")
+    page.get_by_text("Advice complete.", exact=True).wait_for()
+    assert runs == [{"character": CHARACTER["key"]}] and page.locator("#gkept").is_hidden()
+
+
+@pytest.mark.parametrize("last", [{"advice": None}, {**KEPT_LAST, "advice": {"character": KEPT["character"]}}],
+                         ids=["none kept", "kept but not drawable"])
+def test_gear_and_advice_runs_the_advice_when_none_is_kept(app_page, app_url, last):
+    """With no advice kept for the character, or one this version cannot draw (an older version's), the page runs
+    the advice as it opens."""
+    page = app_page
+    gear(page, last)
+    runs = advice_runs(page)
+    go(page, app_url, "#/gear")
+    page.get_by_text("Advice complete.", exact=True).wait_for()
+    assert runs == [{"character": CHARACTER["key"]}]
+    assert page.locator("#gout .pdoll").is_visible() and page.locator("#gkept").is_hidden()
 
 
 KNOWN = {"character_id": "c1", "server_id": 1101, "region": "nae", "name": "Testsorc", "class_name": "Sorcerer",

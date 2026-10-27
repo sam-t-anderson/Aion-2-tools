@@ -156,3 +156,44 @@ def test_advice_without_fights_or_calibration_says_so(advised, tmp_path):
     assert "No saved fights for this character yet: record a boss fight with the live meter" in text
     assert "No inventory items for: Wings, Amulet" in text
     assert fight_summary([{"id": 1, "source": None}])["sources"] == {"unknown": 1}
+
+
+def test_the_advice_records_when_and_from_what_it_was_calculated(advised):
+    # The app shows the advice kept from the last run when Gear & Advice opens; its stamp says when it was
+    # calculated, by which version, and on what (a digest of the character and its inventory).
+    from aion2calc import __version__
+    from aion2calc.plan import inventory as INV
+    from aion2calc.plan.advisor import inputs_of
+    from aion2calc.sources.character import from_profile
+    from test_app import _profile
+    calculated = advised["advice"]["calculated"]
+    imp = from_profile(_profile())
+    assert calculated["version"] == __version__ and calculated["at"] > 0
+    assert calculated["inputs"] == inputs_of(imp, INV.from_character(imp))         # the same character, the same digest
+
+
+def test_the_last_advice_is_read_back_with_what_changed_since(advised):
+    from aion2calc import __version__
+    from aion2calc.plan import inventory as INV
+    from aion2calc.plan.advisor import folder, last, write_markdown
+    from aion2calc.sources.character import from_profile
+    from test_app import _profile
+    imp = from_profile(_profile())
+    inv = INV.from_character(imp)
+    target = folder(imp) / "advice.json"
+    assert not target.exists() and last(imp, inv) == {"advice": None}
+    write_markdown(advised["advice"], folder(imp))
+    kept = last(imp, inv)
+    assert kept["advice"]["top"] == advised["advice"]["top"] and kept["at"] == advised["advice"]["calculated"]["at"]
+    assert (kept["version"], kept["inputs_changed"], kept["version_changed"]) == (__version__, False, False)
+    assert last(imp, {**inv, "titles_owned": ["Test Title"]})["inputs_changed"]      # a title added since
+    stamp = advised["advice"]["calculated"]
+    target.write_text(json.dumps({**advised["advice"], "calculated": {**stamp, "version": "0.2.300"}}), encoding="utf-8")
+    assert (last(imp, inv)["version"], last(imp, inv)["version_changed"], last(imp, inv)["inputs_changed"]) == ("0.2.300", True, False)
+    # advice written before it was stamped: its time is the file's, and only the version is known to differ
+    target.write_text(json.dumps({k: v for k, v in advised["advice"].items() if k != "calculated"}), encoding="utf-8")
+    kept = last(imp, inv)
+    assert kept["at"] == target.stat().st_mtime and (kept["version"], kept["version_changed"], kept["inputs_changed"]) == (None, True, False)
+    target.write_text("{not json", encoding="utf-8")
+    assert last(imp, inv) == {"advice": None}
+    target.unlink()
