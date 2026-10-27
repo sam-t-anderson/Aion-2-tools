@@ -26,31 +26,10 @@ installer, checks it against the release its publisher signed, runs it, and turn
 It is skipped during silent updates, and greyed out when Pet Tracker is installed already. **Settings → Pet
 Tracker** installs it later instead. See [Pet Tracker](app.md#pet-tracker).
 
-**Unsigned builds.** The builds are not code-signed yet ([plan](code-signing.md)), so the first
-launch may need one extra click:
-
-* Windows SmartScreen ("Windows protected your PC"): **More info → Run anyway**.
-* Windows 11 Smart App Control: see [below](#windows-11-smart-app-control).
-* macOS ("cannot be opened" or "Apple could not verify"): open **System Settings → Privacy &
-  Security**, scroll down to the message about aion2calc and choose **Open Anyway**.
-
-### Windows 11 Smart App Control
-
-If Windows says **"Smart App Control blocked an app that may be unsafe"** (or that it could not
-verify the publisher of `aion2calc.exe`), Smart App Control is on. It blocks an app whose files
-are not signed and that it has no reputation for, and unlike SmartScreen it has no **Run anyway**
-and no way to allow one app. Until the releases are signed, the only way to run aion2calc on that
-computer is to turn Smart App Control off:
-
-1. Open **Windows Security** (Start → type "Windows Security").
-2. Choose **App & browser control → Smart App Control settings**.
-3. Choose **Off**, then start aion2calc again.
-
-On Windows 11 updated from April 2026 you can turn Smart App Control back on in the same place
-later, but it then blocks aion2calc again. On older builds, turning it off stays off until Windows
-is reset or reinstalled. Microsoft Defender and SmartScreen keep protecting the computer either way.
-Signed releases are the real fix; the release workflow is ready for a signing certificate
-([code signing](code-signing.md)).
+**Signed builds.** The Windows installer and the app are code-signed ([code signing](code-signing.md)),
+so Windows names their publisher. The macOS build is not signed: if macOS says it "cannot be opened"
+or "Apple could not verify" it, open **System Settings → Privacy & Security**, scroll down to the
+message about aion2calc and choose **Open Anyway**.
 
 ### "Failed to load Python DLL"
 

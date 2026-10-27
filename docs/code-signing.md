@@ -1,20 +1,11 @@
 # Code signing policy
 
-The Windows releases are not code-signed yet, so Windows names no publisher for them:
-- **SmartScreen** warns about the download ("Windows protected your PC"): choose **More info → Run
-  anyway** on the first launch.
-- **Smart App Control** (Windows 11) blocks the app outright ("Smart App Control blocked an app
-  that may be unsafe … could not verify its publisher"). It has no "Run anyway" and no per-app
-  exception. Until the releases are signed, the only way to run the app on such a computer is to
-  turn Smart App Control off: **Windows Security → App & browser control → Smart App Control
-  settings → Off**. Builds of Windows 11 updated from April 2026 let you turn it back on there
-  later; on older builds, turning it off stays off until Windows is reset or reinstalled. See
-  [installing on Windows](install.md#windows-11-smart-app-control).
-
-A valid signature is what Smart App Control accepts for an app it has no reputation for, so signing
-the releases is the fix. The release workflow is ready to sign them with
-[Azure Artifact Signing](https://learn.microsoft.com/azure/artifact-signing/) (below);
-[SignPath Foundation](https://signpath.org) signs open-source projects for free, on application.
+The Windows releases are code-signed with [Azure Artifact Signing](https://learn.microsoft.com/azure/artifact-signing/)
+since 0.2.346: the installer, `aion2calc.exe` and the app's Python extension modules, and from 0.2.347
+the uninstaller (`unins000.exe`) as well. Windows names the publisher when the installer runs, and
+Windows 11's Smart App Control, which blocks an app it has no reputation for unless the app carries a
+valid signature, lets them run. Right-click a file → **Properties → Digital Signatures** shows the
+signer, timestamped by Microsoft's timestamping service.
 
 ## Team roles
 
@@ -47,9 +38,9 @@ Apps** (Windows) or by deleting it; your data folder is kept until you delete it
 
 ## Turning on signing (maintainers)
 
-The Windows build in `.github/workflows/ci.yml` signs the release once an Azure Artifact Signing
-account is set up; until the repository variable below exists, those steps are skipped and the
-release is published unsigned. When they run, the build:
+The Windows build in `.github/workflows/ci.yml` signs the release with the Azure Artifact Signing
+account set up below; without the repository variable `AZURE_SIGNING_ENDPOINT`, those steps are
+skipped and a release would be published unsigned. When they run, the build:
 1. signs every file of the app bundle that runs as code and is not signed already (`aion2calc.exe`
    and the Python extension modules; Python's own DLLs and the Visual C++ runtime come signed);
 2. builds the installer from the signed files; the installer compiler signs Setup and the

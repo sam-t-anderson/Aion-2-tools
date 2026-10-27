@@ -2170,8 +2170,7 @@ async function pageSettings() {
             "launch-failed":
               "The installer helper did not start. Your app is still running; open the updates folder to run the setup file.",
             applying: "installing — the app will restart",
-            launching:
-              "closing the app, then opening the installer — follow the prompts (choose “More info → Run anyway” if Windows warns)",
+            launching: "closing the app, then opening the installer — follow its prompts",
             downloaded: "downloaded — open your data folder’s “updates” to run it",
             "download-failed": "download failed",
             "check-failed": "could not reach GitHub for the update; try again in a minute",

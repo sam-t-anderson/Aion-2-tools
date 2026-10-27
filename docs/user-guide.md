@@ -102,10 +102,6 @@ arcana, stigmas, priority list, macro, stat priority, build card and Daevanion b
 Windows, macOS and Linux are there too. No Python and no command line needed. The app follows your
 computer's light or dark mode. Details and updating: [`docs/install.md`](install.md).
 
-Windows may warn that the download is unrecognized until the builds are code-signed: choose **More info →
-Run anyway**. Windows 11's Smart App Control blocks the app outright, with no Run anyway: see
-[installing with Smart App Control on](install.md#windows-11-smart-app-control). [Code signing policy](code-signing.md).
-
 | Dark | Light |
 |---|---|
 | ![Dark theme](screenshots/app_dark.png) | ![Light theme](screenshots/app_light.png) |
