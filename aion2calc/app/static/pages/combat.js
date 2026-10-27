@@ -183,7 +183,7 @@ async function pageCombat() {
     $("#lsrv").innerHTML =
       `<span class="muted">Share to a log server:</span><input id="lsurl" type="text" placeholder="https://logs.example.com" value="${esc(c.url || "")}" style="width:275px">
       <input id="lskey" type="password" placeholder="${c.has_key ? "key saved" : "upload key"}" style="width:183px">
-      <select id="lsvis" aria-label="Who can see your uploads">${["public", "unlisted", "private"].map((v) => `<option ${v === (c.visibility || "public") ? "selected" : ""}>${v}</option>`).join("")}</select>
+      <select id="lsvis" aria-label="Who can see your uploads">${["public", "unlisted", "legion", "private"].map((v) => `<option value="${v}" ${v === (c.visibility || "public") ? "selected" : ""}>${v === "legion" ? "legion only" : v}</option>`).join("")}</select>
       <button class="btn small" id="lssave">Save</button>`;
     $("#lssave").onclick = async () => {
       await api("/api/logserver", {

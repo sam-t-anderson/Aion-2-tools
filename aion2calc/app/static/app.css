@@ -755,3 +755,23 @@ p.odyle .ticketicon { display: inline-block; width: 20px; height: 20px; flex: 0 
 details.note > summary { cursor: pointer; }
 details.note > summary > b { font-weight: 700; }
 details.note[open] > summary { margin-bottom: 6px; }
+
+/* The optional account (account-view.js): the name and its menu in the header, and the account page. */
+.acct-slot { display: flex; align-items: center; }
+.acct-menu { position: relative; }
+.acct-drop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 40; min-width: 240px; display: flex; flex-direction: column;
+  padding: 6px; border: 1px solid var(--frame-hi); border-radius: 8px; background: var(--panel); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.acct-drop[hidden] { display: none; }
+.acct-drop a, .acct-drop button { display: block; text-align: left; padding: 8px 10px; border: 0; border-radius: 5px; background: none;
+  color: var(--text); font: inherit; font-size: 16px; text-decoration: none; cursor: pointer; }
+.acct-drop a:hover, .acct-drop button:hover, .acct-drop a:focus-visible, .acct-drop button:focus-visible { background: var(--row-hover); color: var(--gold); }
+.acct-page .acct-title { align-items: baseline; gap: 12px; }
+.acct-page .acct-title h2 { font-family: var(--display); color: var(--gold); margin: 4px 0 10px; letter-spacing: 1px; }
+.acct-page h3 { color: var(--gold); margin: 18px 0 8px; }
+.acct-page h4 { margin: 16px 0 6px; }
+.acct-page details.note { margin-top: 10px; }
+.acct-code { font-family: ui-monospace, Consolas, monospace; font-size: 34px; letter-spacing: 6px; color: var(--gold); margin: 8px 0; }
+
+/* The language (i18n.js): the page stays hidden for the moment its catalog loads, rather than flashing in English. */
+html.i18n-wait body { visibility: hidden; }
+.lang-pick { max-width: 150px; font-size: 16px; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--frame); background: var(--btn-b); color: var(--text); }

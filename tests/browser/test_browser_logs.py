@@ -67,7 +67,7 @@ def test_the_saved_logs_share_row_offers_public_first_and_saves_with_the_server(
     go(page, app_url, "#/combat")
     page.click("#log-tab-saved")
     page.wait_for_selector("#lsvis")
-    assert page.eval_on_selector_all("#lsvis option", "os => os.map(o => o.value)") == ["public", "unlisted", "private"]
+    assert page.eval_on_selector_all("#lsvis option", "os => os.map(o => o.value)") == ["public", "unlisted", "legion", "private"]
     assert page.locator("#lsvis").input_value() == "public" and page.locator("#lsurl").input_value() == community.url
     page.select_option("#lsvis", "private")
     page.click("#lssave")

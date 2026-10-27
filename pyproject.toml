@@ -35,7 +35,7 @@ version = {attr = "aion2calc.__version__"}
 include = ["aion2calc*"]
 
 [tool.setuptools.package-data]
-aion2calc = ["data/**/*.json", "data/seed/*.gz", "app/static/*", "app/static/pages/*", "app/static/fonts/*", "app/static/game-assets/*", "meter/*.jsonl", "meter/a2parser/data/**/*.json"]
+aion2calc = ["data/**/*.json", "data/seed/*.gz", "app/static/*", "app/static/pages/*", "app/static/i18n/*", "app/static/fonts/*", "app/static/game-assets/*", "meter/*.jsonl", "meter/a2parser/data/**/*.json"]
 
 [tool.pytest.ini_options]
 filterwarnings = ["ignore::DeprecationWarning:pulp.*"]

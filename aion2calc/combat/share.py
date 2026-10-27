@@ -305,10 +305,22 @@ def upload(doc: dict, url: str | None = None, key: str | None = None, visibility
     rk = recording_key(doc, include_open=well_known.get("recording_supersede") is True)
     if rk:
         headers["X-Aion-Recording-Key"] = rk
+    # Signed in (account.py), the upload joins the account; a log only the player's legions see needs it.
+    from .account import token_for
+    account = token_for(url)
+    if account:
+        headers["X-Account-Token"] = account
+    fallback = None
+    if vis == "legion" and not account:
+        vis, fallback = "private", "Not signed in, so this log was uploaded as private: sign in (Account) to share logs with your legion"
+    if vis not in ("public", "unlisted", "legion", "private"):
+        raise ValueError("Visibility must be public, unlisted, legion or private")
     req = urllib.request.Request(f"{target}?visibility={vis}", body, headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
             result = json.load(r)
+        if fallback:
+            result["visibility_note"] = fallback
         remember_uploaded(doc)
         from .ownership import remember
         try:
@@ -417,6 +429,10 @@ def community_request(path: str, body: dict | None = None) -> dict:
     headers = {"User-Agent": "aion2calc"}
     if settings.get("key"):
         headers["Authorization"] = "Bearer " + settings["key"]
+    from .account import token_for
+    account = token_for(base)                      # a log shared with the player's legion opens for them
+    if account:
+        headers["X-Account-Token"] = account
     payload = None
     if body is not None:
         headers["Content-Type"] = "application/json"

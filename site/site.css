@@ -75,3 +75,19 @@ details[open] > summary { margin-bottom:2px; }
   .site.wide-2x { zoom: 1; }
   main table.t { display: block; max-width: 100%; overflow-x: auto; }
 }
+
+/* The account (account.js): the name and its menu sit in the header; on a phone the header keeps one row,
+   so the account is the last page of the folded menu instead. */
+.nav .acct-navlink { display: none; }
+@media (max-width: 700px) {
+  .topbar .acct-slot { display: none; }
+  .topbar.navfold.navopen > .nav a.acct-navlink { display: block; }
+}
+
+/* The language menu (navigation.js): in the header; on a phone at the end of the folded menu instead. */
+.topbar .lang-slot { display: flex; align-items: center; }
+.nav .lang-navrow { display: none; }
+@media (max-width: 700px) {
+  .topbar .lang-slot { display: none; }
+  .topbar.navfold.navopen > .nav .lang-navrow { display: block; padding: 8px 12px; }
+}
