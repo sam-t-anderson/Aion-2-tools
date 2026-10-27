@@ -423,6 +423,7 @@ jobs:
     permissions:
       contents: write
       actions: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v7
       - name: Version
@@ -473,6 +474,13 @@ jobs:
           pathlib.Path("release-notes.md").write_text(chosen, encoding="utf-8")
           print(f"Release notes: {len(chosen)} chars for v{version}")
           PY
+      - name: Checksums
+        # SHA256SUMS.txt goes out with the release and the notes list the same values, taken from the files
+        # the builds uploaded (the Windows installer and app already signed).
+        if: steps.exists.outputs.yes != '1'
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: python3 tools/release_checksums.py "$VERSION" assets/aion2calc-* --sums assets/SHA256SUMS.txt --notes release-notes.md
       - name: Create the release
         if: steps.exists.outputs.yes != '1'
         env:
@@ -481,3 +489,29 @@ jobs:
           gh release create "v${{ steps.v.outputs.version }}" assets/* \
             --title "aion2calc ${{ steps.v.outputs.version }}" \
             --notes-file release-notes.md --target "$GITHUB_SHA"
+      - name: Keep the README's checksums current
+        # README.md shows the latest release's SHA-256 values ("Verify your download"). main takes pull requests
+        # only, so this opens one that changes nothing but that block and merges it; a merge by GITHUB_TOKEN starts
+        # no workflow. If it fails, the release stays published and the pull request stays open for review.
+        if: steps.exists.outputs.yes != '1'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --depth=1 origin main
+          git checkout -B automation/release-checksums FETCH_HEAD
+          python3 tools/release_checksums.py "$VERSION" assets/aion2calc-* --readme README.md
+          if git diff --quiet -- README.md; then echo 'The README already lists these checksums.'; exit 0; fi
+          git commit -m "README: SHA-256 of the v$VERSION downloads" -- README.md
+          git push --force origin automation/release-checksums
+          pr=$(gh pr list --head automation/release-checksums --state open --json number --jq '.[0].number')
+          if [ -z "$pr" ]; then
+            pr=$(gh pr create --base main --head automation/release-checksums \
+              --title "README: SHA-256 of the v$VERSION downloads" \
+              --body "Automated after the v$VERSION release: the README's *Verify your download* block lists that release's SHA-256 values, the same as its SHA256SUMS.txt. Nothing else changes." \
+              | sed 's#.*/##')
+          fi
+          gh pr merge "$pr" --squash --delete-branch
