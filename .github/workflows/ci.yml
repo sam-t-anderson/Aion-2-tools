@@ -125,6 +125,10 @@ jobs:
           - { os: macos-latest, name: macos }
           - { os: ubuntu-latest, name: linux }
     runs-on: ${{ matrix.os }}
+    env:
+      # each smoke test below also makes one real request through the app's certificate check
+      # (aion2calc/tls.py): the update check's own, so a build that cannot verify GitHub never ships
+      AION2CALC_SMOKE_HTTPS: https://api.github.com/repos/sam-t-anderson/Aion-2-tools/releases/latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7

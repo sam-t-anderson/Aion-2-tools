@@ -113,7 +113,7 @@ def https_server(tmp_path, monkeypatch):
 
     class Hello(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
-            self.send_response(200)
+            self.send_response(200 if self.path == "/" else 404)
             self.send_header("Content-Length", "5")
             self.end_headers()
             self.wfile.write(b"hello")
@@ -158,3 +158,18 @@ def test_a_certificate_nobody_trusts_is_refused(https_server, installed):
     with pytest.raises(urllib.error.URLError) as refused:
         urllib.request.urlopen(url, timeout=10)
     assert isinstance(refused.value.reason, ssl.SSLCertVerificationError)
+
+
+def test_the_smoke_test_makes_one_real_request_through_it(https_server, monkeypatch):
+    # CI's builds set AION2CALC_SMOKE_HTTPS to the update check's address, so the packaged app verifies a real
+    # certificate through this check on Windows, macOS and Linux before a release goes out.
+    url, files = https_server
+    assert tls.install()
+    verified, line = launcher._https_check(url)
+    assert not verified and line.startswith(f"HTTPS request to {url} FAILED URLError") and "certificate" in line
+    tls.uninstall()
+    monkeypatch.setattr(tls, "_bundled_roots", lambda: str(files["root"]))
+    assert tls.install()
+    assert launcher._https_check(url) == (True, f"HTTPS request verified (200 from {url})")
+    # an error page still came over a verified connection (GitHub's API answers 403 once rate-limited)
+    assert launcher._https_check(url + "missing") == (True, f"HTTPS request verified (404 from {url}missing)")

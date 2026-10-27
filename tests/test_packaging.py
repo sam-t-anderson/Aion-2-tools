@@ -66,9 +66,10 @@ def test_client_config_presets_the_log_server_once(home, monkeypatch, tmp_path):
     assert launcher.client_config() == {}
 
 
-def test_smoke_test_and_running_app(home, tmp_path):
+def test_smoke_test_and_running_app(home, tmp_path, monkeypatch):
     from aion2calc import __version__, launcher, tls
     from aion2calc.app.server import make_server
+    monkeypatch.delenv("AION2CALC_SMOKE_HTTPS", raising=False)     # no request out unless asked (CI's builds)
     out = tmp_path / "smoke.txt"
     try:
         assert launcher.main(["--smoke-test", str(out)]) == 0       # as the packaged app runs it (CI's build)
@@ -77,6 +78,7 @@ def test_smoke_test_and_running_app(home, tmp_path):
     text = out.read_text()
     assert "solver OK" in text and f"aion2calc {__version__}: OK" in text
     assert "HTTPS certificates: system verifier and bundled roots OK" in text
+    assert "HTTPS request" not in text
     srv = make_server("127.0.0.1", 0)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
@@ -132,6 +134,10 @@ def test_the_https_certificate_check_ships_with_the_app():
     spec = _spec_source()
     assert "import truststore" in spec and 'collect_submodules("truststore")' in spec
     assert "import certifi" in spec and 'collect_data_files("certifi")' in spec
+    # and CI's builds make one real request through it, to the update check's own address
+    from aion2calc import update
+    ci = (root / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert f"AION2CALC_SMOKE_HTTPS: {update.RELEASES_API}" in ci
 
 
 def test_every_file_of_the_app_pages_is_in_the_package_data():

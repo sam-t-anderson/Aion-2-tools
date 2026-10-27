@@ -156,6 +156,10 @@ pyinstaller packaging/aion2calc.spec --noconfirm     # -> dist/aion2calc/ (and d
 dist/aion2calc/aion2calc --smoke-test                # prints each check, exit code 0 when all pass
 ```
 
+With `AION2CALC_SMOKE_HTTPS` set to an address, the smoke test also makes one request there through the
+app's certificate check ([`aion2calc/tls.py`](../aion2calc/tls.py)). CI's builds set it to the update
+check's address, so a build that cannot verify GitHub's certificate fails before it is released.
+
 The Windows installer needs [Inno Setup 6](https://jrsoftware.org/isdl.php):
 
 ```bat
