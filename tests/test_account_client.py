@@ -6,12 +6,14 @@ import gzip
 import json
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
 TOKEN = "a2app_" + "k" * 43
+HANDOFF = "h" * 43
 
 
 class FakeServer:
@@ -48,6 +50,14 @@ class FakeServer:
                     return self._answer(201, {"token": TOKEN, "account": profile})
                 if path == "/api/v1/logs":
                     return self._answer(201, {"id": "abcdef12", "delete_token": "d" * 30, "visibility": self.path.split("visibility=")[1]})
+                if path == "/api/v1/account/discord/start":
+                    return self._answer(200, {"url": "https://discord.com/oauth2/authorize?state=x", "request": "r" * 20,
+                                              "secret": "s" * 43, "interval": 3, "expires_in": 600})
+                if path == "/api/v1/account/discord/poll":
+                    # the server issues the credential only to the poll that brings the browser's handoff
+                    if body.get("handoff") != HANDOFF:
+                        return self._answer(200, {"status": "pending"})
+                    return self._answer(200, {"status": "approved", "token": TOKEN, "account": profile})
                 if token != TOKEN or me.revoked:
                     return self._answer(401, {"error": "Sign in again: this sign-in has ended or was revoked"})
                 if path == "/api/v1/account":
@@ -94,8 +104,8 @@ def test_creating_the_account_keeps_the_credential_in_the_app_and_adds_what_it_h
     assert TOKEN not in json.dumps(out)                       # the page never sees the credential
     attached = next(b for m, p, t, b in server.seen if p == "/api/v1/account/logs/attach")
     assert attached == {"evidence": [{"id": "abcdef12", "delete_token": "d" * 30}]}  # only this server's
-    claims = next(b for m, p, t, b in server.seen if p == "/api/v1/account/claims/attach")
-    assert claims == {"tokens": ["a2id_" + "i" * 30]}
+    claims = [b for m, p, t, b in server.seen if p == "/api/v1/account/claims/attach"]
+    assert claims == [{"tokens": ["a2id_" + "i" * 30]}]                 # once: the sign-in's sync gave them
     saved = json.loads((tmp_path / "data" / "account.json").read_text()) if (tmp_path / "data" / "account.json").exists() \
         else json.loads(next(tmp_path.rglob("account.json")).read_text())
     assert saved["token"] == TOKEN and saved["server"] == server.url
@@ -181,3 +191,109 @@ def test_the_app_endpoint_hides_the_credential_and_refuses_other_sites(server):
         assert call("POST", {"action": "signout"}) == (200, {"signed_in": False})
     finally:
         srv.shutdown()
+
+
+def test_discord_signs_the_app_in_only_with_the_handoff_its_browser_brings_back(server, monkeypatch):
+    from aion2calc.combat import account
+    opened = []
+    monkeypatch.setattr(account.webbrowser, "open", opened.append)
+    for elsewhere in ("https://evil.example/api/account/discord-done", "http://127.0.0.1.evil.example:8765/api/account/discord-done",
+                      "http://127.0.0.1:8765/elsewhere"):
+        with pytest.raises(ValueError):
+            account.discord_start(elsewhere)
+    back = "http://127.0.0.1:8765/api/account/discord-done"
+    assert account.discord_start(back) == {"waiting": True, "interval": 3}
+    assert opened == ["https://discord.com/oauth2/authorize?state=x"]
+    started = next(b for m, p, t, b in server.seen if p == "/api/v1/account/discord/start")
+    assert started == {"purpose": "app", "return_to": back}
+    assert account.discord_poll() == {"status": "pending"}                  # nothing has come back yet
+    assert account.discord_finish("x" * 43)["status"] == "pending"          # a made-up handoff signs nobody in
+    out = account.discord_finish(HANDOFF)
+    assert out["status"] == "approved" and out["signed_in"] and TOKEN not in json.dumps(out)
+    assert account.discord_poll()["status"] == "approved"                    # the page reads it once
+    assert account.discord_poll() == {"status": "expired"}
+    assert account.discord_finish(HANDOFF) == {"status": "expired"}         # nothing waits any more
+    secrets_sent = [b for m, p, t, b in server.seen if p == "/api/v1/account/discord/poll"]
+    assert all(b["secret"] == "s" * 43 and b["request"] == "r" * 20 for b in secrets_sent)
+
+
+def test_a_refused_discord_sign_in_ends_with_its_reason(server, monkeypatch):
+    from aion2calc.combat import account
+    monkeypatch.setattr(account.webbrowser, "open", lambda url: None)
+    account.discord_start("http://127.0.0.1:8765/api/account/discord-done")
+    assert account.discord_finish(None, "Discord sign-in was cancelled") == {"status": "error", "error": "Discord sign-in was cancelled"}
+    assert account.discord_poll() == {"status": "error", "error": "Discord sign-in was cancelled"}
+    account.discord_start("http://127.0.0.1:8765/api/account/discord-done")
+    assert account.discord_finish(None)["error"].startswith("The browser came back from Discord without")
+
+
+def test_the_browser_returns_to_the_apps_own_page(server, monkeypatch):
+    from aion2calc.app.server import Handler
+    from aion2calc.combat import account
+    monkeypatch.setattr(account.webbrowser, "open", lambda url: None)
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+
+    def post(body):
+        req = urllib.request.Request(base + "/api/account", json.dumps(body).encode(), {"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read())
+
+    def page(query):
+        with urllib.request.urlopen(base + "/api/account/discord-done?" + query, timeout=30) as r:
+            assert r.headers["Content-Type"].startswith("text/html") and r.headers["Cache-Control"] == "no-store"
+            return r.read().decode()
+    try:
+        assert "No Discord sign-in is waiting" in page("a2handoff=" + HANDOFF)
+        assert post({"action": "discord-start"})["waiting"] is True
+        started = next(b for m, p, t, b in server.seen if p == "/api/v1/account/discord/start")
+        assert started["return_to"] == base + "/api/account/discord-done"      # this app's own address
+        assert "Signed in with Discord as Seren" in page("a2handoff=" + HANDOFF)
+        assert post({"action": "discord-poll"})["status"] == "approved"
+        assert post({"action": "signout"}) == {"signed_in": False}
+        post({"action": "discord-start"})
+        assert "&lt;b&gt;" in page("a2error=" + urllib.parse.quote("<b>refused</b>"))  # the reason, escaped
+    finally:
+        srv.shutdown()
+
+
+def test_a_claim_joins_the_signed_in_account_at_once(server):
+    from aion2calc.app.server import Handler
+    from aion2calc.combat import account
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+
+    def save(rows):
+        req = urllib.request.Request(base + "/api/identity-claims", json.dumps({"action": "replace", "claims": rows}).encode(),
+                                     {"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read())
+    row = {"server": server.url, "name": "Seren", "server_name": "Siel", "token": "a2id_" + "i" * 30}
+    try:
+        save([row])                                                             # signed out: kept here only
+        assert not [p for m, p, t, b in server.seen if p == "/api/v1/account/claims/attach"]
+        account.register("Seren")
+        server.seen.clear()
+        save([row, row | {"name": "Alt", "token": "a2id_" + "j" * 30}])
+        attached = [b for m, p, t, b in server.seen if p == "/api/v1/account/claims/attach"]
+        assert attached == [{"tokens": ["a2id_" + "i" * 30, "a2id_" + "j" * 30]}]
+        server.revoked = True                                                   # the account call fails: the claim stays
+        assert len(save([row])) == 1
+    finally:
+        srv.shutdown()
+
+
+def test_claims_the_account_lacks_reach_it_without_a_sync(server, monkeypatch):
+    from aion2calc.combat import account, identity
+    monkeypatch.setattr(account, "_offered", set())
+    account.register("Seren")
+    identity.replace([{"server": server.url, "name": "Seren", "server_name": "Siel", "token": "a2id_" + "i" * 30}])
+    server.seen.clear()                                    # a claim made after signing in, as before 0.2.349
+    assert account.status()["signed_in"]
+    attached = [b for m, p, t, b in server.seen if p == "/api/v1/account/claims/attach"]
+    assert attached == [{"tokens": ["a2id_" + "i" * 30]}]
+    server.seen.clear()
+    account.status()                                       # offered once per run, not on every refresh
+    assert not [p for m, p, t, b in server.seen if p == "/api/v1/account/claims/attach"]

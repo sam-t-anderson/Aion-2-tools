@@ -76,11 +76,16 @@ def test_the_panel_is_shared_by_the_app_and_the_site():
         assert path in js
     assert "'X-Identity-Token'" in js and "redirect:'error'" in js and "credentials:'omit'" in js
     assert "rows:browserRows" in (STATIC / "log-ownership.js").read_text(encoding="utf-8")   # the recordings' credentials feed the claim
-    # the app mounts it on My Uploads, with the claims it keeps: tests/browser/test_browser_logs.py
+    # the app mounts it on My Character Identities, with the claims it keeps: tests/browser/test_browser_logs.py
     assert 'src="/static/identity.js"' in (STATIC / "index.html").read_text(encoding="utf-8")
     site_html = (ROOT / "site" / "logs.html").read_text(encoding="utf-8")
     assert '<div id="my-characters"></div>' in site_html and 'src="static/identity.js"' in site_html
-    assert 'A2Identity.mount(document.getElementById("my-characters"))' in (ROOT / "site" / "logs.js").read_text(encoding="utf-8")
+    panel = site_html.split('id="log-panel-identities"')[1].split('id="log-panel-community"')[0]
+    assert '<div id="my-characters"></div>' in panel and 'data-log-tab="identities"' in site_html
+    logs_js = (ROOT / "site" / "logs.js").read_text(encoding="utf-8")
+    # a claim made on the website joins that browser's account at once
+    assert 'A2Identity.mount(document.getElementById("my-characters"),{claimed:' in logs_js
+    assert '"/api/v1/account/claims/attach"' in logs_js and "if(io.claimed)await io.claimed(row)" in js
     pages = (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
     assert pages.count("aion2calc/app/static/identity.js") == 2            # trigger path and the deploy copy
 

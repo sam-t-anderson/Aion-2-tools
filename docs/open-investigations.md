@@ -507,6 +507,8 @@ The a2log format already has a slot for replay positions (`positions`: time, ent
 
 **The recording player's own movement is not in the traffic.** What the client sends is encrypted: 64,422 records carry 40,996 distinct leading byte pairs. A 10-byte record goes out about every 50 ms and 30- and 40-byte ones about every 105 ms, which is where its movement would be. The server does not send it back: of the 35,819 `1d 37` movement updates in the dungeon run, 23 name the recording player, and of the 4,160 `1a 37`, 16.
 
+A search that does not rely on whose ID a record names confirms it. Around each of the recording player's 1,890 stamps in the dungeon run (the effects they apply, below), every float triple at every byte offset of every record within 300 ms was compared with where the stamp puts them: 100,699 server records and 3,796 of the client's. Within 200 units, the only server records are the effect records (`2b 38`, and `2a 38`, not decoded yet, which carries a position as well: 780 of them lead with the recording player), casts (`02 38`), the player's own `3c 37` landings, and a few dozen movement records, nearly all of party members standing next to them (`1a`, `1b` and `1c 37`, `1c 92`). The client's records hold no readable position at all. The server sends each player the others' movement, so a party member's recording of the same fight holds the recording player's: merging recordings of one fight is what fills the gap.
+
 **Everyone else's movement is in the server's records,** in one coordinate frame: X and Y on the ground, Z up (a fast mover crosses the map at a constant Z). Entities that move between fixes cover a median 413 units a second, which fits centimetres.
 
 | Record | After the entity id | What it is | How often |

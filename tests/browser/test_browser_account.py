@@ -33,3 +33,31 @@ def test_a_server_without_accounts_says_so(browser, app_url):
         stand_in.ANSWERS["/api/v1/account/config"] = config
         close_context(context)
     assert not watch.unexpected(), watch.unexpected()
+
+
+def test_the_legions_tab_points_at_my_character_identities(browser, app_url):
+    """Signed in without a claimed character, Legions says where characters are claimed and links there."""
+    context = open_context(browser, app_url)
+    page, watch = watched_page(context, app_url)
+    profile = {"id": "acc_1", "name": "Seren", "logs": 0, "characters": [], "passkeys": 0, "apps": 1, "discord": None}
+
+    def account(route):
+        if route.request.method == "GET":
+            return route.fulfill(json={"signed_in": True, "here": True, "server": "http://logs.test", "account": profile,
+                                       "session": {"id": 1, "kind": "app"}})
+        body = route.request.post_data_json or {}
+        if body.get("action") == "request" and body.get("path") == "/api/v1/legions/mine":
+            return route.fulfill(json={"legions": []})
+        return route.fulfill(json={})
+    page.route("**/api/account", account)
+    try:
+        go(page, app_url, "#/account/legions")
+        link = page.locator("#account-root a", has_text="Open My Character Identities")
+        link.wait_for()
+        assert "Combat Logs → My Character Identities" in page.locator("#account-root div.note").first.inner_text()
+        link.click()
+        page.wait_for_selector("#log-panel-identities:not([hidden])")
+        assert page.evaluate("location.hash") == "#/combat/identities"
+    finally:
+        close_context(context)
+    assert not watch.unexpected(), watch.unexpected()
