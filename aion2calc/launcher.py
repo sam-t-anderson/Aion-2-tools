@@ -215,6 +215,11 @@ def smoke_test(out: str | None = None) -> int:
     except Exception as err:
         ok = False
         lines.append(f"{lp.name()} solver FAILED {err}")
+    from . import tls                             # HTTPS certificates: the system's verifier, Mozilla's roots second
+    state = tls.status()
+    checked = state["system"] and state["bundled"] and state["roots_present"]
+    ok &= checked
+    lines.append("HTTPS certificates: system verifier and bundled roots " + ("OK" if checked else f"FAILED {state}"))
     if sys.platform == "win32":                   # the Hidden Cube radar's sound capture: reported, not required
         try:
             import importlib
@@ -331,6 +336,8 @@ def install_pettracker() -> int:
 
 
 def main(argv=None) -> int:
+    from . import tls
+    tls.install()                                 # the system's certificate check for HTTPS, before any request
     if os.environ.get("AION2CALC_OVERLAY"):       # the app re-ran the bundle to open the native overlay
         from . import overlay
         return overlay.main([])

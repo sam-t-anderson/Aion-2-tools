@@ -67,12 +67,16 @@ def test_client_config_presets_the_log_server_once(home, monkeypatch, tmp_path):
 
 
 def test_smoke_test_and_running_app(home, tmp_path):
-    from aion2calc import __version__, launcher
+    from aion2calc import __version__, launcher, tls
     from aion2calc.app.server import make_server
     out = tmp_path / "smoke.txt"
-    assert launcher.smoke_test(str(out)) == 0
+    try:
+        assert launcher.main(["--smoke-test", str(out)]) == 0       # as the packaged app runs it (CI's build)
+    finally:
+        tls.uninstall()
     text = out.read_text()
     assert "solver OK" in text and f"aion2calc {__version__}: OK" in text
+    assert "HTTPS certificates: system verifier and bundled roots OK" in text
     srv = make_server("127.0.0.1", 0)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
@@ -114,6 +118,20 @@ def test_spec_requires_highspy_to_be_bundled():
     spec = _spec_source()
     assert "import highspy" in spec
     assert "skipping highspy" not in spec                        # no silent-skip fallback for a required dep
+
+
+def test_the_https_certificate_check_ships_with_the_app():
+    # The system's verifier (truststore) and Mozilla's roots (certifi, a data file) are what let the update
+    # check verify GitHub on computers missing a root (aion2calc/tls.py, 0.2.345): required dependencies,
+    # imported up front by the spec so a build without them fails, and checked again by the smoke test.
+    import pathlib
+    import tomllib
+    root = pathlib.Path(__file__).resolve().parents[1]
+    needs = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["dependencies"]
+    assert any(d.startswith("truststore") for d in needs) and any(d.startswith("certifi") for d in needs)
+    spec = _spec_source()
+    assert "import truststore" in spec and 'collect_submodules("truststore")' in spec
+    assert "import certifi" in spec and 'collect_data_files("certifi")' in spec
 
 
 def test_every_file_of_the_app_pages_is_in_the_package_data():

@@ -68,6 +68,21 @@ From 0.2.326 on, an update that does not finish puts back the copy it was replac
 still starts. Setup also writes a log of each run to `%TEMP%` (`Setup Log <date> #<n>.txt`), which says
 what went wrong.
 
+### Settings says "could not check for updates"
+
+If the version line in **Settings** reads **could not check for updates (URLError: … CERTIFICATE_VERIFY_FAILED
+… unable to get issuer certificate)**, your copy is older than 0.2.345 and cannot see new releases, so it
+will not update itself. Download `aion2calc-setup-<version>.exe` from the
+[Releases page](https://github.com/sam-t-anderson/Aion-2-tools/releases/latest) and run it once: it
+installs over your copy and keeps your data in `%LOCALAPPDATA%\aion2calc`.
+
+Versions before 0.2.345 checked GitHub's certificate against their own copy of the certificates stored in
+Windows. Windows downloads some root certificates only the first time it needs them, so on some computers
+that copy was missing the one the check led to, although the browser opened GitHub fine. From 0.2.345 the
+app asks Windows to check each certificate, as the browser does, with Mozilla's root certificates as a
+second check, so the update check and the rest of the app (uploads, the log server, character imports and
+game data) work wherever the browser does.
+
 **Using it.** The first page has three steps: import your character, get gear advice, add your
 fights. **Settings** holds the theme, the data folder (with buttons to open it), the log server
 for sharing fights, the game-database update and the version. Closing the app window stops the

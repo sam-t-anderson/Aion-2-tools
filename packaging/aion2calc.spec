@@ -102,6 +102,14 @@ for pkg in ("scapy", "lz4"):
         hiddenimports += h
     except Exception as err:
         print(f"aion2calc.spec: skipping {pkg} ({err})")
+# HTTPS certificates are checked with the system's verifier (truststore, which loads its Windows, macOS or
+# Linux backend by platform) and Mozilla's roots second (certifi, whose roots are a data file): see
+# aion2calc/tls.py. Both are required dependencies, imported up front so a missing one fails the build
+# rather than shipping an app whose update check cannot verify GitHub on some computers (0.2.345).
+import certifi
+import truststore
+hiddenimports += collect_submodules("truststore")
+datas += collect_data_files("certifi")
 # PuLP ships CBC solver binaries for every platform; keep this platform's only
 datas += [d for d in collect_data_files("pulp") if "solverdir" not in d[0] or os.sep + PLAT + os.sep in d[0]
           or "/" + PLAT + "/" in d[0]]
