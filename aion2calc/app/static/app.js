@@ -6,6 +6,8 @@
 
 // ------------------------------------------------------------------ helpers
 const DISCORD = "https://discord.gg/9y6zkUyvBv";
+// Every version's release notes (Settings → Patch notes).
+const PATCH_NOTES = "https://github.com/sam-t-anderson/Aion-2-tools/releases";
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) =>
@@ -378,59 +380,94 @@ async function syncPill() {
         ? `updating database · ${esc(sy.phase)} ${sy.total ? `${sy.done}/${sy.total}` : ""}`
         : `database ${n0(s.db.items)} items`
     }</span>`;
+    // The quiet update (0.2.353): a newer release downloads in the background and the small bar at the bottom left
+    // shows it, then offers Update now; the header chip names a newer release only where nothing downloads (a copy
+    // run from source, updates turned off, or a download that failed).
+    const quiet = updateBar(s);
     const up = $("#update");
-    if (s.update && up) {
-      up.hidden = false;
-      up.href = s.update.url;
-      up.textContent = `Version ${s.update.version} available`;
-    }
-    // One prompt per window, for the newest release. It used to ask once per version, so every
-    // release published while the app ran asked again and a copy several versions behind was walked
-    // through them one at a time. A newer release now only updates the chip; the prompt re-checks
-    // first, so it names the newest one, which is what Install installs.
-    if (s.update && s.update_prompt !== false && !sessionStorage.getItem("update-prompted")) {
-      sessionStorage.setItem("update-prompted", "1");
-      setTimeout(async () => {
-        let latest = s.update;
-        try {
-          const c = await api("/api/update/check", {});
-          if (c.update) latest = c.update;
-          else if (!(c.update_state || {}).error) return; // a fresh check found nothing newer
-        } catch (e) {
-          /* keep what the last check found */
-        }
-        if (
-          !confirm(
-            `Aion 2 Calc ${latest.version} is ready (you have ${s.version}). Install it now?\n\nThis installs the newest version directly, not the versions in between.`,
-          )
-        )
-          return;
-        try {
-          const r = await api("/api/update", {});
-          if (r.status === "launching")
-            document.body.innerHTML =
-              '<div class="empty" style="margin-top:20vh">Aion 2 Calc is closing. The installer will open in a moment.</div>';
-          else
-            toast(
-              {
-                downloaded: "Update downloaded. Open the updates folder to install it.",
-                "download-failed": "The update download failed.",
-                "check-failed": "Could not reach GitHub for the update. Try again in a minute.",
-                "up-to-date": "Already up to date.",
-              }[r.status] || r.status,
-            );
-        } catch (e) {
-          toast("Update failed: " + e.message);
-        }
-      }, 250);
+    if (up) {
+      up.hidden = !s.update || quiet;
+      if (s.update) {
+        up.href = s.update.url;
+        up.textContent = `Version ${s.update.version} available`;
+      }
     }
     $("#quit").title = `Stop the app (version ${s.version || ""})`;
-    // While the release check is still running, look again in two seconds rather than twenty.
+    // While the release check is still running, look again in two seconds rather than twenty; a download's
+    // progress every second.
     const checking = !s.update && s.update_state && s.update_state.checking;
-    setTimeout(syncPill, running ? 2500 : checking ? 2000 : 20000);
+    const downloading = s.update_download && s.update_download.state === "downloading";
+    setTimeout(syncPill, running ? 2500 : downloading ? 1000 : checking ? 2000 : 20000);
   } catch (e) {
     setTimeout(syncPill, 20000);
   }
+}
+// The update bar at the bottom left (0.2.353): the download's progress, then "Update ready" with Update now (the app
+// closes and the installer opens) and "Update when the app closes" (on unless the player turns it off). True while
+// it shows.
+const UPDATE_SAID = {
+  downloaded: "Update downloaded. Open the updates folder to install it.",
+  "download-failed": "The update download failed.",
+  "check-failed": "Could not reach GitHub for the update. Try again in a minute.",
+  "up-to-date": "Already up to date.",
+  "launch-failed":
+    "The installer helper did not start. Your app is still running; open the updates folder to run the setup file.",
+};
+async function updateNow() {
+  try {
+    const r = await api("/api/update", {});
+    if (r.status === "launching")
+      document.body.innerHTML =
+        '<div class="empty" style="margin-top:20vh">Aion 2 Calc is closing. The installer will open in a moment.</div>';
+    else toast(UPDATE_SAID[r.status] || r.status);
+  } catch (e) {
+    toast("Update failed: " + e.message);
+  }
+}
+function updateBar(s) {
+  const bar = $("#updbar"),
+    d = s.update_download || {};
+  if (!bar) return false;
+  if (d.state === "downloading") {
+    const pct = d.total ? Math.min(100, Math.floor((100 * d.received) / d.total)) : 0;
+    if (bar.dataset.state !== "downloading") {
+      bar.innerHTML = `<span data-upd-text></span><progress max="100" aria-label="Update download"></progress><span class="small muted" data-upd-pct></span>`;
+      bar.dataset.state = "downloading";
+    }
+    bar.querySelector("[data-upd-text]").textContent = `Downloading version ${d.version}…`;
+    bar.querySelector("progress").value = pct;
+    bar.querySelector("[data-upd-pct]").textContent = pct + "%";
+    bar.hidden = false;
+    return true;
+  }
+  if (d.state === "ready") {
+    if (bar.dataset.state !== "ready:" + d.version) {
+      const installer = d.kind === "installer";
+      bar.innerHTML =
+        `<span>Update ready: version ${esc(d.version)}</span><button class="btn small primary" type="button" data-upd-now>${installer ? "Update now" : "Show the download"}</button>` +
+        (installer
+          ? `<label class="small"><input type="checkbox" data-upd-close> Update when the app closes</label>`
+          : "");
+      bar.dataset.state = "ready:" + d.version;
+      bar.querySelector("[data-upd-now]").onclick = updateNow;
+      const close = bar.querySelector("[data-upd-close]");
+      if (close)
+        close.onchange = () =>
+          api("/api/ui", { update_on_close: close.checked })
+            .then(() =>
+              toast(close.checked ? "The update installs when the app closes" : "The update waits for Update now"),
+            )
+            .catch((e) => toast(e.message));
+    }
+    const close = bar.querySelector("[data-upd-close]");
+    if (close && document.activeElement !== close) close.checked = s.update_on_close !== false;
+    bar.hidden = false;
+    return true;
+  }
+  bar.hidden = true;
+  bar.innerHTML = "";
+  delete bar.dataset.state;
+  return false;
 }
 $("#quit").onclick = async () => {
   if (!confirm("Stop aion2calc? Start it again from the Start menu or desktop shortcut.")) return;
@@ -472,6 +509,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     S.ui = {};
   }
   applyTextScale(S.ui);
+  // What's new: the release notes once after an update (patch-notes.js), over whichever page opens.
+  if (window.A2PatchNotes) window.A2PatchNotes.check(api);
   const page = LAUNCH_PAGES.some(([id]) => id === S.ui.app_default_page) ? S.ui.app_default_page : "meter";
   if (!location.hash && page !== "meter") {
     location.hash = "/" + page;

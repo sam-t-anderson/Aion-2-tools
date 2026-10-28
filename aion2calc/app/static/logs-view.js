@@ -71,19 +71,25 @@
     const openBtn = (id, mode, label, segment) => id ? `<button class="btn small" data-logs-open="${esc(id)}" data-logs-mode="${esc(mode || "pve")}"${Number.isInteger(segment) ? ` data-logs-seg="${segment}"` : ""} type="button">${esc(label || "view")}</button>` : "";
     const bindOpen = (container) => { (container || root).querySelectorAll("[data-logs-open]").forEach((b) => (b.onclick = () => { const s = parseInt(b.dataset.logsSeg, 10); open(b.dataset.logsOpen, b.dataset.logsMode || "pve", Number.isInteger(s) ? s : undefined); })); };
 
+    // A run's bosses in the order it met them, by name: the server lists the route by catalog key and names each
+    // boss in the run's attempts.
+    const routeOf = (r) => {
+      const names = {};
+      for (const a of [...(r.attempts || []), ...(r.progression || [])]) if (a && a.boss_key && a.boss) names[a.boss_key] = a.boss;
+      return (Array.isArray(r.boss_route) ? r.boss_route : []).map((k) => names[k] || k).join(" → ");
+    };
+    const runKind = (r) => [cap(prettyEnc(r.encounter_type)), r.difficulty].filter((x) => x && x !== "—").join(" · ") || "—";
+
     async function renderSpeed() {
       const body = sel("speed-body"); if (!body) return;
       let d; try { d = await api("/api/v1/run-leaderboard?limit=100"); } catch (e) { body.innerHTML = errNote(e); return; }
       const rows = (d && d.entries) || [];
       if (!rows.length) { body.innerHTML = '<div class="empty">No eligible speed clears yet. A completed run ranks here once its capture is clean and complete enough to qualify.</div>' + srcNote(d); return; }
-      const tr = rows.map((r) => {
-        const s = r.summary || r;
-        const boss = s.boss || s.final_boss || s.route || r.boss || (Array.isArray(r.boss_route) ? r.boss_route.join(" → ") : "") || "—";
-        const elapsed = r.elapsed != null ? r.elapsed : (r.elapsed_seconds != null ? r.elapsed_seconds : s.elapsed);
-        const party = s.party_size != null ? s.party_size : r.party_size;
-        return `<tr><td class="r">${n0(r.rank)}</td><td>${esc(boss)}</td><td class="r num">${secs(elapsed)}</td><td class="r">${n0(party)}</td><td>${openBtn(r.log, "pve")}</td></tr>`;
-      }).join("");
-      body.innerHTML = `<table class="t"><tr><th class="r">Rank</th><th>Boss / route</th><th class="r">Time</th><th class="r">Party</th><th><span class="sr-only">Log</span></th></tr>${tr}</table>` + srcNote(d);
+      // Each run ranks among the runs of the same instance, route, difficulty and party size ("1 of 3").
+      const tr = rows.map((r) => `<tr><td class="r">${n0(r.rank)}${r.count > 1 ? ` <span class="muted small">of ${n0(r.count)}</span>` : ""}</td>`
+        + `<td>${esc(routeOf(r) || "—")}</td><td>${esc(runKind(r))}</td><td class="r num">${secs(r.elapsed_seconds)}</td><td class="r">${n0(r.party_size)}</td>`
+        + `<td>${openBtn(r.log, "pve")}</td></tr>`).join("");
+      body.innerHTML = `<table class="t"><tr><th class="r">Rank</th><th>Boss / route</th><th>Encounter</th><th class="r">Time</th><th class="r">Party</th><th><span class="sr-only">Log</span></th></tr>${tr}</table>` + srcNote(d);
       bindOpen(body);
     }
 

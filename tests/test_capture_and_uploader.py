@@ -107,3 +107,20 @@ def test_uploader_is_resolved_from_the_recordings_own_recorder_evidence():
     # An unnamed combat actor (#number) is never an uploader name.
     engine.local_player_id, engine.names = 77, {77: "Player #77"}
     assert uploader_of({"players": roster, "segments": []}, {}, engine) is None
+
+
+def test_the_uploader_is_the_recorder_who_took_part_not_a_stranger_named_for_a_moment():
+    # After a zone load the capture missed, the old local actor id can belong to someone nearby for a moment, so a
+    # fight's recorder is that stranger, who hit nothing in it. The player who recorded and fought the rest is the
+    # uploader, wherever the stranger stands in the roster (0.2.353).
+    from types import SimpleNamespace
+    from aion2calc.app.meter_runner import uploader_of
+    stranger = {"id": "p:2108:z", "name": "z", "class": "cleric", "server": "2108"}
+    me = {"id": "p:2108:4242", "name": "Recorder", "class": "sorcerer", "server": "2108", "character_id": "4242"}
+    fight = lambda rec, hits: {"ping_recorder": rec, "hits": [{"player": me["id"], "damage": 100}] * hits}   # noqa: E731
+    engine = SimpleNamespace(local_player_id=None, names={}, local_character_name="", local_identity_from_game=True)
+    doc = {"players": [stranger, me], "segments": [fight(stranger["id"], 3), fight(me["id"], 5), fight(me["id"], 2)]}
+    assert uploader_of(doc, {}, engine)["name"] == "Recorder"
+    # A stranger who recorded more fights but took part in none still loses to the one who fought.
+    doc["segments"] = [fight(stranger["id"], 1), fight(stranger["id"], 1), fight(me["id"], 4)]
+    assert uploader_of(doc, {}, engine)["name"] == "Recorder"

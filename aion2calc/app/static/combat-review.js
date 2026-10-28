@@ -19,6 +19,105 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
   };
   const esc = x => String(x ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const number = x => Math.round(x || 0).toLocaleString();
+  // The movement replay's arena shape, kept for every log on this device: a circle unless the viewer chose square.
+  const ROOM_KEY = "a2-replay-arena";
+  const roomShape = () => { try { return localStorage.getItem(ROOM_KEY) === "square" ? "square" : "circle"; } catch (e) { return "circle"; } };
+  // A fight's recorded movement on a 100×100 view, north up (0.2.350): ``at(position)`` is where it is drawn (clamped
+  // to the view, and whether it fell outside), ``rooms`` a boss fight's arena as a circle and as a square, in view
+  // units, or null. The view frames the bosses' ground with room around it, or without a boss the middle 90% of
+  // the positions; anything outside it (a party member back at a respawn point) is drawn faded at its edge.
+  function frameMovement(world, isBoss, bossNamed) {
+    let rooms=null;
+    const quantile=(values,f)=>{const s=values.slice().sort((m,n)=>m-n);return s[Math.round(f*(s.length-1))];};
+    const bosses=world.filter(p=>isBoss(p.entity)),basis=bosses.length?bosses:world,f=bosses.length?0:.05;
+    const bx=basis.map(p=>p.x),by=basis.map(p=>p.y),bx0=quantile(bx,f),bx1=quantile(bx,1-f),by0=quantile(by,f),by1=quantile(by,1-f);
+    const pad=Math.max(bosses.length?3000:500,(bx1-bx0)/2,(by1-by0)/2);
+    const ground=world.filter(p=>p.x>=bx0-pad&&p.x<=bx1+pad&&p.y>=by0-pad&&p.y<=by1+pad);
+    const bounds=list=>list.reduce(([a,b,c,e],p)=>[Math.min(a,p.x),Math.max(b,p.x),Math.min(c,p.y),Math.max(e,p.y)],[Infinity,-Infinity,Infinity,-Infinity]);
+    const [x0,x1,y0,y1]=bounds(ground);
+    let span=Math.max(1,x1-x0,y1-y0)*1.1,cx=(x0+x1)/2,cy=(y0+y1)/2;
+    if(bosses.length||bossNamed){
+      // A boss fight's room (0.2.353): the ground the fight covered, as the smallest circle holding it or as
+      // its bounding square, a tenth larger since nobody stands against the walls. It leaves out the farthest
+      // hundredth of the positions from their middle (someone walking in or out), which are drawn where they
+      // were, beyond the edge or faded at the view's. The view fits both shapes, so switching between them
+      // only redraws the edge.
+      const mx=quantile(ground.map(p=>p.x),.5),my=quantile(ground.map(p=>p.y),.5),reach=p=>Math.hypot(p.x-mx,p.y-my);
+      const far=ground.map(reach).sort((m,n)=>m-n),limit=far[far.length-1-Math.floor(far.length/100)],floor=ground.filter(p=>reach(p)<=limit);
+      const [f0,f1,g0,g1]=bounds(floor),room=r=>Math.max(800,1.1*r),c=enclosingCircle(floor);
+      rooms={circle:{x:c.x,y:c.y,r:room(c.r)},square:{x:(f0+f1)/2,y:(g0+g1)/2,r:room(Math.max(f1-f0,g1-g0)/2)}};
+      const all=Object.values(rooms),ux0=Math.min(...all.map(a=>a.x-a.r)),ux1=Math.max(...all.map(a=>a.x+a.r)),uy0=Math.min(...all.map(a=>a.y-a.r)),uy1=Math.max(...all.map(a=>a.y+a.r));
+      span=1.04*Math.max(ux1-ux0,uy1-uy0);cx=(ux0+ux1)/2;cy=(uy0+uy1)/2;
+      for(const a of all)Object.assign(a,{x:50+100*(a.x-cx)/span,y:50-100*(a.y-cy)/span,r:100*a.r/span});
+    }
+    const at=p=>{const x=50+100*(p.x-cx)/span,y=50-100*(p.y-cy)/span;return [Math.min(99,Math.max(1,x)),Math.min(99,Math.max(1,y)),x<0||x>100||y<0||y>100];};
+    return {at,rooms};
+  }
+  // A claimed character carries the server's verified mark; one hidden by its player shows the server's stand-in
+  // name and says so (see the log server's identity module).
+  const actorLabel=e=>e ? `${e.name || e.id}${e.verified ? " ✓" : ""}${e.pseudonym ? " (hidden by its player)" : ""}${e.server ? " · " + worldFor(e.server, e.server_name) : ""}` : "Unknown / not recorded";
+  // The actors of one fight of a log, by id: its players and entities, with their profiles and pets' classes.
+  function segmentRefs(doc, segment, everyone) {
+    const active=new Set(segment.party_members || []);
+    for(const e of segment.events || []){if(e.source)active.add(e.source);if(e.target)active.add(e.target);}
+    for(const h of segment.hits || []){for(const key of ['player','source','target','pet'])if(h[key])active.add(h[key]);}
+    const entities=segment.entities || [];
+    for(let i=0;i<entities.length;i++)for(const e of entities)if(active.has(e.id) && e.owner)active.add(e.owner);
+    // Roster for the selected segment: keep only actors that took part in it (active = its
+    // party_members + everyone in its events/hits + pet owners), so a multi-encounter log never
+    // shows another encounter's players/builds here. Fall back to all (``everyone``) when a segment has no actors.
+    const keep=id=>active.size?active.has(id):everyone;
+    const r={};for(const e of [...(doc.players || []).filter(p=>keep(p.id)),...entities.filter(e=>keep(e.id))])r[e.id]={...r[e.id],...e};
+    for(const e of [...(doc.players || []),...doc.segments.flatMap(s=>s.entities || [])])if(e.profile_snapshot && r[e.id])r[e.id].profile_snapshot=e.profile_snapshot;
+    for(const e of Object.values(r))if(e.owner)e.class=r[e.owner]?.class;
+    return r;
+  }
+  // A Raid Planner plan (a2plan) from a fight's recorded movement (``tokens``: each entity's positions, in time order):
+  // every player, pet and enemy that moved becomes a token that moves as it did. The plan's map is the fight's arena
+  // (its square, which a circle arena fills), or without one the whole view.
+  function planOf(name, duration, tokens, r, at, room, shape, hidden=()=>false) {
+    const [ox,oy,size]=room?[room.x-room.r,room.y-room.r,2*room.r]:[0,0,100],unit=v=>Math.min(1,Math.max(0,v));
+    return {format:"a2plan",version:1,meta:{name:name || "Recorded replay"},duration,arena:{kind:room?shape:"square"},
+      tokens:Object.entries(tokens).map(([id,frames])=>({id,kind:r[id]?.kind==="enemy"?"enemy":"player",label:actorLabel(r[id]),cls:r[id]?.class,color:color(r[id]?.class),
+        ...(hidden(id)?{hidden:true}:{}),keyframes:frames.map(p=>{const [x,y]=at(p);return {t:p.t,x:unit((x-ox)/size),y:unit((y-oy)/size)};})})),buffs:[]};
+  }
+  // The Raid Planner's import (0.2.353): the fights of a log that hold recorded movement, then one of them as a plan,
+  // as the replay's Open in Raid Planner makes it (the arena in the shape last chosen in a replay).
+  function movementFights(doc) {
+    return (doc?.segments || []).map((s,index)=>({index,name:s.boss || s.label || `Fight ${index+1}`,duration:s.duration || 0,
+      positions:(s.movement || []).length,boss:!!(s.boss || (s.entities || []).some(e=>e.is_boss))})).filter(f=>f.positions);
+  }
+  function movementPlan(doc, index, shape=roomShape()) {
+    const segment=doc?.segments?.[index],world=segment?.movement || [];
+    if(!world.length)throw Error("This fight holds no recorded movement.");
+    const r=segmentRefs(doc,segment,true),{at,rooms}=frameMovement(world,id=>r[id]?.is_boss,!!segment.boss),tokens={};
+    for(const p of world)(tokens[p.entity] ||= []).push(p);
+    for(const frames of Object.values(tokens))frames.sort((a,b)=>a.t-b.t);
+    return planOf(segment.boss || segment.label,segment.duration,tokens,r,at,rooms?.[shape],shape);
+  }
+  // The smallest circle holding every point ({x, y}): Welzl's incremental algorithm over the points' convex hull,
+  // which keeps it to a few dozen corners however long the fight.
+  function enclosingCircle(points) {
+    const pts=points.map(p=>[p.x,p.y]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+    if(!pts.length)return {x:0,y:0,r:0};
+    const cross=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+    const chain=list=>{const h=[];for(const p of list){while(h.length>=2&&cross(h[h.length-2],h[h.length-1],p)<=0)h.pop();h.push(p);}h.pop();return h;};
+    const hull=pts.length<3?pts:[...chain(pts),...chain(pts.slice().reverse())];
+    const holds=(c,p)=>Math.hypot(p[0]-c.x,p[1]-c.y)<=c.r+1e-6*(1+c.r);
+    const two=(a,b)=>({x:(a[0]+b[0])/2,y:(a[1]+b[1])/2,r:Math.hypot(a[0]-b[0],a[1]-b[1])/2});
+    const three=(a,b,c)=>{
+      const det=2*(a[0]*(b[1]-c[1])+b[0]*(c[1]-a[1])+c[0]*(a[1]-b[1]));
+      if(Math.abs(det)<1e-9)return [two(a,b),two(a,c),two(b,c)].reduce((m,o)=>o.r>m.r?o:m);   // in a line: the widest pair
+      const sa=a[0]*a[0]+a[1]*a[1],sb=b[0]*b[0]+b[1]*b[1],sc=c[0]*c[0]+c[1]*c[1];
+      const x=(sa*(b[1]-c[1])+sb*(c[1]-a[1])+sc*(a[1]-b[1]))/det,y=(sa*(c[0]-b[0])+sb*(a[0]-c[0])+sc*(b[0]-a[0]))/det;
+      return {x,y,r:Math.hypot(a[0]-x,a[1]-y)};
+    };
+    let c={x:hull[0][0],y:hull[0][1],r:0};
+    for(let i=1;i<hull.length;i++)if(!holds(c,hull[i])){c={x:hull[i][0],y:hull[i][1],r:0};
+      for(let j=0;j<i;j++)if(!holds(c,hull[j])){c=two(hull[i],hull[j]);
+        for(let k=0;k<j;k++)if(!holds(c,hull[k]))c=three(hull[i],hull[j],hull[k]);}}
+    return c;
+  }
   // The date with the time of day, in the computer's clock: 2026-10-23 15:04:05.
   const whenAt = (x) => { if (x == null || x === "") return "—"; const d = new Date(x); if (!Number.isFinite(d.getTime())) return "—"; const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
   // A server by its world name: the one the log carries, else the bundled list (2102 -> Zikel), else the ID.
@@ -63,6 +162,9 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     let state={followLatest:!!options.live,mode:["pve","pvp"].includes(options.mode)?options.mode:"",run:"",segment:0,metric:"summary",view:"table",graph:true,timeline:true,graphMode:"total",timelineWindow:30,timelineStart:0,skills:true,deaths:true,heals:true,pets:true,combine:true,actor:"",page:0,enemy:"",hidden:new Set(),actions:"rotation",hideProcs:true, ...options.state};
     let sourceView=null,archiveFirst=1,archiveLast=doc.meta?.archive?.part || 1;
     let comparisons=[], ranks=null, rankRequest=0, replayFrame=null, profileRequest=0;
+    // the replay's key entries the viewer unticked: "boss", "pet", "enemy", "trail", "arena", or a player's "id:<id>"
+    // ("class:<class>" when the key lists classes); kept while the review is open
+    const replayHidden=new Set();
     // per document and segment: the movement the log server merged from other recordings of the fight (log server
     // 0.2.144), so a combined review never shows a part's merge
     const mergedMoves=new WeakMap(),mergedFor=()=>{let moves=mergedMoves.get(doc);if(!moves)mergedMoves.set(doc,moves=new Map());return moves;};
@@ -85,24 +187,8 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       timelineHidden.clear();timelineCollapsed.clear();state.segment=index;state.actor='';state.enemy='';state.page=0;state.timelineStart=0;timelineDetail='';ranks=null;
       return true;
     }
-    const refs=()=>{
-      const segment=doc.segments[state.segment] || {}, active=new Set(segment.party_members || []);
-      for(const e of segment.events || []){if(e.source)active.add(e.source);if(e.target)active.add(e.target);}
-      for(const h of segment.hits || []){for(const key of ['player','source','target','pet'])if(h[key])active.add(h[key]);}
-      const entities=segment.entities || [];
-      for(let i=0;i<entities.length;i++)for(const e of entities)if(active.has(e.id) && e.owner)active.add(e.owner);
-      // Roster for the selected segment: keep only actors that took part in it (active = its
-      // party_members + everyone in its events/hits + pet owners), so a multi-encounter log never
-      // shows another encounter's players/builds here. Fall back to all when a segment has no actors.
-      const keep=id=>active.size?active.has(id):!state.run;
-      const r={};for(const e of [...(doc.players || []).filter(p=>keep(p.id)),...entities.filter(e=>keep(e.id))])r[e.id]={...r[e.id],...e};
-      for(const e of [...(doc.players || []),...doc.segments.flatMap(s=>s.entities || [])])if(e.profile_snapshot && r[e.id])r[e.id].profile_snapshot=e.profile_snapshot;
-      for(const e of Object.values(r))if(e.owner)e.class=r[e.owner]?.class;
-      return r;
-    };
-    // A claimed character carries the server's verified mark; one hidden by its player shows the
-    // server's stand-in name and says so (see the log server's identity module).
-    const label=e=>e ? `${e.name || e.id}${e.verified ? " ✓" : ""}${e.pseudonym ? " (hidden by its player)" : ""}${e.server ? " · " + worldFor(e.server, e.server_name) : ""}` : "Unknown / not recorded";
+    const refs=()=>segmentRefs(doc,doc.segments[state.segment] || {},!state.run);
+    const label=actorLabel;
     const character=e=>e && ((doc.players || []).some(p=>p.id===e.id) || e.is_player || e.kind==="player");
     const actorHTML=e=>character(e)?`<button class="btn small" data-character="${esc(e.id)}" style="color:${color(e.class)}">${esc(label(e))}</button>`:esc(label(e));
     function profileHTML() {
@@ -745,42 +831,64 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         if(options.movement){box.innerHTML=`<h3>Recorded movement replay</h3><p class="small muted">This recording holds no movement (recordings made before 0.2.350 have none).${fromOthers?"":" Another public recording of this fight may hold it."}</p>${sourcesHTML}${mergeHTML}`;bindMerge();}
         return;
       }
-      const tokens={};let at=p=>[100*p.x,100*p.y,false],note="";
+      const tokens={};let at=p=>[100*p.x,100*p.y,false],note="",rooms=null;
       if(world.length){
-        // Frame the fight: the bosses' ground with room around it, or without a boss the middle 90% of the
-        // positions. Anything outside (a party member back at a respawn point) is drawn faded at the edge.
-        const quantile=(values,f)=>{const s=values.slice().sort((m,n)=>m-n);return s[Math.round(f*(s.length-1))];};
-        const bosses=world.filter(p=>d.r[p.entity]?.is_boss),basis=bosses.length?bosses:world,f=bosses.length?0:.05;
-        const bx=basis.map(p=>p.x),by=basis.map(p=>p.y),bx0=quantile(bx,f),bx1=quantile(bx,1-f),by0=quantile(by,f),by1=quantile(by,1-f);
-        const pad=Math.max(bosses.length?3000:500,(bx1-bx0)/2,(by1-by0)/2);
-        let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
-        for(const p of world)if(p.x>=bx0-pad&&p.x<=bx1+pad&&p.y>=by0-pad&&p.y<=by1+pad){x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);y0=Math.min(y0,p.y);y1=Math.max(y1,p.y);}
-        const span=Math.max(1,x1-x0,y1-y0)*1.1,cx=(x0+x1)/2,cy=(y0+y1)/2;
-        at=p=>{const x=50+100*(p.x-cx)/span,y=50-100*(p.y-cy)/span;return [Math.min(99,Math.max(1,x)),Math.min(99,Math.max(1,y)),x<0||x>100||y<0||y>100];};
+        ({at,rooms}=frameMovement(world,id=>d.r[id]?.is_boss,!!d.segment.boss));
         for(const p of world)(tokens[p.entity] ||= []).push(p);
         const own=tokens[d.segment.ping_recorder] || [],stamps=own.filter(p=>p.src==="applied"||p.src==="targeted").length;
         const borrowed=own.filter(p=>p.via).length;
         note=`${world.length} recorded positions of ${Object.keys(tokens).length} players and enemies.`+(own.length?(borrowed?` The recording player's own movement comes from ${borrowed} positions in the other recordings of this fight; ${stamps} more are where they applied an effect or a cast aimed at them.`:` The game does not send the recording player's own movement: ${stamps} of their ${own.length} positions are where they applied an effect or a cast aimed at them, and the path is drawn between them. A party member's upload of the same fight records their movement.`):"");
       }else for(const p of flat)(tokens[p.entity] ||= []).push(p);
       for(const frames of Object.values(tokens))frames.sort((a,b)=>a.t-b.t);
-      box.innerHTML=`<h3>Recorded movement replay</h3>${note?`<p class="small muted">${esc(note)}</p>`:""}${sourcesHTML}${mergeHTML}<button class="btn small" data-play>Play</button> <button class="btn small" data-rewind>Rewind</button><input data-scrub type="range" min="0" step="0.1" value="0" aria-label="Replay time"><output data-clock></output><svg class="cr-arena" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-label="Recorded positions"></svg><button class="btn small" data-plan>Import into Raid Planner</button><span data-plan-status role="status"></span>`;
+      // the fight's actors, and a player of the log who only moved in it (no hit or event of theirs in this fight)
+      const r={...d.r};for(const p of doc.players || [])if(tokens[p.id]&&!r[p.id])r[p.id]=p;
+      const shade=id=>{const e=r[id];return e?.is_boss?"#ef6262":e&&(character(e)||e.kind==="pet")?color(e.class):"#9a9a9a";};
+      // The key below the replay: each kind of token this fight holds, drawn as the replay draws it, then its players
+      // by name in their class colours (only the classes when there are more than 12 of them). Unticking an entry
+      // hides it on the replay, and in a Raid Planner plan made from it.
+      const kindOf=id=>{const e=r[id];return e?.is_boss?"boss":character(e)?"player":e?.kind==="pet"?"pet":"enemy";};
+      const shown=id=>{const k=kindOf(id);return k==="player"?!replayHidden.has("id:"+id)&&!replayHidden.has("class:"+r[id].class):!replayHidden.has(k);};
+      const keyHTML=(()=>{
+        const ids=Object.keys(tokens),me=d.segment.ping_recorder,ring=' stroke="#fff" stroke-dasharray="1 1" stroke-width=".75"';
+        const of=k=>ids.filter(id=>kindOf(id)===k),swatch=inner=>`<svg viewBox="0 0 10 10" width="16" height="16" aria-hidden="true">${inner}</svg>`;
+        const dot=(fill,radius,extra="")=>swatch(`<circle cx="5" cy="5" r="${radius}" fill="${fill}"${extra}/>`);
+        const item=(icon,text,key)=>key?`<li><label><input type="checkbox" data-key-toggle="${esc(key)}" ${replayHidden.has(key)?"":"checked"}>${icon}<span>${text}</span></label></li>`:`<li>${icon}<span>${text}</span></li>`;
+        const kinds=[of("boss").length&&item(dot("#ef6262",4.5),"Boss","boss"),tokens[me]&&item(dot(shade(me),3,ring),"Recording player"),
+          of("pet").length&&item(dot("currentColor",2.1),"Pet or summon, in its owner's class colour","pet"),of("enemy").length&&item(dot("#9a9a9a",2.1),"Other enemy","enemy"),
+          world.length&&(of("boss").length||of("player").length)&&item(swatch('<polyline points="1,8 4,4 6.5,6 9,2" fill="none" stroke="currentColor" stroke-opacity=".6" stroke-width="1.2"/>'),"Movement in the last 6 seconds","trail"),
+          item(dot("currentColor",3,' fill-opacity=".35"'),"Faded: last seen over 8 seconds ago, or outside the fight area"),
+          rooms&&item('<svg viewBox="0 0 10 10" width="16" height="16" aria-hidden="true" data-key-room></svg>',"Arena","arena")].filter(Boolean);
+        const players=of("player").sort((a,b)=>(b===me)-(a===me)||label(r[a]).localeCompare(label(r[b])));
+        const classes=[...new Set(players.map(id=>r[id].class).filter(Boolean))].sort(),named=c=>esc(c[0].toUpperCase()+c.slice(1));
+        const who=players.length>12?classes.map(c=>item(dot(color(c),3),named(c),"class:"+c)):players.map(id=>item(dot(shade(id),3,id===me?ring:""),`<span translate="no">${esc(label(r[id]))}</span>${r[id].class?` · <span>${named(r[id].class)}</span>`:""}`,"id:"+id));
+        return `<div class="cr-key"><strong>Key</strong> <span class="small muted">Untick an entry to hide it on the replay.</span> <button class="btn small" type="button" data-key-showall hidden>Show all</button>`
+          +`<ul aria-label="Key">${kinds.join("")}</ul>${who.length?`<ul aria-label="${players.length>12?"Classes":"Players"}">${who.join("")}</ul>`:""}</div>`;
+      })();
+      box.innerHTML=`<h3>Recorded movement replay</h3>${note?`<p class="small muted">${esc(note)}</p>`:""}${sourcesHTML}${mergeHTML}<button class="btn small" data-play>Play</button> <button class="btn small" data-rewind>Rewind</button><input data-scrub type="range" min="0" step="0.1" value="0" aria-label="Replay time"><output data-clock></output>${rooms?`<label class="cr-room-shape">Arena <select data-room-shape>${[["circle","Circle"],["square","Square"]].map(([k,v])=>`<option value="${k}" ${k===roomShape()?"selected":""}>${v}</option>`).join("")}</select></label>`:""}<svg class="cr-arena" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-label="Recorded positions"><g data-room></g><g data-tokens></g></svg>${keyHTML}<button class="btn small" data-plan>Import into Raid Planner</button><span data-plan-status role="status"></span>`;
+      // the arena behind the tokens: the boss room the fight's positions suggest, as the chosen shape
+      const drawRoom=()=>{const a=replayHidden.has("arena")?null:rooms?.[roomShape()],keyRoom=box.querySelector("[data-key-room]");if(keyRoom)keyRoom.innerHTML=roomShape()==="circle"?'<circle class="cr-room" cx="5" cy="5" r="4"/>':'<rect class="cr-room" x="1" y="1" width="8" height="8"/>';box.querySelector("[data-room]").innerHTML=!a?"":`${roomShape()==="circle"?`<circle class="cr-room" cx="${a.x.toFixed(2)}" cy="${a.y.toFixed(2)}" r="${a.r.toFixed(2)}">`:`<rect class="cr-room" x="${(a.x-a.r).toFixed(2)}" y="${(a.y-a.r).toFixed(2)}" width="${(2*a.r).toFixed(2)}" height="${(2*a.r).toFixed(2)}">`}<title>Arena: the ground this fight covered, with room to spare</title>${roomShape()==="circle"?"</circle>":"</rect>"}`;};
+      drawRoom();
+      const shape=box.querySelector("[data-room-shape]");if(shape)shape.onchange=()=>{try{localStorage.setItem(ROOM_KEY,shape.value);}catch(e){/* this view only */}drawRoom();};
       const scrub=box.querySelector("[data-scrub]");scrub.max=d.segment.duration;
-      const shade=id=>{const e=d.r[id];return e?.is_boss?"#ef6262":e&&(character(e)||e.kind==="pet")?color(e.class):"#9a9a9a";};
       // the last frame at or before t (frames are sorted by time), then a step between it and the next one
       // when they are at most 6 s apart: a longer gap holds the last known place, fading after 8 s
       const before=(frames,t)=>{let lo=0,hi=frames.length;while(lo<hi){const m=(lo+hi)>>1;if(frames[m].t<=t)lo=m+1;else hi=m;}return lo-1;};
       const place=(frames,t)=>{const i=before(frames,t);if(i<0)return null;
         const a=frames[i],b=frames[i+1];const f=b&&b.t-a.t<=6?(t-a.t)/Math.max(.001,b.t-a.t):0;const [ax,ay,ao]=at(a);if(!f)return [ax,ay,t-a.t,a,i,ao];const [bx,by,bo]=at(b);return [ax+(bx-ax)*f,ay+(by-ay)*f,0,a,i,ao||bo];};
       let clock=0;  // the replay's own time: the slider rounds to its 0.1 s step, which would swallow each frame's few ms
-      const draw=t=>{clock=t;scrub.value=t;box.querySelector("[data-clock]").textContent=t.toFixed(1)+"s";box.querySelector("svg").innerHTML=Object.entries(tokens).map(([id,frames])=>{
-        const here=place(frames,t);if(!here)return "";const [x,y,stale,last,i,out]=here,e=d.r[id],r=e?.is_boss?3:e&&character(e)?2:1.4;
+      const draw=t=>{clock=t;scrub.value=t;box.querySelector("[data-clock]").textContent=t.toFixed(1)+"s";box.querySelector("[data-tokens]").innerHTML=Object.entries(tokens).map(([id,frames])=>{
+        const here=shown(id)&&place(frames,t);if(!here)return "";const [x,y,stale,last,i,out]=here,e=r[id],size=e?.is_boss?3:e&&character(e)?2:1.4;
         let first=i;while(first>0&&frames[first-1].t>=t-6)first--;
-        const trail=world.length&&(e?.is_boss||character(e))?frames.slice(first,i+1).map(at).concat([[x,y]]).map(([a,b])=>`${a.toFixed(2)},${b.toFixed(2)}`).join(" "):"";
-        return `${trail?`<polyline points="${trail}" fill="none" stroke="${shade(id)}" stroke-opacity=".35" stroke-width=".6"/>`:""}<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${r}" fill="${shade(id)}" fill-opacity="${stale>8||out?.35:1}"${id===d.segment.ping_recorder?' stroke="#fff" stroke-dasharray="1 1" stroke-width=".5"':""}><title>${esc(label(e))}${last.src?` · ${esc(last.src)} at ${last.t.toFixed(1)}s`:""}${last.via?` · from ${esc(sourceName(last.via))}`:""}${out?" · outside the fight area":""}</title></circle>`;}).join("");};
+        const trail=world.length&&!replayHidden.has("trail")&&(e?.is_boss||character(e))?frames.slice(first,i+1).map(at).concat([[x,y]]).map(([a,b])=>`${a.toFixed(2)},${b.toFixed(2)}`).join(" "):"";
+        return `${trail?`<polyline points="${trail}" fill="none" stroke="${shade(id)}" stroke-opacity=".35" stroke-width=".6"/>`:""}<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${size}" fill="${shade(id)}" fill-opacity="${stale>8||out?.35:1}"${id===d.segment.ping_recorder?' stroke="#fff" stroke-dasharray="1 1" stroke-width=".5"':""}><title>${esc(label(e))}${last.src?` · ${esc(last.src)} at ${last.t.toFixed(1)}s`:""}${last.via?` · from ${esc(sourceName(last.via))}`:""}${out?" · outside the fight area":""}</title></circle>`;}).join("");};
       const pause=()=>{if(replayFrame)cancelAnimationFrame(replayFrame);replayFrame=null;box.querySelector("[data-play]").textContent="Play";};
       box.querySelector("[data-play]").onclick=()=>{if(replayFrame){pause();return;}let last=performance.now();box.querySelector("[data-play]").textContent="Pause";const tick=now=>{const t=Math.min(d.segment.duration,clock+Math.max(0,now-last)/1000);last=now;draw(t);if(t>=d.segment.duration)pause();else replayFrame=requestAnimationFrame(tick);};replayFrame=requestAnimationFrame(tick);};
       box.querySelector("[data-rewind]").onclick=()=>{pause();draw(0);};scrub.oninput=()=>{pause();draw(+scrub.value);};bindMerge();
-      box.querySelector("[data-plan]").onclick=()=>{const plan={format:"a2plan",version:1,meta:{name:d.segment.boss || d.segment.label || "Recorded replay"},duration:d.segment.duration,arena:{kind:"square"},tokens:Object.entries(tokens).map(([id,frames])=>({id,kind:d.r[id]?.kind==="enemy"?"enemy":"player",label:label(d.r[id]),cls:d.r[id]?.class,color:color(d.r[id]?.class),keyframes:frames.map(p=>{const [x,y]=at(p);return {t:p.t,x:Math.min(1,Math.max(0,x/100)),y:Math.min(1,Math.max(0,y/100))};})})),buffs:[]};if(options.importPlan){try{options.importPlan(plan);}catch(e){box.querySelector("[data-plan-status]").textContent=e.message;}return;}const blob=new Blob([JSON.stringify(plan)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="recorded-replay.a2plan.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};box.querySelector("[data-plan]").textContent=options.importPlan?"Open in Raid Planner":"Export Raid Planner file";draw(0);
+      const toggles=[...box.querySelectorAll("[data-key-toggle]")],showAll=box.querySelector("[data-key-showall]");
+      const keyChanged=()=>{showAll.hidden=toggles.every(c=>c.checked);drawRoom();draw(clock);};
+      for(const c of toggles)c.onchange=()=>{if(c.checked)replayHidden.delete(c.dataset.keyToggle);else replayHidden.add(c.dataset.keyToggle);keyChanged();};
+      showAll.onclick=()=>{for(const c of toggles){c.checked=true;replayHidden.delete(c.dataset.keyToggle);}keyChanged();};showAll.hidden=toggles.every(c=>c.checked);
+      box.querySelector("[data-plan]").onclick=()=>{const plan=planOf(d.segment.boss || d.segment.label,d.segment.duration,tokens,r,at,rooms?.[roomShape()],roomShape(),id=>!shown(id));if(options.importPlan){try{options.importPlan(plan);}catch(e){box.querySelector("[data-plan-status]").textContent=e.message;}return;}const blob=new Blob([JSON.stringify(plan)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="recorded-replay.a2plan.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};box.querySelector("[data-plan]").textContent=options.importPlan?"Open in Raid Planner":"Export Raid Planner file";draw(0);
     }
     // Swap the single-part view for a combined recording review (keeping the source part so
     // "Back to source part" and each part's own ranked data stay one click away).
@@ -815,5 +923,5 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     const api={update(next){doc=next;state.segment=Math.min(state.segment,doc.segments.length-1);const changed=selectLatest();render();if(changed)requestRanks();},state,dispose(){disposed=true;archiveRequest++;rankRequest++;profileRequest++;if(replayFrame)cancelAnimationFrame(replayFrame);}};
     selectLatest();render();requestRanks();autoCombine();return api;
   }
-  window.A2CombatReview={mount,color,settings,palettes:PALETTES};
+  window.A2CombatReview={mount,color,settings,palettes:PALETTES,movementFights,movementPlan};
 })();

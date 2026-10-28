@@ -58,7 +58,12 @@ window.A2Session = (function () {
       err.signedOut = true;
       throw err;
     }
-    if (!r.ok) throw Error(j.error || r.statusText || "The server refused");
+    if (!r.ok) {
+      const err = Error(j.error || r.statusText || "The server refused");
+      err.status = r.status;
+      err.body = j; // a choice the server offers (moving Discord from another account)
+      throw err;
+    }
     return j;
   }
   async function call(method, path, body) {
@@ -287,6 +292,15 @@ window.A2Session = (function () {
     security,
   };
 
+  // The date with the time of day, in the computer's clock: 2026-10-23 15:04:05.
+  const whenAt = (x) => { if (x == null || x === "") return "—"; const d = new Date(x); if (!Number.isFinite(d.getTime())) return "—"; const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+  function moveQuestion(other) {
+    const made = other.created_at ? whenAt(other.created_at * 1000) : "—";
+    return other.closes
+      ? t("This Discord account signs in to your other account, {0}, made on {1}. Move Discord to this account? That account's {2} logs and {3} characters come along, and it closes.", other.name, made, other.logs, other.characters)
+      : t("This Discord account is linked to your other account, {0}, made on {1}. Move Discord to this account? That account keeps its logs and its other ways to sign in.", other.name, made);
+  }
+
   // Hand-overs that arrive in the address's fragment: a one-time sign-in ticket, Discord's refusal, the code that
   // finishes linking Discord (with this browser's own session: a link started elsewhere is refused), an invite.
   let opened = null;
@@ -309,7 +323,15 @@ window.A2Session = (function () {
       opened = "security";
       try {
         if (window.A2 && A2.ensure) await A2.ensure();
-        await S.call("POST", "/api/v1/account/discord/link/finish", { code: link });
+        try {
+          await S.call("POST", "/api/v1/account/discord/link/finish", { code: link });
+        } catch (e) {
+          // Discord already signs in to another account of yours (made by signing in with Discord by mistake): the
+          // server names it, and the same code moves Discord here once asked
+          const other = e.status === 409 && e.body && e.body.move;
+          if (!other || !confirm(moveQuestion(other))) throw e;
+          await S.call("POST", "/api/v1/account/discord/link/finish", { code: link, move: true });
+        }
         notice = t("Discord linked");
       } catch (e) {
         notice = e.message;

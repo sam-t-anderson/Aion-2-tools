@@ -805,7 +805,7 @@
     const dur = view.dur, now = view.time;
     const svg = ['<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"><rect x="1" y="1" width="98" height="98" rx="2" fill="none" stroke="#8886" stroke-width="0.6"/>'];
     for (const tk of p.tokens || []) {
-      const pos = tokenPos(tk, now);
+      const pos = !tk.hidden && tokenPos(tk, now);     // a token hidden in the Raid Planner is not drawn
       if (!pos) continue;
       const col = esc(tk.color || "#39c2e0"), x = Number(pos.x) * 100, y = Number(pos.y) * 100;
       if (tk.kind === "aoe") svg.push(`<circle cx="${x}" cy="${y}" r="${(Number(tk.radius) || 0.14) * 100}" fill="${col}" fill-opacity="0.25" stroke="${col}" stroke-width="0.5"/>`);

@@ -151,6 +151,15 @@ def _plan(plan: dict) -> dict:
             "encounter": {"boss": plan["boss"], "npc_id": plan["npc_id"]}}
 
 
+# A run as /api/v1/run-leaderboard sends it: the route by catalog key, each boss named in its attempts, and the
+# ranked entry-to-final-boss time in elapsed_seconds.
+SPEED_RUN = {"log": LOG_ID, "id": "1", "rank": 1, "count": 2, "boss_route": ["npc:2340616", "npc:2340617"],
+             "elapsed_seconds": 150.5, "party_size": 5, "encounter_type": "transcendence", "difficulty": "stage 2",
+             "instance_id": 600055, "attempts": [{"boss": "Gelcos", "boss_key": "npc:2340616", "outcome": "kill"}],
+             "progression": [{"boss": "Gelcos", "boss_key": "npc:2340616", "kills": 1},
+                             {"boss": "Ereshkigal", "boss_key": "npc:2340617", "kills": 1}]}
+
+
 ANSWERS = {
     "/api/v1/report-facets": lambda q: {"game_patch": ["version:product:2.0.8.0"], "boss": [f[1] for f in FIGHTS],
                                         "difficulty": ["Normal"], "encounter_type": ["dungeon"], "region": ["nae"],
@@ -162,7 +171,7 @@ ANSWERS = {
     f"/api/v1/logs/{LOG_ID}/parts": lambda q: {"parts": []},
     f"/api/v1/logs/{LOG_ID}/rankings": lambda q: {"segments": {}},
     f"/api/v1/logs/{LOG_ID}/movement": _merged_movement,
-    "/api/v1/run-leaderboard": lambda q: {"entries": [], "samples": 0, "truncated": False, "note": ""},
+    "/api/v1/run-leaderboard": lambda q: {"entries": [SPEED_RUN], "samples": 1, "truncated": False, "note": ""},
     "/api/v1/encounter-progression": lambda q: {"groups": [], "truncated": False, "note": ""},
     "/api/v1/progression": lambda q: {"observations": [o for o in PROGRESSION if q.get("class", [o["class_name"]])[0] == o["class_name"]],
                                       "note": ""},

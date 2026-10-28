@@ -933,8 +933,9 @@ async function pageSettings() {
       <p class="small muted">Global shortcuts that work even while the game is focused (Windows only). Click a field and press the key combo (e.g. Ctrl+Shift+M), then <strong>Save hotkeys</strong>; <strong>Clear</strong> unbinds. Changes take effect within a couple of seconds. Leave all blank for no hotkeys (the default). Ride the settings backup.</p></div></div>
     <div class="setrow" data-g="appearance"><div class="lbl">Combat class colors</div><div id="class-colors"></div></div><div class="setrow" data-g="system"><div class="lbl">Game database</div><div>${n0(s.db.items)} items · last update ${s.db.last_sync ? whenAt(s.db.last_sync.at * 1000) : "never"} <button class="btn small" id="sync">Check now</button> <button class="btn small" id="asset-reindex">Re-index cached icons</button> <button class="btn small" id="asset-report">Export image coverage</button> <button class="btn small" id="retry-images">Retry images</button><span id="asset-msg" class="small muted" role="status" aria-live="polite"></span></div></div>
     <div class="setrow" data-g="system"><div class="lbl">Storage maintenance</div><div><div class="row"><button class="btn small" id="storage-inspect">Inspect cache / updates</button><button class="btn small" id="storage-cache">Clean old disposable cache</button><button class="btn small" id="storage-updates">Clean old update files</button></div><p class="small muted">Web/comparison cache: 7 days; images: 30 days. Updates retain two packages, helpers for 7 days, and at least five logs / 30 days. Active or uninspectable helpers are preserved. Cache images may need downloading again.</p><p id="storage-message" role="status"></p><div id="maintenance-details"></div></div></div>
-    <div class="setrow" data-g="system"><div class="lbl">Updates</div><div><label><input type="checkbox" id="autoupd" ${ui.auto_update !== false ? "checked" : ""}> check and prompt for updates on launch</label></div></div>
-    <div class="setrow" data-g="system"><div class="lbl">Version</div><div>Aion 2 Calc ${esc(s.version)} ${s.update ? `· version ${esc(s.update.version)} available <button class="btn small" id="instupd">Install now</button> <a href="${esc(s.update.url)}" target="_blank" rel="noopener">release notes</a>` : `<span class="muted" id="updstate">${updateStateText(s.update_state)}</span> <button class="btn small" id="chkupd">Check now</button>`} <span id="updmsg" class="small muted"></span></div></div>
+    <div class="setrow" data-g="system"><div class="lbl">Updates</div><div><label><input type="checkbox" id="autoupd" ${ui.auto_update !== false ? "checked" : ""}> download new versions in the background</label><br><label><input type="checkbox" id="updclose" ${ui.update_on_close !== false ? "checked" : ""}> install a downloaded update when the app closes</label><p class="small muted">A new version downloads quietly; a small bar at the bottom left shows its progress, then offers Update now.</p></div></div>
+    <div class="setrow" data-g="system"><div class="lbl">Version</div><div>Aion 2 Calc ${esc(s.version)} ${s.update ? `· version ${esc(s.update.version)} ${(s.update_download || {}).state === "ready" ? "downloaded" : "available"} <button class="btn small" id="instupd">Update now</button> <a href="${esc(s.update.url)}" target="_blank" rel="noopener">release notes</a>` : `<span class="muted" id="updstate">${updateStateText(s.update_state)}</span> <button class="btn small" id="chkupd">Check now</button>`} <span id="updmsg" class="small muted"></span></div></div>
+    <div class="setrow" data-g="system"><div class="lbl">Patch notes</div><div><div class="row"><button class="btn small" id="whatsnew">What's new in this version</button><a href="${PATCH_NOTES}" target="_blank" rel="noopener">All patch notes on GitHub</a><span id="whatsnew-msg" class="small muted" role="status"></span></div><p class="small muted">After an update the app shows the new version's notes once; this shows them again.</p></div></div>
     <div class="setrow" data-g="system"><div class="lbl">Community</div><div><a href="${DISCORD}" target="_blank" rel="noopener">Join the aion2calc Discord</a> — questions, builds and help</div></div>
     <div class="setrow" data-g="system"><div class="lbl">Stop the app</div><div><button class="btn small" id="quit2">Quit aion2calc</button></div></div>
     <div class="setrow" data-g="system" style="border-top:1px solid var(--line);margin-top:8px;padding-top:10px"><div class="lbl">Author</div><div class="muted">Spirited - Zikel : Asmodian&nbsp;&nbsp;|&nbsp;&nbsp;Legion: WhaleWatch</div></div>`,
@@ -2138,6 +2139,10 @@ async function pageSettings() {
     }
   };
   $("#autoupd").onchange = () => api("/api/ui", { auto_update: $("#autoupd").checked }).then(() => toast("Saved"));
+  $("#updclose").onchange = () =>
+    api("/api/ui", { update_on_close: $("#updclose").checked }).then(() => toast("Saved"));
+  $("#whatsnew").onclick = () =>
+    window.A2PatchNotes.show(api).catch((e) => ($("#whatsnew-msg").textContent = e.message));
   if ($("#chkupd"))
     $("#chkupd").onclick = async () => {
       const button = $("#chkupd");
@@ -2159,7 +2164,10 @@ async function pageSettings() {
   if ($("#instupd"))
     $("#instupd").onclick = async () => {
       $("#instupd").disabled = true;
-      $("#updmsg").textContent = "Downloading and checking the installer…";
+      $("#updmsg").textContent =
+        (s.update_download || {}).state === "ready"
+          ? "Opening the installer…"
+          : "Downloading and checking the installer…";
       try {
         const r = await api("/api/update", {});
         if (r.status === "launching") {

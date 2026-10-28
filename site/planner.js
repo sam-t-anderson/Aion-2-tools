@@ -42,6 +42,15 @@
       return (await apiGET("/api/v1/plans")).plans;
     },
     fetchPlan: async (id) => apiGET(`/api/v1/plans/${id}/raw`),
+    // Import recorded movement: a combat log on the share server, by its link (log.html?id=…, /l/…) or its ID
+    recording: async (ref) => {
+      const text = String(ref || "").trim();
+      let id = text;
+      try { const u = new URL(text); id = u.searchParams.get("id") || (u.pathname.match(/\/l\/([^/]+)/) || [])[1] || ""; } catch (e) { /* a bare ID */ }
+      if (!/^[A-Za-z0-9_-]{4,64}$/.test(id)) throw new Error("Paste a combat log's link or its ID.");
+      if (!base()) throw new Error("Set your share server at the top of the page first.");
+      return apiGET("/api/v1/logs/" + encodeURIComponent(id) + "/raw");
+    },
   };
 
   // theme toggle (mirrors the app's three-way switch, stored per browser)

@@ -1,3 +1,32 @@
+## Quiet updates, a key for the replay, and your fights in the Raid Planner (0.2.353)
+
+**Updates without popups.** A new version now downloads quietly while the app runs:
+- A small bar at the bottom left shows the download's progress, then **Update ready: version X** with **Update now** and **Update when the app closes**.
+- **Update now** closes the app and opens the installer, as before.
+- **Update when the app closes** is ticked unless you untick it. With it ticked, closing the app installs the update quietly, and the app opens on the new version next time.
+- A version released while the app runs replaces the waiting one, so the newest version installs, never the versions in between.
+
+Settings → App & data → **Updates** has the same two choices.
+
+**What's new after an update.** The first time the app opens after an update, it shows the new version's patch notes over the page, with those of any versions in between. Close them and they do not come back. A new install shows nothing. **Settings → App & data → Patch notes** shows this version's notes again and links to every version's on GitHub.
+
+**A key for the movement replay.** Below the **Recorded movement replay**, a key shows what each token stands for: the boss, the recording player, pets and summons, other enemies, the movement trails, faded tokens and the arena. Then come the fight's players by name in their class colours. Untick an entry to hide it on the replay; **Show all** brings everything back. Tokens hidden on the replay come hidden into a plan made with **Open in Raid Planner**.
+
+**The boss room in the replay.** A boss fight's replay draws the room the fight took place in, sized from where everyone went: the smallest circle that holds the fight's positions, or their square, a tenth larger, since nobody stands against the walls. Pick **Circle** or **Square** beside the scrub bar; the app remembers the choice. The farthest hundredth of the positions (someone walking in or out) is left out of the room and drawn where it was. A fight without a boss has no room.
+
+**Your fights in the Raid Planner.** **Import recorded movement** in the Raid Planner turns a fight into a plan in which each player, pet and enemy moves as it did, on the fight's arena:
+- In the app, choose a saved recording, then the fight.
+- On the website, paste a combat log's link or ID.
+- **Import file** takes a recording file (`.a2log.json`) too.
+
+**Show or hide tokens in the Raid Planner.** **Shown on the map** hides tokens by kind (players, enemies, markers, AoE zones) or one by one. A hidden token keeps its place and movement in the plan and stays hidden in playback, on the overlay and for whoever opens the plan.
+
+**Completed-run speed names its bosses again.** On the website the table showed "—" for the boss and the time. In the app it showed catalog numbers such as `npc:2340616`. Both now show the bosses in order by name, the run's time, its encounter type and difficulty, and its rank among comparable runs ("1 of 3").
+
+**One-letter characters in My Character Identities.** After a zone load the capture missed, the app could for a moment take a player standing nearby for you. A log could then name that stranger, often a one-letter character in town, as the player who recorded it. The app now names the recording player who took part in the most of the log's fights. Log server 0.2.146 also stops counting a recording whose named recorder did nothing in it. A recording that did not capture your server now joins the one your other recordings give, so the same character is no longer listed twice.
+
+**Moving Discord to your account.** If you signed in with Discord by mistake and made a second account, linking Discord on your real account now offers to move it (log server 0.2.146). The account Discord made closes and its uploads, characters and legions come with it, when Discord was its only way in. Unlinking Discord and removing the app in Discord's settings never freed it on the log server.
+
 ## Featured encounters (0.2.352)
 
 **Featured encounters at the top of Combat Logs.** When the log server's operator features a boss (log server 0.2.145), Combat Logs shows it above **Browse logs**, in the app and on the website. It appears as the boss's portrait and nine cards, each with its top three: progress, speed, execution, the all-stars by role, and the classes' recorded DPS by role. Its pages work like fflogs' zone pages:

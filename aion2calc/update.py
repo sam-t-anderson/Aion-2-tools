@@ -1,8 +1,10 @@
 """Check and stage GitHub releases; launch Windows installation on user request.
 
-Portable/macOS/Linux downloads are offered for copying. Windows helpers wait for
-the app to close, then open the installer. Disposable updater files have bounded
-retention; active or uninspectable helpers and recent failure logs are preserved.
+A newer release downloads quietly in the background while the app runs (0.2.353), the newest one when several
+come out meanwhile; the app shows its progress, then offers Update now, and installs it when the app closes unless
+the player turned that off. Portable/macOS/Linux downloads are offered for copying. Windows helpers wait for the
+app to close, then open the installer. Disposable updater files have bounded retention; active or uninspectable
+helpers and recent failure logs are preserved.
 """
 from __future__ import annotations
 
@@ -88,12 +90,21 @@ def available(release: dict | None = None) -> dict | None:
             "silent": kind == "installer" and asset is not None}
 
 
-def download(url: str, dest: Path, timeout: float = 300) -> Path:
+def download(url: str, dest: Path, timeout: float = 300, progress=None) -> Path:
+    """Download ``url`` to ``dest`` (through a ``.part`` file); ``progress(received, total)`` follows it, total 0
+    when the server does not say."""
     req = urllib.request.Request(url, headers={
         "User-Agent": f"aion2calc/{__version__}", "Accept": "application/octet-stream"})
     tmp = dest.with_name(dest.name + ".part")
     with urllib.request.urlopen(req, timeout=timeout) as r, open(tmp, "wb") as f:
-        shutil.copyfileobj(r, f, 1024 * 1024)
+        if progress is None:
+            shutil.copyfileobj(r, f, 1024 * 1024)
+        else:
+            total, received = int(r.headers.get("Content-Length") or 0), 0
+            while chunk := r.read(256 * 1024):
+                f.write(chunk)
+                received += len(chunk)
+                progress(received, total)
     tmp.replace(dest)
     return dest
 
@@ -113,16 +124,20 @@ def _save_state(d: dict) -> None:
         pass
 
 
-def apply_installer(path: Path, silent: bool = True) -> bool:
+def apply_installer(path: Path, silent: bool = True, launch: bool = True) -> bool:
     """Launch the installer after this process exits.
 
     Inno Setup cannot replace the running executable.  A detached PowerShell
     helper waits for our PID, then opens the staged installer.  The caller is
     responsible for shutting down the local app immediately after this returns.
+    ``launch=False`` keeps a silent install from starting the app again (the
+    player closed it: an update on close).
     """
     args = [str(path), "/NORESTART"]
     if silent:
         args += ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
+    if not launch:
+        args.append("/NOLAUNCH")
     helper = home() / "updates" / f"apply-update-{uuid.uuid4().hex[:8]}.ps1"
     helper.parent.mkdir(parents=True, exist_ok=True)
     quoted_path = str(path).replace("'", "''")
@@ -183,8 +198,9 @@ def cleanup_updates(current: Path | None = None) -> dict:
     return result
 
 
-def fetch(info: dict) -> Path | None:
-    """Download the release asset for this platform to the data folder; return its path."""
+def fetch(info: dict, progress=None) -> Path | None:
+    """Download the release asset for this platform to the data folder; return its path. ``progress(received,
+    total)`` follows a download that is needed."""
     asset = info.get("asset")
     if not asset or not asset.get("browser_download_url"):
         return None
@@ -213,7 +229,10 @@ def fetch(info: dict) -> Path | None:
             return dest
         dest.parent.mkdir(parents=True, exist_ok=True)
         try:
-            download(asset["browser_download_url"], dest)
+            if progress is None:
+                download(asset["browser_download_url"], dest)
+            else:
+                download(asset["browser_download_url"], dest, progress=progress)
             if valid(dest):
                 cleanup_updates(dest)
                 return dest
@@ -258,3 +277,95 @@ def auto_update(quit_cb=None) -> str:
         return "downloaded" if fetch(info) else "download-failed"
     except Exception:
         return "error"
+
+
+# ------------------------------------------------------------------ quiet updates (0.2.353)
+#: What the background download is doing, for the app's update bar: ``idle`` (nothing newer, or not checked yet),
+#: ``downloading`` (``received`` of ``total`` bytes of ``version``), ``ready`` (staged at ``path``) or ``failed``
+#: (tried again soon). ``launched`` once an installer helper waits for this process to exit.
+_BG = {"state": "idle", "version": None, "url": None, "kind": None, "received": 0, "total": 0, "error": None,
+       "path": None, "started": False, "launched": False}
+_BG_WAKE = threading.Event()
+#: How often the background download looks for a newer release, and how soon it retries one that failed.
+CHECK_EVERY_S = 3600
+RETRY_S = 300
+
+
+def background_state() -> dict:
+    """The background download for the page (no file path)."""
+    return {k: _BG[k] for k in ("state", "version", "url", "kind", "received", "total", "error")}
+
+
+def start_background() -> None:
+    """Start the background download once, at the launch of a frozen build that updates itself."""
+    if _BG["started"]:
+        return
+    _BG["started"] = True
+    threading.Thread(target=_background, daemon=True, name="update-download").start()
+
+
+def poke(version: str | None = None) -> None:
+    """Look for a newer release now (a release check found ``version``, or the player asked); ignored when the
+    background download already has that version or a newer one."""
+    if not _BG["started"]:
+        return
+    if version is None or _BG["version"] is None or _vt(version) > _vt(_BG["version"]):
+        _BG_WAKE.set()
+
+
+def _background() -> None:
+    while True:
+        try:
+            _download_newest()
+        except Exception as exc:  # noqa: BLE001 - never let the updater thread die
+            _BG.update(state="failed", error=f"{type(exc).__name__}: {exc}"[:200])
+        _BG_WAKE.wait(RETRY_S if _BG["state"] == "failed" else CHECK_EVERY_S)
+        _BG_WAKE.clear()
+
+
+def _download_newest() -> None:
+    """Stage the newest release for this platform, unless it is staged already: a release that comes out while an
+    older one waits replaces it, so the newest one is what installs."""
+    release = latest_release(timeout=10)
+    if release is None:
+        if _BG["state"] != "ready":
+            _BG.update(state="failed", error="Could not reach GitHub for the update")
+        return
+    info = available(release)
+    if not info or not info.get("asset"):
+        if _BG["state"] != "ready":
+            _BG.update(state="idle", error=None)
+        return
+    if _BG["state"] == "ready" and _vt(info["version"]) <= _vt(_BG["version"] or "0"):
+        return
+    size = int(info["asset"].get("size") or 0)
+    _BG.update(state="downloading", version=info["version"], url=info.get("url"), kind=info["kind"],
+               received=0, total=size, error=None, path=None)
+    path = fetch(info, progress=lambda received, total: _BG.update(received=received, total=total or size))
+    if path:
+        _BG.update(state="ready", path=str(path), received=_BG["total"] or path.stat().st_size)
+    else:
+        _BG.update(state="failed", error="The download did not complete; it is tried again in a few minutes")
+
+
+def install_ready() -> str:
+    """Update now: the staged installer opens once the app has closed (interactively, as the player asked for it);
+    without one staged, the newest release downloads first (``install_now``)."""
+    if _BG["state"] == "ready" and _BG["kind"] == "installer" and _BG["path"] and Path(_BG["path"]).is_file():
+        _BG["launched"] = apply_installer(Path(_BG["path"]), silent=False)
+        return "launching" if _BG["launched"] else "launch-failed"
+    status = install_now()
+    _BG["launched"] = status == "launching"
+    return status
+
+
+def apply_on_close(enabled: bool) -> bool:
+    """As the app exits: install the staged update quietly once it has closed, without starting the app again,
+    unless the player turned "update when the app closes" off or an installer is already waiting."""
+    if not enabled or _BG["launched"] or _BG["state"] != "ready" or _BG["kind"] != "installer" or not _BG["path"]:
+        return False
+    path = Path(_BG["path"])
+    if not path.is_file():
+        return False
+    _BG["launched"] = apply_installer(path, silent=True, launch=False)
+    return _BG["launched"]

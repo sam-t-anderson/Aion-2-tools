@@ -452,6 +452,21 @@ def update_info(wait: bool = False, fresh: bool = False, force: bool = False) ->
     return _UPDATE.get("info")
 
 
+def _update_module():
+    from .. import update
+    return update
+
+
+def apply_update_on_close() -> bool:
+    """As the app exits: install the update downloaded in the background once it has closed, unless the player
+    turned "Update when the app closes" off (0.2.353). Never raises."""
+    try:
+        return _update_module().apply_on_close(ui_settings().get("update_on_close", True) is not False)
+    except Exception:                     # noqa: BLE001 - the app is closing either way
+        traceback.print_exc()
+        return False
+
+
 def update_state() -> dict:
     """What the last release check found, for the page: still checking, when it finished, and why
     it failed (a failed check is not "up to date")."""
@@ -470,6 +485,8 @@ def _check_update() -> None:
         version = str(rel.get("tag_name") or "").lstrip("v")
         if version and _vt(version) > _vt(__version__):
             info = {"version": version, "url": rel.get("html_url")}
+            from .. import update
+            update.poke(version)          # a release newer than the one downloading or waiting: download that one
     except Exception as exc:   # noqa: BLE001 - offline or rate-limited: retried soon, never raised
         error = f"{type(exc).__name__}: {exc}"[:200]
     finally:
@@ -670,7 +687,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"sync": s.state.as_dict() if s else None, "db": status(), "home": str(home()),
                                "app": "aion2calc", "version": __version__,
                                "update": update_info(fresh=bool(q.get("fresh"))), "update_state": update_state(),
-                               "update_prompt": ui_settings().get("auto_update", True)})
+                               "update_prompt": ui_settings().get("auto_update", True),
+                               # the quiet update (0.2.353): its download, and whether it installs as the app closes
+                               "update_download": _update_module().background_state(),
+                               "update_on_close": ui_settings().get("update_on_close", True) is not False})
         if path == "/api/assets":
             from ..db.assets import report
             from .image_health import report as image_report
@@ -736,6 +756,9 @@ class Handler(BaseHTTPRequestHandler):
             from .. import __version__
             from .. import update
             return self._json({"current": __version__, "info": update.available(), "kind": update.install_kind()})
+        if path == "/api/patch-notes":           # what's new: once after an update, or this version's on request
+            from . import patch_notes
+            return self._json(patch_notes.pending(force=bool(q.get("force"))))
         if path == "/api/npcap":
             from . import npcap
             return self._json(npcap.status())
@@ -1279,7 +1302,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
                               "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_per_fight", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics", "meter_record_packets", "rtss_enabled", "radar_enabled",
-                              "pettracker_enabled", "pettracker_overlay")
+                              "pettracker_enabled", "pettracker_overlay", "update_on_close")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1387,16 +1410,23 @@ class Handler(BaseHTTPRequestHandler):
                     except Exception:
                         traceback.print_exc()
             return self._json(result)
+        if path == "/api/patch-notes":           # the player closed what's new: it does not show again
+            if body.get("action") != "seen":
+                raise ValueError('patch notes action must be "seen"')
+            from . import patch_notes
+            patch_notes.mark_seen()
+            return self._json({"seen": patch_notes.__version__})
         if path == "/api/update/check":           # Settings "Check now": re-check the latest release
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("update checks run only on the computer running the app")
             update_info(wait=True, force=True)
+            _update_module().poke()
             return self._json({"update": _UPDATE.get("info"), "update_state": update_state()})
         if path == "/api/update":                 # manual "Install update now" (localhost only)
             if self.client_address[0] not in ("127.0.0.1", "::1"):
                 raise PermissionError("updates run only on the computer running the app")
             from .. import update
-            status = update.install_now()
+            status = update.install_ready()       # the update downloaded in the background, else the newest now
             if status == "launching":
                 schedule_shutdown(upload=False)   # exit promptly for the installer helper
             return self._json({"status": status})
@@ -1825,7 +1855,7 @@ def schedule_shutdown(upload: bool = True) -> None:
 
 def ui_settings() -> dict:
     from ..paths import data_file, read_json
-    defaults = {"app_window": True, "auto_update": True, "overlay_on_start": True, "tray_on_close": False,
+    defaults = {"app_window": True, "auto_update": True, "update_on_close": True, "overlay_on_start": True, "tray_on_close": False,
                 "overlay_open_on_app_start": True,
                 # The app's text size (percent of the shipped size) and the page it opens on (0.2.329).
                 "app_text_scale": 100, "app_default_page": "meter",
@@ -1966,6 +1996,8 @@ class AppServer(ThreadingHTTPServer):
 
 
 def make_server(host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServer:
+    from . import patch_notes
+    patch_notes.started()                 # before this launch writes app_url.txt: was this an update or a new install?
     httpd = AppServer((host, port), Handler)
     HTTPD["server"] = httpd
     HTTPD["closing"] = False

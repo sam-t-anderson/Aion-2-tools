@@ -21,7 +21,7 @@ VERSION = 1
 APP_PAGES = ("meter", "combat", "raid", "planner", "builds", "character", "gear", "history",
              "timers", "maps", "database", "crafting", "pets", "news", "settings")
 
-_BOOL_KEYS = ("app_window", "auto_update", "overlay_on_start", "tray_on_close", "community_heartbeat",
+_BOOL_KEYS = ("app_window", "auto_update", "update_on_close", "overlay_on_start", "tray_on_close", "community_heartbeat",
               "overlay_show_contribution", "overlay_show_target",
               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
               "overlay_show_cooldowns", "overlay_show_break_gauge", "overlay_show_odyle", "overlay_show_shugo_keys",

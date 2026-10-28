@@ -11,8 +11,9 @@ For every page, at desktop width and at phone width (390 px):
   - with --axe, axe-core reports no serious or critical accessibility problem, in the light theme and
     again in the dark one.
 Requests to any other site are blocked, so the check never depends on the log server or a third party.
-The Maps page must not contact the interactive-map provider until the visitor asks for the map, and a log
-page must offer the log server's own link for the log (its preview shows the fight).
+The Maps page must not contact the interactive-map provider until the visitor asks for the map, a log
+page must offer the log server's own link for the log (its preview shows the fight), and the Logs page's
+Completed-run speed tab must name a run's bosses and show its time.
 
     python tools/site_smoke.py [--axe node_modules/axe-core/axe.min.js] [--out DIR] [--keep]
 
@@ -231,6 +232,46 @@ def check_log_share(browser, base: str, problems: list) -> None:
     context.close()
 
 
+# One run of the log server's /api/v1/run-leaderboard, as the server sends it: the route by catalog key, each
+# boss named in its attempts, and the ranked entry-to-final-boss time in elapsed_seconds.
+SPEED_RUN = {"log": "abcdef12", "id": "1", "rank": 1, "count": 2, "boss_route": ["npc:2340616"], "elapsed_seconds": 150.5,
+             "party_size": 5, "encounter_type": "transcendence", "difficulty": "stage 2", "instance_id": 600055,
+             "attempts": [{"boss": "Gelcos", "boss_key": "npc:2340616", "outcome": "kill"}],
+             "progression": [{"boss": "Gelcos", "boss_key": "npc:2340616", "kills": 1}]}
+
+
+def check_run_speed(browser, base: str, problems: list) -> None:
+    """The Logs page's Completed-run speed tab names each run's bosses and shows its time."""
+    context = browser.new_context()
+    server = "https://logs.example"
+
+    def route(r):
+        url = r.request.url
+        if url.endswith("/config.js"):
+            r.fulfill(content_type="text/javascript", body=f'window.A2CONFIG = {{"server": "{server}", "key": ""}};')
+        elif url.startswith(server + "/api/v1/run-leaderboard"):
+            r.fulfill(content_type="application/json", headers={"Access-Control-Allow-Origin": "*"},
+                      body=json.dumps({"entries": [SPEED_RUN], "samples": 1, "truncated": False, "note": ""}))
+        elif urllib.parse.urlsplit(url).hostname in ("127.0.0.1", "localhost") or url.startswith(("data:", "blob:")):
+            r.continue_()
+        else:
+            r.abort()
+
+    context.route("**/*", route)
+    page = context.new_page()
+    page.goto(base + "logs.html", wait_until="load")
+    try:
+        page.click('[data-tab="speed"]')
+        page.wait_for_selector("#speed-body table", timeout=8000)
+        row = page.locator("#speed-body tr").nth(1).inner_text()
+        for want in ("Gelcos", "Transcendence · stage 2", "2:31", "1 of 2"):
+            if want not in row:
+                problems.append(f"logs.html: the Completed-run speed row reads {row!r}, without {want!r}")
+    except Exception as exc:
+        problems.append(f"logs.html: no Completed-run speed table ({str(exc).splitlines()[0]})")
+    context.close()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--axe", help="path to axe-core's axe.min.js, to run the accessibility checks")
@@ -258,6 +299,8 @@ def main() -> int:
                 check_maps_button(context, base, problems)
             if "log.html" in pages:
                 check_log_share(browser, base, problems)
+            if "logs.html" in pages:
+                check_run_speed(browser, base, problems)
             browser.close()
     finally:
         server.shutdown()
