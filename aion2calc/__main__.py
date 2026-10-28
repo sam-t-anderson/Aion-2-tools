@@ -3,6 +3,7 @@
 Commands
   catalog-refresh  stage pinned enemy/dungeon tables and an audit for release review
   catalog-gaps     list what the bundled catalog cannot name, for reporting upstream
+  catalog-supplement  stage names for the NPC and dungeon ids the community catalog leaves out
   routes-build     rebuild the Maps page's farming-route catalog from a permitted source checkout
   probe            find which undecoded record carries a number you saw in the game (diagnostic capture)
   refresh    re-scrape the sources and rebuild aion2calc/data
@@ -101,6 +102,9 @@ def main(argv: list[str] | None = None) -> int:
     cat = sub.add_parser("catalog-refresh", help="stage pinned NPC/dungeon tables and a review diff")
     cat.add_argument("--revision", required=True, help="full upstream commit SHA (40 lowercase hex characters)")
     cat.add_argument("--out", required=True, help="new staging directory; does not replace installed tables")
+
+    sp = sub.add_parser("catalog-supplement", help="stage DBAion2 names for the NPC/dungeon ids the community catalog leaves out, and a review diff")
+    sp.add_argument("--out", required=True, help="new staging directory; does not replace the installed supplement")
 
     pb = sub.add_parser("probe", help="value probe: which record field held the numbers you saw in the game, from a diagnostic capture")
     pb.add_argument("capture", help="the diagnostics ZIP (exported with raw TCP recording on) or its tcp-payloads.jsonl")
@@ -272,6 +276,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "catalog-refresh":
         from .scrape.catalog import stage
         stage(args.revision, args.out)
+    elif args.cmd == "catalog-supplement":
+        from .scrape.supplement import stage
+        stage(args.out)
     elif args.cmd == "routes-build":
         from importlib.resources import files
         from .scrape.routes import write
@@ -303,7 +310,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {row['instance_id']}  {row['name'] or 'unnamed'}" + (f" · {row['difficulty']}" if row.get("difficulty") else ""))
         print(f"Instances with a curated final boss but no dungeon name: {counts['unnamed_instances_with_final_boss']}")
         for row in report["unnamed_instances_with_final_boss"]:
-            print(f"  {row['instance_id']}  {row['label']}")
+            print(f"  {row['instance_id']}  {row['label']}" + (f" · named {row['supplement_name']} by the name supplement" if row.get("supplement_name") else ""))
         print(f"Final-boss codes without a backing NPC record: {counts['final_boss_codes_without_npc']}")
         for row in report["final_boss_codes_without_npc"]:
             print(f"  {row['instance_id']}  {row['code']}  {row['problem']}")

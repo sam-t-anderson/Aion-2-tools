@@ -379,6 +379,24 @@ def test_what_the_overlay_says_when_it_lists_nothing():
     assert paused["sync_notice"] is True and all(r["paused"] for r in paused["rows"])
 
 
+KEY = "0123456789abcdef01234567"
+ACCOUNT = {"ProfileKey": KEY, "AccountName": "Main account", "CharacterName": "Ranger", "LinkedCharacters": ["Healer"], "RealmLabel": ""}
+
+
+def test_a_character_pet_tracker_waits_to_link_to_its_account_is_named_with_the_way_to_link_it():
+    waiting = _view(Ready=False, Status="Alt — link to account", Detail="Selected account: Main account. Open Settings > Account "
+                    "> Manage accounts to link Alt or select another account.", DetectedCharacter="Alt", Profiles=[ACCOUNT], Selected=KEY)
+    link = pt.link_needed(waiting)
+    assert link == {"character": "Alt", "account": "Main account", "characters": ["Ranger", "Healer"], "key": KEY}
+    shown = pt.render(waiting, NOW)
+    assert shown["link"] == link and shown["rows"] == [] and shown["empty"].startswith("Alt is not linked to your Pet Tracker account Main account")
+    other = dict(ACCOUNT, ProfileKey="f" * 24, AccountName="Second")
+    assert pt.link_needed(dict(waiting, Profiles=[ACCOUNT, other]))["key"] is None       # several accounts: Pet Tracker chooses
+    assert pt.link_needed(dict(waiting, DetectedCharacter="healer")) is None              # already one of the account's
+    assert pt.link_needed(dict(waiting, Profiles=[dict(ACCOUNT, AccountName="")])) is None  # a character profile, not an account
+    assert pt.link_needed(dict(waiting, Ready=True)) is None and pt.render(_view(), NOW)["link"] is None
+
+
 def test_the_session_summary_and_collection():
     out = pt.render(_view(), NOW, collection=True)
     assert out["summary"] == {"total": 5, "collected": 4, "maxed": 1, "unknown": 0}
@@ -783,6 +801,12 @@ def test_the_pet_tracker_routes(app, tmp_path):
     assert plat.sent[-1] == {"Action": "farming-goal", "PetId": 1004, "TargetRank": None}
     call("/api/pettracker", {"action": "reset_session"})
     assert plat.sent[-1] == {"Action": "reset-farming"}
+    assert call("/api/pettracker", {"action": "link", "character": "Alt"})[0] == 400           # nothing waits to be linked
+    plat.view = _view(Ready=False, Status="Alt — link to account", DetectedCharacter="Alt", Profiles=[ACCOUNT], Selected=KEY)
+    assert call("/api/pettracker", {"action": "link", "character": "Someone"})[0] == 400       # the detected character changed
+    code, body = call("/api/pettracker", {"action": "link", "character": "Alt"})
+    assert code == 200 and plat.sent[-1] == {"Action": "link", "Key": KEY, "Name": "Alt"}
+    plat.view = _view()
     plat.answers.append(json.dumps({"Error": "Pin limit reached. Unpin a pet or raise the limit in Settings > Tracking."}).encode())
     code, body = call("/api/pettracker", {"action": "pin", "pet": 1002, "value": True})
     assert code == 400 and json.loads(body) == {"error": "Pin limit reached. Unpin a pet or raise the limit in Settings > Tracking."}

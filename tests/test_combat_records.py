@@ -379,3 +379,57 @@ def test_segment_list_is_capped_to_max_records():
     capped = s.snapshot(scope="auto", segment_id="all")
     assert len(capped["segments"]) == 3     # only the most recent are listed
     assert capped["segments"] == uncapped["segments"][-3:]
+
+
+def test_an_elite_left_behind_healing_to_full_never_splits_the_boss_fight(monkeypatch):
+    # An elite fought long enough to count as a major (MAJOR_ENGAGE_MS), hurt and left behind,
+    # heals back to full once out of combat -- while the party is in the middle of the boss.
+    # That is no wipe: splitting there cut one boss fight in two, the second half starting with
+    # the boss at three quarters of its health and never ranked (0.2.354).
+    import aion2calc.meter.session as session
+    monkeypatch.setattr(session, "npc_info", lambda code: {"isBoss": code == 777})
+    s, engine = _session()
+    engine.spawn_info = {9001: {"mobCode": 777}, 9002: {"mobCode": 888}}
+    t0 = 1_000_000
+    engine.telemetry = [_hp(9002, 600, 1000, t0 + 1000)]
+    s.observe(engine, [_hit(5001, 9002, t0), _hit(5001, 9002, t0 + 15000)], timestamp_ms=t0 + 15000)
+    assert (s.epoch, 9002) in s._engaged_major and (s.epoch, 9002) in s._major_below
+    split0 = s.manual_split
+    boss = [_hit(5001, 9001, t0 + 35000 + k * 1000) for k in range(40)]
+    engine.telemetry = [_hp(9001, 990, 1000, t0 + 36000)]
+    s.observe(engine, boss[:20], timestamp_ms=t0 + 54000)
+    engine.telemetry = [_hp(9002, 1000, 1000, t0 + 55000)]      # 40 s after its last hit: full again
+    s.observe(engine, boss[20:], timestamp_ms=t0 + 74000)
+    assert s.manual_split == split0 and s.reset_splits == 0
+    assert (s.epoch, 9002) not in s._engaged_major             # left behind: no longer engaged
+    doc = s.to_a2log("party")
+    boss_ids = {e["id"] for seg in doc["segments"] for e in seg["entities"] if e.get("mob_code") == 777}
+    fights = [seg for seg in doc["segments"] if any(h["target"] in boss_ids for h in seg["hits"])]
+    assert len(fights) == 1 and sum(h["target"] in boss_ids for h in fights[0]["hits"]) == 40
+
+    # A boss back at full after the party's damage paused, with nothing else being fought, is
+    # still the reset it always was.
+    later = t0 + 74000 + session.RESET_LULL_MS + 1000
+    engine.telemetry = [_hp(9001, 1000, 1000, later)]
+    s.observe(engine, [], timestamp_ms=later)
+    assert s.reset_splits == 1
+
+
+def test_a_death_never_stretches_a_fight_into_the_one_that_followed(monkeypatch):
+    # A death closes the fight still fighting the entity -- but never one the next fight had
+    # already cut. A player dying in the second fight stretched the first across it, so the
+    # recording held the second fight's deaths and health twice (0.2.354).
+    import aion2calc.meter.session as session
+    monkeypatch.setattr(session, "npc_info", lambda code: {"isBoss": code == 777})
+    s, engine = _session()
+    engine.spawn_info = {9001: {"mobCode": 777}, 9002: {"mobCode": 888}}
+    t0 = 1_000_000
+    s.observe(engine, [_hit(5001, 9002, t0), _hit(5001, 9002, t0 + 5000)], timestamp_ms=t0 + 5000)
+    s.split_now()
+    engine.telemetry = [_hp(9001, 990, 1000, t0 + 6500), {"entity": 5001, "kind": "death", "timestamp_ms": t0 + 10000}]
+    s.observe(engine, [_hit(5001, 9001, t0 + 6000), _hit(5001, 9001, t0 + 9000)], timestamp_ms=t0 + 10000)
+    s.observe(engine, [_hit(5001, 9001, t0 + 15000)], timestamp_ms=t0 + 15000)
+    first, second = [seg for seg in s.to_a2log("party")["segments"] if seg.get("hits")]
+    assert first["duration"] <= 5.0 + 1e-6                     # ends with its own last hit
+    assert not [e for e in first["events"] if e["kind"] == "death"]
+    assert [e for e in second["events"] if e["kind"] == "death"]

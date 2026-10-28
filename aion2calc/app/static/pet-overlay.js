@@ -107,6 +107,12 @@
   });
   $("#pthidemax").onchange = (e) => P.control({ action: "hide_maxed", value: e.target.checked }).then(render).catch(showError);
   $("#ptrows").addEventListener("click", (e) => {
+    const link = e.target.closest("[data-link]");
+    if (link) {
+      link.disabled = true;
+      P.control({ action: "link", character: link.dataset.link }).then(render).catch(showError);
+      return;
+    }
     const b = e.target.closest("[data-pin]");
     if (!b) return;
     P.control({ action: "pin", pet: Number(b.dataset.pin), value: b.getAttribute("aria-pressed") !== "true" }).then(render).catch(showError);

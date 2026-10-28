@@ -1,3 +1,21 @@
+## Fights that rank whole, names for every zone, and enemies that keep their type (0.2.354)
+
+**A boss fight cut in two is one fight again.** An elite the party had pulled and left behind would heal back to full out of combat, and the meter read that as a wipe. It then cut the boss fight in progress in two: a first half without the kill and a second without the start, so neither could rank. The meter no longer cuts there. For recordings already uploaded, the log server joins the two halves whenever it reads the log and ranks the whole fight once (log server 0.2.147). The upload itself is not changed. In the log review, the first half says it is a piece of a cut fight and links to the whole one.
+
+**More fights rank.** The ranking checks now read a fight more fairly:
+- Only the bosses the party fought count. A boss-flagged copy or bystander the party never hit (Atiel's copies, Vakron's Thorn Vines) no longer blocks the start or end check.
+- A boss whose first HP reading came after the opening burst (its HP packets are sparse) counts as seen at full health when that reading plus the party's recorded damage to it before then reaches its maximum.
+- Nightmare and the Ascension trials, whose map is itself the instance, are no longer "map only" when the run's entry was recorded.
+- A death recorded after the next fight began no longer stretches the earlier fight across the next one, which then appeared twice.
+
+**Names for zones and NPCs that showed as numbers.** The community catalog lists the monsters a DPS meter meets. Recordings also meet friendly NPCs (guards, merchants), objects, and instances it has no name for: later Transcendence tiers, the Ascension trials, the daily dungeons. The app now bundles names for them from DBAion2's English tables: 4,006 NPCs and 68 dungeon tiers. Names only: bosses, categories, tiers and difficulties still come from the community catalog, whose rows always win. Maps 504001 and 504002 are named Abyss Corridor. The catalog coverage no longer reports a zone the app can name as unresolved. `aion2calc catalog-supplement` stages a refreshed copy for review (see [the CLI guide](https://github.com/sam-t-anderson/Aion-2-tools/blob/main/docs/cli.md#name-supplement)).
+
+**Enemies keep their type through a revive.** A revive or a teleport inside an instance reloads the zone but keeps every actor id, and the game sends no new spawn record for an NPC still standing there. The meter used to clear every NPC's type on that load, so an NPC fought after it had no type: no name, no boss, and its fight could not rank. Now, when you keep your own id through the load and stay on the same map, an NPC that acts with no new spawn record keeps the type it had. Entering or leaving a dungeon gives everyone new ids, and a move to another map leaves its NPCs behind, so nothing carries over then; nor does an NPC that was dead, or one whose new HP record disagrees.
+
+**Players the game never named.** In arenas and the Abyss the game sometimes sends no identity record for a player. Such a player used to appear as an enemy of unknown type. A recording now lists them as a player of their class (*Player #1234*), from the class skills they used. On the log server, the same players in older recordings no longer count as enemies missing NPC types.
+
+**Pet Tracker: linking a character to your account.** Pet collections are shared across a game account. When you log into a character that Pet Tracker's account does not include, Pet Tracker waits for you to link it, and its status reads *Name — link to account*. The overlay and the Pet Tracker page now say *Name is not linked to Account* and offer **Link Name to Account**, which links it the way Pet Tracker's own Settings do. With more than one account in Pet Tracker, choose it in Pet Tracker's **Settings → Account → Manage accounts**.
+
 ## Quiet updates, a key for the replay, and your fights in the Raid Planner (0.2.353)
 
 **Updates without popups.** A new version now downloads quietly while the app runs:

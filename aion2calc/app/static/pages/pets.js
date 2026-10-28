@@ -218,6 +218,12 @@ async function pagePets() {
   });
   $("#pt-hidemax").onchange = (e) => act({ action: "hide_maxed", value: e.target.checked });
   const pinClick = (e) => {
+    const link = e.target.closest("[data-link]");
+    if (link) {
+      link.disabled = true;
+      act({ action: "link", character: link.dataset.link });
+      return;
+    }
     const b = e.target.closest("[data-pin]");
     if (b) act({ action: "pin", pet: Number(b.dataset.pin), value: b.getAttribute("aria-pressed") !== "true" });
   };

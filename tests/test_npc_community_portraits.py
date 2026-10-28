@@ -12,6 +12,7 @@ def _fake_tables(monkeypatch, npcs, bundled):
         return {"npcs": npcs, "npc-portraits": bundled}.get(category, {})
     monkeypatch.setattr(lookup, "_table", table)
     monkeypatch.setattr(lookup, "_npc_overrides", lambda: {})
+    monkeypatch.setattr(lookup, "_supplement", lambda: {})     # these ids are unknown to every bundled table
 
 
 def test_community_portrait_fills_an_npc_without_bundled_art(tmp_path, monkeypatch):

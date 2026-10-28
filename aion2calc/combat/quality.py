@@ -26,6 +26,10 @@ RECOVERED_SKIP_FRACTION = 0.02
 #: (the opening hit lands with the sample) and no later than this long after the party's first hit on it
 FULL_HEALTH_TOLERANCE = 0.005
 FULL_HEALTH_WINDOW_S = 0.5
+#: A boss first read some way into the fight (its HP packets are sparse: the opening burst lands
+#: before the first reading) started whole when that reading plus the party's recorded damage to it
+#: since the first hit reaches full health. Only readings this soon after the first hit are used.
+START_RECONSTRUCT_S = 30.0
 PCAP_DROP_FLOOR = 500
 PCAP_DROP_FRACTION = 0.02
 # Counters that are a true per-event processing/validation loss (void ranking on any nonzero count).
@@ -65,6 +69,7 @@ LABELS = {
     "storage_boundary": "This archive part crosses a storage boundary; full fight/run completeness is not established.",
     "missing_metadata": "Record the game version, difficulty and encounter category.",
     "unverified_category": "The encounter category has not been identified.",
+    "continued": "The meter cut this boss fight in two; the whole fight is ranked as the encounter this one continues in.",
     "start_unverified": "A boss at full health was not observed at the start of this encounter.",
     "end_unverified": "The deaths of all recorded bosses were not observed.",
     "boss_unverified": "No identified boss NPC was recorded.",
@@ -96,19 +101,40 @@ def observed_starts(segment, bosses):
     A boss seen whole before it was pulled started the fight whole. The first HP sample usually
     lands with the opening hit, i.e. a hair below the maximum at t=0; and when trash merges into
     the same combat segment the boss is first seen (at full health) some seconds before it is
-    pulled. Both are a start observed from the top."""
+    pulled. Both are a start observed from the top.
+
+    A boss read below full in the opening (sparse HP packets: the opening burst lands before or
+    with the first reading) started whole when a reading plus the party's recorded damage to it
+    before that reading reaches full health: the boss took that damage on the way down. Damage from
+    outside the party is not recorded, so the sum can only fall short of the health it had. Only the
+    readings while the boss keeps falling count -- one at full again, or higher than an earlier one,
+    may be a reset or a heal, and a boss read *at* full some time after the pull stays unverified --
+    and none later than ``START_RECONSTRUCT_S`` after the first hit."""
     first_hit: dict = {}
     for h in segment.get("hits") or []:
         target = h.get("target")
         if target in bosses and (target not in first_hit or h.get("t", 0) < first_hit[target]):
             first_hit[target] = h.get("t", 0)
-    starts = set()
-    for sample in segment.get("health") or []:
+    starts, falling, lowest = set(), set(first_hit), {}
+    for sample in sorted(segment.get("health") or [], key=lambda s: s.get("t", 0)):
         entity, maximum, current = sample.get("entity"), sample.get("max") or 0, sample.get("current") or 0
-        if maximum <= 0 or entity not in bosses:
+        if maximum <= 0 or entity not in bosses or entity in starts:
             continue
-        if (current >= maximum * (1 - FULL_HEALTH_TOLERANCE)
-                and sample.get("t", 1) <= max(0.0, first_hit.get(entity, 0.0)) + FULL_HEALTH_WINDOW_S):
+        opened = max(0.0, first_hit.get(entity, 0.0))
+        t = sample.get("t", 1)
+        full = current >= maximum * (1 - FULL_HEALTH_TOLERANCE)
+        if full and t <= opened + FULL_HEALTH_WINDOW_S:
+            starts.add(entity)
+            continue
+        if entity not in falling or t < opened:
+            continue
+        if full or t > opened + START_RECONSTRUCT_S or current > lowest.get(entity, current) + 0.01 * maximum:
+            falling.discard(entity)
+            continue
+        lowest[entity] = min(lowest.get(entity, current), current)
+        taken = sum(h.get("damage") or 0 for h in segment.get("hits") or []
+                    if h.get("target") == entity and opened <= h.get("t", 0) < t)
+        if current + taken >= maximum * (1 - FULL_HEALTH_TOLERANCE):
             starts.add(entity)
     return starts
 
@@ -147,7 +173,14 @@ def assess(doc, segment):
     classification = segment.get("classification") or {}
     if classification.get("status") == "conflict":
         reasons.append("classification_conflict")
-    if classification.get("basis") == "recorded_map" and classification.get("catalog_instance_id") and not classification.get("recorded_instance_id"):
+    # A map that is itself the instance (Nightmare, the Ascension trials: the game sends no separate
+    # instance id there) is entry evidence enough when the run's entry was observed and the bosses'
+    # catalog instance is that map; otherwise a map without its instance id may be a recording that
+    # began mid-run.
+    map_is_instance = (segment.get("run_start_observed") is True and classification.get("catalog_instance_id")
+                       and classification.get("npc_instance_ids") == [classification.get("catalog_instance_id")])
+    if (classification.get("basis") == "recorded_map" and classification.get("catalog_instance_id")
+            and not classification.get("recorded_instance_id") and not map_is_instance):
         reasons.append("classification_map_only")
     if classification.get("basis") == "npc_only":
         reasons.append("classification_npc_only")
@@ -205,10 +238,16 @@ def assess(doc, segment):
     if any(not p.get("class") or not p.get("server") or not p.get("name")
            or re.fullmatch(r"(?:Player\s*)?#?\d+", p["name"], re.I) for p in players):
         reasons.append("identity_unverified")
-    bosses = {e["id"] for e in segment.get("entities", []) if e.get("is_boss") and e.get("mob_code")}
+    # The bosses of the fight are the catalog bosses the party fought: a boss-flagged copy, vine or
+    # bystander it never struck (Atiel's copies, Vakron's Thorn Vines) neither starts nor ends it.
+    # Each one fought must be seen whole at the start and dead (a death record, or zero health) by
+    # the end.
+    from .rejoin import dead_entities, engaged_bosses
+    bosses = set(engaged_bosses(segment))
     starts = observed_starts(segment, bosses)
-    deaths = {e.get("target") for e in segment.get("events", []) if e.get("kind") == "death"}
-    deaths.update(s["entity"] for s in segment.get("health", []) if s.get("current") == 0)
+    deaths = dead_entities(segment)
+    if segment.get("continued_in") is not None:
+        reasons.append("continued")
     if kind.startswith("pvp_"):
         reasons.append("pvp_boundaries_unverified")
     else:
@@ -216,7 +255,7 @@ def assess(doc, segment):
             reasons.append("boss_unverified")
         if not bosses or not bosses <= starts:
             reasons.append("start_unverified")
-        if not bosses or not bosses <= deaths or not segment.get("killed"):
+        if not bosses or not bosses <= deaths:
             reasons.append("end_unverified")
     from ..meter.a2parser.capture_stats import NOTE
     monitoring = {"sampled":capture.get("pcap_stats_sampled") is True,

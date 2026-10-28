@@ -212,6 +212,29 @@ def _dungeon_final_bosses() -> dict:
     return out
 
 
+@lru_cache(maxsize=1)
+def _supplement() -> dict:
+    """The bundled name supplement (``catalog-supplement.json``, staged by ``aion2calc
+    catalog-supplement``): DBAion2's names for the NPC and dungeon ids the community catalog has no
+    row for -- the friendly and neutral NPCs a DPS meter's catalog leaves out, and instances it has
+    no name for. Names and types only; a missing or malformed file is an empty supplement."""
+    resource = files(__package__).joinpath("data", "catalog-supplement.json")
+    try:
+        doc = json.loads(resource.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ModuleNotFoundError, ValueError):
+        return {}
+    return {key: doc[key] for key in ("npcs", "dungeons") if isinstance(doc, dict) and isinstance(doc.get(key), dict)}
+
+
+def supplement_dungeon(dungeon_id) -> dict:
+    """The supplement's ``{name, type, difficulty_name}`` for an instance id the community dungeon
+    table does not name, else ``{}``. Never a difficulty, category or boss: those stay the catalog's."""
+    if str(dungeon_id) in _table("dungeons", "en"):
+        return {}
+    row = _supplement().get("dungeons", {}).get(str(dungeon_id))
+    return row if isinstance(row, dict) and isinstance(row.get("name"), str) and row["name"].strip() else {}
+
+
 def dungeon_final_bosses(dungeon_id: int) -> frozenset:
     """The curated final-boss mob codes for a catalog ``dungeonId`` (its HP-bar phases /
     variants), or an empty set when the dungeon is unknown or deliberately unmapped."""
@@ -318,6 +341,12 @@ def npc_info(mob_code: int, locale: str = "en") -> dict:
     if isinstance(override, dict):
         info = {**info, **{k: v for k, v in override.items() if k not in ("source", "note")}}
     comm = _community_overlay().get(str(mob_code), {})
+    supplement = _supplement().get("npcs", {}).get(str(mob_code)) if not info else None
+    if isinstance(supplement, dict) and isinstance(supplement.get("name"), str) and supplement["name"].strip():
+        # Unknown to the curated catalog, which lists monsters: a guard, merchant or object the
+        # bundled supplement names (with its NPC type). It adds no boss flag, category or tier.
+        info = {"name": supplement["name"], "supplement": True,
+                **({"npc_type": supplement["type"]} if isinstance(supplement.get("type"), str) else {})}
     if not info:
         # Unknown to the curated catalog: fall back to the community name overlay for new
         # content the bundled table hasn't mapped yet (shown as ``#<code>`` otherwise). A

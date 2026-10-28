@@ -15,6 +15,7 @@ import uuid
 from ..combat.a2log import MOVEMENT_SOURCES
 from .a2parser.lookup import dungeon_final_bosses, has_skill, is_heal_skill, job_from_skill, normalize_skill, npc_info, npc_name, skill_name, spirit_skill_category
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
+from .a2parser.engine import NPC_SKILLS, _own_class_skill
 from .context import party_instance
 
 
@@ -439,12 +440,13 @@ class CombatSession:
             return True
         return bool(info.get("breakGauge")) if self._gauge_mode else True
 
-    def _majors_in_play(self, now_ms):
+    def _majors_in_play(self, now_ms, display=True):
         """The engaged majors of this epoch that still hold the current fight: able to hold it
-        (``_display_major``), not seen dying, and damaged by the party within ``BOSS_HOLD_MS`` (a
-        catalog boss, whose untargetable phases can run long) or ``RESET_LULL_MS`` (a major
-        inferred from a sustained engagement) of ``now_ms``.
-        Display only: it decides where the live overlay resets, never how fights are segmented.
+        (``_display_major``, unless ``display`` is off), not seen dying, and damaged by the party
+        within ``BOSS_HOLD_MS`` (a catalog boss, whose untargetable phases can run long) or
+        ``RESET_LULL_MS`` (a major inferred from a sustained engagement) of ``now_ms``.
+        With ``display`` it decides where the live overlay resets; without it, whether an enemy
+        back at full health is a wipe's reset or an enemy left behind mid-fight (segmentation).
 
         Without the recency test, a major that left the fight unseen stayed "alive" for the rest of
         the zone and blocked every later boss-start reset, and the reset after a kill: any enemy
@@ -454,7 +456,7 @@ class CombatSession:
         spawns = (self.identities.get(self.epoch) or {}).get("spawns") or {}
         in_play = []
         for key in self._engaged_major:
-            if key[0] != self.epoch or key in self._dead or not self._display_major(key):
+            if key[0] != self.epoch or key in self._dead or display and not self._display_major(key):
                 continue
             last = self._boss_hit_ms.get(key)
             if last is None:
@@ -787,6 +789,17 @@ class CombatSession:
         # Actors seen using a class skill (a hit or a heal): who fights here, for the group-instance party.
         identity.setdefault("fighters", set()).update(
             e.actor_id for e in events if isinstance(e, (DamageEvent, HealEvent)) and job_from_skill(e.skill_code))
+        # Who struck with a player's own class skill, and who with an NPC's (0.2.354): an actor the capture
+        # has no name or spawn record for that struck only with class skills is a player (an arena opponent,
+        # a stranger in the Abyss), not an enemy of unknown type. Heals are no evidence: a draining skill's
+        # heal record names the enemy it drains as its actor.
+        strikes, npc_strikes = identity.setdefault("class_strikes", {}), identity.setdefault("npc_strikes", set())
+        for e in events:
+            if isinstance(e, DamageEvent):
+                if _own_class_skill(e.skill_code):
+                    strikes.setdefault(e.actor_id, job_from_skill(e.skill_code))
+                elif NPC_SKILLS[0] <= e.skill_code < NPC_SKILLS[1]:
+                    npc_strikes.add(e.actor_id)
         identity["names"].update(engine.names)
         identity["jobs"].update(engine.jobs)
         identity["spawns"].update({key: dict(value) for key, value in engine.spawn_info.items()})
@@ -993,12 +1006,19 @@ class CombatSession:
                 elif maximum and sample["current"] >= maximum:
                     lull = sample["timestamp_ms"] - self._boss_hit_ms.get(key, sample["timestamp_ms"])
                     if lull >= RESET_LULL_MS:
-                        # A real return-to-full after our damage paused: honour it.
+                        # A real return-to-full after our damage paused: honour it -- unless the
+                        # party is fighting another major right now. Then this one was left
+                        # behind (an elite pulled, hurt and passed by, healing back once out of
+                        # combat), not a wipe: it is no longer engaged, and the fight in progress
+                        # goes on. Splitting there cut a boss fight in two (0.2.354).
                         if key in self._engaged_major and (key in self._major_below or self._pending_reset):
-                            self.manual_split += 1
-                            self.reset_splits += 1
-                            self._engaged_major.discard(key)
-                            self._pending_reset = False
+                            if any(k != key for k in self._majors_in_play(sample["timestamp_ms"], display=False)):
+                                self._engaged_major.discard(key)
+                            else:
+                                self.manual_split += 1
+                                self.reset_splits += 1
+                                self._engaged_major.discard(key)
+                                self._pending_reset = False
                         self._major_below.discard(key)
                     # A "full" reading with no damage lull is spurious (a stale/over-max packet
                     # during continuous combat): ignore it entirely — no reset, and keep the
@@ -1385,10 +1405,15 @@ class CombatSession:
 
         def closes(sample, ends):
             """The fight this death closes, as the full pass picks it: of the fights still fighting the
-            entity when it died (hit within the pull gap before it, not ended past it), the one hit
-            last, the later on a tie. ``peak`` (the latest hit up to each fight) bounds the scan: once
-            no earlier fight was hit late enough, none can match. ``ends`` holds the deaths applied
-            before this one that are not settled in the fights themselves."""
+            entity when it died (hit within the pull gap before it, not ended past it, and not followed
+            by a fight that had begun before it), the one hit last, the later on a tie. ``peak`` (the
+            latest hit up to each fight) bounds the scan: once no earlier fight was hit late enough,
+            none can match. ``ends`` holds the deaths applied before this one that are not settled in
+            the fights themselves.
+
+            A fight the next one had already cut is over: a later death (a player's, or an add's in
+            the fight that followed) stretched it across the next fight, which then appeared twice in
+            the recording, its deaths and health in both (0.2.354)."""
             at, epoch, entity = sample["timestamp_ms"], sample["epoch"], sample["entity"]
             best = None
             for index in range(len(groups) - 1, -1, -1):
@@ -1396,6 +1421,7 @@ class CombatSession:
                     break
                 group = groups[index]
                 if (group["epoch"] == epoch and entity in actors_of[index]
+                        and (index + 1 == len(groups) or at <= groups[index + 1]["start"])
                         and ends.get(index, group["end"]) <= at <= group["last_damage"] + gap_ms
                         and (best is None or group["last_damage"] > groups[best]["last_damage"])):
                     best = index
@@ -2432,6 +2458,11 @@ class CombatSession:
                     # Identified external healers are references, not party members.
                     entities[pid] = {"id": pid, "name": name, "kind": "enemy" if actor_id in opponents else "player",
                                      "is_player": True, "class": identity["jobs"].get(actor_id)}
+                elif (not identity["spawns"].get(actor_id, {}).get("mobCode") and identity.get("class_strikes", {}).get(actor_id)
+                      and actor_id not in identity.get("npc_strikes", ())):
+                    # A player with no identity record, known by the class skills it struck with.
+                    entities[pid] = {"id": pid, "name": f"Player #{actor_id}", "kind": "enemy" if actor_id in opponents else "player",
+                                     "is_player": True, "class": identity["jobs"].get(actor_id) or identity["class_strikes"][actor_id]}
                 else:
                     code = identity["spawns"].get(actor_id, {}).get("mobCode")
                     entities[pid] = {"id": pid, "name": name, "kind": "enemy", "mob_code": code,

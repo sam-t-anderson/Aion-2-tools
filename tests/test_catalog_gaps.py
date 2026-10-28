@@ -6,7 +6,7 @@ import subprocess
 import sys
 
 from aion2calc.combat.catalog import gaps
-from aion2calc.meter.context import DERIVED_ZONE, classify, derived_zone_label
+from aion2calc.meter.context import DERIVED_ZONE, SUPPLEMENT_ZONE, classify, derived_zone_label
 
 
 def test_the_gap_report_lists_the_three_gaps_from_the_bundled_tables():
@@ -29,7 +29,8 @@ def test_the_gap_report_lists_the_three_gaps_from_the_bundled_tables():
 
 
 def test_an_unnamed_instance_is_labelled_by_its_final_boss_and_marked_derived():
-    instance = gaps()["unnamed_instances_with_final_boss"][0]["instance_id"]
+    unnamed = gaps()["unnamed_instances_with_final_boss"]
+    instance = next(r["instance_id"] for r in unnamed if not r["supplement_name"])     # named by neither table
     label = derived_zone_label(instance)
     assert label and label.endswith(f"(instance {instance})")
     result = classify(0, instance, False, [])
@@ -40,6 +41,11 @@ def test_an_unnamed_instance_is_labelled_by_its_final_boss_and_marked_derived():
     named = classify(0, 600022, False, [])
     assert named["zone"] and "(instance" not in named["zone"] and named["zone_source"].endswith(" + exact dungeon name")
     assert "derived_zone" not in named["classification"]
+    # One the name supplement names (a later Transcendence tier) shows that name, not the label.
+    supplied = classify(0, 610052, False, [])
+    assert supplied["zone"] == "Deus Research Base" and supplied["zone_source"].endswith(SUPPLEMENT_ZONE)
+    assert "derived_zone" not in supplied["classification"]
+    assert {r["instance_id"]: r["supplement_name"] for r in unnamed}[610052] == "Deus Research Base"
     # No curated boss, no name: nothing is invented.
     assert derived_zone_label(600151) is None and derived_zone_label(0) is None
     assert "zone" not in classify(0, 999_999_001, False, [])        # unknown instance: no name, no curated boss

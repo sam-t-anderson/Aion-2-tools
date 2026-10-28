@@ -117,7 +117,17 @@ python -m aion2calc catalog-gaps                 # summary on screen
 python -m aion2calc catalog-gaps --out gaps.json # the full lists, for reporting upstream
 ```
 
-Lists what the bundled catalog cannot name, read from the bundled tables and the curated final-boss table only: named dungeon tiers with no curated or derived final boss (a clear there cannot auto-complete until a capture shows the boss), instances with a curated final boss but no dungeon name (reports label these `<Final boss> (instance N)`, marked derived, and this is the list to send upstream), and final-boss codes without a backing NPC record. The report carries the installed catalog revision and the upstream source commit. No name is ever inferred. Keep source attribution and license obligations. Mapping coverage shows the source commit on desktop and Pages for new reports; older logs may lack this metadata. A community source revision does not establish its applicable game Build ID. No build association, missing portrait, difficulty or miniboss role is invented.
+Lists what the bundled catalog cannot name, read from the bundled tables and the curated final-boss table only: named dungeon tiers with no curated or derived final boss (a clear there cannot auto-complete until a capture shows the boss), instances with a curated final boss but no dungeon name (reports label these `<Final boss> (instance N)`, marked derived, and this is the list to send upstream), and final-boss codes without a backing NPC record. An instance the name supplement (below) names is marked with that name. The report carries the installed catalog revision and the upstream source commit. No name is ever inferred. Keep source attribution and license obligations. Mapping coverage shows the source commit on desktop and Pages for new reports; older logs may lack this metadata. A community source revision does not establish its applicable game Build ID. No build association, missing portrait, difficulty or miniboss role is invented.
+
+### Name supplement
+
+```bash
+python -m aion2calc catalog-supplement --out staged-supplement
+```
+
+The community catalog lists the monsters a DPS meter meets. Recordings also hold friendly and neutral NPCs (guards fighting beside the party, merchants, objects) and instances it has no name for (later Transcendence tiers, the Ascension trials, the daily dungeons). Since 0.2.354 the app bundles a name supplement for them, `catalog-supplement.json`, taken from DBAion2's English NPC and dungeon tables (dbaion2.ru): for each id the community catalog has no row for, its name, the NPC's type (Citizen, Etc, ...) or the dungeon's content type and difficulty label. Names only: boss flags, categories, tiers, difficulties and dungeon links stay the community catalog's, and a community row always wins. The supplement names an NPC or a zone that would otherwise show as a number, and the catalog coverage no longer counts an id it names as unresolved.
+
+The command downloads the two tables, checks their shape (it stops if a row is not the one reviewed), and stages `catalog-supplement.json` with an audit, `catalog-supplement-audit.json`, of the ids added, removed and renamed against the bundled copy, into a new directory. It never overwrites one. Review the audit, then copy the file into `aion2calc/meter/a2parser/data/` for a release.
 
 ## Value probe (diagnostic captures)
 

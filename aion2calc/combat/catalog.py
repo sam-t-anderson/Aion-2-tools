@@ -5,8 +5,8 @@ from importlib.resources import files
 import hashlib
 import json
 
-from ..meter.a2parser.lookup import _table, npc_info
-from ..meter.context import PVP_MAPS
+from ..meter.a2parser.lookup import _supplement, _table, dungeon_final_bosses, npc_info, supplement_dungeon
+from ..meter.context import OBSERVED_ZONES, PVP_MAPS
 
 LIMIT = 100
 
@@ -15,7 +15,8 @@ LIMIT = 100
 def revision():
     from ..meter.a2parser.engine import OPEN_WORLD_MAPS
     tables = {key: _table(key, "en") for key in ("npcs", "dungeons")}
-    tables.update(open_world_maps=sorted(OPEN_WORLD_MAPS), pvp_maps=PVP_MAPS, coverage_rules=5)
+    tables.update(open_world_maps=sorted(OPEN_WORLD_MAPS), pvp_maps=PVP_MAPS, observed_zones=OBSERVED_ZONES,
+                  supplement=_supplement(), coverage_rules=6)
     return hashlib.sha256(json.dumps(tables, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:16]
 
 
@@ -31,6 +32,20 @@ def source():
         for category in ("npcs", "dungeons"))
     return {**{key: manifest.get(key) for key in ("repository", "revision", "checked_at", "game_build", "note")},
             "english_tables_match_source": matches}
+
+
+@lru_cache(maxsize=1)
+def supplement_source():
+    """Where the bundled name supplement (``catalog-supplement.json``) came from and what it names."""
+    try:
+        doc = json.loads(files("aion2calc.meter.a2parser").joinpath("data", "catalog-supplement.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, ModuleNotFoundError, ValueError):
+        return {}
+    source = doc.get("source") if isinstance(doc, dict) else None
+    if not isinstance(source, dict):
+        return {}
+    return {**{key: source.get(key) for key in ("name", "urls", "retrieved_at", "note")},
+            "npc_names": len(doc.get("npcs") or {}), "dungeon_names": len(doc.get("dungeons") or {})}
 
 
 def gaps():
@@ -56,7 +71,9 @@ def gaps():
             continue
         names = sorted({npcs.get(str(c), {}).get("name") for c in codes} - {None, ""})
         unnamed.append({"instance_id": instance, "final_bosses": names, "codes": sorted(codes),
-                        "label": derived_zone_label(instance)})
+                        "label": derived_zone_label(instance),
+                        # what reports show instead of the label (the name supplement, DBAion2), else None
+                        "supplement_name": supplement_dungeon(instance).get("name")})
     codes_without_npc = []
     for instance, codes in sorted(curated.items()):
         for code in sorted(codes):
@@ -78,6 +95,33 @@ def gaps():
                     "is what resolves the first list."}
 
 
+def known_instance(code) -> bool:
+    """Whether the catalogs know an instance id: a dungeon either table names (the community
+    catalog's, or the supplement's), an instance the NPC catalog places its NPCs in (the Nightmare
+    map, the Ascension trials) or one with a curated final boss. Recorded as a map (a map-instanced
+    dungeon, or an entry whose instance id was not sent) it is the same instance."""
+    from ..meter.context import _instances
+    return bool(code) and (str(code) in _table("dungeons", "en") or bool(supplement_dungeon(code))
+                           or code in _instances() or bool(dungeon_final_bosses(code)))
+
+
+def struck_as_players(segment):
+    """The entities a segment's damage records show striking with a player's own class skills and never
+    with an NPC's: players the recording had no identity record for (an arena opponent, a stranger in
+    the Abyss), which a meter of 0.2.353 or earlier exported as enemies without an NPC type."""
+    from ..meter.a2parser.engine import NPC_SKILLS, _own_class_skill
+    classes, npcs = set(), set()
+    for event in segment.get("events") or ():
+        skill = event.get("skill_id")
+        if event.get("kind") != "damage" or event.get("source") is None or type(skill) is not int:
+            continue
+        if _own_class_skill(skill):
+            classes.add(event["source"])
+        elif NPC_SKILLS[0] <= skill < NPC_SKILLS[1]:
+            npcs.add(event["source"])
+    return classes - npcs
+
+
 def coverage(segment):
     from ..meter.a2parser.engine import OPEN_WORLD_MAPS
     valid_id = lambda value: value if isinstance(value, int) and not isinstance(value, bool) and 0 < value < 2**63 else 0
@@ -88,10 +132,15 @@ def coverage(segment):
                   if e.get("kind") == "enemy" and not e.get("is_player") and not e.get("owner")]
     unresolved = {}
     unidentified = {}
+    players = struck_as_players(segment)
+    unnamed_players = 0
     for entity in candidates:
         code = entity.get("mob_code")
         if not valid_id(code):
             actor = entity.get("id")
+            if actor in players:
+                unnamed_players += 1           # a player, not an NPC whose type is missing
+                continue
             if actor is not None:
                 unidentified.setdefault(actor, {"entity": actor, "effects": None,
                     "recorded_damage_hits": entity.get("hits")})
@@ -114,20 +163,22 @@ def coverage(segment):
         ids = row.pop("entities")
         row.update(entity_count=len(ids), effects=sum(counts[actor] for actor in ids))
         rows.append(row)
-    if instance and not dungeon:
+    if instance and not known_instance(instance):
         rows.append({"kind": "instance", "code": instance, "entity_count": 0, "effects": 0})
-    if map_id and map_id not in OPEN_WORLD_MAPS and map_id not in PVP_MAPS and not (map_id == instance and dungeon):
+    if (map_id and map_id not in OPEN_WORLD_MAPS and map_id not in PVP_MAPS and map_id not in OBSERVED_ZONES
+            and not known_instance(map_id)):
         rows.append({"kind": "map", "code": map_id, "entity_count": 0, "effects": 0})
     rows.sort(key=lambda r: (r["kind"], r["code"]))
     from ..meter.context import classify
     classification = segment.get("classification") or classify(map_id, instance, str(segment.get("encounter_type") or "").startswith("pvp_"), candidates)["classification"]
     return {"classification":classification, "catalog_revision": revision(), "catalog_source": source(), "map_id": map_id, "instance_id": instance,
-            "catalog_zone": dungeon.get("name"), "catalog_difficulty": dungeon.get("difficulty"),
+            "catalog_zone": dungeon.get("name") or supplement_dungeon(instance).get("name"), "catalog_difficulty": dungeon.get("difficulty"),
             "unmapped": rows[:LIMIT], "omitted": max(0, len(rows)-LIMIT),
             "npc_entities_without_type": len(missing_rows),
             "unidentified_entities": missing_rows[:LIMIT],
             "unidentified_omitted": max(0, len(missing_rows)-LIMIT),
-            "note": "Unmapped means absent from this bundled catalog, not a verified new creature or zone. "
-                    "Actor references without an NPC type are session-local, not reusable NPC catalog IDs. "
+            "unnamed_players": unnamed_players,
+            "note": "Unmapped means absent from this bundled catalog and its name supplement, not a verified new creature or zone. "
+                    "Actor references without an NPC type are session-local, not reusable NPC catalog IDs; one that struck only with a player's class skills is counted as an unnamed player instead. "
                     "They cannot be named reliably. Counts describe retained records, not unique kills. "
                     "Context suggestions use explicit NPC catalog category/tier fields only. Names, difficulty, category and game build are never guessed from damage or ID patterns."}

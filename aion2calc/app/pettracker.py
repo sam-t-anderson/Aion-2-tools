@@ -669,9 +669,31 @@ def observation_notice(activity: dict, settings: dict, now: datetime) -> str:
     return "" if age < 15 else f"Last seen {int(age)}s ago"
 
 
+def link_needed(view: dict) -> dict | None:
+    """When Pet Tracker waits for the detected character to be linked to its account (its status "<name> —
+    link to account": the selected profile is an account and the character logged in is none of its
+    characters; pet collections are account-wide), who and which account, for the "Link" button. The
+    profile key goes with it only when it is the one account, as Pet Tracker's own Link character button
+    decides; with several, Pet Tracker's Manage accounts window chooses."""
+    detected = str(view.get("DetectedCharacter") or "").strip()
+    profiles = [row for row in view.get("Profiles") or [] if isinstance(row, dict)]
+    selected = next((row for row in profiles if row.get("ProfileKey") == view.get("Selected")), None)
+    if view.get("Ready") or not detected or selected is None:
+        return None
+    account = str(selected.get("AccountName") or "").strip()
+    names = [str(selected.get("CharacterName") or ""), *(str(n) for n in selected.get("LinkedCharacters") or [])]
+    if not account or detected.casefold() in (n.casefold() for n in names):
+        return None
+    return {"character": detected, "account": account, "characters": [n for n in names if n],
+            "key": selected.get("ProfileKey") if len(profiles) == 1 else None}
+
+
 def empty_text(view: dict, now: datetime) -> str:
     """``Activity.EmptyText``: what the overlay says when it lists no pet."""
     if not view.get("Ready"):
+        if link := link_needed(view):
+            return (f"{link['character']} is not linked to your Pet Tracker account {link['account']}. Pet collections "
+                    "are shared across an account: link this character to track its pets.")
         return view.get("Status") or "Connecting to capture…"
     settings = view.get("Settings") or {}
     pets = (view.get("Profile") or {}).get("Pets") or {}
@@ -739,7 +761,7 @@ def render(view: dict, now: datetime, collection: bool = False) -> dict:
         "character": view.get("Character") or view.get("DetectedCharacter") or "",
         "capture": {"devices": _int(view.get("Devices")) or 0, "received": _int(view.get("Received")) or 0,
                     "dropped": _int(view.get("Dropped")) or 0},
-        "rows": rows, "empty": "" if rows else empty_text(view, now),
+        "rows": rows, "empty": "" if rows else empty_text(view, now), "link": link_needed(view),
         "sync_notice": paused and view.get("Status") == "Collection sync needed",
         "options": {"mode": "Nearby" if settings.get("TrackerMode") == "Nearby" else "Recent",
                     "hide_maxed": bool(settings.get("HideMaxed")), "sort": settings.get("Sort") or "Unfinished first",

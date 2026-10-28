@@ -1741,9 +1741,11 @@ def pettracker_control(body: dict) -> dict:
     ``start`` (its capture), ``open`` (Pet Tracker's own window: finder, maps, merchant list, settings),
     ``mode`` (``"value"``: ``Recent`` or ``Nearby``), ``hide_maxed`` (``"value"``: true/false), ``pin``
     (``"pet"``, ``"value"``: true pins, false unpins), ``goal`` (``"pet"``, ``"rank"``: 1 to 3, or null to
-    clear), ``reset_session`` or ``update`` (the update notice's button: Pet Tracker's own updater installs it,
-    so its window is opened for it; ``"message"`` says what to do next). Returns what ``GET /api/pettracker``
-    returns (with the whole collection when ``"collection"`` is true)."""
+    clear), ``link`` (``"character"``: the character Pet Tracker detected, linked to its one account, as Pet
+    Tracker's own Link character button does; Pet Tracker checks the name and backs up first), ``reset_session``
+    or ``update`` (the update notice's button: Pet Tracker's own updater installs it, so its window is opened
+    for it; ``"message"`` says what to do next). Returns what ``GET /api/pettracker`` returns (with the whole
+    collection when ``"collection"`` is true)."""
     from . import pettracker, pettracker_setup
     svc = pettracker.service()
     action, collection, message = body.get("action"), body.get("collection") is True, ""
@@ -1778,10 +1780,16 @@ def pettracker_control(body: dict) -> dict:
         svc.send({"Action": "farming-goal", "PetId": pet_id(), "TargetRank": rank})
     elif action == "reset_session":
         svc.send({"Action": "reset-farming"})
+    elif action == "link":
+        view = svc.fetch(max_age=0)
+        link = pettracker.link_needed(view) if view is not None else None
+        if link is None or link["key"] is None or body.get("character") != link["character"]:
+            raise pettracker.PetTrackerError("Open Pet Tracker's Settings → Account → Manage accounts to link this character.")
+        svc.send({"Action": "link", "Key": link["key"], "Name": link["character"]})
     elif action == "update":
         message = svc.open_for_update()
     else:
-        raise ValueError("action must be install, start, open, mode, hide_maxed, pin, goal, reset_session or update")
+        raise ValueError("action must be install, start, open, mode, hide_maxed, pin, goal, link, reset_session or update")
     state = svc.state(collection=collection)
     if message:
         state["message"] = message
