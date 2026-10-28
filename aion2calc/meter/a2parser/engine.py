@@ -63,6 +63,11 @@ def _own_class_skill(skill: int) -> bool:
     return 10_000_000 <= skill <= 19_999_999 and skill // 10_000 % 100 != 0 and job_from_skill(skill) is not None
 
 
+#: The skill codes NPCs strike with (seven digits: "Attack" 1800000, a boss's 1239050). A player's own
+#: class skills have eight (``1C SS xxxx``), its items and gear procs other ranges.
+NPC_SKILLS = (1_000_000, 2_000_000)
+
+
 #: A party member whose status record (1c 92, every two seconds or so) has not come for this long has
 #: left the party, or the party has disbanded (0.2.329).
 PARTY_STATUS_TTL_MS = 30_000
@@ -141,6 +146,14 @@ class MeterEngine:
         self.power_scalars: dict[int, set[int]] = defaultdict(set)
         self.known_entities: set[int] = set()
         self.spawn_info: dict[int, dict[str, int]] = {}
+        self._spawn_maps: dict[int, int] = {}            # entity -> the map its spawn record was decoded on
+        # The typed NPCs the last zone load cleared, entity -> (spawn record, its map), until the load shows
+        # whether it kept the actor ids (``_carry_left_spawns``, 0.2.354); the recording player's id before
+        # it; whether the player's id after it was the same (None until known); the NPCs acting meanwhile.
+        self._left_spawns: dict[int, tuple[dict, int]] = {}
+        self._left_local: int | None = None
+        self._left_kept: bool | None = None
+        self._left_waiting: set[int] = set()
         self.break_gauge_seen = False   # a break (stagger) gauge record was decoded in this capture
         self.npc_scan_calls = 0
         self.npc_candidates_seen = 0
@@ -285,6 +298,7 @@ class MeterEngine:
                 self.names.setdefault(actor_id, name)
         for entity_id, info in self._scan_spawns(complete, timestamp_ms).items():
             self.spawn_info.setdefault(entity_id, {}).update(info)
+            self._note_spawn(entity_id, info)
             if info.get("maxHp"):
                 self.spawn_info[entity_id]["reportedMaxHp"] = info["maxHp"]
                 self.telemetry.append({"kind":"hp", "entity":entity_id, "current":info["currentHp"], "max":info["maxHp"], "timestamp_ms":timestamp_ms})
@@ -346,6 +360,7 @@ class MeterEngine:
             # scanned only as compressed bytes, losing the NPC database key.
             for entity_id, info in self._scan_spawns(packet, timestamp_ms).items():
                 self.spawn_info.setdefault(entity_id, {}).update(info)
+                self._note_spawn(entity_id, info)
                 if info.get("maxHp"):
                     self.spawn_info[entity_id]["reportedMaxHp"] = info["maxHp"]
                     self.telemetry.append({"kind":"hp", "entity":entity_id, "current":info["currentHp"], "max":info["maxHp"], "timestamp_ms":timestamp_ms})
@@ -431,6 +446,8 @@ class MeterEngine:
         events = list(decode_stream(complete, timestamp_ms, self.known_entities,
                                    self.seen_embedded_damage, self.seen_embedded_order,
                                    self.known_players))
+        if self._left_spawns:
+            self._carry_left_spawns(events)
         for event in events:
             if isinstance(event, HealEvent):
                 actor = self._actor_for(event.actor_id)
@@ -575,7 +592,7 @@ class MeterEngine:
         stay valid while the client stays in the zone, and the next real zone load resets this
         state anyway, so adopting the last engine's view is safe and restores the party at once."""
         with self._lock:
-            for attr in ("names", "jobs", "roster", "spawn_info", "summon_owners", "local_profile", "live_hp", "boss_hp_seen", "party_status", "party_feed"):
+            for attr in ("names", "jobs", "roster", "spawn_info", "_spawn_maps", "summon_owners", "local_profile", "live_hp", "boss_hp_seen", "party_status", "party_feed"):
                 getattr(self, attr).update(getattr(previous, attr, {}) or {})
             for attr in ("known_players", "known_entities", "summons"):
                 getattr(self, attr).update(getattr(previous, attr, ()) or ())
@@ -592,6 +609,57 @@ class MeterEngine:
             self.shugo_keys = getattr(previous, "shugo_keys", None) or self.shugo_keys
             self.nightmare_tickets = getattr(previous, "nightmare_tickets", None) or self.nightmare_tickets
             self.counters = {**(getattr(previous, "counters", None) or {}), **self.counters}
+
+    def _note_spawn(self, entity_id: int, info: dict) -> None:
+        if info.get("mobCode"):
+            self._spawn_maps[entity_id] = self.map_id
+            self._left_spawns.pop(entity_id, None)       # a spawn record since the load: it wins
+            self._left_waiting.discard(entity_id)
+
+    def _carry_left_spawns(self, events) -> None:
+        """Give an NPC the type the last zone load cleared, when that load kept every actor id.
+
+        A zone load clears the spawn table, since actor ids belong to the loaded zone. But a revive or a
+        teleport inside an instance reloads the zone and keeps every actor id -- the recording player's
+        among them -- and the game sends no spawn record for an NPC still standing there: in the 20
+        October capture the final boss of Kromede's Desire, re-engaged after a wipe and an in-place
+        revive, fought on with no type (no boss, no kill, the fight unranked), and public logs held
+        dozens of such NPCs right after a load. A load that reassigns the ids gives the player a new one
+        too: in the 36 loads of the two diagnostic captures the player's id changed at every dungeon
+        entry and exit and stayed at every reload inside an instance (and between the open world and the
+        Nightmare map, which share one server), exactly where the map record's load counter restarts at 1.
+        So once the player's id after the load is known: the same id carries a cleared type over to an NPC
+        that acts with no spawn record of its own since the load, on the map it was decoded on (a move to
+        another map keeps the ids but not the NPCs); a new id drops the cleared table. A spawn record always
+        wins, an NPC at zero HP when the load came stays dead, and an HP record since the load that
+        disagrees with the cleared maximum keeps the NPC untyped."""
+        acting = {entity for event in events for entity in (event.actor_id, event.target_id)
+                  if entity in self._left_spawns and not (self.spawn_info.get(entity) or {}).get("mobCode")}
+        if self._left_kept is None:
+            if self.local_player_id is None or self._cast_guess is not None:
+                self._left_waiting |= acting             # whose id is the player's now: not known yet
+                return
+            self._left_kept = self.local_player_id == self._left_local
+        if not self._left_kept:
+            self._left_spawns.clear()
+            self._left_waiting.clear()
+            return
+        for entity in acting | self._left_waiting:
+            carried = self._left_spawns.get(entity)
+            row = self.spawn_info.get(entity) or {}
+            if carried is None or row.get("mobCode"):
+                continue
+            info, map_id = carried
+            maximum = info.get("reportedMaxHp") or info.get("maxHp")
+            if map_id != self.map_id or (maximum and (row.get("reportedMaxHp", maximum) != maximum
+                                                      or row.get("currentHp", 0) > maximum)):
+                continue
+            row = self.spawn_info.setdefault(entity, {})
+            for key, value in info.items():
+                row.setdefault(key, value)               # an HP reading since the load is newer
+            self._spawn_maps[entity] = map_id
+            self.known_entities.add(entity)
+        self._left_waiting.clear()
 
     def _scan_spawns(self, data: bytes, timestamp_ms: int) -> dict:
         scan = {"records": [], "candidates": 0}
@@ -765,7 +833,18 @@ class MeterEngine:
         self.healers.clear()
         self.live_hp.clear()
         self.break_gauges.clear()
+        # Keep the typed NPCs that are not dead: a load that keeps every actor id sends no spawn record for
+        # an NPC still standing there (``_carry_left_spawns``). Whose id the player has is known only
+        # after the load, and a guess from casts tells nothing.
+        self._left_spawns = {entity: (dict(info), self._spawn_maps.get(entity, 0)) for entity, info in self.spawn_info.items()
+                             if info.get("mobCode") and info.get("currentHp") != 0}
+        self._left_local = self.local_player_id if self._cast_guess is None else None
+        self._left_kept = None if self._left_local is not None else False
+        self._left_waiting = set()
+        if self._left_kept is False:
+            self._left_spawns = {}
         self.spawn_info.clear()
+        self._spawn_maps.clear()
         self.npc_trace.clear()
         self.npc_scan_calls = 0
         self.npc_candidates_seen = 0

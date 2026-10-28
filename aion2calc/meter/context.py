@@ -2,11 +2,17 @@
 from functools import lru_cache
 import re
 
-from .a2parser.lookup import _table, dungeon_final_bosses, npc_info
+from .a2parser.lookup import _table, dungeon_final_bosses, npc_info, supplement_dungeon
 
 PVP_MAPS = {
     60: {"zone":"Fire Temple Arena", "evidence":"User-confirmed arena capture and result screenshot"},
     61: {"zone":"Arena (map 61)", "evidence":"User-confirmed arena capture c9277026181bf976ea62f8438b939cb35aeee34bba192c4208a9aac2c6f1b127; specific arena name unverified"},
+}
+#: Instanced areas no catalog names, named by recorded map id from a capture whose contents were
+#: confirmed: their fights are PvE in an unlisted category, so only the zone is set.
+OBSERVED_ZONES = {
+    504001: {"zone": "Abyss Corridor", "evidence": "User-confirmed 23 October capture: two Abyss Corridor runs (the instanced PvE area entered at an artifact after a siege) on maps 504002 and 504001"},
+    504002: {"zone": "Abyss Corridor", "evidence": "User-confirmed 23 October capture: two Abyss Corridor runs (the instanced PvE area entered at an artifact after a siege) on maps 504002 and 504001"},
 }
 #: Open-world zones named by recorded map id for PvP fights: the Abyss (map 20; the evidence is in
 #: ``engine.OBSERVED_OPEN_WORLD_MAPS``) and the two faction zones the field-boss timers use
@@ -59,6 +65,10 @@ def party_instance(instance_id) -> bool:
 
 
 DERIVED_ZONE = " + curated final boss name (derived label: the catalog names the boss, not this instance)"
+SUPPLEMENT_ZONE = " + dungeon name from the name supplement (DBAion2; the community catalog has no name for it)"
+#: The supplement's content types that name an encounter category the NPC catalog cannot give: a
+#: daily dungeon's NPCs carry no catalog category (the catalog lists them without a dungeon).
+SUPPLEMENT_TYPES = {"Daily": "daily"}
 
 
 def derived_zone_label(instance_id):
@@ -126,7 +136,8 @@ def classify(map_id, instance_id, pvp, entities=()):
     dungeons = _table("dungeons", "en")
     candidate = instance_id
     basis = "recorded_instance" if candidate else "none"
-    if not candidate and map_id and (str(map_id) in dungeons or map_id in _instances()):
+    if not candidate and map_id and (str(map_id) in dungeons or map_id in _instances()
+                                     or supplement_dungeon(map_id) and map_id not in OPEN_WORLD_MAPS and map_id not in PVP_MAPS):
         candidate, basis = map_id, "recorded_map"
     if not candidate and len(npc_instances) == 1:
         candidate, basis = npc_instances[0], "npc_only"
@@ -149,12 +160,22 @@ def classify(map_id, instance_id, pvp, entities=()):
             return result
     if stale_map:
         evidence["stale_map"] = True
+    if not candidate and not npc_instances and map_id in OBSERVED_ZONES:
+        record = OBSERVED_ZONES[map_id]
+        result.update(zone=record["zone"], zone_source=record["evidence"])
+        evidence.update(status="map_match", basis="recorded_map")
+        return result
     dungeon = dungeons.get(str(candidate), {})
     prefix = AUTO + ("recorded NPC IDs" if basis == "npc_only" else "recorded map ID" if basis == "recorded_map" else "recorded instance ID")
     if stale_map:
         prefix += " (open-world map id not yet updated at entry)"
     if dungeon.get("name") and not conflicts:
         result.update(zone=dungeon["name"], zone_source=prefix + " + exact dungeon name")
+    elif candidate and not conflicts and (named := supplement_dungeon(candidate).get("name")):
+        # A later tier or a content type the community catalog has no name for (a Transcendence
+        # tier, an Ascension trial, a daily dungeon): the supplement names it. It sets no type or
+        # difficulty; those still come from the NPC catalog below.
+        result.update(zone=named, zone_source=prefix + SUPPLEMENT_ZONE)
     elif candidate and not conflicts and (label := derived_zone_label(candidate)):
         # The catalog has this instance's bosses (a curated final boss) but no dungeon name
         # for it (60 such instances at catalog 2b9f9d65, data-gated upstream): label the run
@@ -181,6 +202,8 @@ def classify(map_id, instance_id, pvp, entities=()):
         evidence["ambiguities"].append("Multiple catalog categories; encounter type is ambiguous")
     if len(categories) == 1:
         result.update(encounter_type=next(iter(categories)), encounter_type_source=prefix + " + exact NPC category")
+    elif not categories and (kind := SUPPLEMENT_TYPES.get(supplement_dungeon(candidate).get("type"))):
+        result.update(encounter_type=kind, encounter_type_source=prefix + " + content type from the name supplement (DBAion2)")
     if direct:
         result.update(difficulty=direct, difficulty_source=prefix + " + exact dungeon difficulty")
     elif len(tiers) == 1:

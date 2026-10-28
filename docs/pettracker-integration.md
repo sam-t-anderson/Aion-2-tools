@@ -123,6 +123,7 @@ request from a web page on another site (since 0.2.340, see [SECURITY.md](../SEC
 | `supported`, `enabled`, `installed` (`kind`, `folder`, `version`), `running` (`app`, `worker`, `updating`), `connected`, `problem`, `start`, `setup`, `update`, `source` | how Pet Tracker is doing |
 | `status`, `detail`, `character`, `ready`, `synced`, `sync_notice`, `capture` | the worker's state |
 | `rows`, `empty` | the overlay's rows, by Pet Tracker's rules, or what it says when it lists none |
+| `link` | when Pet Tracker waits for the character logged in to be linked to its account (its status *<name> — link to account*): `character`, `account`, the account's `characters`, and `key`, the account's profile key when it is Pet Tracker's one account (else null); otherwise null |
 | `options` | `mode`, `hide_maxed`, `sort`, `row_limit`, `pin_limit`, `pins`, `portraits`, `progress_bars`, `compact`, `accent`, `own_window_visible` |
 | `session`, `summary`, `collection` | the farming session, collection counts, and (with `?collection=1`) every pet |
 
@@ -133,8 +134,10 @@ A row is `id`, `name`, `family`, `level`, `rank`, `rank_text`, `max`, `souls`, `
 
 `POST /api/pettracker` takes `{"action": ...}`: `install`, `start`, `open` (Pet Tracker's window), `mode`
 (`"value"`: `Recent` or `Nearby`), `hide_maxed` (`"value"`: true or false), `pin` (`"pet"`, `"value"`), `goal`
-(`"pet"`, `"rank"`: 1 to 3 or null), `reset_session` or `update` (with a `message`), and returns the same as the
-GET. Pet Tracker's refusals come back as `400 {"error": "..."}` in its own words.
+(`"pet"`, `"rank"`: 1 to 3 or null), `link` (`"character"`: the character `link` names; sends Pet Tracker's own
+`{"Action": "link", "Key": ..., "Name": ...}` when Pet Tracker has one account, as its Link character button
+does), `reset_session` or `update` (with a `message`), and returns the same as the GET. Pet Tracker's refusals
+come back as `400 {"error": "..."}` in its own words.
 
 Settings (`GET`/`POST /api/ui`): `pettracker_enabled`, `pettracker_overlay` (both off by default),
 `pettracker_overlay_style` (`app` or `pettracker`), `pettracker_path` (empty, or a full folder path holding both

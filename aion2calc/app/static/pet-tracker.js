@@ -16,6 +16,8 @@
     if (!state.enabled) return { text: "Pet Tracker is off. Turn it on under Settings → Pet Tracker.", tone: "off" };
     // the server words why no capture answers: starting, waiting on Pet Tracker's own window or its update, or failed
     if (!state.connected) return { text: state.problem || "Starting Pet Tracker's capture…", tone: state.start === "failed" || state.start === "stopped" ? "off" : "wait" };
+    // Pet Tracker waits for the character logged in to be linked to its account: name that character, not the last one
+    if (state.link) return { text: state.link.character + " is not linked to " + state.link.account, tone: "wait", title: state.detail || "" };
     const who = state.character ? state.character + " · " : "";
     return { text: who + (state.status || "Connected"), tone: state.status === "Live" ? "ok" : "wait", title: state.detail || "" };
   }
@@ -38,8 +40,18 @@
       ${bar}</div>${pin}</div>`;
   }
 
+  // Pet Tracker's "link to account" state: what it means, and its own Link character button when there is one account
+  // to link to (with several, Pet Tracker's Manage accounts window chooses).
+  function linkBox(link) {
+    const how = link.key
+      ? `<button type="button" class="ptlink" data-link="${esc(link.character)}">Link ${esc(link.character)} to ${esc(link.account)}</button>`
+      : `<span>Open Pet Tracker's Settings → Account → Manage accounts to link it.</span>`;
+    return `<div class="ptempty">${esc(link.character)} is not one of the characters of your Pet Tracker account ${esc(link.account)}${link.characters && link.characters.length ? " (" + esc(link.characters.join(", ")) + ")" : ""}. Pet collections are shared across an account, so Pet Tracker waits until this character is linked to it.</div>${how}`;
+  }
+
   function rows(state, opts) {
     if (!state || !state.connected) return `<div class="ptempty">${esc(status(state).text)}</div>`;
+    if (state.link) return linkBox(state.link);
     const o = state.options || {};
     const options = Object.assign({ portraits: o.portraits, bars: o.progress_bars }, opts || {});
     if (!(state.rows || []).length) return state.empty ? `<div class="ptempty">${esc(state.empty)}</div>` : "";

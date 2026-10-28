@@ -67,6 +67,8 @@ def summarize(doc):
     doc = comparison_document(doc)
     groups = {}
     for index, segment in enumerate(doc.get("segments", [])):
+        if segment.get("continued_in") is not None:
+            continue    # a piece of a boss fight the meter cut in two: the whole fight follows (rejoin)
         key = segment.get("run_id") or "legacy"
         groups.setdefault(key, []).append((index, segment))
     result = []
