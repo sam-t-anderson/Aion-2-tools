@@ -1864,10 +1864,24 @@ def uploader_of(doc, profile, engine):
         name = next((p.get("name") for p in players if p.get("id") == want), None)
         official = bool(name)
     # Each segment names its recorder -- the local player's roster id, resolved per identity epoch
-    # when the segment was built. That is the recording's own answer to "who recorded this".
+    # when the segment was built. That is the recording's own answer to "who recorded this". When the
+    # segments name more than one, the recorder that took part in the most of them wins, then the one
+    # that recorded the most (0.2.353): after a zone load the capture missed, the old local actor id can
+    # belong to someone else nearby for a moment, and the roster's first recorder was such a stranger
+    # standing in town in two logs another player recorded.
     if not name:
-        recorders = {s.get("ping_recorder") for s in doc.get("segments", []) if s.get("ping_recorder")}
-        match = next((p for p in players if p.get("id") in recorders and p.get("name")), None)
+        named = {p.get("id"): p for p in players if p.get("name")}
+        recorded, active = {}, {}
+        for s in doc.get("segments", []):
+            rec = s.get("ping_recorder")
+            if rec not in named:
+                continue
+            recorded[rec] = recorded.get(rec, 0) + 1
+            if (any(h.get("player") == rec for h in s.get("hits") or ())
+                    or any(e.get("source") == rec for e in s.get("events") or ())):
+                active[rec] = active.get(rec, 0) + 1
+        best = max(recorded, key=lambda r: (active.get(r, 0), recorded[r]), default=None)
+        match = named[best] if best else None
         if match:
             name, official = match["name"], bool(match.get("character_id"))
     # The character name the user configured for the meter, when it is in this roster.

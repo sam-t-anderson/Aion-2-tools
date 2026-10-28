@@ -70,14 +70,18 @@ app (in a browser tab, it stops a few minutes after the last tab closes); **Quit
 stops it at once. Starting it again while it runs brings the window back instead of starting a
 second copy.
 
-**Updating.** When a newer release is out, the app asks within a few seconds of opening whether to
-install it, once per window and for the newest release: one that comes out while the app is open
-only updates the gold **Version … available** chip in the top bar, which links to its download page.
-Installing always takes the newest release, however many versions behind you are, so the versions in
-between are never installed one by one. It checks the Releases page when it starts or a window
-opens, then hourly; a check that fails (no network yet right after Windows starts, say) is retried
-within a couple of minutes. **Settings → Version** shows what the last check found, with **Check
-now** and **Install now**. Installing puts the new version over the old one. Your data is kept.
+**Updating.** When a newer release is out, the app downloads it quietly in the background (0.2.353;
+before, it asked in a popup). A small bar at the bottom left shows the download's progress, then
+**Update ready: version …** with **Update now**, which closes the app and opens the installer, and
+**Update when the app closes**, ticked unless you untick it: closing the app then installs the update
+quietly, and the app opens on the new version next time. A release that comes out while the app is
+open replaces the waiting one, so the newest release always installs, however many versions behind
+you are, and the versions in between are never installed one by one. The app checks the Releases
+page when it starts or a window opens, then hourly; a check that fails (no network yet right after
+Windows starts, say) is retried within a couple of minutes. **Settings → App & data → Updates** turns
+the background download and the install on close on or off, and **Settings → Version** shows what the
+last check found, with **Check now** and **Update now**. Installing puts the new version over the old
+one. Your data is kept.
 
 **Your data** stays on your computer, in `%LOCALAPPDATA%\aion2calc` on Windows and
 `~/.aion2calc` on macOS and Linux (details in [app.md](app.md#where-your-data-is-saved)). If the

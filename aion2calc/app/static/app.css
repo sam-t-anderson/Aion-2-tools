@@ -545,6 +545,8 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 16px; backgrou
 .rpanel { border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); padding: 12px 14px; }
 .rpanel h4 { margin: 14px 0 6px; } .rpanel h4:first-child { margin-top: 0; }
 .rpanel .row { flex-wrap: wrap; gap: 6px; }
+.rshowlist { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow: auto; margin-top: 4px; }
+.rswatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--tc); vertical-align: middle; }
 .kflist { border-top: 1px solid var(--line-soft); padding-top: 6px; }
 .kfrow { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
 .bufedit, .bufedits .row { gap: 5px; } .bufedit input, .bufedit select { padding: 3px 5px; }
@@ -775,3 +777,27 @@ details.note[open] > summary { margin-bottom: 6px; }
 /* The language (i18n.js): the page stays hidden for the moment its catalog loads, rather than flashing in English. */
 html.i18n-wait body { visibility: hidden; }
 .lang-pick { max-width: 150px; font-size: 16px; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--frame); background: var(--btn-b); color: var(--text); }
+
+/* What's new after an update (patch-notes.js): the release notes in a modal dialog, scrolling inside it. */
+.patch-notes { width: min(760px, calc(100vw - 32px)); max-height: min(85vh, 900px); padding: 0; border: 1px solid var(--frame-hi);
+  border-radius: var(--r); background: var(--panel); color: var(--text); box-shadow: 0 12px 40px rgba(0, 0, 0, .5); }
+.patch-notes[open] { display: flex; flex-direction: column; }
+.patch-notes::backdrop { background: rgba(0, 0, 0, .55); }
+.patch-notes h2 { margin: 0; padding: 16px 20px 10px; font-family: var(--display); color: var(--gold); border-bottom: 1px solid var(--line2); }
+.pn-body { overflow: auto; padding: 0 20px 8px; line-height: 1.5; }
+.pn-body section + section { border-top: 1px solid var(--line2); margin-top: 14px; }
+.pn-body h3 { margin: 14px 0 6px; color: var(--text); }
+.pn-version { color: var(--muted); font-weight: normal; margin-left: 6px; }
+.pn-body ul, .pn-body ol { padding-left: 22px; }
+.pn-body table { border-collapse: collapse; margin: 6px 0; }
+.pn-body th, .pn-body td { border: 1px solid var(--line2); padding: 4px 8px; text-align: left; }
+.pn-foot { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; padding: 12px 20px 16px;
+  border-top: 1px solid var(--line2); }
+
+/* The quiet update's bar (0.2.353): bottom left, over the page, small. */
+.updbar { position: fixed; left: 12px; bottom: 12px; z-index: 60; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  max-width: min(860px, calc(100vw - 24px)); padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel2); box-shadow: 0 4px 18px rgba(0, 0, 0, .35); }
+.updbar[hidden] { display: none; }
+.updbar progress { width: 160px; }
+.updbar label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }

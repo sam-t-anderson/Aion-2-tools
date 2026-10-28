@@ -125,6 +125,8 @@ datas += [d for d in collect_data_files("pulp") if "solverdir" not in d[0] or os
 # PuLP looks for its solver at pulp/apis/../solverdir; the folder must exist in the bundle
 datas += [(os.path.join(SPECPATH, "pulp_apis_keep.txt"), os.path.join("pulp", "apis"))]
 datas += [(os.path.join(ROOT, "results"), "results"), (os.path.join(ROOT, "example"), "example")]
+# the changelog, for the notes the app shows once after an update (aion2calc/app/patch_notes.py)
+datas += [(os.path.join(SPECPATH, "RELEASE_NOTES.md"), "packaging")]
 if os.path.exists(os.path.join(SPECPATH, "client.json")):          # optional log-server preset
     datas.append((os.path.join(SPECPATH, "client.json"), "."))
 

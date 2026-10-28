@@ -8,6 +8,8 @@
  *   io.publish(plan, vis)  -> {url}                                (Publish; button hidden if absent)
  *   io.browse()            -> [{id, name, author, duration, tokens, buffs, has_fight, classes}]
  *   io.fetchPlan(id)       -> an a2plan document                  (used by Browse)
+ *   io.recordings()        -> [{id, label}]                       (saved recordings with movement; the app)
+ *   io.recording(idOrLink) -> an a2log document                   (Import recorded movement)
  *
  * A plan is an "a2plan" document: tokens (players, enemies, markers, AoE zones) whose positions are
  * keyframed over a timeline and interpolated linearly, so a time slider plays the movement back,
@@ -99,8 +101,12 @@
   function importDoc(p) {                                    // store an a2plan as a new local plan, make it current
     p.meta = p.meta || {}; p.meta.updated = Date.now();
     p.encounter = cleanEncounter(p.encounter);
+    // a plan from a file, a code or the server may leave out what the planner draws from
+    p.tokens = Array.isArray(p.tokens) ? p.tokens.filter((t) => t && typeof t === "object") : [];
+    p.buffs = Array.isArray(p.buffs) ? p.buffs.filter((b) => b && typeof b === "object") : [];
+    p.duration = Number(p.duration) > 0 ? Number(p.duration) : 60;
     const all = raidPlans(), id = uid(); all[id] = p; saveRaidPlans(all);
-    st.id = id; st.sel = null; st.t = 0; st.actual = null;
+    st.id = id; st.plan = p; st.sel = null; st.t = 0; st.actual = null;
   }
 
   const st = { id: null, plan: null, t: 0, speed: 1, sel: null, playing: false, timer: null, actual: null, encounters: [], io: {}, root: null, browsing: null };
@@ -136,15 +142,15 @@
         ${st.actual && (st.actual.boss || st.actual.npc_id) ? `<button class="btn small" id="rbossfromfight">Use selected fight</button>` : ""}
         <span class="faint small">Link this plan to an encounter so the overlay can auto-play it for that fight.</span></div>
       <div class="row" style="margin-top:8px"><button class="btn small" id="rexport">Export file</button>
-        <label class="btn small" style="cursor:pointer">Import file<input id="rimport" type="file" accept=".json,.a2plan" hidden></label>
+        <label class="btn small" style="cursor:pointer">Import file<input id="rimport" type="file" accept=".json,.a2plan,.a2log" hidden></label>
         <button class="btn small" id="rcode">Copy share code</button><button class="btn small" id="rload">Load from code</button>${shareBtns}${hint}</div>
       <div class="row small" id="rpubmsg">${owner()?`Published link: <a href="${esc(owner().url)}" target="_blank" rel="noopener">${esc(owner().url)}</a> · revision ${esc(owner().revision)}`:""}</div>`;
 
     const tokensHtml = p.tokens.map((tk) => {
       const s = tk.id === st.sel ? " sel" : "";
-      if (tk.kind === "aoe") return `<div class="rtoken aoe${s}" id="tok-${tk.id}" data-tid="${tk.id}" style="--tc:${esc(tk.color)}" title="${esc(tk.label || "AoE zone")}"></div>`;
+      if (tk.kind === "aoe") return `<div class="rtoken aoe${s}" data-tid="${esc(tk.id)}" style="--tc:${esc(tk.color)}" title="${esc(tk.label || "AoE zone")}"></div>`;
       const glyph = tk.kind === "marker" ? esc(tk.label || "?") : esc((tk.label && tk.label[0]) || (tk.cls && tk.cls[0]) || (tk.kind === "enemy" ? "B" : "P")).toUpperCase();
-      return `<div class="rtoken ${tk.kind}${s}" id="tok-${tk.id}" data-tid="${tk.id}" style="--tc:${esc(tk.color)}" title="${esc(tk.label || tk.cls || tk.kind)}"><span class="rl">${glyph}</span></div>`;
+      return `<div class="rtoken ${esc(tk.kind)}${s}" data-tid="${esc(tk.id)}" style="--tc:${esc(tk.color)}" title="${esc(tk.label || tk.cls || tk.kind)}"><span class="rl">${glyph}</span></div>`;
     }).join("");
 
     const buffColor = (bf) => { const by = players.find((x) => (x.label || x.cls) === bf.by); return by ? by.color : "var(--gold)"; };
@@ -175,6 +181,7 @@
         ${sel.kind === "aoe" ? `<div class="row" style="margin-top:6px"><label class="muted small">Radius</label><input id="srad" type="range" min="4" max="50" value="${Math.round((sel.radius || 0.14) * 100)}" style="flex:1"></div>` : ""}
         <div class="kflist" style="margin-top:8px"><div class="small muted">Keyframes (position over time)</div>${kfs || '<div class="faint small">none</div>'}
           <button class="btn small" id="kadd" style="margin-top:4px">Set position at ${st.t.toFixed(1)}s</button></div>
+        <label class="small" style="display:block;margin-top:8px"><input type="checkbox" id="sshown" ${sel.hidden ? "" : "checked"}> Shown on the map</label>
         <button class="btn small" id="sdel" style="margin-top:8px">Remove token</button>`;
     }
 
@@ -187,15 +194,34 @@
         <div class="row"><select id="ractual" aria-label="Saved fight to compare with"><option value="">— none —</option>${(st.encounters || []).map((e) => `<option value="${e.id}" ${st.actual && st.actual.id === e.id ? "selected" : ""}>#${e.id} ${esc(e.player || "")} ${esc(e.boss || "")} ${(e.duration || 0).toFixed(0)}s</option>`).join("")}</select></div>
         <p class="small faint">Overlay a saved combat log so its skill casts and buff windows play on the same timeline. Choose visibility before publishing; attaching a fight shares its timeline too.</p>` : "";
 
+    // Import recorded movement (0.2.353): a saved recording (the app) or a log's link (the website), or a recording
+    // file through Import file; its fights with movement, then one of them as a new plan.
+    const mv = st.moves || {}, fromLogs = window.A2CombatReview && (io.recordings || io.recording);
+    const movesRow = fromLogs ? `<h4 class="gold small">IMPORT RECORDED MOVEMENT</h4>
+        <div class="row">${io.recordings ? `<select id="rmovelog" aria-label="Saved recording to import movement from"><option value="">Choose a saved recording…</option>${(st.recordings || []).map((r) => `<option value="${esc(r.id)}" ${mv.id === r.id ? "selected" : ""}>${esc(r.label)}</option>`).join("")}</select>`
+          : `<input id="rmovelink" type="text" value="${esc(mv.ref || "")}" placeholder="Combat log link or ID" aria-label="Combat log link or ID" style="width:206px"><button class="btn small" id="rmoveload">Load</button>`}</div>
+        ${mv.loading ? `<p class="small faint" role="status">Loading the recording…</p>` : ""}${mv.error ? `<p class="small" role="status">${esc(mv.error)}</p>` : ""}
+        ${mv.fights ? (mv.fights.length ? `<div class="row" style="margin-top:6px"><select id="rmovefight" aria-label="Fight to import">${mv.fights.map((f) => `<option value="${f.index}">${esc(f.name)} · ${Math.round(f.duration)} s</option>`).join("")}</select><button class="btn small primary" id="rmoveimport">Import</button></div>`
+          : `<p class="small" role="status">No fight in ${esc(mv.file || "this recording")} holds recorded movement (recordings made before 0.2.350 have none).</p>`) : ""}
+        <p class="small faint">The fight becomes a new plan: each player, pet and enemy moves as it did, on the fight's arena. Import file takes a recording (.a2log.json) too.</p>` : "";
+
+    // Which tokens the map shows (0.2.353): a hidden token keeps its place and movement in the plan but is not drawn,
+    // here, in the overlay's playback or for whoever opens the plan; by kind, or one by one.
+    const kindsShown = Object.entries({ player: "Players", enemy: "Enemies", marker: "Markers", aoe: "AoE zones" })
+      .map(([k, name]) => { const of = p.tokens.filter((t) => t.kind === k), on = of.filter((t) => !t.hidden).length; return of.length ? { k, name, on, all: of.length } : null; }).filter(Boolean);
+    const shownRow = p.tokens.length ? `<h4 class="gold small">SHOWN ON THE MAP</h4>
+        <div class="row small">${kindsShown.map((g) => `<label><input type="checkbox" data-showkind="${g.k}" ${g.on === g.all ? "checked" : ""}${g.on && g.on < g.all ? " data-mixed" : ""}> <span>${g.name}</span> <span class="faint">${g.on}/${g.all}</span></label>`).join("")}</div>
+        <details class="small" id="rshowlist"${st.showList ? " open" : ""}><summary>Each token</summary><div class="rshowlist">${p.tokens.map((t) => `<label><input type="checkbox" data-showtok="${esc(t.id)}" ${t.hidden ? "" : "checked"}> <i class="rswatch" style="--tc:${esc(t.color || "#39c2e0")}"></i> <span translate="no">${esc(t.label || t.cls || t.kind)}</span></label>`).join("")}</div></details>` : "";
+
     const side = `<div class="rpanel"><h4 class="gold small">ADD</h4>
         <div class="row"><select id="rcls" aria-label="Class of the player to add">${RAID_CLASSES.map((c) => `<option>${c}</option>`).join("")}</select><button class="btn small primary" id="raddp">+ Player</button></div>
         <div class="row" style="margin-top:6px"><button class="btn small" id="radde">+ Enemy</button><button class="btn small" id="raddm">+ Marker</button><button class="btn small" id="radda">+ AoE</button></div>
         <p class="small faint">Move the slider to a moment, then drag a token to where it should be then. The planner interpolates the movement in between.</p>
-        <h4 class="gold small">SELECTED TOKEN</h4>${editor}
+        <h4 class="gold small">SELECTED TOKEN</h4>${editor}${shownRow}
         <h4 class="gold small">PARTY BUFFS</h4><div class="bufedits">${buffList || '<div class="faint small">none yet</div>'}</div>
         <div class="row small" style="margin-top:6px"><input id="bfname" placeholder="Buff name" aria-label="Buff name" style="width:126px"><select id="bfby" style="width:103px" aria-label="Who gives the buff"><option value="">source…</option>${players.map((pl) => { const nm = pl.label || pl.cls; return `<option>${esc(nm)}</option>`; }).join("")}</select>
           <input id="bfstart" type="number" min="0" value="0" aria-label="Buff starts at (seconds)" style="width:60px"><span class="faint">–</span><input id="bfend" type="number" min="0" value="10" aria-label="Buff ends at (seconds)" style="width:60px"><button class="btn small" id="bfadd">Add</button></div>
-        ${fightRow}
+        ${fightRow}${movesRow}
         <h4 class="gold small">NOTES</h4><textarea id="rnotes" aria-label="Notes" rows="4" style="width:100%" placeholder="Callouts, phases, assignments…"></textarea></div>`;
 
     st.root.innerHTML = win("Raid & boss planner", "drag player tokens on the map and scrub the timeline to plan movement, cooldowns and party buffs",
@@ -243,8 +269,8 @@
       const t = st.t, dur = p.duration || 1;
       if (!arena) return;
       p.tokens.forEach((tk) => {
-        const el = arena.querySelector("#tok-" + tk.id); if (!el) return;
-        const pos = tokenPos(tk, t);
+        const el = arena.querySelector(`[data-tid="${CSS.escape(String(tk.id))}"]`); if (!el) return;   // a recorded fight's ids hold colons
+        const pos = !tk.hidden && tokenPos(tk, t);
         if (!pos) { el.style.display = "none"; return; }
         el.style.display = ""; el.style.left = (pos.x * 100) + "%"; el.style.top = (pos.y * 100) + "%";
         if (tk.kind === "aoe") { const d = (tk.radius || 0.14) * 2 * 100; el.style.width = d + "%"; el.style.height = d + "%"; }
@@ -303,7 +329,28 @@
       try { const pl = JSON.parse(await f.text()); if(pl.format==='a2plan-owner'){
         const o=pl.owner;if(!o || !/^[A-Za-z0-9]{6,16}$/.test(o.id) || typeof o.edit_token!=='string' || o.edit_token.length<20 || !Number.isInteger(o.revision) || !/^https?:\/\//.test(o.server) || pl.plan?.format!=='a2plan')throw Error('Invalid ownership backup');
         importDoc(pl.plan);saveOwner(o);
+      }else if (pl.format === "a2log" && window.A2CombatReview) {
+        st.moves = { file: f.name, doc: pl, fights: window.A2CombatReview.movementFights(pl) }; render();
+        toast(st.moves.fights.length ? "Choose the fight to import under Import recorded movement" : "This recording holds no movement");
+        return;
       }else{if (pl.format !== "a2plan") throw new Error("Not an a2plan file"); importDoc(pl);} render(); toast("Plan imported"); }
+      catch (err) { toast(err.message); }
+    };
+    const loadMoves = async (key, ref) => {
+      st.moves = { ...key, loading: true }; render();
+      try { const doc = await io.recording(ref); st.moves = { ...key, doc, fights: window.A2CombatReview.movementFights(doc) }; }
+      catch (err) { st.moves = { ...key, error: err.message }; }
+      render();
+    };
+    if ($("#rmovelog", st.root)) $("#rmovelog", st.root).onchange = (e) => {
+      if (!e.target.value) { st.moves = null; render(); return; }
+      loadMoves({ id: e.target.value }, e.target.value);
+    };
+    if ($("#rmoveload", st.root)) $("#rmoveload", st.root).onclick = () => {
+      const ref = $("#rmovelink", st.root).value.trim(); if (ref) loadMoves({ ref }, ref);
+    };
+    if ($("#rmoveimport", st.root)) $("#rmoveimport", st.root).onclick = () => {
+      try { importDoc(window.A2CombatReview.movementPlan(st.moves.doc, +$("#rmovefight", st.root).value)); st.moves = null; render(); toast("Recorded movement imported as a new plan"); }
       catch (err) { toast(err.message); }
     };
     $("#rcode", st.root).onclick = () => { copyText(planToCode(p)); };
@@ -361,6 +408,20 @@
       $$("[data-kdel]", st.root).forEach((b) => (b.onclick = () => { tk.keyframes.splice(+b.dataset.kdel, 1); persist(); render(); }));
       if ($("#sdel", st.root)) $("#sdel", st.root).onclick = () => { p.tokens = p.tokens.filter((x) => x.id !== st.sel); st.sel = null; persist(); render(); };
     }
+
+    // --- shown on the map (a kind with some tokens hidden shows as mixed; ticking it shows them all)
+    const setHidden = (tk, hide) => { if (hide) tk.hidden = true; else delete tk.hidden; };
+    $$("[data-showkind]", st.root).forEach((c) => {
+      c.indeterminate = c.hasAttribute("data-mixed");
+      c.onchange = () => { p.tokens.filter((t) => t.kind === c.dataset.showkind).forEach((t) => setHidden(t, !c.checked)); persist(); render(); };
+    });
+    $$("[data-showtok]", st.root).forEach((c) => (c.onchange = () => {
+      const tk = p.tokens.find((t) => t.id === c.dataset.showtok); if (tk) { setHidden(tk, !c.checked); persist(); render(); }
+    }));
+    const showList = $("#rshowlist", st.root); if (showList) showList.ontoggle = () => { st.showList = showList.open; };
+    if (st.sel && $("#sshown", st.root)) $("#sshown", st.root).onchange = (e) => {
+      const tk = p.tokens.find((x) => x.id === st.sel); if (tk) { setHidden(tk, !e.target.checked); persist(); render(); }
+    };
 
     // --- buffs
     $$("[data-bf]", st.root).forEach((inp) => (inp.onchange = () => {
@@ -448,6 +509,8 @@
     if (st.t == null) st.t = 0;
     mountPlan();
     st.encounters = st.io.encounters ? await st.io.encounters().catch(() => []) : [];
+    st.recordings = st.io.recordings ? await st.io.recordings().catch(() => []) : [];
+    st.moves = null;
     render();
   }
 

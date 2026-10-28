@@ -68,7 +68,7 @@ Historical standings are reconstructed from currently public retained uploads re
 
 Desktop, Pages and shared logs show each run's recorded span, combined encounter intervals and gaps between fights. The boss tables show recorded attempts, kills, observed wipes, unknown outcomes, first recorded clear, best observed wipe HP and recovery time. Unresolved manual chunks of the same boss actor count as one recorded attempt.
 
-Public **Completed-run speed** compares eligible elapsed times within the same instance, boss route, build, difficulty and party size. Entry-to-final-boss timing requires capture to observe an open-world-to-instance transition and configured final-boss death, with a complete stable identified party and capture evidence. Starting inside an instance or finishing manually does not qualify. Missing deaths do not imply a wipe; missing HP is unavailable. These are community recordings, not official or authenticated game results. Encounter time measures recorded intervals, not action uptime. The Server standing of a run compares it with runs that included a player from the party's verified home world. When the party comes from several worlds, that is the recording player's world, and the standing says so.
+Public **Completed-run speed** compares eligible elapsed times within the same instance, boss route, build, difficulty and party size. Each row names the run's bosses in order, its encounter type and difficulty, and its rank among those runs ("1 of 3"). Entry-to-final-boss timing requires capture to observe an open-world-to-instance transition and configured final-boss death, with a complete stable identified party and capture evidence. Starting inside an instance or finishing manually does not qualify. Missing deaths do not imply a wipe; missing HP is unavailable. These are community recordings, not official or authenticated game results. Encounter time measures recorded intervals, not action uptime. The Server standing of a run compares it with runs that included a player from the party's verified home world. When the party comes from several worlds, that is the recording player's world, and the standing says so.
 
 ## Multiple runs in one capture
 
@@ -176,15 +176,27 @@ The **Hidden Cube radar** (Settings → Overlay, Windows, off by default) shows 
 
 After optimization, eligible anonymous builds can improve the class presets used by the Build Planner. Updated presets are cached for offline use. Character identity and private equipment are not submitted with these build suggestions.
 
-Windows **Install now** fetches the newest release (several versions behind, it goes straight to the newest), stages and validates the installer, starts a detached helper, closes the app, then opens the installer interactively after the process exits. Updates preserve user data. If the helper fails, its log is in the data folder's `updates` directory. macOS/Linux archives are staged for manual replacement.
+A new version downloads quietly while the app runs (0.2.353); no window pops up:
+- A small bar at the bottom left shows the download's progress, then **Update ready: version X** with **Update now** and **Update when the app closes**.
+- **Update now** closes the app and opens the installer, as before.
+- **Update when the app closes** is ticked unless you untick it. With it ticked, closing the app (Quit, the tray's Quit or the window) installs the update quietly, and the app does not start again until you open it. Untick it to wait for **Update now** instead.
+- A version released while the app runs replaces the waiting one, so the newest version is what installs, never the versions in between.
+
+The same two choices are in Settings → App & data → **Updates**: **download new versions in the background** (on by default; off, the header only names a newer version) and **install a downloaded update when the app closes**. Settings → **Version** has **Update now** and **Check now**.
+
+**Update now** without a downloaded update fetches the newest release first (several versions behind, it goes straight to the newest), then validates the installer, starts a detached helper, closes the app and opens the installer after the process exits. Updates preserve user data. If the helper fails, its log is in the data folder's `updates` directory. macOS/Linux and portable archives are staged for manual replacement.
+
+After an update, **What's new** opens once over the first page with the new version's release notes (and those of any versions skipped). Close it and it does not come back. Settings → App & data → **Patch notes** opens this version's notes again and links to every version's notes on GitHub.
 
 ### Raid plan publishing and playback
 
 In **Raid Planner**, choose **Visibility** beside **Publish plan**: **Public** lists the plan in Browse plans; **Unlisted** shares it only by link; **Private** requires the secret link. The desktop uses the server and upload key from Settings. Publishing saves an owner credential on this device. **Update published plan** changes the same link; **Publish new copy** creates a separate plan. Keep a **Private ownership backup** to edit from another device. Import that backup through Import file. A revision conflict requires Refresh published plan before trying again; export local edits first. Clearing browser data without a backup loses editing access.
 
 Combat logs recorded since 0.2.350 hold where the party, their pets and the bosses were during each fight. The review's **Recorded movement replay** plays them from above, north up, with **Play/Pause**, **Rewind** and a scrub bar:
-- Bosses are drawn largest, players in their class colour, and the recording player with a dashed ring.
+- Bosses are drawn largest in red, players in their class colour, pets and summons small in their owner's colour, other enemies small and grey, and the recording player with a dashed ring.
 - A token fades when its last known position is more than 8 seconds old, or when it is outside the fight area (for example a player back at a respawn point).
+- A boss fight shows its **Arena** (0.2.353): the ground the fight covered with room to spare, sized from where everyone stood. Choose **Circle** or **Square**; the choice is remembered.
+- The **Key** below the replay (0.2.353) shows what each kind of token is, then the fight's players by name in their class colours (only the classes when there are more than 12). Untick an entry to hide it on the replay: the boss, pets, other enemies, the movement trails, the arena or any player. **Show all** brings them back. Hidden tokens come hidden into a plan made with **Open in Raid Planner**.
 - The game never sends a player their own movement. The recording player is placed by the effects they apply and the casts aimed at them, so their path is coarser than the others'. A party member's recording of the same fight holds theirs.
 
 On a log from the log server (log server 0.2.144 or later), **Add other recordings of this fight** merges the movement of the other public uploads of the same fight, matched by their identical hits:
@@ -192,7 +204,11 @@ On a log from the log server (log server 0.2.144 or later), **Add other recordin
 - Each recording's clock is set by the hits both recordings hold.
 - The note lists each recording with its clock offset and the positions it gave, or why it was left out. A token's tooltip names the recording a position came from.
 
-Logs recorded before 0.2.350 have no movement of their own, but on a log from the log server **Add other recordings of this fight** still brings in a newer recording's. **Open in Raid Planner** (desktop and Pages) turns the replay into a new local editable plan, its positions scaled to the fight's area.
+Logs recorded before 0.2.350 have no movement of their own, but on a log from the log server **Add other recordings of this fight** still brings in a newer recording's. **Open in Raid Planner** (desktop and Pages) turns the replay into a new local editable plan, its positions scaled to the fight's arena.
+
+The Raid Planner imports recorded movement itself (0.2.353): under **Import recorded movement**, choose a saved recording (the app) or paste a combat log's link or ID (Pages), then one of its fights. The fight becomes a new plan in which each player, pet and enemy moves as it did. **Import file** takes a recording file (`.a2log.json`) too.
+
+**Shown on the map** in the Raid Planner hides tokens by kind (players, enemies, markers, AoE zones) or one by one under **Each token**; a selected token has **Shown on the map** too. A hidden token keeps its place and movement in the plan and stays hidden when the plan is played here, in the overlay or by whoever opens it.
 
 Shared `/p/<id>` pages support **Play/Pause**, **Rewind**, playback speed and a timeline scrub bar with moving tokens and active buffs.
 

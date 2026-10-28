@@ -183,7 +183,9 @@ def _row(target):
     row = {"file":target.name, "title":meta.get("title"),
            "contexts":[{**{k:segment.get(k) or meta.get(k) or "unknown" for k in ("encounter_type", "game_patch", "difficulty")},
                         **_category(segment, meta), "segment":i,
-                        "duration":segment.get("duration"), "killed":bool(segment.get("killed"))}
+                        "duration":segment.get("duration"), "killed":bool(segment.get("killed")),
+                        # the Raid Planner's import lists the fights with recorded movement (0.2.353)
+                        "movement":len(segment.get("movement") or [])}
                        for i, segment in enumerate(doc["segments"])],
            "unfinished":bool(doc.get("meta", {}).get("capture_active")),
            "archive":archive, "checkpoint_at":doc.get("meta", {}).get("checkpoint_at"),

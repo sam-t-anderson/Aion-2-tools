@@ -79,19 +79,25 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
   // Boss filter dropdown too, so the PvE boss list only offers real bosses.
   const realBoss = (b) => !/^combat\s*\d*$/i.test(String(b).trim());
 
+  // A run's bosses in the order it met them, by name: the server lists the route by catalog key and names each
+  // boss in the run's attempts.
+  const routeOf = (r) => {
+    const names = {};
+    for (const a of [...(r.attempts || []), ...(r.progression || [])]) if (a && a.boss_key && a.boss) names[a.boss_key] = a.boss;
+    return (Array.isArray(r.boss_route) ? r.boss_route : []).map((k) => names[k] || k).join(" → ");
+  };
+  const runKind = (r) => [cap(prettyEnc(r.encounter_type)), r.difficulty].filter((x) => x && x !== "—").join(" · ") || "—";
+
   async function renderSpeed() {
     const body = document.getElementById("speed-body");
     let d; try { d = await A2.api("/api/v1/run-leaderboard?limit=100"); } catch (e) { body.innerHTML = errNote(e); return; }
     const rows = (d && d.entries) || [];
     if (!rows.length) { body.innerHTML = '<div class="empty">No eligible speed clears yet. A completed run ranks here once its capture is clean and complete enough to qualify.</div>' + srcNote(d); return; }
-    const tr = rows.map((r) => {
-      const s = r.summary || r;
-      const boss = s.boss || s.final_boss || s.route || r.boss || "—";
-      const elapsed = r.elapsed != null ? r.elapsed : s.elapsed;
-      const party = s.party_size != null ? s.party_size : r.party_size;
-      return `<tr><td class="r">${n0(r.rank)}</td><td>${esc(boss)}</td><td class="r num">${secs(elapsed)}</td><td class="r">${n0(party)}</td><td>${r.log ? `<a href="log.html?id=${encodeURIComponent(r.log)}">view</a>` : ""}</td></tr>`;
-    }).join("");
-    body.innerHTML = `<table class="t"><tr><th class="r">Rank</th><th>Boss / route</th><th class="r">Time</th><th class="r">Party</th><th><span class="sr-only">Log</span></th></tr>${tr}</table>` + srcNote(d);
+    // Each run ranks among the runs of the same instance, route, difficulty and party size ("1 of 3").
+    const tr = rows.map((r) => `<tr><td class="r">${n0(r.rank)}${r.count > 1 ? ` <span class="muted small">of ${n0(r.count)}</span>` : ""}</td>`
+      + `<td>${esc(routeOf(r) || "—")}</td><td>${esc(runKind(r))}</td><td class="r num">${secs(r.elapsed_seconds)}</td><td class="r">${n0(r.party_size)}</td>`
+      + `<td>${r.log ? `<a href="log.html?id=${encodeURIComponent(r.log)}">view</a>` : ""}</td></tr>`).join("");
+    body.innerHTML = `<table class="t"><tr><th class="r">Rank</th><th>Boss / route</th><th>Encounter</th><th class="r">Time</th><th class="r">Party</th><th><span class="sr-only">Log</span></th></tr>${tr}</table>` + srcNote(d);
   }
 
   // Boss progression: one row per (boss, difficulty, region, product) engagement group, sorted

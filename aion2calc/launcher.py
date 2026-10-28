@@ -231,6 +231,11 @@ def smoke_test(out: str | None = None) -> int:
     except Exception as err:
         ok = False
         lines.append(f"{lp.name()} solver FAILED {err}")
+    from . import __version__ as version         # this version's release notes, shown once after an update
+    from .app import patch_notes
+    notes = patch_notes.notes_since(None, version)
+    ok &= bool(notes)
+    lines.append(f"Patch notes for {version}: " + ("OK" if notes else f"FAILED (none in {patch_notes.notes_path()})"))
     from . import tls                             # HTTPS certificates: the system's verifier, Mozilla's roots second
     state = tls.status()
     checked = state["system"] and state["bundled"] and state["roots_present"]
@@ -423,11 +428,10 @@ def main(argv=None) -> int:
         print(time.strftime("%Y-%m-%d %H:%M:%S"), "starting on port", port)
         httpd = server.make_server("127.0.0.1", port)
         if _frozen() and server.ui_settings().get("auto_update", True):
-            def updater():
-                from . import update
-                status = update.auto_update(httpd.shutdown)
-                print("update:", status)
-            threading.Thread(target=updater, daemon=True).start()
+            # A newer release downloads quietly while the app runs (0.2.353); the app shows its progress and
+            # offers Update now, and installs it as the app closes unless the player turned that off.
+            from . import update
+            update.start_background()
         if _frozen():
             # Anonymous daily "a meter ran today" beacon (opt-out; no PII). Best-effort
             # and off the main thread so it can never delay or break startup. Only from
@@ -490,6 +494,7 @@ def main(argv=None) -> int:
                 if not args.no_browser and _frozen():
                     watch(server.APP_WINDOW.get("process"), httpd.shutdown)
                 srv_thread.join()
+            server.apply_update_on_close()
             if _frozen():
                 for stream in (sys.stdout, sys.stderr):
                     if stream:
@@ -504,6 +509,7 @@ def main(argv=None) -> int:
                     watch(proc, httpd.shutdown)
             threading.Thread(target=show, daemon=True).start()
         server.serve(open_browser=False, sync=not args.no_sync, httpd=httpd)
+        server.apply_update_on_close()
         if _frozen() and server.HTTPD.get("closing"):
             # Optimizer/solver worker exit hooks can otherwise keep the frozen
             # executable locked after an explicit Quit or installer handoff.
