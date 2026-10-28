@@ -292,8 +292,10 @@ window.A2Session = (function () {
     security,
   };
 
+  // The date with the time of day, in the computer's clock: 2026-10-23 15:04:05.
+  const whenAt = (x) => { if (x == null || x === "") return "—"; const d = new Date(x); if (!Number.isFinite(d.getTime())) return "—"; const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
   function moveQuestion(other) {
-    const made = new Date((other.created_at || 0) * 1000).toLocaleDateString();
+    const made = other.created_at ? whenAt(other.created_at * 1000) : "—";
     return other.closes
       ? t("This Discord account signs in to your other account, {0}, made on {1}. Move Discord to this account? That account's {2} logs and {3} characters come along, and it closes.", other.name, made, other.logs, other.characters)
       : t("This Discord account is linked to your other account, {0}, made on {1}. Move Discord to this account? That account keeps its logs and its other ways to sign in.", other.name, made);

@@ -120,7 +120,8 @@ def test_combat_review_roster_is_scoped_to_the_selected_encounter():
     # The log-details roster (and the builds it links) shows only the selected segment's
     # participants, not every player across a multi-encounter log.
     cr = (ROOT / "aion2calc" / "app" / "static" / "combat-review.js").read_text(encoding="utf-8")
-    assert "active.size?active.has(id):!state.run" in cr
+    assert "const keep=id=>active.size?active.has(id):everyone;" in cr        # segmentRefs: the segment's actors
+    assert "segmentRefs(doc,doc.segments[state.segment] || {},!state.run)" in cr  # all of them only outside a run
 
 
 def test_pve_boss_filter_excludes_generic_combat():
