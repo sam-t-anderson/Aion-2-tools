@@ -140,6 +140,14 @@ def _merged_movement(q: dict) -> dict:
                         {**theirs, "positions": sum(1 for m in rows if m.get("via"))}]}
 
 
+def _log_rankings(q: dict) -> dict:
+    """A fight's rankings. The final boss fight was uploaded by Testcleric too (``shared_uploads``)."""
+    if q.get("segment", ["0"])[0] != "2":
+        return {"segments": {}}
+    return {"segments": {}, "duplicate": True, "players": [],
+            "shared_uploads": [{"log": "TestLog002", "segment": 0, "title": "Their run", "uploader": "Testcleric", "created_at": NOW}]}
+
+
 def _plans(q: dict) -> dict:
     npc = q.get("npc", [""])[0]
     return {"plans": [plan for plan in PLANS if not npc or str(plan["npc_id"]) == npc]}
@@ -169,7 +177,7 @@ ANSWERS = {
                                "page": int(q.get("page", ["1"])[0]), "limit": int(q.get("limit", ["50"])[0])},
     f"/api/v1/logs/{LOG_ID}/raw": lambda q: _raw_log(),
     f"/api/v1/logs/{LOG_ID}/parts": lambda q: {"parts": []},
-    f"/api/v1/logs/{LOG_ID}/rankings": lambda q: {"segments": {}},
+    f"/api/v1/logs/{LOG_ID}/rankings": _log_rankings,
     f"/api/v1/logs/{LOG_ID}/movement": _merged_movement,
     "/api/v1/run-leaderboard": lambda q: {"entries": [SPEED_RUN], "samples": 1, "truncated": False, "note": ""},
     "/api/v1/encounter-progression": lambda q: {"groups": [], "truncated": False, "note": ""},

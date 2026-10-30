@@ -43,22 +43,38 @@
   // A horizontal box-and-whisker "spread" of a class's DPS distribution, on an axis shared across
   // all classes (0..gmax). The box is the middle half (p25–p75, or median–p75 until the server
   // reports p25); a strong line marks the median; a whisker runs to the best (max), with p90 ticked.
+  // The axis ends just past the highest 90th percentile of any class (axisEnd): one class's best parse
+  // can be several times its 90th percentile, and an axis that reached it squeezed every box against
+  // the left edge. A best beyond the axis is an arrow at its end.
   function spread(dps, gmax) {
     const x = (v) => (v == null || isNaN(v) || !gmax ? null : Math.max(0, Math.min(100, 100 * v / gmax)));
     const med = x(dps.median), p25 = x(dps.p25), p75 = x(dps.p75), p90 = x(dps.p90), mxv = x(dps.max);
+    const past = dps.max != null && !!gmax && dps.max > gmax;
     const boxL = p25 != null ? p25 : med, boxR = p75 != null ? p75 : med;
     const parts = [];
+    // strokes keep their width in pixels however wide the column stretches the drawing
+    const line = (x1, y1, x2, y2, opacity, width) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="currentColor"`
+      + `${opacity == null ? "" : ` stroke-opacity="${opacity}"`} stroke-width="${width}" vector-effect="non-scaling-stroke"/>`;
     const wr = mxv != null ? mxv : (p90 != null ? p90 : boxR);
-    if (boxL != null && wr != null) parts.push(`<line x1="${boxL}" y1="10" x2="${wr}" y2="10" stroke="currentColor" stroke-opacity=".4" stroke-width="1.2"/>`);
+    if (boxL != null && wr != null) parts.push(line(boxL, 10, wr, 10, ".4", 1.2));
     if (boxL != null && boxR != null && boxR > boxL) parts.push(`<rect x="${boxL}" y="4" width="${(boxR - boxL).toFixed(2)}" height="12" rx="2" fill="#2a8fb0" fill-opacity=".55"/>`);
-    if (p90 != null) parts.push(`<line x1="${p90}" y1="6" x2="${p90}" y2="14" stroke="currentColor" stroke-opacity=".55" stroke-width="1.2"/>`);
-    if (mxv != null) parts.push(`<line x1="${mxv}" y1="4" x2="${mxv}" y2="16" stroke="currentColor" stroke-opacity=".7" stroke-width="1.2"/>`);
-    if (med != null) parts.push(`<line x1="${med}" y1="1" x2="${med}" y2="19" stroke="currentColor" stroke-width="2.2"/>`);
-    parts.push('<line class="crs" x1="0" x2="0" y1="0" y2="20" stroke="currentColor" stroke-opacity="0" stroke-width="0.7"/>');
+    if (p90 != null) parts.push(line(p90, 6, p90, 14, ".55", 1.2));
+    if (past) parts.push('<path data-past d="M97.5 4.5 L100 10 L97.5 15.5" fill="none" stroke="currentColor" stroke-opacity=".7" stroke-width="1.4" vector-effect="non-scaling-stroke"/>');
+    else if (mxv != null) parts.push(line(mxv, 4, mxv, 16, ".7", 1.2));
+    if (med != null) parts.push(line(med, 1, med, 19, null, 2.2).replace("<line", "<line data-median"));
+    parts.push('<line class="crs" x1="0" x2="0" y1="0" y2="20" stroke="currentColor" stroke-opacity="0" stroke-width="0.7" vector-effect="non-scaling-stroke"/>');
     const d = (v) => (v == null || isNaN(v) ? "" : Math.round(v));
     return `<span class="spread-wrap"><svg viewBox="0 0 100 20" preserveAspectRatio="none" width="100%" height="20" role="img"`
       + ` data-spread data-gmax="${d(gmax)}" data-median="${d(dps.median)}" data-p25="${d(dps.p25)}" data-p75="${d(dps.p75)}" data-p90="${d(dps.p90)}" data-max="${d(dps.max)}"`
-      + ` aria-label="DPS spread: median ${n0(dps.median)}, middle half ${n0(dps.p25)}–${n0(dps.p75)}, best ${n0(dps.max)}. Hover to read values at the cursor.">${parts.join("")}</svg></span>`;
+      + ` aria-label="DPS spread: median ${n0(dps.median)}, middle half ${n0(dps.p25)}–${n0(dps.p75)}, best ${n0(dps.max)}${past ? " (past the end of the axis)" : ""}. Hover to read values at the cursor.">${parts.join("")}</svg></span>`;
+  }
+
+  // Where the shared axis ends: a little past the highest 90th percentile of any class, rounded up to a
+  // round number (half a power of ten), so the boxes use the width of the column.
+  function axisEnd(rows) {
+    const reach = Math.max(...rows.map((r) => r.dps.p90 || r.dps.p75 || r.dps.median || 0), 1) * 1.1;
+    const step = 10 ** Math.floor(Math.log10(reach)) / 2;
+    return Math.ceil(reach / step) * step;
   }
 
   // Hover read-out for the spread graphs: a tooltip follows the cursor and reports the approximate
@@ -122,16 +138,17 @@
     }));
     const rows = results.filter((r) => r.dps && r.dps.median != null).sort((a, b) => (b.dps.median || 0) - (a.dps.median || 0));
     if (!rows.length) { body.innerHTML = '<div class="empty">Not enough data for a class comparison yet.</div>'; return; }
-    const gmax = Math.max(...rows.map((r) => r.dps.max || r.dps.p90 || r.dps.median || 0), 1);
+    const gmax = axisEnd(rows);
     const tr = rows.map((r) => `<tr><td>${esc(cap(r.cls))}</td>
-      <td style="min-width:120px">${spread(r.dps, gmax)}</td>
+      <td style="min-width:220px">${spread(r.dps, gmax)}</td>
       <td class="r num">${n0(r.dps.median)}</td><td class="r">${n0(r.dps.p75)}</td><td class="r">${n0(r.dps.p90)}</td>
       <td class="r num">${n0(r.best != null ? r.best : r.dps.max)}</td><td class="r">${n0(r.gs)}</td><td class="r">${n0(r.cp)}</td>
-      <td class="r">${n0(r.obs)}</td><td><a href="stats.html?class=${encodeURIComponent(r.cls)}">details →</a></td></tr>`).join("");
+      <td class="r">${n0(r.obs)}</td><td style="white-space:nowrap"><a href="stats.html?class=${encodeURIComponent(r.cls)}">details →</a></td></tr>`).join("");
     body.innerHTML =
       '<h2 class="pagetitle" style="font-size:18px">Performance by class</h2>' +
-      `<div style="overflow-x:auto"><table class="t"><tr><th>Class</th><th>Spread (DPS)</th><th class="r">Median DPS</th><th class="r">Top 25% DPS</th><th class="r">Top 10% DPS</th><th class="r">Best DPS</th><th class="r">Gear score</th><th class="r">Combat power</th><th class="r">Samples</th><th></th></tr>${tr}</table></div>` +
-      '<p class="small muted" style="margin-top:10px">Each bar is that class\'s DPS spread on a shared axis — hover it to read the DPS and percentile at your cursor. The box is the middle half of players, the strong line is the median, the whisker runs to the best recorded. Best DPS is the single best parse; gear score and combat power are medians, shown only where players reported them. Highest median first. Choose a class above for its hit rates, cast tempo and damage by skill.</p>';
+      `<div style="overflow-x:auto"><table class="t"><tr><th>Class</th><th>Spread (DPS, 0–${n0(gmax)})</th><th class="r">Median DPS</th><th class="r">Top 25% DPS</th><th class="r">Top 10% DPS</th><th class="r">Best DPS</th><th class="r">Gear score</th><th class="r">Combat power</th><th class="r">Samples</th><th></th></tr>${tr}</table></div>` +
+      '<p class="small muted" style="margin-top:10px">Each bar is that class\'s DPS spread on a shared axis, from 0 to just past the highest 90th-percentile DPS of any class — hover it to read the DPS and percentile at your cursor. The box is the middle half of players, the strong line is the median, the whisker runs to the best recorded; an arrow at the end means the best is past the axis (a single best parse can be several times a class\'s 90th percentile). Best DPS is the single best parse; gear score and combat power are medians, shown only where players reported them. Highest median first.</p>' +
+      '<p class="small muted">These figures cover every PvE fight of 20 seconds or more in the uploads, at every level and in every kind of content (open world and trash as well as bosses), so the medians sit well below a typical boss fight\'s parses. Choose a class above, then a boss, for one fight\'s numbers, with its hit rates, cast tempo and damage by skill.</p>';
   }
 
   async function renderClass(cls, boss) {

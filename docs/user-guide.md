@@ -201,7 +201,7 @@ Combat logs recorded since 0.2.350 hold where the party, their pets and the boss
 - The **Key** below the replay (0.2.353) shows what each kind of token is, then the fight's players by name in their class colours (only the classes when there are more than 12). Untick an entry to hide it on the replay: the boss, pets, other enemies, the movement trails, the arena or any player. **Show all** brings them back. Hidden tokens come hidden into a plan made with **Open in Raid Planner**.
 - The game never sends a player their own movement. The recording player is placed by the effects they apply and the casts aimed at them, so their path is coarser than the others'. A party member's recording of the same fight holds theirs.
 
-On a log from the log server (log server 0.2.144 or later), **Add other recordings of this fight** merges the movement of the other public uploads of the same fight, matched by their identical hits:
+On a log from the log server (log server 0.2.144 or later), the replay merges the movement of the other public uploads of the same fight, matched by their identical hits. When the log server has matched another upload to the fight, the review says *Also recorded by …* above the capture-quality notes, with a button to open it, and the replay merges it on its own (0.2.356); otherwise **Add other recordings of this fight** asks the log server to look:
 - Each player's path comes from the recording that holds their own movement, so a party member's upload gives the recording player their real path.
 - Each recording's clock is set by the hits both recordings hold.
 - The note lists each recording with its clock offset and the positions it gave, or why it was left out. A token's tooltip names the recording a position came from.

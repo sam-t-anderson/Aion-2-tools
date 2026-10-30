@@ -381,16 +381,17 @@ def test_the_raid_planner_imports_a_saved_fights_movement(app_page, app_url, app
 
 def test_a_shared_fights_replay_adds_the_other_recordings_of_it(app_page, app_url, community):
     """Log server 0.2.144 merges a fight's movement from every public recording of it: the recording player's own
-    path comes from a party member's upload."""
+    path comes from a party member's upload. When the rankings name another upload of the fight, the review says so
+    in view and the replay merges it without being asked (0.2.356)."""
     page = app_page
+    since = len(community.requests)
     go(page, app_url, f"#/combat-log/shared/{LOG_ID}?segment=2")
     box = page.locator("[data-replay]")
-    box.locator("[data-merge]").wait_for()
-    assert "does not send the recording player's own movement" in box.locator("p").first.inner_text()
-    since = len(community.requests)
-    box.locator("[data-merge]").click()
-    page.wait_for_function("document.querySelector('[data-replay]').textContent.includes('Merged with 1 of 1 other recordings')")
+    page.wait_for_function("document.querySelector('[data-replay]')?.textContent.includes('Merged with 1 of 1 other recordings')")
     assert community.reached(page, f"/api/v1/logs/{LOG_ID}/movement", since)
+    shared = page.locator("p.note", has_text="Also recorded by")
+    assert shared.is_visible() and "Testcleric" in shared.inner_text()
+    assert "The movement replay below merges its movement with this recording's." in shared.inner_text()
     text = box.inner_text()
     assert "Testcleric's recording (clock -3.00 s from 40 shared hits, 45 positions)" in text
     assert "comes from 45 positions in the other recordings" in text and box.locator("[data-merge]").count() == 0
@@ -400,7 +401,7 @@ def test_a_shared_fights_replay_adds_the_other_recordings_of_it(app_page, app_ur
 
 def test_a_recording_without_movement_takes_it_from_the_others(app_page, app_url, community):
     """A recording made before 0.2.350 holds no movement, but the log server merges a newer recording of the same
-    fight into it."""
+    fight into it. The rankings name no other upload of this fight, so the replay asks before it looks."""
     page = app_page
     go(page, app_url, f"#/combat-log/shared/{LOG_ID}?segment=1")
     box = page.locator("[data-replay]")

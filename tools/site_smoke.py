@@ -12,8 +12,9 @@ For every page, at desktop width and at phone width (390 px):
     again in the dark one.
 Requests to any other site are blocked, so the check never depends on the log server or a third party.
 The Maps page must not contact the interactive-map provider until the visitor asks for the map, a log
-page must offer the log server's own link for the log (its preview shows the fight), and the Logs page's
-Completed-run speed tab must name a run's bosses and show its time.
+page must offer the log server's own link for the log (its preview shows the fight), the Logs page's
+Completed-run speed tab must name a run's bosses and show its time, and the Class stats page's spread graph
+must end its axis past the highest 90th percentile rather than at one best parse.
 
     python tools/site_smoke.py [--axe node_modules/axe-core/axe.min.js] [--out DIR] [--keep]
 
@@ -272,6 +273,62 @@ def check_run_speed(browser, base: str, problems: list) -> None:
     context.close()
 
 
+# Two classes as the log server's /api/v1/stats/<class> sends them, the first with a best parse three times its
+# 90th percentile (the live server's assassins had one of 156,833 against 52,489).
+STATS = {"assassin": {"median": 19000.0, "p25": 8000.0, "p75": 33000.0, "p90": 52000.0, "max": 157000.0},
+         "cleric": {"median": 6400.0, "p25": 3700.0, "p75": 10500.0, "p90": 15900.0, "max": 30000.0}}
+SPREAD = """() => [...document.querySelectorAll('svg[data-spread]')].map(svg => ({
+  median: +svg.querySelector('line[data-median]').getAttribute('x1'),
+  box: [+svg.querySelector('rect').getAttribute('x'), +svg.querySelector('rect').getAttribute('x') + +svg.querySelector('rect').getAttribute('width')],
+  ticks: [...svg.querySelectorAll('line:not([data-median]):not(.crs)')].map(l => +l.getAttribute('x1')),
+  past: !!svg.querySelector('path[data-past]') }))"""
+
+
+def check_stats_spread(browser, base: str, problems: list) -> None:
+    """The Class stats page's spread graph uses its width: the shared axis ends past the highest 90th percentile,
+    not at the single best parse, each median sits in its box, and a best past the axis is an arrow."""
+    context = browser.new_context()
+    server = "https://logs.example"
+
+    def route(r):
+        url = r.request.url
+        path = urllib.parse.urlsplit(url).path
+        cors = {"Access-Control-Allow-Origin": "*"}
+        if url.endswith("/config.js"):
+            r.fulfill(content_type="text/javascript", body=f'window.A2CONFIG = {{"server": "{server}", "key": ""}};')
+        elif url.startswith(server) and path == "/api/v1/stats":
+            r.fulfill(content_type="application/json", headers=cors, body=json.dumps(
+                {"classes": [{"class": c, "observations": 500, "logs": 50, "best_dps": d["max"]} for c, d in STATS.items()]}))
+        elif url.startswith(server) and path.startswith("/api/v1/stats/"):
+            d = STATS.get(path.rsplit("/", 1)[1])
+            r.fulfill(content_type="application/json", headers=cors, status=200 if d else 404,
+                      body=json.dumps({"observations": 500, "dps": d, "best_dps": d["max"]} if d else {"error": "not found"}))
+        elif urllib.parse.urlsplit(url).hostname in ("127.0.0.1", "localhost") or url.startswith(("data:", "blob:")):
+            r.continue_()
+        else:
+            r.abort()
+
+    context.route("**/*", route)
+    page = context.new_page()
+    page.goto(base + "stats.html", wait_until="load")
+    try:
+        page.wait_for_selector("svg[data-spread]", timeout=8000)
+        head = page.locator("#stats-body th").nth(1).inner_text()
+        if "0–60,000" not in head:                 # 52,000 × 1.1, rounded up to a round number
+            problems.append(f"stats.html: the spread axis reads {head!r}, not 0–60,000 (past the highest 90th percentile)")
+        bars = page.evaluate(SPREAD)
+        for name, bar in zip(STATS, bars):
+            if not bar["box"][0] <= bar["median"] <= bar["box"][1]:
+                problems.append(f"stats.html: the {name} median ({bar['median']:.1f}) is outside its box {bar['box']}")
+        if not bars or max(bars[0]["ticks"]) < 75:
+            problems.append(f"stats.html: the widest spread's 90th percentile is not across the column ({bars[:1]})")
+        if [b["past"] for b in bars] != [True, False]:
+            problems.append(f"stats.html: a best past the axis should be an arrow, one inside it a tick ({bars})")
+    except Exception as exc:
+        problems.append(f"stats.html: no spread graph ({str(exc).splitlines()[0]})")
+    context.close()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--axe", help="path to axe-core's axe.min.js, to run the accessibility checks")
@@ -301,6 +358,8 @@ def main() -> int:
                 check_log_share(browser, base, problems)
             if "logs.html" in pages:
                 check_run_speed(browser, base, problems)
+            if "stats.html" in pages:
+                check_stats_spread(browser, base, problems)
             browser.close()
     finally:
         server.shutdown()
