@@ -80,3 +80,15 @@ def test_every_site_page_links_to_the_stats_page():
     for page in pages:
         html = page.read_text(encoding="utf-8")
         assert 'href="stats.html"' in html, f"{page.name} is missing the Class stats nav link"
+
+
+def test_the_spread_axis_ends_past_the_highest_90th_percentile_not_at_one_best_parse():
+    # One assassin's best parse of 156,833 DPS, three times the class's 90th percentile, set the old shared axis
+    # and squeezed every class's box and median against the left edge (0.2.356). tools/site_smoke.py checks the
+    # drawing in a browser.
+    assert "function axisEnd" in STATS_JS and "r.dps.p90" in STATS_JS
+    assert "const gmax = axisEnd(rows)" in STATS_JS
+    assert "data-past" in STATS_JS                      # a best past the axis is an arrow at its end
+    assert "Spread (DPS, 0–${n0(gmax)})" in STATS_JS    # the header says where the axis ends
+    # and the page says what the figures cover
+    assert "every PvE fight of 20 seconds or more" in STATS_JS
