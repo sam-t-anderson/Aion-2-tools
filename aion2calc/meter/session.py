@@ -337,10 +337,12 @@ class CombatSession:
         # mini-boss) enemy was last killed; when the next major boss is engaged after it,
         # that kill closes the previous encounter and the new boss starts a fresh segment —
         # so a continuous dungeon run of back-to-back bosses is split per boss instead of
-        # collapsing into one long encounter. ``_boss_killed_marker`` is the (split, run)
-        # the kill happened in: if any other boundary (a wipe, reset, finish or run change)
-        # has since started a new segment, the pending kill is stale and never adds a
-        # second split. ``boss_splits`` counts these, like ``wipe_splits`` / ``reset_splits``.
+        # collapsing into one long encounter. ``_boss_killed_marker`` is the (epoch, split, run)
+        # the kill happened in: if any other boundary (a zone load, wipe, reset, finish or run
+        # change) has since started a new segment, the pending kill is stale and never adds a
+        # second split. A zone load counts: the next boss's room is often one (Krao Cave), and the
+        # split at its first hit cut the boss's opening blow off as an encounter of its own (0.2.355).
+        # ``boss_splits`` counts these, like ``wipe_splits`` / ``reset_splits``.
         self._boss_killed_ms = None
         self._boss_killed_marker = None
         self.boss_splits = 0
@@ -405,7 +407,7 @@ class CombatSession:
         new_major = ekey not in self._engaged_major
         if (self._boss_killed_ms is not None and engaged_ms is not None
                 and engaged_ms >= self._boss_killed_ms
-                and self._boss_killed_marker == (self.manual_split, self.run)
+                and self._boss_killed_marker == (self.epoch, self.manual_split, self.run)
                 and new_major):
             self.manual_split += 1
             self.boss_splits += 1
@@ -970,7 +972,7 @@ class CombatSession:
                 self._major_below.discard(key)
                 self._pending_reset = False
                 self._boss_killed_ms = sample["timestamp_ms"]
-                self._boss_killed_marker = (self.manual_split, self.run)
+                self._boss_killed_marker = (self.epoch, self.manual_split, self.run)
                 self.boss_kills += 1
                 if self._display_major(key) and not self._majors_in_play(sample["timestamp_ms"]):
                     # No other major of this pull is still in play: the pull is over. The next
@@ -1261,8 +1263,16 @@ class CombatSession:
         opponent = event.target_id if event.actor_id in allowed else event.actor_id
         opponent = identity["owners"].get(opponent,opponent)
         return (not (event.actor_id in allowed and event.target_id in allowed)
-                and opponent in identity.get("player_ids",set())
+                and self._counts_as_player(identity, opponent)
                 and not identity["spawns"].get(opponent,{}).get("mobCode"))
+
+    @staticmethod
+    def _counts_as_player(identity, actor):
+        """Whether an actor is a player: a named one, or one the capture has no name for that struck only
+        with class skills (``class_strikes``, 0.2.354). An arena's opponents are often the second kind, and
+        their fight was typed unverified PvE, not the arena match it was (0.2.355)."""
+        return (actor in identity.get("player_ids", ())
+                or (actor in identity.get("class_strikes", {}) and actor not in identity.get("npc_strikes", ())))
 
     def groups(self, scope="party", allowed_for=None):
         """The scope's records cut into fights: a new epoch or manual split, a PvE/PvP switch or, with
@@ -1378,6 +1388,12 @@ class CombatSession:
             if (not groups or groups[-1]["epoch"] != record.epoch or groups[-1]["split"] != record.split
                     or switched
                     or (self.automatic_splits and outgoing and event.timestamp_ms - groups[-1]["last_damage"] > self.gap_seconds * 1000)):
+                if (not outgoing and death_ms.get((record.epoch, event.actor_id), float("inf")) < event.timestamp_ms
+                        and self.identities.get(record.epoch, {}).get("spawns", {}).get(event.actor_id, {}).get("mobCode")):
+                    # A dead enemy's blow opens no fight: Ultimate Berk strikes the party for some 17 s
+                    # after its death closed the run, and each kill was followed by an encounter of its
+                    # own with no party damage in it, past the run's end (0.2.355).
+                    continue
                 groups.append({"id": f"{record.epoch}-{event.timestamp_ms}-{record.sequence}", "epoch": record.epoch,
                                "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "damage_start": None, "split": record.split, "run":record.run, "pvp":pvp, "records": [], "majors": set(),
                                "kind_damage": None})       # your last hit of the fight's own kind
@@ -1441,11 +1457,10 @@ class CombatSession:
             if index is not None:
                 ends[index] = sample["timestamp_ms"]
         spawns_now = identity_now.get("spawns", {})
-        player_ids = identity_now.get("player_ids", ())
         self._grouping = _Grouping(scope, config, records[0].sequence if records else 0, records[-1].sequence if records else 0,
                                    groups, actors_of, peak, death_ms, deaths, settled, seen_now, current,
                                    self._identity_key(identity_now), reps, dict(owners_now), frozenset(actors),
-                                   frozenset(a for a in actors if a in player_ids),
+                                   frozenset(a for a in actors if self._counts_as_player(identity_now, a)),
                                    {a: spawns_now.get(a, {}).get("mobCode") for a in actors},
                                    sum(1 for key in self._major_history if key[0] == current))
         shown = groups
@@ -1473,9 +1488,8 @@ class CombatSession:
         identity = self.identities.get(self.epoch)
         if identity is None or state.identity != self._identity_key(identity) or identity["owners"] != state.owners:
             return None
-        player_ids = identity.get("player_ids", ())
         spawns = identity["spawns"]
-        if (any((actor in player_ids) != (actor in state.players) for actor in state.actors)
+        if (any(self._counts_as_player(identity, actor) != (actor in state.players) for actor in state.actors)
                 or any(spawns.get(actor, {}).get("mobCode") != code for actor, code in state.codes.items())
                 or sum(1 for key in self._major_history if key[0] == self.epoch) != state.majors
                 or any(allowed_for(record) != allowed for record, allowed in state.allowed.values())):
@@ -1516,6 +1530,7 @@ class CombatSession:
                 identity.get("local_id"), len(identity.get("names", ())), len(identity.get("jobs", ())),
                 len(identity.get("spawns", ())), len(identity.get("owners", ())), len(identity.get("roster", ())),
                 len(identity.get("player_ids", ())), len(identity.get("observed_players", ())),
+                len(identity.get("class_strikes", ())), len(identity.get("npc_strikes", ())),
                 len(identity.get("fighters", ())), identity.get("party_instance"), identity.get("initial_roster_sequence"),
                 len(identity.get("local_corrections", ())), len(identity.get("carried_entries", ())),
                 tuple(sorted((key, str(value)) for key, value in profile.items())))
@@ -2601,5 +2616,6 @@ class CombatSession:
         exported_scope = scope
         if scope == "auto":
             exported_scope = "all" if any(self._effective_scope(scope, g["epoch"]) == "all" for g in groups) else "party"
-        return a2log.validate({"format":"a2log","version":1,"meta":{"source":"Aion 2 Calc live session","title":title or "Live combat session", "capture_scope":exported_scope, "capture_quality":evidence, "npc_diagnostics":npc_diagnostics},
-                               "players":list(players.values()),"segments":segments})
+        from ..combat.unnamed import relabel
+        return a2log.validate(relabel({"format":"a2log","version":1,"meta":{"source":"Aion 2 Calc live session","title":title or "Live combat session", "capture_scope":exported_scope, "capture_quality":evidence, "npc_diagnostics":npc_diagnostics},
+                               "players":list(players.values()),"segments":segments}))

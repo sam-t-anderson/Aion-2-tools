@@ -1,3 +1,30 @@
+## Performance mode, healing without Stamina and MP, arena matches, names for "???", and boss fights that start and end on time (0.2.355)
+
+**Performance mode for a low-spec PC.** **Settings → App & data → Performance mode** (off by default) makes the meter, the overlay and the app lighter, with every reading as accurate as before:
+- The live meter works out its numbers at most once a second instead of twice, and keeps where everyone stands once a second (the movement replay's points).
+- The overlay asks for them every second (every two while nothing is captured) and holds still in between: no live-ticking numbers, frame counter, animations or colour effects that move.
+- The app's pages stop animating, and the Live Meter page refreshes every 1.5 seconds.
+
+It applies within a few seconds. A settings backup leaves it out, since it belongs to the computer it was chosen on.
+
+**Arena matches against players the game never named.** In an arena the game sometimes sends no identity record for the other team. Since 0.2.354 the meter lists them as players of their class; now a fight where such players struck your party on a confirmed arena map is typed as an arena match instead of unverified PvE. Older recordings are retyped when they are read, on the log server too.
+
+**Names for "???".** The game names some NPCs "???" in every language: a boss's invisible summons, flags and timers, and a class's ground effects (a Sorcerer's Fire Wall and Cold Storm are summons of their own). A log now shows a summon by the skill it struck with, and any other "???" as *Unnamed summon* or *Unnamed NPC*, by what the game's tables say it is. Older recordings get the same labels when they are read; nothing is named from a guess.
+
+**Boss fights that start and end on time.** Two kinds of stray piece no longer split off a boss fight:
+- The boss's opening blow, a moment before the party's first hit, used to become an encounter of its own. It now belongs to the fight.
+- After a kill, blows from a boss already dead (Ultimate Berk's, Furious Feruk's) opened a new encounter. A dead enemy's blow no longer opens a fight, and in older recordings these pieces join the fight they came from, which the log review says.
+
+**Stamina and MP are no longer healing.** The game sends a skill's Stamina and MP restores the way it sends a heal, so the meter counted them as healing. Defiance's "Restores 1,000 Stamina" showed as a heal of 100,000, Shield Rush's and Infiltrate's 300 Stamina as 30,000, a block skill's "Restores MP and Stamina" as both, and Rending Blow's 50 MP on a critical hit as 50. Among the log server's Templar fights, a fifth of what Templars were credited with healing was Stamina and MP. A record whose amount is exactly the Stamina or MP its own skill says it restores no longer counts toward healing, on the live meter and overlay, in new recordings, and in older recordings when they are read. On the log server, healing totals and HPS standings are re-counted without them.
+
+**The Templar measured again, with its shields.** 970 boss fights by 72 Templars on the log server confirm the Templar's action times: the fastest quarter of the players matches them within 0.03 s. The one exception is Poach, now 0.43 s (it was 0.50), so the community comparison re-scores its presets (preset model 0.3.13). The bundled Templar build never presses Poach and is unchanged. The Templar's shields are what their tooltips say: Poach's shield 10% of the Templar's maximum HP, Doom Shield's 5%, Guarding Seal's its level's share, and Nezekan's Shield a share of each party member's own maximum HP.
+
+**Completed runs timed again.** A run whose last record was the final kill, or a few milliseconds of clock rounding past it, read *Not a timed run* (a Talisra of the Void run, among others). It is timed now, on the log server's standings too.
+
+**Older recordings no longer upload part by part.** A recording made by a meter of 0.2.66 or earlier carries only the Steam launcher's build, not the game's version. When the log cache made room, the app uploaded such a recording's parts one by one, each a log of a few seconds. It now deletes them without uploading. On the log server, such a build joins its game version's comparisons once a newer upload shows which version it was.
+
+**Pictures on the Pantheon board.** The recommended Pantheon board on Gear & Advice shows each colossus, statue and artwork's picture, the game's item icon, from aion2hub.com.
+
 ## Fights that rank whole, names for every zone, and enemies that keep their type (0.2.354)
 
 **A boss fight cut in two is one fight again.** An elite the party had pulled and left behind would heal back to full out of combat, and the meter read that as a wipe. It then cut the boss fight in progress in two: a first half without the kill and a second without the start, so neither could rank. The meter no longer cuts there. For recordings already uploaded, the log server joins the two halves whenever it reads the log and ranks the whole fight once (log server 0.2.147). The upload itself is not changed. In the log review, the first half says it is a piece of a cut fight and links to the whole one.

@@ -63,12 +63,14 @@ PUNISHING_STRIKE = 12060000     # Pummel's chain press; the client data names it
 #: (0.2.317; 0.45 s a step, 0.54 s from the first 14), ``punishing_strike`` the
 #: Pummel chain press, ``punishment`` its full charge (0.95 s) and release,
 #: ``doom`` and ``taunt`` those stigmas and ``stigma`` the other stigma presses
-#: pooled.  ``chain_followup`` is the chain hit's delay, not an action time.
+#: pooled.  ``chain_followup`` is the chain hit's delay, not an action time.  Measured again
+#: (0.2.355) from 72 Templars in 970 boss fights: the fastest quarter of the players' own times
+#: reproduces these within 0.03 s, except ``poach`` (0.43, was 0.50).
 TIMING = {
     "vicious_strike": 0.46, "pummel": 0.63, "punishing_strike": 0.57, "shield_smite": 0.34,
     "judgment": 0.56, "debilitating_smash": 0.53, "warding_strike": 0.35, "shield_rush": 0.32,
     "annihilate": 0.35, "punishment": 1.56, "chain_followup": 0.55, "stigma": 0.41,
-    "doom": 0.35, "taunt": 0.62, "poach": 0.50,
+    "doom": 0.35, "taunt": 0.62, "poach": 0.43,
 }
 
 ASSUME = {

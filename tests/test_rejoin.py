@@ -52,7 +52,7 @@ def test_a_boss_fight_cut_in_two_is_one_ranked_encounter_at_the_second_index():
     assert [s["t"] for s in whole["health"]] == [0.0, 20.0, 39.5, 41.5, 100.0]
     assert whole["events"] == [{"kind": "death", "t": 100.5, "target": "b"}]
     assert whole["id"].endswith("-1") and whole["start"] == first["start"]
-    assert doc["meta"]["repairs"]["rejoined"] == [[0, 1]] and doc["meta"]["repairs"]["version"] == 1
+    assert doc["meta"]["repairs"]["rejoined"] == [[0, 1]] and doc["meta"]["repairs"]["version"] == 2
     reasons = assess(doc, whole)["reasons"]
     assert "start_unverified" not in reasons and "end_unverified" not in reasons
     assert "continued" in assess(doc, first)["reasons"]                      # never ranked on its own

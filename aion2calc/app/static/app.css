@@ -436,6 +436,9 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 16px; backgrou
 .pboard .pslot.colossus .pn { font-size: 16px; fill: var(--gold); }
 .pboard .pp { fill: var(--gold); font-size: 16px; font-weight: 800; }
 .pboard .pk { fill: var(--faint); font-size: 16px; letter-spacing: 1.2px; }
+/* A decoration's picture (0.2.355): on its stand, and before its name in the list beside the board. */
+.pboard image.picon { pointer-events: none; }
+.prow .pname img.picon { width: 32px; height: 32px; vertical-align: middle; margin-right: 8px; border-radius: 4px; }
 .pboard .pslot:hover polygon, .pboard .pslot:hover circle { stroke: var(--accent); stroke-width: 2.5; }
 .pring-list { margin-top: 8px; }
 .prow { display: grid; grid-template-columns: minmax(140px, 1.2fr) 1.6fr auto; gap: 2px 10px; padding: 6px 8px; border: 1px solid var(--line-soft); border-radius: 6px; margin-bottom: 4px; background: var(--inset); align-items: center; }
@@ -746,6 +749,11 @@ table.t td.gacts { white-space: nowrap; }
     scroll-behavior: auto !important;
   }
 }
+
+/* Performance mode (Settings → App & data, 0.2.355): nothing in the app's window moves on its own, and the top bar
+   does without the blur that redraws the page behind it on every scroll. */
+body.perf *, body.perf *::before, body.perf *::after { animation: none !important; transition: none !important; }
+body.perf .topbar { backdrop-filter: none; }
 
 /* The Live Meter page's Odyle Energy line: the recharge-item icon beside the value. */
 p.odyle { display: flex; align-items: center; gap: 6px; }

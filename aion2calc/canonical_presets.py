@@ -17,7 +17,7 @@ from .opt.bonus import trim, valid_pool
 from .paths import list_names, bundled_model_data
 from .presets import BUDGETS, InvalidPreset, candidate as legacy_candidate, parse
 
-MODEL_VERSION = "0.3.12"  # Bump for evaluator/model changes, not capture/UI releases.
+MODEL_VERSION = "0.3.13"  # Bump for evaluator/model changes, not capture/UI releases.
 # 0.3.0: hand-written kits for all eight classes (was sorcerer only) — see aion2calc/kit/.
 # Changes every class's modeled rotation, so the server re-scores all presets under it.
 # 0.3.3: kit action times measured from recorded casts (0.2.307) and each class's recorded
@@ -49,6 +49,8 @@ MODEL_VERSION = "0.3.12"  # Bump for evaluator/model changes, not capture/UI rel
 # bonus levels the server's contributors reported (``bonus``: the total and the most on one skill); a
 # preset then names the skills to put them on (``build.bonus``), so skills pass level 14 and reach the
 # fifth supporting effect (16) and the third slot (20). A build's own levels are still trained with points.
+# 0.3.13: the Templar's Poach action time measured again from 72 recorded Templars (0.2.355): 0.43 s,
+# was 0.50. The bundled Templar build never presses it, so it is unchanged.
 VERSION = 2
 POLICY_VERSION = 1
 MODES = {"pve": ("boss", "dummy"), "pvp": ("pvp", "pvp_burst")}

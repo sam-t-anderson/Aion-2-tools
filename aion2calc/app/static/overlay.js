@@ -59,6 +59,10 @@
   let clearedFight=null;
   const expanded=new Set();   // row keys whose per-skill breakdown is expanded (DPS view)
   let interpolate=false, interpolateMs=200, showFps=false, locked=false, userWidth=null, userHeight=null;
+  // Performance mode (Settings → App & data, 0.2.355): for a low-spec PC the overlay polls half as often, holds
+  // still between polls (no live tick, frame counter, animation or transition) and redraws the cooldown strip
+  // and a raid plan less often. Every reading is the same; it only changes less often.
+  let perfMode=false;
   // The Hidden Cube radar's state, declared with the rest of the page state: nativeInit() reads radarSetting. In
   // pywebview's WebView2 host the bridge arrives once the page has loaded (nativeInit() then runs on pywebviewready);
   // a host with the bridge in place before the script runs it during the startup, where a declaration lower down
@@ -228,10 +232,12 @@
     radarSetting=ui.radar_enabled===true;
     setupRadar(radarSetting);   // the Hidden Cube radar, off by default
     nameMode=["name","class_number","number"].includes(ui.overlay_name_mode)?ui.overlay_name_mode:"name";
-    interpolate=ui.overlay_dps_interpolate===true;
+    perfMode=ui.performance_mode===true;
+    document.getElementById("ov").classList.toggle("ov-perf",perfMode);
+    interpolate=ui.overlay_dps_interpolate===true&&!perfMode;
     interpolateMs=clampInt(ui.overlay_interpolate_ms,50,1000,200);
     document.getElementById("ov").classList.toggle("ov-ticking",interpolate);   // the tick eases the bars; no CSS transition on top
-    showFps=ui.overlay_show_fps===true;
+    showFps=ui.overlay_show_fps===true&&!perfMode;   // the readout needs a loop that repaints every frame
     planAutoplay=ui.overlay_plan_autoplay!==false;   // on by default
     $("#ovfps").hidden=!showFps||partyMode||radarMode;
     setFpsLoop(showFps&&!partyMode&&!radarMode);   // only drive a per-frame loop while the FPS readout is shown
@@ -790,7 +796,10 @@
     for(const key of [...cooldownIcons.keys()])if(!keys.has(key))cooldownIcons.delete(key);
     if(nodes.length!==strip.children.length||nodes.some((node,i)=>strip.children[i]!==node))strip.replaceChildren(...nodes);
   }
-  setInterval(()=>{ if(showCooldowns&&!locked&&tab==="meter")renderCooldowns(); },250);
+  (function cooldownTick(){
+    if(showCooldowns&&!locked&&tab==="meter")renderCooldowns();
+    setTimeout(cooldownTick,perfMode?500:250);
+  })();
   function renderPlan() {
     $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovodyle").hidden=true;$("#ovshugo").hidden=true;$("#ovnightmare").hidden=true;$("#ovidentity").hidden=true;
     $("#ovtarget").hidden=true;$("#ovhpbar").hidden=true;$("#ovttkbar").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
@@ -866,12 +875,14 @@
   $("#ovretry").onclick=()=>pollMeter();
   // Poll on the meter tab, and on the plan tab when auto-play is on, so the plan can
   // sync to the live pull: every half second while a capture runs (a new fight's first hit
-  // shows within it), once a second while nothing is being captured.
+  // shows within it), once a second while nothing is being captured; twice as long in
+  // performance mode.
   (function meterPollLoop() {
     if (!radarMode && (tab === "meter" || (tab === "plan" && planAutoplay))) pollMeter();
-    setTimeout(meterPollLoop, lastSnap && lastSnap.running ? 500 : 1000);
+    setTimeout(meterPollLoop, (lastSnap && lastSnap.running ? 500 : 1000) * (perfMode ? 2 : 1));
   })();
-  setInterval(() => { t += 0.1; if (tab === "plan") renderPlan(); }, 100);
+  let planTicks = 0;   // the plan's clock runs at 10 Hz; performance mode draws every fourth tick
+  setInterval(() => { t += 0.1; if (tab === "plan" && (!perfMode || ++planTicks % 4 === 0)) renderPlan(); }, 100);
   window.addEventListener("storage", (event) => { if (event.key === "aion2calc-closing") window.close(); });
 
   // Drag-to-resize: the frameless window auto-fits the card, so the grips drive the

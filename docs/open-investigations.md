@@ -122,7 +122,7 @@ The raw records also showed that `23 36` frames whose varint is not 0 are JSON t
 
 **What ships (0.2.300):** the engine keeps the game-verified local name across a zone reset and, when no self record follows, re-binds the local player to the one actor that carries that name again (names are unique per server; exactly one match, summons excluded, never a guess), the same rule the typed character name already uses; a self record from the game still replaces it. A capture **spanning a Kibelisk teleport with raw TCP recording on** is what confirms the packet sequence; with one, the probe (`python -m aion2calc probe`) and the zone timeline can pin the exact record, and the reset can be refined if the game does send something at a teleport.
 
-**The 19 October recording, with raw TCP, settles it.** Two hours on seven game connections (each change of server opens a new one), it loads a zone 33 times, 14 of them on the map it was already on, as Kibelisk teleports do. Every load sent the `23 36` transition and, within 86 ms, the local-player record; the meter re-identified the player after every one, and the unnamed damage left over was other players' and monsters'. Where the overlay still lost the recording player, the cause was a meter started inside a zone, which no teleport fixes until the next load: see [the 19 October recordings](#the-19-october-recordings-0323).
+**The 19 October recording, with raw TCP, settles it.** Two hours on seven game connections (each change of server opens a new one), it loads a zone 33 times, 14 of them on the map it was already on, as Kibelisk teleports do. Every load sent the `23 36` transition and, within 86 ms, the local-player record; the meter re-identified the player after every one, and the unnamed damage left over was other players' and monsters'. Where the overlay still lost the recording player, the cause was a meter started inside a zone, which no teleport fixes until the next load: see [the 19 October recordings](#the-19-october-recordings-02323).
 
 **An 18 October recording (0.2.316) held identity across 41 identity epochs, without raw TCP.** It ran two and a half hours, then six minutes more: transcendence and dungeon runs, the open world and the Abyss's field bosses, in nine archive parts. It spans 41 identity epochs, each opened by a zone reset, and consecutive epochs on one map (three in a row on map 1110, two on map 20) are what same-map teleports such as Kibelisk's make. The recording player was identified in every segment of every epoch, and no unnamed player actor dealt its damage. Record TCP payloads was ticked, yet both captures recorded nothing: they started from the launch-time start or the overlay's Start, and those (and the Start/Stop hotkey) ignored the box until 0.2.318. So which record re-identified the player after each teleport, a fresh `33 36` or the name re-bind, stays unconfirmed.
 
@@ -392,7 +392,7 @@ Three diagnostic recordings with raw TCP: eight seconds of HTTPS (a download, no
 
 **The overlay without its recorder: a meter started inside a zone.** Reported the next day: the live overlay showed everyone in the party but the recording player. Replays of the recordings had never shown it, because they fed every stream straight to the engine, while the live meter first finds the game's connection (`CombatFlowDetector`: 12 marker records within 3 s, at least 2.5 s after the first) and drops a new connection's packets until then. Replaying through that detector, as the live callback receives the rows, the two-hour recording's seven connection changes all kept the player: each new connection's zone load and self record came 3–4 s after the detector had found it. Starting the replay inside a zone instead, as an app opened or restarted for an update does, left the player unidentified until the next zone load: 33, 85, 224, 296 and 430 s after five of six starts (the sixth saw no fight in its ten minutes), with 22–84 % of the player's hits uncredited in the four that fought first, while the roster and spawn records named the party. An 11 October capture that started inside a zone shows the same: its recorder dealt the most damage, unnamed, for 107 s. The self record (`33 36`) comes only with a zone load. The MP record (`00 8d`, entity, `01 01 01`, u32) is sent for the local player only: all 908 in the two-hour recording and all 946 in the 15 October run were the self record's actor, and in the two captures that started inside a zone every MP record named the one actor with the most cast-end records (`06 38`, sent for the local player and NPCs). Since 0.2.323 the engine takes the local player from the MP record when no self record named one, and moves an identity that no longer fits (adopted from a capture stopped in another zone) after two MP records in a row name another actor. A self record still replaces it. In the same replays the player is found 2.5 s after the start whenever MP changes (that is, in combat), and 99.9 % of their hits are credited.
 
-**Odyle Energy.** Decoded in 0.2.327 from this recording and the 20 October one ([below](#odyle-energy-and-the-bundle-every-zone-load-sends-21-october-0327)): what these notes read as the varint 51591 is counter 60000001, and its two values are the 840 and the bonus of 50 noted in game.
+**Odyle Energy.** Decoded in 0.2.327 from this recording and the 20 October one ([below](#odyle-energy-and-the-bundle-every-zone-load-sends-21-october-02327)): what these notes read as the varint 51591 is counter 60000001, and its two values are the 840 and the bonus of 50 noted in game.
 
 **The Templar's MP.** The first Templar readings (level 27, MP up to 1,911): Pummel and Punishing Strike each cost 120 (the readings fell 119 at each press), a basic-chain step restores 150, and MP regenerates 50 about every 7.5 s in combat and 250 a second out of it. The kit had inferred the 150 from the Gladiators' readings in 0.2.320 and charged Punishing Strike nothing; it now costs what Pummel costs ([methodology](methodology.md#the-templars-mp-from-a-recorded-templar-02323)).
 
@@ -549,3 +549,36 @@ Still open:
 - Floors (Z).
 
 The scripts are archived in the diagnostics repository under `scripts/movement/`.
+
+## The map under the replay (30 October): no confirmed transform (0.2.355)
+
+The replay draws each fight's recorded positions on a blank arena. Drawing the game's map under them needs two things: map imagery, and a transform from the game's world coordinates to that imagery.
+
+**Imagery.** The AION 2 Interactive Map (tc-imba; the source the Maps page's routes credit) serves the world maps as 1,024-pixel tiles: Verteron and Altgard as 8×8 (an 8,192-pixel map each), the starter maps as 4×4 and 5×5, and three Abyss maps. Its CC BY-NC 4.0 licence covers its `public/data` (markers, regions); the tiles are the game's own map textures. No source publishes maps of the dungeons, where most boss fights are.
+
+**Transform.** The source places its markers in its own 8,192-pixel space (north-west origin) and records no game coordinates, and no other source found publishes the game's world-to-map relation. Map 1110 is Verteron (its Gartua is the Isle of Eternity's field boss). The 19 October recording (`meter-20261019-210717-4e91a8`) has 15 zone loads on 1110, 14 of them Kibelisk teleports. Its recording player's positions are stamps (the effects they apply, the casts aimed at them; their own movement is encrypted, [above](#movement-for-encounter-replay-27-october)), so the first position after a teleport is where they stood a little later, not the arrival itself. Fitted against Verteron's 61 teleport markers allowing a scale, axis swaps and flips and an offset, several candidates match 7 or 8 of the 15 within 25 pixels. The best by eye (axes swapped, about 0.0087 pixels a unit) puts the recorded tracks on land and several arrival clusters on teleports, and Gartua's fight about 300 pixels from the Isle of Eternity's label. But a public High Commander Lagta fight lands about 2,000 pixels from the Red Forest that `field-bosses.json` gives it, an entry not yet checked in game. None is confirmed, so nothing is drawn.
+
+**What settles it.** A short capture with raw TCP recording on, teleporting to four named Kibelisks in Verteron and four in Altgard, with their names noted in order. Arrivals at known markers fix each map's scale, orientation and offset exactly, and every further fight on those maps checks them.
+
+## Restores the game sends as heals (30 October): Stamina and MP are no longer healing (0.2.355)
+
+Measuring the Templar's shields from the log server's uploads turned up heal records far larger than any
+Templar's maximum HP: 100,000 from Defiance, 30,000 from Shield Rush. In the 20 October recording's raw records
+(`meter-20261020-223222-9dd47a`) each one is a self-targeted `04 38` record, the layout of a heal on oneself. Its
+modifier block carries the effect number (the skill times 100 plus the effect's index: Defiance's Stamina
+restore is effect 13, its HP restore effect 14), and nothing in the record names the resource. Stamina comes in
+hundredths. So the resource can only be read from the skill's own text: a heal whose amount is exactly the
+Stamina (in hundredths) or MP the skill's description or specializations name, at any level, is a restore, and
+since 0.2.355 the decoder leaves it out ([methodology](methodology.md#stamina-and-mp-restores-are-not-healing-02355)).
+The recorded Gladiator's MP readings confirm the MP case: Rending Blow's critical hits raise MP a median 50 (673
+hits), its other hits cost 93.
+
+**Still open.** The basic chain's later steps carry a restore of their own that no description names: the
+Chanter's Resonance Crush about 195 (98–219), the Ranger's Rapid Fire about 120, the Assassin's Breaking Slice
+and Swift Slice about 29, and the Templar's Warding Shield (64–743, about 2 % of maximum HP). They stay healing.
+The 19 October recording has eight of the Chanter's Resonance Crush hits with MP readings around them, too few
+to tell MP from HP.
+
+**What settles it.** A recording with raw TCP on, made on a Chanter, a Ranger or an Assassin pressing the basic
+chain against a training dummy at full HP: the recording player's MP readings then show whether the step's
+restore lands in MP, and their HP, already full, cannot take it.

@@ -702,7 +702,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/history":
             from .history import discover_legacy, recent, path as history_path
             if q.get("id"):
-                return self._json(json.loads(history_path(q["id"]).read_text(encoding="utf-8")))
+                from ..combat.unnamed import relabel     # what a meter of 0.2.354 or earlier saved as "???"
+                return self._json(relabel(json.loads(history_path(q["id"]).read_text(encoding="utf-8"))))
             discover_legacy()
             return self._json(recent())
         if path == "/api/planner/presets":
@@ -1302,7 +1303,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
                               "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_per_fight", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics", "meter_record_packets", "rtss_enabled", "radar_enabled",
-                              "pettracker_enabled", "pettracker_overlay", "update_on_close")
+                              "pettracker_enabled", "pettracker_overlay", "update_on_close", "performance_mode")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
                     raise ValueError(f"{flag} must be true or false")
@@ -1867,6 +1868,9 @@ def ui_settings() -> dict:
                 "overlay_open_on_app_start": True,
                 # The app's text size (percent of the shipped size) and the page it opens on (0.2.329).
                 "app_text_scale": 100, "app_default_page": "meter",
+                # Performance mode (Settings → General), for a low-spec PC: the live reading once a second,
+                # the overlay without its smooth ticking and drawn effects, movement kept once a second.
+                "performance_mode": False,
                 # My Character: open the character you opened last when the page opens, and whether that
                 # refreshes it from the official site or shows the last snapshot (both off by default).
                 "character_auto_open": False, "character_auto_refresh": False,

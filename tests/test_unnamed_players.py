@@ -45,3 +45,36 @@ def test_coverage_counts_an_old_recordings_class_striker_as_a_player_not_a_missi
     assert report["unnamed_players"] == 1
     assert [r["entity"] for r in report["unidentified_entities"]] == ["3:7002", "3:7003", "3:7005"]
     assert report["npc_entities_without_type"] == 3
+
+
+def test_an_arena_fight_against_players_the_capture_cannot_name_is_the_arena_match():
+    """0.2.355: they struck only with class skills, so they are players and the fight is PvP; on a
+    confirmed arena map it is typed the arena match, not unverified PvE."""
+    s = CombatSession()
+    s.pvp = False
+    engine = MeterEngine()
+    engine.map_id, engine.last_zone_reset_ms, engine.local_player_id = 61, None, 5001
+    engine.names, engine.roster, engine.known_players = {5001: "Me"}, {"Me": {}}, {5001}
+    t0 = 1_000_000
+    for i in range(6):
+        s.observe(engine, [_hit(7001, 5001, t0 + i * 1000, 14340000), _hit(5001, 7001, t0 + i * 1000 + 500, 15210000)],
+                  timestamp_ms=t0 + i * 1000 + 600)
+    segments = s.to_a2log("party")["segments"]
+    assert [seg["encounter_type"] for seg in segments] == ["pvp_arena"]
+    opponent = next(e for e in segments[0]["entities"] if e["id"].endswith(":7001"))
+    assert opponent["kind"] == "enemy" and opponent["is_player"] is True
+
+
+def test_an_old_recordings_arena_fight_is_retyped_when_read():
+    from aion2calc.combat.unnamed import relabel
+    damage = lambda source, target, skill: {"kind": "damage", "t": 1.0, "source": source, "target": target,
+                                            "skill_id": skill, "amount": 10}
+    arena = {"map_id": 61, "encounter_type": "pve_unverified", "entities": [{"id": "3:7001", "kind": "enemy"}],
+             "events": [damage("3:7001", "p:1", 14340000), damage("p:1", "3:7001", 15210000)]}
+    trash = {"map_id": 1110, "encounter_type": "pve_open_world", "entities": [],
+             "events": [damage("3:7001", "p:1", 14340000)]}
+    npc_only = {"map_id": 61, "encounter_type": "pve_unverified", "entities": [],
+                "events": [damage("3:7002", "p:1", 1800000)]}
+    doc = relabel({"segments": [arena, trash, npc_only]})
+    assert [seg["encounter_type"] for seg in doc["segments"]] == ["pvp_arena", "pve_open_world", "pve_unverified"]
+    assert doc["segments"][0]["zone"] == "Arena (map 61)"

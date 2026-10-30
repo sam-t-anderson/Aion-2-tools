@@ -47,6 +47,28 @@ _SNAPSHOT_BACKLOG_DUTY = 3.0
 # times what the last recompute took (so it never holds more than a quarter of a core).
 _SNAPSHOT_MIN_INTERVAL_S = 0.5
 _SNAPSHOT_DUTY = 3.0
+#: Performance mode (Settings → App & data) for a low-spec PC: the live reading at most once a second and a
+#: smaller share of the time it takes, the overlay polling to match; movement kept once a second.
+_PERFORMANCE_MIN_INTERVAL_S = 1.0
+_PERFORMANCE_DUTY = 5.0
+_PERFORMANCE_POSITION_MS = 1000
+_performance = {"on": False, "read_at": float("-inf")}
+
+
+def performance_mode() -> bool:
+    """Whether performance mode is on, read from the settings at most every five seconds (the live
+    reading asks twice a second). Applies the movement sampling it sets as it reads it."""
+    now = time.monotonic()
+    if now - _performance["read_at"] >= 5.0:
+        _performance["read_at"] = now
+        try:
+            from .server import ui_settings
+            _performance["on"] = ui_settings().get("performance_mode") is True
+        except Exception:
+            _performance["on"] = False
+        from ..meter.session import CombatSession
+        CombatSession.POSITION_EVERY_MS = _PERFORMANCE_POSITION_MS if _performance["on"] else 250
+    return _performance["on"]
 #: Distinct players in scope that make a storage part due (rolled over at the next combat pause)
 #: and that force it regardless; both below the a2log export limit of 1024 identities.
 _ROLLOVER_PLAYERS_DUE = 400
@@ -80,6 +102,8 @@ def upload_evictor():
             doc = json.loads(Path(target).read_text(encoding="utf-8"))
             if share.already_uploaded(doc):
                 return True            # a finished part the server already holds: nothing to send
+            if share.legacy_recording(doc):
+                return True            # an old meter's part, placed by its launcher build only: just delete it
             if share.automatic_uploads_paused():
                 return False           # the server's upload bucket is spent: don't add a rejection
             share.upload(doc)
@@ -183,6 +207,8 @@ class Runner:
 
     def _start(self, source: str, **opts) -> dict:
         self.stop()
+        _performance["read_at"] = float("-inf")
+        performance_mode()                 # the movement sampling it sets, from the first record on
         with self.lock:
             # Starting again on a stopped session that still holds records carries the recording
             # on in the next archive part. Stop saved the live part closed and the automatic
@@ -921,7 +947,9 @@ class Runner:
                 # a detached copy of the session (``_schedule_snapshot``); meanwhile the last completed
                 # reading is served.
                 busy = self.packet_queue is not None and self.packet_queue.qsize() >= _DECODE_BACKLOG_QUEUE
-                interval = (max(_SNAPSHOT_MIN_INTERVAL_S, _SNAPSHOT_DUTY * self._last_snap_cost)
+                light = performance_mode()
+                interval = (max(_PERFORMANCE_MIN_INTERVAL_S if light else _SNAPSHOT_MIN_INTERVAL_S,
+                                (_PERFORMANCE_DUTY if light else _SNAPSHOT_DUTY) * self._last_snap_cost)
                             * (_SNAPSHOT_BACKLOG_DUTY if busy else 1.0))
                 if now - taken > interval:
                     self._schedule_snapshot(key, follow_latest)

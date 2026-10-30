@@ -212,6 +212,12 @@ const KIND_LABEL = { colossus: "Colossus", statue: "Statue", artwork: "Artwork" 
 function deityShort(d) {
   return d.split(" [")[0];
 }
+// A decoration's picture: the game's item icon from aion2hub.com, by item id (0.2.355); none for anything else.
+function decorIcon(r) {
+  const url = String((r && r.icon) || "");
+  if (!/^https:\/\/aion2hub\.com\/api\/icon\/items\/[0-9]{1,12}$/.test(url)) return "";
+  return window.A2AssetHealth ? A2AssetHealth.source(url) : url;
+}
 function pantheonBoardHTML(b) {
   // The in-game board: the colossus in the centre, four statue stands on the inner ring, twelve
   // artwork stands on the outer ring. Each stand shows the recommended decoration.
@@ -238,7 +244,8 @@ function pantheonBoardHTML(b) {
       x = cx + R1 * Math.cos(a),
       y = cy + R1 * Math.sin(a),
       r = statues[i];
-    return `<g class="pslot statue ${r ? "set" : "empty"}"><title>${esc(tip(r) || "Statue stand " + (i + 1) + ": no candidate")}</title><polygon points="${hex(x, y, 40)}"/><text x="${x.toFixed(1)}" y="${(y - 4).toFixed(1)}" text-anchor="middle" class="pn">${esc(short(r?.short, 14))}</text><text x="${x.toFixed(1)}" y="${(y + 12).toFixed(1)}" text-anchor="middle" class="pp">${r ? "+" + r.points : "stand " + (i + 1)}</text></g>`;
+    const pic = decorIcon(r);
+    return `<g class="pslot statue ${r ? "set" : "empty"}"><title>${esc(tip(r) || "Statue stand " + (i + 1) + ": no candidate")}</title><polygon points="${hex(x, y, 40)}"/>${pic ? `<image class="picon" href="${esc(pic)}" x="${(x - 20).toFixed(1)}" y="${(y - 30).toFixed(1)}" width="40" height="40"/><text x="${x.toFixed(1)}" y="${(y + 26).toFixed(1)}" text-anchor="middle" class="pp">+${r.points}</text>` : `<text x="${x.toFixed(1)}" y="${(y - 4).toFixed(1)}" text-anchor="middle" class="pn">${esc(short(r?.short, 14))}</text><text x="${x.toFixed(1)}" y="${(y + 12).toFixed(1)}" text-anchor="middle" class="pp">${r ? "+" + r.points : "stand " + (i + 1)}</text>`}</g>`;
   }).join("");
   const artworks = b.board.artwork || [];
   const outer = Array.from({ length: 12 }, (_, i) => {
@@ -246,18 +253,19 @@ function pantheonBoardHTML(b) {
       x = cx + R2 * Math.cos(a),
       y = cy + R2 * Math.sin(a),
       r = artworks[i];
-    return `<g class="pslot artwork ${r ? "set" : "empty"}"><title>${esc(tip(r) || "Artwork stand " + (i + 1) + ": no candidate")}</title><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="27"/><text x="${x.toFixed(1)}" y="${(y - 2).toFixed(1)}" text-anchor="middle" class="pn">${esc(short(r?.short, 11))}</text><text x="${x.toFixed(1)}" y="${(y + 11).toFixed(1)}" text-anchor="middle" class="pp">${r ? "+" + r.points : ""}</text></g>`;
+    const pic = decorIcon(r);
+    return `<g class="pslot artwork ${r ? "set" : "empty"}"><title>${esc(tip(r) || "Artwork stand " + (i + 1) + ": no candidate")}</title><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="27"/>${pic ? `<image class="picon" href="${esc(pic)}" x="${(x - 17).toFixed(1)}" y="${(y - 23).toFixed(1)}" width="34" height="34"/><text x="${x.toFixed(1)}" y="${(y + 23).toFixed(1)}" text-anchor="middle" class="pp">+${r.points}</text>` : `<text x="${x.toFixed(1)}" y="${(y - 2).toFixed(1)}" text-anchor="middle" class="pn">${esc(short(r?.short, 11))}</text><text x="${x.toFixed(1)}" y="${(y + 11).toFixed(1)}" text-anchor="middle" class="pp">${r ? "+" + r.points : ""}</text>`}</g>`;
   }).join("");
   return `<svg class="pboard" viewBox="0 0 460 460" role="img" aria-label="Recommended Pantheon board">
     <circle class="pring" cx="${cx}" cy="${cy}" r="${R2}"/><circle class="pring" cx="${cx}" cy="${cy}" r="${R1}"/>
     ${outer}${inner}
-    <g class="pslot colossus ${col ? "set" : "empty"}"><title>${esc(tip(col) || "Colossus stand: no candidate")}</title><polygon points="${hex(cx, cy, 58)}"/><text x="${cx}" y="${cy - 8}" text-anchor="middle" class="pn">${esc(short(col?.short, 16))}</text><text x="${cx}" y="${cy + 10}" text-anchor="middle" class="pp">${col ? "+" + col.points : "Colossus"}</text><text x="${cx}" y="${cy + 26}" text-anchor="middle" class="pk">COLOSSUS</text></g>
+    <g class="pslot colossus ${col ? "set" : "empty"}"><title>${esc(tip(col) || "Colossus stand: no candidate")}</title><polygon points="${hex(cx, cy, 58)}"/>${decorIcon(col) ? `<image class="picon" href="${esc(decorIcon(col))}" x="${cx - 23}" y="${cy - 50}" width="46" height="46"/><text x="${cx}" y="${cy + 11}" text-anchor="middle" class="pp">+${col.points}</text><text x="${cx}" y="${cy + 28}" text-anchor="middle" class="pk">COLOSSUS</text>` : `<text x="${cx}" y="${cy - 8}" text-anchor="middle" class="pn">${esc(short(col?.short, 16))}</text><text x="${cx}" y="${cy + 10}" text-anchor="middle" class="pp">${col ? "+" + col.points : "Colossus"}</text><text x="${cx}" y="${cy + 26}" text-anchor="middle" class="pk">COLOSSUS</text>`}</g>
   </svg>`;
 }
 function pantheonListHTML(b) {
   const row = (
     r,
-  ) => `<div class="prow" data-grade="${esc(r.grade || "")}"><div class="pname">${esc(r.short)}${r.grade ? ` <span class="chip">${esc(r.grade)}</span>` : ""}${r.faction ? ` <span class="small faint">${esc(r.faction)}</span>` : ""}</div>
+  ) => `<div class="prow" data-grade="${esc(r.grade || "")}"><div class="pname">${decorIcon(r) ? `<img class="picon" src="${esc(decorIcon(r))}" alt="" width="32" height="32" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}${esc(r.short)}${r.grade ? ` <span class="chip">${esc(r.grade)}</span>` : ""}${r.faction ? ` <span class="small faint">${esc(r.faction)}</span>` : ""}</div>
     <div class="pstats small">${Object.entries(r.stats)
       .map(([k, v]) => `${esc(deityShort(k))} <b>+${v}</b>`)
       .join(" · ")}</div>
@@ -273,7 +281,7 @@ function pantheonListHTML(b) {
     .join(" ");
   return `<div class="ptotals small"><b>Board total</b> ${totals} <span class="gain up">${sp(b.gain)}</span> vs an empty board</div>
     ${ring("colossus", "COLOSSUS · centre")}${ring("statue", "STATUES · inner ring")}${ring("artwork", "ARTWORKS · outer ring")}
-    <p class="small faint">${esc(b.note || "")} Candidates: ${b.catalog?.candidates?.colossus ?? 0} colossi, ${b.catalog?.candidates?.statue ?? 0} statues, ${b.catalog?.candidates?.artwork ?? 0} artworks with a known effect${b.faction ? ` (your faction: ${esc(b.faction)})` : " (faction unknown: both factions' pieces shown)"}.</p>`;
+    <p class="small faint">${esc(b.note || "")} ${b.catalog?.images ? esc(b.catalog.images) + "." : ""} Candidates: ${b.catalog?.candidates?.colossus ?? 0} colossi, ${b.catalog?.candidates?.statue ?? 0} statues, ${b.catalog?.candidates?.artwork ?? 0} artworks with a known effect${b.faction ? ` (your faction: ${esc(b.faction)})` : " (faction unknown: both factions' pieces shown)"}.</p>`;
 }
 function advPantheon(a) {
   const p = a.pantheon;

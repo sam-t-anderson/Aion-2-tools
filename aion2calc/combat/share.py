@@ -236,6 +236,17 @@ def remember_uploaded(doc: dict) -> None:
         pass
 
 
+def legacy_recording(doc: dict) -> bool:
+    """A recording made before the meter read the game's Product version (app 0.2.66 and earlier): only
+    the launcher's build id places it, and it predates the segmentation and identity fixes since. The
+    upload before the size cap deletes a part skips it: a three-week-old session's 176 parts of a few
+    seconds each reached the server one by one as the cap reclaimed them (29-30 October)."""
+    meta = doc.get("meta") if isinstance(doc, dict) else None
+    if not isinstance(meta, dict):
+        return False
+    return meta.get("installed_build_namespace") != "aion2:product" and str(meta.get("game_patch") or "").startswith("build:")
+
+
 def already_uploaded(doc: dict) -> bool:
     """True when this finished part was uploaded from this install before (the server would only
     answer "deduped" again, after spending one more slot of the hourly upload bucket)."""

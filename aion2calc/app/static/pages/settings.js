@@ -766,6 +766,7 @@ async function pageSettings() {
     <div class="setrow" data-g="appearance"><div class="lbl">Accent colour</div><div><div class="seg">${ACCENTS.map((x) => `<button data-accent-btn="${x}" class="${x === getAccent() ? "on" : ""}">${x[0].toUpperCase() + x.slice(1)}</button>`).join("")}</div><p class="small muted">Recolours the app's accent on top of your light/dark theme.</p></div></div>
     <div class="setrow" data-g="system"><div class="lbl">Open as its own window</div><div><label><input type="checkbox" id="appwin" ${ui.app_window !== false ? "checked" : ""}> start in a separate app window (Edge or Chrome) instead of a browser tab; closing it stops the app</label><p class="small muted">The window opens at 1920×1080, or as large as the screen allows when it is smaller, centred; it is not maximized, so you can place and size it.</p></div></div>
     <div class="setrow" data-g="system"><div class="lbl">Text size</div><div><label>Size of the app's text <select id="textscale">${[70, 80, 90, 100, 110, 120, 130, 140, 150].map((p) => `<option value="${p}" ${(parseInt(ui.app_text_scale, 10) || 100) === p ? "selected" : ""}>${p}%</option>`).join("")}</select></label><p class="small muted">Scales every word in the app, and the layout with it, like the browser's zoom; 100% is the size the app ships with. The overlay's text has its own size under Live meter overlay.</p></div></div>
+    <div class="setrow" data-g="system"><div class="lbl">Performance mode</div><div><label><input type="checkbox" id="perfmode" ${ui.performance_mode === true ? "checked" : ""}> Lighter on a low-spec PC <span class="muted">(off by default)</span></label><p class="small muted">The live meter works out its numbers every second instead of twice a second and records where everyone stands once a second; the overlay refreshes every second and holds still in between (no live-ticking numbers, frame counter, animations or colour effects that move), and the app's pages stop animating. Every reading stays as accurate; it only updates less often. Takes effect within a few seconds, and from the next fight for the movement replay.</p></div></div>
     <div class="setrow" data-g="system"><div class="lbl">Language</div><div><span id="setlang" class="lang-slot"></span><p class="small muted">The app's buttons, headings and short texts; the game's names, long explanations, the overlay and the reports stay in English. The same choice as at the top of the page.</p></div></div>
     <div class="setrow" data-g="system"><div class="lbl">Page at launch</div><div><label>Open the app on <select id="defaultpage">${LAUNCH_PAGES.map(([id, label]) => `<option value="${id}" ${(ui.app_default_page || "meter") === id ? "selected" : ""}>${label}</option>`).join("")}</select></label><p class="small muted">The page the app shows when it starts, and when the tray icon or the Open-app hotkey brings it back. Links to the other pages work as before.</p></div></div>
     <div class="setrow" data-g="system"><div class="lbl">My Character at launch</div><div><label><input type="checkbox" id="char-auto-open" ${ui.character_auto_open === true ? "checked" : ""}> Show the character you opened last when My Character opens <span class="muted">(off by default)</span></label>
@@ -1640,6 +1641,11 @@ async function pageSettings() {
     S.ui.app_text_scale = v;
     applyTextScale(S.ui);
     api("/api/ui", { app_text_scale: v }).then(() => toast("Saved"));
+  };
+  $("#perfmode").onchange = () => {
+    S.ui.performance_mode = $("#perfmode").checked;
+    applyPerformanceMode(S.ui);
+    api("/api/ui", { performance_mode: S.ui.performance_mode }).then(() => toast("Saved"));
   };
   if (window.A2I18n) window.A2I18n.picker($("#setlang")); // choosing reloads the app in that language
   $("#defaultpage").onchange = () =>

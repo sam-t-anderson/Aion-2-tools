@@ -16,7 +16,7 @@ from importlib.resources import files
 
 from .framing import FrameKind, decompress_bundle, read_varint, walk, walk_inner
 from .models import DamageEvent, HealEvent, SpecialDamage
-from .lookup import has_skill, is_heal_skill, normalize_skill, decode_spec_flags, job_from_roster
+from .lookup import has_skill, is_heal_skill, normalize_skill, decode_spec_flags, job_from_roster, restored_resource
 
 try:
     DOT_SKILLS = set(json.loads(files(__package__).joinpath("data", "dot_skill_ids.json").read_text(encoding="utf-8")))
@@ -1459,6 +1459,12 @@ def scan_zone_state(data: bytes) -> tuple[bool, int | None]:
     return zone_change, map_id
 
 
+def _restore(event) -> bool:
+    """A heal record that is the Stamina or MP its skill restores (``lookup.restored_resource``), not HP:
+    the decoder leaves it out, so no meter, export or review counts it as healing (0.2.355)."""
+    return isinstance(event, HealEvent) and restored_resource(event.skill_code, event.amount) is not None
+
+
 def decode_stream(data: bytes, timestamp_ms: int | None = None,
                   known_entities: set[int] | None = None,
                   seen_embedded: set[bytes] | None = None,
@@ -1486,11 +1492,11 @@ def decode_stream(data: bytes, timestamp_ms: int | None = None,
                 if found_context is not None:
                     pending_context = found_context
             direct = parse_damage_packet(frame, timestamp_ms, known_entities, pending_context, known_players)
-            yield from direct
+            yield from (e for e in direct if not _restore(e))
             if pending_context and any(e.actor_id == pending_context[0] and e.skill_code == pending_context[1] for e in direct):
                 pending_context = None
             effect = parse_dot_packet(frame, timestamp_ms) if not direct else None
-            if effect is not None:
+            if effect is not None and not _restore(effect):
                 yield effect
             if direct:
                 continue

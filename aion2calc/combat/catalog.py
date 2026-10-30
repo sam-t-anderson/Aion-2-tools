@@ -44,8 +44,10 @@ def supplement_source():
     source = doc.get("source") if isinstance(doc, dict) else None
     if not isinstance(source, dict):
         return {}
+    npcs = doc.get("npcs") or {}
+    named = sum(1 for row in npcs.values() if isinstance(row, dict) and row.get("name"))
     return {**{key: source.get(key) for key in ("name", "urls", "retrieved_at", "note")},
-            "npc_names": len(doc.get("npcs") or {}), "dungeon_names": len(doc.get("dungeons") or {})}
+            "npc_names": named, "unnamed_npc_types": len(npcs) - named, "dungeon_names": len(doc.get("dungeons") or {})}
 
 
 def gaps():

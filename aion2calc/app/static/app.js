@@ -249,6 +249,12 @@ function applyTextScale(ui) {
   const pct = Math.max(70, Math.min(150, parseInt((ui || {}).app_text_scale, 10) || 100));
   document.body.style.zoom = pct === 100 ? "" : String(pct / 100);
 }
+// Performance mode (Settings → App & data, 0.2.355): for a low-spec PC the app's pages hold still (no animation,
+// transition or blur behind the top bar) and the Live Meter page refreshes less often; the overlay and the meter
+// read the same setting.
+function applyPerformanceMode(ui) {
+  document.body.classList.toggle("perf", (ui || {}).performance_mode === true);
+}
 
 // ------------------------------------------------------------- theme & accent
 const THEMES = ["system", "light", "dark"];
@@ -509,6 +515,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     S.ui = {};
   }
   applyTextScale(S.ui);
+  applyPerformanceMode(S.ui);
   // What's new: the release notes once after an update (patch-notes.js), over whichever page opens.
   if (window.A2PatchNotes) window.A2PatchNotes.check(api);
   const page = LAUNCH_PAGES.some(([id]) => id === S.ui.app_default_page) ? S.ui.app_default_page : "meter";

@@ -4,13 +4,56 @@ from __future__ import annotations
 import re
 
 
+#: The game's Product version behind a Steam launcher build, from installs that recorded both: the
+#: executable's ProductVersion beside the Steam app manifest's build id (the diagnostic captures of
+#: 10-23 October, and a 0.2.354 upload's install evidence). A meter of 0.2.66 or earlier read only the
+#: build id; its recordings join their Product version's comparison group through this table, and a
+#: build id it does not hold stays a group of its own ("Legacy build"). Hosts add the pairs they see
+#: (``learn_launcher_products``): the log server learns them from its uploads.
+LAUNCHER_PRODUCTS = {("steam:3393110", "25800038"): "2.0.6.0", ("steam:3393110", "25926599"): "1.0.21.0",
+                     ("steam:3393110", "26077854"): "2.0.8.0", ("steam:3393110", "26262663"): "2.0.9.0"}
+_learned_products: dict = {}
+
+
+def learn_launcher_products(pairs) -> None:
+    """Add the ``((namespace, build), product)`` pairs a host has seen recorded together (or a dict of
+    them). A build seen with two Product versions maps to neither, for good: a guess would merge two
+    groups. A bundled pair stands whatever is learned."""
+    for key, product in (pairs.items() if isinstance(pairs, dict) else pairs or ()):
+        if not (isinstance(key, tuple) and len(key) == 2 and isinstance(product, str) and product) or key in LAUNCHER_PRODUCTS:
+            continue
+        _learned_products[key] = product if _learned_products.get(key, product) == product else ""
+
+
+def launcher_product(namespace, build) -> str | None:
+    """The Product version (four components) a launcher build is known to carry, else None."""
+    key = (str(namespace or ""), str(build or ""))
+    return LAUNCHER_PRODUCTS.get(key) or _learned_products.get(key) or None
+
+
+def launcher_pair(meta) -> tuple[tuple[str, str], str] | None:
+    """``((namespace, build), product)`` from a recording's install evidence when it holds both the
+    launcher build and the executable's Product version, else None."""
+    if not isinstance(meta, dict) or meta.get("installed_build_namespace") != "aion2:product":
+        return None
+    namespace, build, version = (str(meta.get(k) or "") for k in ("launcher_build_namespace", "launcher_build", "installed_build"))
+    if not (re.fullmatch(r"steam:[0-9]{1,12}", namespace) and re.fullmatch(r"[0-9]{1,20}", build)
+            and re.fullmatch(r"[0-9]{1,12}(?:\.[0-9]{1,12}){3,7}", version)):
+        return None
+    return (namespace, build), ".".join(version.split(".")[:4])
+
+
 def comparison_version(value: str) -> str:
-    """Drop only numeric ProductVersion suffixes after its four core components."""
+    """Drop only numeric ProductVersion suffixes after its four core components; a legacy launcher
+    build's key becomes its Product version's when the build is known to carry one."""
     value = str(value or "").strip()
     prefix = "version:product:"
     version = value[len(prefix):] if value.startswith(prefix) else value
     if re.fullmatch(r"[0-9]{1,12}(?:\.[0-9]{1,12}){3,7}", version):
         return (prefix if value.startswith(prefix) else "") + ".".join(version.split(".")[:4])
+    legacy = re.fullmatch(r"build:(steam:[0-9]{1,12}):([0-9]{1,20})", value)
+    if legacy and (product := launcher_product(legacy[1], legacy[2])):
+        return prefix + product
     return value
 
 

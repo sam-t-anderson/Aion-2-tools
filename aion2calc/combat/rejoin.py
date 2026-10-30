@@ -1,8 +1,8 @@
-"""Encounters the live meter of 0.2.353 and earlier cut wrongly, put right in recordings already made.
+"""Encounters the live meter of 0.2.354 and earlier cut wrongly, put right in recordings already made.
 
-Two segmentation faults, fixed in the meter at 0.2.354, are undone here, so the log server (which
-applies this whenever it loads a stored recording; the stored upload is never changed) sees each
-fight once and whole:
+These segmentation faults, fixed in the meter at 0.2.354 and 0.2.355, are undone here, so the log
+server (which applies this whenever it loads a stored recording; the stored upload is never changed)
+sees each fight once and whole:
 
 * **A stretched fight.** A death closed the most recent earlier fight that had involved the entity,
   even when the next fight had already begun: a player dying in the next fight, or one of its adds,
@@ -15,6 +15,12 @@ fight once and whole:
   the same boss entity are one fight when the boss was alive at the cut, its health carried on (not
   back at full, never higher than it was) and the second half resumed within ``RESUME_SECONDS``.
 
+* **A boss fight's stray pieces** (0.2.355). A zone load into the boss's room begins the fight's
+  segment, and the boss split armed by the previous kill still fired at the party's first hit: the
+  boss's opening blow was an encounter of its own, a few milliseconds long. It joins the fight. And a
+  dead boss still striking the party once the fight was won (Ultimate Berk, for some 17 s) opened an
+  encounter with no party damage, past the run's end; it is marked as the fight's.
+
 The whole fight takes the second half's index (links to it stay valid); the first half keeps its own
 and is marked ``continued_in`` the whole fight's, which leaves it out of rankings (``quality``). A
 boss seen at zero health in a segment is its kill, as a death record would be. Recorded samples are
@@ -26,6 +32,8 @@ from copy import deepcopy
 from datetime import datetime
 
 RESUME_SECONDS = 30
+#: A boss's blows before the party's first hit on it are that fight's within this many seconds.
+OPENING_SECONDS = 5
 #: The boss's first reading after the cut may sit this share of its maximum above its last reading
 #: before it (a regeneration tick, rounding); more than that is a heal, and a full reading a reset.
 HP_SLACK = 0.01
@@ -212,9 +220,44 @@ def merge_segments(first, second) -> dict:
     return merged
 
 
+def _party_damage(segment) -> bool:
+    return any(isinstance(h, dict) and _num(h.get("damage")) and h["damage"] > 0 for h in segment.get("hits") or [])
+
+
+def _strikers(segment) -> set:
+    return {e.get("source") for e in segment.get("events") or []
+            if isinstance(e, dict) and e.get("kind") == "damage" and e.get("source") is not None}
+
+
+def after_kill(fight, after) -> bool:
+    """Whether ``after`` holds only what ``fight``'s dead did once it was won: no party damage, every
+    blow struck by an entity that died in ``fight``, begun within ``RESUME_SECONDS`` of its end
+    (Ultimate Berk strikes the party for some 17 s after its death)."""
+    if _epoch(fight) is None or _epoch(fight) != _epoch(after) or _party_damage(after):
+        return False
+    a, b = _stamp(fight.get("start")), _stamp(after.get("start"))
+    if a is None or b is None or not -1.0 <= b - (a + float(fight.get("duration") or 0)) <= RESUME_SECONDS:
+        return False
+    strikers = _strikers(after)
+    return bool(strikers) and strikers <= dead_entities(fight)
+
+
+def opening_blow(before, fight) -> bool:
+    """Whether ``before`` holds only the first blows of a boss the party fights in ``fight``, struck
+    within ``OPENING_SECONDS`` before the party's first hit on it, with no party damage of its own."""
+    if _epoch(before) is None or _epoch(before) != _epoch(fight) or _party_damage(before):
+        return False
+    a, b = _stamp(before.get("start")), _stamp(fight.get("start"))
+    if a is None or b is None or not 0 <= b - a <= OPENING_SECONDS or float(before.get("duration") or 0) > OPENING_SECONDS:
+        return False
+    strikers = _strikers(before)
+    return bool(strikers) and strikers <= set(engaged_bosses(fight))
+
+
 def rejoin(doc):
-    """A copy of ``doc`` with stretched segments clipped and boss fights cut in two made whole, or
-    ``doc`` itself when nothing needed it. ``meta.repairs`` says what was done."""
+    """A copy of ``doc`` with stretched segments clipped, boss fights cut in two made whole and a boss
+    fight's stray pieces put with it, or ``doc`` itself when nothing needed it. ``meta.repairs`` says
+    what was done."""
     if not isinstance(doc, dict) or not isinstance(doc.get("segments"), list) or len(doc["segments"]) < 1:
         return doc
     if isinstance(doc.get("meta"), dict) and doc["meta"].get("repairs"):
@@ -250,12 +293,33 @@ def rejoin(doc):
             out[part] = {**recorded[part], "continued_in": i + 1}
             out[part].pop("quality", None)
         rejoined.append([i, i + 1])
-    if not (clipped or rejoined or killed):
+    # A boss fight's stray pieces (meter 0.2.354 and earlier): the boss's opening blow cut off at the
+    # party's first hit, when a zone load had already begun the fight's own segment, joins the fight;
+    # what its dead struck once the fight was won is marked as the fight's, not an encounter.
+    openings, afters = [], []
+    for i in range(len(out) - 1):
+        a, b = out[i], out[i + 1]
+        if not (isinstance(a, dict) and isinstance(b, dict)) or a.get("continued_in") is not None or b.get("continued_in") is not None:
+            continue
+        if opening_blow(a, b):
+            out[i + 1] = merge_segments(a, b)
+            out[i] = {**a, "continued_in": i + 1, "fragment": "opening_blow"}
+            out[i].pop("quality", None)
+            openings.append([i, i + 1])
+        elif after_kill(a, b):
+            out[i + 1] = {**b, "continued_in": i, "fragment": "after_kill"}
+            out[i + 1].pop("quality", None)
+            afters.append([i, i + 1])
+    if not (clipped or rejoined or killed or openings or afters):
         return doc
     meta = dict(doc.get("meta") or {})
-    meta["repairs"] = {"version": 1, "clipped": clipped, "rejoined": rejoined, "killed_at_zero_health": killed,
+    meta["repairs"] = {"version": 2, "clipped": clipped, "rejoined": rejoined, "killed_at_zero_health": killed,
+                       "opening_blows": openings, "after_kills": afters,
                        "note": "Segments stretched across the next fight by a later death are clipped where it began; "
                                "a boss fight the meter cut in two (the same boss entity alive at the cut, its health "
                                "carrying on, resumed within 30 s) is one encounter at the second half's index, the "
-                               "first half marked continued_in it. Meter 0.2.354 records neither fault."}
+                               "first half marked continued_in it. Meter 0.2.354 records neither fault. A boss's opening "
+                               "blow cut off before the party's first hit joins the fight; what a fight's dead struck "
+                               "after it was won (no party damage) is marked continued_in it. Meter 0.2.355 records "
+                               "neither."}
     return {**doc, "meta": meta, "segments": out}

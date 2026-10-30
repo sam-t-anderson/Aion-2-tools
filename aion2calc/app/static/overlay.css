@@ -233,6 +233,10 @@ html.native-windows #ovbg { border-radius: 0; }
 /* While the live-ticking numbers are on, the tick eases each bar's length itself, so the transition only
    added a 180 ms width animation (a style and layout pass every frame) after each of its writes. */
 #ov.ov-ticking .ovbar i { transition: none; }
+/* Performance mode (0.2.355): nothing moves between polls. The bars and numbers take each poll's values at
+   once; the colour cycle, the sheen and a long name's scroll hold still, so the window repaints only when a
+   reading changes. */
+#ov.ov-perf *, #ov.ov-perf *::before, #ov.ov-perf *::after { animation: none !important; transition: none !important; }
 /* Optional bar styles (Settings → Overlay layout). Gradient darkens toward the
    right; rounded makes the bar a pill. Both compose with any class colour. The row's
    corners round by half the bar's height, not more: an open row also holds the skill

@@ -158,6 +158,8 @@ Windows setup selects **Download and install Npcap for Live Capture** by default
 
 **Live Meter → Live Capture → Start** uses the built-in decoder, all available adapters in **Auto**, host **any**, and automatic game-port detection. Enter combat to establish a recognized game flow. Packet and event counters distinguish adapter/permission problems from unrecognized protocol traffic. Disable detection to use a known fixed port (initial value `50349`). Stop cancels recording and retains the last result for export; Quit closes capture and the overlay. Custom decoders are trusted Python `.py` imports whose code executes when capture starts.
 
+**On a low-spec PC** (a Windows 10 laptop, an older processor or graphics card), turn on **Settings → App & data → Performance mode**. The meter, the overlay and the app keep every reading and update it less often: the live reading once a second, the overlay polling every second and holding still in between (no live-ticking numbers, FPS readout or moving effects), and the app's pages without animation. See [the app guide](app.md#settings).
+
 The overlay can open with the app (Settings → Overlay → "Open the overlay when the app starts", on by default) so it's ready at launch, or only when you start the meter ("Show overlay when starting the live meter") — both are independent.
 
 Two overlay readouts are off by default: a **strip of your skills on cooldown**, counting down from the cooldown the game sent with each cast (your cooldown reduction included; choose the shortest cooldown shown, the number of icons and whether it sits below the meter or above the player rows), and the current target's **break gauge** on the boss card. See [the app guide](app.md#skill-cooldowns-and-the-break-gauge).

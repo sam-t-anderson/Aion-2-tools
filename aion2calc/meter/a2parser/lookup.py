@@ -106,6 +106,62 @@ def is_heal_skill(skill_code) -> bool:
     return (code - code % 10_000) in heal_skill_families()
 
 
+#: "Restores 1,000 Stamina", "restores {4} Stamina", "Restores <chat_combat>{1}</> MP and Stamina".
+_RESTORE_TIP = re.compile(r"\brestores?\s+(?:<[^>]*>)?(\{\d+\}|\d[\d,]*)(?:</>)?\s+(MP and Stamina|Stamina|MP)\b", re.I)
+
+
+@lru_cache(maxsize=1)
+def resource_restores() -> dict[int, tuple[frozenset[int], frozenset[int]]]:
+    """Skill family -> (the MP amounts, the Stamina amounts) its description and specializations say
+    it restores, at every skill level (a placeholder's values from the skill's level table)."""
+    found: dict[int, tuple[set, set]] = {}
+    try:
+        from ...paths import list_names, read_json
+        for cls in list_names("global", "classes"):
+            try:
+                doc = read_json("global", "classes", f"{cls}.json")
+            except Exception:
+                continue
+            for skill in (doc.get("skills") or []) if isinstance(doc, dict) else []:
+                sid = skill.get("id")
+                if not isinstance(sid, int) or isinstance(sid, bool):
+                    continue
+                texts = [skill.get("tip")] + [s.get("text") for s in skill.get("specs") or [] if isinstance(s, dict)]
+                for text in texts:
+                    for value, kind in _RESTORE_TIP.findall(text if isinstance(text, str) else ""):
+                        if value.startswith("{"):
+                            k = int(value[1:-1])
+                            levels = [row[k] for row in skill.get("vals") or [] if isinstance(row, list) and len(row) > k]
+                            amounts = {v[0] if isinstance(v, list) and v else v for v in levels}
+                        else:
+                            amounts = {int(value.replace(",", ""))}
+                        amounts = {round(v) for v in amounts
+                                   if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0}
+                        mp, stamina = found.setdefault(sid - sid % 10_000, (set(), set()))
+                        if "MP" in kind.upper().split():
+                            mp.update(amounts)
+                        if "STAMINA" in kind.upper():
+                            stamina.update(amounts)
+    except Exception:
+        pass
+    return {family: (frozenset(mp), frozenset(stamina)) for family, (mp, stamina) in found.items()}
+
+
+def restored_resource(skill_code, amount) -> str | None:
+    """"Stamina" or "MP" when a heal record of ``amount`` by this skill is the Stamina or MP its own
+    text says it restores, else None (HP). The game sends both in the layout of an HP restore, Stamina
+    in hundredths: Defiance's "Restores 1,000 Stamina" arrives as a heal of 100,000, Shield of
+    Protection's "Restores {1} MP and Stamina" as 200 and 20,000."""
+    try:
+        code, value = int(skill_code), float(amount)
+    except (TypeError, ValueError):
+        return None
+    mp, stamina = resource_restores().get(code - code % 10_000, ((), ()))
+    if value % 100 == 0 and value // 100 in stamina:
+        return "Stamina"
+    return "MP" if value in mp else None
+
+
 #: A Spiritmaster's basic elemental spirits (one out at a time) vs the Ancient Spirit
 #: (which can be out alongside a basic spirit). Their own attack skills are named
 #: "<Element> Spirit: <skill>" in the game tables; that element decides the category.
@@ -333,6 +389,18 @@ def _community_overlay() -> dict:
     return out
 
 
+#: What an NPC the game has no name for is called, by its type in the supplement. The game shows
+#: "???" for the invisible summons a boss's mechanics strike with, a class's ground effects, flags
+#: and timers, and the catalog lists them so in every language.
+UNNAMED_LABELS = {"Summon": "Unnamed summon"}
+UNNAMED_NPC = "Unnamed NPC"
+
+
+def unnamed(name) -> bool:
+    """Whether ``name`` is the game's placeholder for an NPC it does not name ("???", "?", blank)."""
+    return not isinstance(name, str) or name.strip(" ?") == ""
+
+
 def npc_info(mob_code: int, locale: str = "en") -> dict:
     info = _table("npcs", locale).get(str(mob_code), {})
     if not isinstance(info, dict):
@@ -340,6 +408,12 @@ def npc_info(mob_code: int, locale: str = "en") -> dict:
     override = _npc_overrides().get(str(mob_code))
     if isinstance(override, dict):
         info = {**info, **{k: v for k, v in override.items() if k not in ("source", "note")}}
+    if info and unnamed(info.get("name")):
+        # A row the game names "???": labelled by what it is (the supplement's NPC type), marked
+        # ``unnamed`` so nothing takes the label for a name. Its catalog fields stay as they are.
+        row = _supplement().get("npcs", {}).get(str(mob_code))
+        kind = row.get("type") if isinstance(row, dict) and isinstance(row.get("type"), str) else None
+        info = {**info, "name": UNNAMED_LABELS.get(kind, UNNAMED_NPC), "unnamed": True, **({"npc_type": kind} if kind else {})}
     comm = _community_overlay().get(str(mob_code), {})
     supplement = _supplement().get("npcs", {}).get(str(mob_code)) if not info else None
     if isinstance(supplement, dict) and isinstance(supplement.get("name"), str) and supplement["name"].strip():

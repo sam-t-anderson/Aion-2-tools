@@ -44,6 +44,21 @@ def heal_kind(skill_id, skill: str | None = None) -> str:
     return "instant"
 
 
+def drop_restores(segment) -> int:
+    """Leave out of ``segment``'s events, in place, the heal records that are the Stamina or MP their
+    skill restores (``lookup.restored_resource``), which a meter of 0.2.354 or earlier recorded as
+    healing: Defiance's 1,000 Stamina counted as a heal of 100,000. How many there were."""
+    from ..meter.a2parser.lookup import restored_resource
+    events = segment.get("events") if isinstance(segment, dict) else None
+    if not isinstance(events, list):
+        return 0
+    kept = [e for e in events if not (isinstance(e, dict) and e.get("kind") == "heal"
+                                      and restored_resource(e.get("skill_id"), e.get("amount")))]
+    if len(kept) < len(events):
+        segment["events"] = kept
+    return len(events) - len(kept)
+
+
 def _readings(segment: dict, targets: set) -> dict:
     out = defaultdict(list)
     for sample in segment.get("health") or []:
