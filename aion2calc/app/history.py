@@ -2,8 +2,10 @@
 import hashlib
 import json
 import os
+import re
 import time
 import uuid
+from pathlib import Path
 
 from ..paths import home, results_dir
 
@@ -18,9 +20,14 @@ def folder():
 
 
 def path(identifier):
-    if not isinstance(identifier, str) or len(identifier) != 24 or any(c not in "0123456789abcdef" for c in identifier):
+    """The snapshot file a history ID names (24 hex digits, from a request), never outside the history folder."""
+    if not isinstance(identifier, str) or not re.fullmatch(r"[0-9a-f]{24}", identifier):
         raise ValueError("Invalid history ID")
-    return folder() / (identifier + ".json")
+    base = os.path.realpath(folder())
+    target = os.path.realpath(os.path.join(base, identifier + ".json"))
+    if not target.startswith(base + os.sep):
+        raise ValueError("Invalid history ID")
+    return Path(target)
 
 
 def validate(doc):

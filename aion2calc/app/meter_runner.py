@@ -102,8 +102,8 @@ def upload_evictor():
             doc = json.loads(Path(target).read_text(encoding="utf-8"))
             if share.already_uploaded(doc):
                 return True            # a finished part the server already holds: nothing to send
-            if share.legacy_recording(doc):
-                return True            # an old meter's part, placed by its launcher build only: just delete it
+            if share.stale_part(doc):
+                return True            # a part of an old meter's recording from weeks ago: just delete it
             if share.automatic_uploads_paused():
                 return False           # the server's upload bucket is spent: don't add a rejection
             share.upload(doc)
