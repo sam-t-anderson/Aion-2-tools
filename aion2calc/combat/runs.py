@@ -10,6 +10,9 @@ from ..meter.a2parser.lookup import npc_info
 NOTE = ("Timing uses recorded wall-clock boundaries and the union of encounter intervals, not time spent actively pressing skills. "
         "Unknown outcomes are not wipes. Missing HP or death markers are unavailable, not zero. "
         "Speed eligibility uses submitted entry/final-boss evidence, not an official result or authenticity guarantee.")
+#: Seconds two recorded wall-clock instants may differ by and still be the same instant: a segment's
+#: millisecond start plus its float duration rounds a few hundred nanoseconds off.
+CLOCK_SLACK = 0.001
 
 
 def stamp(value):
@@ -75,15 +78,22 @@ def summarize(doc):
     for identifier, selected in groups.items():
         selected.sort(key=lambda item:(stamp(item[1].get("start")) if stamp(item[1].get("start")) is not None else float("inf"), item[0]))
         segments = [s for _, s in selected]
-        intervals, timing_ok = [], True
+        intervals, actions, timing_ok = [], [], True
         for segment in segments:
             start = stamp(segment.get("start"))
             if start is None:
                 timing_ok = False
             else:
                 intervals.append((start, start+segment["duration"]))
+                hits = [h["t"] for h in segment.get("hits", []) if h.get("damage", 0) > 0]
+                if hits:
+                    actions.append(start+max(hits))
         first = min((a for a, _ in intervals), default=None)
         last = max((b for _, b in intervals), default=None)
+        # The run ends at the final boss's death. The party acts before it; what is recorded after it
+        # -- the boss's death record a moment later, a mechanic still striking the party, its heals --
+        # is not the run running on.
+        acted = max(actions, default=None)
         combat = union_seconds(intervals) if timing_ok else None
         span = last-first if timing_ok and first is not None else None
         entries = {s.get("run_started_at") for s in segments}
@@ -92,8 +102,10 @@ def summarize(doc):
         ended = stamp(next(iter(ends))) if len(ends) == 1 else None
         start_observed = bool(entry is not None and all(s.get("run_start_observed") is True for s in segments))
         complete = all(s.get("run_complete") is True for s in segments)
-        elapsed = ended-entry if (timing_ok and start_observed and complete and ended is not None
-                                  and entry <= first <= last <= ended) else None
+        # The killing hit's start plus offset lands a float's rounding off the run's end (0.000 000 2 s
+        # past it in an uploaded run), which is not later.
+        elapsed = ended-entry if (timing_ok and start_observed and complete and ended is not None and entry-CLOCK_SLACK <= first
+                                  and (acted is None or acted <= ended+CLOCK_SLACK)) else None
         reasons = []
         if not start_observed:
             reasons.append("Instance entry was not observed.")
@@ -116,7 +128,9 @@ def summarize(doc):
             participants.update(h["player"] for h in segment.get("hits", []))
             participants.update(segment.get("party_members", []))
             quality = assess(doc, segment)
-            common = set(quality["reasons"])-{"boss_unverified", "start_unverified", "end_unverified"}
+            # A stretch between bosses with no party damage (the party healing up while a mechanic
+            # strikes) says nothing about the capture: it is not an encounter's to rank, nor a fault.
+            common = set(quality["reasons"])-{"boss_unverified", "start_unverified", "end_unverified", "no_damage"}
             if common:
                 reasons.append("One or more encounters have incomplete capture/identity evidence.")
             for boss in segment.get("entities", []):

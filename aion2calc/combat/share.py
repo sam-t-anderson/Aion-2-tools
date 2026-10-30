@@ -236,6 +236,33 @@ def remember_uploaded(doc: dict) -> None:
         pass
 
 
+#: A meter before this version could cut one recording into hundreds of parts of a few seconds: until 0.2.243 a
+#: zone load inside an instance forced a storage rollover, and until 0.2.290 All scope in a crowd forced one with
+#: every packet batch.
+FRAGMENTING_METERS_BEFORE = (0, 2, 290)
+#: A part saved this long before it is uploaded comes from a log cache making room, not from a fight just played.
+STALE_AFTER_S = 7 * 86400
+
+
+def stale_part(doc: dict, now: float | None = None) -> bool:
+    """A part of a recording a meter before 0.2.290 made, saved a week or more before ``now`` (the upload time;
+    this machine's clock when omitted). The log cache uploaded such recordings part by part as it made room:
+    four of them, by meters 0.2.59 to 0.2.209, became some 450 public logs of a few seconds each on 29 and 30
+    October. The upload before the size cap deletes such a part skips it, and the log server lists one it
+    receives unlisted. A part without its meter's version or its save time is not one."""
+    meta = doc.get("meta") if isinstance(doc, dict) else None
+    if not isinstance(meta, dict) or not isinstance(meta.get("archive"), dict):
+        return False
+    quality = meta.get("capture_quality") if isinstance(meta.get("capture_quality"), dict) else {}
+    meter = re.match(r"(\d{1,6})\.(\d{1,6})\.(\d{1,6})", str(quality.get("app_version") or ""))
+    saved = meta.get("checkpoint_at")                       # epoch seconds, when the part was last saved
+    if (not meter or tuple(map(int, meter.groups())) >= FRAGMENTING_METERS_BEFORE
+            or type(saved) not in (int, float) or not 0 < saved < 1e11):
+        return False
+    import time
+    return (time.time() if now is None else now) - saved >= STALE_AFTER_S
+
+
 def already_uploaded(doc: dict) -> bool:
     """True when this finished part was uploaded from this install before (the server would only
     answer "deduped" again, after spending one more slot of the hourly upload bucket)."""

@@ -83,7 +83,7 @@ def aggregate(docs) -> dict:
             "mob_code": code,
             "name": name,
             "known": bool(info),
-            "placeholder": bool(code) and (not info or _placeholder(name)),
+            "placeholder": bool(code) and (not info or info.get("unnamed") is True or _placeholder(name)),
             "logs": len(per_code_logs[code]),
             "epochs": len(per_code_epochs[code]),
             "records": records[code],

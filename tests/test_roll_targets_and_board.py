@@ -124,6 +124,10 @@ def test_the_bundled_catalog_yields_a_full_board_for_a_class():
     assert len(b["board"]["colossus"]) == 1 and len(b["board"]["statue"]) == 4 and len(b["board"]["artwork"]) == 12
     assert b["board"]["colossus"][0]["short"] == "Guardian Lord Nahma" and b["board"]["colossus"][0]["sources"]
     assert all(r["stats"] and r["gain"] >= 0 for rows in b["board"].values() for r in rows)
+    # Each pick shows the game's icon for its item id (0.2.355), credited on the board
+    assert b["board"]["colossus"][0]["icon"] == f"https://aion2hub.com/api/icon/items/{b['board']['colossus'][0]['id']}"
+    assert all(r["icon"].endswith(f"/items/{r['id']}") for rows in b["board"].values() for r in rows)
+    assert b["catalog"]["images"] == "Decoration pictures: the game's item icons, from aion2hub.com"
 
 
 @pytest.mark.parametrize("scenario, mode", [("boss", "pve"), ("pvp", "pvp")])

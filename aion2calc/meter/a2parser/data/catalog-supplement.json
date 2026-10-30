@@ -7,7 +7,7 @@
    "npcs": "https://dbaion2.ru/data-en/npcs.json",
    "dungeons": "https://dbaion2.ru/data-en/dungeons.json"
   },
-  "retrieved_at": "2026-10-28T05:49:11.812315+00:00",
+  "retrieved_at": "2026-10-30T09:56:34.351202+00:00",
   "sha256": {
    "npcs": "c17a4cfe8c7ab5f726820b910e817a9793d8f182e54b2aa14ea5e4515dbce7f9",
    "dungeons": "3cf163fd7a339598a5f226a6ade4630af6af8a386d3b71687baf78cbbcfa7a8f"
@@ -739,6 +739,168 @@
    "name": "Asmodian Bot",
    "type": "Bot"
   },
+  "2090028": {
+   "type": "Monster"
+  },
+  "2090156": {
+   "type": "Monster"
+  },
+  "2090328": {
+   "type": "Monster"
+  },
+  "2090329": {
+   "type": "Monster"
+  },
+  "2090330": {
+   "type": "Monster"
+  },
+  "2090339": {
+   "type": "Monster"
+  },
+  "2090340": {
+   "type": "Monster"
+  },
+  "2090341": {
+   "type": "Monster"
+  },
+  "2090342": {
+   "type": "Monster"
+  },
+  "2090343": {
+   "type": "Monster"
+  },
+  "2090344": {
+   "type": "Monster"
+  },
+  "2090345": {
+   "type": "Monster"
+  },
+  "2090346": {
+   "type": "Monster"
+  },
+  "2090347": {
+   "type": "Monster"
+  },
+  "2090360": {
+   "type": "Monster"
+  },
+  "2090361": {
+   "type": "Monster"
+  },
+  "2090362": {
+   "type": "Monster"
+  },
+  "2090363": {
+   "type": "Monster"
+  },
+  "2090364": {
+   "type": "Monster"
+  },
+  "2090369": {
+   "type": "Monster"
+  },
+  "2090370": {
+   "type": "Monster"
+  },
+  "2090371": {
+   "type": "Monster"
+  },
+  "2090372": {
+   "type": "Monster"
+  },
+  "2090373": {
+   "type": "Monster"
+  },
+  "2090374": {
+   "type": "Monster"
+  },
+  "2090385": {
+   "type": "Monster"
+  },
+  "2090386": {
+   "type": "Monster"
+  },
+  "2090387": {
+   "type": "Monster"
+  },
+  "2090388": {
+   "type": "Monster"
+  },
+  "2090389": {
+   "type": "Monster"
+  },
+  "2090390": {
+   "type": "Monster"
+  },
+  "2090391": {
+   "type": "Monster"
+  },
+  "2090392": {
+   "type": "Monster"
+  },
+  "2090393": {
+   "type": "Monster"
+  },
+  "2090394": {
+   "type": "Monster"
+  },
+  "2090395": {
+   "type": "Monster"
+  },
+  "2090396": {
+   "type": "Monster"
+  },
+  "2090403": {
+   "type": "Monster"
+  },
+  "2090415": {
+   "type": "Monster"
+  },
+  "2090416": {
+   "type": "Monster"
+  },
+  "2090417": {
+   "type": "Monster"
+  },
+  "2090418": {
+   "type": "Monster"
+  },
+  "2090419": {
+   "type": "Monster"
+  },
+  "2090420": {
+   "type": "Monster"
+  },
+  "2090421": {
+   "type": "Monster"
+  },
+  "2090422": {
+   "type": "Monster"
+  },
+  "2090423": {
+   "type": "Monster"
+  },
+  "2090424": {
+   "type": "Monster"
+  },
+  "2090425": {
+   "type": "Monster"
+  },
+  "2090426": {
+   "type": "Monster"
+  },
+  "2090427": {
+   "type": "Monster"
+  },
+  "2090429": {
+   "type": "Monster"
+  },
+  "2090430": {
+   "type": "Monster"
+  },
+  "2090431": {
+   "type": "Monster"
+  },
   "2090615": {
    "name": "Dredgion",
    "type": "Etc"
@@ -799,6 +961,9 @@
    "name": "Abyssal Depth Moving Platform",
    "type": "Etc"
   },
+  "2301222": {
+   "type": "Summon"
+  },
   "2311316": {
    "name": "Subspace Floating Stone",
    "type": "Etc"
@@ -814,6 +979,9 @@
   "2311325": {
    "name": "Large Subspace Floating Stone",
    "type": "Etc"
+  },
+  "2340356": {
+   "type": "Summon"
   },
   "2345201": {
    "name": "M_FE_HighHigh_NPC_Board_01_001",
@@ -1427,6 +1595,24 @@
    "name": "Dredgion",
    "type": "Etc"
   },
+  "2910034": {
+   "type": "Summon"
+  },
+  "2910035": {
+   "type": "Summon"
+  },
+  "2910036": {
+   "type": "Summon"
+  },
+  "2910037": {
+   "type": "Summon"
+  },
+  "2910038": {
+   "type": "Summon"
+  },
+  "2910039": {
+   "type": "Summon"
+  },
   "2910040": {
    "name": "Dredgion",
    "type": "Etc"
@@ -1451,9 +1637,1542 @@
    "name": "N_Common_FlySeed_01_CV01_001",
    "type": "Etc"
   },
+  "2920011": {
+   "type": "Summon"
+  },
+  "2920012": {
+   "type": "Summon"
+  },
+  "2920028": {
+   "type": "Monster"
+  },
+  "2920031": {
+   "type": "Monster"
+  },
+  "2920034": {
+   "type": "Summon"
+  },
+  "2920066": {
+   "type": "Summon"
+  },
+  "2920070": {
+   "type": "Summon"
+  },
+  "2920094": {
+   "type": "Summon"
+  },
+  "2920095": {
+   "type": "Summon"
+  },
+  "2920097": {
+   "type": "Summon"
+  },
+  "2920099": {
+   "type": "Summon"
+  },
+  "2920100": {
+   "type": "Summon"
+  },
+  "2920202": {
+   "type": "Summon"
+  },
+  "2920214": {
+   "type": "Summon"
+  },
+  "2920217": {
+   "type": "Summon"
+  },
+  "2920219": {
+   "type": "Summon"
+  },
+  "2920261": {
+   "type": "Summon"
+  },
+  "2920263": {
+   "type": "Summon"
+  },
+  "2920264": {
+   "type": "Summon"
+  },
+  "2920265": {
+   "type": "Summon"
+  },
+  "2920279": {
+   "type": "Summon"
+  },
+  "2920283": {
+   "type": "Summon"
+  },
   "2920294": {
    "name": "N_Invisible_Summon_DarkLeda_02_SafeZone",
    "type": "Citizen"
+  },
+  "2920295": {
+   "type": "Summon"
+  },
+  "2920296": {
+   "type": "Summon"
+  },
+  "2920305": {
+   "type": "Summon"
+  },
+  "2920310": {
+   "type": "Summon"
+  },
+  "2920314": {
+   "type": "Summon"
+  },
+  "2920315": {
+   "type": "Summon"
+  },
+  "2920316": {
+   "type": "Summon"
+  },
+  "2920317": {
+   "type": "Summon"
+  },
+  "2920318": {
+   "type": "Summon"
+  },
+  "2920324": {
+   "type": "Summon"
+  },
+  "2920326": {
+   "type": "Summon"
+  },
+  "2920327": {
+   "type": "Summon"
+  },
+  "2920328": {
+   "type": "Summon"
+  },
+  "2920335": {
+   "type": "Summon"
+  },
+  "2920336": {
+   "type": "Summon"
+  },
+  "2920351": {
+   "type": "Summon"
+  },
+  "2920352": {
+   "type": "Summon"
+  },
+  "2920355": {
+   "type": "Summon"
+  },
+  "2920381": {
+   "type": "Summon"
+  },
+  "2920383": {
+   "type": "Summon"
+  },
+  "2920390": {
+   "type": "Summon"
+  },
+  "2920392": {
+   "type": "Summon"
+  },
+  "2920393": {
+   "type": "Summon"
+  },
+  "2920394": {
+   "type": "Summon"
+  },
+  "2920395": {
+   "type": "Summon"
+  },
+  "2920398": {
+   "type": "Summon"
+  },
+  "2920400": {
+   "type": "Summon"
+  },
+  "2920402": {
+   "type": "Summon"
+  },
+  "2920403": {
+   "type": "Summon"
+  },
+  "2920404": {
+   "type": "Summon"
+  },
+  "2920407": {
+   "type": "Summon"
+  },
+  "2920408": {
+   "type": "Summon"
+  },
+  "2920409": {
+   "type": "Summon"
+  },
+  "2920410": {
+   "type": "Summon"
+  },
+  "2920419": {
+   "type": "Summon"
+  },
+  "2920420": {
+   "type": "Summon"
+  },
+  "2920421": {
+   "type": "Summon"
+  },
+  "2920422": {
+   "type": "Summon"
+  },
+  "2920423": {
+   "type": "Summon"
+  },
+  "2920447": {
+   "type": "Summon"
+  },
+  "2920448": {
+   "type": "Summon"
+  },
+  "2920454": {
+   "type": "Summon"
+  },
+  "2920455": {
+   "type": "Summon"
+  },
+  "2920458": {
+   "type": "Summon"
+  },
+  "2920459": {
+   "type": "Summon"
+  },
+  "2920466": {
+   "type": "Summon"
+  },
+  "2920482": {
+   "type": "Summon"
+  },
+  "2920484": {
+   "type": "Summon"
+  },
+  "2920492": {
+   "type": "Summon"
+  },
+  "2920497": {
+   "type": "Summon"
+  },
+  "2920498": {
+   "type": "Summon"
+  },
+  "2920499": {
+   "type": "Summon"
+  },
+  "2920503": {
+   "type": "Summon"
+  },
+  "2920515": {
+   "type": "Summon"
+  },
+  "2920516": {
+   "type": "Summon"
+  },
+  "2920517": {
+   "type": "Summon"
+  },
+  "2920519": {
+   "type": "Summon"
+  },
+  "2920520": {
+   "type": "Summon"
+  },
+  "2920521": {
+   "type": "Summon"
+  },
+  "2920522": {
+   "type": "Summon"
+  },
+  "2920523": {
+   "type": "Summon"
+  },
+  "2920524": {
+   "type": "Summon"
+  },
+  "2920526": {
+   "type": "Summon"
+  },
+  "2920527": {
+   "type": "Summon"
+  },
+  "2920528": {
+   "type": "Summon"
+  },
+  "2920529": {
+   "type": "Summon"
+  },
+  "2920534": {
+   "type": "Summon"
+  },
+  "2920535": {
+   "type": "Summon"
+  },
+  "2920536": {
+   "type": "Summon"
+  },
+  "2920537": {
+   "type": "Summon"
+  },
+  "2920541": {
+   "type": "Summon"
+  },
+  "2920542": {
+   "type": "Summon"
+  },
+  "2920544": {
+   "type": "Summon"
+  },
+  "2920545": {
+   "type": "Summon"
+  },
+  "2920546": {
+   "type": "Summon"
+  },
+  "2920547": {
+   "type": "Summon"
+  },
+  "2920548": {
+   "type": "Summon"
+  },
+  "2920549": {
+   "type": "Summon"
+  },
+  "2920550": {
+   "type": "Summon"
+  },
+  "2920551": {
+   "type": "Summon"
+  },
+  "2920553": {
+   "type": "Summon"
+  },
+  "2920554": {
+   "type": "Summon"
+  },
+  "2920555": {
+   "type": "Summon"
+  },
+  "2920556": {
+   "type": "Summon"
+  },
+  "2920561": {
+   "type": "Summon"
+  },
+  "2920562": {
+   "type": "Summon"
+  },
+  "2920563": {
+   "type": "Summon"
+  },
+  "2920564": {
+   "type": "Summon"
+  },
+  "2920569": {
+   "type": "Summon"
+  },
+  "2920570": {
+   "type": "Summon"
+  },
+  "2920571": {
+   "type": "Summon"
+  },
+  "2920572": {
+   "type": "Summon"
+  },
+  "2920573": {
+   "type": "Summon"
+  },
+  "2920575": {
+   "type": "Summon"
+  },
+  "2920576": {
+   "type": "Summon"
+  },
+  "2920580": {
+   "type": "Summon"
+  },
+  "2920581": {
+   "type": "Summon"
+  },
+  "2920582": {
+   "type": "Summon"
+  },
+  "2920585": {
+   "type": "Summon"
+  },
+  "2920589": {
+   "type": "Summon"
+  },
+  "2920590": {
+   "type": "Summon"
+  },
+  "2920592": {
+   "type": "Summon"
+  },
+  "2920593": {
+   "type": "Summon"
+  },
+  "2920594": {
+   "type": "Summon"
+  },
+  "2920595": {
+   "type": "Summon"
+  },
+  "2920596": {
+   "type": "Summon"
+  },
+  "2920597": {
+   "type": "Summon"
+  },
+  "2920598": {
+   "type": "Summon"
+  },
+  "2920601": {
+   "type": "Summon"
+  },
+  "2920603": {
+   "type": "Summon"
+  },
+  "2920604": {
+   "type": "Summon"
+  },
+  "2920606": {
+   "type": "Summon"
+  },
+  "2920608": {
+   "type": "Summon"
+  },
+  "2920609": {
+   "type": "Summon"
+  },
+  "2920610": {
+   "type": "Summon"
+  },
+  "2920611": {
+   "type": "Summon"
+  },
+  "2920612": {
+   "type": "Summon"
+  },
+  "2920613": {
+   "type": "Summon"
+  },
+  "2920614": {
+   "type": "Summon"
+  },
+  "2920616": {
+   "type": "Summon"
+  },
+  "2920631": {
+   "type": "Summon"
+  },
+  "2920632": {
+   "type": "Summon"
+  },
+  "2920635": {
+   "type": "Summon"
+  },
+  "2920653": {
+   "type": "Summon"
+  },
+  "2920654": {
+   "type": "Summon"
+  },
+  "2920655": {
+   "type": "Summon"
+  },
+  "2920656": {
+   "type": "Summon"
+  },
+  "2920657": {
+   "type": "Summon"
+  },
+  "2920658": {
+   "type": "Summon"
+  },
+  "2920659": {
+   "type": "Summon"
+  },
+  "2920660": {
+   "type": "Summon"
+  },
+  "2920661": {
+   "type": "Summon"
+  },
+  "2920662": {
+   "type": "Summon"
+  },
+  "2920666": {
+   "type": "Summon"
+  },
+  "2920668": {
+   "type": "Summon"
+  },
+  "2920669": {
+   "type": "Summon"
+  },
+  "2920673": {
+   "type": "Summon"
+  },
+  "2920676": {
+   "type": "Summon"
+  },
+  "2920677": {
+   "type": "Summon"
+  },
+  "2920678": {
+   "type": "Summon"
+  },
+  "2920679": {
+   "type": "Summon"
+  },
+  "2920680": {
+   "type": "Summon"
+  },
+  "2920681": {
+   "type": "Summon"
+  },
+  "2920682": {
+   "type": "Summon"
+  },
+  "2920683": {
+   "type": "Summon"
+  },
+  "2920684": {
+   "type": "Summon"
+  },
+  "2920685": {
+   "type": "Summon"
+  },
+  "2920686": {
+   "type": "Summon"
+  },
+  "2920687": {
+   "type": "Summon"
+  },
+  "2920688": {
+   "type": "Summon"
+  },
+  "2920689": {
+   "type": "Summon"
+  },
+  "2920690": {
+   "type": "Summon"
+  },
+  "2920691": {
+   "type": "Summon"
+  },
+  "2920692": {
+   "type": "Summon"
+  },
+  "2920693": {
+   "type": "Summon"
+  },
+  "2920694": {
+   "type": "Summon"
+  },
+  "2920695": {
+   "type": "Summon"
+  },
+  "2920696": {
+   "type": "Summon"
+  },
+  "2920697": {
+   "type": "Summon"
+  },
+  "2920698": {
+   "type": "Summon"
+  },
+  "2920702": {
+   "type": "Summon"
+  },
+  "2920708": {
+   "type": "Summon"
+  },
+  "2920709": {
+   "type": "Summon"
+  },
+  "2920711": {
+   "type": "Summon"
+  },
+  "2920712": {
+   "type": "Summon"
+  },
+  "2920713": {
+   "type": "Summon"
+  },
+  "2920714": {
+   "type": "Summon"
+  },
+  "2920715": {
+   "type": "Summon"
+  },
+  "2920716": {
+   "type": "Summon"
+  },
+  "2920717": {
+   "type": "Summon"
+  },
+  "2920718": {
+   "type": "Summon"
+  },
+  "2920719": {
+   "type": "Summon"
+  },
+  "2920720": {
+   "type": "Summon"
+  },
+  "2920722": {
+   "type": "Summon"
+  },
+  "2920723": {
+   "type": "Summon"
+  },
+  "2920724": {
+   "type": "Summon"
+  },
+  "2920725": {
+   "type": "Summon"
+  },
+  "2920726": {
+   "type": "Summon"
+  },
+  "2920728": {
+   "type": "Summon"
+  },
+  "2920729": {
+   "type": "Summon"
+  },
+  "2920731": {
+   "type": "Summon"
+  },
+  "2920732": {
+   "type": "Summon"
+  },
+  "2920734": {
+   "type": "Summon"
+  },
+  "2920735": {
+   "type": "Summon"
+  },
+  "2920736": {
+   "type": "Summon"
+  },
+  "2920737": {
+   "type": "Summon"
+  },
+  "2920738": {
+   "type": "Summon"
+  },
+  "2920739": {
+   "type": "Summon"
+  },
+  "2920740": {
+   "type": "Summon"
+  },
+  "2920741": {
+   "type": "Summon"
+  },
+  "2920742": {
+   "type": "Summon"
+  },
+  "2920743": {
+   "type": "Summon"
+  },
+  "2920744": {
+   "type": "Summon"
+  },
+  "2920745": {
+   "type": "Summon"
+  },
+  "2920746": {
+   "type": "Summon"
+  },
+  "2920747": {
+   "type": "Summon"
+  },
+  "2920748": {
+   "type": "Summon"
+  },
+  "2920749": {
+   "type": "Summon"
+  },
+  "2920750": {
+   "type": "Summon"
+  },
+  "2920751": {
+   "type": "Summon"
+  },
+  "2920752": {
+   "type": "Summon"
+  },
+  "2920753": {
+   "type": "Summon"
+  },
+  "2920754": {
+   "type": "Summon"
+  },
+  "2920755": {
+   "type": "Summon"
+  },
+  "2920756": {
+   "type": "Summon"
+  },
+  "2920757": {
+   "type": "Summon"
+  },
+  "2920758": {
+   "type": "Summon"
+  },
+  "2920759": {
+   "type": "Summon"
+  },
+  "2920760": {
+   "type": "Summon"
+  },
+  "2920761": {
+   "type": "Summon"
+  },
+  "2920762": {
+   "type": "Summon"
+  },
+  "2920763": {
+   "type": "Summon"
+  },
+  "2920764": {
+   "type": "Summon"
+  },
+  "2920765": {
+   "type": "Summon"
+  },
+  "2920766": {
+   "type": "Summon"
+  },
+  "2920767": {
+   "type": "Summon"
+  },
+  "2920768": {
+   "type": "Summon"
+  },
+  "2920769": {
+   "type": "Summon"
+  },
+  "2920770": {
+   "type": "Summon"
+  },
+  "2920771": {
+   "type": "Summon"
+  },
+  "2920772": {
+   "type": "Summon"
+  },
+  "2920773": {
+   "type": "Summon"
+  },
+  "2920775": {
+   "type": "Summon"
+  },
+  "2920776": {
+   "type": "Summon"
+  },
+  "2920777": {
+   "type": "Summon"
+  },
+  "2920778": {
+   "type": "Summon"
+  },
+  "2920779": {
+   "type": "Summon"
+  },
+  "2920780": {
+   "type": "Summon"
+  },
+  "2920785": {
+   "type": "Summon"
+  },
+  "2920786": {
+   "type": "Summon"
+  },
+  "2920787": {
+   "type": "Summon"
+  },
+  "2920788": {
+   "type": "Summon"
+  },
+  "2920789": {
+   "type": "Summon"
+  },
+  "2920790": {
+   "type": "Summon"
+  },
+  "2920791": {
+   "type": "Summon"
+  },
+  "2920792": {
+   "type": "Summon"
+  },
+  "2920793": {
+   "type": "Summon"
+  },
+  "2920798": {
+   "type": "Summon"
+  },
+  "2920799": {
+   "type": "Summon"
+  },
+  "2920800": {
+   "type": "Summon"
+  },
+  "2920801": {
+   "type": "Summon"
+  },
+  "2920805": {
+   "type": "Summon"
+  },
+  "2920806": {
+   "type": "Summon"
+  },
+  "2920807": {
+   "type": "Summon"
+  },
+  "2920808": {
+   "type": "Summon"
+  },
+  "2920810": {
+   "type": "Summon"
+  },
+  "2920811": {
+   "type": "Summon"
+  },
+  "2920813": {
+   "type": "Summon"
+  },
+  "2920814": {
+   "type": "Summon"
+  },
+  "2920816": {
+   "type": "Summon"
+  },
+  "2920817": {
+   "type": "Summon"
+  },
+  "2920818": {
+   "type": "Summon"
+  },
+  "2920819": {
+   "type": "Summon"
+  },
+  "2920820": {
+   "type": "Summon"
+  },
+  "2920821": {
+   "type": "Summon"
+  },
+  "2920822": {
+   "type": "Summon"
+  },
+  "2920823": {
+   "type": "Summon"
+  },
+  "2920824": {
+   "type": "Summon"
+  },
+  "2920825": {
+   "type": "Summon"
+  },
+  "2920826": {
+   "type": "Summon"
+  },
+  "2920827": {
+   "type": "Summon"
+  },
+  "2920828": {
+   "type": "Summon"
+  },
+  "2920829": {
+   "type": "Summon"
+  },
+  "2920830": {
+   "type": "Summon"
+  },
+  "2920831": {
+   "type": "Summon"
+  },
+  "2920832": {
+   "type": "Summon"
+  },
+  "2920833": {
+   "type": "Summon"
+  },
+  "2920834": {
+   "type": "Summon"
+  },
+  "2920835": {
+   "type": "Summon"
+  },
+  "2920842": {
+   "type": "Summon"
+  },
+  "2920845": {
+   "type": "Summon"
+  },
+  "2920846": {
+   "type": "Summon"
+  },
+  "2920847": {
+   "type": "Summon"
+  },
+  "2920848": {
+   "type": "Summon"
+  },
+  "2920850": {
+   "type": "Summon"
+  },
+  "2920851": {
+   "type": "Summon"
+  },
+  "2920852": {
+   "type": "Summon"
+  },
+  "2920853": {
+   "type": "Summon"
+  },
+  "2920862": {
+   "type": "Summon"
+  },
+  "2920863": {
+   "type": "Summon"
+  },
+  "2920864": {
+   "type": "Summon"
+  },
+  "2920882": {
+   "type": "Summon"
+  },
+  "2920887": {
+   "type": "Summon"
+  },
+  "2920888": {
+   "type": "Summon"
+  },
+  "2920899": {
+   "type": "Summon"
+  },
+  "2920900": {
+   "type": "Summon"
+  },
+  "2920901": {
+   "type": "Summon"
+  },
+  "2920903": {
+   "type": "Summon"
+  },
+  "2920905": {
+   "type": "Summon"
+  },
+  "2920909": {
+   "type": "Summon"
+  },
+  "2920910": {
+   "type": "Summon"
+  },
+  "2920911": {
+   "type": "Summon"
+  },
+  "2920912": {
+   "type": "Summon"
+  },
+  "2920914": {
+   "type": "Summon"
+  },
+  "2920917": {
+   "type": "Summon"
+  },
+  "2920918": {
+   "type": "Summon"
+  },
+  "2920919": {
+   "type": "Summon"
+  },
+  "2920920": {
+   "type": "Summon"
+  },
+  "2920931": {
+   "type": "Summon"
+  },
+  "2920932": {
+   "type": "Summon"
+  },
+  "2920933": {
+   "type": "Summon"
+  },
+  "2920934": {
+   "type": "Summon"
+  },
+  "2920936": {
+   "type": "Summon"
+  },
+  "2920937": {
+   "type": "Summon"
+  },
+  "2920940": {
+   "type": "Summon"
+  },
+  "2920941": {
+   "type": "Summon"
+  },
+  "2920942": {
+   "type": "Summon"
+  },
+  "2920945": {
+   "type": "Summon"
+  },
+  "2920946": {
+   "type": "Summon"
+  },
+  "2920952": {
+   "type": "Summon"
+  },
+  "2920957": {
+   "type": "Summon"
+  },
+  "2920958": {
+   "type": "Summon"
+  },
+  "2920963": {
+   "type": "Summon"
+  },
+  "2920964": {
+   "type": "Summon"
+  },
+  "2920965": {
+   "type": "Summon"
+  },
+  "2920966": {
+   "type": "Summon"
+  },
+  "2920969": {
+   "type": "Summon"
+  },
+  "2920970": {
+   "type": "Summon"
+  },
+  "2920971": {
+   "type": "Summon"
+  },
+  "2920975": {
+   "type": "Summon"
+  },
+  "2920976": {
+   "type": "Summon"
+  },
+  "2920977": {
+   "type": "Summon"
+  },
+  "2920979": {
+   "type": "Summon"
+  },
+  "2920980": {
+   "type": "Summon"
+  },
+  "2920981": {
+   "type": "Summon"
+  },
+  "2920982": {
+   "type": "Summon"
+  },
+  "2920983": {
+   "type": "Summon"
+  },
+  "2920984": {
+   "type": "Summon"
+  },
+  "2920991": {
+   "type": "Summon"
+  },
+  "2920992": {
+   "type": "Summon"
+  },
+  "2920995": {
+   "type": "Summon"
+  },
+  "2920996": {
+   "type": "Summon"
+  },
+  "2920997": {
+   "type": "Summon"
+  },
+  "2920999": {
+   "type": "Summon"
+  },
+  "2921001": {
+   "type": "Summon"
+  },
+  "2921002": {
+   "type": "Summon"
+  },
+  "2921004": {
+   "type": "Summon"
+  },
+  "2921005": {
+   "type": "Summon"
+  },
+  "2921006": {
+   "type": "Summon"
+  },
+  "2921007": {
+   "type": "Summon"
+  },
+  "2921012": {
+   "type": "Summon"
+  },
+  "2921013": {
+   "type": "Summon"
+  },
+  "2921017": {
+   "type": "Summon"
+  },
+  "2921021": {
+   "type": "Summon"
+  },
+  "2921023": {
+   "type": "Summon"
+  },
+  "2921024": {
+   "type": "Summon"
+  },
+  "2921041": {
+   "type": "Summon"
+  },
+  "2921045": {
+   "type": "Summon"
+  },
+  "2921048": {
+   "type": "Summon"
+  },
+  "2921052": {
+   "type": "Summon"
+  },
+  "2921054": {
+   "type": "Summon"
+  },
+  "2921055": {
+   "type": "Summon"
+  },
+  "2921056": {
+   "type": "Summon"
+  },
+  "2921057": {
+   "type": "Summon"
+  },
+  "2921058": {
+   "type": "Summon"
+  },
+  "2921059": {
+   "type": "Summon"
+  },
+  "2921060": {
+   "type": "Summon"
+  },
+  "2921061": {
+   "type": "Summon"
+  },
+  "2921062": {
+   "type": "Summon"
+  },
+  "2921063": {
+   "type": "Summon"
+  },
+  "2921064": {
+   "type": "Summon"
+  },
+  "2921065": {
+   "type": "Summon"
+  },
+  "2921066": {
+   "type": "Summon"
+  },
+  "2921067": {
+   "type": "Summon"
+  },
+  "2921068": {
+   "type": "Summon"
+  },
+  "2921070": {
+   "type": "Summon"
+  },
+  "2921074": {
+   "type": "Summon"
+  },
+  "2921075": {
+   "type": "Summon"
+  },
+  "2921082": {
+   "type": "Summon"
+  },
+  "2921083": {
+   "type": "Summon"
+  },
+  "2921084": {
+   "type": "Summon"
+  },
+  "2921085": {
+   "type": "Summon"
+  },
+  "2921086": {
+   "type": "Summon"
+  },
+  "2921087": {
+   "type": "Summon"
+  },
+  "2921112": {
+   "type": "Summon"
+  },
+  "2921113": {
+   "type": "Summon"
+  },
+  "2921114": {
+   "type": "Summon"
+  },
+  "2921115": {
+   "type": "Summon"
+  },
+  "2921116": {
+   "type": "Summon"
+  },
+  "2921117": {
+   "type": "Summon"
+  },
+  "2921118": {
+   "type": "Summon"
+  },
+  "2921119": {
+   "type": "Summon"
+  },
+  "2921120": {
+   "type": "Summon"
+  },
+  "2921121": {
+   "type": "Summon"
+  },
+  "2921123": {
+   "type": "Summon"
+  },
+  "2921125": {
+   "type": "Summon"
+  },
+  "2921126": {
+   "type": "Summon"
+  },
+  "2921127": {
+   "type": "Summon"
+  },
+  "2921128": {
+   "type": "Summon"
+  },
+  "2921129": {
+   "type": "Summon"
+  },
+  "2921132": {
+   "type": "Summon"
+  },
+  "2921133": {
+   "type": "Summon"
+  },
+  "2921134": {
+   "type": "Summon"
+  },
+  "2921135": {
+   "type": "Summon"
+  },
+  "2921136": {
+   "type": "Summon"
+  },
+  "2921143": {
+   "type": "Summon"
+  },
+  "2921144": {
+   "type": "Summon"
+  },
+  "2921147": {
+   "type": "Summon"
+  },
+  "2921148": {
+   "type": "Summon"
+  },
+  "2921149": {
+   "type": "Summon"
+  },
+  "2921154": {
+   "type": "Summon"
+  },
+  "2921155": {
+   "type": "Summon"
+  },
+  "2921156": {
+   "type": "Summon"
+  },
+  "2921157": {
+   "type": "Summon"
+  },
+  "2921159": {
+   "type": "Summon"
+  },
+  "2921161": {
+   "type": "Summon"
+  },
+  "2921169": {
+   "type": "Summon"
+  },
+  "2921170": {
+   "type": "Summon"
+  },
+  "2921181": {
+   "type": "Summon"
+  },
+  "2921182": {
+   "type": "Summon"
+  },
+  "2921196": {
+   "type": "Summon"
+  },
+  "2921198": {
+   "type": "Summon"
+  },
+  "2921203": {
+   "type": "Summon"
+  },
+  "2921204": {
+   "type": "Summon"
+  },
+  "2921210": {
+   "type": "Summon"
+  },
+  "2921211": {
+   "type": "Summon"
+  },
+  "2921212": {
+   "type": "Summon"
+  },
+  "2921213": {
+   "type": "Summon"
+  },
+  "2921214": {
+   "type": "Summon"
+  },
+  "2921216": {
+   "type": "Summon"
+  },
+  "2921217": {
+   "type": "Summon"
+  },
+  "2921218": {
+   "type": "Summon"
+  },
+  "2921219": {
+   "type": "Summon"
+  },
+  "2921227": {
+   "type": "Summon"
+  },
+  "2921233": {
+   "type": "Summon"
+  },
+  "2921275": {
+   "type": "Summon"
+  },
+  "2921276": {
+   "type": "Summon"
+  },
+  "2921277": {
+   "type": "Summon"
+  },
+  "2921281": {
+   "type": "Summon"
+  },
+  "2921284": {
+   "type": "Summon"
+  },
+  "2921285": {
+   "type": "Summon"
+  },
+  "2921286": {
+   "type": "Summon"
+  },
+  "2921290": {
+   "type": "Summon"
+  },
+  "2921305": {
+   "type": "Summon"
+  },
+  "2921309": {
+   "type": "Summon"
+  },
+  "2921311": {
+   "type": "Summon"
+  },
+  "2921312": {
+   "type": "Summon"
+  },
+  "2921313": {
+   "type": "Summon"
+  },
+  "2921314": {
+   "type": "Summon"
+  },
+  "2921321": {
+   "type": "Summon"
+  },
+  "2921323": {
+   "type": "Summon"
+  },
+  "2921324": {
+   "type": "Summon"
+  },
+  "2921325": {
+   "type": "Summon"
+  },
+  "2921342": {
+   "type": "Summon"
+  },
+  "2921343": {
+   "type": "Summon"
+  },
+  "2921344": {
+   "type": "Summon"
+  },
+  "2921345": {
+   "type": "Summon"
+  },
+  "2921346": {
+   "type": "Summon"
+  },
+  "2921347": {
+   "type": "Summon"
+  },
+  "2921348": {
+   "type": "Summon"
+  },
+  "2921349": {
+   "type": "Summon"
+  },
+  "2921350": {
+   "type": "Summon"
+  },
+  "2921360": {
+   "type": "Summon"
+  },
+  "2921361": {
+   "type": "Summon"
+  },
+  "2921362": {
+   "type": "Summon"
+  },
+  "2921363": {
+   "type": "Summon"
+  },
+  "2921364": {
+   "type": "Summon"
+  },
+  "2921365": {
+   "type": "Summon"
+  },
+  "2921366": {
+   "type": "Summon"
+  },
+  "2921367": {
+   "type": "Summon"
+  },
+  "2921368": {
+   "type": "Summon"
+  },
+  "2921369": {
+   "type": "Summon"
+  },
+  "2921370": {
+   "type": "Summon"
+  },
+  "2921371": {
+   "type": "Summon"
+  },
+  "2921372": {
+   "type": "Summon"
+  },
+  "2921373": {
+   "type": "Summon"
+  },
+  "2921374": {
+   "type": "Summon"
+  },
+  "2921375": {
+   "type": "Summon"
+  },
+  "2921377": {
+   "type": "Summon"
+  },
+  "2921378": {
+   "type": "Summon"
+  },
+  "2921379": {
+   "type": "Summon"
+  },
+  "2921380": {
+   "type": "Summon"
+  },
+  "2921381": {
+   "type": "Summon"
+  },
+  "2921387": {
+   "type": "Summon"
+  },
+  "2921393": {
+   "type": "Summon"
+  },
+  "2921394": {
+   "type": "Summon"
+  },
+  "2921395": {
+   "type": "Summon"
+  },
+  "2921396": {
+   "type": "Summon"
+  },
+  "2921397": {
+   "type": "Summon"
+  },
+  "2921398": {
+   "type": "Summon"
+  },
+  "2921399": {
+   "type": "Summon"
+  },
+  "2921403": {
+   "type": "Summon"
+  },
+  "2921404": {
+   "type": "Summon"
+  },
+  "2921405": {
+   "type": "Summon"
+  },
+  "2921412": {
+   "type": "Summon"
+  },
+  "2921431": {
+   "type": "Summon"
+  },
+  "2921432": {
+   "type": "Summon"
+  },
+  "2921433": {
+   "type": "Summon"
+  },
+  "2921434": {
+   "type": "Summon"
   },
   "2930000": {
    "name": "Nania",

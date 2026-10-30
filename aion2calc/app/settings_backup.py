@@ -63,6 +63,7 @@ LOCAL_ONLY = {
     "overlay_bg_set": "the overlay's background image stays on this computer",
     "overlay_events_sound_set": "the event sound stays on this computer",
     "meter_record_packets": "recording raw game traffic is chosen on each computer",
+    "performance_mode": "performance mode is chosen for each computer's hardware",
     "event_region": "the Timers page keeps its own choice; this copy is for the overlay",
     "event_group": "the Timers page keeps its own choice; this copy is for the overlay",
 }

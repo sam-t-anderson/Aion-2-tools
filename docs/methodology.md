@@ -854,6 +854,66 @@ chain). Pummel now needs its chain closed (`requires=("!pummel_chain",)`), as Ea
 [0.2.317](#the-clerics-heals-and-basic-chain-02317), and so does the Gladiator's Rending Blow, whose bundled
 build already follows every Rending Blow with Smashing Blow and scores the same 13,063. Re-optimized under both rules (boss, two iterations), the bundled build models 19,418 DPS (20,293 with the free step) and the typical top build 15,572 (16,903): the gain grows from +20.1 % to +24.7 %, and the share overlap with the Korean dummy logs from 39 % to 43 % (Punishing Strike 12.9 % of the damage, Pummel 11.0 %). The canonical preset model version moves to 0.3.11.
 
+### The Templar measured again, and its shields (0.2.355)
+
+The log server now holds 970 boss fights by 72 global Templars from meters 0.2.320 to 0.2.354, against the 25
+behind [0.2.315](#the-templar-from-the-log-servers-uploads-02315). Each fight counts once however many party
+members uploaded it. They were measured by 0.2.315's rules: a press's gap to the same player's next press, up
+to 1.5 s, plus the basic-chain steps woven after it.
+
+* **The rules reproduce 0.2.315.** Measured the same way, the 15–17 October uploads behind 0.2.315 (26 fights,
+  six Templars) give Pummel 0.614 s (0.2.315: 0.613), Punishing Strike 0.559 (0.557), Judgment 0.549 (0.549)
+  and Shield Smite 0.349 (0.348). A woven step comes 0.102 s before the next skill (about 0.10), and the lone
+  chain step takes 0.452 s (0.452).
+* **The newer fights are slower because of who plays, not because of a patch.** Pooled, the newer fights read
+  6–9 % slower (Pummel 0.664 s). One Templar made 41 % of the presses, and the players' own times run from
+  0.57 to 0.96 s for Pummel. The one Templar recorded in both periods presses as fast as before (48
+  newer fights: Pummel 0.584 s, Judgment 0.519), so nothing in the game slowed down. The fastest quarter of
+  the players' own times (players with 10 or more timed presses of the skill) reproduces the kit's action
+  times within 0.03 s:
+
+| Skill | Templars | Fastest quarter | Median player | Pooled | `TIMING` |
+|---|---:|---:|---:|---:|---:|
+| Pummel | 65 | 0.64 | 0.69 | 0.69 | 0.63 |
+| Punishing Strike | 64 | 0.57 | 0.60 | 0.63 | 0.57 |
+| Judgment | 61 | 0.56 | 0.58 | 0.61 | 0.56 |
+| Shield Smite | 61 | 0.35 | 0.36 | 0.37 | 0.34 |
+| Warding Strike | 52 | 0.34 | 0.36 | 0.38 | 0.35 |
+| Annihilate | 44 | 0.35 | 0.39 | 0.39 | 0.35 |
+| Taunt | 27 | 0.60 | 0.66 | 0.67 | 0.62 |
+| Debilitating Smash | 24 | 0.53 | 0.57 | 0.59 | 0.53 |
+| Shield Rush | 26 | 0.31 | 0.36 | 0.35 | 0.32 |
+| Doom Shield | 21 | 0.32 | 0.36 | 0.36 | 0.35 |
+| Poach | 32 | 0.43 | 0.50 | 0.46 | 0.50 → 0.43 |
+
+  Values are as `TIMING` gives them, at 0 % Combat Speed (`calibrate.kit_action_time`).
+* **Poach is faster than the kit had it.** Its 0.50 came from 34 presses by four Templars (0.494 s). The same
+  uploads now give 0.43, and so does the newer fights' fastest quarter. That quarter moves with how many
+  presses a player needs (0.36–0.43; bootstrap 10–90 %: 0.36–0.44), but no reading reaches the old 0.50.
+  `TIMING["poach"]` is now 0.43. The bundled Templar build never presses Poach, so its 19,418 DPS stands; the
+  typical build's KR fidelity moves from 0.521 to 0.511. The canonical preset model version moves to 0.3.13.
+* **More woven steps, rates kept.** The newer fights weave a basic step after Judgment 0.35 times a press
+  (0.19 in 0.2.315) and after Shield Smite, Warding Strike and Annihilate 0.07 times (0.00–0.02). The kit
+  keeps 0.2.315's rates, which come from the same fights as the action times that hold the steps' time.
+* **The shields are their tooltips.** A Templar's shield arrives as a heal of its size, so the party HP
+  feed's maximum HP measures it (newer and older fights together):
+  * Poach's level-12 specialization, "10% Max HP Protective Shield": 10.0 % of the Templar's maximum HP
+    (1,181 shields by 28 Templars; 80 % within 9.4–10.6 %, the spread being maximum HP changing under Noble
+    Armor).
+  * Doom Shield's "{4}% Max HP" (5): 5.0 % (1,101 shields by 38 Templars, effect 12070007).
+  * Guarding Seal's "{0}% of Max HP": 26–34 % (582 shields by 52 Templars, by skill level: 21 % at level 1
+    plus 1 % a level).
+  * Nezekan's Shield's "{0}% of Max HP ... to the caster and nearby party members": a share of each
+    recipient's own maximum HP, not the caster's. In one recorded fight three of its five shields were
+    exactly 43.0 % of their recipient's maximum HP (the caster's 9,432 of 21,937) and two 46–47 %, by the
+    recipients' last maximum readings.
+  * Defiance's "Restores 20% HP on using [Defiance]": mostly 24–29 % of maximum HP (335 restores by 24
+    Templars), with the healing increases the Templar carries.
+
+  The survival and World PvP models still leave shields out; where they add them, the client data's
+  percentages hold. A fifth of what the Templars were recorded healing was not HP at all
+  ([Stamina and MP restores](#stamina-and-mp-restores-are-not-healing-02355)).
+
 ### Chain, variant and combo skills, and known catalog gaps
 
 metabot's build-planner page exposes 35 skills per class. Several real skills
@@ -1246,9 +1306,46 @@ from their own record on entering a zone.
 
 Pets and enemies are not covered, and shield absorption itself is not decoded.
 
+### Stamina and MP restores are not healing (0.2.355)
+
+The game sends a skill's Stamina and MP restores in the layout of an HP restore: the self-targeted `04 38`
+record a heal on oneself uses. The record carries the restore's effect number (the skill times 100 plus the
+effect's index; Defiance's Stamina restore is its effect 13, its HP restore effect 14) and no field that names
+the resource, and Stamina comes in hundredths. The meter recorded all of them as healing:
+
+| Skill | Its text | Recorded as |
+|---|---|---|
+| Defiance (every class) | "Restores 1,000 Stamina on using [Defiance]" | a heal of 100,000 beside its 20 % HP restore |
+| Shield Rush, Infiltrate, Rush Strike, Tremor Crush | "Restores 300 Stamina on hit" | 30,000 |
+| Steel Barrier | "restores {4} Stamina when the effect ends" | 30,000 |
+| Benevolence | "Restores 200 Stamina every 5s" | 20,000 |
+| Shield of Protection, Focused Block, Focused Defense, Evasion Stance | "Restores {1} MP and Stamina once on Block" | the MP as it is and the Stamina in hundredths: 150 and 15,000, 200 and 20,000 |
+| Rending Blow (its Smashing Blow) | "Restores 50 MP on landing a Critical Hit" | 50 |
+| Absorb Essence | "restores {1} MP on landing an attack" | 25–100 |
+
+A heal record whose amount is exactly the Stamina (in hundredths) or MP its own skill's description or
+specializations name, at any of the skill's levels, is a restore (`lookup.restored_resource`). The MP case is
+confirmed in the recorded Gladiator's MP readings: Rending Blow's critical hits raise MP a median 50 (673 hits),
+its other hits cost 93. Since 0.2.355 the decoder leaves restores out, so the live meter, the overlay, the
+exported recording and the review no longer count them. Every stored recording loses them when it is loaded
+(`healing.drop_restores`, in the same pass as the "???" labels), and the log server indexes from that pass, so
+its healing totals and HPS standings re-index without them.
+
+In the 20 October capture this takes 1.37 million of 13.48 million recorded healing (10 %): three Defiance
+Stamina restores, 22 Infiltrates, 7 Tremor Crushes, 9 Focused Blocks and 979 Smashing Blows; no other record
+changed. In the log server's Templar fights it is 19 % of everything the Templars were recorded healing (Shield
+Rush 5.8 million, Defiance 5.7 million, Shield of Protection 4.4 million over 995 fights).
+
+The basic chain's later steps carry a restore of their own that no description names: the Chanter's
+Resonance Crush about 195, the Ranger's Rapid Fire about 120, the Assassin's Breaking and Swift Slice about 29.
+They stay healing until a recording settles what they are
+([open investigations](open-investigations.md#restores-the-game-sends-as-heals-30-october-stamina-and-mp-are-no-longer-healing-02355)).
+
 ## Installation, identity and live rate evidence
 
 Live Meter discovers Steam libraries and registered Windows/PURPLE game installations, then reads the first four **Product version** components of the selected executable for comparison groups across launchers. The engine file version and launcher build IDs are diagnostic evidence only. Installation paths are not exported. Recorded home server IDs are matched against official regional metadata; the installation language does not establish a physical region.
+
+A meter of 0.2.66 or earlier recorded only the Steam launcher's build id (`build:steam:<app>:<build>`, shown as *Legacy build N · Steam*), a comparison group of its own. Since 0.2.355 such a build joins its Product version's group when the pair is known: from the diagnostic captures and uploads (four builds bundled), or learned by a log server from any newer upload that records both the build and the Product version (log server 0.2.148, which indexes the build's logs again when it learns a pair). A build seen with two Product versions maps to neither. When its log cache makes room, the app no longer uploads part by part a recording an older meter made weeks before (`share.stale_part`: a meter before 0.2.290, which could cut a recording into hundreds of parts of a few seconds, and a part saved a week or more before). Four such recordings, by meters 0.2.59 to 0.2.209, reached the log server as some 450 public logs on 29 and 30 October; log server 0.2.148 lists such parts unlisted.
 
 Numeric Product version suffixes after the fourth component are diagnostic revisions and share a metric group. For example, `2.0.6.0.2026100701` groups as `2.0.6.0`; `2.0.7.0` stays separate. The full executable version remains recorded. Server derived indexes normalize historical product-version keys without rewriting uploaded files; other cohort requirements remain unchanged.
 
@@ -1377,4 +1474,18 @@ The user confirmed continuous capture, cleanup, partial runs and character impor
 ## Genus target values
 
 Optimizer results and Gear & Advice show catalog upper-range targets even when only levels are entered. PvE targets cover the catalog's genus Damage Boost slots with saved-line comparison, unlock level and assumed enemy-share ordering. Levels do not supply rolled values. Targets are aspirations, not expected reroll outcomes; current-version legality, odds, costs and defensive tradeoffs remain unverified. Other slot ranges, Special and numeric PvP targets are unavailable from the supported catalog. Saved lines remain unchanged.
+
+## Unnamed entities, arena matches and a boss fight's stray pieces (0.2.355)
+
+**"???".** The game names some NPCs "???" in every language: a boss's invisible summons, flags and timers, and a class's ground effects (a Sorcerer's Bittercold Wind, Fire Wall and Cold Storm are summons of their own). The community catalog lists them so, and the name supplement has no name for them either; it records their NPC type (Summon or Monster, 573 codes). A recording labels a player's summon by the skill it struck with most (its skill, or its family's when the tables lack the rank), and any other "???" by its type: *Unnamed summon* or *Unnamed NPC*. Nothing is named from a guess. The labels are applied when a log is exported, read by the app's history and read by the log server; the stored upload never changes (`aion2calc.combat.unnamed`).
+
+**Arena matches against players the capture could not name.** Players with no identity record are known only by the class skills they strike with (0.2.354). They did not make a fight PvP, so an arena match against them was typed unverified PvE on the arena's own map. A fight on a confirmed arena map (60, the Fire Temple Arena, or 61) where such players struck the party is now typed `pvp_arena`, with the evidence named; the live meter counts them as players in its PvP decision, and older recordings are retyped when read.
+
+**A boss fight's stray pieces.** Two pieces split off a boss fight in recordings of 0.2.354 or earlier, and they are joined to it when a log is read (`aion2calc.combat.rejoin`, repairs version 2):
+* the boss's opening blow: a segment with no party damage, at most 5 s long, that starts up to 5 s before the fight and holds only that fight's engaged bosses striking;
+* blows after the kill: a segment with no party damage that starts within the resume window after the fight ends and holds only blows from enemies that died in it (Ultimate Berk, Furious Feruk).
+
+A piece keeps its index, marked `continued_in` with the kind of piece, and the log review says what it was. In the meter, a dead enemy's blow no longer opens a fight.
+
+**Run timing.** A completed run is timed when its first segment starts after its entry and the party's last damaging hit falls by its recorded end, each within a millisecond of clock rounding (a segment's millisecond start plus its float duration rounds a fraction of a microsecond off). What a recording holds after the final kill (the boss's death record a moment later, a mechanic still striking the party, heals) no longer stops a run from being timed; a party hit after the recorded end still does. A stretch between bosses with no party damage no longer counts against the run's capture quality.
 

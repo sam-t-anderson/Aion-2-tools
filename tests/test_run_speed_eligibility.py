@@ -83,3 +83,51 @@ def test_bundled_server_name_resolves_world_name():
     assert server_name(2102) == "Zikel"
     assert server_name("2102") == "Zikel"
     assert server_name(99999999) is None
+
+
+def _timed(final_start, final_duration, kill_t, run_end, extra=None):
+    """A complete two-boss run whose final segment starts at ``final_start`` (seconds past 00:05)."""
+    from datetime import datetime, timedelta, timezone
+    base = datetime(2026, 10, 15, 0, 5, tzinfo=timezone.utc)
+    iso = lambda s: (base + timedelta(seconds=s)).isoformat(timespec="microseconds")
+    doc = _doc(roster_first=True, full_hp=True)
+    final = doc["segments"][1]
+    final.update(start=iso(final_start), duration=final_duration)
+    final["hits"] = [{"player": "p1", "damage": 500, "t": kill_t, "target": 9002}]
+    final["events"] = [{"kind": "death", "target": 9002, "t": final_duration}]
+    final["health"] = [{"entity": 9002, "t": 0.0, "current": 1000, "max": 1000}, {"entity": 9002, "t": kill_t, "current": 0, "max": 1000}]
+    for segment in doc["segments"]:
+        segment["run_ended_at"] = iso(run_end)
+    if extra:
+        doc["segments"].append({**final, **extra})
+    return doc
+
+
+def test_a_run_ending_on_its_final_kill_is_timed_whatever_the_float_rounding():
+    # HDZCQRmzp6's Talisra of the Void: 06:22:29.130 + 121.055 s lands 0.000 000 2 s past the run's end, 06:24:30.185.
+    doc = _timed(0, 121.055, 121.055, 121.055)
+    for segment in doc["segments"]:
+        segment["run_ended_at"] = "2026-10-15T06:24:30.185000+00:00"
+    doc["segments"][1]["start"] = "2026-10-15T06:22:29.130000+00:00"
+    doc["segments"][0]["start"] = "2026-10-15T06:15:06.973000+00:00"
+    for segment in doc["segments"]:
+        segment["run_started_at"] = "2026-10-15T06:14:06.148000+00:00"
+    r = _run(doc)
+    assert r["speed_eligible"] is True, r["speed_reasons"]
+    assert abs(r["elapsed_seconds"] - 624.037) < 0.001
+
+
+def test_what_is_recorded_after_the_final_kill_does_not_untime_the_run():
+    # the boss's death record 0.7 s after the killing hit (Gelcos, Divine Auldor)
+    assert _run(_timed(0, 60.7, 60.0, 60.0))["speed_eligible"] is True
+    # a stretch after Ultimate Berk's death: a mechanic striking the party and its heals, no party damage
+    after = {"start": "2026-10-15T00:06:01+00:00", "duration": 19.0, "entities": [], "hits": [], "health": [],
+             "events": [{"kind": "damage", "source": 9100, "target": "p1", "t": 2.0, "amount": 100}]}
+    r = _run(_timed(0, 60.0, 60.0, 60.0, after))
+    assert r["speed_eligible"] is True, r["speed_reasons"]
+
+
+def test_party_damage_after_the_run_end_still_untimes_it():
+    r = _run(_timed(0, 120.0, 100.0, 60.0))      # the party still fighting 40 s after the recorded end
+    assert r["speed_eligible"] is False
+    assert "Complete, consistent start/end timestamps are unavailable." in r["speed_reasons"]

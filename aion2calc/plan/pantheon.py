@@ -29,6 +29,9 @@ PROFILE_TYPES = {"Destruction": "Destruction [Zikel]", "Death": "Death [Triniel]
                  "Freedom": "Freedom [Vaizel]", "Life": "Life [Yustiel]", "Destiny": "Destiny [Marchutan]",
                  "Space": "Space [Israphel]"}
 BRACELET_ROLL = (9, 17)
+#: A decoration's picture: the game's item icon, by its item id, from aion2hub.com, whose robots.txt opens
+#: its icon route (/api/icon/) to everyone (0.2.355).
+ICON_URL = "https://aion2hub.com/api/icon/items/{}"
 
 
 def current_points(ctx: PlanContext, systems: dict | None = None) -> dict[str, float]:
@@ -80,6 +83,11 @@ def catalog() -> dict:
     return read_json("global", "pantheon_items.json")
 
 
+def icon(item_id) -> str | None:
+    """The picture of the decoration with this item id, or None for an id that is not one."""
+    return ICON_URL.format(item_id) if type(item_id) is int and 0 < item_id < 10**12 else None
+
+
 def _base_name(name: str) -> str:
     n = name.split(":", 1)[-1].strip()
     for suffix in (" (Bound)", " [Season 2]", " [Season 1]"):
@@ -109,7 +117,7 @@ def plan_board(per_point: list[dict], faction: str | None = None, include_kr: bo
             continue
         gain = sum(points * value_per_point.get(deity, 0.0) for deity, points in it["stats"].items())
         key = (it["kind"], _base_name(it["name"]))
-        row = {"id": it["id"], "name": it["name"], "short": _base_name(it["name"]), "kind": it["kind"], "grade": it.get("grade"),
+        row = {"id": it["id"], "icon": icon(it.get("id")), "name": it["name"], "short": _base_name(it["name"]), "kind": it["kind"], "grade": it.get("grade"),
                "bound": it.get("bound"), "faction": it.get("faction"), "stats": it["stats"], "points": it.get("points") or sum(it["stats"].values()),
                "gain": gain, "sources": list(it.get("sources") or []), "drops": list(it.get("drops") or []),
                "damage_points": sum(p for d, p in it["stats"].items() if value_per_point.get(d, 0) > 0)}
@@ -124,7 +132,7 @@ def plan_board(per_point: list[dict], faction: str | None = None, include_kr: bo
             if not prev["sources"] and row["sources"]:
                 prev["sources"] = row["sources"]
             if row["gain"] > prev["gain"]:
-                prev.update({k: row[k] for k in ("id", "name", "grade", "bound", "faction", "stats", "points", "gain", "damage_points")})
+                prev.update({k: row[k] for k in ("id", "icon", "name", "grade", "bound", "faction", "stats", "points", "gain", "damage_points")})
     board, runners_up, totals = {}, {}, {}
     for kind, count in SLOTS.items():
         ranked = sorted((r for r in seen.values() if r["kind"] == kind), key=lambda r: (-r["gain"], -r["points"], r["short"]))
@@ -138,6 +146,7 @@ def plan_board(per_point: list[dict], faction: str | None = None, include_kr: bo
     return {"slots": SLOTS, "board": board, "runners_up": runners_up, "totals": totals,
             "gain": sum(r["gain"] for r in placed), "faction": faction, "include_kr": include_kr,
             "catalog": {"source": data.get("source"), "candidates": counts,
+                        "images": "Decoration pictures: the game's item icons, from aion2hub.com",
                         "unknown_effect": sum(1 for it in data.get("items") or [] if not it.get("stats"))},
             "note": "Modeled damage value per decoration = its deity points × this character's damage per point of each deity "
                     "(Life, Destiny and Space add nothing to damage). Your collection is not in the official profile, so the board shows "

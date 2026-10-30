@@ -29,6 +29,7 @@ requested by the user or the person installing or operating it. In detail:
 | When you import a character | the official AION 2 site | the character name and server you search for |
 | When you import a fight by link | abysslogs.com or a2dil.com | the link you paste |
 | When you press **Load the interactive map** on the Maps page (or chose to load it automatically) | interactivemap.app | a request for the provider's map page, which loads its own scripts; nothing about you |
+| When Gear & Advice shows a recommended Pantheon board | aion2hub.com | requests for the decorations' pictures by item id; nothing about you |
 | When you share a fight | the log server you set in **Settings** | that fight (and the character's stats when known) |
 | With a log server set | that log server | requests for its public class statistics; nothing about you |
 

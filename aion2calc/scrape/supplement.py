@@ -49,15 +49,26 @@ def validate(category, data):
     return data
 
 
+def _unnamed(row):
+    """A community row naming its NPC "???", as the game does for what it gives no name."""
+    return isinstance(row, dict) and not str(row.get("name") or "").strip(" ?")
+
+
 def build(npcs, dungeons, community_npcs, community_dungeons):
-    """The supplement's rows: every source id the community tables lack, with its name."""
+    """The supplement's rows: every source id the community tables lack, with its name, and the
+    type of each id they name "???" (DBAion2's name for one is an internal one, never shown)."""
     out_npcs = {}
     for row in npcs:
         code = str(row["id"])
-        if code in community_npcs or code in out_npcs:
+        if code in out_npcs:
+            continue
+        kind = _text(row.get("npcType"), 40)
+        if code in community_npcs:
+            if _unnamed(community_npcs[code]) and kind:
+                out_npcs[code] = {"type": kind}
             continue
         entry = {"name": _text(row["name"])}
-        if kind := _text(row.get("npcType"), 40):
+        if kind:
             entry["type"] = kind
         out_npcs[code] = entry
     out_dungeons = {}

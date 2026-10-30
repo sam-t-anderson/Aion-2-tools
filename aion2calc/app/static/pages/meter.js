@@ -659,8 +659,10 @@ async function pageMeter() {
     // catches the launch-time auto-start (it fires ~1.6s after launch) as promptly as the overlay.
     // A window that is minimized or behind another (document.hidden) polls every few seconds: the
     // overlay shows the fight; the page catches up when it is looked at again (0.2.336).
-    const warming = Date.now() - meterMountedAt < 6000;
-    setTimeout(poll, document.hidden ? 3000 : st.running ? 700 : warming ? 300 : 1200);
+    // Performance mode (Settings → App & data) refreshes a running meter here every 1.5 s.
+    const warming = Date.now() - meterMountedAt < 6000,
+      light = (S.ui || {}).performance_mode === true;
+    setTimeout(poll, document.hidden ? 3000 : st.running ? (light ? 1500 : 700) : warming ? 300 : light ? 2000 : 1200);
   };
   const initial = await meterStatus().catch(() => ({ snapshot: { players: [] } }));
   if (initial.source) {

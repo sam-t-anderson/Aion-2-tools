@@ -24,7 +24,8 @@ SWITCHES = {
                 ("rtss-enabled", "rtss_enabled")],
     "pettracker": [("pt-set-enabled", "pettracker_enabled")],
     "meter": [("rec-autostart", "meter_autostart"), ("rec-catchup", "meter_catch_up_uploads")],
-    "system": [("char-auto-open", "character_auto_open"), ("char-auto-refresh", "character_auto_refresh")],
+    "system": [("char-auto-open", "character_auto_open"), ("char-auto-refresh", "character_auto_refresh"),
+               ("perfmode", "performance_mode")],
 }
 # (section, control, value entered, setting, value saved)
 VALUES = [
@@ -64,6 +65,21 @@ def test_each_switch_saves_its_setting_and_shows_it_when_settings_open_again(app
         box = app_page.locator(f"#{control}")
         assert box.is_checked() is not was[control], f"{control} did not keep {setting}"
         assert posted(app_page, box.click) == {setting: was[control]}, control        # as it was
+
+
+def test_performance_mode_stills_the_app_at_once(app_page, app_url):
+    # The app's own pages: no animation or transition, and no blur behind the top bar, from the click on
+    open_settings(app_page, app_url, "system")
+    box = app_page.locator("#perfmode")
+    assert not box.is_checked()
+    assert posted(app_page, box.check) == {"performance_mode": True}
+    try:
+        assert app_page.evaluate("""() => document.body.classList.contains('perf')
+            && getComputedStyle(document.querySelector('.topbar')).backdropFilter === 'none'
+            && parseFloat(getComputedStyle(document.querySelector('.btn')).transitionDuration) === 0""")
+    finally:
+        assert posted(app_page, box.uncheck) == {"performance_mode": False}
+    assert not app_page.evaluate("document.body.classList.contains('perf')")
 
 
 @pytest.mark.parametrize("section, control, value, setting, saved", VALUES, ids=[v[1] for v in VALUES])
