@@ -1,3 +1,9 @@
+## Featured encounters two side by side on a 1080p screen (0.2.359)
+
+**Smaller featured encounters.** The featured encounters at the top of **Combat Logs**, on the website and in the app, were drawn at the logs pages' 125% and each took the page's whole width, one under another. From 901 pixels wide they are now drawn at the page's own size and sit side by side wherever two fit: two on a 1080p screen, and two or three on a 1440p one. Each boss's portrait moved into its encounter's header, so its nine cards get the encounter's whole width. On a narrower window they stay one under another, at the smaller size.
+
+No text gets smaller than 16 pixels. A row whose name and value do not fit side by side puts the value under the name. Phones show them as before, with one fix: an encounter without a boss portrait now keeps a space the size of a portrait (64 pixels, as the others show), not 96.
+
 ## Gathering: what nodes and dungeon reward cubes give, and everyone's drop rates (0.2.358)
 
 **What you gather.** The Live Meter now reads what each gather gives you, in or out of combat:

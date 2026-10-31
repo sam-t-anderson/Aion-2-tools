@@ -33,7 +33,7 @@ const npcCode=key=>(/^npc:([0-9]+)/.exec(String(key||""))||[])[1];
 const portraitURL=(key,icon)=>{const code=npcCode(key);return (code&&window.A2BundledAssets&&window.A2BundledAssets.npcs&&window.A2BundledAssets.npcs[code])||icon||"";};
 function portrait(key,icon,size,alt){
   const url=portraitURL(key,icon);
-  return url?`<img class="fe-portrait" src="${esc(asset(url))}" width="${size}" height="${size}" loading="lazy" alt="${esc(alt||"")}">`:`<span class="fe-portrait fe-portrait-none" style="width:${size}px;height:${size}px" aria-hidden="true"></span>`;
+  return url?`<img class="fe-portrait" src="${esc(asset(url))}" width="${size}" height="${size}" loading="lazy" alt="${esc(alt||"")}">`:`<span class="fe-portrait fe-portrait-none" style="--fe-size:${size}px" aria-hidden="true"></span>`;
 }
 const classIcon=(cls,size=20)=>CLASSES.includes(cls)?`<img class="fe-class" src="${esc(asset("https://metabot.gg/web/aion2/classes/"+cls+".webp"))}" width="${size}" height="${size}" loading="lazy" alt="${esc(cap(cls))}" title="${esc(cap(cls))}">`:"";
 const medal=rank=>`<span class="fe-medal fe-medal-${rank<=3?rank:"n"}">${rank}</span>`;
@@ -73,7 +73,7 @@ function section(root,options){
   options.api("/api/v1/featured").then(d=>{
     if(!alive||!root.isConnected)return;
     const list=(d&&d.featured)||[];
-    root.innerHTML=list.length?`<h2 class="fe-heading">Featured encounters</h2>${list.map(f=>zone(f,options)).join("")}${note(d)}`:"";
+    root.innerHTML=list.length?`<h2 class="fe-heading">Featured encounters</h2><div class="fe-zones">${list.map(f=>zone(f,options)).join("")}</div>${note(d)}`:"";
   }).catch(()=>{if(alive)root.innerHTML="";});
   return {dispose(){alive=false;}};
 }
