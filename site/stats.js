@@ -161,13 +161,16 @@
     bossSel.onchange = () => go(cls, bossSel.value);
 
     if (!s || !s.observations) { body.innerHTML = '<div class="empty">No data for this selection.</div>'; return; }
-    const dps = s.dps || {}, rates = s.rates || {}, tempo = s.tempo || {}, tq = s.top_quarter || {};
+    const dps = s.dps || {}, rates = s.rates || {}, tempo = s.tempo || {}, tq = s.top_quarter || {}, hps = s.hps;
     const allShare = Object.fromEntries((((s.all || {}).skills) || []).map((r) => [r.skill, r.share]));
     const skills = tq.skills || [];
     const mx = Math.max(...skills.map((r) => r.share || 0), 0.0001);
     const kp = [
       ["Players", n0(s.observations)], ["Median DPS", n0(dps.median)],
       ["Top 25% DPS", n0(dps.p75)], ["Top 10% DPS", n0(dps.p90)], ["Best DPS", n0(s.best_dps != null ? s.best_dps : dps.max)],
+      // healing per second (log server 0.2.149): the report index's healing for each player and fight, as the HPS
+      // standings count it
+      ...(hps ? [["Median HPS", n0(hps.median)], ["Top 25% HPS", n0(hps.p75)], ["Top 10% HPS", n0(hps.p90)], ["Best HPS", n0(hps.max)]] : []),
       ["Median gear score", n0(s.gear_score)], ["Median combat power", n0(s.combat_power)],
       ["Crit", pct(rates.crit)], ["Double", pct(rates.double)], ["Perfect", pct(rates.perfect)],
       ["Casts / min", tempo.cpm != null ? Math.round(tempo.cpm) : "—"],
@@ -180,6 +183,7 @@
     body.innerHTML =
       `<h2 class="pagetitle" style="font-size:18px">${esc(cap(cls))}${boss ? " vs " + esc(boss) : ""}</h2>` +
       kpis(kp) +
+      (hps ? `<p class="muted" data-hps-note>Healing per second is each player's healing over the fight's length, as the HPS standings count it. ${n0(hps.healed)} of the ${n0(hps.observations)} fights include healing.</p>` : "") +
       '<h2 class="pagetitle" style="font-size:18px;margin-top:18px">Top 25% of players: damage by skill</h2>' +
       (skillRows
         ? `<table class="t"><tr><th>Skill</th><th>Share (top 25%)</th><th class="r">All players</th><th class="r">Casts / min</th><th class="r">Used by</th></tr>${skillRows}</table>`

@@ -1,7 +1,9 @@
 """The Combat Logs page: the website's tabs (browse, speed, boss progression, build points) and the app's own
 Personal records tab, each showing its panel alone; the log server's fights, newest first with mini-bosses
 hidden until asked for, each opening at its own fight; the recordings saved on this computer, by type; and
-the panels for the player's uploads (with the appeal against a moderator's hold) and characters."""
+the panels for the player's uploads (with the appeal against a moderator's hold) and characters; and a fight's
+review: its details tabs, its enemies by name, a comparison from a pasted link, and the fight combined from every
+recording of it."""
 import json
 
 from apphelpers import go
@@ -412,3 +414,147 @@ def test_a_recording_without_movement_takes_it_from_the_others(app_page, app_url
     text = box.inner_text()
     assert "Testcleric's recording (clock -3.00 s from 40 shared hits, 40 positions)" in text
     assert box.locator("[data-tokens] circle").count() == 2 and box.locator("[data-merge]").count() == 0
+
+
+def casting_recording():
+    """The boss fight with the recording player's casts (0.2.306), and the analysis the meter saves with them."""
+    from aion2calc.combat.insights import summarize
+    doc = recording()
+    me = doc["players"][0]["id"]
+    doc["segments"][1]["casts"] = [{"t": 3.0 * i, "source": me, "target": "boss", "skill_id": 15210000, "skill": "Flame Arrow",
+                                    "cooldown_ms": 3000} for i in range(10)]
+    doc["encounter_insights"] = summarize(doc)
+    return doc
+
+
+def _saved(app_home, name, doc):
+    path = app_home / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    return path
+
+
+def test_the_details_open_on_the_ability_contribution_and_switch_between_tabs(app_page, app_url, app_home):
+    """Ability contribution, Abilities, Skills and the cast timeline are tabs of one section that opens on the ability
+    contribution, drawn at the page's own text size (0.2.357). The Rotation tab keeps the totals."""
+    page = app_page
+    path = _saved(app_home, "session-20261031-200000-abcdef.a2log.json", casting_recording())
+    try:
+        go(page, app_url, f"#/combat-log/local/{path.name}?segment=1")
+        details = page.locator(".cr-details")
+        details.locator(".cr-bar").first.wait_for()
+        tabs = details.locator("[data-detail]")
+        assert tabs.all_inner_texts() == ["Ability contribution", "Abilities", "Skills", "Cast timeline", "Hide"]
+        assert "primary" in tabs.nth(0).get_attribute("class")
+        assert details.locator(".cr-bar").count() == 1 and "Testsorc" in details.locator(".cr-bar-name").inner_text()
+        size = "s => getComputedStyle(document.querySelector(s)).fontSize"
+        assert page.evaluate(size, ".cr-details .cr-bar-name") == page.evaluate(size, ".cr-review .t td")
+        tabs.nth(1).click()
+        assert "per second" in details.locator("table").inner_text().lower() and details.locator(".cr-bar").count() == 0
+        tabs.nth(2).click()
+        skills = details.locator("table").inner_text()
+        assert "cooldown usage" in skills.lower() and "Flame Arrow" in skills
+        tabs.nth(3).click()
+        assert details.locator(".cr-timeline svg.cr-track:not(.cr-time-axis)").count() == 1
+        tabs.nth(4).click()
+        assert details.locator("table, .cr-bars, .cr-timeline").count() == 0
+        rotation = page.locator(".cr-actions", has_text="Casts, buffs and break gauge")
+        assert "skill casts" in rotation.inner_text().lower() and "cooldown usage" not in rotation.inner_text().lower()
+        assert "Cast timeline" not in rotation.locator("h4").all_inner_texts()
+    finally:
+        path.unlink()
+
+
+def enemies_recording():
+    """A boss fight whose boss the game registered twice, with three adds of one name, and four unnamed summons that
+    struck the recording player and that nobody struck."""
+    doc = recording()
+    me, fight = doc["players"][0]["id"], doc["segments"][1]
+    enemy = lambda ref, name, code, boss=False: {"id": ref, "name": name, "kind": "enemy", "mob_code": code, "is_boss": boss}
+    fight["entities"] = [enemy("boss", "Gatekeeper Testlord", 2390001, True), enemy("boss2", "Gatekeeper Testlord", 2390099, True),
+                         *(enemy(f"add{i}", "Testling Add", 2920001) for i in range(3)),
+                         *(enemy(f"sum{i}", "Unnamed summon", 2920521) for i in range(4))]
+    hit = lambda t, target, amount: {"t": float(t), "kind": "damage", "source": me, "target": target, "skill_id": 15210000, "amount": amount}
+    fight["events"] = sorted([hit(t, "boss" if t < 15 else "boss2", 2000.0) for t in range(30)]
+                             + [hit(t + 0.5, f"add{t % 3}", 500.0) for t in range(6)]
+                             + [{"t": 10.0 + i, "kind": "damage", "source": f"sum{i}", "target": me, "skill_id": 29205210, "amount": 800.0}
+                                for i in range(4)], key=lambda e: e["t"])
+    return doc
+
+
+def test_enemies_are_listed_by_name_with_unnamed_summons_nobody_struck_folded(app_page, app_url, app_home):
+    """One row per enemy name, the boss first: a boss registered twice and an add's spawns are one row each, counted
+    and filtered together. Unnamed summons the party never struck are folded away with what they did (0.2.357)."""
+    page = app_page
+    path = _saved(app_home, "session-20261031-210000-abcdef.a2log.json", enemies_recording())
+    try:
+        go(page, app_url, f"#/combat-log/local/{path.name}?segment=1")
+        heading = page.locator("h3", has_text="Enemy encounters")
+        heading.wait_for()
+        listed = page.locator("h3:text-is('Enemy encounters') + .cr-scroll tbody tr")
+        rows = [" ".join(r.split()) for r in listed.all_inner_texts()]
+        assert len(rows) == 2, rows
+        assert rows[0].startswith("Gatekeeper Testlord ×2 Filter (boss)") and "2390001, 2390099" in rows[0] and "60,000" in rows[0]
+        assert rows[1].startswith("Testling Add ×3 Filter") and "3,000" in rows[1]
+        folded = page.locator("details.cr-folded")
+        assert folded.locator("summary").inner_text() == "4 unnamed summons the party never struck"
+        assert not folded.locator("table").is_visible()
+        folded.locator("summary").click()
+        assert "struck the party 4 times" in folded.inner_text() and "Unnamed summon ×4" in folded.locator("tbody").inner_text()
+        party = page.locator(".cr-review tr", has_text="Testsorc").first
+        assert "63,000" in party.inner_text()
+        listed.nth(0).locator("[data-enemy-filter]").click()
+        assert page.locator('[data-enemy-filter="boss,boss2"]').get_attribute("class").split()[-1] == "primary"
+        assert "60,000" in page.locator(".cr-review tr", has_text="Testsorc").first.inner_text()
+    finally:
+        path.unlink()
+
+
+def test_a_log_to_compare_can_be_pasted_as_its_link(app_page, app_url, community):
+    """The compare box takes another log's link as well as its ID, and opens the encounter the link names; anything
+    else is refused before the log server is asked (0.2.357)."""
+    page = app_page
+    go(page, app_url, f"#/combat-log/shared/{LOG_ID}?segment=2")
+    box = page.locator("[data-compare]")
+    box.wait_for()
+    since = len(community.requests)
+    box.fill("not a log link")
+    page.click("[data-compare-go]")
+    assert "Paste another log's link, or its ID" in page.locator("[data-compare-result]").inner_text()
+    assert not any("/raw" in path for _, path in community.requests[since:])
+    box.fill(f"https://sam-t-anderson.github.io/Aion-2-tools/log.html?id={LOG_ID}&segment=1")
+    page.click("[data-compare-go]")
+    page.locator("[data-compare-segment]").wait_for()
+    assert page.locator("[data-compare-segment]").input_value() == "1"
+    assert community.reached(page, f"/api/v1/logs/{LOG_ID}/raw", since)
+
+
+def test_a_shared_fight_combines_the_other_recordings_of_it(app_page, app_url, community):
+    """Log server 0.2.149 combines a fight's combat records from every public recording of it. The review offers it
+    beside "Also recorded by", shows where its records came from, goes back on request and on another encounter."""
+    page = app_page
+    go(page, app_url, f"#/combat-log/shared/{LOG_ID}?segment=2")
+    button = page.locator("[data-view-combined]")
+    button.wait_for()
+    assert button.inner_text() == "Combine all 2 recordings of this fight"
+    players = "p:has-text('DPS uses shared active damage time') + .cr-scroll tr"
+    healer = lambda: " ".join(page.locator(players, has_text="Testcleric").inner_text().split())
+    assert "9,000" not in healer()
+    since = len(community.requests)
+    button.click()
+    banner = page.locator("[data-combined-fight]")
+    banner.wait_for()
+    assert community.reached(page, f"/api/v1/logs/{LOG_ID}/combined?segment=2", since)
+    text = " ".join(banner.inner_text().split())
+    assert "Combined fight · 2 recordings" in text and "This recording" in text
+    assert "Testcleric -3.00 s · 40 shared hits 2 events, 3 MP readings" in text
+    assert "9,000" in healer() and page.locator("[data-view-combined]").count() == 0      # Testcleric's own heals
+    page.click("[data-own-recording]")
+    assert banner.count() == 0 and "9,000" not in healer()
+    page.click("[data-view-combined]")
+    banner.wait_for()
+    page.select_option('[data-control="segment"]', "1")
+    page.wait_for_function("!document.querySelector('[data-combined-fight]')")
+    page.select_option('[data-control="segment"]', "2")
+    page.locator("[data-view-combined]").wait_for()
+    assert banner.count() == 0 and "9,000" not in healer()

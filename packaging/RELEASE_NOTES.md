@@ -1,3 +1,20 @@
+## One fight from every recording of it, details in tabs, enemies by name, and compare by link (0.2.357)
+
+**One fight from every recording of it.** Party members who record the same fight each hold what only their own client saw: their own heals, buffs, casts, chain windows and MP, and whatever another client's packet loss dropped. When the log server has matched other public uploads to the fight (the *Also recorded by …* line), **Combine all N recordings of this fight** reviews the fight with them combined (log server 0.2.149):
+- Each record moves onto this recording's clock by the hit both recordings hold nearest to it. Clients receive packets in bursts up to a second apart.
+- A hit, or an effect with an amount (a heal, damage taken, a death), is added only when this recording holds none like it within a second.
+- Each character's casts, buffs, chain windows and HP or MP readings come from the recording holding most of them.
+
+A note lists each recording, its clock offset and what it added. **Back to this recording only**, or another encounter, returns to the upload as it was. On two recordings of one Talisra of the Void fight, either combined view holds the same 3,731 hits as each recording alone, both players' MP, buffs and chain windows, and the 19 heals only one of the two clients saw. Rankings and statistics still read each upload on its own.
+
+**Abilities and skills in tabs.** The ability contribution chart, the abilities table, the skills table and the cast timeline are now four tabs of one section, **Abilities and skills**, opening on **Ability contribution**, like *Casts, buffs and break gauge* below it. The contribution chart is drawn at the page's own text size: it was a picture scaled to the page's width, so the wider the window, the larger its text. On a phone each name and amount sits on its own line above its bar. The skills table and the cast timeline moved out of the *Rotation* tab, which keeps the totals, MP and chain skills.
+
+**Enemies by name.** *Enemy encounters* listed every entity the game registered: Ultimate Berk four times and Sniping Croka five times in one fight, sixteen *Unnamed summon* rows in a Talisra of the Void fight. It now lists one row per name, with its count, creature types, the damage they took and when they were seen; **Filter** covers all of them. Unnamed summons the party never struck fold under one line: in that Talisra fight they took no damage and struck the party 40 times, parts of the boss's attacks rather than enemies to fight. Unnamed ones the party did damage stay listed.
+
+**Compare by link.** The compare box takes another log's link as well as its ID (the website's log page or the log server's `/l/` link), and opens the comparison at the encounter the link names. A pasted link used to fail with *Invalid community API path* in the app and *Invalid public log ID* on the website.
+
+**Healing per second on the Class stats page.** A class's details on the website show its median, top 25%, top 10% and best healing per second, and how many of its fights include healing (log server 0.2.149). The overview stays on DPS.
+
 ## Other uploads of the same fight in view and in the replay, and a readable Class stats graph (0.2.356)
 
 **Another party member's upload of the fight, in view.** When the log server has matched another public upload to the fight you are looking at, the review now says *Also recorded by …* above the capture-quality notes, with a button to open it. Before, that line sat inside the collapsed *Capture quality* notes. The movement replay merges the other recording's movement without being asked: the recording player's own path, which the game never sends to their own client, comes from the other upload, and each recording's clock is set by the hits both hold. With no other upload matched, **Add other recordings of this fight** still asks the log server to look. The leaderboard already counted such a fight once per character.

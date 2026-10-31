@@ -140,6 +140,24 @@ def _merged_movement(q: dict) -> dict:
                         {**theirs, "positions": sum(1 for m in rows if m.get("via"))}]}
 
 
+def _combined_fight(q: dict) -> dict:
+    """The fight combined with Testcleric's recording of it (log server 0.2.149): Testcleric's heals, which only their
+    client saw, join it on this recording's clock."""
+    segment = int(q.get("segment", ["0"])[0])
+    doc = _raw_log()
+    fight = doc["segments"][segment]
+    fight["events"] = sorted(
+        [{"t": h["t"], "kind": "damage", "source": h["player"], "target": None, "skill": h["skill"], "amount": h["damage"]} for h in fight["hits"]]
+        + [{"t": t, "kind": "heal", "source": "p2", "target": "p1", "skill": "Healing Light", "amount": 4500.0, "via": 1} for t in (20.0, 50.0)],
+        key=lambda e: e["t"])
+    added = {"events": 2, "resources": 3}
+    doc["meta"]["combined"] = {"segment": segment, "added": added, "note": "Combined from the public recordings of the same fight.",
+                               "sources": [{"log": LOG_ID, "segment": segment, "title": "Test run", "uploader": "Testsorc"},
+                                           {"log": "TestLog002", "segment": 0, "title": "Their run", "uploader": "Testcleric",
+                                            "shared_hits": 40, "offset": -3.0, "added": added}]}
+    return doc
+
+
 def _log_rankings(q: dict) -> dict:
     """A fight's rankings. The final boss fight was uploaded by Testcleric too (``shared_uploads``)."""
     if q.get("segment", ["0"])[0] != "2":
@@ -179,6 +197,7 @@ ANSWERS = {
     f"/api/v1/logs/{LOG_ID}/parts": lambda q: {"parts": []},
     f"/api/v1/logs/{LOG_ID}/rankings": _log_rankings,
     f"/api/v1/logs/{LOG_ID}/movement": _merged_movement,
+    f"/api/v1/logs/{LOG_ID}/combined": _combined_fight,
     "/api/v1/run-leaderboard": lambda q: {"entries": [SPEED_RUN], "samples": 1, "truncated": False, "note": ""},
     "/api/v1/encounter-progression": lambda q: {"groups": [], "truncated": False, "note": ""},
     "/api/v1/progression": lambda q: {"observations": [o for o in PROGRESSION if q.get("class", [o["class_name"]])[0] == o["class_name"]],
