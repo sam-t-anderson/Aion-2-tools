@@ -43,3 +43,14 @@
 @media (prefers-color-scheme: light){:root:not([data-theme=dark]) .q-grey{--q:#54575f}:root:not([data-theme=dark]) .q-green{--q:#0c6600}:root:not([data-theme=dark]) .q-blue{--q:#26569e}:root:not([data-theme=dark]) .q-purple{--q:#7b35a9}:root:not([data-theme=dark]) .q-orange{--q:#8a4500}:root:not([data-theme=dark]) .q-pink{--q:#883e65}:root:not([data-theme=dark]) .q-gold{--q:#735510}:root:not([data-theme=dark]) .q-none{--q:#555865}}
 :root[data-theme=light] .q-grey{--q:#54575f}:root[data-theme=light] .q-green{--q:#0c6600}:root[data-theme=light] .q-blue{--q:#26569e}:root[data-theme=light] .q-purple{--q:#7b35a9}:root[data-theme=light] .q-orange{--q:#8a4500}:root[data-theme=light] .q-pink{--q:#883e65}:root[data-theme=light] .q-gold{--q:#735510}:root[data-theme=light] .q-none{--q:#555865}
 .cr-skill-icon{vertical-align:middle;border-radius:3px}.cr-gauge{display:block;width:100%;height:110px;background:#8881;margin:6px 0 10px;border-radius:4px}
+
+/* Ability contribution: one row per player and ability at the page's own text size. */
+.cr-bars{display:grid;gap:4px;margin:8px 0 12px}
+.cr-bar{display:grid;grid-template-columns:minmax(6em,2fr) minmax(3em,3fr) auto;gap:10px;align-items:center}
+.cr-bar-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cr-bar-track{height:18px;background:#8882;border-radius:3px;overflow:hidden}
+.cr-bar-track > span{display:block;height:100%;min-width:2px;border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.28)}
+.cr-bar-value{min-width:5.5em;text-align:right;font-variant-numeric:tabular-nums}
+.cr-folded{margin:6px 0 10px}.cr-folded > summary{cursor:pointer}
+/* A phone: each name and amount on one line, its bar across the width below. */
+@media (max-width:600px){.cr-bar{grid-template-columns:minmax(0,1fr) auto;row-gap:2px}.cr-bar-value{grid-column:2;grid-row:1}.cr-bar-track{grid-column:1 / -1}}

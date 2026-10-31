@@ -286,7 +286,8 @@ SPREAD = """() => [...document.querySelectorAll('svg[data-spread]')].map(svg => 
 
 def check_stats_spread(browser, base: str, problems: list) -> None:
     """The Class stats page's spread graph uses its width: the shared axis ends past the highest 90th percentile,
-    not at the single best parse, each median sits in its box, and a best past the axis is an arrow."""
+    not at the single best parse, each median sits in its box, and a best past the axis is an arrow. A class's
+    details show its healing per second."""
     context = browser.new_context()
     server = "https://logs.example"
 
@@ -301,8 +302,9 @@ def check_stats_spread(browser, base: str, problems: list) -> None:
                 {"classes": [{"class": c, "observations": 500, "logs": 50, "best_dps": d["max"]} for c, d in STATS.items()]}))
         elif url.startswith(server) and path.startswith("/api/v1/stats/"):
             d = STATS.get(path.rsplit("/", 1)[1])
+            hps = {"median": 2100.0, "p25": 900.0, "p75": 4200.0, "p90": 6800.0, "max": 15200.0, "observations": 480, "healed": 470}
             r.fulfill(content_type="application/json", headers=cors, status=200 if d else 404,
-                      body=json.dumps({"observations": 500, "dps": d, "best_dps": d["max"]} if d else {"error": "not found"}))
+                      body=json.dumps({"observations": 500, "dps": d, "best_dps": d["max"], "hps": hps} if d else {"error": "not found"}))
         elif urllib.parse.urlsplit(url).hostname in ("127.0.0.1", "localhost") or url.startswith(("data:", "blob:")):
             r.continue_()
         else:
@@ -326,6 +328,21 @@ def check_stats_spread(browser, base: str, problems: list) -> None:
             problems.append(f"stats.html: a best past the axis should be an arrow, one inside it a tick ({bars})")
     except Exception as exc:
         problems.append(f"stats.html: no spread graph ({str(exc).splitlines()[0]})")
+    # A class's details show its healing per second (log server 0.2.149), the overview does not
+    if "HPS" in page.locator("#stats-body").text_content():
+        problems.append("stats.html: the overview shows healing per second; it belongs to a class's details")
+    page.goto(base + "stats.html?class=cleric", wait_until="load")
+    try:
+        page.wait_for_selector("#stats-body .kpis", timeout=8000)
+        kpi = dict(zip(page.locator("#stats-body .kpi .k").all_text_contents(), page.locator("#stats-body .kpi .v").all_text_contents()))
+        wanted = {"Median HPS": "2,100", "Top 25% HPS": "4,200", "Top 10% HPS": "6,800", "Best HPS": "15,200"}
+        if any(kpi.get(k) != v for k, v in wanted.items()):
+            problems.append(f"stats.html?class=cleric: healing per second reads {[(k, kpi.get(k)) for k in wanted]}, not {wanted}")
+        note = page.locator("[data-hps-note]")
+        if not note.count() or "470 of the 480 fights include healing" not in note.text_content():
+            problems.append("stats.html?class=cleric: no note on which fights include healing")
+    except Exception as exc:
+        problems.append(f"stats.html?class=cleric: no class details ({str(exc).splitlines()[0]})")
     context.close()
 
 

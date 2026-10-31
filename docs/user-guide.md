@@ -42,9 +42,19 @@ Imported buff windows show merged, encounter-clipped duration and uptime; live b
 
 Each section retains up to 100 rows per encounter, with omissions and missing healing attribution shown. Filters apply after those limits. Use Events for retained underlying effects. Older local files gain insights when reopened with the updated application; shared archives require an updated sharing server.
 
+## Abilities and skills
+
+Below the players, **Abilities and skills** has four tabs (0.2.357), opening on the first:
+- **Ability contribution**: the 20 largest player and ability totals of the chosen measure (damage done, damage taken or healing) as bars, at the page's own text size.
+- **Abilities**: every ability with its effects, amount, share, per second, average, minimum and maximum.
+- **Skills**: each player's casts per skill, the average gap, the cooldown the game sent, cooldown usage, cast time and first and last cast (fights recorded since 0.2.306).
+- **Cast timeline**: each player's skill presses across the fight.
+
+**Hide** closes the section. The Player filter above applies to every tab.
+
 ## Casts, buffs and break gauge
 
-Fights the live meter records from 0.2.306 also carry each skill cast, buff and debuff, chain window and break-gauge reading, and from 0.2.307 your MP and the bosses' casts. Below the tables, **Casts, buffs and break gauge** has six tabs: **Rotation** (a cast timeline per player, casts per minute, cooldown usage, cast time, chain follow rate, dodges and your MP), **Buffs & debuffs** (uptime and who gave each), **Crowd control** (what landed, by state, and how long it held), **Break gauge** (each player's share of the gauge drained, the breaks and the damage dealt during them), **Boss casts** (what each boss cast, when and at whom) and **Buff contribution** (an estimated buff-adjusted DPS and rDPS split: what other players' buffs added to each player and what each player's buffs added to others; never used for rankings or parses). Encounter insights add effective healing and overheal for instant heals on players. [The app guide](app.md#casts-buffs-and-break-gauge) explains each column and its limits.
+Fights the live meter records from 0.2.306 also carry each skill cast, buff and debuff, chain window and break-gauge reading, and from 0.2.307 your MP and the bosses' casts. Below the tables, **Casts, buffs and break gauge** has six tabs: **Rotation** (casts per minute, procs, dodges, chain follow rate and your MP; each skill's casts and the cast timeline are under *Abilities and skills*), **Buffs & debuffs** (uptime and who gave each), **Crowd control** (what landed, by state, and how long it held), **Break gauge** (each player's share of the gauge drained, the breaks and the damage dealt during them), **Boss casts** (what each boss cast, when and at whom) and **Buff contribution** (an estimated buff-adjusted DPS and rDPS split: what other players' buffs added to each player and what each player's buffs added to others; never used for rankings or parses). Encounter insights add effective healing and overheal for instant heals on players. [The app guide](app.md#casts-buffs-and-break-gauge) explains each column and its limits.
 
 ## Death recaps and character trends
 
@@ -235,7 +245,17 @@ Since 0.2.354 (log server 0.2.147) these checks read a fight as follows:
 
 Matching public uploads of the same fight count once per player. Detection requires at least 20 matching outgoing damage records, player names/servers, NPC targets, and closely matching encounter timestamps and duration. Different actor IDs and packet timing can match; incomplete or ambiguous captures may remain separate. Original uploads are retained. Capture loss counters apply conservatively to the retained session, including history/telemetry limits; they can leave later encounters unranked until a fresh session is started.
 
-Compare multiple local or public logs by choosing the encounter and each same-class player explicitly. Scores are recorded DPS, not adjusted for gear or capture completeness.
+Compare multiple local or public logs by choosing the encounter and each same-class player explicitly. Paste the other log's ID or its link (the website's log page or the log server's `/l/` link); a link that names an encounter opens the comparison at it (0.2.357). Scores are recorded DPS, not adjusted for gear or capture completeness.
+
+**One fight from every recording of it** (log server 0.2.149, app and website 0.2.357). When the log server has matched other party members' public uploads to the fight, **Combine all N recordings of this fight** beside *Also recorded by …* reviews the fight with each recording's records combined. Each client holds what only it saw (its player's heals, buffs, casts, chain windows and MP, and what another client's packet loss dropped), so the combined fight is fuller than any one recording:
+- Each record moves onto this recording's clock by the hit both recordings hold nearest to it in time.
+- A hit or an effect with an amount (a heal, damage taken, a death) is added when this recording holds none like it within a second, so nothing counts twice.
+- Each character's casts, buffs and debuffs, chain windows and HP or MP readings come from the recording holding most of them.
+- Records naming an enemy that appears several times, or a player this recording did not see, stay out. A character its holder hides comes only from the holder's own uploads.
+
+The note above the fight lists each recording, its clock offset and what it added, or why it was left out. **Back to this recording only** returns to the upload as it was, and so does choosing another encounter. Rankings, leaderboards and statistics keep reading each upload on its own.
+
+On the website's **Class stats** page, a class's details show its healing per second too (log server 0.2.149): the median, top 25%, top 10% and best, with how many of the fights include any healing. It is each player's healing over the fight's length (the HPS standings' measure) over the same fights as the page's DPS figures: every PvE fight of 20 seconds or more, not only the ranked boss fights of the standings, so its best can be far above the standings' best. The overview by class stays on DPS.
 
 ## Build points
 
@@ -303,7 +323,9 @@ Active or unfinished checkpoints are excluded from batch upload; stop capture fi
 
 ### Reviewing a log
 
-Open a log to see its own detail page, then use **Back to combat logs** to return to history. Switch between Table, Timeline and Events. Rate graphs offer live-style bars/average or player series; timeline windows show skill icons with hover/click details and time navigation. Only recorded effects are shown. Website local-file previews must be reopened after a refresh.
+Open a log to see its own detail page, then use **Back to combat logs** to return to history. Switch between Table, Timeline and Events.
+
+**Enemy encounters** lists one row per enemy name (0.2.357): a boss the game registered several times, or an add that spawned again and again, is one row with its count (×4), its creature types, the damage they took and the time they were seen; **Filter** narrows the review to all of them. Bosses come first, then by damage taken. *Unnamed summon* and *Unnamed NPC* are entities the game data gives no name, labelled by their kind: mostly what a boss summons for its attacks. Those the party never struck are folded under one line that says how often they struck the party; open it to list them. Rate graphs offer live-style bars/average or player series; timeline windows show skill icons with hover/click details and time navigation. Only recorded effects are shown. Website local-file previews must be reopened after a refresh.
 
 ### Resume uploads
 
