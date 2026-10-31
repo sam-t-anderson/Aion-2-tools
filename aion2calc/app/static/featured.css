@@ -8,7 +8,7 @@
 .fe-head h2, .fe-head h3 { margin: 0; font-family: var(--display); color: var(--gold); }
 .fe-title small, .fe-sub { display: block; color: var(--muted); font-size: 0.85em; }
 .fe-portrait { border-radius: var(--r); border: 1px solid var(--frame); background: var(--icon-bg); object-fit: cover; flex: none; }
-.fe-portrait-none { display: inline-block; }
+.fe-portrait-none { display: inline-block; width: var(--fe-size); height: var(--fe-size); }
 .fe-nav { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-left: auto; }
 .fe-nav a { color: var(--text); text-decoration: none; padding: 4px 2px; border-bottom: 2px solid transparent; }
 .fe-nav a:hover, .fe-nav a[aria-current="page"] { color: var(--gold); border-bottom-color: var(--gold); }
@@ -71,7 +71,27 @@
 .fe-bar { position: relative; display: block; height: 12px; border-radius: 6px; background: var(--inset); }
 .fe-bar-iqr { position: absolute; top: 2px; bottom: 2px; border-radius: 4px; opacity: 0.85; background: var(--cls, var(--gold)); }
 .fe-bar-median { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--text); }
-@media (max-width: 1100px) { .fe-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* The encounters one under another; from 901px, where the logs pages are drawn at 125%, at the page's own size and
+   side by side wherever two fit (a 1080p screen shows two, a 1440p one two or three), each with its boss's portrait
+   in its header so its cards get the whole width (0.2.359). No text gets smaller than 16px; a row whose name and
+   value do not fit side by side puts the value under the name. A phone shows them as before. */
+.fe-zones { display: grid; gap: 16px; margin: 0 0 16px; }
+.fe-zones > .fe-zone { margin: 0; }
+@media (min-width: 901px) {
+  .site.wide-2x .fe-zones, main.logs-zoom .fe-zones { zoom: 0.8; }
+  .fe-zones { grid-template-columns: repeat(auto-fit, minmax(min(100%, 820px), 1fr)); }
+  .fe-zones > .fe-zone { position: relative; grid-template-columns: minmax(0, 1fr); }
+  .fe-zones .fe-zone-art { position: absolute; top: 13px; left: 13px; z-index: 1; }
+  .fe-zones .fe-zone-art .fe-portrait { width: 56px; height: 56px; }
+  .fe-zones .fe-zone-head { padding-left: 68px; min-height: 56px; }
+  .fe-zones .fe-title small, .fe-zones .fe-sub, .fe-zones .fe-medal { font-size: 16px; }
+  .fe-zones .fe-medal { width: 26px; height: 26px; }
+  .fe-zones .fe-rows li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
+  .fe-zones .fe-rows li > .fe-medal { flex: none; }
+  .fe-zones .fe-who { flex: 1 1 10em; }
+  .fe-zones .fe-val { flex: none; margin-left: auto; }
+}
+@media (max-width: 900px) { .fe-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
   .fe-zone { grid-template-columns: minmax(0, 1fr); }
   .fe-zone-art .fe-portrait { width: 64px; height: 64px; }

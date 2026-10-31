@@ -604,7 +604,7 @@ Once signed in, the app adds to the account the uploads its ownership backup hol
 
 ## Featured encounters
 
-The log server's operator can feature the latest bosses (0.2.352, log server 0.2.145). Each one sits at the top of **Combat Logs**, above **Browse logs**, in the app and on the website: the boss's portrait and nine cards, each with its top three.
+The log server's operator can feature the latest bosses (0.2.352, log server 0.2.145). Each one sits at the top of **Combat Logs**, above **Browse logs**, in the app and on the website: the boss's portrait and nine cards, each with its top three. From 901 pixels wide they are drawn at the page's own size rather than the logs pages' 125%, side by side wherever two fit (two on a 1080p screen), with the boss's portrait in the encounter's header (0.2.359). Phones show them one under another.
 - **Progress**: the teams that got furthest.
 - **Speed**: each team's fastest complete run.
 - **Execution**: each team's final-boss kill with the fewest deaths.

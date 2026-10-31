@@ -15,7 +15,8 @@ The Maps page must not contact the interactive-map provider until the visitor as
 page must offer the log server's own link for the log (its preview shows the fight), the Logs page's
 Completed-run speed tab must name a run's bosses and show its time, the Class stats page's spread graph
 must end its axis past the highest 90th percentile rather than at one best parse, and the Gathering page must
-show everyone's drop rates and, signed in, the account's own records.
+show everyone's drop rates and, signed in, the account's own records. The Logs page's featured encounters
+must sit two side by side on a 1080p screen and one under another on a phone.
 
     python tools/site_smoke.py [--axe node_modules/axe-core/axe.min.js] [--out DIR] [--keep]
 
@@ -422,6 +423,56 @@ def check_gathering(browser, base: str, problems: list) -> None:
         context.close()
 
 
+def _featured(n: int, title: str) -> dict:
+    team = {"key": f"party:t{n}", "kind": "party", "name": "Testlongname's party", "server": None, "region": "nae", "members": []}
+    summary = {"progress": [{"team": team, "killed": 2, "phases": 2, "complete": True}], "speed": [{"team": team, "elapsed": 363.0}],
+               "execution": [{"team": team, "seconds": 212.0, "deaths": 2}], "all_stars": {"dps": [], "tank": [], "support": []},
+               "classes": {"dps": [{"class": "assassin", "median": 68787.0}], "tank": [], "support": []}, "teams": 1, "complete": 1, "pulls": 3}
+    return {"id": f"fe_{n:010d}", "title": title, "boss": "Testboss", "boss_key": "npc:2390001", "difficulty": "Hard", "icon": "",
+            "phases": [], "summary": summary}
+
+
+FEATURED = {"featured": [_featured(1, "Testlord race"), _featured(2, "Testcave race")], "roles": {}, "note": ""}
+
+
+def check_featured_layout(browser, base: str, problems: list) -> None:
+    """The Logs page's featured encounters sit two side by side on a 1080p screen, with nothing scrolling sideways, and
+    one under another on a phone (0.2.359)."""
+    server = "https://logs.example"
+    for viewport, side_by_side in (({"width": 1920, "height": 1080}, True), (PHONE, False)):
+        context = browser.new_context(viewport=viewport)
+
+        def route(r):
+            url = r.request.url
+            if url.endswith("/config.js"):
+                r.fulfill(content_type="text/javascript", body=f'window.A2CONFIG = {{"server": "{server}", "key": ""}};')
+            elif url.startswith(server) and urllib.parse.urlsplit(url).path == "/api/v1/featured":
+                r.fulfill(content_type="application/json", headers={"Access-Control-Allow-Origin": "*"}, body=json.dumps(FEATURED))
+            elif urllib.parse.urlsplit(url).hostname in ("127.0.0.1", "localhost") or url.startswith(("data:", "blob:")):
+                r.continue_()
+            else:
+                r.abort()
+
+        context.route("**/*", route)
+        page = context.new_page()
+        label = f"logs.html featured encounters ({viewport['width']}px)"
+        page.goto(base + "logs.html", wait_until="load")
+        try:
+            page.wait_for_function("document.querySelectorAll('#featured .fe-zone').length === 2", timeout=8000)
+            a, b = page.evaluate("""() => [...document.querySelectorAll('#featured .fe-zone')].map(z => {
+                const r = z.getBoundingClientRect(); return {left: r.left, right: r.right, top: r.top, bottom: r.bottom}; })""")
+            wide = page.evaluate("() => document.documentElement.scrollWidth - window.innerWidth")
+            if side_by_side and not (abs(a["top"] - b["top"]) < 1 and a["right"] <= b["left"] and b["right"] <= viewport["width"]):
+                problems.append(f"{label}: the two encounters are not side by side ({a}, {b})")
+            if not side_by_side and b["top"] < a["bottom"]:
+                problems.append(f"{label}: the two encounters are not one under another ({a}, {b})")
+            if wide > 1:
+                problems.append(f"{label}: the page scrolls sideways by {wide}px")
+        except Exception as exc:
+            problems.append(f"{label}: no featured encounters ({str(exc).splitlines()[0]})")
+        context.close()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--axe", help="path to axe-core's axe.min.js, to run the accessibility checks")
@@ -455,6 +506,8 @@ def main() -> int:
                 check_stats_spread(browser, base, problems)
             if "gathering.html" in pages:
                 check_gathering(browser, base, problems)
+            if "logs.html" in pages:
+                check_featured_layout(browser, base, problems)
             browser.close()
     finally:
         server.shutdown()
