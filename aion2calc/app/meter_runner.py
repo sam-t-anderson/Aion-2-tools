@@ -181,6 +181,7 @@ class Runner:
         self._save_thread: threading.Thread | None = None   # the in-flight checkpoint save, if any
         self._previous_engine = None                        # the last capture's engine, for identity carry-over
         self._last_checkpoint = 0.0
+        self._last_gathering = 0.0
         self._rollover_retry_at = 0.0
         self._stop = False
         self.replay_stop = threading.Event()
@@ -631,6 +632,23 @@ class Runner:
         if now - self._last_checkpoint >= min(120.0, max(15.0, 4.0 * self._last_save_cost)):
             if self._spawn_save():
                 self._last_checkpoint = now
+        if now - self._last_gathering >= 5.0:
+            self._last_gathering = now
+            self._flush_gathering(final=False)
+
+    def _flush_gathering(self, final: bool) -> None:
+        """Move what the player gathered and took from reward cubes into the gathering log, and share it
+        ("Share gathering and drop data", on by default). Gathering happens out of combat, so this never
+        waits for a combat record or the session save."""
+        engine = self.packet_engine
+        if engine is None:
+            return
+        try:
+            from ..combat import gathering
+            if gathering.record(engine.drain_gathering()) or final:
+                gathering.report_async(final=final)
+        except Exception:
+            pass
 
     def _spawn_save(self) -> bool:
         """Write the session log on a worker thread. Building and serialising an 8 MB document
@@ -846,6 +864,7 @@ class Runner:
                 pass
 
     def _archive_diagnostics(self) -> None:
+        self._flush_gathering(final=True)
         self._save_session(active=False)
         if self.started_at is not None:
             try:

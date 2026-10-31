@@ -724,6 +724,10 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/community":
             from ..combat.share import community_request
             return self._json(community_request(q.get("path", "")))
+        if path == "/api/gathering":
+            # The Gathering page (Game): what this computer recorded, from the local gathering log
+            from ..combat import gathering
+            return self._json({**gathering.summary(), "sharing": gathering.enabled()})
         if path == "/api/account/discord-done":
             # Discord's sign-in comes back here, in the player's browser on this computer (account.discord_start)
             if self.client_address[0] not in ("127.0.0.1", "::1"):
@@ -1302,7 +1306,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
                               "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
-                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_per_fight", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics", "meter_record_packets", "rtss_enabled", "radar_enabled",
+                              "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_per_fight", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "share_gathering", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics", "meter_record_packets", "rtss_enabled", "radar_enabled",
                               "pettracker_enabled", "pettracker_overlay", "update_on_close", "performance_mode")
             for flag in _ui_bool_flags:
                 if flag in body and type(body[flag]) is not bool:
@@ -1916,6 +1920,9 @@ def ui_settings() -> dict:
                 "overlay_long_names_scroll": False, "overlay_party_enabled": False,
                 "meter_save_records": True, "meter_auto_upload": True, "meter_catch_up_uploads": True, "meter_upload_per_fight": True, "meter_upload_before_prune": True, "meter_report_boss_kills": True,
                 "meter_report_enemy_hp": True, "meter_report_diagnostics": True, "overlay_plan_autoplay": True,
+                # Share gathering and drop data (combat/gathering.py): on by default; anonymous unless the app is
+                # signed in to an account, when the character goes along for the account's own Gathering page.
+                "share_gathering": True,
                 "meter_autostart": True, "meter_log_cache_mb": 1024, "community_contribute_character": True,
                 # Record TCP payloads (Live Meter page): every capture records raw TCP while it is on,
                 # however it was started. Off by default, and kept out of settings backups.

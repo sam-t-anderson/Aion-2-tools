@@ -361,6 +361,20 @@ Settings → **Storage maintenance** inspects managed cache/update files before 
 
 Updater maintenance retains two recognized release packages, helpers for seven days, and at least the latest five helper logs plus all logs from the last thirty days. Active helper processes are excluded; inability to inspect Windows processes preserves legacy helpers. New helpers remove their own script/readiness marker after completing. Partial downloads remain because another app may be writing them. Cleanup also runs at launch.
 
+## Gathering and dungeon drops
+
+**Game → Gathering** (0.2.358) lists what you gathered and what dungeon reward cubes gave you, with everyone's drop rates beside them. Keep the Live Meter running while you play: it records each gather and each claimed reward cube, in or out of combat.
+
+- **Gathering** shows each kind of node with how often it gave each grade, how many a gather gave, and how often a gather came up a better grade or failed.
+- **Dungeon materials** shows, for each dungeon, how often its reward cubes held each crafting material (Refining Stones, Wrathful Wills, Egos and Minds, ...) and how many. Tick **Show every drop** for Kina, Enhance Stones and equipment too.
+- **Your log** lists every record, newest first.
+
+**Everyone** shows the drop rates from every player who shares; **This computer** shows only yours. The website's **Gathering** page shows everyone's rates too, and, when you sign in with the account your desktop app is signed in to, your own records.
+
+*Share gathering and drop data* (**Settings → Live meter**, on by default) sends your records with an anonymous key. Your character's name goes along only while the app is signed in, so your account's page can list it; nobody else sees it, and the drop rates never name anyone. Turn it off and your records stay on this computer.
+
+Not recorded yet: loot that drops on the ground from monsters, other players' gathers, and anything gathered while the meter is off.
+
 ## Maps and crafting
 
 **Maps** embeds the provider-supported InteractiveMap.app viewer for Verteron, Altgard, Poeta and Ishalgen. The provider's page is heavy (10–14 MB, with its own advertising and tracking scripts), so it loads only when you press **Load the interactive map**; tick **Load the map automatically** to skip the button on this computer or browser. Use its marker filters, zoom and route controls, or **Open provider** if embedding/storage restrictions prevent use. Shugo.GG/A2DB links provide additional regional references. This online view does not transfer application profiles, combat logs or credentials; account/checklist state and data belong to the provider. It does not classify encounters or verify marker/build applicability.

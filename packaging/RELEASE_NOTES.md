@@ -1,3 +1,25 @@
+## Gathering: what nodes and dungeon reward cubes give, and everyone's drop rates (0.2.358)
+
+**What you gather.** The Live Meter now reads what each gather gives you, in or out of combat:
+- the kind of node: an Orichalcum Ore vein, an Odyle plant, an Asvata log, a gemstone;
+- the item and how many;
+- whether it came up a **better grade** (the Fine or Pure material) or **failed** and gave nothing.
+
+**What dungeon reward cubes give.** When you claim a dungeon's reward cube (the 80 Odyle Energy one), the game sends the run's loot. The meter records every item and count with the dungeon it came from.
+
+**Game → Gathering.** A new page in the Game section lists both, from this computer's gathering log, beside everyone's drop rates. Its first two tabs switch between **Everyone** and **This computer**:
+- **Gathering**: each kind of node, how often a gather was normal, a better grade or failed, and each item it gave with its chance and how many a gather gave.
+- **Dungeon materials**: each dungeon's crafting materials (Refining Stones, Wrathful Wills, Egos and Minds, ...), how often a reward cube held each and how many it held. **Show every drop** adds Kina, Enhance Stones and equipment.
+- **Your log**: every gather and reward cube, newest first, with where it happened and the character.
+
+**Sharing, on by default.** **Settings → Live meter → Share gathering and drop data** sends your records to the log server, which turns everyone's into the drop rates (log server 0.2.151). The meter sends them at most every two minutes while it runs and the rest when you press Stop. A report carries each record's item, count, result, kind of node, map, dungeon and time, with an anonymous key for this install. Your character's name goes along only while the app is signed in to your account, so your account's page can list it. The drop rates never name anyone. Turn it off and the records stay on this computer.
+
+**On the website.** A new **Gathering** page shows everyone's drop rates. Signed in with the account your desktop app uses, it shows your own records as well.
+
+**Not recorded yet:** loot that drops on the ground from monsters, and other players' gathers.
+
+Items are named from DBAion2's English item table (9,604 items, bundled as `item-names.json`), which also gives each item's grade and whether it is a crafting material. `python -m aion2calc item-names --out DIR` stages a refresh for review.
+
 ## One fight from every recording of it, details in tabs, enemies by name, and compare by link (0.2.357)
 
 **One fight from every recording of it.** Party members who record the same fight each hold what only their own client saw: their own heals, buffs, casts, chain windows and MP, and whatever another client's packet loss dropped. When the log server has matched other public uploads to the fight (the *Also recorded by …* line), **Combine all N recordings of this fight** reviews the fight with them combined (log server 0.2.149):

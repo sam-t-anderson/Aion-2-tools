@@ -786,5 +786,16 @@
  "{0} teams · {1} cleared · {2} recorded pulls. Speed is a team's fastest complete run; execution its final-boss kill with the fewest deaths; all stars a character's best parse on each boss, added up; the class cards the median recorded DPS.": "{0} équipes · {1} terminées · {2} essais enregistrés. La vitesse est le run complet le plus rapide d'une équipe ; l'exécution sa victoire sur le boss final avec le moins de morts ; les All Stars la somme des meilleurs parses d'un personnage sur chaque boss ; les cartes de classe le DPS médian enregistré.",
  "← Back to combat logs": "← Retour aux logs de combat",
  "← Prev": "← Préc.",
- "▶ Play": "▶ Lire"
+ "▶ Play": "▶ Lire",
+ "Gathering": "Récolte",
+ "Dungeon materials": "Matériaux de donjon",
+ "Your log": "Votre journal",
+ "This computer": "Cet ordinateur",
+ "Gathers": "Récoltes",
+ "Items gathered": "Objets récoltés",
+ "Better grade": "Qualité supérieure",
+ "Reward cubes": "Cubes de récompense",
+ "In cubes": "Dans les cubes",
+ "How many": "Combien",
+ "Show every drop (equipment, currency)": "Afficher tout le butin (équipement, monnaie)"
 }

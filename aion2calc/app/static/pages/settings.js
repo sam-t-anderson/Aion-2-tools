@@ -881,6 +881,8 @@ async function pageSettings() {
       <p class="small muted" style="margin:2px 0 6px 14px">Anonymous and opt-in: sends only the boss, server and kill time (no account, character, log or IP). Two different installs must report the same kill before it shows, so the public world-boss availability feed stays corroborated.</p>
       <label style="margin-top:4px"><input type="checkbox" id="rec-report-enemy-hp" ${ui.meter_report_enemy_hp !== false ? "checked" : ""}> Share enemy HP data to improve everyone's HP bars (on by default)</label>
       <p class="small muted" style="margin:2px 0 6px 14px">Anonymous and opt-out: when an enemy dies, sends only how much damage it took to die, its NPC id and the game build (no account, character, log or IP). The server pools these across players — including party kills — to learn each enemy's real HP so the meter can show an accurate HP %. The more players share, the better the bars for all.</p>
+      <label style="margin-top:4px"><input type="checkbox" id="rec-share-gathering" ${ui.share_gathering !== false ? "checked" : ""}> Share gathering and drop data for the community drop rates (on by default)</label>
+      <p class="small muted" style="margin:2px 0 6px 14px">Opt-out: sends what each gather gave (the item, how many, whether it came up a better grade or failed, the kind of node, the map and dungeon) and what each dungeon reward cube held, with an anonymous per-install key, so the Gathering page can show everyone's drop rates. Your character's name goes with it only while the app is signed in to your account, so your own Gathering page on the website can list it; nobody else sees it. The app keeps its own gathering log either way.</p>
       <label style="margin-top:4px"><input type="checkbox" id="rec-report-diagnostics" ${ui.meter_report_diagnostics !== false ? "checked" : ""}> Share anonymous diagnostics to improve the catalog and catch meter bugs (on by default)</label>
       <p class="small muted" style="margin:2px 0 6px 14px">Anonymous and opt-out: after a fight, sends only the NPC/skill ids the app couldn't name yet (so new content gets added to the catalog) and a few capture-health counters like rollover and dropped-packet totals (so meter bugs such as a mid-fight reset show up across players). No account, character, combat log or IP — just ids, small numbers, the game build and region.</p>
       <label style="margin-top:4px"><input type="checkbox" id="rec-dummy" ${ui.meter_show_dummy_parse !== false ? "checked" : ""}> Show a training-dummy parse readout when hitting a dummy</label>
@@ -2110,6 +2112,8 @@ async function pageSettings() {
     api("/api/ui", { meter_report_boss_kills: $("#rec-report-boss").checked }).then(() => toast("Saved"));
   $("#rec-report-enemy-hp").onchange = () =>
     api("/api/ui", { meter_report_enemy_hp: $("#rec-report-enemy-hp").checked }).then(() => toast("Saved"));
+  $("#rec-share-gathering").onchange = () =>
+    api("/api/ui", { share_gathering: $("#rec-share-gathering").checked }).then(() => toast("Saved"));
   $("#rec-report-diagnostics").onchange = () =>
     api("/api/ui", { meter_report_diagnostics: $("#rec-report-diagnostics").checked }).then(() => toast("Saved"));
   $("#rec-dummy").onchange = () =>

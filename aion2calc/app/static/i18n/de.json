@@ -786,5 +786,16 @@
  "{0} teams · {1} cleared · {2} recorded pulls. Speed is a team's fastest complete run; execution its final-boss kill with the fewest deaths; all stars a character's best parse on each boss, added up; the class cards the median recorded DPS.": "{0} Teams · {1} abgeschlossen · {2} aufgezeichnete Versuche. Tempo ist der schnellste vollständige Lauf eines Teams; Ausführung sein Endboss-Sieg mit den wenigsten Toden; All Stars die besten Parses eines Charakters auf jedem Boss, zusammengezählt; die Klassenkarten zeigen die mittlere aufgezeichnete DPS.",
  "← Back to combat logs": "← Zurück zu den Kampflogs",
  "← Prev": "← Zurück",
- "▶ Play": "▶ Abspielen"
+ "▶ Play": "▶ Abspielen",
+ "Gathering": "Sammeln",
+ "Dungeon materials": "Dungeon-Materialien",
+ "Your log": "Dein Protokoll",
+ "This computer": "Dieser Computer",
+ "Gathers": "Sammelvorgänge",
+ "Items gathered": "Gesammelte Gegenstände",
+ "Better grade": "Höhere Stufe",
+ "Reward cubes": "Belohnungswürfel",
+ "In cubes": "In Würfeln",
+ "How many": "Wie viele",
+ "Show every drop (equipment, currency)": "Alle Beutestücke zeigen (Ausrüstung, Währung)"
 }

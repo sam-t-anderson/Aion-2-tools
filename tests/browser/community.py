@@ -186,8 +186,29 @@ SPEED_RUN = {"log": LOG_ID, "id": "1", "rank": 1, "count": 2, "boss_route": ["np
                              {"boss": "Ereshkigal", "boss_key": "npc:2340617", "kills": 1}]}
 
 
+# Everyone's gathering and reward-cube rates (log server 0.2.151): one kind of node, one dungeon whose cubes held
+# Kina (no crafting material) and two materials.
+ORE_VEIN, DEN = 1550004, 600092
+GATHERING = {
+    "gathers": 40, "cubes": 5, "reporters": 3, "generated_at": NOW,
+    "nodes": [{"node": ORE_VEIN, "name": "Orichalcum Ore", "gathers": 40, "reporters": 3, "results": {"normal": 30, "better": 8, "failed": 2},
+               "items": [{"item": 610620013, "name": "Orichalcum Ore", "grade": "Common", "category": "GATHERRESOURCE", "gathers": 30,
+                          "share": 0.75, "average": 1.0},
+                         {"item": 610620014, "name": "Fine Orichalcum Ore", "grade": "Rare", "category": "GATHERRESOURCE", "gathers": 8,
+                          "share": 0.2, "average": 1.0}]}],
+    "dungeons": [{"instance": DEN, "name": "Ferocious Horn Den (Normal)", "cubes": 5, "reporters": 2,
+                  "items": [{"item": 930100031, "name": "Kina", "grade": "Common", "category": "CURRENCY", "material": False, "cubes": 5,
+                             "share": 1.0, "average": 600000.0},
+                            {"item": 610530001, "name": "Refining Stone", "grade": "Common", "category": "CRAFTRESOURCE", "material": True,
+                             "cubes": 4, "share": 0.8, "average": 4.25},
+                            {"item": 610511014, "name": "Wrathful Will", "grade": "Unique", "category": "CRAFTRESOURCE", "material": True,
+                             "cubes": 1, "share": 0.2, "average": 1.0}]}],
+}
+
+
 ANSWERS = {
-    "/api/v1/report-facets": lambda q: {"game_patch": ["version:product:2.0.8.0"], "boss": [f[1] for f in FIGHTS],
+    "/api/v1/gathering/stats": lambda q: GATHERING,
+    "/api/v1/report-facets":lambda q: {"game_patch": ["version:product:2.0.8.0"], "boss": [f[1] for f in FIGHTS],
                                         "difficulty": ["Normal"], "encounter_type": ["dungeon"], "region": ["nae"],
                                         "latest_submitted_patch": "version:product:2.0.8.0", "party_size": [2],
                                         "boss_roles": {f[1]: f[2] for f in FIGHTS}},

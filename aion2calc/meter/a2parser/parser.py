@@ -1289,6 +1289,84 @@ def scan_odyle_energy(frame: bytes) -> tuple[int, int] | None:
     return counters.get(ODYLE_ENERGY_ID) if counters else None
 
 
+#: ``34 36`` kind of a gathering node (an ore vein, an Odyle plant, a gemstone, a tree), read in the 19 and 20
+#: October recordings: every node gathered spawned with it (0.2.358).
+GATHER_NODE_KIND = 4
+#: ``33 8d`` result byte: 0 the node's material, 1 a better grade of it (a Fine or Pure one), 2 a failed gather
+#: that gave nothing. In the recordings, 50 normal gathers all gave the plain grade, the 17 better ones a Fine
+#: or a Pure, and the one failure a count of 0.
+GATHER_RESULTS = {0: "normal", 1: "better", 2: "failed"}
+
+
+def _record_body(frame: bytes, opcode: bytes) -> bytes | None:
+    """A frame's body after its length and ``opcode``, or None for another record."""
+    length = read_varint(frame, 0)
+    if length.length <= 0 or frame[length.length:length.length + 2] != opcode:
+        return None
+    return frame[length.length + 2:]
+
+
+def scan_gather_node(frame: bytes) -> tuple[int, int, tuple[float, float, float]] | None:
+    """A gathering node coming into view: (entity, node code, position), or None.
+
+    ``34 36`` spawns an object: its entity (varint), a u16 kind, its code (u32) and its position (3 x f32),
+    then 37 bytes more. Kind 4 is a gathering node; its code is the kind of node, the same for every node of
+    one material (1550004 every Orichalcum Ore vein and 1550021 every Diamond Gemstone node in the October
+    recordings, 1500062 and 1550000 Odyle)."""
+    body = _record_body(frame, b"\x34\x36")
+    entity = _var(body, 0) if body else None
+    if entity is None or not 100 <= entity[0] <= 9_999_999:
+        return None
+    at = entity[1]
+    if at + 18 > len(body) or int.from_bytes(body[at:at + 2], "little") != GATHER_NODE_KIND:
+        return None
+    code = int.from_bytes(body[at + 2:at + 6], "little")
+    position = struct.unpack_from("<fff", body, at + 6)
+    if not 1_000_000 <= code <= 9_999_999 or not all(math.isfinite(v) and abs(v) < 1e7 for v in position):
+        return None
+    return entity[0], code, position
+
+
+def scan_gather_result(frame: bytes) -> dict | None:
+    """What the recording player's gather gave: ``{"result", "node", "item", "count"}``, or None.
+
+    ``33 8d`` comes only to the gatherer as the gather ends: the result byte (:data:`GATHER_RESULTS`), 0x3a,
+    the node's entity (varint), the item (u32) and the count (u32), then 12 bytes. Everyone in view gets
+    ``34 8d`` instead, which names the gatherer and the result but not the item. An Odyle plant gave one
+    gather in the recordings and an ore vein, a gemstone node or a tree three."""
+    body = _record_body(frame, b"\x33\x8d")
+    if body is None or len(body) < 2 or body[0] not in GATHER_RESULTS or body[1] != 0x3A:
+        return None
+    node = _var(body, 2)
+    if node is None or not 100 <= node[0] <= 9_999_999 or len(body) != node[1] + 20:
+        return None
+    item = int.from_bytes(body[node[1]:node[1] + 4], "little")
+    count = int.from_bytes(body[node[1] + 4:node[1] + 8], "little")
+    if not 100_000_000 <= item <= 999_999_999 or count > 1_000_000:
+        return None
+    return {"result": body[0], "node": node[0], "item": item, "count": count}
+
+
+def scan_reward_list(frame: bytes) -> list[tuple[int, int]] | None:
+    """The items a dungeon's reward cube gave: ``[(item, count), ...]``, or None.
+
+    ``15 57`` arrives as the cube is claimed (right after its 80 Odyle Energy are spent, in all four claims of
+    the 19 and 20 October recordings): two zero bytes, 2, the number of entries, then each entry's item (u32)
+    and count (u32). It holds the whole run's loot for the claimant: Kinah and another currency first, then
+    the equipment, refining stones and other materials (20 to 23 entries in the recordings)."""
+    body = _record_body(frame, b"\x15\x57")
+    if body is None or len(body) < 12 or body[:3] != b"\x00\x00\x02" or len(body) != 4 + 8 * body[3]:
+        return None
+    items = []
+    for at in range(4, len(body), 8):
+        item = int.from_bytes(body[at:at + 4], "little")
+        count = int.from_bytes(body[at + 4:at + 8], "little")
+        if not 1 <= item <= 999_999_999 or not 1 <= count <= 1_000_000_000:
+            return None
+        items.append((item, count))
+    return items
+
+
 def _effect(body: bytes) -> list[dict]:
     """``2b 38``: target, type, instance (varint), effect (u32), duration (u64 ms), start (u64), source,
     a byte, the skill that applied it (u32), a byte or two, then the applier's position (3 x f32)."""

@@ -26,6 +26,7 @@ A task-oriented guide to the desktop app and shared review controls. Detailed co
 - [Editing shared raid plans](#editing-shared-raid-plans)
 - [Official news](#official-news)
 - [Regional event timers](#regional-event-timers)
+- [Gathering](#gathering)
 - [Pet Tracker](#pet-tracker)
 - [Settings](#settings)
 - [Application updates](#application-updates)
@@ -39,7 +40,7 @@ A task-oriented guide to the desktop app and shared review controls. Detailed co
 
 ## Start here
 
-Install a desktop build using the [installation guide](install.md). The app opens to **Live Meter** so you can record combat right away. The top bar has three sections and Settings: **Combat** (Live Meter, Combat Logs, Raid Planner), **Character** (Build Planner, Builds, My Character, Gear & Advice, Saved Results) and **Game** (Timers, Maps, Database, Crafting, Pet Tracker, News). The row underneath lists the current section's pages, and a section's link returns to the page you last used in it (since 0.2.342). **My Character** imports and optimizes a character, **Build Planner** shows an example class build, and **Saved Results** holds previous optimizations and advice. **Settings → App & data → Page at launch** picks the page the app opens on.
+Install a desktop build using the [installation guide](install.md). The app opens to **Live Meter** so you can record combat right away. The top bar has three sections and Settings: **Combat** (Live Meter, Combat Logs, Raid Planner), **Character** (Build Planner, Builds, My Character, Gear & Advice, Saved Results) and **Game** (Timers, Maps, Database, Crafting, Gathering, Pet Tracker, News). The row underneath lists the current section's pages, and a section's link returns to the page you last used in it (since 0.2.342). **My Character** imports and optimizes a character, **Build Planner** shows an example class build, and **Saved Results** holds previous optimizations and advice. **Settings → App & data → Page at launch** picks the page the app opens on.
 
 Combat Logs has separate Saved Parts, My Uploads, Community Combat Logs and My Character Identities lists. Open a log for a focused detail page and use Back to return. Settings controls the theme, data folders, community server and game-data sync.
 
@@ -675,6 +676,34 @@ The bundled schedule is a dated community snapshot from [Shugo.GG](https://shugo
 
 **On the overlay**, with *Show regional event notifications* on (the default), the event strip also counts down these observed kills for your identified server and faction: a boss joins the strip when its expected return is within fifteen minutes (*back in 7m*, then *now*, with the same chime as the scheduled events) and stays for half an hour past it; the tooltip says who observed the kill, when, and which respawn reference was used. Nothing is shown until the faction has resolved, and the strip never uses manual Discord timers. *Include observed field-boss timers in the event strip* (Settings → Overlay, on by default) takes these kills out of the strip and leaves the scheduled events; the Timers page keeps them. Two global hotkeys (Settings → Hotkeys, since 0.2.317) flip that setting (*Show / hide field-boss timers on the overlay*) and show or hide the overlay's skill-cooldown strip and break-gauge bar together (*Show / hide combat assist*: it hides whichever are on and brings back the ones it hid, or both). An Abyss artifact status is not available: no record of artifact ownership is decoded yet.
 
+## Gathering
+
+**Game → Gathering** (since 0.2.358) shows what you gathered and what dungeon reward cubes gave you, next to everyone's drop rates. The Live Meter records both while it runs, in or out of combat. The game tells only the gatherer what a gather gave:
+
+- the kind of node, such as an Orichalcum Ore vein or an Odyle plant;
+- the item and how many;
+- whether it came up a **better grade**, which gives the Fine or Pure material, or **failed**, which gives nothing.
+
+When you claim a dungeon's reward cube (80 Odyle Energy), the game sends the run's loot, every item and count. The meter records each with the time, the map, the dungeon and your character. It keeps them in this computer's gathering log, `gathering\log.jsonl` in the data folder (the newest 50,000 records).
+
+The page has three tabs, and the first two switch between **Everyone** and **This computer**:
+
+- **Gathering**: one card per kind of node. A card shows how often a gather was normal, a better grade or failed, and each item the node gave with its grade, its **Chance** (the share of gathers that gave it) and **How many** a gather gave.
+- **Dungeon materials**: one card per dungeon, with the crafting materials its reward cubes held, such as Refining Stones and Wrathful Wills, Egos and Minds. **In cubes** is the share of claimed cubes that held the material, and **How many** is the average count when one did. **Show every drop** adds the rest of the loot: Kina, Enhance Stones and equipment.
+- **Your log**: every record, newest first, with where it happened and the character.
+
+The totals above the tabs count this computer's records: gathers, items gathered, better grades and failures (each with its share of gathers) and reward cubes. A crafting material is an item the game files as a gathered resource, a crafting resource or a material. Item names, categories and grades come from DBAion2's English item table, bundled as `item-names.json`; an item it does not list shows as *Item <id>*.
+
+**Sharing.** *Share gathering and drop data for the community drop rates* (**Settings → Live meter**, on by default) sends the records to the log server. The server adds them to everyone's rates, which the Everyone view and the website's **Gathering** page show. The meter sends at most every two minutes while it runs, and the rest when you press Stop. A record goes once; one the server cannot take yet, because it is offline or older than this feature, stays queued for the next try.
+
+A report carries each record's item, count, result, kind of node, map, dungeon and time, with an anonymous key for this install. Your character's name and server go along only while the app is signed in to your account. The account's Gathering page on the website can then list them; the drop rates never name anyone, and nobody else sees them. With sharing off the records stay on this computer.
+
+**Not recorded yet:**
+
+- Loot that drops on the ground from monsters you kill.
+- Other players' gathers.
+- A gather made while the Live Meter is not running.
+
 ## Pet Tracker
 
 [Pet Tracker](https://github.com/0Fox2Give/PetTracker), by 0Fox2Give, is a separate Windows program (open source, GPL-3.0) that shows your pet ranks and how many souls you still need while you farm. Since 0.2.337 Aion 2 Calc works with it, with its author's permission: it installs it on request, runs its capture, and shows its pets in an overlay window of its own and on the **Pet Tracker** page. Pet Tracker reads the game's traffic, as the Live Meter does (it needs Npcap too); like any third-party tool it is unofficial, and using it can put your game account at risk.
@@ -783,6 +812,7 @@ Everything the app writes goes in one folder:
 | `aion2.db` | item catalog, imported characters, encounter history |
 | `history\` | saved optimization/advice snapshots |
 | `diagnostics\`, `updates\` | capture diagnostics and staged app updates |
+| `data\gathering\` | the gathering log (`log.jsonl`: what you gathered and what reward cubes gave) and which records went to the log server (`sent.json`) |
 | `downloads\pettracker\` | Pet Tracker's verified installer while it runs (deleted when it finishes) |
 | `cache\`, `icons\` | downloaded pages and icons |
 
@@ -816,7 +846,7 @@ Optimization runs locally. Character import, data sync, icon retrieval and shari
 | aion2hub.com | the pictures of Pantheon decorations on Gear & Advice (the game's item icons, by item id; its robots.txt opens its icon route to everyone) |
 | aion2.plaync.com | official character and item information |
 | abysslogs.com / a2dil.com | supported external combat-log imports |
-| Configured community server | uploads, shared reviews and community data |
+| Configured community server | uploads, shared reviews and community data; with *Share gathering and drop data* on, what you gathered and what reward cubes gave (see [Gathering](#gathering)) |
 | GitHub Releases | application update checks and downloads |
 | github.com/0Fox2Give/PetTracker releases | Pet Tracker's signed release record and installer: when you install Pet Tracker, and every 6 hours while it is on, to check for its updates |
 
@@ -859,6 +889,8 @@ CSV needs these columns: `t, skill, damage`, plus optionally `skill_id, crit, do
 `/api/calibration?class=`, `/api/items?search=&category=`,
 `/api/items/<slug>`, `/api/items/<slug>/options?class=` (what the Gear page's item panel may set: enchant
 levels, roll pool with ranges, skill options), `/api/jobs/<id>`, `/api/icon?u=`
+
+`GET /api/gathering`: this computer's gathering log summed up for the Gathering page (totals, nodes, dungeons, the newest 100 records) and whether sharing is on
 
 `GET /api/pettracker` (`?collection=1` adds every pet), `/api/pettracker/portrait/<id>.png`; `POST /api/pettracker` (`{"action": ...}`); see [Pet Tracker integration](pettracker-integration.md)
 
