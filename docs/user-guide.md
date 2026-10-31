@@ -255,7 +255,7 @@ Compare multiple local or public logs by choosing the encounter and each same-cl
 
 The note above the fight lists each recording, its clock offset and what it added, or why it was left out. **Back to this recording only** returns to the upload as it was, and so does choosing another encounter. Rankings, leaderboards and statistics keep reading each upload on its own.
 
-On the website's **Class stats** page, a class's details show its healing per second too (log server 0.2.149): the median, top 25%, top 10% and best, with how many of the fights include any healing. It is each player's healing over the fight's length, as the HPS standings count it. The overview by class stays on DPS.
+On the website's **Class stats** page, a class's details show its healing per second too (log server 0.2.149): the median, top 25%, top 10% and best, with how many of the fights include any healing. It is each player's healing over the fight's length (the HPS standings' measure) over the same fights as the page's DPS figures: every PvE fight of 20 seconds or more, not only the ranked boss fights of the standings, so its best can be far above the standings' best. The overview by class stays on DPS.
 
 ## Build points
 

@@ -13,7 +13,7 @@ A note lists each recording, its clock offset and what it added. **Back to this 
 
 **Compare by link.** The compare box takes another log's link as well as its ID (the website's log page or the log server's `/l/` link), and opens the comparison at the encounter the link names. A pasted link used to fail with *Invalid community API path* in the app and *Invalid public log ID* on the website.
 
-**Healing per second on the Class stats page.** A class's details on the website show its median, top 25%, top 10% and best healing per second, and how many of its fights include healing (log server 0.2.149). The overview stays on DPS.
+**Healing per second on the Class stats page.** A class's details on the website show its median, top 25%, top 10% and best healing per second, and how many of its fights include healing (log server 0.2.149). Like the page's DPS figures they cover every PvE fight of 20 seconds or more, not only the ranked boss fights of the HPS standings. The overview stays on DPS.
 
 ## Other uploads of the same fight in view and in the replay, and a readable Class stats graph (0.2.356)
 

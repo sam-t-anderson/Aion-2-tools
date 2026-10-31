@@ -183,7 +183,7 @@
     body.innerHTML =
       `<h2 class="pagetitle" style="font-size:18px">${esc(cap(cls))}${boss ? " vs " + esc(boss) : ""}</h2>` +
       kpis(kp) +
-      (hps ? `<p class="muted" data-hps-note>Healing per second is each player's healing over the fight's length, as the HPS standings count it. ${n0(hps.healed)} of the ${n0(hps.observations)} fights include healing.</p>` : "") +
+      (hps ? `<p class="muted" data-hps-note>Healing per second is each player's healing over the fight's length, the HPS standings' measure, over the same fights as the DPS figures: every PvE fight of 20 seconds or more, not only the ranked boss fights of the standings. ${n0(hps.healed)} of the ${n0(hps.observations)} fights include healing.</p>` : "") +
       '<h2 class="pagetitle" style="font-size:18px;margin-top:18px">Top 25% of players: damage by skill</h2>' +
       (skillRows
         ? `<table class="t"><tr><th>Skill</th><th>Share (top 25%)</th><th class="r">All players</th><th class="r">Casts / min</th><th class="r">Used by</th></tr>${skillRows}</table>`
