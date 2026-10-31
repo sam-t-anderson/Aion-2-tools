@@ -10,8 +10,8 @@ PAGES = [("meter", "combat", "Live Meter"), ("combat", "combat", "Combat Logs"),
          ("planner", "character", "Build Planner"), ("builds", "character", "Builds"),
          ("character", "character", "My Character"), ("gear", "character", "Gear & Advice"),
          ("history", "character", "Saved Results"), ("timers", "game", "Timers"), ("maps", "game", "Maps"),
-         ("database", "game", "Database"), ("crafting", "game", "Crafting"), ("pets", "game", "Pet Tracker"),
-         ("news", "game", "News"), ("settings", None, "Settings")]
+         ("database", "game", "Database"), ("crafting", "game", "Crafting"), ("gathering", "game", "Gathering"),
+         ("pets", "game", "Pet Tracker"), ("news", "game", "News"), ("settings", None, "Settings")]
 
 
 def shown(page) -> list:

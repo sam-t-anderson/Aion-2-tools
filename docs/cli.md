@@ -129,6 +129,16 @@ The community catalog lists the monsters a DPS meter meets. Recordings also hold
 
 The command downloads the two tables, checks their shape (it stops if a row is not the one reviewed), and stages `catalog-supplement.json` with an audit, `catalog-supplement-audit.json`, of the ids added, removed and renamed against the bundled copy, into a new directory. It never overwrites one. Review the audit, then copy the file into `aion2calc/meter/a2parser/data/` for a release.
 
+### Item names
+
+```bash
+python -m aion2calc item-names --out staged-item-names
+```
+
+The gathering tracker (0.2.358, **Game → Gathering**) records items by number: what a gather gave and what a dungeon's reward cube held. The app bundles `item-names.json` to name them, taken from DBAion2's English item table (dbaion2.ru): each item's name, the game's category (`GATHERRESOURCE` a gathered material, `CRAFTRESOURCE` a crafting material, `CURRENCY`, ...) and grade (Common, Rare, Epic, Unique, ...). The category decides which items count as crafting materials on the Gathering page. Names only: no stat, price or drop data comes from it.
+
+The command downloads the table, checks its shape (it stops if a row is not the one reviewed), and stages `item-names.json` with an audit, `item-names-audit.json`, of the ids added, removed and renamed against the bundled copy, into a new directory. It never overwrites one. Review the audit, then copy the file into `aion2calc/meter/a2parser/data/` for a release.
+
 ## Value probe (diagnostic captures)
 
 ```bash

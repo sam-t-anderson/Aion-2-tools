@@ -51,6 +51,7 @@ Signatures** shows the publisher, signed with Azure Artifact Signing and timesta
 - **Review combat:** use Live Meter and its overlay, or open saved logs. Inspect damage, healing, deaths and per-player skills using tables, graphs, timelines and events; group linked pets with their owners.
 - **Share and compare:** upload logs as Public, Unlisted or Private, manage your uploads, browse community logs and compare eligible recordings and personal records.
 - **Plan encounters:** create and share raid plans, edit your published plans, and replay recorded positions when the log contains supported movement data.
+- **Track gathering and dungeon drops:** the Live Meter records what each gather gives (its grade, how many, or a failure) and what each dungeon reward cube holds, and the Gathering page sets them beside everyone's drop rates, the crafting materials of each dungeon included. Sharing your records for those rates is on by default and can be turned off in Settings.
 - **Track pets (optional, Windows):** with [Pet Tracker](https://github.com/0Fox2Give/PetTracker) by 0Fox2Give, see your pet ranks and the souls you still need in an overlay window of their own and on the Pet Tracker page. The installer or Settings installs it on request.
 
 Enter your actual available point totals; imported profiles may omit unspent points. PvP optimization is experimental. Missing telemetry stays unavailable, and community rankings depend on comparable, eligible public recordings. The [user guide](docs/user-guide.md) explains these limits and privacy controls.

@@ -13,8 +13,9 @@ For every page, at desktop width and at phone width (390 px):
 Requests to any other site are blocked, so the check never depends on the log server or a third party.
 The Maps page must not contact the interactive-map provider until the visitor asks for the map, a log
 page must offer the log server's own link for the log (its preview shows the fight), the Logs page's
-Completed-run speed tab must name a run's bosses and show its time, and the Class stats page's spread graph
-must end its axis past the highest 90th percentile rather than at one best parse.
+Completed-run speed tab must name a run's bosses and show its time, the Class stats page's spread graph
+must end its axis past the highest 90th percentile rather than at one best parse, and the Gathering page must
+show everyone's drop rates and, signed in, the account's own records.
 
     python tools/site_smoke.py [--axe node_modules/axe-core/axe.min.js] [--out DIR] [--keep]
 
@@ -346,6 +347,81 @@ def check_stats_spread(browser, base: str, problems: list) -> None:
     context.close()
 
 
+# The log server's /api/v1/gathering/stats (everyone's drop rates) and /api/v1/account/gathering (a signed-in
+# account's own records), as the server sends them; the characters are made up.
+GATHERING_STATS = {"gathers": 40, "cubes": 5, "reporters": 3, "generated_at": 0,
+                   "nodes": [{"node": 1550004, "name": "Orichalcum Ore", "gathers": 40, "reporters": 3,
+                              "results": {"normal": 30, "better": 8, "failed": 2},
+                              "items": [{"item": 610620013, "name": "Orichalcum Ore", "grade": "Common", "gathers": 30,
+                                         "share": 0.75, "average": 1.0}]}],
+                   "dungeons": [{"instance": 600092, "name": "Ferocious Horn Den (Normal)", "cubes": 5, "reporters": 2,
+                                 "items": [{"item": 610511014, "name": "Wrathful Will", "grade": "Unique", "material": True,
+                                            "cubes": 1, "share": 0.2, "average": 1.0}]}]}
+ACCOUNT_GATHERING = {"gathers": 2, "gathered": 3, "cubes": 0, "results": {"normal": 1, "better": 1, "failed": 0},
+                     "nodes": [{"node": 1550004, "name": "Orichalcum Ore", "gathers": 2, "results": {"normal": 1, "better": 1, "failed": 0},
+                                "items": [{"item": 610620013, "name": "Orichalcum Ore", "grade": "Common", "gathers": 1, "count": 2, "share": 0.5},
+                                          {"item": 610620014, "name": "Fine Orichalcum Ore", "grade": "Rare", "gathers": 1, "count": 1, "share": 0.5}]}],
+                     "items": [], "dungeons": [],
+                     "recent": [{"id": "a" * 24, "kind": "gather", "t": 1793000000, "place": "Altgard", "character": "Alpha", "item": 610620013,
+                                 "name": "Orichalcum Ore", "grade": "Common", "count": 2, "result": "normal"}]}
+
+
+def check_gathering(browser, base: str, problems: list) -> None:
+    """The Gathering page shows everyone's drop rates; a signed-in visitor sees their account's records too, and a
+    signed-out one is told how to see them."""
+    server = "https://logs.example"
+    session = {"server": server, "token": "a2web_" + "s" * 32, "name": "Alpha"}
+    for signed_in in (False, True):
+        context = browser.new_context()
+
+        def route(r):
+            url = r.request.url
+            path = urllib.parse.urlsplit(url).path
+            cors = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "X-Account-Token, Content-Type"}
+            if url.endswith("/config.js"):
+                r.fulfill(content_type="text/javascript", body=f'window.A2CONFIG = {{"server": "{server}", "key": ""}};')
+            elif url.startswith(server) and r.request.method == "OPTIONS":
+                r.fulfill(status=204, headers={**cors, "Access-Control-Allow-Methods": "GET, POST"})
+            elif url.startswith(server) and path == "/api/v1/gathering/stats":
+                r.fulfill(content_type="application/json", headers=cors, body=json.dumps(GATHERING_STATS))
+            elif url.startswith(server) and path == "/api/v1/account/gathering" and r.request.headers.get("x-account-token") == session["token"]:
+                r.fulfill(content_type="application/json", headers=cors, body=json.dumps(ACCOUNT_GATHERING))
+            elif url.startswith(server) and path == "/api/v1/account" and signed_in:
+                r.fulfill(content_type="application/json", headers=cors, body=json.dumps({"account": {"id": "a1", "name": "Alpha"}, "session": {}}))
+            elif urllib.parse.urlsplit(url).hostname in ("127.0.0.1", "localhost") or url.startswith(("data:", "blob:")):
+                r.continue_()
+            else:
+                r.abort()
+
+        context.route("**/*", route)
+        if signed_in:
+            context.add_init_script(f"try {{ localStorage.setItem('a2-account-v1', {json.dumps(json.dumps(session))}); }} catch (e) {{}}")
+        label = "gathering.html" + (" (signed in)" if signed_in else "")
+        page = context.new_page()
+        errors = []
+        page.on("pageerror", lambda err: errors.append(str(err)))
+        page.goto(base + "gathering.html", wait_until="load")
+        try:
+            page.wait_for_selector(".gt-node", timeout=8000)
+            heading = " ".join(page.locator(".gt-node h3").first.text_content().split())
+            if heading != "Orichalcum Ore 40 gathers · 3 players":
+                problems.append(f"{label}: everyone's first node reads {heading!r}")
+            if signed_in:
+                kpi = dict(zip(page.locator(".gt-kpis .kpi .k").all_text_contents(), page.locator(".gt-kpis .kpi .v").all_text_contents()))
+                if kpi.get("Gathers") != "2" or not kpi.get("Better grade", "").startswith("1"):
+                    problems.append(f"{label}: the account's totals read {kpi}, not 2 gathers with 1 better grade")
+                page.get_by_role("tab", name="Your log").click()
+                logged = " ".join(page.locator(".gt-log tbody").text_content().split())
+                if "Orichalcum Ore ×2" not in logged or "Alpha" not in logged:
+                    problems.append(f"{label}: the account's log reads {logged!r}")
+            elif not page.locator(".gt-signin").count():
+                problems.append(f"{label}: signed out, the page does not say how to see your own records")
+        except Exception as exc:
+            problems.append(f"{label}: no drop rates ({str(exc).splitlines()[0]})")
+        problems.extend(f"{label}: script error: {e}" for e in errors)
+        context.close()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--axe", help="path to axe-core's axe.min.js, to run the accessibility checks")
@@ -377,6 +453,8 @@ def main() -> int:
                 check_run_speed(browser, base, problems)
             if "stats.html" in pages:
                 check_stats_spread(browser, base, problems)
+            if "gathering.html" in pages:
+                check_gathering(browser, base, problems)
             browser.close()
     finally:
         server.shutdown()

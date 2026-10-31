@@ -809,3 +809,17 @@ html.i18n-wait body { visibility: hidden; }
 .updbar[hidden] { display: none; }
 .updbar progress { width: 160px; }
 .updbar label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+/* Gathering (gathering.js: the app's Game › Gathering page and the website's gathering.html). The dot before an
+   item names its grade by colour; the grade is also written out beside it, so the colour only decorates. */
+.gt-kpis { margin-bottom: 12px; }
+.gt-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 8px; }
+.gt-head p { margin: 0; flex: 1 1 280px; }
+.gt-node, .gt-dungeon { margin-bottom: 12px; text-align: left; }
+.gt-node h3, .gt-dungeon h3 { margin: 0 0 6px; }
+.gt-scroll { overflow-x: auto; }
+.gt-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; background: var(--muted); }
+.gt-dot[data-grade="Rare"] { background: #3fb37a; }
+.gt-dot[data-grade="Epic"] { background: #49a0e0; }
+.gt-dot[data-grade="Unique"] { background: #e0a030; }
+.gt-dot[data-grade="Heroic"] { background: #a07ce0; }
+.gt-dot[data-grade="Special"] { background: #e06aa0; }

@@ -786,5 +786,16 @@
  "{0} teams · {1} cleared · {2} recorded pulls. Speed is a team's fastest complete run; execution its final-boss kill with the fewest deaths; all stars a character's best parse on each boss, added up; the class cards the median recorded DPS.": "{0} チーム · {1} 完了 · 記録された挑戦 {2} 回。スピードはチームの最速の完走、立ち回りは戦闘不能が最も少ないラスボス討伐、オールスターはキャラクターの各ボスでの最高パースの合計、クラスのカードは記録された DPS の中央値です。",
  "← Back to combat logs": "← 戦闘ログに戻る",
  "← Prev": "← 前へ",
- "▶ Play": "▶ 再生"
+ "▶ Play": "▶ 再生",
+ "Gathering": "採集",
+ "Dungeon materials": "ダンジョン素材",
+ "Your log": "あなたの記録",
+ "This computer": "このパソコン",
+ "Gathers": "採集回数",
+ "Items gathered": "採集したアイテム",
+ "Better grade": "上位品質",
+ "Reward cubes": "報酬キューブ",
+ "In cubes": "キューブ内",
+ "How many": "個数",
+ "Show every drop (equipment, currency)": "すべてのドロップを表示（装備、通貨）"
 }

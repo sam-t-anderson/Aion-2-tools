@@ -186,6 +186,7 @@ const PAGES = [
   ["maps", "Maps"],
   ["database", "Database"],
   ["crafting", "Crafting"],
+  ["gathering", "Gathering"],
   ["pets", "Pet Tracker"],
   ["news", "News"],
   ["settings", "Settings"],
@@ -361,6 +362,7 @@ async function route() {
     else if (page === "builds") await pageBuilds();
     else if (page === "timers") await pageTimers();
     else if (page === "news") await pageNews();
+    else if (page === "gathering") await pageGathering();
     else if (page === "pets") await pagePets();
     else if (page === "account") await pageAccount();
     else await pagePlanner();

@@ -4,6 +4,7 @@ Commands
   catalog-refresh  stage pinned enemy/dungeon tables and an audit for release review
   catalog-gaps     list what the bundled catalog cannot name, for reporting upstream
   catalog-supplement  stage names for the NPC and dungeon ids the community catalog leaves out
+  item-names       stage names, categories and grades for the item ids the gathering tracker records
   routes-build     rebuild the Maps page's farming-route catalog from a permitted source checkout
   probe            find which undecoded record carries a number you saw in the game (diagnostic capture)
   refresh    re-scrape the sources and rebuild aion2calc/data
@@ -105,6 +106,9 @@ def main(argv: list[str] | None = None) -> int:
 
     sp = sub.add_parser("catalog-supplement", help="stage DBAion2 names for the NPC/dungeon ids the community catalog leaves out, and a review diff")
     sp.add_argument("--out", required=True, help="new staging directory; does not replace the installed supplement")
+
+    itn = sub.add_parser("item-names", help="stage DBAion2 names, categories and grades for item ids (gathering and reward cubes), and a review diff")
+    itn.add_argument("--out", required=True, help="new staging directory; does not replace the installed table")
 
     pb = sub.add_parser("probe", help="value probe: which record field held the numbers you saw in the game, from a diagnostic capture")
     pb.add_argument("capture", help="the diagnostics ZIP (exported with raw TCP recording on) or its tcp-payloads.jsonl")
@@ -278,6 +282,9 @@ def main(argv: list[str] | None = None) -> int:
         stage(args.revision, args.out)
     elif args.cmd == "catalog-supplement":
         from .scrape.supplement import stage
+        stage(args.out)
+    elif args.cmd == "item-names":
+        from .scrape.item_names import stage
         stage(args.out)
     elif args.cmd == "routes-build":
         from importlib.resources import files

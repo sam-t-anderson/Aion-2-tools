@@ -10,7 +10,7 @@ from copy import deepcopy
 import time
 
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
-from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_positions, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, scan_party_status, hp_record_entity, _damage_frames
+from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_positions, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, scan_party_status, hp_record_entity, _damage_frames, scan_gather_node, scan_gather_result, scan_reward_list
 from .framing import walk, bundle_batch, read_varint
 from .lookup import job_from_skill, skill_family, skill_name, npc_info, npc_name, dungeon_final_bosses
 from .ping import PingTracker
@@ -179,6 +179,11 @@ class MeterEngine:
         self.shugo_keys: dict | None = None
         self.nightmare_tickets: dict | None = None
         self.map_id = 0
+        # Gathering and loot: the gathering nodes in view (entity -> node code and position, from their spawns;
+        # entity ids belong to the zone) and what the recording player gathered or took from a dungeon's reward
+        # cube, kept until the app drains them into its gathering log (``drain_gathering``).
+        self.gather_nodes: dict[int, dict] = {}
+        self.gathered: deque[dict] = deque(maxlen=2_000)
         self.server_port = 50349
         self.damage_events = 0
         # A bounded, resolved event trail supports exporting an open a2log
@@ -419,6 +424,7 @@ class MeterEngine:
                 if NIGHTMARE_TICKETS_ID in counters:
                     regular, bonus = counters[NIGHTMARE_TICKETS_ID]
                     self.nightmare_tickets = {"regular": regular, "bonus": bonus, "timestamp_ms": timestamp_ms}
+            self._observe_gathering(packet, timestamp_ms)
             vitals = scan_self_vitals(packet)
             if vitals and vitals[0] == self.local_player_id:
                 # The local player's maximum HP and MP: the HP feed never carries its maximum, and
@@ -592,7 +598,7 @@ class MeterEngine:
         stay valid while the client stays in the zone, and the next real zone load resets this
         state anyway, so adopting the last engine's view is safe and restores the party at once."""
         with self._lock:
-            for attr in ("names", "jobs", "roster", "spawn_info", "_spawn_maps", "summon_owners", "local_profile", "live_hp", "boss_hp_seen", "party_status", "party_feed"):
+            for attr in ("names", "jobs", "roster", "spawn_info", "_spawn_maps", "summon_owners", "local_profile", "live_hp", "boss_hp_seen", "party_status", "party_feed", "gather_nodes"):
                 getattr(self, attr).update(getattr(previous, attr, {}) or {})
             for attr in ("known_players", "known_entities", "summons"):
                 getattr(self, attr).update(getattr(previous, attr, ()) or ())
@@ -609,6 +615,45 @@ class MeterEngine:
             self.shugo_keys = getattr(previous, "shugo_keys", None) or self.shugo_keys
             self.nightmare_tickets = getattr(previous, "nightmare_tickets", None) or self.nightmare_tickets
             self.counters = {**(getattr(previous, "counters", None) or {}), **self.counters}
+            self.gathered.extendleft(reversed(getattr(previous, "gathered", None) or ()))
+
+    def _observe_gathering(self, packet: bytes, timestamp_ms: int) -> None:
+        """A gathering node's spawn, what a gather gave or what a reward cube held, from one record. Every
+        record passes here, so its opcode is read once and only a matching record is decoded."""
+        size = read_varint(packet, 0).length
+        opcode = packet[size:size + 2] if size > 0 else b""
+        if opcode == b"\x34\x36":
+            node = scan_gather_node(packet)
+            if node is not None:
+                if len(self.gather_nodes) >= 4_096:
+                    self.gather_nodes.pop(next(iter(self.gather_nodes)))
+                self.gather_nodes[node[0]] = {"code": node[1], "position": [round(v, 1) for v in node[2]]}
+        elif opcode == b"\x33\x8d":
+            gathered = scan_gather_result(packet)
+            if gathered is not None:
+                spot = self.gather_nodes.get(gathered["node"]) or {}
+                self.gathered.append({"kind": "gather", "timestamp_ms": timestamp_ms, "item": gathered["item"],
+                                      "count": gathered["count"], "result": gathered["result"], "node": spot.get("code"),
+                                      "position": spot.get("position"), **self._where()})
+        elif opcode == b"\x15\x57":
+            items = scan_reward_list(packet)
+            if items is not None:
+                self.gathered.append({"kind": "reward", "timestamp_ms": timestamp_ms,
+                                      "items": [list(entry) for entry in items], **self._where()})
+
+    def _where(self) -> dict:
+        """Where and who for a gathering or loot record: the map, the dungeon instance and the recording player."""
+        local = self.local_player_id
+        return {"map_id": self.map_id or None, "instance_id": self.dungeon_id or None,
+                "character": (self.names.get(local) if local is not None else None) or self.local_character_name or None,
+                "server_id": (self.local_profile or {}).get("serverId")}
+
+    def drain_gathering(self) -> list[dict]:
+        """The gathering and loot records since the last call, oldest first."""
+        with self._lock:
+            out = list(self.gathered)
+            self.gathered.clear()
+            return out
 
     def _note_spawn(self, entity_id: int, info: dict) -> None:
         if info.get("mobCode"):
@@ -846,6 +891,7 @@ class MeterEngine:
         self.spawn_info.clear()
         self._spawn_maps.clear()
         self.npc_trace.clear()
+        self.gather_nodes.clear()
         self.npc_scan_calls = 0
         self.npc_candidates_seen = 0
         self.npc_trace_omitted = 0
