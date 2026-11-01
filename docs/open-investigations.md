@@ -602,7 +602,9 @@ opponents were of five classes from five servers, of both factions. The arena se
 
 **Map 61 is the Impetusium Arena.** Its map event is named after Impetusium (the plaza in Altgard the matches were
 entered from), as map 60's is after the Fire Temple, whose name was confirmed from a result screenshot. The label
-was *Arena (map 61)* until now.
+was *Arena (map 61)* until now. Since 0.2.362 a log saved with the old label reads the new name too:
+`PVP_MAPS[61]["formerly"]` lists it, and `combat.unnamed.relabel` (the log server's reads and re-index) and the
+app's opening of a saved recording replace it. The saved files are unchanged.
 
 **The rounds are the deaths.** At each of the twelve rounds the recording player lost, their HP read 0 within 0.2
 seconds of the round's record; at each of the six they won, the opponent's death came at the same moment. So a
