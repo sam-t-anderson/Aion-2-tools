@@ -4,9 +4,12 @@ import re
 
 from .a2parser.lookup import _table, dungeon_final_bosses, npc_info, supplement_dungeon
 
+#: ``formerly``: the names apps before the current one saved for the map; a log that still carries one is
+#: given the current name as it is read (``combat.unnamed.renamed_zone``).
 PVP_MAPS = {
     60: {"zone":"Fire Temple Arena", "evidence":"User-confirmed arena capture and result screenshot"},
-    61: {"zone":"Impetusium Arena", "evidence":"The game's own name for the map's arena event (Impetusium_Arena_MapEvent), sent as each match on map 61 opened in the 31 October arena capture (meter-20261031-211525-6690e1); map 60's is Fire_Temple_Arena_MapEvent, matching its confirmed name"},
+    61: {"zone":"Impetusium Arena", "evidence":"The game's own name for the map's arena event (Impetusium_Arena_MapEvent), sent as each match on map 61 opened in the 31 October arena capture (meter-20261031-211525-6690e1); map 60's is Fire_Temple_Arena_MapEvent, matching its confirmed name",
+         "formerly": ["Arena (map 61)"]},
 }
 #: Instanced areas no catalog names, named by recorded map id from a capture whose contents were
 #: confirmed: their fights are PvE in an unlisted category, so only the zone is set.

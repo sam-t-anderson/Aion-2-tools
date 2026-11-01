@@ -78,3 +78,26 @@ def test_an_old_recordings_arena_fight_is_retyped_when_read():
     doc = relabel({"segments": [arena, trash, npc_only]})
     assert [seg["encounter_type"] for seg in doc["segments"]] == ["pvp_arena", "pve_open_world", "pve_unverified"]
     assert doc["segments"][0]["zone"] == "Impetusium Arena"
+
+
+def test_an_old_recordings_map_61_fight_reads_the_impetusium_arena():
+    """0.2.362: apps before 0.2.361 saved map 61 as "Arena (map 61)"; read now (the app's review, the log
+    server's pages and its listings after the re-index), the fight is the Impetusium Arena."""
+    from aion2calc.combat.unnamed import relabel, rename_zones
+    from aion2calc.meter.context import PVP_MAPS
+    old = {"map_id": 61, "encounter_type": "pvp_arena", "zone": "Arena (map 61)", "zone_source": "an older catalog",
+           "entities": [], "events": []}
+    current = {"map_id": 61, "encounter_type": "pvp_arena", "zone": "Impetusium Arena", "zone_source": "kept",
+               "entities": [], "events": []}
+    fire = {"map_id": 60, "encounter_type": "pvp_arena", "zone": "Fire Temple Arena", "zone_source": "kept",
+            "entities": [], "events": []}
+    elsewhere = {"map_id": 20, "encounter_type": "pvp_open_world", "zone": "Arena (map 61)", "zone_source": "kept",
+                 "entities": [], "events": []}
+    doc = relabel({"segments": [old, current, fire, elsewhere]})
+    assert [(s["zone"], s["zone_source"]) for s in doc["segments"]] == [
+        ("Impetusium Arena", PVP_MAPS[61]["evidence"]), ("Impetusium Arena", "kept"), ("Fire Temple Arena", "kept"),
+        ("Arena (map 61)", "kept")]                     # the old name means map 61 only on map 61
+    again = rename_zones({"segments": [{"map_id": 61, "zone": "Arena (map 61)"}, "not a segment"]})
+    assert again["segments"][0]["zone"] == "Impetusium Arena"
+    assert rename_zones(None) is None and rename_zones({"segments": None}) == {"segments": None}
+    assert rename_zones({"segments": [{"map_id": [61], "zone": "Arena (map 61)"}]})["segments"][0]["zone"] == "Arena (map 61)"

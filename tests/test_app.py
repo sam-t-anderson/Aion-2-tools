@@ -219,6 +219,28 @@ def test_the_app_reads_back_the_advice_kept_for_a_character(home):
         srv.shutdown()
 
 
+def test_a_saved_recording_opens_under_the_zone_names_the_catalog_uses_now(home):
+    # 0.2.362: the Combat page opens a saved recording through /api/sessions?file=; one an app before 0.2.361
+    # saved on map 61 as "Arena (map 61)" opens as the Impetusium Arena. The file on disk is unchanged.
+    from http.server import ThreadingHTTPServer
+
+    from aion2calc.app.server import Handler
+    from aion2calc.combat import sessions
+    name = "session-20261030-120000-arena.a2log.json"
+    doc = {"format": "a2log", "version": 1, "meta": {}, "players": [],
+           "segments": [{"map_id": 61, "encounter_type": "pvp_arena", "zone": "Arena (map 61)", "duration": 30.0}]}
+    target = sessions.save(doc, name)
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_address[1]}/api/sessions?file=" + urllib.parse.quote(name)
+    try:
+        opened = json.loads(urllib.request.urlopen(url, timeout=30).read())
+        assert opened["segments"][0]["zone"] == "Impetusium Arena"
+        assert json.loads(target.read_text(encoding="utf-8"))["segments"][0]["zone"] == "Arena (map 61)"
+    finally:
+        srv.shutdown()
+
+
 def test_logserver_check_and_overlay(home, monkeypatch):
     from http.server import ThreadingHTTPServer
 

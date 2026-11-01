@@ -1,3 +1,7 @@
+## Older map-61 fights read the Impetusium Arena too (0.2.362)
+
+**The arena's name in older logs.** Logs saved before 0.2.361 call the arena on map 61 *Arena (map 61)*. They now read *Impetusium Arena* wherever they are shown: in your saved logs, on a shared log's page and, once the log server has re-read its logs, in the community lists. The saved files themselves are not changed.
+
 ## Arena matches: one fight each, with the result, the rounds and who killed whom (0.2.361)
 
 **One match, one fight.** After each round you lose in an arena, the game brings you back with a zone load on the same map. The meter took that for a new zone, so a match lost 0–3 was cut into two or three fights. Your opponent also went nameless after the first one: the game sends their name only as the match opens. The meter now reads the arena's own records. A match stays one fight from its first hit to its last, and your opponent stays named throughout.

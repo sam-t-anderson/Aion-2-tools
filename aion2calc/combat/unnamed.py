@@ -56,14 +56,35 @@ def arena_matches(segment) -> bool:
     return True
 
 
+def renamed_zone(segment) -> bool:
+    """Give a segment whose zone is a name the catalog has since replaced the current one: apps before 0.2.361
+    saved map 61 as *Arena (map 61)*, the Impetusium Arena. Whether it did so."""
+    from ..meter.context import PVP_MAPS
+    map_id = segment.get("map_id")
+    record = PVP_MAPS.get(map_id) if isinstance(map_id, int) else None
+    if not record or segment.get("zone") not in record.get("formerly", ()):
+        return False
+    segment.update(zone=record["zone"], zone_source=record["evidence"])
+    return True
+
+
+def rename_zones(doc):
+    """``doc`` with each segment's replaced zone name made current (``renamed_zone``), in place."""
+    for segment in (doc.get("segments") if isinstance(doc, dict) else None) or []:
+        if isinstance(segment, dict):
+            renamed_zone(segment)
+    return doc
+
+
 def relabel(doc):
     """``doc`` with each entity named "???" given its label, each arena match against players the
-    capture could not name typed so and the Stamina and MP restores left out of its heals, in place
-    (returned for chaining)."""
+    capture could not name typed so, each zone name the catalog has replaced made current and the Stamina
+    and MP restores left out of its heals, in place (returned for chaining)."""
     from .healing import drop_restores
     for segment in (doc.get("segments") if isinstance(doc, dict) else None) or []:
         if not isinstance(segment, dict):
             continue
+        renamed_zone(segment)
         arena_matches(segment)
         drop_restores(segment)
         pending = [e for e in segment.get("entities") or [] if isinstance(e, dict) and unnamed(e.get("name"))]
