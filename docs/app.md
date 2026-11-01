@@ -613,7 +613,7 @@ The log server's operator can feature the latest bosses (0.2.352, log server 0.2
 
 **View more…** and the links beside the encounter's title open its pages:
 - **Race Summary**: the phases (the mini bosses, then the final boss) side by side over one bar, filled as far as the leading team got. Each phase shows how many teams reached and killed it, its first kill on record, and the teams still working on it. The teams that finished stand under **Complete!**. **A closer look** then shows the leading teams: their progress, their pulls, and the boss they are on or when they finished.
-- **Progress**: every team by how far it got, with the bosses it killed, its pulls and when it last made progress. Then come the final-boss kills, first first, with the party's classes, the game version, the duration and the deaths.
+- **Progress**: every team by how far it got, with the bosses it killed, its pulls and when it last made progress. Then come the final-boss kills, earliest first, with the party's classes, the game version, the duration and the deaths.
 - **All Reports**: the encounter's public logs, newest first.
 - **Rankings**: the players on one of its bosses by damage or healing per second, for one class or all of them, or each team's fastest run (**Speed (teams)**). A player's log opens at the ranked fight.
 - **Statistics**: each class's recorded rate on one of its bosses: the samples, the 25th, 50th, 75th and 95th percentiles, the best, and a bar showing the middle half.
