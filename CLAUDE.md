@@ -5,6 +5,16 @@
   URL) in pull request descriptions or in pull request comments. Keep pull request text
   focused on the change itself.
 
+## GitHub repositories and pull request events
+- This repository was renamed from `Aion-calc` to `Aion-2-tools`. A session's repository entry and a clone's
+  remote can still carry the old name; GitHub redirects it for git, but pull request subscriptions and API
+  calls must use the current names: `sam-t-anderson/Aion-2-tools`, `sam-t-anderson/Aion-2-tools-server`,
+  `sam-t-anderson/Aion-2-tools-diagnostics` and `sam-t-anderson/Aion-2-fera-discordbot`.
+- The Claude GitHub App is installed on all four repositories, so their pull request events reach the
+  session. A subscription made under the old name `Aion-calc` gets no events, and the tool then says the App
+  is not installed on `Aion-calc`: that refers to the old name only. Subscribe again under the current name;
+  never report the App as missing from these repositories.
+
 ## Diagnostic captures for encounter analysis
 - The diagnostic captures supplied so far (raw TCP payload recordings with their capture summaries and
   `diagnostics.json`), the sharing-server logs downloaded during past investigations, a2log exports of the
