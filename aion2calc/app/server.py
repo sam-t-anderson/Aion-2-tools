@@ -918,6 +918,10 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:
                 current.record_status_failure(exc)
                 raise
+        if path == "/api/meter/marks":
+            from .meter_runner import runner
+            r = runner()
+            return self._json({"marks": [dict(m) for m in r.marks], "labels": list(r.MARK_LABELS)})
         if path == "/api/meter/player":
             # The overlay's player panel (0.2.364): one player of the live view in depth, by the row key the
             # snapshot gave; null when the view no longer holds that player.
@@ -1155,6 +1159,26 @@ class Handler(BaseHTTPRequestHandler):
                 if self.client_address[0] not in ("127.0.0.1", "::1"):
                     raise PermissionError("Region detection runs only on this computer")
                 return self._json(r.retry_region())
+            if action == "mark":
+                # A labelled moment (0.2.365): the Live Meter page's Mark button; the hotkey marks through the launcher.
+                label = body.get("label")
+                if label is not None and not isinstance(label, str):
+                    raise ValueError("label must be text")
+                if label and label not in r.MARK_LABELS:
+                    raise ValueError("label must be one of " + ", ".join(r.MARK_LABELS))
+                if body.get("note") is not None and not isinstance(body.get("note"), str):
+                    raise ValueError("note must be text")
+                return self._json({"marks": r.mark(label or "other", body.get("note") or "", source="button")})
+            if action == "relabel":
+                label = body.get("label")
+                if label is not None and (not isinstance(label, str) or label not in r.MARK_LABELS):
+                    raise ValueError("label must be one of " + ", ".join(r.MARK_LABELS))
+                if body.get("note") is not None and not isinstance(body.get("note"), str):
+                    raise ValueError("note must be text")
+                index = body.get("index", -1)
+                if type(index) is not int:
+                    raise ValueError("index must be a whole number")
+                return self._json({"marks": r.relabel(index, label, body.get("note"))})
             if action == "split":
                 return self._json(r.split_now())
             if action == "clear":

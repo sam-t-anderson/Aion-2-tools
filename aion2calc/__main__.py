@@ -232,6 +232,16 @@ def main(argv: list[str] | None = None) -> int:
                                                              "logs (files or folders): the measured gain in plain hits "
                                                              "while each credited buff group was up, against the estimate")
 
+    ao = sub.add_parser("aoe-shapes", help="measure the bosses' area-of-effect shapes from recordings: where every "
+                                          "player stood when a boss cast's damage landed and who was hit, fitted to a "
+                                          "circle, cone, line or ring per skill (public logs by default)")
+    ao.add_argument("paths", nargs="*", help="saved logs (files or folders) instead of the public logs")
+    ao.add_argument("--logs", type=int, default=100, help="how many of the newest public logs to read (default 100)")
+    ao.add_argument("--server", help="log server URL (default: the configured one)")
+    ao.add_argument("--write", action="store_true", help="write the replay's catalog (app/static/aoe-shapes.json) and "
+                                                         "docs/generated/aoe-shapes.md")
+    ao.add_argument("--all", action="store_true", help="list the insufficient rows too")
+
     iv2 = sub.add_parser("install-version", help="show each detected game install's version signals and, with "
                                                  "two or more (e.g. Steam and PURPLE), which signal is the shared "
                                                  "launcher-independent game version")
@@ -477,6 +487,21 @@ def main(argv: list[str] | None = None) -> int:
                 learn.observe(e["id"], conn)
         for c in classes:
             print(c + ":", "; ".join(learn.summary(learn.fit(c, conn))))
+    elif args.cmd == "aoe-shapes":
+        from .combat import aoe
+        from pathlib import Path
+        docs = aoe.load_docs(args.paths) if args.paths else aoe.public_docs(args.server, limit=args.logs)
+        rows = aoe.measure(docs)
+        shown = rows if args.all else [r for r in rows if r["confidence"] != "insufficient"]   # unclear rows are worth seeing
+        print(aoe.report(shown) if shown else "no boss cast with damage and positions was found in these logs")
+        skipped = len(rows) - len(shown)
+        if skipped:
+            print(f"{skipped} boss skills had too few casts, hits or unhit positions to measure (--all lists them)")
+        if args.write:
+            static = Path(__file__).resolve().parent / "app" / "static"
+            docs_dir = Path(__file__).resolve().parent.parent / "docs" / "generated"
+            out, md = aoe.write_outputs(rows, static, docs_dir)
+            print(f"wrote {out} and {md}")
     elif args.cmd == "calibrate":
         from . import calibrate as C
         if args.buffs:

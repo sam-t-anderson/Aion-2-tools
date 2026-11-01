@@ -168,3 +168,27 @@ def test_start_asks_for_a_capture_and_leaves_recording_to_its_saved_setting(app_
     page.wait_for_function("document.querySelector('#mnotice').textContent === 'the test stops here'")
     start, = [body for body in sent if body.get("action") == "start"]
     assert (start["source"], start["scope"]) == ("replay", "party") and "record_packets" not in start
+
+
+def test_a_moment_can_be_marked_and_the_latest_mark_labelled_afterwards(app_page, app_url):
+    """Labelled moments (0.2.365): Mark stamps what the player saw on the capture's clock, the list shows it, and
+    Label the latest gives the newest mark (a hotkey press, say) its label and note."""
+    page = app_page
+    go(page, app_url, "#/meter")
+    page.locator("#madvanced").evaluate("d => d.open = true")
+    page.locator("#madvanced details").last.evaluate("d => d.open = true")
+    page.select_option("#mmarklabel", "shield")
+    page.fill("#mmarknote", "the templar's shield took the whole hit")
+    page.click("#mmark")
+    page.wait_for_function("document.querySelector('#mmarks').textContent.includes('shield')")
+    assert "the templar's shield took the whole hit" in page.locator("#mmarks").inner_text()
+    assert page.input_value("#mmarknote") == ""
+    page.select_option("#mmarklabel", "interrupt")
+    page.fill("#mmarknote", "it was the cast that got cut")
+    page.click("#mrelabel")
+    page.wait_for_function("document.querySelector('#mmarks').textContent.includes('interrupt')")
+    text = page.locator("#mmarks").inner_text()
+    assert "it was the cast that got cut" in text and "shield" not in text          # relabelled, not added
+    with urllib.request.urlopen(app_url + "api/meter/marks", timeout=10) as answer:
+        marks = json.load(answer)["marks"]
+    assert [m["label"] for m in marks] == ["interrupt"] and marks[0]["source"] == "button"

@@ -173,6 +173,7 @@ class Runner:
         self._recording = None        # the RecordingSwitch the running capture writes its segments to
         self._record_setting = False  # Record TCP payloads as last applied (see _apply_packet_recording)
         self.diagnostic_export = None
+        self.marks = []           # labelled moments of this capture (0.2.365)
         self._exported_recorder = None
         self._capture_generation = 0
         self._exported_generation = -1
@@ -234,6 +235,7 @@ class Runner:
         self.diagnostics = {}
         self._capture_generation += 1
         self.diagnostic_export = None
+        self.marks = []
         from ..meter.diagnostics import Recorder, RecordingSwitch
         if self.recorder is not None:
             try:
@@ -872,6 +874,42 @@ class Runner:
             except (OSError, ValueError, TypeError) as exc:
                 self.diagnostics["archive_error"] = f"{type(exc).__name__}: {exc}"
 
+    # Labelled moments (0.2.365): what the player saw happen, stamped on the capture's clock, so a recording's
+    # raw TCP and its saved log can be read against it: a shield soaking a hit, an interrupted cast, a miss, a
+    # mitigated hit, a heal over time, a PvP team or round, a boss mechanic. Kept per capture, exported with the
+    # diagnostics and written into the saved log's meta.
+    MARK_LABELS = ("shield", "interrupt", "miss", "mitigation", "hot", "pvp", "mechanic", "other", "hotkey")
+    MARK_LIMIT = 500
+
+    def mark(self, label="hotkey", note="", source="button") -> list:
+        label = str(label or "hotkey").strip()[:40] or "hotkey"
+        note = " ".join(str(note or "").split())[:200]
+        now = time.time()
+        cached = next(iter(self._status_cache.values()), None) if getattr(self, "_status_cache", None) else None
+        snap = (cached or {}).get("snapshot") or {}
+        target = snap.get("current_target") or {}
+        row = {"at": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(now)) + f".{int(now * 1000) % 1000:03d}Z",
+               "t_ms": int(now * 1000), "label": label, "note": note, "source": str(source or "button")[:16],
+               "boss": snap.get("boss"), "target": target.get("name") if isinstance(target, dict) else None,
+               "fight_t": snap.get("duration"), "running": bool(self.running), "recording": self.recorder is not None}
+        self.marks.append(row)
+        del self.marks[:-self.MARK_LIMIT]
+        return [dict(m) for m in self.marks]
+
+    def relabel(self, index=-1, label=None, note=None) -> list:
+        """Give an existing mark (the latest by default, as a hotkey press is labelled afterwards) its label and note."""
+        if not self.marks:
+            raise ValueError("no mark to relabel yet")
+        try:
+            row = self.marks[int(index)]
+        except (IndexError, ValueError, TypeError):
+            raise ValueError("no such mark") from None
+        if label is not None:
+            row["label"] = str(label).strip()[:40] or row["label"]
+        if note is not None:
+            row["note"] = " ".join(str(note).split())[:200]
+        return [dict(m) for m in self.marks]
+
     def export_diagnostics(self) -> dict:
         with self._diagnostic_lock:
             if (self._exported_generation == self._capture_generation and self.diagnostic_export and not self.running
@@ -930,7 +968,7 @@ class Runner:
             cached = self._last_display_diagnostics
             diagnostic["display_context_cached_at"] = cached.get("at")
             result = {"source": self.source_name, "running": self.running,
-                      "error": self.error, "diagnostics": diagnostic,
+                      "error": self.error, "diagnostics": diagnostic, "marks": [dict(m) for m in self.marks],
                       "automatic_context": cached.get("automatic_context"),
                       "catalog_coverage": cached.get("catalog_coverage")}
         finally:
@@ -1819,6 +1857,8 @@ class Runner:
     def _metadata(self, doc, *, metadata=None, profile=None, collector=None):
         metadata = self.metadata if metadata is None else metadata
         doc.setdefault("meta", {}).update(metadata)
+        if self.marks:
+            doc["meta"]["marks"] = [dict(m) for m in self.marks]   # the player's labelled moments (0.2.365)
         if collector:
             detected = collector.snapshot((profile or {}).get("serverId"))
             for key in ("installed_build", "installed_build_source", "installed_build_namespace", "installed_build_cohort", "launcher_build", "launcher_build_namespace", "launcher_build_source", "file_version", "installed_content_build", "installed_content_namespace", "installed_content_source"):

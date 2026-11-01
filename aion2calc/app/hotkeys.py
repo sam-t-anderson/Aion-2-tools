@@ -27,6 +27,7 @@ ACTIONS: dict[str, str] = {
     "toggle_overlay": "Show / hide the overlay",
     "toggle_meter": "Start / stop the meter",
     "clear_meter": "Clear the meter (battle reset)",
+    "mark_moment": "Mark this moment for the diagnostics (label it on the Live Meter page)",
     "toggle_click_through": "Toggle click-through",
     "toggle_party_overlay": "Show / hide the Party-DPS overlay",
     "open_app": "Open the app window",
