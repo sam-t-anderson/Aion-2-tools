@@ -259,6 +259,79 @@ html.native-windows #ovbg { border-radius: 0; }
 /* Compact rows: drop the trailing total · percent, keep just the rate. */
 #ov.ov-compact .ovbar .sub { display: none; }
 
+/* Background modes (0.2.364). None: the rows, bars and text alone over the game. Top: the card's panel behind the
+   header, the metric buttons, the target panel with its bars and the Odyle, Shugo and Nightmare lines only, its
+   height measured after each render (--ov-top-h). The rows keep a pill of their own in both, so they stay
+   legible over the game, and the header text takes a shadow where no panel backs it. */
+#ov.ov-bg-none .ovcard, #ov.ov-bg-top .ovcard, html.native-windows #ov.ov-bg-none .ovcard, html.native-windows #ov.ov-bg-top .ovcard {
+  background: transparent; border-color: transparent; box-shadow: none; }
+#ov.ov-bg-none #ovbg { display: none; }
+#ov.ov-bg-top .ovcard::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: var(--ov-top-h, 0px); border-radius: 12px;
+  background: rgba(27, 32, 42, var(--ovbg, .9)); border: 1px solid rgba(255, 255, 255, .08); box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  z-index: 0; pointer-events: none; }
+html.native-windows #ov.ov-bg-top .ovcard::before { background: rgb(27, 32, 42); border-radius: 0; box-shadow: none; }
+#ov.ov-bg-top #ovbg { bottom: auto; height: var(--ov-top-h, 0px); }
+#ov.ov-bg-top .ovcard > #ovodyle, #ov.ov-bg-top .ovcard > #ovshugo, #ov.ov-bg-top .ovcard > #ovnightmare { order: 0; margin-bottom: 4px; }
+#ov.ov-bg-none .ovrow, #ov.ov-bg-top .ovrow { background: rgba(27, 32, 42, .74); }
+#ov.ov-bg-none .ovhd, #ov.ov-bg-none .ovmetrics, #ov.ov-bg-none .ovtarget, #ov.ov-bg-none .ovping, #ov.ov-bg-none .ovodyle, #ov.ov-bg-none .ovidentity,
+#ov.ov-bg-none .ovevents, #ov.ov-bg-none .ovcontribution, #ov.ov-bg-none .ovdummy, #ov.ov-bg-none .ovfoot,
+#ov.ov-bg-top .ovping, #ov.ov-bg-top .ovidentity, #ov.ov-bg-top .ovcontribution, #ov.ov-bg-top .ovfoot { text-shadow: 0 1px 2px #000, 0 0 4px #000; }
+#ov.ov-bg-none .ovfoot, #ov.ov-bg-top .ovfoot { border-top-color: transparent; }
+#ov.ov-bg-none .ovtarget, #ov.ov-bg-top .ovdetail { background-color: rgba(27, 32, 42, .74); }
+/* Animated row effects (0.2.364), free for everyone: Settings picks one for your own row and one for the top row.
+   They hold still in performance mode (the rule above) and under reduced motion. */
+@property --ovang { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes ovspin { to { --ovang: 360deg; } }
+@keyframes ovtwinkle { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+@keyframes ovrainbow { to { background-position: 200% 0; } }
+@keyframes ovsheen { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+@keyframes ovember { from { box-shadow: inset 0 0 0 1px rgba(255, 120, 40, .55), 0 0 6px rgba(255, 90, 10, .4); }
+  to { box-shadow: inset 0 0 0 1px rgba(255, 170, 60, .95), 0 0 14px rgba(255, 120, 20, .85); } }
+.ovrow.ov-cos-gold::after { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; pointer-events: none; z-index: 2;
+  background: conic-gradient(from var(--ovang, 0deg), #f6e27a, #b8860b, #fff6c2, #d4af37, #f6e27a);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: ovspin 3s linear infinite; }
+.ovrow.ov-cos-gold .ovname::before { content: "◆"; color: #f6e27a; margin-right: 5px; font-size: .8em; text-shadow: 0 0 4px #d4af37; animation: ovtwinkle 1.6s ease-in-out infinite; }
+.ovrow.ov-cos-rainbow .ovnametext { background: linear-gradient(90deg, #ff5e5e, #ffb75e, #f6ff5e, #5eff8a, #5ed8ff, #a35eff, #ff5ee1, #ff5e5e);
+  background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent !important;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, .45)); animation: ovrainbow 3s linear infinite; }
+.ovrow.ov-cos-ember { animation: ovember 1.4s ease-in-out infinite alternate; }
+.ovrow.ov-cos-frost { box-shadow: inset 0 0 0 1px rgba(160, 220, 255, .7), 0 0 10px rgba(120, 200, 255, .5); }
+.ovrow.ov-cos-frost::after, .ovrow.ov-cos-aether::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2; background-size: 220% 100%; animation: ovsheen 2.6s linear infinite; }
+.ovrow.ov-cos-frost::after { background-image: linear-gradient(110deg, transparent 40%, rgba(220, 245, 255, .38) 50%, transparent 60%); }
+.ovrow.ov-cos-aether::after { background-image: linear-gradient(100deg, rgba(120, 80, 255, 0), rgba(120, 80, 255, .38), rgba(60, 220, 200, .38), rgba(120, 80, 255, 0)); background-size: 300% 100%; animation-duration: 4s; mix-blend-mode: screen; }
+.ovrow.ov-cos-starlight::before, .ovrow.ov-cos-starlight::after { content: "✦"; position: absolute; color: #fff8d6; text-shadow: 0 0 6px #ffe9a6; pointer-events: none; z-index: 2; font-size: .9em; line-height: 1; animation: ovtwinkle 1.2s ease-in-out infinite; }
+.ovrow.ov-cos-starlight::before { left: 3px; top: 1px; }
+.ovrow.ov-cos-starlight::after { right: 5px; bottom: 1px; animation-delay: .6s; }
+@media (prefers-reduced-motion: reduce) { .ovrow[class*="ov-cos-"], .ovrow[class*="ov-cos-"]::before, .ovrow[class*="ov-cos-"]::after, .ovrow.ov-cos-rainbow .ovnametext { animation: none !important; } }
+/* The player panel (0.2.364): one player in depth under the rows, opened by a click on their name. */
+.ovrow-detail .ovname { text-decoration: underline dotted; text-underline-offset: 3px; }
+.ovname[data-detail] { cursor: pointer; }
+.ovdetail { flex: 0 0 100%; margin: 6px 0 2px; padding: 8px 10px 9px; border-radius: 10px; background: rgba(27, 32, 42, .92);
+  border: 1px solid rgba(233, 203, 128, .35); box-shadow: 0 6px 18px rgba(0, 0, 0, .4); cursor: default; }
+.ovdetail[hidden] { display: none; }
+.ovdhead { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.ovdhead .ovcicon { margin: 0; }
+.ovdname { font-weight: 800; font-size: 1.15em; color: var(--ov-name-color, #e9f7ff); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ovdsub { color: #9aa8bb; font-size: .9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ovdline { margin-bottom: 6px; }
+.ovdclose { background: transparent; border: 0; color: #9aa8bb; font-size: 14px; cursor: pointer; padding: 0 2px; line-height: 1; }
+.ovdclose:hover { color: #fff; }
+.ovdtiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 4px; margin-bottom: 4px; }
+.ovdtile { background: rgba(255, 255, 255, .06); border-radius: 6px; padding: 4px 6px; min-width: 0; }
+.ovdtile b { display: block; font-size: 1.05em; color: var(--ov-rate-text, #ffffff); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ovdtile span { display: block; font-size: .78em; color: #9aa8bb; text-transform: uppercase; letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ovdsec { color: var(--ov-header-color, #e8cf8e); font-weight: 700; font-size: .85em; text-transform: uppercase; letter-spacing: .4px; margin: 6px 0 3px; }
+.ovdlist { display: grid; gap: 2px; }
+.ovdsk { display: flex; align-items: center; gap: 6px; font-size: .95em; min-width: 0; }
+.ovdicon { width: 20px; height: 20px; border-radius: 4px; background: rgba(0, 0, 0, .4); flex: none; overflow: hidden; position: relative; }
+.ovdicon img { width: 100%; height: 100%; display: block; position: relative; z-index: 1; }
+.ovdicon em { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 9px; color: #cdd6e6; }
+.ovdskname { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ovdskbar { flex: 0 0 54px; height: 5px; background: rgba(255, 255, 255, .08); border-radius: 3px; overflow: hidden; }
+.ovdskbar i { display: block; height: 100%; background: var(--ov-glow-color, #e8cf8e); }
+.ovdskval { flex: none; color: var(--ov-total-text, #9bb1c1); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: .9em; }
+
 /* Match the desktop's compact framed buttons without changing the transparent page. */
 #ovhide, #ovlock, #ovcopy, #ovsplit { flex-shrink: 0; margin: 0 1px 0 0; padding: 2px 5px; border-radius: 6px;
   border: 1px solid transparent; background: transparent;

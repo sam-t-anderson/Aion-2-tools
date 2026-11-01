@@ -1074,6 +1074,19 @@ class Runner:
                 build = None
         return build if isinstance(build, str) and build.strip() else None
 
+    def player_detail(self, key: str, *, follow_latest: bool = False) -> dict | None:
+        """One player of the live view in depth (the overlay's player panel, 0.2.364), from the session
+        directly: a click, not a poll, so it is computed when asked."""
+        if not self.lock.acquire(timeout=1.0):
+            raise TimeoutError("Capture data is busy; try again in a moment.")
+        try:
+            if self.packet_engine is None or not isinstance(self.session, CombatSession):
+                return None
+            return self.session.player_detail(str(key), self.scope, None if follow_latest else self.segment_id,
+                                              self.combine_pets)
+        finally:
+            self.lock.release()
+
     def status(self, *, follow_latest: bool = False, compact: bool = False) -> dict:
         if not self.lock.acquire(timeout=0.5):
             # The capture thread is mid-burst. Rather than failing (which freezes the

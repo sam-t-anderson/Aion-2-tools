@@ -1697,6 +1697,7 @@ class CombatSession:
         # inferred merges are flagged so the view can mark them as best-effort.
         self_ids, rereg, rereg_name = self._correlate_identities(groups, allowed_for, self_ids)
         players, enemies = {}, {}
+        row_actors = {}
         durations = 0
         for group in groups:
             first = group["damage_start"] if group["damage_start"] is not None else group["start"]
@@ -1803,11 +1804,13 @@ class CombatSession:
             return actor_id, name, key, pet_collapsed, inferred
 
         def player(identity, epoch, actor_id, resolved=None):
+            raw = actor_id
             actor_id, name, key, pet_collapsed, inferred = resolved or resolve(identity, epoch, actor_id)
             row = players.get(key)
             if row is None:
                 job = identity["jobs"].get(actor_id) or identity["jobs"].get(identity["owners"].get(actor_id))
                 row = players[key] = self._actor(actor_id, name, job)
+            row_actors.setdefault(key, set()).add((epoch, raw))        # every combat actor id this row folds in
             if inferred:
                 row["inferred_identity"] = True
             if pet_collapsed:
@@ -1864,13 +1867,15 @@ class CombatSession:
                     if skill is None:
                         skill = row["skills"][(event.skill_code, event.is_dot)] = {
                             "skill_id": event.skill_code, "skill": skill_name(event.skill_code), "damage": 0, "hits": 0,
-                            "min": damage, "max": 0}
+                            "min": damage, "max": 0, "counts": {"crit": 0, "back": 0, "parry": 0}}
                     skill["damage"] += damage; skill["hits"] += 1
                     skill["min"] = min(skill["min"], damage); skill["max"] = max(skill["max"], damage)
                     counts, specials = row["counts"], event.specials
                     for flag, key in _SPECIAL_COUNTS:
                         if flag in specials:
                             counts[key] += 1
+                            if key in skill["counts"]:
+                                skill["counts"][key] += 1       # the overlay's player panel shows each skill's crit, back and parry rates
                     if event.multi_hit_count > 0:
                         counts["multi"] += 1
                     second = (event.timestamp_ms - group["start"]) // 1000
@@ -1903,11 +1908,14 @@ class CombatSession:
             row["skills"] = sorted(row["skills"].values(), key=lambda skill: -skill["damage"])
             for skill in row["skills"]:
                 skill["share"] = skill["damage"] / row["damage"] if row["damage"] else 0
+                for key, value in skill.pop("counts").items():
+                    skill[key] = value / skill["hits"] if skill["hits"] else None
             points = timeline.get(row["key"], {})
             values = [points.get(index, 0) for index in range(max(points, default=-1) + 1)]
             row["timeline"] = {"per_second": values, "rolling10": [sum(values[max(0,i-9):i+1]) / min(i+1,10) for i in range(len(values))]}
         for enemy in enemies.values():
             enemy["dps"] = enemy["damage"] / max(1, durations)
+        self._row_actors = row_actors                     # read by player_detail right after this summary
         return {"players": sorted(players.values(), key=lambda row: (-row["damage"], -row["incoming"]["damage"], row["key"])),
                 "enemies": sorted(enemies.values(), key=lambda row: -row["damage"]), "duration": durations,
                 "total": total, "dps": total / max(1, durations),
@@ -2031,22 +2039,96 @@ class CombatSession:
             return None
         return drop / elapsed
 
+    def _chosen_groups(self, scope, segment_id, allowed_for):
+        """The combat groups a view shows and whether a run split by a zone transition is re-joined.
+        Latest-encounter view (segment_id is None): follow the whole continuing run, re-joining the
+        trailing groups a mid-fight self zone-transition split into new epochs (no real >gap_seconds
+        combat break), so a mechanic that pauses DPS does not reset the live meter/overlay. Explicit
+        segment and whole-session selections are unchanged."""
+        groups = self.groups(scope, allowed_for)
+        if segment_id == "all":
+            return groups, groups, False
+        if segment_id is not None:
+            return groups, ([next((g for g in groups if g["id"] == segment_id), groups[-1])] if groups else []), False
+        chosen = self._live_encounter(groups)
+        if self.reset_on_boss_start and self._live_boss_reset_ms is not None:
+            chosen = self._since_boss_pull(chosen, self._live_boss_reset_ms, allowed_for)
+        return groups, chosen, True
+
+    def player_detail(self, key, scope="party", segment_id=None, combine_pets=True):
+        """One player of the shown view in depth, for the overlay's player panel (0.2.364): the row as the
+        snapshot gives it (totals, rates, the special-hit shares and each skill's), the seconds they were
+        dealing damage, and the buffs on them with their uptime, from the effect records of the fight."""
+        from ..combat.actions import _family, _merged_seconds
+        allowed_for = self._allowances(scope)
+        _, chosen, merge = self._chosen_groups(scope, segment_id, allowed_for)
+        summary = self._summary(chosen, scope, None, combine_pets, allowed_for, merge)
+        row = next((r for r in summary["players"] if r["key"] == key), None)
+        if row is None:
+            return None
+        actors = self._row_actors.get(key, set())
+        per_second = (row.get("timeline") or {}).get("per_second") or []
+        detail = {k: v for k, v in row.items() if k != "timeline"}
+        detail["active_seconds"] = sum(1 for v in per_second if v > 0)
+        detail["duration"] = summary["duration"]
+        detail["recorded_duration"] = summary.get("recorded_duration")
+        detail["share"] = row.get("share", 0)
+        detail["buffs"] = self._buff_uptime(chosen, actors, _family, _merged_seconds)
+        detail["boss"] = summary.get("boss")
+        return detail
+
+    def _buff_uptime(self, groups, actors, family_of, merged_seconds):
+        """The effects applied to any of ``actors`` (epoch, actor id) during ``groups``, merged per skill family:
+        seconds held, share of the groups' time, applications, the commonest source. An effect runs from its
+        application to its removal record, else for its stated duration, else to the group's end."""
+        if not actors or not groups:
+            return []
+        by_epoch = self._actions_by_epoch()
+        duration = sum(max(0.001, (g["end"] - g["start"]) / 1000) for g in groups)
+        spans, applications, sources, names = {}, {}, {}, {}
+        offset = 0.0
+        for group in groups:
+            times, rows = by_epoch.get(group["epoch"], ([], []))
+            start, end = group["start"], group["end"]
+            window = rows[bisect.bisect_left(times, start - 600_000):bisect.bisect_right(times, end + 600_000)]
+            mine = {actor for epoch, actor in actors if epoch == group["epoch"]}
+            removals = {}
+            for a in window:
+                if a["kind"] == "effect_end" and a["target"] in mine:
+                    removals.setdefault((a["target"], a["instance"]), []).append(a["timestamp_ms"])
+            for a in window:
+                if a["kind"] != "effect" or a["target"] not in mine or a["timestamp_ms"] > end:
+                    continue
+                skill = a.get("skill") or a.get("effect")
+                fam = family_of(skill) or skill
+                begin = a["timestamp_ms"]
+                stop = next((t for t in removals.get((a["target"], a["instance"]), []) if t > begin), None)
+                if stop is None:
+                    stop = begin + a["duration_ms"] if a.get("duration_ms") else end
+                lo, hi = max(begin, start), min(stop, end)
+                if hi <= lo:
+                    continue
+                spans.setdefault(fam, []).append((offset + (lo - start) / 1000, offset + (hi - start) / 1000))
+                applications[fam] = applications.get(fam, 0) + 1
+                names.setdefault(fam, (skill, skill_name(skill)))
+                src = a.get("source")
+                bucket = sources.setdefault(fam, {})
+                bucket[src] = bucket.get(src, 0) + 1
+            offset += max(0.001, (end - start) / 1000)
+        out = []
+        for fam, span_list in spans.items():
+            seconds = merged_seconds(span_list, duration)
+            skill_id, name = names[fam]
+            source = max(sources[fam].items(), key=lambda kv: kv[1])[0]
+            out.append({"skill_id": skill_id, "skill": name, "seconds": round(seconds, 1),
+                        "uptime_pct": round(100 * seconds / duration, 1), "applications": applications[fam],
+                        "self": bool(source is not None and any(actor == source for _, actor in actors))})
+        out.sort(key=lambda r: -r["seconds"])
+        return out[:16]
+
     def snapshot(self, scope="party", segment_id=None, enemy_id=None, combine_pets=True):
         allowed_for = self._allowances(scope)
-        groups = self.groups(scope, allowed_for)
-        # Latest-encounter view (segment_id is None): follow the whole continuing
-        # run, re-joining the trailing groups a mid-fight self zone-transition split
-        # into new epochs (no real >gap_seconds combat break), so a mechanic that
-        # pauses DPS does not reset the live meter/overlay. Explicit segment and
-        # whole-session selections are unchanged.
-        if segment_id == "all":
-            chosen, merge = groups, False
-        elif segment_id is not None:
-            chosen, merge = ([next((g for g in groups if g["id"] == segment_id), groups[-1])] if groups else []), False
-        else:
-            chosen, merge = self._live_encounter(groups), True
-            if self.reset_on_boss_start and self._live_boss_reset_ms is not None:
-                chosen = self._since_boss_pull(chosen, self._live_boss_reset_ms, allowed_for)
+        groups, chosen, merge = self._chosen_groups(scope, segment_id, allowed_for)
         summary = self._summary(chosen, scope, None, combine_pets, allowed_for, merge)
         if enemy_id is not None:
             if any(row["key"] == enemy_id for row in summary["enemies"]):
