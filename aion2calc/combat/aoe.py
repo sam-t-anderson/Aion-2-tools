@@ -197,6 +197,14 @@ def _thresholds(values, cap=80):
     return mids
 
 
+def _top(best, cand):
+    """``max`` for the candidate tuples (score first, then the parameters negated so the tighter one wins a tie):
+    the first candidate replaces the None-padded start outright. ``max`` on the start would compare a 0.0 score
+    with 0.0 and go on to compare a number with None, which is what a candidate that separates hit from unhit
+    exactly backwards (a balanced accuracy of 0.0) did to the log server's first pass over 701 recordings."""
+    return cand if best[1] is None else max(best, cand)
+
+
 def fit(samples):
     """The best-separating shape for one skill's pooled samples: ``(shape, params, accuracy, scores)`` where
     ``scores`` holds every candidate's best balanced accuracy."""
@@ -207,7 +215,7 @@ def fit(samples):
     params["single_target"] = {}
     best = (0.0, None)
     for r in _thresholds([s["d_aim"] for s in samples]):
-        best = max(best, (_balanced([s["d_aim"] <= r for s in samples], hit), -r))
+        best = _top(best, (_balanced([s["d_aim"] <= r for s in samples], hit), -r))
     scores["circle_aim"], params["circle_aim"] = best[0], {"radius": round(-best[1]) if best[1] is not None else None}
     # the shapes around the caster, from where it was at the cast and from where it was when the hits landed (a leap
     # or a charge lands elsewhere); each shape keeps its better anchor, the cast's on a tie
@@ -220,7 +228,7 @@ def fit(samples):
         dist = [s.get("d_hit", s["d_boss"]) if sfx else s["d_boss"] for s in samples]
         best = (0.0, None)
         for r in _thresholds(dist):
-            best = max(best, (_balanced([d <= r for d in dist], hit), -r))
+            best = _top(best, (_balanced([d <= r for d in dist], hit), -r))
         keep("circle_caster", best[0], {"radius": round(-best[1]) if best[1] is not None else None, "anchor": anchor})
         faced = [(s["hit"], s.get("angle" + sfx, s["angle"]), s.get("along" + sfx, s["along"]), s.get("across" + sfx, s["across"]), d)
                  for s, d in zip(samples, dist)]
@@ -231,21 +239,21 @@ def fit(samples):
             ranges = _thresholds([f[4] for f in faced], cap=30)
             for a in range(15, 181, 15):
                 for R in ranges:
-                    best = max(best, (_balanced([f[1] <= a and f[4] <= R for f in faced], fhit), -a, -R))
+                    best = _top(best, (_balanced([f[1] <= a and f[4] <= R for f in faced], fhit), -a, -R))
             keep("cone", best[0], {"angle": -best[1] if best[1] is not None else None,
                                   "radius": round(-best[2]) if best[2] is not None else None, "anchor": anchor})
             best = (0.0, None, None)
             lengths = _thresholds([f[2] for f in faced if f[2] > 0], cap=30)
             for w in (25, 50, 75, 100, 150, 200, 300, 400, 600):
                 for L in lengths:
-                    best = max(best, (_balanced([0 <= f[2] <= L and f[3] <= w for f in faced], fhit), -w, -L))
+                    best = _top(best, (_balanced([0 <= f[2] <= L and f[3] <= w for f in faced], fhit), -w, -L))
             keep("line", best[0], {"half_width": -best[1] if best[1] is not None else None,
                                   "length": round(-best[2]) if best[2] is not None else None, "anchor": anchor})
         radii = _thresholds(dist, cap=25)
         best = (0.0, None, None)
         for i, r1 in enumerate(radii):
             for r2 in radii[i + 1:]:
-                best = max(best, (_balanced([r1 <= d <= r2 for d in dist], hit), -(r2 - r1), r1))
+                best = _top(best, (_balanced([r1 <= d <= r2 for d in dist], hit), -(r2 - r1), r1))
         keep("ring", best[0], {"inner": round(best[2]) if best[2] is not None else None,
                               "radius": round(best[2] - best[1]) if best[1] is not None else None, "anchor": anchor})
     # the simplest shape wins unless a more complex one beats it clearly
