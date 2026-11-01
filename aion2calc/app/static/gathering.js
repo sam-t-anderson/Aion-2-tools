@@ -18,6 +18,10 @@
   const num = (n) => (Number.isFinite(n) ? Math.round(n).toLocaleString("en-US") : "—");
   const pct = (v) => (Number.isFinite(v) ? (v * 100).toFixed(1) + "%" : "—");
   const RESULTS = { normal: "Normal", better: "Better grade", failed: "Failed" };
+  // Where a kind of node grows (a node's kinds): the game has more than one kind of node for some materials,
+  // an Odyle node inside dungeons and another in the open world, and their sections are told apart by this.
+  const KINDS = { dungeon: "dungeon node", open_world: "open-world node" };
+  const PLACES_SHOWN = 5;
   const whenAt = (seconds) => {
     const d = new Date(seconds * 1000);
     if (!Number.isFinite(d.getTime())) return "—";
@@ -75,6 +79,26 @@
       return `<p class="muted">No ${what} recorded yet: run the Live Meter while you play and they appear here.</p>`;
     }
 
+    // "— dungeon node" after a node's name, when its records say where it grows.
+    function kind(node) {
+      const kinds = (node.kinds || []).filter((k) => KINDS[k]);
+      if (!kinds.length) return "";
+      const label = kinds.length > 1 ? "dungeon and open-world node" : KINDS[kinds[0]];
+      return ` — <span class="gt-kind">${esc(label)}</span>`;
+    }
+
+    // The places a kind of node was gathered, the most gathers first.
+    function where(node) {
+      const places = (node.places || []).filter((p) => p && p.name);
+      if (!places.length) return "";
+      const shown = places
+        .slice(0, PLACES_SHOWN)
+        .map((p) => esc(p.name))
+        .join(", ");
+      const more = places.length > PLACES_SHOWN ? ` <span>and ${num(places.length - PLACES_SHOWN)} more</span>` : "";
+      return `<p class="small muted gt-where">Found in <span translate="no">${shown}</span>${more}</p>`;
+    }
+
     function nodes() {
       const data = view();
       const rows = (data && data.nodes) || [];
@@ -84,8 +108,8 @@
           const r = node.results || {};
           const of = (n) => (node.gathers ? pct(n / node.gathers) : "—");
           const who = Number.isFinite(node.reporters) ? ` · ${num(node.reporters)} players` : "";
-          return `<article class="card gt-node"><h3><span translate="no">${esc(node.name)}</span> <span class="small muted">${num(node.gathers)} gathers${who}</span></h3>
-          <p class="small">${Object.entries(RESULTS)
+          return `<article class="card gt-node"><h3><span translate="no">${esc(node.name)}</span>${kind(node)} <span class="small muted">${num(node.gathers)} gathers${who}</span></h3>
+          ${where(node)}<p class="small">${Object.entries(RESULTS)
             .map(([k, label]) => `${label} <b>${of(r[k] || 0)}</b>`)
             .join(" · ")}</p>
           <div class="gt-scroll"><table class="t"><thead><tr><th>Gave</th><th>Grade</th><th class="r">Chance</th><th class="r">How many</th></tr></thead><tbody>

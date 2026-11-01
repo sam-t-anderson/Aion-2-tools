@@ -642,9 +642,14 @@ class MeterEngine:
                                       "items": [list(entry) for entry in items], **self._where()})
 
     def _where(self) -> dict:
-        """Where and who for a gathering or loot record: the map, the dungeon instance and the recording player."""
+        """Where and who for a gathering or loot record: the map, the dungeon instance and the recording player.
+
+        In an open-world zone there is no instance. The party roster keeps naming the dungeon its party holds after
+        it leaves: in the 19 October recording, 8 Orichalcum gathers in Altgard between two Ferocious Horn Den runs
+        came after a roster with the dungeon in it, and were filed under the dungeon (0.2.360)."""
         local = self.local_player_id
-        return {"map_id": self.map_id or None, "instance_id": self.dungeon_id or None,
+        instance = None if self.map_id in OPEN_WORLD_MAPS else (self.dungeon_id or None)
+        return {"map_id": self.map_id or None, "instance_id": instance,
                 "character": (self.names.get(local) if local is not None else None) or self.local_character_name or None,
                 "server_id": (self.local_profile or {}).get("serverId")}
 

@@ -797,5 +797,10 @@
  "Reward cubes": "報酬キューブ",
  "In cubes": "キューブ内",
  "How many": "個数",
- "Show every drop (equipment, currency)": "すべてのドロップを表示（装備、通貨）"
+ "Show every drop (equipment, currency)": "すべてのドロップを表示（装備、通貨）",
+ "dungeon node": "ダンジョンの採集ポイント",
+ "open-world node": "フィールドの採集ポイント",
+ "dungeon and open-world node": "ダンジョンとフィールドの採集ポイント",
+ "Found in": "出現場所：",
+ "and {0} more": "ほか{0}件"
 }

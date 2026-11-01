@@ -816,6 +816,8 @@ html.i18n-wait body { visibility: hidden; }
 .gt-head p { margin: 0; flex: 1 1 280px; }
 .gt-node, .gt-dungeon { margin-bottom: 12px; text-align: left; }
 .gt-node h3, .gt-dungeon h3 { margin: 0 0 6px; }
+.gt-kind { font-weight: 400; }
+.gt-where { margin: 0 0 6px; }
 .gt-scroll { overflow-x: auto; }
 .gt-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; background: var(--muted); }
 .gt-dot[data-grade="Rare"] { background: #3fb37a; }

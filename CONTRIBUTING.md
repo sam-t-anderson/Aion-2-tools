@@ -81,6 +81,11 @@ declares at its top level, or hands out as `window.A2…`, from the scripts
 themselves (`eslint.config.mjs`). `app.js` and the page scripts may use each other's
 names; the other modules, which the website loads too, only what the modules hand out.
 
+`package.json` overrides ESLint's `minimatch` to 11.x: every version before 11.0.1 has a
+denial-of-service advisory (GHSA-g3hv-75wg-m249), and ESLint 10 still asks for 10.x. ESLint
+lints the same files with it. Drop the override once ESLint itself requires `minimatch` 11.0.1
+or later; `npm audit` should still find nothing without it.
+
 CI runs the suite under `coverage` and writes the total to the "Tests and lint"
 job's summary. It compares the total with main's last successful run and lists the
 modules whose coverage fell; a fall also shows as a warning with the checks. To see

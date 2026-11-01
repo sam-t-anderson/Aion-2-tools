@@ -797,5 +797,10 @@
  "Reward cubes": "Belohnungswürfel",
  "In cubes": "In Würfeln",
  "How many": "Wie viele",
- "Show every drop (equipment, currency)": "Alle Beutestücke zeigen (Ausrüstung, Währung)"
+ "Show every drop (equipment, currency)": "Alle Beutestücke zeigen (Ausrüstung, Währung)",
+ "dungeon node": "Sammelpunkt im Dungeon",
+ "open-world node": "Sammelpunkt in der offenen Welt",
+ "dungeon and open-world node": "Sammelpunkt im Dungeon und in der offenen Welt",
+ "Found in": "Zu finden in",
+ "and {0} more": "und {0} weitere"
 }

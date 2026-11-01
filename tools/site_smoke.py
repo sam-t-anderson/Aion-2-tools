@@ -15,7 +15,8 @@ The Maps page must not contact the interactive-map provider until the visitor as
 page must offer the log server's own link for the log (its preview shows the fight), the Logs page's
 Completed-run speed tab must name a run's bosses and show its time, the Class stats page's spread graph
 must end its axis past the highest 90th percentile rather than at one best parse, and the Gathering page must
-show everyone's drop rates and, signed in, the account's own records. The Logs page's featured encounters
+show everyone's drop rates, each kind of node with where it grows, and, signed in, the account's own records.
+The Logs page's featured encounters
 must sit two side by side on a 1080p screen and one under another on a phone.
 
     python tools/site_smoke.py [--axe node_modules/axe-core/axe.min.js] [--out DIR] [--keep]
@@ -350,11 +351,18 @@ def check_stats_spread(browser, base: str, problems: list) -> None:
 
 # The log server's /api/v1/gathering/stats (everyone's drop rates) and /api/v1/account/gathering (a signed-in
 # account's own records), as the server sends them; the characters are made up.
-GATHERING_STATS = {"gathers": 40, "cubes": 5, "reporters": 3, "generated_at": 0,
+GATHERING_STATS = {"gathers": 51, "cubes": 5, "reporters": 3, "generated_at": 0,
                    "nodes": [{"node": 1550004, "name": "Orichalcum Ore", "gathers": 40, "reporters": 3,
                               "results": {"normal": 30, "better": 8, "failed": 2},
                               "items": [{"item": 610620013, "name": "Orichalcum Ore", "grade": "Common", "gathers": 30,
-                                         "share": 0.75, "average": 1.0}]}],
+                                         "share": 0.75, "average": 1.0}],
+                              "kinds": ["open_world"], "places": [{"name": "Altgard", "gathers": 40}]},
+                             {"node": 1500062, "name": "Odyle", "gathers": 6, "reporters": 1, "results": {"normal": 6, "better": 0, "failed": 0},
+                              "items": [{"item": 610610013, "name": "Odyle", "grade": "Common", "gathers": 6, "share": 1.0, "average": 1.0}],
+                              "kinds": ["dungeon"], "places": [{"name": "Ferocious Horn Den (Normal)", "gathers": 6}]},
+                             {"node": 1550000, "name": "Odyle", "gathers": 5, "reporters": 1, "results": {"normal": 5, "better": 0, "failed": 0},
+                              "items": [{"item": 610610013, "name": "Odyle", "grade": "Common", "gathers": 5, "share": 1.0, "average": 1.0}],
+                              "kinds": ["open_world"], "places": [{"name": "Altgard", "gathers": 5}]}],
                    "dungeons": [{"instance": 600092, "name": "Ferocious Horn Den (Normal)", "cubes": 5, "reporters": 2,
                                  "items": [{"item": 610511014, "name": "Wrathful Will", "grade": "Unique", "material": True,
                                             "cubes": 1, "share": 0.2, "average": 1.0}]}]}
@@ -368,8 +376,9 @@ ACCOUNT_GATHERING = {"gathers": 2, "gathered": 3, "cubes": 0, "results": {"norma
 
 
 def check_gathering(browser, base: str, problems: list) -> None:
-    """The Gathering page shows everyone's drop rates; a signed-in visitor sees their account's records too, and a
-    signed-out one is told how to see them."""
+    """The Gathering page shows everyone's drop rates, each kind of node with where it grows (two kinds of Odyle
+    node read apart, 0.2.360); a signed-in visitor sees their account's records too, and a signed-out one is told
+    how to see them."""
     server = "https://logs.example"
     session = {"server": server, "token": "a2web_" + "s" * 32, "name": "Alpha"}
     for signed_in in (False, True):
@@ -404,9 +413,13 @@ def check_gathering(browser, base: str, problems: list) -> None:
         page.goto(base + "gathering.html", wait_until="load")
         try:
             page.wait_for_selector(".gt-node", timeout=8000)
-            heading = " ".join(page.locator(".gt-node h3").first.text_content().split())
-            if heading != "Orichalcum Ore 40 gathers · 3 players":
-                problems.append(f"{label}: everyone's first node reads {heading!r}")
+            headings = [" ".join(t.split()) for t in page.locator(".gt-node h3").all_text_contents()]
+            if headings != ["Orichalcum Ore — open-world node 40 gathers · 3 players", "Odyle — dungeon node 6 gathers · 1 players",
+                            "Odyle — open-world node 5 gathers · 1 players"]:
+                problems.append(f"{label}: everyone's nodes read {headings!r}, not each with where it grows")
+            found = [" ".join(t.split()) for t in page.locator(".gt-where").all_text_contents()]
+            if found != ["Found in Altgard", "Found in Ferocious Horn Den (Normal)", "Found in Altgard"]:
+                problems.append(f"{label}: the nodes' places read {found!r}")
             if signed_in:
                 kpi = dict(zip(page.locator(".gt-kpis .kpi .k").all_text_contents(), page.locator(".gt-kpis .kpi .v").all_text_contents()))
                 if kpi.get("Gathers") != "2" or not kpi.get("Better grade", "").startswith("1"):
