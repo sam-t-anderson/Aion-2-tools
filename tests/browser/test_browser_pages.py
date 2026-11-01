@@ -1,5 +1,6 @@
 """Pages that read the app's own state: the Pet Tracker page and Settings → Pet Tracker say when a newer Pet
-Tracker is out and hand its update over; the Raid Planner browses the log server's plans by boss; the Timers
+Tracker is out and hand its update over; the Raid Planner browses the log server's plans by boss, and shows what a
+plan file holds only as text, numbers and colours; the Timers
 page names the server and faction the live meter found and lists that server's field-boss kills; the Gear
 page's item panel takes an item's enchant level, rolls and skill options when it is added or edited, and the page
 opens on the advice kept from the last run, or runs it when none is kept; and My Character opens the character
@@ -93,6 +94,38 @@ def test_the_raid_planner_browses_the_servers_plans_by_boss(app_page, app_url, c
     page.locator(f'.pcard:has-text("{PLANS[0]["name"]}") [data-open]').click()
     page.get_by_text("Plan opened").wait_for()
     assert page.locator("#rplan option:checked").inner_text() == f"{PLANS[0]['name']} — {PLANS[0]['boss']}"   # now its own plan
+
+
+PLANTED = '"><img src=x id=planted>'
+
+
+def test_a_plan_file_adds_no_markup_or_styles_to_the_raid_planner(app_page, app_url, tmp_path):
+    """A plan from a file, a share code or the log server reaches the Raid Planner only as text, numbers and hex
+    colours (0.2.360): a keyframe time, buff times and a colour that carry markup show as 0 and the default colours,
+    and none of it is added to the page."""
+    page = app_page
+    token = {"id": "p1", "kind": "player", "label": "Tank", "cls": "Templar", "color": 'red" onmouseover="window.planted=1',
+             "keyframes": [{"t": PLANTED, "x": 0.5, "y": 0.5}]}
+    plan = {"format": "a2plan", "version": 1, "meta": {"name": "Planted plan"}, "duration": 60, "arena": {"kind": "square"},
+            "tokens": [token], "buffs": [{"id": "b1", "name": "Shield", "by": "Tank", "start": PLANTED, "end": "5" + PLANTED}]}
+    upload = tmp_path / "planted.a2plan"
+    upload.write_text(json.dumps(plan), encoding="utf-8")
+    try:
+        go(page, app_url, "#/raid")
+        page.wait_for_selector("#rimport", state="attached")
+        page.set_input_files("#rimport", str(upload))
+        page.wait_for_function("document.querySelector('#rname')?.value === 'Planted plan'")
+        page.locator("#arena .rtoken").click()                     # the token's editor lists its keyframe
+        page.wait_for_selector("#slabel")
+        assert page.locator("#planted, [onmouseover]").count() == 0
+        assert page.locator(".kfrow button").first.inner_text() == "0.0s"
+        assert page.locator(".bufbar").get_attribute("data-start") == "0"
+        assert page.locator('[data-bf="0"][data-k="start"]').input_value() == "0"
+        tint = "e => e.style.getPropertyValue('--tc').trim()"
+        assert page.locator("#arena .rtoken").evaluate(tint) == "#39c2e0"
+        assert page.locator(".bufbar").evaluate(tint) == "var(--gold)"
+    finally:
+        page.goto("about:blank")
 
 
 IDENTITY = {"server": 2102, "server_name": "Zikel", "faction": "asmodian", "character": "Testsorc"}

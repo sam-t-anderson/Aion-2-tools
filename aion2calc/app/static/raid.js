@@ -20,6 +20,11 @@
   "use strict";
 
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // What a plan holds (from a file, a share code, a published plan or a recording) or the log server lists reaches
+  // the planner's markup only through esc(), num() or col(): text is escaped, a number prints only as digits and a
+  // colour only as a hex colour, so none of it can add markup or styles to the page.
+  const num = (v, fallback = 0) => { const n = Number(v); return Number.isFinite(n) ? n : fallback; };
+  const col = (c, fallback = "#39c2e0") => (/^#[0-9a-f]{3,8}$/i.test(String(c)) ? esc(c) : fallback);
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   function toast(msg) {
@@ -32,7 +37,7 @@
   }
   function copyText(t) { navigator.clipboard?.writeText(t).then(() => toast("Copied to clipboard"), () => toast("Copy failed")); }
   function win(title, sub, body) {
-    return `<section class="win"><div class="wh"><h2>${esc(title)}</h2>${sub ? `<span class="sub">${sub}</span>` : ""}</div><div class="wb">${body}</div></section>`;
+    return `<section class="win"><div class="wh"><h2>${esc(title)}</h2>${sub ? `<span class="sub">${esc(sub)}</span>` : ""}</div><div class="wb">${body}</div></section>`;
   }
 
   const A2PLAN_KEY = "a2plans";
@@ -118,7 +123,7 @@
   }
 
   function render() {
-    const p = st.plan, dur = p.duration || 1, io = st.io;
+    const p = st.plan, dur = num(p.duration) || 1, io = st.io;
     const all = raidPlans();
     const planOpts = Object.entries(all).sort((a, b) => (b[1].meta?.updated || 0) - (a[1].meta?.updated || 0))
       .map(([id, pl]) => `<option value="${esc(id)}" ${id === st.id ? "selected" : ""}>${esc(pl.meta?.name || "Untitled")}${pl.encounter?.boss ? " — " + esc(pl.encounter.boss) : ""}</option>`).join("");
@@ -138,7 +143,7 @@
         <label class="muted small" for="rdur">Length</label><input id="rdur" type="number" min="5" max="1800" value="${dur}" style="width:92px"><span class="muted small">s</span>
         <label class="muted small" for="rarena">Arena</label><select id="rarena"><option value="square" ${p.arena?.kind !== "circle" ? "selected" : ""}>Square</option><option value="circle" ${p.arena?.kind === "circle" ? "selected" : ""}>Circle</option></select></div>
       <div class="row" style="margin-top:8px"><label class="muted small" for="rbossname">Boss</label><input id="rbossname" type="text" value="${esc(enc.boss || "")}" placeholder="Boss / mini-boss name" style="width:206px">
-        <label class="muted small" for="rbossnpc">NPC id</label><input id="rbossnpc" type="number" min="0" value="${enc.npc_id || ""}" placeholder="mob code" style="width:126px">
+        <label class="muted small" for="rbossnpc">NPC id</label><input id="rbossnpc" type="number" min="0" value="${esc(enc.npc_id || "")}" placeholder="mob code" style="width:126px">
         ${st.actual && (st.actual.boss || st.actual.npc_id) ? `<button class="btn small" id="rbossfromfight">Use selected fight</button>` : ""}
         <span class="faint small">Link this plan to an encounter so the overlay can auto-play it for that fight.</span></div>
       <div class="row" style="margin-top:8px"><button class="btn small" id="rexport">Export file</button>
@@ -148,15 +153,15 @@
 
     const tokensHtml = p.tokens.map((tk) => {
       const s = tk.id === st.sel ? " sel" : "";
-      if (tk.kind === "aoe") return `<div class="rtoken aoe${s}" data-tid="${esc(tk.id)}" style="--tc:${esc(tk.color)}" title="${esc(tk.label || "AoE zone")}"></div>`;
+      if (tk.kind === "aoe") return `<div class="rtoken aoe${s}" data-tid="${esc(tk.id)}" style="--tc:${col(tk.color)}" title="${esc(tk.label || "AoE zone")}"></div>`;
       const glyph = tk.kind === "marker" ? esc(tk.label || "?") : esc((tk.label && tk.label[0]) || (tk.cls && tk.cls[0]) || (tk.kind === "enemy" ? "B" : "P")).toUpperCase();
-      return `<div class="rtoken ${esc(tk.kind)}${s}" data-tid="${esc(tk.id)}" style="--tc:${esc(tk.color)}" title="${esc(tk.label || tk.cls || tk.kind)}"><span class="rl">${glyph}</span></div>`;
+      return `<div class="rtoken ${esc(tk.kind)}${s}" data-tid="${esc(tk.id)}" style="--tc:${col(tk.color)}" title="${esc(tk.label || tk.cls || tk.kind)}"><span class="rl">${glyph}</span></div>`;
     }).join("");
 
-    const buffColor = (bf) => { const by = players.find((x) => (x.label || x.cls) === bf.by); return by ? by.color : "var(--gold)"; };
+    const buffColor = (bf) => { const by = players.find((x) => (x.label || x.cls) === bf.by); return by ? col(by.color, "var(--gold)") : "var(--gold)"; };
     const buffBars = p.buffs.map((bf) => {
-      const l = 100 * Math.max(0, bf.start) / dur, w = 100 * Math.max(0, bf.end - bf.start) / dur;
-      return `<div class="bufbar" data-start="${bf.start}" data-end="${bf.end}" style="left:${l}%;width:${w}%;--tc:${buffColor(bf)}" title="${esc(bf.name)}${bf.by ? " · " + esc(bf.by) : ""}">${esc(bf.name)}</div>`;
+      const start = num(bf.start), end = num(bf.end), l = 100 * Math.max(0, start) / dur, w = 100 * Math.max(0, end - start) / dur;
+      return `<div class="bufbar" data-start="${start}" data-end="${end}" style="left:${l}%;width:${w}%;--tc:${buffColor(bf)}" title="${esc(bf.name)}${bf.by ? " · " + esc(bf.by) : ""}">${esc(bf.name)}</div>`;
     }).join("");
     const actualLane = st.actual ? `<div class="rlane"><div class="lanehd">Actual casts</div><div class="lanebody">
         ${st.actual.rotation.map(([ct]) => `<i class="casttick" style="left:${100 * ct / dur}%"></i>`).join("")}</div></div><div class="row small" id="castnow"></div>` : "";
@@ -166,32 +171,32 @@
       <div class="rtransport"><button class="btn small" id="rstart" title="Back to start">⏮</button>
         <button class="btn small primary" id="rplay">${st.playing ? "⏸ Pause" : "▶ Play"}</button>
         <select id="rspeed" title="Playback speed" aria-label="Playback speed">${[0.5, 1, 2, 4].map((x) => `<option value="${x}" ${st.speed === x ? "selected" : ""}>${x}×</option>`).join("")}</select>
-        <input type="range" id="rscrub" aria-label="Moment in the fight" min="0" max="${dur}" step="0.1" value="${st.t}" style="flex:1">
+        <input type="range" id="rscrub" aria-label="Moment in the fight" min="0" max="${dur}" step="0.1" value="${num(st.t)}" style="flex:1">
         <span id="rtime" class="small muted mono"></span></div>
       <div class="rlane"><div class="lanehd">Party buffs</div><div class="lanebody" id="buflane">${buffBars || '<span class="faint small" style="padding:0 6px">add buffs in the panel →</span>'}</div></div>
       <div class="row small" id="bufnow"></div>${actualLane}`;
 
     let editor = '<p class="faint small">Select a token on the map to edit it.</p>';
     if (sel) {
-      const kfs = (sel.keyframes || []).map((k, i) => `<div class="kfrow"><button class="btn small" data-kgo="${k.t}">${k.t.toFixed(1)}s</button>
+      const kfs = (sel.keyframes || []).map((k, i) => `<div class="kfrow"><button class="btn small" data-kgo="${num(k.t)}">${num(k.t).toFixed(1)}s</button>
           <span class="small muted">x ${(k.x * 100).toFixed(0)} · y ${(k.y * 100).toFixed(0)}</span>${(sel.keyframes.length > 1) ? `<button class="btn small" data-kdel="${i}" title="Delete this keyframe">✕</button>` : ""}</div>`).join("");
       editor = `<div class="row"><input id="slabel" type="text" value="${esc(sel.label || "")}" placeholder="Label" style="width:138px">
-          <input id="scolor" type="color" value="${esc(sel.color || "#39c2e0")}" style="width:46px;padding:2px">
+          <input id="scolor" type="color" value="${col(sel.color)}" style="width:46px;padding:2px">
           ${sel.kind === "player" ? `<select id="scls" aria-label="Class">${RAID_CLASSES.map((c) => `<option ${c === sel.cls ? "selected" : ""}>${c}</option>`).join("")}</select>` : ""}</div>
         ${sel.kind === "aoe" ? `<div class="row" style="margin-top:6px"><label class="muted small">Radius</label><input id="srad" type="range" min="4" max="50" value="${Math.round((sel.radius || 0.14) * 100)}" style="flex:1"></div>` : ""}
         <div class="kflist" style="margin-top:8px"><div class="small muted">Keyframes (position over time)</div>${kfs || '<div class="faint small">none</div>'}
-          <button class="btn small" id="kadd" style="margin-top:4px">Set position at ${st.t.toFixed(1)}s</button></div>
+          <button class="btn small" id="kadd" style="margin-top:4px">Set position at ${num(st.t).toFixed(1)}s</button></div>
         <label class="small" style="display:block;margin-top:8px"><input type="checkbox" id="sshown" ${sel.hidden ? "" : "checked"}> Shown on the map</label>
         <button class="btn small" id="sdel" style="margin-top:8px">Remove token</button>`;
     }
 
     const buffList = p.buffs.map((bf, i) => `<div class="row small bufedit"><input data-bf="${i}" data-k="name" value="${esc(bf.name)}" aria-label="Buff name" style="width:126px">
         <select data-bf="${i}" data-k="by" aria-label="Who gives the buff" style="width:103px"><option value="">—</option>${players.map((pl) => { const nm = pl.label || pl.cls; return `<option ${nm === bf.by ? "selected" : ""}>${esc(nm)}</option>`; }).join("")}</select>
-        <input data-bf="${i}" data-k="start" type="number" min="0" value="${bf.start}" aria-label="Buff starts at (seconds)" style="width:67px"><span class="faint">–</span>
-        <input data-bf="${i}" data-k="end" type="number" min="0" value="${bf.end}" aria-label="Buff ends at (seconds)" style="width:67px"><button class="btn small" data-bfdel="${i}" aria-label="Remove buff">✕</button></div>`).join("");
+        <input data-bf="${i}" data-k="start" type="number" min="0" value="${num(bf.start)}" aria-label="Buff starts at (seconds)" style="width:67px"><span class="faint">–</span>
+        <input data-bf="${i}" data-k="end" type="number" min="0" value="${num(bf.end)}" aria-label="Buff ends at (seconds)" style="width:67px"><button class="btn small" data-bfdel="${i}" aria-label="Remove buff">✕</button></div>`).join("");
 
     const fightRow = io.encounters ? `<h4 class="gold small">COMPARE WITH A FIGHT</h4>
-        <div class="row"><select id="ractual" aria-label="Saved fight to compare with"><option value="">— none —</option>${(st.encounters || []).map((e) => `<option value="${e.id}" ${st.actual && st.actual.id === e.id ? "selected" : ""}>#${e.id} ${esc(e.player || "")} ${esc(e.boss || "")} ${(e.duration || 0).toFixed(0)}s</option>`).join("")}</select></div>
+        <div class="row"><select id="ractual" aria-label="Saved fight to compare with"><option value="">— none —</option>${(st.encounters || []).map((e) => `<option value="${esc(e.id)}" ${st.actual && st.actual.id === e.id ? "selected" : ""}>#${esc(e.id)} ${esc(e.player || "")} ${esc(e.boss || "")} ${num(e.duration).toFixed(0)}s</option>`).join("")}</select></div>
         <p class="small faint">Overlay a saved combat log so its skill casts and buff windows play on the same timeline. Choose visibility before publishing; attaching a fight shares its timeline too.</p>` : "";
 
     // Import recorded movement (0.2.353): a saved recording (the app) or a log's link (the website), or a recording
@@ -201,7 +206,7 @@
         <div class="row">${io.recordings ? `<select id="rmovelog" aria-label="Saved recording to import movement from"><option value="">Choose a saved recording…</option>${(st.recordings || []).map((r) => `<option value="${esc(r.id)}" ${mv.id === r.id ? "selected" : ""}>${esc(r.label)}</option>`).join("")}</select>`
           : `<input id="rmovelink" type="text" value="${esc(mv.ref || "")}" placeholder="Combat log link or ID" aria-label="Combat log link or ID" style="width:206px"><button class="btn small" id="rmoveload">Load</button>`}</div>
         ${mv.loading ? `<p class="small faint" role="status">Loading the recording…</p>` : ""}${mv.error ? `<p class="small" role="status">${esc(mv.error)}</p>` : ""}
-        ${mv.fights ? (mv.fights.length ? `<div class="row" style="margin-top:6px"><select id="rmovefight" aria-label="Fight to import">${mv.fights.map((f) => `<option value="${f.index}">${esc(f.name)} · ${Math.round(f.duration)} s</option>`).join("")}</select><button class="btn small primary" id="rmoveimport">Import</button></div>`
+        ${mv.fights ? (mv.fights.length ? `<div class="row" style="margin-top:6px"><select id="rmovefight" aria-label="Fight to import">${mv.fights.map((f) => `<option value="${num(f.index)}">${esc(f.name)} · ${Math.round(num(f.duration))} s</option>`).join("")}</select><button class="btn small primary" id="rmoveimport">Import</button></div>`
           : `<p class="small" role="status">No fight in ${esc(mv.file || "this recording")} holds recorded movement (recordings made before 0.2.350 have none).</p>`) : ""}
         <p class="small faint">The fight becomes a new plan: each player, pet and enemy moves as it did, on the fight's arena. Import file takes a recording (.a2log.json) too.</p>` : "";
 
@@ -210,8 +215,8 @@
     const kindsShown = Object.entries({ player: "Players", enemy: "Enemies", marker: "Markers", aoe: "AoE zones" })
       .map(([k, name]) => { const of = p.tokens.filter((t) => t.kind === k), on = of.filter((t) => !t.hidden).length; return of.length ? { k, name, on, all: of.length } : null; }).filter(Boolean);
     const shownRow = p.tokens.length ? `<h4 class="gold small">SHOWN ON THE MAP</h4>
-        <div class="row small">${kindsShown.map((g) => `<label><input type="checkbox" data-showkind="${g.k}" ${g.on === g.all ? "checked" : ""}${g.on && g.on < g.all ? " data-mixed" : ""}> <span>${g.name}</span> <span class="faint">${g.on}/${g.all}</span></label>`).join("")}</div>
-        <details class="small" id="rshowlist"${st.showList ? " open" : ""}><summary>Each token</summary><div class="rshowlist">${p.tokens.map((t) => `<label><input type="checkbox" data-showtok="${esc(t.id)}" ${t.hidden ? "" : "checked"}> <i class="rswatch" style="--tc:${esc(t.color || "#39c2e0")}"></i> <span translate="no">${esc(t.label || t.cls || t.kind)}</span></label>`).join("")}</div></details>` : "";
+        <div class="row small">${kindsShown.map((g) => `<label><input type="checkbox" data-showkind="${g.k}" ${g.on === g.all ? "checked" : ""}${g.on && g.on < g.all ? " data-mixed" : ""}> <span>${g.name}</span> <span class="faint">${num(g.on)}/${num(g.all)}</span></label>`).join("")}</div>
+        <details class="small" id="rshowlist"${st.showList ? " open" : ""}><summary>Each token</summary><div class="rshowlist">${p.tokens.map((t) => `<label><input type="checkbox" data-showtok="${esc(t.id)}" ${t.hidden ? "" : "checked"}> <i class="rswatch" style="--tc:${col(t.color)}"></i> <span translate="no">${esc(t.label || t.cls || t.kind)}</span></label>`).join("")}</div></details>` : "";
 
     const side = `<div class="rpanel"><h4 class="gold small">ADD</h4>
         <div class="row"><select id="rcls" aria-label="Class of the player to add">${RAID_CLASSES.map((c) => `<option>${c}</option>`).join("")}</select><button class="btn small primary" id="raddp">+ Player</button></div>
@@ -225,7 +230,7 @@
         <h4 class="gold small">NOTES</h4><textarea id="rnotes" aria-label="Notes" rows="4" style="width:100%" placeholder="Callouts, phases, assignments…"></textarea></div>`;
 
     st.root.innerHTML = win("Raid & boss planner", "drag player tokens on the map and scrub the timeline to plan movement, cooldowns and party buffs",
-      header + `<div class="raidwrap"><div>${left}</div>${side}</div>`);
+      `${header}<div class="raidwrap"><div>${left}</div>${side}</div>`);
     // Set the imported notes as DOM text (never through innerHTML) so a note can't be reinterpreted as markup.
     const notesField = $("#rnotes", st.root); if (notesField) notesField.value = p.meta?.notes || "";
     bind();
@@ -244,10 +249,10 @@
     // for the fight they want; "All" clears it. npc_id is the exact filter key.
     const filterRow = menu.length ? `<div class="row small" style="gap:6px;flex-wrap:wrap;margin-top:10px"><span class="muted">Boss:</span>
         <button class="btn small${active ? "" : " primary"}" data-boss="">All</button>
-        ${menu.map((b) => `<button class="btn small${active && String(active.npc_id) === String(b.npc_id) ? " primary" : ""}" data-boss="${esc(b.npc_id || "")}" data-bossname="${esc(b.boss)}">${esc(b.boss)} (${b.plans || 0})</button>`).join("")}</div>` : "";
+        ${menu.map((b) => `<button class="btn small${active && String(active.npc_id) === String(b.npc_id) ? " primary" : ""}" data-boss="${esc(b.npc_id || "")}" data-bossname="${esc(b.boss)}">${esc(b.boss)} (${num(b.plans)})</button>`).join("")}</div>` : "";
     const cards = list.length ? list.map((pl) => `<div class="pcard"><div class="gname">${esc(pl.name || "Plan")}</div>
         ${pl.boss ? `<div class="small gold">${esc(pl.boss)}</div>` : ""}
-        <div class="small muted">${esc(pl.author || "unknown")} · ${(pl.duration || 0).toFixed(0)}s · ${pl.tokens || 0} tokens${pl.has_fight ? " · with a fight" : ""}</div>
+        <div class="small muted">${esc(pl.author || "unknown")} · ${num(pl.duration).toFixed(0)}s · ${num(pl.tokens)} tokens${pl.has_fight ? " · with a fight" : ""}</div>
         <div class="small">${(pl.classes || []).map((c) => `<span class="chip">${esc(c)}</span>`).join(" ")}</div>
         <button class="btn small primary" data-open="${esc(pl.id)}" style="margin-top:6px">Open</button></div>`).join("")
       : `<div class="empty">${active ? "No public plans for this boss yet." : "No public plans yet."}</div>`;
@@ -295,7 +300,8 @@
       st.timer = setInterval(() => {
         if (!document.body.contains(arena)) { clearInterval(st.timer); st.timer = null; st.playing = false; return; }
         st.t = Math.round((st.t + 0.05 * (st.speed || 1)) * 100) / 100;
-        if (st.t >= (p.duration || 1)) { st.t = p.duration || 1; layout(); pause(); return; }
+        const end = num(p.duration) || 1;
+        if (st.t >= end) { st.t = end; layout(); pause(); return; }
         layout();
       }, 50);
     };

@@ -1,8 +1,10 @@
-## Gathering: which Odyle node is which, and open-world gathers no longer filed under a dungeon (0.2.360)
+## Gathering: which Odyle node is which, open-world gathers out of dungeons, and a Raid Planner fix (0.2.360)
 
 **Which Odyle node is which.** **Game → Gathering** groups gathers by the game's kind of node and names each card after the material it gives. Some materials come from more than one kind of node. In the October recordings, every Odyle node inside a dungeon (Ferocious Horn Den, Krao Cave, Fire Temple) was one kind and every Odyle node in Altgard another, so the page showed two cards both called *Odyle*. Each card now says where its kind of node grows, *Odyle — dungeon node* or *Odyle — open-world node*, and **Found in** lists the places it was gathered, the most gathers first. This computer's records show it now; everyone's rates and the website's account view show it once the log server is updated (log server 0.2.152). The new words are translated into the page's five other languages.
 
 **Open-world gathers stay in the open world.** A gather made in an open-world zone right after a dungeon run, while the party still held the dungeon, was filed under the dungeon. In the 19 October recording, 8 Orichalcum gathers in Altgard would have shown in **Your log** as Ferocious Horn Den. The meter no longer gives a record made in an open-world zone a dungeon, and the page reads the records already kept by their map, so they show where they happened. The drop rates were not affected: they never used where a gather happened.
+
+**Raid Planner: a plan can't add anything to the page.** A plan opened from a file, a share code or **Browse plans** could carry markup in a buff's start or end time or in a player's colour, and the planner wrote those into the page unescaped, in the app and on the website. Every number in a plan now shows only as a number and every colour only as a hex colour (any other colour gets the default), so an opened plan shows its text, times and colours and nothing more. A keyframe time that isn't a number shows as 0 instead of stopping the planner from drawing. This clears the repository's code-scanning alert (CodeQL's *DOM text reinterpreted as HTML*).
 
 ## Featured encounters two side by side on a 1080p screen (0.2.359)
 
