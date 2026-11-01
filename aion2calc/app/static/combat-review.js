@@ -25,9 +25,12 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
   // The measured areas of boss skills (0.2.365): aoe-shapes.json beside this script, written by
   // ``python -m aion2calc aoe-shapes --write`` from who stood where when each cast's hits landed in the public
   // recordings (docs/generated/aoe-shapes.md lists them). A server that does not carry the file draws no areas.
-  const AOE_URL=(()=>{try{return new URL("aoe-shapes.json",document.currentScript.src).href;}catch(e){return null;}})();
+  // The log server re-measures nightly (0.2.366): a page that knows its log server (the Pages site's A2.base) asks it
+  // first and falls back to the copy beside this script; the desktop serves the newer of the two itself.
+  const AOE_URLS=(()=>{const urls=[];try{const base=window.A2&&typeof window.A2.base==="function"?String(window.A2.base()||"").replace(/\/$/,""):"";if(base)urls.push(base+"/static/aoe-shapes.json");}catch(e){/* no server configured */}
+    try{urls.push(new URL("aoe-shapes.json",document.currentScript.src).href);}catch(e){/* not loaded from a script tag */}return [...new Set(urls)];})();
   let aoeShapes=null,aoeRedraw=null;
-  if(AOE_URL&&typeof fetch==="function")fetch(AOE_URL).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.shapes){aoeShapes=d.shapes;if(aoeRedraw)aoeRedraw();}}).catch(()=>{});
+  if(AOE_URLS.length&&typeof fetch==="function")(async()=>{for(const url of AOE_URLS){try{const r=await fetch(url);if(!r.ok)continue;const d=await r.json();if(d&&d.shapes){aoeShapes=d.shapes;if(aoeRedraw)aoeRedraw();return;}}catch(e){/* try the next copy */}}})();
   // A fight's recorded movement on a 100×100 view, north up (0.2.350): ``at(position)`` is where it is drawn (clamped
   // to the view, and whether it fell outside), ``rooms`` a boss fight's arena as a circle and as a square, in view
   // units, or null. The view frames the bosses' ground with room around it, or without a boss the middle 90% of

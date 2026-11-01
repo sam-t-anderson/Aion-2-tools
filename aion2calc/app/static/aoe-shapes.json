@@ -1,5 +1,12 @@
 {
  "unit": "game units; melee hits land at 250-300, so about 100 units to a metre",
+ "meta": {
+  "generated_at": "2026-11-01T14:13:19Z",
+  "skills": 485,
+  "measured": 88,
+  "tentative": 80,
+  "sample_version": 1
+ },
  "shapes": {
   "1801450": {
    "boss": "Atiel",

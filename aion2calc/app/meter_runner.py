@@ -174,6 +174,8 @@ class Runner:
         self._record_setting = False  # Record TCP payloads as last applied (see _apply_packet_recording)
         self.diagnostic_export = None
         self.marks = []           # labelled moments of this capture (0.2.365)
+        self.candidates = None    # the candidate-mark scanner while raw TCP is recorded (0.2.366)
+        self._mark_seq = 0
         self._exported_recorder = None
         self._capture_generation = 0
         self._exported_generation = -1
@@ -236,6 +238,7 @@ class Runner:
         self._capture_generation += 1
         self.diagnostic_export = None
         self.marks = []
+        self._mark_seq = 0
         from ..meter.diagnostics import Recorder, RecordingSwitch
         if self.recorder is not None:
             try:
@@ -250,6 +253,9 @@ class Runner:
         record = self._record_setting if record is None else bool(record)
         self.recorder = Recorder() if record and source in ("a2tools", "live") else None
         self._recording = RecordingSwitch(self.recorder)
+        # Candidate marks (0.2.366) are offered only while raw TCP is recorded: without the payloads a mark points at nothing.
+        from .candidate_marks import CandidateScanner
+        self.candidates = CandidateScanner() if self.recorder is not None else None
         if self._continuing:
             self._spawn_flush()               # write the stopped part as the closed part it is
         self._last_packet_at = self._last_combat_at = None
@@ -499,6 +505,8 @@ class Runner:
                     history.append({"at":timestamp_ms, "type":"CompressedFrameRejected", "message":warning, "recoverable":True, "frames":rejected})
                     del history[:-20]
                 self.session.observe(engine, events, timestamp_ms=timestamp_ms)
+                if self.candidates is not None:
+                    self._scan_candidates(engine, events, timestamp_ms)
             else:
                 events = list(decoder.feed(payload))
                 for event in events:
@@ -888,7 +896,9 @@ class Runner:
         cached = next(iter(self._status_cache.values()), None) if getattr(self, "_status_cache", None) else None
         snap = (cached or {}).get("snapshot") or {}
         target = snap.get("current_target") or {}
-        row = {"at": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(now)) + f".{int(now * 1000) % 1000:03d}Z",
+        self._mark_seq += 1
+        row = {"id": self._mark_seq, "kind": "mark", "status": "confirmed",
+               "at": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(now)) + f".{int(now * 1000) % 1000:03d}Z",
                "t_ms": int(now * 1000), "label": label, "note": note, "source": str(source or "button")[:16],
                "boss": snap.get("boss"), "target": target.get("name") if isinstance(target, dict) else None,
                "fight_t": snap.get("duration"), "running": bool(self.running), "recording": self.recorder is not None}
@@ -896,12 +906,58 @@ class Runner:
         del self.marks[:-self.MARK_LIMIT]
         return [dict(m) for m in self.marks]
 
+    def recording_active(self) -> bool:
+        """Raw TCP payloads are being recorded right now (the capture runs and the switch is on)."""
+        switch = getattr(self, "_recording", None)
+        return bool(self.running and switch is not None and switch.recorder is not None)
+
+    def marking_enabled(self) -> bool:
+        """Marks are offered only with diagnostic recording enabled (0.2.366): the saved Record TCP payloads
+        setting, or a capture recording right now."""
+        return self.recording_active() or self._record_packets_setting()
+
+    def _scan_candidates(self, engine, events, timestamp_ms) -> None:
+        """Offer the moments of this packet that look like an evidence-gated item (candidate_marks.py); a scanner
+        failure is noted once and never touches the capture."""
+        try:
+            snap = (next(iter(self._status_cache.values()), None) or {}).get("snapshot") if getattr(self, "_status_cache", None) else None
+            for row in self.candidates.observe(self.session, engine, events, timestamp_ms):
+                self._mark_seq += 1
+                row["id"] = self._mark_seq
+                if snap:
+                    row.setdefault("boss", snap.get("boss"))
+                    row.setdefault("fight_t", snap.get("duration"))
+                row["running"], row["recording"] = True, True
+                self.marks.append(row)
+            del self.marks[:-self.MARK_LIMIT]
+        except Exception as exc:                      # a detector's slip must never cost a capture
+            self.diagnostics.setdefault("candidate_scan_error", f"{type(exc).__name__}: {exc}"[:300])
+            self.candidates = None
+
+    def decide_mark(self, mark_id: int, accept: bool, label=None, note=None) -> list:
+        """Confirm a candidate (it becomes an ordinary mark, with the label and note the player chose) or dismiss
+        it (kept as dismissed for the diagnostics: a pattern that was not the thing is evidence too)."""
+        row = next((m for m in self.marks if m.get("id") == mark_id), None)
+        if row is None:
+            raise ValueError("no such mark")
+        if accept:
+            row["kind"], row["status"], row["source"] = "mark", "confirmed", "auto-confirmed" if row.get("source") == "auto" else row.get("source")
+            if label is not None:
+                row["label"] = str(label).strip()[:40] or row["label"]
+            if note is not None:
+                row["note"] = " ".join(str(note).split())[:200]
+        else:
+            row["status"] = "dismissed"
+        row["decided_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        return [dict(m) for m in self.marks]
+
     def relabel(self, index=-1, label=None, note=None) -> list:
         """Give an existing mark (the latest by default, as a hotkey press is labelled afterwards) its label and note."""
-        if not self.marks:
+        marks = [m for m in self.marks if m.get("kind", "mark") == "mark"]
+        if not marks:
             raise ValueError("no mark to relabel yet")
         try:
-            row = self.marks[int(index)]
+            row = marks[int(index)]
         except (IndexError, ValueError, TypeError):
             raise ValueError("no such mark") from None
         if label is not None:
@@ -1569,6 +1625,12 @@ class Runner:
                 from ..meter.diagnostics import Recorder
                 self.recorder = Recorder()
             switch.recorder = self.recorder if enabled else None
+            if enabled:
+                if self.candidates is None:
+                    from .candidate_marks import CandidateScanner
+                    self.candidates = CandidateScanner()
+            else:
+                self.candidates = None
         finally:
             self._lifecycle_lock.release()
 

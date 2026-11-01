@@ -331,7 +331,7 @@ def _start_hotkeys(port: int, open_app, open_settings):
             "toggle_overlay": toggle_overlay,
             "toggle_meter": toggle_meter,
             "clear_meter": lambda: runner().clear_session(),
-            "mark_moment": lambda: runner().mark("hotkey", source="hotkey"),
+            "mark_moment": lambda: runner().mark("hotkey", source="hotkey") if runner().marking_enabled() else None,
             "toggle_click_through": lambda: set_ui(
                 overlay_click_through=not server.ui_settings().get("overlay_click_through")),
             "toggle_party_overlay": toggle_party_overlay,
@@ -441,6 +441,9 @@ def main(argv=None) -> int:
                 from .combat import heartbeat
                 print("heartbeat:", heartbeat.send())
             threading.Thread(target=beacon, daemon=True).start()
+        # the replay's boss skill areas, refreshed from the log server's nightly measurement (0.2.366)
+        from .app import aoe_catalog
+        aoe_catalog.refresh_later()
         url = f"http://127.0.0.1:{port}/"
         def open_app_window():
             proc = open_window(url, prefer_app)

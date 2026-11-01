@@ -30,7 +30,8 @@ WINDOW = 5.0          # s: damage after a cast counts for it until the boss's ne
 NEAR_FIGHT = 4000.0   # units: a player further than this from the boss is out of the fight, not "unhit"
 NEAR = 60.0           # units: an aim this close to the target (the caster) was aimed at it (around itself)
 SHAPES = ("single_target", "circle_caster", "circle_aim", "cone", "line", "ring")   # plus "everyone": raid-wide
-SIMPLER_BY = 0.03     # a shape with more parameters must beat a simpler one by this much balanced accuracy
+SIMPLER_BY = 0.03
+SAMPLES_VERSION = 1       # bumped when cast_samples changes what it keeps: cached per-log samples are then redone     # a shape with more parameters must beat a simpler one by this much balanced accuracy
 UNIT_NOTE = "game units; melee hits land at 250-300, so about 100 units to a metre"
 
 
@@ -359,7 +360,11 @@ def catalog(rows):
             if row.get(k) is not None:
                 entry[k] = row[k]
         out[key] = entry
-    return {"unit": UNIT_NOTE, "shapes": out}
+    import time
+    return {"unit": UNIT_NOTE, "meta": {"generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "skills": len(rows),
+                                        "measured": sum(1 for r in rows if r["confidence"] == "measured"),
+                                        "tentative": sum(1 for r in rows if r["confidence"] == "tentative"),
+                                        "sample_version": SAMPLES_VERSION}, "shapes": out}
 
 
 def report(rows):

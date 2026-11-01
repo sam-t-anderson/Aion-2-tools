@@ -214,7 +214,8 @@ def export(status: dict, recorder: Recorder | None):
                          "These are original TCP segments: use sequence numbers to reassemble each direction.\n"
                          "overlay.log, when present, is the overlay watchdog's log: an overlay that went blank or\n"
                          "stopped answering, and what was done about it.\n"
-                         "marks.jsonl holds the moments the player marked (Live Meter page or the Mark moment hotkey): the\n"
+                         "marks.jsonl holds the moments the player marked (Live Meter page or the Mark moment hotkey) and the\n"
+                         "candidates the app offered (kind candidate; status pending, confirmed or dismissed, 0.2.366): the\n"
                          "time (UTC and epoch ms, the same clock as the TCP rows), a label (shield, interrupt, miss, mitigation,\n"
                          "hot, pvp, mechanic, other, hotkey), a note, and the fight the meter showed at that moment.\n")
         if overlay_log:
