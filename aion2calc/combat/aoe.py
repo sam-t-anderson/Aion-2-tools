@@ -211,7 +211,8 @@ def fit(samples):
     # the shapes around the caster, from where it was at the cast and from where it was when the hits landed (a leap
     # or a charge lands elsewhere); each shape keeps its better anchor, the cast's on a tie
     def keep(shape, score, p):
-        if shape not in scores or score > scores[shape] + 1e-9:
+        margin = 0.01 if p.get("anchor") == "hit" else 0.0        # the hit anchor has to earn its place
+        if shape not in scores or score > scores[shape] + margin:
             scores[shape], params[shape] = score, p
     for anchor in ("cast", "hit"):
         sfx = "" if anchor == "cast" else "_hit"
@@ -283,8 +284,9 @@ def measure(docs=(), extracted=()):
         unhit_n = len(samples) - hit_n
         if hit_n and unhit_n:
             shape, params, accuracy, scores = fit(samples)
-        elif hit_n >= 12 and row["casts"] >= 4 and not unhit_n:
-            # every player present was hit every time: a raid-wide effect, nothing to measure the edge of
+        elif hit_n >= 12 and row["casts"] >= 4 and not unhit_n and row["hits"] >= 2 * row["casts"]:
+            # every player present was hit every time, two or more a cast (a lone player proves nothing): a raid-wide
+            # effect, nothing to measure the edge of
             shape, params, accuracy, scores = "everyone", {}, 1.0, {"everyone": 1.0}
         else:
             shape, params, accuracy, scores = None, {}, 0.0, {}

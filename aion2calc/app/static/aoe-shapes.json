@@ -4,12 +4,13 @@
   "1801450": {
    "boss": "Atiel",
    "skill": "Attack",
-   "shape": "circle_aim",
-   "accuracy": 0.89,
+   "shape": "circle_caster",
+   "accuracy": 0.9,
    "confidence": "measured",
    "casts": 33,
    "delay": 1.68,
-   "radius": 685
+   "radius": 675,
+   "anchor": "hit"
   },
   "1801400": {
    "boss": "Atiel",
@@ -20,7 +21,8 @@
    "casts": 28,
    "delay": 0.21,
    "radius": 613,
-   "angle": 120
+   "angle": 120,
+   "anchor": "cast"
   },
   "1801410": {
    "boss": "Atiel",
@@ -41,7 +43,8 @@
    "casts": 9,
    "delay": 0.02,
    "radius": 2674,
-   "inner": 985
+   "inner": 985,
+   "anchor": "cast"
   },
   "1600660": {
    "boss": "Black Smoke Murute",
@@ -61,17 +64,19 @@
    "confidence": "measured",
    "casts": 97,
    "delay": 0.47,
-   "radius": 648
+   "radius": 648,
+   "anchor": "cast"
   },
   "1600740": {
    "boss": "Black Smoke Murute",
    "skill": "Mighty Overhead Slam",
    "shape": "circle_caster",
-   "accuracy": 0.864,
+   "accuracy": 0.884,
    "confidence": "measured",
    "casts": 69,
    "delay": 1.02,
-   "radius": 766
+   "radius": 803,
+   "anchor": "hit"
   },
   "1600670": {
    "boss": "Black Smoke Murute",
@@ -93,25 +98,60 @@
    "delay": 0.51,
    "radius": 412
   },
+  "1601090": {
+   "boss": "Divine Auldor",
+   "skill": "Skill 1601090",
+   "shape": "circle_caster",
+   "accuracy": 0.941,
+   "confidence": "measured",
+   "casts": 46,
+   "delay": 1.76,
+   "radius": 961,
+   "anchor": "hit"
+  },
+  "1601030": {
+   "boss": "Divine Auldor",
+   "skill": "Tempest Strike",
+   "shape": "circle_caster",
+   "accuracy": 0.93,
+   "confidence": "measured",
+   "casts": 46,
+   "delay": 0.74,
+   "radius": 540,
+   "anchor": "hit"
+  },
   "1600940": {
    "boss": "Divine Auldor",
    "skill": "Ambush Slam",
-   "shape": "circle_aim",
-   "accuracy": 0.897,
+   "shape": "circle_caster",
+   "accuracy": 0.914,
    "confidence": "measured",
    "casts": 31,
    "delay": 0.31,
-   "radius": 438
+   "radius": 460,
+   "anchor": "hit"
+  },
+  "1600960": {
+   "boss": "Divine Auldor",
+   "skill": "Flying Overhead Slam",
+   "shape": "circle_caster",
+   "accuracy": 0.853,
+   "confidence": "measured",
+   "casts": 24,
+   "delay": 1.75,
+   "radius": 878,
+   "anchor": "hit"
   },
   "1601050": {
    "boss": "Divine Auldor",
    "skill": "Snatch",
-   "shape": "circle_aim",
+   "shape": "circle_caster",
    "accuracy": 0.856,
    "confidence": "measured",
    "casts": 13,
    "delay": 3.08,
-   "radius": 627
+   "radius": 591,
+   "anchor": "hit"
   },
   "1218520": {
    "boss": "Enhanced Harcon",
@@ -151,7 +191,8 @@
    "confidence": "measured",
    "casts": 137,
    "delay": 0.32,
-   "radius": 842
+   "radius": 842,
+   "anchor": "cast"
   },
   "1802000": {
    "boss": "Ferocious Horn Nuakum",
@@ -163,6 +204,18 @@
    "delay": 0.5,
    "radius": 653
   },
+  "1001450": {
+   "boss": "Ferocious Horn Nuakum",
+   "skill": "Skill 1001450",
+   "shape": "cone",
+   "accuracy": 0.857,
+   "confidence": "measured",
+   "casts": 69,
+   "delay": 0.92,
+   "radius": 1119,
+   "angle": 90,
+   "anchor": "hit"
+  },
   "1802030": {
    "boss": "Ferocious Horn Nuakum",
    "skill": "Attack",
@@ -171,7 +224,8 @@
    "confidence": "measured",
    "casts": 35,
    "delay": 0.61,
-   "radius": 3042
+   "radius": 3042,
+   "anchor": "cast"
   },
   "1603290": {
    "boss": "Gelcos",
@@ -182,7 +236,8 @@
    "casts": 16,
    "delay": 1.07,
    "length": 2230,
-   "half_width": 400
+   "half_width": 400,
+   "anchor": "cast"
   },
   "1603280": {
    "boss": "Gelcos",
@@ -193,7 +248,8 @@
    "casts": 14,
    "delay": 1.03,
    "radius": 2097,
-   "angle": 120
+   "angle": 120,
+   "anchor": "cast"
   },
   "1603230": {
    "boss": "Gelcos",
@@ -203,17 +259,31 @@
    "confidence": "measured",
    "casts": 14,
    "delay": 0.8,
-   "radius": 691
+   "radius": 691,
+   "anchor": "cast"
   },
   "1603240": {
    "boss": "Gelcos",
    "skill": "Attack",
-   "shape": "circle_aim",
-   "accuracy": 0.891,
+   "shape": "cone",
+   "accuracy": 0.922,
    "confidence": "measured",
    "casts": 11,
    "delay": 0.82,
-   "radius": 1093
+   "radius": 1161,
+   "angle": 120,
+   "anchor": "hit"
+  },
+  "1603360": {
+   "boss": "Gelcos",
+   "skill": "Attack",
+   "shape": "circle_caster",
+   "accuracy": 0.946,
+   "confidence": "measured",
+   "casts": 11,
+   "delay": 0.94,
+   "radius": 490,
+   "anchor": "hit"
   },
   "1504410": {
    "boss": "Guardian Captain Raur",
@@ -224,7 +294,8 @@
    "casts": 89,
    "delay": 0.87,
    "radius": 743,
-   "angle": 75
+   "angle": 75,
+   "anchor": "cast"
   },
   "1504420": {
    "boss": "Guardian Captain Raur",
@@ -235,7 +306,8 @@
    "casts": 30,
    "delay": 0.32,
    "radius": 644,
-   "angle": 150
+   "angle": 150,
+   "anchor": "cast"
   },
   "1504460": {
    "boss": "Guardian Captain Raur",
@@ -245,7 +317,8 @@
    "confidence": "measured",
    "casts": 20,
    "delay": 1.17,
-   "radius": 2583
+   "radius": 2583,
+   "anchor": "cast"
   },
   "1605070": {
    "boss": "Judge Urahum",
@@ -265,7 +338,8 @@
    "confidence": "measured",
    "casts": 37,
    "delay": 0.55,
-   "radius": 1009
+   "radius": 1009,
+   "anchor": "cast"
   },
   "1605140": {
    "boss": "Judge Urahum",
@@ -275,7 +349,8 @@
    "confidence": "measured",
    "casts": 24,
    "delay": 0.12,
-   "radius": 707
+   "radius": 707,
+   "anchor": "cast"
   },
   "1605131": {
    "boss": "Judge Urahum",
@@ -285,28 +360,43 @@
    "confidence": "measured",
    "casts": 20,
    "delay": 0.0,
-   "radius": 374
+   "radius": 374,
+   "anchor": "cast"
   },
   "1801070": {
    "boss": "Kromede's Desire",
    "skill": "Mark of Death",
-   "shape": "circle_aim",
-   "accuracy": 0.878,
+   "shape": "circle_caster",
+   "accuracy": 0.903,
    "confidence": "measured",
    "casts": 108,
    "delay": 0.85,
-   "radius": 1305
+   "radius": 957,
+   "anchor": "hit"
   },
   "1801030": {
    "boss": "Kromede's Desire",
    "skill": "Nimble Blade",
    "shape": "cone",
-   "accuracy": 0.852,
+   "accuracy": 0.876,
    "confidence": "measured",
    "casts": 78,
    "delay": 1.07,
-   "radius": 1267,
-   "angle": 120
+   "radius": 1209,
+   "angle": 135,
+   "anchor": "hit"
+  },
+  "16330007": {
+   "boss": "Kromede's Desire",
+   "skill": "Skill 16330007",
+   "shape": "cone",
+   "accuracy": 0.892,
+   "confidence": "measured",
+   "casts": 72,
+   "delay": 0.45,
+   "radius": 504,
+   "angle": 180,
+   "anchor": "hit"
   },
   "1801090": {
    "boss": "Kromede's Desire",
@@ -317,7 +407,8 @@
    "casts": 56,
    "delay": 0.49,
    "radius": 1171,
-   "angle": 105
+   "angle": 105,
+   "anchor": "cast"
   },
   "1801020": {
    "boss": "Kromede's Desire",
@@ -328,7 +419,20 @@
    "casts": 53,
    "delay": 1.28,
    "radius": 881,
-   "angle": 120
+   "angle": 120,
+   "anchor": "cast"
+  },
+  "1801060": {
+   "boss": "Kromede's Desire",
+   "skill": "Dancing Hellblade",
+   "shape": "cone",
+   "accuracy": 0.871,
+   "confidence": "measured",
+   "casts": 37,
+   "delay": 0.2,
+   "radius": 1212,
+   "angle": 135,
+   "anchor": "hit"
   },
   "1801010": {
    "boss": "Kromede's Desire",
@@ -340,6 +444,17 @@
    "delay": 1.12,
    "radius": 453
   },
+  "1801160": {
+   "boss": "Kromede's Desire",
+   "skill": "Dash",
+   "shape": "circle_caster",
+   "accuracy": 0.941,
+   "confidence": "measured",
+   "casts": 27,
+   "delay": 1.2,
+   "radius": 1263,
+   "anchor": "hit"
+  },
   "1605620": {
    "boss": "Nazmun",
    "skill": "Ultra Laser",
@@ -349,7 +464,8 @@
    "casts": 34,
    "delay": 0.35,
    "length": 2060,
-   "half_width": 300
+   "half_width": 300,
+   "anchor": "cast"
   },
   "1606970": {
    "boss": "Necromancer Duanka",
@@ -361,6 +477,17 @@
    "delay": 0.3,
    "radius": 836
   },
+  "1606981": {
+   "boss": "Necromancer Duanka",
+   "skill": "Skill 1606981",
+   "shape": "circle_caster",
+   "accuracy": 0.904,
+   "confidence": "measured",
+   "casts": 45,
+   "delay": 0.8,
+   "radius": 675,
+   "anchor": "hit"
+  },
   "1607055": {
    "boss": "Necromancer Duanka",
    "skill": "Skill 1607055",
@@ -369,7 +496,8 @@
    "confidence": "measured",
    "casts": 11,
    "delay": 1.01,
-   "radius": 2461
+   "radius": 2461,
+   "anchor": "cast"
   },
   "1218590": {
    "boss": "Neglected Gadioton",
@@ -380,7 +508,8 @@
    "casts": 31,
    "delay": 0.6,
    "radius": 1832,
-   "inner": 877
+   "inner": 877,
+   "anchor": "cast"
   },
   "1600815": {
    "boss": "Red Spark Ignus",
@@ -390,7 +519,8 @@
    "confidence": "measured",
    "casts": 191,
    "delay": 0.04,
-   "radius": 556
+   "radius": 556,
+   "anchor": "cast"
   },
   "1600760": {
    "boss": "Red Spark Ignus",
@@ -412,6 +542,17 @@
    "delay": 0.82,
    "radius": 369
   },
+  "1606401": {
+   "boss": "Ruthilis of Pain",
+   "skill": "Skill 1606401",
+   "shape": "circle_caster",
+   "accuracy": 0.867,
+   "confidence": "measured",
+   "casts": 21,
+   "delay": 0.82,
+   "radius": 611,
+   "anchor": "hit"
+  },
   "1606410": {
    "boss": "Ruthilis of Pain",
    "skill": "Skill 1606410",
@@ -420,7 +561,8 @@
    "confidence": "measured",
    "casts": 15,
    "delay": 0.52,
-   "radius": 505
+   "radius": 505,
+   "anchor": "cast"
   },
   "1606370": {
    "boss": "Ruthilis of Pain",
@@ -431,7 +573,8 @@
    "casts": 14,
    "delay": 0.95,
    "radius": 802,
-   "angle": 135
+   "angle": 135,
+   "anchor": "cast"
   },
   "1606010": {
    "boss": "Siliator of Deceit",
@@ -442,17 +585,19 @@
    "casts": 56,
    "delay": 0.54,
    "radius": 1121,
-   "angle": 135
+   "angle": 135,
+   "anchor": "cast"
   },
   "1606050": {
    "boss": "Siliator of Deceit",
    "skill": "Attack",
-   "shape": "circle_aim",
-   "accuracy": 0.919,
+   "shape": "circle_caster",
+   "accuracy": 0.931,
    "confidence": "measured",
    "casts": 53,
    "delay": 0.97,
-   "radius": 854
+   "radius": 727,
+   "anchor": "hit"
   },
   "1606020": {
    "boss": "Siliator of Deceit",
@@ -463,7 +608,8 @@
    "casts": 26,
    "delay": 0.21,
    "length": 1945,
-   "half_width": 300
+   "half_width": 300,
+   "anchor": "cast"
   },
   "1606090": {
    "boss": "Siliator of Deceit",
@@ -483,7 +629,8 @@
    "confidence": "measured",
    "casts": 23,
    "delay": 0.0,
-   "radius": 400
+   "radius": 400,
+   "anchor": "cast"
   },
   "1227130": {
    "boss": "Silver Blade Rotan",
@@ -493,7 +640,8 @@
    "confidence": "measured",
    "casts": 17,
    "delay": 0.5,
-   "radius": 470
+   "radius": 470,
+   "anchor": "cast"
   },
   "1227150": {
    "boss": "Silver Blade Rotan",
@@ -514,7 +662,8 @@
    "casts": 15,
    "delay": 1.06,
    "radius": 743,
-   "angle": 75
+   "angle": 75,
+   "anchor": "cast"
   },
   "1604650": {
    "boss": "Thamon",
@@ -545,7 +694,8 @@
    "casts": 1626,
    "delay": 0.03,
    "radius": 1342,
-   "angle": 180
+   "angle": 180,
+   "anchor": "cast"
   },
   "Ultimate Berk|1800000": {
    "boss": "Ultimate Berk",
@@ -566,7 +716,31 @@
    "casts": 605,
    "delay": 1.12,
    "radius": 1069,
-   "angle": 90
+   "angle": 90,
+   "anchor": "cast"
+  },
+  "1800190": {
+   "boss": "Ultimate Berk",
+   "skill": "Skill 1800190",
+   "shape": "circle_caster",
+   "accuracy": 0.869,
+   "confidence": "measured",
+   "casts": 133,
+   "delay": 1.77,
+   "radius": 1314,
+   "anchor": "hit"
+  },
+  "1800031": {
+   "boss": "Ultimate Berk",
+   "skill": "Rush",
+   "shape": "cone",
+   "accuracy": 0.855,
+   "confidence": "measured",
+   "casts": 97,
+   "delay": 0.0,
+   "radius": 812,
+   "angle": 180,
+   "anchor": "hit"
   },
   "1604350": {
    "boss": "Vakron",
@@ -581,12 +755,14 @@
   "1604400": {
    "boss": "Vakron",
    "skill": "Skill 1604400",
-   "shape": "circle_aim",
-   "accuracy": 0.909,
+   "shape": "cone",
+   "accuracy": 1.0,
    "confidence": "measured",
    "casts": 9,
    "delay": 1.34,
-   "radius": 490
+   "radius": 302,
+   "angle": 180,
+   "anchor": "hit"
   },
   "1606880": {
    "boss": "Watchdog Kwapo",
@@ -612,12 +788,13 @@
    "boss": "Watchdog Kwapo",
    "skill": "Attack",
    "shape": "line",
-   "accuracy": 0.862,
+   "accuracy": 0.858,
    "confidence": "measured",
    "casts": 70,
    "delay": 0.23,
-   "length": 1899,
-   "half_width": 300
+   "length": 1961,
+   "half_width": 300,
+   "anchor": "cast"
   },
   "1606950": {
    "boss": "Watchdog Kwapo",
@@ -632,13 +809,13 @@
   "1606940": {
    "boss": "Watchdog Kwapo",
    "skill": "Attack",
-   "shape": "cone",
-   "accuracy": 0.856,
+   "shape": "circle_caster",
+   "accuracy": 0.937,
    "confidence": "measured",
    "casts": 29,
    "delay": 1.11,
-   "radius": 2417,
-   "angle": 30
+   "radius": 748,
+   "anchor": "hit"
   },
   "1801570": {
    "boss": "Atiel",
@@ -649,7 +826,8 @@
    "casts": 317,
    "delay": 0.03,
    "radius": 2215,
-   "inner": 1008
+   "inner": 1008,
+   "anchor": "cast"
   },
   "1801430": {
    "boss": "Atiel",
@@ -659,7 +837,19 @@
    "confidence": "tentative",
    "casts": 75,
    "delay": 0.74,
-   "radius": 729
+   "radius": 729,
+   "anchor": "cast"
+  },
+  "1801455": {
+   "boss": "Atiel",
+   "skill": "Skill 1801455",
+   "shape": "circle_caster",
+   "accuracy": 0.806,
+   "confidence": "tentative",
+   "casts": 19,
+   "delay": 1.57,
+   "radius": 728,
+   "anchor": "hit"
   },
   "1801540": {
    "boss": "Atiel",
@@ -670,7 +860,8 @@
    "casts": 14,
    "delay": 0.0,
    "radius": 1307,
-   "inner": 565
+   "inner": 565,
+   "anchor": "cast"
   },
   "1910350": {
    "boss": "Nazmun",
@@ -680,7 +871,8 @@
    "confidence": "tentative",
    "casts": 7,
    "delay": 0.0,
-   "radius": 751
+   "radius": 751,
+   "anchor": "cast"
   },
   "1802600": {
    "boss": "Atiel",
@@ -691,7 +883,8 @@
    "casts": 4,
    "delay": 0.0,
    "radius": 386,
-   "inner": 242
+   "inner": 242,
+   "anchor": "cast"
   },
   "1802650": {
    "boss": "Atiel",
@@ -701,7 +894,8 @@
    "confidence": "tentative",
    "casts": 4,
    "delay": -0.01,
-   "radius": 388
+   "radius": 388,
+   "anchor": "cast"
   },
   "1600690": {
    "boss": "Black Smoke Murute",
@@ -712,7 +906,8 @@
    "casts": 68,
    "delay": 2.33,
    "radius": 1300,
-   "angle": 75
+   "angle": 75,
+   "anchor": "cast"
   },
   "1600720": {
    "boss": "Black Smoke Murute",
@@ -722,27 +917,8 @@
    "confidence": "tentative",
    "casts": 55,
    "delay": 1.19,
-   "radius": 827
-  },
-  "16330007": {
-   "boss": "Kromede's Desire",
-   "skill": "Skill 16330007",
-   "shape": "circle_caster",
-   "accuracy": 0.764,
-   "confidence": "tentative",
-   "casts": 72,
-   "delay": 0.45,
-   "radius": 1254
-  },
-  "1001450": {
-   "boss": "Black Smoke Murute",
-   "skill": "Skill 1001450",
-   "shape": "circle_caster",
-   "accuracy": 0.777,
-   "confidence": "tentative",
-   "casts": 14,
-   "delay": 0.92,
-   "radius": 746
+   "radius": 827,
+   "anchor": "cast"
   },
   "1600710": {
    "boss": "Black Smoke Murute",
@@ -754,16 +930,6 @@
    "delay": 1.5,
    "radius": 389
   },
-  "1601090": {
-   "boss": "Divine Auldor",
-   "skill": "Skill 1601090",
-   "shape": "circle_caster",
-   "accuracy": 0.772,
-   "confidence": "tentative",
-   "casts": 46,
-   "delay": 1.76,
-   "radius": 578
-  },
   "1601000": {
    "boss": "Divine Auldor",
    "skill": "Attack",
@@ -772,7 +938,20 @@
    "confidence": "tentative",
    "casts": 45,
    "delay": 0.28,
-   "radius": 833
+   "radius": 833,
+   "anchor": "cast"
+  },
+  "1600970": {
+   "boss": "Divine Auldor",
+   "skill": "Attack",
+   "shape": "cone",
+   "accuracy": 0.808,
+   "confidence": "tentative",
+   "casts": 27,
+   "delay": 0.0,
+   "radius": 964,
+   "angle": 15,
+   "anchor": "hit"
   },
   "1218550": {
    "boss": "Enhanced Harcon",
@@ -798,11 +977,12 @@
    "boss": "Ferocious Horn Nuakum",
    "skill": "Skill 1802141",
    "shape": "circle_caster",
-   "accuracy": 0.78,
+   "accuracy": 0.778,
    "confidence": "tentative",
    "casts": 89,
    "delay": 0.7,
-   "radius": 697
+   "radius": 697,
+   "anchor": "cast"
   },
   "1802131": {
    "boss": "Ferocious Horn Nuakum",
@@ -813,7 +993,8 @@
    "casts": 85,
    "delay": 0.7,
    "radius": 813,
-   "angle": 60
+   "angle": 60,
+   "anchor": "cast"
   },
   "1802162": {
    "boss": "Ferocious Horn Nuakum",
@@ -824,7 +1005,8 @@
    "casts": 10,
    "delay": 0.8,
    "radius": 649,
-   "angle": 15
+   "angle": 15,
+   "anchor": "cast"
   },
   "1802022": {
    "boss": "Ferocious Horn Nuakum",
@@ -835,7 +1017,8 @@
    "casts": 8,
    "delay": 0.54,
    "radius": 577,
-   "inner": 220
+   "inner": 220,
+   "anchor": "cast"
   },
   "1802161": {
    "boss": "Ferocious Horn Nuakum",
@@ -846,7 +1029,8 @@
    "casts": 8,
    "delay": 0.74,
    "radius": 1165,
-   "angle": 15
+   "angle": 15,
+   "anchor": "cast"
   },
   "1603270": {
    "boss": "Gelcos",
@@ -856,7 +1040,8 @@
    "confidence": "tentative",
    "casts": 42,
    "delay": 0.11,
-   "radius": 1257
+   "radius": 1257,
+   "anchor": "cast"
   },
   "1603250": {
    "boss": "Gelcos",
@@ -868,17 +1053,6 @@
    "delay": 0.35,
    "radius": 907
   },
-  "1603360": {
-   "boss": "Gelcos",
-   "skill": "Attack",
-   "shape": "cone",
-   "accuracy": 0.845,
-   "confidence": "tentative",
-   "casts": 11,
-   "delay": 0.94,
-   "radius": 1890,
-   "angle": 15
-  },
   "1603355": {
    "boss": "Gelcos",
    "skill": "Skill 1603355",
@@ -887,7 +1061,8 @@
    "confidence": "tentative",
    "casts": 10,
    "delay": 0.15,
-   "radius": 1074
+   "radius": 1074,
+   "anchor": "cast"
   },
   "1603330": {
    "boss": "Gelcos",
@@ -898,7 +1073,19 @@
    "casts": 9,
    "delay": 0.19,
    "radius": 2834,
-   "inner": 2033
+   "inner": 2033,
+   "anchor": "cast"
+  },
+  "1603340": {
+   "boss": "Gelcos",
+   "skill": "Skill 1603340",
+   "shape": "circle_caster",
+   "accuracy": 0.796,
+   "confidence": "tentative",
+   "casts": 8,
+   "delay": 0.78,
+   "radius": 1291,
+   "anchor": "hit"
   },
   "1605672": {
    "boss": "Gelcos",
@@ -908,7 +1095,8 @@
    "confidence": "tentative",
    "casts": 6,
    "delay": 0.01,
-   "radius": 625
+   "radius": 625,
+   "anchor": "cast"
   },
   "1603350": {
    "boss": "Gelcos",
@@ -919,7 +1107,8 @@
    "casts": 4,
    "delay": 0.69,
    "radius": 820,
-   "inner": 266
+   "inner": 266,
+   "anchor": "cast"
   },
   "1504440": {
    "boss": "Guardian Captain Raur",
@@ -929,7 +1118,8 @@
    "confidence": "tentative",
    "casts": 19,
    "delay": 0.51,
-   "radius": 836
+   "radius": 836,
+   "anchor": "cast"
   },
   "1504451": {
    "boss": "Guardian Captain Raur",
@@ -939,7 +1129,8 @@
    "confidence": "tentative",
    "casts": 12,
    "delay": 0.0,
-   "radius": 814
+   "radius": 814,
+   "anchor": "cast"
   },
   "1605142": {
    "boss": "Judge Urahum",
@@ -949,7 +1140,8 @@
    "confidence": "tentative",
    "casts": 32,
    "delay": 0.24,
-   "radius": 626
+   "radius": 626,
+   "anchor": "cast"
   },
   "1605080": {
    "boss": "Judge Urahum",
@@ -969,17 +1161,20 @@
    "confidence": "tentative",
    "casts": 19,
    "delay": 0.46,
-   "radius": 444
+   "radius": 444,
+   "anchor": "cast"
   },
   "1605100": {
    "boss": "Judge Urahum",
    "skill": "Skill 1605100",
-   "shape": "circle_caster",
-   "accuracy": 0.905,
+   "shape": "ring",
+   "accuracy": 0.952,
    "confidence": "tentative",
    "casts": 9,
    "delay": 0.44,
-   "radius": 611
+   "radius": 505,
+   "inner": 80,
+   "anchor": "hit"
   },
   "1801080": {
    "boss": "Kromede's Desire",
@@ -990,7 +1185,8 @@
    "casts": 90,
    "delay": 0.29,
    "radius": 1476,
-   "angle": 75
+   "angle": 75,
+   "anchor": "cast"
   },
   "1801040": {
    "boss": "Kromede's Desire",
@@ -1001,7 +1197,8 @@
    "casts": 40,
    "delay": 0.39,
    "radius": 1271,
-   "angle": 120
+   "angle": 120,
+   "anchor": "cast"
   },
   "1801126": {
    "boss": "Kromede's Desire",
@@ -1011,17 +1208,8 @@
    "confidence": "tentative",
    "casts": 39,
    "delay": 0.35,
-   "radius": 1222
-  },
-  "1801060": {
-   "boss": "Kromede's Desire",
-   "skill": "Dancing Hellblade",
-   "shape": "circle_aim",
-   "accuracy": 0.817,
-   "confidence": "tentative",
-   "casts": 37,
-   "delay": 0.2,
-   "radius": 1359
+   "radius": 1222,
+   "anchor": "cast"
   },
   "1801110": {
    "boss": "Kromede's Desire",
@@ -1031,17 +1219,20 @@
    "confidence": "tentative",
    "casts": 4,
    "delay": 0.82,
-   "radius": 532
+   "radius": 532,
+   "anchor": "cast"
   },
   "1605630": {
    "boss": "Nazmun",
    "skill": "A One! And a Two!",
-   "shape": "circle_aim",
-   "accuracy": 0.913,
+   "shape": "cone",
+   "accuracy": 0.969,
    "confidence": "tentative",
    "casts": 7,
    "delay": 1.26,
-   "radius": 960
+   "radius": 826,
+   "angle": 75,
+   "anchor": "hit"
   },
   "1605610": {
    "boss": "Nazmun",
@@ -1052,7 +1243,8 @@
    "casts": 6,
    "delay": 3.13,
    "radius": 1768,
-   "angle": 135
+   "angle": 135,
+   "anchor": "cast"
   },
   "1606980": {
    "boss": "Necromancer Duanka",
@@ -1067,13 +1259,13 @@
   "1606982": {
    "boss": "Necromancer Duanka",
    "skill": "Skill 1606982",
-   "shape": "ring",
-   "accuracy": 0.875,
+   "shape": "circle_caster",
+   "accuracy": 0.975,
    "confidence": "tentative",
    "casts": 6,
    "delay": 0.83,
-   "radius": 2059,
-   "inner": 1034
+   "radius": 787,
+   "anchor": "hit"
   },
   "1218634": {
    "boss": "Neglected Gadioton",
@@ -1084,7 +1276,8 @@
    "casts": 9,
    "delay": 0.45,
    "radius": 2119,
-   "inner": 706
+   "inner": 706,
+   "anchor": "cast"
   },
   "1218640": {
    "boss": "Predator Saraswati",
@@ -1095,7 +1288,8 @@
    "casts": 5,
    "delay": 0.55,
    "radius": 1062,
-   "angle": 60
+   "angle": 60,
+   "anchor": "cast"
   },
   "1600780": {
    "boss": "Red Spark Ignus",
@@ -1105,7 +1299,8 @@
    "confidence": "tentative",
    "casts": 34,
    "delay": 1.06,
-   "radius": 963
+   "radius": 963,
+   "anchor": "cast"
   },
   "1600785": {
    "boss": "Red Spark Ignus",
@@ -1115,7 +1310,8 @@
    "confidence": "tentative",
    "casts": 26,
    "delay": 1.05,
-   "radius": 947
+   "radius": 947,
+   "anchor": "cast"
   },
   "1600850": {
    "boss": "Red Spark Ignus",
@@ -1126,7 +1322,8 @@
    "casts": 10,
    "delay": 0.21,
    "radius": 1765,
-   "inner": 743
+   "inner": 743,
+   "anchor": "cast"
   },
   "1600846": {
    "boss": "Red Spark Ignus",
@@ -1137,18 +1334,20 @@
    "casts": 6,
    "delay": -0.01,
    "radius": 429,
-   "inner": 205
+   "inner": 205,
+   "anchor": "cast"
   },
   "1606420": {
    "boss": "Ruthilis of Pain",
    "skill": "Skill 1606420",
    "shape": "cone",
-   "accuracy": 0.909,
+   "accuracy": 0.921,
    "confidence": "tentative",
    "casts": 7,
    "delay": 0.39,
-   "radius": 439,
-   "angle": 75
+   "radius": 607,
+   "angle": 135,
+   "anchor": "hit"
   },
   "1606440": {
    "boss": "Ruthilis of Pain",
@@ -1159,7 +1358,8 @@
    "casts": 5,
    "delay": 0.72,
    "radius": 2038,
-   "inner": 541
+   "inner": 541,
+   "anchor": "cast"
   },
   "1606100": {
    "boss": "Siliator of Deceit",
@@ -1169,7 +1369,8 @@
    "confidence": "tentative",
    "casts": 7,
    "delay": 0.45,
-   "radius": 835
+   "radius": 835,
+   "anchor": "cast"
   },
   "1606070": {
    "boss": "Siliator of Deceit",
@@ -1179,17 +1380,19 @@
    "confidence": "tentative",
    "casts": 6,
    "delay": 0.46,
-   "radius": 1325
+   "radius": 1325,
+   "anchor": "cast"
   },
   "1227165": {
    "boss": "Silver Blade Rotan",
    "skill": "Skill 1227165",
    "shape": "circle_caster",
-   "accuracy": 0.857,
+   "accuracy": 0.873,
    "confidence": "tentative",
    "casts": 8,
    "delay": 0.05,
-   "radius": 694
+   "radius": 598,
+   "anchor": "hit"
   },
   "1801630": {
    "boss": "Talisra of the Void",
@@ -1199,7 +1402,8 @@
    "confidence": "tentative",
    "casts": 17,
    "delay": 0.28,
-   "radius": 469
+   "radius": 469,
+   "anchor": "cast"
   },
   "1801650": {
    "boss": "Talisra of the Void",
@@ -1209,7 +1413,8 @@
    "confidence": "tentative",
    "casts": 15,
    "delay": 0.18,
-   "radius": 1230
+   "radius": 1230,
+   "anchor": "cast"
   },
   "1801640": {
    "boss": "Talisra of the Void",
@@ -1220,17 +1425,20 @@
    "casts": 8,
    "delay": 0.38,
    "radius": 2522,
-   "inner": 766
+   "inner": 766,
+   "anchor": "cast"
   },
   "1801665": {
    "boss": "Talisra of the Void",
    "skill": "Skill 1801665",
-   "shape": "circle_caster",
-   "accuracy": 0.764,
+   "shape": "cone",
+   "accuracy": 0.969,
    "confidence": "tentative",
    "casts": 6,
    "delay": 0.9,
-   "radius": 811
+   "radius": 659,
+   "angle": 135,
+   "anchor": "hit"
   },
   "1801670": {
    "boss": "Talisra of the Void",
@@ -1241,7 +1449,8 @@
    "casts": 6,
    "delay": 0.3,
    "radius": 1240,
-   "inner": 1099
+   "inner": 1099,
+   "anchor": "cast"
   },
   "1801597": {
    "boss": "Talisra of the Void",
@@ -1252,7 +1461,8 @@
    "casts": 5,
    "delay": 0.53,
    "radius": 2523,
-   "inner": 1885
+   "inner": 1885,
+   "anchor": "cast"
   },
   "1604760": {
    "boss": "Thamon",
@@ -1272,18 +1482,32 @@
    "confidence": "tentative",
    "casts": 5,
    "delay": 0.41,
-   "radius": 937
+   "radius": 937,
+   "anchor": "cast"
+  },
+  "1604482": {
+   "boss": "Tiere",
+   "skill": "Skill 1604482",
+   "shape": "cone",
+   "accuracy": 0.81,
+   "confidence": "tentative",
+   "casts": 141,
+   "delay": 0.03,
+   "radius": 570,
+   "angle": 180,
+   "anchor": "hit"
   },
   "1604491": {
    "boss": "Tiere",
    "skill": "Skill 1604491",
-   "shape": "ring",
+   "shape": "cone",
    "accuracy": 0.833,
    "confidence": "tentative",
    "casts": 5,
    "delay": 0.35,
-   "radius": 458,
-   "inner": 190
+   "radius": 714,
+   "angle": 105,
+   "anchor": "hit"
   },
   "1800500": {
    "boss": "Transcendent Bakarma",
@@ -1313,17 +1537,8 @@
    "confidence": "tentative",
    "casts": 101,
    "delay": 0.25,
-   "radius": 736
-  },
-  "1800031": {
-   "boss": "Ultimate Berk",
-   "skill": "Rush",
-   "shape": "circle_caster",
-   "accuracy": 0.785,
-   "confidence": "tentative",
-   "casts": 97,
-   "delay": 0.0,
-   "radius": 727
+   "radius": 736,
+   "anchor": "cast"
   },
   "1800040": {
    "boss": "Ultimate Berk",
@@ -1333,7 +1548,19 @@
    "confidence": "tentative",
    "casts": 64,
    "delay": 0.47,
-   "radius": 1807
+   "radius": 1807,
+   "anchor": "cast"
+  },
+  "1800150": {
+   "boss": "Ultimate Berk",
+   "skill": "Skill 1800150",
+   "shape": "circle_caster",
+   "accuracy": 0.78,
+   "confidence": "tentative",
+   "casts": 63,
+   "delay": 1.75,
+   "radius": 1350,
+   "anchor": "hit"
   },
   "1606920": {
    "boss": "Watchdog Kwapo",
@@ -1343,7 +1570,8 @@
    "confidence": "tentative",
    "casts": 9,
    "delay": 0.25,
-   "radius": 1056
+   "radius": 1056,
+   "anchor": "cast"
   },
   "1606930": {
    "boss": "Watchdog Kwapo",
@@ -1354,7 +1582,8 @@
    "casts": 6,
    "delay": 0.9,
    "radius": 1086,
-   "angle": 105
+   "angle": 105,
+   "anchor": "cast"
   },
   "1219610": {
    "boss": "Watcher Kaira",
@@ -1365,7 +1594,8 @@
    "casts": 5,
    "delay": 0.37,
    "radius": 601,
-   "inner": 355
+   "inner": 355,
+   "anchor": "cast"
   }
  }
 }

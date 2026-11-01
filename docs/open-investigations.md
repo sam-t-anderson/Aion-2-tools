@@ -668,7 +668,7 @@ aim in 84 % (n = 231; players' casts 89 % of 19,570). A telegraph record was loo
 cast only three records in the three captures held the aim's x and y bytes (two `2a 38`, one `1b 37`), so no
 record names an effect's shape or radius. Since 0.2.363 the a2log's `npc_casts` rows keep `pos` and `facing`
 and the replay draws the aim point, the facing and a ring on the caster ([user guide](user-guide.md#raid-plan-publishing-and-playback));
-the area itself stays unknown. Enemies and pets that first appear during a fight are ringed where they
+the area itself is measured from where the hits landed since 0.2.365 ([below](#boss-skill-areas-measured-from-the-public-recordings-1-november-02365)). Enemies and pets that first appear during a fight are ringed where they
 appeared, from their first movement record.
 
 ### The break gauge and the effect durations against the tooltips
@@ -742,3 +742,26 @@ on; the server is recorded. Verteron's open-world ids are still unconfirmed: no 
 * Gear rolls: Game8/GameWith-style item pages list each item's roll ranges by grade for the current version and
   are the source for a current-build legality check; nothing is wired yet. The Max Attack line and the Power
   Shard Damage Bonus have no source still.
+
+
+## Boss skill areas measured from the public recordings, 1 November (0.2.365)
+
+**What was looked for outside the game.** No published source gives the shape or reach of a boss's skills. metabot.gg's monster pages (the global client's data) list each boss's skills with their names, cast times, the status effects they apply and the telegraph's warning time, nothing about an area, and its skill pages carry the same fields; the Korean fan databases and the dungeon guides that were checked describe mechanics in words without sizes, and the official site publishes none. The game's own records carry a cast's aim point and the caster's facing but no telegraph record (above), so the area has to be measured from where the hits landed.
+
+**How it is measured** (`aion2calc/combat/aoe.py`, `python -m aion2calc aoe-shapes`). For every boss cast in a recording that dealt damage within 5 s and before the caster's next cast, each party member's position at the moment the damage landed is taken — interpolated between movement fixes at most 6 s apart, else the last fix within 4 s — with whether that player was hit: the distance from the cast's aim point and from the caster, the angle off the caster's facing (the cast's own, else the heading in the movement record, else the direction to an aim 100 units or more away) and the distances along and across that facing. A skill's samples are pooled over its casts and recordings and six shapes are fitted — single target, a circle around the caster, a circle around the aim, a cone from the caster, a line along the facing, a ring around the caster — by the balanced accuracy of *inside the shape* against *was hit* over a grid of sizes; the simplest shape wins unless a more complex one beats it by 0.03, and ties go to the smallest size. The shapes around the caster are fitted twice, from where it stood at the cast and from where it stood when the hits landed — a leap or a charge lands elsewhere, and in a sample of two recordings the caster was over a metre from its cast position by the first hit in 17 % of casts, over 5 m in 12 % — and the hit-time anchor is kept when it fits better by 0.01 (the catalog says so, and the replay draws the shape there). A shape counts as *measured* with 8+ casts, 12+ hit and 12+ unhit samples and accuracy 0.85+, as *tentative* at 4+, 6+, 6+ and 0.75+; a skill whose hits reached the whole party wherever it stood is *everyone*, one with enough samples that no shape separates is *unclear*. `--write` regenerates the catalog the replay draws (`app/static/aoe-shapes.json`, shipped with the app and the Pages site) and the table in [docs/generated/aoe-shapes.md](generated/aoe-shapes.md); sizes are game units, about 100 to a metre (melee hits land at 250–300).
+
+**What the public recordings gave.** The log server's 247 newest public boss recordings with movement (26 October to 1 November; 15,732 casts with damage by 61 bosses, 485 boss skills): **88 skills measured and 80 tentative** (63 circles around the caster, 31 circles around the aim, 34 cones, 5 lines, 19 rings, 13 single-target), 3 raid-wide, 55 unclear and 262 with too little evidence; 143 shapes are in the catalog. Among them:
+
+- **Atiel — Attack:** a circle of 6.8 m around the caster (from where it stood when the hits landed); 33 casts, accuracy 0.90, caster moved in 76% of them.
+- **Black Smoke Murute — Ground Impact:** a circle of 6.5 m around the caster; 97 casts, accuracy 0.91, caster moved in 0% of them.
+- **Black Smoke Murute — Attack:** a circle of 5.5 m around the aim; 151 casts, accuracy 0.90, caster moved in 1% of them.
+- **Divine Auldor — Attack:** a circle of 4.1 m around the aim; 47 casts, accuracy 0.95, caster moved in 0% of them.
+- **Ferocious Horn Nuakum — Skill 1001450:** a 180° cone 11 m long (from where it stood when the hits landed); 69 casts, accuracy 0.86, caster moved in 3% of them.
+- **Gelcos — Attack:** a 240° cone 21 m long; 14 casts, accuracy 0.96, caster moved in 0% of them.
+- **Enhanced Harcon — Light of Ruin:** a line 16 m long and 8.0 m wide; 41 casts, accuracy 0.87, caster moved in 0% of them.
+- **Nazmun — Ultra Laser:** a line 21 m long and 6.0 m wide; 34 casts, accuracy 0.90, caster moved in 0% of them.
+- **Neglected Gadioton — Krao Aura:** a ring from 8.8 m to 18 m around the caster; 31 casts, accuracy 0.90, caster moved in 3% of them.
+- **Thamon — Attack:** hit the whole party wherever it stood (12 casts, 4.75 hits a cast): a raid-wide effect, nothing to draw.
+- **Guardian Captain Raur — Skill 1504452:** unclear after 365 casts (366 hit, 1047 unhit positions): no shape separates them (best circle aim at 0.72), so it is not drawn.
+
+**Limits.** A hit is attributed to the last cast before it, so a skill with a long travel or a lingering ground effect leans to *unclear* or to a larger circle; the recording player's own position is coarse (the effects they apply and the casts aimed at them), so a fight recorded by one player gives few samples per cast and the fights merged from several uploads give the cleanest shapes; a shape is a bound on where hits landed, not the game's drawn telegraph, so a 120° cone may be a 90° warning plus players stepping in late, and a boss whose movement record lags its leap can still be drawn a step behind; the plain *Attack* (skill id 1600000) is kept per boss because its reach differs by boss. A labelled capture — **Mark this moment** as a warning appears on the ground — ties a measured shape to its telegraph and would settle the last point; the catalog is refreshed as recordings accumulate.
