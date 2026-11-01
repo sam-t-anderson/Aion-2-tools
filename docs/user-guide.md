@@ -365,7 +365,7 @@ Updater maintenance retains two recognized release packages, helpers for seven d
 
 **Game → Gathering** (0.2.358) lists what you gathered and what dungeon reward cubes gave you, with everyone's drop rates beside them. Keep the Live Meter running while you play: it records each gather and each claimed reward cube, in or out of combat.
 
-- **Gathering** shows each kind of node with how often it gave each grade, how many a gather gave, and how often a gather came up a better grade or failed.
+- **Gathering** shows each kind of node with how often it gave each grade, how many a gather gave, and how often a gather came up a better grade or failed. Each is named after the material it gives, then says whether it is a **dungeon node** or an **open-world node**, and **Found in** lists where it was gathered. Some materials come from more than one kind of node: Odyle has a dungeon node and an open-world node, so it has two cards (0.2.360).
 - **Dungeon materials** shows, for each dungeon, how often its reward cubes held each crafting material (Refining Stones, Wrathful Wills, Egos and Minds, ...) and how many. Tick **Show every drop** for Kina, Enhance Stones and equipment too.
 - **Your log** lists every record, newest first.
 

@@ -797,5 +797,10 @@
  "Reward cubes": "Cubos de recompensa",
  "In cubes": "Nos cubos",
  "How many": "Quantos",
- "Show every drop (equipment, currency)": "Mostrar todo o saque (equipamento, moeda)"
+ "Show every drop (equipment, currency)": "Mostrar todo o saque (equipamento, moeda)",
+ "dungeon node": "ponto de coleta de masmorra",
+ "open-world node": "ponto de coleta de mundo aberto",
+ "dungeon and open-world node": "ponto de coleta de masmorra e de mundo aberto",
+ "Found in": "Encontrado em",
+ "and {0} more": "e mais {0}"
 }

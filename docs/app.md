@@ -689,6 +689,9 @@ When you claim a dungeon's reward cube (80 Odyle Energy), the game sends the run
 The page has three tabs, and the first two switch between **Everyone** and **This computer**:
 
 - **Gathering**: one card per kind of node. A card shows how often a gather was normal, a better grade or failed, and each item the node gave with its grade, its **Chance** (the share of gathers that gave it) and **How many** a gather gave.
+  - A card is named after the material its node gives, then says where that kind of node grows: **dungeon node**, **open-world node** or both. **Found in** lists the places it was gathered, the most gathers first: five, then how many more (0.2.360).
+  - The game has more than one kind of node for some materials. In the October recordings, the Odyle nodes inside dungeons (Ferocious Horn Den, Krao Cave, Fire Temple) were one kind and the Odyle nodes in Altgard another, so Odyle has two cards, *Odyle — dungeon node* and *Odyle — open-world node*.
+  - A gather in an open-world zone is the open world's. Before 0.2.360 the meter filed one made just after a dungeon, while the party still held that dungeon, under the dungeon. The page now reads those records by their map, in the cards and in **Your log**.
 - **Dungeon materials**: one card per dungeon, with the crafting materials its reward cubes held, such as Refining Stones and Wrathful Wills, Egos and Minds. **In cubes** is the share of claimed cubes that held the material, and **How many** is the average count when one did. **Show every drop** adds the rest of the loot: Kina, Enhance Stones and equipment.
 - **Your log**: every record, newest first, with where it happened and the character.
 

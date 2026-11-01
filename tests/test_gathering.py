@@ -18,7 +18,8 @@ from aion2calc.meter.a2parser.parser import scan_gather_node, scan_gather_result
 SERVER = "1.2.3.4:13328->192.168.1.9:57424"
 ODYLE, FINE_ODYLE, ORE, FINE_ORE = 610610013, 610610014, 610620013, 610620014
 REFINING, KINA = 610530001, 930100031
-ORE_VEIN, ODYLE_PLANT = 1550004, 1500062
+ORE_VEIN, ODYLE_PLANT, FIELD_ODYLE = 1550004, 1500062, 1550000
+ALTGARD, DEN, KRAO = 1110, 600092, 600001
 
 
 def _varint(value):
@@ -100,6 +101,22 @@ def test_the_engine_keeps_each_gather_with_its_node_place_and_character_until_dr
     assert engine.gather_nodes == {}
 
 
+def test_a_gather_in_the_open_world_never_carries_the_dungeon_its_party_holds():
+    """19 October: 8 Orichalcum gathers in Altgard between two Ferocious Horn Den runs came after a party roster
+    that still named the dungeon, and were filed under it. In an open-world zone a record has no dungeon (0.2.360)."""
+    engine = MeterEngine()
+    engine.set_server_port(13328)
+    engine.map_id, engine.dungeon_id = ALTGARD, 600092                                      # the roster names the dungeon
+    engine.consume(_node(41612, ORE_VEIN), 1_000, SERVER)
+    engine.consume(_gather(41612, ORE), 2_000, SERVER)
+    engine.map_id = 600092                                                                   # back in the dungeon: its own
+    engine.consume(_node(37488, ODYLE_PLANT), 3_000, SERVER)
+    engine.consume(_gather(37488, ODYLE), 4_000, SERVER)
+    outside, inside = engine.drain_gathering()
+    assert (outside["map_id"], outside["instance_id"]) == (ALTGARD, None)
+    assert (inside["map_id"], inside["instance_id"]) == (600092, 600092)
+
+
 def test_a_restarted_engine_keeps_what_was_not_drained():
     engine = MeterEngine()
     engine.set_server_port(13328)
@@ -176,6 +193,27 @@ def test_the_summary_gives_each_node_its_grades_and_each_dungeon_its_cube_materi
     expert = next(i for i in dungeon["items"] if i["item"] == 610530005)
     assert expert["share"] == 0.5 and not next(i for i in dungeon["items"] if i["item"] == KINA)["material"]
     assert view["recent"][0]["kind"] == "reward" and view["recent"][0]["items"][1]["name"] == "Refining Stone"
+
+
+def test_each_kind_of_node_says_whether_it_grows_in_dungeons_or_the_open_world_and_where(home):
+    """The October recordings had two kinds of Odyle node: 1500062 in Ferocious Horn Den, Krao Cave and Fire Temple,
+    1550000 in Altgard. Both give Odyle, so both are named Odyle, and each says where it grows (0.2.360)."""
+    gathering.record([_drained(timestamp_ms=t, node=node, map_id=map_id, instance_id=instance)
+                      for t, node, map_id, instance in ((1, ODYLE_PLANT, DEN, DEN), (2, ODYLE_PLANT, DEN, DEN),
+                                                        (3, ODYLE_PLANT, KRAO, None), (4, FIELD_ODYLE, ALTGARD, None))])
+    gathering.record([_drained(timestamp_ms=5, node=ORE_VEIN, item=ORE, map_id=ALTGARD, instance_id=DEN)])  # before 0.2.360
+    view = gathering.summary()
+    nodes = {n["node"]: n for n in view["nodes"]}
+    dungeon, field, vein = nodes[ODYLE_PLANT], nodes[FIELD_ODYLE], nodes[ORE_VEIN]
+    assert dungeon["name"] == field["name"] == "Odyle"
+    assert dungeon["kinds"] == ["dungeon"]
+    assert dungeon["places"] == [{"name": "Ferocious Horn Den (Normal)", "gathers": 2}, {"name": "Krao Cave (Normal)", "gathers": 1}]
+    assert (field["kinds"], field["places"]) == (["open_world"], [{"name": "Altgard", "gathers": 1}])
+    # a gather filed under the dungeon its party held is the open world's, in the rates and in the log
+    assert (vein["kinds"], vein["places"]) == (["open_world"], [{"name": "Altgard", "gathers": 1}])
+    assert view["recent"][0]["place"] == "Altgard"
+    assert gathering.gather_place(None, None) == (None, None)
+    assert gathering.gather_place(None, 999_999) == (None, "Map 999999")                      # no idea where that is
 
 
 class _Response:

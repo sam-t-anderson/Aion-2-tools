@@ -797,5 +797,10 @@
  "Reward cubes": "Cubes de récompense",
  "In cubes": "Dans les cubes",
  "How many": "Combien",
- "Show every drop (equipment, currency)": "Afficher tout le butin (équipement, monnaie)"
+ "Show every drop (equipment, currency)": "Afficher tout le butin (équipement, monnaie)",
+ "dungeon node": "point de récolte de donjon",
+ "open-world node": "point de récolte du monde ouvert",
+ "dungeon and open-world node": "point de récolte de donjon et du monde ouvert",
+ "Found in": "Présent dans",
+ "and {0} more": "et {0} autres"
 }

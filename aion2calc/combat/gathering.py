@@ -168,13 +168,51 @@ def node_label(node, items) -> str:
     return names.most_common(1)[0][0] if names else "Unknown node"
 
 
+#: Where a kind of node grows (a node row's ``kinds``). The game has more than one kind of node for some
+#: materials: in the October recordings every Odyle node gathered inside a dungeon (Ferocious Horn Den, Krao
+#: Cave, Fire Temple) was 1500062 and every one in Altgard 1550000, and a page tells them apart by this (0.2.360).
+DUNGEON, OPEN_WORLD = "dungeon", "open_world"
+
+
+def gather_place(instance=None, map_id=None) -> tuple[str | None, str | None]:
+    """Where a gather happened: ``(kind, place)``, the kind :data:`DUNGEON`, :data:`OPEN_WORLD` or None and the
+    place's name or None.
+
+    A map of the open world is the open world whatever dungeon the record names: before 0.2.360 the meter filed
+    a gather made just outside a dungeon its party still held under that dungeon (``MeterEngine._where``)."""
+    from ..meter.a2parser.engine import OPEN_WORLD_MAPS
+    from ..meter.a2parser.lookup import _table, supplement_dungeon
+    if map_id and map_id in OPEN_WORLD_MAPS:
+        return OPEN_WORLD, place_name(None, map_id)
+    if instance:
+        return DUNGEON, place_name(instance, map_id)
+    if map_id:
+        dungeon = _table("dungeons", "en").get(str(map_id)) or supplement_dungeon(map_id)
+        return (DUNGEON if dungeon else None), place_name(None, map_id)
+    return None, None
+
+
+def places_by_gathers(places: Counter) -> list[dict]:
+    """A node's ``places``: each place and how many gathers there, the most first (then by name)."""
+    return [{"name": name, "gathers": n} for name, n in sorted(places.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+
 def summary(rows=None, *, recent: int = 100) -> dict:
     """The Gathering page's view of the local log: totals, each kind of node with its grades and results,
     each item gathered, each dungeon's reward cubes with their materials, and the latest records."""
     rows = read() if rows is None else rows
     gathers = [r for r in rows if r.get("kind") == "gather"]
     rewards = [r for r in rows if r.get("kind") == "reward"]
-    nodes: dict = defaultdict(lambda: {"gathers": 0, "results": Counter(), "items": Counter(), "counts": Counter()})
+    nodes: dict = defaultdict(lambda: {"gathers": 0, "results": Counter(), "items": Counter(), "counts": Counter(),
+                                       "kinds": Counter(), "places": Counter()})
+    spots: dict = {}
+
+    def where(row):
+        key = (row.get("instance"), row.get("map"))
+        if key not in spots:
+            spots[key] = gather_place(*key)
+        return spots[key]
+
     for row in gathers:
         key = row.get("node") or f"item:{base_material(row['item'])}"
         node = nodes[key]
@@ -183,12 +221,18 @@ def summary(rows=None, *, recent: int = 100) -> dict:
         if row["result"] != "failed":
             node["items"][row["item"]] += 1
             node["counts"][row["item"]] += row.get("count") or 0
+        kind, place = where(row)
+        if kind:
+            node["kinds"][kind] += 1
+        if place:
+            node["places"][place] += 1
     node_rows = []
     for key, node in nodes.items():
         items = [{"item": item, **_named(item), "gathers": n, "count": node["counts"][item],
                   "share": round(n / node["gathers"], 4)} for item, n in node["items"].most_common()]
         node_rows.append({"node": key if isinstance(key, int) else None, "name": node_label(key, node["items"]),
-                          "gathers": node["gathers"], "results": {r: node["results"][r] for r in RESULTS}, "items": items})
+                          "gathers": node["gathers"], "results": {r: node["results"][r] for r in RESULTS}, "items": items,
+                          "kinds": sorted(node["kinds"]), "places": places_by_gathers(node["places"])})
     node_rows.sort(key=lambda r: (-r["gathers"], r["name"]))
     dungeons: dict = defaultdict(lambda: {"cubes": 0, "with": Counter(), "total": Counter()})
     for row in rewards:
@@ -215,7 +259,8 @@ def summary(rows=None, *, recent: int = 100) -> dict:
     latest = []
     for row in rows[-recent:][::-1]:
         entry = {k: row.get(k) for k in ("id", "kind", "t", "map", "instance", "character", "server", "result", "count", "node")}
-        entry["place"] = place_name(row.get("instance"), row.get("map"))
+        spot = where(row)[1] if row["kind"] == "gather" else None
+        entry["place"] = spot or place_name(row.get("instance"), row.get("map"))
         if row["kind"] == "gather":
             entry.update(item=row["item"], **_named(row["item"]))
         else:

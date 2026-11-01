@@ -189,13 +189,27 @@ SPEED_RUN = {"log": LOG_ID, "id": "1", "rank": 1, "count": 2, "boss_route": ["np
 # Everyone's gathering and reward-cube rates (log server 0.2.151): one kind of node, one dungeon whose cubes held
 # Kina (no crafting material) and two materials.
 ORE_VEIN, DEN = 1550004, 600092
+DUNGEON_ODYLE, FIELD_ODYLE = 1500062, 1550000
 GATHERING = {
-    "gathers": 40, "cubes": 5, "reporters": 3, "generated_at": NOW,
+    "gathers": 51, "cubes": 5, "reporters": 3, "generated_at": NOW,
+    # each kind of node with where it was gathered (log server 0.2.152): the ore in seven zones, five of them shown;
+    # two kinds of Odyle node, one in dungeons and one in the open world, both named after the Odyle they give
     "nodes": [{"node": ORE_VEIN, "name": "Orichalcum Ore", "gathers": 40, "reporters": 3, "results": {"normal": 30, "better": 8, "failed": 2},
                "items": [{"item": 610620013, "name": "Orichalcum Ore", "grade": "Common", "category": "GATHERRESOURCE", "gathers": 30,
                           "share": 0.75, "average": 1.0},
                          {"item": 610620014, "name": "Fine Orichalcum Ore", "grade": "Rare", "category": "GATHERRESOURCE", "gathers": 8,
-                          "share": 0.2, "average": 1.0}]}],
+                          "share": 0.2, "average": 1.0}],
+               "kinds": ["open_world"],
+               "places": [{"name": "Altgard", "gathers": 28}] + [{"name": f"Testzone {n}", "gathers": 2} for n in range(1, 7)]},
+              {"node": DUNGEON_ODYLE, "name": "Odyle", "gathers": 6, "reporters": 1, "results": {"normal": 4, "better": 1, "failed": 1},
+               "items": [{"item": 610610013, "name": "Odyle", "grade": "Common", "category": "GATHERRESOURCE", "gathers": 4,
+                          "share": 0.6667, "average": 1.0}],
+               "kinds": ["dungeon"],
+               "places": [{"name": "Ferocious Horn Den (Normal)", "gathers": 4}, {"name": "Krao Cave (Normal)", "gathers": 2}]},
+              {"node": FIELD_ODYLE, "name": "Odyle", "gathers": 5, "reporters": 1, "results": {"normal": 5, "better": 0, "failed": 0},
+               "items": [{"item": 610610013, "name": "Odyle", "grade": "Common", "category": "GATHERRESOURCE", "gathers": 5,
+                          "share": 1.0, "average": 1.0}],
+               "kinds": ["open_world"], "places": [{"name": "Altgard", "gathers": 5}]}],
     "dungeons": [{"instance": DEN, "name": "Ferocious Horn Den (Normal)", "cubes": 5, "reporters": 2,
                   "items": [{"item": 930100031, "name": "Kina", "grade": "Common", "category": "CURRENCY", "material": False, "cubes": 5,
                              "share": 1.0, "average": 600000.0},

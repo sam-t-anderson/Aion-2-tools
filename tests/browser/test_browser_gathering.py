@@ -1,7 +1,9 @@
 """The Gathering page (Game, 0.2.358): what this computer's Live Meter recorded, from its gathering log (gathers
-and dungeon reward cubes), next to everyone's drop rates from the log server. The Dungeon materials tab lists the
-crafting materials until every drop is asked for, Your log lists each record, and without the log server's rates
-the page shows this computer's records and says why everyone's are missing. Synthetic characters only."""
+and dungeon reward cubes), next to everyone's drop rates from the log server. Each kind of node says whether it
+grows in dungeons or the open world and where it was gathered, so two kinds giving one material (an Odyle node in
+dungeons, another in the open world) read apart (0.2.360). The Dungeon materials tab lists the crafting materials
+until every drop is asked for, Your log lists each record, and without the log server's rates the page shows this
+computer's records and says why everyone's are missing. Synthetic characters only."""
 import json
 import time
 
@@ -17,12 +19,13 @@ ALTGARD = 1110
 @pytest.fixture
 def gathered(app_home):
     """This computer's gathering log: four gathers at an Orichalcum vein (one a better grade, one failed) in
-    Altgard, then a reward cube in Ferocious Horn Den, all Alpha's."""
+    Altgard, then a reward cube in Ferocious Horn Den, all Alpha's. The second gather was filed under the dungeon
+    its party still held, as the meter did before 0.2.360: it is still Altgard's."""
     from aion2calc.combat.gathering import normalize
     start = int(time.time() * 1000) - 600_000
     raw = [{"kind": "gather", "timestamp_ms": start + i * 1000, "item": item, "count": count, "result": result,
-            "node": stand_in.ORE_VEIN, "position": [1.0, 2.0, 3.0], "map_id": ALTGARD, "instance_id": None,
-            "character": "Alpha", "server_id": 2102}
+            "node": stand_in.ORE_VEIN, "position": [1.0, 2.0, 3.0], "map_id": ALTGARD,
+            "instance_id": stand_in.DEN if i == 1 else None, "character": "Alpha", "server_id": 2102}
            for i, (item, count, result) in enumerate([(ORE, 2, 0), (ORE, 1, 0), (FINE_ORE, 1, 1), (ORE, 0, 2)])]
     raw.append({"kind": "reward", "timestamp_ms": start + 60_000, "items": [[KINA, 800_000], [REFINING, 6], [WILL, 1]],
                 "map_id": stand_in.DEN, "instance_id": stand_in.DEN, "character": "Alpha", "server_id": 2102})
@@ -60,12 +63,19 @@ def test_the_page_sums_up_this_computers_gathering_next_to_everyones_rates(app_p
     assert page.get_by_role("tab", name="Gathering").get_attribute("aria-selected") == "true"
     # everyone's rates first, as the log server worked them out
     assert page.get_by_role("button", name="Everyone").get_attribute("aria-pressed") == "true"
-    assert texts(page, ".gt-node h3") == ["Orichalcum Ore 40 gathers · 3 players"]
-    assert "Normal 75.0% · Better grade 20.0% · Failed 5.0%" in page.locator(".gt-node").inner_text()
-    assert rows(page, ".gt-node") == [["Orichalcum Ore", "Common", "75.0%", "1.00"], ["Fine Orichalcum Ore", "Rare", "20.0%", "1.00"]]
+    assert texts(page, ".gt-node h3") == ["Orichalcum Ore — open-world node 40 gathers · 3 players",
+                                          "Odyle — dungeon node 6 gathers · 1 players",
+                                          "Odyle — open-world node 5 gathers · 1 players"]
+    # where each was gathered, the most gathers first: the ore's seven zones show five and count the rest
+    assert texts(page, ".gt-where") == ["Found in Altgard, Testzone 1, Testzone 2, Testzone 3, Testzone 4 and 2 more",
+                                        "Found in Ferocious Horn Den (Normal), Krao Cave (Normal)", "Found in Altgard"]
+    assert "Normal 75.0% · Better grade 20.0% · Failed 5.0%" in page.locator(".gt-node").first.inner_text()
+    assert rows(page, ".gt-node:nth-of-type(1)") == [["Orichalcum Ore", "Common", "75.0%", "1.00"],
+                                                     ["Fine Orichalcum Ore", "Rare", "20.0%", "1.00"]]
     # this computer's: two normal gathers gave three ore, the better grade gave Fine ore, the failed one nothing
     page.get_by_role("button", name="This computer").click()
-    assert texts(page, ".gt-node h3") == ["Orichalcum Ore 4 gathers"]
+    assert texts(page, ".gt-node h3") == ["Orichalcum Ore — open-world node 4 gathers"]
+    assert texts(page, ".gt-where") == ["Found in Altgard"]
     assert "Normal 50.0% · Better grade 25.0% · Failed 25.0%" in page.locator(".gt-node").inner_text()
     assert rows(page, ".gt-node") == [["Orichalcum Ore", "Common", "50.0%", "1.50"], ["Fine Orichalcum Ore", "Rare", "25.0%", "1.00"]]
 
@@ -113,7 +123,7 @@ def test_without_everyones_rates_the_page_shows_this_computers_and_says_why(app_
         go(page, app_url, "#/gathering")
         page.wait_for_selector(".gt-node")
         assert page.get_by_role("button", name="This computer").get_attribute("aria-pressed") == "true"
-        assert texts(page, ".gt-node h3") == ["Orichalcum Ore 4 gathers"]
+        assert texts(page, ".gt-node h3") == ["Orichalcum Ore — open-world node 4 gathers"]
         page.get_by_role("button", name="Everyone").click()
         assert page.locator(".gt-body").inner_text().strip().endswith(
             "Everyone's drop rates are not available: the log server does not have them yet, or cannot be reached.")
