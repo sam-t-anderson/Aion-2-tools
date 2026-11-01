@@ -77,4 +77,4 @@ def test_an_old_recordings_arena_fight_is_retyped_when_read():
                 "events": [damage("3:7002", "p:1", 1800000)]}
     doc = relabel({"segments": [arena, trash, npc_only]})
     assert [seg["encounter_type"] for seg in doc["segments"]] == ["pvp_arena", "pve_open_world", "pve_unverified"]
-    assert doc["segments"][0]["zone"] == "Arena (map 61)"
+    assert doc["segments"][0]["zone"] == "Impetusium Arena"

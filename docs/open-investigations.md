@@ -382,7 +382,8 @@ The log server listed 39 logs as PvP on 19 October (34 of them from one uploader
   id, five members), and the 18 October diagnostic ZIPs, the Abyss sessions, recorded no raw TCP and end
   with `roster_entries = 0`. Which of the decoder's checks an Abyss party list fails (an empty party name,
   more than 12 members, another opcode), or whether those sessions were solo, needs a capture with **Record
-  TCP payloads** on while in a party in the Abyss, and one of an arena and a battlefield match.
+  TCP payloads** on while in a party in the Abyss, and one of an arena and a battlefield match (the arena's came on 31
+  October: [the arena's own records](#the-arenas-own-records-31-october-rounds-kill-credit-and-the-match-result-02361)).
 - **Shown meanwhile:** the Party column marks a count made without the party list with *?* (it counts the
   players recorded); the overlay cannot tell a solo player from an undecoded party, so it says nothing.
 
@@ -582,3 +583,58 @@ to tell MP from HP.
 **What settles it.** A recording with raw TCP on, made on a Chanter, a Ranger or an Assassin pressing the basic
 chain against a training dummy at full HP: the recording player's MP readings then show whether the step's
 restore lands in MP, and their HP, already full, cannot take it.
+
+## The arena's own records, 31 October: rounds, kill credit and the match result (0.2.361)
+
+The 31 October recording (`meter-20261031-211525-6690e1`, 20 minutes with raw TCP) holds six one-against-one arena
+matches entered from Altgard, three on map 61 and three on map 60 (the Fire Temple Arena), by a level-45 Templar:
+two won 3–0 and four lost 0–3, the arena rating going 1530 → 1560 → 1525 → 1552 → 1521 → 1494 → 1466. The six
+opponents were of five classes from five servers, of both factions. The arena sends its own records for all of it:
+
+| Record | When | What it holds |
+|---|---|---|
+| `19 e3` | as a match opens, right after the arena's zone load | the match number (u32, rising: 16,945,373 to 16,945,641 that evening), two codes (22 and 8 on map 61, 11 and 7 on map 60) and the fighters: each one's slot, rating, character id (the database id with the home server in its top 16 bits, as the party records carry it), name, class (the roster's class code), faction (1 Elyos, 2 Asmodian), level, and arena wins and losses this season. All six consume their bytes exactly |
+| `25 e3` | as a round ends | the winner's character id, then the loser's |
+| `28 e3` | with the last round's record, to the recording player | a code (2 on map 61, 1 on map 60), the recording player's rating after the match, the result (3 a win, 2 a loss), their character id and the rounds they won and lost |
+| `26 e3` | at each round's end | a scoreboard (each fighter's id, the round and the lives left); its byte layout is not settled and nothing reads it |
+| `00 61`, `1b e3`–`1d e3` | before the first round | the preparation and fight windows (a 600-second fight window) and the countdown; nothing reads them |
+| `2e 92` / `2f 92` | on entering / at the end | the arena's map events, named: `Impetusium_Arena_MapEvent` on map 61, `Fire_Temple_Arena_MapEvent` on map 60 |
+
+**Map 61 is the Impetusium Arena.** Its map event is named after Impetusium (the plaza in Altgard the matches were
+entered from), as map 60's is after the Fire Temple, whose name was confirmed from a result screenshot. The label
+was *Arena (map 61)* until now.
+
+**The rounds are the deaths.** At each of the twelve rounds the recording player lost, their HP read 0 within 0.2
+seconds of the round's record; at each of the six they won, the opponent's death came at the same moment. So a
+round's result is a death and its winner the killer. Before, the logs had no killer for any death, and one of a
+lost match's three deaths was missing altogether.
+
+**What cut the matches.** After every round the recording player lost, the game brought them back with a zone load
+on the same arena map (`21 36` naming the map again, then `23 36`). That load kept every actor id, but the meter
+reset its zone there: a match lost 0–3 became two or three fights (13 for the six matches, the won ones whole) and
+the opponent lost their name, which the game sends once as the match opens (and again only when the *opponent*
+comes back). In one match a Cleric's summon held long enough to count as a major enemy, so the death of another
+summon cut the match like a boss kill.
+
+**The opponent's summons.** The Cleric's (NPC 2920650) and a Ranger's struck the recording player with their
+owner's class skills, and the game sent an owner link for one of four. Each one showed as another player on the
+other side.
+
+**Since 0.2.361** the meter reads `19 e3`, `25 e3` and `28 e3` (`parser.scan_arena`):
+- A zone load during a match, on the match's map, after the arena's own zone load and before the result, is a
+  round's restart, not a new zone. A match is one fight, and the opponent keeps their name.
+- Each fighter is bound to its actor by the name the game gave it. The roster gives the opponent their class, and
+  an unnamed actor striking with one fighter's class skills is that fighter's summon. In an arena match the boss
+  logic stays out.
+- The fight's log segment carries the match (`arena`: the match number, the fighters, each round's winner and
+  loser, and the recording player's result, score and rating). Each round's loser has a death marker that names
+  the winner, made at the round's end when the meter saw none.
+- The combat review shows the match: the result, the rating change, the fighters and the rounds.
+
+Replayed through 0.2.361, the recording gives six arena fights, one per match, with all 18 rounds and 18 deaths,
+every one naming its killer, and the opponents named with their class and server.
+
+**Still open.** A team arena: every match here was one against one, so how a team match records its sides and
+rounds is unseen (the roster's slot is the only field that could hold a side). The reported 0–3 arena loss stays
+as it was uploaded: a log keeps no raw records to read again. A battlefield, and the record a party join sends,
+are still unseen.

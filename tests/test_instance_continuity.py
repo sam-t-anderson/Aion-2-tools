@@ -32,7 +32,7 @@ def test_the_decoder_restores_the_instance_where_it_reads_the_zone_state():
     from aion2calc.meter.a2parser import engine as module
     src = inspect.getsource(module)
     zone = src.index("zone_change, map_id = scan_zone_state(complete)")
-    assert "self._note_map(map_id)" in src[zone:zone + 6000]
+    assert "self._note_map(map_id, timestamp_ms)" in src[zone:zone + 6000]
 
 
 def test_a_spawnless_final_boss_is_named_by_its_copies_hp_signature():

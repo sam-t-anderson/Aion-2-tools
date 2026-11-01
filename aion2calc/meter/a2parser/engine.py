@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections import deque
 from threading import RLock
 from collections.abc import Callable
@@ -10,7 +10,7 @@ from copy import deepcopy
 import time
 
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
-from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_positions, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, scan_party_status, hp_record_entity, _damage_frames, scan_gather_node, scan_gather_result, scan_reward_list
+from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_positions, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, scan_party_status, hp_record_entity, _damage_frames, scan_gather_node, scan_gather_result, scan_reward_list, scan_arena
 from .framing import walk, bundle_batch, read_varint
 from .lookup import job_from_skill, skill_family, skill_name, npc_info, npc_name, dungeon_final_bosses
 from .ping import PingTracker
@@ -71,6 +71,10 @@ NPC_SKILLS = (1_000_000, 2_000_000)
 #: A party member whose status record (1c 92, every two seconds or so) has not come for this long has
 #: left the party, or the party has disbanded (0.2.329).
 PARTY_STATUS_TTL_MS = 30_000
+
+#: The longest an arena match can hold its arena (0.2.361): a 600-second fight window after about 20 seconds of
+#: preparation in the 31 October recording, with room to spare. A match whose result never came is over by then.
+ARENA_MATCH_MS = 15 * 60_000
 
 
 class MeterEngine:
@@ -179,6 +183,13 @@ class MeterEngine:
         self.shugo_keys: dict | None = None
         self.nightmare_tickets: dict | None = None
         self.map_id = 0
+        self._map_since_ms: int | None = None      # when the current map was first named
+        # The arena match the recording player is in or last played (0.2.361, ``scan_arena``): ``match`` (the game's
+        # match number), ``map``, ``started_ms``, ``entered`` (the arena's own zone load came), ``fighters`` (the
+        # roster, each with the ``actor`` the engine bound it to), ``rounds`` (winner and loser character ids and
+        # when), ``result`` (the recording player's, from the game), ``left_ms`` when the player left without one,
+        # and a ``revision`` that grows with every change.
+        self.arena: dict | None = None
         # Gathering and loot: the gathering nodes in view (entity -> node code and position, from their spawns;
         # entity ids belong to the zone) and what the recording player gathered or took from a dungeon's reward
         # cube, kept until the app drains them into its gathering log (``drain_gathering``).
@@ -274,7 +285,8 @@ class MeterEngine:
         zone_change, map_id = scan_zone_state(complete)
         if (zone_change
                 and (self.last_damage_time_ms is None or timestamp_ms - self.last_damage_time_ms >= 1_500)
-                and (self.last_zone_reset_ms is None or timestamp_ms - self.last_zone_reset_ms >= 4_000)):
+                and (self.last_zone_reset_ms is None or timestamp_ms - self.last_zone_reset_ms >= 4_000)
+                and not self._arena_round_restart(timestamp_ms, map_id)):
             # Actor IDs and summon ownership belong to the loaded zone. Reset
             # before reading this packet's new identities, not after them.
             self._reset_zone(timestamp_ms)
@@ -313,7 +325,7 @@ class MeterEngine:
         self.known_entities.update(links)
         self.known_entities.update(links.values())
         if map_id is not None:
-            self._note_map(map_id)
+            self._note_map(map_id, timestamp_ms)
         current_hp, maximum_hp = scan_hp_updates(complete)
         self.telemetry.extend({"kind": "hp", "entity": eid, "current": hp, "max": maximum_hp.get(eid), "timestamp_ms": timestamp_ms} for eid, hp in current_hp.items())
         self.telemetry.extend(self._player_deaths_from_hp(current_hp, timestamp_ms))
@@ -411,6 +423,9 @@ class MeterEngine:
                     self.local_identity_from_game = True
                     self.local_identity_from_mp = False
                     self._cast_guess = None
+            arena = scan_arena(packet)
+            if arena is not None:
+                self._observe_arena(arena, timestamp_ms)
             counters = scan_counters(packet)
             if counters:
                 for counter_id, (first, second) in counters.items():
@@ -449,9 +464,14 @@ class MeterEngine:
         self._bind_named_character()
         if (self.party_status or self.party_feed) and self.roster_source != "packet":
             self._sync_status_roster(timestamp_ms)
+        arena_live = self.arena_in_progress()
+        if arena_live:
+            self._bind_arena_fighters()
         events = list(decode_stream(complete, timestamp_ms, self.known_entities,
                                    self.seen_embedded_damage, self.seen_embedded_order,
                                    self.known_players))
+        if arena_live and events:
+            self._link_arena_pets(events)
         if self._left_spawns:
             self._carry_left_spawns(events)
         for event in events:
@@ -610,6 +630,8 @@ class MeterEngine:
             self.local_character_name = getattr(previous, "local_character_name", "") or self.local_character_name
             self._local_name_hint = getattr(previous, "_local_name_hint", "") or self._local_name_hint
             self.map_id = getattr(previous, "map_id", 0) or self.map_id
+            self._map_since_ms = getattr(previous, "_map_since_ms", None) or self._map_since_ms
+            self.arena = deepcopy(getattr(previous, "arena", None)) or self.arena
             self.dungeon_id = getattr(previous, "dungeon_id", 0) or self.dungeon_id
             self.odyle_energy = getattr(previous, "odyle_energy", None) or self.odyle_energy
             self.shugo_keys = getattr(previous, "shugo_keys", None) or self.shugo_keys
@@ -869,7 +891,123 @@ class MeterEngine:
             return False
         return at - last > INPUT_IDLE_S
 
+    def arena_in_progress(self) -> bool:
+        """An arena match is on: its roster came, its result has not, and the recording player is on its map."""
+        match = self.arena
+        return bool(match and match["result"] is None and match.get("left_ms") is None and self.map_id == match["map"])
+
+    def _arena_round_restart(self, timestamp_ms: int, map_id: int | None) -> bool:
+        """A zone load inside an arena match in progress: the recording player brought back for the next round after
+        losing one, not a new zone (0.2.361). In the 31 October recording every round they lost ended with a zone
+        load on the same arena map that kept every actor id, theirs and the opponent's; resetting there cleared the
+        opponent's name (the game sends it once, as the match opens) and cut the match into a fight per round. Only
+        after the arena's own zone load (``entered``), on the match's map, before its result, and for no longer than
+        a match can last."""
+        match = self.arena
+        return bool(self.arena_in_progress() and match["entered"] and map_id in (None, match["map"])
+                    and 0 <= timestamp_ms - match["started_ms"] <= ARENA_MATCH_MS)
+
+    def _observe_arena(self, record: dict, timestamp_ms: int) -> None:
+        """One of the arena's own records (``scan_arena``): a match opening, a round's result, the match's result."""
+        match = self.arena
+        if record["kind"] == "roster":
+            if match is not None and match["match"] == record["match"]:
+                return
+            entered = (self.last_zone_reset_ms is not None and self._map_since_ms is not None
+                       and self.last_zone_reset_ms >= self._map_since_ms)
+            self.arena = {"match": record["match"], "map": self.map_id, "started_ms": timestamp_ms, "entered": entered,
+                          "fighters": [{**fighter, "actor": None} for fighter in record["fighters"]],
+                          "rounds": [], "result": None, "revision": 1}
+            self._bind_arena_fighters()
+            return
+        if match is None or match.get("left_ms") is not None:
+            return
+        fighters = {fighter["dbid"] for fighter in match["fighters"]}
+        if record["kind"] == "round":
+            if record["winner"] not in fighters or record["loser"] not in fighters:
+                return
+            self._bind_arena_fighters()
+            match["rounds"].append({"winner": record["winner"], "loser": record["loser"], "timestamp_ms": timestamp_ms})
+        elif record["kind"] == "result":
+            if match["result"] is not None or record["dbid"] not in fighters:
+                return
+            match["result"] = {key: record[key] for key in ("result", "rating", "won", "lost", "dbid")}
+            match["result"]["timestamp_ms"] = timestamp_ms
+        match["revision"] += 1
+
+    def _bind_arena_fighters(self) -> None:
+        """Bind each arena fighter to its actor: the one the game named with the fighter's name (the identity record
+        it sends as the match opens, and again when a fighter comes back after a lost round), the recording player
+        first, since a fighter from another server may share their name. A fighter's class from the roster names the
+        actor's class when the identity record gave none (the opponent's never did in the recording)."""
+        match = self.arena
+        if not match or all(fighter["actor"] is not None for fighter in match["fighters"]):
+            return
+        taken = {fighter["actor"] for fighter in match["fighters"] if fighter["actor"] is not None}
+        by_name: dict[str, list[int]] = defaultdict(list)
+        for actor, name in self.names.items():
+            if actor not in taken and actor not in self.summons:
+                by_name[name.casefold()].append(actor)
+        local, server = self.local_player_id, self.local_profile.get("serverId")
+        bound = False
+        for own in (True, False):
+            for fighter in match["fighters"]:
+                if fighter["actor"] is not None:
+                    continue
+                actors = [actor for actor in by_name.get(fighter["name"].casefold(), ()) if actor not in taken]
+                if own:
+                    if local not in actors or server and fighter["serverId"] != server:
+                        continue
+                    actor = local
+                else:
+                    actors = [actor for actor in actors if actor != local]
+                    if len(actors) != 1:
+                        continue
+                    actor = actors[0]
+                fighter["actor"] = actor
+                taken.add(actor)
+                bound = True
+                self.known_players.add(actor)
+                self.known_entities.add(actor)
+                if not self.jobs.get(actor):
+                    self.jobs[actor] = fighter["job"]
+        if bound:
+            match["revision"] += 1
+
+    def _link_arena_pets(self, events) -> None:
+        """In an arena match, an actor with no name that strikes with one fighter's class skills is that fighter's
+        summon: the roster lists every fighter, and the game sent no owner link for most of them (a Cleric's and a
+        Ranger's in the recording: three of four each; the Cleric's spawn as an NPC, 2920650), which left each one a
+        player of its own on the other side. Linked only to a bound fighter whose class no other fighter has: in a
+        match of two Templars an unbound opponent's own hits would otherwise fold into the recording player."""
+        if not self.arena_in_progress():
+            return
+        fighters = self.arena["fighters"]
+        classes = Counter(fighter["job"] for fighter in fighters)
+        owners = {fighter["job"]: fighter["actor"] for fighter in fighters
+                  if fighter["actor"] is not None and classes[fighter["job"]] == 1}
+        if not owners:
+            return
+        bound = {fighter["actor"] for fighter in fighters if fighter["actor"] is not None}
+        for event in events:
+            actor = event.actor_id
+            if (not isinstance(event, DamageEvent) or actor in bound or actor in self.summons or actor in self.names
+                    or actor == self.local_player_id):
+                continue
+            owner = owners.get(job_from_skill(event.skill_code) or "")
+            if owner is not None:
+                self.summons.add(actor)
+                self.summon_owners[actor] = owner
+                self.known_entities.add(actor)
+
     def _reset_zone(self, timestamp_ms: int) -> None:
+        if self.arena_in_progress():
+            # The arena's own zone load after its roster came: actor ids are the load's, so bind them again.
+            match = self.arena
+            match["entered"] = True
+            for fighter in match["fighters"]:
+                fighter["actor"] = None
+            match["revision"] += 1
         if self.local_identity_from_game and self.local_player_id is not None and self.names.get(self.local_player_id):
             self._local_name_hint = self.names[self.local_player_id]
         self.local_identity_rebound = False
@@ -959,8 +1097,14 @@ class MeterEngine:
                        for actor in sorted(target.actors.values(), key=lambda row: row.damage, reverse=True)],
         }
 
-    def _note_map(self, map_id: int) -> None:
+    def _note_map(self, map_id: int, timestamp_ms: int | None = None) -> None:
         """A zone-state packet named the loaded map."""
+        if map_id != self.map_id:
+            self._map_since_ms = timestamp_ms
+            match = self.arena
+            if match is not None and match["result"] is None and match.get("left_ms") is None and map_id != match["map"]:
+                match["left_ms"] = timestamp_ms if timestamp_ms is not None else match["started_ms"]   # left without a result
+                match["revision"] += 1
         self.map_id = map_id
         if map_id in OPEN_WORLD_MAPS:
             self.dungeon_id = 0

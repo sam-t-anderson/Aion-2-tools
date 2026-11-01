@@ -1,3 +1,18 @@
+## Arena matches: one fight each, with the result, the rounds and who killed whom (0.2.361)
+
+**One match, one fight.** After each round you lose in an arena, the game brings you back with a zone load on the same map. The meter took that for a new zone, so a match lost 0–3 was cut into two or three fights. Your opponent also went nameless after the first one: the game sends their name only as the match opens. The meter now reads the arena's own records. A match stays one fight from its first hit to its last, and your opponent stays named throughout.
+
+**The result, the rounds and kill credit.** A match's review now opens with the game's result:
+- win or loss, the score, and your rating before and after;
+- each fighter's class, server, faction and rating;
+- every round, with when it ended, its winner and its loser.
+
+A round's loser died, so their death marker now names the winner; when the meter saw no death at a round's end, one is added there. Your opponent's class comes from the match's roster. Their summons, a Cleric's or a Ranger's, count as theirs instead of as extra players. Uploaded logs keep all of this once the log server is updated (log server 0.2.153). Matches recorded before this version stay as they were.
+
+**Map 61 is the Impetusium Arena.** The arena on map 61 now has the game's own name for it, *Impetusium Arena*, instead of *Arena (map 61)*.
+
+All of this comes from a recording of six one-against-one arena matches. Team arenas and battlefields have not been recorded yet.
+
 ## Gathering: which Odyle node is which, open-world gathers out of dungeons, and a Raid Planner fix (0.2.360)
 
 **Which Odyle node is which.** **Game → Gathering** groups gathers by the game's kind of node and names each card after the material it gives. Some materials come from more than one kind of node. In the October recordings, every Odyle node inside a dungeon (Ferocious Horn Den, Krao Cave, Fire Temple) was one kind and every Odyle node in Altgard another, so the page showed two cards both called *Odyle*. Each card now says where its kind of node grows, *Odyle — dungeon node* or *Odyle — open-world node*, and **Found in** lists the places it was gathered, the most gathers first. This computer's records show it now; everyone's rates and the website's account view show it once the log server is updated (log server 0.2.152). The new words are translated into the page's five other languages.

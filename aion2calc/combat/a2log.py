@@ -158,6 +158,7 @@ _segment_properties.update({
     "chains": {"type": "array", "maxItems": LIMITS["chains"], "description": "The recording player's chain-skill windows: t opened, optional end, player, skill_id that opened it, next_id and next (the chain skill)"},
     "resources": {"type": "array", "maxItems": LIMITS["resources"], "description": "The recording player's MP readings (the game sends no one else's): t (0 for the reading in force at the start), entity, mp, optional max (from the player's own record)"},
     "npc_casts": {"type": "array", "maxItems": LIMITS["npc_casts"], "description": "Recorded skill casts by bosses: t, source (a boss entity), skill_id, skill, optional target"},
+    "arena": {"type": "object", "description": "The arena match this fight belongs to, from the game's own arena records: match (the game's match number), fighters (name, class, server, faction, level, rating before the match, ref to the player or entity, self for the recording player), rounds (t, round, winner and loser as indexes into fighters; the loser's death marker carries the winner as its source), and once the match ended in this fight the recording player's result (win or loss), rounds_won, rounds_lost and rating after it"},
 })
 SCHEMA["properties"]["players"]["items"]["properties"].update({
     "character_id": {"type": "string", "description": "Observed database character ID, distinct from the session combat entity ID"},
@@ -193,6 +194,58 @@ def class_key(c) -> str | None:
 
 def _int(value, low=0, high=2**53 - 1) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and low <= value <= high
+
+
+ARENA_RESULTS = ("win", "loss")
+ARENA_FACTIONS = ("elyos", "asmodian")
+
+
+def _clean_arena(value, references: set, duration: float) -> dict | None:
+    """A segment's arena match, cleaned (0.2.361). A fighter keeps its place even when its fields are dropped, since
+    the rounds name fighters by their index."""
+    if not isinstance(value, dict) or not isinstance(value.get("fighters"), list) or not value["fighters"]:
+        return None
+    fighters = []
+    for fighter in value["fighters"][:24]:
+        fighter = fighter if isinstance(fighter, dict) else {}
+        row = {}
+        if isinstance(fighter.get("name"), str):
+            row["name"] = fighter["name"][:LIMITS["text"]]
+        if class_key(fighter.get("class")):
+            row["class"] = class_key(fighter["class"])
+        if isinstance(fighter.get("server"), str) and fighter["server"].isdigit() and len(fighter["server"]) <= 8:
+            row["server"] = fighter["server"]
+        if fighter.get("faction") in ARENA_FACTIONS:
+            row["faction"] = fighter["faction"]
+        if _int(fighter.get("level"), 1, 99):
+            row["level"] = fighter["level"]
+        if _int(fighter.get("rating"), 0, 100_000):
+            row["rating"] = fighter["rating"]
+        if fighter.get("ref") in references:
+            row["ref"] = fighter["ref"]
+        if fighter.get("self") is True:
+            row["self"] = True
+        fighters.append(row)
+    rounds = []
+    for played in (value.get("rounds") or [])[:50]:
+        if (isinstance(played, dict) and _num(played.get("t")) and 0 <= played["t"] <= duration + 3
+                and _int(played.get("winner"), 0, len(fighters) - 1) and _int(played.get("loser"), 0, len(fighters) - 1)
+                and played["winner"] != played["loser"]):
+            row = {"t": float(played["t"]), "winner": played["winner"], "loser": played["loser"]}
+            if _int(played.get("round"), 1, 99):
+                row["round"] = played["round"]
+            rounds.append(row)
+    out = {"fighters": fighters, "rounds": rounds}
+    if _int(value.get("match"), 1, 2**32 - 1):
+        out["match"] = value["match"]
+    if value.get("result") in ARENA_RESULTS:
+        out["result"] = value["result"]
+    for key in ("rounds_won", "rounds_lost"):
+        if _int(value.get(key), 0, 99):
+            out[key] = value[key]
+    if _int(value.get("rating"), 0, 100_000):
+        out["rating"] = value["rating"]
+    return out
 
 
 def _clean_actions(s: dict, ids: set, references: set) -> tuple[list, list, list, list, list, list]:
@@ -520,6 +573,9 @@ def validate(doc) -> dict:
         for key in ("instance_id", "map_id"):
             if isinstance(s.get(key),int) and 0 <= s[key] <= 2**32-1:
                 out_segs[-1][key] = s[key]
+        arena = _clean_arena(s.get("arena"), references, float(s["duration"]))
+        if arena:
+            out_segs[-1]["arena"] = arena
         timed = s.get("capture_loss")
         if isinstance(timed, dict):
             # Kept even when empty: "no loss inside this fight's window" is the evidence.
