@@ -96,3 +96,20 @@ def test_positions_interpolate_between_fixes_and_go_stale_after_a_gap():
     assert aoe.position(track, 5.0)[:2] == (100.0, 0.0)                     # the last fix, 3 s old, still places
     assert aoe.position(track, 10.0) is None                                # 8 s from either fix: unknown
     assert aoe.position(track, 19.0)[:2] == (500.0, 0.0)                    # a fix just ahead places too
+
+
+def test_a_candidate_that_separates_exactly_backwards_does_not_crash_the_fit():
+    """A threshold that keeps every unhit sample inside and every hit sample outside scores a balanced accuracy of
+    exactly 0.0, which tied with the search's empty start and went on to compare a float with None: the log server's
+    first pass over its 701 public recordings died of it (0.2.367). The fit now takes the first candidate outright."""
+    from aion2calc.combat import aoe
+
+    def sample(hit, d):
+        return {"hit": hit, "target": False, "d_aim": d, "d_boss": d, "angle": None, "along": None, "across": None}
+    samples = [sample(False, 1.0), sample(False, 1.0), sample(True, 5.0), sample(True, 5.0)]
+    shape, params, accuracy, scores = aoe.fit(samples)
+    assert scores["circle_aim"] == 0.0 and scores["circle_caster"] == 0.0 and shape == "single_target"
+    # the same samples through the pooled measurement, as the server's nightly pass runs it
+    cast = {"hits": 2, "aim": "player", "delay": 0.5, "facing": 0, "moved": 0, "skill": "Backwards"}
+    rows = aoe.measure(extracted=[[[["Boss", 1], cast, samples]]])
+    assert rows and rows[0]["shape"] == "single_target" and rows[0]["confidence"] == "insufficient"
