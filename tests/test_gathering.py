@@ -248,7 +248,7 @@ def test_reports_go_once_in_batches_and_name_the_character_only_when_signed_in(h
     headers, body = sent[0]
     assert "X-account-token" not in headers and "character" not in body["events"][0] and body["reporter"] == "r" * 32
     assert body["events"][0] == {"id": body["events"][0]["id"], "kind": "gather", "t": 0.001, "map": 1110, "item": ODYLE,
-                                 "count": 1, "result": "normal", "node": ODYLE_PLANT}
+                                 "count": 1, "result": "normal", "node": ODYLE_PLANT, "pos": [1.0, 2.0, 3.0]}   # the node's place (0.2.363)
     assert gathering.report({}, final=True) == "nothing"                                    # each record goes once
     token["value"] = "a2app_x"
     gathering.record([_drained(timestamp_ms=999)])

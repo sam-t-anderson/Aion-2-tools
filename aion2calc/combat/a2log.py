@@ -47,7 +47,7 @@ LIMITS = {"players": 1024, "segments": 200, "hits": 400_000, "buffs": 100_000, "
 #: where a ``movement`` position comes from: the entity's own movement records (``move`` about once a
 #: second, ``start``/``stop`` of a move, ``fast`` movers, a movement skill's ``land``ing point, its ``spawn``),
 #: a party member's status (``party``), or where it stood when it ``applied`` an effect or a cast ``targeted`` it
-MOVEMENT_SOURCES = ("move", "start", "stop", "fast", "land", "spawn", "party", "applied", "targeted")
+MOVEMENT_SOURCES = ("move", "start", "stop", "fast", "land", "spawn", "party", "applied", "targeted", "delta")
 
 
 def _count(value):
@@ -157,7 +157,7 @@ _segment_properties.update({
     "gauge": {"type": "array", "maxItems": LIMITS["gauge"], "description": "Boss break (stagger) gauge readings: t, entity, max, current"},
     "chains": {"type": "array", "maxItems": LIMITS["chains"], "description": "The recording player's chain-skill windows: t opened, optional end, player, skill_id that opened it, next_id and next (the chain skill)"},
     "resources": {"type": "array", "maxItems": LIMITS["resources"], "description": "The recording player's MP readings (the game sends no one else's): t (0 for the reading in force at the start), entity, mp, optional max (from the player's own record)"},
-    "npc_casts": {"type": "array", "maxItems": LIMITS["npc_casts"], "description": "Recorded skill casts by bosses: t, source (a boss entity), skill_id, skill, optional target"},
+    "npc_casts": {"type": "array", "maxItems": LIMITS["npc_casts"], "description": "Recorded skill casts by bosses: t, source (a boss entity), skill_id, skill, optional target, pos (where the cast was aimed: x, y, z in the movement's world coordinates) and facing (the caster's heading in degrees)"},
     "arena": {"type": "object", "description": "The arena match this fight belongs to, from the game's own arena records: match (the game's match number), fighters (name, class, server, faction, level, rating before the match, ref to the player or entity, self for the recording player), rounds (t, round, winner and loser as indexes into fighters; the loser's death marker carries the winner as its source), and once the match ended in this fight the recording player's result (win or loss), rounds_won, rounds_lost and rating after it"},
 })
 SCHEMA["properties"]["players"]["items"]["properties"].update({
@@ -319,6 +319,11 @@ def _clean_actions(s: dict, ids: set, references: set) -> tuple[list, list, list
                 x["skill"] = row["skill"][:80]
             if row.get("target") in references:
                 x["target"] = row["target"]
+            pos = row.get("pos")
+            if (isinstance(pos, list) and len(pos) == 3 and all(_num(v) and abs(v) < 1e7 for v in pos)):
+                x["pos"] = [float(v) for v in pos]
+            if _num(row.get("facing")) and 0 <= row["facing"] <= 360:
+                x["facing"] = float(row["facing"])
             npc_casts.append(x)
     return casts, effects, gauge, chains, resources, npc_casts
 

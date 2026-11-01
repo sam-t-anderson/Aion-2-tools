@@ -6,7 +6,7 @@ import hashlib
 import json
 
 from ..meter.a2parser.lookup import _supplement, _table, dungeon_final_bosses, npc_info, supplement_dungeon
-from ..meter.context import OBSERVED_ZONES, PVP_MAPS
+from ..meter.context import CURATED_ZONES, OBSERVED_ZONES, PVP_MAPS
 
 LIMIT = 100
 
@@ -16,7 +16,7 @@ def revision():
     from ..meter.a2parser.engine import OPEN_WORLD_MAPS
     tables = {key: _table(key, "en") for key in ("npcs", "dungeons")}
     tables.update(open_world_maps=sorted(OPEN_WORLD_MAPS), pvp_maps=PVP_MAPS, observed_zones=OBSERVED_ZONES,
-                  supplement=_supplement(), coverage_rules=6)
+                  curated_zones=CURATED_ZONES, supplement=_supplement(), coverage_rules=6)
     return hashlib.sha256(json.dumps(tables, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:16]
 
 
@@ -74,7 +74,9 @@ def gaps():
         names = sorted({npcs.get(str(c), {}).get("name") for c in codes} - {None, ""})
         unnamed.append({"instance_id": instance, "final_bosses": names, "codes": sorted(codes),
                         "label": derived_zone_label(instance),
-                        # what reports show instead of the label (the name supplement, DBAion2), else None
+                        # what reports show instead of the label: the curated zone name (0.2.363), else the
+                        # name supplement's (DBAion2), else None
+                        "curated_name": (CURATED_ZONES.get(instance) or {}).get("zone"),
                         "supplement_name": supplement_dungeon(instance).get("name")})
     codes_without_npc = []
     for instance, codes in sorted(curated.items()):

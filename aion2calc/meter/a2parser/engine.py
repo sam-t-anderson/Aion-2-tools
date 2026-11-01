@@ -10,7 +10,7 @@ from copy import deepcopy
 import time
 
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
-from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_positions, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, scan_party_status, hp_record_entity, _damage_frames, scan_gather_node, scan_gather_result, scan_reward_list, scan_arena
+from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_positions, scan_move_delta, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, scan_party_status, hp_record_entity, _damage_frames, scan_gather_node, scan_gather_result, scan_reward_list, scan_arena
 from .framing import walk, bundle_batch, read_varint
 from .lookup import job_from_skill, skill_family, skill_name, npc_info, npc_name, dungeon_final_bosses
 from .ping import PingTracker
@@ -113,6 +113,9 @@ class MeterEngine:
         # Where entities were in the last read (``scan_positions``, the applier of an effect, the target of a
         # cast, a party member's status), each stamped with the read's time; the session keeps them per fight.
         self.positions: list[dict] = []
+        # Each entity's last known place (an absolute fix, or that plus the steps since), so a movement step
+        # (``1d 37``, ``scan_move_delta``) places it between fixes. Bounded; a zone load empties it.
+        self._last_fix: dict[int, tuple[float, float, float]] = {}
         # The local player's skill cooldowns, by skill family: the cast time and the cooldown the
         # game sent with the cast (cooldown reduction included). Kept across zone loads.
         self.cooldowns: dict[int, dict] = {}
@@ -401,6 +404,18 @@ class MeterEngine:
             for position in scan_positions(packet):
                 position["timestamp_ms"] = timestamp_ms
                 self.positions.append(position)
+                if len(self._last_fix) >= 8_192:
+                    self._last_fix.clear()
+                self._last_fix[position["entity"]] = (position["x"], position["y"], position["z"])
+            step = scan_move_delta(packet)
+            if step is not None and step["moving"] and (step["dx"] or step["dy"] or step["dz"]):
+                last = self._last_fix.get(step["entity"])
+                if last is not None:
+                    where = (last[0] + step["dx"], last[1] + step["dy"], last[2] + step["dz"])
+                    self._last_fix[step["entity"]] = where
+                    self.positions.append({"kind": "position", "entity": step["entity"], "x": where[0], "y": where[1],
+                                           "z": where[2], "src": "delta", "heading": step["heading"],
+                                           "timestamp_ms": timestamp_ms})
             self.live_hp.update(current)
             for entity_id, value in maximum.items():
                 self.spawn_info.setdefault(entity_id, {})["maxHp"] = value

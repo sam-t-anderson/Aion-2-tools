@@ -640,3 +640,105 @@ every one naming its killer, and the opponents named with their class and server
 rounds is unseen (the roster's slot is the only field that could hold a side). The reported 0–3 arena loss stays
 as it was uploaded: a log keeps no raw records to read again. A battlefield, and the record a party join sends,
 are still unseen.
+
+## From the archived captures and the public logs, 1 November (0.2.363)
+
+The three archived captures with raw TCP recording (15, 19 and 20 October) were read again for the items the
+roadmap kept data-gated, and the log server's 631 public PvE logs (2,407 boss fights of a minute or more with
+cast records) were downloaded for the measurements. What each gave, and what it did not:
+
+### `1d 37` is a movement step: the middle bytes
+
+After the entity id: a flags byte (bit 1 x, bit 2 y, bit 3 z present; bit 5 moving), a state byte, one signed
+byte per present axis — the distance in game units since the entity's previous movement record — then the
+heading twice as a u16 (65,536 = 360°). The flags predicted the record's length in all 35,819 records; the
+steps between two fixes sum to the fixes' displacement (median ratio 1.12, quartiles 1.01–1.17, n = 5,483),
+and their direction is within 9° (median) of the heading the fixes give (n = 28,111). Since 0.2.363 the engine
+adds each step with an axis to the entity's last fix as a `delta` position (nothing until a fix exists; a step
+with no axis adds nothing), so a track has points between fixes.
+
+### Boss casts carry their aim and the caster's facing, and no record carries an effect's shape
+
+All 2,100 NPC casts (`09 38`) in the three captures carry an aim position and 1,805 (86 %) a facing. The aim is
+the target's own place in most casts (within 50 game units of the target's last fix in 1,390 of the 1,683 with
+one, 83 %), the caster's own for an effect around itself, and 250 units or more from the target in about a
+tenth — placed on the ground or aimed elsewhere. The facing is `atan2(dy, dx)` in degrees, 0° along +x,
+counter-clockwise: for casts aimed 150 units or more from the caster it lies within 15° of the direction to the
+aim in 84 % (n = 231; players' casts 89 % of 19,570). A telegraph record was looked for: in the 400 ms after a
+cast only three records in the three captures held the aim's x and y bytes (two `2a 38`, one `1b 37`), so no
+record names an effect's shape or radius. Since 0.2.363 the a2log's `npc_casts` rows keep `pos` and `facing`
+and the replay draws the aim point, the facing and a ring on the caster ([user guide](user-guide.md#raid-plan-publishing-and-playback));
+the area itself stays unknown. Enemies and pets that first appear during a fight are ringed where they
+appeared, from their first movement record.
+
+### The break gauge and the effect durations against the tooltips
+
+The gauge drop a hit causes, split by the hitting skills' listed *Stagger Gauge Damage*, matches the tooltip's
+figure for 56 of the 62 skills the captures' gauge records hold; the other six do not, and the captures do not
+say why. Effect durations agree with the tooltips wherever a tooltip states one. The in-game glance the roadmap
+asked for is no longer needed for the names and timings.
+
+### One game version across launchers
+
+Steam's executable carries ProductVersion 2.0.9.0.2026102801 (namespace `aion2:product`); the in-game settings
+screen shows 2.0.9.0 — its first four components. PURPLE's launcher record carries the same version as
+`2.0.9-Rev…`, padded to 2.0.9.0. `install-version` compares installs by this core first (`builds.game_version`),
+by the content fingerprint second. A PURPLE install's path is still the Windows uninstall entry's.
+
+### Map 200003 is the Nightmare hub; the Citadel's tiers have their final boss
+
+The catalog files 300 boss NPCs under instance 200003: 30 names at Level 1–10. Fights there are recorded with
+instance id 0 on map 200003, so the meter matches the hub by its map, names it *Nightmare* with the boss's level
+as the difficulty, and ends the run at the stage's boss. DBAion2's dungeon table names Citadel of the Fallen
+Daeva tiers 600151–600153 (exploration, normal, hard); the catalog's Basilus the False rows sit under
+600144–600146 (codes 2301603, 2301703, 2301723), and metabot.gg's dungeon page names him the Citadel's final
+boss at the same three difficulties. The derived final-boss table maps the DBAion2 tiers to those codes with the
+source, and 600144–600146 are named *Citadel of the Fallen Daeva* from the curated zone table. The upstream
+catalog (its clone at `bd878f6c`) has the same NPC and dungeon tables as the bundled copy: no new names or
+portraits to take.
+
+### Not pressing and dodging, measured over every public boss fight
+
+Each class spends 30–40 % of a recorded boss fight pressing nothing or pressing Dodge (the table and the rules are
+in [methodology](methodology.md#not-pressing-and-dodging-a-whole-fights-dps-02363)); since 0.2.363 a whole
+fight's DPS is shown beside the rotation's.
+
+### The buff contribution check, pooled over 945 fights
+
+The same-target comparison the log server computes for each fight (hits with the buff against hits without it),
+pooled: the PvE Damage Boost auras measure +19.2 % against +20.2 % credited (808 fights, 4,968 pairs); the
+party boost on block measures +5.2 % against +12.2 % (189 fights, 1,814 pairs); the Damage Tolerance cuts
+measure +4.2 % against +7.6 % (40 fights, 220 pairs). The auras hold within a point; the block buff and the
+tolerance cuts are credited at about twice what the comparison measures, so the estimate stays out of rankings
+and the review keeps showing each fight's own check beside it.
+
+### Recorded crit rates by class; no crit curve from the public logs
+
+None of the 631 public logs carries a profile's Critical Hit stat (the shared a2log holds no profile stats), so
+the crit curve cannot be fitted from the server's logs; it still needs players whose Genus lines are known.
+What the logs do give, the recorded boss crit rate (median over players with 300 or more boss hits): Assassin
+47 % (n = 78), Chanter 38 % (193), Cleric 17 % (215), Gladiator 53 % (93), Ranger 35 % (140), Sorcerer 27 %
+(117), Spiritmaster 31 % (101), Templar 25 % (88). Parry and miss rates against Accuracy stay unmeasurable:
+the captures hold no zero-damage or miss records.
+
+### Field-boss respawns: the observed feed against the reference
+
+The log server's boss-kill feed (48-hour windows) gives Silent Dartan, Kashapa and Gartua gaps of 12.0 h between
+distinct kills — the same for all three, the cadence of the same parties' daily kills rather than a respawn
+rule — so the feed cannot verify the reference's 180, 360 and 720 minutes. Executor Kaira's kills sit on map
+20 (Lower Reshanta), so the Siel's Wings bosses need no map of their own. No record names the channel a kill was
+on; the server is recorded. Verteron's open-world ids are still unconfirmed: no Elyos kill has been recorded.
+
+### Feeds, Abyss zones, crafting rules and gear rolls
+
+* The official community API serves only the notice and update boards, and Steam's news feed for the game
+  duplicates the notice board: no further official feed to add.
+* Chaotic Reshanta Middle, Reshanta Surface (Chaotic Upper Reshanta) and the Abyss Rift Zone are staged in
+  `meter.context.STAGED_ZONES` with their Korean-service sources, not shown until a recorded kill or map id
+  places one on the global servers.
+* Crafting: the official guide pages and the community wikis agree on two gauges, no refund of a failed craft's
+  materials and combination crafts that upgrade an item; none publishes the success formula, so the bundled
+  community-measured rates stand.
+* Gear rolls: Game8/GameWith-style item pages list each item's roll ranges by grade for the current version and
+  are the source for a current-build legality check; nothing is wired yet. The Max Attack line and the Power
+  Shard Damage Bonus have no source still.

@@ -86,25 +86,57 @@ def resolve(evidence: dict) -> dict:
 
 #: Candidate install version signals, best cross-launcher identifier first. Each
 #: is ``(evidence key, label, is the value expected to match across launchers)``.
+#: The game version is the executable's ProductVersion without its last component: ``2.0.9.0`` of
+#: ``2.0.9.0.2026102801``, the version the game's own settings screen shows (confirmed on the Steam
+#: client, 1 November 2026) and the same game version a PURPLE install of the patch carries; the trailing
+#: component is the store's patch tick. The shipped content fingerprint is a second, store-independent
+#: signal of the installed content; a launcher build id names one store's build only.
 _SIGNALS = (
+    ("game_version", "Game version (ProductVersion core)", True),
     ("installed_content_build", "Shipped content fingerprint", True),
-    ("installed_build", "Executable ProductVersion", None),      # None: depends on the launcher's stamping
+    ("installed_build", "Executable ProductVersion (with the store's patch tick)", None),
     ("file_version", "Executable fixed FileVersion", None),
     ("launcher_build", "Launcher build id", False),
 )
+
+
+def game_version(evidence: dict) -> str | None:
+    """The game version an install's evidence carries: the executable ProductVersion's first four
+    components (``2.0.9.0``), else None. A PURPLE launcher breadcrumb's ``appVersion`` (``2.0.9-Rev…``)
+    names the same version by its first three components; :func:`purple_game_version` reads it."""
+    version = str(evidence.get("installed_build") or "")
+    if evidence.get("installed_build_namespace") == "aion2:product" and re.fullmatch(r"[0-9]{1,12}(?:\.[0-9]{1,12}){3,7}", version):
+        return ".".join(version.split(".")[:4])
+    return None
+
+
+def purple_game_version(breadcrumb: dict | None) -> str | None:
+    """The game version a PURPLE launcher run record names (``purple_app_core_version`` ``2.0.9`` of
+    appVersion ``2.0.9-Rev…``), padded to the Product version's four components (``2.0.9.0``) so it
+    compares with :func:`game_version`; None without a record. It confirms the version of a PURPLE
+    install whose executable was not found; it is not install evidence by itself."""
+    core = str((breadcrumb or {}).get("purple_app_core_version") or "")
+    if not re.fullmatch(r"[0-9]{1,4}(?:\.[0-9]{1,4}){1,3}", core):
+        return None
+    parts = core.split(".")
+    return ".".join((parts + ["0", "0", "0"])[:4])
+
+
+def _signal_value(evidence: dict, key: str):
+    return game_version(evidence) if key == "game_version" else evidence.get(key)
 
 
 def version_signals(evidence: dict) -> list[dict]:
     """The version signals present in one install's evidence, strongest first.
 
     ``cross_launcher`` records whether a signal is expected to match between a
-    Steam and a PURPLE install of the same patch: the shipped content
-    fingerprint should, a launcher build id should not, and the executable
-    ProductVersion / fixed FileVersion are unknown until observed on both
-    (that is exactly what :func:`compare_installs` measures)."""
+    Steam and a PURPLE install of the same patch: the game version (the
+    ProductVersion core) and the shipped content fingerprint should, a launcher
+    build id should not, and the full ProductVersion / fixed FileVersion carry
+    the store's own patch tick (what :func:`compare_installs` measures)."""
     out = []
     for key, label, cross in _SIGNALS:
-        value = evidence.get(key)
+        value = _signal_value(evidence, key)
         if value:
             namespace = evidence.get({"installed_build": "installed_build_namespace",
                                       "installed_content_build": "installed_content_namespace",
@@ -163,27 +195,33 @@ def compare_installs(installs: list[dict]) -> dict:
 
     Each input is one install's evidence (``_build_evidence`` output), ideally
     carrying a ``launcher`` label. Reports, per signal, whether every install
-    that has it agrees, so the launcher-independent game-version key can be
-    identified empirically rather than assumed. The shipped content fingerprint
-    agreeing while the executable ProductVersion differs is the expected Steam
-    vs PURPLE result and the basis for a shared version key."""
+    that has it agrees. The game version (the ProductVersion core, what the
+    game's settings show) agreeing across a Steam and a PURPLE install is the
+    shared version key; the shipped content fingerprint stands in when no
+    executable version could be read, and the full ProductVersion differing
+    only in its trailing patch tick is the expected Steam vs PURPLE result."""
     labels = {key: label for key, label, _ in _SIGNALS}
     rows = []
     for key, label, cross in _SIGNALS:
-        present = [i for i in installs if i.get(key)]
+        present = [i for i in installs if _signal_value(i, key)]
         if not present:
             continue
-        values = {str(i.get(key)) for i in present}
+        values = {str(_signal_value(i, key)) for i in present}
         rows.append({"key": key, "label": label, "cross_launcher": cross,
                      "present_in": len(present), "total": len(installs),
                      "agrees": len(values) == 1 and len(present) == len(installs),
                      "values": sorted(values)})
     agreeing = [r for r in rows if r["agrees"]]
-    shared = next((r for r in agreeing if r["key"] == "installed_content_build"), agreeing[0] if agreeing else None)
+    shared = next((r for r in agreeing if r["key"] == "game_version"),
+                  next((r for r in agreeing if r["key"] == "installed_content_build"), agreeing[0] if agreeing else None))
     overlap = content_overlap(installs)
-    if shared and shared["key"] == "installed_content_build":
-        note = ("The shipped content fingerprint matches across these installs; it is the launcher-independent "
-                "game-version key.")
+    if shared and shared["key"] == "game_version":
+        note = (f"The game version {shared['values'][0]} (the executable ProductVersion's first four components, "
+                "what the game's settings show) matches across these installs; it is the launcher-independent "
+                "version key. The full ProductVersion differs only in each store's patch tick.")
+    elif shared and shared["key"] == "installed_content_build":
+        note = ("No executable version could be read, but the shipped content fingerprint matches across these "
+                "installs; it stands in as the launcher-independent version key.")
     elif overlap is not None:
         note = (f"The shipped content fingerprints differ, but {overlap['identical']}/{overlap['packages']} packages "
                 f"are byte-identical ({overlap['identical_fraction']:.1%}), {overlap['drifted']} drifted and "

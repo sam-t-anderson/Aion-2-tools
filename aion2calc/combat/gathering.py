@@ -299,7 +299,7 @@ def _wire(row: dict, signed_in: bool) -> dict:
     """A record as a report carries it: the character only from a signed-in app."""
     body = {k: row[k] for k in ("id", "kind", "t", "map", "instance") if row.get(k) is not None}
     if row["kind"] == "gather":
-        body.update({k: row[k] for k in ("item", "count", "result", "node") if row.get(k) is not None})
+        body.update({k: row[k] for k in ("item", "count", "result", "node", "pos") if row.get(k) is not None})
     else:
         body["items"] = row["items"]
     if signed_in:

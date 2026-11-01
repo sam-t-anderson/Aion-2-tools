@@ -175,6 +175,12 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
     w(f"| **Optimized (this report)** | **{s['dps'][scen]:,.0f}** | **{s['dps'][other]:,.0f}** |")
     w(f"| Typical top global build, optimized rotation | {base['community_optimized_rotation']:,.0f} | {base['community_other_scenario']:,.0f} |")
     w(f"| Typical top global build, default priority | {base['community_naive']:,.0f} | — |")
+    fight = s.get("whole_fight")
+    if fight and fight.get("dps") is not None and fight.get("scenario"):
+        w(f"\n**Whole fight:** {fight['dps']:,.0f} DPS on the {fight['scenario']} scenario, the same rotation stretched over "
+          f"the {100 * fight['inactive_share']:.0f}% of a recorded boss fight this class's players spend pressing nothing or "
+          "dodging (the log server's public uploads). The table above is the rotation's own DPS, which the optimizer "
+          "compares builds by; a parse on the log server is a whole fight's.")
     gain = s["dps"][scen] / base["community_optimized_rotation"] - 1
     w(f"\nThe optimized build is **{100 * gain:+.1f}%** over the typical top global build played with the same "
       f"rotation optimizer, and **{100 * (s['dps'][scen] / base['community_naive'] - 1):+.1f}%** over that build "

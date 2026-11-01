@@ -631,13 +631,16 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print(f"\n{comparison['note']}")
         else:
-            print("\nInstall one copy from each launcher (Steam and PURPLE) to compare which signal is the shared "
-                  "game version.")
+            print("\nThe game version is the executable ProductVersion's first four components (what the game's "
+                  "settings screen shows), the same on a Steam and a PURPLE install of one patch; the trailing "
+                  "component is the store's patch tick.")
         if purple:
+            from .meter.builds import purple_game_version
             print(f"\nPURPLE launcher: AION 2 Global version {purple['purple_app_version']} "
                   f"(build {purple['purple_build_number'] or '?'}), from the launcher's own run record. "
                   "This confirms the PURPLE game version independently of the executable; it does not carry an "
-                  "install path.")
+                  "install path."
+                  + (f" As a game version it reads {purple_game_version(purple)}." if purple_game_version(purple) else ""))
     elif args.cmd == "npc-evidence":
         from .combat import npc_aggregate as NA
         if args.logs:

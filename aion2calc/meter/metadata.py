@@ -256,10 +256,13 @@ _PAK_SUFFIXES = (".pak", ".utoc", ".ucas")
 def _content_fingerprint(root):
     """A launcher-independent content signal from the shipped package set.
 
-    The executable's ProductVersion resource is stamped per launcher, so Steam
-    and PURPLE installs of the same patch disagree on it. The Unreal content
-    packages, however, are the same bytes on both; their sorted ``(name, size)``
-    manifest is a cheap, store-independent fingerprint of the installed content.
+    The executable's ProductVersion carries the game version in its first four
+    components (``2.0.9.0``, what the game's own settings screen shows; the
+    same on a Steam and a PURPLE install of the patch) and the store's patch
+    tick after them (``2.0.9.0.2026102801``), so the core is the version key
+    (``builds.game_version``). The Unreal content packages are a second signal:
+    the same bytes on both stores at the same patch; their sorted ``(name,
+    size)`` manifest is a cheap, store-independent fingerprint of the installed content.
     The file name alone is used, never its parent folder, because the launchers
     nest ``Content/Paks`` differently (PURPLE under ``Aion2/``, Steam at the
     root) — keying on the path would make identical content hash differently

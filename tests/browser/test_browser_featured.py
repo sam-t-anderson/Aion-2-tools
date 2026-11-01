@@ -83,7 +83,7 @@ def test_progress_reports_rankings_and_statistics(app_page, app_url, community):
     page = app_page
     open_featured(page, app_url, "progress")
     captions = page.locator(".fe-table caption").all_inner_texts()
-    assert captions == ["Teams by progress", "Final-boss kills, first first"]
+    assert captions == ["Teams by progress", "Final-boss kills, earliest first"]
     rows = page.locator(".fe-table").first.locator("tbody tr")
     assert rows.count() == 2 and "Testers" in rows.first.inner_text() and "2/2" in rows.first.inner_text()
     kill = page.locator(".fe-table").nth(1).locator("tbody tr").first

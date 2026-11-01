@@ -320,3 +320,34 @@ def test_content_fingerprint_changes_when_content_patches(tmp_path):
     a = _build_evidence(_make_install(tmp_path / "a" / "AION2", {"global.pak": 4096}))
     b = _build_evidence(_make_install(tmp_path / "b" / "AION2", {"global.pak": 5000}))
     assert a["installed_content_build"] != b["installed_content_build"]
+
+
+def test_the_game_version_is_the_cross_launcher_key_and_purple_reads_the_same(tmp_path):
+    """The executable ProductVersion's first four components are the game version the game's own
+    settings show (2.0.9.0 of 2.0.9.0.2026102801); a Steam and a PURPLE install of one patch share it
+    and differ only in the store's patch tick, so the comparator names it the shared key ahead of the
+    content fingerprint. A PURPLE launcher run record names the same version by three components."""
+    from aion2calc.meter.builds import compare_installs, game_version, purple_game_version, version_signals
+    steam = {"installed_build": "2.0.9.0.2026102801", "installed_build_namespace": "aion2:product",
+             "launcher_build": "26262663", "launcher_build_namespace": "steam:3393110",
+             "installed_content_build": "content:aaaa", "launcher": "Steam"}
+    purple = {"installed_build": "2.0.9.0.2026102901", "installed_build_namespace": "aion2:product",
+              "launcher_build": "1424533", "launcher_build_namespace": "purple:A2_LIVE_PURPLE",
+              "installed_content_build": "content:bbbb", "launcher": "PURPLE"}
+    assert game_version(steam) == game_version(purple) == "2.0.9.0"
+    assert game_version({"installed_build": "26262663", "installed_build_namespace": "steam:3393110"}) is None
+
+    signals = version_signals(steam)
+    assert signals[0]["key"] == "game_version" and signals[0]["value"] == "2.0.9.0" and signals[0]["cross_launcher"] is True
+    assert [s["key"] for s in signals] == ["game_version", "installed_content_build", "installed_build", "launcher_build"]
+
+    cmp = compare_installs([steam, purple])
+    assert cmp["shared_version_key"] == "game_version" and "2.0.9.0" in cmp["note"]
+    rows = {r["key"]: r for r in cmp["signals"]}
+    assert rows["game_version"]["agrees"] is True
+    assert rows["installed_build"]["agrees"] is False          # the stores' patch ticks differ
+    assert rows["installed_content_build"]["agrees"] is False  # a drifted package set does not unseat the game version
+
+    assert purple_game_version({"purple_app_core_version": "2.0.9"}) == "2.0.9.0"
+    assert purple_game_version({"purple_app_core_version": "2.0.9.0"}) == "2.0.9.0"
+    assert purple_game_version(None) is None and purple_game_version({"purple_app_core_version": "x"}) is None

@@ -346,6 +346,13 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
 
     policy = _policy(A, filler)
     fallback_to_generic(A, policy, build, cd, notes, timing=TIMING)
+    # Shields as their tooltips state them and the recordings measure them (methodology: the Templar measured
+    # again, 0.2.355): Poach's level-12 specialization "10% Max HP Protective Shield" (10.0 % of maximum HP over
+    # 1,181 shields) rides the Poach press; Nezekan's Shield and Guarding Seal, which deal no damage and so have
+    # no action here, are ``defensive_absorb_share`` below. The survival models (``opt.world``) read them all.
+    for action in A.values():
+        if action.skill_id == SID["POACH"] and has("POACH", 4):
+            action.absorb = 0.10
     # A woven Vicious Strike is a Vicious Strike: its "+50% Multi-Hit on hit" and "-2s [Warding Strike]
     # cooldown on hit" ride along (the kit used to apply them only to the chain pressed on its own).
     add_weave(A, WEAVE, vi_f, vi_c, mp=vic_mp, skip=("vicious_strike",),
@@ -407,8 +414,13 @@ def _build_stigmas(A, build, cd, stig, st, notes, *, roar_atk=0.0, fury_front=0.
                 # Shrink from stigma level 5: "Adds 10% PvE Damage Tolerance reduction" for its 15 s (20 s at 20)
                 sim.debuff("shrink", shrink, {"tol_red": 0.10})
         cooldown = cd.cd(SID[key], build.stigmas[SID[key]]) - (5.0 if key == "TAUNT" and st("TAUNT", 15) else 0.0)
+        # Doom Shield's "{4}% Max HP" shield on hit: 5 % at every level, 1,101 recorded shields agree (0.2.355).
+        absorb = 0.0
+        if key == "DOOM":
+            doom_vals = cd.vals(SID["DOOM"], build.stigmas[SID["DOOM"]])
+            absorb = float(doom_vals[4]) / 100 if len(doom_vals) > 4 and isinstance(doom_vals[4], (int, float)) else 0.05
         A[akey] = Action(akey, cd.skills[SID[key]]["name"], SID[key], TIMING.get(akey, TIMING["stigma"]),
-                         cooldown=cooldown, mp=cd.mp(SID[key], build.stigmas[SID[key]]), on_cast=nuke)
+                         cooldown=cooldown, mp=cd.mp(SID[key], build.stigmas[SID[key]]), on_cast=nuke, absorb=absorb)
 
     if stig("NOBLE"):
         # Noble Armor: x1.5 Insulting Roar for its 120 s from stigma level 10, x1.5 Fury from 15 (Fury's block
@@ -449,3 +461,36 @@ def _policy(actions: dict, filler: str) -> list:
     pol = [k for k in order if k in actions]
     pol.append(filler)
     return pol
+
+
+def defensive_absorb_share(build: Build, duration: float) -> float:
+    """The shields the Templar's defensive skills grant over a fight of ``duration`` seconds, in shares of its
+    maximum HP, for the survival models (``opt.world``), which press every defensive on cooldown under the
+    pressure they assume:
+
+    * Guarding Seal (passive): "blocks damage equaling {0}% of Max HP for 30 s when HP is 50% or less,
+      cooldown 60 s" (21 % at level 1 plus 1 % a level; 582 recorded shields of 26-34 % by 52 Templars,
+      0.2.355). A fight that never drops the Templar below half HP gets none of it, so this is the most it
+      can absorb.
+    * Nezekan's Shield (stigma, no damage): "{0}% of Max HP" to the caster and nearby party members for 3 s,
+      cooldown 60 s (41 % at stigma level 1, 45 % at 5); the caster's own share is counted, pressed once a
+      cooldown, and only when the build equips the stigma.
+
+    Doom Shield's and Poach's shields ride their damage presses (``Action.absorb``) and are not counted here."""
+    cd = ClassData("templar")
+    total = 0.0
+    if duration <= 0:
+        return 0.0
+    level = build.effective_levels(cd).get(SID["GSEAL"], 0)
+    if level > 0:
+        vals = cd.vals(SID["GSEAL"], level) or []
+        share = float(vals[0]) / 100 if vals and isinstance(vals[0], (int, float)) else 0.21
+        cooldown = ms(vals[2]) if len(vals) > 2 and isinstance(vals[2], dict) else 60.0
+        total += share * max(1, int(-(-duration // max(cooldown, 1.0))))      # ceil: one a cooldown window
+    nez = build.stigmas.get(SID["NEZ"], 0)
+    if nez > 0:
+        vals = cd.vals(SID["NEZ"], nez) or []
+        share = float(vals[0]) / 100 if vals and isinstance(vals[0], (int, float)) else 0.41
+        cooldown = cd.cd(SID["NEZ"], nez) or 60.0
+        total += share * max(1, int(-(-duration // max(cooldown, 1.0))))
+    return total

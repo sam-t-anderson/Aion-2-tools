@@ -53,7 +53,8 @@ def test_a_segment_exports_the_recording_players_mp_and_the_bosses_casts():
                                           {"kind": "mp", "entity": ALLY, "current": 100}])        # only the local player's MP is sent
     _observe(s, engine, 110_000, events=[_hit(ME, OVERHEAD_SLAM, 110_000)],
              actions=[{"kind": "mp", "entity": ME, "current": 2780},
-                      {"kind": "cast", "actor": BOSS, "skill": TRAMPLE, "seq": 1, "at_target": True, "target": ME, "npc": True},
+                      {"kind": "cast", "actor": BOSS, "skill": TRAMPLE, "seq": 1, "at_target": True, "target": ME, "npc": True,
+                       "position": (1234.56, -789.01, 12.0), "facing": 271.5},
                       {"kind": "cast", "actor": 77777, "skill": TRAMPLE, "seq": 1, "at_target": True, "target": ME}])  # not a boss
     _observe(s, engine, 111_000, events=[_hit(ALLY, OVERHEAD_SLAM, 111_000)],
              actions=[{"kind": "mp", "entity": ME, "current": 2780},                              # unchanged: one row
@@ -65,6 +66,8 @@ def test_a_segment_exports_the_recording_players_mp_and_the_bosses_casts():
     assert [(r["t"], r["entity"], r["mp"], r.get("max")) for r in segment["resources"]] == [
         (0.0, me, 2900, 3077), (0.0, me, 2780, 3077), (1.0, me, 2830, 3077)]
     assert [(c["source"], c["skill_id"], c.get("target")) for c in segment["npc_casts"]] == [(boss, TRAMPLE, me)]
+    # where the cast was aimed and which way the boss faced travel with it (0.2.363), for the replay
+    assert segment["npc_casts"][0]["pos"] == [1234.6, -789.0, 12.0] and segment["npc_casts"][0]["facing"] == 271.5
     clean = a2log.validate(doc)["segments"][-1]
     assert clean["resources"] == segment["resources"] and clean["npc_casts"] == segment["npc_casts"]
 
@@ -95,6 +98,12 @@ def test_the_validator_drops_bad_mp_rows_and_casts_by_non_entities():
     clean = a2log.validate(doc)["segments"][0]
     assert clean["resources"] == [{"t": 1.0, "entity": "p1", "mp": 500}]
     assert clean["npc_casts"] == [{"t": 1.0, "source": "b1", "skill_id": TRAMPLE, "target": "p1"}]
+    aimed = dict(doc["segments"][0]["npc_casts"][0], pos=[1.0, 2.0, 3.0], facing=90.0)
+    odd = [dict(aimed, pos=[1.0, 2.0]), dict(aimed, pos=[1.0, "2", 3.0]), dict(aimed, pos=[1e8, 0, 0]), dict(aimed, facing=400)]
+    doc["segments"][0]["npc_casts"] = [aimed, *odd]
+    kept = a2log.validate(doc)["segments"][0]["npc_casts"]
+    assert kept[0] == {**clean["npc_casts"][0], "pos": [1.0, 2.0, 3.0], "facing": 90.0}
+    assert [("pos" in c, "facing" in c) for c in kept[1:]] == [(False, True), (False, True), (False, True), (True, False)]
 
 
 def test_mp_spent_restored_and_time_low_are_summarised():
