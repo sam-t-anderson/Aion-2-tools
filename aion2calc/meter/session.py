@@ -1069,10 +1069,14 @@ class CombatSession:
             # That boss is either an explicit designation (``final_boss_ids``, e.g. from an analysis
             # request) or, with none configured, the current dungeon's curated final boss from the
             # catalog — so a complete live run ranks automatically, no manual setup needed.
+            # The instance the run is in: the recorded instance id, or, for the Nightmare hub (map 200003,
+            # entered with no instance record: one stage boss per run), the map when the boss belongs to it.
+            # The table scopes each code to its instance, derived tiers included (a sibling tier's codes,
+            # the Citadel's under 600151-600153), so the boss's own dungeonId need not be the instance's.
+            instance = engine.dungeon_id or (engine.map_id if engine.map_id and npc_info(code).get("dungeonId") == engine.map_id else 0)
             if (self.auto_finish and not self.pvp and sample["kind"] == "death"
-                    and (code in self.final_boss_ids or code in dungeon_final_bosses(engine.dungeon_id))
-                    and npc_info(code).get("isBoss")
-                    and engine.dungeon_id == npc_info(code).get("dungeonId") and engine.dungeon_id
+                    and (code in self.final_boss_ids or code in dungeon_final_bosses(instance))
+                    and npc_info(code).get("isBoss") and instance
                     and any(r.run == self.run and isinstance(r.event,DamageEvent) and r.event.target_id == sample["entity"] and r.event.actor_id in self._allowed(r,"party") for r in self.records)):
                 self.runs[self.run]["recorded_final_boss"] = code
                 self.finish_run("configured_final_boss_death", timestamp_ms=sample["timestamp_ms"])
@@ -2357,6 +2361,12 @@ class CombatSession:
                     target = actor_refs.get(a["target"])
                     if a["at_target"] and target and target != source:
                         row["target"] = target
+                    # Where the cast was aimed and which way the boss faced (0.2.363): the replay draws the aim
+                    # point and the facing, so a ground-placed effect or a frontal cleave can be seen coming.
+                    if a.get("position") is not None:
+                        row["pos"] = [round(float(v), 1) for v in a["position"]]
+                    if a.get("facing") is not None:
+                        row["facing"] = float(a["facing"])
                     npc_casts.append(row)
                 continue
             if kind == "cast" and start - 3000 <= ms <= end + 1000:

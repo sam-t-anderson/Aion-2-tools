@@ -6,7 +6,7 @@ import hashlib
 import json
 
 from ..meter.a2parser.lookup import _supplement, _table, dungeon_final_bosses, npc_info, supplement_dungeon
-from ..meter.context import OBSERVED_ZONES, PVP_MAPS
+from ..meter.context import CURATED_ZONES, OBSERVED_ZONES, PVP_MAPS
 
 LIMIT = 100
 
@@ -16,7 +16,7 @@ def revision():
     from ..meter.a2parser.engine import OPEN_WORLD_MAPS
     tables = {key: _table(key, "en") for key in ("npcs", "dungeons")}
     tables.update(open_world_maps=sorted(OPEN_WORLD_MAPS), pvp_maps=PVP_MAPS, observed_zones=OBSERVED_ZONES,
-                  supplement=_supplement(), coverage_rules=6)
+                  curated_zones=CURATED_ZONES, supplement=_supplement(), coverage_rules=6)
     return hashlib.sha256(json.dumps(tables, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:16]
 
 

@@ -42,6 +42,9 @@
 
   const A2PLAN_KEY = "a2plans";
   const OWNER_KEY = "a2plan-owners";
+  const CURRENT_KEY = "a2plan-current";                     // the plan last shown, so the planner reopens on it
+  function rememberCurrent() { try { if (st.id) localStorage.setItem(CURRENT_KEY, st.id); } catch (e) { /* this view only */ } }
+  function rememberedCurrent() { try { return localStorage.getItem(CURRENT_KEY) || null; } catch (e) { return null; } }
   function owners(){try{return JSON.parse(localStorage.getItem(OWNER_KEY)||'{}');}catch(_){return {};}}
   function owner(){return owners()[st.id];}
   function saveOwner(value,id=st.id){const all=owners();all[id]=value;localStorage.setItem(OWNER_KEY,JSON.stringify(all));}
@@ -124,6 +127,7 @@
 
   function render() {
     const p = st.plan, dur = num(p.duration) || 1, io = st.io;
+    rememberCurrent();
     const all = raidPlans();
     const planOpts = Object.entries(all).sort((a, b) => (b[1].meta?.updated || 0) - (a[1].meta?.updated || 0))
       .map(([id, pl]) => `<option value="${esc(id)}" ${id === st.id ? "selected" : ""}>${esc(pl.meta?.name || "Untitled")}${pl.encounter?.boss ? " — " + esc(pl.encounter.boss) : ""}</option>`).join("");
@@ -500,9 +504,8 @@
   function mountPlan() {                 // ensure st.id/st.plan point at a stored plan
     const all = raidPlans();
     if (!st.id || !all[st.id]) {
-      const ids = Object.keys(all).sort((a, b) => (all[b].meta?.updated || 0) - (all[a].meta?.updated || 0));
-      if (ids.length) st.id = ids[0];
-      else { const pl = newPlan("My first plan"); st.id = uid(); all[st.id] = pl; saveRaidPlans(all); }
+      st.id = nextPlanId(all);
+      if (!st.id) { const pl = newPlan("My first plan"); st.id = uid(); all[st.id] = pl; saveRaidPlans(all); }
     }
     st.plan = raidPlans()[st.id];
   }
@@ -520,12 +523,71 @@
     render();
   }
 
-  window.A2Raid = { mount, importPlan(plan) {
+  // A replay from a log (the review's Open in Raid Planner, 0.2.363): stored as a new plan and made the plan the
+  // planner shows next, so the page opens on it. A storage error reaches the caller instead of losing the replay.
+  function storeReplay(plan) {
     if (!plan || plan.format !== "a2plan" || !Array.isArray(plan.tokens)) throw Error("Invalid replay plan");
     const copy = JSON.parse(JSON.stringify(plan));
-    copy.meta = {...copy.meta, updated: Date.now()};
-    const all = raidPlans(); all[uid()] = copy;
-    // Propagate storage errors to the caller instead of losing the imported replay.
+    copy.meta = { ...copy.meta, updated: Date.now() };
+    copy.encounter = cleanEncounter(copy.encounter);
+    const all = raidPlans(), id = uid(); all[id] = copy;
     localStorage.setItem(A2PLAN_KEY, JSON.stringify(all));
-  } };
+    st.id = id; st.plan = copy; st.sel = null; st.t = 0; st.actual = null; st.browsing = null;
+    return id;
+  }
+  // The plan the planner shows next: the one it is showing, else the one last shown (remembered across launches),
+  // else the newest.
+  function nextPlanId(all) {
+    if (st.id && all[st.id]) return st.id;
+    const remembered = rememberedCurrent();
+    if (remembered && all[remembered]) return remembered;
+    const ids = Object.keys(all).sort((a, b) => (all[b].meta?.updated || 0) - (all[a].meta?.updated || 0));
+    return ids[0] || null;
+  }
+  // An untouched plan: the starter ("My first plan") or a New plan nothing was placed in or written on, never
+  // published. Anything else is work in progress.
+  function isBlank(id, p) {
+    return !!p && !(p.tokens || []).length && !(p.buffs || []).length && !String(p.meta?.notes || "").trim()
+      && !String(p.meta?.author || "").trim() && !Object.keys(cleanEncounter(p.encounter)).length
+      && ["My first plan", "New plan", ""].includes(String(p.meta?.name || "").trim()) && !owners()[id];
+  }
+  // What to do with the work in progress the planner is showing: keep it in the Plan list, discard it, or not
+  // open the replay at all. A modal dialog; Escape cancels.
+  function askAboutWork(name) {
+    return new Promise((resolve) => {
+      const dialog = document.createElement("dialog");
+      dialog.className = "rp-ask";
+      dialog.setAttribute("aria-labelledby", "rp-ask-title");
+      dialog.innerHTML = `<h2 id="rp-ask-title">Open the replay in the Raid Planner?</h2>
+        <p>The planner is showing <strong translate="no"></strong>, a plan you have worked on. What should happen to it?</p>
+        <div class="rp-ask-foot"><button class="btn primary" type="button" data-choice="keep">Keep it and open the replay</button>
+        <button class="btn" type="button" data-choice="discard">Discard it and open the replay</button>
+        <button class="btn" type="button" data-choice="cancel">Cancel</button></div>
+        <p class="small muted">A kept plan stays in the planner's Plan list; the replay opens as a new plan.</p>`;
+      dialog.querySelector("strong").textContent = name;
+      let choice = "cancel";
+      for (const b of dialog.querySelectorAll("[data-choice]")) b.onclick = () => { choice = b.dataset.choice; dialog.close(); };
+      dialog.addEventListener("close", () => { dialog.remove(); resolve(choice); });
+      document.body.appendChild(dialog);
+      dialog.showModal();
+      dialog.querySelector('[data-choice="keep"]').focus();
+    });
+  }
+  // Open a replay as the plan shown: an untouched starter gives way to it; work in progress is asked about first.
+  // Resolves true when the replay was stored (the caller then shows the planner), false when cancelled.
+  async function openReplay(plan) {
+    const all = raidPlans(), current = nextPlanId(all);
+    let drop = current && isBlank(current, all[current]) ? current : null;
+    if (current && !drop) {
+      const choice = await askAboutWork(all[current].meta?.name || "Untitled");
+      if (choice === "cancel") return false;
+      if (choice === "discard") drop = current;
+    }
+    storeReplay(plan);                                   // first, so a storage error never costs the dropped plan
+    if (drop) { const kept = raidPlans(); delete kept[drop]; saveRaidPlans(kept); }
+    rememberCurrent();
+    return true;
+  }
+
+  window.A2Raid = { mount, importPlan: storeReplay, openReplay, _isBlank: isBlank };
 })();

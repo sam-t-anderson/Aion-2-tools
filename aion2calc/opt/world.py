@@ -17,7 +17,8 @@ hard crowd control takes the attackers' time away (up to a cap). Defensive stats
 therefore score through survival, and the board solver values HP and Defense nodes.
 
 Every number in :data:`WORLD` is an assumption, returned with each result. Block, Evasion, Status Effect
-Resist, healing, shields, movement and player reactions are not modelled.
+Resist, healing, movement and player reactions are not modelled; shields are, for the Templar only
+(``survival``'s ``absorb_share``: what its presses and defensives absorb counts as the HP it stands in for).
 """
 from __future__ import annotations
 
@@ -62,9 +63,11 @@ NOTE = ("World PvP proxy: area skills hit up to {enemies} enemies, and the last 
         "{melee:g} attackers instead of {ranged:g}, effective HP comes from HP, Defense, Critical Hit Resist "
         "and Damage Tolerance against your class's typical hit, and hard crowd control (Stun, Knockdown, "
         "Airborne, Fear, Sleep, Frost) takes away up to {cap:.0%} of the attackers' time. Without recorded "
-        "gear the loadout gets the median level-45 gear HP and Defense of official profiles. Block, Evasion, "
-        "Status Effect Resist, healing, shields, movement and player reactions are not modelled. These are "
-        "assumptions, not measurements.")
+        "gear the loadout gets the median level-45 gear HP and Defense of official profiles. The Templar's shields "
+        "count as the HP they absorb, as their tooltips state and the recordings measure them (Doom Shield 5 % and "
+        "Poach's specialization 10 % of maximum HP a cast, Nezekan's Shield 41-50 %, Guarding Seal 21-30 % once a "
+        "minute below half HP). Block, Evasion, Status Effect Resist, healing, other classes' shields, movement "
+        "and player reactions are not modelled. These are assumptions, not measurements.")
 
 
 def is_world(scenario: Scenario) -> bool:
@@ -114,8 +117,8 @@ def with_gear_survival(loadout, cls: str | None = None) -> dict:
     return lo
 
 
-def _ehp(cls: str, stats, attacker, world: dict) -> tuple[float, float]:
-    """(effective HP, share of a reference hit you take) against the reference attacker."""
+def _ehp(cls: str, stats, attacker, world: dict) -> tuple[float, float, float]:
+    """(effective HP, share of a reference hit you take, maximum HP) against the reference attacker."""
     from ..kit.base import ClassData
     d = stats.defenses(ClassData(cls).base_stats(stats.level))
     flat, coef = world["reference_hit"]
@@ -125,7 +128,20 @@ def _ehp(cls: str, stats, attacker, world: dict) -> tuple[float, float]:
                  crit_dmg_tol=d.crit_dmg_tol, is_boss=False, is_player=True)
     base = expected_hit(attacker, {}, naked, ctx)
     taken = expected_hit(attacker, {}, you, ctx) / base if base > 0 else 1.0
-    return (d.hp / taken if taken > 0 else math.inf), taken
+    return (d.hp / taken if taken > 0 else math.inf), taken, d.hp
+
+
+def defensive_absorb_share(cls: str, build, duration: float) -> float:
+    """The shields a build's defensive skills grant over a fight of ``duration`` seconds, in shares of maximum HP,
+    beside those its damage presses carry (``SimResult.absorb_share``): the Templar's Guarding Seal and Nezekan's
+    Shield (``kit.templar.defensive_absorb_share``); no other class has one modelled."""
+    if cls != "templar" or build is None:
+        return 0.0
+    from ..kit.templar import defensive_absorb_share as templar_defensive
+    try:
+        return templar_defensive(build, duration)
+    except Exception:
+        return 0.0
 
 
 _REFERENCE: dict = {}
@@ -143,16 +159,26 @@ def reference(cls: str, scenario: Scenario, world: dict = WORLD) -> tuple:
     return _REFERENCE[key]
 
 
-def survival(cls: str, stats, control_s: float, duration: float, ref: tuple, world: dict = WORLD) -> dict:
-    """Effective HP and the share of the fight survived, relative to the class's typical build."""
+def survival(cls: str, stats, control_s: float, duration: float, ref: tuple, world: dict = WORLD,
+             absorb_share: float = 0.0) -> dict:
+    """Effective HP and the share of the fight survived, relative to the class's typical build.
+
+    ``absorb_share`` is what the rotation's and the passives' shields absorb over the fight, in shares of
+    maximum HP (the Templar's: Doom Shield 5 % and Poach's specialization 10 % a cast, Nezekan's Shield
+    41-50 %, Guarding Seal 21-30 % once a minute below half HP, as the tooltips state and the recordings
+    measure). A shield absorbs the damage that reaches it as HP does, so under the pressure assumed each
+    counts as the HP it absorbs; a shield that lapses unspent would count for less."""
     attacker, typical = ref
-    ehp, taken = _ehp(cls, stats, attacker, world)
+    ehp, taken, hp = _ehp(cls, stats, attacker, world)
+    shield_hp = max(0.0, absorb_share) * hp
+    total = ehp + (shield_hp / taken if taken > 0 else 0.0)
     attackers = world["attackers"]["melee" if cls in MELEE else "ranged"]
     controlled = min(world["control_cap"], (control_s / duration) / attackers if duration > 0 else 0.0)
-    x = (-math.log(1 - world["typical_alive"]) * (ehp / typical if typical > 0 else 1.0)
+    x = (-math.log(1 - world["typical_alive"]) * (total / typical if typical > 0 else 1.0)
          * (world["attackers"]["ranged"] / attackers) / (1 - controlled))
     d = stats.defenses({})                     # gear and boards only, for display
-    return {"effective_hp": ehp, "typical_effective_hp": typical, "relative_ehp": ehp / typical if typical > 0 else None,
+    return {"effective_hp": total, "effective_hp_without_shields": ehp, "shield_share": absorb_share, "shield_hp": shield_hp,
+            "typical_effective_hp": typical, "relative_ehp": total / typical if typical > 0 else None,
             "damage_taken": taken, "attackers": attackers, "control_s_per_min": 60 * control_s / duration if duration else 0.0,
             "controlled": controlled, "alive_share": 1 - math.exp(-x),
             "survival_stats": {"tolerance": d.tolerance, "crit_dmg_tol": d.crit_dmg_tol}}
@@ -164,7 +190,8 @@ def assess(cls: str, build, scenario: Scenario, policy, world: dict = WORLD) -> 
     pol = [e for e in policy if (e[0] if isinstance(e, tuple) else e) in kit.actions]
     res = Sim(stats.derived(), kit.actions, materialize(pol), scenario.target, scenario.config,
               hooks=kit.hooks, cond_mods=kit.cond_mods).run()
-    surv = survival(cls, stats, res.control, res.duration, reference(cls, scenario, world), world)
+    absorb = res.absorb_share + defensive_absorb_share(cls, build, res.duration)
+    surv = survival(cls, stats, res.control, res.duration, reference(cls, scenario, world), world, absorb_share=absorb)
     return {"score": res.dps * surv["alive_share"], "dps": res.dps, **surv,
             "assumptions": copy.deepcopy(world), "note": note(world)}
 
@@ -177,20 +204,22 @@ class WorldOptimizer(Optimizer):
         self.world = WORLD
         self.ref = reference(cls, self.scenario, self.world)
 
-    def _score(self, stats, res) -> float:
-        return res.dps * survival(self.cls, stats, res.control, res.duration, self.ref, self.world)["alive_share"]
+    def _score(self, stats, res, passive: float = 0.0) -> float:
+        return res.dps * survival(self.cls, stats, res.control, res.duration, self.ref, self.world,
+                                  absorb_share=res.absorb_share + passive)["alive_share"]
 
     def _evaluator(self, build, cfg=None):
         _, _, kit, stats = prepare(build, self.scenario)
         derived, cache = stats.derived(), {}
         config = cfg or self.search_cfg
+        passive = defensive_absorb_share(self.cls, build, config.duration)
 
         def score(policy):
             key = tuple(policy)
             if key not in cache:
                 res = Sim(derived, kit.actions, materialize(policy), self.scenario.target, config,
                           hooks=kit.hooks, cond_mods=kit.cond_mods).run()
-                cache[key] = (self._score(stats, res), res)
+                cache[key] = (self._score(stats, res, passive), res)
             return cache[key]
         return score
 
@@ -217,7 +246,8 @@ class WorldOptimizer(Optimizer):
         pol = self._fit_policy(policy, kit)
         res = Sim(stats.derived(), kit.actions, materialize(pol), self.scenario.target, config,
                   hooks=kit.hooks, cond_mods=kit.cond_mods).run()
-        alive = survival(self.cls, stats, res.control, res.duration, self.ref, self.world)["alive_share"]
+        absorb = res.absorb_share + defensive_absorb_share(self.cls, build, res.duration)
+        alive = survival(self.cls, stats, res.control, res.duration, self.ref, self.world, absorb_share=absorb)["alive_share"]
         rows = stat_weights(stats, kit, pol, self.scenario.target, config, progress=None if final else self.log)
         for row in rows:
             row["dps_gain"] *= alive
@@ -225,7 +255,7 @@ class WorldOptimizer(Optimizer):
         for field, step in DEFENSIVE_STEPS:
             s2 = stats.copy()
             s2.add({field: step})
-            more = survival(self.cls, s2, res.control, res.duration, self.ref, self.world)["alive_share"]
+            more = survival(self.cls, s2, res.control, res.duration, self.ref, self.world, absorb_share=absorb)["alive_share"]
             gain = res.dps * (more - alive)
             rows.append({"stat": field, "label": _LABELS[field].format(step=step), "step": step,
                          "dps_gain": gain, "per_unit": gain / step})

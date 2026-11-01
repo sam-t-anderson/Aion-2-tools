@@ -440,7 +440,7 @@ melee classes keep their gap closers and ranged skills for the out-of-reach wind
 PvP build takes Assault Strike, Fracturing Rush, Wrath Wave and Blade Toss, Mocking Blade's and Ankle Slice's
 Knockdown specializations, every HP node and most Defense nodes (HP is its best stat); the Sorcerer's
 leans on its area skills and takes every HP node too. Block, Evasion, Status Effect Resist, crowd-control
-immunity, healing, shields, movement and player reactions are not modelled; these are assumptions, not
+immunity, healing, shields other than the Templar's ([0.2.363](#shields-in-the-survival-models-02363)), movement and player reactions are not modelled; these are assumptions, not
 measurements, and are shown with every result.
 
 ### Bundled builds regenerated (0.2.311)
@@ -913,6 +913,52 @@ to 1.5 s, plus the basic-chain steps woven after it.
   The survival and World PvP models still leave shields out; where they add them, the client data's
   percentages hold. A fifth of what the Templars were recorded healing was not HP at all
   ([Stamina and MP restores](#stamina-and-mp-restores-are-not-healing-02355)).
+
+### Not pressing and dodging: a whole fight's DPS (0.2.363)
+
+A kit's DPS is a rotation's: every second of the fight is spent pressing. Recorded boss fights are not. From the
+log server's public PvE uploads with cast records (631 logs, 2,407 boss fights of a minute or more, meters
+0.2.306 and later), each player's time was split by [0.2.317](#the-clerics-heals-and-basic-chain-02317)'s rules:
+a press holds the time to the player's next press, up to 1.5 s (*pressing*); the dodges the rotation panel
+counts hold their listed time (*dodging*); heal presses are the Cleric's heal share, already in its kit; the rest
+of the fight is *idle* — walking, waiting out a mechanic, dead, or out of range.
+
+| Class | Players | Pressing | Idle | Dodging | Heals | Not pressing + dodging |
+|---|---:|---:|---:|---:|---:|---:|
+| Assassin | 1,008 | 69.9 % | 30.1 % | 8.8 % | — | 39.0 % |
+| Chanter | 2,151 | 69.6 % | 30.4 % | 9.6 % | 0.1 % | 40.0 % |
+| Cleric | 1,825 | 72.3 % | 27.7 % | 5.7 % | 1.6 % | 33.3 % |
+| Gladiator | 1,223 | 71.3 % | 28.7 % | 9.6 % | — | 38.2 % |
+| Ranger | 866 | 73.1 % | 26.9 % | 6.3 % | — | 33.1 % |
+| Sorcerer | 977 | 71.4 % | 28.6 % | 6.2 % | — | 34.8 % |
+| Spiritmaster | 633 | 74.7 % | 25.3 % | 5.2 % | — | 30.5 % |
+| Templar | 1,217 | 71.3 % | 28.7 % | 8.1 % | 0.3 % | 36.8 % |
+
+Shares are of the fight's duration, averaged over the players of the class (a player counts once per fight;
+the middle half of the players' idle shares runs from 16–21 % to 40–45 %). The last column is
+`sim.engine.FIGHT_INACTIVE`.
+
+The simulator's `whole_fight` setting stretches every action of a boss scenario by the class's share, the way
+the heal share already does for the Cleric: an action's time becomes its own divided by
+1 − heal share − inactive share. Fillers are pressed less, cooldown skills keep their cadence, so the whole
+fight's DPS falls by less than the share itself (a Gladiator's or Sorcerer's by a quarter to a third). Results
+and reports show it as **Whole fight** beside the rotation's DPS; the optimizer still ranks builds and
+rotations by the rotation's DPS, which is what gear and priorities change. The training dummy never stretches
+(nobody dodges a dummy), the share is capped at 60 %, and a kit whose skill ids name no class gets none. It is
+an average: a player who never leaves the boss beats it, a fight with long mechanics falls below it.
+
+### Shields in the survival models (0.2.363)
+
+The World PvP survival and `assess` count a shield as the HP it absorbs. A damage press that shields carries its
+share of maximum HP (`Action.absorb`: Doom Shield 5 % a cast, Poach's level-12 specialization 10 % a press),
+summed over the rotation into `SimResult.absorb_share`; the defensive skills that deal no damage are
+`kit.templar.defensive_absorb_share`: Guarding Seal (21 % at level 1 plus 1 % a level, once a 60 s cooldown, the
+most it can give since it needs the Templar below half HP) and Nezekan's Shield (41 % at stigma level 1, 45 % at
+5, once a 60 s cooldown, the caster's own share, only when equipped). The shares are the tooltips', which the
+recordings measure ([the Templar measured again](#the-templar-measured-again-and-its-shields-02355)). Effective HP
+becomes HP plus the shielded HP, both divided by the damage-taken ratio, so a shield counts for as much as the HP
+it stands in for under the steady pressure the model assumes; a shield that lapses unspent (Nezekan's lasts 3 s)
+would count for less, so the model is an upper bound for it. No other class has a shield modelled.
 
 ### Chain, variant and combo skills, and known catalog gaps
 

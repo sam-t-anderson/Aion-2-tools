@@ -17,6 +17,36 @@ OBSERVED_ZONES = {
     504001: {"zone": "Abyss Corridor", "evidence": "User-confirmed 23 October capture: two Abyss Corridor runs (the instanced PvE area entered at an artifact after a siege) on maps 504002 and 504001"},
     504002: {"zone": "Abyss Corridor", "evidence": "User-confirmed 23 October capture: two Abyss Corridor runs (the instanced PvE area entered at an artifact after a siege) on maps 504002 and 504001"},
 }
+#: Instances the community catalog's NPC rows place but its dungeon table does not name, named from a source
+#: that does (never from a boss's name): the Nightmare hub, one stage boss per run, whose 300 catalog bosses
+#: (30 names at ten levels) all sit under dungeonId 200003, and the Citadel of the Fallen Daeva's three tiers,
+#: whose Basilus the False rows sit under 600144-600146 while DBAion2 names the tiers as 600151-600153
+#: (``dungeon_final_bosses.json`` maps them). The zone only: category and difficulty stay the NPC catalog's.
+CURATED_ZONES = {
+    200003: {"zone": "Nightmare", "evidence": "The community catalog's 300 Nightmare stage bosses (30 names, Level 1-10) under one instance id; the 19 October recording fought three of them there (map 200003, no instance record)"},
+    600144: {"zone": "Citadel of the Fallen Daeva", "evidence": "metabot.gg's dungeon page: Basilus the False is the Citadel's final boss at Exploration, Conquest and Conquest [Hard]; the catalog's Basilus rows sit under 600144-600146 with those tiers"},
+    600145: {"zone": "Citadel of the Fallen Daeva", "evidence": "metabot.gg's dungeon page: Basilus the False is the Citadel's final boss at Exploration, Conquest and Conquest [Hard]; the catalog's Basilus rows sit under 600144-600146 with those tiers"},
+    600146: {"zone": "Citadel of the Fallen Daeva", "evidence": "metabot.gg's dungeon page: Basilus the False is the Citadel's final boss at Exploration, Conquest and Conquest [Hard]; the catalog's Basilus rows sit under 600144-600146 with those tiers"},
+}
+CURATED_ZONE = " + a source outside the catalog names the instance (meter.context.CURATED_ZONES)"
+#: Abyss zones the Korean service has that the Global service does not yet (1 November 2026), staged by name
+#: so a map id can be attached the day a Global recording shows one; nothing reads this for classification.
+#: Global's Abyss today: Chaotic Lower Reshanta, map 20 (``engine.OBSERVED_OPEN_WORLD_MAPS``), whose fields
+#: include the Archipelago of Siel's Wings (Executor Argo, Executor Kaira) and Watcher Kaira's islands: the
+#: kill feed placed Executor Kaira on map 20, so those bosses need no map of their own.
+STAGED_ZONES = (
+    {"zone": "Chaotic Reshanta Middle", "also": ("Middle Reshanta", "Chaotic Ereshulanta"),
+     "service": "Korea, Taiwan", "kind": "open-world PvP",
+     "source": "aion2hub.com, the Chapter 1 patch notes of 1 July 2026 (the Abyss Battle Directive: Middle Stratum is completed there); metabot.gg and thegameswiki.com name the layer",
+     "note": "Artifact capture exists in the lower and middle layers; the map id is unknown until a recording shows it"},
+    {"zone": "Reshanta Surface", "also": ("Chaotic Upper Reshanta", "Surface of Chaotic Ereshkigal"),
+     "service": "Korea, Taiwan", "kind": "open-world PvP",
+     "source": "aion2hub.com, the Chapter 1 patch notes of 1 July 2026; metabot.gg's Chaotic Upper Reshanta map page; thegameswiki.com",
+     "note": "Entry at item level 4,300 or less or Combat Power 400K or less, 300 players a faction, no Artifacts or bosses; six field areas and two villages (Dukysas and Krotan Fortress hold the merchants); levels 43-55; the map id is unknown until a recording shows it"},
+    {"zone": "Abyss Rift Zone", "also": (), "service": "Korea, Taiwan", "kind": "instanced faction event",
+     "source": "aion2hub.com, the patch notes of 17 June 2026",
+     "note": "Tuesdays and Thursdays from 22:00 by matching group, 400 players a faction, level 45 and item level 3,000; bosses appear over time and the faction landing the final blow is rewarded by per-class contribution; the map id is unknown until a recording shows it"},
+)
 #: Open-world zones named by recorded map id for PvP fights: the Abyss (map 20; the evidence is in
 #: ``engine.OBSERVED_OPEN_WORLD_MAPS``) and the two faction zones the field-boss timers use
 #: (``combat.field_bosses.ZONE_MAPS``).
@@ -174,6 +204,8 @@ def classify(map_id, instance_id, pvp, entities=()):
         prefix += " (open-world map id not yet updated at entry)"
     if dungeon.get("name") and not conflicts:
         result.update(zone=dungeon["name"], zone_source=prefix + " + exact dungeon name")
+    elif candidate in CURATED_ZONES and not conflicts:
+        result.update(zone=CURATED_ZONES[candidate]["zone"], zone_source=prefix + CURATED_ZONE)
     elif candidate and not conflicts and (named := supplement_dungeon(candidate).get("name")):
         # A later tier or a content type the community catalog has no name for (a Transcendence
         # tier, an Ascension trial, a daily dungeon): the supplement names it. It sets no type or

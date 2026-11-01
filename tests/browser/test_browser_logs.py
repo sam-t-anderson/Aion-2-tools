@@ -191,15 +191,22 @@ def test_a_link_opens_my_character_identities_directly(app_page, app_url):
     assert page.locator("#log-tab-identities").get_attribute("aria-selected") == "true"
 
 
-def moving_recording():
+def moving_recording(casts=False):
     """A boss fight with recorded movement (0.2.350): the boss walks east, the party member moves and once shows
     up far away (back at a respawn point), and the recording player is placed only by the effects they apply. The
-    trash fight before it has the recording player's movement and no boss."""
+    trash fight before it has the recording player's movement and no boss. With ``casts`` (0.2.363) the boss casts
+    twice, at the party member and on the ground away from everyone, and an add appears mid-fight."""
     doc = recording()
     me, ally = "p:1101:1", "p:1101:2"
+    if casts:
+        fight = doc["segments"][1]
+        fight["entities"].append({"id": "add1", "name": "Summoned Spike", "kind": "enemy"})
+        fight["npc_casts"] = [{"t": 4.0, "source": "boss", "skill_id": 123, "skill": "Trample", "target": ally, "pos": [900.0, 940.0, 50.0], "facing": 90.0},
+                              {"t": 14.0, "source": "boss", "skill_id": 124, "skill": "Meteor", "target": ally, "pos": [1500.0, 1300.0, 50.0], "facing": 45.0}]
+        fight["movement"] = [{"t": float(t), "entity": "add1", "x": 1300.0, "y": 1100.0, "z": 50.0, "src": "move"} for t in range(12, 30, 2)]
     doc["players"].append({"id": ally, "name": "Testally", "class": "Cleric", "server": "1101"})
     fight = doc["segments"][1]
-    fight["movement"] = (
+    fight["movement"] = fight.get("movement", []) + (
         [{"t": float(t), "entity": "boss", "x": 1000.0 + 20 * t, "y": 1000.0, "z": 50.0, "src": "move", "heading": 90.0} for t in range(30)]
         + [{"t": float(t), "entity": ally, "x": 900.0, "y": 900.0 + 10 * t, "z": 50.0, "src": "move"} for t in range(0, 30, 2) if t != 20]
         + [{"t": 20.0, "entity": ally, "x": 50000.0, "y": 50000.0, "z": 50.0, "src": "party"}]
@@ -609,4 +616,107 @@ def test_an_arena_match_shows_its_result_rating_fighters_and_rounds(app_page, ap
         page.wait_for_function("document.querySelector('.cr-review').innerText.includes('kill credit are not inferred')")
         assert page.locator("[data-arena-match]").count() == 0
     finally:
+        path.unlink()
+
+
+def test_open_in_raid_planner_shows_the_replay_and_asks_about_work_in_progress(app_page, app_url, app_home):
+    """Open in Raid Planner (0.2.363) opens the planner on the replay: an untouched starter plan gives way to it,
+    and work in progress is asked about first (keep it in the Plan list, discard it, or cancel)."""
+    page = app_page
+    name = "session-20261027-230000-abcdef.a2log.json"
+    path = app_home / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(moving_recording()), encoding="utf-8")
+    plans = lambda: page.evaluate("Object.values(JSON.parse(localStorage.getItem('a2plans') || '{}')).map(p => p.meta.name)")  # noqa: E731
+
+    def open_replay():
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        page.locator("[data-replay] [data-tokens] circle").first.wait_for()
+        page.locator("[data-replay] [data-plan]").click()
+    try:
+        # the planner was never opened: the replay is the plan shown, nothing asked
+        open_replay()
+        page.wait_for_function("location.hash === '#/raid' && document.querySelector('#rname')?.value === 'Gatekeeper Testlord'")
+        assert plans() == ["Gatekeeper Testlord"] and page.locator(".rp-ask").count() == 0
+        # an untouched New plan gives way to the next replay
+        page.click("#rnew")
+        page.wait_for_function("document.querySelector('#rname')?.value === 'New plan'")
+        open_replay()
+        page.wait_for_function("location.hash === '#/raid' && document.querySelector('#rname')?.value === 'Gatekeeper Testlord'")
+        assert sorted(plans()) == ["Gatekeeper Testlord", "Gatekeeper Testlord"] and page.locator(".rp-ask").count() == 0
+        # work in progress (a renamed plan) is asked about: Cancel keeps the log page and stores nothing
+        page.fill("#rname", "Tahabata pulls")
+        page.locator("#rname").dispatch_event("change")
+        open_replay()
+        ask = page.locator(".rp-ask")
+        ask.wait_for()
+        assert "Tahabata pulls" in ask.inner_text() and ask.locator('[data-choice="keep"]').evaluate("b => document.activeElement === b")
+        ask.locator('[data-choice="cancel"]').click()
+        page.wait_for_timeout(300)
+        assert page.evaluate("location.hash").startswith("#/combat-log/") and sorted(plans()) == ["Gatekeeper Testlord", "Tahabata pulls"]
+        # Keep: the plan stays in the Plan list, the replay opens as a new plan
+        page.locator("[data-replay] [data-plan]").click()
+        ask.wait_for()
+        ask.locator('[data-choice="keep"]').click()
+        page.wait_for_function("location.hash === '#/raid' && document.querySelector('#rname')?.value === 'Gatekeeper Testlord'")
+        assert sorted(plans()) == ["Gatekeeper Testlord", "Gatekeeper Testlord", "Tahabata pulls"]
+        assert "Tahabata pulls" in page.locator("#rplan").inner_text()
+        # Discard: the plan shown is dropped
+        page.locator("#rplan").select_option(label="Tahabata pulls")
+        page.wait_for_function("document.querySelector('#rname')?.value === 'Tahabata pulls'")
+        open_replay()
+        ask.wait_for()
+        ask.locator('[data-choice="discard"]').click()
+        page.wait_for_function("location.hash === '#/raid' && document.querySelector('#rname')?.value === 'Gatekeeper Testlord'")
+        assert plans() == ["Gatekeeper Testlord"] * 3 and "Tahabata pulls" not in page.locator("#rplan").inner_text()
+    finally:
+        page.goto("about:blank")
+        path.unlink()
+
+
+def test_the_replay_shows_the_bosses_casts_and_what_appears(app_page, app_url, app_home):
+    """Why everyone moved (0.2.363): a boss cast is ringed on the caster with a marker where it was aimed (the target,
+    the caster itself or the ground) and a wedge for its facing, an add is ringed where it appeared, both are
+    listed under the slider as they happen and the slider carries a tick at each; the key can hide them."""
+    page = app_page
+    name = "session-20261027-233000-abcdef.a2log.json"
+    path = app_home / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(moving_recording(casts=True)), encoding="utf-8")
+
+    def scrub(t):
+        page.evaluate("t => {const s = document.querySelector('[data-scrub]'); s.value = t; s.dispatchEvent(new Event('input'));}", t)
+    try:
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        box = page.locator("[data-replay]")
+        box.locator("[data-tokens] circle").first.wait_for()
+        key = box.locator('.cr-key ul[aria-label="Key"] li').all_inner_texts()
+        assert "Boss cast: ringed on the caster, a marker where it was aimed, a wedge for its facing" in key
+        assert "Appeared: an enemy or pet first seen here during the fight" in key
+        assert sorted(box.locator("#cr-ticks option").evaluate_all("os => os.map(o => o.value)")) == ["12.0", "14.0", "4.0"]
+        assert box.locator("[data-scrub]").get_attribute("list") == "cr-ticks"
+        strip = box.locator("[data-now-list]")
+        now = lambda: " ".join(strip.inner_text().split())                      # noqa: E731
+        assert now() == "—" and box.locator("[data-marks] *").count() == 0
+        scrub(4.5)                                                  # Trample, aimed at the party member's place
+        assert box.locator("[data-marks] .cr-castring").count() == 1 and box.locator("[data-marks] .cr-face").count() == 1
+        assert box.locator("[data-marks] .cr-aim").count() == 1 and box.locator("[data-marks] .cr-aimline").count() == 1
+        assert now() == "Gatekeeper Testlord: Trample at Testally"
+        assert "Trample at Testally · 4.0s" in box.locator("[data-marks] .cr-aim title").text_content()
+        scrub(8.0)                                                  # over: nothing shown
+        assert now() == "—" and box.locator("[data-marks] *").count() == 0
+        scrub(12.5)                                                 # the add appears
+        assert box.locator("[data-marks] .cr-spawn").count() == 1 and now() == "Summoned Spike appeared"
+        scrub(14.5)                                                 # Meteor, on the ground away from everyone (the add still ringed)
+        assert now() == "Gatekeeper Testlord: Meteor on the ground near Testally Summoned Spike appeared"
+        assert box.locator("[data-marks] .cr-spawn").count() == 1 and box.locator("[data-marks] .cr-aim").count() == 1
+        # the key hides them
+        box.locator('.cr-key [data-key-toggle="casts"]').uncheck()
+        assert box.locator("[data-marks] .cr-aim").count() == 0 and now() == "Summoned Spike appeared"
+        box.locator('.cr-key [data-key-toggle="spawns"]').uncheck()
+        assert box.locator("[data-marks] *").count() == 0 and now() == "—"
+        box.locator('.cr-key [data-key-toggle="casts"]').check()
+        assert box.locator("[data-marks] .cr-castring").count() == 1
+    finally:
+        page.goto("about:blank")
         path.unlink()

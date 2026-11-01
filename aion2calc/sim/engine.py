@@ -54,6 +54,20 @@ BOSS_POSITIONS = {
     "gladiator": (0.31, 0.51), "ranger": (0.34, 0.35), "sorcerer": (0.43, 0.30),
     "spiritmaster": (0.29, 0.34), "templar": (0.48, 0.31),
 }
+#: The share of a boss fight each class's recorded players spend pressing nothing (idle) or pressing Dodge,
+#: by the rules of methodology.md (a press holds the time to the player's next press, up to 1.5 s; the mean
+#: over the players of the class in the log server's public boss fights of 60 s or more with cast records,
+#: 2,407 fights in 631 logs, 1 November 2026; methodology.md "Not pressing and dodging"). A heal's time is the
+#: kit's own (``Action.heal``), so a healer's share leaves heals out. ``SimConfig.whole_fight`` spreads it over
+#: every action, as the heals are, so the rotation fills a fight the way recorded players do; the search
+#: objective stays the rotation's DPS.
+FIGHT_INACTIVE: dict[str, float] = {
+    "assassin": 0.390, "chanter": 0.400, "cleric": 0.333, "gladiator": 0.382,
+    "ranger": 0.331, "sorcerer": 0.348, "spiritmaster": 0.305, "templar": 0.368,
+}
+#: The class a skill id belongs to, by its leading two digits (``aion2calc.meter.a2parser.lookup.job_from_skill``).
+_CLASS_OF_PREFIX = {11: "gladiator", 12: "templar", 13: "assassin", 14: "ranger", 15: "sorcerer",
+                    16: "spiritmaster", 17: "cleric", 18: "chanter"}
 
 
 @dataclass
@@ -116,6 +130,8 @@ class SimConfig:
     action_blocks: tuple = ()     # explicit no-new-action intervals on the rotation clock
     tactical_uses: tuple = ()     # (skill ID, assumed use start, effective cooldown)
     record_damage: bool = False   # final reports only; no hit trace allocation during scoring
+    whole_fight: bool = False     # stretch the rotation over the share of a boss fight the class's recorded players
+                                  # spend pressing nothing or dodging (FIGHT_INACTIVE): a whole fight's DPS
 
 
 def action_blocks(values, duration):
@@ -181,6 +197,10 @@ class Action:
                                    # spread over the other actions when the party takes damage (Target.party_damage)
     chain_of: str | None = None    # a chain step: pressed with this action's key while its chain is open, no skill
                                    # or hotbar slot of its own (Pummel -> Punishing Strike)
+    absorb: float = 0.0            # a shield the cast grants the caster, as a share of their maximum HP, as the
+                                   # tooltip states it (Doom Shield 5 %, Poach's level-12 specialization 10 %)
+    absorb_each: bool = False      # the shield is a share of each recipient's own maximum HP (Nezekan's Shield);
+                                   # the caster's share alone is counted
 
     def group(self) -> str:
         return self.cd_group or self.key
@@ -223,6 +243,14 @@ class Sim:
         self.heal_share = min(0.5, sum((a.cast / max(0.2, 1.0 + derived.combat_speed) + self.cfg.latency) / a.cooldown
                                        for a in actions.values() if a.heal and a.cooldown > 0)) \
             if self.target.party_damage else 0.0
+        # The share of a boss fight the class's recorded players spend pressing nothing or dodging
+        # (FIGHT_INACTIVE), spread over every action like the heals, when a whole fight's DPS is asked for.
+        self.inactive_share = 0.0
+        if self.cfg.whole_fight and self.target.party_damage:
+            cls = next((_CLASS_OF_PREFIX.get(a.skill_id // 1_000_000) for a in actions.values()
+                        if _CLASS_OF_PREFIX.get(a.skill_id // 1_000_000)), None)
+            self.inactive_share = min(0.6, FIGHT_INACTIVE.get(cls or "", 0.0))
+        self.absorb_share = 0.0            # the shields the rotation grants, in shares of the caster's maximum HP
         self.buffs: dict[str, Buff] = {}
         self.debuffs: dict[str, Buff] = {}
         self.dots: dict[str, dict] = {}
@@ -459,7 +487,7 @@ class Sim:
         dur = a.cast / max(0.2, 1.0 + cs)
         if self.cfg.quantize:
             dur = math.ceil(dur / self.cfg.tick - 1e-6) * self.cfg.tick
-        return (dur + self.cfg.latency) / (1.0 - self.heal_share)
+        return (dur + self.cfg.latency) / max(0.2, 1.0 - self.heal_share - self.inactive_share)
 
     def mp_cost(self, a: Action) -> float:
         return a.mp * max(0.0, 1.0 - self.base.mp_cost_red)
@@ -524,6 +552,7 @@ class Sim:
         self.mp -= self.mp_cost(a)
         self.mp_floor = min(self.mp_floor, self.mp)
         self.casts[a.key] = self.casts.get(a.key, 0) + 1
+        self.absorb_share += a.absorb
         self.timeline.append((self.t, a.key))
         if a.cooldown > 0:
             cd = a.cooldown * (1.0 - (self.base.cdr if a.affected_by_cdr else 0.0))
@@ -578,7 +607,7 @@ class Sim:
                          dict(self.casts), {k: v / T for k, v in self.buff_time.items()},
                          idle, self.mp_floor, list(self.timeline), list(self._reservation_report),
                          sorted([[min(T, max(0.0, t)), amount] for t, amount in self.damage_events]),
-                         control=self.control_s)
+                         control=self.control_s, absorb_share=self.absorb_share, inactive_share=self.inactive_share)
 
 
 @dataclass
@@ -595,6 +624,8 @@ class SimResult:
     action_reservations: list = field(default_factory=list)
     damage_events: list = field(default_factory=list)
     control: float = 0.0           # seconds of hard crowd control applied to enemies (World PvP)
+    absorb_share: float = 0.0      # shields the rotation granted the caster, in shares of their maximum HP
+    inactive_share: float = 0.0    # the idle and dodging share the rotation was stretched over (whole_fight)
 
     @property
     def dps(self) -> float:

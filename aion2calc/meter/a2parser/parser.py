@@ -1624,6 +1624,38 @@ def scan_positions(frame: bytes) -> list[dict]:
     return [row]
 
 
+def scan_move_delta(frame: bytes) -> dict | None:
+    """A moving entity's step since its previous movement record (``1d 37``, about four times a second while it
+    moves): ``{"kind": "delta", "entity", "dx", "dy", "dz", "heading", "moving"}``, else None.
+
+    After the entity id: a flag byte whose bits 1, 2 and 3 say which of x, y and z follow and bit 5 whether the
+    entity is moving, a state byte, one signed byte per present axis (game units) and the heading twice (u16,
+    65536 = 360 degrees). In the 20 October dungeon run the flag bits named the bytes present in every one of
+    35,819 records; the steps between two absolute fixes sum to the fixes' displacement (median ratio 1.12,
+    quartiles 1.01-1.17 over 5,483 intervals) and point along the travel heading (median 9 degrees over 28,111
+    steps), so the engine places a moving entity from its last fix plus the steps (``src`` ``delta``)."""
+    length = read_varint(frame, 0)
+    if length.length <= 0 or frame[length.length:length.length + 2] != b"\x1d\x37":
+        return None
+    entity = _var(frame, length.length + 2)
+    if entity is None or not 100 <= entity[0] <= 9_999_999:
+        return None
+    body = frame[entity[1]:]
+    if len(body) < 6:
+        return None
+    flags = body[0]
+    axes = ((flags >> 1) & 1, (flags >> 2) & 1, (flags >> 3) & 1)
+    if len(body) != 2 + sum(axes) + 4:
+        return None
+    step, at = [0, 0, 0], 2
+    for i in range(3):
+        if axes[i]:
+            step[i] = body[at] - 256 if body[at] > 127 else body[at]
+            at += 1
+    return {"kind": "delta", "entity": entity[0], "dx": step[0], "dy": step[1], "dz": step[2],
+            "heading": round(int.from_bytes(body[-4:-2], "little") * 360 / 65536, 1), "moving": bool(flags & 0x20)}
+
+
 def scan_zone_state(data: bytes) -> tuple[bool, int | None]:
     """Find self zone-transition and current map id packets."""
     zone_change = False

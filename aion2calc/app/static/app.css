@@ -548,6 +548,10 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 16px; backgrou
 .rpanel { border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); padding: 12px 14px; }
 .rpanel h4 { margin: 14px 0 6px; } .rpanel h4:first-child { margin-top: 0; }
 .rpanel .row { flex-wrap: wrap; gap: 6px; }
+/* A select's natural width is its longest option (a saved log's title): keep every control inside the panel. */
+.rpanel { min-width: 0; }
+.rpanel select, .rpanel input { max-width: 100%; min-width: 0; box-sizing: border-box; }
+.rpanel #ractual, .rpanel #rmovelog, .rpanel #rmovefight { width: 100%; text-overflow: ellipsis; }
 .rshowlist { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow: auto; margin-top: 4px; }
 .rswatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--tc); vertical-align: middle; }
 .kflist { border-top: 1px solid var(--line-soft); padding-top: 6px; }
@@ -801,6 +805,14 @@ html.i18n-wait body { visibility: hidden; }
 .pn-body th, .pn-body td { border: 1px solid var(--line2); padding: 4px 8px; text-align: left; }
 .pn-foot { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; padding: 12px 20px 16px;
   border-top: 1px solid var(--line2); }
+
+/* Open in Raid Planner over work in progress (raid.js, 0.2.363): keep it, discard it or cancel, in a modal dialog. */
+.rp-ask { width: min(560px, calc(100vw - 32px)); padding: 16px 20px; border: 1px solid var(--frame-hi); border-radius: var(--r);
+  background: var(--panel); color: var(--text); box-shadow: 0 12px 40px rgba(0, 0, 0, .5); }
+.rp-ask::backdrop { background: rgba(0, 0, 0, .55); }
+.rp-ask h2 { margin: 0 0 10px; font-family: var(--display); color: var(--gold); }
+.rp-ask p { margin: 0 0 12px; line-height: 1.5; }
+.rp-ask-foot { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
 
 /* The quiet update's bar (0.2.353): bottom left, over the page, small. */
 .updbar { position: fixed; left: 12px; bottom: 12px; z-index: 60; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;

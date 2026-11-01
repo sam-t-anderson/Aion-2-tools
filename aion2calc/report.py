@@ -23,10 +23,11 @@ from .scenarios import SCENARIOS, typical_build, comparison_scenario
 from .sim.engine import Sim
 
 
-def _sim(build, scenario, policy, *, record_damage=False):
+def _sim(build, scenario, policy, *, record_damage=False, whole_fight=False):
     cd, b, kit, stats = prepare(build, scenario)
     pol = [e for e in policy if (e[0] if isinstance(e, tuple) else e) in kit.actions]
-    sim = Sim(stats.derived(), kit.actions, materialize(pol), scenario.target, replace(scenario.config, record_damage=record_damage),
+    sim = Sim(stats.derived(), kit.actions, materialize(pol), scenario.target,
+              replace(scenario.config, record_damage=record_damage, whole_fight=whole_fight),
               hooks=kit.hooks, cond_mods=kit.cond_mods)
     return sim.run(), kit, stats
 
@@ -364,6 +365,11 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     final, kit, stats = _sim(build, scen, policy, record_damage=True)
     final_other, _, _ = _sim(build, other, policy, record_damage=True)
     comm_other, _, _ = _sim(comm, baseline_other, comm_rot.policy)
+    # The same rotation stretched over the share of a boss fight the class's recorded players spend pressing
+    # nothing or dodging (sim.engine.FIGHT_INACTIVE): a whole fight's DPS beside the rotation's, for the fight
+    # scenario of the two that has the party taking damage.
+    fight_name = scenario_name if scen.target.party_damage else other_name if other.target.party_damage else None
+    fight = _sim(build, scen if fight_name == scenario_name else other, policy, whole_fight=True)[0] if fight_name else None
     if (survival or {}).get("action_windows") and (final.dps <= 0 or final_other.dps <= 0):
         raise ValueError("No outgoing damage fits the action-time schedule; shorten or move the pauses")
     d = stats.derived()
@@ -394,6 +400,11 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
         "progression": copy.deepcopy(progression),
         "budgets": {"skill": opt.sp_budget, "stigma": opt.stigma_points, "daevanion": daev_budget},
         "dps": {scenario_name: final.dps, other_name: final_other.dps},
+        "whole_fight": ({"scenario": fight_name, "dps": fight.dps, "inactive_share": fight.inactive_share,
+                         "note": "The rotation stretched over the share of a recorded boss fight the class's players spend "
+                                 "pressing nothing or dodging (the public uploads of the log server, 1 November 2026); "
+                                 "the optimizer's objective stays the rotation's DPS."}
+                        if fight is not None else None),
         "damage_traces": {name: {"version": 1, "duration_s": result.duration, "total": result.total,
                                   "events": result.damage_events}
                           for name, result in ((scenario_name, final), (other_name, final_other))},

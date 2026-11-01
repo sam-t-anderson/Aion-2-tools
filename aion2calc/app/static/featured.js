@@ -112,7 +112,7 @@ function progressHTML(d,f,options){
     <td class="fe-comp">${Object.entries(k.composition||{}).map(([cls,count])=>`${classIcon(cls,18)}<span>${count}</span>`).join("")}</td><td>${esc(when(k.at))}</td><td>${clock(k.seconds)}</td><td>${k.deaths==null?"—":n0(k.deaths)}</td><td><a href="${esc(options.logLink(k.log))}">Log</a></td></tr>`).join("");
   return `<div class="cr-scroll"><table class="t fe-table"><caption>Teams by progress</caption><thead><tr><th scope="col">Rank</th><th scope="col">Team</th><th scope="col">Progress</th><th scope="col">Bosses killed</th><th scope="col">Pulls</th><th scope="col">Last progress</th></tr></thead>
     <tbody>${rows||'<tr><td colspan="6">No team has an attempt on record yet.</td></tr>'}</tbody></table></div>${pager(d,50)}
-    <div class="cr-scroll"><table class="t fe-table"><caption>Final-boss kills, first first</caption><thead><tr><th scope="col">Rank</th><th scope="col">Team</th><th scope="col">Game version</th><th scope="col">Party</th><th scope="col">Date</th><th scope="col">Duration</th><th scope="col">Deaths</th><th scope="col">Log</th></tr></thead>
+    <div class="cr-scroll"><table class="t fe-table"><caption>Final-boss kills, earliest first</caption><thead><tr><th scope="col">Rank</th><th scope="col">Team</th><th scope="col">Game version</th><th scope="col">Party</th><th scope="col">Date</th><th scope="col">Duration</th><th scope="col">Deaths</th><th scope="col">Log</th></tr></thead>
     <tbody>${kills||'<tr><td colspan="8">No kill on record yet.</td></tr>'}</tbody></table></div>`;
 }
 function reportsHTML(d,options){

@@ -157,10 +157,12 @@ const localReviewOptions = (file) => ({
   },
   skillIcon,
   lookupProfile: (player, region) => api("/api/character/profile", { player, region }),
-  importPlan: (plan) => {
-    window.A2Raid.importPlan(plan);
-    location.hash = "/raid";
-  },
+  // Open in Raid Planner: the replay becomes the plan the planner shows (an untouched starter gives way to it;
+  // work in progress is asked about first), then the planner opens on it.
+  importPlan: (plan) =>
+    window.A2Raid.openReplay(plan).then((opened) => {
+      if (opened) location.hash = "/raid";
+    }),
   compare: (id) => communityAPI("/api/v1/logs/" + encodeURIComponent(id) + "/raw"),
   rankings: (segment, log) => communityAPI("/api/v1/rankings", { segment, log }),
   ...(file

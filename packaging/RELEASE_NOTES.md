@@ -1,3 +1,23 @@
+## The replay shows why everyone moved, the planner opens on your replay, a whole fight's DPS and the Templar's shields (0.2.363)
+
+**Why everyone moved.** The **Recorded movement replay** now shows the bosses' casts: a ring on the caster, a marker where the cast was aimed — the target's place, the caster's own for an effect around itself, or the ground — a dashed line between them and a wedge for the way the boss faced. An enemy or pet that appears during the fight is ringed where it appeared. A *Now:* line under the slider names each as it happens, the slider carries a tick at each, and the key's **Boss cast** and **Appeared** entries hide them. Recordings made from 0.2.363 carry the aim and the facing (every boss cast the game sends has an aim point, most a facing); older recordings show the casts without them. The game sends no shape or size for an effect, so the marker is the aim point, not the area.
+
+**Open in Raid Planner opens the replay.** The button used to land on the planner's starter plan, and the replay only showed after that plan was deleted. The replay is now the plan the planner opens on: an untouched starter plan gives way to it, and a plan you have worked on is asked about first — keep it in the Plan list and open the replay, discard it and open the replay, or cancel. The planner also reopens on the plan you last had open rather than the newest.
+
+**A whole fight's DPS beside the rotation's.** Players of every class spend 30–40 % of a recorded boss fight pressing nothing or pressing Dodge (2,407 public boss fights). Results and reports now show **Whole fight**: the rotation stretched over that share, so cooldown skills keep their cadence and fillers are pressed less. The optimizer still ranks builds and rotations by the rotation's DPS, which is what gear and priorities change.
+
+**The Templar's shields count in World PvP.** Doom Shield and Poach's specialization (per press), Nezekan's Shield and Guarding Seal (once a cooldown) count as the HP they absorb in the World PvP survival score, at the shares the tooltips state and the recordings measured.
+
+**One game version across launchers.** The game version the in-game settings show (2.0.9.0) is read from the Steam executable's version and from PURPLE's launcher record alike, and `install-version` compares installations by it first.
+
+**Nightmare and the Citadel of the Fallen Daeva.** Map 200003 is the Nightmare hub: fights there are named *Nightmare* with the stage's level, and the stage's boss ends the run. The Citadel's tiers take Basilus the False as their final boss, so a clear completes and can rank.
+
+**Gathering reports carry each node's place.** The report of a gather now includes where the node stood, and the log server keeps each node's spots (log server 0.2.155).
+
+**Movement steps.** The game's small movement records are read as steps from the last known position, so recorded tracks have points between fixes.
+
+**Smaller fixes.** Raid Planner: the *Compare with a fight* and *Import recorded movement* dropdowns no longer run past the side panel. Featured encounters: the progress page reads *Final-boss kills, earliest first*.
+
 ## Older map-61 fights read the Impetusium Arena too (0.2.362)
 
 **The arena's name in older logs.** Logs saved before 0.2.361 call the arena on map 61 *Arena (map 61)*. They now read *Impetusium Arena* wherever they are shown: in your saved logs, on a shared log's page and, once the log server has re-read its logs, in the community lists. The saved files themselves are not changed.
