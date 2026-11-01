@@ -79,6 +79,7 @@ _VISUAL_KEYS = ("overlay_text_colors", "overlay_glow", "overlay_glow_color", "ov
                 "overlay_font_family", "overlay_font_scale", "overlay_font_weight",
                 "overlay_bg_opacity", "overlay_bg_zoom", "overlay_bg_darken",
                 "overlay_name_mode", "overlay_long_names_scroll", "combat_colors",
+                "overlay_bg_mode", "overlay_me_cosmetic", "overlay_top_cosmetic",
                 "overlay_color_cycle", "overlay_text_autocontrast")
 
 
@@ -153,6 +154,14 @@ def _clean(data: dict) -> dict:
         elif key == "pettracker_overlay_style":
             if value not in ("app", "pettracker"):
                 raise ValueError("pettracker_overlay_style must be app or pettracker")
+            clean[key] = value
+        elif key == "overlay_bg_mode":
+            if value not in ("card", "top", "none"):
+                raise ValueError("overlay_bg_mode must be card, top or none")
+            clean[key] = value
+        elif key in ("overlay_me_cosmetic", "overlay_top_cosmetic"):
+            if value not in ("none", "gold", "rainbow", "ember", "frost", "aether", "starlight"):
+                raise ValueError(f"{key} must be none, gold, rainbow, ember, frost, aether or starlight")
             clean[key] = value
         elif key == "overlay_bar_style":
             if value not in ("flat", "gradient"):

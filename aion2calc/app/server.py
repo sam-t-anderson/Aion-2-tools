@@ -574,6 +574,13 @@ def _discord_done_page(out: dict) -> bytes:
 
 
 # --------------------------------------------------------------------- server
+# The overlay's background modes and its animated row effects (0.2.364): the card as always, the top portion
+# only (header, metric buttons, the target panel and its bars, the Odyle, Shugo and Nightmare lines), or none
+# (the rows, bars and text alone over the game). The effects are drawn by overlay.css; "none" turns one off.
+OVERLAY_BG_MODES = ("card", "top", "none")
+OVERLAY_COSMETICS = ("none", "gold", "rainbow", "ember", "frost", "aether", "starlight")
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "aion2calc"
 
@@ -911,6 +918,14 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:
                 current.record_status_failure(exc)
                 raise
+        if path == "/api/meter/player":
+            # The overlay's player panel (0.2.364): one player of the live view in depth, by the row key the
+            # snapshot gave; null when the view no longer holds that player.
+            from .meter_runner import runner
+            key = str(q.get("key") or "")
+            if not key or len(key) > 64:
+                raise ValueError("key names a player row of the live view")
+            return self._json({"player": runner().player_detail(key, follow_latest=q.get("view") == "latest")})
         if path == "/api/icon":
             return self._icon(q.get("u", ""))
         raise FileNotFoundError(path)
@@ -1288,6 +1303,17 @@ class Handler(BaseHTTPRequestHandler):
                 if body["overlay_bar_style"] not in ("flat", "gradient"):
                     raise ValueError("overlay_bar_style must be flat or gradient")
                 cur["overlay_bar_style"] = body["overlay_bar_style"]
+            # The overlay's look (0.2.364): what carries the card's background, and the animated effect on your
+            # own row and on the top row (free for everyone; the overlay's stylesheet draws them).
+            if "overlay_bg_mode" in body:
+                if body["overlay_bg_mode"] not in OVERLAY_BG_MODES:
+                    raise ValueError("overlay_bg_mode must be card, top or none")
+                cur["overlay_bg_mode"] = body["overlay_bg_mode"]
+            for flag in ("overlay_me_cosmetic", "overlay_top_cosmetic"):
+                if flag in body:
+                    if body[flag] not in OVERLAY_COSMETICS:
+                        raise ValueError(f"{flag} must be one of {', '.join(OVERLAY_COSMETICS)}")
+                    cur[flag] = body[flag]
             if "overlay_cooldowns_position" in body:
                 if body["overlay_cooldowns_position"] not in ("bottom", "top"):
                     raise ValueError("overlay_cooldowns_position must be bottom or top")
@@ -1916,6 +1942,7 @@ def ui_settings() -> dict:
                 "overlay_ttk_color": "#8fb3d0",
                 "overlay_text_outline": False, "overlay_outline_color": "#000000",
                 "overlay_bar_style": "flat", "overlay_bar_rounded": False, "overlay_class_color_names": False,
+                "overlay_bg_mode": "card", "overlay_me_cosmetic": "none", "overlay_top_cosmetic": "none",
                 "overlay_color_cycle": False, "overlay_row_stripes": False, "overlay_class_swatch": False, "overlay_compact_rows": False, "overlay_rank_numbers": False, "overlay_highlight_me": False, "overlay_dps_graph": False,
                 "overlay_bg_opacity": 100, "overlay_bg_zoom": 100, "overlay_bg_darken": 20, "overlay_bg_set": False,
                 "overlay_text_autocontrast": "off",

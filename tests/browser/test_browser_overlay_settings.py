@@ -222,3 +222,23 @@ def test_a_class_colour_palette_sets_all_eight_classes_and_default_puts_them_bac
         assert posted(page, lambda: box.locator("[data-apply-palette]").click())["combat_colors"]["colors"] == defaults
     finally:
         put_back(page, {"combat_colors": {}})
+
+
+def test_the_background_mode_and_the_row_effects_save_as_chosen(app_page, app_url):
+    page = app_page
+    open_settings(page, app_url, "overlay")
+    assert page.eval_on_selector_all("#ov-bgmode option", "os => os.map(o => o.value)") == ["card", "top", "none"]
+    effects = page.eval_on_selector_all("#ov-cos-me option", "os => os.map(o => o.value)")
+    assert effects == ["none", "gold", "rainbow", "ember", "frost", "aether", "starlight"]
+    assert page.eval_on_selector_all("#ov-cos-top option", "os => os.map(o => o.value)") == effects
+    assert [page.input_value(s) for s in ("#ov-bgmode", "#ov-cos-me", "#ov-cos-top")] == ["card", "none", "none"]
+    try:
+        assert posted(page, lambda: page.select_option("#ov-bgmode", "top")) == {"overlay_bg_mode": "top"}
+        assert posted(page, lambda: page.select_option("#ov-cos-me", "rainbow")) == {"overlay_me_cosmetic": "rainbow"}
+        assert posted(page, lambda: page.select_option("#ov-cos-top", "gold")) == {"overlay_top_cosmetic": "gold"}
+        saved = page.evaluate("() => api('/api/ui')")
+        assert (saved["overlay_bg_mode"], saved["overlay_me_cosmetic"], saved["overlay_top_cosmetic"]) == ("top", "rainbow", "gold")
+        open_settings(page, app_url, "overlay")                                       # reopened, the selects show the saved choices
+        assert [page.input_value(s) for s in ("#ov-bgmode", "#ov-cos-me", "#ov-cos-top")] == ["top", "rainbow", "gold"]
+    finally:
+        put_back(page, {"overlay_bg_mode": "card", "overlay_me_cosmetic": "none", "overlay_top_cosmetic": "none"})

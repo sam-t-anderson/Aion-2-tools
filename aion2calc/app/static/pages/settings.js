@@ -1,6 +1,17 @@
 /* Settings (#/settings). */
 "use strict";
 
+// The overlay's animated row effects (0.2.364; overlay.css draws them). "none" turns one off.
+const OVERLAY_COSMETICS = [
+  ["none", "None"],
+  ["gold", "Gold: a turning gold frame and a diamond"],
+  ["rainbow", "Rainbow: a glowing rainbow name"],
+  ["ember", "Ember: a pulsing fire glow"],
+  ["frost", "Frost: an icy sheen"],
+  ["aether", "Aether: a violet and teal aurora"],
+  ["starlight", "Starlight: twinkling stars"],
+];
+
 // Preview the overlay event-notification sound: the uploaded sound if one is set,
 // otherwise the same built-in two-note chime the overlay plays. Falls back to the
 // chime if the custom file is absent. Called from a Test button (a user gesture).
@@ -68,6 +79,9 @@ const OVERLAY_VISUAL_KEYS = [
   "overlay_color_cycle",
   "overlay_bar_style",
   "overlay_bar_rounded",
+  "overlay_bg_mode",
+  "overlay_me_cosmetic",
+  "overlay_top_cosmetic",
   "overlay_class_color_names",
   "overlay_row_stripes",
   "overlay_class_swatch",
@@ -844,6 +858,20 @@ async function pageSettings() {
           ([v, l]) => `<option value="${v}" ${v === (ui.overlay_bar_style || "flat") ? "selected" : ""}>${l}</option>`,
         )
         .join("")}</select></label>
+      <label>Background <select id="ov-bgmode">${[
+        ["card", "Whole card"],
+        ["top", "Top portion only (header, boss panel, Odyle lines)"],
+        ["none", "None: rows, bars and text alone over the game"],
+      ]
+        .map(([v, l]) => `<option value="${v}" ${v === (ui.overlay_bg_mode || "card") ? "selected" : ""}>${l}</option>`)
+        .join("")}</select></label>
+      <label>My row's effect <select id="ov-cos-me">${OVERLAY_COSMETICS.map(
+        ([v, l]) => `<option value="${v}" ${v === (ui.overlay_me_cosmetic || "none") ? "selected" : ""}>${l}</option>`,
+      ).join("")}</select></label>
+      <label>Top row's effect <select id="ov-cos-top">${OVERLAY_COSMETICS.map(
+        ([v, l]) => `<option value="${v}" ${v === (ui.overlay_top_cosmetic || "none") ? "selected" : ""}>${l}</option>`,
+      ).join("")}</select></label>
+      <p class="small muted" style="margin:2px 0 6px 14px">The effects are free for everyone and hold still in performance mode. Click a player's name on the overlay for their details: totals, crit, front and back shares, their top skills and the buffs on them.</p>
       <label><input type="checkbox" id="ov-barrounded" ${ui.overlay_bar_rounded === true ? "checked" : ""}> Rounded bar corners</label>
       <label><input type="checkbox" id="ov-classnames" ${ui.overlay_class_color_names === true ? "checked" : ""}> Colour player names by class</label>
       <label><input type="checkbox" id="ov-stripes" ${ui.overlay_row_stripes === true ? "checked" : ""}> Zebra-stripe the player rows</label>
@@ -1991,6 +2019,12 @@ async function pageSettings() {
   if ($("#ov-bg-autocontrast"))
     $("#ov-bg-autocontrast").onchange = () =>
       api("/api/ui", { overlay_text_autocontrast: $("#ov-bg-autocontrast").value }).then(() => toast("Saved"));
+  $("#ov-bgmode").onchange = () =>
+    api("/api/ui", { overlay_bg_mode: $("#ov-bgmode").value }).then(() => toast("Saved"));
+  $("#ov-cos-me").onchange = () =>
+    api("/api/ui", { overlay_me_cosmetic: $("#ov-cos-me").value }).then(() => toast("Saved"));
+  $("#ov-cos-top").onchange = () =>
+    api("/api/ui", { overlay_top_cosmetic: $("#ov-cos-top").value }).then(() => toast("Saved"));
   $("#ov-barrounded").onchange = () =>
     api("/api/ui", { overlay_bar_rounded: $("#ov-barrounded").checked }).then(() => toast("Saved"));
   $("#ov-classnames").onchange = () =>

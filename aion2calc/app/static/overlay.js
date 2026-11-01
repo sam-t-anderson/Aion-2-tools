@@ -58,6 +58,17 @@
   // different id), the meter shows empty; the app keeps every fight, only this view clears (0.2.329).
   let clearedFight=null;
   const expanded=new Set();   // row keys whose per-skill breakdown is expanded (DPS view)
+  // The player panel (0.2.364): a click on a name opens one player in depth under the rows. The tiles and skills
+  // come from each poll's snapshot; the buffs on the player come from /api/meter/player, asked for when the panel
+  // opens and then every few seconds while it stays open.
+  const COSMETICS=["none","gold","rainbow","ember","frost","aether","starlight"];
+  let detailKey=null, detailBuffs=null, detailExtra=null, detailAt=0, detailBusy=false;
+  let bgMode="card", meCosmetic="none", topCosmetic="none";
+  const skillFamily=id=>{const n=Number(id);if(!Number.isSafeInteger(n)||n<=0)return null;return Math.floor(n/10000)%100===0?n:n-n%10000;};
+  const skillIconHTML=(id,name)=>{const fam=skillFamily(id),initials=String(name||"").split(/\s+/).filter(Boolean).map(w=>w[0]).join("").slice(0,2);
+    const src=fam?"https://metabot.gg/web/aion2/skills/"+fam+".webp":"";
+    return `<span class="ovdicon"><em>${esc(initials)}</em>${src?`<img src="${esc(window.A2AssetHealth?A2AssetHealth.source(src):src)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:""}</span>`;};
+  const fmtSecs=s=>{s=Math.max(0,Math.round(Number(s)||0));return s>=60?`${Math.floor(s/60)}m ${String(s%60).padStart(2,"0")}s`:`${s}s`;};
   let interpolate=false, interpolateMs=200, showFps=false, locked=false, userWidth=null, userHeight=null;
   // Performance mode (Settings → App & data, 0.2.355): for a low-spec PC the overlay polls half as often, holds
   // still between polls (no live tick, frame counter, animation or transition) and redraws the cooldown strip
@@ -203,9 +214,18 @@
     document.getElementById('ov').classList.toggle('ov-compact',ui.overlay_compact_rows===true);
     // Long-name scrolling
     document.getElementById('ov').classList.toggle('ov-scroll-names',ui.overlay_long_names_scroll===true);
+    // Background (0.2.364): the whole card (the default), the top portion only (the header, the metric buttons,
+    // the target panel with its bars, the Odyle, Shugo and Nightmare lines), or none: the rows, bars and text
+    // alone over the game.
+    bgMode=["card","top","none"].includes(ui.overlay_bg_mode)?ui.overlay_bg_mode:"card";
+    document.getElementById('ov').classList.toggle('ov-bg-top',bgMode==="top");
+    document.getElementById('ov').classList.toggle('ov-bg-none',bgMode==="none");
+    // Animated row effects (0.2.364), free for everyone: one for your own row, one for the top row.
+    meCosmetic=COSMETICS.includes(ui.overlay_me_cosmetic)?ui.overlay_me_cosmetic:"none";
+    topCosmetic=COSMETICS.includes(ui.overlay_top_cosmetic)?ui.overlay_top_cosmetic:"none";
     // Background photo (opacity 0 = none). The image load errors are swallowed.
     const bgOp=clampInt(ui.overlay_bg_opacity,0,100,100), bgZoom=clampInt(ui.overlay_bg_zoom,50,200,100), bgDark=clampInt(ui.overlay_bg_darken,0,100,20);
-    applyBackground(ui.overlay_bg_set===true && bgOp>0, bgOp, bgZoom, bgDark);
+    applyBackground(ui.overlay_bg_set===true && bgOp>0 && bgMode!=="none", bgOp, bgZoom, bgDark);
     // Auto-contrast the text to that background image (off / blend / luminance).
     applyAutoContrast(typeof ui.overlay_text_autocontrast==='string'?ui.overlay_text_autocontrast:'off', ui.overlay_bg_set===true && bgOp>0, bgDark);
     showContribution=ui.overlay_show_contribution!==false;
@@ -593,9 +613,9 @@
     visible.forEach(p=>{const name=String(p.name||'').toLocaleLowerCase();names.set(name,(names.get(name)||0)+1);});
     const duplicate=p=>(names.get(String(p.name||'').toLocaleLowerCase())||0)>1;
     const shownCount = autoExpand ? Math.min(24, Math.max(maxPlayers, visible.length)) : maxPlayers;
-    // Your own row (matched by the re-acquired local name) can be highlighted.
+    // Your own row (matched by the re-acquired local name) can be highlighted and carry its own effect.
     localId = snap.identity_status && snap.identity_status.local_id != null ? snap.identity_status.local_id : null;
-    const meName = highlightMe && snap.identity_status && snap.identity_status.local_name ? String(snap.identity_status.local_name).toLocaleLowerCase() : "";
+    const meName = snap.identity_status && snap.identity_status.local_name ? String(snap.identity_status.local_name).toLocaleLowerCase() : "";
     const isMe = p => meName && String(p.name||'').toLocaleLowerCase() === meName;
     const ranked = [...visible].sort((a,b)=>rate(b)-rate(a)||amount(b)-amount(a));
     const rows = ranked.slice(0, shownCount).map((p, i) => {
@@ -606,7 +626,8 @@
       // When the DPS graph is on, an expanded row also shows that player's DPS trend.
       const spark=(hasSkills&&showGraph&&expanded.has(key))?sparkLine(playerHist.get(key),barColor(p.class)):"";
       const skills=hasSkills?`<div class="ovskills"${expanded.has(key)?'':' hidden'}>${spark}${p.skills.slice(0,6).map(sk=>`<div class="ovskrow"><span class="ovskname">${esc(sk.skill||sk.skill_id)}</span><span class="ovskval">${kfmt(sk.damage)} · ${Math.round((sk.share||0)*100)}%</span></div>`).join("")}</div>`:"";
-      return `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}${isMe(p)?' ovrow-me':''}${hasSkills?' ovrow-x':''}${hasSkills&&expanded.has(key)?' ovrow-open':''}"${hasSkills?` data-exk="${esc(key)}"`:''}><span class="ovname" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""}">${rankNumbers?`<span class="ovrank${i<3?' ovrank-'+(i+1):''}">${i+1}.</span>`:''}${classIcon(p.class)}${classSwatch?`<i class="ovclass" style="background:${barColor(p.class)}" title="${esc(p.class||'')}"></i>`:''}<span class="ovnametext"${classColorNames?` style="color:color-mix(in srgb, ${barColor(p.class)} 55%, #ffffff)"`:''}>${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}${showCommunityRank&&p.community_rank&&p.community_rank.text?`<small class="ovcrank" title="Community standing for your last uploaded fight">${esc(p.community_rank.text)}</small>`:''}</span>
+      const cosmetic=isMe(p)&&meCosmetic!=="none"?meCosmetic:(i===0&&topCosmetic!=="none"?topCosmetic:null);
+      return `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}${highlightMe&&isMe(p)?' ovrow-me':''}${hasSkills?' ovrow-x':''}${hasSkills&&expanded.has(key)?' ovrow-open':''}${cosmetic?' ov-cos-'+cosmetic:''}${detailKey===key?' ovrow-detail':''}"${hasSkills?` data-exk="${esc(key)}"`:''}><span class="ovname" data-detail="${esc(key)}" role="button" tabindex="0" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""} · Click for this player's details">${rankNumbers?`<span class="ovrank${i<3?' ovrank-'+(i+1):''}">${i+1}.</span>`:''}${classIcon(p.class)}${classSwatch?`<i class="ovclass" style="background:${barColor(p.class)}" title="${esc(p.class||'')}"></i>`:''}<span class="ovnametext"${classColorNames?` style="color:color-mix(in srgb, ${barColor(p.class)} 55%, #ffffff)"`:''}>${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}${showCommunityRank&&p.community_rank&&p.community_rank.text?`<small class="ovcrank" title="Community standing for your last uploaded fight">${esc(p.community_rank.text)}</small>`:''}</span>
         <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i data-k="${esc(key)}" style="width:${100 * rate(p) / mx}%;--bar:${barColor(p.class)}"></i><span><span class="ovrate" data-k="${esc(key)}" data-target="${rate(p)}" data-amt="${amount(p)}">${kfmt(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div>${skills}</div>`;
     }).join("");
     const duration=metric==="dps"?snap.duration:snap.recorded_duration;
@@ -732,6 +753,8 @@
     if(showC) setText($("#ovcontribution"),`Your contribution: ${Math.round((c.share||0)*100)}% · ${kfmt(c.damage)} (${kfmt(c.dps)}/s)`);
     recordGraph(s, snap, players);
     renderCooldowns();
+    renderDetail(snap, players, over||cleared);
+    measureTop();
     // Click-through keeps the overlay's controls live through the rects the page reports; a render that
     // moved them (rows came or went, the target panel appeared) reports them again once laid out.
     if(changed&&clickThrough) requestAnimationFrame(reportInteractiveRects);
@@ -741,9 +764,64 @@
     // the fight, so keep the meter open through it — never collapse mid-boss.
     if(onlyInCombat && (!s.running || over || (snap.paused && snap.boss_alive!==true))){
       setHtml($("#ovcontent"),'');
-      for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovshugo","#ovnightmare","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovidentity","#ovgraph","#ovcooldowns"])$(id).hidden=true;
+      for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovshugo","#ovnightmare","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovidentity","#ovgraph","#ovcooldowns","#ovdetail"])$(id).hidden=true;
       if(setText($("#ovstatus"),s.running?'Idle · waiting for combat':'Idle')) $("#ovstatus").title=$("#ovstatus").textContent;
     }
+  }
+  // The player panel (0.2.364): the player's totals and special-hit shares as tiles, their top skills with icons,
+  // and the buffs on them with their uptime (from /api/meter/player). The tiles and skills follow each poll.
+  function openDetail(key){
+    detailKey=key; detailBuffs=null; detailExtra=null; detailAt=0;
+    if(key)fetchDetail(); else {const box=$("#ovdetail");if(box){box.hidden=true;box.innerHTML="";}}
+    if(lastSnap)renderMeter();
+  }
+  async function fetchDetail(){
+    if(!detailKey||detailBusy)return;
+    detailBusy=true; const key=detailKey;
+    try{
+      const r=await fetch("/api/meter/player?view=latest&key="+encodeURIComponent(key));
+      if(!r.ok)throw Error("HTTP "+r.status);
+      const d=(await r.json()).player;
+      if(detailKey!==key)return;
+      detailBuffs=d&&Array.isArray(d.buffs)?d.buffs:[]; detailExtra=d||null; detailAt=Date.now();
+      if(lastSnap)renderMeter();
+    }catch(e){ if(detailKey===key){detailBuffs=[];detailAt=Date.now();} }
+    finally{detailBusy=false;}
+  }
+  function renderDetail(snap, players, idle){
+    const box=$("#ovdetail"); if(!box)return;
+    if(!detailKey||idle){box.hidden=true;return;}
+    const p=players.find(x=>String(x.key||x.id)===detailKey);
+    if(!p){box.hidden=false;box.innerHTML=`<div class="ovdhead"><span class="ovdname">Player</span><button type="button" class="ovdclose" data-close title="Close">✕</button></div><div class="muted">This player is no longer in the live view.</div>`;return;}
+    if(Date.now()-detailAt>3000&&!detailBusy)fetchDetail();
+    const pct=v=>v==null?"—":Math.round(v*100)+"%";
+    const identity=snap.identity_status, me=identity&&identity.local_name&&String(p.name||'').toLocaleLowerCase()===String(identity.local_name).toLocaleLowerCase();
+    const cp=p.combat_power||(me&&identity.local_combat_power)||null;
+    const active=detailExtra&&Number.isFinite(detailExtra.active_seconds)?detailExtra.active_seconds:null;
+    const target=snap.current_target&&!snap.current_target.is_player?snap.current_target.name:(snap.boss||"");
+    const tiles=[["Total damage",kfmt(p.damage)],["DPS",kfmt(p.dps)+"/s"],["Contribution",pct(p.share)],["Combat time",fmtSecs(snap.duration)],
+      ["Hits",String(p.hits||0)],["Parry",pct(p.parry)],["Crit",pct(p.crit)],["Front",pct(p.front)],["Back",pct(p.back)],["Perfect",pct(p.perfect)],["Double",pct(p.double)],
+      ["Parried in",String(p.incoming&&p.incoming.parries||0)]];
+    const titles={"Parry":"Share of this player's hits the enemy parried","Front":"Share of hits landed from the front","Back":"Share of hits landed from behind",
+      "Perfect":"Share of perfect hits","Double":"Share of double hits","Parried in":"Hits on this player that they parried","Combat time":active!=null?`Fight time; this player dealt damage in ${fmtSecs(active)} of it`:"Fight time"};
+    const skills=(Array.isArray(p.skills)?p.skills:[]).slice(0,8);
+    const top=skills.length?Math.max(...skills.map(k=>Number(k.damage)||0),1):1;
+    const skillRows=skills.map(k=>`<div class="ovdsk" title="${esc(k.skill||k.skill_id)}: ${kfmt(k.damage)} over ${k.hits||0} hits · avg ${kfmt(k.hits?k.damage/k.hits:0)}${k.crit!=null?` · crit ${pct(k.crit)}`:""}${k.back!=null?` · back ${pct(k.back)}`:""}${k.parry!=null?` · parried ${pct(k.parry)}`:""}">${skillIconHTML(k.skill_id,k.skill)}<span class="ovdskname">${esc(k.skill||k.skill_id)}</span><span class="ovdskbar"><i style="width:${Math.round(100*(Number(k.damage)||0)/top)}%"></i></span><span class="ovdskval">${kfmt(k.damage)} · ${Math.round((k.share||0)*100)}% · ${k.hits||0}×${k.crit!=null?` · ${pct(k.crit)}`:""}</span></div>`).join("");
+    const buffs=detailBuffs===null?`<div class="muted">Reading the buffs…</div>`:detailBuffs.length?detailBuffs.slice(0,10).map(b=>`<div class="ovdsk" title="${esc(b.skill)}: ${b.uptime_pct}% of the fight (${fmtSecs(b.seconds)}), applied ${b.applications}×${b.self?", by this player":""}">${skillIconHTML(b.skill_id,b.skill)}<span class="ovdskname">${esc(b.skill)}</span><span class="ovdskbar"><i style="width:${Math.max(0,Math.min(100,Math.round(b.uptime_pct)))}%"></i></span><span class="ovdskval">${Math.round(b.uptime_pct)}% · ${fmtSecs(b.seconds)}</span></div>`).join(""):`<div class="muted">No buff records in this fight yet.</div>`;
+    const html=`<div class="ovdhead">${classIcon(p.class)}<span class="ovdname" translate="no">${esc(displayName(p))}</span><span class="ovdsub">${esc((p.class||"").replace(/^./,c=>c.toUpperCase()))}${cp?` · CP ${kfmt(cp)}`:""}</span><button type="button" class="ovdclose" data-close title="Close the player panel" aria-label="Close">✕</button></div>`
+      +`<div class="ovdsub ovdline">${target?`Target: <span translate="no">${esc(target)}</span> · `:""}${fmtSecs(snap.duration)} in combat${me?" · you":""}</div>`
+      +`<div class="ovdtiles">${tiles.map(([k,v])=>`<div class="ovdtile"${titles[k]?` title="${esc(titles[k])}"`:""}><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join("")}</div>`
+      +(skillRows?`<div class="ovdsec">Top skills</div><div class="ovdlist">${skillRows}</div>`:"")
+      +`<div class="ovdsec">Buff uptime</div><div class="ovdlist">${buffs}</div>`;
+    box.hidden=false; setHtml(box,html);
+  }
+  $("#ovdetail")&&$("#ovdetail").addEventListener("click",e=>{if(e.target.closest("[data-close]"))openDetail(null);});
+  // In the top-background mode the panel behind the header ends where the player rows begin: measured after
+  // each render, so a target panel coming or going moves it.
+  function measureTop(){
+    const card=$(".ovcard"),rows=$("#ovcontent");
+    if(!card||!rows||bgMode!=="top"){if(card)card.style.removeProperty("--ov-top-h");return;}
+    requestAnimationFrame(()=>{const h=rows.getBoundingClientRect().top-card.getBoundingClientRect().top;card.style.setProperty("--ov-top-h",Math.max(0,Math.round(h))+"px");});
   }
   // Skill-cooldown strip: your skills on cooldown, soonest ready first, each counting down
   // between polls from the time left the meter sent (the cooldown the game sent with the cast,
@@ -845,12 +923,19 @@
   // are rebuilt each poll; the open set is re-applied on render).
   const ovc=$("#ovcontent");
   if(ovc)ovc.addEventListener("click",e=>{
+    const name=e.target.closest(".ovname[data-detail]");
+    if(name&&ovc.contains(name)){const k=name.getAttribute("data-detail");openDetail(detailKey===k?null:k);return;}
     const row=e.target.closest(".ovrow[data-exk]");
     if(!row||!ovc.contains(row))return;
     const k=row.getAttribute("data-exk"),panel=row.querySelector(".ovskills");
     if(!panel)return;
     if(expanded.has(k)){expanded.delete(k);panel.hidden=true;}else{expanded.add(k);panel.hidden=false;}
     row.classList.toggle("ovrow-open",!panel.hidden);
+  });
+  if(ovc)ovc.addEventListener("keydown",e=>{   // the names are focusable: Enter or Space opens the panel too
+    if(e.key!=="Enter"&&e.key!==" ")return;
+    const name=e.target.closest&&e.target.closest(".ovname[data-detail]");
+    if(!name)return; e.preventDefault(); const k=name.getAttribute("data-detail"); openDetail(detailKey===k?null:k);
   });
   async function pollMeter() {
     if (polling || locked) return;   // frozen for a screenshot
