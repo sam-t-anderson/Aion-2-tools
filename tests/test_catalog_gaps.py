@@ -13,8 +13,8 @@ def test_the_gap_report_lists_the_three_gaps_from_the_bundled_tables():
     report = gaps()
     counts = report["counts"]
     assert report["format"] == "a2catalog-gaps" and report["catalog_revision"] and report["catalog_source"].get("revision")
-    # Named tiers without a boss: only the Citadel tiers remain (no curated sibling to derive from).
-    assert {row["instance_id"] for row in report["named_tiers_without_final_boss"]} >= {600151, 600152, 600153}
+    # Named tiers without a boss: none left since the Citadel tiers took Basilus the False (0.2.363, sourced).
+    assert not {600151, 600152, 600153} & {row["instance_id"] for row in report["named_tiers_without_final_boss"]}
     assert counts["named_tiers_without_final_boss"] == len(report["named_tiers_without_final_boss"]) <= 5
     # The unnamed instances carry their curated boss names and the label reports will use.
     unnamed = report["unnamed_instances_with_final_boss"]
@@ -25,12 +25,15 @@ def test_the_gap_report_lists_the_three_gaps_from_the_bundled_tables():
     assert {r["instance_id"] for r in unnamed} >= {610020, 910011}
     # Every curated code is backed by a named boss NPC record.
     assert report["final_boss_codes_without_npc"] == [] and counts["final_boss_codes_without_npc"] == 0
-    assert counts["curated_instances"] >= 100 and counts["derived_tiers"] >= 17
+    assert counts["curated_instances"] >= 100 and counts["derived_tiers"] >= 21
+    # The Citadel's catalog ids are still unnamed upstream but carry the curated zone name reports show.
+    citadel = {r["instance_id"]: r["curated_name"] for r in unnamed if r["instance_id"] in (600144, 600145, 600146)}
+    assert citadel == {600144: "Citadel of the Fallen Daeva", 600145: "Citadel of the Fallen Daeva", 600146: "Citadel of the Fallen Daeva"}
 
 
 def test_an_unnamed_instance_is_labelled_by_its_final_boss_and_marked_derived():
     unnamed = gaps()["unnamed_instances_with_final_boss"]
-    instance = next(r["instance_id"] for r in unnamed if not r["supplement_name"])     # named by neither table
+    instance = next(r["instance_id"] for r in unnamed if not r["supplement_name"] and not r["curated_name"])   # named by no table
     label = derived_zone_label(instance)
     assert label and label.endswith(f"(instance {instance})")
     result = classify(0, instance, False, [])
@@ -46,8 +49,9 @@ def test_an_unnamed_instance_is_labelled_by_its_final_boss_and_marked_derived():
     assert supplied["zone"] == "Deus Research Base" and supplied["zone_source"].endswith(SUPPLEMENT_ZONE)
     assert "derived_zone" not in supplied["classification"]
     assert {r["instance_id"]: r["supplement_name"] for r in unnamed}[610052] == "Deus Research Base"
-    # No curated boss, no name: nothing is invented.
-    assert derived_zone_label(600151) is None and derived_zone_label(0) is None
+    # No curated boss, no name: nothing is invented (600151 has a sourced boss since 0.2.363, so it labels).
+    assert derived_zone_label(600151) == "Basilus the False (instance 600151)"
+    assert derived_zone_label(999_999_001) is None and derived_zone_label(0) is None
     assert "zone" not in classify(0, 999_999_001, False, [])        # unknown instance: no name, no curated boss
 
 

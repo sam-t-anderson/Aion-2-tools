@@ -74,7 +74,9 @@ def gaps():
         names = sorted({npcs.get(str(c), {}).get("name") for c in codes} - {None, ""})
         unnamed.append({"instance_id": instance, "final_bosses": names, "codes": sorted(codes),
                         "label": derived_zone_label(instance),
-                        # what reports show instead of the label (the name supplement, DBAion2), else None
+                        # what reports show instead of the label: the curated zone name (0.2.363), else the
+                        # name supplement's (DBAion2), else None
+                        "curated_name": (CURATED_ZONES.get(instance) or {}).get("zone"),
                         "supplement_name": supplement_dungeon(instance).get("name")})
     codes_without_npc = []
     for instance, codes in sorted(curated.items()):
