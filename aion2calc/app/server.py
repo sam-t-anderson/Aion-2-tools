@@ -685,6 +685,10 @@ class Handler(BaseHTTPRequestHandler):
                 if f.exists():
                     return self._send(200, f.read_bytes(), ctype, cache=60)
             return self._send(404, b"", "text/plain")
+        if path == "/static/aoe-shapes.json":
+            # the measured boss skill areas: the log server's nightly catalog when it is newer than the bundled one (0.2.366)
+            from . import aoe_catalog
+            return self._send(200, aoe_catalog.current_bytes(), "application/json; charset=utf-8")
         if path.startswith("/static/"):
             return self._static(path[len("/static/"):])
         if path == "/api/status":
@@ -919,9 +923,11 @@ class Handler(BaseHTTPRequestHandler):
                 current.record_status_failure(exc)
                 raise
         if path == "/api/meter/marks":
+            # the marks and candidates of this capture, and whether marking is on (diagnostic recording enabled, 0.2.366)
             from .meter_runner import runner
             r = runner()
-            return self._json({"marks": [dict(m) for m in r.marks], "labels": list(r.MARK_LABELS)})
+            return self._json({"marks": [dict(m) for m in r.marks], "labels": list(r.MARK_LABELS),
+                               "enabled": r.marking_enabled(), "recording": r.recording_active()})
         if path == "/api/meter/player":
             # The overlay's player panel (0.2.364): one player of the live view in depth, by the row key the
             # snapshot gave; null when the view no longer holds that player.
@@ -1168,7 +1174,20 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("label must be one of " + ", ".join(r.MARK_LABELS))
                 if body.get("note") is not None and not isinstance(body.get("note"), str):
                     raise ValueError("note must be text")
+                if not r.marking_enabled():
+                    raise ValueError("Tick Record TCP payloads first: a mark is only useful with the payloads it points at")
                 return self._json({"marks": r.mark(label or "other", body.get("note") or "", source="button")})
+            if action == "decide":
+                # a candidate mark confirmed or dismissed (0.2.366)
+                mark_id, accept = body.get("id"), body.get("accept")
+                if type(mark_id) is not int or not isinstance(accept, bool):
+                    raise ValueError("id must be a whole number and accept true or false")
+                label = body.get("label")
+                if label is not None and (not isinstance(label, str) or label not in r.MARK_LABELS):
+                    raise ValueError("label must be one of " + ", ".join(r.MARK_LABELS))
+                if body.get("note") is not None and not isinstance(body.get("note"), str):
+                    raise ValueError("note must be text")
+                return self._json({"marks": r.decide_mark(mark_id, accept, label, body.get("note"))})
             if action == "relabel":
                 label = body.get("label")
                 if label is not None and (not isinstance(label, str) or label not in r.MARK_LABELS):

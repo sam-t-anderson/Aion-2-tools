@@ -7,7 +7,7 @@ on a heavy fight says so."""
 import json
 import urllib.request
 
-from apphelpers import go, until
+from apphelpers import go, put_back, until
 
 
 def visible(page, selector: str) -> bool:
@@ -177,6 +177,19 @@ def test_a_moment_can_be_marked_and_the_latest_mark_labelled_afterwards(app_page
     go(page, app_url, "#/meter")
     page.locator("#madvanced").evaluate("d => d.open = true")
     page.locator("#madvanced details").last.evaluate("d => d.open = true")
+    # the marking controls show only with Record TCP payloads enabled (0.2.366): a mark is only useful with the payloads
+    assert page.locator("#mmarkbox").is_hidden() and not page.is_checked("#mrecord")
+    try:
+        page.check("#mrecord")
+        page.wait_for_function("!document.querySelector('#mmarkbox').hidden")
+        _mark_and_relabel(page, app_url)
+        page.uncheck("#mrecord")
+        page.wait_for_function("document.querySelector('#mmarkbox').hidden")
+    finally:
+        put_back(page, {"meter_record_packets": False})
+
+
+def _mark_and_relabel(page, app_url):
     page.select_option("#mmarklabel", "shield")
     page.fill("#mmarknote", "the templar's shield took the whole hit")
     page.click("#mmark")

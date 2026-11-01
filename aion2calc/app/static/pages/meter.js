@@ -125,7 +125,7 @@ async function pageMeter() {
         <p class="small faint">Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, and capture permission. <span id="npcapinfo"></span> Export writes an open a2log file; Upload uses the log server configured in Settings.</p>
         <details class="note" style="margin-top:10px"><summary><b>Capture diagnostics</b> <span class="small muted">capture counters, TCP recording for diagnostics, diagnostics export</span></summary><div id="mdriverstats" class="small muted" role="status"></div>
         <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads for diagnostics (optional; remembered, and every capture records while it is ticked)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><button class="btn small" id="mdiagfolder">Open diagnostics folder</button><span id="mrecordstatus" class="small muted"></span></div>
-        <p class="small faint">Diagnostic ZIPs include capture counters, status errors and a readable summary even with TCP recording off. Open diagnostics folder to find saved ZIPs. Ticked, TCP recording additionally writes raw payloads without a record or size limit, even when no combat events are decoded: for every capture however it starts (here, the overlay's Start, the Start/Stop hotkey or the start at launch), and from the moment you tick it during a capture. Available disk space limits recording. Saves a diagnostic ZIP automatically when capture stops; long recordings take longer to compress. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div class="row"><label class="small">Mark this moment <select id="mmarklabel" aria-label="What happened"><option value="shield">A shield absorbed a hit</option><option value="interrupt">A cast was interrupted</option><option value="miss">An attack missed or was evaded</option><option value="mitigation">Damage was reduced (block, resist)</option><option value="hot">A heal over time ticked</option><option value="pvp">PvP team or round changed</option><option value="mechanic">Boss mechanic (describe it)</option><option value="other">Other</option></select></label><input id="mmarknote" type="text" maxlength="200" placeholder="What you saw (optional)" aria-label="Note" style="width:220px"><button class="btn small" id="mmark">Mark</button><button class="btn small" id="mrelabel" title="Give the latest mark this label and note (a hotkey press is labelled afterwards)">Label the latest</button></div><p class="small faint">A mark stamps the capture's clock with what you saw, so the recording can be read against it: a shield soaking a hit, an interrupted cast, a miss, reduced damage, a heal over time, a PvP team or round, a boss mechanic. Marks ride in the diagnostic ZIP (marks.jsonl) and in the saved log. The <em>Mark this moment</em> hotkey (Settings → Overlay → Hotkeys) adds one from inside the game; label it here afterwards.</p><div id="mmarks" class="small" role="status"></div><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></details></details>
+        <p class="small faint">Diagnostic ZIPs include capture counters, status errors and a readable summary even with TCP recording off. Open diagnostics folder to find saved ZIPs. Ticked, TCP recording additionally writes raw payloads without a record or size limit, even when no combat events are decoded: for every capture however it starts (here, the overlay's Start, the Start/Stop hotkey or the start at launch), and from the moment you tick it during a capture. Available disk space limits recording. Saves a diagnostic ZIP automatically when capture stops; long recordings take longer to compress. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mmarkbox" hidden><div class="row"><label class="small">Mark this moment <select id="mmarklabel" aria-label="What happened"><option value="shield">A shield absorbed a hit</option><option value="interrupt">A cast was interrupted</option><option value="miss">An attack missed or was evaded</option><option value="mitigation">Damage was reduced (block, resist)</option><option value="hot">A heal over time ticked</option><option value="pvp">PvP team or round changed</option><option value="mechanic">Boss mechanic (describe it)</option><option value="other">Other</option></select></label><input id="mmarknote" type="text" maxlength="200" placeholder="What you saw (optional)" aria-label="Note" style="width:220px"><button class="btn small" id="mmark">Mark</button><button class="btn small" id="mrelabel" title="Give the latest mark this label and note (a hotkey press is labelled afterwards)">Label the latest</button></div><p class="small faint">A mark stamps the capture's clock with what you saw, so the recording can be read against it: a shield soaking a hit, an interrupted cast, a miss, reduced damage, a heal over time, a PvP team or round, a boss mechanic. Marks ride in the diagnostic ZIP (marks.jsonl) and in the saved log. The <em>Mark this moment</em> hotkey (Settings → Overlay → Hotkeys) adds one from inside the game; label it here afterwards.</p><div id="mmarks" class="small" role="status"></div><div id="mcands" class="small"></div></div><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></details></details>
     </div></section><div id="mview"></div><div id="mlog-review"></div>`;
   // Advanced capture opens as the player last left it (closed at first).
   const advanced = $("#madvanced");
@@ -544,10 +544,72 @@ async function pageMeter() {
       $("#mnotice").textContent = "Diagnostic export failed: " + e.message;
     }
   };
+  const MARK_LABELS = [
+    ["shield", "A shield absorbed a hit"],
+    ["interrupt", "A cast was interrupted"],
+    ["miss", "An attack missed or was evaded"],
+    ["mitigation", "Damage was reduced (block, resist)"],
+    ["hot", "A heal over time ticked"],
+    ["pvp", "PvP team or round changed"],
+    ["mechanic", "Boss mechanic (describe it)"],
+    ["other", "Other"],
+  ];
+  // Candidate marks (0.2.366): the moments the app thought looked like an evidence-gated item, each with
+  // Confirm (as the suggested label or another) and Dismiss; both are kept in the diagnostics.
+  const renderCandidates = (marks) => {
+    const target = $("#mcands");
+    if (!target) return;
+    const pending = (Array.isArray(marks) ? marks : [])
+      .filter((m) => m.kind === "candidate" && m.status === "pending")
+      .slice(-6)
+      .reverse();
+    const decided = (Array.isArray(marks) ? marks : []).filter(
+      (m) => m.kind === "candidate" && m.status !== "pending",
+    ).length;
+    target.innerHTML = pending.length
+      ? `<p class="small muted" style="margin:6px 0 2px">Candidates the app noticed (confirm what you saw, dismiss what you did not${decided ? `; ${decided} decided` : ""}):</p>` +
+        pending
+          .map((m) => {
+            const when = String(m.at || "")
+              .replace("T", " ")
+              .replace(/\.\d+Z$/, "Z");
+            const options = MARK_LABELS.map(
+              ([v, t]) => `<option value="${v}" ${v === m.label ? "selected" : ""}>${esc(t)}</option>`,
+            ).join("");
+            return `<div class="row" data-cand="${m.id}" style="margin:2px 0"><span class="pill">${esc(when)} · <b>${esc(m.label)}?</b> · ${esc(m.why || "")}</span> <select data-cand-label aria-label="Confirm as">${options}</select> <button class="btn small" data-cand-ok type="button">Confirm</button> <button class="btn small" data-cand-no type="button">Dismiss</button></div>`;
+          })
+          .join("")
+      : decided
+        ? `<p class="small muted" style="margin:6px 0 2px">No candidate waiting (${decided} decided this capture).</p>`
+        : "";
+    for (const row of target.querySelectorAll("[data-cand]")) {
+      const id = Number(row.dataset.cand);
+      const decide = async (accept) => {
+        try {
+          const r = await api("/api/meter", {
+            action: "decide",
+            id,
+            accept,
+            label: accept ? row.querySelector("[data-cand-label]").value : undefined,
+          });
+          renderMarks(r.marks);
+          $("#mnotice").textContent = accept ? "Candidate confirmed as a mark." : "Candidate dismissed.";
+        } catch (e) {
+          $("#mnotice").textContent = "Could not decide the candidate: " + e.message;
+        }
+      };
+      row.querySelector("[data-cand-ok]").onclick = () => decide(true);
+      row.querySelector("[data-cand-no]").onclick = () => decide(false);
+    }
+  };
   const renderMarks = (marks) => {
     const target = $("#mmarks");
     if (!target) return;
-    const rows = Array.isArray(marks) ? marks.slice(-8).reverse() : [];
+    renderCandidates(marks);
+    const rows = (Array.isArray(marks) ? marks : [])
+      .filter((m) => (m.kind || "mark") === "mark")
+      .slice(-8)
+      .reverse();
     target.innerHTML = rows.length
       ? "Marked: " +
         rows
@@ -563,13 +625,20 @@ async function pageMeter() {
           .join(" ")
       : "No marks yet in this capture.";
   };
+  const showMarkBox = (on) => {
+    const box = $("#mmarkbox");
+    if (box) box.hidden = !on;
+  };
   const loadMarks = async () => {
     try {
-      renderMarks((await api("/api/meter/marks")).marks);
+      const r = await api("/api/meter/marks");
+      showMarkBox(!!r.enabled);
+      renderMarks(r.marks);
     } catch (e) {
       /* the capture may not have started */
     }
   };
+  st.markTick = 0;
   $("#mmark").onclick = async () => {
     try {
       const r = await api("/api/meter", { action: "mark", label: $("#mmarklabel").value, note: $("#mmarknote").value });
@@ -698,6 +767,8 @@ async function pageMeter() {
     if (!onMeterPage()) return;
     try {
       const result = await meterStatus();
+      // the marks and candidates every third poll while a capture records raw TCP (0.2.366)
+      if (result && result.running && $("#mrecord").checked && ++st.markTick % 3 === 0) loadMarks();
       if (onMeterPage()) renderMeter(result);
     } catch (e) {
       if ($("#mmsg"))
@@ -723,6 +794,7 @@ async function pageMeter() {
   // Record TCP payloads is a saved setting that every Start follows (the overlay's, the hotkey's
   // and the start at launch too); ticking it during a capture records from then on.
   $("#mrecord").checked = ui.meter_record_packets === true;
+  showMarkBox(ui.meter_record_packets === true);
   $("#mrecord").onchange = async () => {
     const box = $("#mrecord"),
       on = box.checked;
@@ -732,6 +804,8 @@ async function pageMeter() {
       await api("/api/ui", { meter_record_packets: on });
       toast(on ? "TCP recording on: every capture records raw TCP from now on" : "TCP recording off");
       renderMeter(await meterStatus());
+      showMarkBox(on);
+      if (on) loadMarks();
     } catch (e) {
       box.checked = !on;
       $("#mnotice").textContent = "Could not change TCP recording: " + e.message;
