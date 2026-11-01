@@ -247,7 +247,6 @@
  "Field boss kills by server": "Jefes de campo derrotados por servidor",
  "Filter": "Filtrar",
  "Filter this page": "Filtrar esta página",
- "Filter your logs by boss": "Filtrar tus registros por jefe",
  "Final-boss kills, earliest first": "Victorias contra el jefe final, las primeras antes",
  "Find a legion": "Buscar una legión",
  "Find records": "Buscar récords",
@@ -822,5 +821,12 @@
  "open-world node": "punto de recolección de mundo abierto",
  "dungeon and open-world node": "punto de recolección de mazmorra y de mundo abierto",
  "Found in": "Se encuentra en",
- "and {0} more": "y {0} más"
+ "and {0} more": "y {0} más",
+ "From": "Desde",
+ "To": "Hasta",
+ "Uploaded on or after": "Subido desde este día",
+ "Uploaded on or before": "Subido hasta este día",
+ "your logs": "tus registros",
+ "the legion's logs": "los registros de la legión",
+ "Filter {0} by boss": "Filtrar {0} por jefe"
 }

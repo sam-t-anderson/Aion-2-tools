@@ -36,6 +36,49 @@
   const visLabel = (v) => (VIS().find(([k]) => k === v) || [v, v])[1];
   const box = (text, kind = "note") => `<div class="${kind}" role="status">${esc(text)}</div>`;
 
+  // A log list's query: its page, the boss, and the From/To days. The days are the viewer's own, as the table
+  // shows its times, so the server gets the instants they span (From's midnight up to the midnight after To).
+  const listQuery = (f, limit = 50) => {
+    const q = new URLSearchParams({ page: String(f.page), limit: String(limit) });
+    if (f.boss) q.set("boss", f.boss);
+    const midnight = (day, plus) => {
+      const [y, m, d] = day.split("-").map(Number);
+      return new Date(y, m - 1, d + plus).toISOString();
+    };
+    if (f.since) q.set("since", midnight(f.since, 0));
+    if (f.until) q.set("until", midnight(f.until, 1));
+    return q;
+  };
+  const filtering = (f) => Boolean(f.boss || f.since || f.until);
+  const filterRow = (f, what) =>
+    `<input type="search" data-boss value="${esc(f.boss)}" placeholder="${esc(tr("Boss"))}" aria-label="${esc(tr("Filter {0} by boss", what))}">
+      <label>${esc(tr("From"))} <input type="date" data-since value="${esc(f.since)}" aria-label="${esc(tr("Uploaded on or after"))}"></label>
+      <label>${esc(tr("To"))} <input type="date" data-until value="${esc(f.until)}" aria-label="${esc(tr("Uploaded on or before"))}"></label>
+      <button class="btn small" data-filter>${esc(tr("Filter"))}</button>${filtering(f) ? `<button class="btn small" data-clear>${esc(tr("Clear"))}</button>` : ""}`;
+  const pager = (f, r) => {
+    const pages = Math.max(1, Math.ceil((r.total || 0) / (r.limit || 50)));
+    return `<div class="row">${f.page > 1 ? `<button class="btn small" data-page="${f.page - 1}">${esc(tr("Previous"))}</button>` : ""}<span class="small muted">${esc(tr("Page {0} of {1}", f.page, pages))}</span>${f.page < pages ? `<button class="btn small" data-page="${f.page + 1}">${esc(tr("Next"))}</button>` : ""}</div>`;
+  };
+  const wireList = (el, f, show) => {
+    const apply = () => {
+      f.boss = el.querySelector("[data-boss]").value.trim();
+      f.since = el.querySelector("[data-since]").value;
+      f.until = el.querySelector("[data-until]").value;
+      f.page = 1;
+      show();
+    };
+    el.querySelector("[data-filter]").onclick = apply;
+    el.querySelectorAll("[data-boss],[data-since],[data-until]").forEach((i) => (i.onkeydown = (ev) => ev.key === "Enter" && apply()));
+    const clear = el.querySelector("[data-clear]");
+    if (clear)
+      clear.onclick = () => {
+        Object.assign(f, fresh(f.id));
+        show();
+      };
+    el.querySelectorAll("[data-page]").forEach((b) => (b.onclick = () => ((f.page = +b.dataset.page), show())));
+  };
+  const fresh = (id) => ({ id, page: 1, boss: "", since: "", until: "" });
+
   // The menu in the header: "Sign in", or the account's name with what an account offers under it.
   function menu(el, io) {
     if (!el) return { refresh() {} };
@@ -93,7 +136,7 @@
   }
 
   function mount(root, io, opts = {}) {
-    const st = { tab: opts.tab || "logs", page: 1, boss: "", legion: opts.legion || null, invite: opts.invite || null, me: null, flash: "" };
+    const st = { tab: opts.tab || "logs", mine: fresh(null), shared: fresh(null), legion: opts.legion || null, invite: opts.invite || null, me: null, flash: "" };
     const call = (method, path, body) => io.call(method, path, body);
     const flash = (text) => {
       st.flash = text;
@@ -149,28 +192,18 @@
 
     // ------------------------------------------------------------ my logs
     async function renderLogs(el) {
-      const q = new URLSearchParams({ page: String(st.page), limit: "50" });
-      if (st.boss) q.set("boss", st.boss);
-      const r = await call("GET", "/api/v1/account/logs?" + q);
-      const pages = Math.max(1, Math.ceil((r.total || 0) / (r.limit || 50)));
-      el.innerHTML = `<div class="row"><input type="search" data-boss value="${esc(st.boss)}" placeholder="${esc(tr("Boss"))}" aria-label="${esc(tr("Filter your logs by boss"))}">
-          <button class="btn small" data-filter>${esc(tr("Filter"))}</button>${io.logTools ? io.logTools() : ""}<span class="small muted">${esc(many(r.total || 0, "{0} log", "{0} logs"))}</span></div>
+      const f = st.mine;
+      const r = await call("GET", "/api/v1/account/logs?" + listQuery(f));
+      el.innerHTML = `<div class="row">${filterRow(f, tr("your logs"))}${io.logTools ? io.logTools() : ""}<span class="small muted">${esc(many(r.total || 0, "{0} log", "{0} logs"))}</span></div>
         ${r.logs.length ? `<table class="t acct-logs"><thead><tr><th>${esc(tr("Description"))}</th><th>${esc(tr("Character"))}</th><th>${esc(tr("Uploaded"))}</th><th class="r">${esc(tr("Duration"))}</th><th>${esc(tr("Visibility"))}</th><th>${esc(tr("Edit"))}</th><th>${esc(tr("Delete"))}</th></tr></thead><tbody>
         ${r.logs.map((l, i) => `<tr><td><a href="${esc(io.logHref(l))}"${io.logTarget || ""}>${esc(l.title || l.boss || l.id)}</a>${l.held ? ` <span class="chip">${esc(tr("under review"))}</span>` : ""}<div class="small muted" translate="no">${esc(l.boss || "")}</div></td>
           <td translate="no">${esc(l.uploader || "—")}</td><td>${when(l.created_at)}</td><td class="r">${length(l.duration)}</td>
           <td><select data-vis="${i}" aria-label="${esc(tr("Who can see {0}", l.title || l.id))}" ${l.held ? "disabled" : ""}>${VIS().map(([v, t]) => `<option value="${v}" ${v === l.visibility ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></td>
           <td><button class="btn small" data-title="${i}">${esc(tr("Edit"))}</button></td><td><button class="btn small" data-del="${i}">${esc(tr("Delete"))}</button></td></tr>`).join("")}</tbody></table>
-        <div class="row">${st.page > 1 ? `<button class="btn small" data-page="${st.page - 1}">${esc(tr("Previous"))}</button>` : ""}<span class="small muted">${esc(tr("Page {0} of {1}", st.page, pages))}</span>${st.page < pages ? `<button class="btn small" data-page="${st.page + 1}">${esc(tr("Next"))}</button>` : ""}</div>`
-        : `<p class="empty">${esc(st.boss ? tr("No logs match.") : tr("No logs yet. Uploads from your signed-in app join here, and the app adds the ones it uploaded before."))}</p>`}
+        ${pager(f, r)}`
+        : `<p class="empty">${esc(filtering(f) ? tr("No logs match.") : tr("No logs yet. Uploads from your signed-in app join here, and the app adds the ones it uploaded before."))}</p>`}
         <p class="small muted">${esc(tr("Legion only: the members of your legions open it; it is listed nowhere else. Private: only its secret link opens it."))}</p>`;
-      const box2 = el.querySelector("[data-boss]");
-      el.querySelector("[data-filter]").onclick = () => {
-        st.boss = box2.value.trim();
-        st.page = 1;
-        render();
-      };
-      box2.onkeydown = (ev) => ev.key === "Enter" && el.querySelector("[data-filter]").click();
-      el.querySelectorAll("[data-page]").forEach((b) => (b.onclick = () => ((st.page = +b.dataset.page), render())));
+      wireList(el, f, render);
       el.querySelectorAll("[data-vis]").forEach(
         (s) =>
           (s.onchange = () => {
@@ -404,12 +437,20 @@
               st.legion = null;
             }, tr("{0} is disbanded", L.name));
         };
-      const logs = el.querySelector("[data-legion-logs]");
+      if (st.shared.id !== id) st.shared = fresh(id);
+      await legionLogs(id, el.querySelector("[data-legion-logs]"));
+    }
+    // The legion's logs take the filters My logs takes (boss, From, To) and page the same way; they draw on their own,
+    // without the rest of the legion's page.
+    async function legionLogs(id, logs) {
+      const f = st.shared;
       try {
-        const r = await call("GET", `/api/v1/legions/${id}/logs?limit=50`);
-        logs.innerHTML = r.logs.length
-          ? `<table class="t"><thead><tr><th>${esc(tr("Description"))}</th><th>${esc(tr("Member"))}</th><th>${esc(tr("Uploaded"))}</th><th class="r">${esc(tr("Duration"))}</th><th>${esc(tr("Visibility"))}</th></tr></thead><tbody>${r.logs.map((l) => `<tr><td><a href="${esc(io.logHref(l))}"${io.logTarget || ""}>${esc(l.title || l.boss || l.id)}</a><div class="small muted" translate="no">${esc(l.boss || "")}</div></td><td translate="no">${esc(l.member || l.uploader || "—")}</td><td>${when(l.created_at)}</td><td class="r">${length(l.duration)}</td><td>${esc(visLabel(l.visibility))}</td></tr>`).join("")}</tbody></table>`
-          : `<p class="empty">${esc(tr("No logs shared yet. Members share a log by making it public or legion only."))}</p>`;
+        const r = await call("GET", `/api/v1/legions/${id}/logs?` + listQuery(f));
+        logs.innerHTML = `<div class="row">${filterRow(f, tr("the legion's logs"))}<span class="small muted">${esc(many(r.total || 0, "{0} log", "{0} logs"))}</span></div>
+          ${r.logs.length
+            ? `<table class="t"><thead><tr><th>${esc(tr("Description"))}</th><th>${esc(tr("Member"))}</th><th>${esc(tr("Uploaded"))}</th><th class="r">${esc(tr("Duration"))}</th><th>${esc(tr("Visibility"))}</th></tr></thead><tbody>${r.logs.map((l) => `<tr><td><a href="${esc(io.logHref(l))}"${io.logTarget || ""}>${esc(l.title || l.boss || l.id)}</a><div class="small muted" translate="no">${esc(l.boss || "")}</div></td><td translate="no">${esc(l.member || l.uploader || "—")}</td><td>${when(l.created_at)}</td><td class="r">${length(l.duration)}</td><td>${esc(visLabel(l.visibility))}</td></tr>`).join("")}</tbody></table>${pager(f, r)}`
+            : `<p class="empty">${esc(filtering(f) ? tr("No logs match.") : tr("No logs shared yet. Members share a log by making it public or legion only."))}</p>`}`;
+        wireList(logs, f, () => legionLogs(id, logs));
       } catch (e) {
         logs.innerHTML = box(plain(e.message));
       }
