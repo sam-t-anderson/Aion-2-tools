@@ -2,7 +2,6 @@
 and the bundled one, fetches at most every twelve hours, and keeps the bundled catalog through every failure."""
 import json
 import threading
-import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest

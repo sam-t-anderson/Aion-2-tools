@@ -1,6 +1,5 @@
 """Candidate marks (0.2.366): the scanner offers the moments that look like an evidence-gated item, only while raw
 TCP is recorded; the player confirms or dismisses them, and both outcomes travel with the diagnostics."""
-import types
 
 import pytest
 
