@@ -1367,6 +1367,112 @@ def scan_reward_list(frame: bytes) -> list[tuple[int, int]] | None:
     return items
 
 
+#: The arena's own records (0.2.361, from the 31 October recording of six matches on maps 60 and 61). Every
+#: fighter is named by the 8-byte character id the party records use: the database id in the low 48 bits, the
+#: home server in the top 16. ``19 e3`` is the match's roster as it opens, ``25 e3`` a round's result as it ends
+#: and ``28 e3`` the match's result, sent to the recording player.
+ARENA_FACTIONS = {1: "elyos", 2: "asmodian"}
+#: ``28 e3`` result byte: the recording player won the match (3) or lost it (2). All six matches of the recording
+#: agree with their rounds and with the rating the next roster carries.
+ARENA_RESULTS = {3: "win", 2: "loss"}
+#: Bytes a ``19 e3`` fighter carries besides its name: slot, rating (u64), rating (u32), nine bytes, the
+#: character id, the name's length byte, the class code, faction, level, a u32, the server, rating (u64), a
+#: byte, rating (u64), wins, losses, a byte, rating (u32), a byte.
+_ARENA_FIGHTER_FIXED = 1 + 8 + 4 + 9 + 8 + 1 + 4 + 1 + 4 + 4 + 2 + 8 + 1 + 8 + 3 + 4 + 1
+
+
+def _arena_fighter_id(body: bytes, at: int) -> int | None:
+    """The 8-byte character id at ``at`` (the database id and, in its top 16 bits, the home server), or None."""
+    if at + 8 > len(body):
+        return None
+    dbid = int.from_bytes(body[at:at + 8], "little")
+    character, middle, server = dbid & 0xFFFF_FFFF, (dbid >> 32) & 0xFFFF, dbid >> 48
+    if not character or middle or not 1_000 <= server < 10_000:
+        return None
+    return dbid
+
+
+def _arena_roster(body: bytes) -> dict | None:
+    """``19 e3``: the match id (u32), three bytes (zero), two u32 codes (the arena's and the event's, 22 and 8 on
+    map 61, 11 and 7 on map 60) with a u32 between them, the fighter count, then each fighter: its slot, its
+    rating (a u64 and the same as a u32), nine bytes, its character id, its name (a length byte and UTF-8), its
+    class code (the roster's), faction (1 Elyos, 2 Asmodian), level (u32), a u32, its home server again, the
+    rating twice more around a byte, its arena wins and losses this season (a byte each), a byte, the rating as
+    a u32 and a byte. Every one of the six rosters in the recording is consumed exactly."""
+    if len(body) < 20:
+        return None
+    match = int.from_bytes(body[0:4], "little")
+    count, at, fighters = body[19], 20, []
+    if not match or not 1 <= count <= 24:
+        return None
+    for _ in range(count):
+        if at + _ARENA_FIGHTER_FIXED > len(body):
+            return None
+        slot = body[at]
+        rating = int.from_bytes(body[at + 1:at + 9], "little")
+        dbid = _arena_fighter_id(body, at + 22)
+        size = body[at + 30]
+        name_end = at + 31 + size
+        if dbid is None or not 1 <= slot <= 64 or rating > 100_000 or not 1 <= size <= 48 or name_end + 40 > len(body):
+            return None
+        try:
+            name = body[at + 31:name_end].decode("utf-8")
+        except UnicodeDecodeError:
+            return None
+        if len(name) > 24 or any(unicodedata.category(char).startswith(("C", "Z")) for char in name):
+            return None
+        class_code = int.from_bytes(body[name_end:name_end + 4], "little")
+        faction = body[name_end + 4]
+        level = int.from_bytes(body[name_end + 5:name_end + 9], "little")
+        server = int.from_bytes(body[name_end + 13:name_end + 15], "little")
+        wins, losses = body[name_end + 32], body[name_end + 33]
+        job = job_from_roster(class_code)
+        if job is None or faction not in ARENA_FACTIONS or not 1 <= level <= 99 or server != dbid >> 48:
+            return None
+        fighters.append({"slot": slot, "dbid": dbid, "serverId": server, "name": name, "job": job,
+                         "faction": ARENA_FACTIONS[faction], "level": level, "rating": rating,
+                         "wins": wins, "losses": losses})
+        at = name_end + 40
+    if at != len(body) or len({f["dbid"] for f in fighters}) != len(fighters):
+        return None
+    return {"kind": "roster", "match": match, "fighters": fighters}
+
+
+def scan_arena(frame: bytes) -> dict | None:
+    """One of the arena's own records, or None:
+
+    - ``{"kind": "roster", "match", "fighters": [{"slot", "dbid", "serverId", "name", "job", "faction", "level",
+      "rating", "wins", "losses"}]}`` from ``19 e3`` (see :func:`_arena_roster`);
+    - ``{"kind": "round", "winner", "loser"}`` from ``25 e3``: the two character ids, the round's winner first.
+      In the recording every round the recording player lost read 0 HP for them within 0.2 s of it, and every
+      round they won had the opponent's death at the same moment;
+    - ``{"kind": "result", "result", "rating", "won", "lost", "dbid"}`` from ``28 e3``: a code (2 on map 61, 1 on
+      map 60), the recording player's rating after the match (u32), the result
+      (:data:`ARENA_RESULTS`), a count (1), their character id, the rounds they won and lost, and two bytes.
+      ``result`` is None for a result byte the recording did not show."""
+    body = _record_body(frame, b"\x19\xe3")
+    if body is not None:
+        return _arena_roster(body)
+    body = _record_body(frame, b"\x25\xe3")
+    if body is not None:
+        if len(body) != 16:
+            return None
+        winner, loser = _arena_fighter_id(body, 0), _arena_fighter_id(body, 8)
+        if winner is None or loser is None or winner == loser:
+            return None
+        return {"kind": "round", "winner": winner, "loser": loser}
+    body = _record_body(frame, b"\x28\xe3")
+    if body is not None:
+        if len(body) != 19 or body[6] != 1:
+            return None
+        dbid = _arena_fighter_id(body, 7)
+        won, lost, rating = body[15], body[16], int.from_bytes(body[1:5], "little")
+        if dbid is None or won > 9 or lost > 9 or rating > 100_000:
+            return None
+        return {"kind": "result", "result": ARENA_RESULTS.get(body[5]), "rating": rating, "won": won, "lost": lost, "dbid": dbid}
+    return None
+
+
 def _effect(body: bytes) -> list[dict]:
     """``2b 38``: target, type, instance (varint), effect (u32), duration (u64 ms), start (u64), source,
     a byte, the skill that applied it (u32), a byte or two, then the applier's position (3 x f32)."""

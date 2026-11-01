@@ -15,7 +15,7 @@ import uuid
 from ..combat.a2log import MOVEMENT_SOURCES
 from .a2parser.lookup import dungeon_final_bosses, has_skill, is_heal_skill, job_from_skill, normalize_skill, npc_info, npc_name, skill_name, spirit_skill_category
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
-from .a2parser.engine import NPC_SKILLS, _own_class_skill
+from .a2parser.engine import ARENA_MATCH_MS, NPC_SKILLS, _own_class_skill
 from .context import party_instance
 
 
@@ -68,6 +68,11 @@ PET_DESPAWN_IDLE_MS = 8_000
 #: or less, one to three hits each. A fight changes kind only once your hits have been of the new kind
 #: alone for this long; a hit on a catalog boss still starts the boss fight at once.
 MIXED_KIND_WINDOW_MS = 5_000
+#: Arena matches a session keeps (0.2.361): a roster record each, so a long evening of matches stays small.
+ARENA_MATCHES_KEPT = 64
+#: How long after a fight's last record its arena round may end and still be the fight's: the killing blow comes
+#: first, the round's result with or just after the loser's 0 HP (within 0.2 s in the 31 October recording).
+ARENA_ROUND_SLACK_MS = 3_000
 #: Each special-damage flag and the per-hit counter it feeds in a player's row.
 _SPECIAL_COUNTS = ((SpecialDamage.CRITICAL, "crit"), (SpecialDamage.BACK, "back"), (SpecialDamage.FRONTAL, "front"),
                    (SpecialDamage.DOUBLE, "double"), (SpecialDamage.PERFECT, "perfect"), (SpecialDamage.PARRY, "parry"))
@@ -223,6 +228,9 @@ class CombatSession:
         result._zone_reset_seen = bool(self._zone_reset_seen and self._zone_reset is not None
                                        and (last_combat is None or self._zone_reset > last_combat))
         result.capture_losses = []     # the new part's own window; its counters start from part_baseline
+        # An arena match still on goes on in the next part: its later rounds and result arrive there.
+        result.arena_matches = {key: copy.deepcopy(match) for key, match in self.arena_matches.items()
+                                if match["result"] is None and match.get("left_ms") is None}
         return result
 
     def __init__(self):
@@ -275,6 +283,9 @@ class CombatSession:
         # ``manual_split`` took at each. The live view never re-joins a fight across one.
         self._user_splits = set()
         self.telemetry = deque(maxlen=100_000)
+        # The arena matches the engine decoded (0.2.361): match number -> the engine's match (roster with each fighter's
+        # bound actor, rounds, result), copied whenever it changes; the newest ARENA_MATCHES_KEPT are kept.
+        self.arena_matches = {}
         # The party's combat actions: skill casts and cast ends, chain windows, effects added and
         # removed (buffs on the party, debuffs and crowd control the party applied), break-gauge
         # readings. Exported per segment for the rotation, buff and break-gauge reviews.
@@ -784,6 +795,8 @@ class CombatSession:
                         self.identities[self.epoch]["carried_entries"] = {name: dict(info) for name, info in carried_entries.items()}
             self._zone_reset = engine.last_zone_reset_ms
         identity = self.identities.setdefault(self.epoch, {"names": {}, "spawns": {}, "jobs": {}, "local_id": None, "roster": {}, "owners": {}})
+        arena = getattr(engine, "arena", None)
+        in_arena = bool(getattr(engine, "arena_in_progress", lambda: False)())
         identity["player_ids"] = set(engine.known_players)
         observed = identity.setdefault("observed_players", set())
         observed.update(engine.known_players)
@@ -815,6 +828,10 @@ class CombatSession:
             identity["party_instance"] = True      # every player in it is a party member (see ``_allowed``)
         identity["owners"].update(engine.summon_owners)
         identity["profile"] = dict(engine.local_profile)
+        if arena is not None and (self.arena_matches.get(arena["match"]) or {}).get("revision") != arena["revision"]:
+            self.arena_matches[arena["match"]] = copy.deepcopy(arena)
+            while len(self.arena_matches) > ARENA_MATCHES_KEPT:
+                self.arena_matches.pop(min(self.arena_matches, key=lambda key: self.arena_matches[key]["started_ms"]))
         if engine.local_player_id is not None:
             previous = identity["local_id"]
             if previous is not None and previous != engine.local_player_id:
@@ -907,7 +924,10 @@ class CombatSession:
                     self._boss_hit_ms[ekey] = event.timestamp_ms      # last party damage to this enemy
                     if len(self._boss_hit_ms) > 2048:                 # bound; keep this enemy's mark
                         self._boss_hit_ms = {ekey: event.timestamp_ms}
-                if event.actor_id in allowed and target_code and ekey not in self._engaged_major:
+                # An arena match is one fight (0.2.361): the opponent's summons are NPCs to the game (a Cleric's
+                # three in the 31 October recording), and one held for 12 s became a "major" whose fellow's death
+                # then cut the match like a boss kill.
+                if event.actor_id in allowed and target_code and ekey not in self._engaged_major and not in_arena:
                     if npc_info(target_code).get("isBoss"):
                         self._engage_major(ekey, self._first_party_hit(ekey, allowed_in, event.timestamp_ms))
                     elif ekey not in self._engage_span:
@@ -2411,6 +2431,71 @@ class CombatSession:
                     row["max"] = maximum
         return casts, effects, gauge, chains, resources, npc_casts
 
+    def _arena_match(self, group):
+        """The arena match a fight belongs to: the one on the fight's map whose span (its roster to its result, or
+        as long as a match can last when none came) overlaps the fight the most, or None."""
+        run_map = self.runs.get(group["run"], {}).get("map_id")
+        best, best_overlap = None, 0
+        for match in self.arena_matches.values():
+            if run_map and match["map"] and run_map != match["map"]:
+                continue
+            last = match["rounds"][-1]["timestamp_ms"] if match["rounds"] else match["started_ms"]
+            end = ((match["result"] or {}).get("timestamp_ms") or match.get("left_ms")
+                   or max(last, match["started_ms"] + ARENA_MATCH_MS))
+            overlap = min(group["end"] + ARENA_ROUND_SLACK_MS, end) - max(group["start"], match["started_ms"])
+            if overlap > best_overlap:
+                best, best_overlap = match, overlap
+        return best
+
+    def _segment_arena(self, group, identity, reference, events, entities):
+        """A fight's arena match, from the game's own records (0.2.361): the fighters of its roster, the rounds the fight
+        holds (each by its winner and loser, indexes into ``fighters``), and the recording player's result, score and
+        rating once the match ended in it. A round's loser died: their death marker within a few seconds of it gets
+        the winner as its ``source`` (kill credit), and a loser with none gets one at the round's end; every lost
+        round of the 31 October recording read 0 HP for the loser at that moment. None outside an arena match."""
+        match = self._arena_match(group)
+        if match is None:
+            return None
+        duration = max(0.001, (group["end"] - group["start"]) / 1000)
+        result = match["result"] or {}
+        local = identity.get("local_id")
+        fighters, index, refs = [], {}, []
+        for fighter in match["fighters"]:
+            ref = reference(fighter["actor"]) if fighter["actor"] is not None else None
+            if ref in entities and fighter.get("serverId"):
+                entities[ref].setdefault("server", str(fighter["serverId"]))
+            row = {"name": fighter["name"], "class": fighter["job"], "server": str(fighter["serverId"]),
+                   "faction": fighter["faction"], "level": fighter["level"], "rating": fighter["rating"]}
+            if ref:
+                row["ref"] = ref
+            if fighter["dbid"] == result.get("dbid") or local is not None and fighter["actor"] == self._corrected(identity, local):
+                row["self"] = True
+            index[fighter["dbid"]] = len(fighters)
+            fighters.append(row)
+            refs.append(ref)
+        rounds = []
+        for number, played in enumerate(match["rounds"], 1):
+            t = (played["timestamp_ms"] - group["start"]) / 1000
+            if not 0 <= t <= duration + ARENA_ROUND_SLACK_MS / 1000:
+                continue
+            winner, loser = index[played["winner"]], index[played["loser"]]
+            rounds.append({"round": number, "t": t, "winner": winner, "loser": loser})
+            if refs[loser] is None:
+                continue
+            nearby = [e for e in events if e["kind"] == "death" and e.get("target") == refs[loser] and abs(e["t"] - t) <= ARENA_ROUND_SLACK_MS / 1000]
+            death = min(nearby, key=lambda e: abs(e["t"] - t)) if nearby else None
+            if death is None:
+                death = {"kind": "death", "t": min(t, duration), "target": refs[loser]}
+                events.append(death)
+            if refs[winner] is not None:
+                death["source"] = refs[winner]
+        arena = {"match": match["match"], "fighters": fighters, "rounds": rounds}
+        ended = result.get("timestamp_ms")
+        if ended is not None and group["start"] <= ended <= group["end"] + ARENA_ROUND_SLACK_MS:
+            arena.update({"result": result.get("result"), "rounds_won": result.get("won"), "rounds_lost": result.get("lost"),
+                          "rating": result.get("rating")})
+        return arena
+
     def to_a2log(self, scope="party", title=None, segment_id="all"):
         from ..combat import a2log
         allowed_for = self._allowances(scope)
@@ -2564,6 +2649,7 @@ class CombatSession:
                 else:
                     health.append({"t": t, "entity": eid, "current": sample["current"],
                         "max": sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("reportedMaxHp")})
+            arena = self._segment_arena(group, identity, reference, events, entities)
             casts, effects, gauge, chains, resources, npc_casts = self._segment_actions(group, identity, actor_refs, players, entities, by_epoch)
             movement = self._segment_movement(group, actor_refs, players, entities, positions_by_epoch)
             if hits or events:
@@ -2600,7 +2686,8 @@ class CombatSession:
                     "resources": resources, "npc_casts": npc_casts, "movement": movement,
                     "start": datetime.fromtimestamp(group["start"] / 1000, timezone.utc).isoformat(),
                     "duration": max(0.001, (group["end"] - group["start"]) / 1000),
-                    "capture_loss": self.losses_within(group["start"], group["end"])})
+                    "capture_loss": self.losses_within(group["start"], group["end"]),
+                    **({"arena": arena} if arena else {})})
         if not players:
             raise NoIdentifiedPlayerData("No identified player data is available under the selected party filter.")
         if len(players) > a2log.LIMITS["players"]:

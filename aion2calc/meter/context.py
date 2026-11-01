@@ -6,7 +6,7 @@ from .a2parser.lookup import _table, dungeon_final_bosses, npc_info, supplement_
 
 PVP_MAPS = {
     60: {"zone":"Fire Temple Arena", "evidence":"User-confirmed arena capture and result screenshot"},
-    61: {"zone":"Arena (map 61)", "evidence":"User-confirmed arena capture c9277026181bf976ea62f8438b939cb35aeee34bba192c4208a9aac2c6f1b127; specific arena name unverified"},
+    61: {"zone":"Impetusium Arena", "evidence":"The game's own name for the map's arena event (Impetusium_Arena_MapEvent), sent as each match on map 61 opened in the 31 October arena capture (meter-20261031-211525-6690e1); map 60's is Fire_Temple_Arena_MapEvent, matching its confirmed name"},
 }
 #: Instanced areas no catalog names, named by recorded map id from a capture whose contents were
 #: confirmed: their fights are PvE in an unlisted category, so only the zone is set.

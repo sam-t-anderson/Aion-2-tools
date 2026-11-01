@@ -2,8 +2,8 @@
 Personal records tab, each showing its panel alone; the log server's fights, newest first with mini-bosses
 hidden until asked for, each opening at its own fight; the recordings saved on this computer, by type; and
 the panels for the player's uploads (with the appeal against a moderator's hold) and characters; and a fight's
-review: its details tabs, its enemies by name, a comparison from a pasted link, and the fight combined from every
-recording of it."""
+review: its details tabs, its enemies by name, a comparison from a pasted link, the fight combined from every
+recording of it, and an arena match's result and rounds."""
 import json
 
 from apphelpers import go
@@ -558,3 +558,55 @@ def test_a_shared_fight_combines_the_other_recordings_of_it(app_page, app_url, c
     page.select_option('[data-control="segment"]', "2")
     page.locator("[data-view-combined]").wait_for()
     assert banner.count() == 0 and "9,000" not in healer()
+
+
+def arena_recording():
+    """A lost arena match from the game's own records (0.2.361): the recording player won the first round and the
+    opponent the next three, and each round's loser has a death marker that names the winner."""
+    doc = recording()
+    me, fight, foe = doc["players"][0]["id"], doc["segments"][1], "2:7001"
+    death = lambda t, target, source: {"t": t, "kind": "death", "target": target, "source": source}
+    fight.update(label="Combat 2", boss=None, killed=False, encounter_type="pvp_arena", zone="Impetusium Arena",
+                 entities=[{"id": foe, "name": "Testfoe", "kind": "enemy", "is_player": True, "class": "gladiator", "server": "1107"}],
+                 hits=[{**h, "target": foe} for h in fight["hits"]],
+                 events=[death(6.5, foe, me), death(14.0, me, foe), death(21.5, me, foe), death(29.5, me, foe)],
+                 arena={"match": 16945404, "result": "loss", "rounds_won": 1, "rounds_lost": 3, "rating": 1505,
+                        "fighters": [{"name": "Testme", "class": "sorcerer", "server": "1101", "faction": "asmodian", "level": 45,
+                                      "rating": 1530, "ref": me, "self": True},
+                                     {"name": "Testfoe", "class": "gladiator", "server": "1107", "faction": "elyos", "level": 45,
+                                      "rating": 1548, "ref": foe}],
+                        "rounds": [{"round": 1, "t": 6.5, "winner": 0, "loser": 1}, {"round": 2, "t": 14.0, "winner": 1, "loser": 0},
+                                   {"round": 3, "t": 21.5, "winner": 1, "loser": 0}, {"round": 4, "t": 29.5, "winner": 1, "loser": 0}]})
+    return doc
+
+
+def test_an_arena_match_shows_its_result_rating_fighters_and_rounds(app_page, app_url, app_home):
+    """The arena's own records name the match's result, score and rating change, its fighters and every round's winner
+    (0.2.361); a PvP fight without them keeps the note that nothing of the kind is inferred."""
+    page = app_page
+    path = _saved(app_home, "session-20261031-220000-abcdef.a2log.json", arena_recording())
+    try:
+        go(page, app_url, f"#/combat-log/local/{path.name}?segment=1")
+        card = page.locator("[data-arena-match]")
+        card.wait_for()
+        assert " ".join(card.locator("h3").inner_text().split()) == "Arena match · Loss 1–3 · Rating 1530 → 1505 (−25)"
+        fighters, rounds = card.locator("table").nth(0).locator("tbody tr"), card.locator("table").nth(1).locator("tbody tr")
+        me, foe = (" ".join(fighters.nth(i).inner_text().split()) for i in (0, 1))
+        assert "Testsorc" in me and "(recording player)" in me and "Asmodian" in me and me.endswith("1530 1")   # the log's own name
+        assert "Testfoe" in foe and "gladiator" in foe and "Elyos" in foe and foe.endswith("1548 3")
+        assert rounds.count() == 4
+        assert [" ".join(rounds.nth(i).inner_text().split()).split()[1] for i in range(4)] == ["0:06.50", "0:14.00", "0:21.50", "0:29.50"]
+        assert "Testfoe" in rounds.nth(3).locator("td").nth(2).inner_text() and "Testsorc" in rounds.nth(3).locator("td").nth(3).inner_text()
+        assert "kill credit are not inferred" not in page.locator(".cr-review").inner_text()
+    finally:
+        path.unlink()
+    doc = arena_recording()
+    del doc["segments"][1]["arena"]
+    path = _saved(app_home, "session-20261031-230000-abcdef.a2log.json", doc)
+    try:
+        go(page, app_url, f"#/combat-log/local/{path.name}?segment=1")
+        page.locator(".cr-review").wait_for()
+        page.wait_for_function("document.querySelector('.cr-review').innerText.includes('kill credit are not inferred')")
+        assert page.locator("[data-arena-match]").count() == 0
+    finally:
+        path.unlink()
