@@ -95,6 +95,63 @@ def _statistics(q: dict) -> dict:
             "note": "Recorded rates of the public uploads."}
 
 
+# Part 2 of a recording that spans two parts (a storage rollover): the review looks its siblings up and offers the
+# stitched recording, keeping the fight the link named in view (0.2.367).
+PART_LOG_ID = "TestPart002"
+PART_ARCHIVE = "f" * 32
+
+
+def _part_segments() -> list:
+    boss = FIGHTS[0][1]
+    hits = [{"t": float(t), "player": "p1" if t % 2 else "p2", "skill": "Flame Arrow" if t % 2 else "Earth's Wrath",
+             "damage": 1500.0} for t in range(40)]
+    movement = sorted([{"t": float(t), "entity": "p2", "x": 1000.0 + 10 * t, "y": 900.0, "z": 50.0, "src": "move"} for t in range(0, 40, 2)]
+                      + [{"t": float(t), "entity": "p1", "x": 1200.0, "y": 950.0 + 5 * t, "z": 50.0, "src": "applied"} for t in range(0, 40, 10)],
+                      key=lambda m: m["t"])
+    return [{"id": "part-seg-1", "label": "Trash", "duration": 12.0, "hits": hits[:12]},
+            {"id": "part-seg-2", "label": boss, "boss": boss, "duration": 40.0, "killed": True, "encounter_type": "dungeon",
+             "ping_recorder": "p1", "entities": [{"id": "boss", "name": boss, "kind": "enemy", "is_boss": True}],
+             "hits": hits, "movement": movement}]
+
+
+def _part_log() -> dict:
+    continuity = {"version": 1, "token": "b" * 32, "first_sequence": 61, "last_sequence": 120, "retained_records": 60,
+                  "first_epoch": 2, "last_epoch": 2, "previous_token": "a" * 32, "previous_last_sequence": 60}
+    return {"format": "a2log", "version": 1,
+            "meta": {"title": "Test run · Part 2", "capture_scope": "party", "uploader": {"name": "Testsorc", "verified": False},
+                     "archive": {"id": PART_ARCHIVE, "part": 2, "closed": True, "continuity": continuity}},
+            "players": PLAYERS, "segments": _part_segments()}
+
+
+def _part_rows(q: dict) -> dict:
+    rows = [{"id": "TestPart001", "title": "Test run · Part 1", "duration": 60.0, "segments": 1, "closed": True,
+             "archive": {"id": PART_ARCHIVE, "part": 1, "closed": True}},
+            {"id": PART_LOG_ID, "title": "Test run · Part 2", "duration": 52.0, "segments": 2, "closed": True,
+             "archive": {"id": PART_ARCHIVE, "part": 2, "closed": True}}]
+    return {"rows": rows, "offset": 0, "limit": int(q.get("limit", ["25"])[0]), "has_more": False, "file_count": 2,
+            "note": "Public uploads of this recording on the test server."}
+
+
+def _reconstruction(q: dict) -> dict:
+    """The two parts stitched as the log server returns them: each part's encounters renamed ``part<N>:<id>``."""
+    first = {"id": "part1:first-seg", "label": "Part 1 · Warden Testra", "boss": "Warden Testra", "duration": 60.0, "killed": True,
+             "encounter_type": "dungeon", "ping_recorder": "p1",
+             "entities": [{"id": "warden", "name": "Warden Testra", "kind": "enemy", "is_boss": True}],
+             "hits": [{"t": float(t), "player": "p1", "skill": "Flame Arrow", "damage": 1200.0} for t in range(60)],
+             "movement": [{"t": float(t), "entity": "p1", "x": 500.0, "y": 500.0 + t, "z": 50.0, "src": "applied"} for t in range(0, 60, 10)]}
+    rest = [{**s, "id": "part2:" + s["id"], "label": "Part 2 · " + s["label"]} for s in _part_segments()]
+    return {"format": "a2log", "version": 1,
+            "meta": {"title": "Test run · Parts 1–2", "capture_scope": "party",
+                     "reconstruction": {"version": 1, "note": "Stitched by the test server.",
+                                        "sources": [{"part": 1, "id": "TestPart001", "title": "Test run · Part 1"},
+                                                    {"part": 2, "id": PART_LOG_ID, "title": "Test run · Part 2"}]}},
+            "players": PLAYERS,
+            "recording_summary": {"all": {"encounters": 3, "active_seconds": 100.0, "recorded_seconds": 112.0,
+                                          "players": [{**p, "damage": 150000.0, "dps": 1500.0, "healing": 0.0, "hps": 0.0, "taken": 0.0, "dtps": 0.0}
+                                                      for p in PLAYERS]}},
+            "segments": [first] + rest}
+
+
 def _log_row() -> dict:
     return {"id": LOG_ID, "created_at": NOW, "title": "Test run", "region": "nae", "source": "Aion 2 Calc live session",
             "uploader": "Testsorc", "boss": FIGHTS[0][1], "duration": 160.0, "players": PLAYERS, "top_dps": 15000.0,
@@ -233,6 +290,10 @@ ANSWERS = {
     f"/api/v1/logs/{LOG_ID}/rankings": _log_rankings,
     f"/api/v1/logs/{LOG_ID}/movement": _merged_movement,
     f"/api/v1/logs/{LOG_ID}/combined": _combined_fight,
+    f"/api/v1/logs/{PART_LOG_ID}/raw": lambda q: _part_log(),
+    f"/api/v1/logs/{PART_LOG_ID}/parts": _part_rows,
+    f"/api/v1/logs/{PART_LOG_ID}/reconstruction": _reconstruction,
+    f"/api/v1/logs/{PART_LOG_ID}/rankings": _log_rankings,
     "/api/v1/run-leaderboard": lambda q: {"entries": [SPEED_RUN], "samples": 1, "truncated": False, "note": ""},
     "/api/v1/encounter-progression": lambda q: {"groups": [], "truncated": False, "note": ""},
     "/api/v1/progression": lambda q: {"observations": [o for o in PROGRESSION if q.get("class", [o["class_name"]])[0] == o["class_name"]],

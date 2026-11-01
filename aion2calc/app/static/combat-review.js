@@ -196,7 +196,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     const previews=new Map();
     let timelineDetail="",graphModel=null;
     const timelineHidden=new Set(),timelineCollapsed=new Set();
-    let archivePage=null,archiveOffset=0,archiveBusy=false,archiveError="",archiveOpen=false,archiveRequest=0,disposed=false;
+    let archivePage=null,archiveOffset=0,archiveBusy=false,archiveError="",archiveOpen=false,archiveOffer=0,archiveRequest=0,disposed=false;
     const clock=(t,precise=false)=>{t=Math.max(0,precise?Math.round(t*100)/100:Math.floor(t));return `${Math.floor(t/60)}:${(precise?(t%60).toFixed(2):String(t%60)).padStart(precise?5:2,'0')}`;};
     const skillSource=id=>{const n=Number(id);if(!Number.isSafeInteger(n)||n<=0)return '';const source=options.skillIcon?options.skillIcon(n):'https://metabot.gg/web/aion2/skills/'+(Math.floor(n/10000)*10000)+'.webp';return window.A2AssetHealth?A2AssetHealth.source(source):source;};
     const modeOf=segment=>(segment.encounter_type||doc.meta?.encounter_type||'').startsWith('pvp_')?'pvp':'pve';
@@ -667,12 +667,14 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         const saved=row.unfinished?'Recording checkpoint':(row.archive?.closed ?? row.closed)?'Storage boundary saved':'Saved part';
         return `<tr><td>${esc(part)}</td><td>${esc(row.title || key)}</td><td>${seconds(row.duration)}</td><td>${esc(row.segments)}</td><td title="${esc(evidence?.note || 'Submitted metadata only')}">${esc(range)}<br>${esc(evidence?.label || 'Continuity metadata not recorded')}</td><td>${esc(saved)}</td><td>${current?'Current part':`<button class="btn small" data-archive-open="${index}">Open part</button>`}</td></tr>`;
       }))+'<p class="small muted">'+esc(archivePage.note || 'Parts saved on this computer. Matching recording IDs do not establish complete or continuous capture.')+'</p>':'';
-      return `<details class="note" data-archive-parts ${archiveOpen?'open':''}><summary>Other parts of this recording</summary>${note}<p class="small muted">Part numbers can have gaps or duplicates. Ranges count retained decoded effects before view filtering, not packets. Counter continuity cannot rule out lost packets or recording downtime. The list keeps source reports separate. Combined review checks submitted links but cannot restore missing events or verify matching archive IDs.</p>${listing}${options.reconstructArchive?`<div class="row"><label>First part <input type="number" min="1" step="1" data-combine-first value="${archiveFirst}" style="width:98px"></label><label>Last part <input type="number" min="2" step="1" data-combine-last value="${archiveLast}" style="width:98px"></label><button class="btn small" data-combine-parts ${archiveBusy?'disabled':''}>Review connected parts</button></div><p class="small muted">Choose 2–32 stopped parts, up to 64 MiB. Gaps, overlaps, duplicate parts and conflicting links block combining. Original encounters stay separate; combined review is unranked.</p>`:''}<p role="status">${archiveBusy?'Loading / checking recording parts…':esc(archiveError || (archivePage?`${rows.length} results on this page · ${archivePage.file_count} available parts`:''))}</p><div class="row"><button class="btn small" data-archive-load ${archiveBusy?'disabled':''}>${archivePage?'Refresh parts':'Find recording parts'}</button>${archivePage?`<button class="btn small" data-archive-prev ${archiveBusy || archiveOffset===0?'disabled':''}>Previous</button><button class="btn small" data-archive-next ${archiveBusy || !archivePage.has_more?'disabled':''}>Next</button>`:''}</div></details>`;
+      // The other parts were found when this one opened (``autoCombine``): the whole recording is one button away,
+      // and the fight in view stays until it is pressed (0.2.367).
+      const offer=archiveOffer&&options.reconstructArchive?`<p class="note" data-archive-offer>This is part ${esc(archive.part)} of a recording in ${archiveOffer} parts. <button class="btn small" data-combine-all ${archiveBusy?'disabled':''}>${archiveBusy?'Combining the parts…':`Review all ${archiveOffer} parts together`}</button>${archiveError?` <span class="small muted" role="status">${esc(archiveError)}</span>`:''}</p>`:'';
+      return offer+`<details class="note" data-archive-parts ${archiveOpen?'open':''}><summary>Other parts of this recording</summary>${note}<p class="small muted">Part numbers can have gaps or duplicates. Ranges count retained decoded effects before view filtering, not packets. Counter continuity cannot rule out lost packets or recording downtime. The list keeps source reports separate. Combined review checks submitted links but cannot restore missing events or verify matching archive IDs.</p>${listing}${options.reconstructArchive?`<div class="row"><label>First part <input type="number" min="1" step="1" data-combine-first value="${archiveFirst}" style="width:98px"></label><label>Last part <input type="number" min="2" step="1" data-combine-last value="${archiveLast}" style="width:98px"></label><button class="btn small" data-combine-parts ${archiveBusy?'disabled':''}>Review connected parts</button></div><p class="small muted">Choose 2–32 stopped parts, up to 64 MiB. Gaps, overlaps, duplicate parts and conflicting links block combining. Original encounters stay separate; combined review is unranked.</p>`:''}<p role="status">${archiveBusy?'Loading / checking recording parts…':esc(archiveError || (archivePage?`${rows.length} results on this page · ${archivePage.file_count} available parts`:''))}</p><div class="row"><button class="btn small" data-archive-load ${archiveBusy?'disabled':''}>${archivePage?'Refresh parts':'Find recording parts'}</button>${archivePage?`<button class="btn small" data-archive-prev ${archiveBusy || archiveOffset===0?'disabled':''}>Previous</button><button class="btn small" data-archive-next ${archiveBusy || !archivePage.has_more?'disabled':''}>Next</button>`:''}</div></details>`;
     }
     function bindArchive() {
       const details=root.querySelector('[data-archive-parts]');if(!details)return;
-      const combine=root.querySelector('[data-combine-parts]');if(combine)combine.onclick=async()=>{
-        archiveFirst=Number(root.querySelector('[data-combine-first]').value);archiveLast=Number(root.querySelector('[data-combine-last]').value);
+      const combineParts=async()=>{
         if(!Number.isSafeInteger(archiveFirst)||!Number.isSafeInteger(archiveLast)||archiveFirst<1||archiveLast-archiveFirst<1||archiveLast-archiveFirst>=32){archiveError='Choose 2–32 consecutive part numbers.';render();return;}
         const request=++archiveRequest;archiveBusy=true;archiveError='';render();
         try{
@@ -683,6 +685,8 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         }catch(e){if(!disposed && request===archiveRequest)archiveError=e.message;}
         finally{if(!disposed && request===archiveRequest){archiveBusy=false;if(root.isConnected)render();}}
       };
+      const combine=root.querySelector('[data-combine-parts]');if(combine)combine.onclick=()=>{archiveFirst=Number(root.querySelector('[data-combine-first]').value);archiveLast=Number(root.querySelector('[data-combine-last]').value);combineParts();};
+      const all=root.querySelector('[data-combine-all]');if(all)all.onclick=()=>combineParts();
       details.ontoggle=()=>{archiveOpen=details.open;};
       const load=async offset=>{
         const request=++archiveRequest;archiveBusy=true;archiveError='';archiveOpen=true;render();
@@ -1059,15 +1063,20 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     // Swap the single-part view for a combined recording review (keeping the source part so
     // "Back to source part" and each part's own ranked data stay one click away).
     function applyCombined(next,first,last){
+      // The fight in view stays in view: the combined recording names each part's encounters ``part<N>:<id>``.
+      const current=doc.segments?.[state.segment],part=doc.meta?.archive?.part;
+      const same=current?next.segments.findIndex(s=>s.id===`part${part}:${current.id}`||s.id===current.id):-1;
       sourceView={doc,options,state};doc=next;archiveFirst=first;archiveLast=last;
       rankRequest++;profileRequest++;ranks=null;previews.clear();comparisons=[];
       options={...options,rankings:undefined,lookupProfile:undefined,publish:undefined,saveMetadata:undefined,report:undefined,movement:undefined,combined:undefined};
-      state={...state,segment:0,run:'',actor:'',enemy:'',character:'',page:0,hidden:new Set()};
+      state={...state,segment:same>=0?same:0,run:'',actor:'',enemy:'',character:'',page:0,hidden:new Set()};
     }
-    // Viewing one part of a multi-part recording, open the complete stitched recording as the
-    // main view (the server links the parts by archive id and reconstructs them). Best-effort:
-    // if the parts can't be combined — an older server, a gap, too many parts, or a private
-    // sibling out of view — the single part stays on screen exactly as before.
+    // Viewing one part of a multi-part recording, find its other parts (the server links them by archive id) and
+    // offer the complete stitched recording with one button. From 0.2.263 to 0.2.366 the stitched recording replaced
+    // the page on its own a few seconds after it opened: the fight the link named gave way to the first encounter of
+    // part 1 (another fight, often another character), and the page lost its rankings, profile lookups and the other
+    // recordings' movement. The fight in view now stays until the viewer asks (0.2.367). Best-effort: an older
+    // server, a gap, too many parts or a private sibling out of view leave the single part exactly as before.
     async function autoCombine(){
       const a=doc.meta?.archive;
       if(disposed||sourceView||options.live||doc.meta?.reconstruction||!a||!options.reconstructArchive||!options.archiveParts)return;
@@ -1079,11 +1088,9 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         const nums=parts.rows.map(r=>r.archive?.part??r.part).filter(n=>Number.isSafeInteger(n));
         const first=Math.min(...nums),last=Math.max(...nums);
         if(nums.length<2||last<=first||last-first>=32)return;  // nothing to combine, or too many parts to stitch
-        const next=await options.reconstructArchive(first,last);
-        if(disposed||request!==archiveRequest||!next?.meta?.reconstruction||!next.recording_summary||!Array.isArray(next.segments))return;
-        applyCombined(next,first,last);
+        archivePage=parts;archiveOffset=0;archiveFirst=first;archiveLast=last;archiveOffer=new Set(nums).size;
         if(root.isConnected)render();
-      }catch(e){/* reconstruction unavailable — leave the single-part view in place */}
+      }catch(e){/* the parts are unknown — leave the single-part view in place */}
     }
     async function requestRanks() {if(!options.rankings)return;const request=++rankRequest,segment=state.segment;try{const response=await options.rankings(segment,doc);if(request!==rankRequest)return;ranks=response;}catch(e){ranks={error:e.message};}if(root.isConnected)render();
       // another party member's public upload of this fight (``shared_uploads``): its movement joins the replay unasked

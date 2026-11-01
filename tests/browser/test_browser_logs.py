@@ -7,7 +7,7 @@ recording of it, and an arena match's result and rounds."""
 import json
 
 from apphelpers import go
-from community import FIGHTS, LOG_ID
+from community import FIGHTS, LOG_ID, PART_LOG_ID
 
 TABS = ("community", "speed", "progression", "points", "extras")
 
@@ -720,3 +720,28 @@ def test_the_replay_shows_the_bosses_casts_and_what_appears(app_page, app_url, a
     finally:
         page.goto("about:blank")
         path.unlink()
+
+
+def test_a_part_of_a_longer_recording_keeps_its_fight_and_offers_the_whole(app_page, app_url, community):
+    """A link to one fight of a multi-part recording shows that fight; the other parts are an offer, and the stitched
+    recording opens on the same fight (0.2.367). Until 0.2.366 the page swapped itself for the stitched recording's
+    first encounter a few seconds after it opened."""
+    page = app_page
+    go(page, app_url, f"#/combat-log/shared/{PART_LOG_ID}?segment=1")
+    offer = page.locator("[data-archive-offer]")
+    offer.wait_for(timeout=15000)
+    assert offer.inner_text().startswith("This is part 2 of a recording in 2 parts")
+    fight = "24 recorded positions of 2 players and enemies"                      # part 2's boss fight, the one the link named
+    assert fight in page.locator("[data-replay] p").first.inner_text()
+    page.wait_for_timeout(1500)                                                    # nothing swaps the page on its own
+    assert page.locator("[data-source-back]").count() == 0
+    assert page.locator(".cr-review h2").first.text_content() == "Test run · Part 2"
+    assert fight in page.locator("[data-replay] p").first.inner_text()
+    offer.locator("[data-combine-all]").click()
+    page.locator("[data-source-back]").wait_for(timeout=15000)
+    assert page.locator(".cr-review h2").first.text_content() == "Test run · Parts 1–2"
+    assert fight in page.locator("[data-replay] p").first.inner_text()           # the same fight, not part 1's first encounter
+    assert page.locator("[data-archive-offer]").count() == 0
+    page.click("[data-source-back]")
+    page.wait_for_function("document.querySelector('.cr-review h2').textContent === 'Test run · Part 2'")
+    assert fight in page.locator("[data-replay] p").first.inner_text()
