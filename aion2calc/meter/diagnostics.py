@@ -172,6 +172,8 @@ def export(status: dict, recorder: Recorder | None):
                 "automatic_context": status.get("automatic_context"),
                 "automatic_metadata": status.get("automatic_metadata")}
     capture = metadata.get("capture") or {}
+    marks = [m for m in (status.get("marks") or []) if isinstance(m, dict)]
+    metadata["marks"] = marks
     summary = (f"Aion 2 Calc {__version__} capture diagnostics\n"
                f"Source: {metadata['source']}\nRunning: {metadata['running']}\n"
                f"Capture state: {capture.get('state', 'unavailable')}\n"
@@ -187,6 +189,7 @@ def export(status: dict, recorder: Recorder | None):
                f"Capture error: {metadata['error'] or 'none reported'}\n"
                f"Display error: {capture.get('status_error') or 'none reported'}\n"
                f"Raw TCP recording: {'enabled' if recorder is not None else 'disabled; tcp-payloads.jsonl is intentionally empty (tick Record TCP payloads on the Live Meter page to record)'}\n"
+               f"Labelled moments: {len(marks)} (marks.jsonl: what the player saw and when, on the capture's clock)\n"
                "Read diagnostics.json for full counters and pipeline/status details.\n"
                "This ZIP does not contain a decoded combat session or character-build snapshot.\n")
     partial = path.with_suffix(".zip.part")
@@ -200,6 +203,7 @@ def export(status: dict, recorder: Recorder | None):
         recording["raw_recording_enabled"] = recorder is not None
         metadata["recording"] = recording
         archive.writestr("capture-summary.txt", summary)
+        archive.writestr("marks.jsonl", "".join(json.dumps(m, separators=(",", ":")) + "\n" for m in marks))
         archive.writestr("diagnostics.json", json.dumps(metadata, indent=2))
         archive.writestr("README.txt", "TCP payloads are recorded only while Record TCP payloads is ticked (Live Meter page):\n"
                          "every capture records then, however it was started, from the moment the box was ticked.\n"
@@ -209,7 +213,10 @@ def export(status: dict, recorder: Recorder | None):
                          "Review before sharing. Nothing is uploaded automatically.\n"
                          "These are original TCP segments: use sequence numbers to reassemble each direction.\n"
                          "overlay.log, when present, is the overlay watchdog's log: an overlay that went blank or\n"
-                         "stopped answering, and what was done about it.\n")
+                         "stopped answering, and what was done about it.\n"
+                         "marks.jsonl holds the moments the player marked (Live Meter page or the Mark moment hotkey): the\n"
+                         "time (UTC and epoch ms, the same clock as the TCP rows), a label (shield, interrupt, miss, mitigation,\n"
+                         "hot, pvp, mechanic, other, hotkey), a note, and the fight the meter showed at that moment.\n")
         if overlay_log:
             archive.writestr("overlay.log", overlay_log)
     # Verify small metadata entries before publishing; do not reread a potentially
@@ -226,7 +233,7 @@ def export(status: dict, recorder: Recorder | None):
     return {"file": str(path), **recording, "size_bytes": path.stat().st_size,
             "capture_packets": capture.get("packets"), "decoded_events": capture.get("decoded_events"),
             "retained_effects": capture.get("retained_effects"),
-            "contents": ["capture-summary.txt", "diagnostics.json", "tcp-payloads.jsonl", "README.txt"] + (["overlay.log"] if overlay_log else []),
+            "contents": ["capture-summary.txt", "diagnostics.json", "tcp-payloads.jsonl", "marks.jsonl", "README.txt"] + (["overlay.log"] if overlay_log else []),
             "download_url": "/api/meter/diagnostics?name=" + quote(path.name)}
 
 

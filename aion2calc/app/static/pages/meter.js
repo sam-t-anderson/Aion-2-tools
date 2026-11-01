@@ -125,7 +125,7 @@ async function pageMeter() {
         <p class="small faint">Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, and capture permission. <span id="npcapinfo"></span> Export writes an open a2log file; Upload uses the log server configured in Settings.</p>
         <details class="note" style="margin-top:10px"><summary><b>Capture diagnostics</b> <span class="small muted">capture counters, TCP recording for diagnostics, diagnostics export</span></summary><div id="mdriverstats" class="small muted" role="status"></div>
         <div class="row"><label><input id="mrecord" type="checkbox"> Record TCP payloads for diagnostics (optional; remembered, and every capture records while it is ticked)</label><button class="btn small" id="mdiag">Export capture diagnostics</button><button class="btn small" id="mdiagfolder">Open diagnostics folder</button><span id="mrecordstatus" class="small muted"></span></div>
-        <p class="small faint">Diagnostic ZIPs include capture counters, status errors and a readable summary even with TCP recording off. Open diagnostics folder to find saved ZIPs. Ticked, TCP recording additionally writes raw payloads without a record or size limit, even when no combat events are decoded: for every capture however it starts (here, the overlay's Start, the Start/Stop hotkey or the start at launch), and from the moment you tick it during a capture. Available disk space limits recording. Saves a diagnostic ZIP automatically when capture stops; long recordings take longer to compress. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></details></details>
+        <p class="small faint">Diagnostic ZIPs include capture counters, status errors and a readable summary even with TCP recording off. Open diagnostics folder to find saved ZIPs. Ticked, TCP recording additionally writes raw payloads without a record or size limit, even when no combat events are decoded: for every capture however it starts (here, the overlay's Start, the Start/Stop hotkey or the start at launch), and from the moment you tick it during a capture. Available disk space limits recording. Saves a diagnostic ZIP automatically when capture stops; long recordings take longer to compress. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.</p><div class="row"><label class="small">Mark this moment <select id="mmarklabel" aria-label="What happened"><option value="shield">A shield absorbed a hit</option><option value="interrupt">A cast was interrupted</option><option value="miss">An attack missed or was evaded</option><option value="mitigation">Damage was reduced (block, resist)</option><option value="hot">A heal over time ticked</option><option value="pvp">PvP team or round changed</option><option value="mechanic">Boss mechanic (describe it)</option><option value="other">Other</option></select></label><input id="mmarknote" type="text" maxlength="200" placeholder="What you saw (optional)" aria-label="Note" style="width:220px"><button class="btn small" id="mmark">Mark</button><button class="btn small" id="mrelabel" title="Give the latest mark this label and note (a hotkey press is labelled afterwards)">Label the latest</button></div><p class="small faint">A mark stamps the capture's clock with what you saw, so the recording can be read against it: a shield soaking a hit, an interrupted cast, a miss, reduced damage, a heal over time, a PvP team or round, a boss mechanic. Marks ride in the diagnostic ZIP (marks.jsonl) and in the saved log. The <em>Mark this moment</em> hotkey (Settings → Overlay → Hotkeys) adds one from inside the game; label it here afterwards.</p><div id="mmarks" class="small" role="status"></div><div id="mdiagresult" class="small" role="status"></div><div id="mdiagerror" class="small" role="alert"></div></details></details>
     </div></section><div id="mview"></div><div id="mlog-review"></div>`;
   // Advanced capture opens as the player last left it (closed at first).
   const advanced = $("#madvanced");
@@ -544,6 +544,57 @@ async function pageMeter() {
       $("#mnotice").textContent = "Diagnostic export failed: " + e.message;
     }
   };
+  const renderMarks = (marks) => {
+    const target = $("#mmarks");
+    if (!target) return;
+    const rows = Array.isArray(marks) ? marks.slice(-8).reverse() : [];
+    target.innerHTML = rows.length
+      ? "Marked: " +
+        rows
+          .map((m) => {
+            const when = String(m.at || "")
+              .replace("T", " ")
+              .replace(/\.\d+Z$/, "Z");
+            const fight = Number.isFinite(m.fight_t)
+              ? ` · ${Math.round(m.fight_t)}s into ${m.boss ? esc(m.boss) : "the fight"}`
+              : "";
+            return `<span class="pill">${esc(when)} · <b>${esc(m.label)}</b>${m.note ? " · " + esc(m.note) : ""}${fight}</span>`;
+          })
+          .join(" ")
+      : "No marks yet in this capture.";
+  };
+  const loadMarks = async () => {
+    try {
+      renderMarks((await api("/api/meter/marks")).marks);
+    } catch (e) {
+      /* the capture may not have started */
+    }
+  };
+  $("#mmark").onclick = async () => {
+    try {
+      const r = await api("/api/meter", { action: "mark", label: $("#mmarklabel").value, note: $("#mmarknote").value });
+      renderMarks(r.marks);
+      $("#mmarknote").value = "";
+      $("#mnotice").textContent = "Moment marked.";
+    } catch (e) {
+      $("#mnotice").textContent = "Could not mark: " + e.message;
+    }
+  };
+  $("#mrelabel").onclick = async () => {
+    try {
+      const r = await api("/api/meter", {
+        action: "relabel",
+        index: -1,
+        label: $("#mmarklabel").value,
+        note: $("#mmarknote").value,
+      });
+      renderMarks(r.marks);
+      $("#mnotice").textContent = "Latest mark labelled.";
+    } catch (e) {
+      $("#mnotice").textContent = "Could not label the mark: " + e.message;
+    }
+  };
+  loadMarks();
   $("#movl").onclick = async () => {
     $("#mnotice").textContent = "opening overlay…";
     try {

@@ -22,6 +22,12 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
   // The movement replay's arena shape, kept for every log on this device: a circle unless the viewer chose square.
   const ROOM_KEY = "a2-replay-arena";
   const roomShape = () => { try { return localStorage.getItem(ROOM_KEY) === "square" ? "square" : "circle"; } catch (e) { return "circle"; } };
+  // The measured areas of boss skills (0.2.365): aoe-shapes.json beside this script, written by
+  // ``python -m aion2calc aoe-shapes --write`` from who stood where when each cast's hits landed in the public
+  // recordings (docs/generated/aoe-shapes.md lists them). A server that does not carry the file draws no areas.
+  const AOE_URL=(()=>{try{return new URL("aoe-shapes.json",document.currentScript.src).href;}catch(e){return null;}})();
+  let aoeShapes=null,aoeRedraw=null;
+  if(AOE_URL&&typeof fetch==="function")fetch(AOE_URL).then(r=>r.ok?r.json():null).then(d=>{if(d&&d.shapes){aoeShapes=d.shapes;if(aoeRedraw)aoeRedraw();}}).catch(()=>{});
   // A fight's recorded movement on a 100×100 view, north up (0.2.350): ``at(position)`` is where it is drawn (clamped
   // to the view, and whether it fell outside), ``rooms`` a boss fight's arena as a circle and as a square, in view
   // units, or null. The view frames the bosses' ground with room around it, or without a boss the middle 90% of
@@ -51,7 +57,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       for(const a of all)Object.assign(a,{x:50+100*(a.x-cx)/span,y:50-100*(a.y-cy)/span,r:100*a.r/span});
     }
     const at=p=>{const x=50+100*(p.x-cx)/span,y=50-100*(p.y-cy)/span;return [Math.min(99,Math.max(1,x)),Math.min(99,Math.max(1,y)),x<0||x>100||y<0||y>100];};
-    return {at,rooms};
+    return {at,rooms,scale:r=>100*r/span};
   }
   // A claimed character carries the server's verified mark; one hidden by its player shows the server's stand-in
   // name and says so (see the log server's identity module).
@@ -938,9 +944,9 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         if(options.movement){box.innerHTML=`<h3>Recorded movement replay</h3><p class="small muted">This recording holds no movement (recordings made before 0.2.350 have none).${fromOthers?"":" Another public recording of this fight may hold it."}</p>${sourcesHTML}${mergeHTML}`;bindMerge();}
         return;
       }
-      const tokens={};let at=p=>[100*p.x,100*p.y,false],note="",rooms=null;
+      const tokens={};let at=p=>[100*p.x,100*p.y,false],note="",rooms=null,scale=null;
       if(world.length){
-        ({at,rooms}=frameMovement(world,id=>d.r[id]?.is_boss,!!d.segment.boss));
+        ({at,rooms,scale}=frameMovement(world,id=>d.r[id]?.is_boss,!!d.segment.boss));
         for(const p of world)(tokens[p.entity] ||= []).push(p);
         const own=tokens[d.segment.ping_recorder] || [],stamps=own.filter(p=>p.src==="applied"||p.src==="targeted").length;
         const borrowed=own.filter(p=>p.via).length;
@@ -963,6 +969,11 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       // under the slider as they happen, and the slider carries a tick at each.
       const CAST_SHOW=2.5,SPAWN_SHOW=3,NEAR=60;
       const casts=world.length?(d.segment.npc_casts || []).filter(c=>tokens[c.source]&&Number.isFinite(c.t)).sort((a,b)=>a.t-b.t):[];
+      // The measured area of a boss skill (0.2.365): by the skill's own id, or per boss for a generic one such as
+      // the plain Attack; its life on the replay is the longer of 1.5 s and the measured delay to its first hit plus one.
+      const aoeOf=c=>{if(!aoeShapes||!scale)return null;return aoeShapes[String(c.skill_id)]||aoeShapes[`${r[c.source]?.name||""}|${c.skill_id}`]||null;};
+      const aoeLife=a=>Math.max(1.5,(a.delay||0)+1),metres=u=>`${(u/100).toFixed(u<1000?1:0)} m`;
+      const aoeText=a=>a.shape==="circle_aim"?`circle of ${metres(a.radius)} around the aim`:a.shape==="circle_caster"?`circle of ${metres(a.radius)} around the caster`:a.shape==="cone"?`${2*a.angle}° cone ${metres(a.radius)} long`:a.shape==="line"?`line ${metres(a.length)} long, ${metres(2*a.half_width)} wide`:a.shape==="ring"?`ring from ${metres(a.inner)} to ${metres(a.radius)} around the caster`:String(a.shape);
       const spawns=world.length?Object.entries(tokens).filter(([id,frames])=>frames.length&&frames[0].t>1&&kindOf(id)!=="player"&&String(id)!==String(d.segment.ping_recorder)).map(([id,frames])=>({id,t:frames[0].t,frame:frames[0]})).sort((a,b)=>a.t-b.t):[];
       const keyHTML=(()=>{
         const ids=Object.keys(tokens),me=d.segment.ping_recorder,ring=' stroke="#fff" stroke-dasharray="1 1" stroke-width=".75"';
@@ -975,6 +986,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
           item(dot("currentColor",3,' fill-opacity=".35"'),"Faded: last seen over 8 seconds ago, or outside the fight area"),
           rooms&&item('<svg viewBox="0 0 10 10" width="16" height="16" aria-hidden="true" data-key-room></svg>',"Arena","arena"),
           casts.length&&item(swatch('<circle cx="3.5" cy="5" r="2.4" fill="none" stroke="#f0c050" stroke-width=".9"/><line x1="3.5" y1="5" x2="8" y2="5" stroke="#f0c050" stroke-width=".7" stroke-dasharray="1 .7"/><circle cx="8" cy="5" r="1.3" fill="#f0c050"/>'),"Boss cast: ringed on the caster, a marker where it was aimed, a wedge for its facing","casts"),
+          casts.some(c=>aoeOf(c))&&item(swatch('<path d="M2,8 L8,8 A6,6 0 0 0 2,2 Z" fill="#f06060" fill-opacity=".3" stroke="#f06060" stroke-width=".7"/>'),"Measured area of a boss skill: the shape its hits landed in across the public recordings","aoe"),
           spawns.length&&item(swatch('<circle cx="5" cy="5" r="3.6" fill="none" stroke="#9fd36f" stroke-width=".9" stroke-dasharray="1.2 .8"/>'),"Appeared: an enemy or pet first seen here during the fight","spawns")].filter(Boolean);
         const players=of("player").sort((a,b)=>(b===me)-(a===me)||label(r[a]).localeCompare(label(r[b])));
         const classes=[...new Set(players.map(id=>r[id].class).filter(Boolean))].sort(),named=c=>esc(c[0].toUpperCase()+c.slice(1));
@@ -1002,17 +1014,32 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       // the casts and appearances around t: markers on the arena, and the strip under the slider
       const worldAt=(frames,t)=>{const i=before(frames,t);return i<0?null:frames[i];},nameOf=id=>r[id]?.name||label(r[id]);
       const f2=v=>v.toFixed(2),rad=deg=>deg*Math.PI/180;
+      // A measured area where the cast happened: around its aim or its caster, or along the caster's facing (the cast's
+      // own, else the caster's heading, else the way from the caster to a distant aim), in world units scaled to the view.
+      const aoeSVG=(a,c,t,title)=>{const t0=a.anchor==="hit"?c.t+(a.delay||0):c.t,bw=worldAt(tokens[c.source],t0)||worldAt(tokens[c.source],t);if(!bw)return "";
+        const tw=c.target&&tokens[c.target]?worldAt(tokens[c.target],c.t):null,aim=c.pos?{x:c.pos[0],y:c.pos[1]}:tw||bw,age=(t-c.t)/aoeLife(a);if(age>1)return "";
+        const [bx,by]=at(bw),[ax,ay]=at(aim),tip=`<title>${esc(title)}</title>`,style=`opacity:${f2(.9*(1-age))}`,cls=`class="cr-aoe cr-aoe-${a.shape}"`;
+        let facing=c.facing!=null?c.facing:bw.heading!=null?bw.heading:null;if(facing==null&&Math.hypot(aim.x-bw.x,aim.y-bw.y)>100)facing=Math.atan2(aim.y-bw.y,aim.x-bw.x)*180/Math.PI;
+        if(a.shape==="circle_aim")return `<circle ${cls} style="${style}" cx="${f2(ax)}" cy="${f2(ay)}" r="${f2(scale(a.radius))}">${tip}</circle>`;
+        if(a.shape==="circle_caster"||(a.shape==="cone"&&a.angle>=180))return `<circle ${cls} style="${style}" cx="${f2(bx)}" cy="${f2(by)}" r="${f2(scale(a.radius))}">${tip}</circle>`;
+        if(a.shape==="ring"){const ro=scale(a.radius),ri=scale(a.inner);return `<circle ${cls} style="${style};stroke-width:${f2(Math.max(.4,ro-ri))}" cx="${f2(bx)}" cy="${f2(by)}" r="${f2((ro+ri)/2)}">${tip}</circle>`;}
+        if(facing==null)return "";
+        if(a.shape==="cone"){const R=scale(a.radius),a0=rad(facing-a.angle),a1=rad(facing+a.angle);return `<path ${cls} style="${style}" d="M${f2(bx)},${f2(by)} L${f2(bx+R*Math.cos(a0))},${f2(by-R*Math.sin(a0))} A${f2(R)},${f2(R)} 0 ${a.angle>90?1:0} 0 ${f2(bx+R*Math.cos(a1))},${f2(by-R*Math.sin(a1))} Z">${tip}</path>`;}
+        if(a.shape==="line"){const L=scale(a.length),W=scale(a.half_width),f=rad(facing),ux=Math.cos(f),uy=-Math.sin(f),px=-uy,py=ux;
+          const pts=[[bx+px*W,by+py*W],[bx+ux*L+px*W,by+uy*L+py*W],[bx+ux*L-px*W,by+uy*L-py*W],[bx-px*W,by-py*W]];return `<polygon ${cls} style="${style}" points="${pts.map(([x,y])=>`${f2(x)},${f2(y)}`).join(" ")}">${tip}</polygon>`;}
+        return "";};
       const drawMarks=t=>{const marks=box.querySelector("[data-marks]"),strip=box.querySelector("[data-now-list]");if(!marks)return;const svg=[],now=[];
-        if(!replayHidden.has("casts"))for(const c of casts){if(c.t>t)break;if(t-c.t>CAST_SHOW||!shown(c.source))continue;
-          const age=(t-c.t)/CAST_SHOW,here=place(tokens[c.source],t);if(!here)continue;const [x,y]=here,caster=nameOf(c.source),target=c.target&&r[c.target]?nameOf(c.target):"";
+        if(!replayHidden.has("casts"))for(const c of casts){if(c.t>t)break;const area=replayHidden.has("aoe")?null:aoeOf(c);if(t-c.t>Math.max(CAST_SHOW,area?aoeLife(area):0)||!shown(c.source))continue;
+          const gone=t-c.t>CAST_SHOW,age=Math.min(1,(t-c.t)/CAST_SHOW),here=place(tokens[c.source],t);if(!here)continue;const [x,y]=here,caster=nameOf(c.source),target=c.target&&r[c.target]?nameOf(c.target):"";
           const cw=worldAt(tokens[c.source],t),tw=c.target&&tokens[c.target]?worldAt(tokens[c.target],t):null;
           let where="";if(c.pos){const dc=cw?Math.hypot(c.pos[0]-cw.x,c.pos[1]-cw.y):Infinity,dt=tw?Math.hypot(c.pos[0]-tw.x,c.pos[1]-tw.y):Infinity;where=dt<=NEAR&&target?`at ${target}`:dc<=NEAR?"around itself":"on the ground"+(target?` near ${target}`:"");}else if(target)where=`at ${target}`;
           const title=`${caster}: ${c.skill || c.skill_id}${where?` ${where}`:""} · ${c.t.toFixed(1)}s`;
-          svg.push(`<circle class="cr-castring" cx="${f2(x)}" cy="${f2(y)}" r="${f2(3.2+3*age)}" stroke-opacity="${f2(1-age)}"><title>${esc(title)}</title></circle>`);
-          if(c.facing!=null){const L=9,a0=rad(c.facing-30),a1=rad(c.facing+30);svg.push(`<polygon class="cr-face" points="${f2(x)},${f2(y)} ${f2(x+L*Math.cos(a0))},${f2(y-L*Math.sin(a0))} ${f2(x+L*Math.cos(a1))},${f2(y-L*Math.sin(a1))}" fill-opacity="${f2(.25*(1-age))}"/>`);}
-          if(c.pos){const [ax,ay]=at({x:c.pos[0],y:c.pos[1]});if(Math.hypot(ax-x,ay-y)>1.5)svg.push(`<line class="cr-aimline" x1="${f2(x)}" y1="${f2(y)}" x2="${f2(ax)}" y2="${f2(ay)}" stroke-opacity="${f2(1-age)}"/>`);
+          if(area)svg.push(aoeSVG(area,c,t,`${title} · measured ${aoeText(area)} (${area.confidence}, ${area.casts} casts, ${Math.round(area.accuracy*100)}% of the positions explained)`));
+          if(!gone)svg.push(`<circle class="cr-castring" cx="${f2(x)}" cy="${f2(y)}" r="${f2(3.2+3*age)}" stroke-opacity="${f2(1-age)}"><title>${esc(title)}</title></circle>`);
+          if(!gone&&c.facing!=null){const L=9,a0=rad(c.facing-30),a1=rad(c.facing+30);svg.push(`<polygon class="cr-face" points="${f2(x)},${f2(y)} ${f2(x+L*Math.cos(a0))},${f2(y-L*Math.sin(a0))} ${f2(x+L*Math.cos(a1))},${f2(y-L*Math.sin(a1))}" fill-opacity="${f2(.25*(1-age))}"/>`);}
+          if(!gone&&c.pos){const [ax,ay]=at({x:c.pos[0],y:c.pos[1]});if(Math.hypot(ax-x,ay-y)>1.5)svg.push(`<line class="cr-aimline" x1="${f2(x)}" y1="${f2(y)}" x2="${f2(ax)}" y2="${f2(ay)}" stroke-opacity="${f2(1-age)}"/>`);
             svg.push(`<circle class="cr-aim" cx="${f2(ax)}" cy="${f2(ay)}" r="${f2(2+2.5*age)}" fill-opacity="${f2(.35*(1-age))}" stroke-opacity="${f2(1-age)}"><title>${esc(title)}</title></circle>`);}
-          now.push(`<span class="cr-now-cast"><span translate="no">${esc(caster)}</span>: <strong translate="no">${esc(String(c.skill || c.skill_id))}</strong>${where?` <span class="muted">${esc(where)}</span>`:""}</span>`);}
+          now.push(`<span class="cr-now-cast"><span translate="no">${esc(caster)}</span>: <strong translate="no">${esc(String(c.skill || c.skill_id))}</strong>${where?` <span class="muted">${esc(where)}</span>`:""}${area?` <span class="muted">· ${esc(aoeText(area))}</span>`:""}</span>`);}
         if(!replayHidden.has("spawns"))for(const sp of spawns){if(sp.t>t)break;if(t-sp.t>SPAWN_SHOW||!shown(sp.id))continue;const age=(t-sp.t)/SPAWN_SHOW,[x,y]=at(sp.frame),name=nameOf(sp.id);
           svg.push(`<circle class="cr-spawn" cx="${f2(x)}" cy="${f2(y)}" r="${f2(2.5+6*age)}" stroke-opacity="${f2(1-age)}"><title>${esc(name)} appeared here at ${sp.t.toFixed(1)}s</title></circle>`);
           now.push(`<span class="cr-now-spawn"><span translate="no">${esc(name)}</span> <span class="muted">appeared</span></span>`);}
@@ -1024,7 +1051,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       const keyChanged=()=>{showAll.hidden=toggles.every(c=>c.checked);drawRoom();draw(clock);};
       for(const c of toggles)c.onchange=()=>{if(c.checked)replayHidden.delete(c.dataset.keyToggle);else replayHidden.add(c.dataset.keyToggle);keyChanged();};
       showAll.onclick=()=>{for(const c of toggles){c.checked=true;replayHidden.delete(c.dataset.keyToggle);}keyChanged();};showAll.hidden=toggles.every(c=>c.checked);
-      box.querySelector("[data-plan]").onclick=()=>{const plan=planOf(d.segment.boss || d.segment.label,d.segment.duration,tokens,r,at,rooms?.[roomShape()],roomShape(),id=>!shown(id));if(options.importPlan){const status=box.querySelector("[data-plan-status]");try{const opened=options.importPlan(plan);if(opened&&opened.catch)opened.catch(e=>{status.textContent=e.message;});}catch(e){status.textContent=e.message;}return;}const blob=new Blob([JSON.stringify(plan)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="recorded-replay.a2plan.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};box.querySelector("[data-plan]").textContent=options.importPlan?"Open in Raid Planner":"Export Raid Planner file";draw(0);
+      box.querySelector("[data-plan]").onclick=()=>{const plan=planOf(d.segment.boss || d.segment.label,d.segment.duration,tokens,r,at,rooms?.[roomShape()],roomShape(),id=>!shown(id));if(options.importPlan){const status=box.querySelector("[data-plan-status]");try{const opened=options.importPlan(plan);if(opened&&opened.catch)opened.catch(e=>{status.textContent=e.message;});}catch(e){status.textContent=e.message;}return;}const blob=new Blob([JSON.stringify(plan)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="recorded-replay.a2plan.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};box.querySelector("[data-plan]").textContent=options.importPlan?"Open in Raid Planner":"Export Raid Planner file";draw(0);aoeRedraw=()=>{if(box.isConnected)draw(clock);};
     }
     // Swap the single-part view for a combined recording review (keeping the source part so
     // "Back to source part" and each part's own ranked data stay one click away).

@@ -331,6 +331,7 @@ def _start_hotkeys(port: int, open_app, open_settings):
             "toggle_overlay": toggle_overlay,
             "toggle_meter": toggle_meter,
             "clear_meter": lambda: runner().clear_session(),
+            "mark_moment": lambda: runner().mark("hotkey", source="hotkey"),
             "toggle_click_through": lambda: set_ui(
                 overlay_click_through=not server.ui_settings().get("overlay_click_through")),
             "toggle_party_overlay": toggle_party_overlay,

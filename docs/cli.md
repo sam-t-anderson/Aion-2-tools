@@ -70,6 +70,13 @@ python -m aion2calc npc-evidence ./logs              # from local a2log files or
 python -m aion2calc defeats                           # from the community log server
 python -m aion2calc defeats ./logs                    # from your own saved a2log files or a folder of them
 
+# measure the shape of boss skills from who stood where when each cast's hits landed: a circle around the aim or
+# the caster, a cone or a line along the caster's facing, or a ring (the replay draws the catalog this writes)
+python -m aion2calc aoe-shapes                        # the newest 100 public logs of the configured log server
+python -m aion2calc aoe-shapes ./logs --all           # your own saved a2log files or a folder of them; --all lists
+                                                   # the skills without enough evidence too
+python -m aion2calc aoe-shapes --logs 400 --write     # refresh app/static/aoe-shapes.json and docs/generated/aoe-shapes.md
+
 # gear / arcana / pantheon / genus / rotation advice for a character, and its inventory
 python -m aion2calc advise "Name" --server Zikel
 python -m aion2calc inventory "Name"                                  # the inventory: equipped items and the ones you added
