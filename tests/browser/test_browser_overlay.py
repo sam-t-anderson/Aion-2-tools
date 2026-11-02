@@ -1,8 +1,9 @@
 """The overlay page itself, the window over the game (0.2.344): its header (the Meter and Plan tabs, Lock, New,
-Copy, Hide and Start/Stop) stays inside the card at every width the overlay can be given. A card too narrow for
-one line wraps the header onto a second, Start/Stop still at its right end; at 340 px, the default, Stop ran
-past the card's right edge. In performance mode (0.2.355) it asks for the meter once a second, and nothing on it
-moves between polls."""
+Copy, Hide and Start/Stop) stays inside the card at every width the overlay can be given; at 340 px, the default,
+Stop ran past the card's right edge. Since 0.2.370 the meter's header is the compact layout's toolbar, an icon
+each, which wraps inside its chip when the card is too narrow for one line; the party window keeps the older
+header, a card too narrow for one line wrapping it onto a second, Start/Stop still at its right end. In
+performance mode (0.2.355) it asks for the meter once a second, and nothing on it moves between polls."""
 import time
 
 import pytest
@@ -16,38 +17,80 @@ FIGHT = {"running": True, "combine_pets": True, "snapshot": {
                  "healing": 0, "dtps": 0, "incoming": {"damage": 0}} for i, (name, cls, dps) in enumerate(PARTY)]}}
 
 
-def open_overlay(page, app_url: str, width: int, meter: dict) -> None:
-    """The app's overlay at this width (its Settings → Overlay width), over the meter's answer in ``meter``."""
+def open_overlay(page, app_url: str, width: int, meter: dict, view: str = "", **look) -> None:
+    """The app's overlay at this width (its Settings → Overlay width) and these other overlay settings, over the
+    meter's answer in ``meter``; ``view`` "party" opens the party window instead of the meter's."""
     def ui(route):
         if route.request.method != "GET":
             return route.continue_()
-        route.fulfill(json={**route.fetch().json(), "overlay_width": width})
+        route.fulfill(json={**route.fetch().json(), "overlay_width": width, **look})
     page.route("**/api/ui", ui)
     page.route("**/api/meter?view=latest", lambda route: route.fulfill(json=meter))
-    page.goto(app_url + "overlay", wait_until="load")
-    page.wait_for_function("!document.querySelector('#ovtarget').hidden")
+    page.goto(app_url + "overlay" + (f"?view={view}" if view else ""), wait_until="load")
+    if view == "party":
+        page.wait_for_function("document.querySelector('#ovcontent .ovpstat')")
+    else:
+        page.wait_for_function("!document.querySelector('#ovtarget').hidden")
     # The meter's answer is mocked and comes at once; the width comes with the settings, from the app
     page.wait_for_function("w => Math.abs(document.querySelector('.ovcard').getBoundingClientRect().width - w) < 1",
                            arg=width)
 
 
-@pytest.mark.parametrize("width", [260, 340])
-def test_the_header_stays_inside_the_card_whatever_start_stop_reads(app_page, app_url, width):
-    page = app_page
-    meter = {**FIGHT}
-    open_overlay(page, app_url, width, meter)
-    card = page.locator(".ovcard").bounding_box()
-    assert abs(card["width"] - width) < 1
-    header = page.locator(".ovhd")
-    for state, label in (({"running": True}, "Stop"), ({"running": True, "finalizing": True}, "Stopping…"),
-                         ({"running": False}, "Start")):
+STATES = (({"running": True}, "Stop"), ({"running": True, "finalizing": True}, "Stopping…"), ({"running": False}, "Start"))
+
+
+def _states(page, meter):
+    """Each Start/Stop state in turn, once the button reads it."""
+    for state, label in STATES:
         meter.pop("finalizing", None)
         meter.update(state)
         page.wait_for_function("label => document.querySelector('#ovcapture').textContent === label", arg=label)
+        yield label
+
+
+@pytest.mark.parametrize("width,scale", [(260, 100), (340, 100), (260, 160)])
+def test_the_toolbar_stays_inside_the_card_whatever_start_stop_reads(app_page, app_url, width, scale):
+    page = app_page
+    meter = {**FIGHT}
+    open_overlay(page, app_url, width, meter, overlay_font_scale=scale)
+    card = page.locator(".ovcard").bounding_box()
+    assert abs(card["width"] - width) < 1
+    header = page.locator(".ovhd")
+    for label in _states(page, meter):
+        box = header.bounding_box()
+        right = box["x"] + box["width"]
+        assert box["x"] >= card["x"] - 0.5 and right <= card["x"] + card["width"] + 0.5, label
+        assert header.evaluate("h => h.scrollWidth <= h.clientWidth"), label
+        buttons = [b.bounding_box() for b in header.locator("button:visible").all()]
+        assert len(buttons) >= 7, label                  # the view, Lock, New, Copy, Options, Start/Stop and Hide
+        for edge in buttons:                             # every one of them inside the toolbar, on whichever line
+            assert box["x"] - 0.5 <= edge["x"] and edge["x"] + edge["width"] <= right + 0.5, label
+            assert box["y"] - 0.5 <= edge["y"] and edge["y"] + edge["height"] <= box["y"] + box["height"] + 0.5, label
+        hide, capture = page.locator("#ovhide").bounding_box(), page.locator("#ovcapture").bounding_box()
+        assert hide["x"] + hide["width"] >= max(b["x"] + b["width"] for b in buttons) - 0.5   # Hide at the end
+        assert hide["y"] >= max(b["y"] for b in buttons) - 0.5
+        if abs(capture["y"] - hide["y"]) < 1:            # Start/Stop just before it, on the same line
+            assert abs(capture["x"] + capture["width"] - hide["x"]) < 1, label
+        # an icon now: the words stay for its tooltip and a screen reader, the icon says which
+        assert page.locator("#ovcapture").get_attribute("title").startswith("Start" if label == "Start" else "Stop")
+        assert ("on" in page.locator("#ovcapture").get_attribute("class").split()) == (label != "Start")
+    if width == 260 and scale == 160:                    # too narrow for one line: it wrapped, inside the card
+        tops = {round(b["y"]) for b in buttons}
+        assert len(tops) > 1
+
+
+def test_the_party_windows_header_keeps_start_stop_at_its_right_end(app_page, app_url):
+    page = app_page
+    meter = {**FIGHT}
+    open_overlay(page, app_url, 260, meter, view="party")
+    assert not page.evaluate("document.querySelector('#ov').classList.contains('ov-nm')")   # the older look
+    card = page.locator(".ovcard").bounding_box()
+    header = page.locator(".ovhd")
+    for label in _states(page, meter):
         box = header.bounding_box()
         right = box["x"] + box["width"]
         assert right <= card["x"] + card["width"] and header.evaluate("h => h.scrollWidth <= h.clientWidth"), label
-        for button in header.locator("button").all():
+        for button in header.locator("button:visible").all():
             edge = button.bounding_box()
             assert edge["x"] + edge["width"] <= right + 0.5, (label, button.inner_text())
         capture = page.locator("#ovcapture").bounding_box()

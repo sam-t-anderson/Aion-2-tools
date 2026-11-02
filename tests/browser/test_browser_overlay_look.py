@@ -119,9 +119,10 @@ def test_the_background_can_be_the_whole_card_the_top_portion_or_none(app_page, 
     assert page.evaluate("[...document.querySelector('#ov').classList].filter(c => c.startsWith('ov-bg-'))") == ["ov-bg-top"]
     page.wait_for_function("parseFloat(document.querySelector('.ovcard').style.getPropertyValue('--ov-top-h')) > 40")
     top = page.evaluate("""() => { const card = document.querySelector('.ovcard'), rows = document.querySelector('#ovcontent');
-        return [parseFloat(card.style.getPropertyValue('--ov-top-h')), rows.getBoundingClientRect().top - card.getBoundingClientRect().top,
+        return [parseFloat(card.style.getPropertyValue('--ov-top-h')),
+                rows.getBoundingClientRect().top - card.getBoundingClientRect().top - parseFloat(getComputedStyle(rows).marginTop),
                 parseFloat(getComputedStyle(card, '::before').height)]; }""")
-    assert abs(top[0] - top[1]) <= 1 and abs(top[2] - top[0]) <= 1, top                       # the panel ends where the rows begin
+    assert abs(top[0] - top[1]) <= 1 and abs(top[2] - top[0]) <= 1, top                       # the panel ends at the gap above the rows
     card, row, _ = page.evaluate(styles)
     assert card == clear and row != clear
     open_overlay(page, app_url, fight())
@@ -192,7 +193,8 @@ def test_the_transparent_modes_tell_the_host_which_rectangles_the_page_draws(app
     """In the native window the host paints an opaque card-coloured surface, so the page's clear card alone
     showed no change (0.2.364 to 0.2.367). In the *top* and *none* modes the page now reports the rectangles it
     draws (the header panel, each row, the pieces under the rows, in device px) and the host clips its window to
-    them; the card mode reports null, the whole window."""
+    them. The card mode reports the card's own outline, its corners rounded (0.2.370); the party window, square,
+    reports null, the whole window."""
     page = app_page
     page.add_init_script("""window.__shapes = []; window.pywebview = { platform: "edgechromium",
         api: new Proxy({}, { get: (t, name) => (...args) => { if (name === "set_window_shape") window.__shapes.push(args[0]); return Promise.resolve(); } }) };""")
@@ -202,16 +204,29 @@ def test_the_transparent_modes_tell_the_host_which_rectangles_the_page_draws(app
     rows = page.evaluate("[...document.querySelectorAll('#ovcontent .ovrow')].map(r => { const b = r.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })")
     top_h = page.evaluate("parseFloat(document.querySelector('.ovcard').style.getPropertyValue('--ov-top-h'))")
     assert rects[0][1] == 0 and abs(rects[0][3] - top_h) < 1                     # the header panel, from the card's top
-    for left, top, right, bottom in rows:                                        # every row, with a little room around it
-        assert any(l <= left and t <= top and r >= right and b >= bottom for l, t, r, b in rects[1:])
+    for left, top, right, bottom in rows:                                        # every row, its outline (and corner) exactly
+        assert any(r[0] <= left and r[1] <= top and r[2] >= right and r[3] >= bottom for r in rects[1:])
     assert all(r[3] <= top_h + 1 or r[1] >= top_h - 4 for r in rects[1:])        # nothing inside the panel reported again (rows get 3 px of room)
     open_overlay(page, app_url, fight(), overlay_bg_mode="none")
     page.wait_for_function("window.__shapes.length && Array.isArray(window.__shapes[window.__shapes.length - 1]) && window.__shapes[window.__shapes.length - 1].length > 5")
     rects = page.evaluate("window.__shapes[window.__shapes.length - 1]")
     head = page.evaluate("(() => { const b = document.querySelector('.ovhd').getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })()")
-    assert any(l <= head[0] and t <= head[1] and r >= head[2] and b >= head[3] for l, t, r, b in rects)   # the header on its own
-    open_overlay(page, app_url, fight())
-    page.wait_for_function("window.__shapes[window.__shapes.length - 1] === null")
+    assert any(r[0] <= head[0] and r[1] <= head[1] and r[2] >= head[2] and r[3] >= head[3] for r in rects)   # the toolbar on its own
+    open_overlay(page, app_url, fight())                                      # the whole card: its own outline
+    page.wait_for_function("(s => Array.isArray(s) && s.length === 1)(window.__shapes[window.__shapes.length - 1])")
+    whole, dpr = page.evaluate("window.__shapes[window.__shapes.length - 1][0]"), page.evaluate("window.devicePixelRatio")
+    card = page.evaluate("(() => { const b = document.querySelector('.ovcard').getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })()")
+    assert all(abs(whole[i] - card[i] * dpr) < 1 for i in range(4)) and whole[4] == round(12 * dpr), (whole, card)
+    # the card changes size between renders (a resize drag sets its width): the outline follows it at once, even
+    # with the meter's poll frozen by Lock, so no render comes to send it
+    page.click("#ovlock")
+    page.wait_for_timeout(200)                                                     # a poll already on its way lands
+    page.evaluate("document.documentElement.style.setProperty('--ov-width', '300px')")
+    page.wait_for_function("""dpr => { const s = window.__shapes[window.__shapes.length - 1], b = document.querySelector('.ovcard').getBoundingClientRect();
+        return Array.isArray(s) && s.length === 1 && Math.abs(b.width - 300) < 1 && Math.abs(s[0][2] - b.right * dpr) < 1; }""",
+                           arg=dpr, timeout=5000)
+    page.goto(app_url + "overlay?view=party", wait_until="load")                # the party window: the whole window
+    page.wait_for_function("window.__shapes.length && window.__shapes[window.__shapes.length - 1] === null")
 
 
 def test_the_window_shape_is_sent_once_the_native_bridge_is_up(app_page, app_url):
@@ -239,18 +254,19 @@ def counted():
     return {**meter, "snapshot": {**meter["snapshot"], **COUNTERS}}
 
 
-def test_the_counter_lines_share_one_row_as_icons_when_the_see_through_overlay_is_narrow(app_page, app_url):
-    """In the see-through modes the Odyle, Shugo and Nightmare lines share one row: their full text where the card
-    is wide enough for all three, an icon with the count each where it is not (0.2.369); the card mode stacks
-    them at the bottom as before."""
+def test_the_counter_lines_share_one_row_as_icons_when_the_overlay_is_narrow(app_page, app_url):
+    """The Odyle, Shugo and Nightmare lines share one row: their full text where the card is wide enough for all
+    three, an icon with the count each where it is not (0.2.369, the see-through modes; the whole card too since
+    0.2.370, at its top, where it stacked them at the bottom before)."""
     page = app_page
     lines = "['#ovodyle', '#ovshugo', '#ovnightmare'].map(s => document.querySelector(s).getBoundingClientRect())"
     open_overlay(page, app_url, counted(), overlay_bg_mode="top")          # 340 px: the full lines do not fit
     page.wait_for_function("document.querySelector('#ov').classList.contains('ov-lines-icons')")
     boxes = page.evaluate(lines)
     assert max(b["top"] for b in boxes) - min(b["top"] for b in boxes) < 2             # one row
-    assert page.locator("#ovodyle .ovoltext").is_hidden() and page.locator("#ovodyle .ovolshort").inner_text() == "1,500"
-    assert page.locator("#ovnightmare .ovolshort").inner_text() == "11"
+    # the regular count, then the bonus in brackets, as the game's windows (and NotMeter) write it (0.2.370)
+    assert page.locator("#ovodyle .ovoltext").is_hidden() and page.locator("#ovodyle .ovolshort").inner_text() == "1,200(+300)"
+    assert page.locator("#ovnightmare .ovolshort").inner_text() == "9(+2)" and page.locator("#ovshugo .ovolshort").inner_text() == "12(+4)"
     assert page.locator("#ovodyle").get_attribute("title").startswith("Your Odyle Energy")   # the words live in the title
     top_h = page.evaluate("parseFloat(document.querySelector('.ovcard').style.getPropertyValue('--ov-top-h'))")
     assert all(b["bottom"] <= top_h + 1 for b in boxes)                                   # inside the top panel
@@ -259,9 +275,126 @@ def test_the_counter_lines_share_one_row_as_icons_when_the_see_through_overlay_i
     boxes = page.evaluate(lines)
     assert max(b["top"] for b in boxes) - min(b["top"] for b in boxes) < 2
     assert page.locator("#ovodyle .ovoltext").inner_text() == "Odyle Energy 1,500 (1,200 + 300 bonus)"
-    open_overlay(page, app_url, counted())                                   # the card: stacked, full text
-    page.wait_for_function("!document.querySelector('#ovodyle').hidden")
-    assert page.evaluate("[...document.querySelector('#ov').classList].filter(c => c.startsWith('ov-lines'))") == []
+    open_overlay(page, app_url, counted())                                   # the whole card: the same row, at its top
+    page.wait_for_function("document.querySelector('#ov').classList.contains('ov-lines-icons')")
     boxes = page.evaluate(lines)
-    assert boxes[0]["top"] < boxes[1]["top"] < boxes[2]["top"]
+    assert max(b["top"] for b in boxes) - min(b["top"] for b in boxes) < 2
+    target = page.locator("#ovtarget").bounding_box()
+    assert all(b["bottom"] <= target["y"] + 1 for b in boxes)                         # above the target card
 
+
+
+def test_the_meter_is_laid_out_like_notmeter_in_every_background_mode(app_page, app_url):
+    """The meter's compact layout after NotMeter's (0.2.370): a target card on top with the portrait, name, HP and
+    bars inside it, the rows as pills with the rate in full digits, the share to a tenth and your combat power,
+    and under them the fight clock with the party's total, the ping, and a toolbar of icons led by the metric chip;
+    the pet grouping and the opacity slider wait behind the Options button. Top portion only and None lay it out
+    first; the whole card takes the same layout with the card behind all of it, and the party window keeps the
+    older look."""
+    page = app_page
+    open_overlay(page, app_url, fight(), overlay_bg_mode="top", overlay_dps_interpolate=False, overlay_show_enemy_hp=True)
+    assert page.evaluate("document.querySelector('#ov').classList.contains('ov-nm')")
+    rows = page.locator("#ovcontent .ovrow")
+    page.wait_for_function("document.querySelector('#ovcontent .ovrate').textContent === '23,400'")
+    assert [rows.nth(i).locator(".ovpct").inner_text() for i in range(3)] == ["51.2%", "34.1%", "14.7%"]
+    assert rows.nth(0).locator(".sub").is_hidden()                                       # the total stays in the tooltip
+    assert "ovrow-self" in rows.nth(1).get_attribute("class") and "ovrow-self" not in rows.nth(0).get_attribute("class")
+    assert rows.nth(1).locator(".ovcp").inner_text() == "123.5K" and rows.nth(0).locator(".ovcp").count() == 0
+    # the target card holds its bars; the whole card's separate bars stay out of the way
+    assert page.locator("#ovtarget .ovtname").inner_text() == "Atiel" and page.locator("#ovtarget .ovhp").inner_text() == "47.0%"
+    assert page.locator("#ovtarget .ovtbar-hp b").get_attribute("style") == "width:47.0%" and page.locator("#ovhpbar").is_hidden()
+    assert page.locator("#ovtarget .ovtlabel").count() == 0
+    # the clock under the rows, then the ping and the toolbar on a line of their own
+    clock = page.locator("#ovclock")
+    assert clock.locator(".ovclktime").inner_text() == "01:15" and clock.locator(".ovclkbar.on").count() == 1
+    assert clock.locator(".ovclkparty").inner_text() == "Party DPS 45.70K"
+    last_row = rows.nth(2).bounding_box()
+    bar, ping = page.locator(".ovhd").bounding_box(), page.locator("#ovping").bounding_box()
+    assert clock.bounding_box()["y"] >= last_row["y"] + last_row["height"] and bar["y"] > clock.bounding_box()["y"]
+    assert abs(ping["y"] - bar["y"]) < 4 and ping["x"] < bar["x"]                         # the ping left, the toolbar right
+    assert page.locator("#ovping").inner_text() == "—ms"                                  # no samples in this fight
+    # the metric chip leads the toolbar and moves to the next metric on a click
+    assert page.evaluate("document.querySelector('#ovmetrics').parentElement.classList.contains('ovhd')")
+    visible = "[...document.querySelectorAll('#ovmetrics button')].filter(b => b.offsetWidth > 0).map(b => b.textContent)"
+    assert page.evaluate(visible) == ["DPS"] and page.locator("#ovstatus").is_hidden()
+    page.click("#ovmetrics button.on")
+    page.wait_for_function(f"JSON.stringify({visible}) === JSON.stringify(['HPS'])")
+    page.click("#ovmetrics button.on")
+    page.click("#ovmetrics button.on")
+    page.wait_for_function(f"JSON.stringify({visible}) === JSON.stringify(['DPS'])")
+    # the options fold away behind the toolbar's Options button
+    assert page.locator(".ovoptions").is_hidden() and page.locator("#ovop").is_hidden()
+    page.click("#ovsettings")
+    assert page.locator(".ovoptions").is_visible() and page.locator("#ovop").is_visible()
+    assert page.locator("#ovsettings").get_attribute("aria-expanded") == "true"
+    page.click("#ovsettings")
+    assert page.locator("#ovop").is_hidden()
+    # None: the same layout, the counters and the target card floating like the rest
+    open_overlay(page, app_url, counted(), overlay_bg_mode="none", overlay_dps_interpolate=False)
+    assert page.evaluate("document.querySelector('#ov').classList.contains('ov-nm')") and page.locator("#ovclock").is_visible()
+    lines, target = page.locator("#ovlines").bounding_box(), page.locator("#ovtarget").bounding_box()
+    assert lines["width"] < target["width"] and lines["y"] < target["y"]                   # the counters chip, above the card
+    # the whole card: the same layout, the card behind all of it
+    open_overlay(page, app_url, fight(), overlay_dps_interpolate=False)
+    classes = page.evaluate("[...document.querySelector('#ov').classList]")
+    assert "ov-nm" in classes and "ov-whole" in classes
+    assert page.evaluate("getComputedStyle(document.querySelector('.ovcard')).backgroundColor") != "rgba(0, 0, 0, 0)"
+    page.wait_for_function("document.querySelector('#ovcontent .ovrate').textContent === '23,400'")
+    assert page.locator("#ovcontent .ovpct").count() == 3 and page.locator("#ovclock").is_visible() and page.locator("#ovsettings").is_visible()
+    assert page.evaluate("document.querySelector('#ovmetrics').parentElement.classList.contains('ovhd')")
+    assert page.locator("#ovtarget .ovtlabel").count() == 0 and page.locator("#ovtarget .ovtport").count() == 1
+    card = page.locator(".ovcard").bounding_box()
+    for piece in ("#ovtarget", "#ovcontent", "#ovclock", "#ovping", ".ovhd"):                # every piece inside it
+        box = page.locator(piece).bounding_box()
+        assert card["x"] < box["x"] and box["x"] + box["width"] < card["x"] + card["width"], piece
+        assert card["y"] < box["y"] and box["y"] + box["height"] < card["y"] + card["height"], piece
+    # the plan view has no metric: its chip leaves the toolbar
+    page.click("#plan-tab")
+    page.wait_for_function("document.querySelector('#ovmetrics').hidden")
+    assert page.locator("#ovmetrics").is_hidden() and page.locator("#meter-tab").is_visible()
+    # the party window keeps the older look
+    page.goto(app_url + "overlay?view=party", wait_until="load")
+    page.wait_for_function("document.querySelector('#ovcontent .ovpstat')")
+    assert not page.evaluate("document.querySelector('#ov').classList.contains('ov-nm')")
+
+
+def test_the_compact_layouts_window_outline_carries_each_pieces_corner(app_page, app_url):
+    """In the compact layout every piece paints its own rounded background, so the shape sent to the Windows host
+    is each piece's exact outline with its corner radius as a fifth number (device px): the window's corners are
+    round where the pieces' are (0.2.370)."""
+    page = app_page
+    page.add_init_script("""window.__shapes = []; window.pywebview = { platform: "edgechromium",
+        api: new Proxy({}, { get: (t, name) => (...args) => { if (name === "set_window_shape") window.__shapes.push(args[0]); return Promise.resolve(); } }) };""")
+    open_overlay(page, app_url, fight(), overlay_bg_mode="none")
+    page.wait_for_function("window.__shapes.length && Array.isArray(window.__shapes[window.__shapes.length - 1]) && window.__shapes[window.__shapes.length - 1].length > 5")
+    rects = page.evaluate("window.__shapes[window.__shapes.length - 1]")
+    dpr = page.evaluate("window.devicePixelRatio")
+    rows = page.evaluate("[...document.querySelectorAll('#ovcontent .ovrow')].map(r => { const b = r.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })")
+    for row in rows:                                                                     # each row's own outline, corner 7 px
+        match = [r for r in rects if all(abs(r[i] - row[i] * dpr) < 1 for i in range(4))]
+        assert match and match[0][4] == round(7 * dpr), (row, rects)
+    bar = page.evaluate("(() => { const b = document.querySelector('.ovhd').getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })()")
+    assert any(all(abs(r[i] - bar[i] * dpr) < 1 for i in range(4)) and len(r) == 5 for r in rects)   # the toolbar too
+
+
+def test_a_narrow_card_with_large_text_keeps_the_names_and_the_controls_in_reach(app_page, app_url):
+    """At the narrowest width (260 px) with the largest text the rows' combat power and then their share give way,
+    and the target's HP numbers, so the names keep their room beside the rate; the toolbar and the fight clock
+    wrap inside the card rather than run past it (0.2.370). At the default size all of it shows."""
+    page = app_page
+    meter = fight()
+    meter["snapshot"]["current_target"].update(effective_max_hp=300_000_000, effective_current_hp=141_000_000, effective_hp_samples=12)
+    look = dict(overlay_dps_interpolate=False, overlay_show_enemy_hp=True)
+    shown = "sel => [...document.querySelectorAll(sel)].filter(e => e.offsetWidth > 0).length"
+    open_overlay(page, app_url, meter, **look)                                      # 340 px, 100 %: everything
+    assert page.evaluate(shown, ".ovpct") == 3 and page.evaluate(shown, ".ovcp") == 1 and page.evaluate(shown, ".ovhpnum") == 1
+    open_overlay(page, app_url, meter, overlay_width=260, overlay_font_scale=160, **look)
+    assert page.evaluate(shown, ".ovpct") == 0 and page.evaluate(shown, ".ovcp") == 0 and page.evaluate(shown, ".ovhpnum") == 0
+    assert page.locator("#ovtarget .ovhp").inner_text() == "47.0%"                  # the HP share stays
+    names = page.evaluate("[...document.querySelectorAll('#ovcontent .ovnametext')].map(n => n.getBoundingClientRect().width)")
+    size = page.evaluate("parseFloat(getComputedStyle(document.querySelector('#ovcontent .ovnametext')).fontSize)")
+    assert min(names) >= 2.5 * size, (names, size)                                   # a few letters of each name at least
+    card = page.locator(".ovcard").bounding_box()
+    for piece in ("#ovtarget .ovhp", "#ovclock", ".ovhd", "#ovcapture", "#ovhide"):    # nothing past the card's right edge
+        box = page.locator(piece).bounding_box()
+        assert box["x"] + box["width"] <= card["x"] + card["width"] + 0.5, piece

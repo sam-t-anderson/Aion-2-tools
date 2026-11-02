@@ -179,7 +179,7 @@ def test_the_overlay_shows_the_keys_under_odyle_above_the_identity_line_and_the_
     # The three lines sit in one container at flex order 60 and follow the markup: ping, Odyle, keys, tickets,
     # then the identity line (0.2.369 wraps them so the see-through modes can lay them out on one row).
     assert ".ovcard > #ovlines { order: 60; }" in css and 'id="ovlines"' in html
-    assert ".ovlines > .ovodyle { flex: 0 0 100%;" in css                # one line each in the whole-card mode
+    assert ".ovlines > .ovodyle { flex: 0 0 100%;" in css                # one line each outside the compact layout
     assert html.index('id="ovodyle"') < html.index('id="ovshugo"') < html.index('id="ovnightmare"') < html.index('id="ovidentity"')
     assert "snap.nightmare_tickets" in js and "Nightmare Tickets" in js and "#ov.ov-radar #ovnightmare" in css
     for hidden in ('"#ovshugo","#ovnightmare"', '$("#ovnightmare").hidden=true'):

@@ -63,6 +63,14 @@
   const COSMETICS=["none","gold","rainbow","ember","frost","aether","starlight"];
   let detailKey=null, detailBuffs=null, detailExtra=null, detailAt=0, detailBusy=false;
   let bgMode="card", meCosmetic="none", topCosmetic="none";
+  // The meter's compact layout (0.2.370), after NotMeter's: a target card on top, the rows as pills, and the fight
+  // clock, the ping and an icon toolbar under them, in every background mode; the party and radar windows keep theirs.
+  let nmMode=false;
+  // The compact layout's numbers: a rate in full digits (591,924) below ten million, a short one-decimal form for
+  // HP and combat power (186.5M, 634.4K), and the fight's time as mm:ss.
+  const rateText=v=>nmMode&&Math.abs(Number(v)||0)<1e7?Math.round(Number(v)||0).toLocaleString():kfmt(v);
+  const sfmt=x=>{x=Number(x)||0;const a=Math.abs(x),f=(v,u)=>v.toFixed(1).replace(/\.0$/,"")+u;return a>=1e9?f(x/1e9,"B"):a>=1e6?f(x/1e6,"M"):a>=1e3?f(x/1e3,"K"):String(Math.round(x));};
+  const clockText=s=>{s=Math.max(0,Math.floor(Number(s)||0));return `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;};
   let lastShape="";   // the window shape last sent to the native host (declared early: nativeInit may run at once)
   const skillFamily=id=>{const n=Number(id);if(!Number.isSafeInteger(n)||n<=0)return null;return Math.floor(n/10000)%100===0?n:n-n%10000;};
   const skillIconHTML=(id,name)=>{const fam=skillFamily(id),initials=String(name||"").split(/\s+/).filter(Boolean).map(w=>w[0]).join("").slice(0,2);
@@ -184,6 +192,7 @@
     // Glow (text-shadow)
     const glow=ui.overlay_glow===true, glowColor=/^#[0-9a-f]{6}$/i.test(ui.overlay_glow_color||'')?ui.overlay_glow_color:'#e8cf8e';
     document.documentElement.style.setProperty('--ov-glow',glow?`0 0 4px ${glowColor}, 0 0 8px ${glowColor}`:'none');
+    document.getElementById('ov').classList.toggle('ov-glow',glow);   // the compact layout's text shadows give way to it
     document.documentElement.style.setProperty('--ov-glow-color',glowColor);
     document.documentElement.style.setProperty('--ov-hp-color',/^#[0-9a-f]{6}$/i.test(ui.overlay_hp_color||'')?ui.overlay_hp_color:'#e05a5a');
     document.documentElement.style.setProperty('--ov-ttk-color',/^#[0-9a-f]{6}$/i.test(ui.overlay_ttk_color||'')?ui.overlay_ttk_color:'#8fb3d0');
@@ -220,6 +229,16 @@
     bgMode=["card","top","none"].includes(ui.overlay_bg_mode)?ui.overlay_bg_mode:"card";
     document.getElementById('ov').classList.toggle('ov-bg-top',bgMode==="top");
     document.getElementById('ov').classList.toggle('ov-bg-none',bgMode==="none");
+    nmMode=!partyMode&&!radarMode;
+    document.getElementById('ov').classList.toggle('ov-nm',nmMode);
+    document.getElementById('ov').classList.toggle('ov-whole',nmMode&&bgMode==="card");   // the card behind all of it
+    if(!nmMode){document.getElementById('ov').classList.remove('ov-tools-open');const ob=$("#ovsettings");if(ob)ob.setAttribute("aria-expanded","false");}
+    // The compact layout carries the metric chip at the head of the toolbar, so the two stay together when the footer
+    // wraps; the older layout (the party and radar windows) keeps the metric row under its header, where the markup has it.
+    const hd=$(".ovhd"), mt=$("#ovmetrics");
+    if(hd&&mt){if(nmMode&&mt.parentElement!==hd)hd.prepend(mt);else if(!nmMode&&mt.parentElement===hd)hd.after(mt);}
+    // In the compact layout only the chosen metric shows, as a chip that moves to the next metric on a click.
+    document.querySelectorAll("[data-metric]").forEach(b=>{if(nmMode)b.title=`${b.textContent} — click for the next: DPS, HPS, damage taken`;else b.removeAttribute("title");});
     measureTop();   // the panel height and the window's shape follow the mode at once, not at the next poll
     // Animated row effects (0.2.364), free for everyone: one for your own row, one for the top row.
     meCosmetic=COSMETICS.includes(ui.overlay_me_cosmetic)?ui.overlay_me_cosmetic:"none";
@@ -283,7 +302,7 @@
   const copyBtn=$("#ovcopy");
   if(copyBtn)copyBtn.onclick=async()=>{
     if(!copyText)return;
-    const done=ok=>{const o=copyBtn.textContent;copyBtn.textContent=ok?"Copied":"Blocked";setTimeout(()=>{if(copyBtn.isConnected)copyBtn.textContent=o;},1200);};
+    const done=ok=>{const o=copyBtn.textContent;copyBtn.textContent=ok?"Copied":"Blocked";copyBtn.dataset.state=ok?"ok":"err";setTimeout(()=>{if(copyBtn.isConnected){copyBtn.textContent=o;delete copyBtn.dataset.state;}},1200);};
     try{await navigator.clipboard.writeText(copyText);done(true);}
     catch(_){try{const ta=document.createElement("textarea");ta.value=copyText;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();done(true);}catch(e){done(false);}}
   };
@@ -299,10 +318,10 @@
       graphHist=[];   // the live graph starts clean for the new fight
       clearedFight=String((lastSnap&&lastSnap.snapshot&&lastSnap.snapshot.selected_segment)??"");
       shownRates.clear();playerHist.clear();
-      splitBtn.textContent="New ✓";
+      splitBtn.textContent="New ✓";splitBtn.dataset.state="ok";
       await pollMeter();
-    }catch(_){splitBtn.textContent="Error";}
-    finally{setTimeout(()=>{if(splitBtn.isConnected){splitBtn.textContent=orig;splitBtn.disabled=false;}},1200);}
+    }catch(_){splitBtn.textContent="Error";splitBtn.dataset.state="err";}
+    finally{setTimeout(()=>{if(splitBtn.isConnected){splitBtn.textContent=orig;splitBtn.disabled=false;delete splitBtn.dataset.state;}},1200);}
   };
   // Start/Stop capture from the overlay — mirrors the app's button. Stop uses the
   // same action the app does; Start begins built-in (a2tools) live capture with the
@@ -342,9 +361,19 @@
       if(!r.ok){let m="";try{m=(await r.json()).error||"";}catch(_){}
         throw Error(m||("HTTP "+r.status));}
       await r.json();
-    }catch(e){captureBtn.textContent="Error";captureBtn.title=String(e.message||e).slice(0,256);
+    }catch(e){captureBtn.textContent="Error";captureBtn.title=String(e.message||e).slice(0,256);captureBtn.dataset.state="err";
       await new Promise(res=>setTimeout(res,1400));}
-    finally{captureBtn._busy=false;captureBtn.disabled=false;await pollMeter();syncCapture();}
+    finally{captureBtn._busy=false;captureBtn.disabled=false;delete captureBtn.dataset.state;await pollMeter();syncCapture();}
+  };
+  // The compact layout's Options button (0.2.370): the pet grouping and the opacity slider, folded away under the
+  // toolbar until it is pressed.
+  const optionsBtn=$("#ovsettings");
+  if(optionsBtn)optionsBtn.onclick=()=>{
+    const open=!$("#ov").classList.contains("ov-tools-open");
+    $("#ov").classList.toggle("ov-tools-open",open);
+    optionsBtn.setAttribute("aria-expanded",String(open));
+    measureTop();
+    if(clickThrough)requestAnimationFrame(reportInteractiveRects);
   };
   $("#ovcombine").onchange = async () => {
     const input=$("#ovcombine"), message=$("#ovpetstatus"); input.disabled=true;
@@ -423,7 +452,15 @@
   // covers a host that has the bridge in place before the page's script runs.
   window.addEventListener("pywebviewready", nativeInit);
   if (window.pywebview?.api?.fit) nativeInit();
-  new ResizeObserver(fit).observe($("#ov"));
+  // The window's outline follows the card's size however it changed (a poll, a click, a resize drag, the plan's
+  // arena): the host cuts the window to the outline it was last sent, so a stale one would clip a card that grew.
+  let shapeQueued = false;
+  function shapeSoon() {
+    if (shapeQueued) return;
+    shapeQueued = true;
+    requestAnimationFrame(() => { shapeQueued = false; measureTop(); });
+  }
+  new ResizeObserver(() => { fit(); shapeSoon(); }).observe($("#ov"));
 
   // These events must not bubble into pywebview's card drag handler.
   document.querySelectorAll("button, input, label").forEach((control) => {
@@ -485,7 +522,7 @@
   function renderParty() {
     // The separate Party-DPS overlay: raid-wide aggregates, not per-player rows.
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
-    for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovshugo","#ovnightmare","#ovidentity","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovconnection","#ovcooldowns"])$(id).hidden=true;
+    for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovshugo","#ovnightmare","#ovidentity","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovconnection","#ovcooldowns","#ovclock"])$(id).hidden=true;
     const totalDps=players.reduce((n,p)=>n+(Number(p.dps)||0),0);
     const totalHps=players.reduce((n,p)=>n+(Number(p.hps)||0),0);
     const totalTaken=players.reduce((n,p)=>n+(Number(p.dtps)||0),0);
@@ -562,21 +599,23 @@
   }
   // The recording player's Odyle Energy beside the game's Odyle Energy recharge-item icon.
   const ODYLE_ICON='https://metabot.gg/web/aion2/items/icon_item_odenergy_a_001a.webp';
+  // The counters' short form, as the game's own windows and NotMeter write it: the regular count, then the bonus.
+  const shortCount=(regular,bonus)=>`${regular.toLocaleString()}${bonus?`<span class="ovolb">(+${bonus.toLocaleString()})</span>`:''}`;
   function odyleLine(o){
     const files=window.A2BundledAssets&&window.A2BundledAssets.files, base=window.A2BundledAssets&&window.A2BundledAssets.base;
     const file=files&&files[ODYLE_ICON], regular=Number(o.regular)||0, bonus=Number(o.bonus)||0;
     const icon=file&&base?`<i class="ovodicon" style="background-image:url(${esc(base+file)})" aria-hidden="true"></i>`:'';
-    return `${icon}<span class="ovoltext">Odyle Energy ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span><span class="ovolshort">${(regular+bonus).toLocaleString()}</span>`;
+    return `${icon}<span class="ovoltext">Odyle Energy ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span><span class="ovolshort">${shortCount(regular,bonus)}</span>`;
   }
   // Your Shugo Festival Reward Keys (counter 1, since 0.2.332): the regular keys, then the bonus ones.
   function shugoLine(o){
     const regular=Number(o.regular)||0, bonus=Number(o.bonus)||0;
-    return `<i class="ovkeyicon" aria-hidden="true"></i><span class="ovoltext">Shugo Keys ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span><span class="ovolshort">${(regular+bonus).toLocaleString()}</span>`;
+    return `<i class="ovkeyicon" aria-hidden="true"></i><span class="ovoltext">Shugo Keys ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span><span class="ovolshort">${shortCount(regular,bonus)}</span>`;
   }
   // Your Nightmare tickets (counter 4, the one 0.2.329 took for the Shugo keys): regular, then bonus, spent one at a time.
   function nightmareLine(o){
     const regular=Number(o.regular)||0, bonus=Number(o.bonus)||0;
-    return `<i class="ovticketicon" aria-hidden="true"></i><span class="ovoltext">Nightmare Tickets ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span><span class="ovolshort">${(regular+bonus).toLocaleString()}</span>`;
+    return `<i class="ovticketicon" aria-hidden="true"></i><span class="ovoltext">Nightmare Tickets ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span><span class="ovolshort">${shortCount(regular,bonus)}</span>`;
   }
   function classIcon(cls){
     const key=String(cls||'').toLowerCase(); if(!key) return '';
@@ -598,8 +637,10 @@
     lastRenderAt=performance.now(); projecting=!!(s&&s.running)&&!snap.paused;
     $("#ovmetrics").hidden=false;
     const ping=snap.ping;$('#ovping').hidden=false;
-    setText($('#ovping'),ping?`Ping ${Number(ping.current).toFixed(0)} ms · Avg ${Number(ping.avg).toFixed(0)} ms · Min ${Number(ping.min).toFixed(0)} / Max ${Number(ping.max).toFixed(0)} ms`:'Ping: no recorded samples');
-    $('#ovping').title='Passive TCP RTT for this recording connection; average/minimum/maximum across the capture';
+    const pingText=ping?`Ping ${Number(ping.current).toFixed(0)} ms · Avg ${Number(ping.avg).toFixed(0)} ms · Min ${Number(ping.min).toFixed(0)} / Max ${Number(ping.max).toFixed(0)} ms`:'Ping: no recorded samples';
+    // The compact layout shows the current ping beside a signal mark, the average and range in the tooltip (0.2.370).
+    setHtml($('#ovping'),nmMode?`<i class="ovsig" aria-hidden="true"></i><span><b>${ping?Number(ping.current).toFixed(0):'—'}</b>ms</span>`:esc(pingText));
+    $('#ovping').title=(nmMode?pingText+' — ':'')+'Passive TCP RTT for this recording connection; average/minimum/maximum across the capture';
     const odyle=snap.odyle;$('#ovodyle').hidden=!odyle;
     if(odyle){setHtml($('#ovodyle'),odyleLine(odyle));$('#ovodyle').title='Your Odyle Energy, as the game sent it: the regular energy regenerates 15 every 3 hours, and a claimed reward cube spends it first, then the bonus';}
     const shugo=snap.shugo_keys;$('#ovshugo').hidden=!shugo;
@@ -622,14 +663,18 @@
     const meName = snap.identity_status && snap.identity_status.local_name ? String(snap.identity_status.local_name).toLocaleLowerCase() : "";
     const isMe = p => meName && String(p.name||'').toLocaleLowerCase() === meName;
     const ranked = [...visible].sort((a,b)=>rate(b)-rate(a)||amount(b)-amount(a));
+    // The compact layout's combat-power chip: a player's own combat power where the meter has it, yours from your
+    // identity, behind the same setting as the combat power on your identity line.
+    const localCp=snap.identity_status&&snap.identity_status.local_combat_power;
+    const cpChip=p=>{const cp=nmMode&&showCombatPower?(Number(p.combat_power)||(isMe(p)?Number(localCp)||0:0)):0;return cp>0?`<span class="ovcp" title="Combat power ${Math.round(cp).toLocaleString()}">${sfmt(cp)}</span>`:'';};
     const rows = ranked.slice(0, shownCount).map((p, i) => {
       const key=String(p.key||p.id);
       // In the DPS view a row with a skills list is clickable: it opens the player's panel under the rows (the
       // per-skill breakdown inside the row went in 0.2.368; the panel is the breakdown).
       const hasSkills=metric==="dps"&&Array.isArray(p.skills)&&p.skills.length;
       const cosmetic=isMe(p)&&meCosmetic!=="none"?meCosmetic:(i===0&&topCosmetic!=="none"?topCosmetic:null);
-      return `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}${highlightMe&&isMe(p)?' ovrow-me':''}${hasSkills?' ovrow-x':''}${cosmetic?' ov-cos-'+cosmetic:''}${detailKey===key?' ovrow-detail':''}"${hasSkills?` data-exk="${esc(key)}"`:''}><span class="ovname" data-detail="${esc(key)}" role="button" tabindex="0" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""} · Click for this player's details">${rankNumbers?`<span class="ovrank${i<3?' ovrank-'+(i+1):''}">${i+1}.</span>`:''}${classIcon(p.class)}${classSwatch?`<i class="ovclass" style="background:${barColor(p.class)}" title="${esc(p.class||'')}"></i>`:''}<span class="ovnametext"${classColorNames?` style="color:color-mix(in srgb, ${barColor(p.class)} 55%, #ffffff)"`:''}>${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}${showCommunityRank&&p.community_rank&&p.community_rank.text?`<small class="ovcrank" title="Community standing for your last uploaded fight">${esc(p.community_rank.text)}</small>`:''}</span>
-        <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i data-k="${esc(key)}" style="width:${100 * rate(p) / mx}%;--bar:${barColor(p.class)}"></i><span><span class="ovrate" data-k="${esc(key)}" data-target="${rate(p)}" data-amt="${amount(p)}">${kfmt(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div></div>`;
+      return `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}${highlightMe&&isMe(p)?' ovrow-me':''}${hasSkills?' ovrow-x':''}${cosmetic?' ov-cos-'+cosmetic:''}${detailKey===key?' ovrow-detail':''}${isMe(p)?' ovrow-self':''}"${hasSkills?` data-exk="${esc(key)}"`:''}><span class="ovname" data-detail="${esc(key)}" role="button" tabindex="0" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""} · Click for this player's details">${rankNumbers?`<span class="ovrank${i<3?' ovrank-'+(i+1):''}">${i+1}.</span>`:''}${classIcon(p.class)}${classSwatch?`<i class="ovclass" style="background:${barColor(p.class)}" title="${esc(p.class||'')}"></i>`:''}<span class="ovnametext"${classColorNames?` style="color:color-mix(in srgb, ${barColor(p.class)} 55%, #ffffff)"`:''}>${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}${showCommunityRank&&p.community_rank&&p.community_rank.text?`<small class="ovcrank" title="Community standing for your last uploaded fight">${esc(p.community_rank.text)}</small>`:''}${cpChip(p)}</span>
+        <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i data-k="${esc(key)}" style="width:${100 * rate(p) / mx}%;--bar:${barColor(p.class)}"></i><span><span class="ovrate" data-k="${esc(key)}" data-target="${rate(p)}" data-amt="${amount(p)}">${rateText(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span>${nmMode?`<span class="ovpct">${(100 * amount(p) / (total||1)).toFixed(1)}%</span>`:''}</span></div></div>`;
     }).join("");
     const duration=metric==="dps"?snap.duration:snap.recorded_duration;
     // Plain-text leaderboard of the current view, ready to paste into chat/Discord.
@@ -670,7 +715,7 @@
     // on uninterrupted (0.2.368: rebuilding the rows on every poll restarted it each time) and nothing flickers.
     const content=$("#ovcontent");
     const body=over ? `<div class="muted">${esc(empty)}</div>` : (players.length && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`);
-    const shape=body.replace(/ style="width:[^"]*"/g,"").replace(/data-target="[^"]*" data-amt="[^"]*"/g,"").replace(/<span class="ovrate"[^>]*>[^<]*<\/span>\/s <span class="sub">[^<]*<\/span>/g,"").replace(/ title="[^"]*"/g,"");
+    const shape=body.replace(/ style="width:[^"]*"/g,"").replace(/data-target="[^"]*" data-amt="[^"]*"/g,"").replace(/<span class="ovrate"[^>]*>[^<]*<\/span>\/s <span class="sub">[^<]*<\/span>(?:<span class="ovpct">[^<]*<\/span>)?/g,"").replace(/ title="[^"]*"/g,"");
     let changed=false;
     if(content&&content._a2shape!==shape){content._a2shape=shape;content._a2html=body;content.innerHTML=body;changed=true;}
     else if(content&&content._a2html!==body){
@@ -684,6 +729,8 @@
         if(rate&&nrate){rate.setAttribute("data-target",nrate.getAttribute("data-target"));rate.setAttribute("data-amt",nrate.getAttribute("data-amt"));if(!interpolate)setText(rate,nrate.textContent);}
         const sub=row.querySelector(".ovbar .sub"), nsub=n.querySelector(".ovbar .sub");
         if(sub&&nsub)setText(sub,nsub.textContent);
+        const pct=row.querySelector(".ovpct"), npct=n.querySelector(".ovpct");
+        if(pct&&npct)setText(pct,npct.textContent);
         const bar=row.querySelector(".ovbar"), nbar=n.querySelector(".ovbar");
         if(bar&&nbar){bar.title=nbar.title;if(!interpolate&&bar.firstElementChild&&nbar.firstElementChild)bar.firstElementChild.style.width=nbar.firstElementChild.style.width;}
         const name=row.querySelector(".ovname"), nname=n.querySelector(".ovname");
@@ -735,7 +782,8 @@
       // Same content as always; the name and the secondary readouts are wrapped so the
       // stylesheet can lay the panel out as a boss card (name + HP on top, TTK, damage
       // and contributors beneath). Hidden readouts stay hidden exactly as before.
-      changed = setHtml($("#ovtarget"),`<span class="ovtlabel">Target</span> ${portrait}<span class="ovtwho"><span class="ovtname">${esc(target.name)}</span>${also}</span>${hp}<span class="ovtline">${ttk}${gaugeText} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}</span>`) || changed;
+      if(!nmMode)changed = setHtml($("#ovtarget"),`<span class="ovtlabel">Target</span> ${portrait}<span class="ovtwho"><span class="ovtname">${esc(target.name)}</span>${also}</span>${hp}<span class="ovtline">${ttk}${gaugeText} <span class="sub">${kfmt(target.damage)}</span>${top?` — ${top}`:''}</span>`) || changed;
+      else changed = setHtml($("#ovtarget"),targetCard(target,portraitUrl,also,hpTip,ttk,gaugeText,gaugePct)) || changed;
       $("#ovtarget").title=`Most-hit enemy this encounter${alsoNames.length?` (and ${alsoNames.length} more struck in the same instant)`:''}, its remaining HP and time-to-kill from its observed HP-decline rate (all damage sources, so it reflects how fast it is really dying — not just your party's DPS), and each contributor's DPS to it`;
     }
     // Drawn remaining-over-max enemy HP bar, shown with the enemy-HP readout when real HP was captured.
@@ -775,6 +823,20 @@
     const showC=showContribution&&!over&&!cleared&&c&&c.damage>0&&metric==='dps';
     $("#ovcontribution").hidden=!showC;
     if(showC) setText($("#ovcontribution"),`Your contribution: ${Math.round((c.share||0)*100)}% · ${kfmt(c.damage)} (${kfmt(c.dps)}/s)`);
+    // The compact layout's fight clock (0.2.370): the fight's time beside a mark that is green while the fight runs,
+    // amber while the DPS clock is paused, and the party's total for the chosen metric.
+    const clk=$("#ovclock");
+    if(clk){
+      const showClk=nmMode&&!over&&!cleared&&visible.length>0;
+      clk.hidden=!showClk;
+      if(showClk){
+        const live=!!s.running&&!snap.paused, partyRate=players.reduce((n,p)=>n+rate(p),0);
+        const short=metric==="hps"?"HPS":metric==="taken"?"DTPS":"DPS";
+        const behind=snap.decode_backlog&&snap.decode_backlog.catching_up?`<span class="ovclknote">catching up (${esc(snap.decode_backlog.queue_depth)})</span>`:'';
+        setHtml(clk,`<i class="ovclkbar${live?' on':snap.paused?' paused':''}" aria-hidden="true"></i><span class="ovclktime">${clockText(duration)}</span>${snap.paused&&metric==="dps"?'<span class="ovclknote">Paused</span>':''}${behind}${s.error?`<span class="ovclknote ovclkerr" title="${esc(s.error)}">Capture stopped</span>`:''}<span class="ovclkparty">Party ${short} <b>${kfmt(partyRate)}</b></span>`);
+        clk.title=status;
+      }
+    }
     recordGraph(s, snap, players);
     renderCooldowns();
     renderDetail(snap, players, over||cleared);
@@ -788,9 +850,26 @@
     // the fight, so keep the meter open through it — never collapse mid-boss.
     if(onlyInCombat && (!s.running || over || (snap.paused && snap.boss_alive!==true))){
       setHtml($("#ovcontent"),'');
-      for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovshugo","#ovnightmare","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovidentity","#ovgraph","#ovcooldowns","#ovdetail"])$(id).hidden=true;
+      for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovshugo","#ovnightmare","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovidentity","#ovgraph","#ovcooldowns","#ovdetail","#ovclock"])$(id).hidden=true;
       if(setText($("#ovstatus"),s.running?'Idle · waiting for combat':'Idle')) $("#ovstatus").title=$("#ovstatus").textContent;
     }
+  }
+  // The compact layout's target card (0.2.370): the portrait (a target mark where the game's art is unknown), the name
+  // with the count of others struck, the HP left in damage units where the community has measured it and the HP share,
+  // then the HP, time-to-kill and break bars inside the card, the time-to-kill and break readouts under them. The same
+  // readouts and settings as the older layout's target panel.
+  function targetCard(target, portraitUrl, also, hpTip, ttk, gaugeText, gaugePct){
+    const img=portraitUrl?`<img class="ovtportimg" width="34" height="34" referrerpolicy="no-referrer" src="${esc(window.A2AssetHealth?A2AssetHealth.source(portraitUrl):portraitUrl)}" alt="" onerror="this.remove()">`:'';
+    const hpKnown=showEnemyHp&&target.hp_pct!=null, pct=hpKnown?Math.max(0,Math.min(100,target.hp_pct*100)):0;
+    const nums=hpKnown&&target.effective_max_hp!=null&&target.effective_current_hp!=null
+      ?`<span class="ovhpnum" title="${esc(hpTip)}">${sfmt(target.effective_current_hp)} / ${sfmt(target.effective_max_hp)}</span>`:'';
+    const hp=hpKnown?`<span class="ovhp" title="${esc(hpTip)}">${pct.toFixed(1)}%</span>`:'';
+    const ttkPct=showTtk&&target.ttk_fraction!=null&&isFinite(target.ttk_fraction)?Math.max(0,Math.min(100,target.ttk_fraction*100)):null;
+    const bars=(hpKnown?`<i class="ovtbar ovtbar-hp"><b style="width:${pct.toFixed(1)}%"></b></i>`:'')
+      +(ttkPct!=null?`<i class="ovtbar ovtbar-ttk" title="Estimated kill progress by time"><b style="width:${ttkPct.toFixed(1)}%"></b></i>`:'')
+      +(gaugePct!=null?`<i class="ovtbar ovtbar-gauge${gaugePct<=5?' broken':''}" title="Break gauge left before this enemy breaks"><b style="width:${(gaugePct<=5?100:gaugePct).toFixed(1)}%"></b></i>`:'');
+    const line=ttk||gaugeText?`<span class="ovtline">${ttk}${gaugeText}</span>`:'';
+    return `<span class="ovtport" aria-hidden="true">${img}</span><span class="ovtmain"><span class="ovthead"><span class="ovtwho"><span class="ovtname">${esc(target.name)}</span>${also}</span>${nums}${hp}</span>${bars?`<span class="ovtbars">${bars}</span>`:''}${line}</span>`;
   }
   // The player panel (0.2.364): the player's totals and special-hit shares as tiles, their top skills with icons,
   // and the buffs on them with their uptime (from /api/meter/player). The tiles and skills follow each poll.
@@ -845,16 +924,18 @@
   $("#ovdetail")&&$("#ovdetail").addEventListener("click",e=>{if(e.target.closest("[data-close]"))openDetail(null);});
   // In the top-background mode the panel behind the header ends where the player rows begin: measured after
   // each render, so a target panel coming or going moves it.
-  // The Odyle, Shugo and Nightmare lines in the see-through modes (0.2.369): one row of full lines when the card is
-  // wide enough for all of them, one row of icons with the counts when it is not; the card mode stacks them.
+  // The Odyle, Shugo and Nightmare lines in the compact layout (the see-through modes since 0.2.369, the whole card
+  // since 0.2.370): one row of full lines when the card is wide enough for all of them, one row of icons with the
+  // counts when it is not; the older layout stacks them.
   function compactLines(){
     const ov=$("#ov"), card=$(".ovcard"); if(!ov||!card)return;
     ov.classList.remove("ov-lines-row","ov-lines-icons");
-    if(bgMode==="card")return;
+    if(!nmMode)return;
     const lines=["#ovodyle","#ovshugo","#ovnightmare"].map(id=>$(id)).filter(el=>el&&!el.hidden);
     if(!lines.length)return;
     ov.classList.add("ov-lines-row");
-    const cs=getComputedStyle(card), room=card.clientWidth-(parseFloat(cs.paddingLeft)||0)-(parseFloat(cs.paddingRight)||0);
+    const cs=getComputedStyle(card), ls=getComputedStyle($("#ovlines"));
+    const room=card.clientWidth-(parseFloat(cs.paddingLeft)||0)-(parseFloat(cs.paddingRight)||0)-(parseFloat(ls.paddingLeft)||0)-(parseFloat(ls.paddingRight)||0);
     const need=lines.reduce((n,el)=>n+el.scrollWidth,0)+10*lines.length;   // each line keeps its 10 px margin
     if(need>room+1)ov.classList.add("ov-lines-icons");
   }
@@ -862,19 +943,32 @@
     compactLines();
     const card=$(".ovcard"),rows=$("#ovcontent");
     if(!card||!rows||bgMode!=="top"){if(card)card.style.removeProperty("--ov-top-h");reportShape();return;}
-    requestAnimationFrame(()=>{const h=rows.getBoundingClientRect().top-card.getBoundingClientRect().top;card.style.setProperty("--ov-top-h",Math.max(0,Math.round(h))+"px");reportShape();});
+    requestAnimationFrame(()=>{const h=rows.getBoundingClientRect().top-card.getBoundingClientRect().top-(parseFloat(getComputedStyle(rows).marginTop)||0);card.style.setProperty("--ov-top-h",Math.max(0,Math.round(h))+"px");reportShape();});
   }
   // The native host paints an opaque window behind the page, so a transparent card alone shows nothing of the
   // game: in the "top portion only" and "none" modes the page reports the rectangles it draws (device px, like
-  // the control rects) and the host clips its window to them. In the card mode the whole window is drawn.
+  // the control rects) and the host clips its window to them. In the card mode the window is the card: its
+  // rounded outline in the meter's compact layout (0.2.370), the whole window in the party and radar windows.
   function reportShape(){
     const card=$(".ovcard"), api=nativeReady&&window.pywebview?.api;
     if(!card||!api||typeof api.set_window_shape!=="function")return;   // no host yet: nativeInit asks again once it is up
-    if(bgMode==="card"){if(lastShape!=="card"){lastShape="card";nativeCall("set_window_shape",null);}return;}
-    const dpr=window.devicePixelRatio||1, pad=3, rects=[];
-    const add=el=>{const r=el.getBoundingClientRect();if(r.width>0&&r.height>0)rects.push([(r.left-pad)*dpr,(r.top-pad)*dpr,(r.right+pad)*dpr,(r.bottom+pad)*dpr]);};
+    // The compact layout's pieces each paint their own rounded background, so the window takes their exact outline,
+    // the corner radius riding along as a fifth number (device px, 0.2.370); before it, 3 px of room around each.
+    const dpr=window.devicePixelRatio||1, pad=nmMode?0:3, rects=[];
+    const corner=(el,pseudo)=>nmMode?Math.round((parseFloat(getComputedStyle(el,pseudo).borderTopLeftRadius)||0)*dpr):0;
+    const shape=(box,c)=>c>0?[...box,c]:box;
+    if(bgMode==="card"){
+      // The whole card: the window is the card, its corners rounded like the card's in the compact layout; the
+      // party and radar windows, square, keep the whole window.
+      const box=card.getBoundingClientRect(), c=corner(card);
+      const whole=c>0?[shape([box.left*dpr,box.top*dpr,box.right*dpr,box.bottom*dpr],c)]:null;
+      const key="card:"+(whole?whole[0].map(Math.round).join(","):"");
+      if(key!==lastShape){lastShape=key;nativeCall("set_window_shape",whole);}
+      return;
+    }
+    const add=el=>{const r=el.getBoundingClientRect();if(r.width>0&&r.height>0)rects.push(shape([(r.left-pad)*dpr,(r.top-pad)*dpr,(r.right+pad)*dpr,(r.bottom+pad)*dpr],corner(el)));};
     const top=card.getBoundingClientRect();
-    if(bgMode==="top"){const h=parseFloat(card.style.getPropertyValue("--ov-top-h"))||0;if(h>0)rects.push([top.left*dpr,top.top*dpr,top.right*dpr,(top.top+h)*dpr]);}
+    if(bgMode==="top"){const h=parseFloat(card.style.getPropertyValue("--ov-top-h"))||0;if(h>0)rects.push(shape([top.left*dpr,top.top*dpr,top.right*dpr,(top.top+h)*dpr],corner(card,"::before")));}
     for(const el of card.children){
       if(el.id==="ovbg"||el.hidden||el.offsetParent===null&&getComputedStyle(el).position!=="fixed")continue;
       if(el.id==="ovcontent"){el.querySelectorAll(":scope > .ovrow, :scope > .muted").forEach(add);continue;}
@@ -945,7 +1039,7 @@
   function renderPlan() {
     $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovodyle").hidden=true;$("#ovshugo").hidden=true;$("#ovnightmare").hidden=true;$("#ovidentity").hidden=true;
     $("#ovtarget").hidden=true;$("#ovhpbar").hidden=true;$("#ovttkbar").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
-    $("#ovgraph").hidden=true;$("#ovgauge").hidden=true;$("#ovcooldowns").hidden=true;
+    $("#ovgraph").hidden=true;$("#ovgauge").hidden=true;$("#ovcooldowns").hidden=true;$("#ovclock").hidden=true;
     $("#ovconnection").hidden=true;
     const view = planView(), p = view.plan;
     if (!p) {
@@ -979,7 +1073,9 @@
     };
   });
   document.querySelectorAll("[data-metric]").forEach(button=>{button.onclick=()=>{
-    metric=button.dataset.metric;
+    // The compact layout shows the chosen metric alone: a click on it moves to the next one (0.2.370).
+    const metrics=["dps","hps","taken"];
+    metric=nmMode&&button.dataset.metric===metric?metrics[(metrics.indexOf(metric)+1)%metrics.length]:button.dataset.metric;
     try{localStorage.setItem("ovmetric",metric);}catch(e){/* optional storage */}
     renderMeter();
   };});
@@ -1286,7 +1382,7 @@
         const next=cur+(live-cur)*0.4;   // ease toward the live value
         const shown=Math.abs(next-live)<0.5?live:next;
         shownRates.set(key,shown);
-        setText(el,kfmt(shown));
+        setText(el,rateText(shown));
         // Ease the bar fill the same way so the length tracks the live number
         // instead of snapping each poll (CSS transition smooths the final step).
         const bar=el.closest(".ovbar");
@@ -1308,7 +1404,7 @@
     if(!fpsRunning)return;
     frames++;
     if(now-fpsAt>=1000){
-      if(showFps&&!partyMode){const el=$("#ovfps");if(el)el.textContent="Overlay "+Math.round(frames*1000/(now-fpsAt))+" FPS";}
+      if(showFps&&!partyMode){const el=$("#ovfps");if(el)el.innerHTML='<span class="ovfpsl">Overlay </span><b>'+Math.round(frames*1000/(now-fpsAt))+'</b> FPS';}
       frames=0; fpsAt=now;
     }
     requestAnimationFrame(fpsTick);
