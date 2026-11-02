@@ -1379,7 +1379,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
                               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
                               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
-                              "overlay_close_on_stop",
+                              "overlay_hover_interact", "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
                               "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_per_fight", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "share_gathering", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics", "meter_record_packets", "rtss_enabled", "radar_enabled",
                               "pettracker_enabled", "pettracker_overlay", "update_on_close", "performance_mode")
@@ -2014,7 +2014,7 @@ def ui_settings() -> dict:
                 # Visual group (all inert by default so the overlay looks unchanged until enabled).
                 "overlay_resizable": False, "overlay_snap_edge": False, "overlay_expand_up": False,
                 "overlay_always_visible": True, "overlay_remember_position": True,
-                "overlay_click_through": False, "overlay_close_on_stop": False,
+                "overlay_click_through": False, "overlay_hover_interact": False, "overlay_close_on_stop": False,
                 "overlay_font_scale": 100, "overlay_font_weight": 600, "overlay_font_family": "",
                 "overlay_text_fonts": {}, "overlay_text_halo": False, "overlay_halo_color": "#e8cf8e",
                 "overlay_text_retro": False,

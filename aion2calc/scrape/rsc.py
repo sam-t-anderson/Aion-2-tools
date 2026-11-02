@@ -71,7 +71,13 @@ def _parse_row(v: str):
 
 
 def text_lines(data: str) -> list[str]:
-    """Resolve row references and return all visible text in document order."""
+    """Resolve row references and return all visible text in document order.
+
+    Besides ``$<id>`` and ``$L<id>`` a payload can point at a row as ``$@<id>`` (a chunk), ``$W<id>`` (a set) or
+    ``$Q<id>`` (a map, whose values alone render). Next.js 16 pages (metabot.gg since late October 2026) reach their
+    content through such maps, the router tree's ``"c":"$Q.."``, and keep each segment's rendered node under
+    ``"d":{"r":...}``: a walk that followed only ``$``/``$L`` and skipped every ``d`` key (meant for SVG path data)
+    read nothing past the page's root, and every metabot page came back as its URL segments."""
     rs = rows(data)
     cache: dict[str, object] = {}
     out: list[str] = []
@@ -82,15 +88,18 @@ def text_lines(data: str) -> list[str]:
         if depth > 400:
             return
         if isinstance(node, str):
-            m = re.fullmatch(r"\$L?([0-9a-f]+)", node)
-            if m and m.group(1) in rs:
-                k = m.group(1)
+            m = re.fullmatch(r"\$([LQW@]?)([0-9a-f]+)", node)
+            if m and m.group(2) in rs:
+                k = m.group(2)
                 if k in seen:
                     return
                 seen.add(k)
                 if k not in cache:
                     cache[k] = _parse_row(rs[k])
-                walk(cache[k], depth + 1)
+                value = cache[k]
+                if m.group(1) == "Q" and isinstance(value, list):     # a map: [[key, value], ...]
+                    value = [pair[1] for pair in value if isinstance(pair, list) and len(pair) == 2]
+                walk(value, depth + 1)
             elif not node.startswith("$"):
                 out.append(node)
             return
@@ -107,7 +116,7 @@ def text_lines(data: str) -> list[str]:
                 walk(x, depth + 1)
         elif isinstance(node, dict):
             for kk, vv in node.items():
-                if kk not in skip:
+                if kk not in skip or isinstance(vv, dict):          # a segment's {"r": node}, not a path
                     walk(vv, depth + 1)
 
     walk(_parse_row(rs.get("0", "null")))

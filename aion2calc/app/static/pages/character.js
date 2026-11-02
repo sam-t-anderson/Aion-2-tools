@@ -1,6 +1,10 @@
 /* My Character (#/character): a character imported from the official site, optimized with the gear it wears. */
 "use strict";
 
+// The point totals typed for each character, where above what its profile shows spent. A new key in 0.2.371: the
+// old one also held totals the page had raised to the community's highest reported ones.
+const BUDGETS_KEY = "character-point-budgets-v2";
+
 function mountSkillReserves(root, key, v) {
   let saved = {};
   try {
@@ -526,7 +530,7 @@ async function pageCharacter() {
     const v = st.v;
     let savedBudgets = {};
     try {
-      savedBudgets = JSON.parse(localStorage.getItem("character-point-budgets") || "{}")[v.key] || {};
+      savedBudgets = JSON.parse(localStorage.getItem(BUDGETS_KEY) || "{}")[v.key] || {};
     } catch (_) {}
     const availableBudgets = Object.fromEntries(
       ["skill", "stigma", "daevanion"].map((k) => [
@@ -534,16 +538,20 @@ async function pageCharacter() {
         Math.max(v.points[k], savedBudgets[k] ?? v.budgets?.[k] ?? v.points[k]),
       ]),
     );
-    const rememberBudgets = () => {
-      const values = Object.fromEntries(
+    // The totals in the fields: what the profile shows spent, or what the player typed (kept, per character, only
+    // where above the spent points; 0.2.371).
+    const budgetValues = () =>
+      Object.fromEntries(
         [...document.querySelectorAll("[data-character-budget]")].map((e) => [e.dataset.characterBudget, +e.value]),
       );
+    const rememberBudgets = () => {
+      const values = budgetValues();
       let all = {};
       try {
-        all = JSON.parse(localStorage.getItem("character-point-budgets") || "{}");
+        all = JSON.parse(localStorage.getItem(BUDGETS_KEY) || "{}");
       } catch (_) {}
-      all[v.key] = values;
-      localStorage.setItem("character-point-budgets", JSON.stringify(all));
+      all[v.key] = Object.fromEntries(Object.entries(values).filter(([k, n]) => n > v.points[k]));
+      localStorage.setItem(BUDGETS_KEY, JSON.stringify(all));
       return values;
     };
     $("#cview").innerHTML =
@@ -583,26 +591,21 @@ async function pageCharacter() {
     };
     $("#cpointpatch").onchange = () => localStorage.setItem("point-game-patch", $("#cpointpatch").value.trim());
     document.querySelectorAll("[data-character-budget]").forEach((e) => (e.onchange = rememberBudgets));
-    const budgetFields = [...document.querySelectorAll("[data-character-budget]")],
-      before = budgetFields.map((e) => e.value);
-    // The community's totals come from characters at the level cap: a lower character cannot have them.
+    const budgetFields = [...document.querySelectorAll("[data-character-budget]")];
+    // The fields start at the points the profile shows (or the total typed for this character). The community's
+    // highest reported totals are another player's: shown for reference, never put in the fields. Until 0.2.371 they
+    // raised the fields of a level-cap character, and the optimizer spent points the character did not have.
     const levelCap = v.level_cap || 45;
-    if ((v.level ?? levelCap) < levelCap) {
-      const note = document.createElement("p");
-      note.className = "small muted";
-      note.textContent = `Community point totals are not filled in below level ${levelCap}: they come from characters at the level cap.`;
-      budgetFields[0]?.closest(".row")?.after(note);
-    } else
+    if ((v.level ?? levelCap) >= levelCap)
       A2ProgressionBudgets.read(communityAPI, v.class, { region: st.hit?.region || "" })
         .then((result) => {
           if (S.character.v !== v || !budgetFields.every((e) => e.isConnected)) return;
-          budgetFields.forEach((e, i) => {
-            const total = result.points[e.dataset.characterBudget];
-            if (total !== null && e.value === before[i]) e.value = Math.max(+e.value, total);
-          });
+          const shown = ["skill", "stigma", "daevanion"].filter((k) => result.points[k] !== null);
+          if (!shown.length) return;
           const note = document.createElement("p");
           note.className = "small muted";
-          note.textContent = result.note;
+          note.dataset.communityPoints = "";
+          note.textContent = `Highest totals reported for the class: ${shown.map((k) => `${k} ${result.points[k]}`).join(", ")}. The optimizer uses your totals above; type yours in if you have points left unspent.`;
           budgetFields[0]?.closest(".row")?.after(note);
         })
         .catch(() => {});

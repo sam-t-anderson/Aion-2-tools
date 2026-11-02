@@ -86,10 +86,11 @@ def fight_summary(fights: list[dict], synced: dict | None = None, limit: int = 1
 def _card(e: dict | None) -> dict | None:
     if not e:
         return None
-    ic = e.get("icon")
-    if not ic and e.get("slug"):
-        ic = (INV.catalog_item(e["slug"]) or {}).get("icon")
-    return {"name": e.get("name"), "grade": e.get("grade"), "icon": ic, "enchant": e.get("enchant") or 0,
+    ic, level = e.get("icon"), e.get("item_level")
+    if (not ic or not level) and e.get("slug"):
+        it = INV.catalog_item(e["slug"]) or {}
+        ic, level = ic or it.get("icon"), level or it.get("item_level")
+    return {"name": e.get("name"), "grade": e.get("grade"), "icon": ic, "item_level": level, "enchant": e.get("enchant") or 0,
             "skills": e.get("skills") or [], "rolls": e.get("rolls_text") or e.get("rolls"),
             "manastones": e.get("manastones"), "source": e.get("source")}
 
@@ -113,6 +114,8 @@ def doll_view(inv: dict, equip: dict, goals: dict, path: dict) -> dict:
                                                                                "item_level", "gain", "url", "rolls")},
                      "best": g.get("best") and {k: g["best"][0].get(k) for k in ("name", "grade", "icon", "enchant",
                                                                                   "item_level", "gain", "url", "rolls")},
+                     # what enchanting and rerolling the worn item reaches (no next goal beats it by enough)
+                     "keep": g.get("worn") if slot not in first else None,
                      "steps": [s["step"] for s in path["steps"] if s["slot"] == slot]}
     return out
 
@@ -186,6 +189,11 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
         if pick and pick["gain"] > 0.002 and (not t["equipped"] or pick["name"] != t["equipped"]["name"]):
             where = "you own it" if pick.get("owned") else (pick.get("how") or "to earn")
             top.append({"area": "titles", "text": f"{slot} title: {pick['name']} ({where})", "gain": pick["gain"]})
+        guard = t.get("guard") or {}
+        mine = guard.get("best_owned")
+        if mine and mine["cut"] > (guard.get("equipped") or 0) + 1e-9 and mine["name"] != (t["equipped"] or {}).get("name"):
+            top.append({"area": "titles", "text": f"{slot} title: {mine['name']} (you own it): takes {100 * mine['cut']:.1f}% "
+                                                  "off the damage you take; no title for this slot adds damage", "gain": None})
     for c in tit["collect"][:2]:
         top.append({"area": "titles", "text": f"collect {c['name']} for its owned bonus ({c['owned_bonus']})",
                     "gain": c["gain"]})
@@ -242,6 +250,27 @@ def folder(imp) -> Path:
     return results_dir() / "characters" / imp.loadout_name()[5:]
 
 
+def shifted_titles(advice: dict) -> bool:
+    """Advice calculated from a title list the database sync stored one column off (0.2.36x to 0.2.370, see
+    ``titles.shifted``): a title plate shows a role word as its equip bonus, or a title worth collecting carries its
+    equip bonus as the owned one. Such advice is calculated again rather than shown (0.2.371)."""
+    from .titles import ROLE_SLOTS, titles_data
+    section = advice.get("titles") if isinstance(advice.get("titles"), dict) else {}
+    plates = []
+    for slot in (section.get("slots") or {}).values():
+        if isinstance(slot, dict):
+            plates += [p for p in (slot.get("equipped"), slot.get("best_owned"), *(slot.get("best") or []))
+                       if isinstance(p, dict)]
+    if any(p.get("equip") in ROLE_SLOTS for p in plates):
+        return True
+    collect = [c for c in section.get("collect") or [] if isinstance(c, dict) and c.get("owned_bonus")]
+    if not collect:
+        return False
+    known = {t["name"]: t for t in titles_data()}
+    return any(c["owned_bonus"] == known.get(c.get("name"), {}).get("equip") != known.get(c.get("name"), {}).get("owned")
+               for c in collect)
+
+
 def last(imp, inv: dict) -> dict:
     """The advice last written for the character (its advice.json), so the app can show it again without
     calculating it. ``inputs_changed`` when the character or its inventory differ from what it was calculated
@@ -256,6 +285,8 @@ def last(imp, inv: dict) -> dict:
         return {"advice": None}
     if not isinstance(advice, dict) or not isinstance(advice.get("character"), dict):
         return {"advice": None}
+    if shifted_titles(advice):          # kept from a title list stored one column off: the page calculates it again
+        return {"advice": None, "stale": "titles"}
     stamp = advice.get("calculated") if isinstance(advice.get("calculated"), dict) else {}
     at = stamp.get("at") if isinstance(stamp.get("at"), (int, float)) else written
     return {"advice": advice, "at": at, "version": stamp.get("version"),

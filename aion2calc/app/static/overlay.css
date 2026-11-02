@@ -641,3 +641,16 @@ html.native-windows #ov.ov-nm.ov-stripes .ovrow:nth-child(even) { background: rg
   background: var(--nm-float); text-shadow: var(--nm-shadow); }
 #ov.ov-nm.ov-tools-open .ovcard > .ovfoot { display: flex; order: 91; margin: 3px 0 0; padding: 5px 10px; border: 0; border-radius: 7px;
   background: var(--nm-float); text-shadow: var(--nm-shadow); }
+
+/* Hover-to-interact (0.2.371): while the pointer rests on a click-through overlay a ring fills in over the five
+   seconds the host counts, and stays once the overlay takes clicks. It sits inside what the window draws: the card,
+   or in the see-through modes each piece of it, so the window's outline never cuts it off. */
+#ov.ov-hover-arming:not(.ov-bg-top):not(.ov-bg-none) .ovcard,
+#ov.ov-hover-arming.ov-bg-top .ovcard > *:not(#ovbg), #ov.ov-hover-arming.ov-bg-none .ovcard > *:not(#ovbg),
+#ov.ov-hover-arming #ovcontent > .ovrow { animation: ovHoverArm 5s linear forwards; }
+#ov.ov-hover-open:not(.ov-bg-top):not(.ov-bg-none) .ovcard,
+#ov.ov-hover-open.ov-bg-top .ovcard > *:not(#ovbg), #ov.ov-hover-open.ov-bg-none .ovcard > *:not(#ovbg),
+#ov.ov-hover-open #ovcontent > .ovrow { box-shadow: inset 0 0 0 2px rgba(232, 207, 142, .85) !important; }   /* over the card's own shadows */
+@keyframes ovHoverArm { from { box-shadow: inset 0 0 0 2px rgba(232, 207, 142, 0); }
+  to { box-shadow: inset 0 0 0 2px rgba(232, 207, 142, .5); } }
+@media (prefers-reduced-motion: reduce) { #ov.ov-hover-arming .ovcard, #ov.ov-hover-arming .ovcard > *, #ov.ov-hover-arming .ovrow { animation: none; } }

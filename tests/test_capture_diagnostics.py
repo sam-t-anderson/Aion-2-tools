@@ -180,3 +180,157 @@ def test_overlay_host_rounds_the_corners_the_page_reports_and_keeps_square_ones_
     api.set_window_shape([[0, 0, 340, 28, 7], [0, 32, 340, 60]])
     assert [part.box for part in native.Region.parts] == [(0, 0, 340, 28), (0, 32, 340, 28)]   # square corners, same pieces
     assert any("square corners" in line for line in written)
+
+
+def test_overlay_host_drops_the_backdrop_pywebview_asks_for_when_windows_runs_apps_dark(monkeypatch):
+    """pywebview asks DWM for a Mica backdrop on its windows when Windows runs apps dark, and DWM paints that backdrop
+    across the whole window rectangle, outside the window's region: the see-through modes showed a dark box around
+    their pieces on a dark desktop (0.2.371). The host sets the backdrop to none (DWMWA_SYSTEMBACKDROP_TYPE 38,
+    DWMSBT_NONE 1), logs it once, and keeps quiet when the call cannot be made."""
+    import ctypes
+    from types import SimpleNamespace
+    from aion2calc.overlay import _OverlayAPI
+    calls, backdrop = [], {"kind": 2}                                     # Mica, as pywebview asks for it
+
+    def dwm_set(hwnd, attribute, value, size):
+        calls.append((hwnd.value, attribute, ctypes.cast(value, ctypes.POINTER(ctypes.c_int)).contents.value, size))
+        backdrop["kind"] = ctypes.cast(value, ctypes.POINTER(ctypes.c_int)).contents.value
+        return 0
+
+    def dwm_get(hwnd, attribute, value, size):
+        ctypes.cast(value, ctypes.POINTER(ctypes.c_int)).contents.value = backdrop["kind"]
+        return 0
+    monkeypatch.setattr(ctypes, "windll", SimpleNamespace(dwmapi=SimpleNamespace(DwmSetWindowAttribute=dwm_set,
+                                                                                DwmGetWindowAttribute=dwm_get)), raising=False)
+    api, written = _OverlayAPI(), []
+    api.log = SimpleNamespace(write=written.append)
+    api._drop_backdrop()
+    assert calls == []                                                       # no window yet: nothing to ask
+    api._hwnd = 4242
+    api._drop_backdrop()
+    api._drop_backdrop()                                                     # the watchdog looks every few seconds
+    assert calls == [(4242, 38, 1, 4)] and written == ["window backdrop: none"]   # set once, while it was Mica
+    backdrop["kind"] = 2                                                     # pywebview asked again (a settings change)
+    api._drop_backdrop()
+    assert calls == [(4242, 38, 1, 4)] * 2 and written == ["window backdrop: none"]
+
+    def refused(*args):
+        return 0x80070057                                                    # a Windows without system backdrops
+    monkeypatch.setattr(ctypes, "windll", SimpleNamespace(dwmapi=SimpleNamespace(DwmSetWindowAttribute=refused,
+                                                                                DwmGetWindowAttribute=refused)), raising=False)
+    api._drop_backdrop()
+    assert written[-1] == "window backdrop: left as it is (DwmSetWindowAttribute 0x80070057)"
+
+
+def test_overlay_host_moves_the_window_with_the_cursor_until_the_button_is_up(monkeypatch):
+    """The card's native drag (0.2.371): the window keeps its offset from the cursor, in screen pixels, while the
+    primary button is down, and stops when it is up, wherever the cursor is; the screenshot lock and a drag already
+    under way refuse a new one."""
+    import ctypes
+    import sys
+    import threading
+    from types import SimpleNamespace
+    from aion2calc.overlay import _OverlayAPI
+    cursor = iter([(500, 300), (510, 305), (510, 305), (560, 340), (600, 350)])
+    pressed = iter([True, True, True, False])
+    moves = []
+
+    def cursor_pos(point):
+        point[0], point[1] = next(cursor)
+
+    def window_rect(hwnd, rect):
+        rect[0], rect[1], rect[2], rect[3] = 420, 260, 760, 400
+    user32 = SimpleNamespace(GetAsyncKeyState=lambda button: 0x8000 if next(pressed) else 0, GetSystemMetrics=lambda index: 0,
+                             GetCursorPos=cursor_pos, GetWindowRect=window_rect,
+                             SetWindowPos=lambda hwnd, after, x, y, w, h, flags: moves.append((x, y)))
+    monkeypatch.setattr(ctypes, "WinDLL", lambda *a, **k: user32, raising=False)
+    api = _OverlayAPI()
+    api._window = SimpleNamespace(native=SimpleNamespace(Handle=SimpleNamespace(ToInt64=lambda: 7)))
+    api._dragging = True
+    api._drag(poll=0)
+    assert moves == [(430, 265), (480, 300)] and api._dragging is False     # the offset kept; still cursor, no move
+    started = []
+    monkeypatch.setattr(api, "_drag", lambda: started.append(1))
+    monkeypatch.setattr(sys, "platform", "win32")
+    api._locked = True
+    api.begin_drag()
+    api._locked, api._dragging = False, True
+    api.begin_drag()
+    assert started == []
+    api._dragging = False
+    api.begin_drag()
+    for thread in threading.enumerate():
+        if thread.name == "overlay-drag":
+            thread.join(2)
+    assert started == [1] and api._dragging is True                          # the stand-in drag never clears it
+
+
+def test_the_app_keeps_the_raid_planners_saved_plans_for_the_overlay(monkeypatch, tmp_path):
+    """The overlay's window cannot read the planner's browser storage: the planner hands its whole set of saved plans
+    to the app on every save, and the overlay's plan view reads them back (0.2.371)."""
+    import pytest
+    from aion2calc.app import server
+    monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
+    assert server.saved_plans() == {"plans": {}, "updated": None}
+    plan = {"format": "a2plan", "version": 1, "meta": {"name": "Atiel pull"}, "tokens": []}
+    assert server.save_plans({"p1": plan})["count"] == 1
+    kept = server.saved_plans()
+    assert kept["plans"] == {"p1": plan} and kept["updated"] > 0
+    assert server.save_plans({})["count"] == 0 and server.saved_plans()["plans"] == {}   # a delete reaches the app too
+    for bad in (None, [], {"": plan}, {"p1": "plan"}, {"x" * 65: plan}):
+        with pytest.raises(ValueError):
+            server.save_plans(bad)
+    monkeypatch.setattr(server, "SAVED_PLANS_MAX", 1)
+    with pytest.raises(ValueError):
+        server.save_plans({"p1": plan, "p2": plan})
+
+
+def test_hover_to_interact_opens_a_click_through_overlay_after_a_rest_and_closes_when_the_pointer_leaves():
+    """Hover-to-interact (0.2.371): over what the overlay draws (a piece of its shape, or anywhere without one) for
+    the hold time, the overlay takes clicks; leaving closes it again. The page hears each change once."""
+    from aion2calc.overlay import _HoverOpen, _over_overlay
+    hover = _HoverOpen(hold=5.0)
+    assert hover.update(True, False, 0.0) == (False, None)                 # not over it: nothing to say
+    assert hover.update(True, True, 1.0) == (False, "arming")
+    assert hover.update(True, True, 5.9) == (False, None)                  # 4.9 s in
+    assert hover.update(True, True, 6.0) == (True, "open")
+    assert hover.update(True, True, 9.0) == (True, None)
+    assert hover.update(True, False, 9.1) == (False, "off")                # left: clicks pass through again
+    assert hover.update(True, True, 9.2) == (False, "arming")              # and the count starts over
+    assert hover.update(False, True, 20.0) == (False, "off")               # the setting turned off
+    shape = ((0, 0, 100, 30, 6), (0, 40, 100, 70))
+    assert _over_overlay(shape, (50, 20)) and _over_overlay(shape, (50, 60))
+    assert not _over_overlay(shape, (50, 35))                              # the game between two pieces
+    assert _over_overlay(None, (500, 500)) and not _over_overlay(shape, None)
+
+
+def test_the_click_through_loop_opens_the_window_after_the_hover_hold(monkeypatch):
+    """The host's loop: transparent while the pointer is merely over the overlay, opaque once it rested for the hold,
+    transparent again after it leaves; the page is told "arming", "open" and "off"."""
+    import threading
+    import time
+    from types import SimpleNamespace
+    from aion2calc import overlay as ov
+    monkeypatch.setattr(ov, "HOVER_INTERACT_S", 0.15)
+    pointer = {"pos": (20, 20)}
+    applied, said = [], []
+    win32 = SimpleNamespace(cursor_in_client=lambda hwnd: pointer["pos"],
+                            set_click_through=lambda hwnd, value: applied.append(value))
+    window = SimpleNamespace(native=SimpleNamespace(Handle=SimpleNamespace(ToInt64=lambda: 9)))
+    api = SimpleNamespace(_click_through=True, _hover_interact=True, _interactive=(), _shape=((0, 0, 100, 50),),
+                          _on_ui=lambda fn: fn(), _say_hover=said.append)
+    closed = threading.Event()
+    loop = threading.Thread(target=ov._click_through_loop, args=(window, api, win32, closed), daemon=True)
+    loop.start()
+    try:
+        deadline = time.monotonic() + 3
+        while "open" not in said and time.monotonic() < deadline:
+            time.sleep(0.02)
+        pointer["pos"] = (20, 80)                                           # off the shape: over the game
+        while "off" not in said and time.monotonic() < deadline:
+            time.sleep(0.02)
+    finally:
+        closed.set()
+        loop.join(2)
+    assert said == ["arming", "open", "off"]
+    assert applied == [True, False, True]

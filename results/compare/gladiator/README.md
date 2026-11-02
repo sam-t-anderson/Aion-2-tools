@@ -48,23 +48,23 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `keen_strike`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Settings → Key Settings → General → Skill Macro. Skill Queue (스킬 예약) **ON**, 10 ms delay on every step, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
-| Step | Skill |
+| Line | Hotbar key holds (lowest first) |
 |---:|---|
-| 1 | ankle_slice |
-| 2 | overhead_slam |
-| 3 | mocking_blade |
-| 4 | crushing_wave |
-| 5 | rush_strike |
-| 6 | leaping_slam |
-| 7 | keen_strike |
+| 1 | overhead_slam › rage › lunge › rush_strike |
+| 2 | zikel › ruinous_blow |
+| 3 | rending_blow › aerial_snare › crushing_wave |
+| 4 | overhead_slam › rage › lunge › rush_strike |
+| 5 | mocking_blade › ankle_slice |
+| 6 | overhead_slam › rage › lunge › rush_strike |
+| 7 | leaping_slam › assault |
 
-Manual keys (press on cooldown, in this priority): lunge, zikel, rage, ruinous_blow, basic_combo (rending_blow's key while its chain is open), rending_blow, aerial_snare, assault
+Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight
 
-Simulated: this layout reaches **93.8%** of the ideal priority list.
+Simulated: this layout reaches **99.3%** of the ideal priority list.
 
-**Alternative — one-button macro (no manual keys)**: macro lunge → ankle_slice → zikel → rage → ruinous_blow → overhead_slam → basic_combo (rending_blow again) → leaping_slam → rending_blow → aerial_snare → mocking_blade → crushing_wave → assault → rush_strike → keen_strike. Simulated: **91.3%** of the ideal priority list.
+**Alternative — one skill per macro line**: macro ankle_slice → overhead_slam → mocking_blade → crushing_wave → rush_strike → leaping_slam → keen_strike; manual: lunge, zikel, rage, ruinous_blow, basic_combo (rending_blow's key while its chain is open), rending_blow, aerial_snare, assault. Simulated: **93.5%** of the ideal priority list.
 
 ### Opener (first 30 s of the simulated fight)
 

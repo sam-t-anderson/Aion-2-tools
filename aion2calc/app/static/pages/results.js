@@ -324,7 +324,7 @@ function winHotbar(v) {
           const s = h.slots[first + i];
           return s
             ? `<div class="hotbar-slot ${s.manual ? "manual" : "automatic"}" title="${esc(s.name)} — ${s.manual ? "Manual" : "Macro"}${s.charged ? "; hold to charge" : ""}">
-        ${rotationIcon(s)}<span class="hotbar-name">${esc(s.name)}</span><small>${s.charged ? "Hold to charge" : s.manual ? "Manual" : "Macro"}</small></div>`
+        ${rotationIcon(s)}<span class="hotbar-name">${esc(s.name)}</span><small>${s.charged ? "Hold to charge" : s.manual ? "Manual" : s.stack?.length > 1 ? `Macro key: ${s.stack.length} skills, lowest first` : "Macro"}</small></div>`
             : '<div class="hotbar-slot empty-slot"><span>+</span></div>';
         },
       ).join("")}</div>`,
@@ -358,12 +358,18 @@ function winMacro(v) {
         `<div class="manual-skill">${rotationIcon(s)}<div><b>${esc(s.name)}</b>${chainNote(s)}<div class="small muted">${s.charged ? `Hold this skill’s key${s.charge_level ? ` to charge level ${s.charge_level}` : " to charge"}, then release. Never add it as a macro tap.` : "Press manually when ready."}${s.condition ? ` Use ${esc(s.condition)}.` : ""}</div></div></div>`,
     )
     .join("");
+  // A step of several skills is one hotbar key holding them all: the game fires the lowest that is ready (0.2.371).
+  const held = (s) => s.stack || [s];
   const steps = r.steps
     .map(
-      (
+      (s, i) => `<div class="macro-step"><strong class="macro-number">${i + 1}</strong><div class="macro-stack">${held(
         s,
-        i,
-      ) => `<div class="macro-step"><strong class="macro-number">${i + 1}</strong><div>${rotationIcon(s)}<b>${esc(s.name)}</b>${chainNote(s)}</div><span class="macro-key-label">Hotbar key <kbd>${esc(s.binding)}</kbd></span></div>
+      )
+        .map(
+          (h, j, all) =>
+            `<div>${rotationIcon(h)}<b>${esc(h.name)}</b>${chainNote(h)}${all.length > 1 ? `<div class="small muted">${j ? "if the skills above are not ready" : "fires first when ready"}</div>` : ""}</div>`,
+        )
+        .join("")}</div><span class="macro-key-label">Hotbar key <kbd>${esc(s.binding)}</kbd></span></div>
     ${i < r.steps.length - 1 ? '<div class="macro-delay"><span></span>Delay <b>10</b> ms<span></span></div>' : ""}`,
     )
     .join("");
@@ -371,19 +377,22 @@ function winMacro(v) {
     r.steps
       .map(
         (s, i) =>
-          `${i + 1}. ${s.name}${s.chain_of ? ` (${s.chain_of}’s chain: ${s.chain_of} again)` : ""} — hotbar key ${s.binding}; delay 10 ms`,
+          `${i + 1}. hotbar key ${s.binding}: ${held(s)
+            .map((h) => `${h.name}${h.chain_of ? ` (${h.chain_of}’s chain: ${h.chain_of} again)` : ""}`)
+            .join(" > ")}; delay 10 ms`,
       )
       .join("\n") +
     (r.manual.length
       ? "\nManual: " + r.manual.map((s) => `${s.name} (${s.binding}${s.charged ? "; hold to charge" : ""})`).join(", ")
       : "");
   const body = `<ol class="macro-instructions"><li>Copy the suggested bindings from <b>Skills hotbar</b>, or substitute your own.</li>
-    <li>Open <b>Settings → Key Settings → General → Skill Macro</b>. Add the skills below once each, from top to bottom. The large numbers are macro steps, not hotbar keys. A skill’s key presses its chain step while the chain is open, in the macro too; a chain step listed below is its skill added again.</li>
+    <li>A step with several skills is one hotbar key holding all of them (a key takes up to four): put them on that key in the order listed, the first one lowest. Pressing the key fires the lowest skill that is ready.</li>
+    <li>Open <b>Settings → Key Settings → General → Skill Macro</b>. Add the hotbar keys below as macro lines, from top to bottom; a key listed twice is added twice. The large numbers are macro lines, not hotbar keys. A skill’s key presses its chain step while the chain is open, in the macro too; a chain step listed below is its skill added again.</li>
     <li>Set each step’s delay to <b>10 ms</b>, enable <b>Skill Queue</b>, and save the macro to an unused key (suggested: <kbd>${esc(v.hotbar?.macro_binding || "Right-click")}</kbd>).</li>
-    <li>Hold the macro key during combat. Release it to use a manual skill; charge skills need their own button held before release. Resume the macro afterwards.</li></ol>
+    <li>Hold the macro key during combat, with the left mouse button (the basic attack) held too: it attacks whenever no macro key has a skill ready. Release the macro to use a manual skill; charge skills need their own button held before release. Resume the macro afterwards.</li></ol>
     <div class="macro-layout"><div class="macro-editor"><h3>Macro</h3>${steps || '<p class="muted">This rotation uses manual skills only.</p>'}<div class="macro-save">Save to ${esc(v.hotbar?.macro_binding || "Right-click")} in game</div></div>
     <div><h4 class="gold">MANUAL SKILLS</h4>${manual || '<p class="muted">No manual skills for this rotation.</p>'}
-    <p class="small muted">${m.needs_refresh ? "This saved build predates charge-aware macros. Charged skills have been moved to manual controls; optimize again to recalculate the macro estimate." : `Estimated macro + manual execution: ${pct(m.dps_macro / m.dps_priority)} of the ideal priority rotation. This assumes you use the manual skills, including their charges.`}</p>
+    <p class="small muted">${m.needs_refresh ? "An earlier version of the app planned this macro, one skill per line. Optimize again for a macro built from hotbar keys of up to four skills, and for its estimate. Charge skills are shown as manual keys." : `Estimated macro + manual execution: ${pct(m.dps_macro / m.dps_priority)} of the ideal priority rotation. This assumes you use the manual skills, including their charges.`}</p>
     <h4 class="gold small">WHEN MULTIPLE SKILLS ARE READY</h4><p class="small muted">This priority list explains the optimizer’s decisions. It is not another macro to copy.</p><ol>${r.priority.map((s) => `<li>${esc(s.name)}${s.chain_of ? ` <span class="muted">(${esc(s.chain_of)}’s chain)</span>` : ""}${s.condition ? ` <span class="muted">(${esc(s.condition)})</span>` : ""}</li>`).join("")}</ol></div></div>`;
   return win("Skill Macro & rotation", "", body, { key: "macro", copy });
 }

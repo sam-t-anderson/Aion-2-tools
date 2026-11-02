@@ -67,21 +67,44 @@ def crystal_cost(cd: ClassData, nodes) -> int:
                if n in cd.node_index and cd.node_index[n][0]["name"] in CRYSTAL_BOARDS)
 
 
+#: the point totals a player entered for a character, above what its profile shows spent (0.2.371). Until then
+#: every optimization saved the page's three totals to ``character-points.json``, and the page had raised them to
+#: the community's highest reported totals for the class: the optimizer then spent points the character did not
+#: have. That file is no longer read.
+ENTERED_POINTS = "character-budgets.json"
+
+
 def budgets_of(imp: ImportedCharacter) -> dict:
-    """Optimize with at least the resources the character has already spent."""
+    """The points the character has, as its profile shows them spent, or the total the player entered for it."""
     cd = ClassData(imp.cls)
     result = {"skill": imp.build.sp_spent(),
               "stigma": imp.build.stigma_spent(),
               "daevanion": crystal_cost(cd, imp.build.daevanion)}
     from .paths import read_json
     try:
-        saved = read_json("character-points.json").get(imp.key, {})
+        saved = read_json(ENTERED_POINTS).get(imp.key, {})
         for key in result:
             if isinstance(saved.get(key), int) and not isinstance(saved[key], bool) and 0 <= saved[key] <= 10000:
                 result[key] = max(result[key], saved[key])
     except (OSError, ValueError):
         pass
     return result
+
+
+def remember_entered(key: str, budgets: dict, spent: dict) -> None:
+    """Keep for the character's next run the totals above what its profile shows spent: unspent points the player
+    entered. A total equal to the spent points is the profile's own and is not kept, so the next profile counts."""
+    from .paths import read_json
+    try:
+        saved = read_json(ENTERED_POINTS)
+    except (OSError, ValueError):
+        saved = {}
+    entered = {k: budgets[k] for k in spent if budgets.get(k, 0) > spent[k]}
+    if entered:
+        saved[key] = entered
+    else:
+        saved.pop(key, None)
+    write_user_json(saved, ENTERED_POINTS)
 
 
 def progression_of(imp, budgets, *, entered=()):
@@ -91,7 +114,7 @@ def progression_of(imp, budgets, *, entered=()):
              "daevanion": crystal_cost(cd, imp.build.daevanion)}
     try:
         from .paths import read_json
-        saved = read_json("character-points.json").get(imp.key, {})
+        saved = read_json(ENTERED_POINTS).get(imp.key, {})
     except (OSError, ValueError):
         saved = {}
     rows = []
@@ -196,21 +219,16 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     cur = evaluate_current(imp, scenario_name, genus_plan, objective, survival_plan, progress=progress)
     (out / "current").mkdir(parents=True, exist_ok=True)
     bud = dict(cur["budgets"])
+    spent_now = {"skill": imp.build.sp_spent(), "stigma": imp.build.stigma_spent(),
+                 "daevanion": crystal_cost(ClassData(imp.cls), imp.build.daevanion)}
     for key, value in (budgets or {}).items():
         if key not in bud or isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 10000:
             raise ValueError("Point budgets must be whole numbers from 0 to 10000")
-        spent = {"skill": imp.build.sp_spent(), "stigma": imp.build.stigma_spent(), "daevanion": crystal_cost(ClassData(imp.cls), imp.build.daevanion)}[key]
-        if value < spent:
-            raise ValueError(f"{key} total cannot be lower than the {spent} points already spent")
+        if value < spent_now[key]:
+            raise ValueError(f"{key} total cannot be lower than the {spent_now[key]} points already spent")
         bud[key] = value
     if budgets:
-        from .paths import read_json
-        try:
-            saved = read_json("character-points.json")
-        except (OSError, ValueError):
-            saved = {}
-        saved[imp.key] = bud
-        write_user_json(saved, "character-points.json")
+        remember_entered(imp.key, bud, spent_now)
     from .opt.reserves import prepare as prepare_reserves, include_survival
     from .model.character import loadout_stats
     reserve_plan = prepare_reserves(ClassData(imp.cls), skill_reserves, bud, loadout_stats(imp.loadout).skill_bonus)

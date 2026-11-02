@@ -5,6 +5,7 @@ page names the server and faction the live meter found and lists that server's f
 page's item panel takes an item's enchant level, rolls and skill options when it is added or edited, and the page
 opens on the advice kept from the last run, or runs it when none is kept; and My Character opens the character
 opened last, from its snapshot or afresh, when Settings asks it to."""
+import copy
 import json
 import pathlib
 import re
@@ -346,10 +347,12 @@ def character(page, level: int) -> dict:
             "points": {"skill": 90, "stigma": 10, "daevanion": 150}, "budgets": {"skill": 100, "stigma": 20, "daevanion": 200}}
 
 
-@pytest.mark.parametrize("level, offered", [(45, {"skill": "130", "stigma": "25", "daevanion": "300"}),
-                                            (30, {"skill": "100", "stigma": "20", "daevanion": "200"})])
-def test_my_character_offers_the_reported_point_totals_only_at_the_level_cap(app_page, app_url, community, level, offered):
-    # the highest reported totals come from level-45 characters: a level-24 Templar's were once offered to every Templar
+@pytest.mark.parametrize("level", [45, 30])
+def test_my_characters_budgets_are_its_own_points_and_the_reported_totals_only_a_note(app_page, app_url, community, level):
+    """The point fields start at the character's own totals, what its profile shows spent or what was typed for it
+    (0.2.371). The community's highest reported totals are other players': at the level cap they show in a note and
+    never fill the fields, which had the optimizer spend points the character did not have; below it they are not
+    asked for (a level-24 Templar's were once offered to every Templar)."""
     page = app_page
     go(page, app_url, "#/settings")
     view = character(page, level)
@@ -361,15 +364,17 @@ def test_my_character_offers_the_reported_point_totals_only_at_the_level_cap(app
     page.click('[data-known-character="0"]')
     page.locator("#cview h2", has_text="Testsorc").wait_for()
     assert page.locator("#cview .wh .sub").first.inner_text() == f"Sorcerer · Lv {level} · Zikel · Combat Power 12,345"
-    if level == 45:                                                              # the reported totals arrive
-        page.wait_for_function("(document.querySelector('[data-character-budget=skill]') || {}).value === '130'")
+    if level == 45:                                                              # the reported totals arrive as a note
+        page.locator("[data-community-points]").wait_for()
+        assert page.locator("[data-community-points]").inner_text().startswith(
+            "Highest totals reported for the class: skill 130, stigma 25, daevanion 300.")
     else:
         page.wait_for_timeout(800)                                               # as long as they would take to
+        assert page.locator("[data-community-points]").count() == 0
     budgets = page.eval_on_selector_all("[data-character-budget]", "es => Object.fromEntries(es.map(e => [e.dataset.characterBudget, e.value]))")
-    assert budgets == offered
-    note = "Community point totals are not filled in below level 45: they come from characters at the level cap."
+    assert budgets == {"skill": "100", "stigma": "20", "daevanion": "200"}
     asked_for = [path for _, path in community.requests[asked:] if path.startswith("/api/v1/progression?class=sorcerer")]
-    assert (page.get_by_text(note).count(), len(asked_for)) == ((0, 1) if level == 45 else (1, 0))
+    assert len(asked_for) == (1 if level == 45 else 0)
 
 
 def test_my_characters_overview_shows_the_healing_recorded_in_its_own_fights(app_page, app_url):
@@ -395,3 +400,61 @@ def test_my_characters_overview_shows_the_healing_recorded_in_its_own_fights(app
     page.locator('[data-known-character="0"]').wait_for()
     page.click('[data-known-character="0"]')
     page.locator("#cview", has_text="No recorded healing by this character yet").wait_for()
+
+
+def test_the_macro_window_shows_each_line_as_a_hotbar_key_with_its_skills(app_page, app_url):
+    """The suggested macro is built from hotbar keys of up to four skills (0.2.371): each line shows its key's
+    skills in order, lowest first, under the key's binding, and the hotbar shows each key as one slot."""
+    page = app_page
+    go(page, app_url, "#/settings")
+    presets = page.evaluate("() => api('/api/planner/presets')")
+    path = next(p["path"] for p in presets if p["class"] == "templar")
+    view = page.evaluate("path => api('/api/build?path=' + encodeURIComponent(path))", path)
+    steps = view["rotation"]["steps"]
+    assert steps and all(s.get("stack") for s in steps) and not view["macro"]["needs_refresh"]
+    page.evaluate("""v => { const host = document.createElement('div'); host.id = 'macro-host';
+                     document.body.append(host); renderWindows(v, {win: 'macro'}, host); }""", view)
+    lines = page.locator("#macro-host .macro-step")
+    assert lines.count() == len(steps)
+    for i, step in enumerate(steps):
+        line = lines.nth(i)
+        assert line.locator(".macro-stack > div > b").all_inner_texts() == [s["name"] for s in step["stack"]]
+        assert line.locator(".macro-key-label kbd").inner_text() == step["binding"]
+    several = next(i for i, s in enumerate(steps) if len(s["stack"]) > 1)
+    assert "fires first when ready" in lines.nth(several).inner_text()
+    assert "put them on that key in the order listed" in page.locator("#macro-host .macro-instructions").inner_text()
+    page.evaluate("v => renderWindows(v, {win: 'hotbar'}, document.getElementById('macro-host'))", view)
+    labels = page.locator("#macro-host .hotbar-slot.automatic small").all_inner_texts()
+    assert any(label.endswith("skills, lowest first") for label in labels)
+
+
+def test_gear_and_advice_ranks_defense_titles_and_says_when_to_keep_the_worn_item(app_page, app_url):
+    """Every Defense title is purely defensive, so the slot said only "No title for this slot adds damage"; it is
+    ranked by the damage its titles take off a boss's hits (0.2.371), the best one owned first. A slot whose worn
+    item no replacement beats (enchanted to +15 and rerolled) says so where the next goal would be."""
+    kept = copy.deepcopy(KEPT)
+    kept["titles"]["owned_known"] = True
+    kept["titles"]["slots"]["Defense"] = {"equipped": None, "best_owned": None, "best": [], "guard": {
+        "kinds": ["Damage Tolerance", "PvE Damage Tolerance", "Boss Damage Tolerance"], "equipped": None,
+        "best": [{"name": "Wall of Test", "grade": "Epic", "equip": "PvE Damage Tolerance +4.5%", "owned_bonus": "HP +100",
+                  "cut": 0.045, "owned": False}],
+        "best_owned": {"name": "Small Test Wall", "grade": "Rare", "equip": "Damage Tolerance +3%", "owned_bonus": "—",
+                       "cut": 0.03, "owned": True}}}
+    kept["doll"]["Shoulder"] = {"worn": {"name": "Test Pauldrons", "grade": "Unique", "icon": None, "item_level": 86,
+                                         "enchant": 11, "skills": [], "rolls": None, "source": "equipped"},
+                                "wear": None, "wear_gain": None, "next": None, "best": None, "steps": [],
+                                "keep": {"item_level": 86, "gain": 0.0576}}
+    page = app_page
+    gear(page, last={**KEPT_LAST, "advice": kept})
+    go(page, app_url, "#/gear")
+    page.locator("#gout .pdoll").wait_for()
+    defense = page.locator("#gout .tcol", has_text="Defense title")
+    assert "No title for this slot adds damage. Ranked by how much they cut a boss's damage" in defense.inner_text()
+    assert "Wall of Test" in defense.inner_text() and "−4.5% damage taken" in defense.inner_text()
+    assert defense.locator(".tplate", has_text="Best you own").locator(".gname").inner_text() == "❖ Small Test Wall ❖"
+    page.click('[data-dslot="Shoulder"]')
+    card = page.locator("#dslotinfo")
+    assert "iLv 86 · +11" in card.inner_text()
+    assert card.locator("[data-keep] .small").inner_text() == (
+        "No replacement beats yours enchanted to +15 and rerolled toward good rolls (+5.8%): enchant and reroll it, "
+        "as the upgrade path says.")

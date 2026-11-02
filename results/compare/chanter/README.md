@@ -45,23 +45,23 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `onslaught`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Settings → Key Settings → General → Skill Macro. Skill Queue (스킬 예약) **ON**, 10 ms delay on every step, hold the macro key; manual presses always take priority over the macro.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
-| Step | Skill |
+| Line | Hotbar key holds (lowest first) |
 |---:|---|
-| 1 | impactful_crush |
-| 2 | dark_crush |
-| 3 | heat_wave_blow |
-| 4 | tremor_crush |
-| 5 | wave_blow |
-| 6 | rushing_smash |
-| 7 | onslaught |
+| 1 | undefeated |
+| 2 | incandescent_blow › ensnare › rushing_smash › tremor_crush |
+| 3 | spinning_strike › impactful_crush |
+| 4 | incandescent_blow › ensnare › rushing_smash › tremor_crush |
+| 5 | dark_crush › heat_wave_blow › wave_blow › stormpower |
+| 6 | incandescent_blow › ensnare › rushing_smash › tremor_crush |
+| 7 | incandescent_blow › ensnare › rushing_smash › tremor_crush |
 
-Manual keys (press on cooldown, in this priority): stormpower, undefeated, spinning_strike, incandescent_blow, ensnare
+Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight
 
-Simulated: this layout reaches **90.0%** of the ideal priority list.
+Simulated: this layout reaches **98.7%** of the ideal priority list.
 
-**Alternative — one-button macro (no manual keys)**: macro stormpower → undefeated → spinning_strike → impactful_crush → dark_crush → incandescent_blow → heat_wave_blow → ensnare → wave_blow → rushing_smash → onslaught → tremor_crush. Simulated: **69.8%** of the ideal priority list.
+**Alternative — one skill per macro line**: macro rushing_smash → wave_blow → impactful_crush → dark_crush → tremor_crush → heat_wave_blow → onslaught; manual: stormpower, undefeated, spinning_strike, incandescent_blow, ensnare. Simulated: **91.7%** of the ideal priority list.
 
 ### Opener (first 30 s of the simulated fight)
 
@@ -76,24 +76,24 @@ Skill points used **203 / 203**, stigma points **30 / 30**, Daevanion **360 / 36
 | Skill | Trained (SP) | Effective level | Specializations |
 |---|---:|---:|---|
 | Attack Preparation | 10 | 14 | — |
-| Wind's Promise | 10 | 14 | — |
-| Impact Hit | 10 | 14 | — |
-| Onslaught | 10 | 14 | +20% MP restored; Absorbs 70, 70% HP |
-| Incandescent Blow | 10 | 14 | -20% MP consumed; Deals up to 12% more damage when less targets are hit |
-| Spinning Strike | 10 | 14 | -5s cooldown; Up to +20% damage when less targets hit |
-| Inspiring Spell | 10 | 14 | — |
 | Dark Crush | 10 | 14 | Critical Hit on hit; Adds [Piercing Strike] Chain Skill |
+| Impact Hit | 10 | 14 | — |
+| Incandescent Blow | 10 | 14 | -20% MP consumed; Deals up to 12% more damage when less targets are hit |
+| Inspiring Spell | 10 | 14 | — |
+| Onslaught | 10 | 14 | +20% MP restored; Absorbs 70, 70% HP |
+| Spinning Strike | 10 | 14 | -5s cooldown; Up to +20% damage when less targets hit |
+| Wind's Promise | 10 | 14 | — |
 | Impactful Crush | 10 | 13 | Changes to AoE damage; +1s [Impactful Crush] Stun duration |
 | Raging Spell | 7 | 9 | — |
 | Heat Wave Blow | 5 | 6 | — |
 | Earth's Promise | 1 | 3 | — |
-| Wave Blow | 1 | 2 | — |
-| Defiance | 1 | 2 | — |
 | Blessing of Life | 1 | 2 | — |
+| Defiance | 1 | 2 | — |
 | Gust Rampage | 1 | 2 | — |
 | Protection Circle | 1 | 2 | — |
 | Survival Willpower | 1 | 2 | — |
 | Tremor Crush | 1 | 2 | — |
+| Wave Blow | 1 | 2 | — |
 
 **Stigmas**: Undefeated Mantra Lv 13, Barrier Spell Lv 1, Ensnaring Mark Lv 1, Power of the Storm Lv 1
 

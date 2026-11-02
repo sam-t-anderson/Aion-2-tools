@@ -46,23 +46,24 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `cold_shock`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Settings → Key Settings → General → Skill Macro. Skill Queue (스킬 예약) **ON**, 10 ms delay on every step, hold the macro key; manual presses always take priority over the macro.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
-| Step | Skill |
+| Line | Hotbar key holds (lowest first) |
 |---:|---|
-| 1 | summon_earth |
-| 2 | summon_water |
-| 3 | summon_fire |
-| 4 | summon_wind |
-| 5 | jointstrike_curse |
-| 6 | combustion |
-| 7 | cold_shock |
+| 1 | elemental_fusion › ancient_spirit › summon_fire › summon_earth |
+| 2 | summon_water › enhance › summon_wind |
+| 3 | summon_water › enhance › summon_wind |
+| 4 | elemental_fusion › ancient_spirit › summon_fire › summon_earth |
+| 5 | elemental_fusion › ancient_spirit › summon_fire › summon_earth |
+| 6 | jointstrike_curse |
+| 7 | elemental_fusion › ancient_spirit › summon_fire › summon_earth |
+| 8 | dimensional_control › soul_cry › magicblk › combustion |
 
-Manual keys (press on cooldown, in this priority): elemental_fusion, ancient_spirit, enhance, dimensional_control, soul_cry, magicblk
+Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight
 
-Simulated: this layout reaches **81.1%** of the ideal priority list.
+Simulated: this layout reaches **98.2%** of the ideal priority list.
 
-**Alternative — one-button macro (no manual keys)**: macro ancient_spirit → elemental_fusion → summon_water → summon_fire → dimensional_control → enhance → summon_earth → jointstrike_curse → summon_wind → soul_cry → magicblk → combustion → cold_shock. Simulated: **73.2%** of the ideal priority list.
+**Alternative — one skill per macro line**: macro summon_earth → jointstrike_curse → summon_water → summon_wind → summon_fire → combustion → cold_shock; manual: elemental_fusion, ancient_spirit, enhance, dimensional_control, soul_cry, magicblk. Simulated: **80.2%** of the ideal priority list.
 
 ### Opener (first 30 s of the simulated fight)
 
@@ -76,25 +77,25 @@ Skill points used **203 / 203**, stigma points **30 / 30**, Daevanion **360 / 36
 
 | Skill | Trained (SP) | Effective level | Specializations |
 |---|---:|---:|---|
-| Elemental Fusion | 10 | 14 | Changes to AoE Skill; Extra damage after 3s on hit |
-| Dimensional Control | 10 | 14 | Extra damage after 3s on hit; +50% Multi-Hit chance on hit |
-| Spirit Strike | 10 | 14 | — |
 | Combustion | 10 | 14 | Deals up to 12% more damage when less targets are hit; +20% Skill Speed |
-| Mental Focus | 10 | 14 | — |
 | Corrode | 10 | 14 | — |
-| Jointstrike: Curse | 8 | 12 | +50% Multi-Hit on hit; -2s cooldown |
+| Dimensional Control | 10 | 14 | Extra damage after 3s on hit; +50% Multi-Hit chance on hit |
+| Elemental Fusion | 10 | 14 | Changes to AoE Skill; Extra damage after 3s on hit |
+| Mental Focus | 10 | 14 | — |
+| Spirit Strike | 10 | 14 | — |
 | Cold Shock | 9 | 12 | +20% MP restored; Absorbs 100, 100% HP |
+| Jointstrike: Curse | 8 | 12 | +50% Multi-Hit on hit; -2s cooldown |
 | Summon: Fire Spirit | 8 | 12 | -50% MP Cost; +20% Fire Spirit Critical Hit damage |
 | Summon: Earth Spirit | 7 | 10 | -50% MP Cost |
 | Spirit's Descent | 6 | 9 | — |
+| Summon: Water Spirit | 6 | 8 | +10% Water Spirit Attack |
 | Summon: Wind Spirit | 5 | 8 | -50% MP Cost |
 | Element Unification | 4 | 8 | — |
-| Summon: Water Spirit | 6 | 8 | +10% Water Spirit Attack |
 | Consecutive Countercurrent | 4 | 5 | — |
 | Spirit Communion | 1 | 4 | — |
 | Spirit Revitalization | 1 | 3 | — |
-| Soul's Cry | 1 | 2 | — |
 | Defiance | 1 | 2 | — |
+| Soul's Cry | 1 | 2 | — |
 
 **Stigmas**: Kaisinel's Power Lv 1, Magic Block Lv 1, Enhance: Spirit's Benediction Lv 1, Summon: Ancient Spirit Lv 13
 

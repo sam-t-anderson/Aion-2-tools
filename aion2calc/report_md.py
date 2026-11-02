@@ -200,10 +200,12 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
     if m.get("auto_attack"):
         w(f"**Left mouse button** is the basic auto-attack: `{m['auto_attack']}`. Hold it for continuous attacks; "
           "the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.\n")
-    w("Settings → Key Settings → General → Skill Macro. Skill Queue (스킬 예약) **ON**, 10 ms delay on every step, hold the macro key; "
-      "manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, "
-      "in the macro too.\n")
-    w("| Step | Skill |")
+    w("Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to "
+      "four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add "
+      "the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms "
+      "delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key "
+      "presses its chain step while the chain is open, in the macro too.\n")
+    w("| Line | Hotbar key holds (lowest first) |")
     w("|---:|---|")
     # a chain step is no skill of its own: its parent's key pressed again while the chain is open
     chains = m.get("chains") or {}
@@ -213,12 +215,16 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         return f"{entry} ({how.format(parent)})" if parent else str(entry)
     by_hand = "{0}'s key while its chain is open"
     for i, st in enumerate(m["steps"], 1):
-        w(f"| {i} | {named(st, 'chain of {0}: add {0} again')} |")
+        held = st if isinstance(st, list) else [st]
+        own = isinstance(st, list) and held == [m.get("auto_attack")]   # the basic attack's own line (0.2.371)
+        w(f"| {i} | {' › '.join(named(x, 'chain of {0}: add {0} again') for x in held)}"
+          f"{' (the basic attack, on the left mouse button)' if own else ''} |")
     w("\nManual keys (press on cooldown, in this priority): " + (", ".join(named(e, by_hand) for e in m["manual"]) or
       "none — hold the macro key for the whole fight") + "\n")
     w(f"Simulated: this layout reaches **{100 * m['dps_macro'] / m['dps_priority']:.1f}%** of the ideal priority list.\n")
     if m.get("alt_steps"):
-        kind = "macro with manual keys" if m.get("alt_manual") else "one-button macro (no manual keys)"
+        kind = ("one skill per macro line" if any(isinstance(st, list) for st in m["steps"]) else
+                "macro with manual keys" if m.get("alt_manual") else "one-button macro (no manual keys)")
         alt_steps = " → ".join(named(st, "{0} again") for st in m["alt_steps"])
         alt_manual = ", ".join(named(e, by_hand) for e in m.get("alt_manual") or [])
         w(f"**Alternative — {kind}**: macro {alt_steps}" + (f"; manual: {alt_manual}" if alt_manual else "")

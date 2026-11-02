@@ -534,6 +534,7 @@ class _OverlayAPI:
         # new objects so the loop thread never sees a half-updated value.
         self._click_through = False
         self._interactive = ()
+        self._hover_interact = False   # with click-through on, resting the pointer on the overlay opens it (0.2.371)
         self._dragging = False      # a native move of the window is following the cursor (begin_drag)
         # The window's shape (0.2.368): in the "top portion only" and "none" background modes the page reports
         # the rectangles it draws (the header panel, each row, the panels under the rows) and the host clips the
@@ -595,6 +596,21 @@ class _OverlayAPI:
         # Called from the overlay page when the setting changes. The hit-test loop
         # (Windows) picks this up and starts/stops passing clicks through.
         self._click_through = bool(enabled)
+
+    def set_hover_interact(self, enabled):
+        """Called from the overlay page (0.2.371): with click-through on, the pointer resting on the overlay for
+        HOVER_INTERACT_S seconds makes the whole overlay take clicks until the pointer leaves it."""
+        self._hover_interact = bool(enabled)
+
+    def _say_hover(self, state):
+        """Tell the page how the hover stands ("arming", "open" or "off") so the card can show it. Off the loop's
+        thread: the loop never waits on the page."""
+        window = self._window
+        if window is None:
+            return
+        script = f"window.A2OverlayHover && window.A2OverlayHover({json.dumps(state)})"
+        threading.Thread(target=lambda: _quietly(window.evaluate_js, script), daemon=True,
+                         name="overlay-hover-say").start()
 
     def begin_drag(self):
         """Called by the page when a press lands on the card outside its controls (0.2.371): the window follows the
@@ -832,7 +848,7 @@ class _OverlayAPI:
             # same event): drop it again just after, and the watchdog checks it every few seconds too.
             try:
                 from Microsoft.Win32 import SystemEvents
-                self._preference_handler = lambda *_: threading.Timer(0.5, self._drop_backdrop).start()
+                self._preference_handler = lambda *_: threading.Timer(0.1, self._drop_backdrop).start()
                 SystemEvents.UserPreferenceChanged += self._preference_handler
             except Exception as err:
                 self.log.write(f"preference changes not followed ({type(err).__name__}: {err})")
@@ -853,10 +869,13 @@ class _OverlayAPI:
         if not self._hwnd:
             return
         try:
-            none = ctypes.c_int(1)
-            result = ctypes.windll.dwmapi.DwmSetWindowAttribute(ctypes.c_void_p(self._hwnd), 38, ctypes.byref(none),
-                                                                ctypes.sizeof(none)) & 0xFFFFFFFF
-            said = "none" if result == 0 else f"left as it is (DwmSetWindowAttribute 0x{result:08x})"
+            dwm, hwnd, kind = ctypes.windll.dwmapi, ctypes.c_void_p(self._hwnd), ctypes.c_int(0)
+            if dwm.DwmGetWindowAttribute(hwnd, 38, ctypes.byref(kind), ctypes.sizeof(kind)) == 0 and kind.value == 1:
+                said = "none"                              # already none: nothing to ask DWM again
+            else:
+                kind.value = 1
+                result = dwm.DwmSetWindowAttribute(hwnd, 38, ctypes.byref(kind), ctypes.sizeof(kind)) & 0xFFFFFFFF
+                said = "none" if result == 0 else f"left as it is (DwmSetWindowAttribute 0x{result:08x})"
         except Exception as err:
             said = f"not set ({type(err).__name__}: {err})"
         if said != self._backdrop_said:
@@ -1217,6 +1236,49 @@ def _save_overlay_position(app_base, party, pos, layout=None) -> None:
         pass
 
 
+HOVER_INTERACT_S = 5.0          # how long the pointer rests on a click-through overlay before it takes clicks
+
+
+def _quietly(fn, *args):
+    try:
+        fn(*args)
+    except Exception:
+        pass
+
+
+def _over_overlay(shape, pos) -> bool:
+    """Whether a client-area point is over what the overlay draws: anywhere on the window, or with a shape (the
+    see-through modes) inside one of its pieces, so the game between the pieces does not count."""
+    if pos is None:
+        return False
+    if not shape:
+        return True
+    x, y = pos
+    return any(piece[0] <= x <= piece[2] and piece[1] <= y <= piece[3] for piece in shape)
+
+
+class _HoverOpen:
+    """Hover-to-interact (0.2.371): the pointer over the overlay for ``hold`` seconds opens it to clicks, and it
+    closes again when the pointer leaves. ``update`` answers whether it is open, and the change to tell the page
+    ("arming", "open", "off") or None."""
+
+    def __init__(self, hold: float | None = None):
+        self.hold, self.since, self.open = HOVER_INTERACT_S if hold is None else hold, None, False
+
+    def update(self, enabled: bool, over: bool, now: float):
+        if not (enabled and over):
+            was = self.since is not None
+            self.since, self.open = None, False
+            return False, ("off" if was else None)
+        if self.since is None:
+            self.since = now
+            return False, "arming"
+        if not self.open and now - self.since >= self.hold:
+            self.open = True
+            return True, "open"
+        return self.open, None
+
+
 def _click_through_loop(window, api, win32, closed: threading.Event) -> None:
     """Pass mouse clicks through the overlay to the game while click-through is on,
     except over the overlay's own controls so they stay usable.
@@ -1228,6 +1290,7 @@ def _click_through_loop(window, api, win32, closed: threading.Event) -> None:
     so idle cost is a cursor read per tick and nothing else. Windows-only.
     """
     applied = None   # None = untouched; True = transparent (pass-through); False = opaque (interactive)
+    hover = _HoverOpen()
     while not closed.wait(0.033):
         try:
             hwnd = window.native.Handle.ToInt64()
@@ -1235,6 +1298,9 @@ def _click_through_loop(window, api, win32, closed: threading.Event) -> None:
                 if applied:                       # was passing clicks through — restore input once
                     api._on_ui(lambda h=hwnd: win32.set_click_through(h, False))
                     applied = False
+                _, said = hover.update(False, False, time.monotonic())
+                if said:
+                    api._say_hover(said)
                 continue
             pos = win32.cursor_in_client(hwnd)
             over_control = False
@@ -1244,7 +1310,11 @@ def _click_through_loop(window, api, win32, closed: threading.Event) -> None:
                     if l <= cx <= r and t <= cy <= b:
                         over_control = True
                         break
-            want_transparent = not over_control    # click through everywhere but the controls
+            # Hover-to-interact: resting on the overlay opens all of it to clicks until the pointer leaves.
+            opened, said = hover.update(api._hover_interact, _over_overlay(api._shape, pos), time.monotonic())
+            if said:
+                api._say_hover(said)
+            want_transparent = not (over_control or opened)    # click through everywhere but the controls
             if want_transparent != applied:
                 api._on_ui(lambda h=hwnd, v=want_transparent: win32.set_click_through(h, v))
                 applied = want_transparent

@@ -90,3 +90,15 @@ def test_the_readme_lists_a_released_version_with_every_download():
     rows = re.findall(r"\| `([^`]+)` \| `([0-9a-f]{64})` \|", block)
     assert [name for name, _ in rows] == [f"aion2calc-setup-{version}.exe", f"aion2calc-{version}-windows-portable.zip",
                                           f"aion2calc-{version}-macos.zip", f"aion2calc-{version}-linux.tar.gz"]
+
+
+def test_the_readme_pull_request_starts_no_ci_run_of_its_own():
+    """Every release's README pull request, opened by GITHUB_TOKEN, still started a CI pull_request run, one that died
+    at once with no jobs and showed as a failed run on each release (0.2.371): its commit says [skip ci], and the
+    squash merge takes a message of its own, so the marker stays out of main's history."""
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    step = workflow[workflow.index("- name: Keep the README's checksums current"):]
+    step = step[:step.index("\n      - ") if "\n      - " in step else len(step)]
+    assert re.search(r'git commit -m "README: SHA-256 of the v\$VERSION downloads" -m "\[skip ci\]"', step)
+    merge = re.search(r"gh pr merge .*", step).group(0)
+    assert "--subject" in merge and "--body" in merge and "skip ci" not in merge

@@ -106,11 +106,12 @@ def render_build_card(path: str, *, title: str, subtitle: str, skills: list[dict
     ax = _panel(fig, [0.60, 0.36, 0.38, 0.2],
                 "In-game Skill Macro (hold key)" + (" + manual keys" if macro["manual"] else ""))
     y = 0.86
-    ax.text(0.03, y, "Macro steps (in order, 10 ms delay, Skill Queue ON):", transform=ax.transAxes,
+    ax.text(0.03, y, "Macro lines: hotbar keys, lowest skill first (10 ms delay, Skill Queue ON):", transform=ax.transAxes,
             color=CYAN, fontsize=9.5)
     y -= 0.075
     steps = macro["steps"]
-    rows = (len(steps) + 1) // 2 if len(steps) > 7 else len(steps)
+    keys = any("›" in st for st in steps)          # lines of hotbar keys holding several skills: one column
+    rows = (len(steps) + 1) // 2 if len(steps) > 7 and not keys else len(steps)
     for i, st in enumerate(steps):
         col, row = divmod(i, rows)
         ax.text(0.05 + 0.47 * col, y - 0.062 * row, f"{i + 1}. {st}", transform=ax.transAxes, color=TEXT,

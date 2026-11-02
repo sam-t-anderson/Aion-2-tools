@@ -33,7 +33,7 @@ _BOOL_KEYS = ("app_window", "auto_update", "update_on_close", "overlay_on_start"
               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
-              "overlay_close_on_stop", "overlay_text_outline", "overlay_text_halo", "overlay_text_retro",
+              "overlay_hover_interact", "overlay_close_on_stop", "overlay_text_outline", "overlay_text_halo", "overlay_text_retro",
               "overlay_bar_rounded", "overlay_class_color_names", "overlay_color_cycle",
               "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers",
               "overlay_highlight_me", "overlay_dps_graph", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "overlay_open_on_app_start", "meter_auto_upload", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "share_gathering", "overlay_plan_autoplay", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics",

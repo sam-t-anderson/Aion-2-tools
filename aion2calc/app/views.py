@@ -243,17 +243,25 @@ def rotation_view(cd: ClassData, build, gear: dict, summary: dict) -> dict:
     def key(entry):
         return str(entry).split(" [", 1)[0]
 
+    def skills_of(line):
+        """A macro line's skills: one (a skill name) or a hotbar key's stack (a list, lowest first, 0.2.371)."""
+        return [str(e) for e in line] if isinstance(line, (list, tuple)) else [str(line)]
+
     manual = list(macro.get("manual") or [])
     steps = []
-    for entry in macro.get("steps") or []:
-        action = kit.actions.get(key(entry))
-        if not action:
-            continue
-        if action.requires_charge:
-            if not any(key(e) == action.key for e in manual):
-                manual.append(entry)
-        else:
-            steps.append(entry)
+    for line in macro.get("steps") or []:
+        kept = []
+        for entry in skills_of(line):
+            action = kit.actions.get(key(entry))
+            if not action:
+                continue
+            if action.requires_charge:
+                if not any(key(e) == action.key for e in manual):
+                    manual.append(entry)
+            else:
+                kept.append(entry)
+        if kept:
+            steps.append(kept if isinstance(line, (list, tuple)) else kept[0])
     # Old reports claimed charged damage from taps; do not keep those percentages.
     stale = macro.get("model_version") != MODEL_VERSION
     macro.update(steps=steps, manual=manual, needs_refresh=stale)
@@ -274,24 +282,54 @@ def rotation_view(cd: ClassData, build, gear: dict, summary: dict) -> dict:
     # Reserve right-click for the macro itself. Names/icons/key bindings are shared by both tabs.
     # The left mouse button (LMB) is the basic auto-attack, so it is reserved for the kit's
     # filler and kept out of the positional pool — never assigned to an arbitrary skill.
+    # A macro line of several skills is one hotbar key holding them all (the lowest ready one fires).
     bindings = ["1", "2", "3", "4", "5", "6", "7", "8", "Q", "E", "="]
     bindings += [f"F{i}" for i in range(1, 13)]
     auto_key = macro.get("auto_attack") or kit.filler
     auto_sid = actions.get(auto_key, {}).get("skill_id")
-    slots, seen, pool = [], set(), 0
-    for entry in manual + steps:
+    slots, seen, pool, key_of = [], set(), 0, {}
+
+    def next_binding():
+        nonlocal pool
+        binding = bindings[pool] if pool < len(bindings) else "Assign key"
+        pool += 1
+        return binding
+
+    for entry in manual:
         action = actions.get(key(entry))
         if not action or action["chain_of"] or action["skill_id"] in seen:
             continue
         seen.add(action["skill_id"])
-        if action["skill_id"] == auto_sid:
-            binding = "LMB"
-        else:
-            binding = bindings[pool] if pool < len(bindings) else "Assign key"
-            pool += 1
-        slots.append({**action, "binding": binding,
-                      "manual": any(key(e) == action["key"] for e in manual)})
-    bound = {slot["skill_id"]: slot["binding"] for slot in slots}
+        binding = "LMB" if action["skill_id"] == auto_sid else next_binding()
+        slots.append({**action, "binding": binding, "manual": True})
+    for line in steps:
+        held = [actions[key(e)] for e in skills_of(line) if key(e) in actions]
+        held = [a for a in held if not a["chain_of"]] or held
+        if not isinstance(line, (list, tuple)):                 # one skill per line (macros before 0.2.371)
+            action = held[0] if held else None
+            if not action or action["chain_of"] or action["skill_id"] in seen:
+                continue
+            seen.add(action["skill_id"])
+            binding = "LMB" if action["skill_id"] == auto_sid else next_binding()
+            slots.append({**action, "binding": binding, "manual": False})
+            continue
+        stack = tuple(a["key"] for a in held)
+        if stack in key_of or not held:
+            continue
+        if len(held) == 1 and held[0]["skill_id"] == auto_sid:    # the basic attack's own line: its left-mouse key
+            key_of[stack] = "LMB"
+            if held[0]["skill_id"] not in seen:
+                seen.add(held[0]["skill_id"])
+                slots.append({**held[0], "binding": "LMB", "manual": False})
+            continue
+        key_of[stack] = next_binding()
+        seen.update(a["skill_id"] for a in held)
+        slots.append({**held[0], "name": " › ".join(a["name"] for a in held), "binding": key_of[stack],
+                      "manual": False, "stack": [{**a, "binding": key_of[stack]} for a in held]})
+    bound = {}
+    for slot in slots:
+        for held in slot.get("stack") or [slot]:
+            bound.setdefault(held["skill_id"], slot["binding"])
     for action in actions.values():
         action["binding"] = bound.get(action["skill_id"], "Assign key")
     conditions = {"mp_hi": "when MP is at least 60%", "sync_de": "with Delayed Explosion timing",
@@ -303,8 +341,16 @@ def rotation_view(cd: ClassData, build, gear: dict, summary: dict) -> dict:
         action["condition"] = conditions.get(condition, condition)
         return action
 
+    def line_view(line):
+        if not isinstance(line, (list, tuple)):
+            return entry_view(line)
+        stack = [entry_view(e) for e in line]
+        binding = key_of.get(tuple(key(e) for e in line)) or (stack[0]["binding"] if stack else "Assign key")
+        return {**(stack[0] if stack else {}), "name": " › ".join(v["name"] for v in stack), "binding": binding,
+                "stack": [{**v, "binding": binding} for v in stack]}
+
     return {"macro": macro,
-            "rotation": {"steps": [entry_view(e) for e in steps],
+            "rotation": {"steps": [line_view(e) for e in steps],
                          "manual": [entry_view(e) for e in manual],
                          "priority": [entry_view(e) for e in summary.get("policy", [])]},
             "hotbar": {"slots": slots, "macro_binding": "Right-click", "columns": 12}}

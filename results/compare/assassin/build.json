@@ -6288,46 +6288,70 @@
   "quick_slice"
  ],
  "macro": {
-  "model_version": 3,
+  "model_version": 4,
   "steps": [
-   "shadowstrike",
-   "heart_gore",
-   "shadow_fall",
-   "insignia_explosion",
-   "ambush",
-   "infiltrate",
-   "triniel",
-   "whirlwind_slice",
-   "smoke",
-   "savage_roar",
-   "flash_slice",
-   "swift",
-   "tshadow",
-   "quick_slice"
+   [
+    "tshadow",
+    "infiltrate"
+   ],
+   [
+    "insignia_explosion",
+    "heart_gore",
+    "smoke"
+   ],
+   [
+    "swift",
+    "ambush",
+    "flash_slice"
+   ],
+   [
+    "insignia_explosion",
+    "heart_gore",
+    "smoke"
+   ],
+   [
+    "triniel",
+    "whirlwind_slice"
+   ],
+   [
+    "insignia_explosion",
+    "heart_gore",
+    "smoke"
+   ],
+   [
+    "shadow_fall",
+    "shadowstrike",
+    "savage_roar"
+   ],
+   [
+    "insignia_explosion",
+    "heart_gore",
+    "smoke"
+   ]
   ],
   "manual": [],
-  "dps_macro": 8891.794055883698,
-  "dps_priority": 9345.876592499224,
+  "dps_macro": 10509.49066379295,
+  "dps_priority": 10225.321556197074,
   "alt_steps": [
    "shadowstrike",
    "insignia_explosion",
-   "heart_gore",
    "shadow_fall",
-   "ambush",
+   "heart_gore",
    "infiltrate",
+   "triniel",
+   "ambush",
+   "smoke",
    "whirlwind_slice",
    "savage_roar",
    "flash_slice",
+   "tshadow",
+   "swift",
    "quick_slice"
   ],
-  "alt_manual": [
-   "triniel",
-   "smoke",
-   "swift",
-   "tshadow"
-  ],
-  "dps_alt": 8793.463474502258,
-  "auto_attack": "quick_slice"
+  "alt_manual": [],
+  "dps_alt": 10049.1334008431,
+  "auto_attack": "quick_slice",
+  "chains": {}
  },
  "shares": {
   "Insignia Explosion": 0.1736868498331924,

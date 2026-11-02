@@ -48,30 +48,28 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `flame_arrow`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Settings → Key Settings → General → Skill Macro. Skill Queue (스킬 예약) **ON**, 10 ms delay on every step, hold the macro key; manual presses always take priority over the macro.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
-| Step | Skill |
+| Line | Hotbar key holds (lowest first) |
 |---:|---|
-| 1 | wish |
-| 2 | cold_storm |
-| 3 | element_enhancement |
-| 4 | fire_wall |
-| 5 | delayed_explosion |
-| 6 | blaze |
-| 7 | frost |
-| 8 | firestorm |
-| 9 | winters_shackles |
-| 10 | frost_burst |
-| 11 | ice_chain |
-| 12 | bittercold_wind |
-| 13 | flame_scattershot |
-| 14 | flame_arrow |
+| 1 | cold_storm |
+| 2 | wish |
+| 3 | winters_shackles › fire_wall |
+| 4 | element_enhancement › bittercold_wind |
+| 5 | blaze › frost |
+| 6 | delayed_explosion › firestorm |
+| 7 | blaze › frost |
+| 8 | delayed_explosion › firestorm |
+| 9 | winters_shackles › fire_wall |
+| 10 | ice_chain |
+| 11 | frost_burst › flame_scattershot |
+| 12 | flame_arrow (the basic attack, on the left mouse button) |
 
 Manual keys (press on cooldown, in this priority): hellfire_c3
 
-Simulated: this layout reaches **94.3%** of the ideal priority list.
+Simulated: this layout reaches **94.4%** of the ideal priority list.
 
-**Alternative — macro with manual keys**: macro blaze → firestorm → frost_burst → ice_chain → flame_arrow; manual: cold_storm, element_enhancement, fire_wall [mp_hi], wish, delayed_explosion, hellfire_c3, winters_shackles [sync_de], frost, bittercold_wind [mp_hi], flame_scattershot. Simulated: **92.0%** of the ideal priority list.
+**Alternative — one skill per macro line**: macro cold_storm → wish → element_enhancement → fire_wall → blaze → delayed_explosion → frost → firestorm → winters_shackles → bittercold_wind → frost_burst → ice_chain → flame_scattershot → flame_arrow; manual: hellfire_c3. Simulated: **93.8%** of the ideal priority list.
 
 ### Opener (first 30 s of the simulated fight)
 
@@ -87,25 +85,25 @@ Skill points used **203 / 203**, stigma points **30 / 30**, Daevanion **360 / 36
 |---|---:|---:|---|
 | Robe of Flame | 10 | 16 | — |
 | Blaze | 10 | 15 | Delayed Damage after 3s; Multi-Hit on hit |
-| Ice Chain | 10 | 15 | +20% Skill Speed; -1s [Winter's Shackles] cooldown on hit |
 | Hellfire | 10 | 15 | Fire Damage over Time for 10s on hit; Ignores Block and Evasion and lands as Multi-Hit |
+| Ice Chain | 10 | 15 | +20% Skill Speed; -1s [Winter's Shackles] cooldown on hit |
 | Firestorm | 9 | 14 | -50% MP Cost; -2s [Hellfire] cooldown per fireball |
 | Robe of Earth | 9 | 14 | — |
-| Wish of Concentration | 8 | 13 | +10% additional Attack; +10% Combat Speed |
 | Flame Arrow | 10 | 13 | +20% MP restored; +5% Fire Damage Boost for 10s on activating [Pyroclasm] |
 | Bittercold Wind | 8 | 13 | +1s [Bittercold Wind] summon duration; Ignores Block and Evasion and lands as a Critical Hit |
-| Winter's Shackles | 7 | 12 | +20% PvE Damage Boost and +10% PvP Damage Boost for 5s on landing [Winter's Shackles]; Adds [Winter's Illusion] Chain Skill |
+| Wish of Concentration | 8 | 13 | +10% additional Attack; +10% Combat Speed |
 | Fire Mark | 7 | 12 | — |
-| Cold Snap | 6 | 9 | — |
+| Winter's Shackles | 7 | 12 | +20% PvE Damage Boost and +10% PvP Damage Boost for 5s on landing [Winter's Shackles]; Adds [Winter's Illusion] Chain Skill |
 | Vitality Evaporation | 7 | 9 | — |
+| Cold Snap | 6 | 9 | — |
 | Grace of Enhancement | 3 | 8 | — |
 | Flame Scattershot | 3 | 5 | — |
 | Frost | 1 | 4 | — |
 | Frost Burst | 1 | 4 | — |
 | Robe of Cold | 1 | 3 | — |
-| Revitalization Contract | 1 | 2 | — |
 | Absorb Essence | 1 | 2 | — |
 | Defiance | 1 | 2 | — |
+| Revitalization Contract | 1 | 2 | — |
 
 **Stigmas**: Element Enhancement Lv 10, Delayed Explosion Lv 5, Fire Wall Lv 5, Cold Storm Lv 5
 

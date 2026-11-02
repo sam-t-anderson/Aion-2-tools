@@ -43,24 +43,20 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `earths_retribution`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Settings → Key Settings → General → Skill Macro. Skill Queue (스킬 예약) **ON**, 10 ms delay on every step, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
-| Step | Skill |
+| Line | Hotbar key holds (lowest first) |
 |---:|---|
-| 1 | prayamp |
-| 2 | divine_aura |
-| 3 | epunish |
-| 4 | chain_of_torment |
-| 5 | condemnation |
-| 6 | powerburst |
-| 7 | judgment_thunder |
-| 8 | earths_retribution |
+| 1 | divine_aura › prayamp › epunish |
+| 2 | chain_of_torment › condemnation › powerburst › judgment_thunder |
+| 3 | divine_aura › prayamp › epunish |
+| 4 | divine_aura › prayamp › epunish |
 
 Manual keys (press on cooldown, in this priority): bolt
 
-Simulated: this layout reaches **76.3%** of the ideal priority list.
+Simulated: this layout reaches **97.5%** of the ideal priority list.
 
-**Alternative — macro with manual keys**: macro chain_of_torment → condemnation → judgment_thunder → earths_retribution; manual: prayamp, divine_aura, epunish, bolt, powerburst. Simulated: **75.0%** of the ideal priority list.
+**Alternative — one skill per macro line**: macro prayamp → divine_aura → epunish → chain_of_torment → condemnation → powerburst → judgment_thunder → earths_retribution; manual: bolt. Simulated: **75.9%** of the ideal priority list.
 
 ### Opener (first 30 s of the simulated fight)
 

@@ -745,3 +745,19 @@ def test_a_part_of_a_longer_recording_keeps_its_fight_and_offers_the_whole(app_p
     page.click("[data-source-back]")
     page.wait_for_function("document.querySelector('.cr-review h2').textContent === 'Test run · Part 2'")
     assert fight in page.locator("[data-replay] p").first.inner_text()
+
+
+def test_the_raid_planner_hands_its_saved_plans_to_the_app_for_the_overlay(app_page, app_url):
+    """The overlay's window keeps a storage of its own, so its plan view never saw the planner's saved plans (0.2.371):
+    the planner hands its whole set to the app when it opens and after each save, and the app keeps it."""
+    page = app_page
+    go(page, app_url, "#/raid")
+    page.wait_for_selector("#rname")
+    saved = lambda: page.evaluate("fetch('/api/plans/saved').then(r => r.json()).then(d => Object.values(d.plans).map(p => p.meta.name))")  # noqa: E731
+    page.wait_for_function("fetch('/api/plans/saved').then(r => r.json()).then(d => Object.keys(d.plans).length > 0)", polling=300)
+    names = saved()
+    assert names == page.evaluate("Object.values(JSON.parse(localStorage.getItem('a2plans'))).map(p => p.meta.name)")
+    page.fill("#rname", "Kept for the overlay")
+    page.dispatch_event("#rname", "change")
+    page.wait_for_function("fetch('/api/plans/saved').then(r => r.json()).then(d => Object.values(d.plans).some(p => p.meta.name === 'Kept for the overlay'))",
+                           polling=300)

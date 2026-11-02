@@ -33,7 +33,20 @@ from . import store
 
 EQUIP_CATEGORIES = ("weapons", "armor", "accessories", "arcana", "godstones")
 CLASS_MAX_AGE = 86400          # re-read class pages at most daily unless the sitemap moved
-SITEMAPS = ("aion-2", "aion-2-items-1", "aion-2-collections")
+UNREAD_ITEMS_STOP = 5          # item pages in a row that read as nothing: the layout changed, stop for this launch
+SITEMAPS = ("aion-2-en",)      # one English sitemap since late October 2026, every page with its last change
+#: the sitemaps before that; their names now return the site's sitemap index, which lists no pages
+LEGACY_SITEMAPS = ("aion-2", "aion-2-items-1", "aion-2-collections")
+
+
+def no_stats(entry: dict) -> bool:
+    """No fixed or random stats, no enchant steps and no facts (theostones and materials have none of these)."""
+    return not (entry.get("fixed") or entry.get("random") or entry.get("enchant") or entry.get("meta"))
+
+
+def empty_item(item: dict) -> bool:
+    """An item record with nothing read from its page: no name besides having no stats. A theostone has a name."""
+    return no_stats(item) and not item.get("name")
 
 
 @dataclass
@@ -82,6 +95,7 @@ class Sync:
         conn = None
         try:
             conn = store.connect(self.db_path)
+            self._repair(conn)
             pages = self._sitemaps(conn)
             changed_classes = self._classes(conn, pages)
             changed_items = self._items(conn, pages)
@@ -115,14 +129,58 @@ class Sync:
         return t
 
     # -------------------------------------------------------------- phases
+    def _repair(self, conn) -> None:
+        """Undo what syncs stored while metabot's pages read wrong (fixed in 0.2.371), before anything is fetched:
+        titles one column off (the listing gained a Role column, see ``plan.titles.shifted``), and items with no
+        stats (once the site moved to Next.js 16 every page read as its URL, and each new or changed item was stored
+        empty). Titles are put back in place; an empty item takes the shipped seed's copy, or goes, and either way is
+        fetched again; the gear reference's empty entries take the shipped ones."""
+        import gzip
+        import json
+        from ..paths import PKG_DATA, user_data
+        from ..plan.titles import repaired, shifted
+        try:
+            if (user_data() / "global" / "titles.json").exists():
+                titles = read_json("global", "titles.json")
+                moved = sum(shifted(t) for t in titles)
+                if moved:
+                    write_user_json(repaired(titles), "global", "titles.json")
+                    self.state.changed["titles_repaired"] = moved
+            blank = [slug for slug, data in conn.execute("SELECT slug, data FROM items") if empty_item(json.loads(data))]
+            if blank:
+                seed = {r["data"]["slug"]: r for r in json.loads(gzip.decompress(store.SEED.read_bytes()))}
+                with conn:
+                    for slug in blank:
+                        if slug in seed and not empty_item(seed[slug]["data"]):
+                            store.upsert_item(conn, seed[slug]["data"], seed[slug].get("lastmod"))
+                        else:
+                            conn.execute("DELETE FROM items WHERE slug=?", (slug,))
+                self.state.changed["items_repaired"] = len(blank)
+            if (user_data() / "global" / "items.json").exists():
+                ref = read_json("global", "items.json")
+                shipped = json.loads((PKG_DATA / "global" / "items.json").read_text(encoding="utf-8"))
+                gone = [slug for slug, entry in ref.items() if no_stats(entry) and not no_stats(shipped.get(slug) or {})]
+                if gone:
+                    ref.update({slug: shipped[slug] for slug in gone})
+                    write_user_json(ref, "global", "items.json")
+                    self.state.changed["item_reference_repaired"] = len(gone)
+        except Exception as err:                 # a repair that cannot run leaves the data as it was
+            self.state.errors.append(f"repair: {type(err).__name__}: {err}")
+
     def _sitemaps(self, conn) -> dict[str, str]:
         self._say("sitemaps", "reading metabot sitemaps")
         pages: dict[str, str] = {}
-        for name in SITEMAPS:
-            try:
-                pages.update(metabot.sitemap(name))
-            except Exception as err:
-                self.state.errors.append(f"sitemap {name}: {err}")
+        for names in (SITEMAPS, LEGACY_SITEMAPS):
+            for name in names:
+                try:
+                    pages.update(metabot.sitemap(name))
+                except Exception as err:
+                    self.state.errors.append(f"sitemap {name}: {err}")
+            if pages:
+                break
+        if not pages:
+            self.state.errors.append("sitemaps: no pages listed; changed items and new titles wait for a launch "
+                                     "that can read them")
         for url, lastmod in pages.items():
             kind, _, slug = url.split("/en/aion-2/")[-1].partition("/")
             conn.execute("INSERT INTO pages(url, kind, slug, lastmod) VALUES (?,?,?,?) "
@@ -187,12 +245,23 @@ class Sync:
             if self.force or slug not in have or (lastmod and have[slug] != lastmod):
                 todo.append((slug, lastmod))
         self._say("items", f"{len(todo)} new or changed of {len(slugs)}", 0, len(todo))
-        changed = []
+        changed, unread = [], 0
         for i, (slug, lastmod) in enumerate(todo):
             if self._out_of_time():
                 break
             try:
                 it = metabot.item_full(slug, cache=False)
+                if empty_item(it):
+                    # A page that reads as nothing is a layout the parser does not know, not an item without
+                    # stats: storing it blanked the item until 0.2.371. Keep the stored copy; after a few in a
+                    # row the layout has changed, and the rest waits for the next launch.
+                    unread += 1
+                    if unread >= UNREAD_ITEMS_STOP:
+                        self.state.errors.append(f"items: {unread} item pages in a row read without stats; the page "
+                                                 "layout changed, keeping the stored items")
+                        break
+                    continue
+                unread = 0
                 with conn:
                     store.upsert_item(conn, it, lastmod)
                 changed.append(slug)
@@ -237,15 +306,18 @@ class Sync:
         if self.force or seen != lastmod or time.time() - at > 7 * 86400:
             try:
                 titles = metabot.titles(fresh=True)
-                if len(titles) > 50:
-                    old = {t["name"]: t for t in read_json("global", "titles.json")}
-                    for t in titles:                     # keep the per-title details already known
-                        for k in ("slug", "slot", "role", "category", "how", "earn", "source"):
-                            if k in old.get(t["name"], {}):
-                                t.setdefault(k, old[t["name"]][k])
-                    write_user_json(titles, "global", "titles.json")
-                    self._mark(conn, url, lastmod)
-                    self.state.changed["titles"] = len(titles)
+                problem = metabot.titles_problem(titles)
+                if problem:                              # never replace the list with one that read wrong
+                    raise ValueError(f"{problem}; keeping the stored titles")
+                from ..plan.titles import titles_data
+                old = {t["name"]: t for t in titles_data()}
+                for t in titles:                     # keep the per-title details already known
+                    for k in ("slug", "slot", "role", "category", "how", "earn", "source"):
+                        if k in old.get(t["name"], {}):
+                            t.setdefault(k, old[t["name"]][k])
+                write_user_json(titles, "global", "titles.json")
+                self._mark(conn, url, lastmod)
+                self.state.changed["titles"] = len(titles)
             except Exception as err:
                 self.state.errors.append(f"titles: {err}")
         self._title_details(conn, pages)
@@ -265,9 +337,10 @@ class Sync:
                 continue
             url, lastmod = urls[slug]
             seen, _ = self._fetched_lastmod(conn, url)
-            if t.get("slot") and seen == lastmod and not self.force:
+            known = bool(t.get("slot") and t.get("category"))   # the listing gives a new title its slot, not the rest
+            if known and seen == lastmod and not self.force:
                 continue
-            if t.get("slot") and seen is None and not self.force:
+            if known and seen is None and not self.force:
                 self._mark(conn, url, lastmod)           # details came with the bundled data
                 continue
             try:

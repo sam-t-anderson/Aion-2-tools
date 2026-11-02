@@ -98,7 +98,11 @@ function bindDoll(a) {
       `<h4 class="gold small">${esc(SLOT_NAME[slot] || slot).toUpperCase()}</h4><div class="iflow">
       ${itemCard(x.worn, "Wearing", null, `<div>${chips(x.worn)}</div>`)}<div class="arr">➜</div>
       ${itemCard(x.wear, "From your inventory", x.wear_gain, `<div>${chips(x.wear)}</div>`)}<div class="arr">➜</div>
-      ${itemCard(x.next, "Next goal", x.next?.gain, chase(x.next))}<div class="arr">➜</div>${itemCard(x.best, "Best in slot", x.best?.gain, chase(x.best))}</div>
+      ${
+        x.next || !x.keep
+          ? itemCard(x.next, "Next goal", x.next?.gain, chase(x.next))
+          : `<div class="icard empty" data-keep><div class="ilabel">Next goal</div><div class="small">No replacement beats yours enchanted to +15 and rerolled toward good rolls (${sp(x.keep.gain)}): enchant and reroll it, as the upgrade path says.</div></div>`
+      }<div class="arr">➜</div>${itemCard(x.best, "Best in slot", x.best?.gain, chase(x.best))}</div>
       ${x.steps.length ? `<p class="small muted">Upgrade path steps for this slot: ${x.steps.map((n) => "#" + n).join(", ")}</p>` : ""}`;
   };
   $$("[data-dslot]").forEach((b) => (b.onclick = () => show(b.dataset.dslot)));
@@ -465,14 +469,25 @@ function titlePlate(t, label, extra = "") {
 function advTitles(a) {
   const t = a.titles;
   if (!t) return "";
+  // A slot no title adds damage to (every Defense title is purely defensive) is ranked by the damage its titles
+  // take off a boss's hits (their Damage Tolerance), so it still recommends one (0.2.371).
+  const cut = (g) =>
+    `<div class="gain up" title="Damage Tolerance lowers the attacker's damage boost">−${(100 * g.cut).toFixed(1)}% damage taken</div>`;
+  const guardCol = (x) => {
+    const g = x.guard;
+    if (!g) return '<div class="small faint">No title for this slot adds damage.</div>';
+    const pvp = g.kinds.includes("PvP Damage Tolerance");
+    return `<div class="small faint" data-guard>No title for this slot adds damage. Ranked by how much they cut ${pvp ? "another player's" : "a boss's"} damage (${esc(g.kinds.join(", "))})${g.equipped != null ? `; yours: −${(100 * g.equipped).toFixed(1)}%` : ""}.</div>
+      ${t.owned_known ? titlePlate(g.best_owned, "Best you own", g.best_owned ? cut(g.best_owned) : "") : ""}
+      ${g.best.map((r, i) => titlePlate(r, i ? "" : "Best", cut(r) + (r.owned ? '<span class="chip gold">owned</span>' : ""))).join("")}`;
+  };
   const cols = ["Attack", "Defense", "Etc"]
     .map((slot) => {
       const x = t.slots[slot] || {};
+      const ranked = (x.best || []).length > 0;
       return `<div class="tcol"><div class="t">${slot === "Etc" ? "Other" : slot} title</div>${titlePlate(x.equipped, "Equipped")}
-      ${t.owned_known ? titlePlate(x.best_owned, "Best you own") : ""}
-      <div class="sub">BEST IN SLOT</div>${(x.best || []).length ? "" : '<div class="small faint">No title for this slot adds damage.</div>'}${(
-        x.best || []
-      )
+      ${t.owned_known && ranked ? titlePlate(x.best_owned, "Best you own") : ""}
+      <div class="sub">BEST IN SLOT</div>${ranked ? "" : guardCol(x)}${(x.best || [])
         .slice(0, 3)
         .map((r, i) => titlePlate(r, i ? "" : "Best", r.owned ? '<span class="chip gold">owned</span>' : ""))
         .join("")}</div>`;
@@ -487,7 +502,11 @@ function advTitles(a) {
     {
       key: "adv-titles",
       copy: ["Attack", "Defense", "Etc"]
-        .map((s) => `${s}: ${(t.slots[s]?.best_owned || t.slots[s]?.best?.[0] || {}).name || "-"}`)
+        .map((s) => {
+          const x = t.slots[s] || {};
+          const pick = x.best_owned || x.best?.[0] || x.guard?.best_owned || x.guard?.best?.[0] || {};
+          return `${s}: ${pick.name || "-"}`;
+        })
         .join("\n"),
     },
   );

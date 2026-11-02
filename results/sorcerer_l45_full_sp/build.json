@@ -12677,49 +12677,93 @@
   "flame_arrow"
  ],
  "macro": {
-  "model_version": 3,
+  "model_version": 4,
   "steps": [
-   "blaze",
-   "firestorm",
-   "frost_burst",
-   "bittercold_wind",
-   "ice_chain",
-   "flame_arrow"
+   [
+    "blaze",
+    "fire_wall"
+   ],
+   [
+    "element_enhancement",
+    "wish"
+   ],
+   [
+    "element_enhancement",
+    "wish"
+   ],
+   [
+    "blaze",
+    "fire_wall"
+   ],
+   [
+    "winters_shackles",
+    "bittercold_wind",
+    "cold_storm",
+    "delayed_explosion"
+   ],
+   [
+    "blaze",
+    "fire_wall"
+   ],
+   [
+    "winters_shackles",
+    "bittercold_wind",
+    "cold_storm",
+    "delayed_explosion"
+   ],
+   [
+    "winters_shackles",
+    "bittercold_wind",
+    "cold_storm",
+    "delayed_explosion"
+   ],
+   [
+    "winters_shackles",
+    "bittercold_wind",
+    "cold_storm",
+    "delayed_explosion"
+   ],
+   [
+    "blaze",
+    "fire_wall"
+   ],
+   [
+    "firestorm",
+    "flame_scattershot",
+    "ice_chain"
+   ],
+   [
+    "frost_burst",
+    "frost"
+   ]
   ],
   "manual": [
-   "winters_shackles [sync_de]",
-   "fire_wall",
-   "wish",
-   "element_enhancement",
-   "cold_storm",
-   "delayed_explosion",
-   "hellfire_c3 [sync_de]",
-   "frost",
-   "flame_scattershot"
+   "hellfire_c3 [sync_de]"
   ],
-  "dps_macro": 20673.631417145545,
-  "dps_priority": 22755.673048708755,
+  "dps_macro": 23287.032944412826,
+  "dps_priority": 23540.42959694012,
   "alt_steps": [
    "fire_wall",
    "element_enhancement",
    "wish",
    "cold_storm",
+   "winters_shackles",
    "blaze",
    "bittercold_wind",
-   "winters_shackles",
-   "firestorm",
    "delayed_explosion",
    "frost_burst",
+   "firestorm",
    "frost",
+   "ice_chain",
    "flame_scattershot",
-   "flame_arrow",
-   "ice_chain"
+   "flame_arrow"
   ],
   "alt_manual": [
    "hellfire_c3 [sync_de]"
   ],
-  "dps_alt": 20562.65475653962,
-  "auto_attack": "flame_arrow"
+  "dps_alt": 21502.29544612408,
+  "auto_attack": "flame_arrow",
+  "chains": {}
  },
  "shares": {
   "Hellfire": 0.1365279739320392,

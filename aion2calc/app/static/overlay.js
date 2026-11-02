@@ -25,7 +25,7 @@
   const setHtml=(el,html)=>{ if(el&&el._a2html!==html){ el._a2html=html; el.innerHTML=html; return true; } return false; };
   const setWidth=(el,width)=>{ if(el&&el._a2width!==width){ el._a2width=width; el.style.width=width; } };
   let tab = "meter", metric = "dps", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false, meterUnavailable = false, refreshError = "", lastSuccess = null;
-  let clickThrough = false, rectTimer = 0;
+  let clickThrough = false, rectTimer = 0, hoverInteract = false;
   // Which window this page is: the meter overlay, the separate Party-DPS overlay (?view=party) or the
   // Hidden Cube radar's own small window (?view=radar, 0.2.329): the radar with Lock, Hide and its own opacity.
   const view = new URLSearchParams(location.search).get("view") || "meter";
@@ -282,6 +282,9 @@
     $("#ovfps").hidden=!showFps||partyMode||radarMode;
     setFpsLoop(showFps&&!partyMode&&!radarMode);   // only drive a per-frame loop while the FPS readout is shown
     applyClickThrough(ui.overlay_click_through===true);   // pass clicks to the game, keeping the overlay's buttons live
+    hoverInteract=ui.overlay_hover_interact===true;        // resting on a click-through overlay opens it (0.2.371)
+    nativeCall("set_hover_interact",hoverInteract);
+    if(!hoverInteract||!clickThrough)window.A2OverlayHover?.("off");
     // Layout
     maxPlayers=clampInt(ui.overlay_max_players,1,24,8);
     onlyInCombat=ui.overlay_only_in_combat===true;
@@ -402,6 +405,16 @@
     });
     nativeCall("set_interactive_rects", rects);
   }
+  // Hover-to-interact (0.2.371): with click-through on, the host counts how long the pointer rests on the overlay
+  // (the page gets no mouse events while clicks pass through) and says how it stands: "arming" while it counts, a
+  // ring that fills in over the five seconds; "open" once the whole overlay takes clicks, until the pointer leaves;
+  // "off" when it leaves.
+  window.A2OverlayHover = (state) => {
+    const ov = document.getElementById("ov");
+    if (!ov) return;
+    ov.classList.toggle("ov-hover-arming", state === "arming");
+    ov.classList.toggle("ov-hover-open", state === "open");
+  };
   function applyClickThrough(on) {
     clickThrough = !!on;
     nativeCall("set_click_through", clickThrough);
@@ -442,6 +455,7 @@
     // The first settings sync may have run before the bridge was ready, so re-push
     // the click-through state (and the control rects) now that native calls land.
     nativeCall("set_click_through", clickThrough);
+    nativeCall("set_hover_interact", hoverInteract);
     if (clickThrough) reportInteractiveRects();
     // The first render usually comes before the bridge too: measure the see-through modes' shape again and
     // send it, or the native window keeps its whole card (0.2.368 remembered that shape as sent).
@@ -477,7 +491,8 @@
     if (event.button !== 0 || !event.isPrimary) return;
     const target = event.target;
     if (target.closest("button, input, select, textarea, a, label, .ovgrip")) return;
-    if (event.offsetX > target.clientWidth || event.offsetY > target.clientHeight) return;   // a scrollbar
+    const scrolls = target.scrollHeight > target.clientHeight || target.scrollWidth > target.clientWidth;
+    if (scrolls && (event.offsetX > target.clientWidth || event.offsetY > target.clientHeight)) return;   // its scrollbar
     moveFrom = { x: event.screenX, y: event.screenY };
     nativeCall("begin_drag");
   });
@@ -519,7 +534,7 @@
     }).catch(() => {});
   }
   function allPlans() {
-    let own = {};
+    let own;
     try { own = JSON.parse(localStorage.getItem("a2plans") || "{}") || {}; } catch (e) { own = {}; }
     const all = { ...appPlans };
     for (const [id, plan] of Object.entries(own)) if (!all[id] || (plan?.meta?.updated || 0) >= (all[id]?.meta?.updated || 0)) all[id] = plan;

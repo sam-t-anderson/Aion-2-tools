@@ -47,30 +47,24 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `quick_slice`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Settings → Key Settings → General → Skill Macro. Skill Queue (스킬 예약) **ON**, 10 ms delay on every step, hold the macro key; manual presses always take priority over the macro.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
-| Step | Skill |
+| Line | Hotbar key holds (lowest first) |
 |---:|---|
-| 1 | shadowstrike |
-| 2 | heart_gore |
-| 3 | shadow_fall |
-| 4 | insignia_explosion |
-| 5 | ambush |
-| 6 | infiltrate |
-| 7 | triniel |
-| 8 | whirlwind_slice |
-| 9 | smoke |
-| 10 | savage_roar |
-| 11 | flash_slice |
-| 12 | swift |
-| 13 | tshadow |
-| 14 | quick_slice |
+| 1 | tshadow › infiltrate |
+| 2 | insignia_explosion › heart_gore › smoke |
+| 3 | swift › ambush › flash_slice |
+| 4 | insignia_explosion › heart_gore › smoke |
+| 5 | triniel › whirlwind_slice |
+| 6 | insignia_explosion › heart_gore › smoke |
+| 7 | shadow_fall › shadowstrike › savage_roar |
+| 8 | insignia_explosion › heart_gore › smoke |
 
 Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight
 
-Simulated: this layout reaches **95.1%** of the ideal priority list.
+Simulated: this layout reaches **102.8%** of the ideal priority list.
 
-**Alternative — macro with manual keys**: macro shadowstrike → insignia_explosion → heart_gore → shadow_fall → ambush → infiltrate → whirlwind_slice → savage_roar → flash_slice → quick_slice; manual: triniel, smoke, swift, tshadow. Simulated: **94.1%** of the ideal priority list.
+**Alternative — one skill per macro line**: macro shadowstrike → insignia_explosion → shadow_fall → heart_gore → infiltrate → triniel → ambush → smoke → whirlwind_slice → savage_roar → flash_slice → tshadow → swift → quick_slice. Simulated: **98.3%** of the ideal priority list.
 
 ### Opener (first 30 s of the simulated fight)
 
@@ -84,25 +78,25 @@ Skill points used **203 / 203**, stigma points **30 / 30**, Daevanion **360 / 36
 
 | Skill | Trained (SP) | Effective level | Specializations |
 |---|---:|---:|---|
-| Quick Slice | 10 | 14 | +50% Multi-Hit on hit; -1s [Insignia Explosion] cooldown on hit |
 | Exploit Weakness | 10 | 14 | — |
 | Impact Hit | 10 | 14 | — |
 | Insignia Explosion | 10 | 14 | Adds rotate effect; +50% Multi-Hit on hit |
+| Quick Slice | 10 | 14 | +50% Multi-Hit on hit; -1s [Insignia Explosion] cooldown on hit |
 | Rear Smite | 10 | 14 | — |
-| Savage Roar | 8 | 12 | +20% Skill Speed; Deals up to 12% more damage when less targets are hit |
-| Infiltrate | 8 | 12 | Restores 300 Stamina on landing [Infiltrate]; Adds [Dark Strike] Chain Skill |
 | Heart Gore | 8 | 12 | Absorbs 70, 70% HP; Multi-Hit on hit |
+| Infiltrate | 8 | 12 | Restores 300 Stamina on landing [Infiltrate]; Adds [Dark Strike] Chain Skill |
+| Savage Roar | 8 | 12 | +20% Skill Speed; Deals up to 12% more damage when less targets are hit |
 | Ambush | 7 | 11 | Engraves 2 Insignias for 10s on landing as a Back attack |
 | Whirlwind Slice | 7 | 11 | +50% Multi-Hit on hit |
-| Assault Stance | 7 | 10 | — |
 | Ambush Stance | 7 | 10 | — |
+| Assault Stance | 7 | 10 | — |
 | Flash Slice | 6 | 9 | +2s Blind duration |
-| Apply Poison | 5 | 9 | — |
 | Shadow Fall | 6 | 9 | Engraves 3 Insignias for 10s on hit |
+| Apply Poison | 5 | 9 | — |
 | Shadowstrike | 4 | 8 | +20% caster Critical Damage Boost for 10s on hit |
 | Defense Break | 1 | 4 | — |
-| Defiance | 1 | 2 | — |
 | Determination | 2 | 2 | — |
+| Defiance | 1 | 2 | — |
 | Revitalization Contract | 1 | 2 | — |
 
 **Stigmas**: Swift Contract Lv 3, Throw Shadowblade Lv 5, Smoke Bomb Lv 6, Triniel's Dagger Lv 10

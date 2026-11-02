@@ -47,29 +47,22 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `snipe`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Settings → Key Settings → General → Skill Macro. Skill Queue (스킬 예약) **ON**, 10 ms delay on every step, hold the macro key; manual presses always take priority over the macro.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
-| Step | Skill |
+| Line | Hotbar key holds (lowest first) |
 |---:|---|
-| 1 | gale_arrow |
-| 2 | marking_shot |
-| 3 | vaizel |
-| 4 | bowbless |
-| 5 | drill_dart |
-| 6 | suppressing_arrow |
-| 7 | snare_shot |
-| 8 | burst_arrow |
-| 9 | ensnaring_trap |
-| 10 | explosion_trap |
-| 11 | explosive |
-| 12 | tempest_shot |
-| 13 | snipe |
+| 1 | marking_shot › vaizel › burst_arrow |
+| 2 | drill_dart › bowbless › suppressing_arrow |
+| 3 | marking_shot › vaizel › burst_arrow |
+| 4 | snare_shot › tempest_shot |
+| 5 | marking_shot › vaizel › burst_arrow |
+| 6 | ensnaring_trap › explosive › gale_arrow › explosion_trap |
 
 Manual keys (press on cooldown, in this priority): deadshot
 
-Simulated: this layout reaches **81.3%** of the ideal priority list.
+Simulated: this layout reaches **98.4%** of the ideal priority list.
 
-**Alternative — macro with manual keys**: macro gale_arrow → marking_shot → drill_dart → suppressing_arrow → snare_shot → burst_arrow → explosion_trap → tempest_shot → snipe; manual: vaizel, bowbless, deadshot, ensnaring_trap, explosive. Simulated: **79.9%** of the ideal priority list.
+**Alternative — one skill per macro line**: macro vaizel → gale_arrow → drill_dart → bowbless → marking_shot → suppressing_arrow → snare_shot → burst_arrow → explosion_trap → ensnaring_trap → explosive → tempest_shot → snipe; manual: deadshot. Simulated: **80.6%** of the ideal priority list.
 
 ### Opener (first 30 s of the simulated fight)
 
@@ -83,22 +76,22 @@ Skill points used **203 / 203**, stigma points **30 / 30**, Daevanion **360 / 36
 
 | Skill | Trained (SP) | Effective level | Specializations |
 |---|---:|---:|---|
-| Snipe | 10 | 14 | +20% MP restored; Absorbs 70, 70% HP |
-| Focused Eye | 10 | 14 | — |
 | Deadshot | 10 | 14 | +30% Skill Speed; Ignores Block and Evasion and lands as Multi-Hit |
+| Focused Eye | 10 | 14 | — |
+| Snipe | 10 | 14 | +20% MP restored; Absorbs 70, 70% HP |
 | Tempest Shot | 10 | 14 | -20% MP consumed; Deals up to 12% more damage when less targets are hit |
-| Drill Dart | 9 | 13 | +20% Skill Speed; Multi-Hit on hit |
 | Hunter's Resolve | 10 | 13 | — |
+| Drill Dart | 9 | 13 | +20% Skill Speed; Multi-Hit on hit |
 | Burst Arrow | 8 | 12 | +50% Multi-Hit on hit; Up to +20% damage when less targets hit |
+| Concentrated Fire | 7 | 11 | — |
 | Hunter's Soul | 7 | 11 | — |
 | Marking Shot | 7 | 11 | +5% Perfect Chance for the duration |
-| Concentrated Fire | 7 | 11 | — |
 | Explosion Trap | 7 | 10 | Pulls enemies on explosion |
 | Gale Arrow | 7 | 10 | +5s duration |
 | Suppressing Arrow | 7 | 9 | +20% Skill Speed |
 | Snare Shot | 7 | 8 | +20% Skill Speed |
-| Melee Fire | 3 | 7 | — |
 | Rooting Eye | 4 | 7 | — |
+| Melee Fire | 3 | 7 | — |
 | Defiance | 1 | 2 | — |
 | Wind Vigor | 1 | 2 | — |
 

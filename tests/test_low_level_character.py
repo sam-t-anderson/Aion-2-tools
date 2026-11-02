@@ -132,3 +132,25 @@ def test_stigma_level_patterns_spend_a_large_budget_up_to_level_20():
     assert (20, 19, 19, 18) in stigma_patterns(4, 268)
     assert (10, 10, 10, 10) in stigma_patterns(4, 60)        # the smaller budgets keep their old patterns
     assert stigma_patterns(2, 2) == [(1, 1)] and stigma_patterns(1, 3) == [(3,)]
+
+
+def test_the_optimizer_budgets_a_character_with_its_own_points(tmp_path, monkeypatch):
+    """0.2.371: a character's budgets are the points its profile shows spent, or the total the player entered above
+    them. The old saved totals (``character-points.json``), which the page had raised to the community's highest
+    reported ones, are not read; a run keeps only totals above the spent points."""
+    import json
+    from types import SimpleNamespace
+    from aion2calc import charopt
+    from aion2calc.paths import read_json, write_user_json
+    monkeypatch.setenv("AION2CALC_HOME", str(tmp_path / "home"))
+    imp = SimpleNamespace(cls="sorcerer", key="k1",
+                          build=SimpleNamespace(sp_spent=lambda: 90, stigma_spent=lambda: 10, daevanion=set()))
+    write_user_json({"k1": {"skill": 383, "stigma": 268, "daevanion": 416}}, "character-points.json")
+    assert charopt.budgets_of(imp) == {"skill": 90, "stigma": 10, "daevanion": 0}       # the old file is not read
+    spent = {"skill": 90, "stigma": 10, "daevanion": 0}
+    charopt.remember_entered("k1", {"skill": 90, "stigma": 25, "daevanion": 0}, spent)
+    assert read_json(charopt.ENTERED_POINTS) == {"k1": {"stigma": 25}}                   # only the typed total
+    assert charopt.budgets_of(imp) == {"skill": 90, "stigma": 25, "daevanion": 0}
+    charopt.remember_entered("k1", dict(spent), spent)                                   # back to the profile's own
+    assert read_json(charopt.ENTERED_POINTS) == {} and charopt.budgets_of(imp)["stigma"] == 10
+    assert json.loads((tmp_path / "home" / "data" / "character-points.json").read_text())["k1"]["stigma"] == 268

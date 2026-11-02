@@ -147,7 +147,8 @@
   let moveFrom = null, moveDone = false;
   $(".ovcard").addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || !e.isPrimary || e.target.closest("button, input, select, a, label")) return;
-    if (e.offsetX > e.target.clientWidth || e.offsetY > e.target.clientHeight) return;   // a scrollbar
+    const t = e.target, scrolls = t.scrollHeight > t.clientHeight || t.scrollWidth > t.clientWidth;
+    if (scrolls && (e.offsetX > t.clientWidth || e.offsetY > t.clientHeight)) return;   // its scrollbar
     moveFrom = { x: e.screenX, y: e.screenY };
     nativeCall("begin_drag");
   });
