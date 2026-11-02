@@ -11787,17 +11787,65 @@
   "cold_shock"
  ],
  "macro": {
-  "model_version": 3,
+  "model_version": 4,
   "steps": [
+   [
+    "elemental_fusion",
+    "ancient_spirit",
+    "summon_fire",
+    "summon_earth"
+   ],
+   [
+    "summon_water",
+    "enhance",
+    "summon_wind"
+   ],
+   [
+    "summon_water",
+    "enhance",
+    "summon_wind"
+   ],
+   [
+    "elemental_fusion",
+    "ancient_spirit",
+    "summon_fire",
+    "summon_earth"
+   ],
+   [
+    "elemental_fusion",
+    "ancient_spirit",
+    "summon_fire",
+    "summon_earth"
+   ],
+   [
+    "jointstrike_curse"
+   ],
+   [
+    "elemental_fusion",
+    "ancient_spirit",
+    "summon_fire",
+    "summon_earth"
+   ],
+   [
+    "dimensional_control",
+    "soul_cry",
+    "magicblk",
+    "combustion"
+   ]
+  ],
+  "manual": [],
+  "dps_macro": 16608.2837814362,
+  "dps_priority": 16918.826996906402,
+  "alt_steps": [
    "summon_earth",
-   "summon_water",
-   "summon_fire",
-   "summon_wind",
    "jointstrike_curse",
+   "summon_water",
+   "summon_wind",
+   "summon_fire",
    "combustion",
    "cold_shock"
   ],
-  "manual": [
+  "alt_manual": [
    "elemental_fusion",
    "ancient_spirit",
    "enhance",
@@ -11805,26 +11853,9 @@
    "soul_cry",
    "magicblk"
   ],
-  "dps_macro": 13002.757073416069,
-  "dps_priority": 16032.421177435821,
-  "alt_steps": [
-   "ancient_spirit",
-   "elemental_fusion",
-   "summon_water",
-   "summon_fire",
-   "dimensional_control",
-   "enhance",
-   "summon_earth",
-   "jointstrike_curse",
-   "summon_wind",
-   "soul_cry",
-   "magicblk",
-   "combustion",
-   "cold_shock"
-  ],
-  "alt_manual": [],
-  "dps_alt": 11732.295785683616,
-  "auto_attack": "cold_shock"
+  "dps_alt": 13573.838791708547,
+  "auto_attack": "cold_shock",
+  "chains": {}
  },
  "shares": {
   "Combustion": 0.21191209353251295,

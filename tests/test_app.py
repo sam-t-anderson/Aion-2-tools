@@ -54,7 +54,8 @@ def test_sync_fetches_only_new_or_changed(home, monkeypatch, tmp_path):
     monkeypatch.setattr(metabot, "sitemap", lambda name: dict(lastmods) if name == "aion-2-items-1" else {})
     monkeypatch.setattr(metabot, "category_slugs", lambda cat: ["a-sword", "b-ring"] if cat == "weapons" else [])
     monkeypatch.setattr(metabot, "item_full", lambda slug, cache=False: fetched.append(slug) or
-                        {"slug": slug, "name": slug, "grade": "Rare", "category": "Sword", "meta": {}})
+                        {"slug": slug, "name": slug, "grade": "Rare", "category": "Sword", "fixed": {"Attack": "+10"},
+                         "meta": {}})
     monkeypatch.setattr(metabot, "titles", lambda fresh=False: [])
     monkeypatch.setattr(sync.Sync, "_classes", lambda self, conn, pages: [])
     db = tmp_path / "s.db"

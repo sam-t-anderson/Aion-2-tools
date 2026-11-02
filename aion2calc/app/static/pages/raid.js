@@ -34,5 +34,7 @@ async function pageRaid() {
             .join(", ")}${fights.length > 3 ? ` +${fights.length - 3}` : ""}`,
         })),
     recording: (file) => api("/api/sessions?file=" + encodeURIComponent(file)),
+    // The overlay's own window cannot read this browser's storage: the app keeps a copy of the saved plans for it
+    savePlans: (plans) => api("/api/plans/saved", { plans }),
   });
 }

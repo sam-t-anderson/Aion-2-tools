@@ -5109,42 +5109,68 @@
   "onslaught"
  ],
  "macro": {
-  "model_version": 3,
+  "model_version": 4,
   "steps": [
+   [
+    "undefeated"
+   ],
+   [
+    "incandescent_blow",
+    "ensnare",
+    "rushing_smash",
+    "tremor_crush"
+   ],
+   [
+    "spinning_strike",
+    "impactful_crush"
+   ],
+   [
+    "incandescent_blow",
+    "ensnare",
+    "rushing_smash",
+    "tremor_crush"
+   ],
+   [
+    "dark_crush",
+    "heat_wave_blow",
+    "wave_blow",
+    "stormpower"
+   ],
+   [
+    "incandescent_blow",
+    "ensnare",
+    "rushing_smash",
+    "tremor_crush"
+   ],
+   [
+    "incandescent_blow",
+    "ensnare",
+    "rushing_smash",
+    "tremor_crush"
+   ]
+  ],
+  "manual": [],
+  "dps_macro": 21936.93397152085,
+  "dps_priority": 22234.220282190996,
+  "alt_steps": [
+   "rushing_smash",
+   "wave_blow",
    "impactful_crush",
    "dark_crush",
-   "heat_wave_blow",
    "tremor_crush",
-   "wave_blow",
-   "rushing_smash",
+   "heat_wave_blow",
    "onslaught"
   ],
-  "manual": [
+  "alt_manual": [
    "stormpower",
    "undefeated",
    "spinning_strike",
    "incandescent_blow",
    "ensnare"
   ],
-  "dps_macro": 18418.451205579415,
-  "dps_priority": 20469.155120370633,
-  "alt_steps": [
-   "stormpower",
-   "undefeated",
-   "spinning_strike",
-   "impactful_crush",
-   "dark_crush",
-   "incandescent_blow",
-   "heat_wave_blow",
-   "ensnare",
-   "wave_blow",
-   "rushing_smash",
-   "onslaught",
-   "tremor_crush"
-  ],
-  "alt_manual": [],
-  "dps_alt": 14283.580660893693,
-  "auto_attack": "onslaught"
+  "dps_alt": 20382.489724073323,
+  "auto_attack": "onslaught",
+  "chains": {}
  },
  "shares": {
   "Incandescent Blow": 0.28370417210901766,

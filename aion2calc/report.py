@@ -199,7 +199,8 @@ def _build_card(cd, summary: dict, build, policy, out: Path) -> None:
                      f" · Stigma {build.stigma_spent()}/{summary.get('budgets', {}).get('stigma', 30)}"
                      f" · Gear: {lo.get('name', loadout).split(' - ')[-1]}",
             skills=skill_rows("active"), passives=skill_rows("passive"), stigmas=stig_rows, priority=pr,
-            macro={"steps": [named(x, "{0} again") for x in m["steps"]],
+            macro={"steps": [" › ".join(named(y, "{0} again") for y in (x if isinstance(x, list) else [x]))
+                             for x in m["steps"]],
                    "manual": [named(x, "{0}'s chain") for x in m["manual"]],
                    "note": ("Hold the macro key; press the manual skills when they come off cooldown."
                             if m["manual"] else "Hold the macro key all fight; steps on cooldown are skipped.")},

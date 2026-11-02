@@ -101,6 +101,37 @@ def test_goal_items_and_rerolls_name_the_rolls_to_chase(home):
     assert p["steps"][0]["action"] == "reroll Weak Ring toward Critical Hit +30 – +50"
 
 
+def test_next_goal_never_drops_below_the_worn_item(home):
+    """A goal counts good rolls at +15, so against a worn item's poor rolls an item of a far lower item level
+    gained too and became the next goal (an item level 43 Pauldrons over the item level 86 one worn, whose pool
+    rolls the same stats higher). The next goal is never below the worn item's level and must beat it enchanted
+    and rerolled; short of that the doll says to enchant and reroll it."""
+    from aion2calc.plan import inventory as INV
+    from aion2calc.plan.advisor import doll_view
+    from aion2calc.plan.context import PlanContext
+    from aion2calc.plan.gear import goal_gear, upgrade_path
+    low = {**RING, "slug": "low-ring", "name": "Low Ring", "item_level": 40, "fixed": {"Attack": "+190"},
+           "random": [{"stat": "Critical Hit", "range": "+20 – +40", "chance": "50%"},
+                      {"stat": "HP", "range": "+150 – +250", "chance": "50%"}]}
+    _catalog(RING, low)
+    ctx = PlanContext.for_class("sorcerer")
+    inv = {"profile": "t", "class": "sorcerer", "items": []}
+    worn = INV.add(inv, "test-ring", 2, rolls=[["HP", 250], ["HP", 250]])     # item level 70, nothing worth rolled
+    ctx.equipped = {"Ring1": worn}
+    g = goal_gear(ctx)["slots"]["Ring1"]
+    lower = next(r for r in g["best"] if r["name"] == "Low Ring")
+    assert lower["gain"] >= 0.02                                     # the old rule took it: lowest level gaining 2 %
+    assert g["next"] is None and g["worn"]["item_level"] == 70 and g["worn"]["gain"] > lower["gain"]
+    steps = upgrade_path(ctx, {"Ring1": g}, steps=3)["steps"]
+    assert steps and all(s["kind"] != "replace" for s in steps)     # enchant and reroll the worn ring instead
+    worn["source"], worn["slot"] = "equipped", "Ring1"
+    doll = doll_view(inv, {"changes": [], "choice": {}}, {"slots": {"Ring1": g}}, {"steps": steps})
+    assert doll["Ring1"]["keep"] == g["worn"] and doll["Ring1"]["worn"]["item_level"] == 70
+    high = {**RING, "slug": "high-ring", "name": "High Ring", "item_level": 90, "fixed": {"Attack": "+320"}}
+    _catalog(high)
+    assert goal_gear(ctx)["slots"]["Ring1"]["next"]["name"] == "High Ring"
+
+
 def test_median_loadout_groups_scale_with_chosen_slots(home):
     from aion2calc.plan.context import PlanContext
     _catalog(RING)
@@ -258,6 +289,27 @@ def test_titles_plan_per_slot_and_collection(home):
     assert t["slots"]["Etc"]["best"][0]["name"] == "Fast" and t["slots"]["Defense"]["best"][0]["name"] == "Tough"
     assert [c["name"] for c in t["collect"]][0] == "Strong"               # +1% PvE owned bonus beats +5 crit
     assert "Weak" not in [c["name"] for c in t["collect"]]                # already owned
+
+
+def test_defense_titles_rank_by_the_damage_they_take_off(home):
+    """Every Defense title is purely defensive, so none adds damage and the slot said only "No title for this slot
+    adds damage". It is ranked by the boss damage its Damage Tolerance takes off instead (PvP's in PvP)."""
+    from aion2calc.paths import write_user_json
+    from aion2calc.plan.context import PlanContext
+    from aion2calc.plan.titles import guard_of, plan_titles
+    defense = [("Wall", "PvE Damage Tolerance +3%, Block +100"), ("Bulwark", "Boss Damage Tolerance +4%, Defense Bonus +300"),
+               ("Plain", "Defense Bonus +300"), ("Duelist", "PvP Damage Tolerance +5%"),
+               ("Backside", "Back Attack Damage Tolerance +6%")]
+    write_user_json([{"name": n, "grade": "Rare", "faction": "Both factions", "slot": "Defense", "equip": e, "owned": "—"}
+                     for n, e in defense], "global", "titles.json")
+    assert guard_of("Damage Tolerance +3.5%, HP +1,000", ("Damage Tolerance",)) == 0.035
+    t = plan_titles(PlanContext.for_class("templar"), owned=["Wall"])
+    slot = t["slots"]["Defense"]
+    assert slot["best"] == [] and slot["best_owned"] is None
+    assert [g["name"] for g in slot["guard"]["best"]] == ["Bulwark", "Wall"]     # PvP-only and back-only cuts left out
+    assert slot["guard"]["best_owned"]["name"] == "Wall" and abs(slot["guard"]["best_owned"]["cut"] - 0.03) < 1e-12
+    pvp = plan_titles(PlanContext.for_class("templar", scenario="pvp"), owned=["Wall"])["slots"]["Defense"]["guard"]
+    assert [g["name"] for g in pvp["best"]] == ["Duelist"]
 
 
 def test_title_page_parse(monkeypatch):

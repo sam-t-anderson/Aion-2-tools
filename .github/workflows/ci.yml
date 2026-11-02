@@ -114,6 +114,38 @@ jobs:
           AION2CALC_BROWSER_TESTS: "1"
         run: AXE_CORE_JS="$RUNNER_TEMP/axe/node_modules/axe-core/axe.min.js" python -m pytest -q tests/browser
 
+  overlay-window:
+    name: Overlay window on Windows
+    # The real app and overlay on a Windows desktop (tools/overlay_window_check.py): the see-through background
+    # modes show the game between their pieces, in the light and the dark app themes. Every check in a browser
+    # passed while a dark theme drew a dark box behind them on players' screens (0.2.371). Not a step of the
+    # release: a desktop session that misbehaves cannot hold a release back.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e . pywebview pillow
+      - name: Light app theme
+        run: python tools/overlay_window_check.py light overlay-window-check
+        timeout-minutes: 8
+      - name: Dark app theme
+        if: ${{ !cancelled() }}
+        run: |
+          reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 0 /f
+          python tools/overlay_window_check.py dark overlay-window-check
+        timeout-minutes: 8
+      - uses: actions/upload-artifact@v7
+        if: ${{ failure() }}
+        with:
+          name: overlay-window-check
+          path: overlay-window-check
+
   build:
     name: Build (${{ matrix.name }})
     needs: [test, browser]
@@ -493,6 +525,9 @@ jobs:
         # README.md shows the latest release's SHA-256 values ("Verify your download"). main takes pull requests
         # only, so this opens one that changes nothing but that block and merges it; a merge by GITHUB_TOKEN starts
         # no workflow. If it fails, the release stays published and the pull request stays open for review.
+        # The commit says [skip ci] (0.2.371): GitHub still started a pull_request run for this bot's pull request,
+        # one that failed at once with no jobs (this workflow tests a same-repository pull request on its push)
+        # and showed as a failed check on every release. The squash merge gets its own message, without the marker.
         if: steps.exists.outputs.yes != '1'
         continue-on-error: true
         env:
@@ -505,7 +540,7 @@ jobs:
           git checkout -B automation/release-checksums FETCH_HEAD
           python3 tools/release_checksums.py "$VERSION" assets/aion2calc-* --readme README.md
           if git diff --quiet -- README.md; then echo 'The README already lists these checksums.'; exit 0; fi
-          git commit -m "README: SHA-256 of the v$VERSION downloads" -- README.md
+          git commit -m "README: SHA-256 of the v$VERSION downloads" -m "[skip ci]" -- README.md
           git push --force origin automation/release-checksums
           pr=$(gh pr list --head automation/release-checksums --state open --json number --jq '.[0].number')
           if [ -z "$pr" ]; then
@@ -514,4 +549,4 @@ jobs:
               --body "Automated after the v$VERSION release: the README's *Verify your download* block lists that release's SHA-256 values, the same as its SHA256SUMS.txt. Nothing else changes." \
               | sed 's#.*/##')
           fi
-          gh pr merge "$pr" --squash --delete-branch
+          gh pr merge "$pr" --squash --delete-branch --subject "README: SHA-256 of the v$VERSION downloads (#$pr)" --body "Automated after the v$VERSION release."

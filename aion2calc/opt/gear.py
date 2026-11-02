@@ -63,8 +63,8 @@ def roll_priorities(pu: dict, items: dict | None = None) -> dict[str, list[dict]
 
 
 def title_ranking(pu: dict, titles: list | None = None, top: int = 12) -> list[dict]:
-    from ..paths import read_json
-    titles = titles or read_json("global", "titles.json")
+    from ..plan.titles import titles_data
+    titles = titles or titles_data()
     rows = []
     for t in titles:
         st = parse_bonus_text(t["equip"])

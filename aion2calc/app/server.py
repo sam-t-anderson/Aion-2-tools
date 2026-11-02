@@ -824,6 +824,8 @@ class Handler(BaseHTTPRequestHandler):
             from ..combat import share
             st = share.effective()
             return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
+        if path == "/api/plans/saved":
+            return self._json(saved_plans())
         if path == "/api/plans/bosses":
             from ..combat.share import plan_request
             return self._json(plan_request(bosses=True))
@@ -1029,6 +1031,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/plans":
             from ..combat.share import plan_request
             return self._json(plan_request(body.get("plan"), body.get("visibility", "unlisted"), body.get("id"), body.get("owner")))
+        if path == "/api/plans/saved":
+            return self._json(save_plans(body.get("plans")))
         if path == "/api/assets/reindex":
             return self._json({"job": start_asset_reindex()})
         if path == "/api/sync":
@@ -1375,7 +1379,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
                               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
                               "overlay_always_visible", "overlay_remember_position", "overlay_click_through",
-                              "overlay_close_on_stop",
+                              "overlay_hover_interact", "overlay_close_on_stop",
                               "overlay_text_outline", "overlay_bar_rounded", "overlay_class_color_names",
                               "overlay_color_cycle", "overlay_text_halo", "overlay_text_retro", "overlay_show_community_rank", "overlay_show_events", "overlay_show_field_bosses", "overlay_events_sound", "community_heartbeat", "overlay_row_stripes", "overlay_class_swatch", "overlay_compact_rows", "overlay_rank_numbers", "overlay_highlight_me", "overlay_dps_graph", "overlay_open_on_app_start", "overlay_plan_autoplay", "meter_auto_upload", "meter_catch_up_uploads", "meter_upload_per_fight", "meter_upload_before_prune", "meter_report_boss_kills", "meter_report_enemy_hp", "share_gathering", "meter_autostart", "community_contribute_character", "meter_show_server_name", "overlay_live_community_rank", "meter_report_diagnostics", "meter_record_packets", "rtss_enabled", "radar_enabled",
                               "pettracker_enabled", "pettracker_overlay", "update_on_close", "performance_mode")
@@ -1937,6 +1941,39 @@ def schedule_shutdown(upload: bool = True) -> None:
     threading.Thread(target=stop, daemon=True, name="desktop-shutdown").start()
 
 
+SAVED_PLANS_FILE = "raid_plans.json"
+SAVED_PLANS_MAX = 500                    # plans kept for the overlay
+SAVED_PLANS_BYTES = 32 * 1024 * 1024     # a plan with imported movement can run to a few MiB
+
+
+def saved_plans() -> dict:
+    """The Raid Planner's saved plans as the app last received them (0.2.371). The planner keeps its plans in the
+    browser's storage, which the overlay's own window cannot read; each save there sends the whole set here,
+    and the overlay's plan view reads it back."""
+    from ..paths import user_data
+    try:
+        doc = json.loads((user_data() / SAVED_PLANS_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        doc = {}
+    plans = doc.get("plans") if isinstance(doc, dict) else None
+    return {"plans": plans if isinstance(plans, dict) else {}, "updated": doc.get("updated") if isinstance(doc, dict) else None}
+
+
+def save_plans(plans) -> dict:
+    """Keep the planner's whole set of saved plans (ids to a2plan documents), replacing the last copy."""
+    from ..paths import write_user_json
+    if not isinstance(plans, dict) or not all(isinstance(k, str) and 0 < len(k) <= 64 and isinstance(v, dict)
+                                              for k, v in plans.items()):
+        raise ValueError("plans must map plan ids to plans")
+    if len(plans) > SAVED_PLANS_MAX:
+        raise ValueError(f"The overlay keeps at most {SAVED_PLANS_MAX} plans.")
+    if len(json.dumps(plans, ensure_ascii=False).encode("utf-8")) > SAVED_PLANS_BYTES:
+        raise ValueError("The saved plans exceed 32 MiB.")
+    updated = time.time()
+    write_user_json({"plans": plans, "updated": updated}, SAVED_PLANS_FILE)
+    return {"ok": True, "count": len(plans), "updated": updated}
+
+
 def ui_settings() -> dict:
     from ..paths import data_file, read_json
     defaults = {"app_window": True, "auto_update": True, "update_on_close": True, "overlay_on_start": True, "tray_on_close": False,
@@ -1977,7 +2014,7 @@ def ui_settings() -> dict:
                 # Visual group (all inert by default so the overlay looks unchanged until enabled).
                 "overlay_resizable": False, "overlay_snap_edge": False, "overlay_expand_up": False,
                 "overlay_always_visible": True, "overlay_remember_position": True,
-                "overlay_click_through": False, "overlay_close_on_stop": False,
+                "overlay_click_through": False, "overlay_hover_interact": False, "overlay_close_on_stop": False,
                 "overlay_font_scale": 100, "overlay_font_weight": 600, "overlay_font_family": "",
                 "overlay_text_fonts": {}, "overlay_text_halo": False, "overlay_halo_color": "#e8cf8e",
                 "overlay_text_retro": False,

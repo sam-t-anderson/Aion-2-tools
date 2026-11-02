@@ -534,12 +534,23 @@ class _OverlayAPI:
         # new objects so the loop thread never sees a half-updated value.
         self._click_through = False
         self._interactive = ()
+        self._hover_interact = False   # with click-through on, resting the pointer on the overlay opens it (0.2.371)
+        self._dragging = False      # a native move of the window is following the cursor (begin_drag)
         # The window's shape (0.2.368): in the "top portion only" and "none" background modes the page reports
         # the rectangles it draws (the header panel, each row, the panels under the rows) and the host clips the
         # window to them, so the game shows through everywhere else and takes the clicks there. The host paints
         # an opaque card-coloured window (see _configure_windows), which is why the page's transparent card
         # alone changed nothing on screen. None = the whole window.
         self._shape = None
+        # What overlay.log last said of the shape and when it said it, so a shape that changes every poll (a
+        # readout that grew a digit) is logged when its kind changes, at most six times a minute. Whether the
+        # last region Windows reported holding, and what the log said of the window's backdrop.
+        self._shape_said, self._shape_said_times = None, []
+        self._shape_errors_said_at = 0.0
+        self._region_said = None
+        self._backdrop_said = None
+        self._hwnd = None
+        self._user32_dll = None
         # The watchdog's state (overlay_health): whether the tracking loop has the window shown, a
         # WebView2 process failure waiting to be acted on, reloads the app asked for, and whether the
         # process is ending to be started again.
@@ -586,6 +597,59 @@ class _OverlayAPI:
         # (Windows) picks this up and starts/stops passing clicks through.
         self._click_through = bool(enabled)
 
+    def set_hover_interact(self, enabled):
+        """Called from the overlay page (0.2.371): with click-through on, the pointer resting on the overlay for
+        HOVER_INTERACT_S seconds makes the whole overlay take clicks until the pointer leaves it."""
+        self._hover_interact = bool(enabled)
+
+    def _say_hover(self, state):
+        """Tell the page how the hover stands ("arming", "open" or "off") so the card can show it. Off the loop's
+        thread: the loop never waits on the page."""
+        window = self._window
+        if window is None:
+            return
+        script = f"window.A2OverlayHover && window.A2OverlayHover({json.dumps(state)})"
+        threading.Thread(target=lambda: _quietly(window.evaluate_js, script), daemon=True,
+                         name="overlay-hover-say").start()
+
+    def begin_drag(self):
+        """Called by the page when a press lands on the card outside its controls (0.2.371): the window follows the
+        cursor from here, in screen pixels, until the primary button is up. pywebview's own dragging moved the window
+        from the page's mouse events instead, which stop once the cursor outruns the window, so a release outside it
+        was never seen and the window went on chasing the cursor; and it placed the window from a position in
+        display-independent pixels, so on a second display scaled differently the window jumped. The screenshot lock
+        keeps the window where it is."""
+        if sys.platform != "win32" or self._window is None or self._locked or self._dragging:
+            return
+        self._dragging = True
+        threading.Thread(target=self._drag, daemon=True, name="overlay-drag").start()
+
+    def _drag(self, poll=0.008, limit=600.0):
+        try:
+            user32 = ctypes.WinDLL("user32", use_last_error=True)
+            user32.GetAsyncKeyState.restype = ctypes.c_short
+            user32.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int,
+                                            ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+            user32.GetWindowRect.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+            hwnd = ctypes.c_void_p(self._window.native.Handle.ToInt64())
+            button = 0x02 if user32.GetSystemMetrics(23) else 0x01     # the primary button: right when swapped
+            cursor, rect = (ctypes.c_long * 2)(), (ctypes.c_long * 4)()
+            user32.GetCursorPos(cursor)
+            user32.GetWindowRect(hwnd, rect)
+            dx, dy = rect[0] - cursor[0], rect[1] - cursor[1]
+            where, until = (rect[0], rect[1]), time.monotonic() + limit
+            while user32.GetAsyncKeyState(button) & 0x8000 and time.monotonic() < until:
+                user32.GetCursorPos(cursor)
+                to = (cursor[0] + dx, cursor[1] + dy)
+                if to != where:
+                    user32.SetWindowPos(hwnd, None, to[0], to[1], 0, 0, 0x0001 | 0x0004 | 0x0010)   # no size, z-order, focus
+                    where = to
+                time.sleep(poll)
+        except Exception as err:
+            self.log.write(f"moving the window failed: {type(err).__name__}: {err}")
+        finally:
+            self._dragging = False
+
     def set_interactive_rects(self, rects):
         # Called from the overlay page with its controls' bounding boxes, each
         # [left, top, right, bottom] in device px relative to the client area.
@@ -620,22 +684,103 @@ class _OverlayAPI:
                         corner = min(int(radius + 0.5), (box[2] - box[0]) // 2, (box[3] - box[1]) // 2) if radius > 0 else 0
                         parsed.append(box + (corner,) if corner > 0 else box)
         self._shape = tuple(parsed) if rects is not None and parsed else None
+        self._say_shape()
         if self._windows_ready:
             try:
                 self._on_ui(self._apply_shape)
-            except Exception:
-                pass
+            except Exception as err:   # logged, at most every 30 s: a shape that fails fails on every poll
+                now = time.monotonic()
+                if now - self._shape_errors_said_at >= 30:
+                    self._shape_errors_said_at = now
+                    self.log.write(f"window shape not applied: {type(err).__name__}: {err}")
+
+    def _say_shape(self):
+        """One overlay.log line when the shape's kind changes (the whole window, or how many pieces, with the box
+        around them), at most six a minute (0.2.371): the log says what the window was cut to, the first evidence
+        when the game does not show between the pieces. A change held back by the limit is said at the next call
+        after it, since the kind it would have recorded is left unrecorded."""
+        shape = self._shape
+        kind = f"{len(shape)} piece{'s' if len(shape) != 1 else ''}" if shape else "the whole window"
+        if kind == self._shape_said:
+            return
+        now = time.monotonic()
+        self._shape_said_times = [t for t in self._shape_said_times if now - t < 60]
+        if len(self._shape_said_times) >= 6:
+            return
+        self._shape_said_times.append(now)
+        self._shape_said = kind
+        box = f" within [{min(p[0] for p in shape)}, {min(p[1] for p in shape)}, {max(p[2] for p in shape)}, " \
+              f"{max(p[3] for p in shape)}]" if shape else ""
+        self.log.write(f"window shape: {kind}{box}")
 
     def _apply_shape(self):
         native = self._window.native
         if not self._shape:
             native.Region = None
-            return
+        else:
+            try:
+                native.Region = self._shape_region(rounded=True)
+            except Exception as err:   # rounded corners are a nicety: never lose the shape over them
+                self.log.write(f"rounded window shape failed ({type(err).__name__}: {err}); using square corners")
+                native.Region = self._shape_region(rounded=False)
+        self._check_region(bool(self._shape))   # after the region: a host that cannot read it back keeps it
+
+    def _user32(self):
+        if self._user32_dll is None:
+            self._user32_dll = ctypes.WinDLL("user32", use_last_error=True)
+            self._user32_dll.GetWindowRgnBox.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+            self._user32_dll.SetWindowRgn.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
+        return self._user32_dll
+
+    def _region_held(self, hwnd):
+        """The region Windows holds for the window (GetWindowRgnBox): whether there is one, and its box."""
+        box = (ctypes.c_long * 4)()
+        kind = self._user32().GetWindowRgnBox(ctypes.c_void_p(hwnd), box)
+        return kind in (2, 3), list(box)
+
+    def _check_region(self, expected):
+        """Read back the region Windows holds for the window and log it when that changes (0.2.371). A shape that
+        left no region behind is set again through user32 directly, in case the WinForms property did not reach
+        the window."""
         try:
-            native.Region = self._shape_region(rounded=True)
-        except Exception as err:   # rounded corners are a nicety: never lose the shape over them
-            self.log.write(f"rounded window shape failed ({type(err).__name__}: {err}); using square corners")
-            native.Region = self._shape_region(rounded=False)
+            hwnd = self._window.native.Handle.ToInt64()
+            held, box = self._region_held(hwnd)
+        except Exception as err:
+            if self._region_said != "unread":
+                self._region_said = "unread"
+                self.log.write(f"the window region could not be read back ({type(err).__name__}: {err})")
+            return
+        note = ""
+        if expected and not held:
+            try:
+                self._raw_region(hwnd)
+                held, box = self._region_held(hwnd)
+                note = " after setting it again through user32"
+            except Exception as err:
+                note = f"; setting it through user32 failed ({type(err).__name__}: {err})"
+        state = (expected, held)
+        if state != self._region_said:
+            self._region_said = state
+            said = f"within {box}" if held else "none" + (" although the page sent a shape" if expected else ", the whole window")
+            self.log.write(f"window region: {said}{note}")
+
+    def _raw_region(self, hwnd):
+        """The shape's union as a GDI region, handed to the window with SetWindowRgn (the window owns it after)."""
+        gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
+        for fn in (gdi32.CreateRectRgn, gdi32.CreateRoundRectRgn):
+            fn.restype = ctypes.c_void_p
+        gdi32.CombineRgn.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
+        gdi32.DeleteObject.argtypes = [ctypes.c_void_p]
+        combined = gdi32.CreateRectRgn(0, 0, 0, 0)
+        for piece in self._shape:
+            l, t, r, b = piece[:4]
+            corner = piece[4] if len(piece) == 5 else 0
+            part = gdi32.CreateRoundRectRgn(l, t, r + 1, b + 1, 2 * corner, 2 * corner) if corner else gdi32.CreateRectRgn(l, t, r, b)
+            gdi32.CombineRgn(combined, combined, part, 2)   # RGN_OR
+            gdi32.DeleteObject(part)
+        if not self._user32().SetWindowRgn(ctypes.c_void_p(hwnd), combined, 1):
+            gdi32.DeleteObject(combined)
+            raise OSError(ctypes.get_last_error(), "SetWindowRgn refused the region")
 
     def _shape_region(self, rounded):
         """The union of the shape's rectangles as a System.Drawing.Region, a rectangle with a corner radius as a
@@ -697,11 +842,73 @@ class _OverlayAPI:
             native.TransparencyKey = Color.Empty
             native.webview.DefaultBackgroundColor = background
             native.Opacity = self._opacity
+            self._hwnd = native.Handle.ToInt64()
+            self._drop_backdrop()
+            # pywebview asks for the backdrop again on every change of the user's preferences (its handler of this
+            # same event): drop it again just after, and the watchdog checks it every few seconds too.
+            try:
+                from Microsoft.Win32 import SystemEvents
+                self._preference_handler = lambda *_: threading.Timer(0.1, self._drop_backdrop).start()
+                SystemEvents.UserPreferenceChanged += self._preference_handler
+            except Exception as err:
+                self.log.write(f"preference changes not followed ({type(err).__name__}: {err})")
 
         self._on_ui(configure)
         self._windows_ready = True
+        self.log.write(f"window set up ({self._host_facts()}), opacity {self._opacity:.2f}")
         if self._shape:
             self._on_ui(self._apply_shape)
+
+    def _drop_backdrop(self):
+        """No system backdrop behind the window (DWMWA_SYSTEMBACKDROP_TYPE = DWMSBT_NONE, 0.2.371). When Windows runs
+        apps dark, pywebview asks DWM for a Mica backdrop on every window it makes (update_title_bar_theme), and DWM
+        paints that backdrop, a dark grey wherever Mica itself cannot show, across the whole window rectangle: outside
+        the window's region too, so the see-through modes showed a dark box around their pieces on a dark desktop
+        while the region was in place and the clicks went through to the game. Safe from any thread; on a Windows
+        without system backdrops the call is refused and nothing changes."""
+        if not self._hwnd:
+            return
+        try:
+            dwm, hwnd, kind = ctypes.windll.dwmapi, ctypes.c_void_p(self._hwnd), ctypes.c_int(0)
+            if dwm.DwmGetWindowAttribute(hwnd, 38, ctypes.byref(kind), ctypes.sizeof(kind)) == 0 and kind.value == 1:
+                said = "none"                              # already none: nothing to ask DWM again
+            else:
+                kind.value = 1
+                result = dwm.DwmSetWindowAttribute(hwnd, 38, ctypes.byref(kind), ctypes.sizeof(kind)) & 0xFFFFFFFF
+                said = "none" if result == 0 else f"left as it is (DwmSetWindowAttribute 0x{result:08x})"
+        except Exception as err:
+            said = f"not set ({type(err).__name__}: {err})"
+        if said != self._backdrop_said:
+            self._backdrop_said = said
+            self.log.write(f"window backdrop: {said}")
+
+    def _host_facts(self):
+        """What overlay.log needs to tell one player's window from another's (0.2.371): the pywebview and Windows
+        versions, the window's DPI and whether Windows runs apps dark (pywebview then asks for a dark frame and a
+        Mica backdrop on the window)."""
+        facts = []
+        try:
+            from importlib.metadata import version
+            facts.append(f"pywebview {version('pywebview')}")
+        except Exception:
+            pass
+        try:
+            v = sys.getwindowsversion()
+            facts.append(f"Windows {v.major}.{v.minor}.{v.build}")
+        except Exception:
+            pass
+        try:
+            hwnd = self._window.native.Handle.ToInt64()
+            facts.append(f"{ctypes.windll.user32.GetDpiForWindow(ctypes.c_void_p(hwnd))} DPI")
+        except Exception:
+            pass
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize") as key:
+                facts.append("dark apps" if winreg.QueryValueEx(key, "AppsUseLightTheme")[0] == 0 else "light apps")
+        except Exception:
+            pass
+        return ", ".join(facts) or "no details"
 
     def set_opacity(self, value):
         self._opacity = max(0.2, min(1.0, float(value)))
@@ -987,6 +1194,7 @@ def _health_loop(window, api, win32, closed: threading.Event) -> None:
     watchdog = _Watchdog(window, api, win32)
     api.log.write("watching the page")
     while not closed.wait(5.0):
+        api._drop_backdrop()
         try:
             watchdog.tick()
         except Exception as err:
@@ -1028,6 +1236,49 @@ def _save_overlay_position(app_base, party, pos, layout=None) -> None:
         pass
 
 
+HOVER_INTERACT_S = 5.0          # how long the pointer rests on a click-through overlay before it takes clicks
+
+
+def _quietly(fn, *args):
+    try:
+        fn(*args)
+    except Exception:
+        pass
+
+
+def _over_overlay(shape, pos) -> bool:
+    """Whether a client-area point is over what the overlay draws: anywhere on the window, or with a shape (the
+    see-through modes) inside one of its pieces, so the game between the pieces does not count."""
+    if pos is None:
+        return False
+    if not shape:
+        return True
+    x, y = pos
+    return any(piece[0] <= x <= piece[2] and piece[1] <= y <= piece[3] for piece in shape)
+
+
+class _HoverOpen:
+    """Hover-to-interact (0.2.371): the pointer over the overlay for ``hold`` seconds opens it to clicks, and it
+    closes again when the pointer leaves. ``update`` answers whether it is open, and the change to tell the page
+    ("arming", "open", "off") or None."""
+
+    def __init__(self, hold: float | None = None):
+        self.hold, self.since, self.open = HOVER_INTERACT_S if hold is None else hold, None, False
+
+    def update(self, enabled: bool, over: bool, now: float):
+        if not (enabled and over):
+            was = self.since is not None
+            self.since, self.open = None, False
+            return False, ("off" if was else None)
+        if self.since is None:
+            self.since = now
+            return False, "arming"
+        if not self.open and now - self.since >= self.hold:
+            self.open = True
+            return True, "open"
+        return self.open, None
+
+
 def _click_through_loop(window, api, win32, closed: threading.Event) -> None:
     """Pass mouse clicks through the overlay to the game while click-through is on,
     except over the overlay's own controls so they stay usable.
@@ -1039,6 +1290,7 @@ def _click_through_loop(window, api, win32, closed: threading.Event) -> None:
     so idle cost is a cursor read per tick and nothing else. Windows-only.
     """
     applied = None   # None = untouched; True = transparent (pass-through); False = opaque (interactive)
+    hover = _HoverOpen()
     while not closed.wait(0.033):
         try:
             hwnd = window.native.Handle.ToInt64()
@@ -1046,6 +1298,9 @@ def _click_through_loop(window, api, win32, closed: threading.Event) -> None:
                 if applied:                       # was passing clicks through — restore input once
                     api._on_ui(lambda h=hwnd: win32.set_click_through(h, False))
                     applied = False
+                _, said = hover.update(False, False, time.monotonic())
+                if said:
+                    api._say_hover(said)
                 continue
             pos = win32.cursor_in_client(hwnd)
             over_control = False
@@ -1055,7 +1310,11 @@ def _click_through_loop(window, api, win32, closed: threading.Event) -> None:
                     if l <= cx <= r and t <= cy <= b:
                         over_control = True
                         break
-            want_transparent = not over_control    # click through everywhere but the controls
+            # Hover-to-interact: resting on the overlay opens all of it to clicks until the pointer leaves.
+            opened, said = hover.update(api._hover_interact, _over_overlay(api._shape, pos), time.monotonic())
+            if said:
+                api._say_hover(said)
+            want_transparent = not (over_control or opened)    # click through everywhere but the controls
             if want_transparent != applied:
                 api._on_ui(lambda h=hwnd, v=want_transparent: win32.set_click_through(h, v))
                 applied = want_transparent
@@ -1080,8 +1339,9 @@ def _run_overlay(window, api, app_base: str | None = None, party: bool = False, 
     if sys.platform == "win32":
         try:
             api._configure_windows()
-        except Exception:
+        except Exception as err:
             _LOG.exception("Could not configure the native Windows overlay")
+            api.log.write(f"window setup failed: {type(err).__name__}: {err}")
         # Opacity/style setup must not disable foreground tracking. native_overlay()
         # is the single platform selector; today only Windows has a supported backend,
         # so on macOS/Linux this stays None and the overlay keeps its fallback.
@@ -1242,9 +1502,8 @@ def main(argv=None) -> int:
         api.url = url
         api.log = OverlayLog(_log_path(), "overlay" if party == "meter" else f"overlay[{party}]")
         api.log.write(f"started (pid {os.getpid()})")
-        # Stable card content is draggable; JS stops events at the tabs and slider.
-        webview.settings["DRAG_REGION_DIRECT_TARGET_ONLY"] = False
-        title = {"meter": "Aion 2 Calc Overlay", "party": "Aion 2 Calc Party Overlay", "radar": "Aion 2 Calc Radar Overlay",
+        # The card moves the window through begin_drag (0.2.371), not pywebview's drag regions.
+        title ={"meter": "Aion 2 Calc Overlay", "party": "Aion 2 Calc Party Overlay", "radar": "Aion 2 Calc Radar Overlay",
                  "pets": "Aion 2 Calc Pet Tracker"}[party]
         window = webview.create_window(title, url, frameless=True, easy_drag=False,
                                        shadow=False, on_top=True, hidden=True, focus=False,

@@ -883,6 +883,7 @@ async function pageSettings() {
       <label><input type="checkbox" id="ov-dps-graph" ${ui.overlay_dps_graph === true ? "checked" : ""}> Show a live DPS/HPS graph (a sparkline of the party total over the fight, from real per-poll readings)</label>
       <label><input type="checkbox" id="ov-fps" ${ui.overlay_show_fps === true ? "checked" : ""}> Show the overlay's own render FPS (the game's FPS can't be read from capture)</label>
       <label><input type="checkbox" id="ov-clickthrough" ${ui.overlay_click_through === true ? "checked" : ""}> Click through the overlay — let the mouse pass through to the game, so the overlay never eats a click <span class="muted small">(Windows; the overlay's own buttons/sliders still work when you hover them)</span></label>
+      <label style="margin-left:22px"><input type="checkbox" id="ov-hover-interact" ${ui.overlay_hover_interact === true ? "checked" : ""}> With click-through on, rest the pointer on the overlay for 5 seconds to click anywhere on it <span class="muted small">(a ring fills in while it counts; clicks pass through again once the pointer leaves)</span></label>
       <label><input type="checkbox" id="ov-party" ${ui.overlay_party_enabled === true ? "checked" : ""}> Open a separate Party-DPS overlay (raid totals) alongside the meter</label>
       <p class="small muted" style="margin-top:6px">These need the overlay reopened to apply:</p>
       <label><input type="checkbox" id="ov-always" ${ui.overlay_always_visible !== false ? "checked" : ""}> Keep the overlay visible even when the game is not in focus (on by default; so clicking another overlay, the app window or a game popup never hides it)</label>
@@ -2089,6 +2090,10 @@ async function pageSettings() {
   $("#ov-fps").onchange = () => api("/api/ui", { overlay_show_fps: $("#ov-fps").checked }).then(() => toast("Saved"));
   $("#ov-clickthrough").onchange = () =>
     api("/api/ui", { overlay_click_through: $("#ov-clickthrough").checked }).then(() =>
+      toast("Saved · applies to the open overlay within 10s"),
+    );
+  $("#ov-hover-interact").onchange = () =>
+    api("/api/ui", { overlay_hover_interact: $("#ov-hover-interact").checked }).then(() =>
       toast("Saved · applies to the open overlay within 10s"),
     );
   $("#rec-reset").onchange = () =>

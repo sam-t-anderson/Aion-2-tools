@@ -6158,8 +6158,48 @@
   "keen_strike"
  ],
  "macro": {
-  "model_version": 3,
+  "model_version": 4,
   "steps": [
+   [
+    "overhead_slam",
+    "rage",
+    "lunge",
+    "rush_strike"
+   ],
+   [
+    "zikel",
+    "ruinous_blow"
+   ],
+   [
+    "rending_blow",
+    "aerial_snare",
+    "crushing_wave"
+   ],
+   [
+    "overhead_slam",
+    "rage",
+    "lunge",
+    "rush_strike"
+   ],
+   [
+    "mocking_blade",
+    "ankle_slice"
+   ],
+   [
+    "overhead_slam",
+    "rage",
+    "lunge",
+    "rush_strike"
+   ],
+   [
+    "leaping_slam",
+    "assault"
+   ]
+  ],
+  "manual": [],
+  "dps_macro": 13481.778521979779,
+  "dps_priority": 13569.98810238371,
+  "alt_steps": [
    "ankle_slice",
    "overhead_slam",
    "mocking_blade",
@@ -6168,7 +6208,7 @@
    "leaping_slam",
    "keen_strike"
   ],
-  "manual": [
+  "alt_manual": [
    "lunge",
    "zikel",
    "rage",
@@ -6178,27 +6218,7 @@
    "aerial_snare",
    "assault"
   ],
-  "dps_macro": 12247.026801943333,
-  "dps_priority": 13063.330866631984,
-  "alt_steps": [
-   "lunge",
-   "ankle_slice",
-   "zikel",
-   "rage",
-   "ruinous_blow",
-   "overhead_slam",
-   "basic_combo",
-   "leaping_slam",
-   "rending_blow",
-   "aerial_snare",
-   "mocking_blade",
-   "crushing_wave",
-   "assault",
-   "rush_strike",
-   "keen_strike"
-  ],
-  "alt_manual": [],
-  "dps_alt": 11929.279798090342,
+  "dps_alt": 12681.2877243608,
   "auto_attack": "keen_strike",
   "chains": {
    "basic_combo": "rending_blow"

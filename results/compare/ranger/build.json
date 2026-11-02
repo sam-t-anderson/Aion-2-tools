@@ -9021,47 +9021,65 @@
   "snipe"
  ],
  "macro": {
-  "model_version": 3,
+  "model_version": 4,
   "steps": [
-   "gale_arrow",
-   "marking_shot",
-   "vaizel",
-   "bowbless",
-   "drill_dart",
-   "suppressing_arrow",
-   "snare_shot",
-   "burst_arrow",
-   "ensnaring_trap",
-   "explosion_trap",
-   "explosive",
-   "tempest_shot",
-   "snipe"
+   [
+    "marking_shot",
+    "vaizel",
+    "burst_arrow"
+   ],
+   [
+    "drill_dart",
+    "bowbless",
+    "suppressing_arrow"
+   ],
+   [
+    "marking_shot",
+    "vaizel",
+    "burst_arrow"
+   ],
+   [
+    "snare_shot",
+    "tempest_shot"
+   ],
+   [
+    "marking_shot",
+    "vaizel",
+    "burst_arrow"
+   ],
+   [
+    "ensnaring_trap",
+    "explosive",
+    "gale_arrow",
+    "explosion_trap"
+   ]
   ],
   "manual": [
    "deadshot"
   ],
-  "dps_macro": 9900.692782018932,
-  "dps_priority": 12174.903702484518,
+  "dps_macro": 12617.59314761372,
+  "dps_priority": 12823.794679742876,
   "alt_steps": [
+   "vaizel",
    "gale_arrow",
-   "marking_shot",
    "drill_dart",
+   "bowbless",
+   "marking_shot",
    "suppressing_arrow",
    "snare_shot",
    "burst_arrow",
    "explosion_trap",
+   "ensnaring_trap",
+   "explosive",
    "tempest_shot",
    "snipe"
   ],
   "alt_manual": [
-   "vaizel",
-   "bowbless",
-   "deadshot",
-   "ensnaring_trap",
-   "explosive"
+   "deadshot"
   ],
-  "dps_alt": 9728.533702979435,
-  "auto_attack": "snipe"
+  "dps_alt": 10329.713773460671,
+  "auto_attack": "snipe",
+  "chains": {}
  },
  "shares": {
   "Tempest Shot": 0.2653629091345346,

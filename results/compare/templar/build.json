@@ -6031,26 +6031,41 @@
   "vicious_strike"
  ],
  "macro": {
-  "model_version": 3,
+  "model_version": 4,
   "steps": [
-   "shield_smite",
-   "judgment",
-   "annihilate",
-   "pummel",
-   "vicious_strike"
+   [
+    "judgment",
+    "pummel"
+   ],
+   [
+    "annihilate"
+   ],
+   [
+    "warding_strike",
+    "taunt",
+    "shield_smite"
+   ],
+   [
+    "judgment",
+    "pummel"
+   ],
+   [
+    "shield_rush",
+    "noble"
+   ],
+   [
+    "exec",
+    "doom"
+   ],
+   [
+    "annihilate"
+   ]
   ],
   "manual": [
-   "noble",
-   "warding_strike",
-   "punishment",
-   "shield_rush",
-   "punishing_strike",
-   "taunt",
-   "exec",
-   "doom"
+   "punishment"
   ],
-  "dps_macro": 18610.567845152695,
-  "dps_priority": 19418.306605623373,
+  "dps_macro": 20508.230608858772,
+  "dps_priority": 20210.044172171063,
   "alt_steps": [
    "noble",
    "judgment",
@@ -6059,16 +6074,16 @@
    "shield_smite",
    "punishing_strike",
    "taunt",
-   "annihilate",
    "exec",
+   "annihilate",
    "doom",
-   "vicious_strike",
-   "pummel"
+   "pummel",
+   "vicious_strike"
   ],
   "alt_manual": [
    "punishment"
   ],
-  "dps_alt": 18500.049488371507,
+  "dps_alt": 19388.770012694782,
   "auto_attack": "vicious_strike",
   "chains": {
    "punishing_strike": "pummel"

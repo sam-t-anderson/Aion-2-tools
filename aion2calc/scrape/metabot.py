@@ -254,12 +254,22 @@ def _parse_item(lines: list[str], slug: str) -> dict:
         i = next(k for k, s in enumerate(lines) if s.startswith("Fixed stats come with every copy"))
     except StopIteration:
         return out
-    # meta block (grade, category, item level, ...) precedes "Stats"
-    j = max(0, i - 40)
-    meta = lines[j:i]
-    for key in ["Category", "Item Level", "Required Level", "Max enhance", "Class"]:
-        if key in meta:
-            out["meta"][key] = meta[meta.index(key) + 1]
+    # meta block (grade, category, item level, ...) precedes "Stats": label, value pairs that start with the
+    # category. Since the site's Next.js 16 pages (late October 2026) the block sits a few hundred lines above the
+    # stats, so it is found by its shape; an older page keeps it within the 40 lines before them.
+    keys = ("Category", "Item Level", "Required Level", "Max enhance", "Class")
+    block = next((k for k in range(i - 1) if lines[k] == "Category" and lines[k + 2] == "Item Level"), None)
+    if block is not None:
+        while block + 1 < i and lines[block] in keys + ("Grade", "Trading"):
+            if lines[block] in keys:
+                out["meta"][lines[block]] = lines[block + 1]
+            block += 2
+    else:
+        j = max(0, i - 40)
+        meta = lines[j:i]
+        for key in keys:
+            if key in meta:
+                out["meta"][key] = meta[meta.index(key) + 1]
     k = i + 1
     stops = ("Attack range", "Sockets", "Random stats", "Enhancement levels", "Random skill options",
              "Similar items", "Pieces")
@@ -279,7 +289,10 @@ def _parse_item(lines: list[str], slug: str) -> dict:
             out["random"].append({"stat": lines[k], "range": lines[k + 1], "chance": lines[k + 2]})
             k += 3
     for m, s in enumerate(lines):
-        if re.match(r"^\+\d+ → \+\d+$", s):
+        if re.match(r"^\+\d+\s*→\s*\+\d+$", s):         # the page puts no-break spaces around the arrow
+            s = re.sub(r"\s*→\s*", " → ", s)
+            if any(e["step"] == s for e in out["enchant"]):
+                break                                    # a second table (PvP enhancement) starts over at +0
             # the stat line follows the cost columns; find the first line with a stat label
             for t in lines[m + 1:m + 14]:
                 if re.search(r"(Attack|Defense|HP|Penetration|Damage|Tolerance|Boost)", t) \
@@ -290,22 +303,51 @@ def _parse_item(lines: list[str], slug: str) -> dict:
 
 
 def titles(fresh: bool = False) -> list[dict]:
-    lines = text_lines(flight(fetch(f"{BASE}/titles", max_age=0 if fresh else 7 * 86400)))
-    grades = {"Common", "Rare", "Epic", "Unique", "Legend", "Legendary", "Mythic", "Special"}
-    facs = {"Both factions", "Elyos", "Asmodian"}
-    out, seen = [], set()
-    for i in range(len(lines) - 4):
-        if lines[i + 1] in grades and lines[i + 2] in facs:
-            key = (lines[i], lines[i + 2])
-            if key in seen:
-                continue
-            seen.add(key)
-            out.append({"name": lines[i], "grade": lines[i + 1], "faction": lines[i + 2],
-                        "equip": lines[i + 3], "owned": lines[i + 4]})
-    return out
+    return parse_titles(text_lines(flight(fetch(f"{BASE}/titles", max_age=0 if fresh else 7 * 86400))))
 
 
 TITLE_ROLES = {"Offensive": "Attack", "Defensive": "Defense"}
+TITLE_ROLE_WORDS = ("Offensive", "Defensive", "Utility")
+
+
+def parse_titles(lines: list[str]) -> list[dict]:
+    """The titles listing's rows: name, grade and faction, then the bonus when equipped and the bonus owning it
+    adds to the collection. Since late October 2026 the table has a Role column (Offensive, Defensive, Utility, or
+    a dash) between the faction and the bonuses: a reading that took the cells in their old places stored the role
+    as the equip bonus and the equip bonus as the owned one, and lost the owned bonus (0.2.371). A page whose rows
+    mostly carry a role word there has the column, and its rows are read one cell further on."""
+    grades = {"Common", "Rare", "Epic", "Unique", "Legend", "Legendary", "Mythic", "Special"}
+    facs = {"Both factions", "Elyos", "Asmodian"}
+    starts = [i for i in range(len(lines) - 4) if lines[i + 1] in grades and lines[i + 2] in facs]
+    with_role = 2 * sum(lines[i + 3] in TITLE_ROLE_WORDS for i in starts) > len(starts)
+    out, seen = [], set()
+    for i in starts:
+        key = (lines[i], lines[i + 2])
+        at = i + 4 if with_role else i + 3                 # the equip bonus; the owned bonus follows it
+        if key in seen or at + 1 >= len(lines):
+            continue
+        seen.add(key)
+        row = {"name": lines[i], "grade": lines[i + 1], "faction": lines[i + 2],
+               "equip": lines[at], "owned": lines[at + 1]}
+        if with_role and lines[i + 3] in TITLE_ROLE_WORDS:
+            row["role"] = lines[i + 3]
+            row["slot"] = TITLE_ROLES.get(lines[i + 3], "Etc")
+        out.append(row)
+    return out
+
+
+def titles_problem(rows: list[dict]) -> str | None:
+    """Why a parsed titles listing must not replace the stored one, or None. Too few rows means the page did not
+    read; a role word where a bonus belongs means its columns moved again."""
+    if len(rows) < 50:
+        return f"the titles page read as {len(rows)} titles"
+    moved = [t["name"] for t in rows if t.get("equip") in TITLE_ROLE_WORDS or t.get("owned") in TITLE_ROLE_WORDS]
+    if moved:
+        return f"{len(moved)} titles read a role where a bonus belongs ({moved[0]} first)"
+    bonus = [t for t in rows if t.get("equip") not in (None, "", "—", "-")]
+    if bonus and sum(bool(re.search(r"[+-]\s?\d", t["equip"])) for t in bonus) < 0.9 * len(bonus):
+        return "most titles' equip bonuses read without a value"
+    return None
 
 
 def title_detail(slug: str, cache: bool = True) -> dict:
@@ -326,6 +368,11 @@ def title_detail(slug: str, cache: bool = True) -> dict:
     return out
 
 
+#: what follows the last class's pool on an item page: the old page's next section, the new page's app banner. Until
+#: 0.2.371 only "Similar items" ended a pool, and the last class's skills ran on over the rest of the page.
+POOL_ENDS = ("Similar items", "Enhancement rates", "MetaBot Desktop")
+
+
 def _skill_pools(lines: list[str]) -> dict:
     """Parse an item page's "Random skill options" table: {class: {max_level, chance, skills}}."""
     out: dict = {}
@@ -336,7 +383,7 @@ def _skill_pools(lines: list[str]) -> dict:
     names = {c.capitalize(): c for c in CLASSES}
     names["Spiritmaster"] = "spiritmaster"
     k = i + 1
-    while k < len(lines) and not lines[k].startswith("Similar items"):
+    while k < len(lines) and not lines[k].startswith(POOL_ENDS):
         if lines[k] in names and k + 1 < len(lines) and "skills" in lines[k + 1]:
             cls = names[lines[k]]
             head = " ".join(lines[k + 1:k + 4])
@@ -347,7 +394,7 @@ def _skill_pools(lines: list[str]) -> dict:
                 j += 1
             skills, chances = [], {}
             j += 1
-            while j < len(lines) and lines[j] not in names and not lines[j].startswith("Similar items"):
+            while j < len(lines) and lines[j] not in names and not lines[j].startswith(POOL_ENDS):
                 pc = re.fullmatch(r"([\d.]+)%", lines[j])
                 if pc and skills:                      # per-skill chance follows the skill name
                     chances[skills[-1]] = float(pc.group(1)) / 100

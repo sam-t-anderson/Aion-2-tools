@@ -10,6 +10,7 @@
  *   io.fetchPlan(id)       -> an a2plan document                  (used by Browse)
  *   io.recordings()        -> [{id, label}]                       (saved recordings with movement; the app)
  *   io.recording(idOrLink) -> an a2log document                   (Import recorded movement)
+ *   io.savePlans(all)      -> (optional) every saved plan, after each save (the app keeps a copy for its overlay)
  *
  * A plan is an "a2plan" document: tokens (players, enemies, markers, AoE zones) whose positions are
  * keyframed over a timeline and interpolated linearly, so a time slider plays the movement back,
@@ -54,7 +55,18 @@
   const RAID_MARKERS = ["A", "B", "C", "D", "1", "2", "3", "4"];
 
   function raidPlans() { try { return JSON.parse(localStorage.getItem(A2PLAN_KEY) || "{}"); } catch (e) { return {}; } }
-  function saveRaidPlans(all) { try { localStorage.setItem(A2PLAN_KEY, JSON.stringify(all)); } catch (e) { toast("Could not save — browser storage is full"); } }
+  function saveRaidPlans(all) {
+    try { localStorage.setItem(A2PLAN_KEY, JSON.stringify(all)); } catch (e) { toast("Could not save — browser storage is full"); }
+    sharePlans(all);
+  }
+  // The app's overlay runs in a window of its own whose storage is not this page's, so it never saw these plans
+  // (0.2.371): every save also goes to the host page's savePlans, which in the app hands the whole set to the app.
+  let shareTimer = 0;
+  function sharePlans(all) {
+    if (!st.io || typeof st.io.savePlans !== "function") return;
+    clearTimeout(shareTimer);
+    shareTimer = setTimeout(() => { Promise.resolve(st.io.savePlans(all)).catch(() => {}); }, 800);
+  }
   function uid() { return Math.random().toString(36).slice(2, 9); }
   function newPlan(name) {
     return { format: "a2plan", version: 1,
@@ -517,6 +529,7 @@
     if (st.speed == null) st.speed = 1;
     if (st.t == null) st.t = 0;
     mountPlan();
+    sharePlans(raidPlans());       // plans saved before 0.2.371, or in another browser profile, reach the app too
     st.encounters = st.io.encounters ? await st.io.encounters().catch(() => []) : [];
     st.recordings = st.io.recordings ? await st.io.recordings().catch(() => []) : [];
     st.moves = null;

@@ -7043,8 +7043,36 @@
   "earths_retribution"
  ],
  "macro": {
-  "model_version": 3,
+  "model_version": 4,
   "steps": [
+   [
+    "divine_aura",
+    "prayamp",
+    "epunish"
+   ],
+   [
+    "chain_of_torment",
+    "condemnation",
+    "powerburst",
+    "judgment_thunder"
+   ],
+   [
+    "divine_aura",
+    "prayamp",
+    "epunish"
+   ],
+   [
+    "divine_aura",
+    "prayamp",
+    "epunish"
+   ]
+  ],
+  "manual": [
+   "bolt"
+  ],
+  "dps_macro": 16301.567520272898,
+  "dps_priority": 16712.283470225106,
+  "alt_steps": [
    "prayamp",
    "divine_aura",
    "epunish",
@@ -7054,25 +7082,10 @@
    "judgment_thunder",
    "earths_retribution"
   ],
-  "manual": [
+  "alt_manual": [
    "bolt"
   ],
-  "dps_macro": 12153.812274002046,
-  "dps_priority": 15937.37889261205,
-  "alt_steps": [
-   "chain_of_torment",
-   "condemnation",
-   "judgment_thunder",
-   "earths_retribution"
-  ],
-  "alt_manual": [
-   "prayamp",
-   "divine_aura",
-   "epunish",
-   "bolt",
-   "powerburst"
-  ],
-  "dps_alt": 11946.200539725227,
+  "dps_alt": 12683.221460161523,
   "auto_attack": "earths_retribution",
   "chains": {
    "thunder_and_lightning": "earths_retribution"

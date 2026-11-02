@@ -114,7 +114,7 @@ Comparison resources and common gear make eligible builds comparable within a cl
 
 The **Optimize** button runs a new optimization for any class in the selected PvE or experimental PvP damage mode. Outputs are saved separately by mode. Skill, Stigma and Daevanion budgets are configurable. Presets are examples, not character progression maxima.
 
-Set up **Skills hotbar** first, then copy the numbered **Macro & rotation** steps. The macro binding suggestion is **Right-click**. Skills that require charging stay on manual keys; the app does not change game bindings. A chain step is not a skill of its own: the Templar's Punishing Strike is Pummel pressed again while Pummel's chain is open, the Gladiator's Smashing Blow Rending Blow's and the Cleric's Thunder and Lightning Earth's Retribution's. Such a step shows with its parent's icon, level and key ("Pummel's chain: press Pummel again while the chain is open"), and gets no hotbar slot (0.2.323). In the macro the parent's key presses its chain step while the chain is open, so the planner may list Pummel twice or leave Punishing Strike to Pummel's step, whichever simulates better.
+Set up **Skills hotbar** first, then copy the numbered **Macro & rotation** steps. The macro binding suggestion is **Right-click**. Since 0.2.371 a macro line is a hotbar key that may hold up to four skills, as the game allows: put them on that key in the order shown, the first lowest, and pressing it fires the lowest one that is ready. The macro then lists the keys, a key it presses more often on more than one line. That lets a key say "Judgment whenever it is up, else Shield Smite", which a line of one skill could not: the Templar's macro had put Judgment, usable for only 2–3 s after its triggers, eighth of thirteen lines. The planner searches the keys by simulation, and the old layout of one skill a line is the alternative. The basic auto-attack stays on the left mouse button, held with the macro key: it attacks whenever no key has a skill ready. Where pressing it more often plays better, the macro also gives it a line of its own (its left-mouse key, never shared with other skills), which presses it even while a key has a skill ready: a geared Sorcerer's Flame Arrow restores the MP its keys run short of. Skills that require charging stay on manual keys, and another skill only if its cooldown is 30 s or more and pressing it by hand gains at least 0.5 %; the app does not change game bindings. A chain step is not a skill of its own: the Templar's Punishing Strike is Pummel pressed again while Pummel's chain is open, the Gladiator's Smashing Blow Rending Blow's and the Cleric's Thunder and Lightning Earth's Retribution's. Such a step shows with its parent's icon, level and key ("Pummel's chain: press Pummel again while the chain is open"), and gets no hotbar slot (0.2.323). In the macro the parent's key presses its chain step while the chain is open, so the planner may list Pummel twice or leave Punishing Strike to Pummel's step, whichever simulates better.
 
 ## Gear & Advice
 
@@ -162,6 +162,30 @@ inventory, Genus lines or titles have changed since or another version of the ap
 calculates it again with the current gear and fights. When no advice is kept for the character, or the kept advice
 cannot be shown by this version, opening the page or choosing the character runs the advice.
 
+**Titles' equip and owned bonuses (0.2.371).** Each title plate shows the bonus the title gives while equipped and,
+under it, the bonus owning it adds to your title collection; *worth collecting* ranks titles by the second. From late
+October 2026 the title list the app keeps up to date from metabot.gg read one column off: the site's table gained a
+Role column, so the app stored the role (Offensive, Defensive, Utility) as each title's equip bonus and the equip
+bonus as its owned one, and lost the owned bonus. The plates said *equipped: Offensive*, *best in slot* found nothing
+and *worth collecting* ranked titles by their equip bonus. 0.2.371 reads the table by its new columns, puts a stored
+list back at the next launch (the owned bonus from the copy the app ships, which matches the site for every title they
+share) and reads it back the same way meanwhile; advice kept from the misread list is calculated again when the page
+opens.
+
+**Defense titles (0.2.371).** Every Defense title gives only defensive bonuses (Defense, Block, Evasion, resists and
+damage tolerances), so none adds damage and the slot's *best in slot* said only *No title for this slot adds damage*.
+It now ranks them by the damage they take off: a title's PvE, Boss and plain Damage Tolerance (PvP and plain in a PvP
+fight) lower the attacker's damage boost, so *−4.5% damage taken* is about 4.5 % off a boss's hits. The best one you
+own shows above them, and *Top changes* names it when it beats the one you wear. Defense, Block and Evasion have no
+formula in the model and are not ranked.
+
+**The next goal is an upgrade (0.2.371).** A goal item counts good rolls at +15, so against the rolls of what you wear
+an item of a far lower item level could gain too: 0.2.370 offered an item level 43 Pauldrons as the next goal over the
+item level 86 one a Templar wore, whose pool rolls the same stats higher. The next goal is now never below the item
+level of what you wear, and it must beat what you wear enchanted to +15 and rerolled toward good rolls by 1 % of
+damage. When nothing does, the card says so, and the upgrade path enchants and rerolls the worn item instead. The
+*Wearing* card shows its item level.
+
 ### Pet Genus Insight
 
 The Pet Genus results view uses five genus selectors, a nine-slot ring and an analysis list. Gold nodes have saved lines; gray nodes are not recorded, and dim nodes are locked according to the saved Insight level. These colors do not indicate rarity. The editor shows the same ring alongside its inputs. The official profile supplies the equipped pet but not these Insight levels or rolls, so enter them from the in-game window. Missing data remains explicitly not recorded. Saving new lines does not change an old result: optimize or calculate advice again.
@@ -206,7 +230,13 @@ My Character and optimized results distinguish observed allocated points, assume
 
 Completed character/class optimizations and advice save automatically under the app data folder's `history` directory. Open **Saved Results**, select Open to review a previous run, or Export/Import its result JSON. Import restores a snapshot; it does not run an optimization or change your equipped gear. The latest existing old build/advice files are recovered when available. Keep exported copies to move runs between installations. Advice reflects the saved run, not future game or gear changes.
 
-Edited point totals persist per character on this installation. Enter spent + unspent resources. Anonymous totals are sent after character optimization and accumulate as highest observed resources on the community service, grouped by class/region/build/source. Only characters at level 45 send totals or builds. Unknown build observations stay separate, and observed totals are not verified game caps.
+The point fields start at the character's own totals: what its official profile shows spent. Type your in-game
+totals (spent + unspent) if you have points left unspent; a total typed above the spent points is kept for that
+character on this installation, and the next profile's spent points count again once you clear it. The community's
+highest reported totals for the class show in a note under the fields at level 45, and never fill them (0.2.371):
+until then they raised the fields of a level-45 character, each Optimize saved what the fields held, and the optimizer
+spent points the character did not have, such as four stigmas at level 20 for a character with 168 stigma points.
+Totals saved by earlier versions are not read. Anonymous totals are sent after character optimization and accumulate as highest observed resources on the community service, grouped by class/region/build/source. Only characters at level 45 send totals or builds. Unknown build observations stay separate, and observed totals are not verified game caps.
 
 New raw optimizer reports include their simulation loadout, equipment IDs, available official icons and enchant levels. Reopening or rerendering those reports uses saved gear rather than a later character import. Older raw reports without this snapshot show a legacy gear-source notice; their original gear cannot be recovered from a newer profile. Existing Saved Results are already stored view snapshots and remain unchanged.
 
@@ -357,7 +387,9 @@ Boss wipes create a new encounter boundary before the next pull when a complete,
 If a partial capture lacks identity or pet-owner packets, the overlay and Live Meter show unresolved actor and linked-pet counts. An unnamed row may include your damage, but the tool cannot identify it as your character without a supported identity record. Pet grouping applies only to recorded owner links, including links carried inside compressed packets. Send capture diagnostics with TCP recording enabled before Start when reporting missing identity or grouping.
 
 **Live Meter → Open overlay** opens one compact overlay that shows the live meter and plays your most
-recent raid plan. On the installed Windows app it is frameless, transparent, always on top, and follows
+recent raid plan. The Raid Planner keeps its plans in your browser, which the overlay's own window cannot read: since
+0.2.371 every save there also hands your saved plans to the app, and the overlay's plan view reads them from the app
+(before, it said *No saved plan yet.* whatever you had saved). On the installed Windows app it is frameless, transparent, always on top, and follows
 the Aion 2 game window when it starts or moves. It closes with the desktop app: when the app quits it
 closes its overlay windows first, before it stops the capture and sends the quit upload, and each overlay
 process watches the app's process and ends within seconds of it, even when the app was ended outright or
@@ -366,7 +398,15 @@ could outlive a quit, and an app launched again within twelve seconds adopted it
 native overlay is not available it opens as a normal small window instead. From source,
 `python -m aion2calc.overlay` does the same (`pip install pywebview` for the transparent window).
 
-Use **Hide overlay** to hide it and **Open overlay** to show it again. Drag its non-interactive background to reposition it; use the opacity slider directly to change opacity. Repeated Open requests reuse the existing overlay.
+Use **Hide overlay** to hide it and **Open overlay** to show it again. Drag the card anywhere outside its buttons to move it: the window follows the pointer until you let go, past its own edge and onto another display too (0.2.371; pywebview's own dragging lost the release when the pointer outran the window and went on following it, and jumped on a display scaled differently). Use the opacity slider directly to change opacity. Repeated Open requests reuse the existing overlay.
+
+**Click-through and resting on the overlay (0.2.371).** With **Settings → Overlay → Click through the overlay** on,
+clicks pass through the meter to the game except over its own buttons and sliders. **Rest the pointer on the overlay
+for 5 seconds to click anywhere on it**, under that setting and off by default, makes the whole meter take clicks once
+the pointer has stayed over it for five seconds: a ring fills in on the card (or each piece of it in the see-through
+modes) while it counts and stays while the meter takes clicks, and clicks pass through again as soon as the pointer
+leaves. The pointer between the see-through modes' pieces is over the game and does not count. Windows only, like
+click-through itself.
 
 ### Skill cooldowns and the break gauge
 
@@ -423,7 +463,7 @@ The app reads what Windows plays (a loopback recording of the default output) in
 
 Click a player's row on the overlay (anywhere on it; since 0.2.368 the row's bar opens the same panel the name does, where it used to expand the older per-skill breakdown inside the row), or focus the name and press Enter, and that player opens under the rows (0.2.364): a header with their name, class and combat power (your own from your recorded character info), the target and the fight time; tiles for total damage, DPS, contribution, combat time, hits, the shares of their hits that were parried, critical, from the front, from behind, perfect and double, and the hits on them they parried; their top eight skills, each with an icon, a bar against their best skill, the damage, share, hits and crit share; and the buffs on them, each with how much of the fight it was up, for how long, how often it was applied and whether they applied it themselves. With **Show a live DPS/HPS graph** on, the panel also draws that player's own DPS trend over the fight as a sparkline (until 0.2.368 it sat in the expanded row). The tiles and skills follow every refresh of the meter. The buffs come from `GET /api/meter/player?key=…`, read when the panel opens and every few seconds while it stays open, from the fight's effect records: an effect runs from its application to its removal, else for its stated duration, else to the end of the fight, and one skill's effects count together. The close button or a second click on the name closes the panel; a click elsewhere on the row still expands the per-skill breakdown, and the panel hides while the overlay waits for the next fight.
 
-**Background** (Settings → Overlay layout) chooses what the dark card covers: the whole card, the default; the top portion only; or none. Since 0.2.370 the meter uses a compact layout after NotMeter's meter in all three. A target card sits on top: the Odyle Energy, Shugo Keys and Nightmare Tickets counters across it, the target's portrait (a target mark where the game's art is unknown), name, HP left in damage units where the community has measured it and HP share, and its HP, time-to-kill and break bars inside the card, each behind its own setting as before. The player rows are pills of their own: the class emblem, the name, the combat power where the meter knows it (yours from your identity, behind the same setting as the identity line's), the rate in full digits below ten million and the share of the total to a tenth, with a green dot on your own row's emblem; where the rows are narrow for the text size, the combat power and then the share step aside for the names, as the target's HP numbers do for its name. Under the rows come the fight clock (green while the fight runs, amber while the DPS clock is paused) with the party's total for the chosen metric, then the ping and a toolbar of icons on a line of their own: the metric chip (a click moves to the next metric), the raid plan, the screenshot lock, a new fight, copy, **Options** (the opacity slider and the pet grouping, folded away until pressed), start or stop, and hide, each with its old words in the tooltip. The whole card draws the card behind all of it, with the same fonts, colours and sizes; top portion only draws the target card's panel; none leaves the counters and the target card floating like the rest. The toolbar and the fight clock wrap inside the card when it is too narrow for one line. The party window keeps the older layout. On the native Windows overlay the host window is an opaque surface (that is what keeps its buttons clickable), so the page reports the outline of what it draws, its corner radius included, and the window is cut to it: the whole card's rounded outline, or in the see-through modes each piece's, so the game shows through between the pieces and takes the clicks there, and a readout that floats elsewhere sits on a small dark chip of its own. The outline follows the card whenever it changes size. Until 0.2.367 the see-through modes moved the lines about but the card stayed a solid rectangle; 0.2.368 clipped the window, but the page measured the shape before pywebview's bridge was up and never sent it again, which 0.2.369 fixed. The counters show their full words where the card is wide enough for all three, an icon with the count (the regular count, then the bonus in brackets) where it is not; the words stay in the tooltip.
+**Background** (Settings → Overlay layout) chooses what the dark card covers: the whole card, the default; the top portion only; or none. Since 0.2.370 the meter uses a compact layout after NotMeter's meter in all three. A target card sits on top: the Odyle Energy, Shugo Keys and Nightmare Tickets counters across it, the target's portrait (a grey target mark where the game's art is unknown, never behind a portrait: 0.2.370 drew a red one behind every portrait, and it showed through their clear corners), name, HP left in damage units where the community has measured it and HP share, and its HP, time-to-kill and break bars inside the card, each behind its own setting as before. The player rows are pills of their own: the class emblem, the name, the combat power where the meter knows it (yours from your identity, behind the same setting as the identity line's), the rate in full digits below ten million and the share of the total to a tenth, with a green dot on your own row's emblem; where the rows are narrow for the text size, the combat power and then the share step aside for the names, as the target's HP numbers do for its name. Under the rows come the fight clock (green while the fight runs, amber while the DPS clock is paused) with the party's total for the chosen metric, then the ping and a toolbar of icons on a line of their own: the metric chip (a click moves to the next metric), the raid plan, the screenshot lock, a new fight, copy, **Options** (the opacity slider and the pet grouping, folded away until pressed), start or stop, and hide, each with its old words in the tooltip. The whole card draws the card behind all of it, with the same fonts, colours and sizes; top portion only draws the target card's panel; none leaves the counters and the target card floating like the rest. The toolbar and the fight clock wrap inside the card when it is too narrow for one line. The party window keeps the older layout. On the native Windows overlay the host window is an opaque surface (that is what keeps its buttons clickable), so the page reports the outline of what it draws, its corner radius included, and the window is cut to it: the whole card's rounded outline, or in the see-through modes each piece's, so the game shows through between the pieces and takes the clicks there, and a readout that floats elsewhere sits on a small dark chip of its own. The outline follows the card whenever it changes size. When Windows runs apps dark, pywebview gives every window it makes a Mica backdrop, and Windows paints that backdrop across the whole window rectangle, outside its outline too: until 0.2.371 the see-through modes showed a dark box around their pieces on such a desktop while the outline was in place. The overlay turns the backdrop off when it opens, again just after each change of Windows' settings (pywebview asks for it again then), and every few seconds after; `logs/overlay.log` notes the window's outline, the region Windows holds and the backdrop. Until 0.2.367 the see-through modes moved the lines about but the card stayed a solid rectangle; 0.2.368 clipped the window, but the page measured the shape before pywebview's bridge was up and never sent it again, which 0.2.369 fixed. The counters show their full words where the card is wide enough for all three, an icon with the count (the regular count, then the bonus in brackets) where it is not; the words stay in the tooltip.
 
 **My row's effect** and **Top row's effect** (the same section) add an animated effect to your own row (matched by your re-acquired name, whether or not *Highlight my own row* is on) and to the top row: *Gold* (a turning gold frame and a diamond before the name), *Rainbow* (a glowing rainbow name), *Ember* (a pulsing fire glow), *Frost* (an icy sheen), *Aether* (a violet and teal aurora) and *Starlight* (twinkling stars). When you top the meter your own effect is the one shown. The effects are free for everyone, ride the settings backup, and hold still in performance mode and when the system asks for reduced motion. They run on through a fight: a poll that only moves the numbers writes them into the rows in place (0.2.368; before, every poll rebuilt the rows and restarted the effect).
 
@@ -817,7 +857,20 @@ When the app starts, a background sync checks for new and changed data. The sync
 * **Seed.** A fresh install starts from the bundled seed catalog
   (`aion2calc/data/seed/items.json.gz`), so only the changes are fetched.
 * **Limits.** The sync is time-boxed (15 minutes per launch) and resumable. A
-  page whose layout changed is skipped, and the old data is kept.
+  page whose layout changed is skipped, and the old data is kept: an item page
+  that reads as nothing (no name, no stats) is not stored, and five in a row stop
+  the item phase for that launch; a titles listing that reads too few titles, or
+  a role where a bonus belongs, is not stored, and the sync says why.
+* **The site's late-October 2026 rebuild (0.2.371).** metabot.gg moved to
+  Next.js 16, which reaches each page's content through map references the
+  reader did not follow, and its sitemap became one English file
+  (`aion-2-en.xml`). From then until 0.2.371 every page read as its URL: the
+  sync stored each new or changed item with no stats, and the title list it had
+  read just before kept the site's new Role column in the bonuses' places. At
+  the first launch of 0.2.371 the sync puts those back before fetching anything,
+  offline too: an empty item takes the bundled seed's copy (or goes, to be fetched
+  again), an empty entry of the gear reference takes the shipped one, and the
+  title list is put back in its columns.
 * **New skills.** A skill that appears in a build is simulated from its tooltip
   by the generic kit, even for classes with a hand-written kit.
 

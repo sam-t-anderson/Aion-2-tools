@@ -1164,10 +1164,44 @@ numbers in the log are directly comparable.  The stat weights, the curves and
 the program are re-computed each iteration around the current build, and a
 reallocation is accepted only if the full simulation confirms it.
 
-The in-game **Skill Macro** plan (`opt/macro.py`) keeps short-cooldown skills
-and fillers in the hold-to-run macro and leaves long-cooldown burst skills on
-manual keys, then simulates the macro's round-robin behaviour to check it gets
-close to the ideal priority. A chain step has no key of its own: a macro step for it is its parent added again,
+The in-game **Skill Macro** plan (`opt/macro.py`) is simulated as the game runs it: holding the macro key presses
+the hotbar keys on its lines in order and loops, a line whose key has nothing ready is skipped, manual presses come
+first, and the basic auto-attack, on the left mouse button held beside it, fires whenever no key has a skill ready.
+A hotbar key holds up to four skills and fires the lowest one that is ready (the game's skill priority stack), so
+a key is a small priority list; a key may sit on several lines (the editor takes 20) to come up more often.
+
+**Hotbar keys (0.2.371).** Before, every line held one skill, so a skill ready for a moment could only fire when the
+macro reached its line: the Templar's Judgment, usable 2–3 s after Shield Smite, Warding Strike, Shield Rush or Doom
+Shield opens it, was the eighth of thirteen lines for a Templar with its class's highest point totals, behind Taunt.
+The planner now searches keys: each skill of the priority list on one key or on a manual key (never on two keys),
+a no-cooldown filler only on top of a key (above it nothing would fire), charge skills manual, and another skill
+manual only with a cooldown of 30 s or more. The basic attack stays on the held left mouse button, and the macro may
+also give it lines of its own, never shared with other skills: such a line presses it even while a key has a skill
+ready, as the one-skill-per-line layouts did. A geared Sorcerer needs one, because Flame Arrow restores the MP its
+keys run short of: without it the keys played 92.2 % of the ideal list, below the 93.8 % of one skill per line, and
+with it they play 94.4 %. A layout scores its simulated DPS less 0.5 % for each such manual key and 0.05 % for each
+line past the first, so the macro stays easy to set up. The search starts from the priority list in keys of three,
+from keys that put one of the top four skills first on a key the macro presses every other line, and from the
+one-skill-per-line layouts. From each of them in turn, best first, it moves, reorders, merges and repeats keys and
+lines while that improves, within 2,500 simulations in all (15–110 s on the test machine). The one-skill-per-line
+layout is kept as the alternative. On the bundled builds the keys play this share of the ideal priority list (an
+ideal list is a rotation optimizer's, which a key layout can beat):
+
+| Class | One skill per line | Hotbar keys |
+|---|---:|---:|
+| Assassin | 98.3 % | 102.8 % |
+| Chanter | 91.7 % | 98.7 % |
+| Cleric | 75.9 % | 97.5 % |
+| Gladiator | 93.5 % | 99.3 % |
+| Ranger | 80.6 % | 98.4 % |
+| Sorcerer | 90.3 % | 100.0 % |
+| Spiritmaster | 80.2 % | 98.2 % |
+| Templar | 95.9 % | 101.5 % |
+
+The Templar's macro presses a key with Judgment lowest and Pummel above it twice, so Judgment fires whenever one of
+its triggers has opened it, and Annihilate's own key twice. Three more keys hold Warding Strike, Taunt and Shield
+Smite, then Shield Rush and Noble Armor, then Executing Blade and Doom Shield, and Punishment is charged by hand: the
+guides' Judgment-first stacks. A chain step has no key of its own: a macro step for it is its parent added again,
 and the parent's key presses the chain step while the chain is open and the parent otherwise, so the simulation
 presses whichever the key would for a step of either, and the planner tries each layout with and without its chain
 steps (0.2.323; a step for the chain step had pressed nothing until another step opened the chain). Skills requiring charge are kept on manual keys because the game macro only taps them; the macro is not assumed to hold a charge. The suggested macro binding is Right-click; the app does not change game bindings.

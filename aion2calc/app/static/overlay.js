@@ -25,7 +25,7 @@
   const setHtml=(el,html)=>{ if(el&&el._a2html!==html){ el._a2html=html; el.innerHTML=html; return true; } return false; };
   const setWidth=(el,width)=>{ if(el&&el._a2width!==width){ el._a2width=width; el.style.width=width; } };
   let tab = "meter", metric = "dps", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false, meterUnavailable = false, refreshError = "", lastSuccess = null;
-  let clickThrough = false, rectTimer = 0;
+  let clickThrough = false, rectTimer = 0, hoverInteract = false;
   // Which window this page is: the meter overlay, the separate Party-DPS overlay (?view=party) or the
   // Hidden Cube radar's own small window (?view=radar, 0.2.329): the radar with Lock, Hide and its own opacity.
   const view = new URLSearchParams(location.search).get("view") || "meter";
@@ -282,6 +282,9 @@
     $("#ovfps").hidden=!showFps||partyMode||radarMode;
     setFpsLoop(showFps&&!partyMode&&!radarMode);   // only drive a per-frame loop while the FPS readout is shown
     applyClickThrough(ui.overlay_click_through===true);   // pass clicks to the game, keeping the overlay's buttons live
+    hoverInteract=ui.overlay_hover_interact===true;        // resting on a click-through overlay opens it (0.2.371)
+    nativeCall("set_hover_interact",hoverInteract);
+    if(!hoverInteract||!clickThrough)window.A2OverlayHover?.("off");
     // Layout
     maxPlayers=clampInt(ui.overlay_max_players,1,24,8);
     onlyInCombat=ui.overlay_only_in_combat===true;
@@ -402,6 +405,16 @@
     });
     nativeCall("set_interactive_rects", rects);
   }
+  // Hover-to-interact (0.2.371): with click-through on, the host counts how long the pointer rests on the overlay
+  // (the page gets no mouse events while clicks pass through) and says how it stands: "arming" while it counts, a
+  // ring that fills in over the five seconds; "open" once the whole overlay takes clicks, until the pointer leaves;
+  // "off" when it leaves.
+  window.A2OverlayHover = (state) => {
+    const ov = document.getElementById("ov");
+    if (!ov) return;
+    ov.classList.toggle("ov-hover-arming", state === "arming");
+    ov.classList.toggle("ov-hover-open", state === "open");
+  };
   function applyClickThrough(on) {
     clickThrough = !!on;
     nativeCall("set_click_through", clickThrough);
@@ -442,6 +455,7 @@
     // The first settings sync may have run before the bridge was ready, so re-push
     // the click-through state (and the control rects) now that native calls land.
     nativeCall("set_click_through", clickThrough);
+    nativeCall("set_hover_interact", hoverInteract);
     if (clickThrough) reportInteractiveRects();
     // The first render usually comes before the bridge too: measure the see-through modes' shape again and
     // send it, or the native window keeps its whole card (0.2.368 remembered that shape as sent).
@@ -462,10 +476,35 @@
   }
   new ResizeObserver(() => { fit(); shapeSoon(); }).observe($("#ov"));
 
-  // These events must not bubble into pywebview's card drag handler.
+  // A press on a control is the control's, never a move of the window.
   document.querySelectorAll("button, input, label").forEach((control) => {
     ["pointerdown", "mousedown", "touchstart"].forEach((type) => control.addEventListener(type, (event) => event.stopPropagation()));
   });
+  // Moving the window (0.2.371): a press anywhere else on the card hands the move to the native host, which follows
+  // the cursor in screen pixels until the button is up (begin_drag in overlay.py). pywebview's own drag region moved
+  // it from this page's mouse events, which stop when the cursor outruns the window, so a release outside it was
+  // lost and the window chased the cursor afterwards. A press that moved the window is a move, not a click: the
+  // click that ends it is dropped, so letting go over a name does not open that player's panel.
+  let moveFrom = null, moveDone = false;
+  const moveCard = $(".ovcard");
+  if (moveCard) moveCard.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || !event.isPrimary) return;
+    const target = event.target;
+    if (target.closest("button, input, select, textarea, a, label, .ovgrip")) return;
+    const scrolls = target.scrollHeight > target.clientHeight || target.scrollWidth > target.clientWidth;
+    if (scrolls && (event.offsetX > target.clientWidth || event.offsetY > target.clientHeight)) return;   // its scrollbar
+    moveFrom = { x: event.screenX, y: event.screenY };
+    nativeCall("begin_drag");
+  });
+  document.addEventListener("pointerup", (event) => {
+    if (!moveFrom) return;
+    moveDone = Math.hypot(event.screenX - moveFrom.x, event.screenY - moveFrom.y) > 4;
+    moveFrom = null;
+    if (moveDone) setTimeout(() => { moveDone = false; }, 0);
+  }, true);
+  document.addEventListener("click", (event) => {
+    if (moveDone) { moveDone = false; event.preventDefault(); event.stopPropagation(); }
+  }, true);
   slider.oninput = () => {
     op = Math.max(0.2, Math.min(1, slider.value / 100)); applyOpacity();
     try { localStorage.setItem(OPACITY_KEY, op); } catch (e) { /* optional storage */ }
@@ -482,8 +521,24 @@
     }
     return { x: last.x, y: last.y };
   }
+  // The Raid Planner's saved plans (0.2.371). The planner keeps them in the browser's storage, which this window's
+  // own storage is not: the plan view showed "No saved plan yet." whatever had been saved. The app keeps a copy each
+  // time the planner saves (GET /api/plans/saved), read again at most every 15 s while the plan view is open; a page
+  // opened in the same browser as the planner also has that browser's own copy, and the newer of the two wins.
+  let appPlans = {}, appPlansAt = 0;
+  function refreshPlans(now) {
+    if (!now && Date.now() - appPlansAt < 15000) return;
+    appPlansAt = Date.now();
+    fetch("/api/plans/saved", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((doc) => {
+      if (doc && doc.plans && typeof doc.plans === "object") { appPlans = doc.plans; if (tab === "plan") renderPlan(); }
+    }).catch(() => {});
+  }
   function allPlans() {
-    try { return JSON.parse(localStorage.getItem("a2plans") || "{}"); } catch (e) { return {}; }
+    let own;
+    try { own = JSON.parse(localStorage.getItem("a2plans") || "{}") || {}; } catch (e) { own = {}; }
+    const all = { ...appPlans };
+    for (const [id, plan] of Object.entries(own)) if (!all[id] || (plan?.meta?.updated || 0) >= (all[id]?.meta?.updated || 0)) all[id] = plan;
+    return all;
   }
   function latestPlan() {
     const all = allPlans();
@@ -1041,10 +1096,11 @@
     $("#ovtarget").hidden=true;$("#ovhpbar").hidden=true;$("#ovttkbar").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
     $("#ovgraph").hidden=true;$("#ovgauge").hidden=true;$("#ovcooldowns").hidden=true;$("#ovclock").hidden=true;
     $("#ovconnection").hidden=true;
+    refreshPlans(false);
     const view = planView(), p = view.plan;
     if (!p) {
       setText($("#ovstatus"), "");
-      setHtml($("#ovcontent"), '<div class="muted">No saved plan yet.</div>');
+      setHtml($("#ovcontent"), '<div class="muted">No saved plan yet. Plans you save in the app\'s Raid Planner show here.</div>');
       return;
     }
     const dur = view.dur, now = view.time;
@@ -1069,7 +1125,7 @@
         b.setAttribute("aria-selected", String(b.dataset.tab === tab));
       });
       $("#ovcontent").setAttribute("aria-labelledby", `${tab}-tab`);
-      if (tab === "meter") { renderMeter(); pollMeter(); } else renderPlan();
+      if (tab === "meter") { renderMeter(); pollMeter(); } else { refreshPlans(true); renderPlan(); }
     };
   });
   document.querySelectorAll("[data-metric]").forEach(button=>{button.onclick=()=>{

@@ -459,7 +459,7 @@ html.native-windows #ov.ov-bg-top .ovcard::before { background: rgb(27, 32, 42);
   --nm-ic-meter: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M6 20v-7M12 20V5M18 20v-10'/%3E%3C/svg%3E");
   --nm-ic-signal: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 16'%3E%3Crect x='0' y='11' width='3.5' height='5' rx='1'/%3E%3Crect x='5.5' y='7.5' width='3.5' height='8.5' rx='1'/%3E%3Crect x='11' y='4' width='3.5' height='12' rx='1'/%3E%3Crect x='16.5' y='0' width='3.5' height='16' rx='1'/%3E%3C/svg%3E");
   --nm-ic-cp: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 4l11 11M13 17l4-4M15 15l4 4M20 4L9 15M7 13l4 4M9 15l-4 4'/%3E%3C/svg%3E");
-  --nm-ic-target: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e46b7d' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='7.5'/%3E%3Ccircle cx='12' cy='12' r='2.5'/%3E%3Cpath d='M12 2v4M12 18v4M2 12h4M18 12h4'/%3E%3C/svg%3E"); }
+  --nm-ic-target: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b95a3' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='7.5'/%3E%3Ccircle cx='12' cy='12' r='2.5'/%3E%3Cpath d='M12 2v4M12 18v4M2 12h4M18 12h4'/%3E%3C/svg%3E"); }
 html.native-windows #ov.ov-nm { --nm-card: rgb(12, 14, 17); --nm-float: rgb(14, 16, 20); --nm-row: rgb(17, 20, 24); }
 /* The glow and the halo (Settings → Overlay) replace the layout's own text shadows. */
 #ov.ov-nm.ov-glow { --nm-shadow: var(--ov-glow); --nm-row-shadow: var(--ov-glow); }
@@ -498,6 +498,10 @@ html.native-windows #ov.ov-nm.ov-bg-top .ovcard::before { box-shadow: none; }
   color: var(--ov-target-color, #f4f6f8); font-size: calc(12px * var(--ov-font-scale, 1) * var(--ov-target-fs, 1)); }
 #ov.ov-nm .ovtarget .ovtport { flex: none; width: 34px; height: 34px; border-radius: 8px; overflow: hidden;
   background: rgba(255, 255, 255, .05) var(--nm-ic-target) center / 22px no-repeat; }
+/* The mark stands in only for a portrait the game art lacks: under a real portrait, often a round icon with clear
+   corners, it showed through as a target over every enemy (0.2.371). An image that fails to load removes itself,
+   and the mark comes back. */
+#ov.ov-nm .ovtarget .ovtport:has(.ovtportimg) { background-image: none; }
 #ov.ov-nm .ovtarget .ovtportimg { display: block; width: 100%; height: 100%; object-fit: cover; }
 #ov.ov-nm .ovtarget .ovtmain { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
 #ov.ov-nm .ovtarget .ovthead { display: flex; align-items: baseline; gap: 0 8px; min-width: 0; }
@@ -637,3 +641,16 @@ html.native-windows #ov.ov-nm.ov-stripes .ovrow:nth-child(even) { background: rg
   background: var(--nm-float); text-shadow: var(--nm-shadow); }
 #ov.ov-nm.ov-tools-open .ovcard > .ovfoot { display: flex; order: 91; margin: 3px 0 0; padding: 5px 10px; border: 0; border-radius: 7px;
   background: var(--nm-float); text-shadow: var(--nm-shadow); }
+
+/* Hover-to-interact (0.2.371): while the pointer rests on a click-through overlay a ring fills in over the five
+   seconds the host counts, and stays once the overlay takes clicks. It sits inside what the window draws: the card,
+   or in the see-through modes each piece of it, so the window's outline never cuts it off. */
+#ov.ov-hover-arming:not(.ov-bg-top):not(.ov-bg-none) .ovcard,
+#ov.ov-hover-arming.ov-bg-top .ovcard > *:not(#ovbg), #ov.ov-hover-arming.ov-bg-none .ovcard > *:not(#ovbg),
+#ov.ov-hover-arming #ovcontent > .ovrow { animation: ovHoverArm 5s linear forwards; }
+#ov.ov-hover-open:not(.ov-bg-top):not(.ov-bg-none) .ovcard,
+#ov.ov-hover-open.ov-bg-top .ovcard > *:not(#ovbg), #ov.ov-hover-open.ov-bg-none .ovcard > *:not(#ovbg),
+#ov.ov-hover-open #ovcontent > .ovrow { box-shadow: inset 0 0 0 2px rgba(232, 207, 142, .85) !important; }   /* over the card's own shadows */
+@keyframes ovHoverArm { from { box-shadow: inset 0 0 0 2px rgba(232, 207, 142, 0); }
+  to { box-shadow: inset 0 0 0 2px rgba(232, 207, 142, .5); } }
+@media (prefers-reduced-motion: reduce) { #ov.ov-hover-arming .ovcard, #ov.ov-hover-arming .ovcard > *, #ov.ov-hover-arming .ovrow { animation: none; } }

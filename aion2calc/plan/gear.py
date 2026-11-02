@@ -88,6 +88,23 @@ def _catalog_for(slot: str, cls: str, level: int) -> list[dict]:
     return out
 
 
+#: a replacement is the next goal only when it beats the worn item, enchanted and rerolled, by this much
+NEXT_OVER_WORN = 0.01
+
+
+def worn_potential(ctx: PlanContext, slot: str, enchant: int | None = None) -> tuple[float | None, int | None]:
+    """(simulated DPS, item level) of the item worn in ``slot`` enchanted to the goal level (its max, up to +15,
+    or ``enchant``; never below its own) and rerolled toward good rolls: what improving it reaches without
+    replacing it. ``(None, None)`` when nothing is worn or the catalog does not know the item."""
+    worn = ctx.equipped.get(slot)
+    it = catalog_item(worn.get("slug"), None if worn.get("source") == "equipped" else worn.get("name")) if worn else None
+    if not it:
+        return None, None
+    lv = max(worn.get("enchant") or 0, min(I.max_enchant(it), 15 if enchant is None else enchant))
+    stats = entry_stats(worn, ctx.cls, enchant=lv, reroll=I.roll_count(it) > 0, value=ctx.value())
+    return ctx.dps(ctx.equipped, overrides={slot: stats}), it.get("item_level")
+
+
 def goal_gear(ctx: PlanContext, enchant: int | None = None, top: int = 3, prefilter: int = 25) -> dict:
     """Catalog items per slot, each at ``enchant`` (default: its max, up to +15)
     with good rolls, swapped alone into the current set.
@@ -95,6 +112,12 @@ def goal_gear(ctx: PlanContext, enchant: int | None = None, top: int = 3, prefil
     Per slot: ``best`` (highest gain) and ``next`` (the lowest item level that
     still gains at least 2%: the nearer goal). Arcana are planned by
     :mod:`aion2calc.plan.arcana` (their value is in the skill options).
+
+    A goal's gain counts good rolls at the goal enchant, so against the worn item's actual rolls an item of a far
+    lower item level could gain too (0.2.370 offered an item level 43 Pauldrons over the item level 86 one worn,
+    whose pool rolls the same stats higher). The next goal is therefore never below the worn item's item level,
+    and must beat the worn item enchanted and rerolled (:func:`worn_potential`) by :data:`NEXT_OVER_WORN`: short
+    of that, enchanting and rerolling what is worn (the upgrade path's steps) is the better way.
     """
     cls, val = ctx.cls, ctx.value()
     base = ctx.dps(ctx.equipped)
@@ -102,6 +125,7 @@ def goal_gear(ctx: PlanContext, enchant: int | None = None, top: int = 3, prefil
     for slot in I.SLOTS:
         if slot in PAIRS.values() or slot in I.ARCANA_SLOTS:
             continue                                    # the pair's first slot stands for both
+        own_dps, own_level = worn_potential(ctx, slot, enchant)
         rows, seen = [], set()
         for it in _catalog_for(slot, cls, ctx.level):
             if it["name"] in seen:
@@ -120,13 +144,18 @@ def goal_gear(ctx: PlanContext, enchant: int | None = None, top: int = 3, prefil
             scored.append({"slot": slot, "slug": it["slug"], "name": it["name"], "grade": it.get("grade"),
                            "icon": it.get("icon"), "item_level": it.get("item_level"), "enchant": lv, "gain": d / base - 1,
                            "url": f"https://metabot.gg/en/aion-2/items/{it['slug']}", "entry": e,
-                           "stats": gear, "deity": deity, "rolls": _rolls(it, val)})
+                           "stats": gear, "deity": deity, "rolls": _rolls(it, val), "dps": d})
         scored.sort(key=lambda r: -r["gain"])
         if not scored:
             continue
-        better = [r for r in scored if r["gain"] >= 0.02]
+
+        def upgrade(r):
+            return (r["gain"] >= 0.02 and (own_level is None or (r["item_level"] or 0) >= own_level)
+                    and (own_dps is None or r["dps"] > own_dps * (1 + NEXT_OVER_WORN)))
+        better = [r for r in scored if upgrade(r)]
         nxt = min(better, key=lambda r: (r["item_level"] or 0, -r["gain"])) if better else None
-        out[slot] = {"best": scored[:top], "next": nxt}
+        out[slot] = {"best": scored[:top], "next": nxt,
+                     "worn": None if own_dps is None else {"item_level": own_level, "gain": own_dps / base - 1}}
     return {"current_dps": base, "slots": out}
 
 

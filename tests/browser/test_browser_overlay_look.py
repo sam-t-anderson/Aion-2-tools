@@ -398,3 +398,97 @@ def test_a_narrow_card_with_large_text_keeps_the_names_and_the_controls_in_reach
     for piece in ("#ovtarget .ovhp", "#ovclock", ".ovhd", "#ovcapture", "#ovhide"):    # nothing past the card's right edge
         box = page.locator(piece).bounding_box()
         assert box["x"] + box["width"] <= card["x"] + card["width"] + 0.5, piece
+
+
+# A 2x2 portrait whose corners are clear, like the game's round enemy icons.
+CLEAR_CORNERS = ("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFklEQVR4nGNgYGD4z8DAwMDAwMDA"
+                 "AAAEBQEAHm9nZwAAAABJRU5ErkJggg==")
+
+
+def test_the_target_mark_stands_in_only_where_no_portrait_loads(app_page, app_url):
+    """0.2.370 drew a target mark behind every portrait, and enemy portraits have clear corners, so the mark showed
+    over each of them (0.2.371): the mark is drawn only while the portrait frame holds no picture."""
+    page = app_page
+    open_overlay(page, app_url, fight(), overlay_bg_mode="top")
+    mark = "getComputedStyle(document.querySelector('#ovtarget .ovtport')).backgroundImage"
+    page.evaluate("window.A2BundledAssets.npcs['2340601'] = null")
+    page.wait_for_function("!document.querySelector('#ovtarget .ovtportimg')")
+    assert page.evaluate(mark).startswith('url("data:image/svg+xml')                  # no portrait: the mark
+    page.evaluate("src => { window.A2BundledAssets.npcs['2340601'] = src; }", CLEAR_CORNERS)
+    page.wait_for_function("document.querySelector('#ovtarget .ovtportimg')")
+    assert page.evaluate(mark) == "none"                                                 # a portrait: nothing behind it
+
+
+def test_a_press_on_the_card_moves_the_window_natively_and_a_move_is_not_a_click(app_page, app_url):
+    """0.2.371: the card asks the host to move the window (begin_drag), which follows the cursor until the button is
+    up, in place of pywebview's drag region, whose window went on chasing the cursor once a release was lost. A
+    press on a control is the control's; a press that moved the window does not open the panel of the row it ends on."""
+    page = app_page
+    page.add_init_script("""window.__calls = []; window.pywebview = { platform: "edgechromium",
+        api: new Proxy({}, { get: (t, name) => (...args) => { window.__calls.push(name); return Promise.resolve(); } }) };""")
+    open_overlay(page, app_url, fight())
+    assert "pywebview-drag-region" not in page.locator(".ovcard").get_attribute("class")
+    assert page.locator(".ovcard").get_attribute("title") is None                         # no "drag the card" tooltip over everything
+    drags = "window.__calls.filter(n => n === 'begin_drag').length"
+    page.click("#ovcopy")
+    assert page.evaluate(drags) == 0                                                     # a button is not a move
+    name = page.locator('.ovname[data-detail="0"]').bounding_box()
+    x, y = name["x"] + 8, name["y"] + name["height"] / 2
+    page.mouse.move(x, y)
+    page.mouse.down()
+    page.mouse.move(x + 40, y + 6, steps=4)
+    page.mouse.up()
+    assert page.evaluate(drags) == 1
+    page.wait_for_timeout(300)
+    assert page.locator("#ovdetail").is_hidden()                                        # the move ended there: no panel
+    page.click('.ovname[data-detail="0"]')                                               # a click still opens it
+    page.wait_for_function("!document.querySelector('#ovdetail').hidden")
+    assert page.evaluate(drags) == 2
+
+
+PLAN = {"format": "a2plan", "version": 1, "duration": 60, "meta": {"name": "Atiel pull", "updated": 1700000000000},
+        "tokens": [{"id": "t1", "kind": "player", "label": "Tank", "color": "#39c2e0", "keyframes": [{"t": 0, "x": 0.2, "y": 0.3},
+                                                                                                    {"t": 60, "x": 0.8, "y": 0.7}]}],
+        "buffs": []}
+
+
+def test_the_plan_view_shows_the_plans_the_app_keeps_for_it(app_page, app_url):
+    """The overlay's window does not share the planner's browser storage, so its plan view said "No saved plan yet."
+    whatever had been saved (0.2.371): it reads the copy the app keeps of the planner's saved plans."""
+    page = app_page
+    plans = {"saved": {}}
+    page.route("**/api/plans/saved", lambda route: route.fulfill(json={"plans": plans["saved"], "updated": None}))
+    open_overlay(page, app_url, fight())
+    page.click("#plan-tab")
+    page.wait_for_function("document.querySelector('#ovcontent .muted')?.textContent.startsWith('No saved plan yet.')")
+    assert "Raid Planner" in page.locator("#ovcontent .muted").inner_text()
+    plans["saved"] = {"p1": PLAN}
+    page.click("#meter-tab")
+    page.click("#plan-tab")                                                              # the view asks the app again
+    page.wait_for_function("document.querySelector('#ovcontent .ovarena svg circle')")
+    assert "Atiel pull" in page.locator("#ovstatus").inner_text()
+
+
+def test_a_rest_on_the_click_through_overlay_shows_its_count_and_when_it_takes_clicks(app_page, app_url):
+    """Hover-to-interact (0.2.371): the page hands the setting to the host, and the host's word on the pointer's rest
+    shows on what the window draws: a ring that fills in while it counts, held once the overlay takes clicks, gone
+    when the pointer leaves. In the see-through modes the ring sits on each piece, inside the window's outline."""
+    page = app_page
+    page.add_init_script("""window.__calls = []; window.pywebview = { platform: "edgechromium",
+        api: new Proxy({}, { get: (t, name) => (...args) => { window.__calls.push([name, ...args]); return Promise.resolve(); } }) };
+        window.addEventListener("load", () => window.dispatchEvent(new Event("pywebviewready")));""")
+    open_overlay(page, app_url, fight(), overlay_click_through=True, overlay_hover_interact=True)
+    page.wait_for_function("window.__calls.some(c => c[0] === 'set_hover_interact' && c[1] === true)")
+    ring = "getComputedStyle(document.querySelector(%r)).boxShadow"
+    page.evaluate("window.A2OverlayHover('arming')")
+    assert page.locator("#ov").get_attribute("class").count("ov-hover-arming") == 1
+    assert page.evaluate("getComputedStyle(document.querySelector('.ovcard')).animationName") == "ovHoverArm"
+    page.evaluate("window.A2OverlayHover('open')")
+    assert "232, 207, 142" in page.evaluate(ring % ".ovcard")                             # the card takes clicks
+    page.evaluate("window.A2OverlayHover('off')")
+    assert "232, 207, 142" not in page.evaluate(ring % ".ovcard")
+    open_overlay(page, app_url, fight(), overlay_click_through=True, overlay_hover_interact=True, overlay_bg_mode="none")
+    page.evaluate("window.A2OverlayHover('open')")
+    assert "232, 207, 142" in page.evaluate(ring % "#ovcontent > .ovrow")                 # each piece in the see-through modes
+    open_overlay(page, app_url, fight(), overlay_click_through=True, overlay_hover_interact=False)
+    page.wait_for_function("window.__calls.some(c => c[0] === 'set_hover_interact' && c[1] === false)")

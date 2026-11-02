@@ -113,6 +113,14 @@ def test_click_through_setting_defaults_off_and_backs_up(home):
         settings_backup.import_settings({"overlay_click_through": "yes"})
 
 
+def test_hover_to_interact_defaults_off_and_backs_up(home):
+    """The secondary click-through setting (0.2.371): off unless the player turns it on, and in the backup."""
+    assert server.ui_settings()["overlay_hover_interact"] is False
+    assert settings_backup.import_settings({"overlay_hover_interact": True})["settings"]["overlay_hover_interact"] is True
+    with pytest.raises(ValueError):
+        settings_backup.import_settings({"overlay_hover_interact": "yes"})
+
+
 def test_click_through_is_wired_in_the_overlay():
     # The overlay page reports its controls and the mode across the native bridge (Settings offers it:
     # tests/browser/test_browser_settings.py).
