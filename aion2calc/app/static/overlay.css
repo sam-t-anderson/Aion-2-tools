@@ -19,9 +19,9 @@ html, body { overflow: hidden; }
 .ovcard > * { flex: 0 0 100%; min-width: 0; }
 .ovcard > #ovidentity { order: 60; flex: 1 1 auto; margin: 6px 8px 0 0; }
 .ovcard > #ovping { order: 60; flex: 0 1 auto; margin: 6px 0 0 auto; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ovcard > #ovodyle { order: 60; }
-.ovcard > #ovshugo { order: 60; }   /* under the Odyle line, above the identity line (0.2.332) */
-.ovcard > #ovnightmare { order: 60; }
+.ovcard > #ovlines { order: 60; }   /* the Odyle, Shugo and Nightmare lines, above the identity line (0.2.332); one line each */
+.ovlines { display: flex; flex-wrap: wrap; }
+.ovlines > .ovodyle { flex: 0 0 100%; min-width: 0; }
 .ovcard > #ovcontribution { order: 61; }
 .ovcard > .ovfoot { order: 90; }
 /* In the native overlay window the card IS the window, so it must be free to grow
@@ -265,13 +265,23 @@ html.native-windows #ovbg { border-radius: 0; }
   z-index: 0; pointer-events: none; }
 html.native-windows #ov.ov-bg-top .ovcard::before { background: rgb(27, 32, 42); border-radius: 0; box-shadow: none; }
 #ov.ov-bg-top #ovbg { bottom: auto; height: var(--ov-top-h, 0px); }
-#ov.ov-bg-top .ovcard > #ovodyle, #ov.ov-bg-top .ovcard > #ovshugo, #ov.ov-bg-top .ovcard > #ovnightmare { order: 0; margin-bottom: 4px; }
+#ov.ov-bg-top .ovcard > #ovlines { order: 0; }
+#ov.ov-bg-top .ovcard > #ovlines:has(.ovodyle:not([hidden])) { margin-bottom: 4px; }
 #ov.ov-bg-none .ovrow, #ov.ov-bg-top .ovrow { background: rgba(27, 32, 42, .74); }
 #ov.ov-bg-none .ovhd, #ov.ov-bg-none .ovmetrics, #ov.ov-bg-none .ovtarget, #ov.ov-bg-none .ovping, #ov.ov-bg-none .ovodyle, #ov.ov-bg-none .ovidentity,
 #ov.ov-bg-none .ovevents, #ov.ov-bg-none .ovcontribution, #ov.ov-bg-none .ovdummy, #ov.ov-bg-none .ovfoot,
 #ov.ov-bg-top .ovping, #ov.ov-bg-top .ovidentity, #ov.ov-bg-top .ovcontribution, #ov.ov-bg-top .ovfoot { text-shadow: 0 1px 2px #000, 0 0 4px #000; }
 #ov.ov-bg-none .ovfoot, #ov.ov-bg-top .ovfoot { border-top-color: transparent; }
 #ov.ov-bg-none .ovtarget, #ov.ov-bg-top .ovdetail { background-color: rgba(27, 32, 42, .74); }
+/* The counters in the see-through modes (0.2.369): one row of full lines where the card is wide enough for all of
+   them, one row of icons with the counts where it is not (the title still says what each is); the card mode stacks
+   them at the bottom as before. */
+#ov.ov-lines-row .ovlines > .ovodyle { flex: 0 1 auto; margin-right: 10px; }
+#ov.ov-lines-row .ovodyle .ovoltext { white-space: nowrap; }
+.ovodyle .ovolshort { display: none; }
+#ov.ov-lines-icons .ovodyle .ovoltext { display: none; }
+#ov.ov-lines-icons .ovodyle .ovolshort { display: inline; font-variant-numeric: tabular-nums; }
+#ov.ov-lines-icons .ovevents .ovelabel { display: none; }
 /* Animated row effects (0.2.364), free for everyone: Settings picks one for your own row and one for the top row.
    They hold still in performance mode (the rule above) and under reduced motion. */
 @property --ovang { syntax: "<angle>"; inherits: false; initial-value: 0deg; }

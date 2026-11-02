@@ -48,7 +48,8 @@ def open_overlay(page, app_url: str, meter: dict, **look) -> None:
     page.goto("about:blank")
     page.goto(app_url + "overlay", wait_until="load")
     page.wait_for_function("!document.querySelector('#ovtarget').hidden && document.querySelectorAll('#ovcontent .ovrow').length === 3")
-    page.wait_for_function("Math.abs(document.querySelector('.ovcard').getBoundingClientRect().width - 340) < 1")
+    page.wait_for_function("w => Math.abs(document.querySelector('.ovcard').getBoundingClientRect().width - w) < 1",
+                           arg=look.get("overlay_width", 340))
 
 
 def panel_rows(page, section: str) -> list[list[str]]:
@@ -211,3 +212,56 @@ def test_the_transparent_modes_tell_the_host_which_rectangles_the_page_draws(app
     assert any(l <= head[0] and t <= head[1] and r >= head[2] and b >= head[3] for l, t, r, b in rects)   # the header on its own
     open_overlay(page, app_url, fight())
     page.wait_for_function("window.__shapes[window.__shapes.length - 1] === null")
+
+
+def test_the_window_shape_is_sent_once_the_native_bridge_is_up(app_page, app_url):
+    """The first render usually comes before pywebview injects its bridge: until 0.2.369 the page then remembered
+    the see-through shape as sent and never sent it again, so the native window kept its whole card in the *top*
+    and *none* modes however the setting read. Once the bridge is up the shape is measured and sent afresh."""
+    page = app_page
+    open_overlay(page, app_url, fight(), overlay_bg_mode="top")                  # no bridge: nothing can be sent yet
+    page.wait_for_function("document.querySelector('.ovcard').style.getPropertyValue('--ov-top-h') !== ''")
+    page.evaluate("""() => { window.__shapes = []; window.pywebview = { platform: "edgechromium",
+        api: new Proxy({}, { get: (t, name) => (...args) => { if (name === "set_window_shape") window.__shapes.push(args[0]); return Promise.resolve(); } }) };
+        window.dispatchEvent(new Event("pywebviewready")); }""")
+    page.wait_for_function("window.__shapes.length && Array.isArray(window.__shapes[window.__shapes.length - 1])")
+    rects = page.evaluate("window.__shapes[window.__shapes.length - 1]")
+    assert len(rects) > 3 and rects[0][1] == 0                                   # the panel from the top, then the rows
+
+
+COUNTERS = {"odyle": {"regular": 1200, "bonus": 300}, "shugo_keys": {"regular": 12, "bonus": 4},
+            "nightmare_tickets": {"regular": 9, "bonus": 2}}
+
+
+def counted():
+    """The fight with the three counters the game sends in its snapshot."""
+    meter = fight()
+    return {**meter, "snapshot": {**meter["snapshot"], **COUNTERS}}
+
+
+def test_the_counter_lines_share_one_row_as_icons_when_the_see_through_overlay_is_narrow(app_page, app_url):
+    """In the see-through modes the Odyle, Shugo and Nightmare lines share one row: their full text where the card
+    is wide enough for all three, an icon with the count each where it is not (0.2.369); the card mode stacks
+    them at the bottom as before."""
+    page = app_page
+    lines = "['#ovodyle', '#ovshugo', '#ovnightmare'].map(s => document.querySelector(s).getBoundingClientRect())"
+    open_overlay(page, app_url, counted(), overlay_bg_mode="top")          # 340 px: the full lines do not fit
+    page.wait_for_function("document.querySelector('#ov').classList.contains('ov-lines-icons')")
+    boxes = page.evaluate(lines)
+    assert max(b["top"] for b in boxes) - min(b["top"] for b in boxes) < 2             # one row
+    assert page.locator("#ovodyle .ovoltext").is_hidden() and page.locator("#ovodyle .ovolshort").inner_text() == "1,500"
+    assert page.locator("#ovnightmare .ovolshort").inner_text() == "11"
+    assert page.locator("#ovodyle").get_attribute("title").startswith("Your Odyle Energy")   # the words live in the title
+    top_h = page.evaluate("parseFloat(document.querySelector('.ovcard').style.getPropertyValue('--ov-top-h'))")
+    assert all(b["bottom"] <= top_h + 1 for b in boxes)                                   # inside the top panel
+    open_overlay(page, app_url, counted(), overlay_bg_mode="none", overlay_width=760)   # wide: the full lines, one row
+    page.wait_for_function("document.querySelector('#ov').classList.contains('ov-lines-row') && !document.querySelector('#ov').classList.contains('ov-lines-icons')")
+    boxes = page.evaluate(lines)
+    assert max(b["top"] for b in boxes) - min(b["top"] for b in boxes) < 2
+    assert page.locator("#ovodyle .ovoltext").inner_text() == "Odyle Energy 1,500 (1,200 + 300 bonus)"
+    open_overlay(page, app_url, counted())                                   # the card: stacked, full text
+    page.wait_for_function("!document.querySelector('#ovodyle').hidden")
+    assert page.evaluate("[...document.querySelector('#ov').classList].filter(c => c.startsWith('ov-lines'))") == []
+    boxes = page.evaluate(lines)
+    assert boxes[0]["top"] < boxes[1]["top"] < boxes[2]["top"]
+
