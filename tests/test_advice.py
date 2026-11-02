@@ -86,7 +86,8 @@ def test_the_advice_names_the_character_and_how_the_model_was_calibrated(advised
     assert advice["character"] == {"name": "TestSorc", "server": "Siel", "class": "sorcerer", "level": 45}
     assert advice["calibrated"] and advice["dps"] > 0
     assert "community calibration from your log server: 40 fights" in advice["calibration"]
-    assert advised["said"] == ["your recorded fights", "scoring the character as it is", "best gear from your inventory",
+    assert advised["said"] == ["your recorded fights", "scoring the character as it is",
+                               "which supporting effects the model can tell apart", "best gear from your inventory",
                                "goal gear per slot", "upgrade path", "arcana", "pantheon", "genus insight", "titles", "your fights"]
 
 

@@ -444,9 +444,12 @@ function advGenus(a, inv) {
 function titlePlate(t, label, extra = "") {
   if (!t)
     return `<div class="tplate empty"><div class="ilabel">${esc(label)}</div><div class="faint small">—</div></div>`;
+  // Both bonuses, each named: the equip bonus counts only while the title sits in a slot, the owned bonus
+  // joins the collection as soon as the title is yours (the official profile lists them the same way).
   return `<div class="tplate" data-grade="${esc(t.grade || "")}"><div class="ilabel">${esc(label)}</div>
-    <div class="tname gname">❖ ${esc(t.name)} ❖</div><div class="small">${esc(t.equip || "")}</div>
-    ${t.owned_bonus && t.owned_bonus !== "—" ? `<div class="small muted">owned: ${esc(t.owned_bonus)}</div>` : ""}
+    <div class="tname gname">❖ ${esc(t.name)} ❖</div>
+    ${t.equip && t.equip !== "—" ? `<div class="small"><span class="muted">equipped:</span> ${esc(t.equip)}</div>` : ""}
+    ${t.owned_bonus && t.owned_bonus !== "—" ? `<div class="small"><span class="muted">owned:</span> ${esc(t.owned_bonus)}</div>` : ""}
     ${t.gain != null && label !== "Equipped" ? `<div class="gain ${t.gain >= 0 ? "up" : "down"}">${sp(t.gain)}</div>` : ""}
     ${
       t.how
@@ -478,7 +481,7 @@ function advTitles(a) {
   const coll = t.collect.map((c) => titlePlate({ ...c, equip: "" }, "Collect", "")).join("");
   return win(
     "Titles",
-    "equip bonus per slot, and titles worth collecting for their owned bonus",
+    "the equipped bonus of each slot's title, its owned bonus under it, and titles worth collecting for their owned bonus",
     `<div class="tcols">${cols}</div>${t.note ? `<p class="small faint">${esc(t.note)}</p>` : ""}
      ${coll ? `<h4 class="gold small" style="margin-top:12px">WORTH COLLECTING (owned bonus)</h4><div class="tcollect">${coll}</div>` : ""}`,
     {
@@ -525,7 +528,7 @@ function advSpecialties(a) {
         `${r.skill} · effective Lv ${esc(r.level)}: ${
           r.effects
             .filter((e) => e.selected)
-            .map((e) => `#${esc(e.number)}: ${e.text} (effect Lv ${esc(e.unlock)})`)
+            .map((e) => `#${esc(e.number)}: ${e.text} (effect Lv ${esc(e.unlock)}${e.free ? ", either" : ""})`)
             .join("; ") || "None unlocked/selected"
         }`,
     )
@@ -533,7 +536,7 @@ function advSpecialties(a) {
   return win(
     "Skill specialties",
     "recommended for your imported equipped build",
-    `<p class="small muted">Effective levels include trained, Daevanion and gear bonuses. These are simulated recommendations; the official profile does not show your selected specialties. Stigma effects activate automatically. Recalculate after changing gear or points.</p><table class="t"><tr><th>Skill / effective level</th><th>Recommended specialties</th><th>Next unlock</th></tr>${rows
+    `<p class="small muted">Effective levels include trained, Daevanion and gear bonuses. These are simulated recommendations; the official profile does not show your selected specialties. An effect marked <b>either</b> is one the model cannot tell from the skill's other open effects (a shield, a resource, range): it fills the slot, and the choice is yours. Stigma effects activate automatically. Recalculate after changing gear or points.</p><table class="t"><tr><th>Skill / effective level</th><th>Recommended specialties</th><th>Next unlock</th></tr>${rows
       .map(
         (r) =>
           `<tr><td>${esc(r.skill)} · Lv ${esc(r.level)}<br><span class="small muted">${r.automatic ? "Automatic stigma effects" : esc(r.slots) + " selection slot(s)"}</span></td><td>${
@@ -541,10 +544,10 @@ function advSpecialties(a) {
               .filter((e) => e.selected)
               .map(
                 (e) =>
-                  `<div><b>#${esc(e.number)}</b> ${esc(e.text)} <span class="faint">(effect Lv ${esc(e.unlock)})</span></div>`,
+                  `<div><b>#${esc(e.number)}</b> ${esc(e.text)} <span class="faint">(effect Lv ${esc(e.unlock)}${e.free ? " · either" : ""})</span></div>`,
               )
               .join("") || "None unlocked/selected"
-          }<details><summary>All effects and requirements</summary>${r.effects.map((e) => `<p class="small">#${esc(e.number)} · Lv ${esc(e.unlock)} · ${e.selected ? "Recommended" : e.available ? "Available" : "Locked"}: ${esc(e.text)}</p>`).join("")}</details></td><td>${r.next_effect_level ? "Effect Lv " + esc(r.next_effect_level) : "All effects unlocked"}${r.next_slot_level ? "<br>Selection slot Lv " + esc(r.next_slot_level) : ""}</td></tr>`,
+          }<details><summary>All effects and requirements</summary>${r.effects.map((e) => `<p class="small">#${esc(e.number)} · Lv ${esc(e.unlock)} · ${e.selected ? (e.free ? "Either" : "Recommended") : e.available ? "Available" : "Locked"}: ${esc(e.text)}</p>`).join("")}</details></td><td>${r.next_effect_level ? "Effect Lv " + esc(r.next_effect_level) : "All effects unlocked"}${r.next_slot_level ? "<br>Selection slot Lv " + esc(r.next_slot_level) : ""}</td></tr>`,
       )
       .join("")}</table>`,
     { key: "adv-specialties", copy: text },

@@ -1019,6 +1019,108 @@ notes / `ASSUME` for when one is available, not yet modelled):
 As always this is a diagnostic, not a target: the honest path for any single
 character is calibrating against that player's own captures.
 
+### The Assassin from the log server's uploads (0.2.368)
+
+One global Assassin's ten recordings on the log server hold 51 boss fights, 78.8 minutes of boss time, 39 of
+them kills (Ultimate Berk, Black Smoke Murute, Red Spark Ignus, Kromede's Desire, Neglected Gadioton, Enhanced
+Harcon and Zikel's Apparition the most). The player reported the kit's suggestions and its estimate as wrong,
+and they were: the kit had the class at 55,077 boss DPS with Heart Gore at 7.7 % of the damage, where the
+recordings pool to 53,852 DPS with Heart Gore at 28.8 %, and it knew nothing of what makes that rotation work.
+Each fight counts once however many party members uploaded it; a press is a cluster of the skill's hits less
+than 0.3 s apart (the cast records hold every key press, held keys included, and are no use for cadence).
+
+**What the recordings show.**
+
+* **Crits.** 68 % of the hits crit and 77 % of the damage, but not evenly: 50 % of the hits outside a stagger
+  and 89–98 % inside one, for every skill alike (Heart Gore 96 %, Ambush 96 %, Insignia Explosion 89 %,
+  Exploit Weakness 98 %; Flash Slice, used off the stagger, 50 %). A staggered boss takes critical hits. The
+  engine now lands every hit inside a stagger window as a crit, for every class (`Target.stagger_crit`); the
+  boss scenario's three 8 s windows are 13 % of its 180 s.
+* **Heart Gore** is 28.8 % of the damage, 5,403 hits. Inside an Illusive Clone window its presses come 0.56 s
+  apart (median; q1 0.50, at the player's 31 % Combat Speed), outside 1.99 s (q1 0.61, q3 5.25, its cooldown
+  being 5 s): its Lv 16 option resets the cooldown on a crit, and Illusive Clone removes it. The kit presses it
+  again after `heart_gore_recast` (0.73 s at 0 % Combat Speed) when it is reset, and otherwise waits the
+  expected time, a crit's share of the recast and the rest of the cooldown, so the stat weights stay smooth.
+  Heart Gore crit as often as the other skills, so the Lv 8 "+20 % Critical Hit when less targets hit" either
+  was not taken or does not show on a boss; the kit keeps the tooltip.
+* **Illusive Clone**: 99 windows, 18.0 s long (median; its Lv 20 duration is 20 s), starting 46 s apart (q1 40,
+  q3 52) against its 90 s cooldown less the player's 11.1 % Cooldown Reduction, 80 s. The clone's own hits
+  ("Illusive Clone", 2,005 of them, 4.2 % of the damage) are 7 % of the damage dealt inside its window in
+  every window (median 0.07, q1 0.06, q3 0.07), where the tooltip says 20 %: the kit echoes the measured 7 %
+  (`clone_echo`). Its Lv 20 "50 % chance to deal extra damage on Critical Hit" is the Clone Attack hits, 0.8 %
+  of the damage inside the window (`clone_attack_echo`).
+* **Why the clone comes back every 46 s: Storm Rampage.** Usable only on a staggered boss, it landed 26.7 hits
+  a cast (59 casts, a 3.7 s train, 99 % crits) with its Lv 12 *Multi-Hit on hit*, and its Lv 16 option takes
+  *−1 s all skill cooldowns on hit*: 27 s off every cooldown per stagger. Fights held 0, 1, 2 or 3 casts (17,
+  15, 13 and 6 fights); a second cast came 12 s after the first, never inside the same stagger. Each hit is
+  0.22 of a Heart Gore hit where the tooltip's value stands at 0.69 of one (the other skills' hits match their
+  tooltips: Ambush 1.11 against 1.19 recorded, Triniel's Dagger 2.19 against 2.2, Savage Roar 0.68 against
+  0.65, Determination 0.34 against 0.31), so the kit lands each hit at 0.32 of the tooltip (`storm_rampage_hit`),
+  13.4 hits a cast and twice that with Multi-Hit, once a stagger. Its damage is 1.8 % of the recorded total;
+  its cooldown pull is the point. The same pull shows on Triniel's Dagger (presses 37.4 s apart against its
+  40 s) and Savage Fang (47.9 s against 53.4 s).
+* **Triniel's Dagger Lv 10** takes a tenth off every cooldown on hit (`Sim.reduce_cds_by_share`), **Swift
+  Contract Lv 10 and 15** raise Rear Smite and Assault Stance by half for its duration; the player ranks
+  Illusive Clone 20, Triniel's Dagger 10, Swift Contract 15 and Savage Fang 15 in that order, and the stigma
+  search now agrees with the first three (below).
+* **Savage Roar's chain.** The chain records open Savage Back Kick after Savage Roar (567 chains) and Savage
+  Smash after the Back Kick (548); a Savage Fang opens nothing. Per Roar press (505): 3.65 Back Kick hits at
+  0.30 of a Roar hit and 1.58 Smash hits at 0.71, together 1.10 and 1.12 times the Roar's damage, the Back Kick
+  0.40 s after the Roar's hit, the Smash 0.79 s after that and the next skill 0.34 s later. The Roar is pressed
+  once per 8 s of boss time, in bursts 2.3 s apart. The kit's Roar carries both steps and their time (1.5 s at
+  0 % Combat Speed on top of the Roar's 0.63) on an 8 s cadence (`roar_chain`, `savage_roar_cadence`); the
+  chain the kit had after Savage Fang is gone.
+* **Exploit Weakness's clones**: 4,249 hits named after the passive, 2.5 % of the damage, in bursts of one to
+  four (mean 1.55), each 0.11 of a Heart Gore hit, as its tooltip says (a {4} % chance on a crit, once a
+  second, "up to 5 clones" each dealing {5}); 3,091 of them inside Illusive Clone windows, whose Lv 15 option
+  raises the passive by half. The kit procs them on crits (`exploit_clone_hits`).
+* **Determination**: 14 hits a minute at 0.31 of a Heart Gore hit, 1.7 %. **Insignia Explosion**: 851 presses
+  3.5 s apart (its 10 s cooldown less 3 s at Lv 16, less 1 s per Quick Slice hit at Quick Slice's Lv 12, less
+  the stagger pulls), 1.84 hits a press, 20.8 % of the damage, each hit 2.49 of a Heart Gore hit against 3.04
+  for five Insignia stacks.
+
+**What the kit makes of it now.** The same character imported and scored as the app scores it (its levels,
+the best legal specializations for them, an optimized rotation), against the recordings:
+
+| | Recorded (51 fights) | Model (the character as it is) |
+|---|---|---|
+| Boss DPS | 53,852 pooled; 56,967 the median fight; the best pulls 78,000–83,000 | 85,168 (the rotation) |
+| Critical hits | 50 % of the hits outside a stagger, 89–98 % inside | 46.5 % chance; every hit in a stagger |
+| Heart Gore | 28.8 % | 25.1 % |
+| Insignia Explosion | 20.8 % | 16.2 % |
+| Quick, Swift and Breaking Slice | 17.9 % | 12.5 % |
+| Savage Roar with Savage Back Kick and Savage Smash | 6.5 % | 5.4 % |
+| Illusive Clone (and its Clone Attack) | 4.2 % (1.1 %) | 3.4 % (0.4 %) |
+| Ambush | 3.9 % | 4.0 % |
+| Ambush Stance | 3.4 % | 5.8 % |
+| Exploit Weakness's clones | 2.5 % | 0.9 % |
+| Triniel's Dagger | 2.0 % | 3.1 % |
+| Storm Rampage | 1.8 % | 3.7 % |
+| Determination | 1.7 % | 3.1 % |
+| Flash Slice | 1.4 % | 2.2 % |
+| Savage Fang | 1.2 % | 1.4 % |
+| Shadowstrike | 1.0 % | 1.7 % |
+| Whirlwind Slice, Infiltrate's Dark Strike | not pressed | 3.9 %, 2.8 % |
+
+Before 0.2.368 the same character read 55,077 DPS with Heart Gore at 7.7 %, Illusive Clone, Storm Rampage,
+the Savage Roar chain, Exploit Weakness's clones and Determination absent, and a crit chance of 46.5 % on
+every hit.
+
+The model's rotation is a 180 s boss fight pressed without pause; the recorded fights are 93 s long on average
+with the class's recorded share of not pressing and dodging. The optimizer's build for the same character reads
+94,340 DPS for the rotation (+10.8 % over the character as it is) and 65,380 whole fight; the recordings' pooled
+53,852 sits 18 % under that whole-fight figure, and the player's best pulls, 78,000–83,000 DPS with two short
+ones above 120,000, near the rotation's.
+
+**The suggestions.** Heart Gore's Lv 8, 12 and 16 options, Storm Rampage's Lv 12 and 16 and Shadow Fall's
+Lv 8 cooldown option are now chosen by the model on its own, as the player suggested. The player's other picks
+(Defiance's Lv 8 options, Flash Slice's second use and range, Infiltrate's Stamina and range) change nothing the
+model simulates, so they show as *either*: since 0.2.368 a specialization is marked recommended only when the
+build simulates less damage without it (`kit.specialties.free_marks`). The stigma search stopped at level 15
+and, for a character with more than 75 stigma points, found no pattern that spent them and left the seed in
+place: the player saw 30 of 268 points spent on the least-picked stigmas. It now reaches level 20
+(`opt.pipeline.stigma_patterns`) and, for this character's 168 points, spends them on Illusive Clone 16, Swift Contract 20, Triniel's Dagger 10 and Savage Fang 15 (the player runs 20, 15, 12 and 15; the model values Illusive Clone's last four levels, 2.5 s of duration and the 0.8 % Clone Attack, below Swift Contract's Lv 20 Combat Speed).
+
 ## Optimization and macro planning
 
 `aion2calc/opt/pipeline.py` alternates, accepting only improvements:

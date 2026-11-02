@@ -456,6 +456,27 @@ function winOverview(v) {
         `<tr><td>${esc(k)}</td><td style="width:55%"><div class="bar"><i style="width:${(100 * x) / Math.max(...Object.values(v.shares))}%"></i><span>${pct(x)}</span></div></td></tr>`,
     )
     .join("");
+  // Healing share (0.2.368): the model has no heal amounts, so this is the character's recorded healing, pooled
+  // per skill from the fights saved on this computer; the damage share beside it is the model's.
+  const heal = v.healing && v.healing.shares && Object.keys(v.healing.shares).length ? v.healing : null;
+  const hmax = heal ? Math.max(...Object.values(heal.shares)) : 1;
+  const hs = heal
+    ? Object.entries(heal.shares)
+        .slice(0, 12)
+        .map(
+          ([k, x]) =>
+            `<tr><td>${esc(k)}</td><td style="width:55%"><div class="bar"><i style="width:${(100 * x) / hmax}%"></i><span>${pct(x)}</span></div></td></tr>`,
+        )
+        .join("")
+    : "";
+  const healBox =
+    v.healing === undefined
+      ? ""
+      : `<div><h4 class="gold small">HEALING SHARE</h4>${
+          heal
+            ? `<p class="small muted">Recorded: ${n0(heal.hps)} HPS over ${heal.fights} fight${heal.fights === 1 ? "" : "s"} (${n0(heal.seconds / 60)} min) in ${heal.recordings} recording${heal.recordings === 1 ? "" : "s"} saved on this computer.</p><table class="t">${hs}</table>`
+            : `<p class="small muted">No recorded healing by this character yet. Fights recorded with the live meter on this computer fill this in; the model simulates no healing amounts.</p>`
+        }</div>`;
   return win(
     "Overview",
     esc(v.loadout_name || ""),
@@ -483,7 +504,7 @@ function winOverview(v) {
       survivalSummary(v.survival) +
       skillReserveSummary(v.skill_reserves) +
       `<div class="grid2" style="margin-top:14px"><div><h4 class="gold small">STAT PRIORITY (DPS PER UPGRADE)</h4><table class="t">${w || `<tr><td data-weight-status>${v.weight_job ? "Calculating stat priority…" : "Stat priority is unavailable for this build."}</td></tr>`}</table>${v.scoring_policy ? '<p class="small muted">Weighted upgrade gains with the saved rotation held fixed; timing is not re-optimized.</p>' : ""}</div>
-     <div><h4 class="gold small">DAMAGE SHARE</h4><table class="t">${sh}</table></div></div>`,
+     <div><h4 class="gold small">DAMAGE SHARE</h4><table class="t">${sh}</table></div>${healBox}</div>`,
     { key: "overview" },
   );
 }

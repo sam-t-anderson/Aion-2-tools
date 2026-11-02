@@ -148,3 +148,66 @@ def test_a_row_effect_marks_the_top_row_or_your_own_and_holds_still_when_motion_
     assert page.evaluate("getComputedStyle(document.querySelector('.ov-cos-rainbow .ovnametext')).animationName") == "none"
     open_overlay(page, app_url, fight("Seraphel"))
     assert page.evaluate(cosmetics) == ["", "", ""]
+
+
+def test_a_poll_that_only_moves_the_numbers_keeps_the_rows_and_their_effect(app_page, app_url):
+    """0.2.368: every poll of a live fight used to rebuild the rows, which restarted a row's animated effect each
+    time; the rows stay when only the numbers changed, and the numbers are written into them."""
+    page = app_page
+    open_overlay(page, app_url, fight("Nyxara"), overlay_top_cosmetic="gold", overlay_me_cosmetic="rainbow", performance_mode=True)
+    page.evaluate("[...document.querySelectorAll('#ovcontent .ovrow')].forEach((r, i) => (r.dataset.kept = String(i)))")
+    moved = fight("Nyxara")
+    for i, p in enumerate(moved["snapshot"]["players"]):
+        p["dps"] += 1000 * (i + 1)
+        p["damage"] = p["dps"] * 80
+    moved["snapshot"]["duration"] = moved["snapshot"]["recorded_duration"] = 80.0
+    page.ov_meter = moved
+    page.wait_for_function("document.querySelector('#ovcontent .ovrate').getAttribute('data-target') === '24400'")
+    assert page.evaluate("[...document.querySelectorAll('#ovcontent .ovrow')].map(r => r.dataset.kept)") == ["0", "1", "2"]
+    assert page.evaluate("[...document.querySelectorAll('#ovcontent .ovrow')].map(r => [...r.classList].filter(c => c.startsWith('ov-cos-')).join(' '))") == ["ov-cos-gold", "ov-cos-rainbow", ""]
+    assert page.evaluate("document.querySelector('#ovcontent .ovrow .ovbar .sub').textContent").startswith("1.95M")
+    # a new player in the list is a structural change: the rows are drawn again
+    joined = fight("Nyxara")
+    joined["snapshot"]["players"].append({**joined["snapshot"]["players"][0], "id": "9", "key": "9", "name": "Lysithea", "class": "templar", "dps": 100, "damage": 7500})
+    page.ov_meter = joined
+    page.wait_for_function("document.querySelectorAll('#ovcontent .ovrow').length === 4")
+    assert page.evaluate("document.querySelector('#ovcontent .ovrow').dataset.kept") is None
+
+
+def test_a_click_anywhere_on_a_row_opens_the_players_panel(app_page, app_url):
+    """The row's bar used to toggle the older per-skill breakdown inside the row (0.2.364: only the name opened the
+    panel); the panel is the breakdown now, in every background mode."""
+    page = app_page
+    open_overlay(page, app_url, fight(), overlay_bg_mode="top")
+    page.locator("#ovcontent .ovrow").nth(1).locator(".ovbar").click()
+    page.wait_for_function("!document.querySelector('#ovdetail').hidden")
+    assert page.locator("#ovdetail .ovdname").inner_text() == "Nyxara"
+    assert page.locator("#ovcontent .ovrow.ovrow-open").count() == 0            # no in-row breakdown opened
+    page.locator("#ovcontent .ovrow").nth(1).locator(".ovbar").click()           # the same row again closes it
+    page.wait_for_function("document.querySelector('#ovdetail').hidden")
+
+
+def test_the_transparent_modes_tell_the_host_which_rectangles_the_page_draws(app_page, app_url):
+    """In the native window the host paints an opaque card-coloured surface, so the page's clear card alone
+    showed no change (0.2.364 to 0.2.367). In the *top* and *none* modes the page now reports the rectangles it
+    draws (the header panel, each row, the pieces under the rows, in device px) and the host clips its window to
+    them; the card mode reports null, the whole window."""
+    page = app_page
+    page.add_init_script("""window.__shapes = []; window.pywebview = { platform: "edgechromium",
+        api: new Proxy({}, { get: (t, name) => (...args) => { if (name === "set_window_shape") window.__shapes.push(args[0]); return Promise.resolve(); } }) };""")
+    open_overlay(page, app_url, fight(), overlay_bg_mode="top")
+    page.wait_for_function("window.__shapes.length && window.__shapes[window.__shapes.length - 1] !== null")
+    rects = page.evaluate("window.__shapes[window.__shapes.length - 1]")
+    rows = page.evaluate("[...document.querySelectorAll('#ovcontent .ovrow')].map(r => { const b = r.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })")
+    top_h = page.evaluate("parseFloat(document.querySelector('.ovcard').style.getPropertyValue('--ov-top-h'))")
+    assert rects[0][1] == 0 and abs(rects[0][3] - top_h) < 1                     # the header panel, from the card's top
+    for left, top, right, bottom in rows:                                        # every row, with a little room around it
+        assert any(l <= left and t <= top and r >= right and b >= bottom for l, t, r, b in rects[1:])
+    assert all(r[3] <= top_h + 1 or r[1] >= top_h - 4 for r in rects[1:])        # nothing inside the panel reported again (rows get 3 px of room)
+    open_overlay(page, app_url, fight(), overlay_bg_mode="none")
+    page.wait_for_function("window.__shapes.length && Array.isArray(window.__shapes[window.__shapes.length - 1]) && window.__shapes[window.__shapes.length - 1].length > 5")
+    rects = page.evaluate("window.__shapes[window.__shapes.length - 1]")
+    head = page.evaluate("(() => { const b = document.querySelector('.ovhd').getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })()")
+    assert any(l <= head[0] and t <= head[1] and r >= head[2] and b >= head[3] for l, t, r, b in rects)   # the header on its own
+    open_overlay(page, app_url, fight())
+    page.wait_for_function("window.__shapes[window.__shapes.length - 1] === null")

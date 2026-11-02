@@ -449,6 +449,15 @@ def planner_presets() -> list[dict]:
     return sorted(chosen.values(), key=lambda row: (row["class"] != "sorcerer", row["class"], row["mode"]))
 
 
+def _recorded_healing(imp) -> dict | None:
+    """The character's healing share from the fights saved on this computer (the model has no heal amounts)."""
+    from ..combat.healing_share import recorded_healing
+    try:
+        return recorded_healing(imp.name, getattr(imp, "server", None))
+    except Exception:                      # noqa: BLE001 - the overview never fails on the recordings
+        return None
+
+
 def character_view(imp, evaluation: dict | None = None) -> dict:
     """An imported character in the same windows as the planner, plus its real gear details."""
     cd = ClassData(imp.cls)
@@ -500,4 +509,5 @@ def character_view(imp, evaluation: dict | None = None) -> dict:
         "profile_stats": sysm.get("profile_stats"),
         "stats": (evaluation or {}).get("stats"), "weights": weights[:12], "policy": (evaluation or {}).get("policy"),
         "shares": (evaluation or {}).get("shares"),
+        "healing": _recorded_healing(imp),
     }
