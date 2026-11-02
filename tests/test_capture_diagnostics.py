@@ -179,4 +179,4 @@ def test_overlay_host_rounds_the_corners_the_page_reports_and_keeps_square_ones_
     drawing2d.GraphicsPath = broken                                                     # the rounded shape cannot be built
     api.set_window_shape([[0, 0, 340, 28, 7], [0, 32, 340, 60]])
     assert [part.box for part in native.Region.parts] == [(0, 0, 340, 28), (0, 32, 340, 28)]   # square corners, same pieces
-    assert written and "square corners" in written[0]
+    assert any("square corners" in line for line in written)

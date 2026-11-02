@@ -1,10 +1,11 @@
-# Temporary, removed before merge: runs tools/overlay_window_probe.py on a Windows desktop.
+# Temporary, removed before merge: runs the overlay window probes on a Windows desktop.
 name: Overlay window probe
 
 on:
   push:
     branches: ["claude/sorcerer-l45-build-rotation-qqllwa"]
-    paths: [".github/workflows/overlay-probe.yml", "tools/overlay_window_probe.py", "aion2calc/overlay.py"]
+    paths: [".github/workflows/overlay-probe.yml", "tools/overlay_window_probe.py", "tools/overlay_e2e_probe.py",
+            "aion2calc/overlay.py"]
 
 permissions:
   contents: read
@@ -12,20 +13,31 @@ permissions:
 jobs:
   probe:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: pip install pywebview pillow websocket-client
-      - name: Probe, default browser flags
-        run: python tools/overlay_window_probe.py --out probe-out --name default
+      - run: pip install -e . pywebview pillow websocket-client
+      - name: Window probe, light theme
+        run: python tools/overlay_window_probe.py --out probe-out --name light
         timeout-minutes: 4
-      - name: Probe, GPU compositing forced on WARP
+      - name: Real app and overlay, light theme
         if: ${{ !cancelled() }}
-        run: python tools/overlay_window_probe.py --out probe-out --name warp --extra-args "--ignore-gpu-blocklist --use-angle=d3d11-warp"
+        run: python tools/overlay_e2e_probe.py probe-out e2e-light none,top,card
+        timeout-minutes: 6
+      - name: Dark app theme
+        if: ${{ !cancelled() }}
+        run: reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 0 /f
+      - name: Window probe, dark theme
+        if: ${{ !cancelled() }}
+        run: python tools/overlay_window_probe.py --out probe-out --name dark
         timeout-minutes: 4
+      - name: Real app and overlay, dark theme
+        if: ${{ !cancelled() }}
+        run: python tools/overlay_e2e_probe.py probe-out e2e-dark none,top
+        timeout-minutes: 6
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:

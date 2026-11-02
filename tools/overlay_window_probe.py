@@ -211,6 +211,24 @@ def run():
             native.Region = api._shape_region(rounded=True)
         ui(color_key_region)
         sample("v6_color_key_plus_region", hwnd)
+
+        class MARGINS(ctypes.Structure):
+            _fields_ = [("l", ctypes.c_int), ("r", ctypes.c_int), ("t", ctypes.c_int), ("b", ctypes.c_int)]
+
+        def glass():
+            native.Region = None
+            native.TransparencyKey = Color.Empty
+            native.BackColor = Color.Black
+            native.webview.DefaultBackgroundColor = Color.FromArgb(0, 0, 0, 0)
+            result = ctypes.windll.dwmapi.DwmExtendFrameIntoClientArea(ctypes.c_void_p(hwnd),
+                                                                      ctypes.byref(MARGINS(-1, -1, -1, -1)))
+            log("DwmExtendFrameIntoClientArea", hex(result & 0xFFFFFFFF))
+        ui(glass)
+        sample("v7_glass_translucent_no_region", hwnd)
+        ui(lambda: setattr(native, "Opacity", 1.0))
+        sample("v8_glass_opaque_no_region", hwnd)
+        ui(lambda: setattr(native, "Region", api._shape_region(rounded=True)))
+        sample("v9_glass_opaque_plus_region", hwnd)
     except Exception as err:
         log("probe failed", f"{type(err).__name__}: {err}")
         import traceback

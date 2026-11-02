@@ -540,6 +540,14 @@ class _OverlayAPI:
         # an opaque card-coloured window (see _configure_windows), which is why the page's transparent card
         # alone changed nothing on screen. None = the whole window.
         self._shape = None
+        # What overlay.log last said of the shape and when it said it, so a shape that changes every poll (a
+        # readout that grew a digit) is logged when its kind changes, at most six times a minute. Whether the
+        # page's background is clear (see _clear_page) and the last region Windows reported holding.
+        self._shape_said, self._shape_said_times = None, []
+        self._shape_errors_said_at = 0.0
+        self._page_clear = None
+        self._region_said = None
+        self._user32_dll = None
         # The watchdog's state (overlay_health): whether the tracking loop has the window shown, a
         # WebView2 process failure waiting to be acted on, reloads the app asked for, and whether the
         # process is ending to be started again.
@@ -620,22 +628,120 @@ class _OverlayAPI:
                         corner = min(int(radius + 0.5), (box[2] - box[0]) // 2, (box[3] - box[1]) // 2) if radius > 0 else 0
                         parsed.append(box + (corner,) if corner > 0 else box)
         self._shape = tuple(parsed) if rects is not None and parsed else None
+        self._say_shape()
         if self._windows_ready:
             try:
                 self._on_ui(self._apply_shape)
-            except Exception:
-                pass
+            except Exception as err:   # logged, at most every 30 s: a shape that fails fails on every poll
+                now = time.monotonic()
+                if now - self._shape_errors_said_at >= 30:
+                    self._shape_errors_said_at = now
+                    self.log.write(f"window shape not applied: {type(err).__name__}: {err}")
+
+    def _say_shape(self):
+        """One overlay.log line when the shape's kind changes (the whole window, or how many pieces, with the box
+        around them), at most six a minute (0.2.371): the log says what the window was cut to, the first evidence
+        when the game does not show between the pieces. A change held back by the limit is said at the next call
+        after it, since the kind it would have recorded is left unrecorded."""
+        shape = self._shape
+        kind = f"{len(shape)} piece{'s' if len(shape) != 1 else ''}" if shape else "the whole window"
+        if kind == self._shape_said:
+            return
+        now = time.monotonic()
+        self._shape_said_times = [t for t in self._shape_said_times if now - t < 60]
+        if len(self._shape_said_times) >= 6:
+            return
+        self._shape_said_times.append(now)
+        self._shape_said = kind
+        box = f" within [{min(p[0] for p in shape)}, {min(p[1] for p in shape)}, {max(p[2] for p in shape)}, " \
+              f"{max(p[3] for p in shape)}]" if shape else ""
+        self.log.write(f"window shape: {kind}{box}")
 
     def _apply_shape(self):
         native = self._window.native
         if not self._shape:
             native.Region = None
+        else:
+            try:
+                native.Region = self._shape_region(rounded=True)
+            except Exception as err:   # rounded corners are a nicety: never lose the shape over them
+                self.log.write(f"rounded window shape failed ({type(err).__name__}: {err}); using square corners")
+                native.Region = self._shape_region(rounded=False)
+        # The region first: the two steps after it only add to it, and a host that cannot take them keeps it.
+        self._clear_page(bool(self._shape))
+        self._check_region(bool(self._shape))
+
+    def _clear_page(self, clear):
+        """While the window has a shape, the WebView2 control draws nothing where the page draws nothing (0.2.371):
+        its default background goes from the host colour to clear. Where Windows clips the whole window to the
+        region this changes nothing on screen; where the region left the browser's own surface whole, that surface
+        filled the window's rectangle around the pieces with the host colour, a dark box behind the see-through
+        modes. The host window's colour stays behind the page, inside the region."""
+        if clear == self._page_clear:
             return
+        self._page_clear = clear      # asked once per change: a host that cannot do it is not asked every poll
         try:
-            native.Region = self._shape_region(rounded=True)
-        except Exception as err:   # rounded corners are a nicety: never lose the shape over them
-            self.log.write(f"rounded window shape failed ({type(err).__name__}: {err}); using square corners")
-            native.Region = self._shape_region(rounded=False)
+            from System.Drawing import Color
+            self._window.native.webview.DefaultBackgroundColor = Color.Transparent if clear else Color.FromArgb(27, 32, 42)
+        except Exception as err:
+            self.log.write(f"the page's background stays as it was ({type(err).__name__}: {err})")
+
+    def _user32(self):
+        if self._user32_dll is None:
+            self._user32_dll = ctypes.WinDLL("user32", use_last_error=True)
+            self._user32_dll.GetWindowRgnBox.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+            self._user32_dll.SetWindowRgn.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
+        return self._user32_dll
+
+    def _region_held(self, hwnd):
+        """The region Windows holds for the window (GetWindowRgnBox): whether there is one, and its box."""
+        box = (ctypes.c_long * 4)()
+        kind = self._user32().GetWindowRgnBox(ctypes.c_void_p(hwnd), box)
+        return kind in (2, 3), list(box)
+
+    def _check_region(self, expected):
+        """Read back the region Windows holds for the window and log it when that changes (0.2.371). A shape that
+        left no region behind is set again through user32 directly, in case the WinForms property did not reach
+        the window."""
+        try:
+            hwnd = self._window.native.Handle.ToInt64()
+            held, box = self._region_held(hwnd)
+        except Exception as err:
+            if self._region_said != "unread":
+                self._region_said = "unread"
+                self.log.write(f"the window region could not be read back ({type(err).__name__}: {err})")
+            return
+        note = ""
+        if expected and not held:
+            try:
+                self._raw_region(hwnd)
+                held, box = self._region_held(hwnd)
+                note = " after setting it again through user32"
+            except Exception as err:
+                note = f"; setting it through user32 failed ({type(err).__name__}: {err})"
+        state = (expected, held)
+        if state != self._region_said:
+            self._region_said = state
+            said = f"within {box}" if held else "none" + (" although the page sent a shape" if expected else ", the whole window")
+            self.log.write(f"window region: {said}{note}")
+
+    def _raw_region(self, hwnd):
+        """The shape's union as a GDI region, handed to the window with SetWindowRgn (the window owns it after)."""
+        gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
+        for fn in (gdi32.CreateRectRgn, gdi32.CreateRoundRectRgn):
+            fn.restype = ctypes.c_void_p
+        gdi32.CombineRgn.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
+        gdi32.DeleteObject.argtypes = [ctypes.c_void_p]
+        combined = gdi32.CreateRectRgn(0, 0, 0, 0)
+        for piece in self._shape:
+            l, t, r, b = piece[:4]
+            corner = piece[4] if len(piece) == 5 else 0
+            part = gdi32.CreateRoundRectRgn(l, t, r + 1, b + 1, 2 * corner, 2 * corner) if corner else gdi32.CreateRectRgn(l, t, r, b)
+            gdi32.CombineRgn(combined, combined, part, 2)   # RGN_OR
+            gdi32.DeleteObject(part)
+        if not self._user32().SetWindowRgn(ctypes.c_void_p(hwnd), combined, 1):
+            gdi32.DeleteObject(combined)
+            raise OSError(ctypes.get_last_error(), "SetWindowRgn refused the region")
 
     def _shape_region(self, rounded):
         """The union of the shape's rectangles as a System.Drawing.Region, a rectangle with a corner radius as a
@@ -700,8 +806,37 @@ class _OverlayAPI:
 
         self._on_ui(configure)
         self._windows_ready = True
+        self.log.write(f"window set up ({self._host_facts()}), opacity {self._opacity:.2f}")
         if self._shape:
             self._on_ui(self._apply_shape)
+
+    def _host_facts(self):
+        """What overlay.log needs to tell one player's window from another's (0.2.371): the pywebview and Windows
+        versions, the window's DPI and whether Windows runs apps dark (pywebview then asks for a dark frame and a
+        Mica backdrop on the window)."""
+        facts = []
+        try:
+            from importlib.metadata import version
+            facts.append(f"pywebview {version('pywebview')}")
+        except Exception:
+            pass
+        try:
+            v = sys.getwindowsversion()
+            facts.append(f"Windows {v.major}.{v.minor}.{v.build}")
+        except Exception:
+            pass
+        try:
+            hwnd = self._window.native.Handle.ToInt64()
+            facts.append(f"{ctypes.windll.user32.GetDpiForWindow(ctypes.c_void_p(hwnd))} DPI")
+        except Exception:
+            pass
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize") as key:
+                facts.append("dark apps" if winreg.QueryValueEx(key, "AppsUseLightTheme")[0] == 0 else "light apps")
+        except Exception:
+            pass
+        return ", ".join(facts) or "no details"
 
     def set_opacity(self, value):
         self._opacity = max(0.2, min(1.0, float(value)))
@@ -1080,8 +1215,9 @@ def _run_overlay(window, api, app_base: str | None = None, party: bool = False, 
     if sys.platform == "win32":
         try:
             api._configure_windows()
-        except Exception:
+        except Exception as err:
             _LOG.exception("Could not configure the native Windows overlay")
+            api.log.write(f"window setup failed: {type(err).__name__}: {err}")
         # Opacity/style setup must not disable foreground tracking. native_overlay()
         # is the single platform selector; today only Windows has a supported backend,
         # so on macOS/Linux this stays None and the overlay keeps its fallback.
