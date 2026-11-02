@@ -63,8 +63,8 @@
   const COSMETICS=["none","gold","rainbow","ember","frost","aether","starlight"];
   let detailKey=null, detailBuffs=null, detailExtra=null, detailAt=0, detailBusy=false;
   let bgMode="card", meCosmetic="none", topCosmetic="none";
-  // The see-through modes' compact layout (0.2.370), after NotMeter's: a target card on top, the rows as pills, and
-  // the fight clock, the ping and an icon toolbar under them. The whole-card mode keeps its own layout.
+  // The meter's compact layout (0.2.370), after NotMeter's: a target card on top, the rows as pills, and the fight
+  // clock, the ping and an icon toolbar under them, in every background mode; the party and radar windows keep theirs.
   let nmMode=false;
   // The compact layout's numbers: a rate in full digits (591,924) below ten million, a short one-decimal form for
   // HP and combat power (186.5M, 634.4K), and the fight's time as mm:ss.
@@ -229,11 +229,12 @@
     bgMode=["card","top","none"].includes(ui.overlay_bg_mode)?ui.overlay_bg_mode:"card";
     document.getElementById('ov').classList.toggle('ov-bg-top',bgMode==="top");
     document.getElementById('ov').classList.toggle('ov-bg-none',bgMode==="none");
-    nmMode=bgMode!=="card"&&!partyMode&&!radarMode;
+    nmMode=!partyMode&&!radarMode;
     document.getElementById('ov').classList.toggle('ov-nm',nmMode);
+    document.getElementById('ov').classList.toggle('ov-whole',nmMode&&bgMode==="card");   // the card behind all of it
     if(!nmMode){document.getElementById('ov').classList.remove('ov-tools-open');const ob=$("#ovsettings");if(ob)ob.setAttribute("aria-expanded","false");}
     // The compact layout carries the metric chip at the head of the toolbar, so the two stay together when the footer
-    // wraps; the whole card keeps the metric row under its header, where the markup has it.
+    // wraps; the older layout (the party and radar windows) keeps the metric row under its header, where the markup has it.
     const hd=$(".ovhd"), mt=$("#ovmetrics");
     if(hd&&mt){if(nmMode&&mt.parentElement!==hd)hd.prepend(mt);else if(!nmMode&&mt.parentElement===hd)hd.after(mt);}
     // In the compact layout only the chosen metric shows, as a chip that moves to the next metric on a click.
@@ -451,7 +452,15 @@
   // covers a host that has the bridge in place before the page's script runs.
   window.addEventListener("pywebviewready", nativeInit);
   if (window.pywebview?.api?.fit) nativeInit();
-  new ResizeObserver(fit).observe($("#ov"));
+  // The window's outline follows the card's size however it changed (a poll, a click, a resize drag, the plan's
+  // arena): the host cuts the window to the outline it was last sent, so a stale one would clip a card that grew.
+  let shapeQueued = false;
+  function shapeSoon() {
+    if (shapeQueued) return;
+    shapeQueued = true;
+    requestAnimationFrame(() => { shapeQueued = false; measureTop(); });
+  }
+  new ResizeObserver(() => { fit(); shapeSoon(); }).observe($("#ov"));
 
   // These events must not bubble into pywebview's card drag handler.
   document.querySelectorAll("button, input, label").forEach((control) => {
@@ -848,7 +857,7 @@
   // The compact layout's target card (0.2.370): the portrait (a target mark where the game's art is unknown), the name
   // with the count of others struck, the HP left in damage units where the community has measured it and the HP share,
   // then the HP, time-to-kill and break bars inside the card, the time-to-kill and break readouts under them. The same
-  // readouts and settings as the whole card's target panel.
+  // readouts and settings as the older layout's target panel.
   function targetCard(target, portraitUrl, also, hpTip, ttk, gaugeText, gaugePct){
     const img=portraitUrl?`<img class="ovtportimg" width="34" height="34" referrerpolicy="no-referrer" src="${esc(window.A2AssetHealth?A2AssetHealth.source(portraitUrl):portraitUrl)}" alt="" onerror="this.remove()">`:'';
     const hpKnown=showEnemyHp&&target.hp_pct!=null, pct=hpKnown?Math.max(0,Math.min(100,target.hp_pct*100)):0;
@@ -915,12 +924,13 @@
   $("#ovdetail")&&$("#ovdetail").addEventListener("click",e=>{if(e.target.closest("[data-close]"))openDetail(null);});
   // In the top-background mode the panel behind the header ends where the player rows begin: measured after
   // each render, so a target panel coming or going moves it.
-  // The Odyle, Shugo and Nightmare lines in the see-through modes (0.2.369): one row of full lines when the card is
-  // wide enough for all of them, one row of icons with the counts when it is not; the card mode stacks them.
+  // The Odyle, Shugo and Nightmare lines in the compact layout (the see-through modes since 0.2.369, the whole card
+  // since 0.2.370): one row of full lines when the card is wide enough for all of them, one row of icons with the
+  // counts when it is not; the older layout stacks them.
   function compactLines(){
     const ov=$("#ov"), card=$(".ovcard"); if(!ov||!card)return;
     ov.classList.remove("ov-lines-row","ov-lines-icons");
-    if(bgMode==="card")return;
+    if(!nmMode)return;
     const lines=["#ovodyle","#ovshugo","#ovnightmare"].map(id=>$(id)).filter(el=>el&&!el.hidden);
     if(!lines.length)return;
     ov.classList.add("ov-lines-row");
@@ -937,16 +947,25 @@
   }
   // The native host paints an opaque window behind the page, so a transparent card alone shows nothing of the
   // game: in the "top portion only" and "none" modes the page reports the rectangles it draws (device px, like
-  // the control rects) and the host clips its window to them. In the card mode the whole window is drawn.
+  // the control rects) and the host clips its window to them. In the card mode the window is the card: its
+  // rounded outline in the meter's compact layout (0.2.370), the whole window in the party and radar windows.
   function reportShape(){
     const card=$(".ovcard"), api=nativeReady&&window.pywebview?.api;
     if(!card||!api||typeof api.set_window_shape!=="function")return;   // no host yet: nativeInit asks again once it is up
-    if(bgMode==="card"){if(lastShape!=="card"){lastShape="card";nativeCall("set_window_shape",null);}return;}
     // The compact layout's pieces each paint their own rounded background, so the window takes their exact outline,
     // the corner radius riding along as a fifth number (device px, 0.2.370); before it, 3 px of room around each.
     const dpr=window.devicePixelRatio||1, pad=nmMode?0:3, rects=[];
     const corner=(el,pseudo)=>nmMode?Math.round((parseFloat(getComputedStyle(el,pseudo).borderTopLeftRadius)||0)*dpr):0;
     const shape=(box,c)=>c>0?[...box,c]:box;
+    if(bgMode==="card"){
+      // The whole card: the window is the card, its corners rounded like the card's in the compact layout; the
+      // party and radar windows, square, keep the whole window.
+      const box=card.getBoundingClientRect(), c=corner(card);
+      const whole=c>0?[shape([box.left*dpr,box.top*dpr,box.right*dpr,box.bottom*dpr],c)]:null;
+      const key="card:"+(whole?whole[0].map(Math.round).join(","):"");
+      if(key!==lastShape){lastShape=key;nativeCall("set_window_shape",whole);}
+      return;
+    }
     const add=el=>{const r=el.getBoundingClientRect();if(r.width>0&&r.height>0)rects.push(shape([(r.left-pad)*dpr,(r.top-pad)*dpr,(r.right+pad)*dpr,(r.bottom+pad)*dpr],corner(el)));};
     const top=card.getBoundingClientRect();
     if(bgMode==="top"){const h=parseFloat(card.style.getPropertyValue("--ov-top-h"))||0;if(h>0)rects.push(shape([top.left*dpr,top.top*dpr,top.right*dpr,(top.top+h)*dpr],corner(card,"::before")));}

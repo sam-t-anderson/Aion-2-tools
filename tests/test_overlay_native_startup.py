@@ -24,9 +24,10 @@ def test_everything_native_init_reads_is_declared_before_the_startup_call():
     for name in ("radarSetting", "radarOn", "radarTimer", "radarBusy", "clickThrough", "op", "nativeReady"):
         declaration = re.search(r"\b(?:let|const|var)\b[^;\n]*\b" + name + r"\s*=", JS)
         assert declaration and declaration.start() < startup, f"{name} must be declared before nativeInit() can run"
-    # The observer that keeps the native window fitted to the card comes after the startup call: an
-    # exception there would leave the window at its first size.
-    assert JS.index("new ResizeObserver(fit).observe") > startup
+    # The observer that keeps the native window fitted to the card, and since 0.2.370 its outline following the
+    # card, comes after the startup call: an exception there would leave the window at its first size.
+    observer = re.search(r"new ResizeObserver\(\(\) => \{ fit\(\); shapeSoon\(\); \}\)\.observe", JS)
+    assert observer and observer.start() > startup
 
 
 BRIDGE = """
@@ -67,6 +68,7 @@ def test_the_page_starts_without_errors_in_the_native_host(tmp_path, monkeypatch
             page.wait_for_timeout(2500)
             fits = page.evaluate("window.__fits")
             height = page.evaluate("document.getElementById('ov').getBoundingClientRect().height")
+            compact = page.evaluate("document.getElementById('ov').classList.contains('ov-nm')")
             up = page.evaluate("window.A2OverlayUp")
             browser.close()
     finally:
@@ -75,4 +77,8 @@ def test_the_page_starts_without_errors_in_the_native_host(tmp_path, monkeypatch
     assert up == "ready"
     assert fits and abs(fits[-1][1] - height) <= 2          # the last fit matches the card's height
     if view == "meter":
-        assert height > 120                                 # header, metrics, options, status, ping and the footer
+        # the compact layout (0.2.370) came up: a status line over the ping and the toolbar; a page whose script
+        # never ran would show the older markup, taller, so the class says the script got this far
+        assert compact and height > 60
+    else:
+        assert not compact                                  # the party and radar windows keep the older layout

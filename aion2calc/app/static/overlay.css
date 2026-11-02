@@ -433,16 +433,17 @@ html.native-windows #ov.ov-bg-top .ovcard::before { background: rgb(27, 32, 42);
 #ov.ov-ac-blend .ovcard { isolation: isolate; }
 #ov.ov-ac-blend :is(.ovsub, .ovname, .ovactor, .ovbar span, .ovrow .sub,
   .ovrank, .ovcrank, .ovdead, .ovtarget, .ovtarget *, .ovidentity, .ovping, .ovodyle, .ovcontribution,
-  .ovdummy, .ovdummy *, .ovevents, .ovevents *, .ovpstat .ovplabel, .ovpstat .ovpval, .ovfps,
+  .ovdummy, .ovdummy *, .ovevents, .ovevents *, .ovpstat .ovplabel, .ovpstat .ovpval, .ovfps, .ovclock,
   .muted, .ovbrand) { mix-blend-mode: difference; }
 
-/* The see-through modes' compact layout (0.2.370), after NotMeter's meter: a target card on top (the counters, the
-   target's portrait, name, HP and bars), the player rows as pills of their own, and the fight clock, the ping and an
-   icon toolbar under them; the pet grouping and the opacity slider fold away behind the toolbar's Options button.
-   "Top portion only" draws the target card's panel; "None" leaves every piece floating over the game. The Windows
-   window cannot leave text floating with nothing behind it, so there each piece sits on a small dark chip of its own
-   and the window is cut to their outlines (reportShape); elsewhere the pieces float with a shadow. The whole-card
-   mode keeps its own layout: every rule here is under #ov.ov-nm. */
+/* The meter's compact layout (0.2.370), after NotMeter's meter: a target card on top (the counters, the target's
+   portrait, name, HP and bars), the player rows as pills of their own, and the fight clock, the ping and an icon
+   toolbar under them; the pet grouping and the opacity slider fold away behind the toolbar's Options button. The
+   background mode says what has the dark card behind it: "Whole card" all of it (#ov.ov-whole), "Top portion only"
+   the target card's panel, "None" nothing, every piece floating over the game. The Windows window cannot leave text
+   floating with nothing behind it, so there a floating piece sits on a small dark chip of its own and the window is
+   cut to the pieces' outlines (reportShape); elsewhere the pieces float with a shadow. Every rule here is under
+   #ov.ov-nm: the party and radar windows keep the older look. */
 .ovclock, #ovsettings, .ovcp { display: none; }
 #ov.ov-nm { --nm-card: rgba(12, 14, 17, var(--ovbg, .9)); --nm-float: transparent; --nm-row: rgba(10, 12, 15, .55);
   --nm-line: rgba(255, 255, 255, .08); --nm-row-h: calc(var(--ov-row-h, 22px) + 6px); --nm-teal: #63d3e6; --nm-gold: #f1d27c;
@@ -465,6 +466,20 @@ html.native-windows #ov.ov-nm { --nm-card: rgb(12, 14, 17); --nm-float: rgb(14, 
 #ov.ov-nm.ov-halo { --nm-shadow: 0 0 2px var(--ov-halo-color, #e8cf8e), 0 0 6px var(--ov-halo-color, #e8cf8e), 0 0 12px var(--ov-halo-color, #e8cf8e);
   --nm-row-shadow: var(--nm-shadow); }
 #ov.ov-nm .ovcard { padding: 0; }
+/* "Whole card": the card behind all of it, its pieces inset a little; the readouts need no chips of their own. */
+#ov.ov-nm.ov-whole, html.native-windows #ov.ov-nm.ov-whole { --nm-float: transparent; --nm-row: rgba(255, 255, 255, .045); }
+html.native-windows #ov.ov-nm.ov-whole { --nm-row: rgb(22, 25, 30); }
+#ov.ov-nm.ov-whole .ovcard, html.native-windows #ov.ov-nm.ov-whole .ovcard { background: var(--nm-card); border: 1px solid var(--nm-line);
+  border-radius: 12px; box-shadow: 0 10px 28px rgba(0, 0, 0, .45); padding: 4px 8px 8px; }
+html.native-windows #ov.ov-nm.ov-whole .ovcard { box-shadow: none; }
+#ov.ov-nm.ov-whole #ovbg, html.native-windows #ov.ov-nm.ov-whole #ovbg { border-radius: 12px; }
+#ov.ov-nm.ov-whole .ovcard > #ovlines { padding: 5px 2px 0; }
+#ov.ov-nm.ov-whole .ovcard > #ovtarget { padding: 6px 2px 4px; }
+#ov.ov-nm.ov-whole .ovcard > #ovdummy { padding: 0 2px 4px; }
+/* The window is cut to the card here, so the resize grips sit just inside its edges, not on the page's 4 px margin. */
+#ov.ov-nm.ov-whole #ovresize { right: 4px; }
+#ov.ov-nm.ov-whole #ovresize-b { bottom: 4px; }
+#ov.ov-nm.ov-whole #ovresize-c { right: 4px; bottom: 4px; }
 #ov.ov-nm .ovcard > [hidden] { display: none !important; }
 /* The panel behind the top portion ("Top portion only"): the target card. */
 #ov.ov-nm.ov-bg-top .ovcard::before, html.native-windows #ov.ov-nm.ov-bg-top .ovcard::before { background: var(--nm-card);
@@ -478,7 +493,7 @@ html.native-windows #ov.ov-nm.ov-bg-top .ovcard::before { box-shadow: none; }
 #ov.ov-nm.ov-lines-icons .ovlines > .ovodyle { font-size: calc(12px * var(--nm-scale) * var(--ov-ping-fs, 1)); font-weight: 700; }   /* the icon form, larger */
 #ov.ov-nm .ovodyle .ovolb { margin-left: 1px; color: var(--nm-teal); font-weight: 600; }
 /* The target: portrait, name and HP on the first line, the bars under the name, the time-to-kill and break below. */
-#ov.ov-nm .ovcard > #ovtarget { display: flex; flex-wrap: nowrap; align-items: center; gap: 0 8px;
+#ov.ov-nm .ovcard > #ovtarget { display: flex; flex-wrap: nowrap; align-items: center; gap: 0 8px; container-type: inline-size;
   margin: 0; padding: 7px 10px 9px; border: 0; border-radius: 10px; background: transparent; white-space: nowrap; overflow: hidden;
   color: var(--ov-target-color, #f4f6f8); font-size: calc(12px * var(--ov-font-scale, 1) * var(--ov-target-fs, 1)); }
 #ov.ov-nm .ovtarget .ovtport { flex: none; width: 34px; height: 34px; border-radius: 8px; overflow: hidden;
@@ -489,6 +504,7 @@ html.native-windows #ov.ov-nm.ov-bg-top .ovcard::before { box-shadow: none; }
 #ov.ov-nm .ovtarget .ovtwho { flex: 1 1 0; min-width: 0; }
 #ov.ov-nm .ovtarget .ovtname { font-size: 1.12em; font-weight: 700; }
 #ov.ov-nm .ovtarget .ovhpnum { flex: none; color: #a3abb5; font-size: .85em; font-variant-numeric: tabular-nums; }
+@container (max-width: 24em) { #ov.ov-nm .ovtarget .ovhpnum { display: none; } }   /* the HP numbers give way to the name */
 #ov.ov-nm .ovtarget .ovhp { flex: none; margin: 0; color: var(--ov-hp-text-color, #e7ecea); font-size: calc(1.22em * var(--ov-hp-fs, 1)); font-weight: var(--ov-hp-fw, 700); font-variant-numeric: tabular-nums; }
 #ov.ov-nm .ovtarget .ovtbars { display: grid; gap: 3px; margin-top: 4px; }
 #ov.ov-nm .ovtbar { position: relative; display: block; height: 6px; border-radius: 3px; overflow: hidden;
@@ -512,7 +528,10 @@ html.native-windows #ov.ov-nm.ov-bg-top .ovcard::before { box-shadow: none; }
 /* The rows: a pill each, the class colour filling it to the player's share of the top rate, the class emblem, the
    name and combat power, then the rate in full and the share of the total. Your own row's emblem has a green dot. */
 #ov.ov-nm .ovcard > #ovcontent { margin-top: 6px; container-type: inline-size; }
-@container (max-width: 319px) { #ov.ov-nm #ovcontent .ovcp { display: none; } }
+/* Measured in the text's own size (em), so a larger text size gives way sooner: combat power first, then the share,
+   so the name always keeps room beside the rate. */
+@container (max-width: 26.5em) { #ov.ov-nm #ovcontent .ovcp { display: none; } }
+@container (max-width: 20em) { #ov.ov-nm #ovcontent .ovpct { display: none; } }
 #ov.ov-nm .ovrow { min-height: var(--nm-row-h); margin: 0 0 4px; gap: 0; border-radius: 7px; background: var(--nm-row);
   box-shadow: inset 0 0 0 1px var(--nm-line); }
 #ov.ov-nm.ov-stripes .ovrow:nth-child(even) { background: rgba(28, 32, 38, .7); }
@@ -539,7 +558,7 @@ html.native-windows #ov.ov-nm.ov-stripes .ovrow:nth-child(even) { background: rg
 #ov.ov-nm .ovbar > span { gap: 0; padding: 0 9px 0 6px; line-height: var(--nm-row-h); font-size: calc(1.12em * var(--ov-rate-fs, 1));
   text-shadow: var(--nm-row-shadow); }
 #ov.ov-nm .ovbar .sub { display: none; }
-#ov.ov-nm .ovpct { min-width: 3.5em; margin-left: 9px; text-align: right; color: var(--nm-gold); font-size: .84em; font-weight: 800;
+#ov.ov-nm .ovpct { min-width: 3.5em; margin-left: 9px; text-align: right; color: var(--ov-total-text, var(--nm-gold)); font-size: .84em; font-weight: 800;
   font-variant-numeric: tabular-nums; }
 #ov.ov-nm.ov-compact .ovpct { display: none; }
 #ov.ov-nm #ovcontent > .muted { display: inline-block; padding: 4px 9px; border-radius: 7px; background: var(--nm-float); text-shadow: var(--nm-shadow); }
@@ -547,7 +566,7 @@ html.native-windows #ov.ov-nm.ov-stripes .ovrow:nth-child(even) { background: rg
 /* Under the rows: the fight clock and the other readouts as chips, then the ping and the toolbar on a line of their
    own (the card's ::after breaks the line), then the options when they are open. */
 #ov.ov-nm .ovcard::after { content: ""; order: 79; flex: 0 0 100%; height: 0; }
-#ov.ov-nm .ovcard > #ovclock { order: 65; flex: 0 0 auto; display: flex; align-items: center; gap: 8px; max-width: 100%; margin: 4px 6px 0 0;
+#ov.ov-nm .ovcard > #ovclock { order: 65; flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; max-width: 100%; margin: 4px 6px 0 0;
   padding: 3px 9px 3px 6px; border-radius: 7px; background: var(--nm-float); color: #e9edf1; text-shadow: var(--nm-shadow);
   white-space: nowrap; cursor: default; }
 .ovclkbar { flex: none; width: 3px; height: 15px; border-radius: 2px; background: #6b7380; }
@@ -576,6 +595,7 @@ html.native-windows #ov.ov-nm.ov-stripes .ovrow:nth-child(even) { background: rg
 #ov.ov-nm .ovcard > #ovfps:empty { display: none; }
 #ov.ov-nm #ovfps .ovfpsl { display: none; }
 #ov.ov-nm .ovhd > #ovmetrics { order: 0; flex: none; display: flex; margin: 0 2px 0 0; gap: 0; }
+#ov.ov-nm .ovhd > #ovmetrics[hidden] { display: none; }   /* the plan view has no metric */
 #ov.ov-nm #ovmetrics .ovsub, #ov.ov-nm .ovhd #ovmetrics button { display: none; }
 #ov.ov-nm .ovhd #ovmetrics button.on { display: inline-flex; width: auto; height: calc(24px * var(--nm-scale)); padding: 0 7px; border-radius: 6px; color: var(--nm-teal);
   font-size: calc(12px * var(--nm-scale)); line-height: 1; font-weight: 800; letter-spacing: .3px; text-shadow: var(--nm-shadow); }
@@ -583,15 +603,17 @@ html.native-windows #ov.ov-nm.ov-stripes .ovrow:nth-child(even) { background: rg
 #ov.ov-nm .ovhd #ovmetrics button.on:hover { color: #9be7f3; }
 /* The toolbar: the plan (or meter) view, the screenshot lock, a new fight, copy, options, start or stop, and hide,
    each an icon with its old words in the tooltip (and to a screen reader); a colour says how a press went. */
-#ov.ov-nm .ovcard > .ovhd { order: 83; flex: 0 0 auto; display: flex; flex-wrap: nowrap; align-items: center; gap: 0; margin: 6px 0 0 auto;
-  padding: 1px 3px; border-radius: 7px; background: var(--nm-float); color: #c9d1db; text-shadow: var(--nm-shadow);
+#ov.ov-nm .ovcard > .ovhd { order: 83; flex: 0 0 auto; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0;
+  max-width: 100%; margin: 6px 0 0 auto;
+  padding: 1px 3px; border-radius: 7px; background: var(--nm-float); color: var(--ov-header-color, #c9d1db); text-shadow: var(--nm-shadow);
   -webkit-text-fill-color: currentColor; }   /* the retro sheen's clear text fill would hide the metric chip */
 #ov.ov-nm .ovhd::before, #ov.ov-nm .ovhd .ovviewtitle { display: none; }
 #ov.ov-nm .ovhd .ovtabs { display: flex; order: 1; }
 #ov.ov-nm .ovhd .ovtabs button.on { display: none; }
-#ov.ov-nm .ovhd button { --ic: none; flex: none; display: inline-flex; align-items: center; justify-content: center; width: calc(26px * var(--nm-scale)); height: calc(24px * var(--nm-scale));
-  margin: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #c9d1db; font-size: 0; line-height: 0; cursor: pointer; }
-#ov.ov-nm .ovhd button::before { content: ""; width: calc(16px * var(--nm-scale)); height: calc(16px * var(--nm-scale)); background: currentColor;
+#ov.ov-nm .ovhd button { --ic: none; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: calc(26px * var(--nm-scale) * var(--ov-header-fs, 1)); height: calc(24px * var(--nm-scale) * var(--ov-header-fs, 1));
+  margin: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--ov-header-color, #c9d1db); font-size: 0; line-height: 0; cursor: pointer; }
+#ov.ov-nm .ovhd button::before { content: ""; width: calc(16px * var(--nm-scale) * var(--ov-header-fs, 1)); height: calc(16px * var(--nm-scale) * var(--ov-header-fs, 1)); background: currentColor;
   -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat; }
 #ov.ov-nm .ovhd button:hover { background: rgba(255, 255, 255, .09); color: #ffffff; }
 #ov.ov-nm .ovhd button:focus-visible { outline: 2px solid var(--nm-teal); outline-offset: 0; }
