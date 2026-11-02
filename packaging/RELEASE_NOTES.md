@@ -1,3 +1,9 @@
+## The see-through overlay looks like NotMeter's (0.2.370)
+
+**Top portion only and None have a layout of their own**, after NotMeter's meter. A target card sits on top: your Odyle Energy, Shugo Keys and Nightmare Tickets across it (the regular count, then the bonus in brackets), the target's portrait, name, HP left and HP share, and its HP, time-to-kill and break bars inside the card. The player rows are pills of their own, each with the class emblem, the name, the combat power where it is known, the rate in full digits and the share of the total to a tenth; a green dot marks your own row. Under them come the fight clock with the party's total, the ping, and a toolbar of icons: the metric (a click moves to the next one), the raid plan, the screenshot lock, a new fight, copy, Options (the opacity slider and pet grouping), start or stop, and hide. Top portion only draws the target card's panel; None leaves every piece floating. Whole card keeps its layout.
+
+**The native window takes each piece's outline.** On Windows the overlay window is cut to the rounded outline of each piece it draws, so the game shows between the target card, the rows and the readouts under them. The window cannot leave text floating with nothing behind it, so there each readout sits on a small dark chip.
+
 ## The see-through overlay modes take effect, and the counters fit the space (0.2.369)
 
 **Top portion only and None now show the game.** On the native Windows overlay both modes looked like the whole card whatever the setting read. 0.2.368 added the fix, the window clipped to the parts the page draws, but the page measured that shape before pywebview's bridge was up, remembered it as sent and never sent it again, so the host never clipped. The shape is now measured and sent once the bridge is up (and never remembered as sent while it is down), so the header panel, each row and the pieces under the rows stand on the game with nothing between them.

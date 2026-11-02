@@ -126,3 +126,57 @@ def test_overlay_host_clips_its_window_to_the_shapes_the_page_reports(monkeypatc
     assert api._shape is None and native.Region is None
     api.set_window_shape([])                                           # nothing drawn: the whole window
     assert api._shape is None and native.Region is None
+
+
+def test_overlay_host_rounds_the_corners_the_page_reports_and_keeps_square_ones_if_it_cannot(monkeypatch):
+    """The see-through modes' compact layout (0.2.370) sends a fifth number with a piece's outline: its corner radius
+    in device px. The host draws that piece as a rounded rectangle (its four corner arcs); a radius larger than half
+    the piece is held to half; a failure building the rounded shape falls back to square corners, never to no shape."""
+    import sys
+    from types import ModuleType, SimpleNamespace
+    from aion2calc.overlay import _OverlayAPI
+
+    class Rectangle:
+        def __init__(self, x, y, w, h):
+            self.box = (x, y, w, h)
+
+    class Region:
+        def __init__(self, part):
+            self.parts = [part]
+
+        def Union(self, part):
+            self.parts.append(part)
+
+    class GraphicsPath:
+        def __init__(self):
+            self.arcs, self.closed = [], False
+
+        def AddArc(self, rect, start, sweep):
+            self.arcs.append((rect.box, start, sweep))
+
+        def CloseFigure(self):
+            self.closed = True
+    drawing, drawing2d = ModuleType("System.Drawing"), ModuleType("System.Drawing.Drawing2D")
+    drawing.Rectangle, drawing.Region, drawing2d.GraphicsPath = Rectangle, Region, GraphicsPath
+    monkeypatch.setitem(sys.modules, "System.Drawing", drawing)
+    monkeypatch.setitem(sys.modules, "System.Drawing.Drawing2D", drawing2d)
+    api = _OverlayAPI()
+    native = SimpleNamespace(Region=None)
+    api._window = SimpleNamespace(native=native)
+    api._windows_ready = True
+    monkeypatch.setattr(api, "_on_ui", lambda callback: callback())
+    api.set_window_shape([[0, 0, 340, 28, 7], [0, 32, 340, 60], [10, 70, 30, 80, 50]])
+    assert api._shape == ((0, 0, 340, 28, 7), (0, 32, 340, 60), (10, 70, 30, 80, 5))   # the radius held to half the piece
+    rounded, square, small = native.Region.parts
+    assert rounded.closed and [arc[1:] for arc in rounded.arcs] == [(180.0, 90.0), (270.0, 90.0), (0.0, 90.0), (90.0, 90.0)]
+    assert [arc[0] for arc in rounded.arcs] == [(0, 0, 14, 14), (326, 0, 14, 14), (326, 14, 14, 14), (0, 14, 14, 14)]
+    assert square.box == (0, 32, 340, 28) and small.arcs[0][0] == (10, 70, 10, 10)
+    written = []
+    api.log = SimpleNamespace(write=written.append)
+
+    def broken():
+        raise RuntimeError("no GDI+ paths here")
+    drawing2d.GraphicsPath = broken                                                     # the rounded shape cannot be built
+    api.set_window_shape([[0, 0, 340, 28, 7], [0, 32, 340, 60]])
+    assert [part.box for part in native.Region.parts] == [(0, 0, 340, 28), (0, 32, 340, 28)]   # square corners, same pieces
+    assert written and "square corners" in written[0]

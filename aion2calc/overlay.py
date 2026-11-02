@@ -603,17 +603,22 @@ class _OverlayAPI:
 
     def set_window_shape(self, rects):
         """Called from the overlay page with the rectangles it draws, each [left, top, right, bottom] in device
-        px relative to the client area, or null for the whole window. Windows clips the window to their union."""
+        px relative to the client area, or null for the whole window. Windows clips the window to their union.
+        A fifth number rounds that rectangle's corners by that radius (device px): the see-through modes' compact
+        layout (0.2.370) draws rounded pieces, and the window takes their outline."""
         parsed = []
         if isinstance(rects, (list, tuple)):
             for r in rects:
-                if isinstance(r, (list, tuple)) and len(r) == 4:
+                if isinstance(r, (list, tuple)) and len(r) in (4, 5):
                     try:
                         l, t, rt, b = (float(r[0]), float(r[1]), float(r[2]), float(r[3]))
+                        radius = float(r[4]) if len(r) == 5 else 0.0
                     except (TypeError, ValueError):
                         continue
                     if rt > l and b > t:
-                        parsed.append((int(l), int(t), int(rt + 0.999), int(b + 0.999)))
+                        box = (int(l), int(t), int(rt + 0.999), int(b + 0.999))
+                        corner = min(int(radius + 0.5), (box[2] - box[0]) // 2, (box[3] - box[1]) // 2) if radius > 0 else 0
+                        parsed.append(box + (corner,) if corner > 0 else box)
         self._shape = tuple(parsed) if rects is not None and parsed else None
         if self._windows_ready:
             try:
@@ -626,15 +631,36 @@ class _OverlayAPI:
         if not self._shape:
             native.Region = None
             return
+        try:
+            native.Region = self._shape_region(rounded=True)
+        except Exception as err:   # rounded corners are a nicety: never lose the shape over them
+            self.log.write(f"rounded window shape failed ({type(err).__name__}: {err}); using square corners")
+            native.Region = self._shape_region(rounded=False)
+
+    def _shape_region(self, rounded):
+        """The union of the shape's rectangles as a System.Drawing.Region, a rectangle with a corner radius as a
+        rounded rectangle (its four corner arcs) when ``rounded``."""
         from System.Drawing import Rectangle, Region
         region = None
-        for l, t, r, b in self._shape:
-            rect = Rectangle(l, t, r - l, b - t)
-            if region is None:
-                region = Region(rect)
+        for piece in self._shape:
+            l, t, r, b = piece[:4]
+            corner = piece[4] if rounded and len(piece) == 5 else 0
+            if corner:
+                from System.Drawing.Drawing2D import GraphicsPath
+                d = 2 * corner
+                part = GraphicsPath()
+                part.AddArc(Rectangle(l, t, d, d), 180.0, 90.0)
+                part.AddArc(Rectangle(r - d, t, d, d), 270.0, 90.0)
+                part.AddArc(Rectangle(r - d, b - d, d, d), 0.0, 90.0)
+                part.AddArc(Rectangle(l, b - d, d, d), 90.0, 90.0)
+                part.CloseFigure()
             else:
-                region.Union(rect)
-        native.Region = region
+                part = Rectangle(l, t, r - l, b - t)
+            if region is None:
+                region = Region(part)
+            else:
+                region.Union(part)
+        return region
 
     def _on_ui(self, callback):
         from System import Action

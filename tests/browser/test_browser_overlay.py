@@ -47,7 +47,7 @@ def test_the_header_stays_inside_the_card_whatever_start_stop_reads(app_page, ap
         box = header.bounding_box()
         right = box["x"] + box["width"]
         assert right <= card["x"] + card["width"] and header.evaluate("h => h.scrollWidth <= h.clientWidth"), label
-        for button in header.locator("button").all():
+        for button in header.locator("button:visible").all():                   # the Options button is the compact layout's
             edge = button.bounding_box()
             assert edge["x"] + edge["width"] <= right + 0.5, (label, button.inner_text())
         capture = page.locator("#ovcapture").bounding_box()
