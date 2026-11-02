@@ -534,6 +534,12 @@ class _OverlayAPI:
         # new objects so the loop thread never sees a half-updated value.
         self._click_through = False
         self._interactive = ()
+        # The window's shape (0.2.368): in the "top portion only" and "none" background modes the page reports
+        # the rectangles it draws (the header panel, each row, the panels under the rows) and the host clips the
+        # window to them, so the game shows through everywhere else and takes the clicks there. The host paints
+        # an opaque card-coloured window (see _configure_windows), which is why the page's transparent card
+        # alone changed nothing on screen. None = the whole window.
+        self._shape = None
         # The watchdog's state (overlay_health): whether the tracking loop has the window shown, a
         # WebView2 process failure waiting to be acted on, reloads the app asked for, and whether the
         # process is ending to be started again.
@@ -595,6 +601,41 @@ class _OverlayAPI:
                         parsed.append((l, t, rt, b))
         self._interactive = tuple(parsed)
 
+    def set_window_shape(self, rects):
+        """Called from the overlay page with the rectangles it draws, each [left, top, right, bottom] in device
+        px relative to the client area, or null for the whole window. Windows clips the window to their union."""
+        parsed = []
+        if isinstance(rects, (list, tuple)):
+            for r in rects:
+                if isinstance(r, (list, tuple)) and len(r) == 4:
+                    try:
+                        l, t, rt, b = (float(r[0]), float(r[1]), float(r[2]), float(r[3]))
+                    except (TypeError, ValueError):
+                        continue
+                    if rt > l and b > t:
+                        parsed.append((int(l), int(t), int(rt + 0.999), int(b + 0.999)))
+        self._shape = tuple(parsed) if rects is not None and parsed else None
+        if self._windows_ready:
+            try:
+                self._on_ui(self._apply_shape)
+            except Exception:
+                pass
+
+    def _apply_shape(self):
+        native = self._window.native
+        if not self._shape:
+            native.Region = None
+            return
+        from System.Drawing import Rectangle, Region
+        region = None
+        for l, t, r, b in self._shape:
+            rect = Rectangle(l, t, r - l, b - t)
+            if region is None:
+                region = Region(rect)
+            else:
+                region.Union(rect)
+        native.Region = region
+
     def _on_ui(self, callback):
         from System import Action
         native = self._window.native
@@ -633,6 +674,8 @@ class _OverlayAPI:
 
         self._on_ui(configure)
         self._windows_ready = True
+        if self._shape:
+            self._on_ui(self._apply_shape)
 
     def set_opacity(self, value):
         self._opacity = max(0.2, min(1.0, float(value)))

@@ -33,7 +33,7 @@ def test_a_users_own_class_colour_and_the_class_colour_switch_still_win():
     assert "pref.enabled===false" in body                       # "Use class colors" off -> shared fallback
     assert "A2CombatReview.color(key)" in body                  # chosen colour / unknown class -> shared rule
     # Every tinted element goes through it: bar, icon badge, swatch, coloured names, sparkline.
-    assert JS.count("barColor(") >= 6
+    assert JS.count("barColor(") >= 5                              # bars, icons, swatches, names, the panel
     assert "A2CombatReview.color(p.class)" not in JS
 
 
@@ -70,7 +70,7 @@ def test_layout_setting_hooks_survive_the_restyle():
     for selector in ("#ov.ov-bars-gradient", "#ov.ov-bars-rounded", "#ov.ov-stripes", "#ov.ov-compact", ".ovrow-me",
                      ".ovrank-1", ".ovclass", ".ovcicon", "#ov.ov-scroll-names", "#ov.ov-outline", "#ov.ov-cycle",
                      "#ov.ov-halo", "#ov.ov-retro", "#ov.ov-ac-blend", "#ov.ov-party", "#ov.ov-locked", "#ov.ov-resizable",
-                     ".ovgraph", ".ovpspark", ".ovskills", ".ovhpbar", ".ovttkbar", ".ovdummy", ".ovevents", ".ovfps",
+                     ".ovgraph", ".ovpspark", ".ovhpbar", ".ovttkbar", ".ovdummy", ".ovevents", ".ovfps",
                      "#ovcapture", "#ovsplit", "#ovcopy", "#ovlock", "#ovhide", ".ovfoot", ".ovping", ".ovidentity",
                      ".ovcontribution", "--ov-width", "--ov-row-h", "--ov-font-scale", "--ov-hp-color", "--ov-ttk-color"):
         assert selector in CSS, selector
@@ -82,6 +82,7 @@ def test_rounded_bars_round_the_bar_not_the_open_skill_breakdown():
     # half the bar's height, and an open row keeps the plain row's bottom corners
     rule = re.search(r"#ov\.ov-bars-rounded \.ovrow, #ov\.ov-bars-rounded \.ovbar i \{ border-radius: ([^;]+); \}", CSS)
     assert rule and rule.group(1) == "calc(var(--ov-row-h, 22px) / 2)"
-    assert "#ov.ov-bars-rounded .ovrow-open { border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }" in CSS
-    assert "expanded.has(key)?' ovrow-open':''" in JS                 # re-applied on every render
-    assert 'row.classList.toggle("ovrow-open",!panel.hidden);' in JS   # and on the click that opens or closes it
+    # since 0.2.368 a click anywhere on a row opens the player's panel under the rows instead of a breakdown
+    # inside the row, so no row ever holds one and the open-row corner rule is gone with it
+    assert "if(k)openDetail(detailKey===k?null:k);" in JS
+    assert "ovrow-open" not in JS and "ovrow-open" not in CSS and "ovskills" not in JS and "ovskills" not in CSS

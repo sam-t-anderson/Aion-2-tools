@@ -1,8 +1,111 @@
 """The Account page before signing in (pages/account.js, account-view.js): where the log server has accounts,
 the page offers to create one and the header offers to sign in; where it has none, the page says the server's
 reason and offers no sign-up that could only fail."""
+from urllib.parse import parse_qs, urlparse
+
 import community as stand_in
 from apphelpers import close_context, go, open_context, until, watched_page
+
+PROFILE = {"id": "acc_1", "name": "Seren", "logs": 1, "characters": [], "passkeys": 0, "apps": 1, "discord": None}
+LOG = {"id": "log_1", "created_at": 1793000000, "visibility": "public", "title": "First kill", "boss": "Berk", "region": "nae",
+       "source": "test", "duration": 300, "segments": 1, "top_dps": 20000, "uploader": "Seren", "players": 6, "via": "upload",
+       "url": "http://logs.test/l/log_1", "held": False}
+
+
+def _signed_in(page, asked, lists):
+    """The app answers as a signed-in account whose log lists come from `lists(path)`; every account request is noted."""
+    def account(route):
+        if route.request.method == "GET":
+            return route.fulfill(json={"signed_in": True, "here": True, "server": "http://logs.test", "account": PROFILE,
+                                       "session": {"id": 1, "kind": "app"}})
+        body = route.request.post_data_json or {}
+        path = body.get("path") or ""
+        asked.append(path)
+        answer = lists(path) if body.get("action") == "request" else None
+        return route.fulfill(json={} if answer is None else answer)
+    page.route("**/api/account", account)
+
+
+def _query(path):
+    return {k: v[0] for k, v in parse_qs(urlparse(path).query).items()}
+
+
+def test_my_logs_narrow_to_a_boss_and_to_days(browser, app_url):
+    """My logs (0.2.368) filters by boss and by upload day. The From/To days are the viewer's own, as the table shows its
+    times, so the server gets the instants they span; Clear brings everything back."""
+    context = open_context(browser, app_url)
+    page, watch = watched_page(context, app_url)
+    asked = []
+
+    def lists(path):
+        if path.startswith("/api/v1/account/logs?"):
+            rows = [] if "since" in _query(path) else [LOG]
+            return {"logs": rows, "total": len(rows), "page": 1, "limit": 50}
+        return None
+    _signed_in(page, asked, lists)
+    try:
+        go(page, app_url, "#/account/logs")
+        page.wait_for_selector("table.acct-logs")
+        assert asked[-1] == "/api/v1/account/logs?page=1&limit=50" and not page.locator("[data-clear]").count()
+        page.fill("[data-boss]", "Berk")
+        page.fill("[data-since]", "2026-10-31")
+        page.fill("[data-until]", "2026-10-31")
+        page.click("[data-filter]")
+        page.wait_for_selector("[data-clear]")
+        assert _query(asked[-1]) == {"page": "1", "limit": "50", "boss": "Berk",
+                                     "since": page.evaluate("new Date(2026, 9, 31).toISOString()"),
+                                     "until": page.evaluate("new Date(2026, 10, 1).toISOString()")}
+        assert page.locator("#account-root p.empty").inner_text() == "No logs match."
+        # the filters are kept while the list is redrawn, and Clear drops them all
+        assert page.input_value("[data-since]") == "2026-10-31" and page.input_value("[data-boss]") == "Berk"
+        page.click("[data-clear]")
+        page.wait_for_selector("table.acct-logs")
+        assert asked[-1] == "/api/v1/account/logs?page=1&limit=50"
+        assert page.input_value("[data-since]") == "" and page.input_value("[data-until]") == "" and page.input_value("[data-boss]") == ""
+    finally:
+        close_context(context)
+    assert not watch.unexpected(), watch.unexpected()
+
+
+def test_a_legions_logs_take_the_same_filters_and_pages(browser, app_url):
+    """The legion's page lists its logs with the boss and From/To filters My logs has, and pages them (0.2.368,
+    log server 0.2.160); the filters redraw only the list, not the legion's page."""
+    context = open_context(browser, app_url)
+    page, watch = watched_page(context, app_url)
+    legion = {"id": "lg_0123456789ab", "name": "Testers", "server": "2102", "faction": "", "members": 1, "leader": "Seren",
+              "description": "", "role": "member", "requests": [], "invites": [], "show_progress": False,
+              "roster": [{"member": 1, "character": "Seren", "server": "2102", "role": "member", "joined_at": 1793000000,
+                          "you": True, "claim": "active"}]}
+    asked = []
+
+    def lists(path):
+        if path == f"/api/v1/legions/{legion['id']}":
+            return legion
+        if path.startswith(f"/api/v1/legions/{legion['id']}/logs?"):
+            q = _query(path)
+            rows = [dict(LOG, id=f"log_{i}", title=f"Kill {i}", member="Seren") for i in range(50)] if "since" not in q else []
+            return {"logs": rows, "total": 120 if rows else 0, "page": int(q["page"]), "limit": 50}
+        return None
+    _signed_in(page, asked, lists)
+    try:
+        go(page, app_url, "#/account/legions/" + legion["id"])
+        logs = page.locator("[data-legion-logs]")
+        logs.locator("table").wait_for()
+        assert asked[-1] == f"/api/v1/legions/{legion['id']}/logs?page=1&limit=50"
+        assert logs.locator("[data-page]").inner_text() == "Next" and "Page 1 of 3" in logs.inner_text()
+        pages_drawn = asked.count(f"/api/v1/legions/{legion['id']}")
+        logs.locator("[data-page]").click()
+        assert until(page, lambda: asked[-1] == f"/api/v1/legions/{legion['id']}/logs?page=2&limit=50")
+        page.wait_for_function("document.querySelector('[data-legion-logs]').innerText.includes('Page 2 of 3')")
+        logs.locator("[data-since]").fill("2026-10-31")
+        logs.locator("[data-filter]").click()
+        logs.locator("[data-clear]").wait_for()
+        assert _query(asked[-1]) == {"page": "1", "limit": "50", "since": page.evaluate("new Date(2026, 9, 31).toISOString()")}
+        assert logs.locator("p.empty").inner_text() == "No logs match."
+        assert asked.count(f"/api/v1/legions/{legion['id']}") == pages_drawn      # the legion's page itself stayed
+    finally:
+        close_context(context)
+    assert not watch.unexpected(), watch.unexpected()
 
 
 def test_signing_up_is_offered_where_the_server_has_accounts(browser, app_url):
@@ -100,7 +203,7 @@ def test_the_leader_shows_the_legion_on_the_featured_encounter_pages(browser, ap
         assert "its members are never listed" in page.locator("#account-root").inner_text()
         box.check()
         # the page draws the legion again with the server's answer; its logs are the last thing it asks for
-        assert until(page, lambda: asked.count(f"/api/v1/legions/{legion['id']}/logs?limit=50") >= 2)
+        assert until(page, lambda: asked.count(f"/api/v1/legions/{legion['id']}/logs?page=1&limit=50") >= 2)
         page.wait_for_function("document.querySelector('[data-show-progress]')?.checked === true")
         assert posted == [{"show": True}]
     finally:

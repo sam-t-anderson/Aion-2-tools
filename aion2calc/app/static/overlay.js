@@ -42,7 +42,7 @@
   let showCooldowns=false, showGauge=false, cooldownsTop=false, cooldownsAt=0;
   const cooldownIcons=new Map();   // strip key -> icon element, kept between renders so icons never reload
   let graphHist=[], graphDur=-1;   // per-poll party-total samples for the live DPS/HPS sparkline, and the last seen fight duration
-  const playerHist=new Map();      // per-player DPS samples (key -> [dps,…]) for the expanded-row trend sparkline
+  const playerHist=new Map();      // per-player DPS samples (key -> [dps,…]) for the player panel's trend sparkline
   let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name", classColorNames=false, classSwatch=false, rankNumbers=false, highlightMe=false, showCommunityRank=false, showEvents=true, showFieldBosses=true;
   // Regional event-notification strip: next rift/Shugo/battlefield/field-boss windows
   // from the bundled schedule, for the region the player picked on the Timers page.
@@ -57,7 +57,6 @@
   // New pressed on this overlay: the live encounter's id at that moment. Until the next fight begins (a
   // different id), the meter shows empty; the app keeps every fight, only this view clears (0.2.329).
   let clearedFight=null;
-  const expanded=new Set();   // row keys whose per-skill breakdown is expanded (DPS view)
   // The player panel (0.2.364): a click on a name opens one player in depth under the rows. The tiles and skills
   // come from each poll's snapshot; the buffs on the player come from /api/meter/player, asked for when the panel
   // opens and then every few seconds while it stays open.
@@ -220,6 +219,7 @@
     bgMode=["card","top","none"].includes(ui.overlay_bg_mode)?ui.overlay_bg_mode:"card";
     document.getElementById('ov').classList.toggle('ov-bg-top',bgMode==="top");
     document.getElementById('ov').classList.toggle('ov-bg-none',bgMode==="none");
+    measureTop();   // the panel height and the window's shape follow the mode at once, not at the next poll
     // Animated row effects (0.2.364), free for everyone: one for your own row, one for the top row.
     meCosmetic=COSMETICS.includes(ui.overlay_me_cosmetic)?ui.overlay_me_cosmetic:"none";
     topCosmetic=COSMETICS.includes(ui.overlay_top_cosmetic)?ui.overlay_top_cosmetic:"none";
@@ -512,7 +512,7 @@
         k: players.reduce((n,p)=>n+(Number(p.dtps)||0),0),
       });
       if(graphHist.length>300) graphHist.shift();
-      // Per-player DPS trend, for the sparkline shown when a row is expanded.
+      // Per-player DPS trend, for the sparkline in the player's panel.
       for(const p of players){
         const k=String(p.key||p.id); let arr=playerHist.get(k);
         if(!arr){arr=[];playerHist.set(k,arr);}
@@ -522,7 +522,7 @@
     }
     drawGraph();
   }
-  // A compact DPS trend sparkline for one player's expanded row (shown only when
+  // A compact DPS trend sparkline for the player whose panel is open (shown only when
   // the DPS graph is enabled). Each point is a real per-poll reading.
   function sparkLine(series, color){
     if(!Array.isArray(series)||series.length<2)return "";
@@ -530,7 +530,7 @@
     const mx=Math.max(...series,1), n=series.length, W=100, H=16;
     const pts=series.map((v,i)=>`${(i/(n-1)*W).toFixed(1)},${(H-(v/mx)*H).toFixed(1)}`).join(" ");
     // Tinted to the player's class colour so the trend matches their bar.
-    return `<div class="ovpspark"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polygon class="ovparea" points="0,${H} ${pts} ${W},${H}" style="fill:${c}"/><polyline points="${pts}" style="stroke:${c}"/></svg></div>`;
+    return `<div class="ovpspark" title="This player's DPS over the fight, one point per reading"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polygon class="ovparea" points="0,${H} ${pts} ${W},${H}" style="fill:${c}"/><polyline points="${pts}" style="stroke:${c}"/></svg></div>`;
   }
   function drawGraph(){
     const g=$("#ovgraph"); if(!g)return;
@@ -620,15 +620,12 @@
     const ranked = [...visible].sort((a,b)=>rate(b)-rate(a)||amount(b)-amount(a));
     const rows = ranked.slice(0, shownCount).map((p, i) => {
       const key=String(p.key||p.id);
-      // Per-skill damage breakdown (DPS view only — the snapshot's skills list is
-      // damage). Click a row to expand it; the open rows are remembered in `expanded`.
+      // In the DPS view a row with a skills list is clickable: it opens the player's panel under the rows (the
+      // per-skill breakdown inside the row went in 0.2.368; the panel is the breakdown).
       const hasSkills=metric==="dps"&&Array.isArray(p.skills)&&p.skills.length;
-      // When the DPS graph is on, an expanded row also shows that player's DPS trend.
-      const spark=(hasSkills&&showGraph&&expanded.has(key))?sparkLine(playerHist.get(key),barColor(p.class)):"";
-      const skills=hasSkills?`<div class="ovskills"${expanded.has(key)?'':' hidden'}>${spark}${p.skills.slice(0,6).map(sk=>`<div class="ovskrow"><span class="ovskname">${esc(sk.skill||sk.skill_id)}</span><span class="ovskval">${kfmt(sk.damage)} · ${Math.round((sk.share||0)*100)}%</span></div>`).join("")}</div>`:"";
       const cosmetic=isMe(p)&&meCosmetic!=="none"?meCosmetic:(i===0&&topCosmetic!=="none"?topCosmetic:null);
-      return `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}${highlightMe&&isMe(p)?' ovrow-me':''}${hasSkills?' ovrow-x':''}${hasSkills&&expanded.has(key)?' ovrow-open':''}${cosmetic?' ov-cos-'+cosmetic:''}${detailKey===key?' ovrow-detail':''}"${hasSkills?` data-exk="${esc(key)}"`:''}><span class="ovname" data-detail="${esc(key)}" role="button" tabindex="0" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""} · Click for this player's details">${rankNumbers?`<span class="ovrank${i<3?' ovrank-'+(i+1):''}">${i+1}.</span>`:''}${classIcon(p.class)}${classSwatch?`<i class="ovclass" style="background:${barColor(p.class)}" title="${esc(p.class||'')}"></i>`:''}<span class="ovnametext"${classColorNames?` style="color:color-mix(in srgb, ${barColor(p.class)} 55%, #ffffff)"`:''}>${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}${showCommunityRank&&p.community_rank&&p.community_rank.text?`<small class="ovcrank" title="Community standing for your last uploaded fight">${esc(p.community_rank.text)}</small>`:''}</span>
-        <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i data-k="${esc(key)}" style="width:${100 * rate(p) / mx}%;--bar:${barColor(p.class)}"></i><span><span class="ovrate" data-k="${esc(key)}" data-target="${rate(p)}" data-amt="${amount(p)}">${kfmt(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div>${skills}</div>`;
+      return `<div class="ovrow${showDeaths&&p.dead?' ovrow-dead':''}${highlightMe&&isMe(p)?' ovrow-me':''}${hasSkills?' ovrow-x':''}${cosmetic?' ov-cos-'+cosmetic:''}${detailKey===key?' ovrow-detail':''}"${hasSkills?` data-exk="${esc(key)}"`:''}><span class="ovname" data-detail="${esc(key)}" role="button" tabindex="0" title="${esc(p.name)} · Actor ${esc(p.key || p.id)}${p.includes_pets?" · Includes linked pets":""} · Click for this player's details">${rankNumbers?`<span class="ovrank${i<3?' ovrank-'+(i+1):''}">${i+1}.</span>`:''}${classIcon(p.class)}${classSwatch?`<i class="ovclass" style="background:${barColor(p.class)}" title="${esc(p.class||'')}"></i>`:''}<span class="ovnametext"${classColorNames?` style="color:color-mix(in srgb, ${barColor(p.class)} 55%, #ffffff)"`:''}>${esc(displayName(p))}</span>${nameMode==="name"&&duplicate(p)?`<small class="ovactor">#${esc(p.id)}</small>`:''}${showDeaths&&p.dead?'<small class="ovdead">DEAD</small>':''}${showCommunityRank&&p.community_rank&&p.community_rank.text?`<small class="ovcrank" title="Community standing for your last uploaded fight">${esc(p.community_rank.text)}</small>`:''}</span>
+        <div class="ovbar" title="${esc(label)}: ${kfmt(rate(p))} · Total: ${kfmt(amount(p))}"><i data-k="${esc(key)}" style="width:${100 * rate(p) / mx}%;--bar:${barColor(p.class)}"></i><span><span class="ovrate" data-k="${esc(key)}" data-target="${rate(p)}" data-amt="${amount(p)}">${kfmt(rate(p))}</span>/s <span class="sub">${kfmt(amount(p))} · ${Math.round(100 * amount(p) / (total||1))}%</span></span></div></div>`;
     }).join("");
     const duration=metric==="dps"?snap.duration:snap.recorded_duration;
     // Plain-text leaderboard of the current view, ready to paste into chat/Discord.
@@ -663,9 +660,32 @@
     // view to a ready state (the data is kept; a selected segment still shows it).
     const over=snap.battle_over===true;
     const empty = s.error || (cleared ? "New fight — waiting for the first hit." : over ? "Ready — waiting for the next fight." : players.length?`No recorded ${metric==='hps'?'healing':metric==='taken'?'incoming damage':'outgoing damage'} in this combat.`:snap.warning || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app."));
-    // The rows are rebuilt only when their markup changed (the same fight between two readings, or an
-    // idle meter, rebuilds nothing); the live-ticking numbers write into the rows in place.
-    let changed = setHtml($("#ovcontent"), over ? `<div class="muted">${esc(empty)}</div>` : (players.length && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`));
+    // The rows are rebuilt only when their structure changed: who is listed, in which order, with which classes,
+    // effects, open panels and names. A poll that only moved the numbers (every poll of a live fight) writes the
+    // rates, totals, shares and bar widths into the rows that are already there, so a row's animated effect runs
+    // on uninterrupted (0.2.368: rebuilding the rows on every poll restarted it each time) and nothing flickers.
+    const content=$("#ovcontent");
+    const body=over ? `<div class="muted">${esc(empty)}</div>` : (players.length && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`);
+    const shape=body.replace(/ style="width:[^"]*"/g,"").replace(/data-target="[^"]*" data-amt="[^"]*"/g,"").replace(/<span class="ovrate"[^>]*>[^<]*<\/span>\/s <span class="sub">[^<]*<\/span>/g,"").replace(/ title="[^"]*"/g,"");
+    let changed=false;
+    if(content&&content._a2shape!==shape){content._a2shape=shape;content._a2html=body;content.innerHTML=body;changed=true;}
+    else if(content&&content._a2html!==body){
+      content._a2html=body;
+      // the same rows: refresh each row's live numbers in place
+      const fresh=document.createElement("div");fresh.innerHTML=body;
+      const now=content.querySelectorAll(".ovrow"), next=fresh.querySelectorAll(".ovrow");
+      now.forEach((row,i)=>{
+        const n=next[i]; if(!n)return;
+        const rate=row.querySelector(".ovrate"), nrate=n.querySelector(".ovrate");
+        if(rate&&nrate){rate.setAttribute("data-target",nrate.getAttribute("data-target"));rate.setAttribute("data-amt",nrate.getAttribute("data-amt"));if(!interpolate)setText(rate,nrate.textContent);}
+        const sub=row.querySelector(".ovbar .sub"), nsub=n.querySelector(".ovbar .sub");
+        if(sub&&nsub)setText(sub,nsub.textContent);
+        const bar=row.querySelector(".ovbar"), nbar=n.querySelector(".ovbar");
+        if(bar&&nbar){bar.title=nbar.title;if(!interpolate&&bar.firstElementChild&&nbar.firstElementChild)bar.firstElementChild.style.width=nbar.firstElementChild.style.width;}
+        const name=row.querySelector(".ovname"), nname=n.querySelector(".ovname");
+        if(name&&nname)name.title=nname.title;
+      });
+    }
     // Current target (the enemy you are hitting most) with each contributor's DPS
     // to it; packet-sourced, shown when there is recorded damage and enabled.
     const target=snap.current_target;
@@ -804,12 +824,15 @@
       ["Parried in",String(p.incoming&&p.incoming.parries||0)]];
     const titles={"Parry":"Share of this player's hits the enemy parried","Front":"Share of hits landed from the front","Back":"Share of hits landed from behind",
       "Perfect":"Share of perfect hits","Double":"Share of double hits","Parried in":"Hits on this player that they parried","Combat time":active!=null?`Fight time; this player dealt damage in ${fmtSecs(active)} of it`:"Fight time"};
+    const key=String(p.key||p.id);
+    const spark=showGraph?sparkLine(playerHist.get(key),barColor(p.class)):"";   // the DPS trend, with the graph on
     const skills=(Array.isArray(p.skills)?p.skills:[]).slice(0,8);
     const top=skills.length?Math.max(...skills.map(k=>Number(k.damage)||0),1):1;
     const skillRows=skills.map(k=>`<div class="ovdsk" title="${esc(k.skill||k.skill_id)}: ${kfmt(k.damage)} over ${k.hits||0} hits · avg ${kfmt(k.hits?k.damage/k.hits:0)}${k.crit!=null?` · crit ${pct(k.crit)}`:""}${k.back!=null?` · back ${pct(k.back)}`:""}${k.parry!=null?` · parried ${pct(k.parry)}`:""}">${skillIconHTML(k.skill_id,k.skill)}<span class="ovdskname">${esc(k.skill||k.skill_id)}</span><span class="ovdskbar"><i style="width:${Math.round(100*(Number(k.damage)||0)/top)}%"></i></span><span class="ovdskval">${kfmt(k.damage)} · ${Math.round((k.share||0)*100)}% · ${k.hits||0}×${k.crit!=null?` · ${pct(k.crit)}`:""}</span></div>`).join("");
     const buffs=detailBuffs===null?`<div class="muted">Reading the buffs…</div>`:detailBuffs.length?detailBuffs.slice(0,10).map(b=>`<div class="ovdsk" title="${esc(b.skill)}: ${b.uptime_pct}% of the fight (${fmtSecs(b.seconds)}), applied ${b.applications}×${b.self?", by this player":""}">${skillIconHTML(b.skill_id,b.skill)}<span class="ovdskname">${esc(b.skill)}</span><span class="ovdskbar"><i style="width:${Math.max(0,Math.min(100,Math.round(b.uptime_pct)))}%"></i></span><span class="ovdskval">${Math.round(b.uptime_pct)}% · ${fmtSecs(b.seconds)}</span></div>`).join(""):`<div class="muted">No buff records in this fight yet.</div>`;
     const html=`<div class="ovdhead">${classIcon(p.class)}<span class="ovdname" translate="no">${esc(displayName(p))}</span><span class="ovdsub">${esc((p.class||"").replace(/^./,c=>c.toUpperCase()))}${cp?` · CP ${kfmt(cp)}`:""}</span><button type="button" class="ovdclose" data-close title="Close the player panel" aria-label="Close">✕</button></div>`
       +`<div class="ovdsub ovdline">${target?`Target: <span translate="no">${esc(target)}</span> · `:""}${fmtSecs(snap.duration)} in combat${me?" · you":""}</div>`
+      +spark
       +`<div class="ovdtiles">${tiles.map(([k,v])=>`<div class="ovdtile"${titles[k]?` title="${esc(titles[k])}"`:""}><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join("")}</div>`
       +(skillRows?`<div class="ovdsec">Top skills</div><div class="ovdlist">${skillRows}</div>`:"")
       +`<div class="ovdsec">Buff uptime</div><div class="ovdlist">${buffs}</div>`;
@@ -820,8 +843,32 @@
   // each render, so a target panel coming or going moves it.
   function measureTop(){
     const card=$(".ovcard"),rows=$("#ovcontent");
-    if(!card||!rows||bgMode!=="top"){if(card)card.style.removeProperty("--ov-top-h");return;}
-    requestAnimationFrame(()=>{const h=rows.getBoundingClientRect().top-card.getBoundingClientRect().top;card.style.setProperty("--ov-top-h",Math.max(0,Math.round(h))+"px");});
+    if(!card||!rows||bgMode!=="top"){if(card)card.style.removeProperty("--ov-top-h");reportShape();return;}
+    requestAnimationFrame(()=>{const h=rows.getBoundingClientRect().top-card.getBoundingClientRect().top;card.style.setProperty("--ov-top-h",Math.max(0,Math.round(h))+"px");reportShape();});
+  }
+  // The native host paints an opaque window behind the page, so a transparent card alone shows nothing of the
+  // game: in the "top portion only" and "none" modes the page reports the rectangles it draws (device px, like
+  // the control rects) and the host clips its window to them. In the card mode the whole window is drawn.
+  let lastShape="";
+  function reportShape(){
+    const card=$(".ovcard");
+    if(!card)return;
+    if(bgMode==="card"){if(lastShape!=="card"){lastShape="card";nativeCall("set_window_shape",null);}return;}
+    const dpr=window.devicePixelRatio||1, pad=3, rects=[];
+    const add=el=>{const r=el.getBoundingClientRect();if(r.width>0&&r.height>0)rects.push([(r.left-pad)*dpr,(r.top-pad)*dpr,(r.right+pad)*dpr,(r.bottom+pad)*dpr]);};
+    const top=card.getBoundingClientRect();
+    if(bgMode==="top"){const h=parseFloat(card.style.getPropertyValue("--ov-top-h"))||0;if(h>0)rects.push([top.left*dpr,top.top*dpr,top.right*dpr,(top.top+h)*dpr]);}
+    for(const el of card.children){
+      if(el.id==="ovbg"||el.hidden||el.offsetParent===null&&getComputedStyle(el).position!=="fixed")continue;
+      if(el.id==="ovcontent"){el.querySelectorAll(":scope > .ovrow, :scope > .muted").forEach(add);continue;}
+      if(bgMode==="top"&&el.getBoundingClientRect().bottom<=top.top+(parseFloat(card.style.getPropertyValue("--ov-top-h"))||0)+1)continue;   // inside the panel already
+      add(el);
+    }
+    document.querySelectorAll(".ovgrip").forEach(add);
+    const key=bgMode+":"+rects.map(r=>r.map(Math.round).join(",")).join(";");
+    if(key===lastShape)return;
+    lastShape=key;
+    nativeCall("set_window_shape",rects);
   }
   // Skill-cooldown strip: your skills on cooldown, soonest ready first, each counting down
   // between polls from the time left the meter sent (the cooldown the game sent with the cast,
@@ -919,18 +966,16 @@
     try{localStorage.setItem("ovmetric",metric);}catch(e){/* optional storage */}
     renderMeter();
   };});
-  // Click a player row to toggle its per-skill breakdown (delegated, since rows
-  // are rebuilt each poll; the open set is re-applied on render).
+  // A click anywhere on a player's row opens that player's panel under the rows (delegated, since rows can be
+  // rebuilt). Until 0.2.368 the name opened the panel and the rest of the row toggled the older per-skill
+  // breakdown inside the row, which read as the old view coming back; the panel is the breakdown now.
   const ovc=$("#ovcontent");
   if(ovc)ovc.addEventListener("click",e=>{
-    const name=e.target.closest(".ovname[data-detail]");
-    if(name&&ovc.contains(name)){const k=name.getAttribute("data-detail");openDetail(detailKey===k?null:k);return;}
-    const row=e.target.closest(".ovrow[data-exk]");
+    const row=e.target.closest(".ovrow");
     if(!row||!ovc.contains(row))return;
-    const k=row.getAttribute("data-exk"),panel=row.querySelector(".ovskills");
-    if(!panel)return;
-    if(expanded.has(k)){expanded.delete(k);panel.hidden=true;}else{expanded.add(k);panel.hidden=false;}
-    row.classList.toggle("ovrow-open",!panel.hidden);
+    const name=row.querySelector(".ovname[data-detail]");
+    const k=name?name.getAttribute("data-detail"):row.getAttribute("data-exk");
+    if(k)openDetail(detailKey===k?null:k);
   });
   if(ovc)ovc.addEventListener("keydown",e=>{   // the names are focusable: Enter or Space opens the panel too
     if(e.key!=="Enter"&&e.key!==" ")return;

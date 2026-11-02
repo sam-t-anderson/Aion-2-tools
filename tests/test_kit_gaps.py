@@ -9,12 +9,12 @@ import pytest
 from aion2calc.kit.base import ClassData
 from aion2calc.opt.rotation import with_essentials
 from aion2calc.run import prepare
-from aion2calc.scenarios import dummy, typical_build
-from aion2calc.sim.engine import Sim
+from aion2calc.scenarios import boss, dummy, typical_build
+from aion2calc.sim.engine import Action, Sim, SimConfig, Target
 
 
-def _sim(cls, policy=None, *, build=None, duration=120.0, derived=None):
-    scen = dummy(f"{cls}_l45_global_median")
+def _sim(cls, policy=None, *, build=None, duration=120.0, derived=None, scen=None):
+    scen = scen or dummy(f"{cls}_l45_global_median")
     scen = replace(scen, config=replace(scen.config, duration=duration))
     _, _, kit, stats = prepare(build or typical_build(cls), scen)
     sim = Sim(derived or stats.derived(), kit.actions, policy or kit.policy, scen.target, scen.config,
@@ -171,3 +171,132 @@ def test_the_cleric_weaves_nothing():
     assert not hasattr(cleric, "WEAVE")
     _, res, _ = _sim("cleric")
     assert not any(n.endswith("(woven)") for n in res.damage_by)
+
+
+def _assassin(stigmas=None, specs=None, bonus=None, sp=None):
+    b = typical_build("assassin")
+    if stigmas is not None:
+        b.stigmas = dict(stigmas)
+    if sp:
+        b.sp = {**b.sp, **sp}
+    if specs:
+        b.specs = {**b.specs, **specs}
+    if bonus:
+        b.bonus = {**b.bonus, **bonus}
+    return b
+
+
+def test_heart_gore_comes_back_on_a_crit_and_has_no_cooldown_under_illusive_clone():
+    """The Assassin measured from the log server (0.2.368): Heart Gore's Lv 16 effect resets its cooldown on a crit,
+    and Illusive Clone removes the cooldown while it lasts and echoes 7 % of the damage dealt, so the kit presses it
+    at the recorded cadence instead of once every five seconds."""
+    hgore = 13350000
+    plain = _assassin(stigmas={})
+    reset = _assassin(stigmas={}, specs={hgore: (13350040, 13350050)}, bonus={hgore: 6})     # Lv 16 for the reset
+    scen = dummy("assassin_l45_global_median")
+    _, _, _, stats = prepare(plain, scen)
+    crit = replace(stats.derived(), crit_stat=1800.0)                                       # a high-crit Assassin
+    pol = ["heart_gore", "quick_slice"]
+    _, base, _ = _sim("assassin", pol, build=plain, derived=crit)
+    _, with_reset, _ = _sim("assassin", pol, build=reset, derived=crit)
+    assert with_reset.casts["heart_gore"] > 1.4 * base.casts["heart_gore"]
+    assert "Illusive Clone" not in with_reset.damage_by
+    clone = _assassin(stigmas={13310000: 20})
+    _, res, kit = _sim("assassin", ["illusive_clone", "heart_gore", "quick_slice"], build=clone, derived=crit)
+    assert kit.actions["illusive_clone"].cooldown == 90.0 and res.casts["illusive_clone"] >= 2   # 120 s
+    assert res.casts["heart_gore"] > 1.4 * base.casts["heart_gore"]
+    assert 0.01 < res.damage_by["Illusive Clone"] / res.total < 0.08      # 7 % of the damage for 20 s in 90
+    assert res.damage_by["Clone Attack"] > 0                              # the Lv 20 extra hits on crits
+
+
+def test_triniels_dagger_and_swift_contract_grow_at_their_stigma_steps():
+    """Triniel's Dagger Lv 10 takes a tenth off every cooldown on hit, so Illusive Clone comes back sooner; Swift
+    Contract Lv 10 and 15 raise Rear Smite and Assault Stance by half for its duration (the stigma levels the
+    recorded Assassin ranks first, 0.2.368)."""
+    iclone, triniel, swift = 13310000, 13300000, 13390000
+    second = {}
+    for level in (9, 10):
+        _, res, _ = _sim("assassin", ["illusive_clone", "triniel", "quick_slice"], duration=240.0,
+                         build=_assassin(stigmas={iclone: 20, triniel: level}))
+        second[level] = [t for t, key in res.timeline if key == "illusive_clone"][1]
+    assert second[10] < second[9] - 10.0                                   # two Triniel hits before it, 9 s each
+    dps = {}
+    for level in (9, 10, 15):
+        _, res, _ = _sim("assassin", ["swift", "quick_slice"], build=_assassin(stigmas={swift: level}))
+        dps[level] = res.total
+    assert dps[9] < dps[10] < dps[15]
+
+
+def test_savage_roar_brings_its_chain_steps_and_determination_procs_late_in_the_fight():
+    """The recorded Assassin's chain records open Savage Back Kick after Savage Roar and Savage Smash after that
+    (567 and 548 chains; a Savage Fang opens nothing), each step about as much damage again as the Roar."""
+    _, res, kit = _sim("assassin", ["savage_roar", "quick_slice"])
+    assert res.casts["savage_roar"] >= 10
+    roar, kick, smash = res.damage_by["Savage Roar"], res.damage_by["Savage Back Kick"], res.damage_by["Savage Smash"]
+    assert 0.9 < kick / roar < 1.3 and 0.9 < smash / roar < 1.35          # measured 1.10 and 1.12
+    assert res.hits_by["Savage Back Kick"] == 4 * res.casts["savage_roar"]
+    assert kit.actions["savage_roar"].cast > 2.0                           # the Roar and its two chain presses
+    fang = _assassin(stigmas={13270000: 15})
+    _, res, _ = _sim("assassin", ["sfang", "quick_slice"], build=fang)
+    assert res.casts["sfang"] >= 2 and "Savage Smash" not in res.damage_by
+    # Determination: a hit on a target under its HP threshold, once a second, late in a boss fight
+    _, res, _ = _sim("assassin", ["quick_slice"], duration=180.0, scen=boss("assassin_l45_global_median"))
+    assert res.damage_by["Determination"] > 0
+    # Exploit Weakness's clones proc on crits throughout
+    assert res.damage_by["Exploit Weakness"] > 0
+
+
+def test_a_staggered_boss_takes_critical_hits():
+    """Measured from the recorded Assassin (0.2.368): 89–98 % of the hits inside a stagger crit, 50 % outside,
+    every skill alike; the engine lands every hit in a stagger window as a crit, for every class."""
+    _, _, _, stats = prepare(typical_build("assassin"), dummy("assassin_l45_global_median"))
+    actions = {"x": Action("x", "X", 1, 1.0, on_cast=lambda sim, a: sim.hit("X", 1000.0, 0.0))}
+    sim = Sim(stats.derived(), actions, ["x"], Target(stagger_windows=((10.0, 20.0),)),
+              SimConfig(duration=30.0, record_damage=True))
+    sim.run()
+    outside = [d for t, d in sim.damage_events if not 10.0 <= t < 20.0]
+    inside = [d for t, d in sim.damage_events if 10.0 <= t < 20.0]
+    assert inside and outside and max(outside) < min(inside)
+    sim = Sim(stats.derived(), actions, ["x"], Target(stagger_windows=((10.0, 20.0),), stagger_crit=False),
+              SimConfig(duration=30.0, record_damage=True))
+    sim.run()
+    assert len({round(d, 6) for t, d in sim.damage_events}) == 1
+
+
+def test_storm_rampage_fires_in_the_stagger_windows_and_pulls_every_cooldown_in():
+    """Storm Rampage, usable only on a staggered boss, lands 27 hits with its Lv 12 Multi-Hit, each taking a
+    second off every cooldown with its Lv 16 option: the recorded Assassin's Illusive Clone came back every
+    46 s against its 80 s cooldown."""
+    storm, iclone = 13340000, 13310000
+    scen = boss("assassin_l45_global_median")
+    plain = _assassin(stigmas={iclone: 20}, sp={storm: 10}, bonus={storm: 6})
+    full = _assassin(stigmas={iclone: 20}, specs={storm: (13340040, 13340050)}, sp={storm: 10}, bonus={storm: 6})
+    pol = ["storm_rampage", "illusive_clone", "heart_gore", "quick_slice"]
+    _, a, _ = _sim("assassin", pol, build=plain, duration=180.0, scen=scen)
+    _, b, _ = _sim("assassin", pol, build=full, duration=180.0, scen=scen)
+    assert a.casts["storm_rampage"] == b.casts["storm_rampage"] == len(scen.target.stagger_windows) == 3
+    assert (a.hits_by["Storm Rampage"], b.hits_by["Storm Rampage"]) == (3 * 13, 3 * 27)
+    first_a = [t for t, key in a.timeline if key == "illusive_clone"]
+    first_b = [t for t, key in b.timeline if key == "illusive_clone"]
+    assert len(first_b) > len(first_a) and first_b[1] < first_a[1] - 20.0    # 27 s off its cooldown per stagger
+    assert "Storm Rampage" not in _sim("assassin", pol, build=full)[1].damage_by      # a dummy never staggers
+
+
+def test_the_specialty_marks_tell_a_modeled_pick_from_a_filler():
+    """0.2.368: a chosen effect the model cannot tell from the skill's other open effects is marked free ("either"):
+    Storm Rampage's shield and MP restore are, Heart Gore's multi-hit is not."""
+    from aion2calc.kit.specialties import describe, free_marks
+    storm, hgore = 13340000, 13350000
+    b = _assassin(stigmas={}, specs={storm: (13340010, 13340020), hgore: (13350010, 13350040)}, bonus={storm: 6, hgore: 6})
+    scen = dummy("assassin_l45_global_median")
+    cd, prepared, _, _ = prepare(b, scen)
+
+    def evaluate(build):
+        return _sim("assassin", ["heart_gore", "quick_slice"], build=build)[1].dps
+    free = free_marks(cd, b, evaluate, levels=prepared.effective_levels(cd))
+    assert free[storm] == {13340010, 13340020}
+    assert 13350010 in free.get(hgore, set()) and 13350040 not in free.get(hgore, set())
+    rows = {r["skill"]: r for r in describe(cd, prepared, free)}
+    assert rows["Storm Rampage"]["free"] == 2 and all(e["free"] for e in rows["Storm Rampage"]["effects"] if e["selected"])
+    assert rows["Heart Gore"]["free"] == 1
+    assert [e["free"] for e in rows["Heart Gore"]["effects"] if e["selected"]] == [True, False]

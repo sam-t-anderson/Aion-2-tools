@@ -87,3 +87,42 @@ def test_overlay_host_accepts_input_without_color_key(monkeypatch):
     css = (Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static" / "overlay.css").read_text(encoding="utf-8")
     assert "html.native-windows #ov { padding: 0; }" in css
     assert "html.native-windows .ovcard { border-radius: 0;" in css and "html.native-windows #ovbg { border-radius: 0; }" in css
+
+
+def test_overlay_host_clips_its_window_to_the_shapes_the_page_reports(monkeypatch):
+    """The transparent background modes (0.2.368): the page reports the rectangles it draws and the host clips the
+    opaque window to their union, so the game shows through between the rows; null draws the whole window again.
+    A shape reported before the window exists is applied once it does."""
+    import sys
+    from types import ModuleType, SimpleNamespace
+    from aion2calc.overlay import _OverlayAPI
+
+    class Rectangle:
+        def __init__(self, x, y, w, h):
+            self.box = (x, y, w, h)
+
+    class Region:
+        def __init__(self, rect):
+            self.rects = [rect.box]
+
+        def Union(self, rect):
+            self.rects.append(rect.box)
+    drawing = ModuleType("System.Drawing")
+    drawing.Rectangle, drawing.Region = Rectangle, Region
+    monkeypatch.setitem(sys.modules, "System.Drawing", drawing)
+    api = _OverlayAPI()
+    native = SimpleNamespace(Region="untouched")
+    api._window = SimpleNamespace(native=native)
+    applied = []
+    monkeypatch.setattr(api, "_on_ui", lambda callback: applied.append(callback) or callback())
+    api.set_window_shape([[0, 0, 340.4, 60], [0, 70, 340, 94.2], ["x", 1, 2, 3], [5, 5, 4, 4]])    # bad rows dropped
+    assert api._shape == ((0, 0, 341, 60), (0, 70, 340, 95)) and native.Region == "untouched"      # not ready yet
+    api._windows_ready = True
+    api._apply_shape()
+    assert native.Region.rects == [(0, 0, 341, 60), (0, 70, 340, 25)]
+    api.set_window_shape([[10, 10, 50, 20]])
+    assert native.Region.rects == [(10, 10, 40, 10)] and len(applied) == 1
+    api.set_window_shape(None)
+    assert api._shape is None and native.Region is None
+    api.set_window_shape([])                                           # nothing drawn: the whole window
+    assert api._shape is None and native.Region is None

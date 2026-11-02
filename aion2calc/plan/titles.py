@@ -86,7 +86,7 @@ def plan_titles(ctx: PlanContext, systems: dict | None = None, owned: list[str] 
             r["gain"] -= cur_gain
         best_owned = next((r for r in rows if r["owned"]), None) if owned_set else None
         slots[slot] = {"equipped": cur and {"name": cur.get("name"), "grade": cur.get("grade"), "equip": cur.get("equip"),
-                                             "gain": 0.0},
+                                             "owned_bonus": cur.get("owned"), "gain": 0.0},
                        "best_owned": best_owned, "best": rows[:top]}
     collect = []
     for t in cat:

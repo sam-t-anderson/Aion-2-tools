@@ -247,7 +247,6 @@
  "Field boss kills by server": "サーバー別フィールドボス討伐",
  "Filter": "絞り込み",
  "Filter this page": "このページを絞り込む",
- "Filter your logs by boss": "ボスでログを絞り込む",
  "Final-boss kills, earliest first": "ラスボス討伐（早い順）",
  "Find a legion": "レギオンを探す",
  "Find records": "記録を探す",
@@ -822,5 +821,12 @@
  "open-world node": "フィールドの採集ポイント",
  "dungeon and open-world node": "ダンジョンとフィールドの採集ポイント",
  "Found in": "出現場所：",
- "and {0} more": "ほか{0}件"
+ "and {0} more": "ほか{0}件",
+ "From": "開始日",
+ "To": "終了日",
+ "Uploaded on or after": "この日以降にアップロード",
+ "Uploaded on or before": "この日以前にアップロード",
+ "your logs": "あなたのログ",
+ "the legion's logs": "レギオンのログ",
+ "Filter {0} by boss": "{0}をボスで絞り込む"
 }

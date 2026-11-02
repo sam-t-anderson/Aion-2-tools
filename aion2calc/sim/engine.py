@@ -84,6 +84,8 @@ class Target:
     positions: tuple | None = None  # (front, back) shares of direct hits; the rest land from the side
     class_positions: bool = False  # each class's recorded mix on bosses (BOSS_POSITIONS) instead
     stagger_windows: tuple = ()    # ((start, end), ...) seconds
+    stagger_crit: bool = True      # a staggered boss takes critical hits (measured 0.2.368: 89–98 % of the hits inside a
+                                   # stagger crit against 50 % outside, every skill alike)
     is_boss: bool = True
     party_damage: bool = False     # the party takes damage a healer answers (a dungeon boss; a dummy deals none)
     hp_model: str = "dummy"        # "dummy" (always 100%) or "linear" (100% -> 0% over the fight)
@@ -261,6 +263,9 @@ class Sim:
         self.kit_state: dict[str, dict] = {}  # Mutable kit state belongs to this run, never shared closures.
         self.damage_by: dict[str, float] = {}
         self.hits_by: dict[str, int] = {}
+        # Echoes (0.2.368): while one lasts, every landed hit also deals a share of its damage under the echo's
+        # own name (Illusive Clone's "deals 20% of damage dealt as extra damage"): (name, share, until).
+        self.echoes: list[tuple[str, float, float]] = []
         self.casts: dict[str, int] = {}
         self.buff_time: dict[str, float] = {}
         self.timeline: list[tuple[float, str]] = []
@@ -328,6 +333,21 @@ class Sim:
 
     def reset_cd(self, group: str) -> None:
         self.ready[group] = self.t
+
+    def reduce_cds_by_share(self, share: float) -> None:
+        """Every skill still cooling down comes back ``share`` of its own cooldown sooner (Triniel's Dagger Lv 10)."""
+        seen: set[str] = set()
+        for a in self.actions.values():
+            g = a.group()
+            if g in seen or a.cooldown <= 0 or not a.affected_by_cdr or self.ready.get(g, 0.0) <= self.t + EPS:
+                continue
+            seen.add(g)
+            self.ready[g] = max(self.t, self.ready[g] - share * a.cooldown * (1.0 - self.base.cdr))
+
+    def echo(self, name: str, share: float, duration: float) -> None:
+        """For ``duration`` seconds every hit that lands also deals ``share`` of its damage as ``name``, counted
+        under that name; a second call for the same name replaces the first."""
+        self.echoes = [e for e in self.echoes if e[0] != name] + [(name, float(share), self.t + duration)]
 
     def _cdr_ok(self, group: str) -> bool:
         for a in self.actions.values():
@@ -432,6 +452,9 @@ class Sim:
             mods = dict(mods)
             for k, v in extra.items():
                 mods[k] = mods.get(k, 0.0) + v
+        if (self.target.stagger_crit and self.target.stagger_windows and "crit" not in tags and "dot" not in tags
+                and any(s <= t < e for s, e in self.target.stagger_windows)):
+            tags = tuple(tags) + ("crit",)                     # a staggered boss takes critical hits
         ctx = HitContext(flat=flat, coef=coef, element=element, tags=tags, mult=mult)
         dmg = expected_hit(self.base, mods, self.target, ctx)
         if self.cfg.record_damage:
@@ -441,6 +464,15 @@ class Sim:
         self.total += dmg
         self.damage_by[source] = self.damage_by.get(source, 0.0) + dmg
         self.hits_by[source] = self.hits_by.get(source, 0) + 1
+        if self.echoes and "echo" not in tags:
+            for name, share, until in self.echoes:
+                if t <= until + EPS and name != source:
+                    extra = dmg * share
+                    self.total += extra
+                    self.damage_by[name] = self.damage_by.get(name, 0.0) + extra
+                    self.hits_by[name] = self.hits_by.get(name, 0) + 1
+                    if self.cfg.record_damage:
+                        self.damage_events.append([t, extra])
         info = {"source": source, "element": element, "tags": tags, "dmg": dmg}
         if self._land_depth >= _MAX_LAND_DEPTH:
             # A hook kept landing more same-instant hits; stop firing hooks here so the chain

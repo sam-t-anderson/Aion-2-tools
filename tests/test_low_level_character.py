@@ -114,3 +114,21 @@ def test_a_saved_result_is_rebuilt_at_its_characters_level():
     assert build_from_summary({**summary, "level": None})[0].level == 45                # older results
 
 # My Character offers the community's point totals only at the level cap: tests/browser/test_browser_pages.py
+
+
+def test_stigma_level_patterns_spend_a_large_budget_up_to_level_20():
+    """0.2.367 tried stigma levels up to 15 only: a level-45 character whose observed stigmas cost 168 points had
+    no pattern that spent them, the search was skipped and the seed allocation (10/5/5/5) came out as the
+    recommendation. The patterns now reach 20 and stay maximal."""
+    from aion2calc.opt.pipeline import stigma_patterns
+    for budget in (168, 268):
+        pats = stigma_patterns(4, budget)
+        assert pats, budget
+        assert all(sum(stigma_points_to_reach(l) for l in p) <= budget for p in pats)
+        assert max(max(p) for p in pats) >= 16
+        for p in pats:                                       # no free point left to raise any level
+            spent = sum(stigma_points_to_reach(l) for l in p)
+            assert all(l >= 20 or spent - stigma_points_to_reach(l) + stigma_points_to_reach(l + 1) > budget for l in p)
+    assert (20, 19, 19, 18) in stigma_patterns(4, 268)
+    assert (10, 10, 10, 10) in stigma_patterns(4, 60)        # the smaller budgets keep their old patterns
+    assert stigma_patterns(2, 2) == [(1, 1)] and stigma_patterns(1, 3) == [(3,)]

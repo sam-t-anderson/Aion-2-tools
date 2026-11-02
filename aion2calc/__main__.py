@@ -489,7 +489,6 @@ def main(argv: list[str] | None = None) -> int:
             print(c + ":", "; ".join(learn.summary(learn.fit(c, conn))))
     elif args.cmd == "aoe-shapes":
         from .combat import aoe
-        from pathlib import Path
         docs = aoe.load_docs(args.paths) if args.paths else aoe.public_docs(args.server, limit=args.logs)
         rows = aoe.measure(docs)
         shown = rows if args.all else [r for r in rows if r["confidence"] != "insufficient"]   # unclear rows are worth seeing

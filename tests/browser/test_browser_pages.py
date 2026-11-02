@@ -370,3 +370,28 @@ def test_my_character_offers_the_reported_point_totals_only_at_the_level_cap(app
     note = "Community point totals are not filled in below level 45: they come from characters at the level cap."
     asked_for = [path for _, path in community.requests[asked:] if path.startswith("/api/v1/progression?class=sorcerer")]
     assert (page.get_by_text(note).count(), len(asked_for)) == ((0, 1) if level == 45 else (1, 0))
+
+
+def test_my_characters_overview_shows_the_healing_recorded_in_its_own_fights(app_page, app_url):
+    """The overview's Healing share (0.2.368) is the character's recorded healing, pooled per skill from the
+    fights saved on this computer, with its HPS and how many fights it rests on; without any it says so."""
+    page = app_page
+    go(page, app_url, "#/settings")
+    healed = {**character(page, 45), "healing": {"hps": 4321.0, "healing": 1_000_000, "fights": 7, "seconds": 1200.0, "recordings": 3,
+                                                 "shares": {"Healing Light": 0.6, "Radiant Cure": 0.3, "Grace": 0.1}}}
+    my_character(page, result=healed, character_auto_open=True, character_auto_refresh=True)
+    page.route(re.compile(r"/api/inventory\?character="), lambda route: route.fulfill(
+        json={"class": "sorcerer", "items": [], "genus": {}, "titles_owned": []}))
+    go(page, app_url, "#/character")
+    box = page.locator("#cview h4", has_text="HEALING SHARE")
+    box.wait_for()
+    text = box.locator("xpath=..").inner_text()
+    assert "Recorded: 4,321 HPS over 7 fights (20 min) in 3 recordings" in text
+    assert text.index("Healing Light") < text.index("Radiant Cure") < text.index("Grace") and "60.0%" in text
+    assert page.locator("#cview h4", has_text="DAMAGE SHARE").count() == 1
+    page.unroute("**/api/jobs/j1")
+    page.route("**/api/jobs/j1", lambda route: route.fulfill(json={"status": "done", "result": {**healed, "healing": None}, "log": []}))
+    go(page, app_url, "#/character")
+    page.locator('[data-known-character="0"]').wait_for()
+    page.click('[data-known-character="0"]')
+    page.locator("#cview", has_text="No recorded healing by this character yet").wait_for()

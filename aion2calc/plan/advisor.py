@@ -142,9 +142,13 @@ def advise(imp, inv: dict | None = None, evaluation: dict | None = None, steps: 
         base = ctx.dps(ctx.equipped)
         from ..run import prepare
         from ..scenarios import SCENARIOS
-        from ..kit.specialties import describe as describe_specialties
-        specialty_cd, specialty_build, _, _ = prepare(ctx.build,SCENARIOS[ctx.scenario](ctx.loadout))
-        specialties = describe_specialties(specialty_cd,specialty_build)
+        from ..kit.specialties import describe as describe_specialties, free_marks
+        specialty_scenario = SCENARIOS[ctx.scenario](ctx.loadout)
+        specialty_cd, specialty_build, _, _ = prepare(ctx.build, specialty_scenario)
+        say("which supporting effects the model can tell apart")
+        free = free_marks(specialty_cd, ctx.build, lambda b: ctx.dps(ctx.equipped, build=b),
+                          levels=specialty_build.effective_levels(specialty_cd))
+        specialties = describe_specialties(specialty_cd, specialty_build, free)
         say("best gear from your inventory")
         equip = best_equip(ctx, inv)
         say("goal gear per slot")

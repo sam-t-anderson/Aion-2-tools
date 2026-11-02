@@ -93,6 +93,26 @@ def _curve_worker(sid):
     return sid, opt._curve_for(build, policy, sid, max_level)
 
 
+def stigma_patterns(slots: int, points: int, min_levels=()) -> list[tuple]:
+    """The level patterns the stigma search tries: ``slots`` levels that spend ``points``, each maximal (no free
+    point left to raise a level), highest level first. With fewer than four slots to fill (a character below
+    level 37, or few points) every level is tried, since the usual subset can leave no pattern that spends the
+    few points there are; otherwise the levels that unlock specs (5, 10, 15, 20), the ones that spend an odd
+    point between them, and every level from 16 up. The levels used to stop at 15 (0.2.367 and before): a
+    level-45 character's observed stigmas (168 points) had no maximal pattern, the search was skipped, and
+    the seed allocation (10/5/5/5, 30 points) was what the optimizer proposed."""
+    levels = (range(1, 21) if slots < 4 else
+              sorted({1, 3, 5, 6, 7, 8, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, *min_levels}))
+    patterns = [lv for lv in itertools.product(levels, repeat=slots)
+                if sum(stigma_points_to_reach(l) for l in lv) <= points]
+
+    def maximal(p):
+        spent = sum(stigma_points_to_reach(l) for l in p)
+        return all(l >= 20 or spent - stigma_points_to_reach(l) + stigma_points_to_reach(l + 1) > points
+                   for l in p)
+    return sorted({tuple(sorted(p, reverse=True)) for p in patterns if maximal(p)})
+
+
 def _stigma_worker(job):
     opt, build, policy = _CTX["stigma"]
     combo, levels = job
@@ -372,21 +392,7 @@ class Optimizer:
         if not slots:
             self.log("stigma search skipped: no stigma slot is open at this level, or no stigma point to fill one")
             return build
-        # level patterns that spend the stigma points (levels unlock specs at 5/10/15). With fewer than
-        # four slots to fill (a character below level 37, or few points) every level is tried: the
-        # usual subset can leave no pattern that spends the few points there are
-        patterns = []
-        levels = (range(1, 21) if slots < 4 else
-                  sorted({1,3,5,6,7,8,10,11,12,13,15,*self.min_stigmas.values()}))
-        for lv in itertools.product(levels, repeat=slots):
-            if sum(stigma_points_to_reach(l) for l in lv) <= self.stigma_points:
-                patterns.append(lv)
-        # keep only maximal patterns (no free point left to add a level)
-        def maximal(p):
-            spent = sum(stigma_points_to_reach(l) for l in p)
-            return all(l>=20 or spent - stigma_points_to_reach(l) + stigma_points_to_reach(l + 1) > self.stigma_points
-                       for l in p)
-        patterns = sorted({tuple(sorted(p, reverse=True)) for p in patterns if maximal(p)})
+        patterns = stigma_patterns(slots, self.stigma_points, self.min_stigmas.values())
         if not cands or not patterns or slots > len(cands):
             self.log("stigma search skipped: no legal candidate sets for this budget")
             return build
