@@ -142,6 +142,22 @@
     document.querySelectorAll(".ovhd button, .pttools button, .pttools label, .ovfoot input, .ovfoot label").forEach((c) => c.addEventListener(type, stop));
     $("#ptrows").addEventListener(type, (e) => { if (e.target.closest("button")) e.stopPropagation(); });
   });
+  // Moving the window (0.2.371): a press elsewhere on the card hands the move to the native host, which follows the
+  // cursor until the button is up (begin_drag in overlay.py), as on the meter's window.
+  let moveFrom = null, moveDone = false;
+  $(".ovcard").addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || !e.isPrimary || e.target.closest("button, input, select, a, label")) return;
+    if (e.offsetX > e.target.clientWidth || e.offsetY > e.target.clientHeight) return;   // a scrollbar
+    moveFrom = { x: e.screenX, y: e.screenY };
+    nativeCall("begin_drag");
+  });
+  document.addEventListener("pointerup", (e) => {
+    if (!moveFrom) return;
+    moveDone = Math.hypot(e.screenX - moveFrom.x, e.screenY - moveFrom.y) > 4;
+    moveFrom = null;
+    if (moveDone) setTimeout(() => { moveDone = false; }, 0);
+  }, true);
+  document.addEventListener("click", (e) => { if (moveDone) { moveDone = false; e.preventDefault(); e.stopPropagation(); } }, true);
   function syncSettings() {
     fetch("/api/ui", { cache: "no-store" }).then((r) => r.json()).then((ui) => applyClickThrough(ui.overlay_click_through === true)).catch(() => {});
   }

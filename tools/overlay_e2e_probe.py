@@ -71,20 +71,31 @@ try:
             log(mode, "no overlay window")
             overlay.kill()
             continue
-        rect, box = wintypes.RECT(), wintypes.RECT()
-        user32.GetWindowRect(hwnd, ctypes.byref(rect))
-        kind = user32.GetWindowRgnBox(hwnd, ctypes.byref(box))
-        from PIL import ImageGrab
-        shot = ImageGrab.grab(all_screens=True)
-        crop = shot.crop((rect.left, rect.top, rect.right, rect.bottom)).convert("RGB")
-        crop.save(os.path.join(OUT, f"{NAME}-{mode}.png"))
-        shot.crop((0, 0, 1000, 720)).save(os.path.join(OUT, f"{NAME}-{mode}-screen.png"))
-        pixels = list(crop.getdata())
-        green = sum(1 for p in pixels if p == (0, 255, 0))
-        log(mode, json.dumps({"window": [rect.left, rect.top, rect.right, rect.bottom],
-                              "region": {0: "none", 1: "null", 2: "simple", 3: "complex"}.get(kind, kind),
-                              "region_box": [box.left, box.top, box.right, box.bottom],
-                              "green_share": round(green / max(1, len(pixels)), 4)}))
+        def measure(label):
+            rect, box = wintypes.RECT(), wintypes.RECT()
+            user32.GetWindowRect(hwnd, ctypes.byref(rect))
+            kind = user32.GetWindowRgnBox(hwnd, ctypes.byref(box))
+            from PIL import ImageGrab
+            shot = ImageGrab.grab(all_screens=True)
+            crop = shot.crop((rect.left, rect.top, rect.right, rect.bottom)).convert("RGB")
+            crop.save(os.path.join(OUT, f"{NAME}-{label}.png"))
+            pixels = list(crop.getdata())
+            green = sum(1 for p in pixels if p == (0, 255, 0))
+            grey = sum(1 for p in pixels if p in ((23, 95, 23), (32, 32, 32)))
+            log(label, json.dumps({"window": [rect.left, rect.top, rect.right, rect.bottom],
+                                   "region": {0: "none", 1: "null", 2: "simple", 3: "complex"}.get(kind, kind),
+                                   "region_box": [box.left, box.top, box.right, box.bottom],
+                                   "green_share": round(green / max(1, len(pixels)), 4),
+                                   "backdrop_grey_share": round(grey / max(1, len(pixels)), 4)}))
+        measure(mode)
+        if os.environ.get("PROBE_THEME_FLIP") and mode == MODES[0]:
+            result = ctypes.c_size_t()
+            user32.SendMessageTimeoutW(ctypes.c_void_p(0xFFFF), 0x001A, 0, ctypes.c_wchar_p("ImmersiveColorSet"), 2, 5000,
+                                       ctypes.byref(result))
+            time.sleep(0.3)
+            measure(mode + "-just-after-preference-change")
+            time.sleep(3)
+            measure(mode + "-after-preference-change")
         subprocess.run(["taskkill", "/PID", str(overlay.pid), "/T", "/F"], capture_output=True)
         time.sleep(2)
 finally:

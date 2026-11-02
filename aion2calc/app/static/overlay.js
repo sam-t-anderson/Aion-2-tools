@@ -462,10 +462,34 @@
   }
   new ResizeObserver(() => { fit(); shapeSoon(); }).observe($("#ov"));
 
-  // These events must not bubble into pywebview's card drag handler.
+  // A press on a control is the control's, never a move of the window.
   document.querySelectorAll("button, input, label").forEach((control) => {
     ["pointerdown", "mousedown", "touchstart"].forEach((type) => control.addEventListener(type, (event) => event.stopPropagation()));
   });
+  // Moving the window (0.2.371): a press anywhere else on the card hands the move to the native host, which follows
+  // the cursor in screen pixels until the button is up (begin_drag in overlay.py). pywebview's own drag region moved
+  // it from this page's mouse events, which stop when the cursor outruns the window, so a release outside it was
+  // lost and the window chased the cursor afterwards. A press that moved the window is a move, not a click: the
+  // click that ends it is dropped, so letting go over a name does not open that player's panel.
+  let moveFrom = null, moveDone = false;
+  const moveCard = $(".ovcard");
+  if (moveCard) moveCard.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || !event.isPrimary) return;
+    const target = event.target;
+    if (target.closest("button, input, select, textarea, a, label, .ovgrip")) return;
+    if (event.offsetX > target.clientWidth || event.offsetY > target.clientHeight) return;   // a scrollbar
+    moveFrom = { x: event.screenX, y: event.screenY };
+    nativeCall("begin_drag");
+  });
+  document.addEventListener("pointerup", (event) => {
+    if (!moveFrom) return;
+    moveDone = Math.hypot(event.screenX - moveFrom.x, event.screenY - moveFrom.y) > 4;
+    moveFrom = null;
+    if (moveDone) setTimeout(() => { moveDone = false; }, 0);
+  }, true);
+  document.addEventListener("click", (event) => {
+    if (moveDone) { moveDone = false; event.preventDefault(); event.stopPropagation(); }
+  }, true);
   slider.oninput = () => {
     op = Math.max(0.2, Math.min(1, slider.value / 100)); applyOpacity();
     try { localStorage.setItem(OPACITY_KEY, op); } catch (e) { /* optional storage */ }
@@ -482,8 +506,24 @@
     }
     return { x: last.x, y: last.y };
   }
+  // The Raid Planner's saved plans (0.2.371). The planner keeps them in the browser's storage, which this window's
+  // own storage is not: the plan view showed "No saved plan yet." whatever had been saved. The app keeps a copy each
+  // time the planner saves (GET /api/plans/saved), read again at most every 15 s while the plan view is open; a page
+  // opened in the same browser as the planner also has that browser's own copy, and the newer of the two wins.
+  let appPlans = {}, appPlansAt = 0;
+  function refreshPlans(now) {
+    if (!now && Date.now() - appPlansAt < 15000) return;
+    appPlansAt = Date.now();
+    fetch("/api/plans/saved", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((doc) => {
+      if (doc && doc.plans && typeof doc.plans === "object") { appPlans = doc.plans; if (tab === "plan") renderPlan(); }
+    }).catch(() => {});
+  }
   function allPlans() {
-    try { return JSON.parse(localStorage.getItem("a2plans") || "{}"); } catch (e) { return {}; }
+    let own = {};
+    try { own = JSON.parse(localStorage.getItem("a2plans") || "{}") || {}; } catch (e) { own = {}; }
+    const all = { ...appPlans };
+    for (const [id, plan] of Object.entries(own)) if (!all[id] || (plan?.meta?.updated || 0) >= (all[id]?.meta?.updated || 0)) all[id] = plan;
+    return all;
   }
   function latestPlan() {
     const all = allPlans();
@@ -1041,10 +1081,11 @@
     $("#ovtarget").hidden=true;$("#ovhpbar").hidden=true;$("#ovttkbar").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
     $("#ovgraph").hidden=true;$("#ovgauge").hidden=true;$("#ovcooldowns").hidden=true;$("#ovclock").hidden=true;
     $("#ovconnection").hidden=true;
+    refreshPlans(false);
     const view = planView(), p = view.plan;
     if (!p) {
       setText($("#ovstatus"), "");
-      setHtml($("#ovcontent"), '<div class="muted">No saved plan yet.</div>');
+      setHtml($("#ovcontent"), '<div class="muted">No saved plan yet. Plans you save in the app\'s Raid Planner show here.</div>');
       return;
     }
     const dur = view.dur, now = view.time;
@@ -1069,7 +1110,7 @@
         b.setAttribute("aria-selected", String(b.dataset.tab === tab));
       });
       $("#ovcontent").setAttribute("aria-labelledby", `${tab}-tab`);
-      if (tab === "meter") { renderMeter(); pollMeter(); } else renderPlan();
+      if (tab === "meter") { renderMeter(); pollMeter(); } else { refreshPlans(true); renderPlan(); }
     };
   });
   document.querySelectorAll("[data-metric]").forEach(button=>{button.onclick=()=>{

@@ -824,6 +824,8 @@ class Handler(BaseHTTPRequestHandler):
             from ..combat import share
             st = share.effective()
             return self._json({k: v for k, v in st.items() if k != "key"} | {"has_key": bool(st.get("key"))})
+        if path == "/api/plans/saved":
+            return self._json(saved_plans())
         if path == "/api/plans/bosses":
             from ..combat.share import plan_request
             return self._json(plan_request(bosses=True))
@@ -1029,6 +1031,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/plans":
             from ..combat.share import plan_request
             return self._json(plan_request(body.get("plan"), body.get("visibility", "unlisted"), body.get("id"), body.get("owner")))
+        if path == "/api/plans/saved":
+            return self._json(save_plans(body.get("plans")))
         if path == "/api/assets/reindex":
             return self._json({"job": start_asset_reindex()})
         if path == "/api/sync":
@@ -1935,6 +1939,39 @@ def schedule_shutdown(upload: bool = True) -> None:
             except Exception:
                 traceback.print_exc()
     threading.Thread(target=stop, daemon=True, name="desktop-shutdown").start()
+
+
+SAVED_PLANS_FILE = "raid_plans.json"
+SAVED_PLANS_MAX = 500                    # plans kept for the overlay
+SAVED_PLANS_BYTES = 32 * 1024 * 1024     # a plan with imported movement can run to a few MiB
+
+
+def saved_plans() -> dict:
+    """The Raid Planner's saved plans as the app last received them (0.2.371). The planner keeps its plans in the
+    browser's storage, which the overlay's own window cannot read; each save there sends the whole set here,
+    and the overlay's plan view reads it back."""
+    from ..paths import user_data
+    try:
+        doc = json.loads((user_data() / SAVED_PLANS_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        doc = {}
+    plans = doc.get("plans") if isinstance(doc, dict) else None
+    return {"plans": plans if isinstance(plans, dict) else {}, "updated": doc.get("updated") if isinstance(doc, dict) else None}
+
+
+def save_plans(plans) -> dict:
+    """Keep the planner's whole set of saved plans (ids to a2plan documents), replacing the last copy."""
+    from ..paths import write_user_json
+    if not isinstance(plans, dict) or not all(isinstance(k, str) and 0 < len(k) <= 64 and isinstance(v, dict)
+                                              for k, v in plans.items()):
+        raise ValueError("plans must map plan ids to plans")
+    if len(plans) > SAVED_PLANS_MAX:
+        raise ValueError(f"The overlay keeps at most {SAVED_PLANS_MAX} plans.")
+    if len(json.dumps(plans, ensure_ascii=False).encode("utf-8")) > SAVED_PLANS_BYTES:
+        raise ValueError("The saved plans exceed 32 MiB.")
+    updated = time.time()
+    write_user_json({"plans": plans, "updated": updated}, SAVED_PLANS_FILE)
+    return {"ok": True, "count": len(plans), "updated": updated}
 
 
 def ui_settings() -> dict:

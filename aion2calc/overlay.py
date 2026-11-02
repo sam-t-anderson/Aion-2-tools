@@ -534,6 +534,7 @@ class _OverlayAPI:
         # new objects so the loop thread never sees a half-updated value.
         self._click_through = False
         self._interactive = ()
+        self._dragging = False      # a native move of the window is following the cursor (begin_drag)
         # The window's shape (0.2.368): in the "top portion only" and "none" background modes the page reports
         # the rectangles it draws (the header panel, each row, the panels under the rows) and the host clips the
         # window to them, so the game shows through everywhere else and takes the clicks there. The host paints
@@ -542,11 +543,12 @@ class _OverlayAPI:
         self._shape = None
         # What overlay.log last said of the shape and when it said it, so a shape that changes every poll (a
         # readout that grew a digit) is logged when its kind changes, at most six times a minute. Whether the
-        # page's background is clear (see _clear_page) and the last region Windows reported holding.
+        # last region Windows reported holding, and what the log said of the window's backdrop.
         self._shape_said, self._shape_said_times = None, []
         self._shape_errors_said_at = 0.0
-        self._page_clear = None
         self._region_said = None
+        self._backdrop_said = None
+        self._hwnd = None
         self._user32_dll = None
         # The watchdog's state (overlay_health): whether the tracking loop has the window shown, a
         # WebView2 process failure waiting to be acted on, reloads the app asked for, and whether the
@@ -593,6 +595,44 @@ class _OverlayAPI:
         # Called from the overlay page when the setting changes. The hit-test loop
         # (Windows) picks this up and starts/stops passing clicks through.
         self._click_through = bool(enabled)
+
+    def begin_drag(self):
+        """Called by the page when a press lands on the card outside its controls (0.2.371): the window follows the
+        cursor from here, in screen pixels, until the primary button is up. pywebview's own dragging moved the window
+        from the page's mouse events instead, which stop once the cursor outruns the window, so a release outside it
+        was never seen and the window went on chasing the cursor; and it placed the window from a position in
+        display-independent pixels, so on a second display scaled differently the window jumped. The screenshot lock
+        keeps the window where it is."""
+        if sys.platform != "win32" or self._window is None or self._locked or self._dragging:
+            return
+        self._dragging = True
+        threading.Thread(target=self._drag, daemon=True, name="overlay-drag").start()
+
+    def _drag(self, poll=0.008, limit=600.0):
+        try:
+            user32 = ctypes.WinDLL("user32", use_last_error=True)
+            user32.GetAsyncKeyState.restype = ctypes.c_short
+            user32.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int,
+                                            ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+            user32.GetWindowRect.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+            hwnd = ctypes.c_void_p(self._window.native.Handle.ToInt64())
+            button = 0x02 if user32.GetSystemMetrics(23) else 0x01     # the primary button: right when swapped
+            cursor, rect = (ctypes.c_long * 2)(), (ctypes.c_long * 4)()
+            user32.GetCursorPos(cursor)
+            user32.GetWindowRect(hwnd, rect)
+            dx, dy = rect[0] - cursor[0], rect[1] - cursor[1]
+            where, until = (rect[0], rect[1]), time.monotonic() + limit
+            while user32.GetAsyncKeyState(button) & 0x8000 and time.monotonic() < until:
+                user32.GetCursorPos(cursor)
+                to = (cursor[0] + dx, cursor[1] + dy)
+                if to != where:
+                    user32.SetWindowPos(hwnd, None, to[0], to[1], 0, 0, 0x0001 | 0x0004 | 0x0010)   # no size, z-order, focus
+                    where = to
+                time.sleep(poll)
+        except Exception as err:
+            self.log.write(f"moving the window failed: {type(err).__name__}: {err}")
+        finally:
+            self._dragging = False
 
     def set_interactive_rects(self, rects):
         # Called from the overlay page with its controls' bounding boxes, each
@@ -667,24 +707,7 @@ class _OverlayAPI:
             except Exception as err:   # rounded corners are a nicety: never lose the shape over them
                 self.log.write(f"rounded window shape failed ({type(err).__name__}: {err}); using square corners")
                 native.Region = self._shape_region(rounded=False)
-        # The region first: the two steps after it only add to it, and a host that cannot take them keeps it.
-        self._clear_page(bool(self._shape))
-        self._check_region(bool(self._shape))
-
-    def _clear_page(self, clear):
-        """While the window has a shape, the WebView2 control draws nothing where the page draws nothing (0.2.371):
-        its default background goes from the host colour to clear. Where Windows clips the whole window to the
-        region this changes nothing on screen; where the region left the browser's own surface whole, that surface
-        filled the window's rectangle around the pieces with the host colour, a dark box behind the see-through
-        modes. The host window's colour stays behind the page, inside the region."""
-        if clear == self._page_clear:
-            return
-        self._page_clear = clear      # asked once per change: a host that cannot do it is not asked every poll
-        try:
-            from System.Drawing import Color
-            self._window.native.webview.DefaultBackgroundColor = Color.Transparent if clear else Color.FromArgb(27, 32, 42)
-        except Exception as err:
-            self.log.write(f"the page's background stays as it was ({type(err).__name__}: {err})")
+        self._check_region(bool(self._shape))   # after the region: a host that cannot read it back keeps it
 
     def _user32(self):
         if self._user32_dll is None:
@@ -803,12 +826,42 @@ class _OverlayAPI:
             native.TransparencyKey = Color.Empty
             native.webview.DefaultBackgroundColor = background
             native.Opacity = self._opacity
+            self._hwnd = native.Handle.ToInt64()
+            self._drop_backdrop()
+            # pywebview asks for the backdrop again on every change of the user's preferences (its handler of this
+            # same event): drop it again just after, and the watchdog checks it every few seconds too.
+            try:
+                from Microsoft.Win32 import SystemEvents
+                self._preference_handler = lambda *_: threading.Timer(0.5, self._drop_backdrop).start()
+                SystemEvents.UserPreferenceChanged += self._preference_handler
+            except Exception as err:
+                self.log.write(f"preference changes not followed ({type(err).__name__}: {err})")
 
         self._on_ui(configure)
         self._windows_ready = True
         self.log.write(f"window set up ({self._host_facts()}), opacity {self._opacity:.2f}")
         if self._shape:
             self._on_ui(self._apply_shape)
+
+    def _drop_backdrop(self):
+        """No system backdrop behind the window (DWMWA_SYSTEMBACKDROP_TYPE = DWMSBT_NONE, 0.2.371). When Windows runs
+        apps dark, pywebview asks DWM for a Mica backdrop on every window it makes (update_title_bar_theme), and DWM
+        paints that backdrop, a dark grey wherever Mica itself cannot show, across the whole window rectangle: outside
+        the window's region too, so the see-through modes showed a dark box around their pieces on a dark desktop
+        while the region was in place and the clicks went through to the game. Safe from any thread; on a Windows
+        without system backdrops the call is refused and nothing changes."""
+        if not self._hwnd:
+            return
+        try:
+            none = ctypes.c_int(1)
+            result = ctypes.windll.dwmapi.DwmSetWindowAttribute(ctypes.c_void_p(self._hwnd), 38, ctypes.byref(none),
+                                                                ctypes.sizeof(none)) & 0xFFFFFFFF
+            said = "none" if result == 0 else f"left as it is (DwmSetWindowAttribute 0x{result:08x})"
+        except Exception as err:
+            said = f"not set ({type(err).__name__}: {err})"
+        if said != self._backdrop_said:
+            self._backdrop_said = said
+            self.log.write(f"window backdrop: {said}")
 
     def _host_facts(self):
         """What overlay.log needs to tell one player's window from another's (0.2.371): the pywebview and Windows
@@ -1122,6 +1175,7 @@ def _health_loop(window, api, win32, closed: threading.Event) -> None:
     watchdog = _Watchdog(window, api, win32)
     api.log.write("watching the page")
     while not closed.wait(5.0):
+        api._drop_backdrop()
         try:
             watchdog.tick()
         except Exception as err:
@@ -1378,9 +1432,8 @@ def main(argv=None) -> int:
         api.url = url
         api.log = OverlayLog(_log_path(), "overlay" if party == "meter" else f"overlay[{party}]")
         api.log.write(f"started (pid {os.getpid()})")
-        # Stable card content is draggable; JS stops events at the tabs and slider.
-        webview.settings["DRAG_REGION_DIRECT_TARGET_ONLY"] = False
-        title = {"meter": "Aion 2 Calc Overlay", "party": "Aion 2 Calc Party Overlay", "radar": "Aion 2 Calc Radar Overlay",
+        # The card moves the window through begin_drag (0.2.371), not pywebview's drag regions.
+        title ={"meter": "Aion 2 Calc Overlay", "party": "Aion 2 Calc Party Overlay", "radar": "Aion 2 Calc Radar Overlay",
                  "pets": "Aion 2 Calc Pet Tracker"}[party]
         window = webview.create_window(title, url, frameless=True, easy_drag=False,
                                        shadow=False, on_top=True, hidden=True, focus=False,
