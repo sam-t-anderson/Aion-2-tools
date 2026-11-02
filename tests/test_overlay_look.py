@@ -70,7 +70,7 @@ def test_layout_setting_hooks_survive_the_restyle():
     for selector in ("#ov.ov-bars-gradient", "#ov.ov-bars-rounded", "#ov.ov-stripes", "#ov.ov-compact", ".ovrow-me",
                      ".ovrank-1", ".ovclass", ".ovcicon", "#ov.ov-scroll-names", "#ov.ov-outline", "#ov.ov-cycle",
                      "#ov.ov-halo", "#ov.ov-retro", "#ov.ov-ac-blend", "#ov.ov-party", "#ov.ov-locked", "#ov.ov-resizable",
-                     ".ovgraph", ".ovhpbar", ".ovttkbar", ".ovdummy", ".ovevents", ".ovfps",
+                     ".ovgraph", ".ovpspark", ".ovhpbar", ".ovttkbar", ".ovdummy", ".ovevents", ".ovfps",
                      "#ovcapture", "#ovsplit", "#ovcopy", "#ovlock", "#ovhide", ".ovfoot", ".ovping", ".ovidentity",
                      ".ovcontribution", "--ov-width", "--ov-row-h", "--ov-font-scale", "--ov-hp-color", "--ov-ttk-color"):
         assert selector in CSS, selector

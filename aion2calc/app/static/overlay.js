@@ -42,6 +42,7 @@
   let showCooldowns=false, showGauge=false, cooldownsTop=false, cooldownsAt=0;
   const cooldownIcons=new Map();   // strip key -> icon element, kept between renders so icons never reload
   let graphHist=[], graphDur=-1;   // per-poll party-total samples for the live DPS/HPS sparkline, and the last seen fight duration
+  const playerHist=new Map();      // per-player DPS samples (key -> [dps,…]) for the player panel's trend sparkline
   let maxPlayers=8, onlyInCombat=false, autoExpand=false, nameMode="name", classColorNames=false, classSwatch=false, rankNumbers=false, highlightMe=false, showCommunityRank=false, showEvents=true, showFieldBosses=true;
   // Regional event-notification strip: next rift/Shugo/battlefield/field-boss windows
   // from the bundled schedule, for the region the player picked on the Timers page.
@@ -296,7 +297,7 @@
       await r.json();
       graphHist=[];   // the live graph starts clean for the new fight
       clearedFight=String((lastSnap&&lastSnap.snapshot&&lastSnap.snapshot.selected_segment)??"");
-      shownRates.clear();
+      shownRates.clear();playerHist.clear();
       splitBtn.textContent="New ✓";
       await pollMeter();
     }catch(_){splitBtn.textContent="Error";}
@@ -499,10 +500,10 @@
   // when a new fight starts (the fight clock resets) and is capped so memory is bounded.
   function recordGraph(s, snap, players){
     const g=$("#ovgraph"); if(!g)return;
-    if(!showGraph){g.hidden=true;graphHist=[];return;}
+    if(!showGraph){g.hidden=true;graphHist=[];playerHist.clear();return;}
     const running=!!(s&&s.running), paused=snap.paused===true, over=snap.battle_over===true;
     const duration=Number(snap.duration)||0;
-    if(duration+0.001<graphDur){graphHist=[];}   // the fight clock went backwards → a new fight began
+    if(duration+0.001<graphDur){graphHist=[];playerHist.clear();}   // the fight clock went backwards → a new fight began
     graphDur=duration;
     if(running&&!paused&&!over){
       graphHist.push({
@@ -511,8 +512,25 @@
         k: players.reduce((n,p)=>n+(Number(p.dtps)||0),0),
       });
       if(graphHist.length>300) graphHist.shift();
+      // Per-player DPS trend, for the sparkline in the player's panel.
+      for(const p of players){
+        const k=String(p.key||p.id); let arr=playerHist.get(k);
+        if(!arr){arr=[];playerHist.set(k,arr);}
+        arr.push(Number(p.dps)||0);
+        if(arr.length>300) arr.shift();
+      }
     }
     drawGraph();
+  }
+  // A compact DPS trend sparkline for the player whose panel is open (shown only when
+  // the DPS graph is enabled). Each point is a real per-poll reading.
+  function sparkLine(series, color){
+    if(!Array.isArray(series)||series.length<2)return "";
+    const c=/^#[0-9a-f]{6}$/i.test(color||'')?color:'#e8cf8e';
+    const mx=Math.max(...series,1), n=series.length, W=100, H=16;
+    const pts=series.map((v,i)=>`${(i/(n-1)*W).toFixed(1)},${(H-(v/mx)*H).toFixed(1)}`).join(" ");
+    // Tinted to the player's class colour so the trend matches their bar.
+    return `<div class="ovpspark" title="This player's DPS over the fight, one point per reading"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polygon class="ovparea" points="0,${H} ${pts} ${W},${H}" style="fill:${c}"/><polyline points="${pts}" style="stroke:${c}"/></svg></div>`;
   }
   function drawGraph(){
     const g=$("#ovgraph"); if(!g)return;
@@ -806,12 +824,15 @@
       ["Parried in",String(p.incoming&&p.incoming.parries||0)]];
     const titles={"Parry":"Share of this player's hits the enemy parried","Front":"Share of hits landed from the front","Back":"Share of hits landed from behind",
       "Perfect":"Share of perfect hits","Double":"Share of double hits","Parried in":"Hits on this player that they parried","Combat time":active!=null?`Fight time; this player dealt damage in ${fmtSecs(active)} of it`:"Fight time"};
+    const key=String(p.key||p.id);
+    const spark=showGraph?sparkLine(playerHist.get(key),barColor(p.class)):"";   // the DPS trend, with the graph on
     const skills=(Array.isArray(p.skills)?p.skills:[]).slice(0,8);
     const top=skills.length?Math.max(...skills.map(k=>Number(k.damage)||0),1):1;
     const skillRows=skills.map(k=>`<div class="ovdsk" title="${esc(k.skill||k.skill_id)}: ${kfmt(k.damage)} over ${k.hits||0} hits · avg ${kfmt(k.hits?k.damage/k.hits:0)}${k.crit!=null?` · crit ${pct(k.crit)}`:""}${k.back!=null?` · back ${pct(k.back)}`:""}${k.parry!=null?` · parried ${pct(k.parry)}`:""}">${skillIconHTML(k.skill_id,k.skill)}<span class="ovdskname">${esc(k.skill||k.skill_id)}</span><span class="ovdskbar"><i style="width:${Math.round(100*(Number(k.damage)||0)/top)}%"></i></span><span class="ovdskval">${kfmt(k.damage)} · ${Math.round((k.share||0)*100)}% · ${k.hits||0}×${k.crit!=null?` · ${pct(k.crit)}`:""}</span></div>`).join("");
     const buffs=detailBuffs===null?`<div class="muted">Reading the buffs…</div>`:detailBuffs.length?detailBuffs.slice(0,10).map(b=>`<div class="ovdsk" title="${esc(b.skill)}: ${b.uptime_pct}% of the fight (${fmtSecs(b.seconds)}), applied ${b.applications}×${b.self?", by this player":""}">${skillIconHTML(b.skill_id,b.skill)}<span class="ovdskname">${esc(b.skill)}</span><span class="ovdskbar"><i style="width:${Math.max(0,Math.min(100,Math.round(b.uptime_pct)))}%"></i></span><span class="ovdskval">${Math.round(b.uptime_pct)}% · ${fmtSecs(b.seconds)}</span></div>`).join(""):`<div class="muted">No buff records in this fight yet.</div>`;
     const html=`<div class="ovdhead">${classIcon(p.class)}<span class="ovdname" translate="no">${esc(displayName(p))}</span><span class="ovdsub">${esc((p.class||"").replace(/^./,c=>c.toUpperCase()))}${cp?` · CP ${kfmt(cp)}`:""}</span><button type="button" class="ovdclose" data-close title="Close the player panel" aria-label="Close">✕</button></div>`
       +`<div class="ovdsub ovdline">${target?`Target: <span translate="no">${esc(target)}</span> · `:""}${fmtSecs(snap.duration)} in combat${me?" · you":""}</div>`
+      +spark
       +`<div class="ovdtiles">${tiles.map(([k,v])=>`<div class="ovdtile"${titles[k]?` title="${esc(titles[k])}"`:""}><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join("")}</div>`
       +(skillRows?`<div class="ovdsec">Top skills</div><div class="ovdlist">${skillRows}</div>`:"")
       +`<div class="ovdsec">Buff uptime</div><div class="ovdlist">${buffs}</div>`;
