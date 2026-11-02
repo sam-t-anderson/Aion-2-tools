@@ -133,13 +133,13 @@ jobs:
       - run: pip install -e . pywebview pillow
       - name: Light app theme
         run: python tools/overlay_window_check.py light overlay-window-check
-        timeout-minutes: 5
+        timeout-minutes: 8
       - name: Dark app theme
         if: ${{ !cancelled() }}
         run: |
           reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 0 /f
           python tools/overlay_window_check.py dark overlay-window-check
-        timeout-minutes: 5
+        timeout-minutes: 8
       - uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:

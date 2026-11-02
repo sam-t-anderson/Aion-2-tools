@@ -25,6 +25,10 @@ OUT = sys.argv[2] if len(sys.argv) > 2 else "overlay-window-check"
 os.makedirs(OUT, exist_ok=True)
 GREEN, GREY = (0, 255, 0), ((23, 95, 23), (32, 32, 32))      # the game; the dark backdrop alone and at the opacity
 SEE_THROUGH = 0.15                                           # the least share of the game the light theme shows is 0.35
+# How long the page may take to load and send its outline. On a fresh runner the first overlays took 13 s and more
+# (the dark pass right after took 1-2 s), and until then the window shows only the game, or a flat fill at its first
+# size, so no mode is judged before Windows holds the outline.
+READY = 90.0
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 user32.FindWindowW.restype = ctypes.c_void_p
 user32.GetWindowRgnBox.argtypes = [ctypes.c_void_p, ctypes.POINTER(wintypes.RECT)]
@@ -44,7 +48,7 @@ def measure(hwnd, label):
     kind = user32.GetWindowRgnBox(hwnd, ctypes.byref(box))
     shot = ImageGrab.grab(all_screens=True).crop((rect.left, rect.top, rect.right, rect.bottom)).convert("RGB")
     shot.save(os.path.join(OUT, f"{THEME}-{label}.png"))
-    pixels = list(shot.getdata())
+    pixels = list(shot.get_flattened_data() if hasattr(shot, "get_flattened_data") else shot.getdata())
     seen = {"game": round(sum(p == GREEN for p in pixels) / max(1, len(pixels)), 4),
             "backdrop": round(sum(p in GREY for p in pixels) / max(1, len(pixels)), 4),
             "region": kind in (2, 3)}
@@ -52,7 +56,12 @@ def measure(hwnd, label):
     return seen
 
 
-def until(hwnd, label, ok, wait=15.0):
+def drawn(seen):
+    """The page has drawn and sent its outline: Windows holds a region, and the window shows more than the game."""
+    return seen["region"] and seen["game"] < 0.95
+
+
+def until(hwnd, label, ok, wait=READY):
     """Measure until ``ok`` holds or ``wait`` seconds pass; the last measurement."""
     end = time.monotonic() + wait
     while True:
@@ -97,12 +106,16 @@ try:
                 failures.append(f"{mode}: the overlay window never showed")
                 continue
             if mode == "card":
-                seen = until(hwnd, mode, lambda s: s["region"] and s["game"] > 0)
-                if not seen["region"] or not 0 < seen["game"] < 0.05 or seen["backdrop"]:
+                seen = until(hwnd, mode, lambda s: drawn(s) and s["game"] > 0)
+                if not drawn(seen):
+                    failures.append(f"{mode}: the page sent no outline within {READY:.0f} s ({seen})")
+                elif not 0 < seen["game"] < 0.05 or seen["backdrop"]:
                     failures.append(f"{mode}: the window is not the card's rounded outline ({seen})")
                 continue
-            seen = until(hwnd, mode, lambda s: s["game"] >= SEE_THROUGH)
-            if seen["game"] < SEE_THROUGH or seen["backdrop"]:
+            seen = until(hwnd, mode, lambda s: drawn(s) and s["game"] >= SEE_THROUGH)
+            if not drawn(seen):
+                failures.append(f"{mode}: the page sent no outline within {READY:.0f} s ({seen})")
+            elif seen["game"] < SEE_THROUGH or seen["backdrop"]:
                 failures.append(f"{mode}: the game does not show between the pieces ({seen})")
             elif THEME == "dark" and mode == "none":
                 # pywebview asks for the backdrop again on every change of the user's preferences
