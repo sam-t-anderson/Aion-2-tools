@@ -176,8 +176,10 @@ def _static(name):
 
 def test_the_overlay_shows_the_keys_under_odyle_above_the_identity_line_and_the_tickets_too():
     css, html, js = _static("overlay.css"), _static("overlay.html"), _static("overlay.js")
-    # The rows share flex order 60 and follow the markup: ping, Odyle, keys, tickets, then the identity line.
-    assert ".ovcard > #ovshugo { order: 60; }" in css and ".ovcard > #ovnightmare { order: 60; }" in css
+    # The three lines sit in one container at flex order 60 and follow the markup: ping, Odyle, keys, tickets,
+    # then the identity line (0.2.369 wraps them so the see-through modes can lay them out on one row).
+    assert ".ovcard > #ovlines { order: 60; }" in css and 'id="ovlines"' in html
+    assert ".ovlines > .ovodyle { flex: 0 0 100%;" in css                # one line each in the whole-card mode
     assert html.index('id="ovodyle"') < html.index('id="ovshugo"') < html.index('id="ovnightmare"') < html.index('id="ovidentity"')
     assert "snap.nightmare_tickets" in js and "Nightmare Tickets" in js and "#ov.ov-radar #ovnightmare" in css
     for hidden in ('"#ovshugo","#ovnightmare"', '$("#ovnightmare").hidden=true'):
@@ -224,7 +226,8 @@ def test_the_overlay_and_the_live_meter_show_it_with_the_icon():
     assert 'class="ovkeyicon"' in overlay
     assert ".ovkeyicon{" in read("overlay.css") and "p.odyle .keyicon {" in read("app.css")
     assert 'snap["shugo_keys"] = dict(self.packet_engine.shugo_keys)' in runner
-    assert overlay.count('"#ovshugo"') == 3 and overlay.count('"#ovodyle"') == 3   # hidden with the rest, in every view
+    # Hidden with the rest in every view (three places), and measured for the one-row form (compactLines).
+    assert overlay.count('"#ovshugo"') == 4 and overlay.count('"#ovodyle"') == 4
 
 
 def test_a_setting_on_by_default_shows_or_hides_it(monkeypatch, tmp_path):

@@ -1,3 +1,9 @@
+## The see-through overlay modes take effect, and the counters fit the space (0.2.369)
+
+**Top portion only and None now show the game.** On the native Windows overlay both modes looked like the whole card whatever the setting read. 0.2.368 added the fix, the window clipped to the parts the page draws, but the page measured that shape before pywebview's bridge was up, remembered it as sent and never sent it again, so the host never clipped. The shape is now measured and sent once the bridge is up (and never remembered as sent while it is down), so the header panel, each row and the pieces under the rows stand on the game with nothing between them.
+
+**The counters fit the space.** In the two see-through modes the Odyle Energy, Shugo Keys and Nightmare Tickets lines share one row: their full text where the card is wide enough for all three, and an icon with the count each where it is not (the full words stay in each line's tooltip). The card mode keeps them as separate lines at the bottom.
+
 ## Your logs narrow by day, a Healing share, and the Assassin measured from the log server (0.2.368)
 
 **Your logs and a legion's logs narrow by day.** My logs on the account page (the website's and the app's) and a legion's logs take a **From** and **To** day beside the boss filter, with pages, and the log server narrows the list itself (log server 0.2.160; an older server lists every day until it is updated). A day is your own: the filter sends the day's start and end in your time zone.

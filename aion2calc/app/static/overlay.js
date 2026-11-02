@@ -63,6 +63,7 @@
   const COSMETICS=["none","gold","rainbow","ember","frost","aether","starlight"];
   let detailKey=null, detailBuffs=null, detailExtra=null, detailAt=0, detailBusy=false;
   let bgMode="card", meCosmetic="none", topCosmetic="none";
+  let lastShape="";   // the window shape last sent to the native host (declared early: nativeInit may run at once)
   const skillFamily=id=>{const n=Number(id);if(!Number.isSafeInteger(n)||n<=0)return null;return Math.floor(n/10000)%100===0?n:n-n%10000;};
   const skillIconHTML=(id,name)=>{const fam=skillFamily(id),initials=String(name||"").split(/\s+/).filter(Boolean).map(w=>w[0]).join("").slice(0,2);
     const src=fam?"https://metabot.gg/web/aion2/skills/"+fam+".webp":"";
@@ -413,6 +414,9 @@
     // the click-through state (and the control rects) now that native calls land.
     nativeCall("set_click_through", clickThrough);
     if (clickThrough) reportInteractiveRects();
+    // The first render usually comes before the bridge too: measure the see-through modes' shape again and
+    // send it, or the native window keeps its whole card (0.2.368 remembered that shape as sent).
+    lastShape = ""; measureTop();
     setupRadar(radarSetting);   // in the native host the radar is drawn by its own window, never by the meter's
   }
   // pywebview injects its bridge once the navigation has completed and fires pywebviewready; the direct call
@@ -562,17 +566,17 @@
     const files=window.A2BundledAssets&&window.A2BundledAssets.files, base=window.A2BundledAssets&&window.A2BundledAssets.base;
     const file=files&&files[ODYLE_ICON], regular=Number(o.regular)||0, bonus=Number(o.bonus)||0;
     const icon=file&&base?`<i class="ovodicon" style="background-image:url(${esc(base+file)})" aria-hidden="true"></i>`:'';
-    return `${icon}<span>Odyle Energy ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span>`;
+    return `${icon}<span class="ovoltext">Odyle Energy ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span><span class="ovolshort">${(regular+bonus).toLocaleString()}</span>`;
   }
   // Your Shugo Festival Reward Keys (counter 1, since 0.2.332): the regular keys, then the bonus ones.
   function shugoLine(o){
     const regular=Number(o.regular)||0, bonus=Number(o.bonus)||0;
-    return `<i class="ovkeyicon" aria-hidden="true"></i><span>Shugo Keys ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span>`;
+    return `<i class="ovkeyicon" aria-hidden="true"></i><span class="ovoltext">Shugo Keys ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span><span class="ovolshort">${(regular+bonus).toLocaleString()}</span>`;
   }
   // Your Nightmare tickets (counter 4, the one 0.2.329 took for the Shugo keys): regular, then bonus, spent one at a time.
   function nightmareLine(o){
     const regular=Number(o.regular)||0, bonus=Number(o.bonus)||0;
-    return `<i class="ovticketicon" aria-hidden="true"></i><span>Nightmare Tickets ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span>`;
+    return `<i class="ovticketicon" aria-hidden="true"></i><span class="ovoltext">Nightmare Tickets ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span><span class="ovolshort">${(regular+bonus).toLocaleString()}</span>`;
   }
   function classIcon(cls){
     const key=String(cls||'').toLowerCase(); if(!key) return '';
@@ -841,7 +845,21 @@
   $("#ovdetail")&&$("#ovdetail").addEventListener("click",e=>{if(e.target.closest("[data-close]"))openDetail(null);});
   // In the top-background mode the panel behind the header ends where the player rows begin: measured after
   // each render, so a target panel coming or going moves it.
+  // The Odyle, Shugo and Nightmare lines in the see-through modes (0.2.369): one row of full lines when the card is
+  // wide enough for all of them, one row of icons with the counts when it is not; the card mode stacks them.
+  function compactLines(){
+    const ov=$("#ov"), card=$(".ovcard"); if(!ov||!card)return;
+    ov.classList.remove("ov-lines-row","ov-lines-icons");
+    if(bgMode==="card")return;
+    const lines=["#ovodyle","#ovshugo","#ovnightmare"].map(id=>$(id)).filter(el=>el&&!el.hidden);
+    if(!lines.length)return;
+    ov.classList.add("ov-lines-row");
+    const cs=getComputedStyle(card), room=card.clientWidth-(parseFloat(cs.paddingLeft)||0)-(parseFloat(cs.paddingRight)||0);
+    const need=lines.reduce((n,el)=>n+el.scrollWidth,0)+10*lines.length;   // each line keeps its 10 px margin
+    if(need>room+1)ov.classList.add("ov-lines-icons");
+  }
   function measureTop(){
+    compactLines();
     const card=$(".ovcard"),rows=$("#ovcontent");
     if(!card||!rows||bgMode!=="top"){if(card)card.style.removeProperty("--ov-top-h");reportShape();return;}
     requestAnimationFrame(()=>{const h=rows.getBoundingClientRect().top-card.getBoundingClientRect().top;card.style.setProperty("--ov-top-h",Math.max(0,Math.round(h))+"px");reportShape();});
@@ -849,10 +867,9 @@
   // The native host paints an opaque window behind the page, so a transparent card alone shows nothing of the
   // game: in the "top portion only" and "none" modes the page reports the rectangles it draws (device px, like
   // the control rects) and the host clips its window to them. In the card mode the whole window is drawn.
-  let lastShape="";
   function reportShape(){
-    const card=$(".ovcard");
-    if(!card)return;
+    const card=$(".ovcard"), api=nativeReady&&window.pywebview?.api;
+    if(!card||!api||typeof api.set_window_shape!=="function")return;   // no host yet: nativeInit asks again once it is up
     if(bgMode==="card"){if(lastShape!=="card"){lastShape="card";nativeCall("set_window_shape",null);}return;}
     const dpr=window.devicePixelRatio||1, pad=3, rects=[];
     const add=el=>{const r=el.getBoundingClientRect();if(r.width>0&&r.height>0)rects.push([(r.left-pad)*dpr,(r.top-pad)*dpr,(r.right+pad)*dpr,(r.bottom+pad)*dpr]);};
