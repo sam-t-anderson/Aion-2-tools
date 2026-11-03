@@ -492,3 +492,77 @@ def test_a_rest_on_the_click_through_overlay_shows_its_count_and_when_it_takes_c
     assert "232, 207, 142" in page.evaluate(ring % "#ovcontent > .ovrow")                 # each piece in the see-through modes
     open_overlay(page, app_url, fight(), overlay_click_through=True, overlay_hover_interact=False)
     page.wait_for_function("window.__calls.some(c => c[0] === 'set_hover_interact' && c[1] === false)")
+
+
+def test_a_tall_player_panel_scrolls_within_the_room_the_overlay_has(app_page, app_url):
+    """0.2.373: the native window stops at 800 px, so a panel with a full skill list and a Chanter's buffs ran past it,
+    cut off with the card's clock and toolbar under it. The panel gets what the rest of the card leaves of that room
+    and scrolls within it, its head (the close button) held at its top; a press on it still moves the window."""
+    page = app_page
+    page.set_viewport_size({"width": 340, "height": 800})
+    page.add_init_script("""window.__calls = []; window.pywebview = { platform: "edgechromium",
+        api: new Proxy({}, { get: (t, name) => (...args) => { window.__calls.push([name, ...args]); return Promise.resolve(); } }) };
+        window.addEventListener("load", () => window.dispatchEvent(new Event("pywebviewready")));""")
+    meter = fight()
+    meter["snapshot"]["players"][2]["skills"] = [{"skill_id": 1010003 + k, "skill": f"Strike {k}", "damage": 9000 - 1000 * k,
+                                                   "hits": 10, "share": 0.1, "crit": 0.3, "back": 0.2, "parry": 0.0} for k in range(8)]
+    BUFFS["2"] = [{"skill_id": 18300000 + 10_000 * k, "skill": f"Blessing {k}", "seconds": 60.0, "uptime_pct": 80.0,
+                   "applications": 3, "self": True} for k in range(10)]
+    try:
+        open_overlay(page, app_url, meter)
+        page.click('.ovname[data-detail="2"]')
+        page.wait_for_function("document.querySelectorAll('#ovdetail .ovdlist').length === 2"
+                               " && document.querySelectorAll('#ovdetail .ovdlist')[1].querySelectorAll('.ovdsk').length === 10")
+        page.wait_for_function("document.querySelector('#ovdetail').scrollHeight > document.querySelector('#ovdetail').clientHeight + 40")
+        overlay, panel, inner = page.evaluate("""() => { const p = document.querySelector('#ovdetail');
+            return [document.querySelector('#ov').getBoundingClientRect().height, p.getBoundingClientRect().height, p.scrollHeight]; }""")
+        assert overlay <= 800 and inner > panel                                            # within the window, the rest scrolls
+        page.wait_for_function("window.__calls.some(c => c[0] === 'fit' && c[2] === Math.ceil(document.querySelector('#ov').getBoundingClientRect().height))")
+        hide = page.locator("#ovhide").bounding_box()
+        assert hide["y"] + hide["height"] <= 800                                            # the toolbar stays in the window
+        page.evaluate("document.querySelector('#ovdetail').scrollTop = 10000")
+        head, box = page.locator("#ovdetail .ovdhead").bounding_box(), page.locator("#ovdetail").bounding_box()
+        assert abs(head["y"] - box["y"]) <= 2                                               # the head stays on top, its close button in reach
+        page.click("#ovdetail [data-close]")
+        page.wait_for_function("document.querySelector('#ovdetail').hidden")
+    finally:
+        BUFFS.pop("2", None)
+
+
+def test_back_from_the_plan_view_the_meter_shows_its_rows_again(app_page, app_url):
+    """0.2.373: the meter refreshes the numbers of rows it finds unchanged and took the plan's arena for its rows, so
+    back from the plan view over a fight that no longer changed (a paused one) the card showed the arena's empty
+    square and no rows. Collapsed between fights ("only in combat"), the rows came back the same way."""
+    page = app_page
+    meter = fight()
+    meter["snapshot"]["paused"] = True
+    page.route("**/api/plans/saved", lambda route: route.fulfill(json={"plans": {"p1": PLAN}, "updated": None}))
+    open_overlay(page, app_url, meter)
+    page.click("#plan-tab")
+    page.wait_for_function("document.querySelector('#ovcontent .ovarena')")
+    page.click("#meter-tab")
+    page.wait_for_function("document.querySelectorAll('#ovcontent .ovrow').length === 3")
+    page.wait_for_timeout(1200)                                                           # a poll or two of the same fight
+    assert page.locator("#ovcontent .ovarena").count() == 0 and page.locator("#ovcontent .ovrow").count() == 3
+    meter = fight()
+    meter["snapshot"].update(paused=True, boss_alive=False)
+    open_overlay_idle = {"overlay_only_in_combat": True}
+    page.ov_meter = meter
+    page.ov_look = open_overlay_idle
+    page.goto("about:blank")
+    page.goto(app_url + "overlay", wait_until="load")
+    page.wait_for_function("document.querySelector('#ovcontent') && document.querySelector('#ovcontent').children.length === 0"
+                           " && document.querySelector('#ovtarget').hidden")              # collapsed between fights
+    meter["snapshot"].update(paused=False, boss_alive=True)                               # the same party fights on
+    page.wait_for_function("document.querySelectorAll('#ovcontent .ovrow').length === 3")
+
+
+def test_the_screenshot_lock_says_why_the_card_does_not_move(app_page, app_url):
+    """0.2.373: locked for a screenshot the card neither moves nor updates; its tooltip says so and how to undo it."""
+    page = app_page
+    open_overlay(page, app_url, fight())
+    assert page.locator(".ovcard").get_attribute("title") is None
+    page.click("#ovlock")
+    assert "camera button unlocks it" in page.locator(".ovcard").get_attribute("title")
+    page.click("#ovlock")
+    assert page.locator(".ovcard").get_attribute("title") is None

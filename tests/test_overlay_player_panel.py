@@ -65,6 +65,30 @@ def test_the_panel_reads_one_players_shares_skills_and_buff_uptime():
     assert s.player_detail("nobody") is None
 
 
+def test_the_panels_buffs_are_named_by_the_skill_they_stand_for():
+    """0.2.373: a Chanter's buffs read "Skill 18190041" and "Skill 183300071": an effect record carries the skill that
+    applied it with its rank digits, or only its own effect id (the skill's id and a digit), and the panel named
+    them by that id alone. A seven-digit id is an NPC's skill, whose last digits are no rank: unnamed in the game
+    data, it says so instead of passing for a skill."""
+    from aion2calc.meter.a2parser.lookup import effect_skill
+    assert effect_skill(18190041) == (18190000, "Undefeated Mantra")
+    assert effect_skill(None, 183300071) == (18330007, "Marchutan's Wrath")
+    assert effect_skill(183300071) == (18330007, "Marchutan's Wrath")
+    assert effect_skill(1801710) is None and effect_skill(None, None) is None
+    engine, s = _engine(), CombatSession()
+    s.pvp = False
+    _observe(s, engine, 101_000)
+    _observe(s, engine, 110_000, events=[_hit(ME, RUINOUS_BLOW, 110_000, 1200)],
+             actions=[{"kind": "effect", "target": ME, "instance": 8, "effect": 181900411, "duration_ms": 10_000,
+                       "source": ME, "skill": 18190041},
+                      {"kind": "effect", "target": ME, "instance": 9, "effect": 183300071, "duration_ms": 6_000, "source": ME},
+                      {"kind": "effect", "target": ME, "instance": 10, "effect": 1801710, "duration_ms": 4_000, "source": BOSS}])
+    _observe(s, engine, 120_000, events=[_hit(ME, RUINOUS_BLOW, 120_000, 800)])
+    me = next(p for p in s.snapshot()["players"] if p["id"] == str(ME))
+    names = {b["skill"]: b["skill_id"] for b in s.player_detail(me["key"])["buffs"]}
+    assert names == {"Undefeated Mantra": 18190000, "Marchutan's Wrath": 18330007, "Unknown effect 1801710": 1801710}
+
+
 def test_the_overlay_look_settings_round_trip_and_validate(isolated_home):
     s = settings_backup.import_settings({"overlay_bg_mode": "top", "overlay_me_cosmetic": "gold", "overlay_top_cosmetic": "rainbow"})["settings"]
     assert (s["overlay_bg_mode"], s["overlay_me_cosmetic"], s["overlay_top_cosmetic"]) == ("top", "gold", "rainbow")

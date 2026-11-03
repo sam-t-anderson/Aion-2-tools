@@ -387,6 +387,19 @@ def native_overlay() -> _NativeOverlay | None:
     return backend if backend.supported else None
 
 
+#: How much of an overlay larger than the game window stays on the game (px): its header, the part a press moves it
+#: by. The whole of a smaller overlay stays on the game, as it always has.
+FOLLOW_KEEP = 120
+
+
+def _follow_room(span, size):
+    """How far the overlay's near edge may sit from the game window's along one axis: the whole overlay inside the
+    game window when it fits, else its first FOLLOW_KEEP pixels. Until 0.2.373 an overlay larger than the game had
+    no room at all and was held at the game's top or left edge, so it could not be moved there (a player's panel
+    open in a windowed game)."""
+    return span - size if size <= span else max(0, span - FOLLOW_KEEP)
+
+
 def _follow_position(previous, bounds, current, snap=False, expand_up=False):
     """Preserve the user's dragged offset as the game moves/resizes.
 
@@ -398,11 +411,11 @@ def _follow_position(previous, bounds, current, snap=False, expand_up=False):
     left, top, width, height = bounds
     x, y, overlay_width, overlay_height = current
     dx, dy = (x - previous[0], y - previous[1]) if previous else (16, 48)
-    dx = max(0, min(dx, max(0, width - overlay_width)))
+    dx = max(0, min(dx, _follow_room(width, overlay_width)))
     if expand_up:
         ny = top + max(0, height - overlay_height - 48)
     else:
-        dy = max(0, min(dy, max(0, height - overlay_height)))
+        dy = max(0, min(dy, _follow_room(height, overlay_height)))
         ny = top + dy
     nx = left + dx
     if snap:
@@ -416,6 +429,17 @@ def _follow_position(previous, bounds, current, snap=False, expand_up=False):
             elif ny - top <= 24:
                 ny = top
     return nx, ny
+
+
+def _follow_move(api, previous, bounds, rect, snap=False, expand_up=False):
+    """Where one tick of following the game moves the overlay, or None to leave it where it is. While the player
+    moves the window (begin_drag) it goes where the cursor takes it: until 0.2.373 the follow loop pulled it back
+    inside the game four times a second as it moved, and an overlay with no room left (a player's panel open) could
+    not be moved at all. The spot a move ends at is the new offset from the game, kept inside it from the next tick."""
+    if api._dragging:
+        return None
+    position = _follow_position(previous, bounds, rect, snap=snap, expand_up=expand_up)
+    return position if position != tuple(rect[:2]) else None
 
 
 def _norm_monitors(layout):
@@ -536,6 +560,7 @@ class _OverlayAPI:
         self._interactive = ()
         self._hover_interact = False   # with click-through on, resting the pointer on the overlay opens it (0.2.371)
         self._dragging = False      # a native move of the window is following the cursor (begin_drag)
+        self._drag_thread = None    # the thread that moves it, so a flag a lost thread left set never refuses a move
         # The window's shape (0.2.368): in the "top portion only" and "none" background modes the page reports
         # the rectangles it draws (the header panel, each row, the panels under the rows) and the host clips the
         # window to them, so the game shows through everywhere else and takes the clicks there. The host paints
@@ -619,10 +644,13 @@ class _OverlayAPI:
         was never seen and the window went on chasing the cursor; and it placed the window from a position in
         display-independent pixels, so on a second display scaled differently the window jumped. The screenshot lock
         keeps the window where it is."""
-        if sys.platform != "win32" or self._window is None or self._locked or self._dragging:
+        if sys.platform != "win32" or self._window is None or self._locked:
+            return
+        if self._dragging and self._drag_thread is not None and self._drag_thread.is_alive():
             return
         self._dragging = True
-        threading.Thread(target=self._drag, daemon=True, name="overlay-drag").start()
+        self._drag_thread = threading.Thread(target=self._drag, daemon=True, name="overlay-drag")
+        self._drag_thread.start()
 
     def _drag(self, poll=0.008, limit=600.0):
         try:
@@ -1445,8 +1473,8 @@ def _run_overlay(window, api, app_base: str | None = None, party: bool = False, 
             continue
         if game.hwnd != previous_hwnd:
             previous = None
-        position = _follow_position(previous, game.bounds, win32.rect(hwnd), snap=snap, expand_up=expand_up)
-        if position != win32.rect(hwnd)[:2]:
+        position = _follow_move(api, previous, game.bounds, win32.rect(hwnd), snap=snap, expand_up=expand_up)
+        if position is not None:
             win32.move(hwnd, *position)
         previous, previous_hwnd = game.bounds, game.hwnd
 

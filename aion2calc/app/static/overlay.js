@@ -24,6 +24,12 @@
   const setText=(el,text)=>{ if(el&&el._a2text!==text){ el._a2text=text; el.textContent=text; return true; } return false; };
   const setHtml=(el,html)=>{ if(el&&el._a2html!==html){ el._a2html=html; el.innerHTML=html; return true; } return false; };
   const setWidth=(el,width)=>{ if(el&&el._a2width!==width){ el._a2width=width; el.style.width=width; } };
+  // The rows' area belongs to the view that wrote it last (0.2.373): the meter rebuilds its rows after the plan view,
+  // the party window or the idle collapse wrote there. It refreshes the numbers of rows it finds unchanged in shape,
+  // and until 0.2.373 it took the plan's empty arena for its rows: back from the plan view over a fight that no longer
+  // changed (a paused one), the card showed the arena's square and no rows.
+  const viewContent=(view,html)=>{ const el=document.getElementById("ovcontent"); if(!el)return false;
+    if(el._a2view!==view){ el._a2view=view; el._a2shape=null; el._a2html=null; } return setHtml(el,html); };
   let tab = "meter", metric = "dps", t = 0, op = 0.72, lastSnap = null, polling = false, nativeReady = false, meterUnavailable = false, refreshError = "", lastSuccess = null;
   let clickThrough = false, rectTimer = 0, hoverInteract = false;
   // Which window this page is: the meter overlay, the separate Party-DPS overlay (?view=party) or the
@@ -474,7 +480,7 @@
     shapeQueued = true;
     requestAnimationFrame(() => { shapeQueued = false; measureTop(); });
   }
-  new ResizeObserver(() => { fit(); shapeSoon(); }).observe($("#ov"));
+  new ResizeObserver(() => { fitDetail(); fit(); shapeSoon(); }).observe($("#ov"));
 
   // A press on a control is the control's, never a move of the window.
   document.querySelectorAll("button, input, label").forEach((control) => {
@@ -604,7 +610,7 @@
     setText($("#ovstatus"),`Party · ${snap.boss||(s.running?"recording":"idle")} · ${players.length} players`);
     $("#ovstatus").title=$("#ovstatus").textContent;
     const stat=(label,val,unit)=>`<div class="ovpstat"><span class="ovplabel">${label}</span><span class="ovpval">${kfmt(val)}${unit||''}</span></div>`;
-    setHtml($("#ovcontent"), players.length
+    viewContent("party", players.length
       ? stat("Party DPS",totalDps,"/s")+stat("Party HPS",totalHps,"/s")+stat("Damage taken/s",totalTaken,"/s")+stat("Total damage",total,"")
       : `<div class="muted">${esc(s.running?"Waiting for combat data…":"No fight yet. Start the meter in the app.")}</div>`);
     recordGraph(s, snap, players);
@@ -788,10 +794,13 @@
     // rates, totals, shares and bar widths into the rows that are already there, so a row's animated effect runs
     // on uninterrupted (0.2.368: rebuilding the rows on every poll restarted it each time) and nothing flickers.
     const content=$("#ovcontent");
+    // Collapsed between fights ("only in combat"): the rows are not written only to be cleared below.
+    const collapse=onlyInCombat && (!s.running || over || (snap.paused && snap.boss_alive!==true));
     const body=over ? `<div class="muted">${esc(empty)}</div>` : (players.length && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`);
     const shape=body.replace(/ style="width:[^"]*"/g,"").replace(/data-target="[^"]*" data-amt="[^"]*"/g,"").replace(/<span class="ovrate"[^>]*>[^<]*<\/span>\/s <span class="sub">[^<]*<\/span>(?:<span class="ovpct">[^<]*<\/span>)?/g,"").replace(/ title="[^"]*"/g,"");
     let changed=false;
-    if(content&&content._a2shape!==shape){content._a2shape=shape;content._a2html=body;content.innerHTML=body;changed=true;}
+    if(collapse){/* the idle collapse below empties the area */}
+    else if(content&&(content._a2shape!==shape||content._a2view!=="meter")){content._a2view="meter";content._a2shape=shape;content._a2html=body;content.innerHTML=body;changed=true;}
     else if(content&&content._a2html!==body){
       content._a2html=body;
       // the same rows: refresh each row's live numbers in place
@@ -922,8 +931,8 @@
     // then shrinks via fit), so the overlay is unobtrusive between pulls. A brief
     // damage pause while an engaged boss is still alive is a mechanic, not the end of
     // the fight, so keep the meter open through it — never collapse mid-boss.
-    if(onlyInCombat && (!s.running || over || (snap.paused && snap.boss_alive!==true))){
-      setHtml($("#ovcontent"),'');
+    if(collapse){
+      viewContent("idle",'');
       for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovshugo","#ovnightmare","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovidentity","#ovgraph","#ovcooldowns","#ovdetail","#ovclock"])$(id).hidden=true;
       if(setText($("#ovstatus"),s.running?'Idle · waiting for combat':'Idle')) $("#ovstatus").title=$("#ovstatus").textContent;
     }
@@ -994,6 +1003,23 @@
       +(skillRows?`<div class="ovdsec">Top skills</div><div class="ovdlist">${skillRows}</div>`:"")
       +`<div class="ovdsec">Buff uptime</div><div class="ovdlist">${buffs}</div>`;
     box.hidden=false; setHtml(box,html);
+    fitDetail();
+  }
+  // The panel keeps to the room the overlay has (0.2.373): the native window stops at 800 px and the screen at its
+  // bottom, so a tall panel (a full party's top skills and a Chanter's buffs) was cut off there, the card's clock and
+  // toolbar with it. The panel gets what the rest of the card leaves of that room and scrolls within it.
+  const MAX_OVERLAY_H = 800;
+  function fitDetail(){
+    const ov=$("#ov"), box=$("#ovdetail"); if(!ov||!box)return;
+    let max="";
+    if(!box.hidden){
+      const screenRoom=window.screen&&screen.availHeight>0?screen.availHeight-16:MAX_OVERLAY_H;
+      const rest=ov.getBoundingClientRect().height-box.getBoundingClientRect().height;
+      max=Math.max(180,Math.floor(Math.min(MAX_OVERLAY_H,screenRoom)-rest))+"px";
+    }
+    if(ov._a2detailMax===max)return;
+    ov._a2detailMax=max;
+    if(max)ov.style.setProperty("--ov-detail-max",max);else ov.style.removeProperty("--ov-detail-max");
   }
   $("#ovdetail")&&$("#ovdetail").addEventListener("click",e=>{if(e.target.closest("[data-close]"))openDetail(null);});
   // In the top-background mode the panel behind the header ends where the player rows begin: measured after
@@ -1119,7 +1145,7 @@
     const view = planView(), p = view.plan;
     if (!p) {
       setText($("#ovstatus"), "");
-      setHtml($("#ovcontent"), '<div class="muted">No saved plan yet. Plans you save in the app\'s Raid Planner show here.</div>');
+      viewContent("plan", '<div class="muted">No saved plan yet. Plans you save in the app\'s Raid Planner show here.</div>');
       return;
     }
     const dur = view.dur, now = view.time;
@@ -1136,7 +1162,7 @@
     svg.push("</svg>");
     // "live" marks the plan as auto-synced to the real pull (vs the looping preview).
     setText($("#ovstatus"), `${view.live ? "▶ live · " : ""}${p.meta?.name || "plan"} · ${now.toFixed(0)}/${dur.toFixed(0)}s`);
-    setHtml($("#ovcontent"), `<div class="ovarena">${svg.join("")}</div>`);
+    viewContent("plan", `<div class="ovarena">${svg.join("")}</div>`);
   }
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.onclick = () => {
@@ -1255,6 +1281,9 @@
     locked=!locked;
     if(lockBtn){lockBtn.textContent=locked?"Unlock":"Lock";lockBtn.classList.toggle("on",locked);}
     document.getElementById("ov").classList.toggle("ov-locked",locked);
+    // Locked, the card neither moves nor updates: say so where a press on it would otherwise move it (0.2.373).
+    const card=$(".ovcard");
+    if(card){if(locked)card.title="Locked for a screenshot: it stays in place and frozen until the camera button unlocks it";else card.removeAttribute("title");}
     nativeCall("set_locked",locked);
     if(!locked)pollMeter();                 // resume the frozen meter poll on unlock
   }

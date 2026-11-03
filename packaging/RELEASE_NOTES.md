@@ -1,3 +1,15 @@
+## The overlay moves again with a player's panel open, the panel fits, and buffs have names (0.2.373)
+
+**The overlay moves with a player's panel open.** A click on a player's row opens their panel under the rows, which makes the overlay taller. The overlay is kept on the game window, and one taller than the room it had was held at the game's top edge; that hold also pulled the window back four times a second while you moved it, so once a panel was open the overlay would not move, in every background mode. Now a move goes where the pointer takes it, and an overlay larger than the game window keeps its header on the game rather than being held in place.
+
+**The player's panel is no longer cut off.** The overlay's window stops at 800 pixels, and a panel with a full list of skills and buffs ran past it, its last rows cut off with the fight clock and the toolbar under them. The panel now takes the room the rest of the card leaves and scrolls within it, its name and close button staying on top.
+
+**Buffs are named.** The panel's buff list showed some buffs as *Skill 18190041*: the game sends a buff with the skill's rank digits or with its own effect number, and the panel looked that number up as it came. It now finds the skill each one stands for, so a Chanter sees Undefeated Mantra, Spinning Strike, Protection Circle, Wave Blow and Marchutan's Wrath. A buff the game data has no name for says *Unknown effect* with its number.
+
+**No empty square after the plan view.** Back from the overlay's raid plan view (the map icon), the meter could leave the plan's empty square where its rows belong over a fight that no longer changed, such as a paused one, with only the boss above it. The rows now come back, and they come back the same way when **Show meter only in combat** had folded them between fights.
+
+**The screenshot lock says so.** While the lock (the camera icon) is on, the overlay neither moves nor updates; its tooltip now says so and that the camera button unlocks it.
+
 ## The replay's boss casts in a list beside it, filters on every log page, mini-bosses told apart, and one Odyle card (0.2.372)
 
 **The replay's boss casts are a list beside the map.** The **Recorded movement replay** listed each boss cast and each enemy that appeared under its slider as they happened, so the strip grew with every cast and pushed the replay down the page while it played. They are now a **Boss casts** list of a fixed size beside the map, below it on a phone, starting from the top of the fight with each one's time. As the replay plays the list marks what has happened, highlights the latest and scrolls to keep it in view; a click on a row moves the replay to that moment.

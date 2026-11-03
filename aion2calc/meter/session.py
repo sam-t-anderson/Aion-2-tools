@@ -13,7 +13,8 @@ import struct
 import uuid
 
 from ..combat.a2log import MOVEMENT_SOURCES
-from .a2parser.lookup import dungeon_final_bosses, has_skill, is_heal_skill, job_from_skill, normalize_skill, npc_info, npc_name, skill_name, spirit_skill_category
+from .a2parser.lookup import (dungeon_final_bosses, effect_skill, has_skill, is_heal_skill, job_from_skill, normalize_skill,
+                               npc_info, npc_name, skill_name, spirit_skill_category)
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
 from .a2parser.engine import ARENA_MATCH_MS, NPC_SKILLS, _own_class_skill
 from .context import party_instance
@@ -2119,7 +2120,9 @@ class CombatSession:
                     continue
                 spans.setdefault(fam, []).append((offset + (lo - start) / 1000, offset + (hi - start) / 1000))
                 applications[fam] = applications.get(fam, 0) + 1
-                names.setdefault(fam, (skill, skill_name(skill)))
+                # Named by the skill it stands for (0.2.373): a record carries the skill with its rank digits, or
+                # only its own effect id, and both read "Skill 18190041" where the family is Undefeated Mantra.
+                names.setdefault(fam, effect_skill(a.get("skill"), a.get("effect")) or (skill, f"Unknown effect {skill}"))
                 src = a.get("source")
                 bucket = sources.setdefault(fam, {})
                 bucket[src] = bucket.get(src, 0) + 1
