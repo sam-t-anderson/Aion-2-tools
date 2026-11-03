@@ -5,6 +5,37 @@ import time
 from . import official
 
 
+def recorded_character_id(player) -> str | None:
+    """The game's database id of a recorded character: its ``character_id``, else the last part of a party
+    member's ``p:<server>:<id>``."""
+    value = str(player.get("character_id") or "").strip()
+    if value.isdigit():
+        return value
+    parts = str(player.get("id") or "").split(":")
+    return parts[2] if len(parts) == 3 and parts[0] == "p" and parts[2].isdigit() else None
+
+
+def narrowed(matches: dict, player: dict) -> dict:
+    """The characters of one name a recording tells apart (0.2.375): a name is unique on a server, not in a
+    region, and a recording without the character's server left the lookup with several. The recorded database
+    id settles it (the search's ``char_key``), else the recorded class (``class``); what neither settles stays
+    as it was, and no other trait (level, faction) is taken for an identity."""
+    if len(matches) <= 1:
+        return matches
+    character_id = recorded_character_id(player)
+    if character_id:
+        same = {key: m for key, m in matches.items() if m.get("char_key") == character_id}
+        if same:
+            return same
+    recorded = str(player.get("class") or "").strip()
+    recorded_class = official.CLASS_KEYS.get(recorded.title(), recorded.lower())     # "Elementalist" is a Spiritmaster
+    if recorded_class:
+        same = {key: m for key, m in matches.items() if m.get("class") == recorded_class}
+        if same:
+            return same
+    return matches
+
+
 def lookup(player, region=None, deadline=None):
     if not isinstance(player,dict):
         return {"status":"unavailable", "reason":"Invalid character identity"}
@@ -34,10 +65,14 @@ def lookup(player, region=None, deadline=None):
                 return {**base,"reason":"Official server metadata could not resolve a unique region."}
             region = regions[0]
         check_deadline()
-        matches = official.search(name,region=region,server_id=server_id,size=100)
-        matches = {m["character_id"]:m for m in matches if m["name"].casefold()==name.casefold()
-                   and (server_id is None or str(m["server_id"])==str(server_id))}
+        found = official.search(name,region=region,server_id=server_id,size=100)
+        found = {m["character_id"]:m for m in found if m["name"].casefold()==name.casefold()
+                 and (server_id is None or str(m["server_id"])==str(server_id))}
+        matches = narrowed(found, player)
         if len(matches)!=1:
+            if len(found)>1:
+                return {**base,"reason":f"Official search found {len(found)} characters with this name in this region and "
+                                        "the recording does not tell them apart; choose the character's server to look it up."}
             return {**base,"reason":"Official search did not identify exactly one matching character."}
         match = next(iter(matches.values()))
         ch = official.fetch_character(match["character_id"],int(match["server_id"]),region,details=True,use_cache=0,progress=check_deadline)

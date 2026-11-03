@@ -55,6 +55,19 @@ def test_the_script_resolves_ids_like_a_page_does():
     assert json.loads(_node(probe)) == ["Zikel", "Zikel", None, None, "Zikel", "server 99999", "Server 99999", "", "x", 616]
 
 
+def test_the_script_offers_each_global_regions_servers():
+    """The official site's servers of each global region ride along (0.2.375), for the profile lookup's server
+    dropdown: ``regionOf`` places an ID, ``faction`` reads its first digit, and the official English names win
+    (seven European worlds the bundled game list still named by their old names)."""
+    regions = _tool().regions()
+    assert {region: len(ids) for region, ids in regions.items()} == {"nae": 18, "eu": 46, "as": 20, "la": 12}
+    assert all(ids == sorted(ids, key=int) for ids in regions.values()) and "2102" in regions["nae"]
+    probe = ("global.window = {}; require(%s); const S = window.A2Servers;"
+             "console.log(JSON.stringify([S.regionOf(2102), S.regionOf('1321'), S.regionOf(1001), S.regionOf(null),"
+             " S.faction(1101), S.faction('2102'), S.faction(9), S.name(1321), S.regions.la.length]))" % json.dumps(str(SCRIPT)))
+    assert json.loads(_node(probe)) == ["nae", "eu", None, None, "Elyos", "Asmodian", None, "Gauss", 12]
+
+
 @pytest.mark.parametrize("page, src", [
     (STATIC / "index.html", "/static/server-names.js"), (STATIC / "overlay.html", "/static/server-names.js"),
     (SITE / "logs.html", "static/server-names.js"), (SITE / "log.html", "static/server-names.js"),

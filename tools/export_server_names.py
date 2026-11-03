@@ -4,8 +4,10 @@ The app, the overlay, the GitHub Pages site and the log server's pages show a se
 name (2102 -> "Zikel") wherever a recording or a report carries only the ID. The names come from
 the bundled official server list (``aion2calc/meter/a2parser/data/servers.json``, English column);
 this tool renders them as one small script, ``window.A2Servers``, so every page can resolve an ID
-without a request. Run it after updating the bundled list; ``tests/test_server_names.py`` fails
-when the script is out of date.
+without a request. The list's ``global_servers`` (the official site's servers of each global region,
+``/en-us/api/gameinfo/servers?region=``) ride along, so a page can offer a region's servers by name
+(the profile lookup's server dropdown). Run it after updating the bundled list;
+``tests/test_server_names.py`` fails when the script is out of date.
 """
 from __future__ import annotations
 
@@ -27,13 +29,23 @@ HEADER = """\
   const NAMES = {
 """
 
+REGIONS_HEAD = """\
+  };
+  // The servers of each global region on the official site, Elyos (1xxx) before Asmodian (2xxx).
+  const REGIONS = {
+"""
+
 FOOTER = """\
   };
   // The world name for a server ID (a number or its string), or null when the list has no such ID.
   const name = (id) => { const key = String(id ?? "").trim(); return Object.prototype.hasOwnProperty.call(NAMES, key) ? NAMES[key] : null; };
   // The world name, else `fallback` when given, else "server <id>" (empty for an empty ID).
   const label = (id, fallback) => name(id) || (fallback !== undefined ? fallback : (String(id ?? "").trim() ? "server " + String(id).trim() : ""));
-  window.A2Servers = { name, label, names: NAMES };
+  // The global region ("nae", "eu", "as", "la") a server ID belongs to, or null.
+  const regionOf = (id) => { const key = String(id ?? "").trim(); return Object.keys(REGIONS).find((r) => REGIONS[r].includes(key)) || null; };
+  // The faction of a server ID: its first digit (1 Elyos, 2 Asmodian), or null.
+  const faction = (id) => ({ 1: "Elyos", 2: "Asmodian" })[String(id ?? "").trim().charAt(0)] || null;
+  window.A2Servers = { name, label, regionOf, faction, names: NAMES, regions: REGIONS };
 })();
 """
 
@@ -51,9 +63,15 @@ def names(source: Path = SOURCE) -> dict[str, str]:
     return dict(sorted(out.items(), key=lambda kv: int(kv[0])))
 
 
-def render(source: Path = SOURCE) -> str:
-    """The script's text: the header, the table wrapped at about 100 columns, the helpers."""
-    entries = [f"{json.dumps(sid)}: {json.dumps(value, ensure_ascii=False)}" for sid, value in names(source).items()]
+def regions(source: Path = SOURCE) -> dict[str, list[str]]:
+    """``{global region: [server id, ...]}`` from the bundled list's ``global_servers``, each in numeric
+    ID order (Elyos 1xxx before Asmodian 2xxx)."""
+    table = json.loads(source.read_text(encoding="utf-8")).get("global_servers") or {}
+    return {region: sorted((str(sid) for sid in ids if str(sid).isdigit()), key=int)
+            for region, ids in table.items() if isinstance(ids, list)}
+
+
+def _wrap(entries: list[str]) -> list[str]:
     lines, line = [], "   "
     for entry in entries:
         piece = " " + entry + ","
@@ -63,7 +81,16 @@ def render(source: Path = SOURCE) -> str:
         line += piece
     if line.strip():
         lines.append(line)
-    return HEADER + "\n".join(lines) + "\n" + FOOTER
+    return lines
+
+
+def render(source: Path = SOURCE) -> str:
+    """The script's text: the header, the table wrapped at about 100 columns, the helpers."""
+    entries = [f"{json.dumps(sid)}: {json.dumps(value, ensure_ascii=False)}" for sid, value in names(source).items()]
+    groups = [f"{json.dumps(region)}: {json.dumps(ids)}" for region, ids in regions(source).items()]
+    lines = _wrap(entries)
+    region_lines = ["    " + group + "," for group in groups]
+    return HEADER + "\n".join(lines) + "\n" + REGIONS_HEAD + "\n".join(region_lines) + "\n" + FOOTER
 
 
 def main() -> None:
