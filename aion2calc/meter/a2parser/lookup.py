@@ -35,6 +35,31 @@ def has_skill(skill_id: int, locale: str = "en") -> bool:
     return str(skill_id) in _table("skills", locale)
 
 
+def effect_skill(skill, effect=None, locale: str = "en"):
+    """The named skill an effect record stands for, as ``(skill id, name)``, or None when the game data names none
+    of its ids. A record carries the skill that applied it, often with its rank or spec digits (18190041: the
+    family 18190000, Undefeated Mantra), and its own effect id, the skill's id and a digit (183300071: 18330007,
+    Marchutan's Wrath). The family is tried only for a class skill (eight digits): a seven-digit id is an NPC's
+    skill, whose last digits are not a rank."""
+    for raw in (skill, effect):
+        try:
+            raw = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if raw <= 0:
+            continue
+        for candidate in (raw, raw // 10 if raw >= 100_000_000 else None):
+            if candidate is None:
+                continue
+            if has_skill(candidate, locale):
+                return candidate, skill_name(candidate, locale)
+            if 10_000_000 <= candidate <= 99_999_999:
+                family = candidate - candidate % 10_000
+                if has_skill(family, locale):
+                    return family, skill_name(family, locale)
+    return None
+
+
 def skill_family(skill_id: int) -> int:
     """A skill's family: its id with the rank/spec digits zeroed. The class system actions (weapon
     equip, dodge, basic attack: the ``xx00`` families) are distinct actions and stay whole."""

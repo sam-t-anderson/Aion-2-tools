@@ -18,6 +18,29 @@ def test_follow_position_defaults_are_unchanged():
     assert overlay._follow_position((100, 200), bounds, current) == (140, 260)
 
 
+def test_an_overlay_larger_than_the_game_window_keeps_its_header_on_it_and_still_moves():
+    """0.2.373: the whole of an overlay that fits stays inside the game window, as before; one taller than the game
+    (a player's panel open over a windowed game) kept no room at all and was held at the game's top edge, so a drag
+    of it snapped back. Now its header stays on the game and it goes where it was moved within that."""
+    bounds = (100, 200, 1000, 700)
+    assert overlay._follow_position((100, 200), bounds, (140, 600, 300, 640)) == (140, 260)   # fits: pulled inside
+    assert overlay._follow_position((100, 200), bounds, (140, 500, 300, 820)) == (140, 500)   # taller: stays put
+    assert overlay._follow_position((100, 200), bounds, (140, 950, 300, 820)) == (140, 200 + 700 - overlay.FOLLOW_KEEP)
+    assert overlay._follow_position((100, 200), bounds, (1300, 260, 1200, 300)) == (100 + 1000 - overlay.FOLLOW_KEEP, 260)
+
+
+def test_following_the_game_leaves_a_window_being_moved_where_the_cursor_takes_it():
+    """0.2.373: the follow loop pulled the overlay back inside the game four times a second while the player moved
+    it; it leaves a move under way alone and keeps the spot it ends at."""
+    from types import SimpleNamespace
+    bounds, game_before = (100, 200, 1000, 700), (100, 200, 1000, 700)
+    moving = SimpleNamespace(_dragging=True)
+    assert overlay._follow_move(moving, game_before, bounds, (140, 600, 300, 640)) is None     # past the edge: left alone
+    still = SimpleNamespace(_dragging=False)
+    assert overlay._follow_move(still, game_before, bounds, (140, 600, 300, 640)) == (140, 260)  # then kept inside
+    assert overlay._follow_move(still, game_before, bounds, (140, 220, 300, 640)) is None       # inside: not moved
+
+
 def test_follow_position_snap_pulls_to_the_left_edge():
     bounds, current = (100, 200, 1000, 800), (112, 260, 300, 120)  # 12px from left -> within 24
     assert overlay._follow_position((100, 200), bounds, current, snap=True)[0] == 100

@@ -254,15 +254,22 @@ def test_overlay_host_moves_the_window_with_the_cursor_until_the_button_is_up(mo
     monkeypatch.setattr(sys, "platform", "win32")
     api._locked = True
     api.begin_drag()
+    under_way = threading.Event()
     api._locked, api._dragging = False, True
+    api._drag_thread = threading.Thread(target=under_way.wait, daemon=True)
+    api._drag_thread.start()
     api.begin_drag()
     assert started == []
+    under_way.set()
+    api._drag_thread.join(2)
     api._dragging = False
     api.begin_drag()
-    for thread in threading.enumerate():
-        if thread.name == "overlay-drag":
-            thread.join(2)
+    api._drag_thread.join(2)
     assert started == [1] and api._dragging is True                          # the stand-in drag never clears it
+    # 0.2.373: a flag left set by a drag whose thread is gone does not refuse every move after it
+    api.begin_drag()
+    api._drag_thread.join(2)
+    assert started == [1, 1]
 
 
 def test_the_app_keeps_the_raid_planners_saved_plans_for_the_overlay(monkeypatch, tmp_path):

@@ -314,7 +314,10 @@ html.native-windows #ov.ov-bg-top .ovcard::before { background: rgb(27, 32, 42);
 .ovdetail { flex: 0 0 100%; margin: 6px 0 2px; padding: 8px 10px 9px; border-radius: 10px; background: rgba(27, 32, 42, .92);
   border: 1px solid rgba(233, 203, 128, .35); box-shadow: 0 6px 18px rgba(0, 0, 0, .4); cursor: default; }
 .ovdetail[hidden] { display: none; }
-.ovdhead { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+/* No taller than the room the overlay has (0.2.373, fitDetail): the rest scrolls, the head with its close button stays. */
+.ovdetail { max-height: var(--ov-detail-max, none); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.ovdhead { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; position: sticky; top: -8px; z-index: 2;
+  margin-top: -8px; padding-top: 8px; background: inherit; }
 .ovdhead .ovcicon { margin: 0; }
 .ovdname { font-weight: 800; font-size: 1.15em; color: var(--ov-name-color, #e9f7ff); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ovdsub { color: #9aa8bb; font-size: .9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

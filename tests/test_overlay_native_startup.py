@@ -24,9 +24,10 @@ def test_everything_native_init_reads_is_declared_before_the_startup_call():
     for name in ("radarSetting", "radarOn", "radarTimer", "radarBusy", "clickThrough", "op", "nativeReady"):
         declaration = re.search(r"\b(?:let|const|var)\b[^;\n]*\b" + name + r"\s*=", JS)
         assert declaration and declaration.start() < startup, f"{name} must be declared before nativeInit() can run"
-    # The observer that keeps the native window fitted to the card, and since 0.2.370 its outline following the
-    # card, comes after the startup call: an exception there would leave the window at its first size.
-    observer = re.search(r"new ResizeObserver\(\(\) => \{ fit\(\); shapeSoon\(\); \}\)\.observe", JS)
+    # The observer that keeps the native window fitted to the card, since 0.2.370 its outline following the card
+    # and since 0.2.373 a player's panel within the room the window has, comes after the startup call: an
+    # exception there would leave the window at its first size.
+    observer = re.search(r"new ResizeObserver\(\(\) => \{ fitDetail\(\); fit\(\); shapeSoon\(\); \}\)\.observe", JS)
     assert observer and observer.start() > startup
 
 
