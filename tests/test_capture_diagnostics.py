@@ -281,8 +281,8 @@ def test_the_page_ends_a_move_that_windows_will_not_let_the_overlay_read(monkeyp
     api._drag(stop, poll=0)
     # 2 px from the press is still a click; from 10 px the window keeps its offset; the page's end stops it there
     assert moves == [(430, 265), (480, 300), (520, 310)] and api._dragging is False
-    assert written == ["moving the window: Windows answers the mouse button's state with 0 (a program run as "
-                       "administrator in front), so the overlay page says when each move ends"]
+    assert written == ["moving the window: the mouse button reads as up while it is held (Windows answers so under a "
+                       "program run as administrator in front), so the overlay page says when each move ends"]
     stop.clear()
     _drag_user32(monkeypatch, iter([(500, 300), (530, 320), (560, 340)]), repeat(0), moves,
                  on_cursor=lambda n: n == 3 and stop.set())

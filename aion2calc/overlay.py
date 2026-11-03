@@ -711,8 +711,8 @@ class _OverlayAPI:
                 stop.wait(poll)
             if moving and not held and not self._drag_unread_said:
                 self._drag_unread_said = True
-                self.log.write("moving the window: Windows answers the mouse button's state with 0 (a program run as "
-                               "administrator in front), so the overlay page says when each move ends")
+                self.log.write("moving the window: the mouse button reads as up while it is held (Windows answers so "
+                               "under a program run as administrator in front), so the overlay page says when each move ends")
         except Exception as err:
             self.log.write(f"moving the window failed: {type(err).__name__}: {err}")
         finally:

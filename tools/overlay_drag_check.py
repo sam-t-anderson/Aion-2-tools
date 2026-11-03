@@ -13,11 +13,13 @@ card's controls), moves the cursor and lets go, and reads where the window went:
 
   game-in-front   the game in front at the overlay's own privilege level;
   key-state-up    the same, with every GetAsyncKeyState the overlay makes answered 0, as Windows answers it under an
-                  elevated window;
-  elevated-game   when this check runs elevated: the overlay started as a standard user at medium integrity, as a
-                  player's own launch is, under the game at high integrity, the case players meet, when Windows
-                  enforces UIPI here (a probe first reads the left button at both levels while it is held over the
-                  game, from a process given a medium-integrity copy of this one's token, and says what it found).
+                  elevated window.
+
+When this check runs elevated (the CI runner does, with UAC on), a probe at medium integrity, a copy of this check's
+token with a medium label, reads the left button while it is held over the game at high integrity in front, and the
+check says what Windows answered it (0 on the CI desktop, the game's own level reading it down). An overlay started
+at medium integrity is not dragged here: one with a standard user's token cannot open the game's process, which the
+runner's elevated token keeps to administrators, so it never finds the game and stays hidden.
 
 Usage: python tools/overlay_drag_check.py [OUTDIR]. Exits 1 with the overlay's log when the window did not move."""
 import ctypes
@@ -66,11 +68,6 @@ advapi32.DuplicateTokenEx.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.c_
 advapi32.ConvertStringSidToSidW.argtypes = [wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_void_p)]
 advapi32.GetLengthSid.argtypes = [ctypes.c_void_p]
 advapi32.SetTokenInformation.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
-advapi32.SaferCreateLevel.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(wintypes.HANDLE),
-                                      ctypes.c_void_p]
-advapi32.SaferComputeTokenFromLevel.argtypes = [wintypes.HANDLE, wintypes.HANDLE, ctypes.POINTER(wintypes.HANDLE),
-                                                wintypes.DWORD, ctypes.c_void_p]
-advapi32.SaferCloseLevel.argtypes = [wintypes.HANDLE]
 
 TOKEN_ASSIGN_PRIMARY, TOKEN_DUPLICATE, TOKEN_QUERY, TOKEN_ADJUST_DEFAULT = 0x1, 0x2, 0x8, 0x80
 TOKEN_INTEGRITY_LEVEL = 25
@@ -224,27 +221,15 @@ def level(rid):
     return LEVELS.get(rid, f"0x{rid:x}" if rid is not None else "unknown")
 
 
-def start_lower(argv, env, rid, standard_user=False):
+def start_lower(argv, env, rid):
     """Start ``argv`` at integrity level ``rid`` (below this process's): a duplicate of this process's token with
-    that label, as Microsoft's sample for starting a low-integrity process does, or with ``standard_user`` the token
-    `runas /trustlevel:0x20000` starts a program with (the Administrators group for deny only, a standard user's
-    privileges), the kind a player's own launch has. (pid, process handle)."""
+    that label, as Microsoft's sample for starting a low-integrity process does. (pid, process handle)."""
     token, primary, sid = wintypes.HANDLE(), wintypes.HANDLE(), ctypes.c_void_p()
-    if standard_user:
-        safer = wintypes.HANDLE()
-        if not advapi32.SaferCreateLevel(2, 0x20000, 1, ctypes.byref(safer), None):      # user scope, normal user, open
-            raise ctypes.WinError(ctypes.get_last_error())
-        try:
-            if not advapi32.SaferComputeTokenFromLevel(safer, None, ctypes.byref(primary), 0, None):
-                raise ctypes.WinError(ctypes.get_last_error())
-        finally:
-            advapi32.SaferCloseLevel(safer)
-    else:
-        if not advapi32.OpenProcessToken(kernel32.GetCurrentProcess(), TOKEN_DUPLICATE | TOKEN_QUERY
-                                         | TOKEN_ASSIGN_PRIMARY | TOKEN_ADJUST_DEFAULT, ctypes.byref(token)):
-            raise ctypes.WinError(ctypes.get_last_error())
-        if not advapi32.DuplicateTokenEx(token, 0x02000000, None, 2, 1, ctypes.byref(primary)):
-            raise ctypes.WinError(ctypes.get_last_error())
+    if not advapi32.OpenProcessToken(kernel32.GetCurrentProcess(), TOKEN_DUPLICATE | TOKEN_QUERY | TOKEN_ASSIGN_PRIMARY
+                                     | TOKEN_ADJUST_DEFAULT, ctypes.byref(token)):
+        raise ctypes.WinError(ctypes.get_last_error())
+    if not advapi32.DuplicateTokenEx(token, 0x02000000, None, 2, 1, ctypes.byref(primary)):
+        raise ctypes.WinError(ctypes.get_last_error())
     if not advapi32.ConvertStringSidToSidW(f"S-1-16-{rid}", ctypes.byref(sid)):
         raise ctypes.WinError(ctypes.get_last_error())
     label = TOKEN_MANDATORY_LABEL(SID_AND_ATTRIBUTES(sid, 0x20))
@@ -261,8 +246,7 @@ def start_lower(argv, env, rid, standard_user=False):
                                          ctypes.byref(info)):
         raise ctypes.WinError(ctypes.get_last_error())
     kernel32.CloseHandle(info.hThread)
-    if token:
-        kernel32.CloseHandle(token)
+    kernel32.CloseHandle(token)
     kernel32.CloseHandle(primary)
     return info.dwProcessId, info.hProcess
 
@@ -332,10 +316,9 @@ def wait_for_page(playwright):
     raise RuntimeError(f"the overlay page never got ready over CDP ({last})")
 
 
-def drag_case(name, start, home, game_pid, failures, needs=None):
+def drag_case(name, start, home, game_pid, failures):
     """Start the overlay with ``start()``, bring the game to the front, drag the card by MOVE and check the window
-    went with the cursor and stayed there. ``needs`` is the overlay's integrity level the case is about: at another
-    level, or when its page cannot start under the lowered token at all, the case says so and is not judged."""
+    went with the cursor and stayed there."""
     from playwright.sync_api import sync_playwright
     start()
     pid = None
@@ -350,18 +333,8 @@ def drag_case(name, start, home, game_pid, failures, needs=None):
             failures.append(f"{name}: the overlay window never showed")
             return
         pid = window_pid(hwnd)
-        if needs is not None and integrity(pid) != needs:
-            say(f"{name}: not judged, the overlay runs at {level(integrity(pid))} integrity, not {level(needs)}")
-            return
         with sync_playwright() as playwright:
-            try:
-                _, page, said = wait_for_page(playwright)
-            except RuntimeError as err:
-                if needs is None:
-                    raise
-                say(f"{name}: not judged, the overlay page did not start at {level(needs)} integrity here ({err})")
-                say(f"{name} overlay.log:\n" + overlay_log(home))
-                return
+            _, page, said = wait_for_page(playwright)
             time.sleep(1.5)                                        # the follow loop has placed the window
             click(900, 650)                                        # the game to the front
             before = rect(hwnd)
@@ -478,16 +451,9 @@ try:
             say("key-state probe", json.dumps({"read": read, "game in front": in_front,
                                                "UIPI answers the medium process with 0": blocked}))
         except Exception as err:                                   # noqa: BLE001 - the probe is evidence, not a case
-            blocked = False
             say("key-state probe not run:", f"{type(err).__name__}: {err}")
-        if blocked:
-            drag_case("elevated-game", lambda: start_lower([sys.executable, boot, str(CDP_PORT), "plain"]
-                                                           + overlay_argv, env, 0x2000, standard_user=True),
-                      home, game.pid, failures, needs=0x2000)
-        else:
-            say("elevated-game: not run, Windows does not hold the medium process's reads back here")
     else:
-        say("elevated-game: not run, this check is not elevated")
+        say("key-state probe: not run, this check is not elevated")
 finally:
     app.kill()
     game.kill()
