@@ -207,13 +207,80 @@ def test_each_kind_of_node_says_whether_it_grows_in_dungeons_or_the_open_world_a
     dungeon, field, vein = nodes[ODYLE_PLANT], nodes[FIELD_ODYLE], nodes[ORE_VEIN]
     assert dungeon["name"] == field["name"] == "Odyle"
     assert dungeon["kinds"] == ["dungeon"]
-    assert dungeon["places"] == [{"name": "Ferocious Horn Den (Normal)", "gathers": 2}, {"name": "Krao Cave (Normal)", "gathers": 1}]
+    assert dungeon["places"] == [{"name": "Ferocious Horn Den (Conquest)", "gathers": 2}, {"name": "Krao Cave (Conquest)", "gathers": 1}]
     assert (field["kinds"], field["places"]) == (["open_world"], [{"name": "Altgard", "gathers": 1}])
     # a gather filed under the dungeon its party held is the open world's, in the rates and in the log
     assert (vein["kinds"], vein["places"]) == (["open_world"], [{"name": "Altgard", "gathers": 1}])
     assert view["recent"][0]["place"] == "Altgard"
     assert gathering.gather_place(None, None) == (None, None)
     assert gathering.gather_place(None, 999_999) == (None, "Map 999999")                      # no idea where that is
+
+
+def test_one_card_per_material_and_kind_of_place(home):
+    """Dungeon Odyle is one card wherever it was gathered, with the gathers whose node did not spawn in view (three
+    in the Fire Temple, where Kromede's Desire's clones appear); the two factions' open-world Odyle nodes share
+    another (0.2.372)."""
+    gathering.record([_drained(timestamp_ms=t, node=node, map_id=map_id, instance_id=instance, item=item, result=result)
+                      for t, node, map_id, instance, item, result in (
+                          (1, ODYLE_PLANT, DEN, DEN, ODYLE, 0), (2, ODYLE_PLANT, KRAO, KRAO, FINE_ODYLE, 1),
+                          (3, None, 600022, 600022, ODYLE, 0), (4, None, 600022, 600022, FINE_ODYLE, 1),
+                          (5, FIELD_ODYLE, ALTGARD, None, ODYLE, 0), (6, 1500000, 1010, None, ODYLE, 0),
+                          (7, ORE_VEIN, ALTGARD, None, ORE, 0), (8, ORE_VEIN, None, None, ORE, 0))])
+    view = gathering.summary()
+    cards = {(n["name"], tuple(n["kinds"])): n for n in view["nodes"]}
+    assert set(cards) == {("Odyle", ("dungeon",)), ("Odyle", ("open_world",)), ("Orichalcum Ore", ("open_world",))}
+    dungeon = cards[("Odyle", ("dungeon",))]
+    assert (dungeon["gathers"], dungeon["node"], dungeon["nodes"]) == (4, ODYLE_PLANT, [ODYLE_PLANT])
+    assert [p["name"] for p in dungeon["places"]] == ["Fire Temple (Conquest)", "Ferocious Horn Den (Conquest)", "Krao Cave (Conquest)"]
+    assert dungeon["results"] == {"normal": 2, "better": 2, "failed": 0}
+    field = cards[("Odyle", ("open_world",))]
+    assert field["gathers"] == 2 and field["nodes"] == [1500000, FIELD_ODYLE]
+    assert cards[("Orichalcum Ore", ("open_world",))]["gathers"] == 2       # a gather of no known place keeps its node's card
+
+
+def test_card_keys_for_gathers_of_unknown_place():
+    spots = {(ORE_VEIN, "Orichalcum Ore", "open_world"): 3, (ORE_VEIN, "Orichalcum Ore", None): 1,
+             (None, "Odyle", None): 1, (None, "Odyle", "dungeon"): 2, (None, "Asvata Log", None): 1,
+             (None, "Ruby Gemstone", None): 1, (None, "Ruby Gemstone", "dungeon"): 1, (1550022, "Ruby Gemstone", "open_world"): 1}
+    keys = gathering.card_keys(spots)
+    assert keys[(ORE_VEIN, "Orichalcum Ore", None)] == ("Orichalcum Ore", "open_world")
+    assert keys[(None, "Odyle", None)] == ("Odyle", "dungeon")                 # the material's only card
+    assert keys[(None, "Asvata Log", None)] == ("Asvata Log", None)           # no card to join
+    assert keys[(None, "Ruby Gemstone", None)] == ("Ruby Gemstone", None)     # two cards: not guessed
+
+
+def test_a_dungeon_is_one_card_per_difficulty_named_as_the_game_does(home):
+    """The community table names Shattered Arkanis's Transcendence ids without a difficulty, so the page showed the
+    dungeon three times, one marked "(Transcendence)". DBAion2 lists four Transcendence ids at boss levels 56, 60,
+    64 and 68: the stages (0.2.372)."""
+    cube = [[REFINING, 2]]
+    gathering.record([{"kind": "reward", "timestamp_ms": t, "items": cube, "map_id": map_id, "instance_id": instance,
+                       "character": "Alpha", "server_id": 2102}
+                      for t, map_id, instance in ((1, 610062, 610062), (2, 600063, 600063), (3, 600068, 600068),
+                                                  (4, 600063, None), (5, 610052, 610052), (6, 600053, 600053))])
+    view = gathering.summary()
+    rows = {r["name"]: r for r in view["dungeons"]}
+    assert set(rows) == {"Shattered Arkanis (Transcendence 1)", "Shattered Arkanis (Transcendence 3)",
+                         "Shattered Arkanis (Transcendence 4)", "Deus Research Base (Transcendence 1)",
+                         "Deus Research Base (Transcendence 4)"}
+    first = rows["Shattered Arkanis (Transcendence 1)"]
+    assert (first["cubes"], first["instance"], first["instances"]) == (2, 600063, [600063])   # by instance or by map
+    assert view["dungeons"][0]["name"] == "Shattered Arkanis (Transcendence 1)"
+    assert gathering.place_name(600022) == "Fire Temple (Conquest)" and gathering.place_name(600002) == "Krao Cave (Exploration)"
+    assert gathering.place_name(600025) == "Fire Temple (Normal)"             # DBAion2 does not list it: the community's
+
+
+def test_ids_that_read_the_same_share_a_card(home, monkeypatch):
+    names = {600063: "Shattered Arkanis (Transcendence 1)", 600064: "Shattered Arkanis (Transcendence 1)"}
+    monkeypatch.setattr(gathering, "place_name", lambda instance=None, map_id=None: names.get(instance or map_id, "Unknown place"))
+    gathering.record([{"kind": "reward", "timestamp_ms": t, "items": items, "map_id": place, "instance_id": place,
+                       "character": "Alpha", "server_id": 2102}
+                      for t, place, items in ((1, 600063, [[REFINING, 2]]), (2, 600064, [[REFINING, 4], [KINA, 9]]),
+                                              (3, 600064, [[KINA, 9]]))])
+    (row,) = gathering.summary()["dungeons"]
+    stones = next(i for i in row["items"] if i["item"] == REFINING)
+    assert (row["cubes"], row["instance"], row["instances"]) == (3, 600064, [600063, 600064])
+    assert (stones["cubes"], stones["share"], stones["average"]) == (2, round(2 / 3, 4), 3.0)
 
 
 class _Response:

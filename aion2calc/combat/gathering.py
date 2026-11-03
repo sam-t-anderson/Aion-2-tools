@@ -145,27 +145,30 @@ def read() -> list[dict]:
 
 
 def place_name(instance=None, map_id=None) -> str:
-    """A dungeon's name (with its difficulty when the catalog gives one) or the open-world zone of a map."""
-    from ..meter.a2parser.lookup import _table, supplement_dungeon
+    """A dungeon's name with its in-game difficulty, or the open-world zone of a map.
+
+    The difficulty is DBAion2's label for the id (``lookup.dungeon_label``), numbered when the dungeon has several
+    ids of one difficulty: "Shattered Arkanis (Transcendence 3)". The community table names Shattered Arkanis's and
+    Deus Research Base's Transcendence ids without one, so until 0.2.372 the Gathering page listed each of those
+    dungeons several times, some marked "(Transcendence)" and some not. An id DBAion2 does not list keeps the
+    community table's difficulty, when it has one."""
+    from ..meter.a2parser.lookup import _table, dungeon_label, supplement_dungeon
     from ..meter.context import OBSERVED_ZONES, derived_zone_label, open_world_zone
     key = instance or map_id
     if key:
         row = _table("dungeons", "en").get(str(key)) or supplement_dungeon(key) or {}
-        if row.get("name"):
-            level = row.get("difficulty_name") or (row.get("difficulty") or "").title()
-            return f"{row['name']} ({level})" if level else row["name"]
+        label = dungeon_label(key)
+        if name := row.get("name") or label.get("name"):
+            level = label.get("difficulty_name") or row.get("difficulty_name") or (row.get("difficulty") or "").title()
+            if level and label.get("stage"):
+                level = f"{level} {label['stage']}"
+            return f"{name} ({level})" if level else name
         if key in OBSERVED_ZONES:
             return OBSERVED_ZONES[key]["zone"]
         if instance and (label := derived_zone_label(instance)):
             return label
     zone = open_world_zone(map_id) if map_id else None
     return zone or (f"Map {map_id}" if map_id else "Unknown place")
-
-
-def node_label(node, items) -> str:
-    """What a node is called: the material it gives (the plainest grade's name), "Unknown node" without one."""
-    names = Counter(base_material(item) for item in items)
-    return names.most_common(1)[0][0] if names else "Unknown node"
 
 
 #: Where a kind of node grows (a node row's ``kinds``). The game has more than one kind of node for some
@@ -197,48 +200,96 @@ def places_by_gathers(places: Counter) -> list[dict]:
     return [{"name": name, "gathers": n} for name, n in sorted(places.items(), key=lambda kv: (-kv[1], kv[0]))]
 
 
+def card_keys(spots) -> dict:
+    """Which card of the Gathering page each kind of gather goes on: ``spots`` maps ``(node, material, kind)`` (the
+    node's code or None, the plainest grade's name of what the gather gave, and the kind of place, :data:`DUNGEON`,
+    :data:`OPEN_WORLD` or None) to its gathers; the result maps each to its card, ``(material, kind)``.
+
+    One card per material and kind of place (0.2.372). The game has a kind of node per faction's open world for
+    some materials (Odyle 1500000 in Verteron and 1550000 in Altgard) and one its dungeons share (1500062), and
+    a gather from something the meter did not see spawn as a gathering node has no code: in the shared records,
+    three Odyle gathers in the Fire Temple, where Kromede's Desire's clones appear. Each was a card of its own,
+    so dungeon Odyle showed twice. A coded node keeps all its gathers on one card: its main material, and its
+    main kind of place for a gather whose place is not known. A gather with neither goes on its material's
+    card when there is only one."""
+    materials: dict = defaultdict(Counter)
+    kinds: dict = defaultdict(Counter)
+    for (node, material, kind), n in spots.items():
+        if node is not None:
+            materials[node][material] += n
+            if kind:
+                kinds[node][kind] += n
+    keys = {}
+    for spot in spots:
+        node, material, kind = spot
+        if node is not None:
+            material = materials[node].most_common(1)[0][0]
+            kind = kind or (kinds[node].most_common(1)[0][0] if kinds[node] else None)
+        keys[spot] = (material, kind)
+    known: dict = defaultdict(set)
+    for material, kind in keys.values():
+        if kind:
+            known[material].add(kind)
+    for spot, (material, kind) in keys.items():
+        if not kind and len(known[material]) == 1:
+            keys[spot] = (material, next(iter(known[material])))
+    return keys
+
+
+def card_order(card: dict) -> tuple:
+    """The Gathering page's order of node cards: the most gathers first, then by name and kind of place."""
+    return (-card["gathers"], card["name"], card["kinds"])
+
+
 def summary(rows=None, *, recent: int = 100) -> dict:
     """The Gathering page's view of the local log: totals, each kind of node with its grades and results,
     each item gathered, each dungeon's reward cubes with their materials, and the latest records."""
     rows = read() if rows is None else rows
     gathers = [r for r in rows if r.get("kind") == "gather"]
     rewards = [r for r in rows if r.get("kind") == "reward"]
-    nodes: dict = defaultdict(lambda: {"gathers": 0, "results": Counter(), "items": Counter(), "counts": Counter(),
-                                       "kinds": Counter(), "places": Counter()})
-    spots: dict = {}
+    places: dict = {}
 
     def where(row):
         key = (row.get("instance"), row.get("map"))
-        if key not in spots:
-            spots[key] = gather_place(*key)
-        return spots[key]
+        if key not in places:
+            places[key] = gather_place(*key)
+        return places[key]
 
+    def spot(row):
+        return row.get("node"), base_material(row["item"]), where(row)[0]
+
+    keys = card_keys(Counter(spot(row) for row in gathers))
+    cards: dict = defaultdict(lambda: {"gathers": 0, "results": Counter(), "items": Counter(), "counts": Counter(),
+                                       "codes": Counter(), "places": Counter()})
     for row in gathers:
-        key = row.get("node") or f"item:{base_material(row['item'])}"
-        node = nodes[key]
-        node["gathers"] += 1
-        node["results"][row["result"]] += 1
+        card = cards[keys[spot(row)]]
+        card["gathers"] += 1
+        card["results"][row["result"]] += 1
         if row["result"] != "failed":
-            node["items"][row["item"]] += 1
-            node["counts"][row["item"]] += row.get("count") or 0
-        kind, place = where(row)
-        if kind:
-            node["kinds"][kind] += 1
-        if place:
-            node["places"][place] += 1
+            card["items"][row["item"]] += 1
+            card["counts"][row["item"]] += row.get("count") or 0
+        if row.get("node") is not None:
+            card["codes"][row["node"]] += 1
+        if place := where(row)[1]:
+            card["places"][place] += 1
     node_rows = []
-    for key, node in nodes.items():
-        items = [{"item": item, **_named(item), "gathers": n, "count": node["counts"][item],
-                  "share": round(n / node["gathers"], 4)} for item, n in node["items"].most_common()]
-        node_rows.append({"node": key if isinstance(key, int) else None, "name": node_label(key, node["items"]),
-                          "gathers": node["gathers"], "results": {r: node["results"][r] for r in RESULTS}, "items": items,
-                          "kinds": sorted(node["kinds"]), "places": places_by_gathers(node["places"])})
-    node_rows.sort(key=lambda r: (-r["gathers"], r["name"]))
-    dungeons: dict = defaultdict(lambda: {"cubes": 0, "with": Counter(), "total": Counter()})
+    for (material, kind), card in cards.items():
+        items = [{"item": item, **_named(item), "gathers": n, "count": card["counts"][item],
+                  "share": round(n / card["gathers"], 4)} for item, n in card["items"].most_common()]
+        node_rows.append({"node": card["codes"].most_common(1)[0][0] if card["codes"] else None, "nodes": sorted(card["codes"]),
+                          "name": material, "gathers": card["gathers"], "results": {r: card["results"][r] for r in RESULTS},
+                          "items": items, "kinds": [kind] if kind else [], "places": places_by_gathers(card["places"])})
+    node_rows.sort(key=card_order)
+    # One card per dungeon and difficulty (0.2.372): ids that read the same, by their in-game label, share it.
+    dungeons: dict = defaultdict(lambda: {"cubes": 0, "with": Counter(), "total": Counter(), "ids": Counter()})
+    names: dict = {}
     for row in rewards:
         place = row.get("instance") or row.get("map") or 0
-        cube = dungeons[place]
+        if place not in names:
+            names[place] = place_name(place or None)
+        cube = dungeons[names[place]]
         cube["cubes"] += 1
+        cube["ids"][place] += 1
         seen = set()
         for item, count in row["items"]:
             cube["total"][item] += count
@@ -246,12 +297,14 @@ def summary(rows=None, *, recent: int = 100) -> dict:
                 cube["with"][item] += 1
                 seen.add(item)
     dungeon_rows = []
-    for place, cube in dungeons.items():
+    for name, cube in dungeons.items():
         items = [{"item": item, **_named(item), "material": is_material(item), "cubes": n,
                   "share": round(n / cube["cubes"], 4), "total": cube["total"][item], "average": round(cube["total"][item] / n, 2)}
                  for item, n in cube["with"].most_common()]
-        dungeon_rows.append({"instance": place or None, "name": place_name(place), "cubes": cube["cubes"], "items": items})
-    dungeon_rows.sort(key=lambda r: -r["cubes"])
+        ids = [place for place, _ in cube["ids"].most_common() if place]
+        dungeon_rows.append({"instance": ids[0] if ids else None, "instances": sorted(ids), "name": name,
+                             "cubes": cube["cubes"], "items": items})
+    dungeon_rows.sort(key=lambda r: (-r["cubes"], r["name"]))
     totals = Counter()
     for row in gathers:
         if row["result"] != "failed":

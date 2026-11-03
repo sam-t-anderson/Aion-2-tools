@@ -291,6 +291,26 @@ def supplement_dungeon(dungeon_id) -> dict:
     return row if isinstance(row, dict) and isinstance(row.get("name"), str) and row["name"].strip() else {}
 
 
+@lru_cache(maxsize=1)
+def _dungeon_labels() -> dict:
+    """The supplement's display labels for dungeon ids (``labels``, 0.2.372); never read by classification."""
+    resource = files(__package__).joinpath("data", "catalog-supplement.json")
+    try:
+        doc = json.loads(resource.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ModuleNotFoundError, ValueError):
+        return {}
+    labels = doc.get("labels") if isinstance(doc, dict) else None
+    return labels if isinstance(labels, dict) else {}
+
+
+def dungeon_label(dungeon_id) -> dict:
+    """A dungeon id's in-game difficulty label for display, ``{name, difficulty_name[, stage][, level]}``, else
+    ``{}``: DBAion2's label for every id it lists, the stage numbered by boss level when a dungeon has several ids
+    of one difficulty (Deus Research Base's Transcendence at boss levels 56, 60, 64 and 68 is stages 1 to 4)."""
+    row = _dungeon_labels().get(str(dungeon_id))
+    return row if isinstance(row, dict) and isinstance(row.get("difficulty_name"), str) else {}
+
+
 def dungeon_final_bosses(dungeon_id: int) -> frozenset:
     """The curated final-boss mob codes for a catalog ``dungeonId`` (its HP-bar phases /
     variants), or an empty set when the dungeon is unknown or deliberately unmapped."""

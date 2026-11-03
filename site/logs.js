@@ -88,43 +88,47 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
   };
   const runKind = (r) => [cap(prettyEnc(r.encounter_type)), r.difficulty].filter((x) => x && x !== "—").join(" · ") || "—";
 
+  // Completed-run speed, filtered as the community combat logs are (0.2.372): a boss on the run's route, its
+  // difficulty, encounter type, region, product and party size, all passed to the server, which ranks within them.
+  const speed = { f: {} };
   async function renderSpeed() {
     const body = document.getElementById("speed-body");
-    let d; try { d = await A2.api("/api/v1/run-leaderboard?limit=100"); } catch (e) { body.innerHTML = errNote(e); return; }
+    if (!body) return;
+    commStyle();
+    const f = await facets(body);
+    const q = new URLSearchParams({ limit: "100" });
+    for (const k of PVE_KEYS) if (speed.f[k]) q.set(k, speed.f[k]);
+    const bar = pveFilters("sf", speed.f, f, renderSpeed);
+    let d; try { d = await A2.api("/api/v1/run-leaderboard?" + q); } catch (e) { body.innerHTML = bar.html + errNote(e); bar.bind(body); return; }
     const rows = (d && d.entries) || [];
-    if (!rows.length) { body.innerHTML = '<div class="empty">No eligible speed clears yet. A completed run ranks here once its capture is clean and complete enough to qualify.</div>' + srcNote(d); return; }
+    const filtered = PVE_KEYS.some((k) => speed.f[k]);
     // Each run ranks among the runs of the same instance, route, difficulty and party size ("1 of 3").
     const tr = rows.map((r) => `<tr><td class="r">${n0(r.rank)}${r.count > 1 ? ` <span class="muted small">of ${n0(r.count)}</span>` : ""}</td>`
       + `<td>${esc(routeOf(r) || "—")}</td><td>${esc(runKind(r))}</td><td class="r num">${secs(r.elapsed_seconds)}</td><td class="r">${n0(r.party_size)}</td>`
       + `<td>${r.log ? `<a href="log.html?id=${encodeURIComponent(r.log)}">view</a>` : ""}</td></tr>`).join("");
-    body.innerHTML = `<table class="t"><tr><th class="r">Rank</th><th>Boss / route</th><th>Encounter</th><th class="r">Time</th><th class="r">Party</th><th><span class="sr-only">Log</span></th></tr>${tr}</table>` + srcNote(d);
+    body.innerHTML = bar.html + (!rows.length ? (filtered ? '<div class="empty">No completed runs match these filters.</div>'
+      : '<div class="empty">No eligible speed clears yet. A completed run ranks here once its capture is clean and complete enough to qualify.</div>')
+      : `<table class="t"><tr><th class="r">Rank</th><th>Boss / route</th><th>Encounter</th><th class="r">Time</th><th class="r">Party</th><th><span class="sr-only">Log</span></th></tr>${tr}</table>`) + srcNote(d);
+    bar.bind(body);
   }
 
   // Boss progression: one row per (boss, difficulty, region, product) engagement group, sorted
   // alphabetically by boss. Filterable by boss / difficulty / region / product from the server's own
   // facets; the boss portrait (server-resolved from the group's catalog id) sits left of the name.
-  const prog = { f: {}, facets: null };
-  function progQuery() {
-    const p = new URLSearchParams();
-    for (const k of ["boss", "difficulty", "region", "game_patch"]) if (prog.f[k]) p.set(k, prog.f[k]);
-    return p.toString();
-  }
+  const prog = { f: {} };
   async function renderProgression() {
     const body = document.getElementById("progression-body");
     if (!body) return;
     commStyle();                                             // shares the boss-cell / mob-ic styles
-    if (!prog.facets) { body.innerHTML = '<div class="empty">Loading…</div>'; try { prog.facets = await A2.api("/api/v1/report-facets"); } catch (e) { prog.facets = {}; } }
-    const f = prog.facets || {};
-    const q = progQuery();
-    let d; try { d = await A2.api("/api/v1/encounter-progression" + (q ? "?" + q : "")); } catch (e) { body.innerHTML = errNote(e); return; }
-    const groups = ((d && d.groups) || []).slice().sort((a, b) =>
+    const f = await facets(body);
+    const q = new URLSearchParams();
+    for (const k of PVE_KEYS) if (prog.f[k]) q.set(k, prog.f[k]);
+    const bar = pveFilters("pf", prog.f, f, renderProgression);
+    let d; try { d = await A2.api("/api/v1/encounter-progression" + (q.toString() ? "?" + q : "")); } catch (e) { body.innerHTML = bar.html + errNote(e); bar.bind(body); return; }
+    // a mini-boss's engagements are hidden with the mini-bosses, as in the community combat logs
+    const groups = ((d && d.groups) || []).filter((g) => comm.mini || prog.f.boss === g.boss || !isMini(g.boss, f.boss_roles)).sort((a, b) =>
       String(a.boss || "").localeCompare(String(b.boss || "")) || String(a.difficulty || "").localeCompare(String(b.difficulty || "")));
-    const filters = '<div class="row comm-filters" style="gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap">'
-      + field("Boss", `<select id="pf-boss" style="min-width:195px">${options((f.boss || []).filter(realBoss), prog.f.boss)}</select>`)
-      + field("Difficulty", `<select id="pf-difficulty">${options([...(f.difficulty || [])].sort((a, b) => String(a).localeCompare(String(b))), prog.f.difficulty)}</select>`)
-      + field("Region", `<select id="pf-region">${options(f.region, prog.f.region)}</select>`)
-      + field("Product", `<select id="pf-game_patch">${options(f.game_patch, prog.f.game_patch, patchOf)}</select>`)
-      + '<button class="btn small" id="pf-clear" type="button">Clear</button></div>';
+    const filters = bar.html;
     const table = !groups.length ? '<div class="empty">No boss engagements match these filters.</div>'
       : `<table class="t"><tr><th>Boss</th><th>Difficulty</th><th>Region</th><th>Product</th><th class="r">Attempts</th><th class="r">Kills</th><th class="r">Wipes</th><th class="r">Kill rate</th><th class="r">Fastest</th></tr>`
         + groups.map((g) => { const ic = srcOf(g.icon);
@@ -135,9 +139,7 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
           <td class="r num">${g.fastest_kill_seconds ? secs(g.fastest_kill_seconds) : "—"}</td></tr>`; }).join("")
         + `</table>`;
     body.innerHTML = filters + table + srcNote(d);
-    const change = (id, key) => { const el = body.querySelector("#pf-" + id); if (el) el.onchange = () => { prog.f[key] = el.value || ""; renderProgression(); }; };
-    for (const [id, key] of [["boss", "boss"], ["difficulty", "difficulty"], ["region", "region"], ["game_patch", "game_patch"]]) change(id, key);
-    const clear = body.querySelector("#pf-clear"); if (clear) clear.onclick = () => { prog.f = {}; renderProgression(); };
+    bar.bind(body);
   }
 
   async function renderPoints() {
@@ -225,7 +227,10 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
         // Drop generic non-boss combat ("Combat 3", etc.) in PvE only; PvP skirmishes without a
         // named boss are kept.
         if ((comm.f.combat_mode || "pve") !== "pvp" && (!c.boss || /^combat\s*\d*$/i.test(String(c.boss).trim()))) continue;
-        if ((comm.f.combat_mode || "pve") !== "pvp" && !comm.mini && c.boss_role === "mini") continue;   // hidden unless asked for
+        // hidden unless asked for: a mini-boss where it was fought, or one fought where the server could not tell
+        // (no instance recorded) whose name is a mini-boss elsewhere (0.2.372)
+        if ((comm.f.combat_mode || "pve") !== "pvp" && !comm.mini
+            && (c.boss_role === "mini" || (!c.boss_role || c.boss_role === "unknown") && isMini(c.boss, comm.facets && comm.facets.boss_roles))) continue;
         // Per-encounter participants when the server provides them, so one encounter's party is
         // never shown on another in a multi-encounter log; fall back to the whole-log roster.
         const members = Array.isArray(c.players) && c.players.length ? toMembers(c.players) : roster;
@@ -274,6 +279,42 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
   const field = (label, inner) => `<label class="small muted">${label}<br>${inner}</label>`;
   const options = (values, cur, fmt) => '<option value="">any</option>' +
     (values || []).map((v) => `<option value="${esc(v)}"${String(v) === String(cur || "") ? " selected" : ""}>${esc(fmt ? fmt(v) : v)}</option>`).join("");
+  // The PvE filters of the community combat logs, for the Completed-run speed and Boss progression tabs too
+  // (0.2.372): boss (mini-bosses hidden unless shown, the one choice every tab shares), difficulty, encounter type,
+  // region, product and party size, from the server's own facets. ``state`` holds the choices; ``apply`` reloads.
+  const PVE_KEYS = ["boss", "difficulty", "encounter_type", "region", "game_patch", "party_size"];
+  async function facets(body) {
+    if (!comm.facets) { body.innerHTML = '<div class="empty">Loading…</div>'; try { comm.facets = await A2.api("/api/v1/report-facets"); } catch (e) { comm.facets = {}; } }
+    return comm.facets || {};
+  }
+  function pveFilters(prefix, state, f, apply) {
+    const pve = (f.encounter_type || []).filter((t) => !String(t).startsWith("pvp_"));
+    const html = '<div class="row comm-filters" style="gap:10px;margin-bottom:12px;align-items:flex-end;flex-wrap:wrap">'
+      + field("Boss", `<select id="${prefix}-boss" style="min-width:195px">${options((f.boss || []).filter(realBoss).filter((b) => comm.mini || !isMini(b, f.boss_roles)), state.boss)}</select>`)
+      + `<div class="small muted">Mini-bosses<br><label class="small" title="Earlier bosses of a dungeon whose final boss the catalog knows; hidden unless shown"><input type="checkbox" id="${prefix}-mini"${comm.mini ? " checked" : ""}> show</label></div>`
+      + field("Difficulty", `<select id="${prefix}-difficulty">${options([...(f.difficulty || [])].sort((a, b) => String(a).localeCompare(String(b))), state.difficulty)}</select>`)
+      + field("Encounter", `<select id="${prefix}-encounter_type">${options(pve, state.encounter_type, prettyEnc)}</select>`)
+      + field("Region", `<select id="${prefix}-region">${options(f.region, state.region)}</select>`)
+      + field("Product", `<select id="${prefix}-game_patch">${options(f.game_patch, state.game_patch, patchOf)}</select>`)
+      + field("Party", `<select id="${prefix}-party_size">${options(f.party_size, state.party_size)}</select>`)
+      + `<button class="btn small" id="${prefix}-clear" type="button">Clear</button></div>`;
+    const bind = (root) => {
+      for (const key of PVE_KEYS) {
+        const el = root.querySelector(`#${prefix}-${key}`);
+        if (el) el.onchange = () => { state[key] = el.value || ""; apply(); };
+      }
+      const mini = root.querySelector(`#${prefix}-mini`);
+      if (mini) mini.onchange = () => {
+        comm.mini = mini.checked;
+        try { localStorage.setItem(MINI_PREF, comm.mini ? "1" : "0"); } catch (e) { /* private mode: not remembered */ }
+        if (!comm.mini && isMini(state.boss, f.boss_roles)) state.boss = "";   // a hidden boss cannot stay selected
+        apply();
+      };
+      const clear = root.querySelector(`#${prefix}-clear`);
+      if (clear) clear.onclick = () => { for (const key of PVE_KEYS) state[key] = ""; apply(); };
+    };
+    return { html, bind };
+  }
   async function renderCommunity() {
     const root = document.getElementById("community");
     if (!root) return;

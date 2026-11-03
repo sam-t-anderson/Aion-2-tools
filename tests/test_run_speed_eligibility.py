@@ -131,3 +131,28 @@ def test_party_damage_after_the_run_end_still_untimes_it():
     r = _run(_timed(0, 120.0, 100.0, 60.0))      # the party still fighting 40 s after the recorded end
     assert r["speed_eligible"] is False
     assert "Complete, consistent start/end timestamps are unavailable." in r["speed_reasons"]
+
+
+def test_a_run_that_ended_at_a_mini_boss_does_not_rank():
+    """Until 0.2.372 Deus Research Base's first boss, Gelcos, was taken for its final boss: a recording ended the run
+    at Gelcos and timed it there. The final boss is Atiel; a run whose last boss is not the dungeon's final boss is
+    not a completed run, whatever the recording marked."""
+    doc = _doc(roster_first=True, full_hp=True)
+    for segment in doc["segments"]:
+        segment["instance_id"] = segment["map_id"] = 600058
+    doc["segments"][0]["entities"][0]["mob_code"] = 2343616           # Gelcos, then Nazmun as the "final" kill
+    doc["segments"][1]["entities"][0]["mob_code"] = 2343615
+    r = _run(doc)
+    assert r["speed_eligible"] is False
+    assert "The run ended at a boss that is not this dungeon's final boss." in r["speed_reasons"]
+    doc["segments"][1]["entities"][0]["mob_code"] = 2343601           # Atiel: the run is complete
+    assert _run(doc)["speed_eligible"] is True, _run(doc)["speed_reasons"]
+
+
+def test_the_final_bosses_of_deus_research_base_and_vakron_sky_island():
+    """The order the uploads fight them in: Gelcos, Nazmun, Atiel; Tiere, Thamon, Vakron (0.2.372)."""
+    from aion2calc.meter.a2parser.lookup import dungeon_final_bosses, npc_info
+    for instance in (600051, 600052, 600053, 600054, 600055, 600056, 600057, 600058, 600059, 610052):
+        assert {npc_info(code).get("name") for code in dungeon_final_bosses(instance)} == {"Atiel"}, instance
+    for instance in (600071, 600072, 600073, 600074):
+        assert {npc_info(code).get("name") for code in dungeon_final_bosses(instance)} == {"Vakron"}, instance

@@ -8,9 +8,17 @@ name them. The supplement takes, from those tables, only what the community cata
 for: an NPC's name and type, a dungeon id's name, content type and difficulty label. It never adds
 or changes a boss flag, category, tier, difficulty or dungeon link, so classification and ranking
 read the community catalog alone; the supplement names what would otherwise show as a number.
+
+It also keeps, for display only, every DBAion2 dungeon id's in-game difficulty label (``labels``, 0.2.372),
+numbered when a dungeon has more than one id of one difficulty: Shattered Arkanis and Deus Research Base each
+have four Transcendence ids, at boss levels 56, 60, 64 and 68, the four stages metabot.gg lists, and the
+Gathering page names their reward cubes "Transcendence 1" to "Transcendence 4" by those levels. The community
+table names the ids without a difficulty, so before this its pages showed the same dungeon several times, some
+marked "(Transcendence)" and some not. Classification never reads the labels.
 """
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime, timezone
 import hashlib
 from importlib.resources import files
@@ -22,7 +30,9 @@ SOURCES = {"npcs": "https://dbaion2.ru/data-en/npcs.json", "dungeons": "https://
 MAX_BYTES = 16_000_000
 NOTE = ("Names for NPC and dungeon ids the community catalog has no row for, from DBAion2's English "
         "tables (dbaion2.ru). Names, NPC types and content types only: boss flags, categories, tiers, "
-        "difficulties and dungeon links stay the community catalog's. A community row always wins.")
+        "difficulties and dungeon links stay the community catalog's. A community row always wins. "
+        "labels: every dungeon id's in-game difficulty label, numbered by boss level when a dungeon has "
+        "several ids of one difficulty, for display only.")
 
 
 def _text(value, limit=200):
@@ -55,8 +65,9 @@ def _unnamed(row):
 
 
 def build(npcs, dungeons, community_npcs, community_dungeons):
-    """The supplement's rows: every source id the community tables lack, with its name, and the
-    type of each id they name "???" (DBAion2's name for one is an internal one, never shown)."""
+    """The supplement's rows: every source id the community tables lack, with its name, the type of
+    each id they name "???" (DBAion2's name for one is an internal one, never shown), and every
+    dungeon id's display label (:func:`labels`)."""
     out_npcs = {}
     for row in npcs:
         code = str(row["id"])
@@ -85,7 +96,44 @@ def build(npcs, dungeons, community_npcs, community_dungeons):
                 entry["difficulty_name"] = label
             out_dungeons[code] = entry
     order = lambda rows: dict(sorted(rows.items(), key=lambda kv: int(kv[0])))
-    return {"npcs": order(out_npcs), "dungeons": order(out_dungeons)}
+    return {"npcs": order(out_npcs), "dungeons": order(out_dungeons), "labels": order(labels(dungeons))}
+
+
+def _level(level):
+    """A difficulty's recommended (else boss) level, or None."""
+    for key in ("recommendLevel", "bossLevel"):
+        value = level.get(key)
+        if type(value) is int and 0 < value < 1000:
+            return value
+    return None
+
+
+def labels(dungeons):
+    """Each dungeon id's in-game difficulty label, for display: ``{name, difficulty_name[, stage][, level]}``.
+
+    A dungeon with more than one id of one difficulty numbers them by level, then id: Deus Research Base's four
+    Transcendence ids (boss levels 56, 60, 64 and 68) are stages 1 to 4. An id whose difficulty DBAion2 names
+    "None" (the daily dungeons, the growth maps) has no label."""
+    out = {}
+    for group in dungeons:
+        name, by_label = _text(group["name"]), defaultdict(list)
+        for level in group.get("difficulties") or []:
+            label = _text(level.get("name"), 40)
+            if label and label != "None":
+                by_label[label].append(level)
+        for label, levels in by_label.items():
+            levels.sort(key=lambda level: (_level(level) or 0, level["id"]))
+            for stage, level in enumerate(levels, 1):
+                code = str(level["id"])
+                if code in out:
+                    continue
+                entry = {"name": name, "difficulty_name": label}
+                if len(levels) > 1:
+                    entry["stage"] = stage
+                if _level(level):
+                    entry["level"] = _level(level)
+                out[code] = entry
+    return out
 
 
 def _read(url):
@@ -120,7 +168,7 @@ def stage(output, *, log=print, fetch=_read):
     except (FileNotFoundError, ModuleNotFoundError, ValueError):
         bundled = {}
     diffs = {}
-    for category in ("npcs", "dungeons"):
+    for category in ("npcs", "dungeons", "labels"):
         new, old = rows[category], bundled.get(category) or {}
         diffs[category] = {"added": sorted(new.keys() - old.keys(), key=int)[:200], "removed": sorted(old.keys() - new.keys(), key=int)[:200],
                            "renamed": sorted((k for k in new.keys() & old.keys() if new[k] != old[k]), key=int)[:200],
@@ -131,5 +179,6 @@ def stage(output, *, log=print, fetch=_read):
         {"format": "a2catalog-supplement-audit", "version": 1, "source": supplement["source"], "diffs": diffs,
          "note": "Staged only. Review the added, removed and renamed ids before copying the file into a release."},
         ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    log(f"Staged {len(rows['npcs'])} NPC and {len(rows['dungeons'])} dungeon names; review {target / 'catalog-supplement-audit.json'}")
+    log(f"Staged {len(rows['npcs'])} NPC and {len(rows['dungeons'])} dungeon names and {len(rows['labels'])} difficulty labels; "
+        f"review {target / 'catalog-supplement-audit.json'}")
     return supplement

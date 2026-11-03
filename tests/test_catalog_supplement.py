@@ -28,6 +28,19 @@ def test_the_supplement_takes_only_what_the_community_catalog_lacks():
                                 "900001": {"name": "Daeva Bio-Research Base", "type": "Daily"}}
 
 
+def test_every_dungeon_id_gets_a_display_label_numbered_by_level():
+    arkanis = {"name": "Shattered Arkanis", "type": "Party", "difficulties": [
+        {"id": 610062, "name": "Transcendence", "recommendLevel": 68}, {"id": 600061, "name": "Exploration", "recommendLevel": 0},
+        {"id": 600063, "name": "Transcendence", "recommendLevel": 56}, {"id": 600068, "name": "Transcendence", "bossLevel": 64}]}
+    labels = supplement.build([], DUNGEONS + [arkanis], {}, {"600001": {"name": "Krao Cave"}})["labels"]
+    assert labels["600001"] == {"name": "Krao Cave", "difficulty_name": "Conquest"}          # the community names it: labelled too
+    assert [labels[k].get("stage") for k in ("600063", "600068", "610062")] == [1, 2, 3]     # by level, then id
+    assert labels["600063"]["level"] == 56 and labels["600061"] == {"name": "Shattered Arkanis", "difficulty_name": "Exploration"}
+    assert "900001" not in labels                                                             # "None" is no label
+    assert lookup.dungeon_label(600068) == {"name": "Shattered Arkanis", "difficulty_name": "Transcendence", "stage": 3, "level": 64}
+    assert lookup.dungeon_label(123) == {}
+
+
 def test_a_changed_source_shape_stops_the_staging(tmp_path):
     with pytest.raises(ValueError):
         supplement.validate("npcs", [{"id": "2951048", "name": "Trainee Merchant"}])        # id not a number

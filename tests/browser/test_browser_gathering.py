@@ -68,7 +68,7 @@ def test_the_page_sums_up_this_computers_gathering_next_to_everyones_rates(app_p
                                           "Odyle — open-world node 5 gathers · 1 players"]
     # where each was gathered, the most gathers first: the ore's seven zones show five and count the rest
     assert texts(page, ".gt-where") == ["Found in Altgard, Testzone 1, Testzone 2, Testzone 3, Testzone 4 and 2 more",
-                                        "Found in Ferocious Horn Den (Normal), Krao Cave (Normal)", "Found in Altgard"]
+                                        "Found in Ferocious Horn Den (Conquest), Krao Cave (Conquest)", "Found in Altgard"]
     assert "Normal 75.0% · Better grade 20.0% · Failed 5.0%" in page.locator(".gt-node").first.inner_text()
     assert rows(page, ".gt-node:nth-of-type(1)") == [["Orichalcum Ore", "Common", "75.0%", "1.00"],
                                                      ["Fine Orichalcum Ore", "Rare", "20.0%", "1.00"]]
@@ -85,12 +85,14 @@ def test_dungeon_materials_list_the_crafting_materials_until_every_drop_is_asked
     go(page, app_url, "#/gathering")
     page.wait_for_selector(".gt-node")
     page.get_by_role("tab", name="Dungeon materials").click()
-    assert texts(page, ".gt-dungeon h3") == ["Ferocious Horn Den (Normal) 5 reward cubes · 2 players"]
+    # a dungeon whose cubes held no crafting material is left out (0.2.372)
+    assert texts(page, ".gt-dungeon h3") == ["Ferocious Horn Den (Conquest) 5 reward cubes · 2 players"]
     assert rows(page, ".gt-dungeon") == [["Refining Stone", "Common", "80.0%", "4.25"], ["Wrathful Will", "Unique", "20.0%", "1"]]
     page.get_by_label("Show every drop (equipment, currency)").check()
     assert rows(page, ".gt-dungeon")[0] == ["Kina", "Common", "100.0%", "600,000"]
+    assert texts(page, ".gt-dungeon h3")[1] == "Shattered Arkanis (Transcendence 3) 1 reward cubes · 1 players"
     page.get_by_role("button", name="This computer").click()                 # the one cube this computer opened
-    assert texts(page, ".gt-dungeon h3") == ["Ferocious Horn Den (Normal) 1 reward cubes"]
+    assert texts(page, ".gt-dungeon h3") == ["Ferocious Horn Den (Conquest) 1 reward cubes"]
     assert [r[0] for r in rows(page, ".gt-dungeon")] == ["Kina", "Refining Stone", "Wrathful Will"]
     page.get_by_label("Show every drop (equipment, currency)").uncheck()
     assert rows(page, ".gt-dungeon") == [["Refining Stone", "Common", "100.0%", "6"], ["Wrathful Will", "Unique", "100.0%", "1"]]
@@ -103,7 +105,7 @@ def test_your_log_lists_each_record_and_the_page_reopens_on_the_tab_left(app_pag
     page.get_by_role("tab", name="Your log").click()
     logged = rows(page, ".gt-log")
     assert [r[1:] for r in logged] == [
-        ["Ferocious Horn Den (Normal)", "Reward cube: Refining Stone ×6, Wrathful Will ×1 (3 drops)", "Alpha"],
+        ["Ferocious Horn Den (Conquest)", "Reward cube: Refining Stone ×6, Wrathful Will ×1 (3 drops)", "Alpha"],
         ["Altgard", "Orichalcum Ore Failed: nothing gathered", "Alpha"],
         ["Altgard", "Fine Orichalcum Ore ×1 Better grade", "Alpha"],
         ["Altgard", "Orichalcum Ore ×1 Normal", "Alpha"],

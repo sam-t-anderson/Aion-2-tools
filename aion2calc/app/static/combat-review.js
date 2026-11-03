@@ -84,11 +84,48 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
   // A Raid Planner plan (a2plan) from a fight's recorded movement (``tokens``: each entity's positions, in time order):
   // every player, pet and enemy that moved becomes a token that moves as it did. The plan's map is the fight's arena
   // (its square, which a circle arena fills), or without one the whole view.
-  function planOf(name, duration, tokens, r, at, room, shape, hidden=()=>false) {
-    const [ox,oy,size]=room?[room.x-room.r,room.y-room.r,2*room.r]:[0,0,100],unit=v=>Math.min(1,Math.max(0,v));
+  // Each token is on the map while the fight had it (0.2.372): from its first position (an add or a summon that came
+  // mid-fight) until it fades, FADE s after its last, as the replay fades it; the planner kept a summon such as a
+  // Cleric's Divine Aura at its last place to the plan's end. ``areas`` are the boss casts' measured areas
+  // (``castAreas``), each an area token of its shape for as long as the replay draws it.
+  const FADE=8;
+  function planOf(name, duration, tokens, r, at, room, shape, hidden=()=>false, areas=[]) {
+    const [ox,oy,size]=room?[room.x-room.r,room.y-room.r,2*room.r]:[0,0,100],unit=v=>Math.min(1,Math.max(0,v)),tenth=v=>Math.round(v*10)/10;
+    const share=v=>Math.round(1e4*v/size)/1e4;
     return {format:"a2plan",version:1,meta:{name:name || "Recorded replay"},duration,arena:{kind:room?shape:"square"},
-      tokens:Object.entries(tokens).map(([id,frames])=>({id,kind:r[id]?.kind==="enemy"?"enemy":"player",label:actorLabel(r[id]),cls:r[id]?.class,color:color(r[id]?.class),
-        ...(hidden(id)?{hidden:true}:{}),keyframes:frames.map(p=>{const [x,y]=at(p);return {t:p.t,x:unit((x-ox)/size),y:unit((y-oy)/size)};})})),buffs:[]};
+      tokens:[...Object.entries(tokens).map(([id,frames])=>({id,kind:r[id]?.kind==="enemy"?"enemy":"player",label:actorLabel(r[id]),cls:r[id]?.class,color:color(r[id]?.class),
+        ...(hidden(id)?{hidden:true}:{}),...(frames.length&&frames[0].t>1?{from:tenth(frames[0].t)}:{}),
+        ...(frames.length&&frames[frames.length-1].t+FADE<duration?{until:tenth(frames[frames.length-1].t+FADE)}:{}),
+        keyframes:frames.map(p=>{const [x,y]=at(p);return {t:p.t,x:unit((x-ox)/size),y:unit((y-oy)/size)};})})),
+        ...areas.map((a,i)=>({id:"aoe:"+i,kind:"aoe",label:a.label,color:"#f06060",shape:a.shape,radius:share(a.radius||a.length||0),
+          ...(a.inner?{inner:share(a.inner)}:{}),...(a.shape==="cone"?{angle:a.angle}:{}),...(a.shape==="line"?{length:share(a.length),width:share(a.width)}:{}),
+          ...(a.facing!=null?{facing:tenth(a.facing)}:{}),from:tenth(a.t),until:tenth(a.until),
+          keyframes:[{t:tenth(a.t),x:unit((a.x-ox)/size),y:unit((a.y-oy)/size)}]}))],buffs:[]};
+  }
+  // The measured areas of a fight's boss casts, where and for as long as the replay draws them (0.2.372), in the
+  // replay's view units: around the aim or the caster, or along the caster's facing (the cast's own, else the caster's
+  // heading, else the way to a distant aim). A cast whose skill has no measured area, or whose caster has no position
+  // then, gives none; neither does a shape that needs a facing the recording does not have.
+  const aoeLife=a=>Math.max(1.5,(a.delay||0)+1);
+  function castAreas(segment, tokens, r, at, scale, shown=()=>true) {
+    if(!aoeShapes||!scale)return [];
+    const worldAt=(frames,t)=>{if(!frames)return null;let lo=0,hi=frames.length;while(lo<hi){const m=(lo+hi)>>1;if(frames[m].t<=t)lo=m+1;else hi=m;}return lo?frames[lo-1]:null;};
+    const out=[];
+    for(const c of segment.npc_casts || []){
+      if(!tokens[c.source]||!Number.isFinite(c.t)||!shown(c.source))continue;
+      const a=aoeShapes[String(c.skill_id)]||aoeShapes[`${r[c.source]?.name||""}|${c.skill_id}`];if(!a)continue;
+      const t0=a.anchor==="hit"?c.t+(a.delay||0):c.t,bw=worldAt(tokens[c.source],t0)||worldAt(tokens[c.source],c.t);if(!bw)continue;
+      const tw=c.target&&tokens[c.target]?worldAt(tokens[c.target],c.t):null,aim=c.pos?{x:c.pos[0],y:c.pos[1]}:tw||bw;
+      const [bx,by]=at(bw),[ax,ay]=at(aim);
+      let facing=c.facing!=null?c.facing:bw.heading!=null?bw.heading:null;if(facing==null&&Math.hypot(aim.x-bw.x,aim.y-bw.y)>100)facing=Math.atan2(aim.y-bw.y,aim.x-bw.x)*180/Math.PI;
+      const base={t:c.t,until:c.t+aoeLife(a),label:`${r[c.source]?.name||actorLabel(r[c.source])}: ${c.skill||c.skill_id}`};
+      if(a.shape==="circle_aim")out.push({...base,shape:"circle",x:ax,y:ay,radius:scale(a.radius)});
+      else if(a.shape==="circle_caster"||(a.shape==="cone"&&a.angle>=180))out.push({...base,shape:"circle",x:bx,y:by,radius:scale(a.radius)});
+      else if(a.shape==="ring")out.push({...base,shape:"ring",x:bx,y:by,radius:scale(a.radius),inner:scale(a.inner)});
+      else if(facing!=null&&a.shape==="cone")out.push({...base,shape:"cone",x:bx,y:by,radius:scale(a.radius),angle:a.angle,facing});
+      else if(facing!=null&&a.shape==="line")out.push({...base,shape:"line",x:bx,y:by,length:scale(a.length),width:2*scale(a.half_width),facing});
+    }
+    return out;
   }
   // The Raid Planner's import (0.2.353): the fights of a log that hold recorded movement, then one of them as a plan,
   // as the replay's Open in Raid Planner makes it (the arena in the shape last chosen in a replay).
@@ -99,10 +136,10 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
   function movementPlan(doc, index, shape=roomShape()) {
     const segment=doc?.segments?.[index],world=segment?.movement || [];
     if(!world.length)throw Error("This fight holds no recorded movement.");
-    const r=segmentRefs(doc,segment,true),{at,rooms}=frameMovement(world,id=>r[id]?.is_boss,!!segment.boss),tokens={};
+    const r=segmentRefs(doc,segment,true),{at,rooms,scale}=frameMovement(world,id=>r[id]?.is_boss,!!segment.boss),tokens={};
     for(const p of world)(tokens[p.entity] ||= []).push(p);
     for(const frames of Object.values(tokens))frames.sort((a,b)=>a.t-b.t);
-    return planOf(segment.boss || segment.label,segment.duration,tokens,r,at,rooms?.[shape],shape);
+    return planOf(segment.boss || segment.label,segment.duration,tokens,r,at,rooms?.[shape],shape,()=>false,castAreas(segment,tokens,r,at,scale));
   }
   // The smallest circle holding every point ({x, y}): Welzl's incremental algorithm over the points' convex hull,
   // which keeps it to a few dozen corners however long the fight.
@@ -979,7 +1016,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       // The measured area of a boss skill (0.2.365): by the skill's own id, or per boss for a generic one such as
       // the plain Attack; its life on the replay is the longer of 1.5 s and the measured delay to its first hit plus one.
       const aoeOf=c=>{if(!aoeShapes||!scale)return null;return aoeShapes[String(c.skill_id)]||aoeShapes[`${r[c.source]?.name||""}|${c.skill_id}`]||null;};
-      const aoeLife=a=>Math.max(1.5,(a.delay||0)+1),metres=u=>`${(u/100).toFixed(u<1000?1:0)} m`;
+      const metres=u=>`${(u/100).toFixed(u<1000?1:0)} m`;
       const aoeText=a=>a.shape==="circle_aim"?`circle of ${metres(a.radius)} around the aim`:a.shape==="circle_caster"?`circle of ${metres(a.radius)} around the caster`:a.shape==="cone"?`${2*a.angle}° cone ${metres(a.radius)} long`:a.shape==="line"?`line ${metres(a.length)} long, ${metres(2*a.half_width)} wide`:a.shape==="ring"?`ring from ${metres(a.inner)} to ${metres(a.radius)} around the caster`:String(a.shape);
       const spawns=world.length?Object.entries(tokens).filter(([id,frames])=>frames.length&&frames[0].t>1&&kindOf(id)!=="player"&&String(id)!==String(d.segment.ping_recorder)).map(([id,frames])=>({id,t:frames[0].t,frame:frames[0]})).sort((a,b)=>a.t-b.t):[];
       const keyHTML=(()=>{
@@ -1001,7 +1038,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         return `<div class="cr-key"><strong>Key</strong> <span class="small muted">Untick an entry to hide it on the replay.</span> <button class="btn small" type="button" data-key-showall hidden>Show all</button>`
           +`<ul aria-label="Key">${kinds.join("")}</ul>${who.length?`<ul aria-label="${players.length>12?"Classes":"Players"}">${who.join("")}</ul>`:""}</div>`;
       })();
-      box.innerHTML=`<h3>Recorded movement replay</h3>${note?`<p class="small muted">${esc(note)}</p>`:""}${sourcesHTML}${mergeHTML}<button class="btn small" data-play>Play</button> <button class="btn small" data-rewind>Rewind</button><input data-scrub type="range" min="0" step="0.1" value="0" aria-label="Replay time" ${casts.length||spawns.length?'list="cr-ticks"':""}><output data-clock></output>${casts.length||spawns.length?`<datalist id="cr-ticks">${[...new Set([...casts.map(c=>c.t),...spawns.map(x=>x.t)].map(t=>t.toFixed(1)))].map(t=>`<option value="${t}"></option>`).join("")}</datalist>`:""}${rooms?`<label class="cr-room-shape">Arena <select data-room-shape>${[["circle","Circle"],["square","Square"]].map(([k,v])=>`<option value="${k}" ${k===roomShape()?"selected":""}>${v}</option>`).join("")}</select></label>`:""}${casts.length||spawns.length?`<div class="cr-now" data-now aria-live="off"><span class="muted">Now:</span> <span data-now-list>—</span></div>`:""}<svg class="cr-arena" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-label="Recorded positions"><g data-room></g><g data-marks></g><g data-tokens></g></svg>${keyHTML}<button class="btn small" data-plan>Import into Raid Planner</button><span data-plan-status role="status"></span>`;
+      box.innerHTML=`<h3>Recorded movement replay</h3>${note?`<p class="small muted">${esc(note)}</p>`:""}${sourcesHTML}${mergeHTML}<button class="btn small" data-play>Play</button> <button class="btn small" data-rewind>Rewind</button><input data-scrub type="range" min="0" step="0.1" value="0" aria-label="Replay time" ${casts.length||spawns.length?'list="cr-ticks"':""}><output data-clock></output>${casts.length||spawns.length?`<datalist id="cr-ticks">${[...new Set([...casts.map(c=>c.t),...spawns.map(x=>x.t)].map(t=>t.toFixed(1)))].map(t=>`<option value="${t}"></option>`).join("")}</datalist>`:""}${rooms?`<label class="cr-room-shape">Arena <select data-room-shape>${[["circle","Circle"],["square","Square"]].map(([k,v])=>`<option value="${k}" ${k===roomShape()?"selected":""}>${v}</option>`).join("")}</select></label>`:""}<div class="cr-replay-body${casts.length||spawns.length?" has-events":""}"><svg class="cr-arena" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-label="Recorded positions"><g data-room></g><g data-marks></g><g data-tokens></g></svg>${casts.length||spawns.length?`<section class="cr-events" aria-label="Boss casts and appearances"><h4 class="cr-events-head">Boss casts <span class="small muted">· select one to go to it</span></h4><ol data-events></ol></section>`:""}</div>${keyHTML}<button class="btn small" data-plan>Import into Raid Planner</button><span data-plan-status role="status"></span>`;
       // the arena behind the tokens: the boss room the fight's positions suggest, as the chosen shape
       const drawRoom=()=>{const a=replayHidden.has("arena")?null:rooms?.[roomShape()],keyRoom=box.querySelector("[data-key-room]");if(keyRoom)keyRoom.innerHTML=roomShape()==="circle"?'<circle class="cr-room" cx="5" cy="5" r="4"/>':'<rect class="cr-room" x="1" y="1" width="8" height="8"/>';box.querySelector("[data-room]").innerHTML=!a?"":`${roomShape()==="circle"?`<circle class="cr-room" cx="${a.x.toFixed(2)}" cy="${a.y.toFixed(2)}" r="${a.r.toFixed(2)}">`:`<rect class="cr-room" x="${(a.x-a.r).toFixed(2)}" y="${(a.y-a.r).toFixed(2)}" width="${(2*a.r).toFixed(2)}" height="${(2*a.r).toFixed(2)}">`}<title>Arena: the ground this fight covered, with room to spare</title>${roomShape()==="circle"?"</circle>":"</rect>"}`;};
       drawRoom();
@@ -1035,30 +1072,57 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         if(a.shape==="line"){const L=scale(a.length),W=scale(a.half_width),f=rad(facing),ux=Math.cos(f),uy=-Math.sin(f),px=-uy,py=ux;
           const pts=[[bx+px*W,by+py*W],[bx+ux*L+px*W,by+uy*L+py*W],[bx+ux*L-px*W,by+uy*L-py*W],[bx-px*W,by-py*W]];return `<polygon ${cls} style="${style}" points="${pts.map(([x,y])=>`${f2(x)},${f2(y)}`).join(" ")}">${tip}</polygon>`;}
         return "";};
-      const drawMarks=t=>{const marks=box.querySelector("[data-marks]"),strip=box.querySelector("[data-now-list]");if(!marks)return;const svg=[],now=[];
+      // where a cast was aimed, from the caster's and the target's places when it was cast
+      const whereOf=c=>{const target=c.target&&r[c.target]?nameOf(c.target):"";if(!c.pos)return target?`at ${target}`:"";
+        const cw=worldAt(tokens[c.source],c.t),tw=c.target&&tokens[c.target]?worldAt(tokens[c.target],c.t):null;
+        const dc=cw?Math.hypot(c.pos[0]-cw.x,c.pos[1]-cw.y):Infinity,dt=tw?Math.hypot(c.pos[0]-tw.x,c.pos[1]-tw.y):Infinity;
+        return dt<=NEAR&&target?`at ${target}`:dc<=NEAR?"around itself":"on the ground"+(target?` near ${target}`:"");};
+      // The list beside the arena (0.2.372): every cast and appearance the key shows, with its time, in a box of its
+      // own size that scrolls, so the arena never moves as they happen (until 0.2.371 a strip above the arena listed
+      // the ones in progress and pushed it down with each). The same casts at the same moment, such as one skill from a
+      // boss's clones, are one row with a count. The rows in progress are marked, and the list follows the replay.
+      let events=[],eventAt=-1;
+      const listEvents=()=>{const list=box.querySelector("[data-events]");if(!list)return;const all=[];
+        if(!replayHidden.has("casts"))for(const c of casts)if(shown(c.source)){const area=replayHidden.has("aoe")?null:aoeOf(c);
+          all.push({kind:"cast",t:c.t,last:c.t,show:Math.max(CAST_SHOW,area?aoeLife(area):0),who:nameOf(c.source),what:String(c.skill || c.skill_id),where:whereOf(c),area:area?aoeText(area):""});}
+        if(!replayHidden.has("spawns"))for(const sp of spawns)if(shown(sp.id))all.push({kind:"spawn",t:sp.t,last:sp.t,show:SPAWN_SHOW,who:nameOf(sp.id),what:"",where:"",area:""});
+        all.sort((a,b)=>a.t-b.t);events=[];
+        for(const e of all){const key=[e.kind,e.who,e.what,e.where,e.area].join("|");let same=null;
+          for(let i=events.length-1;i>=0&&e.t-events[i].t<=.5;i--)if(events[i].key===key){same=events[i];break;}
+          if(same){same.n++;same.last=e.t;}else events.push({...e,key,n:1});}
+        list.innerHTML=events.length?events.map((e,i)=>`<li class="cr-ev cr-ev-${e.kind}" data-ev="${i}"><button type="button" data-seek="${e.t}"><time>${e.t.toFixed(1)}s</time><span class="cr-ev-text"><span translate="no">${esc(e.who)}</span>${e.kind==="cast"?`: <strong translate="no">${esc(e.what)}</strong>`:""}${e.n>1?` <span class="cr-ev-count">×${e.n}</span>`:""}${e.kind==="spawn"?` <span class="muted">appeared</span>`:""}${e.where?` <span class="muted">${esc(e.where)}</span>`:""}${e.area?` <span class="muted">· ${esc(e.area)}</span>`:""}</span></button></li>`).join("")
+          :`<li class="cr-ev-none small muted">The key hides every cast and appearance.</li>`;
+        eventAt=-2;list.scrollTop=0;};
+      // each row before, in or after the replay's time; when another row is reached, the list scrolls it into view
+      const markEvents=t=>{const list=box.querySelector("[data-events]");if(!list||!events.length)return;let reached=-1;
+        events.forEach((e,i)=>{const state=e.t>t?"next":t-e.last<=e.show?"now":"past",row=list.children[i];if(e.t<=t)reached=i;
+          if(row.dataset.state!==state){row.dataset.state=state;row.classList.toggle("is-now",state==="now");row.classList.toggle("is-next",state==="next");}});
+        if(reached===eventAt)return;eventAt=reached;
+        if(reached<0){list.scrollTop=0;return;}
+        const row=list.children[reached],top=row.offsetTop,bottom=top+row.offsetHeight;
+        if(top<list.scrollTop||bottom>list.scrollTop+list.clientHeight)list.scrollTop=Math.max(0,top-list.clientHeight/3);};
+      const drawMarks=t=>{const marks=box.querySelector("[data-marks]");if(!marks)return;const svg=[];
         if(!replayHidden.has("casts"))for(const c of casts){if(c.t>t)break;const area=replayHidden.has("aoe")?null:aoeOf(c);if(t-c.t>Math.max(CAST_SHOW,area?aoeLife(area):0)||!shown(c.source))continue;
-          const gone=t-c.t>CAST_SHOW,age=Math.min(1,(t-c.t)/CAST_SHOW),here=place(tokens[c.source],t);if(!here)continue;const [x,y]=here,caster=nameOf(c.source),target=c.target&&r[c.target]?nameOf(c.target):"";
-          const cw=worldAt(tokens[c.source],t),tw=c.target&&tokens[c.target]?worldAt(tokens[c.target],t):null;
-          let where="";if(c.pos){const dc=cw?Math.hypot(c.pos[0]-cw.x,c.pos[1]-cw.y):Infinity,dt=tw?Math.hypot(c.pos[0]-tw.x,c.pos[1]-tw.y):Infinity;where=dt<=NEAR&&target?`at ${target}`:dc<=NEAR?"around itself":"on the ground"+(target?` near ${target}`:"");}else if(target)where=`at ${target}`;
+          const gone=t-c.t>CAST_SHOW,age=Math.min(1,(t-c.t)/CAST_SHOW),here=place(tokens[c.source],t);if(!here)continue;const [x,y]=here,caster=nameOf(c.source),where=whereOf(c);
           const title=`${caster}: ${c.skill || c.skill_id}${where?` ${where}`:""} · ${c.t.toFixed(1)}s`;
           if(area)svg.push(aoeSVG(area,c,t,`${title} · measured ${aoeText(area)} (${area.confidence}, ${area.casts} casts, ${Math.round(area.accuracy*100)}% of the positions explained)`));
           if(!gone)svg.push(`<circle class="cr-castring" cx="${f2(x)}" cy="${f2(y)}" r="${f2(3.2+3*age)}" stroke-opacity="${f2(1-age)}"><title>${esc(title)}</title></circle>`);
           if(!gone&&c.facing!=null){const L=9,a0=rad(c.facing-30),a1=rad(c.facing+30);svg.push(`<polygon class="cr-face" points="${f2(x)},${f2(y)} ${f2(x+L*Math.cos(a0))},${f2(y-L*Math.sin(a0))} ${f2(x+L*Math.cos(a1))},${f2(y-L*Math.sin(a1))}" fill-opacity="${f2(.25*(1-age))}"/>`);}
           if(!gone&&c.pos){const [ax,ay]=at({x:c.pos[0],y:c.pos[1]});if(Math.hypot(ax-x,ay-y)>1.5)svg.push(`<line class="cr-aimline" x1="${f2(x)}" y1="${f2(y)}" x2="${f2(ax)}" y2="${f2(ay)}" stroke-opacity="${f2(1-age)}"/>`);
-            svg.push(`<circle class="cr-aim" cx="${f2(ax)}" cy="${f2(ay)}" r="${f2(2+2.5*age)}" fill-opacity="${f2(.35*(1-age))}" stroke-opacity="${f2(1-age)}"><title>${esc(title)}</title></circle>`);}
-          now.push(`<span class="cr-now-cast"><span translate="no">${esc(caster)}</span>: <strong translate="no">${esc(String(c.skill || c.skill_id))}</strong>${where?` <span class="muted">${esc(where)}</span>`:""}${area?` <span class="muted">· ${esc(aoeText(area))}</span>`:""}</span>`);}
+            svg.push(`<circle class="cr-aim" cx="${f2(ax)}" cy="${f2(ay)}" r="${f2(2+2.5*age)}" fill-opacity="${f2(.35*(1-age))}" stroke-opacity="${f2(1-age)}"><title>${esc(title)}</title></circle>`);}}
         if(!replayHidden.has("spawns"))for(const sp of spawns){if(sp.t>t)break;if(t-sp.t>SPAWN_SHOW||!shown(sp.id))continue;const age=(t-sp.t)/SPAWN_SHOW,[x,y]=at(sp.frame),name=nameOf(sp.id);
-          svg.push(`<circle class="cr-spawn" cx="${f2(x)}" cy="${f2(y)}" r="${f2(2.5+6*age)}" stroke-opacity="${f2(1-age)}"><title>${esc(name)} appeared here at ${sp.t.toFixed(1)}s</title></circle>`);
-          now.push(`<span class="cr-now-spawn"><span translate="no">${esc(name)}</span> <span class="muted">appeared</span></span>`);}
-        marks.innerHTML=svg.join("");if(strip)strip.innerHTML=now.length?now.join(" "):"—";};
+          svg.push(`<circle class="cr-spawn" cx="${f2(x)}" cy="${f2(y)}" r="${f2(2.5+6*age)}" stroke-opacity="${f2(1-age)}"><title>${esc(name)} appeared here at ${sp.t.toFixed(1)}s</title></circle>`);}
+        marks.innerHTML=svg.join("");markEvents(t);};
       const pause=()=>{if(replayFrame)cancelAnimationFrame(replayFrame);replayFrame=null;box.querySelector("[data-play]").textContent="Play";};
       box.querySelector("[data-play]").onclick=()=>{if(replayFrame){pause();return;}let last=performance.now();box.querySelector("[data-play]").textContent="Pause";const tick=now=>{const t=Math.min(d.segment.duration,clock+Math.max(0,now-last)/1000);last=now;draw(t);if(t>=d.segment.duration)pause();else replayFrame=requestAnimationFrame(tick);};replayFrame=requestAnimationFrame(tick);};
       box.querySelector("[data-rewind]").onclick=()=>{pause();draw(0);};scrub.oninput=()=>{pause();draw(+scrub.value);};bindMerge();
+      const eventList=box.querySelector("[data-events]");if(eventList)eventList.onclick=e=>{const row=e.target.closest("[data-seek]");if(row){pause();draw(Math.min(d.segment.duration,+row.dataset.seek));}};listEvents();
       const toggles=[...box.querySelectorAll("[data-key-toggle]")],showAll=box.querySelector("[data-key-showall]");
-      const keyChanged=()=>{showAll.hidden=toggles.every(c=>c.checked);drawRoom();draw(clock);};
+      const keyChanged=()=>{showAll.hidden=toggles.every(c=>c.checked);drawRoom();listEvents();draw(clock);};
       for(const c of toggles)c.onchange=()=>{if(c.checked)replayHidden.delete(c.dataset.keyToggle);else replayHidden.add(c.dataset.keyToggle);keyChanged();};
       showAll.onclick=()=>{for(const c of toggles){c.checked=true;replayHidden.delete(c.dataset.keyToggle);}keyChanged();};showAll.hidden=toggles.every(c=>c.checked);
-      box.querySelector("[data-plan]").onclick=()=>{const plan=planOf(d.segment.boss || d.segment.label,d.segment.duration,tokens,r,at,rooms?.[roomShape()],roomShape(),id=>!shown(id));if(options.importPlan){const status=box.querySelector("[data-plan-status]");try{const opened=options.importPlan(plan);if(opened&&opened.catch)opened.catch(e=>{status.textContent=e.message;});}catch(e){status.textContent=e.message;}return;}const blob=new Blob([JSON.stringify(plan)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="recorded-replay.a2plan.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};box.querySelector("[data-plan]").textContent=options.importPlan?"Open in Raid Planner":"Export Raid Planner file";draw(0);aoeRedraw=()=>{if(box.isConnected)draw(clock);};
+      box.querySelector("[data-plan]").onclick=()=>{const plan=planOf(d.segment.boss || d.segment.label,d.segment.duration,tokens,r,at,rooms?.[roomShape()],roomShape(),id=>!shown(id),
+        world.length&&!replayHidden.has("casts")&&!replayHidden.has("aoe")?castAreas(d.segment,tokens,r,at,scale,shown):[]);if(options.importPlan){const status=box.querySelector("[data-plan-status]");try{const opened=options.importPlan(plan);if(opened&&opened.catch)opened.catch(e=>{status.textContent=e.message;});}catch(e){status.textContent=e.message;}return;}const blob=new Blob([JSON.stringify(plan)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="recorded-replay.a2plan.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};box.querySelector("[data-plan]").textContent=options.importPlan?"Open in Raid Planner":"Export Raid Planner file";draw(0);aoeRedraw=()=>{if(box.isConnected)draw(clock);};
     }
     // Swap the single-part view for a combined recording review (keeping the source part so
     // "Back to source part" and each part's own ranked data stay one click away).

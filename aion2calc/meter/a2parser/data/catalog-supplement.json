@@ -16,7 +16,7 @@
    "npcs": 13496,
    "dungeons": 35
   },
-  "note": "Names for NPC and dungeon ids the community catalog has no row for, from DBAion2's English tables (dbaion2.ru). Names, NPC types and content types only: boss flags, categories, tiers, difficulties and dungeon links stay the community catalog's. A community row always wins."
+  "note": "Names for NPC and dungeon ids the community catalog has no row for, from DBAion2's English tables (dbaion2.ru). Names, NPC types and content types only: boss flags, categories, tiers, difficulties and dungeon links stay the community catalog's. A community row always wins. labels: every dungeon id's in-game difficulty label, numbered by boss level when a dungeon has several ids of one difficulty, for display only."
  },
  "npcs": {
   "2081100": {
@@ -18095,6 +18095,532 @@
    "name": "Chamber of the Dead",
    "type": "Awaken",
    "difficulty_name": "Extreme"
+  }
+ },
+ "labels": {
+  "600001": {
+   "name": "Krao Cave",
+   "difficulty_name": "Conquest",
+   "level": 45
+  },
+  "600002": {
+   "name": "Krao Cave",
+   "difficulty_name": "Exploration",
+   "level": 22
+  },
+  "600004": {
+   "name": "Krao Cave",
+   "difficulty_name": "Conquest [Hard]",
+   "level": 68
+  },
+  "600011": {
+   "name": "Urugugu Canyon",
+   "difficulty_name": "Exploration",
+   "level": 30
+  },
+  "600012": {
+   "name": "Urugugu Canyon",
+   "difficulty_name": "Conquest",
+   "level": 54
+  },
+  "600013": {
+   "name": "Urugugu Canyon",
+   "difficulty_name": "Transcendence",
+   "level": 70
+  },
+  "600021": {
+   "name": "Fire Temple",
+   "difficulty_name": "Exploration",
+   "level": 37
+  },
+  "600022": {
+   "name": "Fire Temple",
+   "difficulty_name": "Conquest",
+   "level": 63
+  },
+  "600023": {
+   "name": "Fire Temple",
+   "difficulty_name": "Transcendence",
+   "level": 72
+  },
+  "600031": {
+   "name": "Draupnir",
+   "difficulty_name": "Exploration",
+   "level": 45
+  },
+  "600032": {
+   "name": "Draupnir",
+   "difficulty_name": "Conquest",
+   "level": 45
+  },
+  "600033": {
+   "name": "Draupnir",
+   "difficulty_name": "Conquest [Hard]",
+   "level": 68
+  },
+  "600041": {
+   "name": "Dying Dramata's Nest",
+   "difficulty_name": "Exploration",
+   "level": 65
+  },
+  "600042": {
+   "name": "Dying Dramata's Nest",
+   "difficulty_name": "Conquest",
+   "level": 65
+  },
+  "600051": {
+   "name": "Deus Research Base",
+   "difficulty_name": "Exploration",
+   "level": 45
+  },
+  "600053": {
+   "name": "Deus Research Base",
+   "difficulty_name": "Transcendence",
+   "stage": 1,
+   "level": 56
+  },
+  "600055": {
+   "name": "Deus Research Base",
+   "difficulty_name": "Transcendence",
+   "stage": 2,
+   "level": 60
+  },
+  "600058": {
+   "name": "Deus Research Base",
+   "difficulty_name": "Transcendence",
+   "stage": 3,
+   "level": 64
+  },
+  "600061": {
+   "name": "Shattered Arkanis",
+   "difficulty_name": "Exploration"
+  },
+  "600063": {
+   "name": "Shattered Arkanis",
+   "difficulty_name": "Transcendence",
+   "stage": 1,
+   "level": 56
+  },
+  "600065": {
+   "name": "Shattered Arkanis",
+   "difficulty_name": "Transcendence",
+   "stage": 2,
+   "level": 60
+  },
+  "600068": {
+   "name": "Shattered Arkanis",
+   "difficulty_name": "Transcendence",
+   "stage": 3,
+   "level": 64
+  },
+  "600071": {
+   "name": "Vakron Sky Island",
+   "difficulty_name": "Exploration",
+   "level": 54
+  },
+  "600072": {
+   "name": "Vakron Sky Island",
+   "difficulty_name": "Conquest",
+   "level": 54
+  },
+  "600073": {
+   "name": "Vakron Sky Island",
+   "difficulty_name": "Transcendence",
+   "level": 70
+  },
+  "600082": {
+   "name": "Abyssal Forge: Ludra",
+   "difficulty_name": "Conquest",
+   "level": 75
+  },
+  "600091": {
+   "name": "Ferocious Horn Den",
+   "difficulty_name": "Exploration",
+   "level": 63
+  },
+  "600092": {
+   "name": "Ferocious Horn Den",
+   "difficulty_name": "Conquest",
+   "level": 63
+  },
+  "600093": {
+   "name": "Ferocious Horn Den",
+   "difficulty_name": "Transcendence",
+   "level": 72
+  },
+  "600121": {
+   "name": "Cradle of Nihility",
+   "difficulty_name": "Exploration",
+   "level": 70
+  },
+  "600122": {
+   "name": "Cradle of Nihility",
+   "difficulty_name": "Conquest",
+   "level": 70
+  },
+  "600123": {
+   "name": "Cradle of Nihility",
+   "difficulty_name": "Conquest [Hard]",
+   "level": 76
+  },
+  "600131": {
+   "name": "Hall of Illusion",
+   "difficulty_name": "Exploration",
+   "level": 74
+  },
+  "600132": {
+   "name": "Hall of Illusion",
+   "difficulty_name": "Conquest",
+   "level": 74
+  },
+  "600133": {
+   "name": "Hall of Illusion",
+   "difficulty_name": "Conquest [Hard]",
+   "level": 80
+  },
+  "600141": {
+   "name": "Azure Breath Island",
+   "difficulty_name": "Exploration",
+   "level": 78
+  },
+  "600142": {
+   "name": "Azure Breath Island",
+   "difficulty_name": "Conquest",
+   "level": 78
+  },
+  "600143": {
+   "name": "Azure Breath Island",
+   "difficulty_name": "Conquest [Hard]",
+   "level": 82
+  },
+  "600151": {
+   "name": "Citadel of the Fallen Daeva",
+   "difficulty_name": "Exploration",
+   "level": 82
+  },
+  "600152": {
+   "name": "Citadel of the Fallen Daeva",
+   "difficulty_name": "Conquest",
+   "level": 82
+  },
+  "600153": {
+   "name": "Citadel of the Fallen Daeva",
+   "difficulty_name": "Conquest [Hard]",
+   "level": 86
+  },
+  "610010": {
+   "name": "Submerged Life Temple",
+   "difficulty_name": "Transcendence",
+   "stage": 1,
+   "level": 68
+  },
+  "610011": {
+   "name": "Submerged Life Temple",
+   "difficulty_name": "Transcendence",
+   "stage": 2,
+   "level": 72
+  },
+  "610012": {
+   "name": "Submerged Life Temple",
+   "difficulty_name": "Transcendence",
+   "stage": 3,
+   "level": 76
+  },
+  "610013": {
+   "name": "Submerged Life Temple",
+   "difficulty_name": "Transcendence",
+   "stage": 4,
+   "level": 80
+  },
+  "610020": {
+   "name": "Mirror of Scarlet Desire",
+   "difficulty_name": "Transcendence",
+   "stage": 1,
+   "level": 78
+  },
+  "610021": {
+   "name": "Mirror of Scarlet Desire",
+   "difficulty_name": "Transcendence",
+   "stage": 2,
+   "level": 80
+  },
+  "610022": {
+   "name": "Mirror of Scarlet Desire",
+   "difficulty_name": "Transcendence",
+   "stage": 3,
+   "level": 82
+  },
+  "610023": {
+   "name": "Mirror of Scarlet Desire",
+   "difficulty_name": "Transcendence",
+   "stage": 4,
+   "level": 85
+  },
+  "610044": {
+   "name": "Dying Dramata's Nest",
+   "difficulty_name": "Conquest [Hard]",
+   "level": 74
+  },
+  "610052": {
+   "name": "Deus Research Base",
+   "difficulty_name": "Transcendence",
+   "stage": 4,
+   "level": 68
+  },
+  "610062": {
+   "name": "Shattered Arkanis",
+   "difficulty_name": "Transcendence",
+   "stage": 4,
+   "level": 68
+  },
+  "610070": {
+   "name": "Abyssal Horn Den",
+   "difficulty_name": "Transcendence",
+   "stage": 1,
+   "level": 80
+  },
+  "610071": {
+   "name": "Abyssal Horn Den",
+   "difficulty_name": "Transcendence",
+   "stage": 2,
+   "level": 83
+  },
+  "610072": {
+   "name": "Abyssal Horn Den",
+   "difficulty_name": "Transcendence",
+   "stage": 3,
+   "level": 86
+  },
+  "610073": {
+   "name": "Abyssal Horn Den",
+   "difficulty_name": "Transcendence",
+   "stage": 4,
+   "level": 90
+  },
+  "620011": {
+   "name": "Corroded Decontamination Facility",
+   "difficulty_name": "Conquest",
+   "level": 80
+  },
+  "620021": {
+   "name": "Chalice of Muspel",
+   "difficulty_name": "Conquest [Hard]",
+   "level": 85
+  },
+  "620022": {
+   "name": "Chalice of Muspel",
+   "difficulty_name": "Conquest",
+   "level": 85
+  },
+  "690001": {
+   "name": "Subjugation Closed",
+   "difficulty_name": "Exploration",
+   "level": 45
+  },
+  "690002": {
+   "name": "Subjugation Closed",
+   "difficulty_name": "Conquest",
+   "level": 50
+  },
+  "690003": {
+   "name": "Subjugation Closed",
+   "difficulty_name": "Transcendence",
+   "level": 55
+  },
+  "690011": {
+   "name": "Beritra Brigade Fortress",
+   "difficulty_name": "Exploration",
+   "level": 45
+  },
+  "690012": {
+   "name": "Beritra Brigade Fortress",
+   "difficulty_name": "Conquest",
+   "level": 50
+  },
+  "690013": {
+   "name": "Beritra Brigade Fortress",
+   "difficulty_name": "Transcendence",
+   "level": 55
+  },
+  "690031": {
+   "name": "Orcus's Grave",
+   "difficulty_name": "Exploration",
+   "level": 45
+  },
+  "690032": {
+   "name": "Orcus's Grave",
+   "difficulty_name": "Conquest",
+   "level": 50
+  },
+  "690033": {
+   "name": "Orcus's Grave",
+   "difficulty_name": "Transcendence",
+   "level": 55
+  },
+  "690034": {
+   "name": "Orcus's Grave",
+   "difficulty_name": "Extreme",
+   "level": 60
+  },
+  "690035": {
+   "name": "Orcus's Grave",
+   "difficulty_name": "Despair",
+   "level": 65
+  },
+  "690036": {
+   "name": "Orcus's Grave",
+   "difficulty_name": "Hell",
+   "level": 76
+  },
+  "690041": {
+   "name": "Fafnite Forge",
+   "difficulty_name": "Exploration",
+   "level": 45
+  },
+  "690042": {
+   "name": "Fafnite Forge",
+   "difficulty_name": "Conquest",
+   "level": 50
+  },
+  "690043": {
+   "name": "Fafnite Forge",
+   "difficulty_name": "Transcendence",
+   "level": 55
+  },
+  "690044": {
+   "name": "Fafnite Forge",
+   "difficulty_name": "Extreme",
+   "level": 60
+  },
+  "690045": {
+   "name": "Fafnite Forge",
+   "difficulty_name": "Despair",
+   "level": 65
+  },
+  "690046": {
+   "name": "Fafnite Forge",
+   "difficulty_name": "Hell",
+   "level": 76
+  },
+  "910011": {
+   "name": "Nightmare Altar",
+   "difficulty_name": "Exploration",
+   "level": 45
+  },
+  "910012": {
+   "name": "Nightmare Altar",
+   "difficulty_name": "Conquest",
+   "level": 50
+  },
+  "910013": {
+   "name": "Nightmare Altar",
+   "difficulty_name": "Transcendence",
+   "level": 55
+  },
+  "910014": {
+   "name": "Nightmare Altar",
+   "difficulty_name": "Extreme",
+   "level": 60
+  },
+  "910021": {
+   "name": "Tyrant's Hideout",
+   "difficulty_name": "Exploration",
+   "level": 45
+  },
+  "910022": {
+   "name": "Tyrant's Hideout",
+   "difficulty_name": "Conquest",
+   "level": 50
+  },
+  "910023": {
+   "name": "Tyrant's Hideout",
+   "difficulty_name": "Transcendence",
+   "level": 55
+  },
+  "910024": {
+   "name": "Tyrant's Hideout",
+   "difficulty_name": "Extreme",
+   "level": 60
+  },
+  "910031": {
+   "name": "Sanctum of Loathing",
+   "difficulty_name": "Exploration",
+   "level": 45
+  },
+  "910032": {
+   "name": "Sanctum of Loathing",
+   "difficulty_name": "Conquest",
+   "level": 50
+  },
+  "910033": {
+   "name": "Sanctum of Loathing",
+   "difficulty_name": "Transcendence",
+   "level": 55
+  },
+  "910034": {
+   "name": "Sanctum of Loathing",
+   "difficulty_name": "Extreme",
+   "level": 60
+  },
+  "910041": {
+   "name": "Depository of Fates",
+   "difficulty_name": "Exploration",
+   "level": 45
+  },
+  "910042": {
+   "name": "Depository of Fates",
+   "difficulty_name": "Conquest",
+   "level": 50
+  },
+  "910043": {
+   "name": "Depository of Fates",
+   "difficulty_name": "Transcendence",
+   "level": 55
+  },
+  "910044": {
+   "name": "Depository of Fates",
+   "difficulty_name": "Extreme",
+   "level": 60
+  },
+  "910051": {
+   "name": "Forgotten Repository",
+   "difficulty_name": "Exploration",
+   "level": 45
+  },
+  "910052": {
+   "name": "Forgotten Repository",
+   "difficulty_name": "Conquest",
+   "level": 50
+  },
+  "910053": {
+   "name": "Forgotten Repository",
+   "difficulty_name": "Transcendence",
+   "level": 55
+  },
+  "910054": {
+   "name": "Forgotten Repository",
+   "difficulty_name": "Extreme",
+   "level": 60
+  },
+  "910061": {
+   "name": "Chamber of the Dead",
+   "difficulty_name": "Exploration",
+   "level": 45
+  },
+  "910062": {
+   "name": "Chamber of the Dead",
+   "difficulty_name": "Conquest",
+   "level": 50
+  },
+  "910063": {
+   "name": "Chamber of the Dead",
+   "difficulty_name": "Transcendence",
+   "level": 55
+  },
+  "910064": {
+   "name": "Chamber of the Dead",
+   "difficulty_name": "Extreme",
+   "level": 60
   }
  }
 }

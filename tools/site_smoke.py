@@ -15,9 +15,11 @@ The Maps page must not contact the interactive-map provider until the visitor as
 page must offer the log server's own link for the log (its preview shows the fight), the Logs page's
 Completed-run speed tab must name a run's bosses and show its time, the Class stats page's spread graph
 must end its axis past the highest 90th percentile rather than at one best parse, and the Gathering page must
-show everyone's drop rates, each kind of node with where it grows, and, signed in, the account's own records.
+show everyone's drop rates, each kind of node with where it grows, only the dungeons whose cubes held a
+crafting material, and, signed in, the account's own records.
 The Logs page's featured encounters
-must sit two side by side on a 1080p screen and one under another on a phone.
+must sit two side by side on a 1080p screen and one under another on a phone. A log's replay must open in the
+Raid Planner as itself, asking first about a plan the visitor worked on.
 
     python tools/site_smoke.py [--axe node_modules/axe-core/axe.min.js] [--out DIR] [--keep]
 
@@ -236,6 +238,64 @@ def check_log_share(browser, base: str, problems: list) -> None:
     context.close()
 
 
+# A shared fight with recorded movement: its replay offers "Open in Raid Planner".
+MOVING_LOG = {"format": "a2log", "version": 1, "meta": {"source": "site-smoke", "title": "Boss fight"},
+              "players": [{"id": "a", "name": "Sorc", "class": "Sorcerer"}],
+              "segments": [{"label": "Testboss", "boss": "Testboss", "duration": 20,
+                            "entities": [{"id": "boss", "name": "Testboss", "kind": "enemy", "is_boss": True}],
+                            "hits": [{"t": i, "player": "a", "skill": "Hellfire", "damage": 1000, "target": "boss"} for i in range(20)],
+                            "movement": [{"t": float(t), "entity": "boss", "x": 1000.0 + 10 * t, "y": 1000.0, "z": 0.0, "src": "move"} for t in range(20)]
+                            + [{"t": float(t), "entity": "a", "x": 900.0, "y": 900.0 + 5 * t, "z": 0.0, "src": "move"} for t in range(0, 20, 2)]}]}
+
+
+def check_replay_to_planner(browser, base: str, problems: list) -> None:
+    """A log's replay opens in the Raid Planner as itself (until 0.2.372 the planner showed the plan it last showed,
+    "My first plan"), and a plan the visitor worked on is asked about first and kept when asked to."""
+    context = browser.new_context()
+    server = "https://logs.example"
+
+    def route(r):
+        url = r.request.url
+        if url.endswith("/config.js"):
+            r.fulfill(content_type="text/javascript", body=f'window.A2CONFIG = {{"server": "{server}", "key": ""}};')
+        elif url.startswith(server + "/api/v1/logs/abcdef12/raw"):
+            r.fulfill(content_type="application/json", body=json.dumps(MOVING_LOG), headers={"Access-Control-Allow-Origin": "*"})
+        elif urllib.parse.urlsplit(url).hostname in ("127.0.0.1", "localhost") or url.startswith(("data:", "blob:")):
+            r.continue_()
+        else:
+            r.abort()
+
+    context.route("**/*", route)
+    page = context.new_page()
+    name = lambda: page.locator("#rname").input_value()                     # noqa: E731
+    try:
+        page.goto(base + "planner.html", wait_until="load")
+        page.wait_for_selector("#rname", timeout=8000)
+        if name() != "My first plan":
+            problems.append(f"planner.html: a first visit shows {name()!r}, not the starter plan")
+        page.goto(base + "log.html?id=abcdef12", wait_until="load")
+        page.locator("[data-replay] [data-plan]").click(timeout=8000)
+        page.wait_for_url("**/planner.html", timeout=8000)
+        page.wait_for_selector("#rname", timeout=8000)
+        if name() != "Testboss":
+            problems.append(f"planner.html: Open in Raid Planner showed {name()!r}, not the replay")
+        page.fill("#rname", "Worked plan")
+        page.locator("#rname").dispatch_event("change")
+        page.goto(base + "log.html?id=abcdef12", wait_until="load")
+        page.locator("[data-replay] [data-plan]").click(timeout=8000)
+        ask = page.locator(".rp-ask")
+        ask.wait_for(timeout=8000)
+        ask.locator('[data-choice="keep"]').click()
+        page.wait_for_url("**/planner.html", timeout=8000)
+        page.wait_for_selector("#rname", timeout=8000)
+        plans = page.locator("#rplan option").all_inner_texts()
+        if name() != "Testboss" or not any(p.startswith("Worked plan") for p in plans):
+            problems.append(f"planner.html: after Keep the planner shows {name()!r} with the plans {plans!r}")
+    except Exception as exc:
+        problems.append(f"log.html → planner.html: the replay did not open in the Raid Planner ({str(exc).splitlines()[0]})")
+    context.close()
+
+
 # One run of the log server's /api/v1/run-leaderboard, as the server sends it: the route by catalog key, each
 # boss named in its attempts, and the ranked entry-to-final-boss time in elapsed_seconds.
 SPEED_RUN = {"log": "abcdef12", "id": "1", "rank": 1, "count": 2, "boss_route": ["npc:2340616"], "elapsed_seconds": 150.5,
@@ -359,13 +419,16 @@ GATHERING_STATS = {"gathers": 51, "cubes": 5, "reporters": 3, "generated_at": 0,
                               "kinds": ["open_world"], "places": [{"name": "Altgard", "gathers": 40}]},
                              {"node": 1500062, "name": "Odyle", "gathers": 6, "reporters": 1, "results": {"normal": 6, "better": 0, "failed": 0},
                               "items": [{"item": 610610013, "name": "Odyle", "grade": "Common", "gathers": 6, "share": 1.0, "average": 1.0}],
-                              "kinds": ["dungeon"], "places": [{"name": "Ferocious Horn Den (Normal)", "gathers": 6}]},
+                              "kinds": ["dungeon"], "places": [{"name": "Ferocious Horn Den (Conquest)", "gathers": 6}]},
                              {"node": 1550000, "name": "Odyle", "gathers": 5, "reporters": 1, "results": {"normal": 5, "better": 0, "failed": 0},
                               "items": [{"item": 610610013, "name": "Odyle", "grade": "Common", "gathers": 5, "share": 1.0, "average": 1.0}],
                               "kinds": ["open_world"], "places": [{"name": "Altgard", "gathers": 5}]}],
-                   "dungeons": [{"instance": 600092, "name": "Ferocious Horn Den (Normal)", "cubes": 5, "reporters": 2,
+                   "dungeons": [{"instance": 600092, "name": "Ferocious Horn Den (Conquest)", "cubes": 5, "reporters": 2,
                                  "items": [{"item": 610511014, "name": "Wrathful Will", "grade": "Unique", "material": True,
-                                            "cubes": 1, "share": 0.2, "average": 1.0}]}]}
+                                            "cubes": 1, "share": 0.2, "average": 1.0}]},
+                                {"instance": 600068, "name": "Shattered Arkanis (Transcendence 3)", "cubes": 1, "reporters": 1,
+                                 "items": [{"item": 930100031, "name": "Kina", "grade": "Common", "material": False,
+                                            "cubes": 1, "share": 1.0, "average": 100000.0}]}]}
 ACCOUNT_GATHERING = {"gathers": 2, "gathered": 3, "cubes": 0, "results": {"normal": 1, "better": 1, "failed": 0},
                      "nodes": [{"node": 1550004, "name": "Orichalcum Ore", "gathers": 2, "results": {"normal": 1, "better": 1, "failed": 0},
                                 "items": [{"item": 610620013, "name": "Orichalcum Ore", "grade": "Common", "gathers": 1, "count": 2, "share": 0.5},
@@ -377,8 +440,8 @@ ACCOUNT_GATHERING = {"gathers": 2, "gathered": 3, "cubes": 0, "results": {"norma
 
 def check_gathering(browser, base: str, problems: list) -> None:
     """The Gathering page shows everyone's drop rates, each kind of node with where it grows (two kinds of Odyle
-    node read apart, 0.2.360); a signed-in visitor sees their account's records too, and a signed-out one is told
-    how to see them."""
+    node read apart, 0.2.360) and only the dungeons whose cubes held a crafting material (0.2.372); a signed-in
+    visitor sees their account's records too, and a signed-out one is told how to see them."""
     server = "https://logs.example"
     session = {"server": server, "token": "a2web_" + "s" * 32, "name": "Alpha"}
     for signed_in in (False, True):
@@ -418,8 +481,15 @@ def check_gathering(browser, base: str, problems: list) -> None:
                             "Odyle — open-world node 5 gathers · 1 players"]:
                 problems.append(f"{label}: everyone's nodes read {headings!r}, not each with where it grows")
             found = [" ".join(t.split()) for t in page.locator(".gt-where").all_text_contents()]
-            if found != ["Found in Altgard", "Found in Ferocious Horn Den (Normal)", "Found in Altgard"]:
+            if found != ["Found in Altgard", "Found in Ferocious Horn Den (Conquest)", "Found in Altgard"]:
                 problems.append(f"{label}: the nodes' places read {found!r}")
+            # one card per dungeon and difficulty; a dungeon whose cubes held no crafting material is left out (0.2.372)
+            page.get_by_role("tab", name="Dungeon materials").click()
+            page.wait_for_selector(".gt-dungeon", timeout=8000)
+            cards = [" ".join(t.split()) for t in page.locator(".gt-dungeon h3").all_text_contents()]
+            if cards != ["Ferocious Horn Den (Conquest) 5 reward cubes · 2 players"]:
+                problems.append(f"{label}: the dungeon materials read {cards!r}, not one card with materials")
+            page.get_by_role("tab", name="Gathering").click()
             if signed_in:
                 kpi = dict(zip(page.locator(".gt-kpis .kpi .k").all_text_contents(), page.locator(".gt-kpis .kpi .v").all_text_contents()))
                 if kpi.get("Gathers") != "2" or not kpi.get("Better grade", "").startswith("1"):
@@ -513,6 +583,8 @@ def main() -> int:
                 check_maps_button(context, base, problems)
             if "log.html" in pages:
                 check_log_share(browser, base, problems)
+            if "log.html" in pages and "planner.html" in pages:
+                check_replay_to_planner(browser, base, problems)
             if "logs.html" in pages:
                 check_run_speed(browser, base, problems)
             if "stats.html" in pages:

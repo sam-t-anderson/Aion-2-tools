@@ -2,6 +2,7 @@
  "version": 1,
  "catalog_revision": "4cc5a513531fb6910f23dc3a7d250fa440125934",
  "note": "Per-dungeon final boss mob codes, used to auto-mark a dungeon run complete (and rankable) when the party kills the final boss, without manual configuration. Keyed by catalog dungeonId; each value is every mob code sharing the final boss's name in that dungeon (its HP-bar phases / variants). Derived from the community NPC catalog (isBoss + dungeonId) by taking the highest-code real boss per dungeon, then hand-checked against known AION 2 final bosses. Placeholder ('None') and training ('(Specimen)') entries are excluded. Dungeons with no single verifiable final boss are omitted (the 300-boss Nightmare hub 200003; the Blazing Guardian Sword / Kaldrix raids 620021-620022) and simply do not auto-rank until confirmed. A manual final_boss_ids override still wins.",
+ "corrections": "Two dungeons' final bosses were wrong under the highest-code rule, because the catalog attributes no dungeon to most codes of the real final boss (0.2.372). Deus Research Base (600051-600059, 610052): public uploads fight Gelcos, then Nazmun, then Atiel (runs open with Gelcos 37 times; Gelcos is followed by Nazmun and Nazmun by Atiel in the same instance, and Atiel only by the next run), so Atiel is the final boss and Gelcos and Nazmun are mini-bosses. Vakron Sky Island (600071-600074): Tiere, then Thamon, then Vakron (Tiere opens 15 runs, Thamon is followed by Vakron 20 times, Vakron only by the next run's Tiere), so Vakron is the final boss. Until then a run of either ended at its first or second boss: it was timed to that boss, and the rest of the run started a run of its own.",
  "final_bosses": {
   "600001": [
    2300171,
@@ -55,13 +56,13 @@
    2310509
   ],
   "600053": [
-   2320616
+   2320601
   ],
   "600055": [
-   2340616
+   2340601
   ],
   "600058": [
-   2343616
+   2343601
   ],
   "600063": [
    2330709
@@ -73,16 +74,16 @@
    2353709
   ],
   "600071": [
-   2310811
+   2310812
   ],
   "600072": [
-   2300811
+   2300812
   ],
   "600073": [
-   2320811
+   2320812
   ],
   "600074": [
-   2300581
+   2300582
   ],
   "600082": [
    2301014
@@ -181,7 +182,7 @@
    2300155
   ],
   "610052": [
-   2346616
+   2346601
   ],
   "610062": [
    2356709
@@ -316,6 +317,7 @@
    2702623
   ]
  },
+ "derived_note": "Dungeon tiers the catalog names but attributes no NPC to (so no final boss could be curated for them): each takes its sibling tiers' final boss under every catalog code of that boss (same name, boss flag and three-digit code suffix -- the pattern every curated entry follows). Any of those codes dying in that instance completes the run; a code that cannot spawn there never matters. Curated entries win; tiers without a curated sibling (Citadel of the Fallen Daeva 600151-600153) stay unmapped.",
  "derived_final_bosses": {
   "600003": {
    "codes": [
@@ -387,123 +389,123 @@
   },
   "600051": {
    "codes": [
-    2300616,
-    2310616,
-    2320616,
-    2330616,
-    2340616,
-    2341616,
-    2342616,
-    2343616,
-    2344616,
-    2345616,
-    2346616,
-    2347616
+    2300601,
+    2310601,
+    2320601,
+    2330601,
+    2340601,
+    2341601,
+    2342601,
+    2343601,
+    2344601,
+    2345601,
+    2346601,
+    2347601
    ],
    "boss": [
-    "Gelcos"
+    "Atiel"
    ],
-   "basis": "Deus Research Base tiers 600053, 600055, 600058 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600051 itself."
+   "basis": "Deus Research Base tiers 600053, 600055, 600058 and 610052 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600051 itself."
   },
   "600052": {
    "codes": [
-    2300616,
-    2310616,
-    2320616,
-    2330616,
-    2340616,
-    2341616,
-    2342616,
-    2343616,
-    2344616,
-    2345616,
-    2346616,
-    2347616
+    2300601,
+    2310601,
+    2320601,
+    2330601,
+    2340601,
+    2341601,
+    2342601,
+    2343601,
+    2344601,
+    2345601,
+    2346601,
+    2347601
    ],
    "boss": [
-    "Gelcos"
+    "Atiel"
    ],
-   "basis": "Deus Research Base tiers 600053, 600055, 600058 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600052 itself."
+   "basis": "Deus Research Base tiers 600053, 600055, 600058 and 610052 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600052 itself."
   },
   "600054": {
    "codes": [
-    2300616,
-    2310616,
-    2320616,
-    2330616,
-    2340616,
-    2341616,
-    2342616,
-    2343616,
-    2344616,
-    2345616,
-    2346616,
-    2347616
+    2300601,
+    2310601,
+    2320601,
+    2330601,
+    2340601,
+    2341601,
+    2342601,
+    2343601,
+    2344601,
+    2345601,
+    2346601,
+    2347601
    ],
    "boss": [
-    "Gelcos"
+    "Atiel"
    ],
-   "basis": "Deus Research Base tiers 600053, 600055, 600058 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600054 itself."
+   "basis": "Deus Research Base tiers 600053, 600055, 600058 and 610052 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600054 itself."
   },
   "600056": {
    "codes": [
-    2300616,
-    2310616,
-    2320616,
-    2330616,
-    2340616,
-    2341616,
-    2342616,
-    2343616,
-    2344616,
-    2345616,
-    2346616,
-    2347616
+    2300601,
+    2310601,
+    2320601,
+    2330601,
+    2340601,
+    2341601,
+    2342601,
+    2343601,
+    2344601,
+    2345601,
+    2346601,
+    2347601
    ],
    "boss": [
-    "Gelcos"
+    "Atiel"
    ],
-   "basis": "Deus Research Base tiers 600053, 600055, 600058 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600056 itself."
+   "basis": "Deus Research Base tiers 600053, 600055, 600058 and 610052 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600056 itself."
   },
   "600057": {
    "codes": [
-    2300616,
-    2310616,
-    2320616,
-    2330616,
-    2340616,
-    2341616,
-    2342616,
-    2343616,
-    2344616,
-    2345616,
-    2346616,
-    2347616
+    2300601,
+    2310601,
+    2320601,
+    2330601,
+    2340601,
+    2341601,
+    2342601,
+    2343601,
+    2344601,
+    2345601,
+    2346601,
+    2347601
    ],
    "boss": [
-    "Gelcos"
+    "Atiel"
    ],
-   "basis": "Deus Research Base tiers 600053, 600055, 600058 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600057 itself."
+   "basis": "Deus Research Base tiers 600053, 600055, 600058 and 610052 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600057 itself."
   },
   "600059": {
    "codes": [
-    2300616,
-    2310616,
-    2320616,
-    2330616,
-    2340616,
-    2341616,
-    2342616,
-    2343616,
-    2344616,
-    2345616,
-    2346616,
-    2347616
+    2300601,
+    2310601,
+    2320601,
+    2330601,
+    2340601,
+    2341601,
+    2342601,
+    2343601,
+    2344601,
+    2345601,
+    2346601,
+    2347601
    ],
    "boss": [
-    "Gelcos"
+    "Atiel"
    ],
-   "basis": "Deus Research Base tiers 600053, 600055, 600058 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600059 itself."
+   "basis": "Deus Research Base tiers 600053, 600055, 600058 and 610052 share this final boss; these are its catalog codes (same name, boss flag and code suffix) across tiers, the catalog attributing no NPC to 600059 itself."
   },
   "600061": {
    "codes": [
@@ -986,6 +988,5 @@
    ],
    "basis": "The Nightmare hub: one stage per run, each against one of its 30 bosses at one of ten levels (every boss-flagged catalog NPC under dungeonId 200003, tiers Level 1-10), so the stage's boss is the run's final boss. Entered with no instance record (instance 0, map 200003); the meter matches it by the map."
   }
- },
- "derived_note": "Dungeon tiers the catalog names but attributes no NPC to (so no final boss could be curated for them): each takes its sibling tiers' final boss under every catalog code of that boss (same name, boss flag and three-digit code suffix -- the pattern every curated entry follows). Any of those codes dying in that instance completes the run; a code that cannot spawn there never matters. Curated entries win; tiers without a curated sibling (Citadel of the Fallen Daeva 600151-600153) stay unmapped."
+ }
 }
