@@ -428,6 +428,32 @@ def test_the_macro_window_shows_each_line_as_a_hotbar_key_with_its_skills(app_pa
     assert any(label.endswith("skills, lowest first") for label in labels)
 
 
+def test_gear_and_advice_arcana_cards_keep_their_option_names_apart(app_page, app_url):
+    """Each arcana card's target options are rows, the skill's icon beside its name (0.2.372): the names sat in a 64 px
+    column under each icon, so a long one ran into the next."""
+    kept = copy.deepcopy(KEPT)
+    chalice = kept["arcana"]["slots"]["Arcana Chalice"]
+    long_names = {"Wish of Concentration": 2, "Revitalization Contract": 3, "Grace of Enhancement": 4, "Vitality Evaporation": 1}
+    for slot in ("Arcana Chalice", "Arcana Parchment", "Arcana Compass", "Arcana Bell", "Arcana Mirror"):
+        kept["arcana"]["slots"][slot] = {**copy.deepcopy(chalice), "ideal": {**chalice["ideal"], "skills": long_names}}
+    kept["arcana"]["priority"] = list(kept["arcana"]["slots"])
+    page = app_page
+    gear(page, last={**KEPT_LAST, "advice": kept})
+    page.set_viewport_size({"width": 1280, "height": 900})
+    go(page, app_url, "#/gear")
+    page.locator("#gout .acard").first.wait_for()
+    clashes = """cards => cards.flatMap(card => {
+        const box = card.getBoundingClientRect(), names = [...card.querySelectorAll('.sk .small')].map(n => n.getBoundingClientRect());
+        return names.flatMap((a, i) => [a.left < box.left - 0.5 || a.right > box.right + 0.5 ? 'outside its card' : '',
+            ...names.slice(i + 1).map(b => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom ? 'overlap' : '')]).filter(Boolean);
+    })"""
+    cards = page.locator("#gout .acard")
+    assert cards.count() == 5 and cards.first.locator(".sk").all_inner_texts()[0].split() == ["+2", "Wish", "of", "Concentration"]
+    assert cards.evaluate_all(clashes) == []
+    page.set_viewport_size({"width": 2200, "height": 900})                      # five cards in a row on a wide screen
+    assert cards.evaluate_all(clashes) == []
+
+
 def test_gear_and_advice_ranks_defense_titles_and_says_when_to_keep_the_worn_item(app_page, app_url):
     """Every Defense title is purely defensive, so the slot said only "No title for this slot adds damage"; it is
     ranked by the damage its titles take off a boss's hits (0.2.371), the best one owned first. A slot whose worn

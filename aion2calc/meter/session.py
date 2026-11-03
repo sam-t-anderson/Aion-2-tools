@@ -842,7 +842,16 @@ class CombatSession:
                 identity["local_corrections"].pop(engine.local_player_id, None)   # never a loop back
             identity["local_id"] = engine.local_player_id
         self._check_boss_wipe(timestamp_ms, engine)
-        party = frozenset(name.casefold() for name in engine.roster) or identity.get("carried_roster", frozenset())
+        party = frozenset(name.casefold() for name in engine.roster)
+        carried = identity.get("carried_roster", frozenset())
+        # After a zone load into the same instance (a revive, the teleport to a boss room) the game need not send
+        # the party list again, and the engine rebuilds the party from the members' status records, naming one
+        # member, then two, as each is paired with an entity. Those lists are the carried party still: the fight
+        # kept several party lists and lost its party size, the matched rank and percentile with it (Kromede's
+        # Desire and Ferocious Horn Nuakum, fought after such a load, mostly unranked until 0.2.372). A status list
+        # naming anyone outside the carried party, or a party-list packet, is the party from then on.
+        if carried and (not party or getattr(engine, "roster_source", None) != "packet" and party <= carried):
+            party = carried
         if party and "initial_roster" not in identity:
             # A capture can start before its first roster message. Reconcile only
             # those earlier records, within this identity epoch, against this

@@ -244,7 +244,8 @@ SPEED_RUN = {"log": LOG_ID, "id": "1", "rank": 1, "count": 2, "boss_route": ["np
 
 
 # Everyone's gathering and reward-cube rates (log server 0.2.151): one kind of node, one dungeon whose cubes held
-# Kina (no crafting material) and two materials.
+# Kina (no crafting material) and two materials, and one whose cubes held only Kina, which the page leaves out
+# until every drop is shown (0.2.372). Dungeons read with their in-game difficulty (log server 0.2.164).
 ORE_VEIN, DEN = 1550004, 600092
 DUNGEON_ODYLE, FIELD_ODYLE = 1500062, 1550000
 GATHERING = {
@@ -262,18 +263,21 @@ GATHERING = {
                "items": [{"item": 610610013, "name": "Odyle", "grade": "Common", "category": "GATHERRESOURCE", "gathers": 4,
                           "share": 0.6667, "average": 1.0}],
                "kinds": ["dungeon"],
-               "places": [{"name": "Ferocious Horn Den (Normal)", "gathers": 4}, {"name": "Krao Cave (Normal)", "gathers": 2}]},
+               "places": [{"name": "Ferocious Horn Den (Conquest)", "gathers": 4}, {"name": "Krao Cave (Conquest)", "gathers": 2}]},
               {"node": FIELD_ODYLE, "name": "Odyle", "gathers": 5, "reporters": 1, "results": {"normal": 5, "better": 0, "failed": 0},
                "items": [{"item": 610610013, "name": "Odyle", "grade": "Common", "category": "GATHERRESOURCE", "gathers": 5,
                           "share": 1.0, "average": 1.0}],
                "kinds": ["open_world"], "places": [{"name": "Altgard", "gathers": 5}]}],
-    "dungeons": [{"instance": DEN, "name": "Ferocious Horn Den (Normal)", "cubes": 5, "reporters": 2,
+    "dungeons": [{"instance": DEN, "instances": [DEN], "name": "Ferocious Horn Den (Conquest)", "cubes": 5, "reporters": 2,
                   "items": [{"item": 930100031, "name": "Kina", "grade": "Common", "category": "CURRENCY", "material": False, "cubes": 5,
                              "share": 1.0, "average": 600000.0},
                             {"item": 610530001, "name": "Refining Stone", "grade": "Common", "category": "CRAFTRESOURCE", "material": True,
                              "cubes": 4, "share": 0.8, "average": 4.25},
                             {"item": 610511014, "name": "Wrathful Will", "grade": "Unique", "category": "CRAFTRESOURCE", "material": True,
-                             "cubes": 1, "share": 0.2, "average": 1.0}]}],
+                             "cubes": 1, "share": 0.2, "average": 1.0}]},
+                 {"instance": 600068, "instances": [600068], "name": "Shattered Arkanis (Transcendence 3)", "cubes": 1, "reporters": 1,
+                  "items": [{"item": 930100031, "name": "Kina", "grade": "Common", "category": "CURRENCY", "material": False, "cubes": 1,
+                             "share": 1.0, "average": 100000.0}]}],
 }
 
 

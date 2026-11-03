@@ -89,10 +89,21 @@ def test_curated_map_integrity():
     # Deliberately unmapped (ambiguous / anomaly) dungeons stay out.
     for omitted in ("200003", "620021", "620022"):
         assert omitted not in fb, f"{omitted} should be unmapped"
-    # Every mapped code is a catalog boss whose dungeonId matches its key (no stray/mis-keyed codes).
+    # Every mapped code is a catalog boss whose dungeonId matches its key (no stray/mis-keyed codes). The catalog
+    # links none of Vakron's codes to Vakron Sky Island (only Tiere's and Thamon's), so a code the catalog links to
+    # no dungeon may stand when it sits in the block of ten the catalog's own bosses of that dungeon use (2310812
+    # beside 2310810 Tiere and 2310811 Thamon in 600071), as the corrections note records (0.2.372).
+    from aion2calc.meter.a2parser.lookup import _table
+    linked: dict = {}
+    for key, row in _table("npcs", "en").items():
+        if row.get("isBoss") and row.get("dungeonId"):
+            linked.setdefault(int(row["dungeonId"]), set()).add(int(key) // 10)
     for did, codes in fb.items():
         assert codes, f"{did} has no codes"
         for code in codes:
             info = npc_info(code)
             assert info.get("isBoss") is True, f"{code} in {did} is not a catalog boss"
+            if info.get("dungeonId") is None and "corrections" in doc:
+                assert code // 10 in linked.get(int(did), set()), f"{code} shares no block with {did}'s catalog bosses"
+                continue
             assert info.get("dungeonId") == int(did), f"{code} dungeonId {info.get('dungeonId')} != {did}"

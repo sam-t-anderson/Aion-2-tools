@@ -71,6 +71,29 @@ def test_a_teleport_carries_the_party_so_the_boss_room_fight_is_not_roster_late(
     assert last["party_roster_complete"] is True
 
 
+def test_a_party_rebuilt_from_status_records_after_a_reload_stays_the_carried_party():
+    """After a zone load into the same instance the game need not resend the party list: the engine rebuilds the
+    party from the members' status records, one member at a time. Those partial lists are the party carried from
+    before the load, so the fight keeps one party and its party size (0.2.372); until then Kromede's Desire, fought
+    after such a load, mostly lost its matched rank. A status record naming someone new is a changed party."""
+    def fight(stranger=False):
+        s = CombatSession(); s.pvp = False
+        engine = _engine()
+        engine.roster_source = "packet"
+        s.observe(engine, [_hit(5001, 9001, 1000, 500), _hit(5002, 9001, 1500, 500)], timestamp_ms=1500)
+        engine.last_zone_reset_ms = 200_000                          # the load: the party list is not sent again
+        engine.roster, engine.roster_complete, engine.roster_source = {}, False, None
+        engine.names = {5001: "Me", 5002: "Ally", 5003: "Stranger"}
+        s.observe(engine, [_hit(5001, 9101, 201_000, 800)], timestamp_ms=201_000)
+        engine.roster, engine.roster_source = {"Me": {}}, "status"     # status records pair the members one by one
+        s.observe(engine, [_hit(5001, 9101, 202_000, 800), _hit(5002, 9101, 202_500, 800)], timestamp_ms=202_500)
+        engine.roster = {"Me": {}, "Ally": {}} | ({"Stranger": {}} if stranger else {})
+        s.observe(engine, [_hit(5001, 9101, 204_000, 800), _hit(5002, 9101, 204_500, 800)], timestamp_ms=204_500)
+        return s.to_a2log(scope="party", title="t")["segments"][-1]
+    assert fight()["party_roster_complete"] is True
+    assert fight(stranger=True)["party_roster_complete"] is False
+
+
 def test_a_dead_player_who_lands_a_full_cast_is_alive_again():
     s = CombatSession(); s.pvp = False
     engine = _engine()

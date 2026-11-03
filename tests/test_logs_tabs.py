@@ -45,7 +45,11 @@ def test_progression_tab_has_icons_filters_region_product_and_alpha_sort():
     # Boss progression: boss portrait left of the name, facet filters (boss/difficulty/region/product),
     # Region + Product columns, and an alphabetical (by boss) sort.
     assert "progression-body" in LOGS_JS
-    for sel in ('id="pf-boss"', 'id="pf-difficulty"', 'id="pf-region"', 'id="pf-game_patch"'):
+    # One filter row for Completed-run speed ("sf-") and Boss progression ("pf-"), the community logs' filters
+    # (0.2.372): the ids are the prefix and the facet, so #pf-boss and #sf-boss both exist.
+    assert 'pveFilters("pf", prog.f' in LOGS_JS and 'pveFilters("sf", speed.f' in LOGS_JS
+    for sel in ('id="${prefix}-boss"', 'id="${prefix}-difficulty"', 'id="${prefix}-region"', 'id="${prefix}-game_patch"',
+                'id="${prefix}-encounter_type"', 'id="${prefix}-party_size"', 'id="${prefix}-mini"'):
         assert sel in LOGS_JS, f"missing progression filter {sel}"
     # Region + Product columns added alongside the existing Boss / Difficulty columns.
     assert "<th>Boss</th><th>Difficulty</th><th>Region</th><th>Product</th>" in LOGS_JS

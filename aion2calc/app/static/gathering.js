@@ -18,8 +18,8 @@
   const num = (n) => (Number.isFinite(n) ? Math.round(n).toLocaleString("en-US") : "—");
   const pct = (v) => (Number.isFinite(v) ? (v * 100).toFixed(1) + "%" : "—");
   const RESULTS = { normal: "Normal", better: "Better grade", failed: "Failed" };
-  // Where a kind of node grows (a node's kinds): the game has more than one kind of node for some materials,
-  // an Odyle node inside dungeons and another in the open world, and their sections are told apart by this.
+  // Where a kind of node grows (a node's kinds): each card is one material in one kind of place (0.2.372), so
+  // dungeon Odyle is one card wherever it was gathered and the open world's another.
   const KINDS = { dungeon: "dungeon node", open_world: "open-world node" };
   const PLACES_SHOWN = 5;
   const whenAt = (seconds) => {
@@ -123,26 +123,28 @@
         .join("");
     }
 
+    // One card per dungeon and difficulty (the summaries merge ids that read the same, 0.2.372); a dungeon whose
+    // cubes held no crafting material is left out unless every drop is shown.
     function dungeons() {
       const data = view();
-      const rows = (data && data.dungeons) || [];
-      if (!rows.length) return empty("reward cubes");
+      const all = (data && data.dungeons) || [];
+      if (!all.length) return empty("reward cubes");
+      const rows = all
+        .map((place) => ({ place, items: (place.items || []).filter((row) => showAll || row.material) }))
+        .filter((row) => row.items.length);
+      if (!rows.length)
+        return `<p class="muted">No reward cube held a crafting material yet. Show every drop to see what they held.</p>`;
       return rows
-        .map((place) => {
-          const items = (place.items || []).filter((row) => showAll || row.material);
+        .map(({ place, items }) => {
           const who = Number.isFinite(place.reporters) ? ` · ${num(place.reporters)} players` : "";
           return `<article class="card gt-dungeon"><h3><span translate="no">${esc(place.name || "Unknown place")}</span> <span class="small muted">${num(place.cubes)} reward cubes${who}</span></h3>
-          ${
-            items.length
-              ? `<div class="gt-scroll"><table class="t"><thead><tr><th>${showAll ? "Drop" : "Material"}</th><th>Grade</th><th class="r">In cubes</th><th class="r">How many</th></tr></thead><tbody>
+          <div class="gt-scroll"><table class="t"><thead><tr><th>${showAll ? "Drop" : "Material"}</th><th>Grade</th><th class="r">In cubes</th><th class="r">How many</th></tr></thead><tbody>
           ${items
             .map(
               (row) =>
                 `<tr><td>${item(row)}</td><td>${esc(row.grade || "—")}</td><td class="r">${pct(row.share)}</td><td class="r">${Number.isFinite(row.average) ? row.average.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "—"}</td></tr>`,
             )
-            .join("")}</tbody></table></div>`
-              : `<p class="muted">No crafting materials in these cubes.</p>`
-          }</article>`;
+            .join("")}</tbody></table></div></article>`;
         })
         .join("");
     }

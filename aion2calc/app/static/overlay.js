@@ -510,6 +510,25 @@
     try { localStorage.setItem(OPACITY_KEY, op); } catch (e) { /* optional storage */ }
   };
 
+  // A Raid Planner area: a circle, or the shape of a measured boss skill imported from a recorded fight (0.2.372):
+  // a ring, a cone about its facing (degrees, anticlockwise from east) or a line along it.
+  function aoeSVG(tk, x, y, col) {
+    const f = (Number(tk.facing) || 0) * Math.PI / 180, n = (v) => (Math.round(v * 100) / 100).toString();
+    const R = (Number(tk.radius) || 0.14) * 100, paint = `fill="${col}" fill-opacity="0.25" stroke="${col}" stroke-width="0.5"`;
+    if (tk.shape === "ring") {
+      const inner = Math.min(R * 0.98, (Number(tk.inner) || 0) * 100);
+      return `<circle cx="${n(x)}" cy="${n(y)}" r="${n((R + inner) / 2)}" fill="none" stroke="${col}" stroke-opacity="0.35" stroke-width="${n(Math.max(0.4, R - inner))}"/>`;
+    }
+    if (tk.shape === "cone" && Number(tk.angle) > 0 && Number(tk.angle) < 180) {
+      const a0 = f - Number(tk.angle) * Math.PI / 180, a1 = f + Number(tk.angle) * Math.PI / 180;
+      return `<path d="M${n(x)},${n(y)} L${n(x + R * Math.cos(a0))},${n(y - R * Math.sin(a0))} A${n(R)},${n(R)} 0 ${Number(tk.angle) > 90 ? 1 : 0} 0 ${n(x + R * Math.cos(a1))},${n(y - R * Math.sin(a1))} Z" ${paint}/>`;
+    }
+    if (tk.shape === "line") {
+      const L = (Number(tk.length) || 0.14) * 100, W = (Number(tk.width) || 0.02) * 50, ux = Math.cos(f), uy = -Math.sin(f), px = -uy * W, py = ux * W;
+      return `<polygon points="${[[x + px, y + py], [x + ux * L + px, y + uy * L + py], [x + ux * L - px, y + uy * L - py], [x - px, y - py]].map(([a, b]) => `${n(a)},${n(b)}`).join(" ")}" ${paint}/>`;
+    }
+    return `<circle cx="${n(x)}" cy="${n(y)}" r="${n(R)}" ${paint}/>`;
+  }
   function tokenPos(tk, time) {
     const k = tk.keyframes || [];
     if (!k.length) return null;
@@ -1106,10 +1125,12 @@
     const dur = view.dur, now = view.time;
     const svg = ['<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"><rect x="1" y="1" width="98" height="98" rx="2" fill="none" stroke="#8886" stroke-width="0.6"/>'];
     for (const tk of p.tokens || []) {
-      const pos = !tk.hidden && tokenPos(tk, now);     // a token hidden in the Raid Planner is not drawn
+      // a token hidden in the Raid Planner is not drawn, nor one off the map at this moment (a recorded add before it
+      // appeared, a summon after it faded: 0.2.372)
+      const pos = !tk.hidden && !(Number.isFinite(tk.from) && now < tk.from) && !(Number.isFinite(tk.until) && now > tk.until) && tokenPos(tk, now);
       if (!pos) continue;
       const col = esc(tk.color || "#39c2e0"), x = Number(pos.x) * 100, y = Number(pos.y) * 100;
-      if (tk.kind === "aoe") svg.push(`<circle cx="${x}" cy="${y}" r="${(Number(tk.radius) || 0.14) * 100}" fill="${col}" fill-opacity="0.25" stroke="${col}" stroke-width="0.5"/>`);
+      if (tk.kind === "aoe") svg.push(aoeSVG(tk, x, y, col));
       else svg.push(`<circle cx="${x}" cy="${y}" r="${tk.kind === "enemy" ? 3.4 : 2.6}" fill="${col}" stroke="#0008" stroke-width="0.5"/>`);
     }
     svg.push("</svg>");

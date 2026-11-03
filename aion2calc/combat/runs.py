@@ -5,7 +5,7 @@ from datetime import datetime
 import math
 
 from .quality import assess, observed_starts
-from ..meter.a2parser.lookup import npc_info
+from ..meter.a2parser.lookup import dungeon_final_bosses, npc_info
 
 NOTE = ("Timing uses recorded wall-clock boundaries and the union of encounter intervals, not time spent actively pressing skills. "
         "Unknown outcomes are not wipes. Missing HP or death markers are unavailable, not zero. "
@@ -168,6 +168,13 @@ def summarize(doc):
             reasons.append("Boss attempts lack a complete kill/wipe outcome with clean capture.")
         if not attempts or attempts[-1]["outcome"] != "kill":
             reasons.append("The final recorded boss attempt is not an observed kill.")
+        # The recording marks a run complete at the death of what the analyzer then took for the final boss.
+        # Until 0.2.372 that was Gelcos in Deus Research Base and Thamon in Vakron Sky Island, the first or
+        # second of their three bosses: such a run ended there and was timed to it. The table read now decides.
+        finals = dungeon_final_bosses(instance) if isinstance(instance, int) and not isinstance(instance, bool) else frozenset()
+        last_code = str(attempts[-1]["boss_key"]).removeprefix("npc:") if attempts else ""
+        if finals and attempts and not (last_code.isdigit() and int(last_code) in finals):
+            reasons.append("The run ended at a boss that is not this dungeon's final boss.")
         progression, previous_boss = {}, {}
         for a in attempts:
             a["recorded_seconds"] = max(0,a["ended_at"]-a["started_at"]) if a["ended_at"] is not None and a["started_at"] is not None else None

@@ -87,6 +87,28 @@
     if (typeof enc.boss === "string" && enc.boss.trim()) out.boss = enc.boss.trim().slice(0, 80);
     return out;
   }
+  // An area's extent from its centre (the token's place), as a share of the arena: its radius, or a line's length.
+  function aoeSpan(tk) {
+    return Math.max(0.005, Number(tk.shape === "line" ? tk.length : tk.radius) || 0.14);
+  }
+  // A shaped area drawn in its token's box, a square of twice its span around the token's place: a ring from its
+  // inner radius out, a cone of its half-angle about its facing (degrees, anticlockwise from east, as the replay
+  // draws it), a line along its facing. A plain circle needs none.
+  function aoeShapeSVG(tk) {
+    const f = (Number(tk.facing) || 0) * Math.PI / 180, n = (v) => (Math.round(v * 1000) / 1000).toString();
+    let body = "";
+    if (tk.shape === "ring") {
+      const inner = Math.max(0, Math.min(0.98, (Number(tk.inner) || 0) / aoeSpan(tk)));
+      body = `<circle cx="0" cy="0" r="${n((1 + inner) / 2)}" fill="none" stroke-width="${n(1 - inner)}"/>`;
+    } else if (tk.shape === "cone" && Number(tk.angle) > 0 && Number(tk.angle) < 180) {
+      const a0 = f - Number(tk.angle) * Math.PI / 180, a1 = f + Number(tk.angle) * Math.PI / 180;
+      body = `<path d="M0,0 L${n(Math.cos(a0))},${n(-Math.sin(a0))} A1,1 0 ${Number(tk.angle) > 90 ? 1 : 0} 0 ${n(Math.cos(a1))},${n(-Math.sin(a1))} Z"/>`;
+    } else if (tk.shape === "line") {
+      const w = Math.max(0.01, (Number(tk.width) || 0.02) / 2 / aoeSpan(tk)), ux = Math.cos(f), uy = -Math.sin(f), px = -uy * w, py = ux * w;
+      body = `<polygon points="${[[px, py], [ux + px, uy + py], [ux - px, uy - py], [-px, -py]].map(([x, y]) => `${n(x)},${n(y)}`).join(" ")}"/>`;
+    }
+    return body ? `<svg viewBox="-1 -1 2 2" aria-hidden="true">${body}</svg>` : "";
+  }
   function tokenPos(tk, t) {
     const k = tk.keyframes || [];
     if (!k.length) return null;
@@ -98,8 +120,17 @@
     }
     return { x: last.x, y: last.y };
   }
+  // A token imported from a recorded fight is on the map only while the fight had it (0.2.372): from its first
+  // recorded position (an add or a summon that appeared mid-fight) until it faded, 8 s after its last one, as the
+  // replay fades it. Until then it stood at its last place to the end of the plan (a Cleric's Divine Aura long gone)
+  // and at its first from the start. A token without ``from``/``until`` is on the map throughout.
+  function onMap(tk, t) {
+    return !(Number.isFinite(tk.from) && t < tk.from) && !(Number.isFinite(tk.until) && t > tk.until);
+  }
   function setKeyframe(tk, t, x, y) {
     t = Math.round(t * 10) / 10;
+    if (Number.isFinite(tk.from) && t < tk.from) delete tk.from;          // placed outside its time: on the map then too
+    if (Number.isFinite(tk.until) && t > tk.until) delete tk.until;
     x = Math.max(0, Math.min(1, x)); y = Math.max(0, Math.min(1, y));
     tk.keyframes = tk.keyframes || [];
     const i = tk.keyframes.findIndex((kf) => Math.abs(kf.t - t) < 0.05);
@@ -169,7 +200,10 @@
 
     const tokensHtml = p.tokens.map((tk) => {
       const s = tk.id === st.sel ? " sel" : "";
-      if (tk.kind === "aoe") return `<div class="rtoken aoe${s}" data-tid="${esc(tk.id)}" style="--tc:${col(tk.color)}" title="${esc(tk.label || "AoE zone")}"></div>`;
+      if (tk.kind === "aoe") {
+        const shape = aoeShapeSVG(tk);
+        return `<div class="rtoken aoe${shape ? " shaped" : ""}${s}" data-tid="${esc(tk.id)}" style="--tc:${col(tk.color)}" title="${esc(tk.label || "AoE zone")}">${shape}</div>`;
+      }
       const glyph = tk.kind === "marker" ? esc(tk.label || "?") : esc((tk.label && tk.label[0]) || (tk.cls && tk.cls[0]) || (tk.kind === "enemy" ? "B" : "P")).toUpperCase();
       return `<div class="rtoken ${esc(tk.kind)}${s}" data-tid="${esc(tk.id)}" style="--tc:${col(tk.color)}" title="${esc(tk.label || tk.cls || tk.kind)}"><span class="rl">${glyph}</span></div>`;
     }).join("");
@@ -200,7 +234,8 @@
           <input id="scolor" type="color" value="${col(sel.color)}" style="width:46px;padding:2px">
           ${sel.kind === "player" ? `<select id="scls" aria-label="Class">${RAID_CLASSES.map((c) => `<option ${c === sel.cls ? "selected" : ""}>${c}</option>`).join("")}</select>` : ""}</div>
         ${sel.kind === "aoe" ? `<div class="row" style="margin-top:6px"><label class="muted small">Radius</label><input id="srad" type="range" min="4" max="50" value="${Math.round((sel.radius || 0.14) * 100)}" style="flex:1"></div>` : ""}
-        <div class="kflist" style="margin-top:8px"><div class="small muted">Keyframes (position over time)</div>${kfs || '<div class="faint small">none</div>'}
+        <div class="kflist" style="margin-top:8px"><div class="small muted">Keyframes (position over time)${(sel.keyframes || []).length > 1 ? ` · ${sel.keyframes.length}` : ""}</div>${kfs ? `<div class="kfscroll" data-kflist>${kfs}</div>` : '<div class="faint small">none</div>'}
+          ${Number.isFinite(sel.from) || Number.isFinite(sel.until) ? `<div class="small muted">On the map from ${num(sel.from).toFixed(1)}s${Number.isFinite(sel.until) ? ` to ${num(sel.until).toFixed(1)}s, as the recording had it` : ", as the recording had it"}</div>` : ""}
           <button class="btn small" id="kadd" style="margin-top:4px">Set position at ${num(st.t).toFixed(1)}s</button></div>
         <label class="small" style="display:block;margin-top:8px"><input type="checkbox" id="sshown" ${sel.hidden ? "" : "checked"}> Shown on the map</label>
         <button class="btn small" id="sdel" style="margin-top:8px">Remove token</button>`;
@@ -291,15 +326,25 @@
       if (!arena) return;
       p.tokens.forEach((tk) => {
         const el = arena.querySelector(`[data-tid="${CSS.escape(String(tk.id))}"]`); if (!el) return;   // a recorded fight's ids hold colons
-        const pos = !tk.hidden && tokenPos(tk, t);
+        const pos = !tk.hidden && onMap(tk, t) && tokenPos(tk, t);
         if (!pos) { el.style.display = "none"; return; }
         el.style.display = ""; el.style.left = (pos.x * 100) + "%"; el.style.top = (pos.y * 100) + "%";
-        if (tk.kind === "aoe") { const d = (tk.radius || 0.14) * 2 * 100; el.style.width = d + "%"; el.style.height = d + "%"; }
+        if (tk.kind === "aoe") { const d = aoeSpan(tk) * 2 * 100; el.style.width = d + "%"; el.style.height = d + "%"; }
       });
       const path = $("#rpath", st.root), tk = p.tokens.find((x) => x.id === st.sel);
+      let at = -1;
+      if (tk && tk.keyframes) tk.keyframes.forEach((k, i) => { if (k.t <= t + 0.05) at = i; });
       if (path) path.innerHTML = !tk || !tk.keyframes ? "" :
         (tk.keyframes.length > 1 ? `<polyline points="${tk.keyframes.map((k) => `${k.x * 100},${k.y * 100}`).join(" ")}"/>` : "")
-        + tk.keyframes.map((k) => `<circle cx="${k.x * 100}" cy="${k.y * 100}" r="1.6" class="${Math.abs(k.t - t) < 0.06 ? "kon" : ""}"/>`).join("");
+        + tk.keyframes.map((k, i) => `<circle cx="${k.x * 100}" cy="${k.y * 100}" r="1.6" class="${i === at ? "kon" : ""}"/>`).join("");
+      const kf = $("[data-kflist]", st.root);
+      if (kf && kf.dataset.at !== String(at)) {
+        kf.dataset.at = String(at);
+        [...kf.children].forEach((row, i) => { row.classList.toggle("on", i === at); if (i === at) row.setAttribute("aria-current", "true"); else row.removeAttribute("aria-current"); });
+        const row = kf.children[at];
+        if (!row) kf.scrollTop = 0;
+        else if (row.offsetTop < kf.scrollTop || row.offsetTop + row.offsetHeight > kf.scrollTop + kf.clientHeight) kf.scrollTop = Math.max(0, row.offsetTop - kf.clientHeight / 3);
+      }
       const rd = $("#rtime", st.root); if (rd) rd.textContent = t.toFixed(1) + " / " + dur + "s";
       const sc = $("#rscrub", st.root); if (sc && document.activeElement !== sc) sc.value = String(t);
       $$(".bufbar", st.root).forEach((b) => b.classList.toggle("on", +b.dataset.start <= t && t <= +b.dataset.end));
@@ -483,7 +528,11 @@
     const norm = (ev, rect) => ({ x: Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width)), y: Math.max(0, Math.min(1, (ev.clientY - rect.top) / rect.height)) });
     if (arena) {
       arena.addEventListener("pointerdown", (ev) => {
-        const el = ev.target.closest(".rtoken"); if (!el) return;
+        const el = ev.target.closest(".rtoken");
+        if (!el) {                                   // empty space: nothing selected any more (0.2.372)
+          if (st.sel) { st.sel = null; render(); }
+          return;
+        }
         if (st.playing) pause();
         const tid = el.dataset.tid;
         st.sel = tid; $$(".rtoken", arena).forEach((x) => x.classList.toggle("sel", x.dataset.tid === tid)); layout();
@@ -546,6 +595,7 @@
     const all = raidPlans(), id = uid(); all[id] = copy;
     localStorage.setItem(A2PLAN_KEY, JSON.stringify(all));
     st.id = id; st.plan = copy; st.sel = null; st.t = 0; st.actual = null; st.browsing = null;
+    rememberCurrent();                // the planner opened next, on this page or another, shows the replay
     return id;
   }
   // The plan the planner shows next: the one it is showing, else the one last shown (remembered across launches),

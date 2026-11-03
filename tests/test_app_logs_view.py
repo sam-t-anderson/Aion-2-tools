@@ -64,7 +64,11 @@ def test_logs_view_community_tab_is_one_row_per_encounter_with_icons():
 
 def test_logs_view_progression_tab_has_portraits_filters_and_alpha_sort():
     assert "progression-body" in VIEW_JS
-    for sel in ('id="pf-boss"', 'id="pf-difficulty"', 'id="pf-region"', 'id="pf-game_patch"'):
+    # One filter row for Completed-run speed ("sf-") and Boss progression ("pf-"), the community logs' filters
+    # (0.2.372): the ids are the prefix and the facet, so #pf-boss and #sf-boss both exist.
+    assert 'pveFilters("pf", prog.f' in VIEW_JS and 'pveFilters("sf", speed.f' in VIEW_JS
+    for sel in ('id="${prefix}-boss"', 'id="${prefix}-difficulty"', 'id="${prefix}-region"', 'id="${prefix}-game_patch"',
+                'id="${prefix}-encounter_type"', 'id="${prefix}-party_size"', 'id="${prefix}-mini"'):
         assert sel in VIEW_JS, f"missing progression filter {sel}"
     assert "<th>Boss</th><th>Difficulty</th><th>Region</th><th>Product</th>" in VIEW_JS
     assert "g.icon" in VIEW_JS and "boss-cell" in VIEW_JS

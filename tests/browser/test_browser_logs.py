@@ -36,6 +36,29 @@ def test_the_speed_tab_names_each_runs_bosses_and_shows_its_time(app_page, app_u
     assert cells[:5] == ["1 of 2", "Gelcos → Ereshkigal", "Transcendence · stage 2", "2:31", "5"]
 
 
+def test_speed_and_progression_take_the_community_logs_filters(app_page, app_url, community):
+    """Completed-run speed and Boss progression filter as the community logs do, the log server applying the filter,
+    with mini-bosses out of the boss list until shown (0.2.372)."""
+    page = app_page
+    go(page, app_url, "#/combat")
+    for tab, prefix, route in (("speed", "sf", "/api/v1/run-leaderboard"), ("progression", "pf", "/api/v1/encounter-progression")):
+        page.click(f'#logs-tabs [data-tab="{tab}"]')
+        page.wait_for_selector(f"#{prefix}-boss")
+        bosses = lambda: page.locator(f"#{prefix}-boss option").all_inner_texts()
+        assert "Gatekeeper Testlord" in bosses() and "Watcher Testling" not in bosses()     # the mini-boss is hidden
+        page.check(f"#{prefix}-mini")
+        page.wait_for_function(f"[...document.querySelectorAll('#{prefix}-boss option')].some(o => o.textContent === 'Watcher Testling')")
+        page.uncheck(f"#{prefix}-mini")
+        for facet in ("difficulty", "encounter_type", "region", "game_patch", "party_size"):
+            assert page.locator(f"#{prefix}-{facet}").count() == 1, f"{tab}: no {facet} filter"
+        since = len(community.requests)
+        page.select_option(f"#{prefix}-difficulty", "Normal")
+        assert community.reached(page, route, since), f"{tab}: no request after choosing a difficulty"
+        assert any(path.startswith(route) and "difficulty=Normal" in path for _, path in community.requests[since:]), tab
+        page.click(f"#{prefix}-clear")
+        page.wait_for_function(f"document.querySelector('#{prefix}-difficulty').value === ''")
+
+
 def test_the_extras_tab_holds_only_the_apps_own_sections(app_page, app_url):
     page = app_page
     go(page, app_url, "#/combat")
@@ -138,6 +161,68 @@ def test_saved_recordings_are_listed_by_type_and_open_at_their_fight(app_page, a
     finally:
         page.goto("about:blank")                          # the review page reads the file while it is open
         path.unlink()
+
+
+def test_saved_logs_filter_by_boss_and_day(app_page, app_url, app_home):
+    """Saved logs take a boss, type, role, difficulty and a day range (0.2.372)."""
+    page = app_page
+    other = recording()
+    other["segments"][1].update(label="Watcher Testling", boss="Watcher Testling")
+    other["segments"][1]["entities"][0]["name"] = "Watcher Testling"
+    files = {"session-20261020-200000-abcdef.a2log.json": recording(), "session-20261021-200000-bcdefa.a2log.json": other}
+    for name, doc in files.items():
+        (app_home / "logs").mkdir(exist_ok=True)
+        (app_home / "logs" / name).write_text(json.dumps(doc), encoding="utf-8")
+    try:
+        go(page, app_url, "#/combat")
+        page.click("#log-tab-saved")
+        page.wait_for_selector('#saved-browse [data-slf="boss"]')
+        rows = lambda: page.locator("#saved-browse tr:has([data-open])").all_inner_texts()
+        page.wait_for_function("document.querySelectorAll('#saved-browse tr [data-open]').length >= 2")
+        assert any("Gatekeeper Testlord" in r for r in rows()) and any("Watcher Testling" in r for r in rows())
+        page.select_option('#saved-browse [data-slf="boss"]', "Watcher Testling")
+        page.wait_for_function("![...document.querySelectorAll('#saved-browse tr')].some(r => r.querySelector('[data-open]') && r.textContent.includes('Gatekeeper Testlord'))")
+        assert rows() and all("Watcher Testling" in r for r in rows())
+        page.fill('#saved-browse [data-slf="from"]', "2099-01-01")
+        page.dispatch_event('#saved-browse [data-slf="from"]', "change")
+        page.wait_for_function("document.querySelectorAll('#saved-browse tr [data-open]').length === 0")
+        page.click("#saved-browse [data-slf-clear]")
+        page.wait_for_function("document.querySelectorAll('#saved-browse tr [data-open]').length >= 2")
+    finally:
+        page.goto("about:blank")
+        for name in files:
+            (app_home / "logs" / name).unlink()
+
+
+def test_my_uploads_filter_by_title_and_visibility(app_page, app_url):
+    """My uploads take a search, the original server and the visibility (0.2.372)."""
+    page = app_page
+    uploads = [{"server": "https://logs.example", "id": f"Upload{n}0000", "title": title, "delete_token": "t" * 32,
+                "created_at": 1793000000 + n} for n, title in enumerate(("Testlord clear", "Testling wipe"))]
+
+    def ownership(route):
+        if route.request.method == "GET":
+            return route.fulfill(json=uploads)
+        body = json.loads(route.request.post_data)
+        public = body["owner"]["id"] == uploads[0]["id"]
+        route.fulfill(json={"visibility": "public" if public else "private", "url": "https://logs.example/l/" + body["owner"]["id"]})
+    page.route("**/api/log-ownership", ownership)
+    go(page, app_url, "#/combat")
+    page.click("#log-tab-owned")
+    page.wait_for_selector('#owned-logs [data-owf="q"]')
+    titles = lambda: [r for r in page.locator("#owned-logs tbody tr").all_inner_texts() if "Upload" in r]
+    assert len(titles()) == 2
+    page.fill('#owned-logs [data-owf="q"]', "wipe")
+    page.wait_for_function("document.querySelector('#owned-logs').innerText.includes('1 of 2 uploads match')")
+    assert len(titles()) == 1 and "Testling wipe" in titles()[0]
+    assert page.evaluate("document.activeElement.dataset.owf") == "q"                  # typing stays in the box
+    page.click("#owned-logs [data-owf-clear]")
+    for button in page.locator('#owned-logs [data-action="refresh"]').all():
+        button.click()
+    page.wait_for_function("document.querySelector('#owned-logs').innerText.includes('public')")
+    page.select_option('#owned-logs [data-owf="visibility"]', "private")
+    page.wait_for_function("document.querySelector('#owned-logs').innerText.includes('1 of 2 uploads match')")
+    assert "Testling wipe" in titles()[0]
 
 
 HELD = {"server": "https://logs.example", "id": "Held12345", "title": "Held run", "delete_token": "t" * 32, "created_at": 1793000000}
@@ -674,10 +759,80 @@ def test_open_in_raid_planner_shows_the_replay_and_asks_about_work_in_progress(a
         path.unlink()
 
 
+# an element's place on the page, whatever the page's scroll
+PAGE_BOX = "e => {const r = e.getBoundingClientRect(); return [r.left + scrollX, r.top + scrollY, r.width, r.height];}"
+
+
+def test_the_raid_planner_takes_the_replays_areas_and_drops_what_faded(app_page, app_url, app_home):
+    """Open in Raid Planner brings the boss's measured areas as area tokens of their shape, for as long as the replay
+    draws them; a token is on the map only from its first position until it faded, 8 s after its last (0.2.372: a
+    summon stood at its last place to the end of the plan). In the planner a click on empty space lets go of the
+    selected token, and a token's keyframes sit in a box of their own that follows the replay."""
+    page = app_page
+    name = "session-20261027-234800-abcdef.a2log.json"
+    path = app_home / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    doc = moving_recording(casts=True)
+    doc["segments"][1]["duration"] = 60.0
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    shapes = {"123": {"shape": "circle_aim", "radius": 300.0, "delay": 1.0, "confidence": "high", "casts": 9, "accuracy": 0.9},
+              "124": {"shape": "cone", "radius": 800.0, "angle": 45.0, "delay": 0.5, "confidence": "high", "casts": 9, "accuracy": 0.9}}
+    page.route("**/static/aoe-shapes.json", lambda route: route.fulfill(json={"shapes": shapes}))
+    try:
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        page.locator("[data-replay] [data-marks]").wait_for(state="attached")
+        page.wait_for_function("document.querySelector('[data-replay] [data-events]')?.innerText.includes('circle of 3.0 m around the aim')")
+        page.locator("[data-replay] [data-plan]").click()
+        page.wait_for_function("location.hash === '#/raid' && document.querySelector('#rname')?.value === 'Gatekeeper Testlord'")
+        plan, = [p for p in page.evaluate("Object.values(JSON.parse(localStorage.getItem('a2plans')))")
+                 if p.get("meta", {}).get("name") == "Gatekeeper Testlord"]
+        tokens = {t["id"]: t for t in plan["tokens"]}
+        trample, meteor = tokens["aoe:0"], tokens["aoe:1"]
+        assert (trample["kind"], trample["shape"], trample["from"], trample["until"]) == ("aoe", "circle", 4.0, 6.0)
+        assert (meteor["shape"], meteor["angle"], meteor["facing"], meteor["from"], meteor["until"]) == ("cone", 45.0, 45.0, 14.0, 15.5)
+        assert 0 < trample["radius"] < meteor["radius"] < 1
+        assert tokens["add1"]["from"] == 12.0 and tokens["add1"]["until"] == 36.0      # appeared at 12 s, last seen at 28 s
+        assert "from" not in tokens["boss"] and tokens["boss"]["until"] == 37.0
+        shown = lambda tid: page.evaluate("id => getComputedStyle(document.querySelector(`[data-tid=\"${id}\"]`)).display !== 'none'", tid)  # noqa: E731
+
+        def at(t):
+            page.evaluate("t => {const s = document.querySelector('#rscrub'); s.value = t; s.dispatchEvent(new Event('input'));}", t)
+        at(5)
+        assert shown("aoe:0") and not shown("aoe:1") and not shown("add1")
+        assert page.locator('[data-tid="aoe:1"] svg path').count() == 1                  # the cone, as a wedge
+        at(14.5)
+        assert shown("aoe:1") and not shown("aoe:0") and shown("add1")
+        at(40)
+        assert not shown("add1") and not shown("boss")                                    # both faded
+        # a click on the map's empty space lets go of the selected token
+        at(10)
+        page.locator('[data-tid="boss"]').click()
+        assert page.locator("#slabel").count() == 1
+        empty = page.evaluate("""() => {const a = document.querySelector('#arena'), r = a.getBoundingClientRect();
+            for (let i = 1; i < 10; i++) for (let j = 1; j < 10; j++) {
+              const x = r.left + r.width * i / 10, y = r.top + r.height * j / 10, hit = document.elementFromPoint(x, y);
+              if (hit && a.contains(hit) && !hit.closest('.rtoken')) return [x, y];
+            } return null;}""")
+        page.mouse.click(*empty)
+        assert page.locator("#slabel").count() == 0 and "Select a token on the map" in page.locator(".rpanel").first.inner_text()
+        # the boss's 30 keyframes: a box of its own height that follows the replay
+        page.locator('[data-tid="boss"]').click()
+        kf = page.locator("[data-kflist]")
+        assert kf.evaluate("k => k.scrollHeight > k.clientHeight && getComputedStyle(k).overflowY === 'auto'")
+        at(25.5)
+        assert kf.locator(".kfrow.on").inner_text().startswith("25.0s")
+        assert kf.evaluate("""k => {const row = k.querySelector('.kfrow.on').getBoundingClientRect(), box = k.getBoundingClientRect();
+            return row.top >= box.top && row.bottom <= box.bottom && k.scrollTop > 0;}""")
+    finally:
+        page.goto("about:blank")
+        path.unlink()
+
+
 def test_the_replay_shows_the_bosses_casts_and_what_appears(app_page, app_url, app_home):
     """Why everyone moved (0.2.363): a boss cast is ringed on the caster with a marker where it was aimed (the target,
     the caster itself or the ground) and a wedge for its facing, an add is ringed where it appeared, both are
-    listed under the slider as they happen and the slider carries a tick at each; the key can hide them."""
+    listed beside the arena with their times, the ones in progress marked (0.2.372), and the slider carries a tick
+    at each; the key can hide them."""
     page = app_page
     name = "session-20261027-233000-abcdef.a2log.json"
     path = app_home / "logs" / name
@@ -695,28 +850,93 @@ def test_the_replay_shows_the_bosses_casts_and_what_appears(app_page, app_url, a
         assert "Appeared: an enemy or pet first seen here during the fight" in key
         assert sorted(box.locator("#cr-ticks option").evaluate_all("os => os.map(o => o.value)")) == ["12.0", "14.0", "4.0"]
         assert box.locator("[data-scrub]").get_attribute("list") == "cr-ticks"
-        strip = box.locator("[data-now-list]")
-        now = lambda: " ".join(strip.inner_text().split())                      # noqa: E731
-        assert now() == "—" and box.locator("[data-marks] *").count() == 0
+        # every cast and appearance beside the arena, from the top, with its time; none in progress yet
+        rows = box.locator("[data-events] li")
+        assert [" ".join(t.split()) for t in rows.all_inner_texts()] == [
+            "4.0s Gatekeeper Testlord: Trample at Testally", "12.0s Summoned Spike appeared",
+            "14.0s Gatekeeper Testlord: Meteor on the ground near Testally"]
+        now = lambda: [" ".join(t.split()) for t in box.locator("[data-events] li.is-now .cr-ev-text").all_inner_texts()]  # noqa: E731
+        arena = lambda: box.locator(".cr-arena").evaluate(PAGE_BOX)              # noqa: E731
+        still = arena()
+        assert now() == [] and box.locator("[data-marks] *").count() == 0 and rows.evaluate_all("rs => rs.every(r => r.classList.contains('is-next'))")
         scrub(4.5)                                                  # Trample, aimed at the party member's place
         assert box.locator("[data-marks] .cr-castring").count() == 1 and box.locator("[data-marks] .cr-face").count() == 1
         assert box.locator("[data-marks] .cr-aim").count() == 1 and box.locator("[data-marks] .cr-aimline").count() == 1
-        assert now() == "Gatekeeper Testlord: Trample at Testally"
+        assert now() == ["Gatekeeper Testlord: Trample at Testally"]
         assert "Trample at Testally · 4.0s" in box.locator("[data-marks] .cr-aim title").text_content()
         scrub(8.0)                                                  # over: nothing shown
-        assert now() == "—" and box.locator("[data-marks] *").count() == 0
+        assert now() == [] and box.locator("[data-marks] *").count() == 0
         scrub(12.5)                                                 # the add appears
-        assert box.locator("[data-marks] .cr-spawn").count() == 1 and now() == "Summoned Spike appeared"
+        assert box.locator("[data-marks] .cr-spawn").count() == 1 and now() == ["Summoned Spike appeared"]
         scrub(14.5)                                                 # Meteor, on the ground away from everyone (the add still ringed)
-        assert now() == "Gatekeeper Testlord: Meteor on the ground near Testally Summoned Spike appeared"
+        assert now() == ["Summoned Spike appeared", "Gatekeeper Testlord: Meteor on the ground near Testally"]
         assert box.locator("[data-marks] .cr-spawn").count() == 1 and box.locator("[data-marks] .cr-aim").count() == 1
+        assert arena() == still                                     # the arena never moved
+        # a row takes the replay to its time
+        rows.nth(0).locator("button").click()
+        assert box.locator("[data-clock]").inner_text() == "4.0s" and now() == ["Gatekeeper Testlord: Trample at Testally"]
+        scrub(14.5)
         # the key hides them
         box.locator('.cr-key [data-key-toggle="casts"]').uncheck()
-        assert box.locator("[data-marks] .cr-aim").count() == 0 and now() == "Summoned Spike appeared"
+        assert box.locator("[data-marks] .cr-aim").count() == 0 and now() == ["Summoned Spike appeared"] and rows.count() == 1
         box.locator('.cr-key [data-key-toggle="spawns"]').uncheck()
-        assert box.locator("[data-marks] *").count() == 0 and now() == "—"
+        assert box.locator("[data-marks] *").count() == 0 and now() == []
+        assert rows.all_inner_texts() == ["The key hides every cast and appearance."]
         box.locator('.cr-key [data-key-toggle="casts"]').check()
-        assert box.locator("[data-marks] .cr-castring").count() == 1
+        assert box.locator("[data-marks] .cr-castring").count() == 1 and rows.count() == 2
+        assert arena() == still
+    finally:
+        page.goto("about:blank")
+        path.unlink()
+
+
+def test_the_replays_cast_list_keeps_its_size_and_follows_the_replay(app_page, app_url, app_home):
+    """A fight with many casts (0.2.372): the list beside the arena keeps its size and scrolls on its own as the replay
+    plays, the same skill cast at once by a boss's clones is one row with a count, and on a phone the list sits under
+    the arena. Until 0.2.371 the casts in progress were listed above the arena and pushed it down with each one."""
+    page = app_page
+    name = "session-20261027-234500-abcdef.a2log.json"
+    path = app_home / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    doc = moving_recording(casts=True)
+    fight = doc["segments"][1]
+    fight["npc_casts"] += [{"t": float(t), "source": "boss", "skill_id": 200 + t, "skill": f"Strike {t}"} for t in range(1, 29)]
+    fight["npc_casts"] += [{"t": 20.2, "source": "boss", "skill_id": 300, "skill": "Mirror Burst"}] * 4
+    path.write_text(json.dumps(doc), encoding="utf-8")
+
+    def scrub(t):
+        page.evaluate("t => {const s = document.querySelector('[data-scrub]'); s.value = t; s.dispatchEvent(new Event('input'));}", t)
+    try:
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        box = page.locator("[data-replay]")
+        box.locator("[data-events] li").first.wait_for()
+        pane, rows, scroller = box.locator(".cr-events"), box.locator("[data-events] li"), box.locator("[data-events]")
+        assert rows.count() == 28 + 3 + 1                                   # the four clones' casts are one row
+        burst = rows.filter(has_text="Mirror Burst")
+        assert burst.count() == 1 and " ".join(burst.inner_text().split()) == "20.2s Gatekeeper Testlord: Mirror Burst ×4"
+        size, arena = pane.evaluate(PAGE_BOX), box.locator(".cr-arena").evaluate(PAGE_BOX)
+        assert abs(size[3] - arena[3]) < 2 and size[0] > arena[0] + arena[2] - 1          # beside the arena, as tall
+        assert scroller.evaluate("p => p.scrollHeight > p.clientHeight && p.scrollTop === 0")             # from the top
+        visible = """(p, text) => {const row = [...p.querySelectorAll('li')].find(r => r.textContent.includes(text)).getBoundingClientRect(),
+            box = p.getBoundingClientRect(); return row.top >= box.top && row.bottom <= box.bottom;}"""
+        scrub(25.5)
+        assert scroller.evaluate(visible, "Strike 25") and scroller.evaluate("p => p.scrollTop > 0")
+        assert pane.evaluate(PAGE_BOX) == size and box.locator(".cr-arena").evaluate(PAGE_BOX) == arena
+        page.click("[data-rewind]")
+        assert scroller.evaluate("p => p.scrollTop") == 0
+        # playing: the list follows the replay
+        page.click("[data-play]")
+        page.wait_for_function("parseFloat(document.querySelector('[data-clock]').textContent) >= 12.5", timeout=20000)
+        page.click("[data-play]")
+        clock = float(box.locator("[data-clock]").inner_text().rstrip("s"))
+        assert scroller.evaluate(visible, f"Strike {int(clock)}")
+        # a phone: the list under the arena, still its own size
+        page.set_viewport_size({"width": 390, "height": 800})
+        page.wait_for_timeout(100)
+        small, arena = pane.evaluate(PAGE_BOX), box.locator(".cr-arena").evaluate(PAGE_BOX)
+        assert small[1] >= arena[1] + arena[3] - 1 and small[2] <= 390 and small[3] < size[3]
+        scrub(3.5)
+        assert pane.evaluate(PAGE_BOX) == small and box.locator(".cr-arena").evaluate(PAGE_BOX) == arena
     finally:
         page.goto("about:blank")
         path.unlink()
