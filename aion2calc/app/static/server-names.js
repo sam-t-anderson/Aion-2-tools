@@ -40,9 +40,9 @@
     "1246": "Satia", "1247": "Estian", "1248": "Rahu", "1249": "Rhanman", "1250": "Hebran",
     "1301": "Siel", "1302": "Nezekan", "1303": "Vaizel", "1304": "Kaisinel", "1305": "Yustiel",
     "1306": "Ariel", "1307": "Fregion", "1308": "Meslamtaeda", "1309": "Hithanya", "1310": "Nania",
-    "1311": "Tahabata", "1312": "Luteros", "1313": "Phernos", "1314": "Daminu", "1315": "Kasika",
+    "1311": "Tahavatha", "1312": "Luteros", "1313": "Phernos", "1314": "Daminu", "1315": "Kasaka",
     "1316": "Bakarma", "1317": "Tsenka", "1318": "Kochi", "1319": "Ishtar", "1320": "Tiamat",
-    "1321": "Poeta", "1322": "Verteron", "1323": "Nathara", "1324": "Talisra", "1325": "Zumion",
+    "1321": "Gauss", "1322": "Lamuatan", "1323": "Nathara", "1324": "Talisra", "1325": "Zumion",
     "1326": "Nahid", "1327": "Asahr", "1328": "Caelid", "1329": "Laveis", "1330": "Perion",
     "1331": "Dramata", "1332": "Reda", "1333": "Auldor", "1334": "Vakron", "1335": "Narun",
     "1336": "Gartua", "1337": "Chloris", "1338": "Ione", "1339": "Teina", "1340": "Dymones",
@@ -103,8 +103,8 @@
     "2302": "Zikel", "2303": "Triniel", "2304": "Lumiel", "2305": "Marchutan", "2306": "Azphel",
     "2307": "Ereshkigal", "2308": "Beritra", "2309": "Nemon", "2310": "Hadala", "2311": "Ludra",
     "2312": "Ulgorn", "2313": "Munin", "2314": "Odar", "2315": "Zemurru", "2316": "Kromede",
-    "2317": "Quai", "2318": "Baba", "2319": "Fafnir", "2320": "Indnath", "2321": "Ishalgen",
-    "2322": "Altgard", "2323": "Agnita", "2324": "Atiel", "2325": "Valdemar", "2326": "Lagta",
+    "2317": "Quai", "2318": "Baba", "2319": "Fafnir", "2320": "Indnath", "2321": "Agnita",
+    "2322": "Atiel", "2323": "Tassin", "2324": "Atiel", "2325": "Valdemar", "2326": "Lagta",
     "2327": "Gerod", "2328": "Urd", "2329": "Ecco", "2330": "Giselle", "2331": "Kashapa",
     "2332": "Stof", "2333": "Berk", "2334": "Nuakum", "2335": "Grisilla", "2336": "Santras",
     "2337": "Reuben", "2338": "Hugo", "2339": "Kraki", "2340": "Hystan", "2341": "Rathman",
@@ -131,9 +131,20 @@
     "2542": "Sigebert", "2543": "Nazmun", "2544": "Gelcos", "2545": "Paton", "2546": "Pelleir",
     "2547": "Elvida", "2548": "Ketu", "2549": "Pydeon", "2550": "Notun",
   };
+  // The servers of each global region on the official site, Elyos (1xxx) before Asmodian (2xxx).
+  const REGIONS = {
+    "nae": ["1101", "1102", "1103", "1104", "1105", "1106", "1107", "1108", "1109", "2101", "2102", "2103", "2104", "2105", "2106", "2107", "2108", "2109"],
+    "eu": ["1301", "1302", "1303", "1304", "1305", "1306", "1307", "1308", "1309", "1310", "1311", "1312", "1313", "1314", "1315", "1316", "1317", "1318", "1319", "1320", "1321", "1322", "1323", "2301", "2302", "2303", "2304", "2305", "2306", "2307", "2308", "2309", "2310", "2311", "2312", "2313", "2314", "2315", "2316", "2317", "2318", "2319", "2320", "2321", "2322", "2323"],
+    "as": ["1501", "1502", "1503", "1504", "1505", "1506", "1507", "1508", "1509", "1510", "2501", "2502", "2503", "2504", "2505", "2506", "2507", "2508", "2509", "2510"],
+    "la": ["1401", "1402", "1403", "1404", "1405", "1406", "2401", "2402", "2403", "2404", "2405", "2406"],
+  };
   // The world name for a server ID (a number or its string), or null when the list has no such ID.
   const name = (id) => { const key = String(id ?? "").trim(); return Object.prototype.hasOwnProperty.call(NAMES, key) ? NAMES[key] : null; };
   // The world name, else `fallback` when given, else "server <id>" (empty for an empty ID).
   const label = (id, fallback) => name(id) || (fallback !== undefined ? fallback : (String(id ?? "").trim() ? "server " + String(id).trim() : ""));
-  window.A2Servers = { name, label, names: NAMES };
+  // The global region ("nae", "eu", "as", "la") a server ID belongs to, or null.
+  const regionOf = (id) => { const key = String(id ?? "").trim(); return Object.keys(REGIONS).find((r) => REGIONS[r].includes(key)) || null; };
+  // The faction of a server ID: its first digit (1 Elyos, 2 Asmodian), or null.
+  const faction = (id) => ({ 1: "Elyos", 2: "Asmodian" })[String(id ?? "").trim().charAt(0)] || null;
+  window.A2Servers = { name, label, regionOf, faction, names: NAMES, regions: REGIONS };
 })();

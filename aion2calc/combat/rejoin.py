@@ -21,6 +21,13 @@ sees each fight once and whole:
   dead boss still striking the party once the fight was won (Ultimate Berk, for some 17 s) opened an
   encounter with no party damage, past the run's end; it is marked as the fight's.
 
+* **A final boss recorded as a player** (0.2.375). A name read for an entity outranked its spawn
+  record: after a wipe and an in-place revive, a final boss was exported as a player with a two-letter
+  name, so its fight had no boss and no kill and the run's last boss attempt was the wipe before it,
+  though the meter had finished the run on that boss's death. The segment's own run record names the
+  final boss and the instant it died (``recording_run``: ``final_boss_id``, ``finished_at``); the one
+  untyped entity the party struck that died at that instant is that boss again.
+
 The whole fight takes the second half's index (links to it stay valid); the first half keeps its own
 and is marked ``continued_in`` the whole fight's, which leaves it out of rankings (``quality``). A
 boss seen at zero health in a segment is its kill, as a death record would be. Recorded samples are
@@ -31,7 +38,12 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import datetime
 
+from ..meter.a2parser.lookup import npc_info
+
 RESUME_SECONDS = 30
+#: Seconds between a segment's death record and its run's recorded finish that are still one instant: the
+#: meter stamps both from the one death sample, and the finish is kept to the microsecond.
+FINISH_SLACK = 0.002
 #: A boss's blows before the party's first hit on it are that fight's within this many seconds.
 OPENING_SECONDS = 5
 #: The boss's first reading after the cut may sit this share of its maximum above its last reading
@@ -254,10 +266,50 @@ def opening_blow(before, fight) -> bool:
     return bool(strikers) and strikers <= set(engaged_bosses(fight))
 
 
+def recorded_final_boss(segment):
+    """The entity of ``segment`` its own run record says died as the run's final boss, when the meter
+    exported it untyped (a name, no NPC type): the one entity without a type, owner or player identity
+    that the party struck and that died at the run's recorded finish. ``None`` when the record names no
+    final boss, the boss is typed already, or the instant does not name exactly one entity."""
+    run = segment.get("recording_run")
+    if not isinstance(run, dict):
+        return None
+    code, finished, start = run.get("final_boss_id"), _stamp(run.get("finished_at")), _stamp(segment.get("start"))
+    if type(code) is not int or finished is None or start is None or not npc_info(code).get("isBoss"):
+        return None
+    entities = [e for e in segment.get("entities") or [] if isinstance(e, dict)]
+    if any(e.get("mob_code") == code for e in entities):
+        return None
+    at = finished - start
+    died = {e.get("target") for e in segment.get("events") or [] if isinstance(e, dict) and e.get("kind") == "death"
+            and _num(e.get("t")) and abs(e["t"] - at) <= FINISH_SLACK}
+    struck = {h.get("target") for h in segment.get("hits") or [] if isinstance(h, dict)}
+    found = [e for e in entities if e.get("id") in died and e.get("id") in struck and not e.get("mob_code")
+             and not e.get("owner") and not any(e.get(key) for key in ("class", "server", "character_id"))]
+    return found[0] if len(found) == 1 else None
+
+
+def _type_final_boss(segment):
+    """``segment`` with its recorded final boss typed again (``recorded_final_boss``), its headline boss
+    and kill with it, or ``None`` when it has none to type."""
+    boss = recorded_final_boss(segment)
+    if boss is None:
+        return None
+    code = segment["recording_run"]["final_boss_id"]
+    info = npc_info(code)
+    typed = {key: value for key, value in boss.items() if key not in ("profile_snapshot", "class")}
+    typed.update(name=info.get("name") or f"#{code}", kind="enemy", is_boss=True, is_player=False, mob_code=code)
+    segment = {**segment, "entities": [typed if e is boss else e for e in segment.get("entities") or []]}
+    segment["boss"] = segment["label"] = typed["name"]
+    segment["killed"] = True
+    segment.pop("quality", None)                 # judged afresh (quality.assess)
+    return segment
+
+
 def rejoin(doc):
-    """A copy of ``doc`` with stretched segments clipped, boss fights cut in two made whole and a boss
-    fight's stray pieces put with it, or ``doc`` itself when nothing needed it. ``meta.repairs`` says
-    what was done."""
+    """A copy of ``doc`` with stretched segments clipped, boss fights cut in two made whole, a boss
+    fight's stray pieces put with it and a final boss recorded as a player typed again, or ``doc``
+    itself when nothing needed it. ``meta.repairs`` says what was done."""
     if not isinstance(doc, dict) or not isinstance(doc.get("segments"), list) or len(doc["segments"]) < 1:
         return doc
     if isinstance(doc.get("meta"), dict) and doc["meta"].get("repairs"):
@@ -276,6 +328,13 @@ def rejoin(doc):
         if 0 <= cut < a["duration"] - 0.001:
             out[i] = _clip(deepcopy(a), cut)
             clipped.append(i)
+    typed = []
+    for i, segment in enumerate(out):
+        # A final boss the meter exported as a player (0.2.374 and earlier), named by the run's own record.
+        fixed = _type_final_boss(segment) if isinstance(segment, dict) else None
+        if fixed is not None:
+            out[i] = fixed
+            typed.append(i)
     for i, segment in enumerate(out):
         # A boss seen at zero health died there, whether or not its death record was kept.
         if isinstance(segment, dict) and not segment.get("killed") and set(engaged_bosses(segment)) & dead_entities(segment):
@@ -310,16 +369,18 @@ def rejoin(doc):
             out[i + 1] = {**b, "continued_in": i, "fragment": "after_kill"}
             out[i + 1].pop("quality", None)
             afters.append([i, i + 1])
-    if not (clipped or rejoined or killed or openings or afters):
+    if not (clipped or rejoined or killed or openings or afters or typed):
         return doc
     meta = dict(doc.get("meta") or {})
-    meta["repairs"] = {"version": 2, "clipped": clipped, "rejoined": rejoined, "killed_at_zero_health": killed,
-                       "opening_blows": openings, "after_kills": afters,
+    meta["repairs"] = {"version": 3, "clipped": clipped, "rejoined": rejoined, "killed_at_zero_health": killed,
+                       "opening_blows": openings, "after_kills": afters, "final_boss_typed": typed,
                        "note": "Segments stretched across the next fight by a later death are clipped where it began; "
                                "a boss fight the meter cut in two (the same boss entity alive at the cut, its health "
                                "carrying on, resumed within 30 s) is one encounter at the second half's index, the "
                                "first half marked continued_in it. Meter 0.2.354 records neither fault. A boss's opening "
                                "blow cut off before the party's first hit joins the fight; what a fight's dead struck "
                                "after it was won (no party damage) is marked continued_in it. Meter 0.2.355 records "
-                               "neither."}
+                               "neither. A final boss exported untyped (a name, no NPC type) is typed again when the "
+                               "segment's run record names it and it died at the run's recorded finish; meter 0.2.375 "
+                               "types it."}
     return {**doc, "meta": meta, "segments": out}

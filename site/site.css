@@ -4,6 +4,8 @@
    per-encounter tables and the combat review read comfortably on big screens (150% until 0.2.323).
    The app's combat logs use the same scale (app.css main.logs-zoom). */
 .site.wide-2x { max-width: none; zoom: 1.25; }
+/* Pages of wide tables (the leaderboard) take the browser's full width, at the normal scale. */
+.site.full-width { max-width: none; }
 .hero2 { display: grid; grid-template-columns: 120px 1fr; gap: 24px; align-items: center; padding: 20px 0 10px; }
 .herologo { width: 120px; height: 120px; }
 .hero2 h1 { font-family: var(--display); color: var(--gold); letter-spacing: 2px; font-size: 40px; margin: 0 0 6px; }

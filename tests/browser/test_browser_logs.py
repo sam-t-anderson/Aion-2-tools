@@ -526,6 +526,38 @@ def _saved(app_home, name, doc):
     return path
 
 
+def test_the_profile_lookup_picks_the_characters_server_by_name(app_page, app_url, app_home):
+    """A character's build offers the official lookup's server by name (0.2.375): the region's servers, Elyos then
+    Asmodian, the recorded one chosen and kept when another region is shown; the lookup sends the chosen server."""
+    page = app_page
+    doc = recording()
+    doc["meta"]["region"] = "nae"
+    path = _saved(app_home, "session-20261103-120000-abcdef.a2log.json", doc)
+    try:
+        go(page, app_url, f"#/combat-log/local/{path.name}?segment=1")
+        page.locator('[data-character="p:1101:1"]').first.click()
+        server, region = page.locator("select[data-profile-server]"), page.locator("select[data-profile-region]")
+        server.wait_for()
+        assert server.input_value() == "1101" and region.input_value() == "nae"
+        names = server.locator("option").all_inner_texts()
+        assert names[0] == "Choose a server" and {"Siel", "Zikel"} <= set(names) and "Gauss" not in names
+        assert server.locator("optgroup").evaluate_all("groups => groups.map(g => g.label)") == ["Elyos", "Asmodian"]
+        region.select_option("eu")                        # another region's servers, the recorded one still offered
+        assert "Gauss" in server.locator("option").all_inner_texts() and server.input_value() == "1101"
+        server.select_option("")
+        page.click("[data-profile-current]")
+        page.wait_for_function("document.querySelector('[data-profile-message]').textContent.includes('home server')")
+        server.select_option("1321")
+        page.route("**/api/character/profile", lambda route: route.fulfill(json={"status": "unavailable", "reason": "Stand-in"}))
+        with page.expect_request("**/api/character/profile") as sent:
+            page.click("[data-profile-current]")
+        body = json.loads(sent.value.post_data)
+        assert body["player"]["server"] == "1321" and body["region"] == "eu"
+    finally:
+        page.goto("about:blank")
+        path.unlink()
+
+
 def test_the_details_open_on_the_ability_contribution_and_switch_between_tabs(app_page, app_url, app_home):
     """Ability contribution, Abilities, Skills and the cast timeline are tabs of one section that opens on the ability
     contribution, drawn at the page's own text size (0.2.357). The Rotation tab keeps the totals."""

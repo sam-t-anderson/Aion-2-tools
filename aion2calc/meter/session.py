@@ -1115,9 +1115,22 @@ class CombatSession:
                 if epoch not in retained and epoch != self.epoch:
                     self.identities.pop(epoch)
 
+    @staticmethod
+    def _spawned_npc(identity, actor_id):
+        """The catalog NPC an actor's spawn record names, when that outranks a name read for the actor:
+        it never struck with a player's own class skill. A name can be read for an entity out of a record
+        that is not a player's: after a wipe and an in-place revive, a final boss at 28 million HP was
+        exported as a player with a two-letter name (no boss in the fight, no kill, the run left without
+        its final kill, though the meter itself had finished the run on that boss's death). An NPC's
+        spawn record is the game's own word on what the entity is. ``None`` when nothing outranks the name."""
+        code = identity["spawns"].get(actor_id, {}).get("mobCode")
+        if not code or not npc_info(code) or identity.get("class_strikes", {}).get(actor_id):
+            return None
+        return code
+
     def name(self, epoch, actor_id, enemy=False):
         identity = self.identities[epoch]
-        if actor_id in identity["names"]:
+        if actor_id in identity["names"] and not self._spawned_npc(identity, actor_id):
             return identity["names"][actor_id]
         code = identity["spawns"].get(actor_id, {}).get("mobCode")
         if code:
@@ -1242,7 +1255,7 @@ class CombatSession:
                 allowed.update(a for a in identity.get("fighters", ()) if a in identity["names"]
                                and a not in identity["owners"] and not identity["spawns"].get(a, {}).get("mobCode"))
         elif scope == "all":
-            allowed.update(identity["names"])
+            allowed.update(a for a in identity["names"] if not self._spawned_npc(identity, a))
             allowed.update(a for a in identity.get("observed_players", ())
                            if not identity["spawns"].get(a, {}).get("mobCode"))
             event = record.event
@@ -1854,7 +1867,8 @@ class CombatSession:
                         enemy = enemies[target_key] = {"key": target_key, "id": str(event.target_id),
                             "name": named(epoch, event.target_id, True), "damage": 0, "hits": 0,
                             "mob_code": identity["spawns"].get(event.target_id, {}).get("mobCode"),
-                            "is_player": group["pvp"] or event.target_id in identity["names"],
+                            "is_player": group["pvp"] or (event.target_id in identity["names"]
+                                                          and not self._spawned_npc(identity, event.target_id)),
                             "owner": identity["owners"].get(event.target_id), "players": {},
                             "last_ms": 0, "players_last": {}}
                     enemy["damage"] += damage; enemy["hits"] += 1
@@ -2658,7 +2672,7 @@ class CombatSession:
                         "server": str(server) if server else None,
                         "character_id": str(info["dbid"]) if info.get("dbid") else None,
                         "combat_power": info.get("combatPower"), "gear_score": info.get("gearScore")}
-                elif actor_id in identity["names"]:
+                elif actor_id in identity["names"] and not self._spawned_npc(identity, actor_id):
                     # Identified external healers are references, not party members.
                     entities[pid] = {"id": pid, "name": name, "kind": "enemy" if actor_id in opponents else "player",
                                      "is_player": True, "class": identity["jobs"].get(actor_id)}

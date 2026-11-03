@@ -20,6 +20,7 @@ import time
 import urllib.parse
 
 from ..db import store
+from ..meter.a2parser.lookup import job_from_roster
 from ..scrape.http import fetch_json
 
 SITE = "https://aion2.plaync.com"
@@ -55,9 +56,28 @@ def search(name: str, region: str = "nae", server_id: int | None = None, page: i
         out.append({"character_id": urllib.parse.unquote(c["characterId"]),
                     "name": re.sub(r"<[^>]+>", "", c.get("name", "")), "level": c.get("level"),
                     "server_id": c.get("serverId"), "server": c.get("serverName"), "race": c.get("race"),
-                    "pc_id": c.get("pcId"), "region": c.get("region") or region})
+                    "pc_id": c.get("pcId"), "region": c.get("region") or region,
+                    "class": search_class(c.get("pcId")), "char_key": search_char_key(c.get("profileImageUrl"))})
     out.sort(key=lambda c: -(c["level"] or 0))
     return out
+
+
+def search_class(pc_id) -> str | None:
+    """The class key of a search result's ``pcId``: four codes per class (race and gender), the party roster's
+    class codes (5-8 Gladiator ... 33-36 Chanter). Checked against characters of every class in the 3 Nov 2026
+    search (a Gladiator 7, a Ranger 14, a Sorcerer 28, a Cleric 32, a Chanter 36)."""
+    if not isinstance(pc_id, int) or isinstance(pc_id, bool):
+        return None
+    return CLASS_KEYS.get(job_from_roster(pc_id) or "")
+
+
+def search_char_key(url) -> str | None:
+    """The database character id a search result's portrait address carries (``charKey=``): the id the game's own
+    records give a character, which a recording keeps for its party (``p:<server>:<id>``)."""
+    if not isinstance(url, str):
+        return None
+    value = (urllib.parse.parse_qs(urllib.parse.urlsplit(url).query).get("charKey") or [""])[0]
+    return value if value.isdigit() else None
 
 
 def key_of(region: str, server_id: int, character_id: str) -> str:
