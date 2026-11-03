@@ -487,11 +487,15 @@
     ["pointerdown", "mousedown", "touchstart"].forEach((type) => control.addEventListener(type, (event) => event.stopPropagation()));
   });
   // Moving the window (0.2.371): a press anywhere else on the card hands the move to the native host, which follows
-  // the cursor in screen pixels until the button is up (begin_drag in overlay.py). pywebview's own drag region moved
+  // the cursor in screen pixels until the press is over (begin_drag in overlay.py). pywebview's own drag region moved
   // it from this page's mouse events, which stop when the cursor outruns the window, so a release outside it was
   // lost and the window chased the cursor afterwards. A press that moved the window is a move, not a click: the
   // click that ends it is dropped, so letting go over a name does not open that player's panel.
-  let moveFrom = null, moveDone = false;
+  // The page says when the press is over (end_drag, 0.2.374), each press under a number of its own: the host read
+  // the button alone until then, which Windows answers "up" under a game run as administrator, so no overlay window
+  // moved over one. The press keeps the page's pointer events (the window follows the cursor), so its pointerup
+  // or pointercancel always comes.
+  let moveFrom = null, moveDone = false, moveSeq = 0;
   const moveCard = $(".ovcard");
   if (moveCard) moveCard.addEventListener("pointerdown", (event) => {
     if (event.button !== 0 || !event.isPrimary) return;
@@ -500,13 +504,20 @@
     const scrolls = target.scrollHeight > target.clientHeight || target.scrollWidth > target.clientWidth;
     if (scrolls && (event.offsetX > target.clientWidth || event.offsetY > target.clientHeight)) return;   // its scrollbar
     moveFrom = { x: event.screenX, y: event.screenY };
-    nativeCall("begin_drag");
+    moveSeq = Math.max(moveSeq + 1, Date.now());          // unique across reloads of the page too
+    nativeCall("begin_drag", moveSeq);
   });
   document.addEventListener("pointerup", (event) => {
     if (!moveFrom) return;
+    nativeCall("end_drag", moveSeq);
     moveDone = Math.hypot(event.screenX - moveFrom.x, event.screenY - moveFrom.y) > 4;
     moveFrom = null;
     if (moveDone) setTimeout(() => { moveDone = false; }, 0);
+  }, true);
+  document.addEventListener("pointercancel", () => {
+    if (!moveFrom) return;
+    nativeCall("end_drag", moveSeq);
+    moveFrom = null;
   }, true);
   document.addEventListener("click", (event) => {
     if (moveDone) { moveDone = false; event.preventDefault(); event.stopPropagation(); }

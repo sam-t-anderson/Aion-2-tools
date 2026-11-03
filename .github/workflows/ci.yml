@@ -118,11 +118,13 @@ jobs:
     name: Overlay window on Windows
     # The real app and overlay on a Windows desktop (tools/overlay_window_check.py): the see-through background
     # modes show the game between their pieces, in the light and the dark app themes. Every check in a browser
-    # passed while a dark theme drew a dark box behind them on players' screens (0.2.371). Not a step of the
+    # passed while a dark theme drew a dark box behind them on players' screens (0.2.371). And the window moves
+    # with a real mouse (tools/overlay_drag_check.py, 0.2.374), with the game in front, also when Windows holds the
+    # overlay's reads of the button back as it does under a game run as administrator. Not a step of the
     # release: a desktop session that misbehaves cannot hold a release back.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -140,6 +142,12 @@ jobs:
           reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 0 /f
           python tools/overlay_window_check.py dark overlay-window-check
         timeout-minutes: 8
+      - name: Moving the window with the mouse
+        if: ${{ !cancelled() }}
+        run: |
+          pip install playwright
+          python tools/overlay_drag_check.py overlay-window-check
+        timeout-minutes: 10
       - uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:

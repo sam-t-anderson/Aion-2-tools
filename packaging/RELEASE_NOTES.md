@@ -1,3 +1,7 @@
+## Overlay windows move over a game run as administrator (0.2.374)
+
+**The overlay windows move again.** Since 0.2.371 a press on an overlay hands the move to the app, which followed the pointer while it read the mouse button as held. Windows can refuse that read to the overlay while the game is the window in front, and it does whenever the game runs as administrator; the read then says *up*. The overlay windows never take the foreground (so the game keeps your keyboard), which leaves the game in front: every move ended as it began, and no overlay window, the meter, the party window, the radar or the Pet Tracker window, would move. The overlay now says when your press is over, and the window follows the pointer until you let go whatever is in front. A click no longer nudges the window, and a new press ends any move before it.
+
 ## The overlay moves again with a player's panel open, the panel fits, and buffs have names (0.2.373)
 
 **The overlay moves with a player's panel open.** A click on a player's row opens their panel under the rows, which makes the overlay taller. The overlay is kept on the game window, and one taller than the room it had was held at the game's top edge; that hold also pulled the window back four times a second while you moved it, so once a panel was open the overlay would not move, in every background mode. Now a move goes where the pointer takes it, and an overlay larger than the game window keeps its header on the game rather than being held in place.
