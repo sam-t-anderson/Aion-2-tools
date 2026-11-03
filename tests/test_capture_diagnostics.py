@@ -222,54 +222,119 @@ def test_overlay_host_drops_the_backdrop_pywebview_asks_for_when_windows_runs_ap
     assert written[-1] == "window backdrop: left as it is (DwmSetWindowAttribute 0x80070057)"
 
 
-def test_overlay_host_moves_the_window_with_the_cursor_until_the_button_is_up(monkeypatch):
-    """The card's native drag (0.2.371): the window keeps its offset from the cursor, in screen pixels, while the
-    primary button is down, and stops when it is up, wherever the cursor is; the screenshot lock and a drag already
-    under way refuse a new one."""
+def _drag_user32(monkeypatch, cursor, pressed, moves, on_cursor=None):
+    """A stand-in for user32 in the native drag: the cursor at each read, the button's state at each read (0x8000
+    down) and the window positions set. ``on_cursor(n)`` runs at the n-th cursor read."""
     import ctypes
-    import sys
-    import threading
     from types import SimpleNamespace
-    from aion2calc.overlay import _OverlayAPI
-    cursor = iter([(500, 300), (510, 305), (510, 305), (560, 340), (600, 350)])
-    pressed = iter([True, True, True, False])
-    moves = []
+    reads = {"cursor": 0}
 
     def cursor_pos(point):
         point[0], point[1] = next(cursor)
+        reads["cursor"] += 1
+        if on_cursor:
+            on_cursor(reads["cursor"])
 
     def window_rect(hwnd, rect):
         rect[0], rect[1], rect[2], rect[3] = 420, 260, 760, 400
-    user32 = SimpleNamespace(GetAsyncKeyState=lambda button: 0x8000 if next(pressed) else 0, GetSystemMetrics=lambda index: 0,
+    user32 = SimpleNamespace(GetAsyncKeyState=lambda button: next(pressed), GetSystemMetrics=lambda index: 0,
                              GetCursorPos=cursor_pos, GetWindowRect=window_rect,
                              SetWindowPos=lambda hwnd, after, x, y, w, h, flags: moves.append((x, y)))
     monkeypatch.setattr(ctypes, "WinDLL", lambda *a, **k: user32, raising=False)
+
+
+def _drag_api(written=None):
+    from types import SimpleNamespace
+    from aion2calc.overlay import _OverlayAPI
     api = _OverlayAPI()
     api._window = SimpleNamespace(native=SimpleNamespace(Handle=SimpleNamespace(ToInt64=lambda: 7)))
+    api.log = SimpleNamespace(write=(written if written is not None else []).append)
+    return api
+
+
+def test_overlay_host_moves_the_window_with_the_cursor_until_the_button_is_up(monkeypatch):
+    """The card's native drag (0.2.371): the window keeps its offset from the cursor, in screen pixels, while the
+    primary button is down, and stops when it is up, wherever the cursor is."""
+    from itertools import chain, repeat
+    moves = []
+    _drag_user32(monkeypatch, iter([(500, 300), (510, 305), (510, 305), (560, 340), (600, 350)]),
+                 chain([0x8000, 0x8000, 0x8000, 0], repeat(0)), moves)
+    api = _drag_api()
     api._dragging = True
     api._drag(poll=0)
     assert moves == [(430, 265), (480, 300)] and api._dragging is False     # the offset kept; still cursor, no move
-    started = []
-    monkeypatch.setattr(api, "_drag", lambda: started.append(1))
+
+
+def test_the_page_ends_a_move_that_windows_will_not_let_the_overlay_read(monkeypatch):
+    """0.2.374: over a game run as administrator Windows answers the overlay's GetAsyncKeyState with 0, as if the
+    button were up, and the overlay windows never activate, so the game stays in front: every move ended as it
+    began and no overlay window would move. A button never read down leaves the end to the page (end_drag), a click
+    does not nudge the window, and overlay.log says once why the page decides."""
+    from itertools import repeat
+    import threading
+    moves, written = [], []
+    stop = threading.Event()
+    _drag_user32(monkeypatch, iter([(500, 300), (502, 301), (510, 305), (560, 340), (600, 350), (640, 380)]),
+                 repeat(0), moves, on_cursor=lambda n: n == 5 and stop.set())
+    api = _drag_api(written)
+    api._dragging, api._drag_stop = True, stop
+    api._drag(stop, poll=0)
+    # 2 px from the press is still a click; from 10 px the window keeps its offset; the page's end stops it there
+    assert moves == [(430, 265), (480, 300), (520, 310)] and api._dragging is False
+    assert written == ["moving the window: Windows answers the mouse button's state with 0 (a program run as "
+                       "administrator in front), so the overlay page says when each move ends"]
+    stop.clear()
+    _drag_user32(monkeypatch, iter([(500, 300), (530, 320), (560, 340)]), repeat(0), moves,
+                 on_cursor=lambda n: n == 3 and stop.set())
+    api._drag_stop = stop
+    api._drag(stop, poll=0)
+    assert len(written) == 1                                                # said once
+
+
+def test_each_press_moves_the_window_until_the_page_says_it_is_over(monkeypatch):
+    """begin_drag and end_drag (0.2.374) carry the page's number for the press: the bridge runs each call on a thread
+    of its own, so an end can arrive before its begin, which then starts nothing; a new press ends the move before
+    it; the end of another press leaves a move alone; the screenshot lock refuses a move."""
+    import sys
+    import threading
     monkeypatch.setattr(sys, "platform", "win32")
+    api = _drag_api()
+    runs, gates = [], {}
+
+    def stand_in(stop):
+        runs.append(stop)
+        gates.setdefault(len(runs), threading.Event()).wait(5)
+        with api._drag_lock:
+            if api._drag_stop is stop:
+                api._dragging = False
+    monkeypatch.setattr(api, "_drag", stand_in)
     api._locked = True
-    api.begin_drag()
-    under_way = threading.Event()
-    api._locked, api._dragging = False, True
-    api._drag_thread = threading.Thread(target=under_way.wait, daemon=True)
-    api._drag_thread.start()
-    api.begin_drag()
-    assert started == []
-    under_way.set()
+    api.begin_drag(1)
+    assert runs == [] and not api._dragging
+    api._locked = False
+    api.end_drag(2)
+    api.begin_drag(2)                                                        # its end came first
+    assert runs == [] and not api._dragging
+    api.begin_drag(3)
+    first = api._drag_thread
+    for _ in range(100):
+        if runs:
+            break
+        threading.Event().wait(0.01)
+    assert len(runs) == 1 and api._dragging and not runs[0].is_set()
+    api.end_drag(9)                                                          # another press's end
+    assert not runs[0].is_set()
+    gates[2] = threading.Event()
+    api.begin_drag(4)                                                        # a new press: the move before it is over
+    assert runs[0].is_set() and api._drag_seq == 4
+    gates.setdefault(1, threading.Event()).set()
+    first.join(2)
+    assert api._dragging                                                    # the old move's end leaves the new one
+    api.end_drag(4)
+    assert api._drag_stop.is_set()
+    gates[2].set()
     api._drag_thread.join(2)
-    api._dragging = False
-    api.begin_drag()
-    api._drag_thread.join(2)
-    assert started == [1] and api._dragging is True                          # the stand-in drag never clears it
-    # 0.2.373: a flag left set by a drag whose thread is gone does not refuse every move after it
-    api.begin_drag()
-    api._drag_thread.join(2)
-    assert started == [1, 1]
+    assert not api._dragging
 
 
 def test_the_app_keeps_the_raid_planners_saved_plans_for_the_overlay(monkeypatch, tmp_path):

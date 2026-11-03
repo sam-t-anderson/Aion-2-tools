@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import collections
 import ctypes
 from dataclasses import dataclass
 import json
@@ -560,7 +561,12 @@ class _OverlayAPI:
         self._interactive = ()
         self._hover_interact = False   # with click-through on, resting the pointer on the overlay opens it (0.2.371)
         self._dragging = False      # a native move of the window is following the cursor (begin_drag)
-        self._drag_thread = None    # the thread that moves it, so a flag a lost thread left set never refuses a move
+        self._drag_thread = None    # the thread that moves it
+        self._drag_stop = None      # set once the press that began the move is over (end_drag, or a new press)
+        self._drag_seq = None       # the page's number for that press
+        self._drags_ended = collections.deque(maxlen=16)   # presses the page has said are over: an end can come first
+        self._drag_lock = threading.Lock()
+        self._drag_unread_said = False   # overlay.log has said that Windows answers the button's state with 0
         # The window's shape (0.2.368): in the "top portion only" and "none" background modes the page reports
         # the rectangles it draws (the header panel, each row, the panels under the rows) and the host clips the
         # window to them, so the game shows through everywhere else and takes the clicks there. The host paints
@@ -637,22 +643,45 @@ class _OverlayAPI:
         threading.Thread(target=lambda: _quietly(window.evaluate_js, script), daemon=True,
                          name="overlay-hover-say").start()
 
-    def begin_drag(self):
+    def begin_drag(self, seq=None):
         """Called by the page when a press lands on the card outside its controls (0.2.371): the window follows the
-        cursor from here, in screen pixels, until the primary button is up. pywebview's own dragging moved the window
-        from the page's mouse events instead, which stop once the cursor outruns the window, so a release outside it
-        was never seen and the window went on chasing the cursor; and it placed the window from a position in
-        display-independent pixels, so on a second display scaled differently the window jumped. The screenshot lock
-        keeps the window where it is."""
+        cursor from here, in screen pixels, until the press is over. pywebview's own dragging moved the window from
+        the page's mouse events instead, which stop once the cursor outruns the window, so a release outside it was
+        never seen and the window went on chasing the cursor; and it placed the window from a position in
+        display-independent pixels, so on a second display scaled differently the window jumped. ``seq`` is the
+        page's number for the press, which its end_drag names. A new press ends any move before it; the screenshot
+        lock keeps the window where it is."""
         if sys.platform != "win32" or self._window is None or self._locked:
             return
-        if self._dragging and self._drag_thread is not None and self._drag_thread.is_alive():
-            return
-        self._dragging = True
-        self._drag_thread = threading.Thread(target=self._drag, daemon=True, name="overlay-drag")
-        self._drag_thread.start()
+        with self._drag_lock:
+            if seq is not None and seq in self._drags_ended:
+                return                     # its end came first: the bridge runs each call on a thread of its own
+            if self._drag_stop is not None:
+                self._drag_stop.set()
+            stop = self._drag_stop = threading.Event()
+            self._drag_seq = seq
+            self._dragging = True
+            self._drag_thread = threading.Thread(target=self._drag, args=(stop,), daemon=True, name="overlay-drag")
+            self._drag_thread.start()
 
-    def _drag(self, poll=0.008, limit=600.0):
+    def end_drag(self, seq=None):
+        """Called by the page when the press that began a move is over (its pointerup or pointercancel): the move ends
+        there (0.2.374). Until then only the button's state ended it, read with GetAsyncKeyState, which Windows
+        answers with 0 (the button up) for a program that is not elevated whenever the window in front belongs to
+        one that is (UI Privilege Isolation): the overlay never takes the foreground (its windows do not activate),
+        so over a game run as administrator every move ended as it began and no overlay window would move."""
+        with self._drag_lock:
+            if seq is not None:
+                self._drags_ended.append(seq)
+            if self._drag_stop is not None and (seq is None or seq == self._drag_seq):
+                self._drag_stop.set()
+
+    def _drag(self, stop=None, poll=0.008, limit=600.0, threshold=4):
+        """Move the window with the cursor until ``stop`` is set (the page's end_drag, or a new press) or the primary
+        button, once read down, reads up. The button alone cannot say the press is over: Windows answers its state
+        with 0 under an elevated window in front, so a button never read down leaves the end to the page. The window
+        moves once the cursor has gone ``threshold`` pixels from the press, so a click never nudges it."""
+        stop = stop if stop is not None else threading.Event()
         try:
             user32 = ctypes.WinDLL("user32", use_last_error=True)
             user32.GetAsyncKeyState.restype = ctypes.c_short
@@ -664,19 +693,32 @@ class _OverlayAPI:
             cursor, rect = (ctypes.c_long * 2)(), (ctypes.c_long * 4)()
             user32.GetCursorPos(cursor)
             user32.GetWindowRect(hwnd, rect)
+            pressed_at = (cursor[0], cursor[1])
             dx, dy = rect[0] - cursor[0], rect[1] - cursor[1]
             where, until = (rect[0], rect[1]), time.monotonic() + limit
-            while user32.GetAsyncKeyState(button) & 0x8000 and time.monotonic() < until:
+            held = moving = False
+            while not stop.is_set() and time.monotonic() < until:
+                if user32.GetAsyncKeyState(button) & 0x8000:
+                    held = True
+                elif held:
+                    break                                            # read down, now up: the press is over
                 user32.GetCursorPos(cursor)
+                moving = moving or max(abs(cursor[0] - pressed_at[0]), abs(cursor[1] - pressed_at[1])) >= threshold
                 to = (cursor[0] + dx, cursor[1] + dy)
-                if to != where:
+                if moving and to != where:
                     user32.SetWindowPos(hwnd, None, to[0], to[1], 0, 0, 0x0001 | 0x0004 | 0x0010)   # no size, z-order, focus
                     where = to
-                time.sleep(poll)
+                stop.wait(poll)
+            if moving and not held and not self._drag_unread_said:
+                self._drag_unread_said = True
+                self.log.write("moving the window: Windows answers the mouse button's state with 0 (a program run as "
+                               "administrator in front), so the overlay page says when each move ends")
         except Exception as err:
             self.log.write(f"moving the window failed: {type(err).__name__}: {err}")
         finally:
-            self._dragging = False
+            with self._drag_lock:
+                if self._drag_stop is stop or self._drag_stop is None:
+                    self._dragging = False
 
     def set_interactive_rects(self, rects):
         # Called from the overlay page with its controls' bounding boxes, each

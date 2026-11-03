@@ -14,9 +14,11 @@ card's controls), moves the cursor and lets go, and reads where the window went:
   game-in-front   the game in front at the overlay's own privilege level;
   key-state-up    the same, with every GetAsyncKeyState the overlay makes answered 0, as Windows answers it under an
                   elevated window;
-  elevated-game   when this check runs elevated: the overlay started at medium integrity under the game at high
-                  integrity, the case players meet, when Windows enforces UIPI here (a probe first reads the left
-                  button at both levels while it is held over the game, and says what it found).
+  elevated-game   when this check runs elevated: the overlay started through the desktop's shell, at medium
+                  integrity as a player's own launch is, under the game at high integrity, the case players meet,
+                  when Windows enforces UIPI here (a probe first reads the left button at both levels while it is
+                  held over the game, from a process given a medium-integrity copy of this one's token, and says
+                  what it found).
 
 Usage: python tools/overlay_drag_check.py [OUTDIR]. Exits 1 with the overlay's log when the window did not move."""
 import ctypes
@@ -281,11 +283,28 @@ def overlay_log(home):
     return open(path, encoding="utf-8", errors="replace").read()[-6000:] if os.path.exists(path) else "(no overlay.log)"
 
 
-def end_process(proc):
-    pid = proc.pid if hasattr(proc, "pid") else proc[0]
-    subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+def window_pid(hwnd):
+    pid = wintypes.DWORD()
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    return pid.value
+
+
+def end_process(pid):
+    if pid:
+        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
     subprocess.run(["taskkill", "/IM", "msedgewebview2.exe", "/F"], capture_output=True)
     time.sleep(2.0)
+
+
+def start_from_the_shell(argv, env_changes, folder):
+    """Start ``argv`` through the desktop's own shell (explorer.exe), at the integrity level a player's own launch
+    has: from an elevated process Explorer hands the file to the shell already running, which is not elevated. A
+    batch file sets the variables the case needs."""
+    script = os.path.join(folder, "start_overlay.cmd")
+    with open(script, "w") as f:
+        f.write("@echo off\r\n" + "".join(f'set "{k}={v}"\r\n' for k, v in env_changes.items())
+                + subprocess.list2cmdline(argv) + "\r\n")
+    subprocess.Popen(["explorer.exe", script])
 
 
 def wait_for_page(playwright):
@@ -307,11 +326,13 @@ def wait_for_page(playwright):
     raise RuntimeError(f"the overlay page never got ready over CDP ({last})")
 
 
-def drag_case(name, start, home, game_pid, failures):
+def drag_case(name, start, home, game_pid, failures, needs=None):
     """Start the overlay with ``start()``, bring the game to the front, drag the card by MOVE and check the window
-    went with the cursor and stayed there."""
+    went with the cursor and stayed there. ``needs`` is the overlay's integrity level the case is about: at another
+    level the case says so and is not judged."""
     from playwright.sync_api import sync_playwright
-    proc = start()
+    start()
+    pid = None
     try:
         hwnd = None
         for _ in range(240):
@@ -321,6 +342,10 @@ def drag_case(name, start, home, game_pid, failures):
             time.sleep(0.25)
         if not hwnd:
             failures.append(f"{name}: the overlay window never showed")
+            return
+        pid = window_pid(hwnd)
+        if needs is not None and integrity(pid) != needs:
+            say(f"{name}: not judged, the overlay runs at {level(integrity(pid))} integrity, not {level(needs)}")
             return
         with sync_playwright() as playwright:
             _, page, said = wait_for_page(playwright)
@@ -332,7 +357,7 @@ def drag_case(name, start, home, game_pid, failures):
             dpr = said.get("dpr") or 1
             x, y = origin.x + round(said["point"]["x"] * dpr), origin.y + round(said["point"]["y"] * dpr)
             front = foreground_pid()
-            say(name, json.dumps({"overlay": level(integrity(proc.pid if hasattr(proc, 'pid') else proc[0])),
+            say(name, json.dumps({"overlay": level(integrity(pid)),
                                   "game": level(integrity(game_pid)), "game in front": front == game_pid,
                                   "press": [x, y], "on": said["point"].get("on"), "window": before, "dpr": dpr}))
             user32.SetCursorPos(x, y)
@@ -359,7 +384,7 @@ def drag_case(name, start, home, game_pid, failures):
         failures.append(f"{name}: {type(err).__name__}: {err}")
         say(f"{name} overlay.log:\n" + overlay_log(home))
     finally:
-        end_process(proc)
+        end_process(pid)
 
 
 def probe_key_state(env, game_pid, lower):
@@ -443,9 +468,11 @@ try:
             blocked = False
             say("key-state probe not run:", f"{type(err).__name__}: {err}")
         if blocked:
-            drag_case("elevated-game", lambda: start_lower([sys.executable, boot, str(CDP_PORT), "plain"]
-                                                           + overlay_argv, env, 0x2000),
-                      home, game.pid, failures)
+            drag_case("elevated-game", lambda: start_from_the_shell([sys.executable, boot, str(CDP_PORT), "plain"]
+                                                                    + overlay_argv,
+                                                                    {"AION2CALC_HOME": home, "PYTHONUNBUFFERED": "1"},
+                                                                    boot_dir),
+                      home, game.pid, failures, needs=0x2000)
         else:
             say("elevated-game: not run, Windows does not hold the medium process's reads back here")
     else:

@@ -446,6 +446,34 @@ def test_a_press_on_the_card_moves_the_window_natively_and_a_move_is_not_a_click
     assert page.evaluate(drags) == 2
 
 
+def test_the_page_says_when_each_press_that_moves_the_window_is_over(app_page, app_url):
+    """0.2.374: the host ended a move when it read the button up, which Windows answers for the overlay under a game
+    run as administrator (UIPI; the overlay windows never take the foreground), so no overlay window would move over
+    one. The page names each press (begin_drag) and says when it is over (end_drag, the same number): on its
+    pointerup, a click's too, and on a pointercancel, after which the release ends nothing more."""
+    page = app_page
+    page.add_init_script("""window.__calls = []; window.pywebview = { platform: "edgechromium",
+        api: new Proxy({}, { get: (t, name) => (...args) => { window.__calls.push([name, ...args]); return Promise.resolve(); } }) };""")
+    open_overlay(page, app_url, fight())
+    calls = "window.__calls.filter(c => c[0] === 'begin_drag' || c[0] === 'end_drag')"
+    name = page.locator('.ovname[data-detail="0"]').bounding_box()
+    x, y = name["x"] + 8, name["y"] + name["height"] / 2
+    page.mouse.move(x, y)
+    page.mouse.down()
+    page.mouse.move(x + 40, y + 6, steps=4)
+    page.mouse.up()
+    page.mouse.move(x, y)
+    page.mouse.down()
+    page.mouse.up()                                                                      # a click is a press too
+    page.mouse.down()
+    page.evaluate("document.dispatchEvent(new PointerEvent('pointercancel', {bubbles: true, isPrimary: true}))")
+    page.mouse.up()
+    said = page.evaluate(calls)
+    assert [c[0] for c in said] == ["begin_drag", "end_drag"] * 3, said
+    numbers = [c[1] for c in said]
+    assert numbers[0] == numbers[1] < numbers[2] == numbers[3] < numbers[4] == numbers[5], numbers
+
+
 PLAN = {"format": "a2plan", "version": 1, "duration": 60, "meta": {"name": "Atiel pull", "updated": 1700000000000},
         "tokens": [{"id": "t1", "kind": "player", "label": "Tank", "color": "#39c2e0", "keyframes": [{"t": 0, "x": 0.2, "y": 0.3},
                                                                                                     {"t": 60, "x": 0.8, "y": 0.7}]}],
