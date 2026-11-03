@@ -171,12 +171,6 @@ def place_name(instance=None, map_id=None) -> str:
     return zone or (f"Map {map_id}" if map_id else "Unknown place")
 
 
-def node_label(node, items) -> str:
-    """What a node is called: the material it gives (the plainest grade's name), "Unknown node" without one."""
-    names = Counter(base_material(item) for item in items)
-    return names.most_common(1)[0][0] if names else "Unknown node"
-
-
 #: Where a kind of node grows (a node row's ``kinds``). The game has more than one kind of node for some
 #: materials: in the October recordings every Odyle node gathered inside a dungeon (Ferocious Horn Den, Krao
 #: Cave, Fire Temple) was 1500062 and every one in Altgard 1550000, and a page tells them apart by this (0.2.360).
@@ -288,9 +282,12 @@ def summary(rows=None, *, recent: int = 100) -> dict:
     node_rows.sort(key=card_order)
     # One card per dungeon and difficulty (0.2.372): ids that read the same, by their in-game label, share it.
     dungeons: dict = defaultdict(lambda: {"cubes": 0, "with": Counter(), "total": Counter(), "ids": Counter()})
+    names: dict = {}
     for row in rewards:
         place = row.get("instance") or row.get("map") or 0
-        cube = dungeons[place_name(place or None)]
+        if place not in names:
+            names[place] = place_name(place or None)
+        cube = dungeons[names[place]]
         cube["cubes"] += 1
         cube["ids"][place] += 1
         seen = set()
