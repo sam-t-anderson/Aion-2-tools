@@ -17,6 +17,11 @@ STIGMA_COST = [1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 8, 8, 8, 8, 8]
 SPEC_SLOT_LEVELS = (8, 12, 20)
 #: Stigma specializations switch on automatically at these stigma levels.
 STIGMA_SPEC_LEVELS = (5, 10, 15, 20)
+#: The Daevanion boards paid with Daevanion Crystal, the Daevanion point budget. The level-45 boards each take a
+#: crystal of their own: Ariel (PvE, Daevanion Crystal: Ariel, since 0.2.381) and Azphel (PvP, Daevanion Crystal:
+#: Azphel), so their points are budgets of their own.
+CRYSTAL_BOARDS = ("Nezekan", "Zikel", "Vaizel", "Triniel")
+ARIEL = "Ariel"
 
 
 def sp_to_reach(level: int) -> int:
@@ -226,9 +231,19 @@ class Build:
         return sum(stigma_points_to_reach(lv) for lv in self.stigmas.values())
 
     def daevanion_cost(self, cd: ClassData) -> int:
-        return sum(cd.node_index[n][1]["cost"] for n in self.daevanion if n in cd.node_index)
+        """Daevanion Crystal spent: the four crystal boards' nodes (Ariel's and Azphel's take crystals of their own)."""
+        return sum(cd.node_index[n][1]["cost"] for n in self.daevanion
+                   if n in cd.node_index and cd.node_index[n][0]["name"] in CRYSTAL_BOARDS)
 
-    def validate(self, cd: ClassData, daev_budget: int | None = None) -> list[str]:
+    def board_cost(self, cd: ClassData, board: str) -> int:
+        """Points spent on one board, such as the Ariel board's Daevanion Crystal: Ariel."""
+        return sum(cd.node_index[n][1]["cost"] for n in self.daevanion
+                   if n in cd.node_index and cd.node_index[n][0]["name"] == board)
+
+    def ariel_cost(self, cd: ClassData) -> int:
+        return self.board_cost(cd, ARIEL)
+
+    def validate(self, cd: ClassData, daev_budget: int | None = None, ariel_budget: int | None = None) -> list[str]:
         errs = []
         bud = cd.budget(self.level)
         if self.sp_spent() > bud["skill"]:
@@ -250,4 +265,6 @@ class Build:
                     errs.append(f"{s['name']}: spec {spid} not unlocked")
         if daev_budget is not None and self.daevanion_cost(cd) > daev_budget:
             errs.append(f"daevanion cost {self.daevanion_cost(cd)} > {daev_budget}")
+        if ariel_budget is not None and self.ariel_cost(cd) > ariel_budget:
+            errs.append(f"Ariel cost {self.ariel_cost(cd)} > {ariel_budget}")
         return errs

@@ -246,7 +246,9 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
     bud = s.get("budgets", {})
     w(f"Skill points used **{b['sp_spent']} / {bud.get('skill', 203)}**, stigma points "
       f"**{b['stigma_spent']} / {bud.get('stigma', 30)}**, "
-      f"Daevanion **{b['daevanion_cost']} / {s['daevanion_budget']}**.\n")
+      f"Daevanion **{b['daevanion_cost']} / {s['daevanion_budget']}**"
+      + (f", Ariel crystal **{b['ariel_cost']} / {bud.get('ariel', '—')}**" if b.get("ariel_cost") or bud.get("ariel") else "")
+      + ".\n")
     w("| Skill | Trained (SP) | Effective level | Specializations |")
     w("|---|---:|---:|---|")
     eff = b["effective_levels"]
@@ -260,6 +262,9 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
 
     w(f"## Daevanion ({s['daevanion_budget']} points)\n")
     w("![Optimized Daevanion boards](images/daevanion_optimized.png)\n")
+    if b.get("ariel_cost"):            # the Ariel board, on Daevanion Crystal: Ariel (0.2.381)
+        w(f"The Ariel board ({b['ariel_cost']} Daevanion Crystal: Ariel):\n")
+        w("![Ariel board](images/daevanion_ariel.png)\n")
     w(f"* Open in metabot planner: {s['links']['metabot_daevanion']}")
     w(f"* Open in gamers4.life planner (KR node values, same node IDs): {s['links']['gamers4life_daevanion']}")
     w(f"* Full skill/stigma/Daevanion build in metabot planner: {s['links']['metabot_build']}\n")

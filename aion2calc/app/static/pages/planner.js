@@ -29,7 +29,7 @@ async function pagePlanner() {
     <div class="wb"><div class="row"><label class="muted small" for="res">Build</label><select id="res"></select><button class="btn small" id="refresh-presets">Refresh presets</button>
       <span class="muted small">or optimize:</span><select id="cls" aria-label="Class to optimize"></select><select id="preset-mode" aria-label="Optimization mode"><option value="pve">PvE</option><option value="pvp">PvP damage (experimental)</option><option value="world">World PvP (experimental)</option></select>
       <input id="sp" type="number" min="0" max="10000" placeholder="Skill budget" aria-label="Skill point budget" title="Highest server-reported skill points, or enter explicitly" style="width:172px"><input id="stg" type="number" min="0" max="10000" placeholder="Stigma budget" aria-label="Stigma point budget" title="Highest server-reported stigma points, or enter explicitly" style="width:172px">
-      <input id="dv" type="number" min="0" max="10000" placeholder="Daevanion budget" aria-label="Daevanion point budget" style="width:206px"><span id="planner-budget-source" class="small muted" role="status"></span><button class="btn primary" id="go">Optimize</button><span id="jobmsg" class="small muted"></span></div></div></section><div id="wins"></div>`;
+      <input id="dv" type="number" min="0" max="10000" placeholder="Daevanion budget" aria-label="Daevanion point budget" style="width:206px"><input id="ariel" type="number" min="0" max="10000" placeholder="Ariel crystal (optional)" aria-label="Ariel board budget (Daevanion Crystal: Ariel)" title="Daevanion Crystal: Ariel for the level-45 Ariel board: highest server-reported, or enter explicitly; empty spends none unless the server reports a total" style="width:206px"><span id="planner-budget-source" class="small muted" role="status"></span><button class="btn primary" id="go">Optimize</button><span id="jobmsg" class="small muted"></span></div></div></section><div id="wins"></div>`;
   if ($("#whide"))
     $("#whide").onclick = () => {
       try {
@@ -120,14 +120,15 @@ async function pagePlanner() {
   const loadPointBudgets = async () => {
     const request = ++pointRequest,
       cls = $("#cls").value,
-      fields = { skill: $("#sp"), stigma: $("#stg"), daevanion: $("#dv") };
+      fields = { skill: $("#sp"), stigma: $("#stg"), daevanion: $("#dv"), ariel: $("#ariel") };
     Object.values(fields).forEach((e) => (e.value = ""));
     $("#planner-budget-source").textContent = "Loading server-reported budgets…";
     try {
       const result = await A2ProgressionBudgets.read(communityAPI, cls);
       if (request !== pointRequest || !$("#planner-budget-source")) return;
       for (const [key, e] of Object.entries(fields))
-        if (e.isConnected && e.value === "" && result.points[key] !== null) e.value = result.points[key];
+        if (e?.isConnected && e.value === "" && result.points[key] !== null && result.points[key] !== undefined)
+          e.value = result.points[key];
       $("#planner-budget-source").textContent = result.note;
     } catch (e) {
       if (request === pointRequest && $("#planner-budget-source"))
@@ -146,6 +147,11 @@ async function pagePlanner() {
       $("#jobmsg").textContent = "Enter all three available point budgets (0–10000).";
       return;
     }
+    const ariel = $("#ariel").value;
+    if (ariel !== "" && (!Number.isInteger(+ariel) || +ariel < 0 || +ariel > 10000)) {
+      $("#jobmsg").textContent = "The Ariel crystal budget is a whole number from 0 to 10000, or empty.";
+      return;
+    }
     $("#go").disabled = true;
     try {
       const v = await runJob(
@@ -156,6 +162,7 @@ async function pagePlanner() {
           skill_points: +$("#sp").value,
           stigma_points: +$("#stg").value,
           daevanion: +$("#dv").value,
+          ...(ariel !== "" ? { ariel: +ariel } : {}),
         },
         (log) => ($("#jobmsg").textContent = log[log.length - 1] || "working…"),
       );

@@ -10,15 +10,13 @@ import json
 import time
 from pathlib import Path
 
-from .kit.base import ClassData
+from .kit.base import ARIEL, CRYSTAL_BOARDS, ClassData
 from .opt.rotation import describe
 from .paths import write_user_json
 from .run import prepare
 from .scenarios import SCENARIOS, comparison_scenario
 from .sources import official
 from .sources.character import ImportedCharacter, from_profile
-
-CRYSTAL_BOARDS = ("Nezekan", "Zikel", "Vaizel", "Triniel")
 
 
 def find(name: str, region: str = "nae", server: str | int | None = None) -> list[dict]:
@@ -67,6 +65,12 @@ def crystal_cost(cd: ClassData, nodes) -> int:
                if n in cd.node_index and cd.node_index[n][0]["name"] in CRYSTAL_BOARDS)
 
 
+def ariel_cost(cd: ClassData, nodes) -> int:
+    """Daevanion Crystal: Ariel spent on the Ariel board (0.2.381)."""
+    return sum(cd.node_index[n][1]["cost"] for n in nodes
+               if n in cd.node_index and cd.node_index[n][0]["name"] == ARIEL)
+
+
 #: the point totals a player entered for a character, above what its profile shows spent (0.2.371). Until then
 #: every optimization saved the page's three totals to ``character-points.json``, and the page had raised them to
 #: the community's highest reported totals for the class: the optimizer then spent points the character did not
@@ -74,12 +78,17 @@ def crystal_cost(cd: ClassData, nodes) -> int:
 ENTERED_POINTS = "character-budgets.json"
 
 
+def spent_of(imp: ImportedCharacter) -> dict:
+    """The points the character's profile shows spent: skill, stigma, Daevanion Crystal (the four crystal boards) and
+    Daevanion Crystal: Ariel (the Ariel board, 0.2.381)."""
+    cd = ClassData(imp.cls)
+    return {"skill": imp.build.sp_spent(), "stigma": imp.build.stigma_spent(),
+            "daevanion": crystal_cost(cd, imp.build.daevanion), "ariel": ariel_cost(cd, imp.build.daevanion)}
+
+
 def budgets_of(imp: ImportedCharacter) -> dict:
     """The points the character has, as its profile shows them spent, or the total the player entered for it."""
-    cd = ClassData(imp.cls)
-    result = {"skill": imp.build.sp_spent(),
-              "stigma": imp.build.stigma_spent(),
-              "daevanion": crystal_cost(cd, imp.build.daevanion)}
+    result = spent_of(imp)
     from .paths import read_json
     try:
         saved = read_json(ENTERED_POINTS).get(imp.key, {})
@@ -109,9 +118,7 @@ def remember_entered(key: str, budgets: dict, spent: dict) -> None:
 
 def progression_of(imp, budgets, *, entered=()):
     """Explain resource assumptions without promoting them to progression maxima."""
-    cd = ClassData(imp.cls)
-    spent = {"skill": imp.build.sp_spent(), "stigma": imp.build.stigma_spent(),
-             "daevanion": crystal_cost(cd, imp.build.daevanion)}
+    spent = spent_of(imp)
     try:
         from .paths import read_json
         saved = read_json(ENTERED_POINTS).get(imp.key, {})
@@ -124,7 +131,7 @@ def progression_of(imp, budgets, *, entered=()):
         source = ("Entered for this optimization" if key in entered else
                   "Saved user total / observed minimum" if valid_saved and saved_value >= budgets[key] else
                   "Observed allocation minimum" if budgets[key] == spent[key] else
-                  "Level-based example / observed minimum" if key != "daevanion" else "Minimum optimizer budget")
+                  "Level-based example / observed minimum" if key not in ("daevanion", "ariel") else "Minimum optimizer budget")
         rows.append({"resource": key, "observed_spent": spent[key], "available_assumption": budgets[key],
                      "assumed_unspent": max(0, budgets[key]-spent[key]), "source": source, "verified_maximum": None})
     return {"resources": rows, "note": "Official profiles provide allocations, not verified unspent totals or progression maxima. Remaining points are the selected budget minus observed spend; confirm total points in game. Genus levels are recorded separately and do not grant these point budgets."}
@@ -196,7 +203,7 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus:
                   "specs": {cd.skills[k]["name"]: [x["text"] for x in cd.skills[k]["specs"] if x["id"] in v]
                             for k, v in b.specs.items() if v},
                   "daevanion_nodes": sorted(b.daevanion),
-                  "daevanion_cost": crystal_cost(cd, b.daevanion),
+                  "daevanion_cost": crystal_cost(cd, b.daevanion), "ariel_cost": ariel_cost(cd, b.daevanion),
                   "effective_levels": {cd.skills[k]["name"]: v for k, v in eff.items() if v > 1},
                   "specialties": describe_specialties(cd,bg)},
         "policy": describe(policy),
@@ -227,8 +234,7 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     cur = evaluate_current(imp, scenario_name, genus_plan, objective, survival_plan, progress=progress, keep=start)
     (out / "current").mkdir(parents=True, exist_ok=True)
     bud = dict(cur["budgets"])
-    spent_now = {"skill": imp.build.sp_spent(), "stigma": imp.build.stigma_spent(),
-                 "daevanion": crystal_cost(ClassData(imp.cls), imp.build.daevanion)}
+    spent_now = spent_of(imp)
     for key, value in (budgets or {}).items():
         if key not in bud or isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 10000:
             raise ValueError("Point budgets must be whole numbers from 0 to 10000")
@@ -249,7 +255,8 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     best = run_report(imp.cls, str(out), scenario_name=scenario_name, daev_budget=bud["daevanion"],
                       iterations=iterations, loadout=imp.loadout_name(), sp_budget=bud["skill"],
                       stigma_points=bud["stigma"], progress=progress, survival=survival_plan, loadout_snapshot=imp.loadout, skill_reserves=reserve_plan, genus=genus_plan, objective=objective, progression=cur["progression"],
-                      level=imp.build.level, initial_build=start.get("build"), initial_policy=start.get("policy"))
+                      level=imp.build.level, initial_build=start.get("build"), initial_policy=start.get("policy"),
+                      ariel_budget=bud.get("ariel", spent_now["ariel"]))
     write_diff(str(out / "current"), str(out), str(out / "DIFF.md"))
     current_score, optimized_score = cur["objective"]["score"], best["objective"]["score"]
     gain = optimized_score / current_score - 1 if current_score > 0 else None

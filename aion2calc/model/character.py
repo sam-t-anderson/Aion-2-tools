@@ -41,6 +41,11 @@ DAEV_MAP = {
     "DecreaseDamage": ("dmg_tol", 1e-4), "DecreaseCriticalDamage": ("crit_dmg_tol", 1e-4),
     "PvPDamageDefense": ("pvp_defense", 1), "PvPDecreaseDamage": ("pvp_tol", 1e-4),
     "PvPCriticalResist": ("pvp_crit_resist", 1),
+    # the Ariel board (level 45, its own Daevanion Crystal: Ariel; 0.2.381): PvE and Boss Damage Boost (+1.5 % and
+    # +1 % a node) and Attack (+3). Its PvE and Boss Defense, Damage Tolerance, Accuracy and Evasion change nothing the
+    # model simulates (no incoming boss damage, no hit chance), so they are shown and not mapped.
+    "PvEAmplifyDamage": ("amp_pve", 1e-4), "BossNpcAmplifyDamage": ("amp_boss", 1e-4),
+    "PvEAddDamage": ("pve_atk", 1), "BossNpcAddDamage": ("boss_atk", 1),
 }
 
 #: deity stat display names -> Stats field

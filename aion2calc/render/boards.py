@@ -121,7 +121,8 @@ def render_boards(cd, selected: set, path: str, title: str, boards=("Nezekan", "
     ax = fig.add_subplot(gs[:, 2])
     ax.set_facecolor(PANEL)
     ax.axis("off")
-    total = sum(cd.node_index[n][1]["cost"] for n in selected if n in cd.node_index)
+    total = sum(cd.node_index[n][1]["cost"] for n in selected   # the boards drawn: each crystal is a budget of its own
+                if n in cd.node_index and cd.node_index[n][0]["name"] in boards)
     lines = [f"Points used: {total}" + (f" / {budget}" if budget else "")]
     lines += summary_lines or []
     abbr = sorted((short, full) for full, short in _ABBR.items() if short != full)

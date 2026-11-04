@@ -115,6 +115,10 @@ def node_values(cd, weights: list[dict]) -> dict[int, float]:
     from ..model.character import DAEV_MAP
     per_unit = {w["stat"]: w["per_unit"] for w in weights}
     per_unit.setdefault("amp_all", per_unit.get("amp_pve", 0.0))
+    # Boss Damage Boost and Boss Attack (the Ariel board) share PvE Damage Boost's and PvE Attack's buckets against a
+    # boss; in PvP the weights hold neither, and they are worth nothing
+    per_unit.setdefault("amp_boss", per_unit.get("amp_pve", 0.0))
+    per_unit.setdefault("boss_atk", per_unit.get("pve_atk", 0.0))
     out = {}
     for nid, (b, n) in cd.node_index.items():
         v = 0.0

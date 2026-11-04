@@ -120,7 +120,7 @@ function winDaevanion(v, boardIdx = 0) {
     .join("");
   const tabs = `<div class="tabs">${d.boards.map((x, i) => `<button data-board="${i}" class="${i === boardIdx ? "on" : ""}">${esc(x.name)} <span class="faint">${x.used}/${x.total}</span></button>`).join("")}</div>`;
   const side = `<div class="daevside">
-      <div class="counter"><small>Points used</small> ${d.used} / ${d.budget ?? "Unknown"}</div>
+      <div class="counter"><small>Points used</small> ${d.used} / ${d.budget ?? "Unknown"}</div>${d.ariel_used || d.ariel_budget ? `<div class="counter" title="Daevanion Crystal: Ariel, the Ariel board's own points"><small>Ariel crystal used</small> ${d.ariel_used ?? 0} / ${d.ariel_budget ?? "Unknown"}</div>` : ""}
       <h4>${esc(b.name)} board</h4><div class="small">${b.used} / ${b.total} points · ${b.nodes.filter((x) => x.selected).length} nodes</div>
       <h4>Skill levels</h4>${d.skills.map((s) => `<div class="small">${esc(s.name)} <b class="gold">+${s.levels}</b></div>`).join("") || '<div class="faint small">none</div>'}
       <h4>Stats (all boards)</h4>${d.stats.map((s) => `<div class="small">${esc(s.label)} <b>${esc(s.text)}</b></div>`).join("")}
