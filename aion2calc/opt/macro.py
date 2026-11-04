@@ -2,15 +2,15 @@
 
 The in-game Skill Macro (added in the KR 2026-01-28 build) runs while its key is
 held: it presses the hotbar keys on its lines in order, a 10 ms delay apart, and
-loops; a line whose key has nothing ready is skipped, and manual presses always
-take priority. A hotbar key holds up to four skills (the game's skill priority
-stack): pressing it fires the lowest one that is ready, so a key is a small
-priority list of its own. Since 0.2.371 the planner builds the macro from such
-keys (:func:`plan_macro`, searched by simulation): before, every line held one
-skill, which cannot say "Judgment whenever it is up" and left a Templar's
-Judgment, ready for only 2-3 s after its triggers, behind a dozen lines. The
-basic auto-attack stays on the held left mouse button and fires whenever no key
-has a skill ready; where pressing it more often plays better (a Sorcerer short
+loops, and manual presses always take priority. A hotbar key holds up to four
+skills, and the macro casts them from first to last, each that can be cast, skipping
+one that cannot, then moves to the next line (0.2.377: the planner had a key cast only
+the first of its skills that was ready before the macro moved on, so a key repeated on
+the next line looked as if it cast more of them). Since 0.2.371 the planner builds the
+macro from such keys (:func:`plan_macro`, searched by simulation): a key holds up to four
+skills on one macro line, and a key on several lines has its skills tried that many times
+a round. The basic auto-attack stays on the held left mouse button and fires whenever
+nothing on the macro can be cast; where pressing it more often plays better (a Sorcerer short
 of MP), the macro also gives it a line of its own. Charge skills stay on their
 own keys (a macro only taps them), and a long-cooldown skill may too when
 pressing it by hand is clearly worth the extra key. The layout of one skill per line is kept as the
@@ -24,8 +24,9 @@ from dataclasses import dataclass
 from ..sim.engine import Sim
 from .rotation import CONDITIONS
 
-MODEL_VERSION = 4          # 4: macro lines are hotbar keys holding up to four skills (0.2.371)
-STACK = 4                  # skills one hotbar key holds; pressing it fires the lowest one that is ready
+MODEL_VERSION = 5          # 4: macro lines are hotbar keys holding up to four skills (0.2.371); 5: the macro casts a
+                           # key's skills in order, first to last, before the next line (0.2.377)
+STACK = 4                  # skills one hotbar key holds; the macro casts them in order, skipping those not ready
 MACRO_LINES = 20           # lines the in-game macro editor takes
 MANUAL_MIN_CD = 30.0       # besides charge skills, only a skill with at least this cooldown goes on its own key
 MANUAL_COST = 0.005        # ... and only when it gains this much DPS: every manual key costs the player attention
@@ -35,7 +36,7 @@ SEARCH_EVALS = 2500        # simulations the key search may spend
 
 @dataclass
 class MacroPlan:
-    macro_steps: list                   # macro lines: one skill (str), or a hotbar key's skills (tuple, lowest first)
+    macro_steps: list                   # macro lines: one skill (str), or a hotbar key's skills (tuple, in order)
     manual: list
     dps_macro: float
     dps_priority: float
@@ -47,12 +48,14 @@ class MacroPlan:
 
 
 class MacroPolicy:
-    """Manual keys first (priority order), then the macro lines round-robin, then the held auto-attack.
+    """Manual keys first (priority order), then the macro's skills in order, then the held auto-attack.
 
-    A line is one skill or a hotbar key's skills (a tuple, lowest first): the key fires the first of
-    them that is ready, and the macro moves to the next line; a line with nothing ready is skipped.
-    When no line has anything ready the held left mouse button attacks (``fallback``, the kit's
-    basic auto-attack). A chain step has no key of its own (``Action.chain_of``): a macro step for
+    A line is one skill or a hotbar key's skills (a tuple, in order). The macro casts a key's skills
+    from first to last, each that can be cast and skipping one that cannot, then moves to the next
+    line, and loops (0.2.377). Before, a key cast the first of its skills that was ready and the macro
+    moved to the next line, so a key on two lines in a row looked as if it cast two of them, where the
+    game's macro had cast them all on the first. When nothing on the macro can be cast the held left
+    mouse button attacks (``fallback``, the kit's basic auto-attack). A chain step has no key of its own (``Action.chain_of``): a macro step for
     it is its parent skill added again, and the parent's key presses the chain step while the chain
     is open and the parent otherwise. So a macro step for either presses whichever of the two is
     usable. Manual keys stay as listed: the player presses a chain step's key when the chain is open."""
@@ -61,8 +64,10 @@ class MacroPolicy:
         self.manual = manual
         self.steps = steps
         self.fallback = fallback
-        self.ptr = 0
+        self.ptr = 0                        # the next skill the macro tries, in ``_order``
         self._keys: dict | None = None
+        # every line's skills in the order the macro tries them: each key's from first to last, line after line
+        self._order = [skill for line in steps for skill in (line if isinstance(line, (tuple, list)) else (line,))]
 
     def _presses(self, sim: Sim, step: str):
         if self._keys is None:
@@ -79,15 +84,14 @@ class MacroPolicy:
             a = sim.actions.get(key)
             if a and sim.usable(a) and (cond is None or CONDITIONS[cond](sim)):
                 return a
-        n = len(self.steps)
+        n = len(self._order)
         for k in range(n):
-            line = self.steps[(self.ptr + k) % n]
-            for skill in (line if isinstance(line, (tuple, list)) else (line,)):
-                for key in self._presses(sim, skill):
-                    a = sim.actions.get(key)
-                    if a and not a.requires_charge and sim.usable(a):
-                        self.ptr = (self.ptr + k + 1) % n
-                        return a
+            at = (self.ptr + k) % n
+            for key in self._presses(sim, self._order[at]):
+                a = sim.actions.get(key)
+                if a and not a.requires_charge and sim.usable(a):
+                    self.ptr = (at + 1) % n
+                    return a
         for key in self._presses(sim, self.fallback) if self.fallback else ():
             a = sim.actions.get(key)
             if a and not a.requires_charge and sim.usable(a):
@@ -186,8 +190,9 @@ def _flat(run, derived, kit, policy: list, macro_cd_limit: float) -> list:
 
 
 def _stacked(run, kit, policy: list, auto: str | None, flat: list, evals: int, seed: int = 7):
-    """Hotbar keys (up to :data:`STACK` skills each, lowest first, a no-cooldown filler on top), the macro's lines
-    (a key may sit on several, so its skills come up more often) and the manual keys, found by simulation.
+    """Hotbar keys (up to :data:`STACK` skills each, in the order the macro casts them, a no-cooldown filler last),
+    the macro's lines (a key may sit on several, so its skills are tried more often) and the manual keys, found by
+    simulation.
 
     Every skill of the priority list is on one key or on a manual key, never on two keys; a chain step rides its
     parent's key, and the auto-attack stays on the left mouse button. Charge skills are always manual; another
@@ -221,7 +226,7 @@ def _stacked(run, kit, policy: list, auto: str | None, flat: list, evals: int, s
     rank = {k: i for i, k in enumerate(order)}
 
     def norm(keys, lines, manual):
-        """A canonical layout: fillers on top of each key, no empty key, keys numbered by first line."""
+        """A canonical layout: fillers last on each key, no empty key, keys numbered by first line."""
         keys = [[k for k in key if k not in filler] + [k for k in key if k in filler] for key in keys]
         used = [i for i in dict.fromkeys(lines) if keys[i]]
         remap = {old: new for new, old in enumerate(used)}
@@ -299,7 +304,7 @@ def _stacked(run, kit, policy: list, auto: str | None, flat: list, evals: int, s
                 k2[i][j], k2[i][j + 1] = k2[i][j + 1], k2[i][j]
                 add(k2, l2, m2)
             for j, sk in enumerate(key):
-                for i2 in range(len(keys)):                        # to another key, lowest or highest
+                for i2 in range(len(keys)):                        # to another key, first or last
                     if i2 != i:
                         for pos in (0, len(keys[i2])):
                             k2, l2, m2 = cp()

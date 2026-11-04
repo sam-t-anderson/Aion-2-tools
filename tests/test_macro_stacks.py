@@ -1,12 +1,12 @@
-"""The in-game Skill Macro presses hotbar keys, and a hotbar key holds up to four skills: pressing it fires the
-lowest one that is ready (the game's skill priority stack). The planner gave every macro line one skill, which can
-never say "Judgment whenever it is up": a Templar's Judgment, ready for only 2-3 s after Shield Smite, Warding
-Strike, Shield Rush or Doom Shield opens it, sat eighth of thirteen lines behind Taunt. Since 0.2.371 the macro is
+"""The in-game Skill Macro presses hotbar keys, and a hotbar key holds up to four skills. Since 0.2.371 the macro is
 built from such keys, the basic auto-attack stays on the held left mouse button, and the layout of one skill per
-line is the alternative."""
+line is the alternative. The macro, held, casts a key's skills from first to last, each that can be cast, then moves
+to the next line (0.2.377): the planner had a key cast only the first of its skills that was ready, so a key on two
+lines in a row looked as if it cast two of them, where the game's macro casts them all on the first."""
 import copy
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -31,13 +31,32 @@ def _run(templar, policy):
     return Sim(d, kit.actions, policy, scen.target, scen.config, hooks=kit.hooks, cond_mods=kit.cond_mods).run()
 
 
-def test_a_key_fires_its_lowest_ready_skill(templar):
-    # Shield Smite lowest: it fires whenever it is ready and the basic attack in between; the basic attack lowest
-    # (always ready, no cost) leaves Shield Smite nothing: a skill above a no-cooldown one never fires
-    smite_first = _run(templar, MacroPolicy([], [("shield_smite", "vicious_strike")]))
+def _pressed(lines, ready, n):
+    """The first ``n`` skills the macro casts, with ``ready`` the skills that can be cast."""
+    sim = SimpleNamespace(actions={k: SimpleNamespace(key=k, chain_of=None, requires_charge=False)
+                                   for line in lines for k in line}, usable=lambda a: a.key in ready)
+    policy = MacroPolicy([], lines)
+    return [policy(sim).key for _ in range(n)]
+
+
+def test_a_key_casts_its_skills_first_to_last_before_the_next_line():
+    lines = [("a", "b", "c"), ("d",)]
+    assert _pressed(lines, set("abcd"), 6) == ["a", "b", "c", "d", "a", "b"]
+    assert _pressed(lines, set("acd"), 4) == ["a", "c", "d", "a"]               # one that cannot be cast is skipped
+    assert _pressed([("a", "b"), ("a", "b"), ("c",)], set("abc"), 5) == ["a", "b", "a", "b", "c"]   # a key twice
+
+
+def test_a_key_on_the_next_line_again_casts_nothing_more(templar):
+    """The reported macro put one key on two lines in a row: the macro has cast its skills on the first, so the second
+    finds them cooling down and adds nothing."""
+    key = ("shield_smite", "warding_strike")
+    once = _run(templar, MacroPolicy([], [key], fallback="vicious_strike"))
+    twice = _run(templar, MacroPolicy([], [key, key], fallback="vicious_strike"))
+    assert once.casts["shield_smite"] > 10 and once.casts.get("warding_strike")
+    assert twice.casts == once.casts and twice.dps == pytest.approx(once.dps)
+    # the basic attack first on a key no longer shuts out the skills after it, as a priority stack would
     basic_first = _run(templar, MacroPolicy([], [("vicious_strike", "shield_smite")]))
-    assert smite_first.casts["shield_smite"] > 10 and smite_first.casts.get("vicious_strike")
-    assert not basic_first.casts.get("shield_smite")
+    assert basic_first.casts.get("shield_smite", 0) > 10
 
 
 def test_the_held_auto_attack_fills_in_when_no_key_has_a_skill_ready(templar):
@@ -74,7 +93,7 @@ def test_the_templars_macro_is_built_from_hotbar_keys(templar, plan):
 
 def test_the_plan_saves_and_shows_its_keys(templar, plan):
     doc = json.loads(json.dumps(describe_plan(plan)))
-    assert doc["model_version"] == MODEL_VERSION == 4
+    assert doc["model_version"] == MODEL_VERSION == 5
     assert all(isinstance(st, list) for st in doc["steps"]) and doc["steps"] == [list(k) for k in plan.macro_steps]
     view = views.rotation_view(ClassData("templar"), Build("templar"), {},
                                {"scenario": "boss", "policy": list(templar[1].policy), "macro": doc})
@@ -120,7 +139,8 @@ def test_the_readme_lists_each_lines_key(tmp_path):
     text = Path(write_markdown(summary, str(tmp_path), None)).read_text(encoding="utf-8")
     assert "| 1 | blaze › frost |" in text and "| 2 | hellfire |" in text
     assert "| 3 | flame_arrow (the basic attack, on the left mouse button) |" in text
-    assert "Hotbar key holds (lowest first)" in text and "a key listed twice added twice" in text
+    assert "Hotbar key holds (cast in this order)" in text and "a key listed twice added twice" in text
+    assert "The macro casts a key's skills from first to last, skipping any that cannot be cast" in text
 
 
 def test_the_readme_names_the_line_a_repeated_key_repeats(tmp_path):
@@ -132,4 +152,4 @@ def test_the_readme_names_the_line_a_repeated_key_repeats(tmp_path):
                             steps=[["blaze"], ["cold_storm", "firestorm", "frost"], ["cold_storm", "firestorm", "frost"]])
     text = Path(write_markdown(summary, str(tmp_path), None)).read_text(encoding="utf-8")
     assert "| 2 | cold_storm › firestorm › frost |" in text
-    assert "| 3 | the same key as line 2, pressed again: its skills come up more often |" in text
+    assert "| 3 | the same key as line 2, pressed again: its skills are tried twice a round |" in text
