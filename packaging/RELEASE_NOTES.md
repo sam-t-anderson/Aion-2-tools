@@ -1,3 +1,7 @@
+## No hotbar key twice in a row in the suggested macro (0.2.378)
+
+**No key on the line straight after its own.** 0.2.377 still let the suggested macro put a key on the line straight after its own when the key held a skill with no cooldown, such as the Chanter's Incandescent Blow, so that the second line cast that skill again. Held, the macro runs such a skill again anyway each time it comes back to the key, so the second line only repeated the first. The suggested macro now never puts a key on two lines in a row, the last and the first line included, and the bundled builds' macros are planned again.
+
 ## The suggested macro casts each key's skills in order, as the game's macro does (0.2.377)
 
 **A key's skills are cast in order.** Held, the game's Skill Macro casts a hotbar key's skills from first to last, skipping any that cannot be cast, then moves to the next line. The optimizer planned macros as if a key cast only the first of its skills that was ready before the macro moved on. A key on two lines in a row then looked as if it cast more of its skills: one Sorcerer's macro put Cold Storm, Firestorm and Frost on one key on lines 2 and 3, and 0.2.376 labelled that as intended. The second line only finds those skills cooling down. The macro is now planned the way the game plays it, and the bundled builds' macros are planned again. A macro saved by an earlier version keeps its lines and asks you to optimize again for a new one and its estimate.

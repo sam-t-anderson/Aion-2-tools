@@ -87,7 +87,9 @@ def test_the_templars_macro_is_built_from_hotbar_keys(templar, plan):
     assert "punishment" in manual                                    # a charge skill: a macro only taps it
     assert all(kit.actions[m].requires_charge or (kit.actions[m].cooldown or 0) >= 30 for m in manual)
     assert "judgment" in placed
-    assert plan.dps_macro > plan.dps_alt * 1.01                      # beats the best layout of one skill per line
+    # beats the best layout of one skill per line (by 1 % while a key cast its first ready skill; 0.97 % with its
+    # skills cast in order and no key on two lines in a row, 0.2.378)
+    assert plan.dps_macro > plan.dps_alt
     assert all(isinstance(st, str) for st in plan.alt_steps)
 
 
@@ -123,10 +125,11 @@ def test_the_basic_attack_may_keep_a_line_of_its_own(templar):
     assert all(line == ("vicious_strike",) for line in lines if "vicious_strike" in line)
 
 
-def test_no_key_of_cooling_skills_sits_on_two_lines_in_a_row(templar):
-    """A key on the line straight after its own casts nothing more unless it holds a skill with no cooldown (0.2.377):
-    a stand-in simulation that pays for every such pair gets none of a key whose skills all cool down, and the basic
-    attack's own line, always ready, may still come twice."""
+def test_no_key_sits_on_two_lines_in_a_row(templar):
+    """A key on the line straight after its own casts nothing more (0.2.377): its skills cool down from the line
+    before, and one without a cooldown runs again anyway each time the held macro comes back to the key (0.2.378).
+    A stand-in simulation that pays for every such pair, the loop's last and first lines included, gets none, not even
+    of the basic attack's own line, always ready."""
     _, kit, _ = templar
 
     def pairs(lines):
@@ -134,9 +137,9 @@ def test_no_key_of_cooling_skills_sits_on_two_lines_in_a_row(templar):
         return [a for a, b in zip(lines, lines[1:] + lines[:1]) if a == b] if len(lines) > 1 else []
 
     def run(pol):
-        return 100.0 * (1 + 0.01 * len(pairs(pol.steps)))
+        return 100.0 * (1 + 0.01 * len(pairs(pol.steps)) + 0.05 * (("vicious_strike",) in map(tuple, pol.steps)))
     lines, _, _ = _stacked(run, kit, list(kit.policy), "vicious_strike", [], evals=3000)
-    assert pairs(lines) and all(any((kit.actions[k].cooldown or 0) <= 0 for k in key) for key in pairs(lines))
+    assert ("vicious_strike",) in lines and not pairs(lines)
 
 
 def test_a_saved_one_skill_per_line_macro_still_shows():
