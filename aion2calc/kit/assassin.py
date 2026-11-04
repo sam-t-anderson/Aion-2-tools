@@ -22,7 +22,7 @@ from __future__ import annotations
 from ..sim.engine import Action
 from .base import Build, ClassData
 from ..model.damage import crit_probability
-from .common import Kit, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401
+from .common import Kit, add_stagger_skill, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401
 
 __all__ = ["build_kit", "spec_options"]
 
@@ -46,7 +46,8 @@ TIMING = {
     "quick_slice": 1.93, "savage_roar": 0.63, "shadowstrike": 0.26, "ambush": 0.40,
     "heart_gore": 0.35, "whirlwind_slice": 0.85, "flash_slice": 0.85, "infiltrate": 0.85,
     "shadow_fall": 0.95, "insignia_explosion": 0.42, "chain_followup": 0.50, "stigma": 0.31,
-    "storm_rampage": 4.8,         # the channel: 3.7 s of hits recorded at 31 % Combat Speed (0.2.368)
+    "storm_rampage": 3.71,        # the presses of a stagger, 19.0 hits at 0.182 s each (0.2.380; docs/methodology.md
+                                  #   "Storm Rampage and Flame Scattershot from the recordings"; 4.8 before)
     "roar_chain": 1.5,            # Savage Back Kick then Savage Smash pressed after Savage Roar: 1.13 s recorded
                                   #   at 31 % Combat Speed from the Roar's hit to the Smash's (0.2.368)
 }
@@ -64,9 +65,13 @@ ASSUME = {
     "roar_chain": ((0.30, 3.65), (0.71, 1.58)),
                                   # Savage Back Kick and Savage Smash, the chain steps after Savage Roar: each
                                   #   step's hit against one Savage Roar hit, and its hits per Savage Roar cast
-    "storm_rampage_hits": 13.4,   # hits a Storm Rampage channel lands (26.7 recorded with its Lv 12 Multi-Hit)
-    "storm_rampage_hit": 0.32,    # each of those hits against the tooltip's value: 0.22 of a Heart Gore hit recorded,
-                                  #   where the tooltips' values stand at 0.69 (the other skills' hits match theirs)
+    # Storm Rampage, usable only on a staggered boss: pressed back to back once the opening skills are out, one train
+    # of presses a stagger (0.2.380; 6 Assassins, 95 staggers, every fight counted once over its uploads):
+    "storm_rampage_hits": 19.0,   # hits a stagger; the hits of a fifth that follow each one inside an Illusive Clone
+                                  #   window are the clone's (13.4 hits a channel, doubled with Multi-Hit, before)
+    "storm_rampage_hit": 0.16,    # each hit against the tooltip's value, measured against a Heart Gore hit (0.32 before,
+                                  #   from hits that counted the clone's; the tooltip split over a press's four hits
+                                  #   would be 0.25)
     "clone_echo": 0.07,           # Illusive Clone's extra damage as a share of the damage dealt while it lasts
                                   #   (its tooltip says 20 %; the recorded clone dealt 7 %, in 99 of 99 windows)
     "clone_attack_echo": 0.008,   # Illusive Clone Lv 20 "50% chance to deal extra damage on Critical Hit": the
@@ -88,7 +93,8 @@ ASSUME = {
 WEAVE = {
     "steps": (("Quick Slice", 0.37, 1.00), ("Swift Slice", 0.30, 1.49), ("Breaking Slice", 0.33, 1.14)),
     "after": {"savage_roar": 0.66, "insignia_explosion": 0.04, "heart_gore": 0.02, "ambush": 0.0,
-              "shadowstrike": 0.04, "infiltrate": 0.11, "triniel": 0.06},
+              "shadowstrike": 0.04, "infiltrate": 0.11, "triniel": 0.06,
+              "storm_rampage": 2.24},     # inside or right after a train of Storm Rampage presses (0.2.380)
     "per_press": 0.04,
 }
 
@@ -320,25 +326,12 @@ def build_kit(build: Build, cd: ClassData, filler: str = "quick_slice") -> Kit:
                               cooldown=sf_cd, mp=cd.mp(SID["SFALL"], lv("SFALL")),
                               requires=("incap",), on_cast=sfall_cast)
 
-    # Storm Rampage (only while the boss is staggered): a channel of many small hits over 3.7 s; its Lv 12 option
-    # doubles them (Multi-Hit) and its Lv 16 option takes a second off every cooldown per hit (recorded: 26.7 hits
-    # a cast with both, one cast per stagger, and Illusive Clone back every 46 s against its 80 s cooldown)
-    if lv("STORM") > 0:
-        sr_f, sr_c = dmg("STORM")
-        sr_n = max(1, round(ASSUME["storm_rampage_hits"] * (2 if has("STORM", 4) else 1)))
-
-        def sr_each(sim, t, i):
-            if has("STORM", 5):
-                sim.reduce_cd("all", 1.0)
-            if has("STORM", 2):
-                sim.gain_mp(120)
-
-        def sr_cast(sim, a):
-            k = ASSUME["storm_rampage_hit"] * sr_n
-            sim.hit("Storm Rampage", sr_f * k, sr_c * k, n=sr_n, spread=3.5, on_each=sr_each)
-        # once a stagger: the recorded second casts came 12 s after the first (another stagger), never inside one
-        A["storm_rampage"] = Action("storm_rampage", "Storm Rampage", SID["STORM"], TIMING["storm_rampage"],
-                                    cooldown=8.0, affected_by_cdr=False, requires=("stagger",), on_cast=sr_cast)
+    # Storm Rampage, usable only on a staggered boss: one train of presses a stagger (0.2.380), as every class's stagger
+    # skill. Its Lv 16 option takes a second off every cooldown at each hit (Illusive Clone came back every 46 s against
+    # its 80 s cooldown, 0.2.368); its Lv 12 Multi-Hit lands four extra hits inside each hit's record, not the hits of a
+    # fifth that follow each one inside an Illusive Clone window (the clone's, as on every skill)
+    add_stagger_skill(A, build, cd, L, SID["STORM"], "storm_rampage", hits=ASSUME["storm_rampage_hits"],
+                      hit=ASSUME["storm_rampage_hit"], cast=TIMING["storm_rampage"])
 
     # Insignia Explosion (consumes Insignia; scales with stacks)
     stacks = max(1, min(5, ASSUME["insignia_stacks"]))
