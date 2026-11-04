@@ -49,3 +49,20 @@ def test_abyss_bosses_use_schedules_not_kill_timers():
     for b in DATA["bosses"]:
         if b["faction"] == "abyss":
             assert b["respawn_minutes"] is None and b.get("schedule")
+
+
+def test_the_4_november_2026_patch_notes():
+    """The official Global patch notes of 3 Nov (PST) / 4 Nov (CET) 2026: Gartua and High Commander Lagta respawn 11 hours
+    after a kill for both factions (12 before), the three Artifact Bosses come on Thursdays and Saturdays at 21:30 with
+    the Artifact Siege at 21:00 (Monday is dropped), and Argo, the Spirit King spawns at 10:30 and 22:30 every day."""
+    by = {(b["name"], b["faction"]): b for b in DATA["bosses"]}
+    for key in (("Eternal Gartua", "elyos"), ("High Commander Lagta", "elyos"),
+                ("Immortal Gartua", "asmodian"), ("High Commander Lagta", "asmodian")):
+        assert by[key]["respawn_minutes"] == 660, key
+    for name in ("Executor Tamasa", "Executor Argo", "Executor Kaira"):
+        assert by[(name, "abyss")]["schedule"].startswith("Global: Thu and Sat 21:30 server time")
+    assert "daily at 10:30 and 22:30 server time" in by[("Argo, the Spirit King", "abyss")]["schedule"]
+    schedules = json.loads((STATIC / "event-schedules.json").read_text(encoding="utf-8"))
+    events = {e["id"]: e for e in schedules["events"]}
+    assert events["siege"]["days"] == events["siege-bosses"]["days"] == [4, 6]          # Thursday and Saturday
+    assert schedules["overrides"]["kr"]["siege"]["days"] == [3, 6]                       # Korea keeps its own days

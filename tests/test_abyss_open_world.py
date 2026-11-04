@@ -35,7 +35,7 @@ def test_an_abyss_field_boss_kill_reaches_the_kill_feed_and_groups_as_a_field_bo
            "players": [{"id": "p:Siel:1", "name": "A", "server": "Siel"}]}
     reports = boss_report.defeats_from_doc(doc)
     assert [r["npc_id"] for r in reports] == [2600068] and reports[0]["map_id"] == 20
-    # The reference spells it "Argo the Spirit King": still a field boss, not a world boss.
+    # The reference names it as the patch notes do, "Argo, the Spirit King": still a field boss, not a world boss.
     assert sessions._category(seg, {})["category"] == "field_boss"
 
 

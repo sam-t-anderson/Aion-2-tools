@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "checked_at": "2026-10-08",
+  "checked_at": "2026-11-04",
   "source_updated_at": "2026-10-05",
-  "review_after": "2026-10-19",
+  "review_after": "2026-11-18",
   "source_url": "https://shugo.gg/timers",
   "source_name": "Shugo.GG community schedule",
   "status": "community_unverified",
   "conflict_url": "https://aion2codex.wiki/tools/rift-timer",
-  "note": "Community schedule estimates. Confirm times in game, especially after maintenance or a build update. Rift anchor times conflict across community sources. Scheduled windows do not establish live event, boss availability or respawn state.",
+  "note": "Community schedule estimates. Confirm times in game, especially after maintenance or a build update. Rift anchor times conflict across community sources. Scheduled windows do not establish live event, boss availability or respawn state. The Artifact Siege and its bosses run Thursdays and Saturdays on the Global servers since the official Global patch notes of 3 Nov (PST) / 4 Nov (CET) 2026 (https://aion2.plaync.com/en-us/board/update/view?articleId=6aead0e86cfe4756db5b913f).",
   "regions": [
     {
       "id": "na-east",
@@ -136,7 +136,6 @@
       ],
       "minute": 0,
       "days": [
-        1,
         4,
         6
       ],
@@ -150,7 +149,6 @@
       ],
       "minute": 30,
       "days": [
-        1,
         4,
         6
       ],
