@@ -567,6 +567,7 @@ class Optimizer:
         Wish and Wish's -10 s to every cooldown. Each probe is searched once per group and closed levels."""
         groups, links = self._spec_links()
         L = self._with_gear(build).effective_levels(self.cd)
+        reach = self._level_reach(build)
         out = []
         for group in groups:
             closed = {}
@@ -574,8 +575,8 @@ class Optimizer:
                 opens = [x["unlock"] for x in self.cd.skills[sid].get("specs") or [] if x["id"] in links.get(sid, ())]
                 if opens and L.get(sid, 1) < min(opens) <= 20:
                     closed[sid] = min(opens)
-            if not closed:
-                continue
+            if not closed or any(lvl > reach.get(sid, 0) for sid, lvl in closed.items()):
+                continue                          # nothing closed, or a level no allocation can reach
             key = (group, tuple(sorted((sid, L.get(sid, 1), lvl) for sid, lvl in closed.items())))
             if key not in self._probes:
                 probe = build.copy()
@@ -593,6 +594,22 @@ class Optimizer:
             if self._probes[key] > 0:
                 out.append((dict(closed), self._probes[key]))
         return out
+
+    def _level_reach(self, build: Build) -> dict[int, int]:
+        """The highest effective level each skill can reach: trained to its cap, every level node on the open
+        boards, its fixed bonus levels (gear, and the build's own without a bonus pool) and the pool's most on one
+        skill. On median gear that is 14 (10 trained, 4 nodes): a Sorcerer's Wish of Concentration never opens its
+        -10 s to every cooldown at 16 there."""
+        nodes: dict = {}
+        for b in self.cd.boards:
+            if b["name"] in self.boards:
+                for n in b["nodes"]:
+                    if n.get("skillId"):
+                        nodes[n["skillId"]] = nodes.get(n["skillId"], 0) + 1
+        gear, own = self._gear_bonus(), (self.gear_bonus if self.bonus_pool else build.bonus)
+        pool = (self.bonus_pool or {}).get("per_skill", 0)
+        return {sid: min(s.get("buyMax", 10), self.sp_caps.get(sid, 10)) + nodes.get(sid, 0) + gear.get(sid, 0)
+                + own.get(sid, 0) + pool for sid, s in self.cd.skills.items()}
 
     def level_curves(self, build: Build, policy: list, max_level: int = 20, keep=()) -> dict[int, list[float]]:
         """DPS as a function of each skill's effective level (best specs at each level). ``keep``: skills whose curve

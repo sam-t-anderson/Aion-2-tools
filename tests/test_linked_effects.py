@@ -138,6 +138,23 @@ def test_what_the_searched_rotation_gains_alone_is_not_the_linking_effects(opt, 
     assert opt._linked_probe_terms(_closed_wish(), ["kept"]) == [({WISH: 16}, 12.0)]
 
 
+def test_a_level_no_allocation_reaches_is_not_probed(opt, monkeypatch):
+    """On median gear 10 trained levels and the 4 level nodes on the boards make 14: Wish's -10 s at 16 is out of
+    reach, and its group is not probed."""
+    b = _closed_wish()
+    b.bonus[WISH] = 0
+    searched = []
+
+    def rotation(build, policy, restarts=2):
+        searched.append(build)
+        return ["searched"], 100.0, None
+    monkeypatch.setattr(opt, "evaluate", lambda build, policy, cfg=None, filler=None: 100.0)
+    monkeypatch.setattr(opt, "optimize_rotation", rotation)
+    assert opt._level_reach(b)[WISH] == 14 and opt._level_reach(_closed_wish())[WISH] == 16
+    assert opt._linked_probe_terms(b, ["kept"]) == []
+    assert searched and not any(x.bonus.get(WISH, 0) for x in searched)    # the other groups' probes only
+
+
 def test_the_allocation_is_handed_the_joint_gains_and_keeps_their_skills_curves(opt, monkeypatch):
     from aion2calc.opt import daevanion as dv
     from aion2calc.opt import pipeline
