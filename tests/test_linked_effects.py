@@ -1,0 +1,73 @@
+"""Supporting effects that act on each other's cooldowns are tried together (0.2.376). A Sorcerer reported that the
+optimizer never kept Wish of Concentration's -10 s to every cooldown or Blaze's -3 s to Wish's, and that their own build
+scored better than the one it suggested. The optimizer changed one skill's effects at a time under a fixed rotation:
+Wish's effect alone fell 6 % and Blaze's 3 %, while together, with a rotation searched for them, they were 15 % above the
+effects it kept, on the reporter's own skill levels. Synthetic scores stand in for the simulation below."""
+import pytest
+
+from aion2calc.kit.base import Build
+from aion2calc.opt.pipeline import Optimizer
+from aion2calc.scenarios import SCENARIOS
+
+BLAZE, FA, WISH = 15050000, 15210000, 15310000
+FS, HF, IC, SHACK, FROST, FB, BW, SCAT = 15040000, 15060000, 15090000, 15110000, 15150000, 15220000, 15280000, 15010000
+WISH_ALL, BLAZE_WISH = WISH + 50, BLAZE + 50          # "-10s all skill cooldowns", "-3s [Wish of Concentration] cooldown"
+
+
+@pytest.fixture
+def opt():
+    return Optimizer("sorcerer", SCENARIOS["boss"]("sorcerer_l45_global_median"), verbose=False)
+
+
+def test_the_linking_effects_are_read_from_their_text(opt):
+    groups, links = opt._spec_links()
+    assert sorted(groups) == sorted([(BLAZE, FA, WISH), (IC, SHACK), (FS, HF), (FROST, FB, BW), (SCAT,)])
+    assert links[WISH] == {WISH_ALL} and links[BLAZE] == {BLAZE_WISH} and links[FA] == {FA + 50}     # resets Blaze
+    assert links[FS] == {FS + 40} and links[BW] == {BW + 50} and links[FROST] == {FROST + 30} and HF not in links
+
+
+def _build():
+    b = Build("sorcerer", 45)
+    b.sp = {WISH: 10, BLAZE: 10}
+    b.bonus = {WISH: 6, BLAZE: 6}                     # Lv 16: two slots, the -3 s and -10 s effects open
+    b.specs = {WISH: (WISH + 20, WISH + 40), BLAZE: (BLAZE + 30, BLAZE + 40)}
+    return b
+
+
+def _scores(opt, monkeypatch, searched_pair):
+    """Under the fixed rotation each linking effect alone loses and the pair gains a little; with its own rotation the
+    pair gains ``searched_pair``. Any other skill's change scores far below."""
+    def score(b):
+        wish, blaze = WISH_ALL in b.specs.get(WISH, ()), BLAZE_WISH in b.specs.get(BLAZE, ())
+        others = any(set(b.specs.get(sid, ())) != set(_build().specs.get(sid, ())) for sid in b.specs if sid not in (WISH, BLAZE))
+        return (100.0 - 50 * others + (1.0 if wish and blaze else -6.0 if wish else -3.0 if blaze else 0.0))
+    searched = []
+
+    def rotation(b, policy, restarts=2):
+        searched.append(b)
+        both = WISH_ALL in b.specs.get(WISH, ()) and BLAZE_WISH in b.specs.get(BLAZE, ())
+        return ["searched"], (searched_pair if both else score(b) + 0.5), None
+    monkeypatch.setattr(opt, "evaluate", lambda b, policy, cfg=None, filler=None: score(b))
+    monkeypatch.setattr(opt, "optimize_rotation", rotation)
+    return searched
+
+
+def test_two_linking_effects_are_taken_together_with_their_own_rotation(opt, monkeypatch):
+    searched = _scores(opt, monkeypatch, searched_pair=115.0)
+    b, policy = opt.optimize_linked_specs(_build(), ["kept"])
+    assert WISH_ALL in b.specs[WISH] and BLAZE_WISH in b.specs[BLAZE] and policy == ["searched"]
+    assert len(searched) == 1                                  # the pair scored best under the old rotation: searched first
+
+
+def test_the_build_stays_when_no_candidate_beats_it_with_its_own_rotation(opt, monkeypatch):
+    searched = _scores(opt, monkeypatch, searched_pair=99.0)
+    b, policy = opt.optimize_linked_specs(_build(), ["kept"])
+    assert b.specs[WISH] == _build().specs[WISH] and b.specs[BLAZE] == _build().specs[BLAZE] and policy == ["kept"]
+    assert len(searched) == 2                                  # the best two, both within reach of the build's own score
+
+
+def test_the_level_curves_try_a_skills_linking_effect_with_a_linked_skills(opt):
+    builds = opt._linked_builds(_build(), WISH)
+    pairs = {(b.specs[WISH], b.specs[BLAZE]) for b in builds}
+    assert pairs and all(WISH_ALL in w and BLAZE_WISH in z for w, z in pairs)
+    assert len(pairs) == len(builds) == 16                    # Wish's four pairs with -10 s, times Blaze's four with -3 s
