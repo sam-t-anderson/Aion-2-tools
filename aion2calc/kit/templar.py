@@ -37,7 +37,7 @@ import re
 
 from ..sim.engine import Action
 from .base import Build, ClassData
-from .common import Kit, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401
+from .common import Kit, add_stagger_skill, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401
 
 __all__ = ["build_kit", "spec_options"]
 
@@ -71,6 +71,8 @@ TIMING = {
     "judgment": 0.56, "debilitating_smash": 0.53, "warding_strike": 0.35, "shield_rush": 0.32,
     "annihilate": 0.35, "punishment": 1.56, "chain_followup": 0.55, "stigma": 0.41,
     "doom": 0.35, "taunt": 0.62, "poach": 0.43,
+    "flash_rampage": 3.25,        # the presses of a stagger, 21.2 hits at 0.143 s each (0.2.379; docs/methodology.md
+                                  #   "The stagger skills from the recordings")
 }
 
 ASSUME = {
@@ -99,6 +101,11 @@ ASSUME = {
     # Templars who take it, every press puts 6 ticks on each target it hits, 0.5 s apart over 3 s, each 0.076 of the
     # press's plain hit (44 presses), and no tick crits (0.2.320).
     "punish_dot_tick": 0.076,
+    # Flash Rampage, usable only on a staggered boss: pressed back to back once the opening skills are out, one train
+    # of presses a stagger (0.2.379; 3 Templars, 36 staggers, every fight counted once over its uploads):
+    "flash_rampage_hits": 21.2,   # hits a stagger (four a press, 0.15 s apart)
+    "flash_rampage_hit": 0.27,    # each hit against the tooltip's value, measured against a plain Vicious Strike (the
+                                  #   tooltip split evenly over a press's four hits would be 0.25)
 }
 
 #: The basic-attack chain's three steps (name, share of the woven steps, damage per press against
@@ -110,7 +117,7 @@ WEAVE = {
     "steps": (("Vicious Strike", 0.38, 1.00), ("Decisive Strike", 0.33, 1.18), ("Desperate Strike", 0.29, 1.41)),
     "after": {"pummel": 0.53, "punishing_strike": 0.49, "judgment": 0.19, "shield_rush": 0.26, "poach": 0.24,
               "punishment": 0.17, "taunt": 0.07, "debilitating_smash": 0.03, "shield_smite": 0.01,
-              "warding_strike": 0.02, "doom": 0.02, "annihilate": 0.0},
+              "warding_strike": 0.02, "doom": 0.02, "annihilate": 0.0, "flash_rampage": 0.11},
     "per_press": 0.17,
 }
 
@@ -343,6 +350,9 @@ def build_kit(build: Build, cd: ClassData, filler: str = "vicious_strike") -> Ki
 
     # ------------------------------------------------------------- stigmas
     _build_stigmas(A, build, cd, stig, st, notes, roar_atk=roar_atk, fury_front=fury_front)
+    # Flash Rampage: only on a staggered boss, one train of presses a stagger
+    add_stagger_skill(A, build, cd, L, SID["FLASH"], "flash_rampage", hits=ASSUME["flash_rampage_hits"],
+                      hit=ASSUME["flash_rampage_hit"], cast=TIMING["flash_rampage"])
 
     policy = _policy(A, filler)
     fallback_to_generic(A, policy, build, cd, notes, timing=TIMING)
@@ -455,7 +465,7 @@ def _build_stigmas(A, build, cd, stig, st, notes, *, roar_atk=0.0, fury_front=0.
 
 
 def _policy(actions: dict, filler: str) -> list:
-    order = ["noble", "punishment", "banner", "exec", "elp", "doom", "afury", "grapple", "taunt",
+    order = ["flash_rampage", "noble", "punishment", "banner", "exec", "elp", "doom", "afury", "grapple", "taunt",
              "shield_smite", "shield_rush", "warding_strike", "annihilate", "judgment",
              "debilitating_smash", "punishing_strike", "pummel"]
     pol = [k for k in order if k in actions]

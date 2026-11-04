@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from ..sim.engine import EPS, Action
 from .base import Build, ClassData
-from .common import Kit, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401
+from .common import Kit, add_stagger_skill, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401
 
 __all__ = ["build_kit", "spec_options"]
 
@@ -55,6 +55,8 @@ TIMING = {
     "pet_skill_period": 3.0,      # the Spirit Skill Cooldown listed in the data
     "pet_swing": 0.5,             # a Spirit's basic-attack interval (recorded)
     "ancient_swing": 1.4,         # the Ancient Spirit's basic attacks spread over its 30 s (recorded: 21)
+    "rapid_scattershot": 2.72,    # the presses of a stagger, 16.5 hits at 0.154 s each (0.2.379; docs/methodology.md
+                                  #   "The stagger skills from the recordings")
 }
 
 ASSUME = {
@@ -73,6 +75,11 @@ ASSUME = {
     "crit_rate": 0.60,
     "chain_frac": 1.5,            # Ashy Call (Combustion chain); community L45 parses put detected
                                   #   chains at ~1.4-1.9x, so 1.5 (was 0.60) class-wide
+    # Rapid Scattershot, usable only on a staggered boss: pressed back to back once the opening skills are out, one
+    # train of presses a stagger (0.2.379; 6 Spiritmasters, 46 staggers, every fight counted once over its uploads):
+    "rapid_scattershot_hits": 16.5,    # hits a stagger (four a press, 0.15 s apart)
+    "rapid_scattershot_hit": 0.23,     # each hit against the tooltip's value, measured against Cold Shock (the tooltip
+                                       #   split evenly over a press's four hits would be 0.25)
 }
 
 #: The basic-attack chain's three steps (name, share of the woven steps, damage per press against
@@ -82,7 +89,8 @@ ASSUME = {
 WEAVE = {
     "steps": (("Cold Shock", 0.44, 1.00), ("Vacuum Explosion", 0.32, 1.29), ("Earth Tremor", 0.24, 1.45)),
     "after": {"combustion": 0.34, "dimensional_control": 0.09, "elemental_fusion": 0.0, "jointstrike_curse": 0.06,
-              "summon_fire": 0.0, "summon_earth": 0.03, "summon_water": 0.0, "summon_wind": 0.0},
+              "summon_fire": 0.0, "summon_earth": 0.03, "summon_water": 0.0, "summon_wind": 0.0,
+              "rapid_scattershot": 0.72},
     "per_press": 0.02,
 }
 
@@ -328,6 +336,9 @@ def build_kit(build: Build, cd: ClassData, filler: str = "cold_shock") -> Kit:
 
     # ------------------------------------------------------------- stigmas
     _build_stigmas(A, build, cd, stig, st, notes)
+    # Rapid Scattershot: only on a staggered boss, one train of presses a stagger
+    add_stagger_skill(A, build, cd, L, SID["SCATTER"], "rapid_scattershot", hits=ASSUME["rapid_scattershot_hits"],
+                      hit=ASSUME["rapid_scattershot_hit"], cast=TIMING["rapid_scattershot"])
 
     policy = _policy(A, filler)
     # The summons, Dimensional Control, Elemental Fusion and the Ancient Spirit are modelled above
@@ -387,7 +398,7 @@ def _build_stigmas(A, build, cd, stig, st, notes):
 def _policy(actions: dict, filler: str) -> list:
     # Dimensional Control's window is brief and an element is lost while Four Elements waits, so both
     # come before the summons that feed them.
-    order = ["ancient_spirit", "enhance", "siphon", "magicblk", "jdestruct", "aterror",
+    order = ["rapid_scattershot", "ancient_spirit", "enhance", "siphon", "magicblk", "jdestruct", "aterror",
              "dimensional_control", "elemental_fusion", "summon_fire", "summon_earth", "summon_water",
              "summon_wind", "jointstrike_curse", "soul_cry", "combustion"]
     pol = [k for k in order if k in actions]

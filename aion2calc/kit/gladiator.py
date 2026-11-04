@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from ..sim.engine import Action
 from .base import Build, ClassData
-from .common import Kit, add_weave, fallback_to_generic, spec_options  # noqa: F401 (spec_options is the module API)
+from .common import Kit, add_stagger_skill, add_weave, fallback_to_generic, spec_options  # noqa: F401 (spec_options is the module API)
 
 __all__ = ["build_kit", "spec_options"]
 
@@ -59,6 +59,8 @@ TIMING = {
     "overhead_slam": 0.40, "ankle_slice": 0.94, "crushing_wave": 0.93, "rush_strike": 0.54,
     "aerial_snare": 0.78, "ruinous_blow": 0.40, "chain_followup": 0.30, "stigma": 0.19,
     "basic_combo": 0.42, "upward_strike": 0.15,
+    "sword_aura_rampage": 2.66,   # the presses of a stagger, 14.3 hits at 0.174 s each (0.2.379; docs/methodology.md
+                                  #   "The stagger skills from the recordings")
 }
 
 #: Effects the tooltips leave out (assumptions; several were calibrated to a real
@@ -103,6 +105,11 @@ ASSUME = {
     # tooltip says 100). Over the fights the MP gained and spent balance (4,362 and 4,387 a minute).
     "overhead_mp": 50,
     "step_mp": 150,
+    # Sword Aura Rampage, usable only on a staggered boss: pressed back to back once the opening skills are out, one
+    # train of presses a stagger (0.2.379; 7 Gladiators, 39 staggers, every fight counted once over its uploads):
+    "sword_aura_rampage_hits": 14.3,   # hits a stagger (four a press, 0.15 s apart)
+    "sword_aura_rampage_hit": 0.22,    # each hit against the tooltip's value, measured against an Overhead Slam press
+                                       #   (the tooltip split evenly over a press's four hits would be 0.25)
 }
 
 #: The basic-attack chain's three steps (name, share of the woven steps, damage per press against
@@ -115,7 +122,8 @@ WEAVE = {
     "steps": (("Keen Strike", 0.40, 1.00), ("Rupture Strike", 0.32, 1.17), ("Wrathful Strike", 0.28, 1.60)),
     "after": {"rending_blow": 0.22, "basic_combo": 0.25, "overhead_slam": 0.10, "leaping_slam": 0.06,
               "ruinous_blow": 0.13, "rage": 0.01, "crushing_wave": 0.53, "mocking_blade": 0.41, "lunge": 0.05,
-              "rush_strike": 0.10, "zikel": 0.0, "aerial_snare": 0.0, "ankle_slice": 1.06},
+              "rush_strike": 0.10, "zikel": 0.0, "aerial_snare": 0.0, "ankle_slice": 1.06,
+              "sword_aura_rampage": 2.32},
     "per_press": 0.10,
 }
 
@@ -350,6 +358,9 @@ def build_kit(build: Build, cd: ClassData, filler: str = "keen_strike") -> Kit:
 
     # ------------------------------------------------------------- stigmas
     _build_stigmas(A, build, cd, stig, st, notes)
+    # Sword Aura Rampage: only on a staggered boss, one train of presses a stagger
+    add_stagger_skill(A, build, cd, L, SID["SAR"], "sword_aura_rampage", hits=ASSUME["sword_aura_rampage_hits"],
+                      hit=ASSUME["sword_aura_rampage_hit"], cast=TIMING["sword_aura_rampage"])
 
     policy = _policy(A, filler)
     fallback_to_generic(A, policy, build, cd, notes, timing=TIMING)
@@ -418,6 +429,7 @@ def _build_stigmas(A, build, cd, stig, st, notes):
 
 
 def _policy(actions: dict, filler: str) -> list:
+    # Sword Aura Rampage first: it is there only in a stagger window, once (0.2.379).
     # Buffs, then the Ruinous Blow nuke, the Overhead Slam + Upward Strike core and Rending Blow
     # with the Smashing Blow that follows it (the highest-frequency damage skills in a real parse;
     # Smashing Blow first, as it is only there in Rending Blow's chain window and costs the same MP),
@@ -427,7 +439,7 @@ def _policy(actions: dict, filler: str) -> list:
     # instead and the rotation would starve. A real dummy parse skips the CC skills entirely, so
     # leaving them below the always-available filler matches it (they stay for completeness /
     # other kits' callers, but a DPS rotation on a dummy never needs them).
-    damage = ["zikel", "lunge", "ruinous_blow", "overhead_slam", "basic_combo", "rending_blow",
+    damage = ["sword_aura_rampage", "zikel", "lunge", "ruinous_blow", "overhead_slam", "basic_combo", "rending_blow",
               "rage", "lifesteal", "assault", "forcedrest", "wrathwave", "fracrush", "bladetoss"]
     cc = ["aerial_snare", "leaping_slam", "mocking_blade", "rush_strike", "ankle_slice", "crushing_wave"]
     pol = [k for k in damage if k in actions]
