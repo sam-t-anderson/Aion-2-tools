@@ -28,7 +28,7 @@ from __future__ import annotations
 from ..model.stats import crit_chance
 from ..sim.engine import Action
 from .base import Build, ClassData
-from .common import Kit, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401
+from .common import Kit, add_stagger_skill, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401
 
 __all__ = ["build_kit", "spec_options"]
 
@@ -60,6 +60,8 @@ TIMING = {
     "dark_crush": 0.54, "heat_wave_blow": 0.90, "tremor_crush": 0.90, "wave_blow": 0.95,
     "spinning_strike": 0.47, "chain_followup": 0.55, "stigma": 1.00,
     "bursting_blow": 0.82, "piercing_strike": 0.57, "heal": 0.56,
+    "gust_rampage": 3.07,         # the presses of a stagger, 19.5 hits at 0.147 s each (0.2.377; docs/methodology.md
+                                  #   "The stagger skills from the recordings")
 }
 
 ASSUME = {
@@ -80,6 +82,11 @@ ASSUME = {
     # Heal presses (Recuperation, now and then Healing Touch or Guardian Blessing) a minute of boss fight:
     # 425 in 348 minutes of 175 recorded fights (0.2.319; the median fight 0.91, quartiles 0-2.5).
     "heals_per_minute": 1.2,
+    # Gust Rampage, usable only on a staggered boss: pressed back to back once the opening skills are out, one train
+    # of presses a stagger (0.2.377; 11 Chanters, 50 staggers, every fight counted once over its uploads):
+    "gust_rampage_hits": 19.5,    # hits a stagger (four a press, 0.15 s apart)
+    "gust_rampage_hit": 0.21,     # each hit against the tooltip's value, measured against an Incandescent Blow press and
+                                  #   an Onslaught press (the tooltip split evenly over a press's four hits would be 0.25)
 }
 
 #: How long a toggled aura stays up once pressed (seconds; longer than any fight).
@@ -94,7 +101,7 @@ WEAVE = {
     "steps": (("Onslaught", 0.36, 1.00), ("Resonance Crush", 0.33, 1.19), ("Bolt Crush", 0.30, 1.67)),
     "after": {"incandescent_blow": 1.215, "dark_crush": 0.50, "impactful_crush": 0.06, "spinning_strike": 0.07,
               "rushing_smash": 0.21, "marchutan": 0.03, "wave_blow": 0.14, "heat_wave_blow": 0.21,
-              "tremor_crush": 0.08},
+              "tremor_crush": 0.08, "gust_rampage": 0.14},
     "per_press": 0.09,
 }
 
@@ -295,6 +302,9 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
     if ASSUME["heals_per_minute"] > 0:
         A["heals"] = Action("heals", "Heals", SID["RECUP"], TIMING["heal"],
                             cooldown=60.0 / ASSUME["heals_per_minute"], affected_by_cdr=False, heal=True)
+    # Gust Rampage: only on a staggered boss, one train of presses a stagger
+    add_stagger_skill(A, build, cd, L, SID["GUST"], "gust_rampage", hits=ASSUME["gust_rampage_hits"],
+                      hit=ASSUME["gust_rampage_hit"], cast=TIMING["gust_rampage"])
 
     policy = _policy(A, filler)
     fallback_to_generic(A, policy, build, cd, notes)
@@ -350,7 +360,7 @@ def _build_stigmas(A, build, cd, SID, stig, st, notes):
 
 
 def _policy(actions: dict, filler: str) -> list:
-    order = ["undefeated", "stormpower", "spinning_strike", "marchutan", "obliterate", "fracblow",
+    order = ["gust_rampage", "undefeated", "stormpower", "spinning_strike", "marchutan", "obliterate", "fracblow",
              "ensnare", "assaultshock", "impactful_crush", "dark_crush", "wave_blow", "heat_wave_blow",
              "tremor_crush", "rushing_smash", "incandescent_blow"]
     pol = [k for k in order if k in actions]

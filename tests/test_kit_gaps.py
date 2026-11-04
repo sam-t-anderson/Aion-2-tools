@@ -300,3 +300,122 @@ def test_the_specialty_marks_tell_a_modeled_pick_from_a_filler():
     assert rows["Storm Rampage"]["free"] == 2 and all(e["free"] for e in rows["Storm Rampage"]["effects"] if e["selected"])
     assert rows["Heart Gore"]["free"] == 1
     assert [e["free"] for e in rows["Heart Gore"]["effects"] if e["selected"]] == [True, False]
+
+
+#: Each class's stagger-only skill and its action (0.2.377): no cooldown, so the generic reading took it for a filler
+#: and left it out of the class kits.
+STAGGER = {"gladiator": (11280000, "sword_aura_rampage"), "templar": (12340000, "flash_rampage"),
+           "ranger": (14330000, "arrow_scattershot"), "spiritmaster": (16340000, "rapid_scattershot"),
+           "cleric": (17370000, "lightning_strike_scattershot"), "chanter": (18300000, "gust_rampage")}
+
+
+def _staggered(cls, specs=(), level=16):
+    """The typical build with the stagger skill trained to 10 and raised to ``level``, with ``specs``."""
+    sid, _ = STAGGER[cls]
+    b = typical_build(cls)
+    b.sp = {**b.sp, sid: 10}
+    b.bonus = {**b.bonus, sid: level - 10}
+    b.specs = {**b.specs, sid: tuple(specs)}
+    return b
+
+
+def _alone(cls, specs, policy_extra=None, *, derived_mods=None, duration=12.0, mp_start=None):
+    """The class kit's stagger action on its own (and ``policy_extra`` in front of it) in a short fight with one
+    stagger window, shorter than the action's 8 s, from 1 s on."""
+    sid, key = STAGGER[cls]
+    _, _, kit, stats = prepare(_staggered(cls, specs), dummy(f"{cls}_l45_global_median"))
+    derived = replace(stats.derived(), **(derived_mods or {}))
+    actions = {key: kit.actions[key], **{a.key: a for a in (policy_extra or [])}}
+    policy = [a.key for a in (policy_extra or [])] + [key]
+    sim = Sim(derived, actions, policy, Target(stagger_windows=((1.0, 8.5),)), SimConfig(duration=duration),
+              mp_start=mp_start)
+    return sim, sim.run(), kit
+
+
+@pytest.mark.parametrize("cls", sorted(STAGGER))
+def test_each_class_presses_its_stagger_skill_once_a_stagger_at_the_recorded_hits(cls):
+    """0.2.377: the recorded players press their class's stagger-only skill back to back once their opening skills are
+    out, one train of presses a stagger, four hits a press. The kit lands that train once in each of the boss's three
+    stagger windows, with the recorded hits a stagger, inside the window, and never on a training dummy."""
+    from aion2calc.run import kit_module
+    sid, key = STAGGER[cls]
+    mod = kit_module(cls)
+    scen = boss(f"{cls}_l45_global_median")
+    _, res, kit = _sim(cls, build=_staggered(cls), duration=180.0, scen=scen)
+    a = kit.actions[key]
+    assert a.skill_id == sid and a.requires == ("stagger",) and not a.affected_by_cdr
+    assert a.cast == mod.TIMING[key] and a.cooldown == 8.0 and kit.policy[0] == key
+    windows = scen.target.stagger_windows
+    starts = [t for t, k in res.timeline if k == key]
+    assert len(starts) == res.casts[key] == len(windows) == 3
+    assert sorted(next(i for i, (s, e) in enumerate(windows) if s <= t < e) for t in starts) == [0, 1, 2]
+    assert res.hits_by[a.name] == 3 * round(mod.ASSUME[f"{key}_hits"])
+    assert sum(1 for x in kit.actions.values() if x.skill_id == sid) == 1      # the generic reading adds no second one
+    _, res, _ = _sim(cls, build=_staggered(cls))
+    assert a.name not in res.damage_by                                          # a dummy never staggers
+
+
+@pytest.mark.parametrize("cls", sorted(STAGGER))
+def test_a_stagger_hit_is_the_measured_share_of_the_tooltip(cls):
+    """Each hit lands the share of the tooltip's value measured against the class's own reference skill (0.2.377); the
+    tooltip split evenly over a press's four hits, as the generic reading deals it, would be 0.25. Without the per-hit
+    additions (PvE and Boss Attack, Penetration, Critical Attack) the hits differ by exactly that ratio."""
+    from aion2calc.kit import generic
+    from aion2calc.run import kit_module
+    sid, key = STAGGER[cls]
+    bare = {"flat_add": 0.0, "crit_atk": 0.0, "front_atk": 0.0, "back_atk": 0.0}
+    _, res, kit = _alone(cls, (), derived_mods=bare, duration=6.0)
+    mine = res.damage_by[kit.actions[key].name] / res.hits_by[kit.actions[key].name]
+    _, prepared, _, stats = prepare(_staggered(cls), dummy(f"{cls}_l45_global_median"))
+    gen = generic.build_kit(prepared, ClassData(cls)).actions[key]
+    assert gen.is_filler                                                        # why the kits never took it
+    sim = Sim(replace(stats.derived(), **bare), {key: gen}, [key], Target(stagger_windows=((1.0, 8.5),)),
+              SimConfig(duration=6.0))
+    plain = sim.run()
+    split = plain.damage_by[gen.name] / plain.hits_by[gen.name]
+    assert mine / split == pytest.approx(kit_module(cls).ASSUME[f"{key}_hit"] / 0.25, rel=1e-6)
+
+
+@pytest.mark.parametrize("cls", sorted(STAGGER))
+def test_the_stagger_skills_options_act_as_their_texts_say(cls):
+    """Lv 16 "-1s all skill cooldowns on hit" takes a second off every other cooldown at each hit of the train; Lv 12
+    "Multi-Hit on hit" makes every hit a Multi-Hit; the Lv 8 MP option restores its MP a press, or a hit where its text
+    says "on hit" (the Templar's and the Ranger's)."""
+    from aion2calc.run import kit_module
+    sid, key = STAGGER[cls]
+    n = round(kit_module(cls).ASSUME[f"{key}_hits"])
+    probe = Action("probe", "Probe", 1, 0.5, cooldown=100.0)
+    for specs, off in (((), 0), ((sid + 50,), n), ((sid + 40, sid + 50), n)):
+        sim, res, _ = _alone(cls, specs, [probe])
+        assert res.casts["probe"] == 1 and res.casts[key] == 1
+        assert sim.ready["probe"] == pytest.approx(100.0 * (1.0 - sim.base.cdr) - off)
+    _, plain, kit = _alone(cls, ())
+    _, multi, _ = _alone(cls, (sid + 40,))
+    name = kit.actions[key].name
+    assert multi.damage_by[name] > 1.05 * plain.damage_by[name] and multi.hits_by[name] == plain.hits_by[name] == n
+    text = next(x["text"] for x in ClassData(cls).skills[sid]["specs"] if x["id"] == sid + 20)
+    mp = {}
+    for specs in ((), (sid + 20,)):
+        sim, _, _ = _alone(cls, specs, derived_mods={"mp_regen": 0.0, "mp_max": 1e6}, duration=6.0, mp_start=0.0)
+        mp[specs] = sim.mp
+    per = n if text.endswith("on hit") else -(-n // 4)                          # a hit, or a press of four hits
+    assert mp[(sid + 20,)] - mp[()] == pytest.approx(120.0 * per)
+
+
+def test_the_optimizer_chooses_the_stagger_skills_cooldown_effect():
+    """0.2.376's linked-effects search reads every class's "-1s all skill cooldowns on hit" (each stagger skill is a
+    group of its own); with the skill simulated it now pays, and the search takes it: a Gladiator's Sword Aura Rampage
+    at Lv 16 moves from its shield and mobile options to the cooldown effect."""
+    from aion2calc.opt.pipeline import Optimizer
+    from aion2calc.scenarios import SCENARIOS
+    for cls, (sid, _) in STAGGER.items():
+        groups, links = Optimizer(cls, SCENARIOS["boss"](f"{cls}_l45_global_median"), verbose=False)._spec_links()
+        assert (sid,) in groups and links[sid] == {sid + 50}, cls
+    sid, _ = STAGGER["gladiator"]
+    opt = Optimizer("gladiator", SCENARIOS["boss"]("gladiator_l45_global_median"), verbose=False)
+    b = _staggered("gladiator", (sid + 10, sid + 30))
+    _, _, kit, _ = prepare(b, opt.scenario)
+    policy = [k for k in kit.policy if not kit.actions[k].is_filler]
+    best, pol = opt.optimize_linked_specs(b, policy, groups=[(sid,)])
+    assert sid + 50 in best.specs[sid]
+    assert opt.evaluate(best, pol) > 1.03 * opt.evaluate(b, policy)

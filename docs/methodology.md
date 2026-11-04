@@ -1121,6 +1121,84 @@ and, for a character with more than 75 stigma points, found no pattern that spen
 place: the player saw 30 of 268 points spent on the least-picked stigmas. It now reaches level 20
 (`opt.pipeline.stigma_patterns`) and, for this character's 168 points, spends them on Illusive Clone 16, Swift Contract 20, Triniel's Dagger 10 and Savage Fang 15 (the player runs 20, 15, 12 and 15; the model values Illusive Clone's last four levels, 2.5 s of duration and the 0.8 % Clone Attack, below Swift Contract's Lv 20 Combat Speed).
 
+### The stagger skills from the recordings (0.2.377)
+
+Every class has a skill usable only on a staggered boss, with no cooldown: the Gladiator's Sword Aura Rampage, the
+Templar's Flash Rampage, the Ranger's Arrow Scattershot, the Spiritmaster's Rapid Scattershot, the Cleric's Lightning
+Strike Scattershot and the Chanter's Gust Rampage, besides the Sorcerer's Flame Scattershot and the Assassin's Storm
+Rampage. The generic reading takes a damage skill with no cooldown for a filler, and the class kits leave the generic
+fillers out (`kit.common.fallback_to_generic`), so none of the six was simulated, and the optimizer could not value
+their Lv 16 option, *−1 s all skill cooldowns on hit*. They are measured from the diagnostic captures, whose
+break-gauge readings place each stagger, and from the archived log-server uploads, which carry each player's official
+profile (skill levels and Attack). A fight counts once however many party members uploaded it, and so does each
+player's train of hits in it.
+
+**What the recordings show.**
+
+* **A press is four hits, and a stagger one train of presses.** The cast records show one record a press (two for the
+  Templar's), its four hits 0.15 s apart, and the next press 0.50–0.63 s later (the median for
+  each class). A press cut short by the next one, or by the end of the stagger, lands fewer: 3.4–4.0 hits a press
+  (the Spiritmaster's one capture misses most of its hits). The gauge's breaks last 5.1–5.7 s. The players press the
+  skill from 1.1–2.5 s into a break (the median for each class), once their opening skills are out, back to back until
+  the gauge refills (the last hit within 0.15 s of the refill). The press under way when it refills still lands its
+  hits, at about half (no longer critical). Of the 59 breaks in the captures with a player of these classes who pressed
+  the skill in the fight, 55 had it pressed.
+* **No Multi-Hit.** Every hit of the Assassins who took Storm Rampage's Lv 12 *Multi-Hit on hit* carries a small
+  extra hit, about a fifth of a hit; 2 of the six classes' 5,387 hits in their trains are that small, so no recorded
+  player took it. The kits model the option from its text: every hit a Multi-Hit (+12.5 % in the damage model).
+* **Each hit's share of the tooltip.** The method of the [Gladiator and Chanter calibration](#the-gladiator-and-the-chanter-from-the-log-servers-uploads-02319):
+  a plain critical hit of the stagger skill against one of the same player's, from the same side of the same boss,
+  set against the two skills' tooltips at the player's own levels and Attack. The reference is the skill each kit is
+  calibrated against, dealt at its own tooltip: an Overhead Slam press, a plain Vicious Strike, Snipe, Cold Shock,
+  Earth's Retribution, and an Incandescent Blow or Onslaught press. The share solved for is the one with which the
+  damage model, adding its per-hit additions (PvE and Boss Attack, Penetration, Critical Attack; 17–41 % of a stagger
+  hit here), reproduces the recorded ratio. A Pummel strike measured the same way against a plain Vicious Strike comes
+  to 0.34 of Pummel's tooltip, the third its three strikes imply. Each class's value weights its (player, side) pairs by
+  the smaller of the two hit counts. Pooled over 15 players a hit is 0.23 of the tooltip; the tooltip split evenly over
+  a press's four hits, as the generic reading deals it, would be 0.25. The players with a profile are few (one to five a
+  class), and the reference skills differ among themselves by about a fifth, so the per-class shares are rough.
+* **Woven steps.** 0.1–0.7 basic-chain steps come inside or right after a train (the Gladiator's 2.3). The kits count
+  them as steps woven after it ([woven basic attacks](#woven-basic-attacks-02309)), all but the Cleric's, which weaves
+  nothing.
+
+**What the kits do now.** Each class kit has the skill as one action a stagger (`kit.common.add_stagger_skill`): the
+recorded hits a stagger, each the measured share of the tooltip, over the hits' recorded time at the typical build's
+Combat Speed (`calibrate.kit_action_time`). It is usable only in a stagger window and comes back only after the
+window's 8 s, whatever cooldowns its own hits or other skills take off; it is first in each kit's priority. Its options
+act as their texts say: *Multi-Hit on hit* makes every hit a Multi-Hit, *−1 s all skill cooldowns on hit* takes a
+second off every other cooldown at each hit, and *Restores 120 MP* restores it a press (a hit for the Templar's and the
+Ranger's, whose text adds "on hit"). The shield and the mobile option change nothing the model simulates, so they show
+as *either*. The extra hits of a Multi-Hit take no second off: nothing recorded says whether they would.
+
+| Class | Skill | Players (staggers) | Hits a stagger | Time a hit | `TIMING` | A hit, of the tooltip (reference; players) | Damage share, recorded / model |
+|---|---|---:|---:|---:|---:|---|---:|
+| Gladiator | Sword Aura Rampage | 7 (39) | 14.3 | 0.174 s | 2.66 | 0.22 (Overhead Slam; 1) | 3.4 % / 2.4 % |
+| Templar | Flash Rampage | 3 (36) | 21.2 | 0.143 s | 3.25 | 0.27 (Vicious Strike; 1) | 5.5 % / 4.9 % |
+| Ranger | Arrow Scattershot | 4 (25) | 18.2 | 0.128 s | 2.49 | 0.16 (Snipe; 2) | 3.1 % / 2.2 % |
+| Spiritmaster | Rapid Scattershot | 6 (46) | 16.5 | 0.154 s | 2.72 | 0.23 (Cold Shock; 5) | 3.8 % / 2.4 % |
+| Cleric | Lightning Strike Scattershot | 13 (80) | 22.8 | 0.147 s | 3.59 | 0.26 (Earth's Retribution; 2) | 6.4 % / 6.6 % |
+| Chanter | Gust Rampage | 11 (50) | 19.5 | 0.147 s | 3.07 | 0.21 (Incandescent Blow, Onslaught; 4) | 4.2 % / 3.4 % |
+
+*Time a hit* is the mean gap between the train's hits, which the kit's action takes as many times as it has hits
+(`TIMING`, seconds at 0 % Combat Speed). The recorded share is the skill's share of its users' damage on the
+staggered boss in the fights they pressed it; the model's is the typical build's with the skill at the recorded
+players' median level (5, 14, 12, 14, 12 and 13, rounded down) and no option, in the 180 s boss scenario under the
+kit's own priority. The Gladiator's players pressed it in 10 of their 13 breaks in the captures, the Templar's in 13 of 14, the
+other classes' in every one (no Ranger made a capture). The model presses it in each of the boss scenario's three
+windows.
+
+**The cooldown effect.** With the skill at 16 and Multi-Hit, its cooldown effect raises the typical builds' boss DPS
+by 1.9–6.4 % under their kits' own priority (Chanter 1.9, Spiritmaster 2.5, Ranger 2.7, Cleric 2.8, Templar 5.8,
+Gladiator 6.4 %). Each class's effect is a [linked-effects](#supporting-effects-that-act-on-each-others-cooldowns-02376)
+group of its own, and the search now takes it: a typical Gladiator with Sword Aura Rampage at 16, holding its shield
+and mobile options, moves to its MP option and the cooldown effect, 6.4 % above. Where MP holds a class back (the
+Chanter's Incandescent Blow, the Templar's Pummel) the MP option can be worth more than Multi-Hit.
+
+**Not changed.** Storm Rampage and Flame Scattershot keep their models. Measured the same way against Heart Gore, the
+five recorded Assassins' Storm Rampage hits come to 0.15–0.24 of the tooltip, where the kit has 0.32
+([0.2.368](#the-assassin-from-the-log-servers-uploads-02368)). The Sorcerer kit presses Flame Scattershot through a
+stagger, 44 hits a window under its own priority, where the recorded Sorcerers land 23.3 (10 players, 40 staggers).
+
 ## Optimization and macro planning
 
 `aion2calc/opt/pipeline.py` alternates, accepting only improvements:
@@ -1679,7 +1757,7 @@ A piece keeps its index, marked `continued_in` with the kind of piece, and the l
 
 ## Supporting effects that act on each other's cooldowns (0.2.376)
 
-**Linked effects.** An effect whose text shortens or resets a named skill's cooldown ("-3s [Wish of Concentration] cooldown on hit", "Reset [Blaze] cooldown on landing [Pyroclasm]") or every skill's ("-10s all skill cooldowns") links its skill to the named one (`Optimizer._spec_links`); linked skills form groups (a Sorcerer's Flame Arrow, Blaze and Wish of Concentration; Firestorm and Hellfire; Bittercold Wind, Frost and Frost Burst; Ice Chain and Winter's Shackles; Flame Scattershot alone). Every class has some.
+**Linked effects.** An effect whose text shortens or resets a named skill's cooldown ("-3s [Wish of Concentration] cooldown on hit", "Reset [Blaze] cooldown on landing [Pyroclasm]") or every skill's ("-10s all skill cooldowns") links its skill to the named one (`Optimizer._spec_links`); linked skills form groups (a Sorcerer's Flame Arrow, Blaze and Wish of Concentration; Firestorm and Hellfire; Bittercold Wind, Frost and Frost Burst; Ice Chain and Winter's Shackles; Flame Scattershot alone). Every class has some, its stagger skill's Lv 16 "-1s all skill cooldowns on hit" among them, each a group of its own. Until 0.2.377 only the Sorcerer's and the Assassin's stagger skills were simulated, so the other six classes' effect changed nothing the search could see; since then they are too ([The stagger skills from the recordings](#the-stagger-skills-from-the-recordings-02377)).
 
 **Why one skill at a time missed them.** `optimize_specs` changes one skill's effects at a time under the priority list searched for the effects it had. A linked effect pays off through another skill's cooldown, and the rotation that uses it differs: on a Sorcerer's own levels, Wish's -10 s alone scored 6 % below the effects kept under the old rotation (2 % above under its own), Blaze's -3 s to Wish 3 % below, and the two together 15 % above with a rotation searched for them.
 

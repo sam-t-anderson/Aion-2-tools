@@ -31,7 +31,7 @@ from __future__ import annotations
 from ..model.damage import crit_probability
 from ..sim.engine import Action
 from .base import Build, ClassData
-from .common import Kit, fallback_to_generic, ms, spec_options  # noqa: F401
+from .common import Kit, add_stagger_skill, fallback_to_generic, ms, spec_options  # noqa: F401
 
 __all__ = ["build_kit", "spec_options"]
 
@@ -55,6 +55,8 @@ TIMING = {
     "condemnation": 0.52, "debilitating_mark": 0.81, "divine_aura": 0.57, "bolt": 1.56,
     "chain_followup": 0.55, "stigma": 0.71, "discharge": 0.80, "thunder_and_lightning": 0.55,
     "heal": 0.45,
+    "lightning_strike_scattershot": 3.59,   # the presses of a stagger, 22.8 hits at 0.147 s each (0.2.377;
+                                            #   docs/methodology.md "The stagger skills from the recordings")
 }
 
 ASSUME = {
@@ -81,6 +83,12 @@ ASSUME = {
     # Benevolence) a minute of boss fight: 587 in 128.5 minutes of 61 recorded fights (0.2.317; the median
     # fight 4.45, quartiles 1.3-7.6), as often inside Earth Punishment's windows as outside them.
     "heals_per_minute": 4.6,
+    # Lightning Strike Scattershot, usable only on a staggered boss: pressed back to back once the opening skills are
+    # out, one train of presses a stagger (0.2.377; 13 Clerics, 80 staggers, every fight counted once over its uploads):
+    "lightning_strike_scattershot_hits": 22.8,   # hits a stagger (four a press, 0.15 s apart)
+    "lightning_strike_scattershot_hit": 0.26,    # each hit against the tooltip's value, measured against Earth's
+                                                 #   Retribution (the tooltip split evenly over a press's four hits
+                                                 #   would be 0.25)
 }
 
 # stigma skills resolved by name (ids vary; look them up from the class data)
@@ -302,6 +310,10 @@ def build_kit(build: Build, cd: ClassData, filler: str = "earths_retribution") -
     if ASSUME["heals_per_minute"] > 0:
         A["heals"] = Action("heals", "Heals", SID["HEALLIGHT"], TIMING["heal"],
                             cooldown=60.0 / ASSUME["heals_per_minute"], affected_by_cdr=False, heal=True)
+    # Lightning Strike Scattershot: only on a staggered boss, one train of presses a stagger
+    add_stagger_skill(A, build, cd, L, SID["SCATTER"], "lightning_strike_scattershot",
+                      hits=ASSUME["lightning_strike_scattershot_hits"], hit=ASSUME["lightning_strike_scattershot_hit"],
+                      cast=TIMING["lightning_strike_scattershot"])
 
     policy = _policy(A, filler)
     fallback_to_generic(A, policy, build, cd, notes)
@@ -374,7 +386,7 @@ def _build_stigmas(A, build, cd, SID, stig, st, graces, static):
 
 
 def _policy(actions: dict, filler: str) -> list:
-    order = ["prayamp", "bolt", "divine_aura", "voice", "epunish", "powerburst",
+    order = ["lightning_strike_scattershot", "prayamp", "bolt", "divine_aura", "voice", "epunish", "powerburst",
              "rootst", "assaultmark", "chain_of_torment", "condemnation", "debilitating_mark",
              "thunder_and_lightning", "judgment_thunder"]
     pol = [k for k in order if k in actions]

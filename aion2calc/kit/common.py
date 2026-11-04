@@ -15,6 +15,8 @@ effective level.  The pieces that are the same for every class live here:
   by the optimizer.
 * :func:`add_weave` — the damage of the basic-attack steps players weave between
   skills, at each class's recorded rate.
+* :func:`add_stagger_skill` — the skill every class can use only on a staggered
+  boss, at the recorded number of hits a stagger.
 
 Numbers the client does not expose (animation lengths, the size of a few
 "extra damage" effects, how often a boss can be broken) are collected in each
@@ -23,13 +25,21 @@ real combat-log captures are available.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import replace
 from typing import Callable
 
+from ..sim.engine import Action
 from .base import ClassData, spec_slots
 from .sorcerer import Kit  # single definition of the container; re-exported here
 
-__all__ = ["Kit", "ms", "fallback_to_generic", "spec_options", "add_weave", "learned_only"]
+__all__ = ["Kit", "ms", "fallback_to_generic", "spec_options", "add_weave", "learned_only", "add_stagger_skill"]
+
+#: The boss scenario's stagger windows last 8 s (``scenarios.boss``): a stagger skill held to one train of presses
+#: a window comes back after that long, whatever cooldowns its own hits or other skills take off.
+STAGGER_WINDOW = 8.0
+#: Hits a press of a stagger skill lands, 0.15 s apart (the recorded presses; the KR hit profiles say 4 too).
+PRESS_HITS = 4
 
 
 def learned_only(kit: Kit, cd: ClassData, level: int) -> Kit:
@@ -124,6 +134,59 @@ def add_weave(A: dict, weave: dict, flat: float, coef: float, *, mp: float = 0.0
                 if on_step is not None:
                     on_step(sim, i)
         A[key] = replace(a, on_cast=on_cast)
+
+
+def add_stagger_skill(A: dict, build, cd: ClassData, levels: dict, sid: int, key: str, *, hits: float, hit: float,
+                      cast: float) -> Action | None:
+    """The skill a class can use only on a staggered boss (0.2.377; docs/methodology.md "The stagger skills from
+    the recordings"): the Gladiator's Sword Aura Rampage, the Templar's Flash Rampage, the Ranger's Arrow Scattershot,
+    the Spiritmaster's Rapid Scattershot, the Cleric's Lightning Strike Scattershot, the Chanter's Gust Rampage.
+
+    It has no cooldown, so the generic reading takes it for a filler and :func:`fallback_to_generic` leaves it out.
+    A press lands four hits 0.15 s apart, and the recorded players press it back to back for the rest of a stagger
+    once their opening skills are out, one train of presses a stagger. The action is that train: ``hits`` hits in
+    ``cast`` seconds at 0 % Combat Speed, each ``hit`` of the tooltip's value (the tooltip split evenly over a
+    press's four hits would be 0.25), at most once a stagger window. Its options come from their texts: "Multi-Hit
+    on hit" makes every hit a Multi-Hit, "-1s all skill cooldowns on hit" takes that off every other cooldown at
+    each hit, and "Restores N MP" restores it a press (a hit, with "on hit"); the shield and the mobile option
+    change nothing the simulation models. Mutates ``A``; returns the action, or None when the skill is not learned.
+    """
+    s = cd.skills.get(sid)
+    level = levels.get(sid, 0)
+    pairs = [x for x in (cd.vals(sid, level) or []) if isinstance(x, list) and len(x) == 2] if s and level > 0 else []
+    if not pairs:
+        return None
+    flat, coef = float(pairs[0][0]), float(pairs[0][1]) / 100.0
+    picked = set(build.specs.get(sid, ()))
+    texts = [x.get("text") or "" for x in s.get("specs", []) if x["id"] in picked and x["unlock"] <= level]
+    multi = any(t.strip() == "Multi-Hit on hit" for t in texts)
+    cdr = sum(float(m.group(1)) for t in texts
+              if (m := re.search(r"-(\d+(?:\.\d+)?)s (?:to )?all (?:skill )?cooldowns on hit", t)))
+    mp_press = mp_hit = 0.0
+    for t in texts:
+        if m := re.search(r"Restores (\d+) MP( on hit)?", t):
+            if m.group(2):
+                mp_hit += float(m.group(1))
+            else:
+                mp_press += float(m.group(1))
+    n = max(1, round(hits))
+    tags = ("multi",) if multi else ()
+
+    def each(sim, t, i):
+        if cdr:
+            sim.reduce_cd("all", cdr)          # its own cooldown is the stagger window's and stays
+        gain = mp_hit + (mp_press if i % PRESS_HITS == 0 else 0.0)
+        if gain:
+            sim.gain_mp(gain)
+
+    def on_cast(sim, a):
+        cs = sim.base.combat_speed + sim.stat_mods(sim.t).get("combat_speed", 0.0) + a.skill_speed
+        pressing = a.cast / max(0.2, 1.0 + cs)
+        sim.hit(a.name, flat * hit * n, coef * hit * n, n=n, spread=pressing * (n - 1) / n, tags=tags,
+                on_each=each if (cdr or mp_press or mp_hit) else None)
+    A[key] = Action(key, s["name"], sid, cast, cooldown=STAGGER_WINDOW, affected_by_cdr=False,
+                    requires=("stagger",), on_cast=on_cast)
+    return A[key]
 
 
 def spec_options(cd: ClassData, build) -> dict[int, list[tuple]]:
