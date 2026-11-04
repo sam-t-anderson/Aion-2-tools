@@ -47,7 +47,7 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
           max_level: int = 20, fixed_sp: dict | None = None, time_limit: int = 120,
           boards: tuple = CRYSTAL_BOARDS, gap: float = 0.0005, min_node_hp: float = 0, min_sp: dict | None = None,
           min_effective: dict | None = None, start: tuple | None = None, spend_all: bool = False,
-          max_sp: dict | None = None) -> dict:
+          max_sp: dict | None = None, joint: list | None = None) -> dict:
     """``skill_curves[sid][L]`` = DPS with skill at effective level L (index 0 unused).
 
     ``max_sp`` = the highest level skill points can train each skill to (a character below level 45
@@ -56,6 +56,8 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
     ``start`` = (nodes, trained levels) of the current allocation. When it satisfies the
     program the solver starts from it, and the result is never worth less than it.
     ``spend_all`` puts points nothing of value can use on nodes worth nothing (never less).
+    ``joint`` = ``[({skill: level}, gain)]``: a gain that counts only when every named skill reaches its level (0.2.376):
+    supporting effects that act on each other's cooldowns pay off together, which no one skill's curve can say.
     """
     bonus = bonus or {}
     min_effective = min_effective or {}
@@ -130,6 +132,16 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
             obj.append((curve[k] - curve[k - 1]) * z[sid][k])
     # skills without a curve keep any nodes free of value; cap their eff implicitly
     prob += pulp.lpSum(sp_terms) <= sp_budget
+    # a gain that needs several skills at their levels at once: worth it only when each reaches its level
+    joint = [(dict(levels), float(gain)) for levels, gain in (joint or ())
+             if gain > 0 and levels and all(sid in z and 1 <= lvl <= len(z[sid]) for sid, lvl in levels.items())]
+    together = []
+    for i, (levels, gain) in enumerate(joint):
+        w = pulp.LpVariable(f"w_{i}", cat="Binary")
+        for sid, lvl in levels.items():
+            prob += w <= z[sid][lvl]
+        obj.append(gain * w)
+        together.append(w)
     prob += pulp.lpSum(obj)
 
     # the same program, checked, scored and completed for a whole allocation (nodes, trained levels)
@@ -155,7 +167,8 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
     def value(nodes, sp):
         eff = effective(nodes, sp)
         return (sum(node_value.get(n, 0.0) for n in nodes)
-                + sum(skill_curves[sid][eff[sid]] - skill_curves[sid][0] for sid in y))
+                + sum(skill_curves[sid][eff[sid]] - skill_curves[sid][0] for sid in y)
+                + sum(gain for levels, gain in joint if all(eff[sid] >= lvl for sid, lvl in levels.items())))
 
     def trained(nodes):
         """The best trained levels for a fixed board: a knapsack over the skill-point budget."""
@@ -202,6 +215,8 @@ def solve(cd: ClassData, skill_curves: dict[int, list[float]], node_value: dict[
                     var.setInitialValue(int(l == sp[sid]))
                 for k, var in z[sid].items():
                     var.setInitialValue(int(k <= eff[sid]))
+            for (levels, _), var in zip(joint, together):
+                var.setInitialValue(int(all(eff[sid] >= lvl for sid, lvl in levels.items())))
 
     import os
     status = prob.solve(solver(time_limit=time_limit, gap=gap, threads=min(4, os.cpu_count() or 1),

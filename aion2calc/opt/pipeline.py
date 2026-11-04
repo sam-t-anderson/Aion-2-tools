@@ -11,6 +11,7 @@ DPS is monotone across steps up to the noise-free simulator's resolution.
 from __future__ import annotations
 
 import itertools
+import re
 import time
 from dataclasses import dataclass, field, replace
 
@@ -221,6 +222,8 @@ class Optimizer:
         self.min_stigmas = (skill_reserves or {}).get("stigmas", {})
         self.history: list = []
         self._rotation_keys: set = set()    # kit actions the last rotation search could use
+        self._links = None                  # the class's linked supporting effects (_spec_links)
+        self._probes: dict = {}             # linked-effect probes by group and closed levels (_linked_probe_terms)
         self.t0 = time.time()
 
     def log(self, msg: str):
@@ -343,6 +346,124 @@ class Optimizer:
                 break
         return build
 
+    def _spec_links(self) -> tuple[list, dict]:
+        """The supporting effects that act on another skill's cooldown, read from their text (0.2.376): one that
+        shortens or resets a named skill's cooldown ("-3s [Wish of Concentration] cooldown on hit", "Reset [Blaze]
+        cooldown on landing [Pyroclasm]") or every skill's ("-10s all skill cooldowns"). Returns the groups of
+        skills such effects tie together (a skill, the skills it names, and so on) and each skill's linking
+        effects. Every class has some: a Sorcerer's Flame Arrow resets Blaze, Blaze shortens Wish of
+        Concentration's cooldown, and Wish's own effect shortens every cooldown."""
+        if self._links is None:
+            skills = self.cd.skills
+            byname = {s["name"]: sid for sid, s in skills.items()}
+            links, edges = {}, []
+            for sid, s in skills.items():
+                if s["kind"] != "active":
+                    continue
+                for x in s.get("specs") or []:
+                    text = x.get("text") or ""
+                    if "cooldown" not in text.lower():
+                        continue
+                    named = [byname[r] for r in re.findall(r"\[([^\]]+)\]", text) if byname.get(r, sid) != sid]
+                    if named or re.search(r"\ball (?:skill )?cooldowns?\b", text, re.I):
+                        links.setdefault(sid, set()).add(x["id"])
+                        edges += [(sid, other) for other in named]
+            parent = {sid: sid for sid in links}
+
+            def root(x):
+                while parent.setdefault(x, x) != x:
+                    parent[x] = parent[parent[x]]
+                    x = parent[x]
+                return x
+            for a, b in edges:
+                parent[root(a)] = root(b)
+            groups = {}
+            for sid in parent:
+                groups.setdefault(root(sid), []).append(sid)
+            self._links = ([tuple(sorted(g)) for g in groups.values()], {k: frozenset(v) for k, v in links.items()})
+        return self._links
+
+    def _linked_choices(self, build: Build, sid: int, opts: dict, cap: int | None = None) -> list:
+        """``sid``'s combinations of supporting effects that hold one of its linking effects, other than the
+        build's own (empty when the build already holds them all or the skill has none)."""
+        mine = self._spec_links()[1].get(sid, frozenset())
+        current = set(build.specs.get(sid, ()))
+        if not mine or mine <= current:
+            return []
+        need = set(self.required_specs.get(sid, ()))
+        return [tuple(sorted(c)) for c in opts.get(sid, [()])
+                if set(c) & mine and need <= set(c) and set(c) != current][:cap]
+
+    def _linked_builds(self, build: Build, sid: int) -> list:
+        """``build`` with ``sid``'s linking effects and a linked skill's, for the level curves: two effects that act
+        on each other's cooldowns (Blaze shortening Wish of Concentration's, Wish shortening every skill's) pay
+        off together, and judged one skill at a time neither does, so the curves never valued the level that opens
+        them (0.2.376)."""
+        groups, _ = self._spec_links()
+        group = next((g for g in groups if sid in g), ())
+        if len(group) < 2:
+            return []
+        mod = kit_module(self.cls, pvp=self.scenario.target.is_player)
+        opts = mod.spec_options(self.cd, self._with_gear(build))
+        out = []
+        for mine in self._linked_choices(build, sid, opts) or [tuple(sorted(build.specs.get(sid, ())))]:
+            for other in group:
+                if other == sid:
+                    continue
+                for theirs in self._linked_choices(build, other, opts):
+                    b3 = build.copy()
+                    b3.specs[sid], b3.specs[other] = mine, theirs
+                    out.append(b3)
+        return out
+
+    def optimize_linked_specs(self, build: Build, policy: list, keep: int = 2, per_skill: int = 4,
+                              margin: float = 0.9, groups: list | None = None, quiet: bool = False) -> tuple[Build, list]:
+        """The linking supporting effects of each group (:meth:`_spec_links`) tried together, each candidate's
+        rotation searched again (0.2.376). :meth:`optimize_specs` changes one skill at a time under a fixed priority
+        list, which misses what these effects need: the effect on one skill pays off through another skill's
+        cooldown, and the rotation that uses it differs from the one searched without it. A Sorcerer's Wish of
+        Concentration (-10 s every cooldown) with Blaze's -3 s to Wish was 13 % above the effects the optimizer
+        kept, and each alone fell short under the old rotation. Every combination that adds a linking effect is
+        scored under the current rotation; the best ``keep`` within ``margin`` of the build's own score (Wish's
+        effect alone fell 6 % under the old rotation and gained 2 % under its own) have their rotation searched
+        again, and one is taken only when it beats the build as it is. Returns ``(build, policy)``."""
+        mod = kit_module(self.cls, pvp=self.scenario.target.is_player)
+        build = self._clean_specs(build)
+        best = self.evaluate(build, policy)
+        for group in self._spec_links()[0] if groups is None else groups:
+            opts = mod.spec_options(self.cd, self._with_gear(build))
+            choices = []
+            for sid in group:
+                alts = self._linked_choices(build, sid, opts)
+                if len(alts) > per_skill:                   # the skill's best few, judged on their own
+                    def alone(c, sid=sid):
+                        b2 = build.copy()
+                        b2.specs[sid] = c
+                        return self.evaluate(b2, policy)
+                    alts = sorted(alts, key=alone, reverse=True)[:per_skill]
+                choices.append([tuple(sorted(build.specs.get(sid, ())))] + alts)
+            same = tuple(c[0] for c in choices)
+            scored = []
+            for combo in itertools.product(*choices):
+                if combo == same:
+                    continue
+                b2 = build.copy()
+                for sid, c in zip(group, combo):
+                    b2.specs[sid] = c
+                scored.append((self.evaluate(b2, policy), len(scored), b2))
+            for v, _, b2 in sorted(scored, key=lambda x: (-x[0], x[1]))[:keep]:
+                if v < best * margin:
+                    break
+                pol2, v2, _ = self.optimize_rotation(b2, policy, restarts=0)
+                if v2 > best * (1 + 1e-4):
+                    names = ", ".join(self.cd.skills[sid]["name"] for sid in group
+                                      if set(b2.specs.get(sid, ())) != set(build.specs.get(sid, ())))
+                    if not quiet:
+                        self.log(f"linked effects: {names} -> {v2:.0f} (was {best:.0f})")
+                    build, policy, best = b2, pol2, v2
+                    break
+        return build, policy
+
     def _respec(self, build: Build, policy: list, sids) -> tuple[Build, float]:
         """The best supporting effects for ``sids`` alone (their levels just changed), everything else
         as it is: cheaper than :meth:`optimize_specs` over every skill."""
@@ -436,8 +557,63 @@ class Optimizer:
         self.log("stigma search complete")
         return best_b
 
-    def level_curves(self, build: Build, policy: list, max_level: int = 20) -> dict[int, list[float]]:
-        """DPS as a function of each skill's effective level (best specs at each level)."""
+    def _linked_probe_terms(self, build: Build, policy: list) -> list[tuple[dict, float]]:
+        """For each group whose linking effects (:meth:`_spec_links`) its skills' levels keep closed: the levels that
+        open them and the gain the group's linking effects bring there with their own rotation, the closed skills
+        raised to those levels for free (0.2.376). The allocation counts each gain only when every one of those
+        skills reaches its level (``daev_opt.solve(joint=...)``): the level curves judge one skill at a time under a
+        fixed rotation, which never shows effects that pay off only together. At a median Sorcerer's budget, Wish of
+        Concentration and Blaze raised to 16 gained 4 % with their best effects alone and 9 % with Blaze's -3 s to
+        Wish and Wish's -10 s to every cooldown. Each probe is searched once per group and closed levels."""
+        groups, links = self._spec_links()
+        L = self._with_gear(build).effective_levels(self.cd)
+        reach = self._level_reach(build)
+        out = []
+        for group in groups:
+            closed = {}
+            for sid in group:
+                opens = [x["unlock"] for x in self.cd.skills[sid].get("specs") or [] if x["id"] in links.get(sid, ())]
+                if opens and L.get(sid, 1) < min(opens) <= 20:
+                    closed[sid] = min(opens)
+            if not closed or any(lvl > reach.get(sid, 0) for sid, lvl in closed.items()):
+                continue                          # nothing closed, or a level no allocation can reach
+            key = (group, tuple(sorted((sid, L.get(sid, 1), lvl) for sid, lvl in closed.items())))
+            if key not in self._probes:
+                probe = build.copy()
+                for sid, lvl in closed.items():
+                    probe.bonus[sid] = probe.bonus.get(sid, 0) + lvl - L.get(sid, 1)
+                probe, base = self._respec(self._clean_specs(probe), policy, list(closed))
+                linked, linked_policy = self.optimize_linked_specs(probe, policy, keep=1, groups=[group], quiet=True)
+                # what the searched rotation gains without the linking effects is not theirs to claim
+                base = max(base, self.evaluate(probe, linked_policy))
+                gain = self.evaluate(linked, linked_policy) - base
+                self._probes[key] = max(0.0, gain)
+                if gain > 0:
+                    self.log(f"linked effects at their levels: {', '.join(self.cd.skills[s]['name'] for s in closed)} "
+                             f"-> +{gain:.0f} DPS with their own rotation, if each reaches its level")
+            if self._probes[key] > 0:
+                out.append((dict(closed), self._probes[key]))
+        return out
+
+    def _level_reach(self, build: Build) -> dict[int, int]:
+        """The highest effective level each skill can reach: trained to its cap, every level node on the open
+        boards, its fixed bonus levels (gear, and the build's own without a bonus pool) and the pool's most on one
+        skill. On median gear that is 14 (10 trained, 4 nodes): a Sorcerer's Wish of Concentration never opens its
+        -10 s to every cooldown at 16 there."""
+        nodes: dict = {}
+        for b in self.cd.boards:
+            if b["name"] in self.boards:
+                for n in b["nodes"]:
+                    if n.get("skillId"):
+                        nodes[n["skillId"]] = nodes.get(n["skillId"], 0) + 1
+        gear, own = self._gear_bonus(), (self.gear_bonus if self.bonus_pool else build.bonus)
+        pool = (self.bonus_pool or {}).get("per_skill", 0)
+        return {sid: min(s.get("buyMax", 10), self.sp_caps.get(sid, 10)) + nodes.get(sid, 0) + gear.get(sid, 0)
+                + own.get(sid, 0) + pool for sid, s in self.cd.skills.items()}
+
+    def level_curves(self, build: Build, policy: list, max_level: int = 20, keep=()) -> dict[int, list[float]]:
+        """DPS as a function of each skill's effective level (best specs at each level). ``keep``: skills whose curve
+        is kept even when flat (the members of a joint gain, :meth:`_linked_probe_terms`)."""
         sids = [sid for sid, s in self.cd.skills.items()
                 if s["kind"] != "stigma" and (s.get("unlock") or 1) <= self.level]
         _CTX["curve"] = (self, build, policy, max_level)
@@ -448,7 +624,7 @@ class Optimizer:
                 progress=lambda done, total: self.log(f"skill curves: {done}/{total} skills"),
                 fallback=self.log):
             # flat curves (no DPS effect) are dropped to keep the program small
-            if max(curve[1:]) - min(curve[1:]) > 1e-6 or sid in self.min_sp or sid in self.min_effective:
+            if max(curve[1:]) - min(curve[1:]) > 1e-6 or sid in self.min_sp or sid in self.min_effective or sid in keep:
                 curves[sid] = curve
         self.log(f"skill curves: retained {len(curves)} skills with measurable gains")
         return curves
@@ -471,6 +647,8 @@ class Optimizer:
                     b3 = b2.copy()
                     b3.specs[sid] = tuple(combo)
                     best = max(best, self.evaluate(b3, policy))
+                for b3 in self._linked_builds(self._clean_specs(b2), sid):   # with a linked skill's effect too
+                    best = max(best, self.evaluate(b3, policy))
             curve.append(best)
         return curve
 
@@ -491,6 +669,8 @@ class Optimizer:
                     b3 = b2.copy()
                     b3.specs[sid] = tuple(combo)
                     best = max(best, self.evaluate(b3, policy))
+                for b3 in self._linked_builds(self._clean_specs(b2), sid):   # with a linked skill's effect too
+                    best = max(best, self.evaluate(b3, policy))
             out.append(best)
         return out
 
@@ -501,7 +681,8 @@ class Optimizer:
                             progress=None if final else self.log)
 
     def allocate(self, build: Build, policy: list):
-        curves = self.level_curves(build, policy)
+        joint = self._linked_probe_terms(build, policy)
+        curves = self.level_curves(build, policy, keep={sid for levels, _ in joint for sid in levels})
         self.log("skill allocation: calculating stat weights")
         weights = self._stat_weights(build, policy)
         nv = node_values(self.cd, weights)
@@ -525,7 +706,7 @@ class Optimizer:
                                  sp_budget=self.sp_budget, bonus=bonus,
                                  time_limit=DAEV_SOLVER_TIME_LIMIT,
                                  min_node_hp=(self.survival or {}).get("minimum_node_hp", 0), min_sp=self.min_sp, min_effective=self.min_effective,
-                                 start=start, spend_all=True, boards=self.boards, max_sp=self.sp_caps)
+                                 start=start, spend_all=True, boards=self.boards, max_sp=self.sp_caps, joint=joint)
             self.log(f"skill allocation: solver finished ({sol['status']}, "
                      f"{time.monotonic() - solver_started:.1f} s"
                      f"{'; started from the current allocation' if sol['warm_start'] else ''})")
@@ -722,6 +903,10 @@ class Optimizer:
         # stat-weight search (which don't use the solver) and looks like a hang at that phase.
         solver_require()
         build = initial_build.copy() if initial_build is not None else self.initial_build()
+        # A given starting build (an imported character's own) is a result the search must not fall below (0.2.376):
+        # a Sorcerer's search, started from a typical top player's build, lowered Wish of Concentration below the level
+        # that opens its cooldown effect and ended 13 % under the character as it was.
+        seed = (self._clean_specs(build), list(initial_policy)) if initial_build is not None and initial_policy else None
         if self.min_effective:
             # Establish a legal seed before specialty search. Joint feasibility
             # includes board connectivity, SP/Daevanion budgets and any HP floor.
@@ -745,6 +930,9 @@ class Optimizer:
             self.log(f"iter {it}: specs -> {self.evaluate(build, policy):.0f}")
             policy, dps, _ = self.optimize_rotation(build, policy)
             self.log(f"iter {it}: rotation -> {dps:.0f}  {describe(policy)}")
+            # Effects that act on each other's cooldowns, tried together with their own rotation, before the stigmas
+            # and the skill levels are chosen for the build (0.2.376).
+            build, policy = self.optimize_linked_specs(build, policy)
             build = self.optimize_stigmas(build, policy)
             self.log(f"iter {it}: stigmas -> {self.evaluate(build, policy):.0f} "
                      f"{ {self.cd.skills[k]['name']: v for k, v in build.stigmas.items()} }")
@@ -766,8 +954,15 @@ class Optimizer:
         build = self.spend_remaining_sp(build, policy)
         build = self.polish_bonus(build, policy)
         build = self.optimize_specs(build, policy, passes=3)
+        build, policy = self.optimize_linked_specs(build, policy)
         policy, dps, res = self.optimize_rotation(build, policy, restarts=4)
         from .reserves import meets
+        if seed is not None and meets(self._with_gear(seed[0]), self.skill_reserves, self.cd) \
+                and node_hp(self.cd, seed[0].daevanion) + 1e-6 >= (self.survival or {}).get("minimum_node_hp", 0):
+            seed_policy, seed_dps, seed_res = self.optimize_rotation(seed[0], seed[1], restarts=0)
+            if seed_dps > dps * (1 + 1e-6):
+                self.log(f"final: the starting build ({seed_dps:.0f}) beats the search's ({dps:.0f}); it is kept")
+                build, policy, dps, res = seed[0], seed_policy, seed_dps, seed_res
         if not meets(self._with_gear(build),self.skill_reserves,self.cd):
             raise ValueError("The optimized build does not meet the requested skill and supporting-effect reserves")
         weights = self._stat_weights(build, policy, final=True)

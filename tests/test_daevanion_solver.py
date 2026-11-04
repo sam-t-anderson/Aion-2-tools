@@ -173,7 +173,8 @@ def test_the_optimizer_starts_the_program_from_the_build_it_has(sorc, skill, mon
     seen, real = {}, dv.solve
     monkeypatch.setattr(dv, "solve", lambda *a, **kw: seen.update(kw) or real(*a, **kw))
     monkeypatch.setattr(pipeline, "DAEV_SOLVER_TIME_LIMIT", 0)
-    monkeypatch.setattr(opt, "level_curves", lambda b, p: {sid: [0.0] + [10.0 * l for l in range(1, 21)]})
+    monkeypatch.setattr(opt, "level_curves", lambda b, p, **kw: {sid: [0.0] + [10.0 * l for l in range(1, 21)]})
+    monkeypatch.setattr(opt, "_linked_probe_terms", lambda b, p: [])
     monkeypatch.setattr(opt, "_stat_weights", lambda b, p, final=False: [])
     allocated, sol, _, _ = opt.allocate(build, [])
     assert seen["start"] == (build.daevanion, build.sp) and sol["warm_start"]
@@ -181,3 +182,20 @@ def test_the_optimizer_starts_the_program_from_the_build_it_has(sorc, skill, mon
     # the log says the solve was cut short, where PuLP alone would have said "Optimal"
     assert any("solver finished (time limit" in line and "started from the current allocation" in line
                for line in logged)
+
+
+def test_a_joint_gain_raises_its_skills_together_or_not_at_all(sorc):
+    """Supporting effects that act on each other's cooldowns pay off only when every skill reaches the level that
+    opens its effect (0.2.376): one yes/no worth the gain, allowed only when each skill is at its level."""
+    a, b, c = 15310000, 15050000, 15090000                   # two linked skills with flat curves, one steep skill
+    curves = {a: [0.0] + [1.0 * level for level in range(1, 21)], b: [0.0] + [1.0 * level for level in range(1, 21)],
+              c: [0.0] + [10.0 * level for level in range(1, 21)]}
+    plain = dv.solve(sorc, curves, {}, daev_budget=0, sp_budget=6, time_limit=30)
+    assert plain["sp"] == {a: 2, b: 1, c: 5} or plain["sp"] == {a: 1, b: 2, c: 5}      # the points go to the steep curve
+    joint = [({a: 3, b: 3}, 100.0), ({a: 3, 15999999: 2}, 500.0)]   # the second names a skill the program lacks
+    for start in (None, (set(), {a: 1, b: 1, c: 1})):
+        sol = dv.solve(sorc, curves, {}, daev_budget=0, sp_budget=6, time_limit=30, joint=joint, start=start)
+        assert sol["sp"] == {a: 3, b: 3, c: 3} and sol["objective"] == pytest.approx(3 + 3 + 30 + 100)
+    # out of reach of the budget: the points go where they did without it
+    far = dv.solve(sorc, curves, {}, daev_budget=0, sp_budget=6, time_limit=30, joint=[({a: 10, b: 10}, 100.0)])
+    assert far["sp"][c] == 5 and far["objective"] == pytest.approx(plain["objective"])
