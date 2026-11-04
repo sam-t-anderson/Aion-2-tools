@@ -47,22 +47,23 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `quick_slice`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
-| Line | Hotbar key holds (lowest first) |
+| Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | tshadow › infiltrate |
-| 2 | insignia_explosion › heart_gore › smoke |
-| 3 | swift › ambush › flash_slice |
-| 4 | insignia_explosion › heart_gore › smoke |
-| 5 | triniel › whirlwind_slice |
-| 6 | insignia_explosion › heart_gore › smoke |
-| 7 | shadow_fall › shadowstrike › savage_roar |
-| 8 | insignia_explosion › heart_gore › smoke |
+| 1 | heart_gore › insignia_explosion |
+| 2 | ambush › shadow_fall › infiltrate › swift |
+| 3 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 4 | the same key as line 2, pressed again: its skills are tried twice a round |
+| 5 | shadowstrike › whirlwind_slice › smoke |
+| 6 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 7 | savage_roar › flash_slice |
+| 8 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 9 | tshadow › triniel |
 
 Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight
 
-Simulated: this layout reaches **102.8%** of the ideal priority list.
+Simulated: this layout reaches **103.1%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro shadowstrike → insignia_explosion → shadow_fall → heart_gore → infiltrate → triniel → ambush → smoke → whirlwind_slice → savage_roar → flash_slice → tshadow → swift → quick_slice. Simulated: **98.3%** of the ideal priority list.
 

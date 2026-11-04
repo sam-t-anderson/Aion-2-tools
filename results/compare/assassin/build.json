@@ -6288,49 +6288,52 @@
   "quick_slice"
  ],
  "macro": {
-  "model_version": 4,
+  "model_version": 5,
   "steps": [
    [
-    "tshadow",
-    "infiltrate"
+    "heart_gore",
+    "insignia_explosion"
    ],
    [
-    "insignia_explosion",
+    "ambush",
+    "shadow_fall",
+    "infiltrate",
+    "swift"
+   ],
+   [
     "heart_gore",
+    "insignia_explosion"
+   ],
+   [
+    "ambush",
+    "shadow_fall",
+    "infiltrate",
+    "swift"
+   ],
+   [
+    "shadowstrike",
+    "whirlwind_slice",
     "smoke"
    ],
    [
-    "swift",
-    "ambush",
+    "heart_gore",
+    "insignia_explosion"
+   ],
+   [
+    "savage_roar",
     "flash_slice"
    ],
    [
-    "insignia_explosion",
     "heart_gore",
-    "smoke"
+    "insignia_explosion"
    ],
    [
-    "triniel",
-    "whirlwind_slice"
-   ],
-   [
-    "insignia_explosion",
-    "heart_gore",
-    "smoke"
-   ],
-   [
-    "shadow_fall",
-    "shadowstrike",
-    "savage_roar"
-   ],
-   [
-    "insignia_explosion",
-    "heart_gore",
-    "smoke"
+    "tshadow",
+    "triniel"
    ]
   ],
   "manual": [],
-  "dps_macro": 10509.49066379295,
+  "dps_macro": 10542.3531098605,
   "dps_priority": 10225.321556197074,
   "alt_steps": [
    "shadowstrike",

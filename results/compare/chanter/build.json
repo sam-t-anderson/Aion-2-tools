@@ -5109,48 +5109,50 @@
   "onslaught"
  ],
  "macro": {
-  "model_version": 4,
+  "model_version": 5,
   "steps": [
    [
-    "undefeated"
-   ],
-   [
-    "incandescent_blow",
-    "ensnare",
-    "rushing_smash",
-    "tremor_crush"
+    "wave_blow",
+    "heat_wave_blow",
+    "rushing_smash"
    ],
    [
     "spinning_strike",
+    "undefeated",
     "impactful_crush"
    ],
    [
-    "incandescent_blow",
-    "ensnare",
-    "rushing_smash",
-    "tremor_crush"
-   ],
-   [
+    "stormpower",
     "dark_crush",
-    "heat_wave_blow",
-    "wave_blow",
-    "stormpower"
+    "incandescent_blow"
    ],
    [
-    "incandescent_blow",
-    "ensnare",
-    "rushing_smash",
-    "tremor_crush"
+    "tremor_crush",
+    "ensnare"
    ],
    [
-    "incandescent_blow",
-    "ensnare",
-    "rushing_smash",
-    "tremor_crush"
+    "stormpower",
+    "dark_crush",
+    "incandescent_blow"
+   ],
+   [
+    "spinning_strike",
+    "undefeated",
+    "impactful_crush"
+   ],
+   [
+    "stormpower",
+    "dark_crush",
+    "incandescent_blow"
+   ],
+   [
+    "stormpower",
+    "dark_crush",
+    "incandescent_blow"
    ]
   ],
   "manual": [],
-  "dps_macro": 21936.93397152085,
+  "dps_macro": 20766.598225624242,
   "dps_priority": 22234.220282190996,
   "alt_steps": [
    "rushing_smash",

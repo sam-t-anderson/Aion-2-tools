@@ -7043,34 +7043,23 @@
   "earths_retribution"
  ],
  "macro": {
-  "model_version": 4,
+  "model_version": 5,
   "steps": [
    [
-    "divine_aura",
-    "prayamp",
-    "epunish"
-   ],
-   [
     "chain_of_torment",
-    "condemnation",
+    "prayamp",
+    "divine_aura",
+    "epunish"
+   ],
+   [
     "powerburst",
-    "judgment_thunder"
-   ],
-   [
-    "divine_aura",
-    "prayamp",
-    "epunish"
-   ],
-   [
-    "divine_aura",
-    "prayamp",
-    "epunish"
+    "condemnation"
    ]
   ],
   "manual": [
    "bolt"
   ],
-  "dps_macro": 16301.567520272898,
+  "dps_macro": 14989.030604917207,
   "dps_priority": 16712.283470225106,
   "alt_steps": [
    "prayamp",
