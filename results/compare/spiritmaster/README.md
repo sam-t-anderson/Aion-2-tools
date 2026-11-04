@@ -46,18 +46,19 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `cold_shock`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
-| Line | Hotbar key holds (lowest first) |
+| Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | elemental_fusion › ancient_spirit › summon_fire › summon_earth |
-| 2 | summon_water › enhance › summon_wind |
-| 3 | summon_water › enhance › summon_wind |
-| 4 | elemental_fusion › ancient_spirit › summon_fire › summon_earth |
-| 5 | elemental_fusion › ancient_spirit › summon_fire › summon_earth |
-| 6 | jointstrike_curse |
-| 7 | elemental_fusion › ancient_spirit › summon_fire › summon_earth |
-| 8 | dimensional_control › soul_cry › magicblk › combustion |
+| 1 | elemental_fusion › dimensional_control › summon_fire |
+| 2 | ancient_spirit › enhance › summon_wind › jointstrike_curse |
+| 3 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 4 | soul_cry › summon_earth › magicblk |
+| 5 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 6 | summon_water › combustion |
+| 7 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 8 | the same key as line 4, pressed again: its skills are tried twice a round |
+| 9 | the same key as line 2, pressed again: its skills are tried twice a round |
 
 Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight
 

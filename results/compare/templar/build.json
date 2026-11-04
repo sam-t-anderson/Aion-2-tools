@@ -6031,40 +6031,29 @@
   "vicious_strike"
  ],
  "macro": {
-  "model_version": 4,
+  "model_version": 5,
   "steps": [
    [
+    "exec",
+    "shield_smite",
+    "noble"
+   ],
+   [
     "judgment",
-    "pummel"
-   ],
-   [
-    "annihilate"
-   ],
-   [
+    "annihilate",
     "warding_strike",
-    "taunt",
-    "shield_smite"
-   ],
-   [
-    "judgment",
     "pummel"
    ],
    [
     "shield_rush",
-    "noble"
-   ],
-   [
-    "exec",
+    "taunt",
     "doom"
-   ],
-   [
-    "annihilate"
    ]
   ],
   "manual": [
    "punishment"
   ],
-  "dps_macro": 20508.230608858772,
+  "dps_macro": 20462.872587829206,
   "dps_priority": 20210.044172171063,
   "alt_steps": [
    "noble",

@@ -47,20 +47,18 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `snipe`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
-| Line | Hotbar key holds (lowest first) |
+| Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | marking_shot › vaizel › burst_arrow |
-| 2 | drill_dart › bowbless › suppressing_arrow |
-| 3 | marking_shot › vaizel › burst_arrow |
-| 4 | snare_shot › tempest_shot |
-| 5 | marking_shot › vaizel › burst_arrow |
-| 6 | ensnaring_trap › explosive › gale_arrow › explosion_trap |
+| 1 | vaizel › marking_shot › drill_dart › bowbless |
+| 2 | tempest_shot |
+| 3 | snare_shot › explosive › burst_arrow › explosion_trap |
+| 4 | ensnaring_trap › suppressing_arrow › gale_arrow |
 
 Manual keys (press on cooldown, in this priority): deadshot
 
-Simulated: this layout reaches **98.4%** of the ideal priority list.
+Simulated: this layout reaches **98.1%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro vaizel → gale_arrow → drill_dart → bowbless → marking_shot → suppressing_arrow → snare_shot → burst_arrow → explosion_trap → ensnaring_trap → explosive → tempest_shot → snipe; manual: deadshot. Simulated: **80.6%** of the ideal priority list.
 

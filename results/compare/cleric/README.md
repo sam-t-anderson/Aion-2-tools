@@ -43,18 +43,16 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `earths_retribution`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
-| Line | Hotbar key holds (lowest first) |
+| Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | divine_aura › prayamp › epunish |
-| 2 | chain_of_torment › condemnation › powerburst › judgment_thunder |
-| 3 | divine_aura › prayamp › epunish |
-| 4 | divine_aura › prayamp › epunish |
+| 1 | chain_of_torment › prayamp › divine_aura › epunish |
+| 2 | powerburst › condemnation |
 
 Manual keys (press on cooldown, in this priority): bolt
 
-Simulated: this layout reaches **97.5%** of the ideal priority list.
+Simulated: this layout reaches **89.7%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro prayamp → divine_aura → epunish → chain_of_torment → condemnation → powerburst → judgment_thunder → earths_retribution; manual: bolt. Simulated: **75.9%** of the ideal priority list.
 
