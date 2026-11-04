@@ -416,13 +416,26 @@ def test_the_macro_window_shows_each_line_as_a_hotbar_key_with_its_skills(app_pa
                      document.body.append(host); renderWindows(v, {win: 'macro'}, host); }""", view)
     lines = page.locator("#macro-host .macro-step")
     assert lines.count() == len(steps)
+    first = {}
     for i, step in enumerate(steps):
         line = lines.nth(i)
-        assert line.locator(".macro-stack > div > b").all_inner_texts() == [s["name"] for s in step["stack"]]
         assert line.locator(".macro-key-label kbd").inner_text() == step["binding"]
+        if first.setdefault(step["binding"], i + 1) < i + 1:     # a key on an earlier line too: named, not drawn again
+            assert f"The same key as line {first[step['binding']]}, pressed again" in line.inner_text()
+            continue
+        assert line.locator(".macro-stack > div > b").all_inner_texts() == [s["name"] for s in step["stack"]]
     several = next(i for i, s in enumerate(steps) if len(s["stack"]) > 1)
     assert "fires first when ready" in lines.nth(several).inner_text()
     assert "put them on that key in the order listed" in page.locator("#macro-host .macro-instructions").inner_text()
+    # A key the search put on two lines (0.2.376): the later line names the line it repeats and draws no icons again,
+    # where a second full copy of the key read as a mistake; the copied text says so too.
+    again = {**view, "rotation": {**view["rotation"], "steps": steps[:several + 1] + [steps[several]] + steps[several + 1:]}}
+    page.evaluate("v => renderWindows(v, {win: 'macro'}, document.getElementById('macro-host'))", again)
+    repeat = page.locator("#macro-host .macro-step").nth(several + 1)
+    assert "macro-repeat" in repeat.get_attribute("class") and repeat.locator(".hotbar-icon").count() == 0
+    assert f"The same key as line {several + 1}, pressed again" in repeat.inner_text()
+    assert repeat.locator(".macro-key-label").inner_text().endswith("again")
+    assert " › ".join(s["name"] for s in steps[several]["stack"]) in repeat.inner_text()
     page.evaluate("v => renderWindows(v, {win: 'hotbar'}, document.getElementById('macro-host'))", view)
     labels = page.locator("#macro-host .hotbar-slot.automatic small").all_inner_texts()
     assert any(label.endswith("skills, lowest first") for label in labels)

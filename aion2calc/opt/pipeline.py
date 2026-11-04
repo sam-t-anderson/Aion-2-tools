@@ -11,6 +11,7 @@ DPS is monotone across steps up to the noise-free simulator's resolution.
 from __future__ import annotations
 
 import itertools
+import re
 import time
 from dataclasses import dataclass, field, replace
 
@@ -221,6 +222,7 @@ class Optimizer:
         self.min_stigmas = (skill_reserves or {}).get("stigmas", {})
         self.history: list = []
         self._rotation_keys: set = set()    # kit actions the last rotation search could use
+        self._links = None                  # the class's linked supporting effects (_spec_links)
         self.t0 = time.time()
 
     def log(self, msg: str):
@@ -342,6 +344,123 @@ class Optimizer:
             if not changed:
                 break
         return build
+
+    def _spec_links(self) -> tuple[list, dict]:
+        """The supporting effects that act on another skill's cooldown, read from their text (0.2.376): one that
+        shortens or resets a named skill's cooldown ("-3s [Wish of Concentration] cooldown on hit", "Reset [Blaze]
+        cooldown on landing [Pyroclasm]") or every skill's ("-10s all skill cooldowns"). Returns the groups of
+        skills such effects tie together (a skill, the skills it names, and so on) and each skill's linking
+        effects. Every class has some: a Sorcerer's Flame Arrow resets Blaze, Blaze shortens Wish of
+        Concentration's cooldown, and Wish's own effect shortens every cooldown."""
+        if self._links is None:
+            skills = self.cd.skills
+            byname = {s["name"]: sid for sid, s in skills.items()}
+            links, edges = {}, []
+            for sid, s in skills.items():
+                if s["kind"] != "active":
+                    continue
+                for x in s.get("specs") or []:
+                    text = x.get("text") or ""
+                    if "cooldown" not in text.lower():
+                        continue
+                    named = [byname[r] for r in re.findall(r"\[([^\]]+)\]", text) if byname.get(r, sid) != sid]
+                    if named or re.search(r"\ball (?:skill )?cooldowns?\b", text, re.I):
+                        links.setdefault(sid, set()).add(x["id"])
+                        edges += [(sid, other) for other in named]
+            parent = {sid: sid for sid in links}
+
+            def root(x):
+                while parent.setdefault(x, x) != x:
+                    parent[x] = parent[parent[x]]
+                    x = parent[x]
+                return x
+            for a, b in edges:
+                parent[root(a)] = root(b)
+            groups = {}
+            for sid in parent:
+                groups.setdefault(root(sid), []).append(sid)
+            self._links = ([tuple(sorted(g)) for g in groups.values()], {k: frozenset(v) for k, v in links.items()})
+        return self._links
+
+    def _linked_choices(self, build: Build, sid: int, opts: dict, cap: int | None = None) -> list:
+        """``sid``'s combinations of supporting effects that hold one of its linking effects, other than the
+        build's own (empty when the build already holds them all or the skill has none)."""
+        mine = self._spec_links()[1].get(sid, frozenset())
+        current = set(build.specs.get(sid, ()))
+        if not mine or mine <= current:
+            return []
+        need = set(self.required_specs.get(sid, ()))
+        return [tuple(sorted(c)) for c in opts.get(sid, [()])
+                if set(c) & mine and need <= set(c) and set(c) != current][:cap]
+
+    def _linked_builds(self, build: Build, sid: int) -> list:
+        """``build`` with ``sid``'s linking effects and a linked skill's, for the level curves: two effects that act
+        on each other's cooldowns (Blaze shortening Wish of Concentration's, Wish shortening every skill's) pay
+        off together, and judged one skill at a time neither does, so the curves never valued the level that opens
+        them (0.2.376)."""
+        groups, _ = self._spec_links()
+        group = next((g for g in groups if sid in g), ())
+        if len(group) < 2:
+            return []
+        mod = kit_module(self.cls, pvp=self.scenario.target.is_player)
+        opts = mod.spec_options(self.cd, self._with_gear(build))
+        out = []
+        for mine in self._linked_choices(build, sid, opts) or [tuple(sorted(build.specs.get(sid, ())))]:
+            for other in group:
+                if other == sid:
+                    continue
+                for theirs in self._linked_choices(build, other, opts):
+                    b3 = build.copy()
+                    b3.specs[sid], b3.specs[other] = mine, theirs
+                    out.append(b3)
+        return out
+
+    def optimize_linked_specs(self, build: Build, policy: list, keep: int = 2, per_skill: int = 4,
+                              margin: float = 0.9) -> tuple[Build, list]:
+        """The linking supporting effects of each group (:meth:`_spec_links`) tried together, each candidate's
+        rotation searched again (0.2.376). :meth:`optimize_specs` changes one skill at a time under a fixed priority
+        list, which misses what these effects need: the effect on one skill pays off through another skill's
+        cooldown, and the rotation that uses it differs from the one searched without it. A Sorcerer's Wish of
+        Concentration (-10 s every cooldown) with Blaze's -3 s to Wish was 13 % above the effects the optimizer
+        kept, and each alone fell short under the old rotation. Every combination that adds a linking effect is
+        scored under the current rotation; the best ``keep`` within ``margin`` of the build's own score (Wish's
+        effect alone fell 6 % under the old rotation and gained 2 % under its own) have their rotation searched
+        again, and one is taken only when it beats the build as it is. Returns ``(build, policy)``."""
+        mod = kit_module(self.cls, pvp=self.scenario.target.is_player)
+        build = self._clean_specs(build)
+        best = self.evaluate(build, policy)
+        for group in self._spec_links()[0]:
+            opts = mod.spec_options(self.cd, self._with_gear(build))
+            choices = []
+            for sid in group:
+                alts = self._linked_choices(build, sid, opts)
+                if len(alts) > per_skill:                   # the skill's best few, judged on their own
+                    def alone(c, sid=sid):
+                        b2 = build.copy()
+                        b2.specs[sid] = c
+                        return self.evaluate(b2, policy)
+                    alts = sorted(alts, key=alone, reverse=True)[:per_skill]
+                choices.append([tuple(sorted(build.specs.get(sid, ())))] + alts)
+            same = tuple(c[0] for c in choices)
+            scored = []
+            for combo in itertools.product(*choices):
+                if combo == same:
+                    continue
+                b2 = build.copy()
+                for sid, c in zip(group, combo):
+                    b2.specs[sid] = c
+                scored.append((self.evaluate(b2, policy), len(scored), b2))
+            for v, _, b2 in sorted(scored, key=lambda x: (-x[0], x[1]))[:keep]:
+                if v < best * margin:
+                    break
+                pol2, v2, _ = self.optimize_rotation(b2, policy, restarts=0)
+                if v2 > best * (1 + 1e-4):
+                    names = ", ".join(self.cd.skills[sid]["name"] for sid in group
+                                      if set(b2.specs.get(sid, ())) != set(build.specs.get(sid, ())))
+                    self.log(f"linked effects: {names} -> {v2:.0f} (was {best:.0f})")
+                    build, policy, best = b2, pol2, v2
+                    break
+        return build, policy
 
     def _respec(self, build: Build, policy: list, sids) -> tuple[Build, float]:
         """The best supporting effects for ``sids`` alone (their levels just changed), everything else
@@ -471,6 +590,8 @@ class Optimizer:
                     b3 = b2.copy()
                     b3.specs[sid] = tuple(combo)
                     best = max(best, self.evaluate(b3, policy))
+                for b3 in self._linked_builds(self._clean_specs(b2), sid):   # with a linked skill's effect too
+                    best = max(best, self.evaluate(b3, policy))
             curve.append(best)
         return curve
 
@@ -490,6 +611,8 @@ class Optimizer:
                         continue
                     b3 = b2.copy()
                     b3.specs[sid] = tuple(combo)
+                    best = max(best, self.evaluate(b3, policy))
+                for b3 in self._linked_builds(self._clean_specs(b2), sid):   # with a linked skill's effect too
                     best = max(best, self.evaluate(b3, policy))
             out.append(best)
         return out
@@ -745,6 +868,9 @@ class Optimizer:
             self.log(f"iter {it}: specs -> {self.evaluate(build, policy):.0f}")
             policy, dps, _ = self.optimize_rotation(build, policy)
             self.log(f"iter {it}: rotation -> {dps:.0f}  {describe(policy)}")
+            # Effects that act on each other's cooldowns, tried together with their own rotation, before the stigmas
+            # and the skill levels are chosen for the build (0.2.376).
+            build, policy = self.optimize_linked_specs(build, policy)
             build = self.optimize_stigmas(build, policy)
             self.log(f"iter {it}: stigmas -> {self.evaluate(build, policy):.0f} "
                      f"{ {self.cd.skills[k]['name']: v for k, v in build.stigmas.items()} }")
@@ -766,6 +892,7 @@ class Optimizer:
         build = self.spend_remaining_sp(build, policy)
         build = self.polish_bonus(build, policy)
         build = self.optimize_specs(build, policy, passes=3)
+        build, policy = self.optimize_linked_specs(build, policy)
         policy, dps, res = self.optimize_rotation(build, policy, restarts=4)
         from .reserves import meets
         if not meets(self._with_gear(build),self.skill_reserves,self.cd):

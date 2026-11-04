@@ -121,3 +121,15 @@ def test_the_readme_lists_each_lines_key(tmp_path):
     assert "| 1 | blaze › frost |" in text and "| 2 | hellfire |" in text
     assert "| 3 | flame_arrow (the basic attack, on the left mouse button) |" in text
     assert "Hotbar key holds (lowest first)" in text and "a key listed twice added twice" in text
+
+
+def test_the_readme_names_the_line_a_repeated_key_repeats(tmp_path):
+    """A key the search put on two lines is pressed twice per round (0.2.376): the later line names the one it repeats
+    rather than listing the key's skills a second time, which read as a mistake."""
+    from aion2calc.report_md import write_markdown
+    summary = copy.deepcopy(json.loads((ROOT / "results" / "sorcerer_l45" / "build.json").read_text(encoding="utf-8")))
+    summary["macro"].update(model_version=MODEL_VERSION, auto_attack="flame_arrow",
+                            steps=[["blaze"], ["cold_storm", "firestorm", "frost"], ["cold_storm", "firestorm", "frost"]])
+    text = Path(write_markdown(summary, str(tmp_path), None)).read_text(encoding="utf-8")
+    assert "| 2 | cold_storm › firestorm › frost |" in text
+    assert "| 3 | the same key as line 2, pressed again: its skills come up more often |" in text

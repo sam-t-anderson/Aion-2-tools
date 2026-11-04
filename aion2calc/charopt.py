@@ -156,6 +156,10 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus:
     b = opt.optimize_specs(b, policy)
     say("Current build: searching its best rotation")
     policy, dps, res = opt.optimize_rotation(b, policy)
+    # Effects that act on each other's cooldowns are tried together, each with its own rotation (0.2.376): judged one
+    # skill at a time, a Sorcerer's Wish of Concentration and Blaze cooldown effects never were.
+    say("Current build: trying the supporting effects that shorten other skills' cooldowns together")
+    b, policy = opt.optimize_linked_specs(b, policy)
     cd, bg, kit, stats = prepare(b, scen)
     from .report import _sim
     res_other, _, _ = _sim(b, other, policy)
