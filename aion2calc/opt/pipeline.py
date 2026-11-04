@@ -845,6 +845,10 @@ class Optimizer:
         # stat-weight search (which don't use the solver) and looks like a hang at that phase.
         solver_require()
         build = initial_build.copy() if initial_build is not None else self.initial_build()
+        # A given starting build (an imported character's own) is a result the search must not fall below (0.2.376):
+        # a Sorcerer's search, started from a typical top player's build, lowered Wish of Concentration below the level
+        # that opens its cooldown effect and ended 13 % under the character as it was.
+        seed = (self._clean_specs(build), list(initial_policy)) if initial_build is not None and initial_policy else None
         if self.min_effective:
             # Establish a legal seed before specialty search. Joint feasibility
             # includes board connectivity, SP/Daevanion budgets and any HP floor.
@@ -895,6 +899,12 @@ class Optimizer:
         build, policy = self.optimize_linked_specs(build, policy)
         policy, dps, res = self.optimize_rotation(build, policy, restarts=4)
         from .reserves import meets
+        if seed is not None and meets(self._with_gear(seed[0]), self.skill_reserves, self.cd) \
+                and node_hp(self.cd, seed[0].daevanion) + 1e-6 >= (self.survival or {}).get("minimum_node_hp", 0):
+            seed_policy, seed_dps, seed_res = self.optimize_rotation(seed[0], seed[1], restarts=0)
+            if seed_dps > dps * (1 + 1e-6):
+                self.log(f"final: the starting build ({seed_dps:.0f}) beats the search's ({dps:.0f}); it is kept")
+                build, policy, dps, res = seed[0], seed_policy, seed_dps, seed_res
         if not meets(self._with_gear(build),self.skill_reserves,self.cd):
             raise ValueError("The optimized build does not meet the requested skill and supporting-effect reserves")
         weights = self._stat_weights(build, policy, final=True)

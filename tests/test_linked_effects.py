@@ -71,3 +71,27 @@ def test_the_level_curves_try_a_skills_linking_effect_with_a_linked_skills(opt):
     pairs = {(b.specs[WISH], b.specs[BLAZE]) for b in builds}
     assert pairs and all(WISH_ALL in w and BLAZE_WISH in z for w, z in pairs)
     assert len(pairs) == len(builds) == 16                    # Wish's four pairs with -10 s, times Blaze's four with -3 s
+
+
+def test_the_search_keeps_its_starting_build_when_it_ends_below_it(opt, monkeypatch):
+    """An imported character's own build is where its optimization starts, and the result is never below it (0.2.376):
+    started from a typical top player's build, a Sorcerer's search lowered Wish of Concentration below the level that
+    opens its cooldown effect and ended 13 % under the character as it was."""
+    start = _build()
+    start.specs[WISH] = (WISH + 20, WISH_ALL)
+    elsewhere = _build()                                      # what the stand-in search wanders to
+
+    def rotation(b, policy, restarts=2):
+        return ["searched"], (100.0 if WISH_ALL in b.specs.get(WISH, ()) else 90.0), None
+    monkeypatch.setattr(opt, "optimize_rotation", rotation)
+    monkeypatch.setattr(opt, "evaluate", lambda b, policy, cfg=None, filler=None: rotation(b, policy)[1])
+    for step in ("optimize_stigmas", "polish_sp", "spend_remaining_sp", "polish_bonus"):
+        monkeypatch.setattr(opt, step, lambda b, policy, **kw: b)
+    monkeypatch.setattr(opt, "optimize_specs", lambda b, policy, passes=2: elsewhere.copy())
+    monkeypatch.setattr(opt, "optimize_linked_specs", lambda b, policy, **kw: (b, policy))
+    monkeypatch.setattr(opt, "allocate", lambda b, policy: (b, {"status": "stub", "daev_cost": 0, "sp_cost": 0}, {}, []))
+    monkeypatch.setattr(opt, "_stat_weights", lambda b, policy, final=False: [])
+    result = opt.run(iterations=1, initial_build=start, initial_policy=["mine"])
+    assert WISH_ALL in result.build.specs[WISH] and result.dps == 100.0
+    plain = opt.run(iterations=1)                              # no starting build: the search's own result
+    assert WISH_ALL not in plain.build.specs.get(WISH, ()) and plain.dps == 90.0

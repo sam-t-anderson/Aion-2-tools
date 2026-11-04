@@ -321,10 +321,12 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
                iterations: int = 3, loadout: str | None = None, verbose: bool = True,
                sp_budget: int | None = None, stigma_points: int | None = None,
                current: object | None = None, progress=None, survival=None, loadout_snapshot: dict | None = None, skill_reserves=None, genus=None, objective="primary", progression=None,
-               level: int = 45) -> dict:
+               level: int = 45, initial_build=None, initial_policy: list | None = None) -> dict:
     """``current``: a Build (e.g. an imported character) to evaluate and diff against.
     ``progress``: optional callback(str) for live phase updates (the app streams these to the UI).
-    ``level``: the character's level, which gates its stigma slots, skill levels and boards."""
+    ``level``: the character's level, which gates its stigma slots, skill levels and boards.
+    ``initial_build`` / ``initial_policy``: where the search starts (an imported character's own build and
+    rotation, 0.2.376); the result is never below it."""
     t0 = time.time()
     out = Path(out_dir)
     (out / "images").mkdir(parents=True, exist_ok=True)
@@ -347,7 +349,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
                         level=level)
     skill_reserves = opt.skill_reserves
     opt.log("Damage objective: " + objective + "; HP and trained-skill reserves remain enforced")
-    res = opt.run(iterations=iterations)
+    res = opt.run(iterations=iterations, initial_build=initial_build, initial_policy=initial_policy)
     build, policy = res.build, res.policy
 
     # baseline: the typical top global build (live statistics) with the best legal

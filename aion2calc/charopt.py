@@ -131,10 +131,11 @@ def progression_of(imp, budgets, *, entered=()):
 
 
 def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus: dict | None = None, objective="primary", survival=None,
-                     progress=None) -> dict:
+                     progress=None, keep: dict | None = None) -> dict:
     """The character as it is (best legal specs for its levels, optimized rotation).
 
-    It takes a minute or more in the app, which runs it serially, so ``progress`` hears each step."""
+    It takes a minute or more in the app, which runs it serially, so ``progress`` hears each step. ``keep``, when
+    given, receives the evaluated ``build`` and ``policy`` (the optimization's starting point, 0.2.376)."""
     say = progress or (lambda msg: None)
     cls = imp.cls
     from .opt.genus import apply as apply_genus
@@ -160,6 +161,8 @@ def evaluate_current(imp: ImportedCharacter, scenario_name: str = "boss", genus:
     # skill at a time, a Sorcerer's Wish of Concentration and Blaze cooldown effects never were.
     say("Current build: trying the supporting effects that shorten other skills' cooldowns together")
     b, policy = opt.optimize_linked_specs(b, policy)
+    if keep is not None:
+        keep.update(build=b.copy(), policy=list(policy))
     cd, bg, kit, stats = prepare(b, scen)
     from .report import _sim
     res_other, _, _ = _sim(b, other, policy)
@@ -220,7 +223,8 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     genus_plan = prepare_genus(inv.get("genus", {}), "pvp" if scenario_name.startswith("pvp") else "pve", genus)
     if progress:
         progress(f"Genus Insight: {len(genus_plan['lines'])} saved lines; {genus_plan['mode'].upper()} damage model")
-    cur = evaluate_current(imp, scenario_name, genus_plan, objective, survival_plan, progress=progress)
+    start: dict = {}
+    cur = evaluate_current(imp, scenario_name, genus_plan, objective, survival_plan, progress=progress, keep=start)
     (out / "current").mkdir(parents=True, exist_ok=True)
     bud = dict(cur["budgets"])
     spent_now = {"skill": imp.build.sp_spent(), "stigma": imp.build.stigma_spent(),
@@ -245,7 +249,7 @@ def optimize_character(imp: ImportedCharacter, out_dir: str, iterations: int = 2
     best = run_report(imp.cls, str(out), scenario_name=scenario_name, daev_budget=bud["daevanion"],
                       iterations=iterations, loadout=imp.loadout_name(), sp_budget=bud["skill"],
                       stigma_points=bud["stigma"], progress=progress, survival=survival_plan, loadout_snapshot=imp.loadout, skill_reserves=reserve_plan, genus=genus_plan, objective=objective, progression=cur["progression"],
-                      level=imp.build.level)
+                      level=imp.build.level, initial_build=start.get("build"), initial_policy=start.get("policy"))
     write_diff(str(out / "current"), str(out), str(out / "DIFF.md"))
     current_score, optimized_score = cur["objective"]["score"], best["objective"]["score"]
     gain = optimized_score / current_score - 1 if current_score > 0 else None
