@@ -138,7 +138,7 @@ def add_weave(A: dict, weave: dict, flat: float, coef: float, *, mp: float = 0.0
 
 def add_stagger_skill(A: dict, build, cd: ClassData, levels: dict, sid: int, key: str, *, hits: float, hit: float,
                       cast: float) -> Action | None:
-    """The skill a class can use only on a staggered boss (0.2.377; docs/methodology.md "The stagger skills from
+    """The skill a class can use only on a staggered boss (0.2.379; docs/methodology.md "The stagger skills from
     the recordings"): the Gladiator's Sword Aura Rampage, the Templar's Flash Rampage, the Ranger's Arrow Scattershot,
     the Spiritmaster's Rapid Scattershot, the Cleric's Lightning Strike Scattershot, the Chanter's Gust Rampage.
 

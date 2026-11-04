@@ -45,21 +45,21 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `onslaught`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
-| Line | Hotbar key holds (lowest first) |
+| Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | undefeated |
-| 2 | incandescent_blow › ensnare › rushing_smash › tremor_crush |
-| 3 | spinning_strike › impactful_crush |
-| 4 | incandescent_blow › ensnare › rushing_smash › tremor_crush |
-| 5 | dark_crush › heat_wave_blow › wave_blow › stormpower |
-| 6 | incandescent_blow › ensnare › rushing_smash › tremor_crush |
-| 7 | incandescent_blow › ensnare › rushing_smash › tremor_crush |
+| 1 | undefeated › dark_crush › incandescent_blow |
+| 2 | ensnare |
+| 3 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 4 | rushing_smash › spinning_strike › impactful_crush |
+| 5 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 6 | stormpower › heat_wave_blow › wave_blow › tremor_crush |
+| 7 | the same key as line 4, pressed again: its skills are tried twice a round |
 
 Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight
 
-Simulated: this layout reaches **98.7%** of the ideal priority list.
+Simulated: this layout reaches **94.3%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro rushing_smash → wave_blow → impactful_crush → dark_crush → tremor_crush → heat_wave_blow → onslaught; manual: stormpower, undefeated, spinning_strike, incandescent_blow, ensnare. Simulated: **91.7%** of the ideal priority list.
 

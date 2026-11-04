@@ -43,7 +43,7 @@ TIMING = {
     "drill_dart": 0.31, "gale_arrow": 0.36, "explosion_trap": 0.90, "burst_arrow": 0.40,
     "suppressing_arrow": 0.63, "deadshot": 0.72, "chain_followup": 0.50, "stigma": 0.35,
     "tempest_arrow": 0.24,
-    "arrow_scattershot": 2.49,    # the presses of a stagger, 18.2 hits at 0.128 s each (0.2.377; docs/methodology.md
+    "arrow_scattershot": 2.49,    # the presses of a stagger, 18.2 hits at 0.128 s each (0.2.379; docs/methodology.md
                                   #   "The stagger skills from the recordings")
 }
 
@@ -54,7 +54,7 @@ ASSUME = {
     "chain_frac": 1.5,            # Tempest Arrow (Snipe chain); community L45 parses put detected
                                   #   chains at ~1.4-1.9x (ranger Shackling Arrow 1.38x), so 1.5 (was 0.85)
     # Arrow Scattershot, usable only on a staggered boss: pressed back to back once the opening skills are out, one
-    # train of presses a stagger (0.2.377; 4 Rangers, 25 staggers, every fight counted once over its uploads):
+    # train of presses a stagger (0.2.379; 4 Rangers, 25 staggers, every fight counted once over its uploads):
     "arrow_scattershot_hits": 18.2,    # hits a stagger (four a press, 0.15 s apart)
     "arrow_scattershot_hit": 0.16,     # each hit against the tooltip's value, measured against Snipe (the tooltip
                                        #   split evenly over a press's four hits would be 0.25)

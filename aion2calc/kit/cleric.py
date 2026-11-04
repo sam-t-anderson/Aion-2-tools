@@ -55,7 +55,7 @@ TIMING = {
     "condemnation": 0.52, "debilitating_mark": 0.81, "divine_aura": 0.57, "bolt": 1.56,
     "chain_followup": 0.55, "stigma": 0.71, "discharge": 0.80, "thunder_and_lightning": 0.55,
     "heal": 0.45,
-    "lightning_strike_scattershot": 3.59,   # the presses of a stagger, 22.8 hits at 0.147 s each (0.2.377;
+    "lightning_strike_scattershot": 3.59,   # the presses of a stagger, 22.8 hits at 0.147 s each (0.2.379;
                                             #   docs/methodology.md "The stagger skills from the recordings")
 }
 
@@ -84,7 +84,7 @@ ASSUME = {
     # fight 4.45, quartiles 1.3-7.6), as often inside Earth Punishment's windows as outside them.
     "heals_per_minute": 4.6,
     # Lightning Strike Scattershot, usable only on a staggered boss: pressed back to back once the opening skills are
-    # out, one train of presses a stagger (0.2.377; 13 Clerics, 80 staggers, every fight counted once over its uploads):
+    # out, one train of presses a stagger (0.2.379; 13 Clerics, 80 staggers, every fight counted once over its uploads):
     "lightning_strike_scattershot_hits": 22.8,   # hits a stagger (four a press, 0.15 s apart)
     "lightning_strike_scattershot_hit": 0.26,    # each hit against the tooltip's value, measured against Earth's
                                                  #   Retribution (the tooltip split evenly over a press's four hits

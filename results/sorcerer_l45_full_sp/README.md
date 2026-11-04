@@ -48,26 +48,19 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `flame_arrow`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
-| Line | Hotbar key holds (lowest first) |
+| Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | blaze › fire_wall |
-| 2 | element_enhancement › wish |
-| 3 | element_enhancement › wish |
-| 4 | blaze › fire_wall |
-| 5 | winters_shackles › bittercold_wind › cold_storm › delayed_explosion |
-| 6 | blaze › fire_wall |
-| 7 | winters_shackles › bittercold_wind › cold_storm › delayed_explosion |
-| 8 | winters_shackles › bittercold_wind › cold_storm › delayed_explosion |
-| 9 | winters_shackles › bittercold_wind › cold_storm › delayed_explosion |
-| 10 | blaze › fire_wall |
-| 11 | firestorm › flame_scattershot › ice_chain |
-| 12 | frost_burst › frost |
+| 1 | wish › cold_storm › element_enhancement |
+| 2 | winters_shackles › fire_wall › delayed_explosion › bittercold_wind |
+| 3 | blaze › firestorm › frost |
+| 4 | flame_scattershot › frost_burst › ice_chain |
+| 5 | the same key as line 3, pressed again: its skills are tried twice a round |
 
 Manual keys (press on cooldown, in this priority): hellfire_c3 [sync_de]
 
-Simulated: this layout reaches **98.9%** of the ideal priority list.
+Simulated: this layout reaches **98.7%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro fire_wall → element_enhancement → wish → cold_storm → winters_shackles → blaze → bittercold_wind → delayed_explosion → frost_burst → firestorm → frost → ice_chain → flame_scattershot → flame_arrow; manual: hellfire_c3 [sync_de]. Simulated: **91.3%** of the ideal priority list.
 

@@ -6158,46 +6158,48 @@
   "keen_strike"
  ],
  "macro": {
-  "model_version": 4,
+  "model_version": 5,
   "steps": [
    [
+    "leaping_slam",
     "overhead_slam",
-    "rage",
-    "lunge",
-    "rush_strike"
+    "lunge"
    ],
    [
     "zikel",
-    "ruinous_blow"
+    "rage",
+    "ruinous_blow",
+    "mocking_blade"
    ],
    [
-    "rending_blow",
     "aerial_snare",
+    "rush_strike",
     "crushing_wave"
    ],
    [
-    "overhead_slam",
-    "rage",
-    "lunge",
-    "rush_strike"
-   ],
-   [
-    "mocking_blade",
+    "assault",
+    "rending_blow",
     "ankle_slice"
    ],
    [
+    "leaping_slam",
     "overhead_slam",
-    "rage",
-    "lunge",
-    "rush_strike"
+    "lunge"
    ],
    [
-    "leaping_slam",
-    "assault"
+    "assault",
+    "rending_blow",
+    "ankle_slice"
+   ],
+   [
+    "zikel",
+    "rage",
+    "ruinous_blow",
+    "mocking_blade"
    ]
   ],
   "manual": [],
-  "dps_macro": 13481.778521979779,
+  "dps_macro": 13280.918580239462,
   "dps_priority": 13569.98810238371,
   "alt_steps": [
    "ankle_slice",

@@ -302,7 +302,7 @@ def test_the_specialty_marks_tell_a_modeled_pick_from_a_filler():
     assert [e["free"] for e in rows["Heart Gore"]["effects"] if e["selected"]] == [True, False]
 
 
-#: Each class's stagger-only skill and its action (0.2.377): no cooldown, so the generic reading took it for a filler
+#: Each class's stagger-only skill and its action (0.2.379): no cooldown, so the generic reading took it for a filler
 #: and left it out of the class kits.
 STAGGER = {"gladiator": (11280000, "sword_aura_rampage"), "templar": (12340000, "flash_rampage"),
            "ranger": (14330000, "arrow_scattershot"), "spiritmaster": (16340000, "rapid_scattershot"),
@@ -334,7 +334,7 @@ def _alone(cls, specs, policy_extra=None, *, derived_mods=None, duration=12.0, m
 
 @pytest.mark.parametrize("cls", sorted(STAGGER))
 def test_each_class_presses_its_stagger_skill_once_a_stagger_at_the_recorded_hits(cls):
-    """0.2.377: the recorded players press their class's stagger-only skill back to back once their opening skills are
+    """0.2.379: the recorded players press their class's stagger-only skill back to back once their opening skills are
     out, one train of presses a stagger, four hits a press. The kit lands that train once in each of the boss's three
     stagger windows, with the recorded hits a stagger, inside the window, and never on a training dummy."""
     from aion2calc.run import kit_module
@@ -357,7 +357,7 @@ def test_each_class_presses_its_stagger_skill_once_a_stagger_at_the_recorded_hit
 
 @pytest.mark.parametrize("cls", sorted(STAGGER))
 def test_a_stagger_hit_is_the_measured_share_of_the_tooltip(cls):
-    """Each hit lands the share of the tooltip's value measured against the class's own reference skill (0.2.377); the
+    """Each hit lands the share of the tooltip's value measured against the class's own reference skill (0.2.379); the
     tooltip split evenly over a press's four hits, as the generic reading deals it, would be 0.25. Without the per-hit
     additions (PvE and Boss Attack, Penetration, Critical Attack) the hits differ by exactly that ratio."""
     from aion2calc.kit import generic

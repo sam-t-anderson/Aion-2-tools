@@ -55,7 +55,7 @@ TIMING = {
     "pet_skill_period": 3.0,      # the Spirit Skill Cooldown listed in the data
     "pet_swing": 0.5,             # a Spirit's basic-attack interval (recorded)
     "ancient_swing": 1.4,         # the Ancient Spirit's basic attacks spread over its 30 s (recorded: 21)
-    "rapid_scattershot": 2.72,    # the presses of a stagger, 16.5 hits at 0.154 s each (0.2.377; docs/methodology.md
+    "rapid_scattershot": 2.72,    # the presses of a stagger, 16.5 hits at 0.154 s each (0.2.379; docs/methodology.md
                                   #   "The stagger skills from the recordings")
 }
 
@@ -76,7 +76,7 @@ ASSUME = {
     "chain_frac": 1.5,            # Ashy Call (Combustion chain); community L45 parses put detected
                                   #   chains at ~1.4-1.9x, so 1.5 (was 0.60) class-wide
     # Rapid Scattershot, usable only on a staggered boss: pressed back to back once the opening skills are out, one
-    # train of presses a stagger (0.2.377; 6 Spiritmasters, 46 staggers, every fight counted once over its uploads):
+    # train of presses a stagger (0.2.379; 6 Spiritmasters, 46 staggers, every fight counted once over its uploads):
     "rapid_scattershot_hits": 16.5,    # hits a stagger (four a press, 0.15 s apart)
     "rapid_scattershot_hit": 0.23,     # each hit against the tooltip's value, measured against Cold Shock (the tooltip
                                        #   split evenly over a press's four hits would be 0.25)

@@ -59,7 +59,7 @@ TIMING = {
     "overhead_slam": 0.40, "ankle_slice": 0.94, "crushing_wave": 0.93, "rush_strike": 0.54,
     "aerial_snare": 0.78, "ruinous_blow": 0.40, "chain_followup": 0.30, "stigma": 0.19,
     "basic_combo": 0.42, "upward_strike": 0.15,
-    "sword_aura_rampage": 2.66,   # the presses of a stagger, 14.3 hits at 0.174 s each (0.2.377; docs/methodology.md
+    "sword_aura_rampage": 2.66,   # the presses of a stagger, 14.3 hits at 0.174 s each (0.2.379; docs/methodology.md
                                   #   "The stagger skills from the recordings")
 }
 
@@ -106,7 +106,7 @@ ASSUME = {
     "overhead_mp": 50,
     "step_mp": 150,
     # Sword Aura Rampage, usable only on a staggered boss: pressed back to back once the opening skills are out, one
-    # train of presses a stagger (0.2.377; 7 Gladiators, 39 staggers, every fight counted once over its uploads):
+    # train of presses a stagger (0.2.379; 7 Gladiators, 39 staggers, every fight counted once over its uploads):
     "sword_aura_rampage_hits": 14.3,   # hits a stagger (four a press, 0.15 s apart)
     "sword_aura_rampage_hit": 0.22,    # each hit against the tooltip's value, measured against an Overhead Slam press
                                        #   (the tooltip split evenly over a press's four hits would be 0.25)
@@ -429,7 +429,7 @@ def _build_stigmas(A, build, cd, stig, st, notes):
 
 
 def _policy(actions: dict, filler: str) -> list:
-    # Sword Aura Rampage first: it is there only in a stagger window, once (0.2.377).
+    # Sword Aura Rampage first: it is there only in a stagger window, once (0.2.379).
     # Buffs, then the Ruinous Blow nuke, the Overhead Slam + Upward Strike core and Rending Blow
     # with the Smashing Blow that follows it (the highest-frequency damage skills in a real parse;
     # Smashing Blow first, as it is only there in Rending Blow's chain window and costs the same MP),

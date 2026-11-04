@@ -46,21 +46,20 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `vicious_strike`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
-| Line | Hotbar key holds (lowest first) |
+| Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | judgment › pummel |
-| 2 | annihilate |
-| 3 | warding_strike › taunt › shield_smite |
-| 4 | judgment › pummel |
-| 5 | shield_rush › noble |
-| 6 | exec › doom |
-| 7 | annihilate |
+| 1 | shield_rush › shield_smite › noble › judgment |
+| 2 | taunt › annihilate › warding_strike |
+| 3 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 4 | exec › pummel |
+| 5 | the same key as line 2, pressed again: its skills are tried twice a round |
+| 6 | doom |
 
 Manual keys (press on cooldown, in this priority): punishment
 
-Simulated: this layout reaches **101.5%** of the ideal priority list.
+Simulated: this layout reaches **101.0%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro noble → judgment → warding_strike → shield_rush → shield_smite → punishing_strike (pummel again) → taunt → exec → annihilate → doom → pummel → vicious_strike; manual: punishment. Simulated: **95.9%** of the ideal priority list.
 

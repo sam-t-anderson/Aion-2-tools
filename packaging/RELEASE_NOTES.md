@@ -1,6 +1,14 @@
-## Every class's stagger skill is simulated, and its cooldown effect counts (0.2.377)
+## Every class's stagger skill is simulated, and its cooldown effect counts (0.2.379)
 
 **The skills for a staggered boss count.** Every class has a skill it can use only while a boss is staggered: the Gladiator's Sword Aura Rampage, the Templar's Flash Rampage, the Ranger's Arrow Scattershot, the Spiritmaster's Rapid Scattershot, the Cleric's Lightning Strike Scattershot and the Chanter's Gust Rampage. They have no cooldown, so the model read them as filler skills and left them out of these six classes' simulations: they dealt no damage there, and their level-16 effect, a second off every skill's cooldown at each hit, was worth nothing to the optimizer. They are now measured from recorded fights. A press lands four hits, and players press the skill back to back for the rest of a stagger once their opening skills are out: 14 to 23 hits a stagger by class, each about a fifth to a quarter of the tooltip's value. In a boss fight each class's simulation now does the same once in every stagger, and the skill's effects do what they say: Multi-Hit, the second off every cooldown at each hit, and the MP. With the skill at level 16, the cooldown effect is worth 2 to 6 % of a typical build's boss DPS, and the optimizer now chooses it. Where a class runs short of MP, the MP effect can be worth more than Multi-Hit. The bundled class builds are not regenerated: optimize again to see what the skill changes for your build.
+
+## No hotbar key twice in a row in the suggested macro (0.2.378)
+
+**No key on the line straight after its own.** 0.2.377 still let the suggested macro put a key on the line straight after its own when the key held a skill with no cooldown, such as the Chanter's Incandescent Blow, so that the second line cast that skill again. Held, the macro runs such a skill again anyway each time it comes back to the key, so the second line only repeated the first. The suggested macro now never puts a key on two lines in a row, the last and the first line included, and the bundled builds' macros are planned again.
+
+## The suggested macro casts each key's skills in order, as the game's macro does (0.2.377)
+
+**A key's skills are cast in order.** Held, the game's Skill Macro casts a hotbar key's skills from first to last, skipping any that cannot be cast, then moves to the next line. The optimizer planned macros as if a key cast only the first of its skills that was ready before the macro moved on. A key on two lines in a row then looked as if it cast more of its skills: one Sorcerer's macro put Cold Storm, Firestorm and Frost on one key on lines 2 and 3, and 0.2.376 labelled that as intended. The second line only finds those skills cooling down. The macro is now planned the way the game plays it, and the bundled builds' macros are planned again. A macro saved by an earlier version keeps its lines and asks you to optimize again for a new one and its estimate.
 
 ## The optimizer keeps cooldown effects that work together, and a repeated macro key says so (0.2.376)
 

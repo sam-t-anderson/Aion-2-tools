@@ -9021,43 +9021,33 @@
   "snipe"
  ],
  "macro": {
-  "model_version": 4,
+  "model_version": 5,
   "steps": [
-   [
-    "marking_shot",
-    "vaizel",
-    "burst_arrow"
-   ],
    [
     "drill_dart",
     "bowbless",
-    "suppressing_arrow"
+    "marking_shot"
    ],
    [
-    "marking_shot",
     "vaizel",
-    "burst_arrow"
-   ],
-   [
     "snare_shot",
-    "tempest_shot"
-   ],
-   [
-    "marking_shot",
-    "vaizel",
     "burst_arrow"
    ],
    [
-    "ensnaring_trap",
-    "explosive",
+    "suppressing_arrow",
+    "ensnaring_trap"
+   ],
+   [
     "gale_arrow",
-    "explosion_trap"
+    "explosion_trap",
+    "explosive",
+    "tempest_shot"
    ]
   ],
   "manual": [
    "deadshot"
   ],
-  "dps_macro": 12617.59314761372,
+  "dps_macro": 12565.432391681354,
   "dps_priority": 12823.794679742876,
   "alt_steps": [
    "vaizel",

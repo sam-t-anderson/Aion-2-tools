@@ -201,11 +201,12 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         w(f"**Left mouse button** is the basic auto-attack: `{m['auto_attack']}`. Hold it for continuous attacks; "
           "the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.\n")
     w("Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to "
-      "four, and pressing it fires the lowest that is ready). Then Settings → Key Settings → General → Skill Macro: add "
+      "four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the "
+      "next line. Then Settings → Key Settings → General → Skill Macro: add "
       "the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms "
       "delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key "
       "presses its chain step while the chain is open, in the macro too.\n")
-    w("| Line | Hotbar key holds (lowest first) |")
+    w("| Line | Hotbar key holds (cast in this order) |")
     w("|---:|---|")
     # a chain step is no skill of its own: its parent's key pressed again while the chain is open
     chains = m.get("chains") or {}
@@ -215,12 +216,13 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         return f"{entry} ({how.format(parent)})" if parent else str(entry)
     by_hand = "{0}'s key while its chain is open"
     first: dict = {}          # a key on several lines: each later line names the line it repeats (0.2.376)
+    again_text = "the same key as line {0}, pressed again: its skills are tried twice a round"
     for i, st in enumerate(m["steps"], 1):
         held = st if isinstance(st, list) else [st]
         own = isinstance(st, list) and held == [m.get("auto_attack")]   # the basic attack's own line (0.2.371)
         again = first.setdefault(tuple(held), i)
         if again < i:
-            w(f"| {i} | the same key as line {again}, pressed again: its skills come up more often |")
+            w(f"| {i} | {again_text.format(again)} |")
             continue
         w(f"| {i} | {' › '.join(named(x, 'chain of {0}: add {0} again') for x in held)}"
           f"{' (the basic attack, on the left mouse button)' if own else ''} |")

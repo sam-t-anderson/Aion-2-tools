@@ -71,7 +71,7 @@ TIMING = {
     "judgment": 0.56, "debilitating_smash": 0.53, "warding_strike": 0.35, "shield_rush": 0.32,
     "annihilate": 0.35, "punishment": 1.56, "chain_followup": 0.55, "stigma": 0.41,
     "doom": 0.35, "taunt": 0.62, "poach": 0.43,
-    "flash_rampage": 3.25,        # the presses of a stagger, 21.2 hits at 0.143 s each (0.2.377; docs/methodology.md
+    "flash_rampage": 3.25,        # the presses of a stagger, 21.2 hits at 0.143 s each (0.2.379; docs/methodology.md
                                   #   "The stagger skills from the recordings")
 }
 
@@ -102,7 +102,7 @@ ASSUME = {
     # press's plain hit (44 presses), and no tick crits (0.2.320).
     "punish_dot_tick": 0.076,
     # Flash Rampage, usable only on a staggered boss: pressed back to back once the opening skills are out, one train
-    # of presses a stagger (0.2.377; 3 Templars, 36 staggers, every fight counted once over its uploads):
+    # of presses a stagger (0.2.379; 3 Templars, 36 staggers, every fight counted once over its uploads):
     "flash_rampage_hits": 21.2,   # hits a stagger (four a press, 0.15 s apart)
     "flash_rampage_hit": 0.27,    # each hit against the tooltip's value, measured against a plain Vicious Strike (the
                                   #   tooltip split evenly over a press's four hits would be 0.25)

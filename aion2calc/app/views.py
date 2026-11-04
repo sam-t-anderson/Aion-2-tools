@@ -244,7 +244,8 @@ def rotation_view(cd: ClassData, build, gear: dict, summary: dict) -> dict:
         return str(entry).split(" [", 1)[0]
 
     def skills_of(line):
-        """A macro line's skills: one (a skill name) or a hotbar key's stack (a list, lowest first, 0.2.371)."""
+        """A macro line's skills: one (a skill name) or a hotbar key's stack (a list, in the order the macro casts
+        them, 0.2.371)."""
         return [str(e) for e in line] if isinstance(line, (list, tuple)) else [str(line)]
 
     manual = list(macro.get("manual") or [])
@@ -282,7 +283,7 @@ def rotation_view(cd: ClassData, build, gear: dict, summary: dict) -> dict:
     # Reserve right-click for the macro itself. Names/icons/key bindings are shared by both tabs.
     # The left mouse button (LMB) is the basic auto-attack, so it is reserved for the kit's
     # filler and kept out of the positional pool — never assigned to an arbitrary skill.
-    # A macro line of several skills is one hotbar key holding them all (the lowest ready one fires).
+    # A macro line of several skills is one hotbar key holding them all (the macro casts them in order, 0.2.377).
     bindings = ["1", "2", "3", "4", "5", "6", "7", "8", "Q", "E", "="]
     bindings += [f"F{i}" for i in range(1, 13)]
     auto_key = macro.get("auto_attack") or kit.filler

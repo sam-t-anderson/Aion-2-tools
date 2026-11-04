@@ -60,7 +60,7 @@ TIMING = {
     "dark_crush": 0.54, "heat_wave_blow": 0.90, "tremor_crush": 0.90, "wave_blow": 0.95,
     "spinning_strike": 0.47, "chain_followup": 0.55, "stigma": 1.00,
     "bursting_blow": 0.82, "piercing_strike": 0.57, "heal": 0.56,
-    "gust_rampage": 3.07,         # the presses of a stagger, 19.5 hits at 0.147 s each (0.2.377; docs/methodology.md
+    "gust_rampage": 3.07,         # the presses of a stagger, 19.5 hits at 0.147 s each (0.2.379; docs/methodology.md
                                   #   "The stagger skills from the recordings")
 }
 
@@ -83,7 +83,7 @@ ASSUME = {
     # 425 in 348 minutes of 175 recorded fights (0.2.319; the median fight 0.91, quartiles 0-2.5).
     "heals_per_minute": 1.2,
     # Gust Rampage, usable only on a staggered boss: pressed back to back once the opening skills are out, one train
-    # of presses a stagger (0.2.377; 11 Chanters, 50 staggers, every fight counted once over its uploads):
+    # of presses a stagger (0.2.379; 11 Chanters, 50 staggers, every fight counted once over its uploads):
     "gust_rampage_hits": 19.5,    # hits a stagger (four a press, 0.15 s apart)
     "gust_rampage_hit": 0.21,     # each hit against the tooltip's value, measured against an Incandescent Blow press and
                                   #   an Onslaught press (the tooltip split evenly over a press's four hits would be 0.25)
