@@ -87,8 +87,8 @@ def test_the_templars_macro_is_built_from_hotbar_keys(templar, plan):
     assert "punishment" in manual                                    # a charge skill: a macro only taps it
     assert all(kit.actions[m].requires_charge or (kit.actions[m].cooldown or 0) >= 30 for m in manual)
     assert "judgment" in placed
-    # beats the best layout of one skill per line (by 1 % while a key cast its first ready skill; 0.97 % with its
-    # skills cast in order and no key on two lines in a row, 0.2.378)
+    # beats the best layout of one skill per line (by 1.03 % in 0.2.377 and 0.97 % in 0.2.378, whose search takes
+    # another path through the smaller set of layouts with no key on two lines in a row)
     assert plan.dps_macro > plan.dps_alt
     assert all(isinstance(st, str) for st in plan.alt_steps)
 
