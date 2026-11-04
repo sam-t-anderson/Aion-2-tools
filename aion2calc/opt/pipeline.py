@@ -580,7 +580,7 @@ class Optimizer:
                 for sid, lvl in closed.items():
                     probe.bonus[sid] = probe.bonus.get(sid, 0) + lvl - L.get(sid, 1)
                 probe, base = self._respec(self._clean_specs(probe), policy, list(closed))
-                linked, linked_policy = self.optimize_linked_specs(probe, policy, groups=[group])
+                linked, linked_policy = self.optimize_linked_specs(probe, policy, keep=1, groups=[group])
                 gain = self.evaluate(linked, linked_policy) - base
                 self._probes[key] = max(0.0, gain)
                 if gain > 0:
