@@ -223,6 +223,7 @@ class Optimizer:
         self.history: list = []
         self._rotation_keys: set = set()    # kit actions the last rotation search could use
         self._links = None                  # the class's linked supporting effects (_spec_links)
+        self._probes: dict = {}             # linked-effect probes by group and closed levels (_linked_probe_gains)
         self.t0 = time.time()
 
     def log(self, msg: str):
@@ -416,7 +417,7 @@ class Optimizer:
         return out
 
     def optimize_linked_specs(self, build: Build, policy: list, keep: int = 2, per_skill: int = 4,
-                              margin: float = 0.9) -> tuple[Build, list]:
+                              margin: float = 0.9, groups: list | None = None) -> tuple[Build, list]:
         """The linking supporting effects of each group (:meth:`_spec_links`) tried together, each candidate's
         rotation searched again (0.2.376). :meth:`optimize_specs` changes one skill at a time under a fixed priority
         list, which misses what these effects need: the effect on one skill pays off through another skill's
@@ -429,7 +430,7 @@ class Optimizer:
         mod = kit_module(self.cls, pvp=self.scenario.target.is_player)
         build = self._clean_specs(build)
         best = self.evaluate(build, policy)
-        for group in self._spec_links()[0]:
+        for group in self._spec_links()[0] if groups is None else groups:
             opts = mod.spec_options(self.cd, self._with_gear(build))
             choices = []
             for sid in group:
@@ -555,8 +556,45 @@ class Optimizer:
         self.log("stigma search complete")
         return best_b
 
+    def _linked_probe_gains(self, build: Build, policy: list) -> dict[int, tuple[int, float]]:
+        """For each skill whose level keeps one of its linking effects closed (:meth:`_spec_links`): the level that
+        opens it and its share of the gain the group's linking effects bring there, with their own rotation, the
+        closed skills raised to it for free (0.2.376). The level curves add it from that level up. They judge one skill
+        at a time under a fixed rotation, which never shows such effects paying off: at a median Sorcerer's budget,
+        Wish of Concentration and Blaze raised to 16 gained 4 % with their best effects alone and 9 % with Blaze's
+        -3 s to Wish and Wish's -10 s to every cooldown. Each probe is searched once per group and closed levels."""
+        groups, links = self._spec_links()
+        L = self._with_gear(build).effective_levels(self.cd)
+        out = {}
+        for group in groups:
+            closed = {}
+            for sid in group:
+                opens = [x["unlock"] for x in self.cd.skills[sid].get("specs") or [] if x["id"] in links.get(sid, ())]
+                if opens and L.get(sid, 1) < min(opens) <= 20:
+                    closed[sid] = min(opens)
+            if not closed:
+                continue
+            key = (group, tuple(sorted((sid, L.get(sid, 1), lvl) for sid, lvl in closed.items())))
+            if key not in self._probes:
+                probe = build.copy()
+                for sid, lvl in closed.items():
+                    probe.bonus[sid] = probe.bonus.get(sid, 0) + lvl - L.get(sid, 1)
+                probe, base = self._respec(self._clean_specs(probe), policy, list(closed))
+                linked, linked_policy = self.optimize_linked_specs(probe, policy, groups=[group])
+                gain = self.evaluate(linked, linked_policy) - base
+                self._probes[key] = max(0.0, gain)
+                if gain > 0:
+                    self.log(f"linked effects at their levels: {', '.join(self.cd.skills[s]['name'] for s in closed)} "
+                             f"-> +{gain:.0f} DPS with their own rotation")
+            for sid, lvl in closed.items():
+                if self._probes[key] > 0:
+                    out[sid] = (lvl, self._probes[key] / len(closed))
+        return out
+
     def level_curves(self, build: Build, policy: list, max_level: int = 20) -> dict[int, list[float]]:
-        """DPS as a function of each skill's effective level (best specs at each level)."""
+        """DPS as a function of each skill's effective level (best specs at each level), with the gain of linking
+        effects a skill's level keeps closed credited from the level that opens them (:meth:`_linked_probe_gains`)."""
+        probes = self._linked_probe_gains(build, policy)
         sids = [sid for sid, s in self.cd.skills.items()
                 if s["kind"] != "stigma" and (s.get("unlock") or 1) <= self.level]
         _CTX["curve"] = (self, build, policy, max_level)
@@ -566,6 +604,9 @@ class Optimizer:
                 _curve_worker, sids, ctx={"curve": _CTX["curve"]},
                 progress=lambda done, total: self.log(f"skill curves: {done}/{total} skills"),
                 fallback=self.log):
+            if sid in probes:                     # linking effects the level opens, with their own rotation
+                level, gain = probes[sid]
+                curve = [v + (gain if i >= level else 0.0) for i, v in enumerate(curve)]
             # flat curves (no DPS effect) are dropped to keep the program small
             if max(curve[1:]) - min(curve[1:]) > 1e-6 or sid in self.min_sp or sid in self.min_effective:
                 curves[sid] = curve
