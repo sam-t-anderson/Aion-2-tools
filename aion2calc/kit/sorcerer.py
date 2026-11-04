@@ -33,12 +33,14 @@ SID = dict(
 #: charge level is not recorded).
 TIMING = {
     "flame_arrow": 0.73, "ice_chain": 0.83, "firestorm": 0.56, "bittercold_wind": 0.41,
-    "blaze": 0.33, "flame_scattershot": 0.59, "frost": 0.48, "frost_burst": 0.52,
+    "blaze": 0.33, "frost": 0.48, "frost_burst": 0.52,
     "winters_shackles": 0.37, "wish": 0.60, "hellfire_charge": 0.50, "hellfire_release": 0.56,
     "element_enhancement": 0.60, "fire_wall": 1.00, "cold_storm": 1.00,
     "delayed_explosion": 0.85, "glacial_smite": 1.00, "divine_burst": 1.00,
     "assault_bombardment": 1.00, "soul_freeze": 1.00, "lumiels_space": 1.00,
     "chain_followup": 0.60,
+    "flame_scattershot": 3.69,    # the presses of a stagger, 23.3 hits at 0.148 s each (0.2.380; docs/methodology.md
+                                  #   "Storm Rampage and Flame Scattershot from the recordings"; a press was 0.59)
 }
 
 #: Effect sizes the tooltips leave out (assumptions; tune with real logs).
@@ -48,8 +50,14 @@ ASSUME = {
     "hellfire_dot_frac": 0.25,             # Hellfire "Fire DoT 10s" total vs the hit
     "chain_followup_frac": 1.5,            # Winter's Illusion / The Depths chain; a community L45 parse put Winter's Illusion at ~1.86x (was 0.85)
     "enhanced_proc_icd": 1.0,              # Enhanced Embers / Frostbite internal cooldown
-    "bw_ticks": 7, "fire_wall_hits": 5, "firestorm_balls": 5, "scattershot_hits": 4,
+    "bw_ticks": 7, "fire_wall_hits": 5, "firestorm_balls": 5,
     "slow_cold_storm": 3.0,
+    # Flame Scattershot, usable only on a staggered boss: pressed back to back once the opening skills are out, one
+    # train of presses a stagger (0.2.380; 10 Sorcerers, 40 staggers, every fight counted once over its uploads):
+    "flame_scattershot_hits": 23.3,        # hits a stagger (four a press, 0.15 s apart; the kit pressed 44 a stagger)
+    "flame_scattershot_hit": 0.21,         # each hit against the tooltip's value, measured against a Blaze hit and a
+                                           #   first fireball of Firestorm (the tooltip split over a press's four hits
+                                           #   would be 0.25)
 }
 
 #: The basic-attack chain's three steps (name, share of the woven steps, damage per press against
@@ -59,7 +67,7 @@ ASSUME = {
 WEAVE = {
     "steps": (("Flame Arrow", 0.44, 1.00), ("Burst", 0.30, 1.10), ("Pyroclasm", 0.26, 1.40)),
     "after": {"ice_chain": 0.39, "blaze": 0.03, "firestorm": 0.04, "bittercold_wind": 0.04, "frost_burst": 0.06,
-              "delayed_explosion": 0.0, "flame_scattershot": 0.15, "frost": 0.04, "winters_shackles": 0.0,
+              "delayed_explosion": 0.0, "flame_scattershot": 0.33, "frost": 0.04, "winters_shackles": 0.0,
               "hellfire_c1": 0.10, "hellfire_c2": 0.10, "hellfire_c3": 0.10, "wish": 0.07},
     "per_press": 0.04,
 }
@@ -260,21 +268,11 @@ def build_kit(build: Build, cd: ClassData, filler: str = "flame_arrow") -> Kit:
                         cooldown=cd.cd(SID["BLAZE"], lv("BLAZE")), requires=("fire_mark",),
                         on_cast=bl_cast, element="fire")
 
-    # Flame Scattershot (only on Staggered targets)
-    sc_f, sc_c = dmg("SCAT")
-
-    def sc_each(sim, t, i):
-        if has("SCAT", 5):
-            sim.reduce_cd("all", 1.0)
-
-    def sc_cast(sim, a):
-        sim.hit("Flame Scattershot", sc_f, sc_c, element="fire", n=ASSUME["scattershot_hits"],
-                spread=0.6, tags=("multi",) if has("SCAT", 4) else (), on_each=sc_each)
-        if has("SCAT", 2):
-            sim.gain_mp(120)
-    A["flame_scattershot"] = Action("flame_scattershot", "Flame Scattershot", SID["SCAT"],
-                                    TIMING["flame_scattershot"], requires=("stagger",),
-                                    on_cast=sc_cast, element="fire")
+    # Flame Scattershot, usable only on a staggered boss: one train of presses a stagger (0.2.380), as every class's
+    # stagger skill; it was a single 0.59 s press with no limit, 44 hits a stagger under the kit's own priority
+    from .common import add_stagger_skill
+    add_stagger_skill(A, build, cd, L, SID["SCAT"], "flame_scattershot", hits=ASSUME["flame_scattershot_hits"],
+                      hit=ASSUME["flame_scattershot_hit"], cast=TIMING["flame_scattershot"], element="fire")
 
     # Frost -> Frost Burst
     fr_f, fr_c = dmg("FROST")
@@ -481,11 +479,12 @@ def build_kit(build: Build, cd: ClassData, filler: str = "flame_arrow") -> Kit:
 
 
 def default_policy(actions: dict, filler: str) -> list:
-    """A sensible starting priority (the optimizer improves on it)."""
-    order = ["element_enhancement", "wish", "delayed_explosion", "fire_wall", "cold_storm",
+    """A sensible starting priority (the optimizer improves on it). Flame Scattershot first: it is there only in a
+    stagger window, once (0.2.380)."""
+    order = ["flame_scattershot", "element_enhancement", "wish", "delayed_explosion", "fire_wall", "cold_storm",
              "hellfire_c1", "winters_shackles", "blaze", "firestorm", "bittercold_wind",
              "frost_burst", "frost", "glacial_smite", "divine_burst", "assault_bombardment",
-             "lumiels_space", "soul_freeze", "flame_scattershot"]
+             "lumiels_space", "soul_freeze"]
     pol = [k for k in order if k in actions]
     pol.append(filler)
     return pol

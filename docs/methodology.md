@@ -1058,7 +1058,9 @@ than 0.3 s apart (the cast records hold every key press, held keys included, and
   0.65, Determination 0.34 against 0.31), so the kit lands each hit at 0.32 of the tooltip (`storm_rampage_hit`),
   13.4 hits a cast and twice that with Multi-Hit, once a stagger. Its damage is 1.8 % of the recorded total;
   its cooldown pull is the point. The same pull shows on Triniel's Dagger (presses 37.4 s apart against its
-  40 s) and Savage Fang (47.9 s against 53.4 s).
+  40 s) and Savage Fang (47.9 s against 53.4 s). *Since [0.2.380](#storm-rampage-and-flame-scattershot-from-the-recordings-02380):
+  the hits of a fifth that doubled the count are Illusive Clone's, on every active skill; Storm Rampage lands 19 hits a
+  stagger at 0.16 of the tooltip.*
 * **Triniel's Dagger Lv 10** takes a tenth off every cooldown on hit (`Sim.reduce_cds_by_share`), **Swift
   Contract Lv 10 and 15** raise Rear Smite and Assault Stance by half for its duration; the player ranks
   Illusive Clone 20, Triniel's Dagger 10, Swift Contract 15 and Savage Fang 15 in that order, and the stigma
@@ -1146,6 +1148,9 @@ player's train of hits in it.
 * **No Multi-Hit.** Every hit of the Assassins who took Storm Rampage's Lv 12 *Multi-Hit on hit* carries a small
   extra hit, about a fifth of a hit; 2 of the six classes' 5,387 hits in their trains are that small, so no recorded
   player took it. The kits model the option from its text: every hit a Multi-Hit (+12.5 % in the damage model).
+  *Corrected in [0.2.380](#storm-rampage-and-flame-scattershot-from-the-recordings-02380): the hits of a fifth are
+  Illusive Clone's, a Multi-Hit's extra hits are inside the hit's own record, and players of four of these classes took
+  the option.*
 * **Each hit's share of the tooltip.** The method of the [Gladiator and Chanter calibration](#the-gladiator-and-the-chanter-from-the-log-servers-uploads-02319):
   a plain critical hit of the stagger skill against one of the same player's, from the same side of the same boss,
   set against the two skills' tooltips at the player's own levels and Attack. The reference is the skill each kit is
@@ -1168,7 +1173,8 @@ window's 8 s, whatever cooldowns its own hits or other skills take off; it is fi
 act as their texts say: *Multi-Hit on hit* makes every hit a Multi-Hit, *−1 s all skill cooldowns on hit* takes a
 second off every other cooldown at each hit, and *Restores 120 MP* restores it a press (a hit for the Templar's and the
 Ranger's, whose text adds "on hit"). The shield and the mobile option change nothing the model simulates, so they show
-as *either*. The extra hits of a Multi-Hit take no second off: nothing recorded says whether they would.
+as *either*. The extra hits of a Multi-Hit take no second off: nothing recorded says whether they would (they are
+inside the hit's own record, [0.2.380](#storm-rampage-and-flame-scattershot-from-the-recordings-02380)).
 
 | Class | Skill | Players (staggers) | Hits a stagger | Time a hit | `TIMING` | A hit, of the tooltip (reference; players) | Damage share, recorded / model |
 |---|---|---:|---:|---:|---:|---|---:|
@@ -1194,10 +1200,93 @@ group of its own, and the search now takes it: a typical Gladiator with Sword Au
 and mobile options, moves to its MP option and the cooldown effect, 6.4 % above. Where MP holds a class back (the
 Chanter's Incandescent Blow, the Templar's Pummel) the MP option can be worth more than Multi-Hit.
 
-**Not changed.** Storm Rampage and Flame Scattershot keep their models. Measured the same way against Heart Gore, the
-five recorded Assassins' Storm Rampage hits come to 0.15–0.24 of the tooltip, where the kit has 0.32
-([0.2.368](#the-assassin-from-the-log-servers-uploads-02368)). The Sorcerer kit presses Flame Scattershot through a
+**Not changed then.** Storm Rampage and Flame Scattershot kept their models. Measured the same way against Heart Gore,
+the five recorded Assassins' Storm Rampage hits came to 0.15–0.24 of the tooltip, where the kit had 0.32
+([0.2.368](#the-assassin-from-the-log-servers-uploads-02368)). The Sorcerer kit pressed Flame Scattershot through a
 stagger, 44 hits a window under its own priority, where the recorded Sorcerers land 23.3 (10 players, 40 staggers).
+Both are modelled as the six since 0.2.380 ([below](#storm-rampage-and-flame-scattershot-from-the-recordings-02380)).
+
+### Storm Rampage and Flame Scattershot from the recordings (0.2.380)
+
+0.2.379 left the Assassin's Storm Rampage and the Sorcerer's Flame Scattershot on their own models, and both
+overvalued the skill and its Lv 16 option, *−1 s all skill cooldowns on hit*. The Sorcerer kit had Flame Scattershot
+as a 0.59 s press of four hits with no limit in a stagger: under its own priority it pressed it 11 times a window, 44
+hits, and its option would take a second off every cooldown at each of them. The Assassin kit landed 13.4 hits a stagger
+at 0.32 of the tooltip and doubled them with the Lv 12 *Multi-Hit on hit*, the option counting the doubled hits too.
+Both are now measured as the six were, from the same archive (the captures' break-gauge windows and cast records, the
+uploads' official profiles), each fight, and each player's train in it, counted once.
+
+**What the recordings show.**
+
+* **Hits a stagger.** The recorded Sorcerers (10 players, 40 staggers) land 23.3 hits a stagger, 0.148 s apart on
+  average: a cast record, one a press, every 0.644 s (the median), 3.8 hits each. The Assassins (6 players, 95
+  staggers) land 19.0, 0.182 s apart. One of them, with 56 of the staggers, lands one hit a cast record, two records
+  about every half second, 14.2 hits a stagger; the others about four a record, 18–31 a stagger. The trains start
+  1.2 s and 1.4 s into the breaks (the median), which last 5.1–5.7 s, and run to the refill.
+* **The hits of a fifth are Illusive Clone's.** Inside an Illusive Clone window every hit of an Assassin's active
+  skills is followed by a hit of 0.20 of it, under the skill's own id: about half of the plain critical hits of Heart
+  Gore, Quick, Swift and Breaking Slice, Insignia Explosion and Storm Rampage inside the windows are that size (42–55 %,
+  both captured Assassins), and almost none outside them; the passives' hits (Exploit Weakness, Ambush Stance,
+  Determination, Poison) never are. 0.20 is the clone's tooltip share. A Storm Rampage train has them on every hit when
+  it lies in a clone window and on none when it does not. 0.2.368 counted them as Storm Rampage hits (26.7 a cast,
+  halved to 13.4 for Multi-Hit), and 0.2.379 took them for the Lv 12 Multi-Hit. Every count and ratio below leaves
+  them out. In the clone's windows they are 10–12 % of the damage, besides the clone's own hits (7.5–7.9 %, Clone Attack
+  included), which are all the kit's clone echoes (`clone_echo`, `clone_attack_echo`); the echo of a fifth is not
+  modelled yet.
+* **A Multi-Hit is inside the hit's record.** The game sends a Multi-Hit's extra hits (one to four) inside the hit's
+  own record, each a tenth of its total, and the a2log exports keep the total as one hit. The raw skill id names the
+  options a hit was dealt with (`meter.a2parser.lookup.decode_spec_flags`): both captured Assassins, two of the three
+  captured Sorcerers and players of four of the six other classes (Gladiator, Ranger, Cleric, Chanter) took the stagger
+  skill's Lv 12 *Multi-Hit on hit*, and every hit of theirs carries four extra hits. Against the same player's hits of
+  the same skill without a Multi-Hit, on the same boss and side, within 3 s (the same buffs), a hit with one, two,
+  three or four extra hits is 1.05, 1.10, 1.16 and 1.20 times as large, critical or not (1,217 hits of 15–23 skills in
+  eight captures): about 5 % an extra hit. *Multi-Hit on hit* is worth 20 % a hit, where the damage model gives a
+  certain Multi-Hit 12.5 %.
+* **Each hit's share of the tooltip,** measured as 0.2.379 did, the clone's echoes left out of both skills: Storm
+  Rampage against Heart Gore 0.16 (5 players, 0.11–0.17); compared inside the same staggers (the same buffs), the hits
+  of the player with the most staggers come to 0.19. Flame Scattershot against Blaze 0.21 and against Firestorm's first
+  fireball (a fifth of its tooltip; the others grow with its Lv 16 option) 0.20, together 0.21 (7 players, 0.13–0.38,
+  the median 0.15); the Sorcerers' sides are pooled, their hits on each side of a boss being few. Flame Arrow, whose
+  first step the kit deals at its tooltip, would give 0.26. The per-hit additions are 16–54 % of a stagger hit here.
+  With the clone's echoes in, the Assassins' shares read 0.15–0.38 (0.27). A player with Multi-Hit on the stagger
+  skill and not on the reference reads a fifth high; the Assassin with most of the weight has it on both.
+* **Woven steps.** The Sorcerers press 0.33 basic-chain steps inside or right after a train (0.15 a press in the kit
+  before), the Assassins 2.24 (half of the trains none).
+
+**What the kits do now.** Both kits have the skill as the other six have it (`kit.common.add_stagger_skill`): one
+action a stagger, first in the priority, the recorded hits over their recorded time, each hit the measured share.
+Flame Scattershot's hits are Fire, as before (`element`). Its MP option restores 120 MP a press for the Sorcerer and a
+hit for the Assassin, whose text adds "on hit".
+
+| Class | Skill | Players (staggers) | Hits a stagger | Time a hit | `TIMING` | A hit, of the tooltip (reference; players) | Damage share, recorded / model |
+|---|---|---:|---:|---:|---:|---|---:|
+| Assassin | Storm Rampage | 6 (95) | 19.0 | 0.182 s | 3.71 | 0.16 (Heart Gore; 5) | 2.6 % / 3.3 % |
+| Sorcerer | Flame Scattershot | 10 (40) | 23.3 | 0.148 s | 3.69 | 0.21 (Blaze, Firestorm; 7) | 3.9 % / 3.3 % |
+
+The columns are as in 0.2.379's table; the recorded players' median level is 16 and 14. Before, the Sorcerer kit
+pressed Flame Scattershot 33 times in the boss scenario's three windows (132 hits, 6.8 % of the damage) and the
+Assassin kit's Storm Rampage was 3.9 % (13 hits a stagger at 0.32 of the tooltip). The bundled builds are not
+regenerated: the Sorcerer's, replayed in the boss scenario, reads 21,641 DPS where it read 22,199 (69 Flame Scattershot
+hits where it had 120), and the Assassin's has no Storm Rampage in its priority.
+
+**Multi-Hit on every class's stagger skill.** The helper is shared, so every class's *Multi-Hit on hit* now adds the
+measured 20 % to each hit (`kit.common.MULTI_HIT_ON_HIT`), where 0.2.379 gave the six 12.5 %; Storm Rampage's no
+longer doubles its hits. With the skill at 16 it adds 0.5–1.4 % to the typical builds' boss DPS (0.3–0.8 % before for
+the six, 4.5 % for the Assassin's doubled hits), and the MP option still beats it for the Chanter (+3.8 %) and the
+Templar (+1.8 %). Its extra hits take no second off: they are inside the hit's record, and *on hit* counts records.
+
+**The cooldown effect.** With the skill at 16 and Multi-Hit, the Lv 16 option takes 23 s off every cooldown each
+stagger for the Sorcerer and 19 s for the Assassin, and raises the typical builds' boss DPS by 5.8 % and 2.5 % under
+the kits' own priority. The Assassin's old model took 27 s a stagger (2.9 %); the Sorcerer's a second at each hit of
+as many presses as its priority left room for, 40 hits in the boss scenario's three windows once the option brought
+the other skills back sooner (6.6 %). The six others' are unchanged within 0.1 point. Each is a
+[linked-effects](#supporting-effects-that-act-on-each-others-cooldowns-02376) group of its own, and the search takes it.
+
+**Still open.** Illusive Clone's echo of a fifth (10–12 % of the damage in its windows, which the kit leaves out).
+*Multi-Hit on hit* on other skills (Heart Gore, Blaze, Hellfire and the rest) and the Multi-Hit chance stay at the
+damage model's 12.5 %. The six classes' shares from 0.2.379 include players who took Multi-Hit on the stagger skill,
+whose hits read a fifth high where the reference skill has none; the uploads keep only a skill's family, so a profiled
+player's options are unknown.
 
 ## Optimization and macro planning
 
@@ -1773,6 +1862,6 @@ A piece keeps its index, marked `continued_in` with the kind of piece, and the l
 
 **Effects a skill's level keeps closed** (`_linked_probe_terms`). The level curves judge one skill at a time, so a level that opens effects paying off only together never shows a gain there. For each group with a linking effect its skill's level keeps closed, a probe raises the closed skills for free to the levels that open them, chooses their best effects there and searches the group's linking effects with their own rotation (the best candidate only). The gain over the probe without them, under the old rotation or the searched one (what the rotation gains alone is not theirs), goes to the skill-point and Daevanion program as a joint term: a yes/no variable worth the gain, allowed only when every closed skill reaches its level (`daev_opt.solve(joint=...)`); those skills keep their level curves even when flat. A probe is searched once per group and closed levels, and not at all when a closed level is out of reach (`_level_reach`: trained to its cap, every level node on the open boards, its gear levels and the bonus pool's most on one skill). At a median Sorcerer's budget (203 skill points), Wish of Concentration and Blaze raised to 16 gained 4 % with their best effects alone and 9 % with their linking effects, but 16 is out of reach there: 10 trained levels and the 4 level nodes on the boards make 14, and the geared preset's gear adds one. A character whose gear raises Wish of Concentration has it in reach.
 
-**Every class.** The search reads each class's effect texts, so it runs for every class, and it can only value an effect the class's simulation models. These are (0.2.377): the Gladiator's Keen Strike (-1 s Ruinous Blow), the Templar's Vicious Strike (-2 s Warding Strike) and Pummel (-1 s Punishment), the Assassin's Quick Slice (-1 s Insignia Explosion), Savage Roar (-1 s Shadowstrike) and Storm Rampage (-1 s every cooldown), the Ranger's Snipe (-1 s Deadshot), the Sorcerer's eight, the Cleric's Earth's Retribution (-7 s Bolt) and the Chanter's Onslaught (-1 s Spinning Strike). Since 0.2.379 they include the -1 s to every cooldown of the Gladiator's Sword Aura Rampage, the Templar's Flash Rampage, the Ranger's Arrow Scattershot, the Spiritmaster's Rapid Scattershot, the Cleric's Lightning Strike Scattershot and the Chanter's Gust Rampage, each a group of its own. These skills, usable only on a staggered boss, were not in those classes' simulations at all: the tooltip reading takes a skill with no cooldown for a filler, and the class kits keep their own. They are now modelled from recorded fights, one train of presses a stagger at the recorded hits ([The stagger skills from the recordings](#the-stagger-skills-from-the-recordings-02379)), and the search takes the effect. The Sorcerer's Flame Scattershot and the Assassin's Storm Rampage were modelled before and are unchanged.
+**Every class.** The search reads each class's effect texts, so it runs for every class, and it can only value an effect the class's simulation models. These are (0.2.377): the Gladiator's Keen Strike (-1 s Ruinous Blow), the Templar's Vicious Strike (-2 s Warding Strike) and Pummel (-1 s Punishment), the Assassin's Quick Slice (-1 s Insignia Explosion), Savage Roar (-1 s Shadowstrike) and Storm Rampage (-1 s every cooldown), the Ranger's Snipe (-1 s Deadshot), the Sorcerer's eight, the Cleric's Earth's Retribution (-7 s Bolt) and the Chanter's Onslaught (-1 s Spinning Strike). Since 0.2.379 they include the -1 s to every cooldown of the Gladiator's Sword Aura Rampage, the Templar's Flash Rampage, the Ranger's Arrow Scattershot, the Spiritmaster's Rapid Scattershot, the Cleric's Lightning Strike Scattershot and the Chanter's Gust Rampage, each a group of its own. These skills, usable only on a staggered boss, were not in those classes' simulations at all: the tooltip reading takes a skill with no cooldown for a filler, and the class kits keep their own. They are now modelled from recorded fights, one train of presses a stagger at the recorded hits ([The stagger skills from the recordings](#the-stagger-skills-from-the-recordings-02379)), and the search takes the effect. The Sorcerer's Flame Scattershot and the Assassin's Storm Rampage were modelled before; since 0.2.380 they are modelled the same way, one train a stagger at the recorded hits ([Storm Rampage and Flame Scattershot from the recordings](#storm-rampage-and-flame-scattershot-from-the-recordings-02380)), so their option takes 23 s and 19 s off every cooldown a stagger, not 44 s and 27 s.
 
 **A character's own build.** Optimizing an imported character starts from its own build and rotation (with its linked effects), and the starting build is kept when the search ends below it.

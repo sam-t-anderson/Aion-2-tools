@@ -264,21 +264,30 @@ def test_a_staggered_boss_takes_critical_hits():
 
 
 def test_storm_rampage_fires_in_the_stagger_windows_and_pulls_every_cooldown_in():
-    """Storm Rampage, usable only on a staggered boss, lands 27 hits with its Lv 12 Multi-Hit, each taking a
-    second off every cooldown with its Lv 16 option: the recorded Assassin's Illusive Clone came back every
-    46 s against its 80 s cooldown."""
+    """Storm Rampage, usable only on a staggered boss, lands the recorded Assassins' 19 hits a stagger (0.2.380), with
+    its Lv 12 Multi-Hit too: the option lands four extra hits inside each hit's record, 20 % more, where the kit doubled
+    the hits (the hits of a fifth that follow each one in an Illusive Clone window are the clone's, on every skill).
+    With its Lv 16 option each hit takes a second off every cooldown: the recorded Assassin's Illusive Clone came back
+    every 46 s against its 80 s cooldown."""
+    from aion2calc.kit.common import MULTI_HIT_ON_HIT
+    from aion2calc.model.stats import MULTIHIT_BONUS
     storm, iclone = 13340000, 13310000
     scen = boss("assassin_l45_global_median")
     plain = _assassin(stigmas={iclone: 20}, sp={storm: 10}, bonus={storm: 6})
+    multi = _assassin(stigmas={iclone: 20}, specs={storm: (13340040,)}, sp={storm: 10}, bonus={storm: 6})
     full = _assassin(stigmas={iclone: 20}, specs={storm: (13340040, 13340050)}, sp={storm: 10}, bonus={storm: 6})
     pol = ["storm_rampage", "illusive_clone", "heart_gore", "quick_slice"]
-    _, a, _ = _sim("assassin", pol, build=plain, duration=180.0, scen=scen)
+    sim, a, _ = _sim("assassin", pol, build=plain, duration=180.0, scen=scen)
+    _, m, _ = _sim("assassin", pol, build=multi, duration=180.0, scen=scen)
     _, b, _ = _sim("assassin", pol, build=full, duration=180.0, scen=scen)
     assert a.casts["storm_rampage"] == b.casts["storm_rampage"] == len(scen.target.stagger_windows) == 3
-    assert (a.hits_by["Storm Rampage"], b.hits_by["Storm Rampage"]) == (3 * 13, 3 * 27)
+    assert a.hits_by["Storm Rampage"] == m.hits_by["Storm Rampage"] == b.hits_by["Storm Rampage"] == 3 * 19
+    # Multi-Hit's four extra hits, against the Multi-Hit chance a hit without the option has
+    assert m.damage_by["Storm Rampage"] / a.damage_by["Storm Rampage"] == \
+        pytest.approx((1 + MULTI_HIT_ON_HIT) / (1 + sim.base.multihit * MULTIHIT_BONUS), rel=1e-6)
     first_a = [t for t, key in a.timeline if key == "illusive_clone"]
     first_b = [t for t, key in b.timeline if key == "illusive_clone"]
-    assert len(first_b) > len(first_a) and first_b[1] < first_a[1] - 20.0    # 27 s off its cooldown per stagger
+    assert first_b[1] < first_a[1] - 15.0 and first_b[2] < first_a[2] - 30.0   # 19 s off its cooldown per stagger
     assert "Storm Rampage" not in _sim("assassin", pol, build=full)[1].damage_by      # a dummy never staggers
 
 
@@ -303,9 +312,10 @@ def test_the_specialty_marks_tell_a_modeled_pick_from_a_filler():
 
 
 #: Each class's stagger-only skill and its action (0.2.379): no cooldown, so the generic reading took it for a filler
-#: and left it out of the class kits.
+#: and left it out of the class kits. The Assassin's and the Sorcerer's had their own models until 0.2.380.
 STAGGER = {"gladiator": (11280000, "sword_aura_rampage"), "templar": (12340000, "flash_rampage"),
-           "ranger": (14330000, "arrow_scattershot"), "spiritmaster": (16340000, "rapid_scattershot"),
+           "assassin": (13340000, "storm_rampage"), "ranger": (14330000, "arrow_scattershot"),
+           "sorcerer": (15010000, "flame_scattershot"), "spiritmaster": (16340000, "rapid_scattershot"),
            "cleric": (17370000, "lightning_strike_scattershot"), "chanter": (18300000, "gust_rampage")}
 
 
@@ -379,8 +389,11 @@ def test_a_stagger_hit_is_the_measured_share_of_the_tooltip(cls):
 @pytest.mark.parametrize("cls", sorted(STAGGER))
 def test_the_stagger_skills_options_act_as_their_texts_say(cls):
     """Lv 16 "-1s all skill cooldowns on hit" takes a second off every other cooldown at each hit of the train; Lv 12
-    "Multi-Hit on hit" makes every hit a Multi-Hit; the Lv 8 MP option restores its MP a press, or a hit where its text
-    says "on hit" (the Templar's and the Ranger's)."""
+    "Multi-Hit on hit" lands four extra hits inside every hit's record, 20 % more (0.2.380: measured, against the
+    damage model's 12.5 % for any Multi-Hit); the Lv 8 MP option restores its MP a press, or a hit where its text says
+    "on hit" (the Templar's, the Assassin's and the Ranger's)."""
+    from aion2calc.kit.common import MULTI_HIT_ON_HIT
+    from aion2calc.model.stats import MULTIHIT_BONUS
     from aion2calc.run import kit_module
     sid, key = STAGGER[cls]
     n = round(kit_module(cls).ASSUME[f"{key}_hits"])
@@ -389,10 +402,13 @@ def test_the_stagger_skills_options_act_as_their_texts_say(cls):
         sim, res, _ = _alone(cls, specs, [probe])
         assert res.casts["probe"] == 1 and res.casts[key] == 1
         assert sim.ready["probe"] == pytest.approx(100.0 * (1.0 - sim.base.cdr) - off)
-    _, plain, kit = _alone(cls, ())
+    sim, plain, kit = _alone(cls, ())
     _, multi, _ = _alone(cls, (sid + 40,))
     name = kit.actions[key].name
-    assert multi.damage_by[name] > 1.05 * plain.damage_by[name] and multi.hits_by[name] == plain.hits_by[name] == n
+    assert multi.hits_by[name] == plain.hits_by[name] == n
+    # four extra hits a hit, against the Multi-Hit chance a hit without the option has
+    assert multi.damage_by[name] / plain.damage_by[name] == \
+        pytest.approx((1 + MULTI_HIT_ON_HIT) / (1 + sim.base.multihit * MULTIHIT_BONUS), rel=1e-6)
     text = next(x["text"] for x in ClassData(cls).skills[sid]["specs"] if x["id"] == sid + 20)
     mp = {}
     for specs in ((), (sid + 20,)):
