@@ -11790,54 +11790,40 @@
   "model_version": 5,
   "steps": [
    [
-    "elemental_fusion",
-    "dimensional_control",
-    "summon_fire"
-   ],
-   [
+    "summon_fire",
     "ancient_spirit",
-    "enhance",
-    "summon_wind",
-    "jointstrike_curse"
-   ],
-   [
     "elemental_fusion",
-    "dimensional_control",
-    "summon_fire"
+    "summon_earth"
    ],
    [
-    "soul_cry",
-    "summon_earth",
-    "magicblk"
-   ],
-   [
-    "elemental_fusion",
-    "dimensional_control",
-    "summon_fire"
-   ],
-   [
-    "summon_water",
     "combustion"
    ],
    [
-    "elemental_fusion",
-    "dimensional_control",
-    "summon_fire"
-   ],
-   [
-    "soul_cry",
-    "summon_earth",
-    "magicblk"
-   ],
-   [
-    "ancient_spirit",
     "enhance",
+    "dimensional_control",
     "summon_wind",
     "jointstrike_curse"
+   ],
+   [
+    "summon_fire",
+    "ancient_spirit",
+    "elemental_fusion",
+    "summon_earth"
+   ],
+   [
+    "enhance",
+    "dimensional_control",
+    "summon_wind",
+    "jointstrike_curse"
+   ],
+   [
+    "summon_water",
+    "magicblk",
+    "soul_cry"
    ]
   ],
   "manual": [],
-  "dps_macro": 16620.08849496315,
+  "dps_macro": 16534.68555153413,
   "dps_priority": 16918.826996906402,
   "alt_steps": [
    "summon_earth",

@@ -9024,30 +9024,30 @@
   "model_version": 5,
   "steps": [
    [
-    "vaizel",
-    "marking_shot",
     "drill_dart",
-    "bowbless"
+    "bowbless",
+    "marking_shot"
    ],
    [
-    "tempest_shot"
-   ],
-   [
+    "vaizel",
     "snare_shot",
-    "explosive",
-    "burst_arrow",
-    "explosion_trap"
+    "burst_arrow"
    ],
    [
-    "ensnaring_trap",
     "suppressing_arrow",
-    "gale_arrow"
+    "ensnaring_trap"
+   ],
+   [
+    "gale_arrow",
+    "explosion_trap",
+    "explosive",
+    "tempest_shot"
    ]
   ],
   "manual": [
    "deadshot"
   ],
-  "dps_macro": 12581.263455130176,
+  "dps_macro": 12565.432391681354,
   "dps_priority": 12823.794679742876,
   "alt_steps": [
    "vaizel",

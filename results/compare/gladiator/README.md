@@ -52,14 +52,17 @@ Each line is a hotbar key: put its skills on that key in the order listed, the f
 
 | Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | overhead_slam › leaping_slam › lunge |
-| 2 | zikel › rage › ruinous_blow › assault |
-| 3 | rush_strike › mocking_blade › ankle_slice |
-| 4 | crushing_wave › aerial_snare › rending_blow |
+| 1 | leaping_slam › overhead_slam › lunge |
+| 2 | zikel › rage › ruinous_blow › mocking_blade |
+| 3 | aerial_snare › rush_strike › crushing_wave |
+| 4 | assault › rending_blow › ankle_slice |
+| 5 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 6 | the same key as line 4, pressed again: its skills are tried twice a round |
+| 7 | the same key as line 2, pressed again: its skills are tried twice a round |
 
 Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight
 
-Simulated: this layout reaches **97.6%** of the ideal priority list.
+Simulated: this layout reaches **97.9%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro ankle_slice → overhead_slam → mocking_blade → crushing_wave → rush_strike → leaping_slam → keen_strike; manual: lunge, zikel, rage, ruinous_blow, basic_combo (rending_blow's key while its chain is open), rending_blow, aerial_snare, assault. Simulated: **93.5%** of the ideal priority list.
 

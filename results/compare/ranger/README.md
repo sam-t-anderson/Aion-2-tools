@@ -51,14 +51,14 @@ Each line is a hotbar key: put its skills on that key in the order listed, the f
 
 | Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | vaizel › marking_shot › drill_dart › bowbless |
-| 2 | tempest_shot |
-| 3 | snare_shot › explosive › burst_arrow › explosion_trap |
-| 4 | ensnaring_trap › suppressing_arrow › gale_arrow |
+| 1 | drill_dart › bowbless › marking_shot |
+| 2 | vaizel › snare_shot › burst_arrow |
+| 3 | suppressing_arrow › ensnaring_trap |
+| 4 | gale_arrow › explosion_trap › explosive › tempest_shot |
 
 Manual keys (press on cooldown, in this priority): deadshot
 
-Simulated: this layout reaches **98.1%** of the ideal priority list.
+Simulated: this layout reaches **98.0%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro vaizel → gale_arrow → drill_dart → bowbless → marking_shot → suppressing_arrow → snare_shot → burst_arrow → explosion_trap → ensnaring_trap → explosive → tempest_shot → snipe; manual: deadshot. Simulated: **80.6%** of the ideal priority list.
 

@@ -1197,22 +1197,22 @@ comparison, as the 0.2.371–0.2.376 simulation had them:
 | Class | One skill per line | Hotbar keys | Keys as priority lists (0.2.371) |
 |---|---:|---:|---:|
 | Assassin | 98.3 % | 103.1 % | 102.8 % |
-| Chanter | 91.7 % | 93.4 % | 98.7 % |
+| Chanter | 91.7 % | 94.3 % | 98.7 % |
 | Cleric | 75.9 % | 89.7 % | 97.5 % |
-| Gladiator | 93.5 % | 97.6 % | 99.3 % |
-| Ranger | 80.6 % | 98.1 % | 98.4 % |
-| Sorcerer | 90.3 % | 99.7 % | 100.0 % |
-| Spiritmaster | 80.2 % | 98.2 % | 98.2 % |
-| Templar | 95.9 % | 101.3 % | 101.5 % |
+| Gladiator | 93.5 % | 97.9 % | 99.3 % |
+| Ranger | 80.6 % | 98.0 % | 98.4 % |
+| Sorcerer | 90.3 % | 99.2 % | 100.0 % |
+| Spiritmaster | 80.2 % | 97.7 % | 98.2 % |
+| Templar | 95.9 % | 101.0 % | 101.5 % |
 
-The Templar's macro is three keys, one line each: Executing Blade, Shield Smite and Noble Armor; Judgment, Annihilate,
-Warding Strike and Pummel; Shield Rush, Taunt and Doom Shield; Punishment is charged by hand. A chain step has no key of
-its own: a macro step for it is its parent added again, and the parent's key presses the chain step while the chain is
-open and the parent otherwise, so the simulation presses whichever the key would for a step of either, and the planner
-tries each layout with and without its chain steps (0.2.323; a step for the chain step had pressed nothing until
-another step opened the chain). Skills requiring charge are kept on manual keys because the game macro only taps them;
-the macro is not assumed to hold a charge. The suggested macro binding is Right-click; the app does not change game
-bindings.
+The Templar's macro is four keys on six lines, each of the first two keys pressed twice a round: Shield Rush, Shield
+Smite, Noble Armor and Judgment; Taunt, Annihilate and Warding Strike; Executing Blade and Pummel; Doom Shield.
+Punishment is charged by hand. A chain step has no key of its own: a macro step for it is its parent added again, and
+the parent's key presses the chain step while the chain is open and the parent otherwise, so the simulation presses
+whichever the key would for a step of either, and the planner tries each layout with and without its chain steps
+(0.2.323; a step for the chain step had pressed nothing until another step opened the chain). Skills requiring charge
+are kept on manual keys because the game macro only taps them; the macro is not assumed to hold a charge. The
+suggested macro binding is Right-click; the app does not change game bindings.
 
 ### Example baseline
 

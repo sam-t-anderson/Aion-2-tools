@@ -6161,29 +6161,45 @@
   "model_version": 5,
   "steps": [
    [
-    "overhead_slam",
     "leaping_slam",
+    "overhead_slam",
     "lunge"
    ],
    [
     "zikel",
     "rage",
     "ruinous_blow",
-    "assault"
+    "mocking_blade"
    ],
    [
+    "aerial_snare",
     "rush_strike",
-    "mocking_blade",
+    "crushing_wave"
+   ],
+   [
+    "assault",
+    "rending_blow",
     "ankle_slice"
    ],
    [
-    "crushing_wave",
-    "aerial_snare",
-    "rending_blow"
+    "leaping_slam",
+    "overhead_slam",
+    "lunge"
+   ],
+   [
+    "assault",
+    "rending_blow",
+    "ankle_slice"
+   ],
+   [
+    "zikel",
+    "rage",
+    "ruinous_blow",
+    "mocking_blade"
    ]
   ],
   "manual": [],
-  "dps_macro": 13240.104657494578,
+  "dps_macro": 13280.918580239462,
   "dps_priority": 13569.98810238371,
   "alt_steps": [
    "ankle_slice",
