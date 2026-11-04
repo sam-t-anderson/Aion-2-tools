@@ -225,13 +225,26 @@ def _stacked(run, kit, policy: list, auto: str | None, flat: list, evals: int, s
     solo = {auto} if auto in A else set()
     rank = {k: i for i, k in enumerate(order)}
 
+    def again(key):
+        """Whether the key's line straight after its own casts anything more: only a skill with no cooldown is ready
+        again (the Chanter's Incandescent Blow), the others still cool down from the line before."""
+        return any((A[k].cooldown or 0) <= 0 for k in key)
+
     def norm(keys, lines, manual):
-        """A canonical layout: fillers last on each key, no empty key, keys numbered by first line."""
+        """A canonical layout: fillers last on each key, no empty key, keys numbered by first line, and no key on two
+        lines in a row (the loop's last and first too) unless it casts more there (0.2.377). The game's macro casts a
+        key's skills before the next line, so the second line finds them cooling down; the simulation only drew a
+        line's worth of priority from it, which a player's macro would not show, and a Sorcerer reported such a pair
+        as a mistake."""
         keys = [[k for k in key if k not in filler] + [k for k in key if k in filler] for key in keys]
         used = [i for i in dict.fromkeys(lines) if keys[i]]
         remap = {old: new for new, old in enumerate(used)}
-        return (tuple(tuple(keys[i]) for i in used), tuple(remap[i] for i in lines if i in remap),
-                tuple(sorted(manual, key=rank.get)))
+        keys = tuple(tuple(keys[i]) for i in used)
+        lines = [remap[i] for i in lines if i in remap]
+        lines = [x for n, x in enumerate(lines) if n == 0 or x != lines[n - 1] or again(keys[x])]
+        while len(lines) > 1 and lines[-1] == lines[0] and not again(keys[lines[0]]):
+            lines.pop()
+        return keys, tuple(lines), tuple(sorted(manual, key=rank.get))
 
     cache: dict = {}
 

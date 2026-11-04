@@ -123,6 +123,22 @@ def test_the_basic_attack_may_keep_a_line_of_its_own(templar):
     assert all(line == ("vicious_strike",) for line in lines if "vicious_strike" in line)
 
 
+def test_no_key_of_cooling_skills_sits_on_two_lines_in_a_row(templar):
+    """A key on the line straight after its own casts nothing more unless it holds a skill with no cooldown (0.2.377):
+    a stand-in simulation that pays for every such pair gets none of a key whose skills all cool down, and the basic
+    attack's own line, always ready, may still come twice."""
+    _, kit, _ = templar
+
+    def pairs(lines):
+        lines = [tuple(line) for line in lines]
+        return [a for a, b in zip(lines, lines[1:] + lines[:1]) if a == b] if len(lines) > 1 else []
+
+    def run(pol):
+        return 100.0 * (1 + 0.01 * len(pairs(pol.steps)))
+    lines, _, _ = _stacked(run, kit, list(kit.policy), "vicious_strike", [], evals=3000)
+    assert pairs(lines) and all(any((kit.actions[k].cooldown or 0) <= 0 for k in key) for key in pairs(lines))
+
+
 def test_a_saved_one_skill_per_line_macro_still_shows():
     summary = {"scenario": "boss", "policy": ["judgment", "pummel", "vicious_strike"],
                "macro": {"model_version": 3, "steps": ["judgment", "pummel", "vicious_strike"], "manual": []}}
