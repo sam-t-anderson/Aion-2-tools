@@ -50,19 +50,16 @@ Each line is a hotbar key: put its skills on that key in the order listed, the f
 
 | Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | elemental_fusion › dimensional_control › summon_fire |
-| 2 | ancient_spirit › enhance › summon_wind › jointstrike_curse |
-| 3 | the same key as line 1, pressed again: its skills are tried twice a round |
-| 4 | soul_cry › summon_earth › magicblk |
-| 5 | the same key as line 1, pressed again: its skills are tried twice a round |
-| 6 | summon_water › combustion |
-| 7 | the same key as line 1, pressed again: its skills are tried twice a round |
-| 8 | the same key as line 4, pressed again: its skills are tried twice a round |
-| 9 | the same key as line 2, pressed again: its skills are tried twice a round |
+| 1 | summon_fire › ancient_spirit › elemental_fusion › summon_earth |
+| 2 | combustion |
+| 3 | enhance › dimensional_control › summon_wind › jointstrike_curse |
+| 4 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 5 | the same key as line 3, pressed again: its skills are tried twice a round |
+| 6 | summon_water › magicblk › soul_cry |
 
 Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight
 
-Simulated: this layout reaches **98.2%** of the ideal priority list.
+Simulated: this layout reaches **97.7%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro summon_earth → jointstrike_curse → summon_water → summon_wind → summon_fire → combustion → cold_shock; manual: elemental_fusion, ancient_spirit, enhance, dimensional_control, soul_cry, magicblk. Simulated: **80.2%** of the ideal priority list.
 

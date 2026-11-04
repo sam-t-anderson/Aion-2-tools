@@ -1174,10 +1174,11 @@ next line; a key may sit on several lines (the editor takes 20) so that its skil
 skills that was ready, as a priority list, before the macro moved to the next line; the game's macro casts them all,
 first to last (macro model 5). A key on the line straight after its own then looked as if it cast more of its skills,
 where the game's macro finds them cooling down: a Sorcerer's suggested macro put Cold Storm, Firestorm and Frost on one
-key on lines 2 and 3. The planner keeps no key on two lines in a row, the loop's last and first included, unless it
-holds a skill with no cooldown, which the second line casts again (the Chanter's Incandescent Blow). The simulation had
-drawn a line's worth of priority from such a pair, which the game's macro would not give, and kept the Cleric's one key
-on five lines in a row. A macro saved under model 4 keeps its lines and shows no estimate until optimized again.
+key on lines 2 and 3. The planner keeps no key on two lines in a row, the loop's last and first included: the second line
+finds the key's skills cooling down, and one without a cooldown, such as the Chanter's Incandescent Blow, runs again
+anyway each time the held macro comes back to its key (0.2.378; 0.2.377 still kept such a key twice). The simulation
+had drawn a line's worth of priority from such a pair, which the game's macro would not give, and kept the Cleric's
+one key on five lines in a row. A macro saved under model 4 keeps its lines and shows no estimate until optimized again.
 
 **Hotbar keys (0.2.371).** Before, every line held one skill. The planner searches keys: each skill of the priority
 list on one key or on a manual key (never on two keys), a no-cooldown filler only last on a key, charge skills manual,
@@ -1196,22 +1197,22 @@ comparison, as the 0.2.371–0.2.376 simulation had them:
 | Class | One skill per line | Hotbar keys | Keys as priority lists (0.2.371) |
 |---|---:|---:|---:|
 | Assassin | 98.3 % | 103.1 % | 102.8 % |
-| Chanter | 91.7 % | 93.4 % | 98.7 % |
+| Chanter | 91.7 % | 94.3 % | 98.7 % |
 | Cleric | 75.9 % | 89.7 % | 97.5 % |
-| Gladiator | 93.5 % | 97.6 % | 99.3 % |
-| Ranger | 80.6 % | 98.1 % | 98.4 % |
-| Sorcerer | 90.3 % | 99.7 % | 100.0 % |
-| Spiritmaster | 80.2 % | 98.2 % | 98.2 % |
-| Templar | 95.9 % | 101.3 % | 101.5 % |
+| Gladiator | 93.5 % | 97.9 % | 99.3 % |
+| Ranger | 80.6 % | 98.0 % | 98.4 % |
+| Sorcerer | 90.3 % | 99.2 % | 100.0 % |
+| Spiritmaster | 80.2 % | 97.7 % | 98.2 % |
+| Templar | 95.9 % | 101.0 % | 101.5 % |
 
-The Templar's macro is three keys, one line each: Executing Blade, Shield Smite and Noble Armor; Judgment, Annihilate,
-Warding Strike and Pummel; Shield Rush, Taunt and Doom Shield; Punishment is charged by hand. A chain step has no key of
-its own: a macro step for it is its parent added again, and the parent's key presses the chain step while the chain is
-open and the parent otherwise, so the simulation presses whichever the key would for a step of either, and the planner
-tries each layout with and without its chain steps (0.2.323; a step for the chain step had pressed nothing until
-another step opened the chain). Skills requiring charge are kept on manual keys because the game macro only taps them;
-the macro is not assumed to hold a charge. The suggested macro binding is Right-click; the app does not change game
-bindings.
+The Templar's macro is four keys on six lines, each of the first two keys pressed twice a round: Shield Rush, Shield
+Smite, Noble Armor and Judgment; Taunt, Annihilate and Warding Strike; Executing Blade and Pummel; Doom Shield.
+Punishment is charged by hand. A chain step has no key of its own: a macro step for it is its parent added again, and
+the parent's key presses the chain step while the chain is open and the parent otherwise, so the simulation presses
+whichever the key would for a step of either, and the planner tries each layout with and without its chain steps
+(0.2.323; a step for the chain step had pressed nothing until another step opened the chain). Skills requiring charge
+are kept on manual keys because the game macro only taps them; the macro is not assumed to hold a charge. The
+suggested macro binding is Right-click; the app does not change game bindings.
 
 ### Example baseline
 

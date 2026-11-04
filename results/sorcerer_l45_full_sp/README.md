@@ -52,14 +52,15 @@ Each line is a hotbar key: put its skills on that key in the order listed, the f
 
 | Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | fire_wall › element_enhancement › wish › cold_storm |
-| 2 | blaze › winters_shackles › bittercold_wind |
-| 3 | firestorm › flame_scattershot › delayed_explosion |
-| 4 | frost › frost_burst › ice_chain |
+| 1 | wish › cold_storm › element_enhancement |
+| 2 | winters_shackles › fire_wall › delayed_explosion › bittercold_wind |
+| 3 | blaze › firestorm › frost |
+| 4 | flame_scattershot › frost_burst › ice_chain |
+| 5 | the same key as line 3, pressed again: its skills are tried twice a round |
 
 Manual keys (press on cooldown, in this priority): hellfire_c3 [sync_de]
 
-Simulated: this layout reaches **98.3%** of the ideal priority list.
+Simulated: this layout reaches **98.7%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro fire_wall → element_enhancement → wish → cold_storm → winters_shackles → blaze → bittercold_wind → delayed_explosion → frost_burst → firestorm → frost → ice_chain → flame_scattershot → flame_arrow; manual: hellfire_c3 [sync_de]. Simulated: **91.3%** of the ideal priority list.
 

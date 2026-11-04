@@ -50,13 +50,16 @@ Each line is a hotbar key: put its skills on that key in the order listed, the f
 
 | Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | exec › shield_smite › noble |
-| 2 | judgment › annihilate › warding_strike › pummel |
-| 3 | shield_rush › taunt › doom |
+| 1 | shield_rush › shield_smite › noble › judgment |
+| 2 | taunt › annihilate › warding_strike |
+| 3 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 4 | exec › pummel |
+| 5 | the same key as line 2, pressed again: its skills are tried twice a round |
+| 6 | doom |
 
 Manual keys (press on cooldown, in this priority): punishment
 
-Simulated: this layout reaches **101.3%** of the ideal priority list.
+Simulated: this layout reaches **101.0%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro noble → judgment → warding_strike → shield_rush → shield_smite → punishing_strike (pummel again) → taunt → exec → annihilate → doom → pummel → vicious_strike; manual: punishment. Simulated: **95.9%** of the ideal priority list.
 

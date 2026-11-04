@@ -12680,31 +12680,36 @@
   "model_version": 5,
   "steps": [
    [
-    "fire_wall",
-    "element_enhancement",
     "wish",
-    "cold_storm"
+    "cold_storm",
+    "element_enhancement"
    ],
    [
-    "blaze",
     "winters_shackles",
+    "fire_wall",
+    "delayed_explosion",
     "bittercold_wind"
    ],
    [
+    "blaze",
     "firestorm",
-    "flame_scattershot",
-    "delayed_explosion"
+    "frost"
    ],
    [
-    "frost",
+    "flame_scattershot",
     "frost_burst",
     "ice_chain"
+   ],
+   [
+    "blaze",
+    "firestorm",
+    "frost"
    ]
   ],
   "manual": [
    "hellfire_c3 [sync_de]"
   ],
-  "dps_macro": 23141.67724592968,
+  "dps_macro": 23234.953339208085,
   "dps_priority": 23540.42959694012,
   "alt_steps": [
    "fire_wall",

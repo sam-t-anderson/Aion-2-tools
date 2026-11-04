@@ -6034,26 +6034,39 @@
   "model_version": 5,
   "steps": [
    [
-    "exec",
+    "shield_rush",
     "shield_smite",
-    "noble"
+    "noble",
+    "judgment"
    ],
    [
-    "judgment",
+    "taunt",
     "annihilate",
-    "warding_strike",
-    "pummel"
+    "warding_strike"
    ],
    [
     "shield_rush",
+    "shield_smite",
+    "noble",
+    "judgment"
+   ],
+   [
+    "exec",
+    "pummel"
+   ],
+   [
     "taunt",
+    "annihilate",
+    "warding_strike"
+   ],
+   [
     "doom"
    ]
   ],
   "manual": [
    "punishment"
   ],
-  "dps_macro": 20462.872587829206,
+  "dps_macro": 20403.493543771947,
   "dps_priority": 20210.044172171063,
   "alt_steps": [
    "noble",

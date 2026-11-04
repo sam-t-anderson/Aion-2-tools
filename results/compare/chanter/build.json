@@ -5112,47 +5112,42 @@
   "model_version": 5,
   "steps": [
    [
-    "wave_blow",
-    "heat_wave_blow",
-    "rushing_smash"
-   ],
-   [
-    "spinning_strike",
     "undefeated",
-    "impactful_crush"
-   ],
-   [
-    "stormpower",
     "dark_crush",
     "incandescent_blow"
    ],
    [
-    "tremor_crush",
     "ensnare"
    ],
    [
-    "stormpower",
+    "undefeated",
     "dark_crush",
     "incandescent_blow"
    ],
    [
+    "rushing_smash",
     "spinning_strike",
-    "undefeated",
     "impactful_crush"
    ],
    [
-    "stormpower",
+    "undefeated",
     "dark_crush",
     "incandescent_blow"
    ],
    [
     "stormpower",
-    "dark_crush",
-    "incandescent_blow"
+    "heat_wave_blow",
+    "wave_blow",
+    "tremor_crush"
+   ],
+   [
+    "rushing_smash",
+    "spinning_strike",
+    "impactful_crush"
    ]
   ],
   "manual": [],
-  "dps_macro": 20766.598225624242,
+  "dps_macro": 20957.271832885377,
   "dps_priority": 22234.220282190996,
   "alt_steps": [
    "rushing_smash",
