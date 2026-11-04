@@ -5,69 +5,69 @@
     "format": "a2catalog-source",
     "version": 1,
     "repository": "taengu/A2Tools-DPS-Meter",
-    "revision": "27c5d8dcbb58cb770fe9991784989128b22c84b3",
-    "checked_at": "2026-11-03T17:12:19.229308+00:00",
+    "revision": "d675238a04eea77fe5fd6c58ba6c35ebd44df467",
+    "checked_at": "2026-11-04T17:25:00.125380+00:00",
     "game_build": null,
     "files": [
       {
         "file": "npcs/de.json",
-        "records": 9780,
-        "sha256": "a68c873977b025126579a938f3cb07579f29009ee5d379fa10c8f118412ebe0c",
-        "source_sha256": "004adc5e3685c317449813cfe0717680eabe27eef87395eb9441bc023efe2bf0"
+        "records": 9802,
+        "sha256": "d935cf39b61aca345bbf0f7d3b1ea993e86ebe85622b5bfa81a0aa679d5baf2a",
+        "source_sha256": "8951e83fafea3e6565f7d2e4779cd5cb8b53c23ec71b5a9321b4572d63f3072a"
       },
       {
         "file": "npcs/en.json",
-        "records": 9780,
-        "sha256": "322fbf9d75f3c736ea09467db90b2af37a44ec8d3ee758d73c53854fa090bbe7",
-        "source_sha256": "8b16afc6ad8a7b2db546424aff3afe64e6d9cc1fb573dcf18163ecab959e2745"
+        "records": 9802,
+        "sha256": "f23e1de8479ccf710a975b36fa0e5b19eea3c08e7c2cbc555164247b69effae8",
+        "source_sha256": "edec030355c6be70de4996a8334832ae3034bddf8918a97218c0f51c45558606"
       },
       {
         "file": "npcs/es.json",
-        "records": 9780,
-        "sha256": "6b088c960e85a6e461a9a5d3e0770ef347de950c1cadea60826981317787a401",
-        "source_sha256": "797fa50a086614da94194324c2b48eafcaf6dbe35f41b57779e9ebf4b4a89f47"
+        "records": 9802,
+        "sha256": "c184bde130381ddccc1b2af3aedaf47f29dadaa979bd7360bafe5dfc491d9190",
+        "source_sha256": "757a5dbedb6eb29edfbbfcf5ebcb97f73f3b1d5be4f5f20ea59f4719478521e8"
       },
       {
         "file": "npcs/fr.json",
-        "records": 9780,
-        "sha256": "38ec8245b87960344eb0e1ea76b33c0d831015a71086f85dd408daa6926aa4db",
-        "source_sha256": "d22d76ee74782c72a16164407994ef92b9305f66bbf85d01211a34073f7a573b"
+        "records": 9802,
+        "sha256": "4b352783d8d6671d30c99d7cea7e74e688beb4c81ba5e73da30bba8a40dd0dd9",
+        "source_sha256": "a1fdf008d2ccda46e47aa7d2e128c6fa5a67f729e951205798bc7309f3c0ff21"
       },
       {
         "file": "npcs/ja.json",
-        "records": 9780,
-        "sha256": "1029b40c541a1ba0010a0008138aa886734f764b5d8eaa6406c24ccd5486dee9",
-        "source_sha256": "fd80a7073f6d0a3b117c80209e53f1e38d4923b00228c75aad134a1fdec86e2a"
+        "records": 9802,
+        "sha256": "7d76fbef48c4d4276dac244eb0fb1498cfd0ac99d52e59b7e57610422123f862",
+        "source_sha256": "ae5c01f8177c6ec95fd292b61e94a48fb5bfe855a3d2eb7e46b3aa57d56bdc1c"
       },
       {
         "file": "npcs/ko.json",
-        "records": 9780,
-        "sha256": "0add467092cfb4390d8d46f8bbd01a15ca1f4423ae59bc4de3a5523efef198f0",
-        "source_sha256": "6cc1c6eaa71ebd9edf32000d70fba984f317822acb56d6c74b1374647f69bd46"
+        "records": 9802,
+        "sha256": "76b78c0e68ce4ece5d8b4a887dc24c30bbea16880de469b9a9875af044ef0926",
+        "source_sha256": "4a0742258b92e8a1dd73e1d29a78f78525fe5f5c3a873b67b88eced3ed005089"
       },
       {
         "file": "npcs/pt.json",
-        "records": 9780,
-        "sha256": "10485e45f2e89c38b9818ba0bb9bfd5b7fc8805e49409a1d6d69d5d0fd74173b",
-        "source_sha256": "410ebddf8496821bc66c6325770264f41207722d16dcbcdc8bb3c66cdd1dabb7"
+        "records": 9802,
+        "sha256": "4fd48a85b610ded123da64082c412d36f2a30f564c297a04b5625a68e4569242",
+        "source_sha256": "b97232d7e7424d7767cc56f087eda9bf25355477ca2e68adb61e47106ea71c11"
       },
       {
         "file": "npcs/ru.json",
-        "records": 9780,
-        "sha256": "e7627dd60645c86cd0a2fb5f3e1a4dddcf847b71b40a3c1bef188d57c03168be",
-        "source_sha256": "1b5301fa8199d77251a5a0f0887217787f1676c577208f540ce8426c46e07d14"
+        "records": 9802,
+        "sha256": "8e8b1c0d647f3328f49f228f34c20e6a956d2d1dcab61773b9905ec25ac4e598",
+        "source_sha256": "a67f9a453a631180ee66e5af84e1cd2138a6b3d076621cb11ef878a44b20eb42"
       },
       {
         "file": "npcs/zh-Hans.json",
-        "records": 9780,
-        "sha256": "d74674c36dbfbdd738c816fba648c2bf688183463c65b462cc067a7ce910f44f",
-        "source_sha256": "8bc123a8340ecd76b7017d1c80d06c37bd9b5819cf88ae99f03e35e508965e20"
+        "records": 9802,
+        "sha256": "c412b2e0c147e91835c4a335e47e75478ce5f9cfd1332e1f3fb45353d6c3be50",
+        "source_sha256": "ec9bdb647dc8fe1c60b4c963b1d2bb1f65b414d496f9972338e87f9126f17643"
       },
       {
         "file": "npcs/zh-Hant.json",
-        "records": 9780,
-        "sha256": "c843173cfc9748b26b351f573f8e07579bba066ecc455b71dd298e224f293c18",
-        "source_sha256": "fa35581f2c825f037a2ad721d18cd0bbb4a501876b94498fc685ddd615223202"
+        "records": 9802,
+        "sha256": "e11ed03460577482b4b3b109edce7d276a123dda76484d6c1b32dd54e4658237",
+        "source_sha256": "6e46ac54e573fe6604041b1f48d682ecb40098307490305c297462930eb6c16b"
       },
       {
         "file": "dungeons/en.json",
@@ -99,82 +99,1539 @@
   "diffs": [
     {
       "file": "npcs/de.json",
-      "added": 0,
+      "added": 22,
       "removed": 0,
-      "changed": 0,
-      "changes": [],
+      "changed": 9,
+      "changes": [
+        {
+          "id": "2300277",
+          "change": "added"
+        },
+        {
+          "id": "2300278",
+          "change": "added"
+        },
+        {
+          "id": "2300279",
+          "change": "added"
+        },
+        {
+          "id": "2300280",
+          "change": "added"
+        },
+        {
+          "id": "2300281",
+          "change": "added"
+        },
+        {
+          "id": "2300282",
+          "change": "added"
+        },
+        {
+          "id": "2300283",
+          "change": "added"
+        },
+        {
+          "id": "2300284",
+          "change": "added"
+        },
+        {
+          "id": "2300285",
+          "change": "added"
+        },
+        {
+          "id": "2300286",
+          "change": "added"
+        },
+        {
+          "id": "2300287",
+          "change": "added"
+        },
+        {
+          "id": "2300288",
+          "change": "added"
+        },
+        {
+          "id": "2300289",
+          "change": "added"
+        },
+        {
+          "id": "2300290",
+          "change": "added"
+        },
+        {
+          "id": "2300291",
+          "change": "added"
+        },
+        {
+          "id": "2300292",
+          "change": "added"
+        },
+        {
+          "id": "2300293",
+          "change": "added"
+        },
+        {
+          "id": "2300294",
+          "change": "added"
+        },
+        {
+          "id": "2300295",
+          "change": "added"
+        },
+        {
+          "id": "2300296",
+          "change": "added"
+        },
+        {
+          "id": "2300297",
+          "change": "added"
+        },
+        {
+          "id": "2300298",
+          "change": "added"
+        },
+        {
+          "id": "2301112",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301113",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301115",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301142",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301143",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301145",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301162",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301163",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301165",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        }
+      ],
       "omitted": 0
     },
     {
       "file": "npcs/en.json",
-      "added": 0,
+      "added": 22,
       "removed": 0,
-      "changed": 0,
-      "changes": [],
+      "changed": 27,
+      "changes": [
+        {
+          "id": "2300277",
+          "change": "added"
+        },
+        {
+          "id": "2300278",
+          "change": "added"
+        },
+        {
+          "id": "2300279",
+          "change": "added"
+        },
+        {
+          "id": "2300280",
+          "change": "added"
+        },
+        {
+          "id": "2300281",
+          "change": "added"
+        },
+        {
+          "id": "2300282",
+          "change": "added"
+        },
+        {
+          "id": "2300283",
+          "change": "added"
+        },
+        {
+          "id": "2300284",
+          "change": "added"
+        },
+        {
+          "id": "2300285",
+          "change": "added"
+        },
+        {
+          "id": "2300286",
+          "change": "added"
+        },
+        {
+          "id": "2300287",
+          "change": "added"
+        },
+        {
+          "id": "2300288",
+          "change": "added"
+        },
+        {
+          "id": "2300289",
+          "change": "added"
+        },
+        {
+          "id": "2300290",
+          "change": "added"
+        },
+        {
+          "id": "2300291",
+          "change": "added"
+        },
+        {
+          "id": "2300292",
+          "change": "added"
+        },
+        {
+          "id": "2300293",
+          "change": "added"
+        },
+        {
+          "id": "2300294",
+          "change": "added"
+        },
+        {
+          "id": "2300295",
+          "change": "added"
+        },
+        {
+          "id": "2300296",
+          "change": "added"
+        },
+        {
+          "id": "2300297",
+          "change": "added"
+        },
+        {
+          "id": "2300298",
+          "change": "added"
+        },
+        {
+          "id": "2301006",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301007",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301008",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301014",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301055",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301059",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301060",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301061",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301067",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301085",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301089",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301090",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301091",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301097",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301112",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301113",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301115",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301142",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301143",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301145",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301162",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301163",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301165",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301207",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301208",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301209",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301216",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        }
+      ],
       "omitted": 0
     },
     {
       "file": "npcs/es.json",
-      "added": 0,
+      "added": 22,
       "removed": 0,
-      "changed": 0,
-      "changes": [],
+      "changed": 9,
+      "changes": [
+        {
+          "id": "2300277",
+          "change": "added"
+        },
+        {
+          "id": "2300278",
+          "change": "added"
+        },
+        {
+          "id": "2300279",
+          "change": "added"
+        },
+        {
+          "id": "2300280",
+          "change": "added"
+        },
+        {
+          "id": "2300281",
+          "change": "added"
+        },
+        {
+          "id": "2300282",
+          "change": "added"
+        },
+        {
+          "id": "2300283",
+          "change": "added"
+        },
+        {
+          "id": "2300284",
+          "change": "added"
+        },
+        {
+          "id": "2300285",
+          "change": "added"
+        },
+        {
+          "id": "2300286",
+          "change": "added"
+        },
+        {
+          "id": "2300287",
+          "change": "added"
+        },
+        {
+          "id": "2300288",
+          "change": "added"
+        },
+        {
+          "id": "2300289",
+          "change": "added"
+        },
+        {
+          "id": "2300290",
+          "change": "added"
+        },
+        {
+          "id": "2300291",
+          "change": "added"
+        },
+        {
+          "id": "2300292",
+          "change": "added"
+        },
+        {
+          "id": "2300293",
+          "change": "added"
+        },
+        {
+          "id": "2300294",
+          "change": "added"
+        },
+        {
+          "id": "2300295",
+          "change": "added"
+        },
+        {
+          "id": "2300296",
+          "change": "added"
+        },
+        {
+          "id": "2300297",
+          "change": "added"
+        },
+        {
+          "id": "2300298",
+          "change": "added"
+        },
+        {
+          "id": "2301112",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301113",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301115",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301142",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301143",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301145",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301162",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301163",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301165",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        }
+      ],
       "omitted": 0
     },
     {
       "file": "npcs/fr.json",
-      "added": 0,
+      "added": 22,
       "removed": 0,
-      "changed": 0,
-      "changes": [],
+      "changed": 9,
+      "changes": [
+        {
+          "id": "2300277",
+          "change": "added"
+        },
+        {
+          "id": "2300278",
+          "change": "added"
+        },
+        {
+          "id": "2300279",
+          "change": "added"
+        },
+        {
+          "id": "2300280",
+          "change": "added"
+        },
+        {
+          "id": "2300281",
+          "change": "added"
+        },
+        {
+          "id": "2300282",
+          "change": "added"
+        },
+        {
+          "id": "2300283",
+          "change": "added"
+        },
+        {
+          "id": "2300284",
+          "change": "added"
+        },
+        {
+          "id": "2300285",
+          "change": "added"
+        },
+        {
+          "id": "2300286",
+          "change": "added"
+        },
+        {
+          "id": "2300287",
+          "change": "added"
+        },
+        {
+          "id": "2300288",
+          "change": "added"
+        },
+        {
+          "id": "2300289",
+          "change": "added"
+        },
+        {
+          "id": "2300290",
+          "change": "added"
+        },
+        {
+          "id": "2300291",
+          "change": "added"
+        },
+        {
+          "id": "2300292",
+          "change": "added"
+        },
+        {
+          "id": "2300293",
+          "change": "added"
+        },
+        {
+          "id": "2300294",
+          "change": "added"
+        },
+        {
+          "id": "2300295",
+          "change": "added"
+        },
+        {
+          "id": "2300296",
+          "change": "added"
+        },
+        {
+          "id": "2300297",
+          "change": "added"
+        },
+        {
+          "id": "2300298",
+          "change": "added"
+        },
+        {
+          "id": "2301112",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301113",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301115",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301142",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301143",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301145",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301162",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301163",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301165",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        }
+      ],
       "omitted": 0
     },
     {
       "file": "npcs/ja.json",
-      "added": 0,
+      "added": 22,
       "removed": 0,
-      "changed": 0,
-      "changes": [],
+      "changed": 9,
+      "changes": [
+        {
+          "id": "2300277",
+          "change": "added"
+        },
+        {
+          "id": "2300278",
+          "change": "added"
+        },
+        {
+          "id": "2300279",
+          "change": "added"
+        },
+        {
+          "id": "2300280",
+          "change": "added"
+        },
+        {
+          "id": "2300281",
+          "change": "added"
+        },
+        {
+          "id": "2300282",
+          "change": "added"
+        },
+        {
+          "id": "2300283",
+          "change": "added"
+        },
+        {
+          "id": "2300284",
+          "change": "added"
+        },
+        {
+          "id": "2300285",
+          "change": "added"
+        },
+        {
+          "id": "2300286",
+          "change": "added"
+        },
+        {
+          "id": "2300287",
+          "change": "added"
+        },
+        {
+          "id": "2300288",
+          "change": "added"
+        },
+        {
+          "id": "2300289",
+          "change": "added"
+        },
+        {
+          "id": "2300290",
+          "change": "added"
+        },
+        {
+          "id": "2300291",
+          "change": "added"
+        },
+        {
+          "id": "2300292",
+          "change": "added"
+        },
+        {
+          "id": "2300293",
+          "change": "added"
+        },
+        {
+          "id": "2300294",
+          "change": "added"
+        },
+        {
+          "id": "2300295",
+          "change": "added"
+        },
+        {
+          "id": "2300296",
+          "change": "added"
+        },
+        {
+          "id": "2300297",
+          "change": "added"
+        },
+        {
+          "id": "2300298",
+          "change": "added"
+        },
+        {
+          "id": "2301112",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301113",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301115",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301142",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301143",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301145",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301162",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301163",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301165",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        }
+      ],
       "omitted": 0
     },
     {
       "file": "npcs/ko.json",
-      "added": 0,
+      "added": 22,
       "removed": 0,
       "changed": 0,
-      "changes": [],
+      "changes": [
+        {
+          "id": "2300277",
+          "change": "added"
+        },
+        {
+          "id": "2300278",
+          "change": "added"
+        },
+        {
+          "id": "2300279",
+          "change": "added"
+        },
+        {
+          "id": "2300280",
+          "change": "added"
+        },
+        {
+          "id": "2300281",
+          "change": "added"
+        },
+        {
+          "id": "2300282",
+          "change": "added"
+        },
+        {
+          "id": "2300283",
+          "change": "added"
+        },
+        {
+          "id": "2300284",
+          "change": "added"
+        },
+        {
+          "id": "2300285",
+          "change": "added"
+        },
+        {
+          "id": "2300286",
+          "change": "added"
+        },
+        {
+          "id": "2300287",
+          "change": "added"
+        },
+        {
+          "id": "2300288",
+          "change": "added"
+        },
+        {
+          "id": "2300289",
+          "change": "added"
+        },
+        {
+          "id": "2300290",
+          "change": "added"
+        },
+        {
+          "id": "2300291",
+          "change": "added"
+        },
+        {
+          "id": "2300292",
+          "change": "added"
+        },
+        {
+          "id": "2300293",
+          "change": "added"
+        },
+        {
+          "id": "2300294",
+          "change": "added"
+        },
+        {
+          "id": "2300295",
+          "change": "added"
+        },
+        {
+          "id": "2300296",
+          "change": "added"
+        },
+        {
+          "id": "2300297",
+          "change": "added"
+        },
+        {
+          "id": "2300298",
+          "change": "added"
+        }
+      ],
       "omitted": 0
     },
     {
       "file": "npcs/pt.json",
-      "added": 0,
+      "added": 22,
       "removed": 0,
-      "changed": 0,
-      "changes": [],
+      "changed": 9,
+      "changes": [
+        {
+          "id": "2300277",
+          "change": "added"
+        },
+        {
+          "id": "2300278",
+          "change": "added"
+        },
+        {
+          "id": "2300279",
+          "change": "added"
+        },
+        {
+          "id": "2300280",
+          "change": "added"
+        },
+        {
+          "id": "2300281",
+          "change": "added"
+        },
+        {
+          "id": "2300282",
+          "change": "added"
+        },
+        {
+          "id": "2300283",
+          "change": "added"
+        },
+        {
+          "id": "2300284",
+          "change": "added"
+        },
+        {
+          "id": "2300285",
+          "change": "added"
+        },
+        {
+          "id": "2300286",
+          "change": "added"
+        },
+        {
+          "id": "2300287",
+          "change": "added"
+        },
+        {
+          "id": "2300288",
+          "change": "added"
+        },
+        {
+          "id": "2300289",
+          "change": "added"
+        },
+        {
+          "id": "2300290",
+          "change": "added"
+        },
+        {
+          "id": "2300291",
+          "change": "added"
+        },
+        {
+          "id": "2300292",
+          "change": "added"
+        },
+        {
+          "id": "2300293",
+          "change": "added"
+        },
+        {
+          "id": "2300294",
+          "change": "added"
+        },
+        {
+          "id": "2300295",
+          "change": "added"
+        },
+        {
+          "id": "2300296",
+          "change": "added"
+        },
+        {
+          "id": "2300297",
+          "change": "added"
+        },
+        {
+          "id": "2300298",
+          "change": "added"
+        },
+        {
+          "id": "2301112",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301113",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301115",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301142",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301143",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301145",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301162",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301163",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301165",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        }
+      ],
       "omitted": 0
     },
     {
       "file": "npcs/ru.json",
-      "added": 0,
+      "added": 22,
       "removed": 0,
-      "changed": 0,
-      "changes": [],
+      "changed": 9,
+      "changes": [
+        {
+          "id": "2300277",
+          "change": "added"
+        },
+        {
+          "id": "2300278",
+          "change": "added"
+        },
+        {
+          "id": "2300279",
+          "change": "added"
+        },
+        {
+          "id": "2300280",
+          "change": "added"
+        },
+        {
+          "id": "2300281",
+          "change": "added"
+        },
+        {
+          "id": "2300282",
+          "change": "added"
+        },
+        {
+          "id": "2300283",
+          "change": "added"
+        },
+        {
+          "id": "2300284",
+          "change": "added"
+        },
+        {
+          "id": "2300285",
+          "change": "added"
+        },
+        {
+          "id": "2300286",
+          "change": "added"
+        },
+        {
+          "id": "2300287",
+          "change": "added"
+        },
+        {
+          "id": "2300288",
+          "change": "added"
+        },
+        {
+          "id": "2300289",
+          "change": "added"
+        },
+        {
+          "id": "2300290",
+          "change": "added"
+        },
+        {
+          "id": "2300291",
+          "change": "added"
+        },
+        {
+          "id": "2300292",
+          "change": "added"
+        },
+        {
+          "id": "2300293",
+          "change": "added"
+        },
+        {
+          "id": "2300294",
+          "change": "added"
+        },
+        {
+          "id": "2300295",
+          "change": "added"
+        },
+        {
+          "id": "2300296",
+          "change": "added"
+        },
+        {
+          "id": "2300297",
+          "change": "added"
+        },
+        {
+          "id": "2300298",
+          "change": "added"
+        },
+        {
+          "id": "2301112",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301113",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301115",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301142",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301143",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301145",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301162",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301163",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        },
+        {
+          "id": "2301165",
+          "change": "changed",
+          "fields": [
+            "category"
+          ]
+        }
+      ],
       "omitted": 0
     },
     {
       "file": "npcs/zh-Hans.json",
-      "added": 0,
+      "added": 22,
       "removed": 0,
       "changed": 0,
-      "changes": [],
+      "changes": [
+        {
+          "id": "2300277",
+          "change": "added"
+        },
+        {
+          "id": "2300278",
+          "change": "added"
+        },
+        {
+          "id": "2300279",
+          "change": "added"
+        },
+        {
+          "id": "2300280",
+          "change": "added"
+        },
+        {
+          "id": "2300281",
+          "change": "added"
+        },
+        {
+          "id": "2300282",
+          "change": "added"
+        },
+        {
+          "id": "2300283",
+          "change": "added"
+        },
+        {
+          "id": "2300284",
+          "change": "added"
+        },
+        {
+          "id": "2300285",
+          "change": "added"
+        },
+        {
+          "id": "2300286",
+          "change": "added"
+        },
+        {
+          "id": "2300287",
+          "change": "added"
+        },
+        {
+          "id": "2300288",
+          "change": "added"
+        },
+        {
+          "id": "2300289",
+          "change": "added"
+        },
+        {
+          "id": "2300290",
+          "change": "added"
+        },
+        {
+          "id": "2300291",
+          "change": "added"
+        },
+        {
+          "id": "2300292",
+          "change": "added"
+        },
+        {
+          "id": "2300293",
+          "change": "added"
+        },
+        {
+          "id": "2300294",
+          "change": "added"
+        },
+        {
+          "id": "2300295",
+          "change": "added"
+        },
+        {
+          "id": "2300296",
+          "change": "added"
+        },
+        {
+          "id": "2300297",
+          "change": "added"
+        },
+        {
+          "id": "2300298",
+          "change": "added"
+        }
+      ],
       "omitted": 0
     },
     {
       "file": "npcs/zh-Hant.json",
-      "added": 0,
+      "added": 22,
       "removed": 0,
       "changed": 0,
-      "changes": [],
+      "changes": [
+        {
+          "id": "2300277",
+          "change": "added"
+        },
+        {
+          "id": "2300278",
+          "change": "added"
+        },
+        {
+          "id": "2300279",
+          "change": "added"
+        },
+        {
+          "id": "2300280",
+          "change": "added"
+        },
+        {
+          "id": "2300281",
+          "change": "added"
+        },
+        {
+          "id": "2300282",
+          "change": "added"
+        },
+        {
+          "id": "2300283",
+          "change": "added"
+        },
+        {
+          "id": "2300284",
+          "change": "added"
+        },
+        {
+          "id": "2300285",
+          "change": "added"
+        },
+        {
+          "id": "2300286",
+          "change": "added"
+        },
+        {
+          "id": "2300287",
+          "change": "added"
+        },
+        {
+          "id": "2300288",
+          "change": "added"
+        },
+        {
+          "id": "2300289",
+          "change": "added"
+        },
+        {
+          "id": "2300290",
+          "change": "added"
+        },
+        {
+          "id": "2300291",
+          "change": "added"
+        },
+        {
+          "id": "2300292",
+          "change": "added"
+        },
+        {
+          "id": "2300293",
+          "change": "added"
+        },
+        {
+          "id": "2300294",
+          "change": "added"
+        },
+        {
+          "id": "2300295",
+          "change": "added"
+        },
+        {
+          "id": "2300296",
+          "change": "added"
+        },
+        {
+          "id": "2300297",
+          "change": "added"
+        },
+        {
+          "id": "2300298",
+          "change": "added"
+        }
+      ],
       "omitted": 0
     },
     {
