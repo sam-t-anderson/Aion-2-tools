@@ -97,14 +97,21 @@ def test_the_search_keeps_its_starting_build_when_it_ends_below_it(opt, monkeypa
     assert WISH_ALL not in plain.build.specs.get(WISH, ()) and plain.dps == 90.0
 
 
-def test_a_closed_linking_effect_is_credited_from_the_level_that_opens_it(opt, monkeypatch):
-    """The level curves judge one skill at a time under a fixed rotation, so a level that opens effects paying off only
-    together never showed a gain (0.2.376). A probe raises the closed skill to that level for free and measures the
-    group's linking effects there with their own rotation, once per group and closed levels; the curves add the gain."""
+def _closed_wish():
+    """Wish of Concentration at Lv 12, below the 16 that opens its -10 s; Blaze's and Flame Arrow's effects open."""
     b = _build()
     b.sp[FA] = 10
-    b.bonus = {WISH: 2, BLAZE: 6, FA: 6}                     # Wish at Lv 12: its -10 s opens at 16
+    b.bonus = {WISH: 2, BLAZE: 6, FA: 6}
     b.specs = {WISH: (WISH + 20,), BLAZE: (BLAZE + 30, BLAZE_WISH), FA: (FA + 40, FA + 50)}
+    return b
+
+
+def test_a_closed_linking_effect_is_measured_at_the_level_that_opens_it(opt, monkeypatch):
+    """The level curves judge one skill at a time under a fixed rotation, so a level that opens effects paying off only
+    together never showed a gain (0.2.376). A probe raises the closed skill to that level for free and measures the
+    group's linking effects there with their own rotation, once per group and closed levels: the allocation counts
+    the gain only when every closed skill reaches its level."""
+    b = _closed_wish()
     searches = []
 
     def score(build, policy, cfg=None, filler=None):
@@ -115,7 +122,39 @@ def test_a_closed_linking_effect_is_credited_from_the_level_that_opens_it(opt, m
         return ["searched"], score(build, ["searched"]), None
     monkeypatch.setattr(opt, "evaluate", score)
     monkeypatch.setattr(opt, "optimize_rotation", rotation)
-    gains = opt._linked_probe_gains(b, ["kept"])
-    assert gains[WISH] == (16, 12.0) and BLAZE not in gains and FA not in gains   # theirs are open already
+    terms = opt._linked_probe_terms(b, ["kept"])
+    assert terms == [({WISH: 16}, 12.0)]           # Blaze's and Flame Arrow's are open; the other groups gain nothing
     n = len(searches)
-    assert opt._linked_probe_gains(b, ["kept"]) == gains and len(searches) == n   # searched once
+    assert opt._linked_probe_terms(b, ["kept"]) == terms and len(searches) == n   # each group searched once
+
+
+def test_what_the_searched_rotation_gains_alone_is_not_the_linking_effects(opt, monkeypatch):
+    def score(build, policy, cfg=None, filler=None):
+        searched = policy == ["searched"]                     # worth 5 with or without the linking effects
+        return 100.0 + 5.0 * searched + 12.0 * (searched and WISH_ALL in build.specs.get(WISH, ()))
+    monkeypatch.setattr(opt, "evaluate", score)
+    monkeypatch.setattr(opt, "optimize_rotation",
+                        lambda build, policy, restarts=2: (["searched"], score(build, ["searched"]), None))
+    assert opt._linked_probe_terms(_closed_wish(), ["kept"]) == [({WISH: 16}, 12.0)]
+
+
+def test_the_allocation_is_handed_the_joint_gains_and_keeps_their_skills_curves(opt, monkeypatch):
+    from aion2calc.opt import daevanion as dv
+    from aion2calc.opt import pipeline
+    terms = [({WISH: 16, BLAZE: 16}, 50.0)]
+    seen, kept, real = {}, [], dv.solve
+    monkeypatch.setattr(opt, "_linked_probe_terms", lambda b, p: terms)
+
+    def curves(b, p, keep=()):
+        kept.append(set(keep))
+        return {sid: [0.0] * 21 for sid in keep}
+    monkeypatch.setattr(opt, "level_curves", curves)
+    monkeypatch.setattr(opt, "_stat_weights", lambda b, p, final=False: [])
+    monkeypatch.setattr(dv, "solve", lambda *a, **kw: seen.update(kw) or real(*a, **kw))
+    monkeypatch.setattr(pipeline, "DAEV_SOLVER_TIME_LIMIT", 20)
+    start = opt.initial_build()
+    start.bonus = {WISH: 4, BLAZE: 4}                          # 10 trained, 4 on the boards: 18 within reach
+    b, sol, _, _ = opt.allocate(start, [])
+    assert kept[0] == {WISH, BLAZE} and seen["joint"] == terms
+    levels = opt._with_gear(b).effective_levels(opt.cd)
+    assert levels[WISH] >= 16 and levels[BLAZE] >= 16 and sol["objective"] == pytest.approx(50.0)

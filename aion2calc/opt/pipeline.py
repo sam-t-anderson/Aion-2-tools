@@ -223,7 +223,7 @@ class Optimizer:
         self.history: list = []
         self._rotation_keys: set = set()    # kit actions the last rotation search could use
         self._links = None                  # the class's linked supporting effects (_spec_links)
-        self._probes: dict = {}             # linked-effect probes by group and closed levels (_linked_probe_gains)
+        self._probes: dict = {}             # linked-effect probes by group and closed levels (_linked_probe_terms)
         self.t0 = time.time()
 
     def log(self, msg: str):
@@ -417,7 +417,7 @@ class Optimizer:
         return out
 
     def optimize_linked_specs(self, build: Build, policy: list, keep: int = 2, per_skill: int = 4,
-                              margin: float = 0.9, groups: list | None = None) -> tuple[Build, list]:
+                              margin: float = 0.9, groups: list | None = None, quiet: bool = False) -> tuple[Build, list]:
         """The linking supporting effects of each group (:meth:`_spec_links`) tried together, each candidate's
         rotation searched again (0.2.376). :meth:`optimize_specs` changes one skill at a time under a fixed priority
         list, which misses what these effects need: the effect on one skill pays off through another skill's
@@ -458,7 +458,8 @@ class Optimizer:
                 if v2 > best * (1 + 1e-4):
                     names = ", ".join(self.cd.skills[sid]["name"] for sid in group
                                       if set(b2.specs.get(sid, ())) != set(build.specs.get(sid, ())))
-                    self.log(f"linked effects: {names} -> {v2:.0f} (was {best:.0f})")
+                    if not quiet:
+                        self.log(f"linked effects: {names} -> {v2:.0f} (was {best:.0f})")
                     build, policy, best = b2, pol2, v2
                     break
         return build, policy
@@ -556,16 +557,17 @@ class Optimizer:
         self.log("stigma search complete")
         return best_b
 
-    def _linked_probe_gains(self, build: Build, policy: list) -> dict[int, tuple[int, float]]:
-        """For each skill whose level keeps one of its linking effects closed (:meth:`_spec_links`): the level that
-        opens it and its share of the gain the group's linking effects bring there, with their own rotation, the
-        closed skills raised to it for free (0.2.376). The level curves add it from that level up. They judge one skill
-        at a time under a fixed rotation, which never shows such effects paying off: at a median Sorcerer's budget,
-        Wish of Concentration and Blaze raised to 16 gained 4 % with their best effects alone and 9 % with Blaze's
-        -3 s to Wish and Wish's -10 s to every cooldown. Each probe is searched once per group and closed levels."""
+    def _linked_probe_terms(self, build: Build, policy: list) -> list[tuple[dict, float]]:
+        """For each group whose linking effects (:meth:`_spec_links`) its skills' levels keep closed: the levels that
+        open them and the gain the group's linking effects bring there with their own rotation, the closed skills
+        raised to those levels for free (0.2.376). The allocation counts each gain only when every one of those
+        skills reaches its level (``daev_opt.solve(joint=...)``): the level curves judge one skill at a time under a
+        fixed rotation, which never shows effects that pay off only together. At a median Sorcerer's budget, Wish of
+        Concentration and Blaze raised to 16 gained 4 % with their best effects alone and 9 % with Blaze's -3 s to
+        Wish and Wish's -10 s to every cooldown. Each probe is searched once per group and closed levels."""
         groups, links = self._spec_links()
         L = self._with_gear(build).effective_levels(self.cd)
-        out = {}
+        out = []
         for group in groups:
             closed = {}
             for sid in group:
@@ -580,21 +582,21 @@ class Optimizer:
                 for sid, lvl in closed.items():
                     probe.bonus[sid] = probe.bonus.get(sid, 0) + lvl - L.get(sid, 1)
                 probe, base = self._respec(self._clean_specs(probe), policy, list(closed))
-                linked, linked_policy = self.optimize_linked_specs(probe, policy, keep=1, groups=[group])
+                linked, linked_policy = self.optimize_linked_specs(probe, policy, keep=1, groups=[group], quiet=True)
+                # what the searched rotation gains without the linking effects is not theirs to claim
+                base = max(base, self.evaluate(probe, linked_policy))
                 gain = self.evaluate(linked, linked_policy) - base
                 self._probes[key] = max(0.0, gain)
                 if gain > 0:
                     self.log(f"linked effects at their levels: {', '.join(self.cd.skills[s]['name'] for s in closed)} "
-                             f"-> +{gain:.0f} DPS with their own rotation")
-            for sid, lvl in closed.items():
-                if self._probes[key] > 0:
-                    out[sid] = (lvl, self._probes[key] / len(closed))
+                             f"-> +{gain:.0f} DPS with their own rotation, if each reaches its level")
+            if self._probes[key] > 0:
+                out.append((dict(closed), self._probes[key]))
         return out
 
-    def level_curves(self, build: Build, policy: list, max_level: int = 20) -> dict[int, list[float]]:
-        """DPS as a function of each skill's effective level (best specs at each level), with the gain of linking
-        effects a skill's level keeps closed credited from the level that opens them (:meth:`_linked_probe_gains`)."""
-        probes = self._linked_probe_gains(build, policy)
+    def level_curves(self, build: Build, policy: list, max_level: int = 20, keep=()) -> dict[int, list[float]]:
+        """DPS as a function of each skill's effective level (best specs at each level). ``keep``: skills whose curve
+        is kept even when flat (the members of a joint gain, :meth:`_linked_probe_terms`)."""
         sids = [sid for sid, s in self.cd.skills.items()
                 if s["kind"] != "stigma" and (s.get("unlock") or 1) <= self.level]
         _CTX["curve"] = (self, build, policy, max_level)
@@ -604,11 +606,8 @@ class Optimizer:
                 _curve_worker, sids, ctx={"curve": _CTX["curve"]},
                 progress=lambda done, total: self.log(f"skill curves: {done}/{total} skills"),
                 fallback=self.log):
-            if sid in probes:                     # linking effects the level opens, with their own rotation
-                level, gain = probes[sid]
-                curve = [v + (gain if i >= level else 0.0) for i, v in enumerate(curve)]
             # flat curves (no DPS effect) are dropped to keep the program small
-            if max(curve[1:]) - min(curve[1:]) > 1e-6 or sid in self.min_sp or sid in self.min_effective:
+            if max(curve[1:]) - min(curve[1:]) > 1e-6 or sid in self.min_sp or sid in self.min_effective or sid in keep:
                 curves[sid] = curve
         self.log(f"skill curves: retained {len(curves)} skills with measurable gains")
         return curves
@@ -665,7 +664,8 @@ class Optimizer:
                             progress=None if final else self.log)
 
     def allocate(self, build: Build, policy: list):
-        curves = self.level_curves(build, policy)
+        joint = self._linked_probe_terms(build, policy)
+        curves = self.level_curves(build, policy, keep={sid for levels, _ in joint for sid in levels})
         self.log("skill allocation: calculating stat weights")
         weights = self._stat_weights(build, policy)
         nv = node_values(self.cd, weights)
@@ -689,7 +689,7 @@ class Optimizer:
                                  sp_budget=self.sp_budget, bonus=bonus,
                                  time_limit=DAEV_SOLVER_TIME_LIMIT,
                                  min_node_hp=(self.survival or {}).get("minimum_node_hp", 0), min_sp=self.min_sp, min_effective=self.min_effective,
-                                 start=start, spend_all=True, boards=self.boards, max_sp=self.sp_caps)
+                                 start=start, spend_all=True, boards=self.boards, max_sp=self.sp_caps, joint=joint)
             self.log(f"skill allocation: solver finished ({sol['status']}, "
                      f"{time.monotonic() - solver_started:.1f} s"
                      f"{'; started from the current allocation' if sol['warm_start'] else ''})")

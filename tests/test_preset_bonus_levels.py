@@ -120,7 +120,8 @@ def test_the_optimizer_places_the_pool_and_solves_the_points_around_it(monkeypat
                              progress=logged.append, bonus_pool={"levels": 10, "per_skill": 8})
     build = opt.initial_build()
     sid = opt.cd.by_name["Ice Chain"]["id"]
-    monkeypatch.setattr(opt, "level_curves", lambda b, p: {sid: [0.0] + [10.0 * level for level in range(1, 21)]})
+    monkeypatch.setattr(opt, "level_curves", lambda b, p, **kw: {sid: [0.0] + [10.0 * level for level in range(1, 21)]})
+    monkeypatch.setattr(opt, "_linked_probe_terms", lambda b, p: [])
     monkeypatch.setattr(opt, "_stat_weights", lambda b, p, final=False: [])
     monkeypatch.setattr(pipeline, "DAEV_SOLVER_TIME_LIMIT", 20)
     allocated, _, _, _ = opt.allocate(build, [])
