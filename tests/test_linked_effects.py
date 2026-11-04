@@ -95,3 +95,27 @@ def test_the_search_keeps_its_starting_build_when_it_ends_below_it(opt, monkeypa
     assert WISH_ALL in result.build.specs[WISH] and result.dps == 100.0
     plain = opt.run(iterations=1)                              # no starting build: the search's own result
     assert WISH_ALL not in plain.build.specs.get(WISH, ()) and plain.dps == 90.0
+
+
+def test_a_closed_linking_effect_is_credited_from_the_level_that_opens_it(opt, monkeypatch):
+    """The level curves judge one skill at a time under a fixed rotation, so a level that opens effects paying off only
+    together never showed a gain (0.2.376). A probe raises the closed skill to that level for free and measures the
+    group's linking effects there with their own rotation, once per group and closed levels; the curves add the gain."""
+    b = _build()
+    b.sp[FA] = 10
+    b.bonus = {WISH: 2, BLAZE: 6, FA: 6}                     # Wish at Lv 12: its -10 s opens at 16
+    b.specs = {WISH: (WISH + 20,), BLAZE: (BLAZE + 30, BLAZE_WISH), FA: (FA + 40, FA + 50)}
+    searches = []
+
+    def score(build, policy, cfg=None, filler=None):
+        return 100.0 + (12.0 if WISH_ALL in build.specs.get(WISH, ()) and policy == ["searched"] else 0.0)
+
+    def rotation(build, policy, restarts=2):
+        searches.append(build)
+        return ["searched"], score(build, ["searched"]), None
+    monkeypatch.setattr(opt, "evaluate", score)
+    monkeypatch.setattr(opt, "optimize_rotation", rotation)
+    gains = opt._linked_probe_gains(b, ["kept"])
+    assert gains[WISH] == (16, 12.0) and BLAZE not in gains and FA not in gains   # theirs are open already
+    n = len(searches)
+    assert opt._linked_probe_gains(b, ["kept"]) == gains and len(searches) == n   # searched once
