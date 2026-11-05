@@ -108,8 +108,14 @@ def test_sorcerer_data_loaded(sorc):
     assert sorc.budget(45)["skill"] == 203
     assert sorc.budget(45)["stigma"] == 29
     assert {b["name"] for b in sorc.boards} >= {"Nezekan", "Zikel", "Vaizel", "Triniel"}
-    crystal = sum(n["cost"] for b in sorc.boards if b["name"] != "Azphel" for n in b["nodes"])
+    from aion2calc.kit.base import CRYSTAL_BOARDS
+    crystal = sum(n["cost"] for b in sorc.boards if b["name"] in CRYSTAL_BOARDS for n in b["nodes"])
     assert crystal == 570                  # 134 * 3 + 168
+    # the level-45 boards on crystals of their own, in the game's order (Ariel since 0.2.381): 232 points each
+    assert [b["name"] for b in sorc.boards] == ["Nezekan", "Zikel", "Vaizel", "Triniel", "Ariel", "Azphel"]
+    for name in ("Ariel", "Azphel"):
+        board = next(b for b in sorc.boards if b["name"] == name)
+        assert board["needLevel"] == 45 and sum(n["cost"] for n in board["nodes"]) == 232
 
 
 def test_daevanion_program_respects_budget_and_connectivity(sorc):

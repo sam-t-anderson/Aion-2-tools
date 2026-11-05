@@ -27,10 +27,8 @@ from collections import Counter
 
 import pulp
 
-from ..kit.base import SP_COST, ClassData
+from ..kit.base import CRYSTAL_BOARDS, SP_COST, ClassData
 from .solver import outcome, solver
-
-CRYSTAL_BOARDS = ("Nezekan", "Zikel", "Vaizel", "Triniel")
 
 
 def _neighbors(board):

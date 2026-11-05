@@ -15,7 +15,7 @@ import re
 import time
 from dataclasses import dataclass, field, replace
 
-from ..kit.base import Build, ClassData, sp_to_reach, spec_slots, stigma_points_to_reach, trainable_level
+from ..kit.base import ARIEL, Build, ClassData, sp_to_reach, spec_slots, stigma_points_to_reach, trainable_level
 from ..run import Scenario, kit_module, prepare
 from ..sim.engine import Sim
 from . import daevanion as daev_opt
@@ -26,6 +26,9 @@ from .statweights import node_values, stat_weights
 
 _CTX: dict = {}
 DAEV_SOLVER_TIME_LIMIT = 120
+#: The Ariel board's own program (0.2.381): past 30 s HiGHS gains about 2 % of the board's worth (40 and 120 points on
+#: a Sorcerer's weights), a sliver of the damage, where each allocation would wait up to two minutes more.
+ARIEL_SOLVER_TIME_LIMIT = 30
 
 
 def _pool_init(ctx: dict) -> None:
@@ -182,10 +185,14 @@ class Optimizer:
                  stigma_points: int | None = None, sp_budget: int | None = None,
                  search_duration: float | None = None, verbose: bool = True, gear_bonus: dict | None = None,
                  progress=None, survival=None, skill_reserves=None, level: int = 45,
-                 bonus_pool: dict | None = None):
+                 bonus_pool: dict | None = None, ariel_budget: int | None = None):
         """``bonus_pool`` = ``{"levels", "per_skill"}``: bonus skill levels from gear rolls and arcana cards
         the search may place itself (a community comparison's allowance); the result's ``Build.bonus``
-        then holds where they go. Without it, ``Build.bonus`` is the fixed ``gear_bonus`` only."""
+        then holds where they go. Without it, ``Build.bonus`` is the fixed ``gear_bonus`` only.
+
+        ``ariel_budget`` = the Daevanion Crystal: Ariel to spend on the level-45 Ariel board (0.2.381), allocated on its
+        own as it shares no points with the crystal boards and raises no skill. ``None`` keeps a build's Ariel nodes as
+        they are, as nodes on every board the search does not allocate (Azphel's) are kept."""
         from .survival import with_action_timing
         scenario = with_action_timing(scenario, survival)
         self.survival = survival
@@ -204,6 +211,10 @@ class Optimizer:
         self.sp_caps = {sid: trainable_level(s, level) for sid, s in self.cd.skills.items() if s["kind"] != "stigma"}
         self.boards = tuple(b["name"] for b in self.cd.boards
                             if b["name"] in daev_opt.CRYSTAL_BOARDS and (b.get("needLevel") or 1) <= level)
+        if ariel_budget is not None and (type(ariel_budget) is not int or not 0 <= ariel_budget <= 10000):
+            raise ValueError("The Ariel budget must be a whole number of points from 0 to 10000")
+        self.ariel_budget = ariel_budget
+        self.ariel_open = any(b["name"] == ARIEL and (b.get("needLevel") or 1) <= level for b in self.cd.boards)
         self.search_cfg = replace(scenario.config, duration=search_duration or scenario.config.duration)
         self.verbose = verbose
         self.progress = progress            # optional callback(str): live phase updates for the app UI
@@ -680,6 +691,22 @@ class Optimizer:
                             self.scenario.config if final else self.search_cfg,
                             progress=None if final else self.log)
 
+    def _other_boards(self, nodes, node_value: dict | None = None) -> set:
+        """The nodes the crystal-board program does not allocate, kept as they are: Azphel's, and Ariel's without an
+        Ariel budget. With ``node_value`` and an Ariel budget the Ariel board is solved again on that budget alone
+        (its nodes raise no skill, so it shares nothing with the crystal boards' program but the stat weights)."""
+        other = {n for n in nodes if n in self.cd.node_index and self.cd.node_index[n][0]["name"] not in self.boards}
+        if node_value is None or self.ariel_budget is None:
+            return other
+        ariel = {n for n in other if self.cd.node_index[n][0]["name"] == ARIEL}
+        other -= ariel
+        if not self.ariel_open or self.ariel_budget <= 0:
+            return other
+        self.log(f"Ariel board: placing {self.ariel_budget} points of Daevanion Crystal: Ariel")
+        sol = daev_opt.solve(self.cd, {}, node_value, daev_budget=self.ariel_budget, sp_budget=0,
+                             time_limit=ARIEL_SOLVER_TIME_LIMIT, boards=(ARIEL,), start=(ariel, {}), spend_all=True)
+        return other | sol["nodes"]
+
     def allocate(self, build: Build, policy: list):
         joint = self._linked_probe_terms(build, policy)
         curves = self.level_curves(build, policy, keep={sid for levels, _ in joint for sid in levels})
@@ -732,7 +759,7 @@ class Optimizer:
             sol = solve(with_pool, (sol["nodes"], sol["sp"]))
         self.log("skill allocation: applying the optimized points")
         b2 = build.copy()
-        b2.daevanion = sol["nodes"]
+        b2.daevanion = sol["nodes"] | self._other_boards(build.daevanion, nv)
         b2.sp = {sid: lv for sid, lv in sol["sp"].items() if lv > 1}
         if self.bonus_pool:
             b2.bonus = {k: v for k, v in ((k, self.gear_bonus.get(k, 0) + pool.get(k, 0))
@@ -919,7 +946,7 @@ class Optimizer:
                                  min_effective=self.min_effective,
                                  min_node_hp=(self.survival or {}).get("minimum_node_hp", 0),
                                  boards=self.boards, max_sp=self.sp_caps)
-            build.sp, build.daevanion = sol["sp"], sol["nodes"]
+            build.sp, build.daevanion = sol["sp"], sol["nodes"] | self._other_boards(build.daevanion)
             build = self._clean_specs(build)
         policy = (list(initial_policy) if initial_policy is not None else
                   list(kit_module(self.cls, pvp=self.scenario.target.is_player).build_kit(self._with_gear(build), self.cd).policy))

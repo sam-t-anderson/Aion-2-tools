@@ -58,7 +58,28 @@ Budgets constrain a particular optimization, not the maximum progression availab
 | Stigma level price | Lv 1–5: 1, 6–10: 2, 11–15: 4, 16–20: 8 (75 to Lv 20) | metabot |
 | Stigma slots | 4 (Lv 22/27/32/37) | client data |
 | Daevanion Crystal points | **360** is the example PvE budget, including level, dungeon, quest and other progression sources; it is configurable and is not a verified maximum | metabot board guide; the global top-player "most common" board spends 351 |
-| Daevanion boards | Nezekan (134), Zikel (134), Vaizel (134), Triniel (168) share the crystal pool; Azphel (232) is PvP and uses its own currency | client data |
+| Daevanion boards | Nezekan (134), Zikel (134), Vaizel (134), Triniel (168) share the crystal pool; Ariel (232, PvE) and Azphel (232, PvP) open at level 45 and each use their own currency, Daevanion Crystal: Ariel and Daevanion Crystal: Azphel | client data |
+| Daevanion Crystal: Ariel | The character's own total (its profile's spend, or the total entered); class optimizations take the highest total the server reports, else none. Its own budget (`--ariel-points`) | official profiles, server progression |
+
+**The Ariel board (0.2.381).** The global client's 4 November 2026 data adds a sixth board to every class, board x5 between
+Triniel and Azphel: Ariel, the PvE counterpart of Azphel's PvP board. It opens at level 45 and is paid with Daevanion
+Crystal: Ariel; its 152 nodes cost 232 points (104 at 1, 24 at 2, 16 at 3, 8 at 4) and raise no skill. Filled, it gives
+PvE Damage Boost +6 %, Boss Damage Boost +4 %, PvE Attack +72, Boss Attack +72 and Critical Hit +40, with Critical Hit
+Resist +40, HP +400, MP +200, and PvE and Boss Defense +720, PvE and Boss Damage Tolerance +6 % and +4 %, PvE Accuracy
+and Evasion +120. The model counts the damage stats (Boss Damage Boost in the Damage Boost bucket with PvE Damage Boost,
+Boss Attack with PvE Attack); the defenses, tolerances, accuracy and evasion change nothing it simulates (no boss
+damage taken, no hit chance) and are shown only. The whole board raises a typical Sorcerer's boss DPS by over 5 %.
+
+Its points are a budget of their own (`Build.ariel_cost`; `daevanion_cost` counts the four crystal boards only). The
+optimizer places them on the Ariel board alone, after the crystal boards and skill points are solved, valuing each
+node by the build's stat weights (`Optimizer(ariel_budget=...)`, 30 s of HiGHS, past which it gains about 2 % of the
+board's worth). Without an Ariel budget a build's Ariel nodes stay as they are, and nodes on boards the search does
+not allocate (Azphel's) are now kept: the search used to return the crystal boards' nodes only, dropping an imported
+character's others. An imported character's Ariel budget is the crystal its profile shows spent, or the total typed on
+My Character; a class optimization in the planner takes the field's value, else the highest total the server reports
+for the class (servers before aion2logs 0.2.166 report none, and then none is spent). Community comparisons keep their
+skill, stigma and Daevanion budgets and the four crystal boards: a submitted build leaves its Ariel and Azphel nodes,
+and clients before 0.2.381 would refuse a scope with a fourth budget.
 
 **A character below level 45 (0.2.322).** The optimizer holds a character to what its level
 gives: the stigma slots its level opens (22/27/32/37), filled only as far as the stigma points go

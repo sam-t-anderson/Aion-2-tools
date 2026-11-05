@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 root=Path(__file__).resolve().parents[1]
-from aion2calc.kit.base import SP_COST, STIGMA_COST, SPEC_SLOT_LEVELS
+from aion2calc.kit.base import CRYSTAL_BOARDS, SP_COST, STIGMA_COST, SPEC_SLOT_LEVELS
 classes={}
 for p in sorted((root/'aion2calc/data/global/classes').glob('*.json')):
  raw=json.loads(p.read_text(encoding='utf-8'))
@@ -29,7 +29,7 @@ for p in sorted((root/'aion2calc/data/global/classes').glob('*.json')):
    for n in b['nodes']]})
  classes[p.stem]={'source':raw.get('source'),'skills':skills,'boards':boards,'budget':raw['budget']}
 payload={'version':1,'classes':classes,'skill_cost':SP_COST,'stigma_cost':STIGMA_COST,
- 'spec_slot_levels':SPEC_SLOT_LEVELS,'crystal_boards':['Nezekan','Zikel','Vaizel','Triniel'],
+ 'spec_slot_levels':SPEC_SLOT_LEVELS,'crystal_boards':list(CRYSTAL_BOARDS),
  'note':'Bundled class catalog and planner rules; not independently verified against the current installed game build. Entered point totals and bonus levels are assumptions. Catalog validation is not server/game verification.'}
 # Reuse the simulator's bundled item rules; source slugs are not numeric game IDs.
 import gzip

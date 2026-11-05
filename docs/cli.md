@@ -18,6 +18,8 @@ python -m aion2calc app        # the same app in your browser at http://127.0.0.
 # optimize a class and write results/<class>_l45/ (report, build.json, images)
 python -m aion2calc optimize sorcerer
 python -m aion2calc optimize gladiator --scenario dummy --daevanion 300
+# with 120 Daevanion Crystal: Ariel to place on the level-45 Ariel board (default: none)
+python -m aion2calc optimize sorcerer --ariel-points 120
 # World PvP (experimental): area skills on several players, survival and crowd control weighed in
 python -m aion2calc optimize gladiator --scenario pvp_world --out results/gladiator_l45_world_pvp
 

@@ -53,7 +53,7 @@ Combat Logs has separate Saved Parts, My Uploads, Community Combat Logs and My C
 3. The build is scored as it is. The official profile does not show
    specializations, so the score uses the best legal specs for your levels.
 4. **Optimize PvE build** keeps your gear and uses your entered point budgets
-   (Skill, Stigma and PvE Daevanion). It finds the best
+   (Skill, Stigma, PvE Daevanion and the Ariel crystal). It finds the best
    allocation and rotation, then shows the DPS gain and what to change.
    A character below level 45 is optimized at its own level: only the stigma
    slots and Daevanion boards its level opens, no skill trained past what its
@@ -77,11 +77,11 @@ My Character's **Damage objective** selects the existing primary scenario or bal
 
 ## Point budgets
 
-The build windows show points spent / optimization budget. Gear and Daevanion bonus skill levels do not consume purchased skill points. PvP Daevanion uses its own resource.
+The build windows show points spent / optimization budget. Gear and Daevanion bonus skill levels do not consume purchased skill points. The two level-45 boards each use a crystal of their own: the Ariel board (PvE: Damage Boost, Attack and Critical Hit against monsters and bosses) takes Daevanion Crystal: Ariel, and the Azphel board (PvP) Daevanion Crystal: Azphel.
 
-For **My Character**, the official profile gives allocated levels/nodes; unused points may be absent. Enter your in-game **spent + unspent** totals before optimizing. Imported budgets are observed lower bounds. Totals below points already spent are rejected. The optimizer preserves gear and uses the entered skill, stigma and PvE Daevanion budgets. Below level 45 the page does not fill in the community's highest totals, which come from characters at the level cap.
+For **My Character**, the official profile gives allocated levels/nodes; unused points may be absent. Enter your in-game **spent + unspent** totals before optimizing. Imported budgets are observed lower bounds. Totals below points already spent are rejected. The optimizer preserves gear and uses the entered skill, stigma, PvE Daevanion and **Ariel crystal** budgets: it places the Ariel crystal on the Ariel board only (0.2.381), and keeps the character's Azphel nodes as they are. Below level 45 the page does not fill in the community's highest totals, which come from characters at the level cap.
 
-The Planner lets you set all three budgets. Bundled example budgets are 203 skill, 30 stigma and 360 PvE Daevanion; these are simulation presets, not a maximum or a guarantee about quest rewards.
+The Planner lets you set all three budgets, and the Ariel crystal (optional: left empty, the server's highest reported total for the class, else none). Bundled example budgets are 203 skill, 30 stigma and 360 PvE Daevanion; these are simulation presets, not a maximum or a guarantee about quest rewards. Community comparisons stay on the four crystal boards: a build submitted to one leaves its Ariel and Azphel nodes.
 
 ## Planner and hotbar
 
