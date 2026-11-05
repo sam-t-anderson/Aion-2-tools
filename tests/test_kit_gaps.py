@@ -265,12 +265,11 @@ def test_a_staggered_boss_takes_critical_hits():
 
 def test_storm_rampage_fires_in_the_stagger_windows_and_pulls_every_cooldown_in():
     """Storm Rampage, usable only on a staggered boss, lands the recorded Assassins' 19 hits a stagger (0.2.380), with
-    its Lv 12 Multi-Hit too: the option lands four extra hits inside each hit's record, 20 % more, where the kit doubled
-    the hits (the hits of a fifth that follow each one in an Illusive Clone window are the clone's, on every skill).
-    With its Lv 16 option each hit takes a second off every cooldown: the recorded Assassin's Illusive Clone came back
-    every 46 s against its 80 s cooldown."""
-    from aion2calc.kit.common import MULTI_HIT_ON_HIT
-    from aion2calc.model.stats import MULTIHIT_BONUS
+    its Lv 12 Multi-Hit too: the option lands four extra hits inside each hit's record, 20 % more (the damage model's
+    certain Multi-Hit since 0.2.382), where the kit doubled the hits (the hits of a fifth that follow each one in an
+    Illusive Clone window are the clone's, on every skill). With its Lv 16 option each hit takes a second off every
+    cooldown: the recorded Assassin's Illusive Clone came back every 46 s against its 80 s cooldown."""
+    from aion2calc.model.stats import MULTI_HIT_ON_HIT, MULTIHIT_BONUS
     storm, iclone = 13340000, 13310000
     scen = boss("assassin_l45_global_median")
     plain = _assassin(stigmas={iclone: 20}, sp={storm: 10}, bonus={storm: 6})
@@ -289,6 +288,64 @@ def test_storm_rampage_fires_in_the_stagger_windows_and_pulls_every_cooldown_in(
     first_b = [t for t, key in b.timeline if key == "illusive_clone"]
     assert first_b[1] < first_a[1] - 15.0 and first_b[2] < first_a[2] - 30.0   # 19 s off its cooldown per stagger
     assert "Storm Rampage" not in _sim("assassin", pol, build=full)[1].damage_by      # a dummy never staggers
+
+
+@pytest.mark.parametrize("cls, key, sid, unlock", [("gladiator", "zikel", 11250000, 15),
+                                                    ("ranger", "bowbless", 14220000, 5)])
+def test_the_multi_hit_buffs_make_every_multi_hit_whole(cls, key, sid, unlock):
+    """0.2.382: while Zikel's Blessing (its Lv 15 option) or Bow of Blessing (Lv 5) lasts, the recorded Gladiators' and
+    Rangers' Multi-Hits came about 0.46 more often and 915 of 916 landed all four extra hits, where outside them they
+    land one to four: "+50% Multi-Hit chance" adds 0.5 to the chance and values every Multi-Hit at the four, for the
+    buff's own duration (10 s and 0.5 s a level), not the 20 s the kit gives its other stats. Below the option's level
+    there is none."""
+    from aion2calc.kit.common import ms
+    from aion2calc.model.stats import MULTIHIT_FULL
+    for level in (unlock - 1, unlock, 20):
+        b = typical_build(cls)
+        b.stigmas = {**b.stigmas, sid: level}
+        sim, res, _ = _sim(cls, [key], build=b, duration=1.0)
+        assert res.casts[key] == 1
+        multi = sim.buffs.get(f"{key}_multihit")
+        if level < unlock:
+            assert multi is None
+            continue
+        assert multi.stats == {"multihit": 0.5, MULTIHIT_FULL: 1.0}
+        dur = ms(ClassData(cls).vals(sid, level)[-1])
+        assert dur == 10.0 + 0.5 * (level - 1) or (level == 20 and dur == 20.0)
+        assert multi.until - sim.buffs[key].until == pytest.approx(dur - 20.0)
+
+
+#: Options the kits read as no Multi-Hit, or as +50 % Multi-Hit chance, until 0.2.382; the recorded hits dealt with each
+#: certain one landed four extra hits (Drill Dart 190 of 193, Incandescent Blow 147 of 148 and its Bursting Blow 77 of
+#: 77, Rushing Smash 15 of 15, Heat Wave Blow 7 of 7, Wave Blow 44 of 44). (class, action, hits, skill, slot, before)
+MULTI_OPTIONS = [("ranger", "drill_dart", ("Drill Dart",), 14050000, 4, ()),
+                 ("chanter", "incandescent_blow", ("Incandescent Blow", "Bursting Blow"), 18040000, 5, ()),
+                 ("chanter", "rushing_smash", ("Rushing Smash",), 18090000, 5, ()),
+                 ("chanter", "heat_wave_blow", ("Heat Wave Blow",), 18150000, 4, ()),
+                 ("chanter", "wave_blow", ("Wave Blow",), 18080000, 1, ("impactful_crush",)),
+                 ("chanter", "tremor_crush", ("Tremor Crush",), 18210000, 3, ())]
+
+
+@pytest.mark.parametrize("cls, key, names, sid, slot, before", MULTI_OPTIONS)
+def test_every_multi_hit_option_is_worth_its_recorded_extra_hits(cls, key, names, sid, slot, before):
+    """0.2.382: "Multi-Hit on hit" and "lands as Multi-Hit" are a certain Multi-Hit on every skill, four extra hits
+    (+20 %) with no Multi-Hit chance on top; "+50% Multi-Hit on hit" adds 0.5 to the chance (Tremor Crush's, which
+    the Chanter kit left out). Each hit, with the option against without it."""
+    from aion2calc.model.stats import MULTI_HIT_ON_HIT, MULTIHIT_BONUS
+    per_hit = {}
+    for specs in ((), (sid + 10 * slot,)):
+        b = typical_build(cls)
+        b.sp, b.bonus, b.specs = {**b.sp, sid: 10}, {**b.bonus, sid: 6}, {**b.specs, sid: specs}
+        sim, res, _ = _sim(cls, list(before) + [key], build=b, duration=12.0)
+        assert res.casts.get(key, 0) >= 1
+        per_hit[specs] = {n: res.damage_by[n] / res.hits_by[n] for n in names if res.hits_by.get(n)}
+    p = sim.base.multihit
+    certain = "Tremor" not in names[0]
+    want = (1 + (MULTI_HIT_ON_HIT if certain else (p + 0.5) * MULTIHIT_BONUS)) / (1 + p * MULTIHIT_BONUS)
+    plain, multi = per_hit[()], per_hit[(sid + 10 * slot,)]
+    assert set(plain) == set(multi) and names[0] in plain
+    for n in plain:
+        assert multi[n] / plain[n] == pytest.approx(want, rel=1e-6), n
 
 
 def test_the_specialty_marks_tell_a_modeled_pick_from_a_filler():
@@ -389,11 +446,11 @@ def test_a_stagger_hit_is_the_measured_share_of_the_tooltip(cls):
 @pytest.mark.parametrize("cls", sorted(STAGGER))
 def test_the_stagger_skills_options_act_as_their_texts_say(cls):
     """Lv 16 "-1s all skill cooldowns on hit" takes a second off every other cooldown at each hit of the train; Lv 12
-    "Multi-Hit on hit" lands four extra hits inside every hit's record, 20 % more (0.2.380: measured, against the
-    damage model's 12.5 % for any Multi-Hit); the Lv 8 MP option restores its MP a press, or a hit where its text says
-    "on hit" (the Templar's, the Assassin's and the Ranger's)."""
-    from aion2calc.kit.common import MULTI_HIT_ON_HIT
-    from aion2calc.model.stats import MULTIHIT_BONUS
+    "Multi-Hit on hit" lands four extra hits inside every hit's record, 20 % more (0.2.380: measured; since 0.2.382
+    the damage model's value for every certain Multi-Hit, so the helper needs no factor of its own); the Lv 8 MP
+    option restores its MP a press, or a hit where its text says "on hit" (the Templar's, the Assassin's and the
+    Ranger's)."""
+    from aion2calc.model.stats import MULTI_HIT_ON_HIT, MULTIHIT_BONUS
     from aion2calc.run import kit_module
     sid, key = STAGGER[cls]
     n = round(kit_module(cls).ASSUME[f"{key}_hits"])

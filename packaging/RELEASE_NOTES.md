@@ -1,3 +1,15 @@
+## Multi-Hit as recorded, on every skill (0.2.382)
+
+**A certain Multi-Hit is worth 20 % on every skill.** A Multi-Hit's extra hits arrive inside the hit itself, each worth about 5 % of it, and the "Multi-Hit on hit" and "lands as Multi-Hit" effects always land four. 0.2.380 gave the stagger skills' effect those 20 %; every other skill's, such as Heart Gore's, Blaze's, Hellfire's or Deadshot's, still counted 12.5 %. They all count 20 % now. The optimizer now takes Hellfire's "lands as Multi-Hit", and Heart Gore's and Blaze's Multi-Hit, which it already took, are worth more.
+
+**Multi-Hit chance, measured.** A Multi-Hit from the Multi-Hit chance lands one to four extra hits, one in 42 % of them and four in 21 %, 2.14 on average, which makes it worth 11 %, not 12.5 %. The "+50 % Multi-Hit" effects of skills raise the chance by half and land the same counts.
+
+**Multi-Hit effects the simulation missed.** The Ranger's Drill Dart counted its "Multi-Hit on hit" as +50 % Multi-Hit chance, and the Chanter's simulation left out Incandescent Blow's, Rushing Smash's and Heat Wave Blow's "lands as Multi-Hit", Wave Blow's "Multi-Hit on hit" and Tremor Crush's "+50 % Multi-Hit". The recorded hits with each of the first five land four extra hits every time. They all count now; at skill level 16, Incandescent Blow's effect adds about 11 % to a Chanter's boss DPS.
+
+**Zikel's Blessing and Bow of Blessing make every Multi-Hit whole.** Their "+50 % Multi-Hit chance" (Zikel's Blessing from level 15, Bow of Blessing from level 5) does more than its text says: while the buff lasts, every Multi-Hit lands all four extra hits. The simulation left both effects out. They now count for the buff's duration, and are worth about 2.5 % of a Gladiator's boss DPS and 1.2 to 1.6 % of a Ranger's.
+
+**The bundled class builds are not regenerated**: optimize again to see what this changes for your build. A new run would change the Sorcerer's Hellfire effects, raise the Gladiator's Zikel's Blessing and the Ranger's Bow of Blessing, and likely the Chanter's Incandescent Blow.
+
 ## The Ariel Daevanion board (0.2.381)
 
 **A sixth board for every class.** The 4 November patch adds the Ariel board, the PvE counterpart of the Azphel board. It opens at level 45 and is paid with its own crystal, Daevanion Crystal: Ariel: 232 points for its 152 nodes. Filled, it gives PvE Damage Boost +6 %, Boss Damage Boost +4 %, PvE and Boss Attack +72 each and Critical Hit +40, besides defenses, damage tolerances, accuracy and evasion against monsters and bosses. The app now knows it everywhere: the Planner's and My Character's Daevanion windows have an Ariel tab, the build workspace (in the app and on the website) lets you plan it with its own budget, and an imported character's Ariel nodes count in its damage. The whole board raises a typical build's boss damage by over 5 %.

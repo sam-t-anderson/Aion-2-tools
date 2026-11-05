@@ -109,7 +109,8 @@ vulnerable = 1 + "damage taken from the caster" debuffs   (separate multiplier)
 weapon     = 1 + 0.66 × Weapon Damage Boost
 crit       = 1 + P(crit) × (0.5 + Critical Damage Boost)   (+ Critical Attack on crit)
 double     = Double (Smite) = ×2 ; Perfect = max weapon roll ; Double and Perfect never stack
-multi-hit  = 1 + P(multi-hit) × 0.125
+multi-hit  = 1 + P(multi-hit) × 0.11 ; a certain Multi-Hit ("Multi-Hit on hit", "lands as Multi-Hit") = ×1.20
+             (every Multi-Hit during Zikel's Blessing Lv 15 and Bow of Blessing Lv 5: × (1 + P × 0.20))
 position   : a direct hit lands from the front, from behind or from the side, in the target's shares;
              Front/Back Attack (flat), Front/Back Attack Damage Boost (its own multiplier) and
              Front/Back Attack Critical Hit (added Critical Hit) count only on hits from their side
@@ -123,7 +124,7 @@ Sources: Taiwanese Bahamut research translated on Inven
 article ([news 312835](https://www.inven.co.kr/webzine/news/?news=312835&site=aion2)),
 and the community DPS calculator
 [aion2ssow](https://bongbong99999-debug.github.io/aion2ssow/) (weapon-boost 66 %
-efficiency, multi-hit 12.5 %, crit curve capped at 80 %).
+efficiency, crit curve capped at 80 %; its multi-hit 12.5 % gave way to the recorded values in 0.2.382).
 
 * **Skill value = coefficient × Attack + flat** — the coefficient is constant
   across skill levels; only the flat part grows (TW tests, confirmed by the
@@ -145,6 +146,10 @@ efficiency, multi-hit 12.5 %, crit curve capped at 80 %).
 * **Front / Back Attack Critical Hit** add Critical Hit on hits from their side
   and are assumed to scale with Critical Hit increase, Precision and Death like
   Critical Hit itself.
+* **Multi-Hit**: a Multi-Hit lands one to four extra hits inside the hit's own record, each about 5 %
+  of the hit: one from the Multi-Hit chance lands 2.14 on average, 11 %; a certain one (the
+  *Multi-Hit on hit* and *lands as Multi-Hit* options) always four, 20 %, with no chance on top
+  ([measured from the recordings](#multi-hit-from-the-recordings-02382)). Damage over time never multi-hits.
 * **Primary and deity stats**: +0.1 % per point to each of their effects in the
   global client (metabot "Stats explained"; KR later raised deity stats to
   0.2 %).  Might/Destruction → Attack %, Precision/Death → Crit %, Wisdom →
@@ -1262,7 +1267,8 @@ uploads' official profiles), each fight, and each player's train in it, counted 
   the same skill without a Multi-Hit, on the same boss and side, within 3 s (the same buffs), a hit with one, two,
   three or four extra hits is 1.05, 1.10, 1.16 and 1.20 times as large, critical or not (1,217 hits of 15–23 skills in
   eight captures): about 5 % an extra hit. *Multi-Hit on hit* is worth 20 % a hit, where the damage model gives a
-  certain Multi-Hit 12.5 %.
+  certain Multi-Hit 12.5 %. *Since [0.2.382](#multi-hit-from-the-recordings-02382) the damage model gives every certain
+  Multi-Hit the 20 %.*
 * **Each hit's share of the tooltip,** measured as 0.2.379 did, the clone's echoes left out of both skills: Storm
   Rampage against Heart Gore 0.16 (5 players, 0.11–0.17); compared inside the same staggers (the same buffs), the hits
   of the player with the most staggers come to 0.19. Flame Scattershot against Blaze 0.21 and against Firestorm's first
@@ -1291,7 +1297,8 @@ regenerated: the Sorcerer's, replayed in the boss scenario, reads 21,641 DPS whe
 hits where it had 120), and the Assassin's has no Storm Rampage in its priority.
 
 **Multi-Hit on every class's stagger skill.** The helper is shared, so every class's *Multi-Hit on hit* now adds the
-measured 20 % to each hit (`kit.common.MULTI_HIT_ON_HIT`), where 0.2.379 gave the six 12.5 %; Storm Rampage's no
+measured 20 % to each hit (`kit.common.MULTI_HIT_ON_HIT`; since 0.2.382 the damage model's
+`model.stats.MULTI_HIT_ON_HIT`), where 0.2.379 gave the six 12.5 %; Storm Rampage's no
 longer doubles its hits. With the skill at 16 it adds 0.5–1.4 % to the typical builds' boss DPS (0.3–0.8 % before for
 the six, 4.5 % for the Assassin's doubled hits), and the MP option still beats it for the Chanter (+3.8 %) and the
 Templar (+1.8 %). Its extra hits take no second off: they are inside the hit's record, and *on hit* counts records.
@@ -1307,7 +1314,101 @@ the other skills back sooner (6.6 %). The six others' are unchanged within 0.1 p
 *Multi-Hit on hit* on other skills (Heart Gore, Blaze, Hellfire and the rest) and the Multi-Hit chance stay at the
 damage model's 12.5 %. The six classes' shares from 0.2.379 include players who took Multi-Hit on the stagger skill,
 whose hits read a fifth high where the reference skill has none; the uploads keep only a skill's family, so a profiled
-player's options are unknown.
+player's options are unknown. *Measured in [0.2.382](#multi-hit-from-the-recordings-02382): every certain Multi-Hit
+is worth the 20 % in the damage model, and one from the Multi-Hit chance 11 %.*
+
+### Multi-Hit from the recordings (0.2.382)
+
+0.2.380 measured what a Multi-Hit adds and gave the stagger skills' *Multi-Hit on hit* the measured 20 % through a
+factor of their own. Every other certain Multi-Hit (*Multi-Hit on hit* on Heart Gore, Blaze, Drill Dart, Condemnation
+and the rest; *lands as Multi-Hit* on Hellfire, Deadshot, Ankle Slice and the rest) and the Multi-Hit chance stayed at
+the community calculators' 12.5 % a Multi-Hit (documented as up to four extra hits worth 10 % each), which is what one
+to four extra hits at 5 % each would give if every count were as likely. The eight fight captures of the diagnostics
+archive, replayed through the meter (`meter.a2parser.engine.MeterEngine`, each with its summary's `server_port`), give
+every hit's extra hits (`multi_hit_count`, `multi_hit_damage`) and the options it was dealt with (the raw skill id,
+`meter.a2parser.lookup.decode_spec_flags`); their cast records give each player's buffs.
+
+**What the recordings show.**
+
+* **The size of a Multi-Hit.** Each extra hit is a tenth of the record's total, every one of them to the damage point.
+  Against the same player's hits of the same skill without a Multi-Hit, on the same boss, from the same side and with
+  the same hit flags (critical, Double, Perfect and the rest), at least two of them within 1.5 s, a hit with one, two,
+  three or four extra hits is 1.05, 1.11, 1.16 and 1.21 times as large (2,340 hits); with any one within 3 s, 1.05,
+  1.11, 1.16 and 1.22 (6,447 hits of 94 skills). The same comparison of hits without a Multi-Hit against each other
+  reads 1.000, and critical hits read as the others, as in 0.2.380's 1.05, 1.10, 1.16 and 1.20: about 5 % an extra
+  hit. A certain Multi-Hit lands four: 4,336 of the 4,391 hits dealt with *Multi-Hit on hit* or *lands as Multi-Hit*.
+  So do the options two kits did not read as a certain Multi-Hit: Drill Dart's *Multi-Hit on hit* on 190 of 193 hits
+  (the Ranger kit gave it +50 % Multi-Hit chance), Incandescent Blow's *lands as Multi-Hit* on 147 of 148 and on 77 of
+  77 of its chain skill Bursting Blow's, Rushing Smash's on 15 of 15, Heat Wave Blow's on 7 of 7 and Wave Blow's
+  *Multi-Hit on hit* on 44 of 44 (the Chanter kit read none of them).
+* **How many extra hits the Multi-Hit chance lands.** The hits of skills whose options include no Multi-Hit, outside
+  the buffs below: one, two, three or four extra hits 41.6, 23.9, 13.6 and 20.9 % of the time (9,122 Multi-Hits in
+  35,634 hits), 2.14 on average; the dungeon captures alone, where every party member's casts are in view, 42.0,
+  24.0, 13.7 and 20.3 %. How often a player multi-hits (0.18–0.33 of their pressed hits for most) does not move it:
+  2.08–2.19 extra hits on average from the lowest band to the highest but three players' 2.61. The *+50 % Multi-Hit
+  on hit* options raise the share of hits with a Multi-Hit from 0.26 to 0.79 (1,668 hits) and land the same counts
+  (38.8, 24.2, 15.8 and 21.2 %). With the measured sizes a Multi-Hit from the chance adds 11.2 % (10.8 % with
+  0.2.380's sizes, 10.7 % at 5 % an extra hit), not 12.5 %.
+* **Zikel's Blessing and Bow of Blessing make every Multi-Hit whole.** While the Gladiator's Zikel's Blessing with its
+  Lv 15 *+50 % Multi-Hit chance* or the Ranger's Bow of Blessing with its Lv 5 *+50 % Multi-Hit Chance for duration*
+  lasts, the caster multi-hits 0.46 more often than outside it (0.31–0.56 by player), and 915 of the 916 Multi-Hits in
+  them land four extra hits (Zikel's Blessing in two captures, Bow of Blessing in three). A stigma's cast names how
+  many of its options its level has opened (Zikel's Blessing at 15–19 casts as 11250030, Bow of Blessing at 10–14 as
+  14220020), as the kits take it (a stigma's options open with its level): Zikel's Blessing cast below 15 leaves the
+  Multi-Hits as they are (0.28 of 1,783 hits, one to four extra hits), at 15 and up 241 of 241 land four. Battlefield
+  Banner's *+10 % Multi-Hit Chance* shows too few hits to tell (seven Multi-Hits in its windows, one of four).
+* **What multi-hits.** Pressed skills, their chain steps, the basic chain, damaging stigmas and the summons' attacks.
+  Damage over time never does (0 of 14,675 ticks), nor do passives' hits (5 of 11,861, the Cleric's Empyrean Lord's
+  Grace aside at 26 %), theostones (2 of 1,751), or Illusive Clone's echoes and the auras among the stigmas (Noble
+  Aura, Supporting Fire). Chain steps take their first skill's options: Swift and Breaking Slice with Quick Slice's
+  *+50 % Multi-Hit* multi-hit on 0.80–0.83 of their hits, Resonance and Bolt Crush with Onslaught's on 0.78–0.81.
+
+**What the model does now.** `model.damage.expected_hit` values a certain Multi-Hit (the `"multi"` tag, which every kit
+gives *Multi-Hit on hit* and *lands as Multi-Hit*) at the four extra hits, +20 % with no Multi-Hit chance on top
+(`model.stats.MULTI_HIT_ON_HIT`, moved from `kit.common`), and a Multi-Hit from the chance at 11 %
+(`MULTIHIT_BONUS`, was 12.5 %); the *+50 % Multi-Hit* options add 0.5 to the chance as before. The stagger skills'
+*Multi-Hit on hit* (`kit.common.add_stagger_skill`) needs no factor of its own. Drill Dart's *Multi-Hit on hit* is now a
+certain Multi-Hit, and the Chanter kit reads its options: *lands as Multi-Hit* on Incandescent Blow (and the Bursting
+Blow it folds in), Rushing Smash and Heat Wave Blow, *Multi-Hit on hit* on Wave Blow and *+50 % Multi-Hit* on Tremor
+Crush. Zikel's Blessing from Lv 15 and Bow of Blessing from Lv 5 add 0.5 to the chance for the buff's own duration
+(10 s and 0.5 s a level: 17 s at 15, 20 s at 20; the kits keep 20 s for the buffs' other stats) and value every
+Multi-Hit in it at the four (`MULTIHIT_FULL`); neither option was modelled before. Battlefield Banner keeps its +10 % at
+11 % a Multi-Hit. Every direct hit still takes the chance, the passives', theostones' and echoes' that never multi-hit
+too: 0.6 % of their damage at the typical builds' 5.5 % Multi-Hit chance.
+
+**The optimizer's choices.** Each bundled class build in its boss scenario, under its own rotation, with every legal
+combination of the options of each skill that has a Multi-Hit option (the optimizer's coordinate step over one skill):
+
+| Skill | Best with the Multi-Hit option against the best without, 0.2.380 / now | The best combination |
+|---|---:|---|
+| Heart Gore (Assassin) | +1.03 % / +1.67 % | *Multi-Hit on hit* and *+20 % Critical Hit* on one target, both times |
+| Blaze (Sorcerer) | +0.68 % / +1.19 % | *Multi-Hit on hit* and *Delayed Damage*, both times |
+| Hellfire (Sorcerer) | −0.73 % / +0.22 % | now *lands as Multi-Hit* and its Fire DoT, where it was *+30 % Skill Speed* and the DoT |
+| Deadshot (Ranger) | +1.50 % / +2.45 % | *lands as Multi-Hit* and *+30 % Skill Speed*, both times |
+| Ankle Slice (Gladiator) | +0.56 % / +0.91 % | *lands as Multi-Hit* and *Ankle Smash*, both times |
+| Drill Dart (Ranger) | +0.40 % / +1.23 % | *Multi-Hit on hit* and *+20 % Skill Speed*, both times (read as +50 % Multi-Hit chance before) |
+
+The *+50 % Multi-Hit* options lose 0.02–0.12 points and every choice stays: Quick Slice's, Whirlwind Slice's, Insignia
+Explosion's, Burst Arrow's, Jointstrike: Curse's and Dimensional Control's are taken, Keen Strike's, Vicious Strike's,
+Annihilate's, Flame Arrow's, Suppressing Arrow's and Earth's Retribution's are not. The Chanter's options open at Lv 8
+to 16, above the bundled and typical builds' levels (Incandescent Blow 14, the others 1–6): raised to 16, Incandescent
+Blow's *lands as Multi-Hit* adds 10.9 % to the bundled Chanter's boss DPS (22,725 to 25,204), where it added nothing.
+Zikel's Blessing at 15 adds 2.5 % to the bundled Gladiator's (13,607 to 13,948) and Bow of Blessing at 5 adds 1.2 % to
+the bundled Ranger's (13,041 to 13,204), where their levels changed nothing before. The level and stigma searches take
+these. The typical Ranger's Bow of Blessing at 7 holds the Multi-Hit option: its boss DPS reads 10,374 where it read
+10,207 (+1.6 %); the other typical builds move 0.05–0.1 % down.
+
+The bundled builds are not regenerated. Replayed in the boss scenario: Ranger 12,824 to 13,041 DPS (+1.7 %), Sorcerer
+21,641 to 21,748 (+0.5 %), Assassin 10,225 to 10,260 (+0.3 %), Gladiator 13,570 to 13,607 (+0.3 %), Spiritmaster
+−0.15 %, Templar, Cleric and Chanter −0.1 % or less. A new run would change the Sorcerer's Hellfire options, the
+Gladiator's and Ranger's stigma levels and likely the Chanter's Incandescent Blow level.
+
+**Still open.** The passives', theostones' and echoes' hits never multi-hit, and the model gives them the chance. The
+recorded players multi-hit on 0.26 of their pressed hits, where the typical builds' gear gives a 5.5 % chance; the
+profiles hold Multi-Hit chance on Daevanion nodes (+1.5 % and +4.5 %) and on item lines the typical loadouts may not
+all hold. Battlefield Banner's +10 %: too few hits in its windows. Chain steps take their first skill's options (the
+*+50 % Multi-Hit* of Quick Slice and Onslaught on their chain steps above, and every chain step's raw id names its
+first skill's options), where the kits give a basic chain's *+50 % Multi-Hit* to its first step only.
 
 ## Optimization and macro planning
 
