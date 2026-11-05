@@ -1,7 +1,7 @@
 """Named fight scenarios and the community baseline build."""
 from __future__ import annotations
 
-from .kit.base import Build, ClassData
+from .kit.base import CRYSTAL_BOARDS, Build, ClassData
 from .run import Scenario
 from .sim.engine import SimConfig, Target
 
@@ -152,7 +152,7 @@ def typical_build(cls: str, sp_budget: int | None = None, stigma_points: int | N
     p = cd.raw.get("preset") or {}
     b = Build(cls, level=level or p.get("level", 45))
     b.daevanion = {n for n in decode_metabot_daevanion(cd, p.get("daevanion", ""))
-                   if cd.node_index[n][0]["name"] != "Azphel"
+                   if cd.node_index[n][0]["name"] in CRYSTAL_BOARDS             # Ariel and Azphel take their own crystals
                    and (cd.node_index[n][0].get("needLevel") or 1) <= b.level}
     if daev_budget is not None and b.daevanion_cost(cd) > daev_budget:
         b.daevanion = _fit_board(cd, b.daevanion, daev_budget)

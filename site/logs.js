@@ -149,14 +149,14 @@ A2ArchiveUpload.mount(document.getElementById('archive-upload'),{
     if (!obs.length) { body.innerHTML = '<div class="empty">No build-point observations yet.</div>' + srcNote(d); return; }
     const best = {};
     for (const o of obs) {
-      const total = (o.skill || 0) + (o.stigma || 0) + (o.daevanion || 0);
+      const total = (o.skill || 0) + (o.stigma || 0) + (o.daevanion || 0) + (o.ariel || 0);
       const k = o.class_name || "?";
       if (!best[k] || total > best[k]._t) best[k] = Object.assign({}, o, { _t: total });
     }
     const rows = Object.values(best).sort((a, b) => b._t - a._t);
-    const tr = rows.map((o) => `<tr><td>${esc(cap(o.class_name))}</td><td class="r">${n0(o.skill)}</td><td class="r">${n0(o.stigma)}</td><td class="r">${n0(o.daevanion)}</td><td class="r num">${n0(o._t)}</td><td class="muted small">${esc(o.region || "")}</td></tr>`).join("");
-    body.innerHTML = `<p class="small muted">Highest observed skill / stigma / daevanion points per class, from optimization submissions (reported lower bounds, not verified game caps).</p>
-      <table class="t"><tr><th>Class</th><th class="r">Skill</th><th class="r">Stigma</th><th class="r">Daevanion</th><th class="r">Total</th><th>Region</th></tr>${tr}</table>` + srcNote(d);
+    const tr = rows.map((o) => `<tr><td>${esc(cap(o.class_name))}</td><td class="r">${n0(o.skill)}</td><td class="r">${n0(o.stigma)}</td><td class="r">${n0(o.daevanion)}</td><td class="r">${n0(o.ariel)}</td><td class="r num">${n0(o._t)}</td><td class="muted small">${esc(o.region || "")}</td></tr>`).join("");
+    body.innerHTML = `<p class="small muted">Highest observed skill / stigma / Daevanion / Ariel points per class, from optimization submissions (reported lower bounds, not verified game caps). Ariel is the Ariel board's own crystal, reported since client 0.2.381; — where a class has no report yet.</p>
+      <table class="t"><tr><th>Class</th><th class="r">Skill</th><th class="r">Stigma</th><th class="r">Daevanion</th><th class="r">Ariel</th><th class="r">Total</th><th>Region</th></tr>${tr}</table>` + srcNote(d);
   }
 
   // Community combat logs: one row per encounter (boss, difficulty, party + roster, clear time,

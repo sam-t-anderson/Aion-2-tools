@@ -404,7 +404,7 @@ def _build_stigmas(A, build, cd, stig, st, notes):
         if key == "ZIKEL" and st("ZIKEL", 10):
             extra["amp"] = extra.get("amp", 0.0) + 0.10     # +10% PvE Damage Boost
         # Zikel's Blessing Lv 15: +50% Multi-Hit chance, and while it lasts every Multi-Hit lands all four extra hits
-        # (0.2.381, the recorded Gladiators' Multi-Hits in it), for the buff's own duration
+        # (0.2.382, the recorded Gladiators' Multi-Hits in it), for the buff's own duration
         multi = None
         if key == "ZIKEL" and st("ZIKEL", 15):
             v = cd.vals(SID[key], build.stigmas[SID[key]]) or []

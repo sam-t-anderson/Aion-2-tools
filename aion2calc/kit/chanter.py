@@ -201,7 +201,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
     # the model pressed Onslaught four times as often as the recorded Chanters).
     ic_f, ic_c = dmg("INCAND")
     ic_mult = 1.12 if has("INCAND", 3) else 1.0                  # up to 12% more on fewer targets
-    # Lv 16 "Ignores Block and Evasion and lands as Multi-Hit", on its chain skill too (0.2.381: 147 of 148 recorded
+    # Lv 16 "Ignores Block and Evasion and lands as Multi-Hit", on its chain skill too (0.2.382: 147 of 148 recorded
     # Incandescent Blows with it and 77 of 77 Bursting Blows landed four extra hits)
     ic_tags = ("multi", "noparry") if has("INCAND", 5) else ()
 
@@ -218,7 +218,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
                                     mp=ic_mp * (1.0 + ASSUME["bursting_chance"]), on_cast=incand_cast)
 
     rs_f, rs_c = dmg("RSMASH")
-    rs_tags = ("multi", "noparry") if has("RSMASH", 5) else ()  # lands as Multi-Hit (15 of 15 recorded; 0.2.381)
+    rs_tags = ("multi", "noparry") if has("RSMASH", 5) else ()  # lands as Multi-Hit (15 of 15 recorded; 0.2.382)
 
     def rsmash_cast(sim, a):
         sim.hit("Rushing Smash", rs_f, rs_c, tags=rs_tags)
@@ -263,7 +263,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
                              requires=("dark_crush",), on_cast=dark_crush_cast)
 
     hw_f, hw_c = dmg("HEATWAVE")
-    hw_tags = ("multi", "noparry") if has("HEATWAVE", 4) else ()  # lands as Multi-Hit (7 of 7 recorded; 0.2.381)
+    hw_tags = ("multi", "noparry") if has("HEATWAVE", 4) else ()  # lands as Multi-Hit (7 of 7 recorded; 0.2.382)
     A["heat_wave_blow"] = Action("heat_wave_blow", "Heat Wave Blow", SID["HEATWAVE"], TIMING["heat_wave_blow"],
                                  cooldown=cd.cd(SID["HEATWAVE"], lv("HEATWAVE")),
                                  on_cast=lambda sim, a: sim.hit("Heat Wave Blow", hw_f, hw_c, tags=hw_tags))
@@ -280,7 +280,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
 
     # Wave Blow (needs Stun)
     wb_f, wb_c = dmg("WAVEBLOW")
-    wb_tags = ("multi",) if has("WAVEBLOW", 1) else ()            # Multi-Hit on hit (44 of 44 recorded; 0.2.381)
+    wb_tags = ("multi",) if has("WAVEBLOW", 1) else ()            # Multi-Hit on hit (44 of 44 recorded; 0.2.382)
     A["wave_blow"] = Action("wave_blow", "Wave Blow", SID["WAVEBLOW"], TIMING["wave_blow"],
                             cooldown=cd.cd(SID["WAVEBLOW"], lv("WAVEBLOW")), requires=("incap",),
                             on_cast=lambda sim, a: sim.hit("Wave Blow", wb_f, wb_c, tags=wb_tags))

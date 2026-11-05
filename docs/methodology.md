@@ -58,7 +58,28 @@ Budgets constrain a particular optimization, not the maximum progression availab
 | Stigma level price | Lv 1–5: 1, 6–10: 2, 11–15: 4, 16–20: 8 (75 to Lv 20) | metabot |
 | Stigma slots | 4 (Lv 22/27/32/37) | client data |
 | Daevanion Crystal points | **360** is the example PvE budget, including level, dungeon, quest and other progression sources; it is configurable and is not a verified maximum | metabot board guide; the global top-player "most common" board spends 351 |
-| Daevanion boards | Nezekan (134), Zikel (134), Vaizel (134), Triniel (168) share the crystal pool; Azphel (232) is PvP and uses its own currency | client data |
+| Daevanion boards | Nezekan (134), Zikel (134), Vaizel (134), Triniel (168) share the crystal pool; Ariel (232, PvE) and Azphel (232, PvP) open at level 45 and each use their own currency, Daevanion Crystal: Ariel and Daevanion Crystal: Azphel | client data |
+| Daevanion Crystal: Ariel | The character's own total (its profile's spend, or the total entered); class optimizations take the highest total the server reports, else none. Its own budget (`--ariel-points`) | official profiles, server progression |
+
+**The Ariel board (0.2.381).** The global client's 4 November 2026 data adds a sixth board to every class, board x5 between
+Triniel and Azphel: Ariel, the PvE counterpart of Azphel's PvP board. It opens at level 45 and is paid with Daevanion
+Crystal: Ariel; its 152 nodes cost 232 points (104 at 1, 24 at 2, 16 at 3, 8 at 4) and raise no skill. Filled, it gives
+PvE Damage Boost +6 %, Boss Damage Boost +4 %, PvE Attack +72, Boss Attack +72 and Critical Hit +40, with Critical Hit
+Resist +40, HP +400, MP +200, and PvE and Boss Defense +720, PvE and Boss Damage Tolerance +6 % and +4 %, PvE Accuracy
+and Evasion +120. The model counts the damage stats (Boss Damage Boost in the Damage Boost bucket with PvE Damage Boost,
+Boss Attack with PvE Attack); the defenses, tolerances, accuracy and evasion change nothing it simulates (no boss
+damage taken, no hit chance) and are shown only. The whole board raises a typical Sorcerer's boss DPS by over 5 %.
+
+Its points are a budget of their own (`Build.ariel_cost`; `daevanion_cost` counts the four crystal boards only). The
+optimizer places them on the Ariel board alone, after the crystal boards and skill points are solved, valuing each
+node by the build's stat weights (`Optimizer(ariel_budget=...)`, 30 s of HiGHS, past which it gains about 2 % of the
+board's worth). Without an Ariel budget a build's Ariel nodes stay as they are, and nodes on boards the search does
+not allocate (Azphel's) are now kept: the search used to return the crystal boards' nodes only, dropping an imported
+character's others. An imported character's Ariel budget is the crystal its profile shows spent, or the total typed on
+My Character; a class optimization in the planner takes the field's value, else the highest total the server reports
+for the class (servers before aion2logs 0.2.166 report none, and then none is spent). Community comparisons keep their
+skill, stigma and Daevanion budgets and the four crystal boards: a submitted build leaves its Ariel and Azphel nodes,
+and clients before 0.2.381 would refuse a scope with a fourth budget.
 
 **A character below level 45 (0.2.322).** The optimizer holds a character to what its level
 gives: the stigma slots its level opens (22/27/32/37), filled only as far as the stigma points go
@@ -103,7 +124,7 @@ Sources: Taiwanese Bahamut research translated on Inven
 article ([news 312835](https://www.inven.co.kr/webzine/news/?news=312835&site=aion2)),
 and the community DPS calculator
 [aion2ssow](https://bongbong99999-debug.github.io/aion2ssow/) (weapon-boost 66 %
-efficiency, crit curve capped at 80 %; its multi-hit 12.5 % gave way to the recorded values in 0.2.381).
+efficiency, crit curve capped at 80 %; its multi-hit 12.5 % gave way to the recorded values in 0.2.382).
 
 * **Skill value = coefficient × Attack + flat** — the coefficient is constant
   across skill levels; only the flat part grows (TW tests, confirmed by the
@@ -128,7 +149,7 @@ efficiency, crit curve capped at 80 %; its multi-hit 12.5 % gave way to the reco
 * **Multi-Hit**: a Multi-Hit lands one to four extra hits inside the hit's own record, each about 5 %
   of the hit: one from the Multi-Hit chance lands 2.14 on average, 11 %; a certain one (the
   *Multi-Hit on hit* and *lands as Multi-Hit* options) always four, 20 %, with no chance on top
-  ([measured from the recordings](#multi-hit-from-the-recordings-02381)). Damage over time never multi-hits.
+  ([measured from the recordings](#multi-hit-from-the-recordings-02382)). Damage over time never multi-hits.
 * **Primary and deity stats**: +0.1 % per point to each of their effects in the
   global client (metabot "Stats explained"; KR later raised deity stats to
   0.2 %).  Might/Destruction → Attack %, Precision/Death → Crit %, Wisdom →
@@ -1246,7 +1267,7 @@ uploads' official profiles), each fight, and each player's train in it, counted 
   the same skill without a Multi-Hit, on the same boss and side, within 3 s (the same buffs), a hit with one, two,
   three or four extra hits is 1.05, 1.10, 1.16 and 1.20 times as large, critical or not (1,217 hits of 15–23 skills in
   eight captures): about 5 % an extra hit. *Multi-Hit on hit* is worth 20 % a hit, where the damage model gives a
-  certain Multi-Hit 12.5 %. *Since [0.2.381](#multi-hit-from-the-recordings-02381) the damage model gives every certain
+  certain Multi-Hit 12.5 %. *Since [0.2.382](#multi-hit-from-the-recordings-02382) the damage model gives every certain
   Multi-Hit the 20 %.*
 * **Each hit's share of the tooltip,** measured as 0.2.379 did, the clone's echoes left out of both skills: Storm
   Rampage against Heart Gore 0.16 (5 players, 0.11–0.17); compared inside the same staggers (the same buffs), the hits
@@ -1276,7 +1297,7 @@ regenerated: the Sorcerer's, replayed in the boss scenario, reads 21,641 DPS whe
 hits where it had 120), and the Assassin's has no Storm Rampage in its priority.
 
 **Multi-Hit on every class's stagger skill.** The helper is shared, so every class's *Multi-Hit on hit* now adds the
-measured 20 % to each hit (`kit.common.MULTI_HIT_ON_HIT`; since 0.2.381 the damage model's
+measured 20 % to each hit (`kit.common.MULTI_HIT_ON_HIT`; since 0.2.382 the damage model's
 `model.stats.MULTI_HIT_ON_HIT`), where 0.2.379 gave the six 12.5 %; Storm Rampage's no
 longer doubles its hits. With the skill at 16 it adds 0.5–1.4 % to the typical builds' boss DPS (0.3–0.8 % before for
 the six, 4.5 % for the Assassin's doubled hits), and the MP option still beats it for the Chanter (+3.8 %) and the
@@ -1293,10 +1314,10 @@ the other skills back sooner (6.6 %). The six others' are unchanged within 0.1 p
 *Multi-Hit on hit* on other skills (Heart Gore, Blaze, Hellfire and the rest) and the Multi-Hit chance stay at the
 damage model's 12.5 %. The six classes' shares from 0.2.379 include players who took Multi-Hit on the stagger skill,
 whose hits read a fifth high where the reference skill has none; the uploads keep only a skill's family, so a profiled
-player's options are unknown. *Measured in [0.2.381](#multi-hit-from-the-recordings-02381): every certain Multi-Hit
+player's options are unknown. *Measured in [0.2.382](#multi-hit-from-the-recordings-02382): every certain Multi-Hit
 is worth the 20 % in the damage model, and one from the Multi-Hit chance 11 %.*
 
-### Multi-Hit from the recordings (0.2.381)
+### Multi-Hit from the recordings (0.2.382)
 
 0.2.380 measured what a Multi-Hit adds and gave the stagger skills' *Multi-Hit on hit* the measured 20 % through a
 factor of their own. Every other certain Multi-Hit (*Multi-Hit on hit* on Heart Gore, Blaze, Drill Dart, Condemnation

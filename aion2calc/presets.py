@@ -4,7 +4,7 @@ from __future__ import annotations
 import copy
 import math
 
-from .kit.base import ClassData, spec_slots
+from .kit.base import CRYSTAL_BOARDS, ClassData, spec_slots
 from .opt.bonus import MAX_PER_SKILL, valid_pool
 from .paths import list_names
 
@@ -21,6 +21,13 @@ def candidate(summary: dict) -> dict:
     data = summary.get("build") or {}
     build = {k: copy.deepcopy(data.get(k, {} if k != "daevanion_nodes" else []))
              for k in ("sp", "stigmas", "specs", "daevanion_nodes")}
+    # The comparison is held on the crystal boards: the Ariel board's Daevanion Crystal: Ariel (0.2.381) and Azphel's
+    # crystal are budgets it does not have, so a build's nodes there stay with the build.
+    cls = summary.get("class")
+    if isinstance(cls, str) and cls in list_names("global", "classes") and isinstance(build["daevanion_nodes"], list):
+        index = ClassData(cls).node_index
+        build["daevanion_nodes"] = [n for n in build["daevanion_nodes"]
+                                    if not (type(n) is int and n in index and index[n][0]["name"] not in CRYSTAL_BOARDS)]
     if isinstance(data.get("bonus"), dict) and data["bonus"]:
         build["bonus"] = copy.deepcopy(data["bonus"])     # bonus levels from gear rolls and arcana cards, by skill
     return {"format": "a2preset", "version": 1, "class": summary.get("class"),

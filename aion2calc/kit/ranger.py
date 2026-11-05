@@ -199,7 +199,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "snipe") -> Kit:
 
     def drill_cast(sim, a):
         n = 2 if has("DRILL", 5) else 1
-        # Lv 12 "Multi-Hit on hit": a certain Multi-Hit, four extra hits (190 of 193 recorded hits with it; 0.2.381),
+        # Lv 12 "Multi-Hit on hit": a certain Multi-Hit, four extra hits (190 of 193 recorded hits with it; 0.2.382),
         # not +50 % Multi-Hit chance
         tags = ("multi",) if has("DRILL", 4) else ()
         sim.hit("Drill Dart", dr_f, dr_c, n=n, spread=0.2 * (n - 1), tags=tags)
@@ -290,7 +290,7 @@ def _build_stigmas(A, build, cd, stig, st, notes):
         stats = {"crit": float(bv[0])}
         if st("BOWBLESS", 15):
             stats["crit_dmg"] = 0.20
-        # Lv 5: +50% Multi-Hit Chance, and while it lasts every Multi-Hit lands all four extra hits (0.2.381, the
+        # Lv 5: +50% Multi-Hit Chance, and while it lasts every Multi-Hit lands all four extra hits (0.2.382, the
         # recorded Rangers' Multi-Hits in it), for the buff's own duration
         multi = ((ms(bv[-1]) if isinstance(bv[-1], dict) else 20.0, {"multihit": 0.5, MULTIHIT_FULL: 1.0})
                  if st("BOWBLESS", 5) else None)

@@ -29,13 +29,13 @@ CRIT_BASE = 0.5
 #: "lands as Multi-Hit", the "multi" tag) always lands four: +20 %.
 MULTI_HIT_ON_HIT = 0.20
 
-#: What a Multi-Hit from the Multi-Hit chance adds, on average (0.2.381): it lands one, two, three or four extra
+#: What a Multi-Hit from the Multi-Hit chance adds, on average (0.2.382): it lands one, two, three or four extra
 #: hits 42, 24, 14 and 21 % of the time (2.14 on average; 9,122 of them in eight captures, the same with the "+50 %
 #: Multi-Hit" options), 11 % in all; the community calculators' 12.5 % is what equally likely counts would give.
 MULTIHIT_BONUS = 0.11
 
 #: Zikel's Blessing (Lv 15) and Bow of Blessing (Lv 5): their "+50% Multi-Hit chance" also makes every Multi-Hit
-#: while the buff lasts land all four extra hits (0.2.381: 915 of 916 recorded in the buffs). A buff with this key
+#: while the buff lasts land all four extra hits (0.2.382: 915 of 916 recorded in the buffs). A buff with this key
 #: values its Multi-Hits at :data:`MULTI_HIT_ON_HIT`.
 MULTIHIT_FULL = "multihit_full"
 
