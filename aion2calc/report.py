@@ -260,7 +260,7 @@ def rerender(out_dir: str) -> str:
             or summary.get("macro", {}).get("model_version") != MODEL_VERSION):
         dummy = saved_scenario("dummy")
         scen = saved_scenario(summary["scenario"])
-        summary.setdefault("kr_fidelity", kr_share_overlap(cls, _sim(build, dummy, policy)[0].shares()))
+        summary.setdefault("kr_fidelity", kr_share_overlap(cls, _sim(build, dummy, policy)[0].recorded_shares()))
         summary.setdefault("arcana_rolls", arcana_roll_values(cls, build, saved_scenario(summary["scenario"]), policy))
         summary.pop("arcana_skill_values", None)
         if summary.get("macro", {}).get("model_version") != MODEL_VERSION:
@@ -464,8 +464,9 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     opt.log("Report: valuing arcana rolls and critical hit")
     summary["arcana_rolls"] = arcana_roll_values(cls, build, scen, policy)
     summary["crit_sensitivity"] = None if scenario_name.startswith("pvp") else crit_sensitivity(build, scen, policy)
-    summary["kr_fidelity"] = (None if scenario_name.startswith("pvp") else
-                              kr_share_overlap(cls, final_other.shares() if scenario_name == "boss" else final.shares()))
+    summary["kr_fidelity"] = (None if scenario_name.startswith("pvp") else      # shares as the logs credit them
+                              kr_share_overlap(cls, final_other.recorded_shares() if scenario_name == "boss"
+                                               else final.recorded_shares()))
     if scenario_name.startswith("pvp"):
         from .scenarios import PVP_NOTE
         summary["model_note"] = PVP_NOTE

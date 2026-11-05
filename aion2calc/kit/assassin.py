@@ -13,6 +13,8 @@ none of what makes it work.  This kit encodes:
   Stance (+Critical Damage) feed Heart Gore, the low-cooldown crit-triggered hit.
 * **Apply Poison** damage-over-time and the **Ambush Stance** on-move proc.
 * Self crowd control (Shadowstrike stun) gating **Shadow Fall**.
+* **Illusive Clone**: no Heart Gore cooldown while it lasts, and its tooltip's share of every active skill's hit
+  echoed as the clone's damage, besides the clone's own hits.
 
 Every damage number comes from ``data/global/classes/assassin.json``; only the
 things the client does not expose live in :data:`TIMING` / :data:`ASSUME`.
@@ -72,10 +74,14 @@ ASSUME = {
     "storm_rampage_hit": 0.16,    # each hit against the tooltip's value, measured against a Heart Gore hit (0.32 before,
                                   #   from hits that counted the clone's; the tooltip split over a press's four hits
                                   #   would be 0.25)
-    "clone_echo": 0.07,           # Illusive Clone's extra damage as a share of the damage dealt while it lasts
-                                  #   (its tooltip says 20 %; the recorded clone dealt 7 %, in 99 of 99 windows)
-    "clone_attack_echo": 0.008,   # Illusive Clone Lv 20 "50% chance to deal extra damage on Critical Hit": the
-                                  #   Clone Attack hits were 0.8 % of the damage dealt while the clone lasted
+    # Illusive Clone (0.2.383; docs/methodology.md "Illusive Clone's echo of a fifth"): its tooltip's 20 % is an echo of
+    # each active skill's hit, which the kit takes from the tooltip; the clone's own hits and Clone Attack are these two,
+    # each against the damage the clone's windows hold besides the clone's (one recorded Assassin's 423 windows):
+    "clone_echo": 0.072,          # the clone's own hits ("Illusive Clone"): 7.2 % (0.071 the median window, q1 0.065,
+                                  #   q3 0.080; 0.076 and 0.077 for the two captured Assassins; "7 % of the damage", 0.2.368)
+    "clone_attack_echo": 0.009,   # Illusive Clone Lv 20 "50% chance to deal extra damage on Critical Hit": the Clone
+                                  #   Attack hits, 0.9 % (0.007 and 0.011 captured); 14-27 % of their damage lands
+                                  #   outside the windows, which the kit leaves out
     "exploit_clone_hits": 1.55,   # hits per Exploit Weakness clone proc (bursts of one to four)
     "heart_gore_recast": 0.73,    # at 0 % Combat Speed: with its cooldown gone Heart Gore came back 0.56 s after
                                   #   the previous press (median, at the recorded 31 % Combat Speed)
@@ -348,12 +354,16 @@ def build_kit(build: Build, cd: ClassData, filler: str = "quick_slice") -> Kit:
                                      mp=cd.mp(SID["INSIG"], lv("INSIG")), requires=("insignia",), on_cast=insig_cast)
 
     # ------------------------------------------------------------- stigmas
-    # Illusive Clone: for its duration Heart Gore has no cooldown and the clone deals a share of the damage dealt
-    # again (the tooltip's 20 %; the recorded clone dealt 7 %); Lv 10 adds Critical Damage Boost, Lv 15 raises
-    # Exploit Weakness's effects by half, Lv 20 adds the Clone Attack hits on crits (0.8 % of the damage).
+    # Illusive Clone: for its duration Heart Gore has no cooldown and the clone "deals 20% of damage dealt as extra
+    # damage": every hit of an active skill is followed by a hit of a fifth of it (0.2.383; recorded 0.16 s after its
+    # hit at 0.20 of it, one to a hit, the woven basic steps', Storm Rampage's and the Savage Roar chain's too), never a
+    # passive's proc or a damage-over-time tick. The game records the echo under the skill's own id; the model counts
+    # it as the clone's (``as_source`` keeps the recorded attribution for comparisons with recorded fights).
+    # The clone's own hits come on top (``clone_echo``); Lv 10 adds Critical Damage Boost, Lv 15 raises Exploit
+    # Weakness's effects by half, Lv 20 adds the Clone Attack hits on crits (``clone_attack_echo``).
     if stig("ICLONE"):
         iv = cd.vals(SID["ICLONE"], build.stigmas[SID["ICLONE"]])
-        ic_share, ic_dur = ASSUME["clone_echo"], ms(iv[1])
+        ic_share, ic_dur = float(iv[0]) / 100.0, ms(iv[1])
 
         def iclone_cast(sim, a):
             stats = {}
@@ -362,7 +372,8 @@ def build_kit(build: Build, cd: ClassData, filler: str = "quick_slice") -> Kit:
             if st("ICLONE", 15) and exploit_pct:
                 stats["attack_pct"] = exploit_pct * 0.5
             sim.buff("illusive_clone", ic_dur, stats)
-            sim.echo("Illusive Clone", ic_share, ic_dur)
+            sim.echo("Illusive Clone", ic_share, ic_dur, skip=("proc", "dot"), key="illusive_clone_share", as_source=True)
+            sim.echo("Illusive Clone", ASSUME["clone_echo"], ic_dur)
             if st("ICLONE", 20):
                 sim.echo("Clone Attack", ASSUME["clone_attack_echo"], ic_dur)
             sim.ready["heart_gore"] = min(sim.ready.get("heart_gore", sim.t), sim.t + recast(sim))

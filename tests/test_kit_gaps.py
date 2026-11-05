@@ -188,8 +188,9 @@ def _assassin(stigmas=None, specs=None, bonus=None, sp=None):
 
 def test_heart_gore_comes_back_on_a_crit_and_has_no_cooldown_under_illusive_clone():
     """The Assassin measured from the log server (0.2.368): Heart Gore's Lv 16 effect resets its cooldown on a crit,
-    and Illusive Clone removes the cooldown while it lasts and echoes 7 % of the damage dealt, so the kit presses it
-    at the recorded cadence instead of once every five seconds."""
+    and Illusive Clone removes the cooldown while it lasts, so the kit presses it at the recorded cadence instead of
+    once every five seconds. The clone's damage is its tooltip's fifth of every active skill's hit, its own hits and
+    the Lv 20 Clone Attack hits (0.2.383): 20.8-21.2 % of the damage dealt in its windows, recorded."""
     hgore = 13350000
     plain = _assassin(stigmas={})
     reset = _assassin(stigmas={}, specs={hgore: (13350040, 13350050)}, bonus={hgore: 6})     # Lv 16 for the reset
@@ -202,11 +203,82 @@ def test_heart_gore_comes_back_on_a_crit_and_has_no_cooldown_under_illusive_clon
     assert with_reset.casts["heart_gore"] > 1.4 * base.casts["heart_gore"]
     assert "Illusive Clone" not in with_reset.damage_by
     clone = _assassin(stigmas={13310000: 20})
-    _, res, kit = _sim("assassin", ["illusive_clone", "heart_gore", "quick_slice"], build=clone, derived=crit)
+    traced = replace(scen, config=replace(scen.config, record_damage=True))
+    _, res, kit = _sim("assassin", ["illusive_clone", "heart_gore", "quick_slice"], build=clone, derived=crit,
+                       scen=traced)
     assert kit.actions["illusive_clone"].cooldown == 90.0 and res.casts["illusive_clone"] >= 2   # 120 s
     assert res.casts["heart_gore"] > 1.4 * base.casts["heart_gore"]
-    assert 0.01 < res.damage_by["Illusive Clone"] / res.total < 0.08      # 7 % of the damage for 20 s in 90
+    windows = [(t, t + 20.0) for t, key in res.timeline if key == "illusive_clone"]             # Lv 20: 20 s
+    inside = sum(d for t, d in res.damage_events if any(lo <= t < hi for lo, hi in windows))
+    clone_damage = res.damage_by["Illusive Clone"] + res.damage_by["Clone Attack"]
+    assert 0.18 < clone_damage / inside < 0.23                            # a fifth of the damage in its windows
+    assert 0.05 < clone_damage / res.total < 0.12                         # for 20 s in 90
     assert res.damage_by["Clone Attack"] > 0                              # the Lv 20 extra hits on crits
+
+
+def test_illusive_clone_echoes_a_fifth_of_every_active_skills_hit():
+    """0.2.383: inside an Illusive Clone window every hit of an active skill is followed by a hit of the tooltip's 20 %
+    of it (recorded 0.198-0.201, one to a hit), Storm Rampage's and the woven basic steps' too, and never a passive's
+    proc or a damage-over-time tick. The model counts it as the clone's, besides the clone's own hits (``clone_echo``)
+    and Clone Attack (``clone_attack_echo``), which echo every hit; a recorded fight credits it to the skill it echoes,
+    and the comparisons with recorded fights do too (``SimResult.as_recorded``)."""
+    from aion2calc.kit.assassin import ASSUME
+    storm = 13340000
+    b = _assassin(stigmas={13310000: 20}, specs={storm: (13340040, 13340050)}, sp={storm: 10}, bonus={storm: 6})
+    scen = boss("assassin_l45_global_median")
+    # a stagger inside the clone's first 20 s, and the fight no longer than that: every hit lands in the window
+    scen = replace(scen, target=replace(scen.target, stagger_windows=((1.0, 9.0),), hp_model="linear"),
+                   config=replace(scen.config, duration=19.5))
+    pol = ["illusive_clone", "storm_rampage", "heart_gore", "insignia_explosion", "savage_roar", "quick_slice"]
+    _, res, kit = _sim("assassin", pol, build=b, duration=19.5, scen=scen)
+    echoed = res.echo_of["Illusive Clone"]
+    assert {"Storm Rampage", "Heart Gore", "Savage Roar", "Savage Smash"} <= set(echoed)
+    assert any(name.endswith("(woven)") for name in echoed)                # the steps woven after the train
+    for name, v in echoed.items():
+        assert v == pytest.approx(0.20 * res.damage_by[name], rel=1e-9), name
+    procs = ("Exploit Weakness", "Ambush Stance", "Determination", "Apply Poison")
+    assert all(name in res.damage_by for name in procs)
+    assert not set(procs) & set(echoed)
+    # the clone's own hits and Clone Attack: shares of every hit's damage, procs and ticks included
+    landed = sum(v for name, v in res.damage_by.items() if name not in ("Illusive Clone", "Clone Attack"))
+    own = res.damage_by["Illusive Clone"] - sum(echoed.values())
+    assert own == pytest.approx(ASSUME["clone_echo"] * landed, rel=1e-9)
+    assert res.damage_by["Clone Attack"] == pytest.approx(ASSUME["clone_attack_echo"] * landed, rel=1e-9)
+    # credited as a recorded fight credits it: the echo with its skill, the clone's own hits under its name
+    recorded = res.as_recorded()
+    assert recorded["Heart Gore"] == pytest.approx(1.2 * res.damage_by["Heart Gore"], rel=1e-9)
+    assert recorded["Illusive Clone"] == pytest.approx(own, rel=1e-9)
+    assert sum(recorded.values()) == pytest.approx(res.total, rel=1e-9)
+    assert sum(res.recorded_shares().values()) == pytest.approx(1.0)
+    from aion2calc.calibrate import _sim_shares                            # compared with recorded shares
+    clone = _assassin(stigmas={13310000: 20})
+    _, plain, _ = _sim("assassin", build=clone, duration=180.0)            # the same dummy fight and priority
+    assert _sim_shares("assassin", build=clone) == pytest.approx(plain.recorded_shares(), rel=1e-9)
+    assert plain.recorded_shares()["Illusive Clone"] < 0.5 * plain.shares()["Illusive Clone"]
+
+
+def test_an_echo_skips_the_tagged_hits_and_keeps_its_own_key():
+    """``Sim.echo``: an echo deals its share of every hit that lands while it lasts, except hits with a ``skip`` tag;
+    two echoes may share a name under their own keys, and a second call with a key replaces the first."""
+    from aion2calc.scenarios import typical_build as tb
+    _, _, _, stats = prepare(tb("assassin"), dummy("assassin_l45_global_median"))
+
+    def cast(sim, a):
+        if sim.t < 1e-9:
+            sim.echo("Clone", 0.2, 5.0, skip=("proc", "dot"), key="fifth", as_source=True)
+            sim.echo("Clone", 0.1, 5.0)
+            sim.echo("Clone", 0.05, 5.0)                                   # replaces the 0.1 one (the same key)
+        sim.hit("Strike", 1000.0, 0.0)
+        sim.hit("Proc", 1000.0, 0.0, tags=("proc",))
+    actions = {"x": Action("x", "X", 1, 1.0, on_cast=cast)}
+    sim = Sim(stats.derived(), actions, ["x"], Target(), SimConfig(duration=10.0))
+    res = sim.run()
+    hit = res.damage_by["Strike"] / res.hits_by["Strike"]
+    inside = sum(1 for t, _ in res.timeline if t <= 5.0)                  # the hits land as cast; the echoes end at 5 s
+    assert 4 <= inside < res.casts["x"]
+    # the fifth on the strikes only, the other echo (0.05, the 0.1 replaced) on the strikes and the procs alike
+    assert res.damage_by["Clone"] == pytest.approx(inside * hit * (0.2 + 0.05 + 0.05), rel=1e-9)
+    assert res.echo_of == {"Clone": {"Strike": pytest.approx(inside * hit * 0.2, rel=1e-9)}}
 
 
 def test_triniels_dagger_and_swift_contract_grow_at_their_stigma_steps():
