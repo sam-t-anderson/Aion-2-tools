@@ -98,7 +98,14 @@ def test_suggestions_rank_by_modeled_gain_and_unmodeled_ones_come_last(advised):
     assert modeled == sorted(modeled, reverse=True) and gains == modeled + [None] * (len(gains) - len(modeled))
     areas = {row["area"] for row in top}
     assert {"gear (upgrade)", "arcana", "rotation", "specializations", "community"} <= areas
-    assert ("specializations", "Flame Arrow: specs 2, 3 in your fights, 1 in the optimized build") in {
+    # the optimized build is the bundled Sorcerer example's (numbered as the advice numbers them), whatever a
+    # regeneration of the bundled builds chose
+    from aion2calc.kit.base import ClassData
+    bundled = json.loads((ROOT / "results" / "sorcerer_l45" / "build.json").read_text(encoding="utf-8"))
+    texts = [x["text"] for x in ClassData("sorcerer").by_name["Flame Arrow"]["specs"]]
+    optimal = ", ".join(str(n) for n in sorted(texts.index(t) + 1 for t in bundled["build"]["specs"]["Flame Arrow"]))
+    assert optimal != "2, 3"
+    assert ("specializations", f"Flame Arrow: specs 2, 3 in your fights, {optimal} in the optimized build") in {
         (row["area"], row["text"]) for row in top}
     community = [row["text"] for row in top if row["area"] == "community"]
     assert community == ["Flame Arrow: 75% of the top players on your log server pick specs 1 (you: 2, 3)"]   # Blaze matches already

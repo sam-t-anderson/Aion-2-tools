@@ -1552,7 +1552,19 @@ usual start the search left the Templar and the 383-point Sorcerer below their p
 both were searched again from the previous build, which the search keeps unless it finds a better one. Boss DPS, every
 build replayed under 0.2.384's model:
 
-<<TABLE>>
+| Build | Previous build, replayed | New build | Change | Typical build | Gain over typical | KR share overlap |
+|---|---:|---:|---:|---:|---:|---:|
+| Chanter | 22,221 | 22,515 | +1.3 % | 20,007 | +12.5 % | 30 % |
+| Sorcerer | 21,748 | 21,778 | +0.1 % | 19,075 | +14.2 % | 76 % |
+| Templar | 20,194 | 20,356 | +0.8 % | 16,382 | +24.3 % | 43 % |
+| Cleric | 16,699 | 17,050 | +2.1 % | 12,863 | +32.6 % | 73 % |
+| Spiritmaster | 16,894 | 16,910 | +0.1 % | 15,780 | +7.2 % | 47 % |
+| Gladiator | 13,607 | 13,992 | +2.8 % | 12,004 | +16.6 % | 32 % |
+| Ranger | 13,041 | 13,047 | +0.0 % | 11,751 | +11.0 % | 63 % |
+| Assassin | 10,260 | 12,097 | +17.9 % | 9,150 | +32.2 % | 51 % |
+| Sorcerer example | 22,061 | 22,190 | +0.6 % | 19,075 | +16.3 % | 76 % |
+| Sorcerer example, 383 skill points | 23,248 | 23,876 | +2.7 % | 21,094 | +13.2 % | 71 % |
+| Sorcerer example, geared | 32,348 | 33,225 | +2.7 % | 27,838 | +19.3 % | 70 % |
 
 *Change* is the new build against the previous one, both under 0.2.384's model; *Typical build* is the class's
 typical top build with its rotation optimized, as the comparison index lists it.

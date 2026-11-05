@@ -84,7 +84,11 @@ def test_evaluation_with_bonus_levels_reaches_the_fifth_effect_and_third_slot():
     policy = scoring_policy("sorcerer", "pve", None, ALLOWANCE)
     summary = _summary()
     fifth = next(x["text"] for x in cd.by_name["Ice Chain"]["specs"] if x["unlock"] == 16)
-    summary["build"]["specs"]["Ice Chain"] = summary["build"]["specs"]["Ice Chain"][:2] + [fifth]
+    # Ice Chain's first two effects fixed, not the bundled build's own (0.2.384 regenerated it with -1s [Winter's
+    # Shackles]): its level-16 Frost now and then opens Frost Burst off the build's searched rotation, so whether six
+    # bonus levels and that effect beat the plain build depends on which effects it sits beside
+    summary["build"]["specs"]["Ice Chain"] = ["+20% Skill Speed", "Deals up to 12% more damage when less targets are hit",
+                                              fifth]
     plain = evaluate(candidate(summary, scoring_policy("sorcerer", "pve")))
     # without bonus levels the skill stays at 14: the level-16 effect and the third slot are stripped
     assert plain["build"]["effective_levels"]["Ice Chain"] == 14 and len(plain["build"]["specs"]["Ice Chain"]) == 2
