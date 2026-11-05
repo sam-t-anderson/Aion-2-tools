@@ -14,16 +14,6 @@ from ..presets import MAX_BYTES
 @bundled_model_data
 def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
     """Seed from both scenarios, then refine the exact common weighted objective."""
-    from ..kit.base import ClassData
-    from ..learn import uncalibrated
-    from ..model.character import load_loadout
-    from ..opt.pipeline import Optimizer
-    from ..opt.weighted import WeightedOptimizer
-    from ..presets import parse
-    from ..opt.rotation import describe
-    from ..report import _spec_text
-    from ..scenarios import SCENARIOS
-
     from ..combat.preset_sync import _base, _request
     policy = scoring_policy(cls, mode)
     base = _base()
@@ -56,6 +46,44 @@ def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
                 return scored, True
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         pass
+    winner = search(cls, mode, policy, progress)
+    payload = json.dumps(winner, ensure_ascii=False, allow_nan=False).encode("utf-8")
+    if len(payload) > MAX_BYTES:
+        raise ValueError("Common comparison exceeds its cache limit")
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    fd, pending = tempfile.mkstemp(dir=cache.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(pending, cache)
+    finally:
+        Path(pending).unlink(missing_ok=True)
+    return winner, False
+
+
+@bundled_model_data
+def search(cls: str, mode: str, policy: dict, progress=None) -> dict:
+    """The common comparison's search under ``policy`` (the class and mode's scoring policy): a build optimized for
+    each scenario, then the stronger refined on the weighted objective; the best evaluated candidate, with how it
+    was found. The bundled PvP presets come from it too (0.2.384), under a policy with the highest budgets the
+    community server reported."""
+    from ..kit.base import ClassData
+    from ..learn import uncalibrated
+    from ..model.character import load_loadout
+    from ..opt.pipeline import Optimizer
+    from ..opt.weighted import WeightedOptimizer
+    from ..presets import parse
+    from ..opt.rotation import describe
+    from ..report import _spec_text
+    from ..scenarios import SCENARIOS
+
+    observed_budgets = policy["budgets"] if policy["version"] == 2 else None
+    observed_bonus = policy.get("bonus")
+
+    def score(document):
+        return evaluate(document, observed_budgets, observed_bonus)
 
     cd = ClassData(cls)
     lo = load_loadout(policy["loadout"])
@@ -105,17 +133,4 @@ def generate(cls: str, mode: str, progress=None) -> tuple[dict, bool]:
         "method": "Two scenario seeds followed by direct weighted-objective refinement; retain the best evaluated candidate",
         "candidates": [{"objective": item["candidate_generation"]["objective"], "score": item["score"],
                         "dps": item["dps"]} for item in scores]}
-    payload = json.dumps(winner, ensure_ascii=False, allow_nan=False).encode("utf-8")
-    if len(payload) > MAX_BYTES:
-        raise ValueError("Common comparison exceeds its cache limit")
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    fd, pending = tempfile.mkstemp(dir=cache.parent, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "wb") as stream:
-            stream.write(payload)
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(pending, cache)
-    finally:
-        Path(pending).unlink(missing_ok=True)
-    return winner, False
+    return winner

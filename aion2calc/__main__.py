@@ -131,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
     o.add_argument("--out", help="output folder (default results/<cls>_l45)")
     o.add_argument("--scenario", default="boss", choices=["boss", "dummy", "pvp", "pvp_world"],
                    help="pvp_world: large fights (area skills on several players, survival-weighted; experimental)")
-    o.add_argument("--daevanion", type=int, default=360, help="Daevanion Crystal points (global launch: 360)")
+    o.add_argument("--daevanion", type=int, help="Daevanion Crystal points (default 360, the global launch's)")
     o.add_argument("--iterations", type=int, default=3)
     o.add_argument("--loadout", help="loadout file name in data/global/loadouts")
     o.add_argument("--skill-points", type=int,
@@ -139,6 +139,8 @@ def main(argv: list[str] | None = None) -> int:
     o.add_argument("--stigma-points", type=int, help="stigma point budget (default 30)")
     o.add_argument("--ariel-points", type=int, default=0,
                    help="Daevanion Crystal: Ariel for the level-45 Ariel board (default 0: none)")
+    o.add_argument("--reported-budgets", action="store_true",
+                   help="the highest skill, stigma and Daevanion points and bonus skill levels (gear rolls, arcana cards) the community server's contributors reported for the class, as the bundled presets use (not with the point options)")
     o.add_argument("--crit-midpoint", type=float,
                    help="Crit value with ~52%% crit chance (default 1024.5, the measured fit); lower it if "
                         "launch testing shows more crit at your Crit value")
@@ -156,6 +158,10 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--iterations", type=int, default=2)
     c.add_argument("--out", default="results/compare")
     c.add_argument("--crit-midpoint", type=float)
+    c.add_argument("--reported-budgets", action="store_true",
+                   help="optimize each class with the highest skill, stigma and Daevanion points and bonus skill levels "
+                        "(gear rolls, arcana cards) its players reported to the community server, as the bundled "
+                        "presets are (default: the same 203 skill, 30 stigma and 360 Daevanion points for every class)")
 
     df = sub.add_parser("diff", help="compare two optimize result folders")
     df.add_argument("a", help="result folder A (contains build.json)")
@@ -339,9 +345,11 @@ def main(argv: list[str] | None = None) -> int:
         refresh(only=args.only, skip_kr=args.skip_kr, items_only=args.items_only)
     elif args.cmd == "optimize":
         from .report import run_report
+        budgets, bonus = _run_budgets(args, args.cls, "pvp" if args.scenario.startswith("pvp") else "pve")
         run_report(args.cls, args.out or f"results/{args.cls}_l45", scenario_name=args.scenario,
-                   daev_budget=args.daevanion, iterations=args.iterations, loadout=args.loadout,
-                   sp_budget=args.skill_points, stigma_points=args.stigma_points, ariel_budget=args.ariel_points)
+                   daev_budget=budgets["daevanion"], iterations=args.iterations, loadout=args.loadout,
+                   sp_budget=budgets["skill"], stigma_points=budgets["stigma"], ariel_budget=args.ariel_points,
+                   bonus_pool=bonus)
     elif args.cmd == "simulate":
         from .run import simulate
         from .scenarios import SCENARIOS, typical_build
@@ -763,26 +771,47 @@ def main(argv: list[str] | None = None) -> int:
         print(write_diff(args.a, args.b, args.out))
     elif args.cmd == "compare":
         from .report import run_report
-        rows = []
+        rows, used = [], {}
         for cls in args.classes:
-            summ = run_report(cls, f"{args.out}/{cls}", scenario_name=args.scenario,
-                              iterations=args.iterations)
+            budgets, bonus = _run_budgets(args, cls, "pve")
+            summ = run_report(cls, f"{args.out}/{cls}", scenario_name=args.scenario, iterations=args.iterations,
+                              daev_budget=budgets["daevanion"], sp_budget=budgets["skill"],
+                              stigma_points=budgets["stigma"], bonus_pool=bonus)
             rows.append((cls, summ["dps"][args.scenario], summ["baseline"]["community_optimized_rotation"],
                          (summ.get("kr_fidelity") or {}).get("overlap")))
+            used[cls] = (summ["budgets"], summ.get("bonus_allowance"))
         rows.sort(key=lambda r: -r[1])
         print(f"{'class':14s} {'optimized':>12s} {'community':>12s} {'gain':>7s}")
         for cls, dps, comm, fid in rows:
             print(f"{cls:14s} {dps:12,.0f} {comm:12,.0f} {100 * (dps / comm - 1):6.1f}%")
-        Path(args.out, "README.md").write_text(compare_markdown(rows, args.scenario, args.iterations),
-                                               encoding="utf-8")
+        Path(args.out, "README.md").write_text(
+            compare_markdown(rows, args.scenario, args.iterations, used if args.reported_budgets else None),
+            encoding="utf-8")
     return 0
 
 
-def compare_markdown(rows, scenario: str, iterations: int) -> str:
+def _run_budgets(args, cls: str, mode: str) -> tuple[dict, dict | None]:
+    """The point budgets and bonus-level allowance a run uses: the ones given (none for the level's own skill and
+    stigma points, 360 Daevanion), or with ``--reported-budgets`` the highest the community server's contributors
+    reported for the class (0.2.384)."""
+    given = {"skill": getattr(args, "skill_points", None), "stigma": getattr(args, "stigma_points", None),
+             "daevanion": getattr(args, "daevanion", None)}
+    if not getattr(args, "reported_budgets", False):
+        return {**given, "daevanion": 360 if given["daevanion"] is None else given["daevanion"]}, None
+    if any(v is not None for v in given.values()):
+        raise SystemExit("--reported-budgets sets the skill, stigma and Daevanion points; "
+                         "leave out --skill-points, --stigma-points and --daevanion")
+    from .combat.preset_sync import reported_resources
+    return reported_resources(cls, mode)
+
+
+def compare_markdown(rows, scenario: str, iterations: int, budgets: dict | None = None) -> str:
     """The class comparison index: ``rows`` are (class, optimized DPS, typical build DPS, KR overlap),
-    best first."""
-    md = [f"# Class comparison ({scenario}, same settings, {iterations} optimizer "
-          f"iteration{'s' if iterations != 1 else ''} per class)\n",
+    best first. ``budgets``: class -> (point budgets, bonus-level allowance or None) when each class was optimized
+    with the highest budgets its players reported (``--reported-budgets``); None when every class had the same
+    default budgets."""
+    runs = f"{iterations} optimizer iteration{'s' if iterations != 1 else ''} per class"
+    md = [f"# Class comparison ({scenario}, same settings, {runs})\n",
           "Each class is optimized with the same budgets (203 SP, 30 stigma points, 360 Daevanion) on its own "
           "median global loadout. **Gain** (optimized vs the typical top global build of that class, same "
           "rotation optimizer) is the reliable number. Every class has a hand-written kit (see "
@@ -794,9 +823,26 @@ def compare_markdown(rows, scenario: str, iterations: int) -> str:
           "recorded rates in a boss fight.\n",
           "| Class | Optimized DPS | Typical top build DPS | Gain | KR share overlap | Report |",
           "|---|---:|---:|---:|---:|---|"]
+    if budgets:
+        md[0] = f"# Class comparison ({scenario}, each class's reported budgets, {runs})\n"
+        md[1] = ("Each class is optimized on its own median global loadout with the highest skill, stigma and Daevanion "
+                 "points and bonus skill levels (gear rolls and arcana cards) its players have reported to the "
+                 "community server: reports, not verified game caps. The planner's bundled presets, offered before a "
+                 "character is imported, are made this way; a character's own optimization uses its own points. The budgets "
+                 "differ by class, so the DPS columns also compare different resources. **Gain** (optimized vs the "
+                 "typical top global build of that class with the same points and bonus levels, same rotation "
+                 "optimizer) is the reliable number. " + md[1].split("is the reliable number. ", 1)[1])
+        md[2] = ("| Class | Optimized DPS | Typical top build DPS | Gain | KR share overlap | Skill / stigma / Daevanion "
+                 "points | Bonus levels (most on one skill) | Report |")
+        md[3] = "|---|---:|---:|---:|---:|---:|---:|---|"
     for cls, dps, comm, fid in rows:
+        extra = ""
+        if budgets:
+            points, bonus = budgets[cls]
+            extra = (f"{points['skill']} / {points['stigma']} / {points['daevanion']} | "
+                     + (f"{bonus['levels']} ({bonus['per_skill']})" if bonus else "none reported") + " | ")
         md.append(f"| {cls} | {dps:,.0f} | {comm:,.0f} | {100 * (dps / comm - 1):+.1f}% | "
-                  f"{'—' if fid is None else f'{100 * fid:.0f}%'} | [{cls}]({cls}/README.md) |")
+                  f"{'—' if fid is None else f'{100 * fid:.0f}%'} | {extra}[{cls}]({cls}/README.md) |")
     if any(r[0] == "cleric" for r in rows):
         md.append("\nThe Cleric's boss number includes its heals at the recorded Clerics' rate (4.6 a minute, about "
                   "3.4 % of the fight). Recorded Clerics still fit about a third as many Condemnations into each "

@@ -54,6 +54,26 @@ def _request(base, path, body=None):
     return result
 
 
+def reported_resources(cls: str, mode: str) -> tuple[dict, dict | None]:
+    """The highest point budgets (skill, stigma, Daevanion) and bonus skill levels from gear rolls and arcana cards
+    (``{"levels", "per_skill"}``, or None) the configured server's contributors have reported for a class: its v2 preset
+    policy. The bundled presets are optimized with them (0.2.384), so the presets shown before a character is imported
+    are made for the most a player has been seen to have. They are reports, not verified game caps."""
+    base = _base()
+    if not base:
+        raise ValueError("No community server is configured; the reported budgets come from its preset policy")
+    if not isinstance(cls, str) or cls not in set(list_names("global", "classes")) or mode not in ("pve", "pvp"):
+        raise ValueError("Choose a class and pve or pvp")
+    remote = _request(base, f"/api/v2/presets/{cls}/{mode}/policy")
+    budgets, bonus = remote.get("budgets"), remote.get("bonus")
+    if (remote.get("version") != 2 or not isinstance(budgets, dict) or set(budgets) != set(BUDGETS)
+            or any(type(v) is not int or not 0 <= v <= 10000 for v in budgets.values())):
+        raise ValueError(f"The community server reports no point budgets for {cls} {mode} presets")
+    if bonus is not None and not valid_pool(bonus):
+        raise ValueError(f"The community server's bonus-level allowance for {cls} {mode} presets is not valid")
+    return dict(budgets), (dict(bonus) if bonus else None)
+
+
 def _supported(base):
     try:
         return _request(base, "/.well-known/a2log.json").get("canonical_presets_version") == 2
