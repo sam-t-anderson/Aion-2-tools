@@ -1,3 +1,15 @@
+## Multi-Hit as recorded, on every skill (0.2.381)
+
+**A certain Multi-Hit is worth 20 % on every skill.** A Multi-Hit's extra hits arrive inside the hit itself, each worth about 5 % of it, and the "Multi-Hit on hit" and "lands as Multi-Hit" effects always land four. 0.2.380 gave the stagger skills' effect those 20 %; every other skill's, such as Heart Gore's, Blaze's, Hellfire's or Deadshot's, still counted 12.5 %. They all count 20 % now. The optimizer now takes Hellfire's "lands as Multi-Hit", and Heart Gore's and Blaze's Multi-Hit, which it already took, are worth more.
+
+**Multi-Hit chance, measured.** A Multi-Hit from the Multi-Hit chance lands one to four extra hits, one in 42 % of them and four in 21 %, 2.14 on average, which makes it worth 11 %, not 12.5 %. The "+50 % Multi-Hit" effects of skills raise the chance by half and land the same counts.
+
+**Multi-Hit effects the simulation missed.** The Ranger's Drill Dart counted its "Multi-Hit on hit" as +50 % Multi-Hit chance, and the Chanter's simulation left out Incandescent Blow's, Rushing Smash's and Heat Wave Blow's "lands as Multi-Hit", Wave Blow's "Multi-Hit on hit" and Tremor Crush's "+50 % Multi-Hit". The recorded hits with each of the first five land four extra hits every time. They all count now; at skill level 16, Incandescent Blow's effect adds about 11 % to a Chanter's boss DPS.
+
+**Zikel's Blessing and Bow of Blessing make every Multi-Hit whole.** Their "+50 % Multi-Hit chance" (Zikel's Blessing from level 15, Bow of Blessing from level 5) does more than its text says: while the buff lasts, every Multi-Hit lands all four extra hits. The simulation left both effects out. They now count for the buff's duration, and are worth about 2.5 % of a Gladiator's boss DPS and 1.2 to 1.6 % of a Ranger's.
+
+**The bundled class builds are not regenerated**: optimize again to see what this changes for your build. A new run would change the Sorcerer's Hellfire effects, raise the Gladiator's Zikel's Blessing and the Ranger's Bow of Blessing, and likely the Chanter's Incandescent Blow.
+
 ## Storm Rampage and Flame Scattershot as recorded, and Multi-Hit as measured (0.2.380)
 
 **The Assassin's and the Sorcerer's stagger skills count what they deal.** 0.2.379 measured six classes' skills for a staggered boss from recorded fights; the Assassin's Storm Rampage and the Sorcerer's Flame Scattershot kept older models that overvalued them. The Sorcerer's simulation pressed Flame Scattershot through each stagger, 44 hits where recorded Sorcerers land 23, and the Assassin's counted each Storm Rampage hit at about a third of the tooltip and twice as many hits with Multi-Hit. Both now work as the other six: one train of presses a stagger at the recorded hits, 23 for Flame Scattershot and 19 for Storm Rampage, each a fifth or a sixth of the tooltip's value. Their level-16 effect now takes 23 and 19 seconds off every cooldown a stagger, not 44 and 27, and is worth about 6 % and 2.5 % of a typical build's boss DPS.

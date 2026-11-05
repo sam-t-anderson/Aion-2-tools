@@ -29,7 +29,6 @@ import re
 from dataclasses import replace
 from typing import Callable
 
-from ..model.stats import MULTIHIT_BONUS
 from ..sim.engine import Action
 from .base import ClassData, spec_slots
 from .sorcerer import Kit  # single definition of the container; re-exported here
@@ -41,12 +40,6 @@ __all__ = ["Kit", "ms", "fallback_to_generic", "spec_options", "add_weave", "lea
 STAGGER_WINDOW = 8.0
 #: Hits a press of a stagger skill lands, 0.15 s apart (the recorded presses; the KR hit profiles say 4 too).
 PRESS_HITS = 4
-#: What "Multi-Hit on hit" adds to a hit (0.2.380). The game folds a Multi-Hit's extra hits into the hit's own record,
-#: each a tenth of its total, and the option always lands four. Against the same player's hits of the same skill
-#: without one, within 3 s (the same buffs), a hit with k extra hits is 1.05, 1.10, 1.16 and 1.20 times as large for
-#: k = 1 to 4, critical or not, over 15-23 skills in the captures: about 5 % an extra hit, not the damage model's
-#: 12.5 % for any Multi-Hit (docs/methodology.md "Storm Rampage and Flame Scattershot from the recordings").
-MULTI_HIT_ON_HIT = 0.20
 
 
 def learned_only(kit: Kit, cd: ClassData, level: int) -> Kit:
@@ -155,11 +148,11 @@ def add_stagger_skill(A: dict, build, cd: ClassData, levels: dict, sid: int, key
     once their opening skills are out, one train of presses a stagger. The action is that train: ``hits`` hits in
     ``cast`` seconds at 0 % Combat Speed, each ``hit`` of the tooltip's value (the tooltip split evenly over a
     press's four hits would be 0.25), of ``element``, at most once a stagger window. Its options come from their
-    texts: "Multi-Hit on hit" lands four extra hits with every hit, which adds :data:`MULTI_HIT_ON_HIT` to it,
-    "-1s all skill cooldowns on hit" takes that off every other cooldown at each hit (one record a hit: the extra
-    hits are inside it), and "Restores N MP" restores it a press (a hit, with "on hit"); the shield and the mobile
-    option change nothing the simulation models. Mutates ``A``; returns the action, or None when the skill is not
-    learned.
+    texts: "Multi-Hit on hit" lands four extra hits with every hit (the "multi" tag: the damage model's certain
+    Multi-Hit, :data:`aion2calc.model.stats.MULTI_HIT_ON_HIT`), "-1s all skill cooldowns on hit" takes that off
+    every other cooldown at each hit (one record a hit: the extra hits are inside it), and "Restores N MP" restores
+    it a press (a hit, with "on hit"); the shield and the mobile option change nothing the simulation models.
+    Mutates ``A``; returns the action, or None when the skill is not learned.
     """
     s = cd.skills.get(sid)
     level = levels.get(sid, 0)
@@ -180,10 +173,7 @@ def add_stagger_skill(A: dict, build, cd: ClassData, levels: dict, sid: int, key
             else:
                 mp_press += float(m.group(1))
     n = max(1, round(hits))
-    # the "multi" tag is a certain Multi-Hit (no Multi-Hit chance on top) at the damage model's generic 12.5 %; the
-    # factor brings it to what four extra hits add
-    tags = ("multi",) if multi else ()
-    gain = (1.0 + MULTI_HIT_ON_HIT) / (1.0 + MULTIHIT_BONUS) if multi else 1.0
+    tags = ("multi",) if multi else ()          # a certain Multi-Hit, no Multi-Hit chance on top
 
     def each(sim, t, i):
         if cdr:
@@ -195,7 +185,7 @@ def add_stagger_skill(A: dict, build, cd: ClassData, levels: dict, sid: int, key
     def on_cast(sim, a):
         cs = sim.base.combat_speed + sim.stat_mods(sim.t).get("combat_speed", 0.0) + a.skill_speed
         pressing = a.cast / max(0.2, 1.0 + cs)
-        sim.hit(a.name, flat * hit * n, coef * hit * n, n=n, spread=pressing * (n - 1) / n, tags=tags, mult=gain,
+        sim.hit(a.name, flat * hit * n, coef * hit * n, n=n, spread=pressing * (n - 1) / n, tags=tags,
                 element=element, on_each=each if (cdr or mp_press or mp_hit) else None)
     A[key] = Action(key, s["name"], sid, cast, cooldown=STAGGER_WINDOW, affected_by_cdr=False,
                     requires=("stagger",), on_cast=on_cast, element=element)

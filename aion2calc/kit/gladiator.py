@@ -25,9 +25,10 @@ real combat-log captures.
 """
 from __future__ import annotations
 
+from ..model.stats import MULTIHIT_FULL
 from ..sim.engine import Action
 from .base import Build, ClassData
-from .common import Kit, add_stagger_skill, add_weave, fallback_to_generic, spec_options  # noqa: F401 (spec_options is the module API)
+from .common import Kit, add_stagger_skill, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401 (spec_options is the module API)
 
 __all__ = ["build_kit", "spec_options"]
 
@@ -402,10 +403,21 @@ def _build_stigmas(A, build, cd, stig, st, notes):
         extra = dict(stats)
         if key == "ZIKEL" and st("ZIKEL", 10):
             extra["amp"] = extra.get("amp", 0.0) + 0.10     # +10% PvE Damage Boost
+        # Zikel's Blessing Lv 15: +50% Multi-Hit chance, and while it lasts every Multi-Hit lands all four extra hits
+        # (0.2.381, the recorded Gladiators' Multi-Hits in it), for the buff's own duration
+        multi = None
+        if key == "ZIKEL" and st("ZIKEL", 15):
+            v = cd.vals(SID[key], build.stigmas[SID[key]]) or []
+            multi = (ms(v[-1]) if v and isinstance(v[-1], dict) else dur, {"multihit": 0.5, MULTIHIT_FULL: 1.0})
+
+        def on_cast(sim, a, s=extra, d=dur, multi=multi):
+            sim.buff(a.key, d, s)
+            if multi:
+                sim.buff(f"{a.key}_multihit", multi[0], dict(multi[1]))
         A[akey] = Action(akey, cd.skills[SID[key]]["name"], SID[key], TIMING["stigma"],
                          cooldown=cd.cd(SID[key], build.stigmas[SID[key]]),
                          mp=cd.mp(SID[key], build.stigmas[SID[key]]),
-                         on_cast=(lambda sim, a, s=extra, d=dur: sim.buff(a.key, d, s)))
+                         on_cast=on_cast)
 
     # damage stigmas (with the notable rider each one carries)
     for key in ("RAGE", "LIFESTEAL", "WRATHWAVE", "FORCEDREST", "ASSAULT", "FRACRUSH", "BLADETOSS"):

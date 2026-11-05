@@ -11,7 +11,8 @@ Formula (community-verified pieces, see docs/methodology.md)::
     weapon      = 1 + 0.66 x max(Weapon Damage Boost - target tolerance, 0)
     crit        = 1 + P(crit) x (0.5 + Crit Damage Boost)   [+ Critical Attack flat on crit]
     double      = Double (Smite) doubles damage; Perfect uses max weapon roll; they are exclusive
-    multi-hit   = 1 + P(multi) x 0.125
+    multi-hit   = 1 + P(multi) x 0.11; a certain Multi-Hit ("multi" tag) x 1.20, as is every Multi-Hit
+                  while a buff lands them whole ("multihit_full")
 
 A direct hit lands from the front, from behind or from the side, in the target's shares (each
 class's recorded mix on bosses). Front / Back Attack add flat damage, Front / Back Attack Damage
@@ -24,8 +25,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .stats import (CRIT_BASE, MULTIHIT_BONUS, PEN_FLAT, WEAPON_AMP_EFF, Derived,
-                    crit_chance)
+from .stats import (CRIT_BASE, MULTI_HIT_ON_HIT, MULTIHIT_BONUS, MULTIHIT_FULL, PEN_FLAT, WEAPON_AMP_EFF,
+                    Derived, crit_chance)
 
 
 @dataclass
@@ -98,7 +99,10 @@ def expected_hit(d: Derived, mods: dict, target, ctx: HitContext) -> float:
     crit_flat = d.crit_atk * (1.0 + crit_mult)
     p_d = min(1.0, max(0.0, d.double + g("double", 0.0) - target.double_resist))
     p_p = min(1.0, max(0.0, d.perfect + g("perfect", 0.0)))
+    # a certain Multi-Hit lands four extra hits (+20 %); one from the Multi-Hit chance one to four (+11 % on
+    # average), four while a buff makes them whole
     p_m = 1.0 if "multi" in ctx.tags else min(1.0, d.multihit + g("multihit", 0.0))
+    m_bonus = MULTI_HIT_ON_HIT if "multi" in ctx.tags or g(MULTIHIT_FULL, 0.0) > 0.0 else MULTIHIT_BONUS
     w_avg_roll = (1 - p_d) * (1 - p_p) + 2.0 * p_d     # Double doubles the average roll
     w_max_roll = (1 - p_d) * p_p                        # Perfect uses the maximum roll
     parry = 0.0
@@ -131,4 +135,4 @@ def expected_hit(d: Derived, mods: dict, target, ctx: HitContext) -> float:
         if parried and parry:
             hit *= 1.0 - parry
         total += share * hit
-    return total * boost * elem * vuln * weapon * (1 + p_m * MULTIHIT_BONUS) * ctx.mult
+    return total * boost * elem * vuln * weapon * (1 + p_m * m_bonus) * ctx.mult

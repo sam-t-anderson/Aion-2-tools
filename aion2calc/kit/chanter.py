@@ -201,12 +201,15 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
     # the model pressed Onslaught four times as often as the recorded Chanters).
     ic_f, ic_c = dmg("INCAND")
     ic_mult = 1.12 if has("INCAND", 3) else 1.0                  # up to 12% more on fewer targets
+    # Lv 16 "Ignores Block and Evasion and lands as Multi-Hit", on its chain skill too (0.2.381: 147 of 148 recorded
+    # Incandescent Blows with it and 77 of 77 Bursting Blows landed four extra hits)
+    ic_tags = ("multi", "noparry") if has("INCAND", 5) else ()
 
     def incand_cast(sim, a):
-        sim.hit("Incandescent Blow", ic_f, ic_c, mult=ic_mult)
+        sim.hit("Incandescent Blow", ic_f, ic_c, mult=ic_mult, tags=ic_tags)
         if sim.proc("bursting_blow", ASSUME["bursting_chance"], 0.0, sim.t):
             k = ASSUME["bursting_frac"]
-            sim.hit("Bursting Blow", ic_f * k, ic_c * k, delay=TIMING["chain_followup"])
+            sim.hit("Bursting Blow", ic_f * k, ic_c * k, delay=TIMING["chain_followup"], tags=ic_tags)
     # Bursting Blow and Piercing Strike are their own presses; the kit folds each into its parent, so
     # the parent carries that press's time too, at the chain's rate.
     ic_t = TIMING["incandescent_blow"] + ASSUME["bursting_chance"] * TIMING["bursting_blow"]
@@ -215,9 +218,10 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
                                     mp=ic_mp * (1.0 + ASSUME["bursting_chance"]), on_cast=incand_cast)
 
     rs_f, rs_c = dmg("RSMASH")
+    rs_tags = ("multi", "noparry") if has("RSMASH", 5) else ()  # lands as Multi-Hit (15 of 15 recorded; 0.2.381)
 
     def rsmash_cast(sim, a):
-        sim.hit("Rushing Smash", rs_f, rs_c)
+        sim.hit("Rushing Smash", rs_f, rs_c, tags=rs_tags)
         sim.gain_mp(100)
     A["rushing_smash"] = Action("rushing_smash", "Rushing Smash", SID["RSMASH"], TIMING["rushing_smash"],
                                 cooldown=cd.cd(SID["RSMASH"], lv("RSMASH")), on_cast=rsmash_cast)
@@ -259,14 +263,16 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
                              requires=("dark_crush",), on_cast=dark_crush_cast)
 
     hw_f, hw_c = dmg("HEATWAVE")
+    hw_tags = ("multi", "noparry") if has("HEATWAVE", 4) else ()  # lands as Multi-Hit (7 of 7 recorded; 0.2.381)
     A["heat_wave_blow"] = Action("heat_wave_blow", "Heat Wave Blow", SID["HEATWAVE"], TIMING["heat_wave_blow"],
                                  cooldown=cd.cd(SID["HEATWAVE"], lv("HEATWAVE")),
-                                 on_cast=lambda sim, a: sim.hit("Heat Wave Blow", hw_f, hw_c))
+                                 on_cast=lambda sim, a: sim.hit("Heat Wave Blow", hw_f, hw_c, tags=hw_tags))
 
     tr_f, tr_c = dmg("TREMOR")
+    tr_mods = {"multihit": 0.5} if has("TREMOR", 3) else None    # +50% Multi-Hit on hit
 
     def tremor_cast(sim, a):
-        sim.hit("Tremor Crush", tr_f, tr_c)
+        sim.hit("Tremor Crush", tr_f, tr_c, mods=tr_mods)
         if ASSUME["boss_breakable"]:
             sim.debuff("incap", 3.0)
     A["tremor_crush"] = Action("tremor_crush", "Tremor Crush", SID["TREMOR"], TIMING["tremor_crush"],
@@ -274,9 +280,10 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
 
     # Wave Blow (needs Stun)
     wb_f, wb_c = dmg("WAVEBLOW")
+    wb_tags = ("multi",) if has("WAVEBLOW", 1) else ()            # Multi-Hit on hit (44 of 44 recorded; 0.2.381)
     A["wave_blow"] = Action("wave_blow", "Wave Blow", SID["WAVEBLOW"], TIMING["wave_blow"],
                             cooldown=cd.cd(SID["WAVEBLOW"], lv("WAVEBLOW")), requires=("incap",),
-                            on_cast=lambda sim, a: sim.hit("Wave Blow", wb_f, wb_c))
+                            on_cast=lambda sim, a: sim.hit("Wave Blow", wb_f, wb_c, tags=wb_tags))
 
     # Spinning Strike (big nuke; stacking Critical Damage buff; opens Dark Crush)
     sv = cd.vals(SID["SPIN"], max(1, lv("SPIN")))

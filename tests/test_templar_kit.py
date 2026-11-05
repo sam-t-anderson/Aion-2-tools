@@ -225,7 +225,8 @@ def test_punishments_second_spec_ticks_six_times_in_three_seconds():
     res, _ = _sim(pol, build=build, duration=10.0)
     assert res.casts["punishment"] == 1 and res.hits_by["Punishment (DoT)"] == 6
     tick = res.damage_by["Punishment (DoT)"] / 6
-    assert 0.03 < tick / res.damage_by["Punishment"] < 0.08        # 0.076 of a plain hit; the press can crit
+    # 0.076 of a plain hit; the press can crit, and Multi-Hit (worth 11 % a proc since 0.2.381) adds to it, not the tick
+    assert 0.03 < tick / res.damage_by["Punishment"] < 0.085
     _, build = _kit_with(specs=_spec("PUNISH", 1))
     res, _ = _sim(pol, build=build, duration=10.0)
     assert "Punishment (DoT)" not in res.hits_by
