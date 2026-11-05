@@ -264,8 +264,11 @@ class Sim:
         self.damage_by: dict[str, float] = {}
         self.hits_by: dict[str, int] = {}
         # Echoes (0.2.368): while one lasts, every landed hit also deals a share of its damage under the echo's
-        # own name (Illusive Clone's "deals 20% of damage dealt as extra damage"): (name, share, until).
-        self.echoes: list[tuple[str, float, float]] = []
+        # own name (Illusive Clone's "deals 20% of damage dealt as extra damage"): (key, name, share, until, skip,
+        # as_source). ``echo_of[name][source]`` is what an echo the game records under the hit's own skill took from
+        # each source (0.2.381), for comparisons with recorded fights (``SimResult.as_recorded``).
+        self.echoes: list[tuple[str, str, float, float, tuple, bool]] = []
+        self.echo_of: dict[str, dict[str, float]] = {}
         self.casts: dict[str, int] = {}
         self.buff_time: dict[str, float] = {}
         self.timeline: list[tuple[float, str]] = []
@@ -344,10 +347,16 @@ class Sim:
             seen.add(g)
             self.ready[g] = max(self.t, self.ready[g] - share * a.cooldown * (1.0 - self.base.cdr))
 
-    def echo(self, name: str, share: float, duration: float) -> None:
+    def echo(self, name: str, share: float, duration: float, *, skip: tuple = (), key: str | None = None,
+             as_source: bool = False) -> None:
         """For ``duration`` seconds every hit that lands also deals ``share`` of its damage as ``name``, counted
-        under that name; a second call for the same name replaces the first."""
-        self.echoes = [e for e in self.echoes if e[0] != name] + [(name, float(share), self.t + duration)]
+        under that name, except hits with any of the ``skip`` tags (``("proc", "dot")``: procs and damage over time).
+        ``as_source``: the game records the echo under the hit's own skill, so a recorded fight credits it to that
+        skill (``SimResult.as_recorded``). A second call with the same ``key`` (the name by default) replaces the
+        first, so two echoes can share a name."""
+        key = name if key is None else key
+        self.echoes = [e for e in self.echoes if e[0] != key] + \
+            [(key, name, float(share), self.t + duration, tuple(skip), bool(as_source))]
 
     def _cdr_ok(self, group: str) -> bool:
         for a in self.actions.values():
@@ -465,12 +474,15 @@ class Sim:
         self.damage_by[source] = self.damage_by.get(source, 0.0) + dmg
         self.hits_by[source] = self.hits_by.get(source, 0) + 1
         if self.echoes and "echo" not in tags:
-            for name, share, until in self.echoes:
-                if t <= until + EPS and name != source:
+            for _, name, share, until, skip, as_source in self.echoes:
+                if t <= until + EPS and name != source and not any(s in tags for s in skip):
                     extra = dmg * share
                     self.total += extra
                     self.damage_by[name] = self.damage_by.get(name, 0.0) + extra
                     self.hits_by[name] = self.hits_by.get(name, 0) + 1
+                    if as_source:
+                        by = self.echo_of.setdefault(name, {})
+                        by[source] = by.get(source, 0.0) + extra
                     if self.cfg.record_damage:
                         self.damage_events.append([t, extra])
         info = {"source": source, "element": element, "tags": tags, "dmg": dmg}
@@ -639,7 +651,8 @@ class Sim:
                          dict(self.casts), {k: v / T for k, v in self.buff_time.items()},
                          idle, self.mp_floor, list(self.timeline), list(self._reservation_report),
                          sorted([[min(T, max(0.0, t)), amount] for t, amount in self.damage_events]),
-                         control=self.control_s, absorb_share=self.absorb_share, inactive_share=self.inactive_share)
+                         control=self.control_s, absorb_share=self.absorb_share, inactive_share=self.inactive_share,
+                         echo_of={name: dict(by) for name, by in self.echo_of.items()})
 
 
 @dataclass
@@ -658,6 +671,7 @@ class SimResult:
     control: float = 0.0           # seconds of hard crowd control applied to enemies (World PvP)
     absorb_share: float = 0.0      # shields the rotation granted the caster, in shares of their maximum HP
     inactive_share: float = 0.0    # the idle and dodging share the rotation was stretched over (whole_fight)
+    echo_of: dict = field(default_factory=dict)   # {echo name: {source: damage}} for echoes recorded under the source
 
     @property
     def dps(self) -> float:
@@ -666,3 +680,19 @@ class SimResult:
     def shares(self) -> dict:
         tot = self.total or 1.0
         return {k: v / tot for k, v in sorted(self.damage_by.items(), key=lambda kv: -kv[1])}
+
+    def as_recorded(self) -> dict:
+        """``damage_by`` as a recorded fight credits it: an echo the game records under the hit's own skill
+        (Illusive Clone's hits of a fifth, ``Sim.echo(as_source=True)``) counts with that skill, not under the
+        echo's name. The model's own breakdown (``damage_by``, ``shares``) keeps it as the echo's."""
+        out = dict(self.damage_by)
+        for name, by in self.echo_of.items():
+            for src, v in by.items():
+                out[src] = out.get(src, 0.0) + v
+                out[name] = out.get(name, 0.0) - v
+        return {k: v for k, v in out.items() if v > 1e-9 * max(1.0, self.total)}
+
+    def recorded_shares(self) -> dict:
+        """Damage shares as a recorded fight credits them (:meth:`as_recorded`)."""
+        tot = self.total or 1.0
+        return {k: v / tot for k, v in sorted(self.as_recorded().items(), key=lambda kv: -kv[1])}

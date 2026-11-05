@@ -148,7 +148,7 @@ def vs_optimal(enc: dict, build=None, loadout: str | None = None, policy=None) -
     pol = [e for e in policy if (e[0] if isinstance(e, tuple) else e) in kit.actions]
     res = Sim(stats.derived(), kit.actions, materialize(pol), scen.target, scen.config, hooks=kit.hooks,
               cond_mods=kit.cond_mods).run()
-    sim_share = res.shares()
+    sim_share = res.recorded_shares()         # as the log credits them: Illusive Clone's echoes with the skills they echo
     names = {a.name: k for k, a in kit.actions.items()}
     casts_by_sid: dict = {}
     for k, a in kit.actions.items():          # Hellfire charge levels etc. are one skill

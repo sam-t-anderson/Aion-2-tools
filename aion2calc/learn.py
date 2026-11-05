@@ -120,8 +120,9 @@ def _predict(cls: str, snap: dict, enc: dict) -> dict:
     res = Sim(d, kit.actions, materialize(pol), scen.target, scen.config, hooks=kit.hooks,
               cond_mods=kit.cond_mods).run()
     per_cast = {}
+    recorded = res.as_recorded()          # an echo the log records under the skill it echoes counts with that skill
     for k, a in kit.actions.items():
-        dmg = sum(v for src, v in res.damage_by.items() if src.split(" (")[0] == a.name)
+        dmg = sum(v for src, v in recorded.items() if src.split(" (")[0] == a.name)
         n = res.casts.get(k, 0)
         if n:
             prev = per_cast.get(a.name, {"damage": 0.0, "casts": 0})

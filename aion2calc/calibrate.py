@@ -85,7 +85,9 @@ def _optimized_policy(cls: str, build=None, *, duration: float = 180.0, restarts
 
 
 def _sim_shares(cls: str, *, duration: float = 180.0, build=None, policy=None) -> dict:
-    """Per-skill-name simulated damage shares for ``cls``.
+    """Per-skill-name simulated damage shares for ``cls``, credited as the recorded logs credit them (an
+    Illusive Clone echo with the skill it echoes, ``SimResult.recorded_shares``), since every use compares them
+    with recorded shares.
 
     Uses the given frozen ``policy`` (an optimized priority), else the kit's
     default priority order.
@@ -98,7 +100,7 @@ def _sim_shares(cls: str, *, duration: float = 180.0, build=None, policy=None) -
     pol = [e for e in pol if (e[0] if isinstance(e, tuple) else e) in kit.actions]
     res = Sim(stats.derived(), kit.actions, materialize(pol), scen.target, scen.config,
               hooks=kit.hooks, cond_mods=kit.cond_mods).run()
-    return res.shares()
+    return res.recorded_shares()
 
 
 def _target_shares(cls: str) -> dict:

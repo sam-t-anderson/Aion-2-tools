@@ -1042,13 +1042,18 @@ than 0.3 s apart (the cast records hold every key press, held keys included, and
   again after `heart_gore_recast` (0.73 s at 0 % Combat Speed) when it is reset, and otherwise waits the
   expected time, a crit's share of the recast and the rest of the cooldown, so the stat weights stay smooth.
   Heart Gore crit as often as the other skills, so the Lv 8 "+20 % Critical Hit when less targets hit" either
-  was not taken or does not show on a boss; the kit keeps the tooltip.
+  was not taken or does not show on a boss; the kit keeps the tooltip. *Since [0.2.381](#illusive-clones-echo-of-a-fifth-02381):
+  a seventh of this damage is Illusive Clone's echoes of a fifth, recorded under Heart Gore's id; without them Heart
+  Gore is 24.0 % of the same Assassin's damage, where it reads 27.9 % with them.*
 * **Illusive Clone**: 99 windows, 18.0 s long (median; its Lv 20 duration is 20 s), starting 46 s apart (q1 40,
   q3 52) against its 90 s cooldown less the player's 11.1 % Cooldown Reduction, 80 s. The clone's own hits
   ("Illusive Clone", 2,005 of them, 4.2 % of the damage) are 7 % of the damage dealt inside its window in
   every window (median 0.07, q1 0.06, q3 0.07), where the tooltip says 20 %: the kit echoes the measured 7 %
   (`clone_echo`). Its Lv 20 "50 % chance to deal extra damage on Critical Hit" is the Clone Attack hits, 0.8 %
-  of the damage inside the window (`clone_attack_echo`).
+  of the damage inside the window (`clone_attack_echo`). *Since [0.2.381](#illusive-clones-echo-of-a-fifth-02381):
+  the tooltip's 20 % is the echo of a fifth of every active skill's hit, which the recordings credit to each skill;
+  the kit deals it as the clone's, and the clone's own hits stay `clone_echo` (0.072 of the damage besides the
+  clone's).*
 * **Why the clone comes back every 46 s: Storm Rampage.** Usable only on a staggered boss, it landed 26.7 hits
   a cast (59 casts, a 3.7 s train, 99 % crits) with its Lv 12 *Multi-Hit on hit*, and its Lv 16 option takes
   *−1 s all skill cooldowns on hit*: 27 s off every cooldown per stagger. Fights held 0, 1, 2 or 3 casts (17,
@@ -1104,6 +1109,11 @@ the best legal specializations for them, an optimized rotation), against the rec
 | Shadowstrike | 1.0 % | 1.7 % |
 | Whirlwind Slice, Infiltrate's Dark Strike | not pressed | 3.9 %, 2.8 % |
 
+*Corrected in [0.2.381](#illusive-clones-echo-of-a-fifth-02381): each active skill's recorded share above holds
+Illusive Clone's echoes of a fifth, a tenth to a seventh of the skill's damage. Counted as the clone's, the same
+Assassin's fights read Heart Gore 24.0 %, Insignia Explosion 17.9 %, the basic chain 15.8 % and Illusive Clone 13.6 %;
+the table there corrects every row and gives the model with the echo.*
+
 Before 0.2.368 the same character read 55,077 DPS with Heart Gore at 7.7 %, Illusive Clone, Storm Rampage,
 the Savage Roar chain, Exploit Weakness's clones and Determination absent, and a crit chance of 46.5 % on
 every hit.
@@ -1121,7 +1131,7 @@ model simulates, so they show as *either*: since 0.2.368 a specialization is mar
 build simulates less damage without it (`kit.specialties.free_marks`). The stigma search stopped at level 15
 and, for a character with more than 75 stigma points, found no pattern that spent them and left the seed in
 place: the player saw 30 of 268 points spent on the least-picked stigmas. It now reaches level 20
-(`opt.pipeline.stigma_patterns`) and, for this character's 168 points, spends them on Illusive Clone 16, Swift Contract 20, Triniel's Dagger 10 and Savage Fang 15 (the player runs 20, 15, 12 and 15; the model values Illusive Clone's last four levels, 2.5 s of duration and the 0.8 % Clone Attack, below Swift Contract's Lv 20 Combat Speed).
+(`opt.pipeline.stigma_patterns`) and, for this character's 168 points, spends them on Illusive Clone 16, Swift Contract 20, Triniel's Dagger 10 and Savage Fang 15 (the player runs 20, 15, 12 and 15; the model values Illusive Clone's last four levels, 2.5 s of duration and the 0.8 % Clone Attack, below Swift Contract's Lv 20 Combat Speed). *Since [0.2.381](#illusive-clones-echo-of-a-fifth-02381) the echo doubles what the clone is worth, and its levels 16 to 20 tie with the same points elsewhere; Swift Contract 20 still decides.*
 
 ### The stagger skills from the recordings (0.2.379)
 
@@ -1232,7 +1242,8 @@ uploads' official profiles), each fight, and each player's train in it, counted 
   halved to 13.4 for Multi-Hit), and 0.2.379 took them for the Lv 12 Multi-Hit. Every count and ratio below leaves
   them out. In the clone's windows they are 10–12 % of the damage, besides the clone's own hits (7.5–7.9 %, Clone Attack
   included), which are all the kit's clone echoes (`clone_echo`, `clone_attack_echo`); the echo of a fifth is not
-  modelled yet.
+  modelled yet. *Since [0.2.381](#illusive-clones-echo-of-a-fifth-02381) it is: one echo to every active skill's hit,
+  the Savage Roar chain's too, 14 % of the damage in the windows, and the clone's own hits and Clone Attack 6.5–6.9 %.*
 * **A Multi-Hit is inside the hit's record.** The game sends a Multi-Hit's extra hits (one to four) inside the hit's
   own record, each a tenth of its total, and the a2log exports keep the total as one hit. The raw skill id names the
   options a hit was dealt with (`meter.a2parser.lookup.decode_spec_flags`): both captured Assassins, two of the three
@@ -1282,11 +1293,126 @@ as many presses as its priority left room for, 40 hits in the boss scenario's th
 the other skills back sooner (6.6 %). The six others' are unchanged within 0.1 point. Each is a
 [linked-effects](#supporting-effects-that-act-on-each-others-cooldowns-02376) group of its own, and the search takes it.
 
-**Still open.** Illusive Clone's echo of a fifth (10–12 % of the damage in its windows, which the kit leaves out).
+**Still open.** Illusive Clone's echo of a fifth (10–12 % of the damage in its windows, which the kit leaves out;
+modelled since [0.2.381](#illusive-clones-echo-of-a-fifth-02381), and 14 % measured again).
 *Multi-Hit on hit* on other skills (Heart Gore, Blaze, Hellfire and the rest) and the Multi-Hit chance stay at the
 damage model's 12.5 %. The six classes' shares from 0.2.379 include players who took Multi-Hit on the stagger skill,
 whose hits read a fifth high where the reference skill has none; the uploads keep only a skill's family, so a profiled
 player's options are unknown.
+
+### Illusive Clone's echo of a fifth (0.2.381)
+
+Illusive Clone's tooltip says it "deals 20 % of damage dealt as extra damage" for its duration. 0.2.368 took the
+clone's own hits ("Illusive Clone", 7 % of the damage in its windows) for that effect, and the kit echoed 7 % of every
+hit. 0.2.380 found a hit of a fifth after each of an active skill's hits inside the clone's windows, recorded under
+the skill's own id, and left those hits out of every count without modelling them. They are the tooltip's 20 %, and
+the kit now deals them as the clone's damage. Measured from the two captured Assassins (the 19 and 20 October
+captures) and from the Assassin 0.2.368 measured, whose profile reproduces that section's 46.5 % crit chance, 11.1 %
+Cooldown Reduction and 31 % Combat Speed: its own uploads to the log server from 28 October to 1 November hold 196 boss
+fights (179 kills, 336 minutes) and 423 clone windows, each fight counted once over the uploads. The 20 October
+capture's Assassin is the same character.
+
+**What the recordings show.**
+
+* **One echo a hit, a fifth of it.** A window runs from the clone's first own hit, or the first echo before it, to the
+  last of either: 17.7 s the median, where its Lv 20 duration is 20 s. An echo is a hit of the same skill under 0.4 of
+  the skill's typical hit of the same kind (critical or not, a Double halved). Inside the windows every active skill's
+  hit has one:
+  * Heart Gore 9,972 echoes for 9,978 hits, Quick, Swift and Breaking Slice 21,962 for 21,940, and Storm Rampage
+    1,834 for 1,837.
+  * Insignia Explosion, Ambush, Savage Fang, Flash Slice, Shadow Fall and Infiltrate 1.01–1.07 a hit.
+  * Savage Roar, Savage Back Kick, Savage Smash, Triniel's Dagger and Shadowstrike 1.1–1.2. These have small hits of
+    their own; 0–4 % of the active skills' hits outside the windows are that small.
+
+  An echo of Heart Gore, a slice or Storm Rampage is 0.198–0.201 of its hit's damage (0.20 the median window, q1 0.19,
+  q3 0.21). Paired with its hit in the captures (2,025 pairs), it comes 0.155 s later (median) at 0.1998 of it (q1
+  0.195, q3 0.204). It is critical when its hit is (2,022 of the 2,025), and it rolls its own Double (12.7 % after a
+  plain hit, 13.3 % after a Double) and its own Perfect, so it deals a fifth of the hit's expected damage. The woven
+  basic steps are slice hits, and the Savage Roar chain echoes like the rest (0.2.380 saw no echoes there, on few hits).
+* **Never on a passive.** Inside the windows there are 24,803 Exploit Weakness, Ambush Stance, Determination and Poison
+  hits. Only 22 of them follow a hit of the same skill by 0.05–0.4 s at a fifth of it, all Exploit Weakness, whose
+  clones strike in bursts. The clone's own hits, Clone Attack and the Theostones have none.
+* **The clone's share of its windows: 21 %.** Inside the windows the echoes are 14.4 % of the damage, the clone's own
+  hits 5.7 % and Clone Attack 0.7 %: 20.8 % in all (the 19 and 20 October captures read 21.2 % and 20.9 %). Against
+  the damage the windows hold besides the clone's, the own hits are 0.072 (0.071 the median window, q1 0.065, q3 0.080;
+  0.076 and 0.077 captured) and Clone Attack 0.009 (0.007 and 0.011 captured). The echoes are 9.7 % of all the damage;
+  the windows hold two thirds of it. 0.2.380's 10–12 % paired each echo with a hit near a fifth of it. An echo rolls
+  its own damage, so pairing misses the echoes outside the band (a quarter of the slices'): these windows read 13 %
+  echoes and 19.5–19.9 % in all that way.
+* **Clone Attack is not the clone's alone.** 22–28 Clone Attack hits land a minute inside the windows and 4–8 outside
+  them, 14–27 % of its damage outside. The kit keeps it as Illusive Clone's Lv 20 effect, inside the windows.
+* **Storm Rampage.** 44 % of the recorded Storm Rampage hits lie in a window, and those carry the echo.
+
+**What the kit does now.** While the clone lasts, every hit of an active skill is followed by the tooltip's share of
+it, a fifth at every level, counted as the clone's (`Sim.echo` with `skip=("proc", "dot")`). That includes the woven
+steps', Storm Rampage's and the chain steps' hits; procs and damage-over-time ticks are left out. The clone's own hits
+stay an echo of every hit (`clone_echo`, 0.072 against the damage besides the clone's, where it was 0.07 against all
+the damage), and so does Clone Attack (`clone_attack_echo`, 0.009, was 0.008). The game records the echo under the
+skill's id, so wherever the model is compared with recorded shares, the echo counts with its skill
+(`SimResult.as_recorded`). Those are the per-skill factors learned from a player's own fights, a fight against the
+optimal rotation, and the KR and own-capture fidelity; the model's own breakdown counts the echo as the clone's.
+
+| | Recorded | Model before | Model now |
+|---|---:|---:|---:|
+| The clone's share of the damage in its windows | 20.8 % (captures 21.2 %, 20.9 %) | 6.5–7.2 % | 19.6–19.9 % |
+| The echoes of a fifth | 14.4 % (14.6 %, 14.0 %) | none | 13.4–13.8 % |
+| The clone's own hits; Clone Attack | 5.7 %; 0.7 % | | 5.8 %; 0.7 % |
+
+The model's figures are the typical build's in the 180 s boss scenario under the kit's own priority: Illusive Clone at
+its Lv 9, at 20 with Swift Contract 15, Triniel's Dagger 10 and Savage Fang 15, and that again with Storm Rampage at 16.
+The kit's passives are a larger share of its damage than recorded (for the recorded Assassin's own profile below,
+Ambush Stance 5.4 % against 3.4 % and Determination 3.0 % against 1.8 %), so less of the windows' damage is echoed:
+that is the remaining point. With the echo, the typical
+build's boss DPS rises 4.0 % with Illusive Clone at 9 and 5.8 % at 20 (8.2 % with Storm Rampage at 16). With Storm
+Rampage at 16 the clone comes back in the boss scenario after each train, whose hits pull its cooldown in, so the
+model's trains carry no echo.
+
+**0.2.368's comparison, corrected.** 0.2.368 compared the recorded per-skill shares, each skill's echoes included,
+with the model's. The table below counts the echoes as the clone's, from the Assassin's 196 fights; pooled as 0.2.368
+pooled them, those fights read within a point of its 51 (in brackets). The model scores the same character's profile
+from 1 November as the app scores it: 168 stigma points, Illusive Clone 20, Swift Contract 15, Triniel's Dagger 12 and
+Savage Fang 15. With 0.2.368's code that profile reads 87,271 boss DPS, where 0.2.368's import read 85,168.
+
+| | Recorded, pooled (0.2.368's 51 fights) | Recorded, the echoes as the clone's | Model, 0.2.380 | Model now |
+|---|---:|---:|---:|---:|
+| Boss DPS | 48,635 (53,852) | | 87,532 (the rotation) | 94,948 (the rotation) |
+| Heart Gore | 27.9 % (28.8 %) | 24.0 % | 27.2 % | 24.1 % |
+| Insignia Explosion | 20.1 % (20.8 %) | 17.9 % | 13.5 % | 12.6 % |
+| Quick, Swift and Breaking Slice | 17.9 % (17.9 %) | 15.8 % | 12.1 % | 11.6 % |
+| Savage Roar with Savage Back Kick and Savage Smash | 7.2 % (6.5 %) | 7.1 % | 6.6 % | 6.2 % |
+| Illusive Clone (and its Clone Attack) | 3.9 % (4.2 %), 0.6 % (1.1 %) | 13.6 %, 0.6 % | 3.6 %, 0.4 % | 11.8 %, 0.4 % |
+| Ambush | 3.9 % (3.9 %) | 3.5 % | 4.2 % | 3.6 % |
+| Ambush Stance | 3.4 % (3.4 %) | 3.4 % | 6.0 % | 5.4 % |
+| Exploit Weakness's clones | 2.3 % (2.5 %) | 2.3 % | 0.9 % | 0.9 % |
+| Triniel's Dagger | 2.1 % (2.0 %) | 1.9 % | 2.9 % | 2.7 % |
+| Storm Rampage | 1.6 % (1.8 %) | 1.5 % | 1.8 % | 1.6 % |
+| Determination | 1.8 % (1.7 %) | 1.8 % | 3.2 % | 3.0 % |
+| Flash Slice | 1.4 % (1.4 %) | 1.2 % | 1.7 % | 1.6 % |
+| Savage Fang | 1.2 % (1.2 %) | 1.0 % | 1.2 % | 1.3 % |
+| Shadowstrike | 1.0 % (1.0 %) | 0.9 % | 1.9 % | 1.7 % |
+| Whirlwind Slice, Infiltrate's Dark Strike | not pressed | | 3.7 %, 3.1 % | 3.4 %, 2.8 % |
+
+A seventh of Heart Gore's 28.8 % was echoes, and without them it matches the model; the clone's share rises from
+about 4 % to 12–14 % on both sides. As before, Insignia Explosion and the basic chain stay under the recordings and the
+passives over them.
+
+**The stigma search.** For the same character's 168 points, 0.2.380's search chose Illusive Clone 20, Swift Contract
+20, Triniel's Dagger 10 and Assault Ambush 3 (93,763 boss DPS, 7.1 % over the character as it is). With the echo it
+chooses Illusive Clone 15, Swift Contract 20, Triniel's Dagger 12 and Savage Fang 15 (103,453, 9.0 % over 94,948).
+* The echo doubles what the clone is worth: at 15, in place of Assault Ambush 15, it adds 21.8 % where it added 11.4 %.
+* Its levels 16 to 20 now add 1.2 % at a fixed rotation, where they added 0.3 %: the 8.6 s of windows they add carry
+  the echo.
+* With the rotation searched again those levels add 2.6 %, as much as the same 40 points add to Savage Fang (3 to 16),
+  and as before. The patterns with Illusive Clone at 15, 16 or 20 lie within a quarter of a percent of each other.
+
+Swift Contract's Lv 20 Combat Speed decides: the player's Illusive Clone 20, Swift Contract 15, Triniel's Dagger 12
+and Savage Fang 15 read 3.4 % under the best pattern.
+
+**Still open.** The passives' and Insignia Explosion's shares above. Whether an echo counts as a hit for "on hit"
+effects (Storm Rampage's Lv 16 cooldown pull, the passives' procs): the kit counts it for none. Clone Attack's hits
+outside the windows. The bundled builds in `results/compare/` are not regenerated. The bundled Assassin spends its 30
+stigma points on Swift Contract, Throw Shadowblade, Smoke Bomb and Triniel's Dagger, with no Illusive Clone, so it reads
+the same 10,225 boss DPS; its stigma search ran without the echo.
 
 ## Optimization and macro planning
 
